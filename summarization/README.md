@@ -92,73 +92,29 @@ LLM_MODEL=gpt-4o-mini
 
 ### Subscribes To
 
+The Summarization Service subscribes to the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+
 1) **SummarizationRequested**  
    - **Exchange:** `copilot.events`  
    - **Routing Key:** `summarization.requested`  
-   - **Payload:**
-```json
-{
-  "event_type": "SummarizationRequested",
-  "event_id": "990e8400-e29b-41d4-a716-446655440000",
-  "timestamp": "2025-01-15T14:50:00Z",
-  "version": "1.0",
-  "data": {
-    "thread_ids": ["<20250115120000.XYZ789@example.com>"],
-    "top_k": 12,
-    "llm_backend": "ollama",
-    "llm_model": "mistral",
-    "context_window_tokens": 3000,
-    "prompt_template": "consensus-summary-v1"
-  }
-}
-```
+   - See [SummarizationRequested schema](../documents/SCHEMA.md#9-summarizationrequested) in SCHEMA.md
    - **Behavior:** For each thread, retrieve context, build prompt, call LLM, produce summary with citations.
 
 ### Publishes
 
+The Summarization Service publishes the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+
 1) **SummaryComplete**  
    - **Exchange:** `copilot.events`  
    - **Routing Key:** `summary.complete`  
-   - **Payload:**
-```json
-{
-  "event_type": "SummaryComplete",
-  "event_id": "bb0e8400-e29b-41d4-a716-446655440000",
-  "timestamp": "2025-01-15T15:05:00Z",
-  "version": "1.0",
-  "data": {
-    "thread_id": "<20250115120000.XYZ789@example.com>",
-    "summary_markdown": "- Consensus: ...\n- Dissent: ...\n- Drafts: RFC9000",
-    "citations": [
-      {"message_id": "<20231015123456.ABC123@example.com>", "chunk_id": "a1b2c3", "offset": 120}
-    ],
-    "llm_backend": "ollama",
-    "llm_model": "mistral",
-    "tokens_prompt": 1800,
-    "tokens_completion": 600,
-    "latency_ms": 2400
-  }
-}
-```
+   - See [SummaryComplete schema](../documents/SCHEMA.md#11-summarycomplete) in SCHEMA.md
+   - **Behavior:** Contains the completed summary with markdown formatting, citations, and LLM performance metrics.
 
 2) **SummarizationFailed**  
    - **Exchange:** `copilot.events`  
    - **Routing Key:** `summarization.failed`  
-   - **Payload:**
-```json
-{
-  "event_type": "SummarizationFailed",
-  "event_id": "cc0e8400-e29b-41d4-a716-446655440000",
-  "timestamp": "2025-01-15T15:06:00Z",
-  "version": "1.0",
-  "data": {
-    "thread_id": "<20250115120000.XYZ789@example.com>",
-    "error_type": "LLMTimeout",
-    "error_message": "Completion exceeded timeout",
-    "retry_count": 2
-  }
-}
-```
+   - See [SummarizationFailed schema](../documents/SCHEMA.md#12-summarizationfailed) in SCHEMA.md
+   - **Behavior:** Signals summarization errors for specific threads with error details and retry information.
 
 ## Data Flow
 

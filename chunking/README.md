@@ -78,6 +78,8 @@ Split long email bodies into smaller, semantically coherent chunks that:
 
 ### Events Subscribed To
 
+The Chunking Service subscribes to the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+
 #### 1. JSONParsed
 
 Consumes events from the Parsing & Normalization Service when messages are parsed.
@@ -85,24 +87,7 @@ Consumes events from the Parsing & Normalization Service when messages are parse
 **Exchange:** `copilot.events`  
 **Routing Key:** `json.parsed`
 
-**Expected Payload:**
-```json
-{
-  "event_type": "JSONParsed",
-  "event_id": "550e8400-e29b-41d4-a716-446655440000",
-  "timestamp": "2023-10-15T14:35:00Z",
-  "version": "1.0",
-  "data": {
-    "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-    "message_count": 150,
-    "parsed_message_ids": [
-      "<20231015123456.ABC123@example.com>",
-      "<20231015123457.DEF456@example.com>"
-    ],
-    "timestamp": "2023-10-15T14:35:00Z"
-  }
-}
-```
+See [JSONParsed schema](../documents/SCHEMA.md#3-jsonparsed) in SCHEMA.md for the complete payload definition.
 
 **Processing:**
 1. Retrieve messages by `message_id` from document database
@@ -113,6 +98,8 @@ Consumes events from the Parsing & Normalization Service when messages are parse
 
 ### Events Published
 
+The Chunking Service publishes the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+
 #### 1. ChunksPrepared
 
 Published when messages have been successfully chunked and stored.
@@ -120,40 +107,15 @@ Published when messages have been successfully chunked and stored.
 **Exchange:** `copilot.events`  
 **Routing Key:** `chunks.prepared`
 
-**Payload Schema:**
-```json
-{
-  "event_type": "ChunksPrepared",
-  "event_id": "660e8400-e29b-41d4-a716-446655440000",
-  "timestamp": "2023-10-15T14:40:00Z",
-  "version": "1.0",
-  "data": {
-    "message_ids": [
-      "<20231015123456.ABC123@example.com>",
-      "<20231015123457.DEF456@example.com>"
-    ],
-    "chunk_count": 45,
-    "chunk_ids": [
-      "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "b2c3d4e5-f678-90ab-cdef-123456789012",
-      "c3d4e5f6-7890-abcd-ef12-34567890abcd"
-    ],
-    "chunks_ready": true,
-    "chunking_strategy": "recursive",
-    "avg_chunk_size_tokens": 350,
-    "timestamp": "2023-10-15T14:40:00Z"
-  }
-}
-```
+See [ChunksPrepared schema](../documents/SCHEMA.md#5-chunksprepared) in SCHEMA.md for the complete payload definition.
 
-**Field Descriptions:**
+**Key Fields:**
 - `message_ids`: List of source message IDs that were chunked
 - `chunk_count`: Total number of chunks created
 - `chunk_ids`: List of all chunk UUIDs (for embedding service)
 - `chunks_ready`: Boolean indicating chunks are stored and ready
 - `chunking_strategy`: Strategy used for chunking
 - `avg_chunk_size_tokens`: Average chunk size for monitoring
-- `timestamp`: When chunking completed
 
 #### 2. ChunkingFailed
 
@@ -162,24 +124,12 @@ Published when chunking fails for a batch of messages.
 **Exchange:** `copilot.events`  
 **Routing Key:** `chunks.failed`
 
-**Payload Schema:**
-```json
-{
-  "event_type": "ChunkingFailed",
-  "event_id": "770e8400-e29b-41d4-a716-446655440001",
-  "timestamp": "2023-10-15T14:42:00Z",
-  "version": "1.0",
-  "data": {
-    "message_ids": [
-      "<20231015123456.ABC123@example.com>"
-    ],
-    "error_message": "Failed to retrieve messages from database",
-    "error_type": "DatabaseConnectionError",
-    "retry_count": 3,
-    "failed_at": "2023-10-15T14:42:00Z"
-  }
-}
-```
+See [ChunkingFailed schema](../documents/SCHEMA.md#6-chunkingfailed) in SCHEMA.md for the complete payload definition.
+
+**Key Fields:**
+- `message_ids`: List of message IDs that failed
+- `error_message`, `error_type`: Error details
+- `retry_count`: Number of retry attempts
 
 ## Data Flow
 

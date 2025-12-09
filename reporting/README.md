@@ -56,58 +56,29 @@ The Reporting Service delivers summaries and insights to users via REST endpoint
 
 ### Subscribes To
 
+The Reporting Service subscribes to the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+
 1) **SummaryComplete**  
    - **Exchange:** `copilot.events`  
    - **Routing Key:** `summary.complete`  
-   - **Payload:**
-```json
-{
-  "event_type": "SummaryComplete",
-  "event_id": "bb0e8400-e29b-41d4-a716-446655440000",
-  "timestamp": "2025-01-15T15:05:00Z",
-  "version": "1.0",
-  "data": {
-    "thread_id": "<20250115120000.XYZ789@example.com>",
-    "summary_markdown": "- Consensus: ...\n- Dissent: ...\n- Drafts: RFC9000",
-    "citations": [
-      {"message_id": "<20231015123456.ABC123@example.com>", "chunk_id": "a1b2c3", "offset": 120}
-    ],
-    "llm_backend": "ollama",
-    "llm_model": "mistral",
-    "tokens_prompt": 1800,
-    "tokens_completion": 600,
-    "latency_ms": 2400
-  }
-}
-```
+   - See [SummaryComplete schema](../documents/SCHEMA.md#11-summarycomplete) in SCHEMA.md
    - **Behavior:** Persist summary and citations; index for search/filtering; optionally notify downstream channels.
 
 ### Publishes
 
+The Reporting Service publishes the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+
 1) **ReportPublished**  
    - **Exchange:** `copilot.events`  
    - **Routing Key:** `report.published`  
-   - **Payload:**
-```json
-{
-  "event_type": "ReportPublished",
-  "event_id": "dd0e8400-e29b-41d4-a716-446655440000",
-  "timestamp": "2025-01-15T15:06:00Z",
-  "version": "1.0",
-  "data": {
-    "thread_id": "<20250115120000.XYZ789@example.com>",
-    "report_id": "rpt-01HXYZ...",
-    "format": "markdown",
-    "notified": true,
-    "delivery_channels": ["webhook"],
-    "summary_url": "/api/reports/rpt-01HXYZ..."
-  }
-}
-```
+   - See [ReportPublished schema](../documents/SCHEMA.md#13-reportpublished) in SCHEMA.md
+   - **Behavior:** Signals that a report has been published and is available via API with notification status.
 
 2) **ReportDeliveryFailed** *(optional)*  
    - **Exchange:** `copilot.events`  
    - **Routing Key:** `report.delivery_failed`
+   - See [ReportDeliveryFailed schema](../documents/SCHEMA.md#14-reportdeliveryfailed) in SCHEMA.md
+   - **Behavior:** Signals that report delivery (e.g., webhook notification) failed with retry details.
 
 ## Data Flow
 
