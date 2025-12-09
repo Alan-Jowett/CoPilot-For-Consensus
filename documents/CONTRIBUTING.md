@@ -8,7 +8,7 @@ Thank you for your interest in contributing! This project thrives on community c
 
 ## Project Governance
 
-See [GOVERNANCE.md](GOVERNANCE.md) for details.
+See [GOVERNANCE.md](./GOVERNANCE.md) for details.
 
 ***
 
@@ -40,7 +40,7 @@ See [GOVERNANCE.md](GOVERNANCE.md) for details.
 
 ### Code of Conduct
 
-*   All contributors must adhere to the [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+*   All contributors must adhere to the [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 *   Be respectful, inclusive, and constructive in all interactions.
 
 ***

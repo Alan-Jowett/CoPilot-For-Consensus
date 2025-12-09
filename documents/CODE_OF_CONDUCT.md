@@ -45,7 +45,7 @@ This Code of Conduct applies within all project spaces and in public spaces when
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the maintainers at **alan.jowett@microsoft.com**. All complaints will be reviewed and investigated promptly and fairly.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the maintainers at **conduct@copilot-for-consensus.org**. All complaints will be reviewed and investigated promptly and fairly.
 
 ***
 

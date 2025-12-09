@@ -153,7 +153,7 @@ graph LR
     B -->|JSONParsed| MB
     B -->|store JSON| DB["🗄️ Document DB<br/>(MongoDB/Cosmos)"]
     
-    MB -->|consume| C["✂️ Chunking Service<br/>(Token-aware splits)"]
+    MB -->|consume| C["✂️ Chunking Service<br/>(token-aware splits)"]
     C -->|ChunksPrepared| MB
     
     MB -->|consume| D["🧠 Embedding Service<br/>(OpenAI/SentenceTransformers)"]
