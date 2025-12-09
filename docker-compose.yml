@@ -58,7 +58,6 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
-    environment:
     restart: unless-stopped
     # Note: Pull models after startup with: docker compose exec ollama ollama pull mistral
 
