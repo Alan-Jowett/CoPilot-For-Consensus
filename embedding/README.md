@@ -171,8 +171,6 @@ See [EmbeddingGenerationFailed schema](../documents/SCHEMA.md#8-embeddinggenerat
 - `embedding_backend`: Backend that was attempted
 - `retry_count`: Number of retry attempts
 
-**Exchange:** `copilot.events`  
-**Routing Key:** `embeddings.failed`
 
 **Payload Schema:**
 ```json
