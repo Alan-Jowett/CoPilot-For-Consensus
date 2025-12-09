@@ -134,6 +134,28 @@ services:
         /init/mongo-init.js
     restart: "no"
 
+  db-validate:
+    image: mongo:6.0
+    depends_on:
+      documentdb:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME:-root}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD:-example}
+      - MONGO_APP_DB=${MONGO_APP_DB:-copilot}
+    volumes:
+      - ./infra/test:/test:ro
+      - ./documents/schemas:/schemas:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - >-
+        mongosh
+        "mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@documentdb:27017/admin"
+        /test/validate-mongo.js
+    restart: "no"
+
   messagebus:
     image: rabbitmq:3-management
     ports:

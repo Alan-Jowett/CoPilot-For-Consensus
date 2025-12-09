@@ -37,49 +37,22 @@ jobs:
     - name: Check service status
       run: docker compose ps
 
-    - name: Verify Mongo collections and indexes
+    - name: Check db-init and db-validate exit codes
       run: |
         set -euo pipefail
-        USERNAME=${MONGO_INITDB_ROOT_USERNAME:-root}
-        PASSWORD=${MONGO_INITDB_ROOT_PASSWORD:-example}
-        DB_NAME=${MONGO_APP_DB:-copilot}
-
-        docker compose exec -T \
-          -e MONGO_APP_DB=$DB_NAME \
-          documentdb \
-          mongosh "mongodb://${USERNAME}:${PASSWORD}@documentdb:27017/admin" --eval "$(cat <<'JS'
-            const dbName = process.env.MONGO_APP_DB || 'copilot';
-            const db = db.getSiblingDB(dbName);
-            const expected = {
-              archives: ['archive_id_unique','source_idx','ingestion_date_idx','status_idx'],
-              messages: ['message_id_unique','archive_id_idx','thread_id_idx','date_idx','in_reply_to_idx','draft_mentions_idx','created_at_idx'],
-              chunks: ['chunk_id_unique','message_id_idx','thread_id_idx','created_at_idx','embedding_generated_idx'],
-              threads: ['thread_id_unique','archive_id_idx','first_message_date_idx','last_message_date_idx','draft_mentions_idx','has_consensus_idx','summary_id_idx','created_at_idx'],
-              summaries: ['summary_id_unique','thread_id_idx','summary_type_idx','generated_at_idx']
-            };
-
-            const collections = db.getCollectionNames();
-            for (const [name, indexes] of Object.entries(expected)) {
-              if (!collections.includes(name)) {
-                throw new Error(`Missing collection: ${name}`);
-              }
-
-              const collInfo = db.getCollectionInfos({ name })[0] || {};
-              if (!collInfo.options || !collInfo.options.validator) {
-                throw new Error(`Missing validator on collection: ${name}`);
-              }
-
-              const present = db.getCollection(name).getIndexes().map((i) => i.name);
-              indexes.forEach((idx) => {
-                if (!present.includes(idx)) {
-                  throw new Error(`Missing index '${idx}' on collection '${name}'`);
-                }
-              });
-            }
-
-            print('Mongo collections, validators, and indexes validated');
-          JS
-          )"
+        for svc in db-init db-validate; do
+          cid=$(docker compose ps -aq "$svc")
+          if [ -z "$cid" ]; then
+            echo "Container for $svc not found" >&2
+            exit 1
+          fi
+          code=$(docker inspect "$cid" --format '{{.State.ExitCode}}')
+          if [ "$code" != "0" ]; then
+            echo "$svc failed with exit code $code" >&2
+            docker compose logs "$svc"
+            exit 1
+          fi
+        done
 
     - name: Test reporting service health endpoint
       run: |

@@ -3,7 +3,9 @@
 // Validators are pulled directly from JSON Schemas in /schemas/documents to avoid duplication.
 
 const collectionsConfigPath = '/schemas/documents/collections.config.json';
+const eventSchemasDir = '/schemas/events';
 const fs = require('fs');
+const path = require('path');
 
 function stripUnsupportedKeywords(obj) {
   if (Array.isArray(obj)) {
@@ -97,5 +99,41 @@ if (!config.collections || !Array.isArray(config.collections)) {
 }
 
 config.collections.forEach((definition) => ensureFromConfig(definition));
+
+function seedEventSchemas() {
+  const collName = 'event_schemas';
+  const collExists = database.getCollectionNames().includes(collName);
+  if (!collExists) {
+    database.createCollection(collName);
+  }
+  const coll = database.getCollection(collName);
+
+  // Ensure uniqueness on name so updates replace a single record per event type.
+  coll.createIndex({ name: 1 }, { unique: true, name: 'event_schema_name_unique' });
+
+  const files = fs.readdirSync(eventSchemasDir).filter((f) => f.toLowerCase().endsWith('.json'));
+  files.forEach((file) => {
+    const fullPath = path.join(eventSchemasDir, file);
+    const raw = fs.readFileSync(fullPath, 'utf8');
+    const schema = JSON.parse(raw);
+    const baseName = file.replace(/\.schema\.json$/i, '').replace(/\.json$/i, '');
+
+    coll.updateOne(
+      { name: baseName },
+      {
+        $set: {
+          name: baseName,
+          fileName: file,
+          schema
+        }
+      },
+      { upsert: true }
+    );
+  });
+
+  print(`Seeded ${files.length} event schema(s) into '${collName}'`);
+}
+
+seedEventSchemas();
 
 print(`Mongo init completed for database '${dbName}'`);
