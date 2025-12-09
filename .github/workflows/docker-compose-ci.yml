@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Docker Compose CI
+
+on:
+  push:
+    branches: [ main, docker_compose ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-docker-compose:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Validate docker-compose configuration
+      run: docker compose config
+
+    - name: Build all services
+      run: docker compose build
+
+    - name: Start all services
+      run: docker compose up -d
+
+    - name: Wait for services to be healthy
+      run: |
+        echo "Waiting for services to start..."
+        sleep 30
+
+    - name: Check service status
+      run: docker compose ps
+
+    - name: Test reporting service health endpoint
+      run: |
+        echo "Testing reporting service..."
+        curl -f http://localhost:8080/ || exit 1
+
+    - name: Test reporting API endpoint
+      run: |
+        echo "Testing reports API..."
+        curl -f http://localhost:8080/api/reports || exit 1
+
+    - name: View service logs
+      if: always()
+      run: docker compose logs --tail=50
+
+    - name: Stop all services
+      if: always()
+      run: docker compose down
+
+    - name: Verify clean shutdown
+      if: always()
+      run: |
+        echo "Verifying all containers stopped..."
+        if [ "$(docker compose ps -q | wc -l)" -eq 0 ]; then
+          echo "✓ All services stopped successfully"
+        else
+          echo "✗ Some services failed to stop"
+          docker compose ps
+          exit 1
+        fi
