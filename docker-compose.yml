@@ -125,6 +125,7 @@ services:
       - MONGO_APP_DB=${MONGO_APP_DB:-copilot}
     volumes:
       - ./infra/init:/init:ro
+      - ./documents/schemas:/schemas:ro
     entrypoint: ["/bin/bash", "-c"]
     command:
       - >-
