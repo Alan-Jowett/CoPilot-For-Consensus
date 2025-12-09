@@ -47,8 +47,8 @@ jobs:
         docker compose exec -T \
           -e MONGO_APP_DB=$DB_NAME \
           documentdb \
-          mongosh "mongodb://${USERNAME}:${PASSWORD}@documentdb:27017/admin" --eval "
-            const dbName = '${DB_NAME}';
+          mongosh "mongodb://${USERNAME}:${PASSWORD}@documentdb:27017/admin" --eval "$(cat <<'JS'
+            const dbName = process.env.MONGO_APP_DB || 'copilot';
             const db = db.getSiblingDB(dbName);
             const expected = {
               archives: ['archive_id_unique','source_idx','ingestion_date_idx','status_idx'],
@@ -78,7 +78,8 @@ jobs:
             }
 
             print('Mongo collections, validators, and indexes validated');
-          "
+          JS
+          )"
 
     - name: Test reporting service health endpoint
       run: |
