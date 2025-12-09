@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/events/archive-ingested.schema.json",
+  "title": "ArchiveIngested Event",
+  "allOf": [
+    { "$ref": "../event-envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "event_type": { "const": "ArchiveIngested" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "archive_id": { "type": "string", "format": "uuid" },
+            "source_name": { "type": "string", "minLength": 1 },
+            "source_type": { "type": "string", "enum": ["rsync", "imap", "http", "local"] },
+            "source_url": { "type": "string", "minLength": 1 },
+            "file_path": { "type": "string", "minLength": 1 },
+            "file_size_bytes": { "type": "integer", "minimum": 0 },
+            "file_hash_sha256": { "type": "string", "minLength": 1 },
+            "ingestion_started_at": { "type": "string", "format": "date-time" },
+            "ingestion_completed_at": { "type": "string", "format": "date-time" }
+          },
+          "required": [
+            "archive_id",
+            "source_name",
+            "source_type",
+            "source_url",
+            "file_path",
+            "file_size_bytes",
+            "file_hash_sha256",
+            "ingestion_started_at",
+            "ingestion_completed_at"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["event_type", "event_id", "timestamp", "version", "data"],
+      "additionalProperties": false
+    }
+  ]
+}

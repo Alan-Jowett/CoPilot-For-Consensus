@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/documents/threads.schema.json",
+  "title": "threads collection",
+  "type": "object",
+  "properties": {
+    "thread_id": { "type": "string", "minLength": 1 },
+    "archive_id": { "type": "string", "format": "uuid" },
+    "subject": { "type": "string" },
+    "participants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" }
+        },
+        "required": ["email"],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "message_count": { "type": "integer", "minimum": 0 },
+    "first_message_date": { "type": "string", "format": "date-time" },
+    "last_message_date": { "type": "string", "format": "date-time" },
+    "draft_mentions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "has_consensus": { "type": "boolean" },
+    "consensus_type": { "type": "string", "enum": ["agreement", "dissent", "mixed"] },
+    "summary_id": { "type": "string", "format": "uuid" },
+    "created_at": { "type": "string", "format": "date-time" }
+  },
+  "required": ["thread_id", "archive_id", "first_message_date", "last_message_date", "has_consensus", "created_at"],
+  "additionalProperties": false
+}

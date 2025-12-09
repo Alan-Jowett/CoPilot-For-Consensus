@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/documents/archives.schema.json",
+  "title": "archives collection",
+  "type": "object",
+  "properties": {
+    "archive_id": { "type": "string", "format": "uuid" },
+    "source": { "type": "string", "minLength": 1 },
+    "source_url": { "type": "string", "minLength": 1 },
+    "format": { "type": "string", "minLength": 1 },
+    "ingestion_date": { "type": "string", "format": "date-time" },
+    "message_count": { "type": "integer", "minimum": 0 },
+    "file_path": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["pending", "processed", "failed"] }
+  },
+  "required": ["archive_id", "source", "ingestion_date", "status"],
+  "additionalProperties": false
+}

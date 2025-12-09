@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/event-envelope.schema.json",
+  "title": "Event Envelope",
+  "type": "object",
+  "properties": {
+    "event_type": { "type": "string", "minLength": 1 },
+    "event_id": { "type": "string", "format": "uuid" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "version": { "type": "string", "minLength": 1 },
+    "data": { "type": "object" }
+  },
+  "required": ["event_type", "event_id", "timestamp", "version", "data"],
+  "additionalProperties": false
+}

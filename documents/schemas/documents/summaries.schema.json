@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/documents/summaries.schema.json",
+  "title": "summaries collection",
+  "type": "object",
+  "properties": {
+    "summary_id": { "type": "string", "format": "uuid" },
+    "thread_id": { "type": "string" },
+    "summary_type": { "type": "string", "enum": ["thread", "weekly", "consensus", "draft-focused"] },
+    "title": { "type": "string" },
+    "content_markdown": { "type": "string", "minLength": 1 },
+    "content_html": { "type": "string" },
+    "citations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "chunk_id": { "type": "string", "format": "uuid" },
+          "message_id": { "type": "string", "minLength": 1 },
+          "quote": { "type": "string" },
+          "relevance_score": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "required": ["chunk_id", "message_id"],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "generated_by": { "type": "string" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "metadata": { "type": "object" }
+  },
+  "required": ["summary_id", "summary_type", "generated_at", "content_markdown"],
+  "additionalProperties": false
+}
