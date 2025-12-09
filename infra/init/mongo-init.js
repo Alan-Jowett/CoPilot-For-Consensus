@@ -3,17 +3,57 @@
 // Validators are pulled directly from JSON Schemas in /schemas/documents to avoid duplication.
 
 const collectionsConfigPath = '/schemas/documents/collections.config.json';
+const fs = require('fs');
+
+function stripUnsupportedKeywords(obj) {
+  if (Array.isArray(obj)) {
+    obj.forEach(stripUnsupportedKeywords);
+    return obj;
+  }
+  if (obj && typeof obj === 'object') {
+    delete obj.$schema;
+    delete obj.$id;
+    if (Object.prototype.hasOwnProperty.call(obj, 'format')) {
+      delete obj.format;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(obj, 'type')) {
+      const toBsonType = (t) => {
+        switch (t) {
+          case 'integer':
+            return 'int';
+          case 'number':
+            return 'double';
+          case 'boolean':
+            return 'bool';
+          default:
+            return t;
+        }
+      };
+      const typeVal = obj.type;
+      if (Array.isArray(typeVal)) {
+        obj.bsonType = typeVal.map(toBsonType);
+      } else {
+        obj.bsonType = toBsonType(typeVal);
+      }
+      delete obj.type;
+    }
+
+    Object.values(obj).forEach(stripUnsupportedKeywords);
+  }
+  return obj;
+}
 
 const dbName = process.env.MONGO_APP_DB || 'copilot';
 const database = db.getSiblingDB(dbName);
 
 function loadSchema(filePath) {
-  // mongosh provides cat(); parse to JSON
-  return JSON.parse(cat(filePath));
+  const schema = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  return stripUnsupportedKeywords(schema);
 }
 
 function loadCollectionsConfig() {
-  return JSON.parse(cat(collectionsConfigPath));
+  return JSON.parse(fs.readFileSync(collectionsConfigPath, 'utf8'));
 }
 
 function ensureCollection(name, validatorPath) {
