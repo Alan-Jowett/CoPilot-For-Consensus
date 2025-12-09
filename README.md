@@ -1,8 +1,9 @@
-
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
 # Copilot-for-Consensus
 **An open-source AI assistant that ingests mailing list discussions, summarizes threads, and surfaces consensus for technical working groups.**
 
----
+***
 
 ## Overview
 Copilot-for-Consensus is designed to **scale institutional memory and accelerate decision-making** in technical communities like IETF working groups. It uses **LLM-powered summarization and insight extraction** to help participants keep up with mailing list traffic, track draft evolution, and identify consensus or dissent.
@@ -13,7 +14,7 @@ This project aims to be:
 - **Deployable locally** using a lightweight micro-LLM or **in Azure Cloud** for enterprise-scale workloads.
 - Built primarily in **Python** for accessibility and community contribution.
 
----
+***
 
 ## Key Features (MVP)
 - **Mailing List Ingestion:** Fetch archives via rsync or IMAP.
@@ -23,7 +24,7 @@ This project aims to be:
 - **Draft Tracking:** Monitor mentions and evolution of RFC drafts.
 - **Transparency:** Inline citations linking summaries to original messages.
 
----
+***
 
 ## Long-Term Vision
 Beyond summarization, Copilot-for-Consensus will evolve into an **interactive subject matter expert** that:
@@ -33,7 +34,7 @@ Beyond summarization, Copilot-for-Consensus will evolve into an **interactive su
 - Offers **real-time collaboration tools** for chairs and contributors.
 - Integrates with **standards governance workflows** for better decision tracking.
 
----
+***
 
 ## Architecture
 - **Microservices:**  
