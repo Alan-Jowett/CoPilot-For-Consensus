@@ -60,7 +60,6 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     environment:
-      - OLLAMA_HOST=0.0.0.0:11434
     restart: unless-stopped
     # Note: Pull models after startup with: docker exec ollama ollama pull mistral
 
