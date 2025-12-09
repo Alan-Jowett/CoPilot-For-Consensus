@@ -1,0 +1,133 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+version: '3.8'
+services:
+  ingestion:
+    image: copilot-ingestion:latest
+    build:
+      context: ./ingestion
+    environment:
+      - STORAGE_PATH=/data/raw_archives
+    volumes:
+      - raw_archives:/data/raw_archives
+    restart: unless-stopped
+
+  parsing:
+    image: copilot-parsing:latest
+    build:
+      context: ./parsing
+    environment:
+      - STORAGE_PATH=/data/parsed_json
+    volumes:
+      - parsed_json:/data/parsed_json
+    depends_on:
+      - ingestion
+    restart: unless-stopped
+
+  chunking:
+    image: copilot-chunking:latest
+    build:
+      context: ./chunking
+    depends_on:
+      - parsing
+    restart: unless-stopped
+
+  embedding:
+    image: copilot-embedding:latest
+    build:
+      context: ./embedding
+    environment:
+      - VECTOR_DB_HOST=vectorstore
+      - EMBEDDING_BACKEND=${EMBEDDING_BACKEND:-sentencetransformers}
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
+    depends_on:
+      - chunking
+    restart: unless-stopped
+
+  vectorstore:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - vector_data:/qdrant/storage
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+    restart: unless-stopped
+    # Note: Pull models after startup with: docker exec ollama ollama pull mistral
+
+  orchestrator:
+    image: copilot-orchestrator:latest
+    build:
+      context: ./orchestrator
+    environment:
+      - VECTOR_DB_HOST=vectorstore
+      - DOC_DB_HOST=documentdb
+      - LLM_BACKEND=${LLM_BACKEND:-local}
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
+      - AZURE_OPENAI_KEY=${AZURE_OPENAI_KEY:-}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
+    depends_on:
+      - embedding
+      - vectorstore
+      - documentdb
+      - ollama
+    restart: unless-stopped
+
+  summarization:
+    image: copilot-summarization:latest
+    build:
+      context: ./summarization
+    depends_on:
+      - orchestrator
+    restart: unless-stopped
+
+  reporting:
+    image: copilot-reporting:latest
+    build:
+      context: ./reporting
+    ports:
+      - "8080:8080"
+    depends_on:
+      - summarization
+    restart: unless-stopped
+
+  documentdb:
+    image: mongo:6.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+  messagebus:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: unless-stopped
+
+  monitoring:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+
+volumes:
+  raw_archives:
+  parsed_json:
+  vector_data:
+  mongo_data:
+  prometheus_data:
+  ollama_data:

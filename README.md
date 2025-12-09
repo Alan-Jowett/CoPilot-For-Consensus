@@ -36,5 +36,35 @@ Beyond summarization, Copilot-for-Consensus will evolve into an **interactive su
 
 ***
 
+## License & Code Headers
+
+This project is distributed under the **MIT License**. All files that support comments must include an SPDX license header:
+
+```
+SPDX-License-Identifier: MIT
+Copyright (c) 2025 Copilot-for-Consensus contributors
+```
+
+**Header formats by file type:**
+- **Python, Bash, YAML, Docker Compose:** Use `#` comments
+  ```python
+  # SPDX-License-Identifier: MIT
+  # Copyright (c) 2025 Copilot-for-Consensus contributors
+  ```
+- **Markdown, HTML, XML:** Use `<!-- -->` comments
+  ```html
+  <!-- SPDX-License-Identifier: MIT
+       Copyright (c) 2025 Copilot-for-Consensus contributors -->
+  ```
+- **JavaScript/TypeScript:** Use `//` comments
+  ```typescript
+  // SPDX-License-Identifier: MIT
+  // Copyright (c) 2025 Copilot-for-Consensus contributors
+  ```
+
+All contributions must include appropriate SPDX headers. See [CONTRIBUTING.md](documents/CONTRIBUTING.md) for details.
+
+***
+
 ## Architecture
 - **Microservices:**  

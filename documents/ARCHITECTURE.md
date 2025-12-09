@@ -5,6 +5,17 @@
 ## Overview
 This architecture is designed for a **containerized, microservice-based system** that ingests mailing list archives, processes them into structured chunks, generates embeddings, and orchestrates summarization workflows using **Semantic Kernel**. The goal is to deliver actionable insights and consensus reports for technical working groups.
 
+### Deployment Models
+The system is designed to be **100% self-contained and deployable locally** with optional configurations:
+- **Fully Local (Offline):** All components run on-premises using open-source models (local micro-LLMs via Ollama, SentenceTransformers for embeddings, Qdrant/FAISS for vector storage, MongoDB for document storage).
+- **Hybrid Cloud:** Leverage Azure services (Azure OpenAI, Azure Cognitive Search, Cosmos DB) for enterprise-scale deployments while maintaining containerized, portable architecture.
+- **Modular LLM Support:** Seamlessly swap between:
+  - **Local micro-LLMs:** Ollama-compatible models (e.g., Mistral, Llama 2), enabling fully offline operation
+  - **Cloud LLMs:** Azure OpenAI, OpenAI API
+  - **Open-source hosted:** Hugging Face Inference API, LM Studio
+
+This design ensures the system can operate in air-gapped environments, resource-constrained setups, or enterprise cloud deployments with zero code changes.
+
 ## Core Components
 
 ### 1. Ingestion Service
@@ -31,9 +42,13 @@ This architecture is designed for a **containerized, microservice-based system**
 ### 4. Embedding Generation Service
 - **Purpose:** Convert chunks into vector embeddings for semantic search.
 - **Responsibilities:**
-  - Call embedding model (Azure OpenAI or open-source options like SentenceTransformers).
+  - Call embedding model with multiple backend support:
+    - **Local:** SentenceTransformers (fully offline)
+    - **Cloud:** Azure OpenAI Embeddings API
+    - **Hybrid:** Ollama-compatible embedding models
   - Attach embeddings to JSON and store in vector database.
 - **Output:** `{chunk_text, metadata, embedding}`.
+- **Self-Contained Option:** Use lightweight open-source models (e.g., `all-MiniLM-L6-v2`) for 100% offline operation.
 
 ### 5. Vector Store
 - **Purpose:** Enable fast similarity search and retrieval.
@@ -47,12 +62,17 @@ This architecture is designed for a **containerized, microservice-based system**
 ### 6. Orchestration Layer (Semantic Kernel)
 - **Purpose:** Coordinate summarization and analysis tasks.
 - **Responsibilities:**
-  - Invoke large language model (LLM) for:
+  - Invoke large language model (LLM) with flexible backend selection:
+    - **Local micro-LLMs:** Ollama-hosted models (Mistral, Llama 2, etc.) for fully offline operation
+    - **Cloud LLMs:** Azure OpenAI, OpenAI API
+    - **Hybrid:** Route to local or cloud based on latency/cost requirements
+  - For summarization tasks:
     - Thread summarization (extractive + abstractive)
     - Consensus/dissent detection
     - Draft mention tracking
   - Chain skills dynamically using Semantic Kernel Planner.
 - **Technology:** Semantic Kernel with Python or .NET SDK.
+- **Self-Contained:** Fully functional with local models; no external API dependencies required.
 
 ### 7. Summarization Service
 - **Purpose:** Generate weekly summaries and insights.
