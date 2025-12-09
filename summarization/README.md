@@ -1,0 +1,255 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+# Summarization Service
+
+## Overview
+
+The Summarization Service turns retrieved context into concise, citation-rich summaries and insights. It consumes orchestration requests, pulls the top-k chunks from the vector store plus metadata from the document DB, and calls the configured LLM backend (local or cloud) to generate thread-level or weekly rollups. Outputs include inline citations back to source messages and draft mentions for traceability.
+
+## Purpose
+
+- Generate thread and weekly summaries after orchestration triggers
+- Provide consensus/dissent signals with inline citations
+- Track draft mentions and action items per thread
+- Emit completion events so reporting and dashboards stay fresh
+
+## Responsibilities
+
+- **Event-driven summarization:** React to `SummarizationRequested` events
+- **Context assembly:** Fetch top-k chunks + metadata for each thread
+- **Prompting:** Apply system/user templates and guardrails for style, safety, and citations
+- **LLM execution:** Call local (Ollama) or cloud (Azure/OpenAI) backends
+- **Output packaging:** Produce Markdown/JSON with citations and metrics (tokens, latency)
+- **Publishing:** Emit `SummaryComplete` or `SummarizationFailed` events
+
+## Technology Stack
+
+- **Language:** Python 3.11+
+- **Orchestration:** Event-driven via message bus
+- **Retrieval:** Qdrant (vector) + MongoDB (metadata)
+- **LLM Backends:** Ollama (local), Azure OpenAI, OpenAI API
+- **Observability:** Prometheus metrics + structured JSON logs
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Type | Required | Default | Description |
+|----------|------|----------|---------|-------------|
+| `MESSAGE_BUS_HOST` | String | Yes | `messagebus` | Message bus hostname |
+| `MESSAGE_BUS_PORT` | Integer | No | `5672` | Message bus port |
+| `MESSAGE_BUS_USER` | String | No | `guest` | Message bus username |
+| `MESSAGE_BUS_PASSWORD` | String | No | `guest` | Message bus password |
+| `DOC_DB_HOST` | String | Yes | `documentdb` | Document DB host |
+| `DOC_DB_PORT` | Integer | No | `27017` | Document DB port |
+| `DOC_DB_NAME` | String | No | `copilot` | Database name |
+| `VECTOR_DB_HOST` | String | Yes | `vectorstore` | Vector store host |
+| `VECTOR_DB_PORT` | Integer | No | `6333` | Vector store port (Qdrant) |
+| `VECTOR_DB_COLLECTION` | String | No | `message_embeddings` | Vector collection name |
+| `LLM_BACKEND` | String | No | `ollama` | `ollama`, `azure`, or `openai` |
+| `LLM_MODEL` | String | No | `mistral` | Model to use for summaries |
+| `LLM_TEMPERATURE` | Float | No | `0.2` | Sampling temperature |
+| `LLM_MAX_TOKENS` | Integer | No | `2048` | Max tokens for outputs |
+| `CONTEXT_WINDOW_TOKENS` | Integer | No | `3000` | Token budget for retrieved context |
+| `TOP_K` | Integer | No | `12` | Chunks to retrieve per thread |
+| `CITATION_COUNT` | Integer | No | `12` | Maximum citations per summary |
+| `RETRY_MAX_ATTEMPTS` | Integer | No | `3` | Retry attempts on failures |
+| `RETRY_BACKOFF_SECONDS` | Integer | No | `5` | Base backoff interval |
+| `AZURE_OPENAI_KEY` | String | No | - | Azure OpenAI API key (if using Azure) |
+| `AZURE_OPENAI_ENDPOINT` | String | No | - | Azure OpenAI endpoint URL |
+| `AZURE_OPENAI_DEPLOYMENT` | String | No | `gpt-35-turbo` | Azure deployment name |
+| `OPENAI_API_KEY` | String | No | - | OpenAI API key (if using OpenAI) |
+| `OLLAMA_HOST` | String | No | `http://ollama:11434` | Ollama server URL |
+| `SYSTEM_PROMPT_PATH` | String | No | `/app/prompts/system.txt` | System prompt file |
+| `USER_PROMPT_PATH` | String | No | `/app/prompts/user.txt` | User prompt template |
+| `LOG_LEVEL` | String | No | `INFO` | Logging level |
+
+### Backend Examples
+
+**Local (Ollama):**
+```bash
+LLM_BACKEND=ollama
+LLM_MODEL=mistral
+OLLAMA_HOST=http://ollama:11434
+```
+
+**Azure OpenAI:**
+```bash
+LLM_BACKEND=azure
+AZURE_OPENAI_KEY=your-key
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+AZURE_OPENAI_DEPLOYMENT=gpt-35-turbo
+```
+
+**OpenAI API:**
+```bash
+LLM_BACKEND=openai
+OPENAI_API_KEY=your-key
+LLM_MODEL=gpt-4o-mini
+```
+
+## Events
+
+### Subscribes To
+
+1) **SummarizationRequested**  
+   - **Exchange:** `copilot.events`  
+   - **Routing Key:** `summarization.requested`  
+   - **Payload:**
+```json
+{
+  "event_type": "SummarizationRequested",
+  "event_id": "990e8400-e29b-41d4-a716-446655440000",
+  "timestamp": "2025-01-15T14:50:00Z",
+  "version": "1.0",
+  "data": {
+    "thread_ids": ["<20250115120000.XYZ789@example.com>"],
+    "top_k": 12,
+    "llm_backend": "ollama",
+    "llm_model": "mistral",
+    "context_window_tokens": 3000,
+    "prompt_template": "consensus-summary-v1"
+  }
+}
+```
+   - **Behavior:** For each thread, retrieve context, build prompt, call LLM, produce summary with citations.
+
+### Publishes
+
+1) **SummaryComplete**  
+   - **Exchange:** `copilot.events`  
+   - **Routing Key:** `summary.complete`  
+   - **Payload:**
+```json
+{
+  "event_type": "SummaryComplete",
+  "event_id": "bb0e8400-e29b-41d4-a716-446655440000",
+  "timestamp": "2025-01-15T15:05:00Z",
+  "version": "1.0",
+  "data": {
+    "thread_id": "<20250115120000.XYZ789@example.com>",
+    "summary_markdown": "- Consensus: ...\n- Dissent: ...\n- Drafts: RFC9000",
+    "citations": [
+      {"message_id": "<20231015123456.ABC123@example.com>", "chunk_id": "a1b2c3", "offset": 120}
+    ],
+    "llm_backend": "ollama",
+    "llm_model": "mistral",
+    "tokens_prompt": 1800,
+    "tokens_completion": 600,
+    "latency_ms": 2400
+  }
+}
+```
+
+2) **SummarizationFailed**  
+   - **Exchange:** `copilot.events`  
+   - **Routing Key:** `summarization.failed`  
+   - **Payload:**
+```json
+{
+  "event_type": "SummarizationFailed",
+  "event_id": "cc0e8400-e29b-41d4-a716-446655440000",
+  "timestamp": "2025-01-15T15:06:00Z",
+  "version": "1.0",
+  "data": {
+    "thread_id": "<20250115120000.XYZ789@example.com>",
+    "error_type": "LLMTimeout",
+    "error_message": "Completion exceeded timeout",
+    "retry_count": 2
+  }
+}
+```
+
+## Data Flow
+
+```mermaid
+graph LR
+    A[SummarizationRequested Event] --> B[Summarization Service]
+    B --> C[Vector Store (Qdrant)]
+    B --> D[Document DB (MongoDB)]
+    C --> B
+    D --> B
+    B --> E{LLM Backend}
+    E -->|Local| F[Ollama]
+    E -->|Azure| G[Azure OpenAI]
+    E -->|OpenAI| H[OpenAI API]
+    F --> I[Summary Draft]
+    G --> I
+    H --> I
+    I --> J[SummaryComplete Event]
+    J --> K[Reporting / Dashboard]
+```
+
+## Summarization Flow (Pseudo-code)
+
+```python
+def handle_summarization_requested(event):
+    for thread_id in event.data.thread_ids:
+        context = retrieve_context(thread_id, top_k=cfg.top_k)
+        prompt = build_prompt(context, cfg.system_prompt, cfg.user_prompt)
+        result = call_llm(prompt, backend=cfg.llm_backend, model=cfg.llm_model)
+        summary = format_with_citations(result, context, max_citations=cfg.citation_count)
+        publish_summary_complete(thread_id, summary, result.metrics)
+```
+
+## API Endpoints
+
+- `GET /health` — service health and config snapshot
+- `POST /summaries` — generate summary for provided `thread_ids` (manual trigger)
+- `GET /stats` — counts of processed events, average latency, backend usage
+
+## Error Handling
+
+- Retries with exponential backoff for transient failures
+- Dead-letter queue for irrecoverable events
+- Timeouts and circuit breakers around vector store and LLM calls
+- Input validation on routing keys and payload schemas
+
+## Monitoring & Metrics
+
+Prometheus metrics exposed at `/metrics`:
+- `summarization_events_total` (labeled by event_type, outcome)
+- `summarization_latency_seconds` (histogram: end-to-end per thread)
+- `summarization_llm_calls_total` (labeled by backend/model)
+- `summarization_failures_total` (labeled by error_type)
+- `summarization_tokens_total` (prompt vs completion)
+
+Structured logs (JSON) include thread_id, backend, model, tokens, citations, and latency.
+
+## Dependencies
+
+- **Message Bus:** RabbitMQ or Azure Service Bus
+- **Vector Store:** Qdrant (default) via `VECTOR_DB_HOST`
+- **Document DB:** MongoDB for message metadata and chunk lookups
+- **LLM Backend:** Ollama or Azure/OpenAI depending on `LLM_BACKEND`
+
+## Development
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run locally
+export MESSAGE_BUS_HOST=localhost
+export VECTOR_DB_HOST=localhost
+export DOC_DB_HOST=localhost
+python main.py
+
+# Docker
+docker build -t copilot-summarization .
+docker run -d \
+  -e MESSAGE_BUS_HOST=messagebus \
+  -e VECTOR_DB_HOST=vectorstore \
+  -e DOC_DB_HOST=documentdb \
+  -e LLM_BACKEND=ollama \
+  copilot-summarization
+```
+
+## Future Enhancements
+
+- [ ] Streaming summaries with incremental citations
+- [ ] Quality estimation and self-evaluation prompts
+- [ ] Style profiles (concise, detailed, executive) per consumer
+- [ ] Multi-thread batch summarization with deduplication
+- [ ] Token-cost accounting and rate-limit adaptation
+- [ ] Automated regression suite for summary quality
