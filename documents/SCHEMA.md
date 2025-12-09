@@ -364,7 +364,9 @@ for result in results:
     thread = db.threads.find_one({"thread_id": message["thread_id"]})
     
     enriched_results.append({
-        **result.__dict__,
+        "score": result.score,
+        "id": result.id,
+        "payload": result.payload,
         "chunk": chunk["text"],
         "message": message["body_normalized"],
         "thread": thread["subject"],
