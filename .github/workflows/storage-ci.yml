@@ -72,7 +72,7 @@ jobs:
 
     - name: Test Report
       if: always()
-      uses: dorny/test-reporter@v1
+      uses: dorny/test-reporter@v2
       with:
         name: Unit Test Results (Python ${{ matrix.python-version }})
         path: sdk/copilot_storage/test-results.xml
@@ -174,7 +174,7 @@ jobs:
 
     - name: Integration Test Report
       if: always()
-      uses: dorny/test-reporter@v1
+      uses: dorny/test-reporter@v2
       with:
         name: Integration Test Results (Python ${{ matrix.python-version }}, MongoDB ${{ matrix.mongodb-version }})
         path: sdk/copilot_storage/integration-test-results.xml
