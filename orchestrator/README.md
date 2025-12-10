@@ -95,78 +95,41 @@ LLM_MODEL=gpt-4o-mini
 
 ### Subscribes To
 
+The Orchestration Service subscribes to the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+
 1) **EmbeddingsGenerated**  
    - **Exchange:** `copilot.events`  
    - **Routing Key:** `embeddings.generated`  
-   - **Payload:**
-```json
-{
-  "event_type": "EmbeddingsGenerated",
-  "event_id": "770e8400-e29b-41d4-a716-446655440000",
-  "timestamp": "2025-01-15T14:45:00Z",
-  "version": "1.0",
-  "data": {
-    "chunk_ids": ["a1b2c3d4-e5f6-7890-abcd-ef1234567890"],
-    "embedding_model": "all-MiniLM-L6-v2",
-    "embedding_backend": "sentencetransformers",
-    "embedding_dimension": 384,
-    "vector_store_collection": "message_embeddings"
-  }
-}
-```
+   - See [EmbeddingsGenerated schema](../documents/SCHEMA.md#7-embeddingsgenerated) in SCHEMA.md
    - **Behavior:** Fetch chunk metadata; compute thread scope; retrieve top-k from vector store; assemble prompt; trigger summarization job.
 
 2) **JSONParsed** *(optional for thread bookkeeping)*  
    - **Exchange:** `copilot.events`  
    - **Routing Key:** `json.parsed`
+   - See [JSONParsed schema](../documents/SCHEMA.md#3-jsonparsed) in SCHEMA.md
    - **Behavior:** Track new threads/messages; maintain orchestration schedule.
 
 ### Publishes
 
+The Orchestration Service publishes the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+
 1) **SummarizationRequested**  
    - **Exchange:** `copilot.events`  
    - **Routing Key:** `summarization.requested`  
-   - **Payload:**
-```json
-{
-  "event_type": "SummarizationRequested",
-  "event_id": "990e8400-e29b-41d4-a716-446655440000",
-  "timestamp": "2025-01-15T14:50:00Z",
-  "version": "1.0",
-  "data": {
-    "thread_ids": ["<20250115120000.XYZ789@example.com>"],
-    "top_k": 12,
-    "llm_backend": "ollama",
-    "llm_model": "mistral",
-    "context_window_tokens": 3000,
-    "prompt_template": "consensus-summary-v1"
-  }
-}
-```
+   - See [SummarizationRequested schema](../documents/SCHEMA.md#9-summarizationrequested) in SCHEMA.md
+   - **Behavior:** Triggers summarization with LLM configuration and context parameters.
 
 2) **SummaryComplete** *(relayed)*  
    - **Exchange:** `copilot.events`  
    - **Routing Key:** `summary.complete`  
+   - See [SummaryComplete schema](../documents/SCHEMA.md#11-summarycomplete) in SCHEMA.md
    - **Behavior:** Forward summary results or acknowledge completion to downstream services.
 
 3) **OrchestrationFailed**  
    - **Exchange:** `copilot.events`  
    - **Routing Key:** `orchestration.failed`  
-   - **Payload:**
-```json
-{
-  "event_type": "OrchestrationFailed",
-  "event_id": "aa0e8400-e29b-41d4-a716-446655440000",
-  "timestamp": "2025-01-15T14:55:00Z",
-  "version": "1.0",
-  "data": {
-    "thread_ids": ["<20250115120000.XYZ789@example.com>"],
-    "error_type": "VectorStoreConnectionError",
-    "error_message": "Qdrant connection timed out",
-    "retry_count": 2
-  }
-}
-```
+   - See [OrchestrationFailed schema](../documents/SCHEMA.md#10-orchestrationfailed) in SCHEMA.md
+   - **Behavior:** Signals orchestration errors for specific threads.
 
 ## Data Flow
 

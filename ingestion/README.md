@@ -57,12 +57,12 @@ The service also supports a configuration file (`config.yaml`) for defining arch
 sources:
   - name: "ietf-quic"
     type: "rsync"
-    url: "rsync://rsync.ietf.org/ietf-mail-archive/quic/"
+    url: "rsync.ietf.org::mailman-archive/quic/"
     enabled: true
     
   - name: "ietf-tls"
     type: "rsync"
-    url: "rsync://rsync.ietf.org/ietf-mail-archive/tls/"
+    url: "rsync.ietf.org::mailman-archive/tls/"
     enabled: true
     
   - name: "custom-imap"
@@ -83,6 +83,8 @@ sources:
 
 ### Events Published
 
+The Ingestion Service publishes the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+
 #### 1. ArchiveIngested
 
 Published when an archive is successfully fetched and stored.
@@ -90,37 +92,13 @@ Published when an archive is successfully fetched and stored.
 **Exchange:** `copilot.events`  
 **Routing Key:** `archive.ingested`
 
-**Payload Schema:**
-```json
-{
-  "event_type": "ArchiveIngested",
-  "event_id": "550e8400-e29b-41d4-a716-446655440000",
-  "timestamp": "2023-10-15T14:30:00Z",
-  "version": "1.0",
-  "data": {
-    "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-    "source_name": "ietf-quic",
-    "source_type": "rsync",
-    "source_url": "rsync://rsync.ietf.org/ietf-mail-archive/quic/",
-    "file_path": "/data/raw_archives/ietf-quic/2023-10.mbox",
-    "file_size_bytes": 2048576,
-    "file_hash_sha256": "a1b2c3d4e5f6...",
-    "ingestion_started_at": "2023-10-15T14:25:00Z",
-    "ingestion_completed_at": "2023-10-15T14:30:00Z"
-  }
-}
-```
+See [ArchiveIngested schema](../documents/SCHEMA.md#1-archiveingested) in SCHEMA.md for the complete payload definition.
 
-**Field Descriptions:**
+**Key Fields:**
 - `archive_id`: Unique identifier for the ingested archive (UUID)
-- `source_name`: Name of the configured source
-- `source_type`: Type of source (rsync, imap, http, local)
-- `source_url`: Original URL/path of the archive
-- `file_path`: Local storage path where archive is saved
-- `file_size_bytes`: Size of the ingested file in bytes
-- `file_hash_sha256`: SHA-256 hash for deduplication and integrity
-- `ingestion_started_at`: When the fetch operation began
-- `ingestion_completed_at`: When the fetch operation completed
+- `source_name`, `source_type`, `source_url`: Source metadata
+- `file_path`, `file_size_bytes`, `file_hash_sha256`: Storage details
+- `ingestion_started_at`, `ingestion_completed_at`: Timing information
 
 #### 2. ArchiveIngestionFailed
 
@@ -129,25 +107,13 @@ Published when an archive fetch fails after all retry attempts.
 **Exchange:** `copilot.events`  
 **Routing Key:** `archive.ingestion.failed`
 
-**Payload Schema:**
-```json
-{
-  "event_type": "ArchiveIngestionFailed",
-  "event_id": "550e8400-e29b-41d4-a716-446655440001",
-  "timestamp": "2023-10-15T14:35:00Z",
-  "version": "1.0",
-  "data": {
-    "source_name": "ietf-quic",
-    "source_type": "rsync",
-    "source_url": "rsync://rsync.ietf.org/ietf-mail-archive/quic/",
-    "error_message": "Connection timeout after 30 seconds",
-    "error_type": "TimeoutError",
-    "retry_count": 3,
-    "ingestion_started_at": "2023-10-15T14:25:00Z",
-    "failed_at": "2023-10-15T14:35:00Z"
-  }
-}
-```
+See [ArchiveIngestionFailed schema](../documents/SCHEMA.md#2-archiveingestionfailed) in SCHEMA.md for the complete payload definition.
+
+**Key Fields:**
+- `source_name`, `source_type`, `source_url`: Source metadata
+- `error_message`, `error_type`: Error details
+- `retry_count`: Number of retries attempted
+- `failed_at`: When the failure occurred
 
 ## Data Flow
 

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/events/summarization-failed.schema.json",
+  "title": "SummarizationFailed Event",
+  "allOf": [
+    { "$ref": "../event-envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "event_type": { "const": "SummarizationFailed" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "thread_id": { "type": "string", "minLength": 1 },
+            "error_type": { "type": "string", "minLength": 1 },
+            "error_message": { "type": "string", "minLength": 1 },
+            "retry_count": { "type": "integer", "minimum": 0 }
+          },
+          "required": [
+            "thread_id",
+            "error_type",
+            "error_message",
+            "retry_count"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["event_type", "event_id", "timestamp", "version", "data"],
+      "additionalProperties": false
+    }
+  ]
+}

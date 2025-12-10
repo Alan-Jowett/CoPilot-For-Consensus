@@ -606,3 +606,422 @@ db.messages.update_many(
 | Total | ~1.1 GB |
 
 **Scaling Factor:** ~11 MB per 1,000 messages
+
+---
+
+## Message Bus Event Schemas
+
+The system uses an event-driven architecture with a message bus (RabbitMQ or Azure Service Bus) to decouple services. All events follow a standard envelope format and are published to the `copilot.events` exchange.
+
+### Event Envelope Format
+
+All events use this common structure:
+
+```json
+{
+  "event_type": "EventName",
+  "event_id": "uuid-v4",
+  "timestamp": "ISO-8601-datetime",
+  "version": "1.0",
+  "data": {
+    // Event-specific payload
+  }
+}
+```
+
+### Event Catalog
+
+#### 1. ArchiveIngested
+
+**Published by:** Ingestion Service  
+**Consumed by:** Parsing Service  
+**Routing Key:** `archive.ingested`
+
+Signals that a new archive has been successfully fetched and stored.
+
+```json
+{
+  "event_type": "ArchiveIngested",
+  "event_id": "550e8400-e29b-41d4-a716-446655440000",
+  "timestamp": "2023-10-15T14:30:00Z",
+  "version": "1.0",
+  "data": {
+    "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "source_name": "ietf-quic",
+    "source_type": "rsync",
+    "source_url": "rsync.ietf.org::mailman-archive/quic/",
+    "file_path": "/data/raw_archives/ietf-quic/2023-10.mbox",
+    "file_size_bytes": 2048576,
+    "file_hash_sha256": "a1b2c3d4e5f6...",
+    "ingestion_started_at": "2023-10-15T14:25:00Z",
+    "ingestion_completed_at": "2023-10-15T14:30:00Z"
+  }
+}
+```
+
+#### 2. ArchiveIngestionFailed
+
+**Published by:** Ingestion Service  
+**Routing Key:** `archive.ingestion.failed`
+
+Signals that archive ingestion failed after all retry attempts.
+
+```json
+{
+  "event_type": "ArchiveIngestionFailed",
+  "event_id": "550e8400-e29b-41d4-a716-446655440001",
+  "timestamp": "2023-10-15T14:35:00Z",
+  "version": "1.0",
+  "data": {
+    "source_name": "ietf-quic",
+    "source_type": "rsync",
+    "source_url": "rsync.ietf.org::mailman-archive/quic/",
+    "error_message": "Connection timeout after 30 seconds",
+    "error_type": "TimeoutError",
+    "retry_count": 3,
+    "ingestion_started_at": "2023-10-15T14:25:00Z",
+    "failed_at": "2023-10-15T14:35:00Z"
+  }
+}
+```
+
+#### 3. JSONParsed
+
+**Published by:** Parsing Service  
+**Consumed by:** Chunking Service, Orchestration Service (optional)  
+**Routing Key:** `json.parsed`
+
+Signals that an archive has been parsed and messages are stored.
+
+```json
+{
+  "event_type": "JSONParsed",
+  "event_id": "660e8400-e29b-41d4-a716-446655440000",
+  "timestamp": "2023-10-15T14:35:00Z",
+  "version": "1.0",
+  "data": {
+    "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "message_count": 150,
+    "parsed_message_ids": [
+      "<20231015123456.ABC123@example.com>",
+      "<20231015123457.DEF456@example.com>"
+    ],
+    "thread_count": 45,
+    "thread_ids": [
+      "<20231015120000.XYZ789@example.com>"
+    ],
+    "parsing_duration_seconds": 12.5
+  }
+}
+```
+
+#### 4. ParsingFailed
+
+**Published by:** Parsing Service  
+**Routing Key:** `parsing.failed`
+
+Signals that archive parsing failed.
+
+```json
+{
+  "event_type": "ParsingFailed",
+  "event_id": "770e8400-e29b-41d4-a716-446655440001",
+  "timestamp": "2023-10-15T14:37:00Z",
+  "version": "1.0",
+  "data": {
+    "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "file_path": "/data/raw_archives/ietf-quic/2023-10.mbox",
+    "error_message": "Corrupted mbox file",
+    "error_type": "MboxParseError",
+    "messages_parsed_before_failure": 75,
+    "retry_count": 3,
+    "failed_at": "2023-10-15T14:37:00Z"
+  }
+}
+```
+
+#### 5. ChunksPrepared
+
+**Published by:** Chunking Service  
+**Consumed by:** Embedding Service  
+**Routing Key:** `chunks.prepared`
+
+Signals that messages have been chunked and stored.
+
+```json
+{
+  "event_type": "ChunksPrepared",
+  "event_id": "660e8400-e29b-41d4-a716-446655440000",
+  "timestamp": "2023-10-15T14:40:00Z",
+  "version": "1.0",
+  "data": {
+    "message_ids": [
+      "<20231015123456.ABC123@example.com>"
+    ],
+    "chunk_count": 45,
+    "chunk_ids": [
+      "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "b2c3d4e5-f678-90ab-cdef-123456789012"
+    ],
+    "chunks_ready": true,
+    "chunking_strategy": "recursive",
+    "avg_chunk_size_tokens": 350
+  }
+}
+```
+
+#### 6. ChunkingFailed
+
+**Published by:** Chunking Service  
+**Routing Key:** `chunks.failed`
+
+Signals that chunking failed for a batch of messages.
+
+```json
+{
+  "event_type": "ChunkingFailed",
+  "event_id": "770e8400-e29b-41d4-a716-446655440001",
+  "timestamp": "2023-10-15T14:42:00Z",
+  "version": "1.0",
+  "data": {
+    "message_ids": [
+      "<20231015123456.ABC123@example.com>"
+    ],
+    "error_message": "Failed to retrieve messages from database",
+    "error_type": "DatabaseConnectionError",
+    "retry_count": 3,
+    "failed_at": "2023-10-15T14:42:00Z"
+  }
+}
+```
+
+#### 7. EmbeddingsGenerated
+
+**Published by:** Embedding Service  
+**Consumed by:** Orchestration Service  
+**Routing Key:** `embeddings.generated`
+
+Signals that embeddings have been generated and stored in the vector store.
+
+```json
+{
+  "event_type": "EmbeddingsGenerated",
+  "event_id": "770e8400-e29b-41d4-a716-446655440000",
+  "timestamp": "2023-10-15T14:45:00Z",
+  "version": "1.0",
+  "data": {
+    "chunk_ids": [
+      "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "b2c3d4e5-f678-90ab-cdef-123456789012"
+    ],
+    "embedding_count": 45,
+    "embedding_model": "all-MiniLM-L6-v2",
+    "embedding_backend": "sentencetransformers",
+    "embedding_dimension": 384,
+    "vector_store_collection": "message_embeddings",
+    "vector_store_updated": true,
+    "avg_generation_time_ms": 15.3
+  }
+}
+```
+
+#### 8. EmbeddingGenerationFailed
+
+**Published by:** Embedding Service  
+**Routing Key:** `embeddings.failed`
+
+Signals that embedding generation failed.
+
+```json
+{
+  "event_type": "EmbeddingGenerationFailed",
+  "event_id": "880e8400-e29b-41d4-a716-446655440001",
+  "timestamp": "2023-10-15T14:47:00Z",
+  "version": "1.0",
+  "data": {
+    "chunk_ids": [
+      "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    ],
+    "error_message": "Model inference timeout",
+    "error_type": "TimeoutError",
+    "embedding_backend": "sentencetransformers",
+    "retry_count": 3,
+    "failed_at": "2023-10-15T14:47:00Z"
+  }
+}
+```
+
+#### 9. SummarizationRequested
+
+**Published by:** Orchestration Service  
+**Consumed by:** Summarization Service  
+**Routing Key:** `summarization.requested`
+
+Signals that summarization should be performed for specific threads.
+
+```json
+{
+  "event_type": "SummarizationRequested",
+  "event_id": "990e8400-e29b-41d4-a716-446655440000",
+  "timestamp": "2025-01-15T14:50:00Z",
+  "version": "1.0",
+  "data": {
+    "thread_ids": [
+      "<20250115120000.XYZ789@example.com>"
+    ],
+    "top_k": 12,
+    "llm_backend": "ollama",
+    "llm_model": "mistral",
+    "context_window_tokens": 3000,
+    "prompt_template": "consensus-summary-v1"
+  }
+}
+```
+
+#### 10. OrchestrationFailed
+
+**Published by:** Orchestration Service  
+**Routing Key:** `orchestration.failed`
+
+Signals that orchestration failed for specific threads.
+
+```json
+{
+  "event_type": "OrchestrationFailed",
+  "event_id": "aa0e8400-e29b-41d4-a716-446655440000",
+  "timestamp": "2025-01-15T14:55:00Z",
+  "version": "1.0",
+  "data": {
+    "thread_ids": [
+      "<20250115120000.XYZ789@example.com>"
+    ],
+    "error_type": "VectorStoreConnectionError",
+    "error_message": "Qdrant connection timed out",
+    "retry_count": 2
+  }
+}
+```
+
+#### 11. SummaryComplete
+
+**Published by:** Summarization Service  
+**Consumed by:** Reporting Service  
+**Routing Key:** `summary.complete`
+
+Signals that a summary has been generated.
+
+```json
+{
+  "event_type": "SummaryComplete",
+  "event_id": "bb0e8400-e29b-41d4-a716-446655440000",
+  "timestamp": "2025-01-15T15:05:00Z",
+  "version": "1.0",
+  "data": {
+    "thread_id": "<20250115120000.XYZ789@example.com>",
+    "summary_markdown": "- Consensus: ...\n- Dissent: ...\n- Drafts: RFC9000",
+    "citations": [
+      {
+        "message_id": "<20231015123456.ABC123@example.com>",
+        "chunk_id": "a1b2c3",
+        "offset": 120
+      }
+    ],
+    "llm_backend": "ollama",
+    "llm_model": "mistral",
+    "tokens_prompt": 1800,
+    "tokens_completion": 600,
+    "latency_ms": 2400
+  }
+}
+```
+
+#### 12. SummarizationFailed
+
+**Published by:** Summarization Service  
+**Routing Key:** `summarization.failed`
+
+Signals that summarization failed for a thread.
+
+```json
+{
+  "event_type": "SummarizationFailed",
+  "event_id": "cc0e8400-e29b-41d4-a716-446655440000",
+  "timestamp": "2025-01-15T15:06:00Z",
+  "version": "1.0",
+  "data": {
+    "thread_id": "<20250115120000.XYZ789@example.com>",
+    "error_type": "LLMTimeout",
+    "error_message": "Completion exceeded timeout",
+    "retry_count": 2
+  }
+}
+```
+
+#### 13. ReportPublished
+
+**Published by:** Reporting Service  
+**Routing Key:** `report.published`
+
+Signals that a report has been published and is available via API.
+
+```json
+{
+  "event_type": "ReportPublished",
+  "event_id": "dd0e8400-e29b-41d4-a716-446655440000",
+  "timestamp": "2025-01-15T15:06:00Z",
+  "version": "1.0",
+  "data": {
+    "thread_id": "<20250115120000.XYZ789@example.com>",
+    "report_id": "rpt-01HXYZ...",
+    "format": "markdown",
+    "notified": true,
+    "delivery_channels": ["webhook"],
+    "summary_url": "/api/reports/rpt-01HXYZ..."
+  }
+}
+```
+
+#### 14. ReportDeliveryFailed
+
+**Published by:** Reporting Service  
+**Routing Key:** `report.delivery_failed`
+
+Signals that report delivery (e.g., webhook notification) failed.
+
+```json
+{
+  "event_type": "ReportDeliveryFailed",
+  "event_id": "ee0e8400-e29b-41d4-a716-446655440001",
+  "timestamp": "2025-01-15T15:08:00Z",
+  "version": "1.0",
+  "data": {
+    "report_id": "rpt-01HXYZ...",
+    "thread_id": "<20250115120000.XYZ789@example.com>",
+    "delivery_channel": "webhook",
+    "error_message": "HTTP 503 Service Unavailable",
+    "error_type": "DeliveryError",
+    "retry_count": 3
+  }
+}
+```
+
+### Event Flow Diagram
+
+```mermaid
+graph LR
+    A[Ingestion] -->|ArchiveIngested| B[Parsing]
+    B -->|JSONParsed| C[Chunking]
+    C -->|ChunksPrepared| D[Embedding]
+    D -->|EmbeddingsGenerated| E[Orchestration]
+    E -->|SummarizationRequested| F[Summarization]
+    F -->|SummaryComplete| G[Reporting]
+    G -->|ReportPublished| H[External Systems]
+```
+
+### Event Handling Best Practices
+
+1. **Idempotency**: All event handlers should be idempotent (safe to process the same event multiple times)
+2. **Dead Letter Queues**: Failed events after max retries go to DLQ for manual investigation
+3. **Event Versioning**: The `version` field allows schema evolution without breaking consumers
+4. **Timestamps**: Always use UTC ISO-8601 format for all timestamps
+5. **Tracing**: Use `event_id` for distributed tracing and debugging

@@ -37,6 +37,23 @@ jobs:
     - name: Check service status
       run: docker compose ps
 
+    - name: Check db-init and db-validate exit codes
+      run: |
+        set -euo pipefail
+        for svc in db-init db-validate; do
+          cid=$(docker compose ps -aq "$svc")
+          if [ -z "$cid" ]; then
+            echo "Container for $svc not found" >&2
+            exit 1
+          fi
+          code=$(docker inspect "$cid" --format '{{.State.ExitCode}}')
+          if [ "$code" != "0" ]; then
+            echo "$svc failed with exit code $code" >&2
+            docker compose logs "$svc"
+            exit 1
+          fi
+        done
+
     - name: Test reporting service health endpoint
       run: |
         echo "Testing reporting service..."

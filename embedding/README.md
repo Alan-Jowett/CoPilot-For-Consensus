@@ -114,6 +114,8 @@ EMBEDDING_DIMENSION=768
 
 ### Events Subscribed To
 
+The Embedding Service subscribes to the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+
 #### 1. ChunksPrepared
 
 Consumes events from the Chunking Service when text chunks are ready.
@@ -121,27 +123,7 @@ Consumes events from the Chunking Service when text chunks are ready.
 **Exchange:** `copilot.events`  
 **Routing Key:** `chunks.prepared`
 
-**Expected Payload:**
-```json
-{
-  "event_type": "ChunksPrepared",
-  "event_id": "660e8400-e29b-41d4-a716-446655440000",
-  "timestamp": "2023-10-15T14:40:00Z",
-  "version": "1.0",
-  "data": {
-    "message_ids": [
-      "<20231015123456.ABC123@example.com>"
-    ],
-    "chunk_count": 45,
-    "chunk_ids": [
-      "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "b2c3d4e5-f678-90ab-cdef-123456789012"
-    ],
-    "chunks_ready": true,
-    "timestamp": "2023-10-15T14:40:00Z"
-  }
-}
-```
+See [ChunksPrepared schema](../documents/SCHEMA.md#5-chunksprepared) in SCHEMA.md for the complete payload definition.
 
 **Processing:**
 1. Retrieve chunks from document database using `chunk_ids`
@@ -153,6 +135,8 @@ Consumes events from the Chunking Service when text chunks are ready.
 
 ### Events Published
 
+The Embedding Service publishes the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+
 #### 1. EmbeddingsGenerated
 
 Published when embeddings are successfully generated and stored.
@@ -160,31 +144,9 @@ Published when embeddings are successfully generated and stored.
 **Exchange:** `copilot.events`  
 **Routing Key:** `embeddings.generated`
 
-**Payload Schema:**
-```json
-{
-  "event_type": "EmbeddingsGenerated",
-  "event_id": "770e8400-e29b-41d4-a716-446655440000",
-  "timestamp": "2023-10-15T14:45:00Z",
-  "version": "1.0",
-  "data": {
-    "chunk_ids": [
-      "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "b2c3d4e5-f678-90ab-cdef-123456789012"
-    ],
-    "embedding_count": 45,
-    "embedding_model": "all-MiniLM-L6-v2",
-    "embedding_backend": "sentencetransformers",
-    "embedding_dimension": 384,
-    "vector_store_collection": "message_embeddings",
-    "vector_store_updated": true,
-    "avg_generation_time_ms": 15.3,
-    "timestamp": "2023-10-15T14:45:00Z"
-  }
-}
-```
+See [EmbeddingsGenerated schema](../documents/SCHEMA.md#7-embeddingsgenerated) in SCHEMA.md for the complete payload definition.
 
-**Field Descriptions:**
+**Key Fields:**
 - `chunk_ids`: List of chunk UUIDs that were embedded
 - `embedding_count`: Total number of embeddings generated
 - `embedding_model`: Model identifier used for generation
@@ -193,7 +155,6 @@ Published when embeddings are successfully generated and stored.
 - `vector_store_collection`: Collection where embeddings are stored
 - `vector_store_updated`: Confirmation that vector store is updated
 - `avg_generation_time_ms`: Average time per embedding (for monitoring)
-- `timestamp`: When embedding generation completed
 
 #### 2. EmbeddingGenerationFailed
 
@@ -201,6 +162,15 @@ Published when embedding generation fails.
 
 **Exchange:** `copilot.events`  
 **Routing Key:** `embeddings.failed`
+
+See [EmbeddingGenerationFailed schema](../documents/SCHEMA.md#8-embeddinggenerationfailed) in SCHEMA.md for the complete payload definition.
+
+**Key Fields:**
+- `chunk_ids`: List of chunk UUIDs that failed
+- `error_message`, `error_type`: Error details
+- `embedding_backend`: Backend that was attempted
+- `retry_count`: Number of retry attempts
+
 
 **Payload Schema:**
 ```json

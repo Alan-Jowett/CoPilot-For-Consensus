@@ -82,6 +82,8 @@ Matches:
 
 ### Events Subscribed To
 
+The Parsing Service subscribes to the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+
 #### 1. ArchiveIngested
 
 Consumes events from the Ingestion Service when archives are ready for parsing.
@@ -89,23 +91,7 @@ Consumes events from the Ingestion Service when archives are ready for parsing.
 **Exchange:** `copilot.events`  
 **Routing Key:** `archive.ingested`
 
-**Expected Payload:**
-```json
-{
-  "event_type": "ArchiveIngested",
-  "event_id": "550e8400-e29b-41d4-a716-446655440000",
-  "timestamp": "2023-10-15T14:30:00Z",
-  "version": "1.0",
-  "data": {
-    "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-    "source_name": "ietf-quic",
-    "source_type": "rsync",
-    "file_path": "/data/raw_archives/ietf-quic/2023-10.mbox",
-    "file_size_bytes": 2048576,
-    "file_hash_sha256": "a1b2c3d4e5f6..."
-  }
-}
-```
+See [ArchiveIngested schema](../documents/SCHEMA.md#1-archiveingested) in SCHEMA.md for the complete payload definition.
 
 **Processing:**
 1. Load `.mbox` file from `file_path`
@@ -117,6 +103,8 @@ Consumes events from the Ingestion Service when archives are ready for parsing.
 
 ### Events Published
 
+The Parsing Service publishes the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+
 #### 1. JSONParsed
 
 Published when an archive has been successfully parsed and messages are stored.
@@ -124,40 +112,15 @@ Published when an archive has been successfully parsed and messages are stored.
 **Exchange:** `copilot.events`  
 **Routing Key:** `json.parsed`
 
-**Payload Schema:**
-```json
-{
-  "event_type": "JSONParsed",
-  "event_id": "660e8400-e29b-41d4-a716-446655440000",
-  "timestamp": "2023-10-15T14:35:00Z",
-  "version": "1.0",
-  "data": {
-    "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-    "message_count": 150,
-    "parsed_message_ids": [
-      "<20231015123456.ABC123@example.com>",
-      "<20231015123457.DEF456@example.com>",
-      "<20231015123458.GHI789@example.com>"
-    ],
-    "thread_count": 45,
-    "thread_ids": [
-      "<20231015120000.XYZ789@example.com>",
-      "<20231014090000.ABC123@example.com>"
-    ],
-    "parsing_duration_seconds": 12.5,
-    "timestamp": "2023-10-15T14:35:00Z"
-  }
-}
-```
+See [JSONParsed schema](../documents/SCHEMA.md#3-jsonparsed) in SCHEMA.md for the complete payload definition.
 
-**Field Descriptions:**
+**Key Fields:**
 - `archive_id`: Source archive UUID
 - `message_count`: Number of messages parsed
 - `parsed_message_ids`: List of all Message-IDs (for chunking service)
 - `thread_count`: Number of distinct threads identified
 - `thread_ids`: List of root Message-IDs for threads
 - `parsing_duration_seconds`: Time taken to parse archive
-- `timestamp`: When parsing completed
 
 #### 2. ParsingFailed
 
@@ -166,18 +129,12 @@ Published when archive parsing fails.
 **Exchange:** `copilot.events`  
 **Routing Key:** `parsing.failed`
 
-**Payload Schema:**
-```json
-{
-  "event_type": "ParsingFailed",
-  "event_id": "770e8400-e29b-41d4-a716-446655440001",
-  "timestamp": "2023-10-15T14:37:00Z",
-  "version": "1.0",
-  "data": {
-    "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-    "file_path": "/data/raw_archives/ietf-quic/2023-10.mbox",
-    "error_message": "Corrupted mbox file: invalid message format at offset 1024",
-    "error_type": "MboxParseError",
+See [ParsingFailed schema](../documents/SCHEMA.md#4-parsingfailed) in SCHEMA.md for the complete payload definition.
+
+**Key Fields:**
+- `archive_id`: Source archive UUID
+- `file_path`: Path to the mbox file
+- `error_message`, `error_type`: Error details
     "messages_parsed_before_failure": 75,
     "retry_count": 3,
     "failed_at": "2023-10-15T14:37:00Z"
