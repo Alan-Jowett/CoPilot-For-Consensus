@@ -1,4 +1,3 @@
-LICENSE
 README.md
 setup.py
 copilot_events/__init__.py
