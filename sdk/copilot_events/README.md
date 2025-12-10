@@ -6,13 +6,10 @@ A shared Python library for event publishing and subscribing across microservice
 
 - **Abstract Publisher Interface**: Common interface for all event publishers
 - **Abstract Subscriber Interface**: Common interface for all event subscribers
-- **Abstract Document Store Interface**: Common interface for NoSQL document storage backends
 - **RabbitMQ Implementation**: Production-ready RabbitMQ publisher and subscriber with persistent messages
-- **MongoDB Implementation**: Production-ready MongoDB document store
 - **No-op Implementation**: Testing publisher and subscriber that work in-memory
-- **In-Memory Document Store**: Testing document store that works in-memory
 - **Event Models**: Common event data structures for system-wide consistency
-- **Factory Pattern**: Simple factory functions for creating publishers, subscribers, and document stores
+- **Factory Pattern**: Simple factory functions for creating publishers and subscribers
 
 ## Installation
 
@@ -233,97 +230,6 @@ Event models provide:
 - Type safety
 - Easy serialization
 
-## Document Storage
-
-### Using Document Stores
-
-```python
-from copilot_events import create_document_store
-
-# Create in-memory store for testing/local dev
-store = create_document_store(store_type="inmemory")
-store.connect()
-
-# Insert document
-doc_id = store.insert_document("users", {
-    "name": "Alice",
-    "email": "alice@example.com",
-    "age": 30
-})
-
-# Get document by ID
-user = store.get_document("users", doc_id)
-print(user["name"])  # Alice
-
-# Query documents
-results = store.query_documents("users", {"age": 30})
-
-# Update document
-store.update_document("users", doc_id, {"age": 31})
-
-# Delete document
-store.delete_document("users", doc_id)
-
-store.disconnect()
-```
-
-### Using MongoDB Store
-
-```python
-from copilot_events import create_document_store
-
-# Create MongoDB store
-store = create_document_store(
-    store_type="mongodb",
-    host="mongodb",
-    port=27017,
-    username="user",
-    password="pass",
-    database="copilot_db"
-)
-
-# Connect and use
-if store.connect():
-    doc_id = store.insert_document("archives", {
-        "archive_id": "abc-123",
-        "status": "processed",
-        "timestamp": "2025-01-01T00:00:00Z"
-    })
-    store.disconnect()
-```
-
-### Document Store Interface
-
-The `DocumentStore` abstract base class defines the contract:
-
-- `connect() -> bool`: Establish connection to the store
-- `disconnect() -> None`: Close connection
-- `insert_document(collection, doc) -> str`: Insert a document and return its ID
-- `get_document(collection, doc_id) -> Optional[Dict]`: Retrieve a document by ID
-- `query_documents(collection, filter_dict, limit) -> List[Dict]`: Query documents matching filter
-- `update_document(collection, doc_id, patch) -> bool`: Update a document
-- `delete_document(collection, doc_id) -> bool`: Delete a document
-
-### Implementations
-
-#### MongoDocumentStore
-
-Production MongoDB implementation with:
-- Connection pooling via pymongo
-- Automatic ObjectId handling
-- Error handling and logging
-- Support for authentication
-- Standard MongoDB query syntax
-
-#### InMemoryDocumentStore
-
-Testing implementation with:
-- In-memory dict-based storage
-- Simple equality-based filtering
-- Fast execution for unit tests
-- Utility methods for clearing data
-- Zero external dependencies
-
 ## Development
 
 ### Running Tests
@@ -348,7 +254,6 @@ pylint copilot_events/
 
 - Python 3.11+
 - pika (for RabbitMQ)
-- pymongo (for MongoDB)
 
 ## License
 
