@@ -7,7 +7,7 @@ The `ingestion-ci.yml` GitHub Actions workflow automatically tests the ingestion
 ## Workflow Triggers
 
 The workflow runs when:
-- Code is pushed to `main` or `centralize-schema` branches (with changes in `ingestion/` directory)
+- Code is pushed to `main` branches (with changes in `ingestion/` directory)
 - A pull request is made to `main` (with changes in `ingestion/` directory)
 - The workflow file itself is modified
 

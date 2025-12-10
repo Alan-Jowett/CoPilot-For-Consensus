@@ -5,7 +5,7 @@ name: Ingestion Service CI
 
 on:
   push:
-    branches: [ main, centralize-schema ]
+    branches: [ main ]
     paths:
       - 'ingestion/**'
       - '.github/workflows/ingestion-ci.yml'
@@ -58,14 +58,14 @@ jobs:
 
     - name: Upload test results
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test-results-${{ matrix.python-version }}
         path: ingestion/test-results.xml
 
     - name: Upload coverage reports
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: coverage-report-${{ matrix.python-version }}
         path: ingestion/htmlcov
