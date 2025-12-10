@@ -4,7 +4,6 @@
 """Tests for event models."""
 
 import json
-from datetime import datetime
 
 from copilot_events import (
     ArchiveIngestedEvent,

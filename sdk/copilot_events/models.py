@@ -3,9 +3,9 @@
 
 """Common event models for Copilot-for-Consensus services."""
 
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Dict, Any
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Dict, Any, Optional
 from uuid import uuid4
 
 
@@ -21,19 +21,17 @@ class ArchiveIngestedEvent:
         data: Archive metadata and ingestion details
     """
     event_type: str = "ArchiveIngested"
-    event_id: str = None
-    timestamp: str = None
+    event_id: Optional[str] = None
+    timestamp: Optional[str] = None
     version: str = "1.0"
-    data: Dict[str, Any] = None
+    data: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Generate default values for event_id and timestamp."""
         if self.event_id is None:
             self.event_id = str(uuid4())
         if self.timestamp is None:
-            self.timestamp = datetime.utcnow().isoformat() + "Z"
-        if self.data is None:
-            self.data = {}
+            self.timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert event to dictionary for serialization.
@@ -62,19 +60,17 @@ class ArchiveIngestionFailedEvent:
         data: Failure details and error information
     """
     event_type: str = "ArchiveIngestionFailed"
-    event_id: str = None
-    timestamp: str = None
+    event_id: Optional[str] = None
+    timestamp: Optional[str] = None
     version: str = "1.0"
-    data: Dict[str, Any] = None
+    data: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Generate default values for event_id and timestamp."""
         if self.event_id is None:
             self.event_id = str(uuid4())
         if self.timestamp is None:
-            self.timestamp = datetime.utcnow().isoformat() + "Z"
-        if self.data is None:
-            self.data = {}
+            self.timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert event to dictionary for serialization.
@@ -103,19 +99,17 @@ class JSONParsedEvent:
         data: Parsing results including message_count, parsed_message_ids, thread_count, etc.
     """
     event_type: str = "JSONParsed"
-    event_id: str = None
-    timestamp: str = None
+    event_id: Optional[str] = None
+    timestamp: Optional[str] = None
     version: str = "1.0"
-    data: Dict[str, Any] = None
+    data: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Generate default values for event_id and timestamp."""
         if self.event_id is None:
             self.event_id = str(uuid4())
         if self.timestamp is None:
-            self.timestamp = datetime.utcnow().isoformat() + "Z"
-        if self.data is None:
-            self.data = {}
+            self.timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert event to dictionary for serialization.
@@ -144,19 +138,17 @@ class ParsingFailedEvent:
         data: Failure details including archive_id, file_path, error information
     """
     event_type: str = "ParsingFailed"
-    event_id: str = None
-    timestamp: str = None
+    event_id: Optional[str] = None
+    timestamp: Optional[str] = None
     version: str = "1.0"
-    data: Dict[str, Any] = None
+    data: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Generate default values for event_id and timestamp."""
         if self.event_id is None:
             self.event_id = str(uuid4())
         if self.timestamp is None:
-            self.timestamp = datetime.utcnow().isoformat() + "Z"
-        if self.data is None:
-            self.data = {}
+            self.timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert event to dictionary for serialization.
