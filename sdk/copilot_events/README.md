@@ -20,15 +20,6 @@ Event-driven communication infrastructure for microservices.
 
 ### [copilot_auth](copilot_auth/)
 
-### Event System
-=======
-# Copilot-for-Consensus SDK
-
-This directory contains shared Python libraries for the Copilot-for-Consensus microservices system.
-
-## Modules
-
-=======
 # Copilot Events SDK
 
 A shared Python library for event publishing and subscribing across microservices in the Copilot-for-Consensus system.
@@ -116,32 +107,6 @@ See [CONTRIBUTING.md](../documents/CONTRIBUTING.md) in the main repository.
 ## License
 
 MIT License - see [LICENSE](../LICENSE) file for details.
-=======
-### copilot_events
-
-Event publishing and subscribing library for inter-service communication.
-
-**Features:**
-- Abstract publisher/subscriber interfaces
-- RabbitMQ implementation for production
-- No-op implementation for testing
-- Event models for system-wide consistency
-
-**Documentation:** [copilot_events/README.md](copilot_events/README.md)
-
-<<<<<<< HEAD
-### copilot_config
-
-Configuration management library for standardized config access.
-
-**Features:**
-- Abstract configuration provider interface
-- Environment variable provider for production
-- Static provider for testing
-- Type-safe configuration access (bool, int, string)
-=======
-=======
->>>>>>> a1f32d6 (Editing)
 
 ## Installation
 
@@ -298,23 +263,6 @@ assert len(received_events) == 1
 assert received_events[0]["event_id"] == "123"
 ```
 
-### Using the Document-Store Schema Provider
-
-Schemas can be loaded via the document store abstraction (Mongo implementation lives in `copilot-storage`):
-
-```python
-from copilot_events import DocumentStoreSchemaProvider
-
-# Prefer context manager usage for automatic cleanup
-with DocumentStoreSchemaProvider(
-     mongo_uri="mongodb://admin:password@documentdb:27017/admin?authSource=admin",
-     collection_name="event_schemas",
-     database_name="copilot",  # optional; defaults to "copilot"
- ) as provider:
-     schema = provider.get_schema("ArchiveIngested")
-     event_types = provider.list_event_types()
-```For tests, inject `InMemoryDocumentStore` from `copilot-storage` to avoid external services.
-
 ## Architecture
 
 ### Publisher Interface
@@ -334,14 +282,6 @@ The `EventSubscriber` abstract base class defines the contract:
 - `subscribe(event_type, callback, routing_key) -> None`: Register event handler
 - `start_consuming() -> None`: Start processing events (blocking)
 - `stop_consuming() -> None`: Stop processing events
-
-### ConfigProvider Interface
-
-The `ConfigProvider` abstract base class defines the contract for configuration access:
-
-- `get(key, default=None) -> Any`: Get a configuration value
-- `get_bool(key, default=False) -> bool`: Get a boolean configuration value
-- `get_int(key, default=0) -> int`: Get an integer configuration value
 
 ### Implementations
 
@@ -379,24 +319,6 @@ Testing subscriber implementation with:
 - Subscription introspection
 - Zero external dependencies
 
-#### EnvConfigProvider
-
-Production configuration provider implementation with:
-- Reads from environment variables (os.environ)
-- Smart type conversion for bool and int types
-- Accepts various boolean formats ("true", "1", "yes", "on" for True)
-- Returns defaults for missing or invalid values
-- Zero external dependencies
-
-#### StaticConfigProvider
-
-Testing configuration provider implementation with:
-- Accepts hardcoded configuration dictionary
-- Supports native Python types (bool, int, str)
-- Includes `set()` method for dynamic updates
-- Perfect for unit testing without environment variable side effects
-- Isolated from actual system environment
-
 ### Event Models
 
 Event models provide:
@@ -405,63 +327,36 @@ Event models provide:
 - Consistent structure
 - Type safety
 - Easy serialization
-<<<<<<< HEAD
-========
-**Documentation:** [copilot_config/README.md](copilot_config/README.md)
-=======
->>>>>>> a1f32d6 (Editing)
 
 ## Development
-
-Each module is self-contained with its own:
-- Source code in `<module_name>/<module_name>/`
-- Tests in `<module_name>/tests/`
-- Documentation in `<module_name>/README.md`
-- Setup configuration in `<module_name>/setup.py`
-
-### Installing a Module
-
-```bash
-cd <module_name>
-pip install -e .  # Development mode
-# or
-pip install -e ".[dev]"  # With development dependencies
-```
 
 ### Running Tests
 
 ```bash
-cd <module_name>
 pytest tests/ -v
 ```
 
-## Usage
+### Code Coverage
 
-### In Services
-
-Services can import from these modules directly:
-
-```python
-# Import events library
-from copilot_events import create_publisher, ArchiveIngestedEvent
+```bash
+pytest tests/ --cov=copilot_events --cov-report=html
 ```
 
-### In Tests
+### Linting
 
-Both modules provide testing implementations:
-
-```python
-# Use no-op publisher for testing
-from copilot_events import NoopPublisher
+```bash
+pylint copilot_events/
 ```
+
+## Requirements
+
+- Python 3.11+
+- pika (for RabbitMQ)
+
+## License
+
+MIT License - see LICENSE file for details.
 
 ## Contributing
 
 See CONTRIBUTING.md in the main repository for contribution guidelines.
-See [../documents/CONTRIBUTING.md](../documents/CONTRIBUTING.md) for contribution guidelines.
-
-## License
-
-All modules are licensed under the MIT License. See [../LICENSE](../LICENSE) for details.
-=======
-## Architecture
