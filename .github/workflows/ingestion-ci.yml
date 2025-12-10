@@ -216,7 +216,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ./sdk/copilot_storage ./sdk/copilot_events ./sdk/copilot_logging
+        pip install ./sdk/copilot_storage ./sdk/copilot_events ./sdk/copilot_logging ./sdk/copilot_reporting
         cd ingestion
         pip install -r requirements.txt
         pip install pylint bandit
