@@ -5,9 +5,7 @@
 
 import json
 import logging
-from typing import Dict, Any
-
-from typing import Optional
+from typing import Dict, Any, Optional
 
 from .publisher import EventPublisher
 from .schema_provider import SchemaProvider

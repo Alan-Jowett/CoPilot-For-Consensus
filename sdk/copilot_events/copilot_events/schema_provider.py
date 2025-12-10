@@ -9,8 +9,6 @@ from different sources (files, MongoDB).
 
 from abc import ABC, abstractmethod
 from typing import Dict, Optional
-import json
-
 
 class SchemaProvider(ABC):
     """Abstract base class for schema providers."""
