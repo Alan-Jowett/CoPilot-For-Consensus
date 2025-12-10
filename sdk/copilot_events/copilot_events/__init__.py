@@ -7,6 +7,8 @@ A shared library for event publishing and subscribing across microservices
 in the Copilot-for-Consensus system.
 """
 
+from typing import Optional
+
 __version__ = "0.1.0"
 
 from .publisher import EventPublisher, create_publisher
@@ -95,8 +97,8 @@ def create_subscriber(
 
 def create_error_reporter(
     reporter_type: str = "console",
-    logger_name: str = None,
-    dsn: str = None,
+    logger_name: Optional[str] = None,
+    dsn: Optional[str] = None,
     environment: str = "production",
     **kwargs
 ) -> ErrorReporter:
