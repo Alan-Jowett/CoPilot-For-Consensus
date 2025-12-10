@@ -61,9 +61,17 @@ jobs:
         pip install ./sdk/copilot_events
         pip install pytest jsonschema pymongo
 
+    - name: Install MongoDB Shell
+      run: |
+        wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | sudo apt-key add -
+        echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+        sudo apt-get update
+        sudo apt-get install -y mongodb-mongosh
+
     - name: Wait for MongoDB to be ready
       run: |
-        timeout 30 bash -c 'until mongosh --host localhost:27017 -u admin -p testpass --authenticationDatabase admin --eval "db.adminCommand(\"ping\")" > /dev/null 2>&1; do sleep 1; done'
+        timeout 60 bash -c 'until mongosh --host localhost:27017 -u admin -p testpass --authenticationDatabase admin --quiet --eval "db.adminCommand(\"ping\")" > /dev/null 2>&1; do echo "Waiting for MongoDB..."; sleep 2; done'
+        echo "MongoDB is ready!"
 
     - name: Seed MongoDB with schemas
       run: |
