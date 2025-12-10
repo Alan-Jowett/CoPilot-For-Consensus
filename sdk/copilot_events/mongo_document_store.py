@@ -136,7 +136,7 @@ class MongoDocumentStore(DocumentStore):
             # Try to convert to ObjectId if possible
             try:
                 query = {"_id": ObjectId(doc_id)}
-            except:
+            except (TypeError, ValueError):
                 # Use as string if not a valid ObjectId
                 query = {"_id": doc_id}
             
@@ -219,7 +219,7 @@ class MongoDocumentStore(DocumentStore):
             # Try to convert to ObjectId if possible
             try:
                 query = {"_id": ObjectId(doc_id)}
-            except:
+            except (TypeError, ValueError):
                 query = {"_id": doc_id}
             
             # Use $set operator for patch updates
@@ -259,7 +259,7 @@ class MongoDocumentStore(DocumentStore):
             # Try to convert to ObjectId if possible
             try:
                 query = {"_id": ObjectId(doc_id)}
-            except:
+            except (TypeError, ValueError):
                 query = {"_id": doc_id}
             
             result = coll.delete_one(query)
