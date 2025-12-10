@@ -1,40 +1,136 @@
+<<<<<<< HEAD
+<!-- SPDX-License-Identifier: MIT
+     Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Copilot SDK
 
-A shared Python library for Copilot-for-Consensus microservices, providing event publishing/subscribing and authentication capabilities.
+Shared Python libraries for Copilot-for-Consensus microservices.
 
 ## Modules
 
-### Copilot Events (`copilot_events`)
+Each module is self-contained with its own code, tests, documentation, and setup.py.
+
+### [copilot_events](copilot_events/)
+
 Event-driven communication infrastructure for microservices.
 
-### Copilot Authentication (`copilot_auth`)
-Identity and authentication abstraction layer for secure access control.
+- **Purpose**: Event publishing and subscribing across services
+- **Features**: RabbitMQ and in-memory implementations, event models
+- **Installation**: `cd copilot_events && pip install -e .`
+- **Documentation**: [copilot_events/README.md](copilot_events/README.md)
+
+### [copilot_auth](copilot_auth/)
+
+<<<<<<<< HEAD:sdk/copilot_events/README.md
+### Event System
+=======
+# Copilot Events SDK
+
+A shared Python library for event publishing and subscribing across microservices in the Copilot-for-Consensus system.
 
 ## Features
 
-### Event System
+>>>>>>> 4ff47ee (Restructure SDK: each module is now self-contained with its own setup.py, tests, and README)
 - **Abstract Publisher Interface**: Common interface for all event publishers
 - **Abstract Subscriber Interface**: Common interface for all event subscribers
 - **RabbitMQ Implementation**: Production-ready RabbitMQ publisher and subscriber with persistent messages
 - **No-op Implementation**: Testing publisher and subscriber that work in-memory
 - **Event Models**: Common event data structures for system-wide consistency
 - **Factory Pattern**: Simple factory functions for creating publishers and subscribers
+<<<<<<< HEAD
 - **Pluggable Schema Provider**: Load schemas via filesystem or any `DocumentStore` (Mongo via `copilot-storage`)
+========
+Identity and authentication abstraction layer.
+>>>>>>>> 4ff47ee (Restructure SDK: each module is now self-contained with its own setup.py, tests, and README):sdk/README.md
 
-### Authentication System
-- **Abstract IdentityProvider Interface**: Common interface for all identity providers
-- **User Model**: Standardized user representation with roles and affiliations
-- **Multiple Provider Support**: GitHub OAuth, IETF Datatracker, and mock providers
-- **Role-Based Access**: Support for role and affiliation checking
-- **Factory Pattern**: Simple factory function for creating providers based on configuration
+- **Purpose**: Pluggable authentication providers (GitHub OAuth, IETF Datatracker, mock)
+- **Features**: User model with roles/affiliations, provider factory, role-based access control
+- **Installation**: `cd copilot_auth && pip install -e .`
+- **Documentation**: [copilot_auth/README.md](copilot_auth/README.md)
+
+## Development
+
+Each module can be developed and tested independently:
+
+```bash
+# Install and test copilot_events
+cd copilot_events
+pip install -e .[dev]
+pytest tests/ -v
+
+# Install and test copilot_auth
+cd copilot_auth
+pip install -e .[dev]
+pytest tests/ -v
+```
+
+## Usage in Services
+
+Services can depend on individual modules as needed:
+
+**requirements.txt:**
+```
+copilot-events>=0.1.0
+copilot-auth>=0.1.0
+```
+
+Or install from local development:
+```bash
+pip install -e sdk/copilot_events
+pip install -e sdk/copilot_auth
+```
+
+### Using the Document-Store Schema Provider
+
+Schemas can be loaded via the document store abstraction (Mongo implementation lives in `copilot-storage`):
+
+```python
+from copilot_events import DocumentStoreSchemaProvider
+
+# Prefer context manager usage for automatic cleanup
+with DocumentStoreSchemaProvider(
+     mongo_uri="mongodb://admin:password@documentdb:27017/admin?authSource=admin",
+     collection_name="event_schemas",
+     database_name="copilot",  # optional; defaults to "copilot"
+ ) as provider:
+     schema = provider.get_schema("ArchiveIngested")
+     event_types = provider.list_event_types()
+```For tests, inject `InMemoryDocumentStore` from `copilot-storage` to avoid external services.
+
+## Architecture
+
+Each module follows a consistent structure:
+
+```
+module_name/
+├── module_name/       # Package code
+│   ├── __init__.py
+│   └── ...
+├── tests/            # Module-specific tests
+│   └── test_*.py
+├── examples/         # Example applications (optional)
+│   └── *.py
+├── README.md         # Module documentation
+└── setup.py          # Module setup configuration
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](../documents/CONTRIBUTING.md) in the main repository.
+
+## License
+
+MIT License - see [LICENSE](../LICENSE) file for details.
+=======
 
 ## Installation
 
 ### For Development (Editable Mode)
 
-From the root of the repository:
+From the copilot_events directory:
 
 ```bash
+cd sdk/copilot_events
 pip install -e .
 ```
 
@@ -182,23 +278,6 @@ assert len(received_events) == 1
 assert received_events[0]["event_id"] == "123"
 ```
 
-### Using the Document-Store Schema Provider
-
-Schemas can be loaded via the document store abstraction (Mongo implementation lives in `copilot-storage`):
-
-```python
-from copilot_events import DocumentStoreSchemaProvider
-
-# Prefer context manager usage for automatic cleanup
-with DocumentStoreSchemaProvider(
-     mongo_uri="mongodb://admin:password@documentdb:27017/admin?authSource=admin",
-     collection_name="event_schemas",
-     database_name="copilot",  # optional; defaults to "copilot"
- ) as provider:
-     schema = provider.get_schema("ArchiveIngested")
-     event_types = provider.list_event_types()
-```For tests, inject `InMemoryDocumentStore` from `copilot-storage` to avoid external services.
-
 ## Architecture
 
 ### Publisher Interface
@@ -264,104 +343,6 @@ Event models provide:
 - Type safety
 - Easy serialization
 
-## Authentication
-
-### Quick Start
-
-```python
-from copilot_auth import create_identity_provider, User
-
-# Create a mock provider for testing
-provider = create_identity_provider("mock")
-
-# Add a test user
-test_user = User(
-    id="user-123",
-    email="test@example.com",
-    name="Test User",
-    roles=["contributor"],
-    affiliations=["IETF"]
-)
-provider.add_user("test-token", test_user)
-
-# Retrieve and verify user
-user = provider.get_user("test-token")
-if user and user.has_role("contributor"):
-    print(f"Welcome, {user.name}!")
-```
-
-### Provider Types
-
-#### MockIdentityProvider
-
-For testing and local development:
-```python
-provider = create_identity_provider("mock")
-provider.add_user("token", User(...))
-```
-
-#### GitHubIdentityProvider (Scaffold)
-
-For GitHub OAuth authentication:
-```python
-provider = create_identity_provider(
-    "github",
-    client_id="your-client-id",
-    client_secret="your-client-secret"
-)
-```
-
-#### DatatrackerIdentityProvider (Scaffold)
-
-For IETF Datatracker authentication:
-```python
-provider = create_identity_provider("datatracker")
-```
-
-### Configuration
-
-Use environment variables to configure providers:
-
-```bash
-# Provider selection
-export IDENTITY_PROVIDER=mock  # or "github", "datatracker"
-
-# GitHub OAuth
-export GITHUB_CLIENT_ID=your-client-id
-export GITHUB_CLIENT_SECRET=your-client-secret
-
-# Custom Datatracker URL
-export DATATRACKER_API_BASE_URL=https://test.datatracker.ietf.org/api
-```
-
-### Integration Example
-
-Protect API endpoints with authentication:
-
-```python
-from flask import Flask, request, jsonify
-from copilot_auth import create_identity_provider, AuthenticationError
-
-app = Flask(__name__)
-provider = create_identity_provider()
-
-@app.route("/api/summaries", methods=["GET"])
-def get_summaries():
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
-        return jsonify({"error": "Missing authorization"}), 401
-    
-    token = auth_header[7:]
-    user = provider.get_user(token)
-    
-    if not user or not user.has_role("contributor"):
-        return jsonify({"error": "Unauthorized"}), 403
-    
-    return jsonify({"summaries": [], "user": user.to_dict()})
-```
-
-For more details, see [copilot_auth/README.md](copilot_auth/README.md).
-
 ## Development
 
 ### Running Tests
@@ -394,3 +375,4 @@ MIT License - see LICENSE file for details.
 ## Contributing
 
 See CONTRIBUTING.md in the main repository for contribution guidelines.
+>>>>>>> 4ff47ee (Restructure SDK: each module is now self-contained with its own setup.py, tests, and README)

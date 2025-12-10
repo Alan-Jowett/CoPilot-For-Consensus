@@ -33,11 +33,17 @@ An abstraction layer for identity and authentication providers in the Copilot-fo
 
 ## Installation
 
-The authentication module is part of the copilot-events SDK:
+Install the copilot-auth module:
 
 ```bash
-cd sdk
+cd sdk/copilot_auth
 pip install -e .
+```
+
+Or for production:
+
+```bash
+pip install copilot-auth
 ```
 
 ## Quick Start
