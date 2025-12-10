@@ -3,6 +3,8 @@
 
 import time
 import logging
+from factory import SummarizerFactory
+from models import Thread
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -10,6 +12,14 @@ logger = logging.getLogger(__name__)
 def main():
     """Summarization service: Generate weekly summaries and insights."""
     logger.info("Starting Summarization Service")
+    
+    # Initialize summarizer using factory
+    summarizer = SummarizerFactory.create_summarizer()
+    logger.info(f"Initialized summarizer: {type(summarizer).__name__}")
+    
+    # Example usage (placeholder for actual event-driven logic)
+    # In production, this would listen for SummarizationRequestedEvent
+    # and publish SummaryCompleteEvent
     
     # Keep service running
     while True:
