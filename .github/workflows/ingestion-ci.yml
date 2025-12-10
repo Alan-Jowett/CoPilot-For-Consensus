@@ -215,8 +215,9 @@ jobs:
 
     - name: Install dependencies
       run: |
-        cd ingestion
         python -m pip install --upgrade pip
+        pip install ./sdk
+        cd ingestion
         pip install -r requirements.txt
         pip install pylint bandit
 
@@ -231,8 +232,8 @@ jobs:
         cd ingestion
         python -c "
         from app.config import IngestionConfig, SourceConfig
-        from app.models import ArchiveIngestedEvent, ArchiveIngestionFailedEvent
-        from app.event_publisher import create_publisher, RabbitMQPublisher, NoopPublisher
+        from copilot_events import ArchiveIngestedEvent, ArchiveIngestionFailedEvent
+        from copilot_events import create_publisher, RabbitMQPublisher, NoopPublisher
         from app.archive_fetcher import create_fetcher, calculate_file_hash
         from app.service import IngestionService
         print('✓ All imports successful')
