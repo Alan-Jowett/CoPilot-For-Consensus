@@ -54,6 +54,21 @@ jobs:
           fi
         done
 
+    - name: Run ingestion service
+      run: |
+        echo "Starting ingestion service..."
+        docker compose run --rm ingestion
+
+    - name: Check ingestion service exit code
+      run: |
+        echo "Verifying ingestion completed successfully..."
+        # The previous step will fail if exit code is non-zero
+        echo "✓ Ingestion service completed successfully"
+
+    - name: View ingestion logs
+      if: always()
+      run: docker compose logs ingestion
+
     - name: Test reporting service health endpoint
       run: |
         echo "Testing reporting service..."
