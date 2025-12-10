@@ -39,7 +39,7 @@ jobs:
     - name: Install SDK and test dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ./sdk/copilot_auth ./sdk/copilot_storage ./sdk/copilot_events ./sdk/copilot_metrics ./sdk/copilot_logging
+        pip install ./sdk/copilot_auth ./sdk/copilot_storage ./sdk/copilot_events ./sdk/copilot_metrics ./sdk/copilot_logging ./sdk/copilot_reporting
         pip install pytest pytest-cov jsonschema pymongo
 
     - name: Run unit tests (exclude integration)
@@ -97,7 +97,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ./sdk/copilot_auth ./sdk/copilot_storage ./sdk/copilot_events ./sdk/copilot_metrics
+        pip install ./sdk/copilot_auth ./sdk/copilot_storage ./sdk/copilot_events ./sdk/copilot_metrics ./sdk/copilot_reporting
         pip install flake8 pylint
 
     - name: Lint with flake8
