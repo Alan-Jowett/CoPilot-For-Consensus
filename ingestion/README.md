@@ -2,346 +2,185 @@
   Copyright (c) 2025 Copilot-for-Consensus contributors -->
 # Ingestion Service
 
-## Overview
+The Ingestion Service fetches mailing list archives from multiple sources and publishes events when new archives are available for downstream processing.
 
-The Ingestion Service is the entry point for the Copilot-for-Consensus data pipeline. It fetches mailing list archives from remote sources (IETF, mailing list servers, etc.) and makes them available for downstream processing. This service runs on a configurable schedule and publishes events when new archives are successfully ingested.
-
-## Purpose
-
-Fetch mailing list archives (e.g., `.mbox` files) from various sources and store them locally for processing by the Parsing & Normalization Service.
-
-## Responsibilities
-
-- **Scheduled Synchronization:** Periodically fetch archives from configured sources
-- **Source Management:** Support multiple source types (rsync, IMAP, HTTP downloads, local filesystem)
-- **Storage Management:** Store raw archives in configured storage location (local volumes, blob storage)
-- **Deduplication:** Track previously ingested archives to avoid reprocessing
-- **Event Publishing:** Notify downstream services when new archives are available
-- **Error Handling:** Retry failed fetches with exponential backoff
-- **Audit Logging:** Record all ingestion operations for compliance and debugging
-
-## Technology Stack
-
-- **Language:** Python 3.11+
-- **Core Libraries:**
-  - `rsync` wrapper for IETF archive synchronization
-  - `imapclient` for IMAP-based mail retrieval
-  - `requests` for HTTP downloads
-  - `pika` (RabbitMQ) or Azure SDK for message bus integration
-- **Storage:** Local filesystem or cloud blob storage (Azure Blob, S3)
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Type | Required | Default | Description |
-|----------|------|----------|---------|-------------|
-| `STORAGE_PATH` | String | Yes | `/data/raw_archives` | Local path for storing raw archives |
-| `MESSAGE_BUS_HOST` | String | Yes | `messagebus` | Message bus hostname |
-| `MESSAGE_BUS_PORT` | Integer | No | `5672` | Message bus port |
-| `MESSAGE_BUS_USER` | String | No | `guest` | Message bus username |
-| `MESSAGE_BUS_PASSWORD` | String | No | `guest` | Message bus password |
-| `INGESTION_SCHEDULE_CRON` | String | No | `0 */6 * * *` | Cron schedule for ingestion (default: every 6 hours) |
-| `BLOB_STORAGE_ENABLED` | Boolean | No | `false` | Enable cloud blob storage |
-| `BLOB_STORAGE_CONNECTION_STRING` | String | No | - | Azure Blob or S3 connection string |
-| `BLOB_STORAGE_CONTAINER` | String | No | `raw-archives` | Blob storage container name |
-| `LOG_LEVEL` | String | No | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
-| `RETRY_MAX_ATTEMPTS` | Integer | No | `3` | Maximum retry attempts for failed fetches |
-| `RETRY_BACKOFF_SECONDS` | Integer | No | `60` | Base backoff time for retries |
-
-### Configuration File
-
-The service also supports a configuration file (`config.yaml`) for defining archive sources:
-
-```yaml
-sources:
-  - name: "ietf-quic"
-    type: "rsync"
-    url: "rsync.ietf.org::mailman-archive/quic/"
-    enabled: true
-    
-  - name: "ietf-tls"
-    type: "rsync"
-    url: "rsync.ietf.org::mailman-archive/tls/"
-    enabled: true
-    
-  - name: "custom-imap"
-    type: "imap"
-    host: "imap.example.com"
-    port: 993
-    username: "${IMAP_USERNAME}"
-    password: "${IMAP_PASSWORD}"
-    folder: "INBOX"
-    enabled: false
-```
-
-## Events
-
-### Events Subscribed To
-
-**None.** The Ingestion Service is the entry point of the pipeline and does not consume events from other services. It operates on a schedule or can be triggered manually via API.
-
-### Events Published
-
-The Ingestion Service publishes the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
-
-#### 1. ArchiveIngested
-
-Published when an archive is successfully fetched and stored.
-
-**Exchange:** `copilot.events`  
-**Routing Key:** `archive.ingested`
-
-See [ArchiveIngested schema](../documents/SCHEMA.md#1-archiveingested) in SCHEMA.md for the complete payload definition.
-
-**Key Fields:**
-- `archive_id`: Unique identifier for the ingested archive (UUID)
-- `source_name`, `source_type`, `source_url`: Source metadata
-- `file_path`, `file_size_bytes`, `file_hash_sha256`: Storage details
-- `ingestion_started_at`, `ingestion_completed_at`: Timing information
-
-#### 2. ArchiveIngestionFailed
-
-Published when an archive fetch fails after all retry attempts.
-
-**Exchange:** `copilot.events`  
-**Routing Key:** `archive.ingestion.failed`
-
-See [ArchiveIngestionFailed schema](../documents/SCHEMA.md#2-archiveingestionfailed) in SCHEMA.md for the complete payload definition.
-
-**Key Fields:**
-- `source_name`, `source_type`, `source_url`: Source metadata
-- `error_message`, `error_type`: Error details
-- `retry_count`: Number of retries attempted
-- `failed_at`: When the failure occurred
-
-## Data Flow
-
-```mermaid
-graph LR
-    A[Scheduler/Trigger] --> B[Ingestion Service]
-    B --> C{Fetch Archive}
-    C -->|rsync| D[IETF Archives]
-    C -->|IMAP| E[Mail Server]
-    C -->|HTTP| F[HTTP Source]
-    D --> G[Local Storage]
-    E --> G
-    F --> G
-    G --> H[Calculate Hash]
-    H --> I{Already Ingested?}
-    I -->|No| J[Store Archive]
-    I -->|Yes| K[Skip]
-    J --> L[Publish ArchiveIngested Event]
-    L --> M[Message Bus]
-    M --> N[Parsing Service]
-```
-
-## Storage Structure
-
-Archives are stored in a hierarchical directory structure:
-
-```
-/data/raw_archives/
-├── ietf-quic/
-│   ├── 2023-10.mbox
-│   ├── 2023-11.mbox
-│   └── 2023-12.mbox
-├── ietf-tls/
-│   ├── 2023-10.mbox
-│   └── 2023-11.mbox
-└── metadata/
-    ├── ingestion_log.jsonl
-    └── checksums.json
-```
-
-### Metadata Files
-
-**ingestion_log.jsonl**: JSON Lines format log of all ingestion operations
-```json
-{"archive_id": "...", "source": "ietf-quic", "timestamp": "2023-10-15T14:30:00Z", "status": "success"}
-{"archive_id": "...", "source": "ietf-tls", "timestamp": "2023-10-15T15:00:00Z", "status": "failed"}
-```
-
-**checksums.json**: Hash index for deduplication
-```json
-{
-  "a1b2c3d4e5f6...": {
-    "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-    "file_path": "/data/raw_archives/ietf-quic/2023-10.mbox",
-    "first_seen": "2023-10-15T14:30:00Z"
-  }
-}
-```
-
-## API Endpoints
-
-The service exposes a minimal HTTP API for health checks and manual triggering:
-
-### GET /health
-
-Health check endpoint.
-
-**Response:**
-```json
-{
-  "status": "healthy",
-  "service": "ingestion",
-  "version": "1.0.0",
-  "uptime_seconds": 3600,
-  "last_successful_ingestion": "2023-10-15T14:30:00Z"
-}
-```
-
-### POST /ingest/{source_name}
-
-Manually trigger ingestion for a specific source.
-
-**Parameters:**
-- `source_name`: Name of the configured source
-
-**Response:**
-```json
-{
-  "status": "triggered",
-  "source_name": "ietf-quic",
-  "job_id": "550e8400-e29b-41d4-a716-446655440002"
-}
-```
-
-### GET /sources
-
-List all configured sources and their status.
-
-**Response:**
-```json
-{
-  "sources": [
-    {
-      "name": "ietf-quic",
-      "type": "rsync",
-      "enabled": true,
-      "last_success": "2023-10-15T14:30:00Z",
-      "last_failure": null,
-      "consecutive_failures": 0
-    },
-    {
-      "name": "ietf-tls",
-      "type": "rsync",
-      "enabled": true,
-      "last_success": "2023-10-15T12:00:00Z",
-      "last_failure": null,
-      "consecutive_failures": 0
-    }
-  ]
-}
-```
-
-## Error Handling
-
-### Retry Logic
-
-Failed ingestion attempts are retried with exponential backoff:
-
-1. **First attempt:** Immediate
-2. **Second attempt:** Wait `RETRY_BACKOFF_SECONDS` (default: 60s)
-3. **Third attempt:** Wait `RETRY_BACKOFF_SECONDS * 2` (default: 120s)
-4. **After max attempts:** Publish `ArchiveIngestionFailed` event
-
-### Error Types
-
-- `ConnectionError`: Network connectivity issues
-- `TimeoutError`: Operation exceeded timeout
-- `AuthenticationError`: Invalid credentials for IMAP/authenticated sources
-- `PermissionError`: Insufficient permissions to write to storage
-- `IntegrityError`: Hash verification failed
-- `ConfigurationError`: Invalid configuration
-
-## Monitoring & Observability
-
-### Metrics
-
-The service exposes Prometheus metrics on `/metrics`:
-
-- `ingestion_total`: Total number of ingestion attempts (labeled by source, status)
-- `ingestion_duration_seconds`: Histogram of ingestion duration
-- `ingestion_file_size_bytes`: Histogram of ingested file sizes
-- `ingestion_failures_total`: Total number of failures (labeled by source, error_type)
-- `ingestion_last_success_timestamp`: Unix timestamp of last successful ingestion (labeled by source)
-
-### Logs
-
-All operations are logged in structured JSON format:
-
-```json
-{
-  "timestamp": "2023-10-15T14:30:00Z",
-  "level": "INFO",
-  "service": "ingestion",
-  "message": "Archive ingested successfully",
-  "context": {
-    "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
-    "source": "ietf-quic",
-    "duration_seconds": 45.2,
-    "file_size_bytes": 2048576
-  }
-}
-```
-
-## Dependencies
-
-### Runtime Dependencies
-
-- **Message Bus:** RabbitMQ or Azure Service Bus for event publishing
-- **Storage:** Local filesystem or cloud blob storage
-
-### Service Dependencies
-
-**None.** The Ingestion Service has no dependencies on other microservices and can run independently.
-
-## Development
-
-### Running Locally
+## Quick Start
 
 ```bash
 # Install dependencies
 pip install -r requirements.txt
 
-# Set environment variables
-export STORAGE_PATH=/tmp/raw_archives
-export MESSAGE_BUS_HOST=localhost
+# Run tests (42+ tests)
+pytest tests/ -v
 
-# Run the service
-python main.py
+# Configure sources
+cp config.yaml config.local.yaml
+# Edit config.local.yaml with your sources
+
+# Run service
+MESSAGE_BUS_TYPE=noop python main.py          # Testing mode
+MESSAGE_BUS_HOST=localhost python main.py      # With RabbitMQ
+CONFIG_FILE=config.local.yaml python main.py   # Custom config
 ```
 
-### Running in Docker
+## Features
+
+- **Multiple Source Types:** rsync, HTTP/HTTPS, IMAP, local filesystem
+- **Event Publishing:** RabbitMQ integration with schema-compliant events
+- **Deduplication:** SHA256-based duplicate detection with persistent checksums
+- **Retry Logic:** Exponential backoff for failed fetches
+- **Audit Logging:** JSONL format for all ingestion operations
+- **Flexible Configuration:** Environment variables and YAML file support
+
+## Technology Stack
+
+- **Python 3.11+**
+- **Dependencies:** pika (RabbitMQ), pyyaml, requests, imapclient, python-dotenv
+
+## Architecture
+
+### Project Structure
+
+```
+ingestion/
+├── app/
+│   ├── config.py              # Configuration management
+│   ├── models.py              # Event and metadata models
+│   ├── event_publisher.py     # RabbitMQ/Noop publisher
+│   ├── archive_fetcher.py     # Source type implementations
+│   └── service.py             # Main ingestion orchestration
+├── tests/                     # 42+ unit and integration tests
+├── main.py                    # Service entry point
+├── config.yaml                # Example source configuration
+├── requirements.txt           # Python dependencies
+└── Dockerfile                 # Container image
+```
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STORAGE_PATH` | `/data/raw_archives` | Archive storage location |
+| `MESSAGE_BUS_TYPE` | `rabbitmq` | `rabbitmq` or `noop` |
+| `MESSAGE_BUS_HOST` | `messagebus` | RabbitMQ hostname |
+| `MESSAGE_BUS_PORT` | `5672` | RabbitMQ port |
+| `MESSAGE_BUS_USER` | `guest` | RabbitMQ username |
+| `MESSAGE_BUS_PASSWORD` | `guest` | RabbitMQ password |
+| `CONFIG_FILE` | `config.yaml` | Path to YAML configuration |
+| `LOG_LEVEL` | `INFO` | Logging level |
+| `RETRY_MAX_ATTEMPTS` | `3` | Max retry attempts |
+| `RETRY_BACKOFF_SECONDS` | `60` | Retry backoff time |
+
+### Source Configuration (config.yaml)
+
+Define archive sources in YAML format. Environment variables are expanded using `${VAR}` syntax:
+
+```yaml
+sources:
+  # Rsync source (IETF archives)
+  - name: "ietf-quic"
+    type: "rsync"
+    url: "rsync.ietf.org::mailman-archive/quic/"
+    enabled: true
+    
+  # HTTP/HTTPS source
+  - name: "archive-http"
+    type: "http"
+    url: "https://example.com/archives.mbox"
+    enabled: true
+    
+  # IMAP source
+  - name: "mail-archive"
+    type: "imap"
+    url: "imap.example.com"
+    port: 993
+    username: "${IMAP_USERNAME}"
+    password: "${IMAP_PASSWORD}"
+    folder: "INBOX"
+    enabled: true
+    
+  # Local filesystem (testing)
+  - name: "local-test"
+    type: "local"
+    url: "/path/to/local/archives"
+    enabled: false
+```
+
+## Events Published
+
+The service publishes events to RabbitMQ. See [../documents/SCHEMA.md](../documents/SCHEMA.md) for complete schemas.
+
+### ArchiveIngested
+
+Published when an archive is successfully fetched and stored.
+
+- **Exchange:** `copilot.events`
+- **Routing Key:** `archive.ingested`
+- **Key Fields:** `archive_id`, `source_name`, `source_type`, `file_path`, `file_hash_sha256`, timestamps
+
+### ArchiveIngestionFailed
+
+Published when ingestion fails after all retries.
+
+- **Exchange:** `copilot.events`
+- **Routing Key:** `archive.ingestion.failed`
+- **Key Fields:** `source_name`, `error_message`, `error_type`, `retry_count`, `failed_at`
+
+## Storage
+
+Archives are organized by source with metadata for deduplication:
+
+```
+/data/raw_archives/
+├── ietf-quic/2023-10.mbox
+├── ietf-tls/2023-10.mbox
+└── metadata/
+    ├── checksums.json       # SHA256 hash index for deduplication
+    └── ingestion_log.jsonl  # Audit log of all operations
+```
+
+## Testing
+
+```bash
+# Run all tests (42+ unit and integration tests)
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=app --cov-report=html
+
+# Run specific test suite
+pytest tests/test_service.py -v
+```
+
+## Docker Deployment
 
 ```bash
 # Build image
-docker build -t copilot-ingestion .
+docker build -t ingestion-service .
 
-# Run container
+# Run with RabbitMQ
 docker run -d \
-  -e STORAGE_PATH=/data/raw_archives \
-  -e MESSAGE_BUS_HOST=messagebus \
-  -v /host/path/archives:/data/raw_archives \
-  copilot-ingestion
+  -e MESSAGE_BUS_HOST=rabbitmq \
+  -e CONFIG_FILE=/app/config.yaml \
+  -v ./config.yaml:/app/config.yaml:ro \
+  -v raw_archives:/data/raw_archives \
+  ingestion-service
 ```
 
-### Testing
+## Development
 
 ```bash
-# Run unit tests
-pytest tests/
+# Install dependencies
+pip install -r requirements.txt pytest
 
-# Run integration tests (requires message bus)
-pytest tests/integration/ --integration
+# Run with local testing
+MESSAGE_BUS_TYPE=noop LOG_LEVEL=DEBUG python main.py
+
+# Run tests during development
+pytest tests/ -vv --tb=short
 ```
-
-## Future Enhancements
-
-- [ ] Support for additional source types (FTP, S3 direct)
-- [ ] Incremental sync (fetch only new messages)
 - [ ] Parallel ingestion from multiple sources
 - [ ] Archive compression before storage
 - [ ] Webhook support for push-based ingestion
