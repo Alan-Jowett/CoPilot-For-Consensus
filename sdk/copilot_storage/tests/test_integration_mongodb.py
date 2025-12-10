@@ -49,13 +49,13 @@ def clean_collection(mongodb_store):
     collection_name = "test_integration"
     
     # Clean up before test
-    if mongodb_store.database:
+    if mongodb_store.database is not None:
         mongodb_store.database[collection_name].drop()
     
     yield collection_name
     
     # Clean up after test
-    if mongodb_store.database:
+    if mongodb_store.database is not None:
         mongodb_store.database[collection_name].drop()
 
 

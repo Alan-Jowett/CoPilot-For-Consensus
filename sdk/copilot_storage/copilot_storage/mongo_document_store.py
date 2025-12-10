@@ -113,7 +113,7 @@ class MongoDocumentStore(DocumentStore):
         Raises:
             Exception: If insertion fails or not connected
         """
-        if not self.database:
+        if self.database is None:
             raise Exception("Not connected to MongoDB")
         
         try:
@@ -136,7 +136,7 @@ class MongoDocumentStore(DocumentStore):
         Returns:
             Document data as dictionary, or None if not found
         """
-        if not self.database:
+        if self.database is None:
             logger.error("MongoDocumentStore: not connected")
             return None
         
@@ -181,7 +181,7 @@ class MongoDocumentStore(DocumentStore):
         Returns:
             List of matching documents
         """
-        if not self.database:
+        if self.database is None:
             logger.error("MongoDocumentStore: not connected")
             return []
         
@@ -219,7 +219,7 @@ class MongoDocumentStore(DocumentStore):
         Returns:
             True if document exists and update succeeded, False if document not found
         """
-        if not self.database:
+        if self.database is None:
             logger.error("MongoDocumentStore: not connected")
             return False
         
@@ -259,7 +259,7 @@ class MongoDocumentStore(DocumentStore):
         Returns:
             True if deletion succeeded, False otherwise
         """
-        if not self.database:
+        if self.database is None:
             logger.error("MongoDocumentStore: not connected")
             return False
         
