@@ -10,6 +10,7 @@ for identifying signs of agreement, dissent, or stagnation in threads.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 from typing import List, Dict, Any, Optional
 import re
@@ -147,9 +148,14 @@ class HeuristicConsensusDetector(ConsensusDetector):
         
         # Check for stagnation (no recent activity)
         if thread.last_activity_at:
-            from datetime import datetime, timezone, timedelta
-            days_since_activity = (datetime.now(timezone.utc) - 
-                                 thread.last_activity_at.replace(tzinfo=timezone.utc)).days
+            # Ensure last_activity_at is timezone-aware
+            last_activity = thread.last_activity_at
+            if last_activity.tzinfo is None:
+                last_activity = last_activity.replace(tzinfo=timezone.utc)
+            else:
+                last_activity = last_activity.astimezone(timezone.utc)
+            
+            days_since_activity = (datetime.now(timezone.utc) - last_activity).days
             metadata['days_since_activity'] = days_since_activity
             
             if days_since_activity > self.stagnation_days:
