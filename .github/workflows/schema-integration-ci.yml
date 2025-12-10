@@ -75,47 +75,39 @@ jobs:
 
     - name: Seed MongoDB with schemas
       run: |
-        # Create a simple node script to seed the database
-        cat > /tmp/seed-mongo.js << 'EOF'
-        const fs = require('fs');
-        const path = require('path');
+        python << 'EOF'
+        import json
+        import os
+        from pathlib import Path
+        from pymongo import MongoClient
+
+        # Connect to MongoDB
+        uri = 'mongodb://admin:testpass@localhost:27017/copilot?authSource=admin'
+        client = MongoClient(uri)
+        db = client['copilot']
+        coll = db['event_schemas']
+
+        # Create index
+        coll.create_index('name', unique=True)
+
+        # Seed schemas
+        events_dir = Path('documents/schemas/events')
+        schema_files = list(events_dir.glob('*.json'))
         
-        const eventsDir = 'documents/schemas/events';
-        const files = fs.readdirSync(eventsDir).filter(f => f.endsWith('.json'));
-        
-        const client = require('mongodb').MongoClient;
-        const uri = 'mongodb://admin:testpass@localhost:27017/copilot?authSource=admin';
-        
-        (async () => {
-          const mongoClient = new client(uri);
-          try {
-            await mongoClient.connect();
-            const db = mongoClient.db('copilot');
-            const coll = db.collection('event_schemas');
+        for schema_file in schema_files:
+            with open(schema_file, 'r') as f:
+                schema = json.load(f)
             
-            // Create index
-            await coll.createIndex({ name: 1 }, { unique: true });
-            
-            // Seed schemas
-            for (const file of files) {
-              const fullPath = path.join(eventsDir, file);
-              const schema = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
-              const name = file.replace(/\.schema\.json$/i, '');
-              await coll.updateOne(
-                { name },
-                { $set: { name, fileName: file, schema } },
-                { upsert: true }
-              );
-            }
-            console.log(`Seeded ${files.length} event schemas`);
-          } finally {
-            await mongoClient.close();
-          }
-        })();
+            name = schema_file.stem.replace('.schema', '')
+            coll.update_one(
+                {'name': name},
+                {'$set': {'name': name, 'fileName': schema_file.name, 'schema': schema}},
+                upsert=True
+            )
+        
+        print(f'Seeded {len(schema_files)} event schemas')
+        client.close()
         EOF
-        
-        npm install mongodb
-        node /tmp/seed-mongo.js
 
     - name: Run integration tests
       env:
