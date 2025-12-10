@@ -46,12 +46,7 @@ jobs:
     - name: Run unit tests
       run: |
         cd sdk/copilot_storage
-        pytest tests/ -v --tb=short --junit-xml=test-results.xml
-
-    - name: Generate coverage report
-      run: |
-        cd sdk/copilot_storage
-        pytest tests/ --cov=copilot_storage --cov-report=lcov --cov-report=html --cov-report=term
+        pytest tests/test_document_store.py -v --tb=short --junit-xml=test-results.xml --cov=copilot_storage --cov-report=lcov --cov-report=html --cov-report=term
 
     - name: Upload coverage to Coveralls
       uses: coverallsapp/github-action@v2
@@ -99,7 +94,7 @@ jobs:
           MONGO_INITDB_ROOT_USERNAME: testuser
           MONGO_INITDB_ROOT_PASSWORD: testpass
         options: >-
-          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })' --quiet"
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 }).ok' --quiet || mongo --eval 'db.runCommand({ ping: 1 }).ok' --quiet"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -124,14 +119,33 @@ jobs:
     - name: Wait for MongoDB to be ready
       run: |
         echo "Waiting for MongoDB to be ready..."
-        for i in {1..30}; do
-          if docker exec $(docker ps -q -f ancestor=mongo:${{ matrix.mongodb-version }}) mongosh --eval "db.runCommand({ ping: 1 })" --quiet 2>/dev/null; then
-            echo "MongoDB is ready!"
-            break
-          fi
-          echo "Waiting... ($i/30)"
-          sleep 2
-        done
+        pip install pymongo
+        python -c "
+        import time
+        import sys
+        from pymongo import MongoClient
+        from pymongo.errors import ConnectionFailure, OperationFailure
+        
+        for i in range(30):
+            try:
+                client = MongoClient(
+                    host='localhost',
+                    port=27017,
+                    username='testuser',
+                    password='testpass',
+                    authSource='admin',
+                    serverSelectionTimeoutMS=2000
+                )
+                client.admin.command('ping')
+                print('MongoDB is ready!')
+                sys.exit(0)
+            except (ConnectionFailure, OperationFailure) as e:
+                print(f'Waiting... ({i+1}/30): {e}')
+                time.sleep(2)
+        
+        print('MongoDB failed to become ready')
+        sys.exit(1)
+        "
 
     - name: Run integration tests
       env:
@@ -142,18 +156,7 @@ jobs:
         MONGODB_DATABASE: test_copilot
       run: |
         cd sdk/copilot_storage
-        pytest tests/test_integration_mongodb.py -v --tb=short --junit-xml=integration-test-results.xml
-
-    - name: Generate integration coverage report
-      env:
-        MONGODB_HOST: localhost
-        MONGODB_PORT: 27017
-        MONGODB_USERNAME: testuser
-        MONGODB_PASSWORD: testpass
-        MONGODB_DATABASE: test_copilot
-      run: |
-        cd sdk/copilot_storage
-        pytest tests/test_integration_mongodb.py --cov=copilot_storage --cov-report=lcov --cov-report=html --cov-report=term
+        pytest tests/test_integration_mongodb.py -v --tb=short --junit-xml=integration-test-results.xml --cov=copilot_storage --cov-report=lcov:integration-coverage.lcov --cov-report=html:integration-htmlcov --cov-report=term
 
     - name: Upload integration test results
       if: always()
@@ -167,7 +170,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: integration-coverage-report-py${{ matrix.python-version }}-mongo${{ matrix.mongodb-version }}
-        path: sdk/copilot_storage/htmlcov
+        path: sdk/copilot_storage/integration-htmlcov
 
     - name: Integration Test Report
       if: always()

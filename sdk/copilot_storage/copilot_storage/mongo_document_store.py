@@ -66,6 +66,9 @@ class MongoDocumentStore(DocumentStore):
             if self.username and self.password:
                 connection_params["username"] = self.username
                 connection_params["password"] = self.password
+                # Use admin database for authentication by default if not specified
+                if "authSource" not in self.client_options:
+                    connection_params["authSource"] = "admin"
             
             # Merge additional client options
             connection_params.update(self.client_options)
