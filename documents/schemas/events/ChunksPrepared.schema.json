@@ -26,8 +26,7 @@
             },
             "chunks_ready": { "type": "boolean" },
             "chunking_strategy": { "type": "string", "minLength": 1 },
-            "avg_chunk_size_tokens": { "type": "integer", "minimum": 0 },
-            "timestamp": { "type": "string", "format": "date-time" }
+            "avg_chunk_size_tokens": { "type": "integer", "minimum": 0 }
           },
           "required": [
             "message_ids",
@@ -35,8 +34,7 @@
             "chunk_ids",
             "chunks_ready",
             "chunking_strategy",
-            "avg_chunk_size_tokens",
-            "timestamp"
+            "avg_chunk_size_tokens"
           ],
           "additionalProperties": false
         }

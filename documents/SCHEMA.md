@@ -649,7 +649,7 @@ Signals that a new archive has been successfully fetched and stored.
     "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
     "source_name": "ietf-quic",
     "source_type": "rsync",
-    "source_url": "rsync://rsync.ietf.org/ietf-mail-archive/quic/",
+    "source_url": "rsync.ietf.org::mailman-archive/quic/",
     "file_path": "/data/raw_archives/ietf-quic/2023-10.mbox",
     "file_size_bytes": 2048576,
     "file_hash_sha256": "a1b2c3d4e5f6...",
@@ -675,7 +675,7 @@ Signals that archive ingestion failed after all retry attempts.
   "data": {
     "source_name": "ietf-quic",
     "source_type": "rsync",
-    "source_url": "rsync://rsync.ietf.org/ietf-mail-archive/quic/",
+    "source_url": "rsync.ietf.org::mailman-archive/quic/",
     "error_message": "Connection timeout after 30 seconds",
     "error_type": "TimeoutError",
     "retry_count": 3,
@@ -710,8 +710,7 @@ Signals that an archive has been parsed and messages are stored.
     "thread_ids": [
       "<20231015120000.XYZ789@example.com>"
     ],
-    "parsing_duration_seconds": 12.5,
-    "timestamp": "2023-10-15T14:35:00Z"
+    "parsing_duration_seconds": 12.5
   }
 }
 ```
@@ -766,8 +765,7 @@ Signals that messages have been chunked and stored.
     ],
     "chunks_ready": true,
     "chunking_strategy": "recursive",
-    "avg_chunk_size_tokens": 350,
-    "timestamp": "2023-10-15T14:40:00Z"
+    "avg_chunk_size_tokens": 350
   }
 }
 ```
@@ -822,8 +820,7 @@ Signals that embeddings have been generated and stored in the vector store.
     "embedding_dimension": 384,
     "vector_store_collection": "message_embeddings",
     "vector_store_updated": true,
-    "avg_generation_time_ms": 15.3,
-    "timestamp": "2023-10-15T14:45:00Z"
+    "avg_generation_time_ms": 15.3
   }
 }
 ```

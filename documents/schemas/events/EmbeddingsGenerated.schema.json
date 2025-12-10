@@ -23,8 +23,7 @@
             "embedding_dimension": { "type": "integer", "minimum": 1 },
             "vector_store_collection": { "type": "string", "minLength": 1 },
             "vector_store_updated": { "type": "boolean" },
-            "avg_generation_time_ms": { "type": "number", "minimum": 0 },
-            "timestamp": { "type": "string", "format": "date-time" }
+            "avg_generation_time_ms": { "type": "number", "minimum": 0 }
           },
           "required": [
             "chunk_ids",
@@ -34,8 +33,7 @@
             "embedding_dimension",
             "vector_store_collection",
             "vector_store_updated",
-            "avg_generation_time_ms",
-            "timestamp"
+            "avg_generation_time_ms"
           ],
           "additionalProperties": false
         }

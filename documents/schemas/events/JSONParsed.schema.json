@@ -26,8 +26,7 @@
               "minItems": 0,
               "uniqueItems": true
             },
-            "parsing_duration_seconds": { "type": "number", "minimum": 0 },
-            "timestamp": { "type": "string", "format": "date-time" }
+            "parsing_duration_seconds": { "type": "number", "minimum": 0 }
           },
           "required": [
             "archive_id",
@@ -35,8 +34,7 @@
             "parsed_message_ids",
             "thread_count",
             "thread_ids",
-            "parsing_duration_seconds",
-            "timestamp"
+            "parsing_duration_seconds"
           ],
           "additionalProperties": false
         }
