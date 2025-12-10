@@ -78,6 +78,20 @@ class TestLoggerFactory:
 class TestSilentLogger:
     """Tests for SilentLogger."""
 
+    def test_initialization(self):
+        """Test SilentLogger initialization."""
+        logger = SilentLogger(level="DEBUG", name="test-service")
+        
+        assert logger.level == "DEBUG"
+        assert logger.name == "test-service"
+
+    def test_default_values(self):
+        """Test default initialization values."""
+        logger = SilentLogger()
+        
+        assert logger.level == "INFO"
+        assert logger.name == "copilot"
+
     def test_info_logging(self):
         """Test logging info-level messages."""
         logger = SilentLogger()

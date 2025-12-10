@@ -64,7 +64,7 @@ def create_logger(
     if logger_type == "stdout":
         return StdoutLogger(level=level, name=name)
     elif logger_type == "silent":
-        return SilentLogger()
+        return SilentLogger(level=level, name=name)
     else:
         raise ValueError(
             f"Unknown logger_type: {logger_type}. "
