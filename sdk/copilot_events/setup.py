@@ -31,7 +31,7 @@ setup(
     python_requires=">=3.11",
     install_requires=[
         "pika>=1.3.0",  # RabbitMQ client
-        "pymongo>=4.0.0",  # MongoDB client for schema provider
+        "copilot-storage>=0.1.0",  # Document store abstraction
         "jsonschema>=4.18.0",  # JSON Schema validation
         "referencing>=0.30.0",  # Modern JSON reference resolution
     ],

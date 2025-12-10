@@ -50,7 +50,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
@@ -58,7 +58,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ./sdk/copilot_events
+        pip install ./sdk/copilot_storage ./sdk/copilot_events
         pip install pytest jsonschema pymongo
 
     - name: Install MongoDB Shell
@@ -132,7 +132,7 @@ jobs:
 
     - name: Upload test results
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: integration-test-results-${{ matrix.python-version }}
         path: sdk/copilot_events/test-results-integration.xml
@@ -153,7 +153,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.11'
 
@@ -169,7 +169,7 @@ jobs:
     - name: Install SDK and test dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ./sdk/copilot_events
+        pip install ./sdk/copilot_storage ./sdk/copilot_events
         pip install pytest jsonschema pymongo
 
     - name: Run integration tests against seeded Mongo
@@ -179,11 +179,11 @@ jobs:
         MONGO_COLLECTION: event_schemas
       run: |
         cd sdk/copilot_events
-        pytest tests/test_mongo_schema_provider_integration.py -v --tb=short --junit-xml=test-results-docker.xml
+        pytest tests/test_document_store_schema_provider_integration.py -v --tb=short --junit-xml=test-results-docker.xml
 
     - name: Upload test results
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: docker-integration-test-results
         path: sdk/copilot_events/test-results-docker.xml

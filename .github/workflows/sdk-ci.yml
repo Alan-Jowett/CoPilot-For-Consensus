@@ -31,7 +31,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
@@ -39,7 +39,7 @@ jobs:
     - name: Install SDK and test dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ./sdk/copilot_events
+        pip install ./sdk/copilot_storage ./sdk/copilot_events
         pip install pytest pytest-cov jsonschema pymongo
 
     - name: Run unit tests (exclude integration)
@@ -62,14 +62,14 @@ jobs:
 
     - name: Upload test results
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: unit-test-results-${{ matrix.python-version }}
         path: sdk/copilot_events/test-results.xml
 
     - name: Upload coverage report
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: unit-coverage-${{ matrix.python-version }}
         path: sdk/copilot_events/htmlcov
@@ -90,14 +90,14 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.11'
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ./sdk/copilot_events
+        pip install ./sdk/copilot_storage ./sdk/copilot_events
         pip install flake8 pylint
 
     - name: Lint with flake8
