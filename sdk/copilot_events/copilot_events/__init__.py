@@ -19,6 +19,9 @@ from .schema_provider import SchemaProvider
 from .file_schema_provider import FileSchemaProvider
 from .mongo_schema_provider import MongoSchemaProvider
 from .schema_validator import validate_json
+from .document_store import DocumentStore, create_document_store
+from .mongo_document_store import MongoDocumentStore
+from .inmemory_document_store import InMemoryDocumentStore
 from .models import (
     BaseEvent,
     # Ingestion Service Events
@@ -109,6 +112,11 @@ __all__ = [
     "FileSchemaProvider",
     "MongoSchemaProvider",
     "validate_json",
+    # Document Stores
+    "DocumentStore",
+    "MongoDocumentStore",
+    "InMemoryDocumentStore",
+    "create_document_store",
     # Event Models
     "BaseEvent",
     "ArchiveIngestedEvent",
