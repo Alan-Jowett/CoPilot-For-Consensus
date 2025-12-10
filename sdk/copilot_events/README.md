@@ -129,6 +129,7 @@ Event publishing and subscribing library for inter-service communication.
 
 **Documentation:** [copilot_events/README.md](copilot_events/README.md)
 
+<<<<<<< HEAD
 ### copilot_config
 
 Configuration management library for standardized config access.
@@ -138,6 +139,9 @@ Configuration management library for standardized config access.
 - Environment variable provider for production
 - Static provider for testing
 - Type-safe configuration access (bool, int, string)
+=======
+=======
+>>>>>>> a1f32d6 (Editing)
 
 ## Installation
 
@@ -401,8 +405,11 @@ Event models provide:
 - Consistent structure
 - Type safety
 - Easy serialization
+<<<<<<< HEAD
 ========
 **Documentation:** [copilot_config/README.md](copilot_config/README.md)
+=======
+>>>>>>> a1f32d6 (Editing)
 
 ## Development
 
@@ -437,9 +444,6 @@ Services can import from these modules directly:
 ```python
 # Import events library
 from copilot_events import create_publisher, ArchiveIngestedEvent
-
-# Import config library
-from copilot_config import create_config_provider
 ```
 
 ### In Tests
@@ -449,9 +453,6 @@ Both modules provide testing implementations:
 ```python
 # Use no-op publisher for testing
 from copilot_events import NoopPublisher
-
-# Use static config provider for testing
-from copilot_config import StaticConfigProvider
 ```
 
 ## Contributing
