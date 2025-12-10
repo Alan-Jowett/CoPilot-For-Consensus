@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 
 import yaml
-from copilot_events import ConfigProvider, create_config_provider
+from copilot_config import ConfigProvider, create_config_provider
 
 
 @dataclass

@@ -126,7 +126,7 @@ class TestIngestionConfig:
 
     def test_ingestion_config_with_static_provider(self):
         """Test using StaticConfigProvider for testing."""
-        from copilot_events import StaticConfigProvider
+        from copilot_config import StaticConfigProvider
 
         # Create a static config provider with test values
         provider = StaticConfigProvider({

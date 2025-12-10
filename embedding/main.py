@@ -3,7 +3,7 @@
 
 import time
 import logging
-from copilot_events import create_config_provider
+from copilot_config import create_config_provider
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
