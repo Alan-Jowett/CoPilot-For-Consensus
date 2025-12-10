@@ -3,6 +3,7 @@
 
 """Tests for FAISSVectorStore implementation."""
 
+import random
 import pytest
 
 try:
@@ -240,7 +241,6 @@ class TestFAISSVectorStore:
         store = FAISSVectorStore(dimension=128, index_type="ivf")
         
         # Add some embeddings
-        import random
         random.seed(42)  # For reproducibility
         ids = [f"doc{i}" for i in range(10)]
         vectors = [[random.random() for _ in range(128)] for _ in range(10)]

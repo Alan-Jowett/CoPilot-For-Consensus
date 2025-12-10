@@ -65,6 +65,9 @@ class FAISSVectorStore(VectorStore):
             # IVF index for approximate search
             quantizer = faiss.IndexFlatL2(dimension)
             self._index = faiss.IndexIVFFlat(quantizer, dimension, 100)
+            # Train with deterministic random data for initialization
+            # In production, this will be replaced by actual data during first batch add
+            np.random.seed(42)
             self._index.train(np.random.rand(1000, dimension).astype('float32'))
         
         # Maintain mapping from FAISS index to our IDs and metadata
@@ -238,6 +241,8 @@ class FAISSVectorStore(VectorStore):
         else:
             quantizer = self._faiss.IndexFlatL2(self._dimension)
             self._index = self._faiss.IndexIVFFlat(quantizer, self._dimension, 100)
+            # Train with deterministic random data for initialization
+            np.random.seed(42)
             self._index.train(np.random.rand(1000, self._dimension).astype('float32'))
         
         # Clear all mappings
