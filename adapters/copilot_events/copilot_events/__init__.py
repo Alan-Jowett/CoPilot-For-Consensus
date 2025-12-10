@@ -42,6 +42,16 @@ from copilot_schema_validation import (
     # Data Models
     ArchiveMetadata,
 )
+from .thread import Thread, Message
+from .consensus import (
+    ConsensusDetector,
+    ConsensusSignal,
+    ConsensusLevel,
+    HeuristicConsensusDetector,
+    MockConsensusDetector,
+    MLConsensusDetector,
+    create_consensus_detector,
+)
 
 def create_subscriber(
     message_bus_type: str,
@@ -112,5 +122,15 @@ __all__ = [
     "SummarizationFailedEvent",
     "ReportPublishedEvent",
     "ReportDeliveryFailedEvent",
-    "ArchiveMetadata",
+    # Thread Models
+    "Thread",
+    "Message",
+    # Consensus Detection
+    "ConsensusDetector",
+    "ConsensusSignal",
+    "ConsensusLevel",
+    "HeuristicConsensusDetector",
+    "MockConsensusDetector",
+    "MLConsensusDetector",
+    "create_consensus_detector",
 ]
