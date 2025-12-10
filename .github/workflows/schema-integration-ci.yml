@@ -38,7 +38,7 @@ jobs:
           MONGO_INITDB_ROOT_USERNAME: admin
           MONGO_INITDB_ROOT_PASSWORD: testpass
         options: >-
-          --health-cmd mongosh --host localhost:27017 -u admin -p testpass --authenticationDatabase admin --quiet --eval "db.adminCommand('ping')"
+          --health-cmd "mongosh --host localhost:27017 -u admin -p testpass --authenticationDatabase admin --quiet --eval \"db.adminCommand('ping')\""
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
