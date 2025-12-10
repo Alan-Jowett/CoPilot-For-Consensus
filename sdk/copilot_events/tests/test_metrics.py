@@ -165,20 +165,16 @@ class TestPrometheusMetricsCollector:
     )
     def test_increment_counter_with_prometheus(self):
         """Test incrementing counter with Prometheus backend."""
-        try:
-            from prometheus_client import CollectorRegistry
-            
-            registry = CollectorRegistry()
-            collector = PrometheusMetricsCollector(registry=registry, namespace="test")
-            
-            collector.increment("requests_total", value=1.0)
-            collector.increment("requests_total", value=2.0)
-            
-            # Verify metric was created
-            assert ("requests_total", ()) in collector._counters
-            
-        except ImportError:
-            pytest.skip("prometheus_client not installed")
+        from prometheus_client import CollectorRegistry
+        
+        registry = CollectorRegistry()
+        collector = PrometheusMetricsCollector(registry=registry, namespace="test")
+        
+        collector.increment("requests_total", value=1.0)
+        collector.increment("requests_total", value=2.0)
+        
+        # Verify metric was created
+        assert ("requests_total", ()) in collector._counters
 
     @pytest.mark.skipif(
         sys.modules.get('prometheus_client') is None,
@@ -186,20 +182,16 @@ class TestPrometheusMetricsCollector:
     )
     def test_observe_histogram_with_prometheus(self):
         """Test observing histogram with Prometheus backend."""
-        try:
-            from prometheus_client import CollectorRegistry
-            
-            registry = CollectorRegistry()
-            collector = PrometheusMetricsCollector(registry=registry, namespace="test")
-            
-            collector.observe("request_duration", 0.1)
-            collector.observe("request_duration", 0.2)
-            
-            # Verify metric was created
-            assert ("request_duration", ()) in collector._histograms
-            
-        except ImportError:
-            pytest.skip("prometheus_client not installed")
+        from prometheus_client import CollectorRegistry
+        
+        registry = CollectorRegistry()
+        collector = PrometheusMetricsCollector(registry=registry, namespace="test")
+        
+        collector.observe("request_duration", 0.1)
+        collector.observe("request_duration", 0.2)
+        
+        # Verify metric was created
+        assert ("request_duration", ()) in collector._histograms
 
     @pytest.mark.skipif(
         sys.modules.get('prometheus_client') is None,
@@ -207,20 +199,16 @@ class TestPrometheusMetricsCollector:
     )
     def test_set_gauge_with_prometheus(self):
         """Test setting gauge with Prometheus backend."""
-        try:
-            from prometheus_client import CollectorRegistry
-            
-            registry = CollectorRegistry()
-            collector = PrometheusMetricsCollector(registry=registry, namespace="test")
-            
-            collector.gauge("queue_depth", 10.0)
-            collector.gauge("queue_depth", 15.0)
-            
-            # Verify metric was created
-            assert ("queue_depth", ()) in collector._gauges
-            
-        except ImportError:
-            pytest.skip("prometheus_client not installed")
+        from prometheus_client import CollectorRegistry
+        
+        registry = CollectorRegistry()
+        collector = PrometheusMetricsCollector(registry=registry, namespace="test")
+        
+        collector.gauge("queue_depth", 10.0)
+        collector.gauge("queue_depth", 15.0)
+        
+        # Verify metric was created
+        assert ("queue_depth", ()) in collector._gauges
 
     @pytest.mark.skipif(
         sys.modules.get('prometheus_client') is None,
@@ -228,21 +216,17 @@ class TestPrometheusMetricsCollector:
     )
     def test_metrics_with_labels(self):
         """Test metrics with Prometheus labels."""
-        try:
-            from prometheus_client import CollectorRegistry
-            
-            registry = CollectorRegistry()
-            collector = PrometheusMetricsCollector(registry=registry, namespace="test")
-            
-            tags = {"method": "GET", "status": "200"}
-            collector.increment("http_requests", value=1.0, tags=tags)
-            
-            # Verify metric was created with correct labels
-            labelnames = tuple(sorted(tags.keys()))
-            assert ("http_requests", labelnames) in collector._counters
-            
-        except ImportError:
-            pytest.skip("prometheus_client not installed")
+        from prometheus_client import CollectorRegistry
+        
+        registry = CollectorRegistry()
+        collector = PrometheusMetricsCollector(registry=registry, namespace="test")
+        
+        tags = {"method": "GET", "status": "200"}
+        collector.increment("http_requests", value=1.0, tags=tags)
+        
+        # Verify metric was created with correct labels
+        labelnames = tuple(sorted(tags.keys()))
+        assert ("http_requests", labelnames) in collector._counters
 
 
 class TestMetricsIntegration:
