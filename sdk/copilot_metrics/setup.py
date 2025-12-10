@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Setup configuration for copilot-storage package."""
+"""Setup configuration for copilot-metrics package."""
 
 from setuptools import setup, find_packages
 from pathlib import Path
@@ -11,10 +11,10 @@ this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text(encoding="utf-8")
 
 setup(
-    name="copilot-storage",
+    name="copilot-metrics",
     version="0.1.0",
     author="Copilot-for-Consensus Contributors",
-    description="Shared document storage library for Copilot-for-Consensus microservices",
+    description="Metrics collection abstraction for Copilot-for-Consensus microservices",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Alan-Jowett/CoPilot-For-Consensus",
@@ -29,7 +29,7 @@ setup(
     ],
     python_requires=">=3.11",
     install_requires=[
-        "pymongo>=4.0.0",  # MongoDB client
+        # No required dependencies for NoOp collector
     ],
     extras_require={
         "dev": [
@@ -37,6 +37,9 @@ setup(
             "pytest-cov>=4.0.0",
             "pylint>=3.0.0",
             "mypy>=1.0.0",
+        ],
+        "prometheus": [
+            "prometheus-client>=0.19.0",  # Prometheus metrics client
         ],
     },
 )

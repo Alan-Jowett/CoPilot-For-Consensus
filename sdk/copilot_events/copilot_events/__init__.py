@@ -16,6 +16,7 @@ from .subscriber import EventSubscriber
 from .rabbitmq_subscriber import RabbitMQSubscriber
 from .noop_subscriber import NoopSubscriber
 <<<<<<< HEAD:sdk/copilot_events/copilot_events/__init__.py
+<<<<<<< HEAD:sdk/copilot_events/copilot_events/__init__.py
 from .schema_provider import SchemaProvider
 from .file_schema_provider import FileSchemaProvider
 from .document_store_schema_provider import DocumentStoreSchemaProvider
@@ -27,6 +28,8 @@ from .metrics import MetricsCollector, create_metrics_collector
 from .noop_metrics import NoOpMetricsCollector
 from .prometheus_metrics import PrometheusMetricsCollector
 >>>>>>> 8fcb7e4 (Add metrics abstraction layer with NoOp and Prometheus implementations):sdk/copilot_events/__init__.py
+=======
+>>>>>>> a519bf9 (Restructure metrics as self-contained copilot_metrics module):sdk/copilot_events/__init__.py
 from .models import (
     BaseEvent,
     # Ingestion Service Events
@@ -113,6 +116,7 @@ __all__ = [
     "NoopSubscriber",
     "create_subscriber",
 <<<<<<< HEAD:sdk/copilot_events/copilot_events/__init__.py
+<<<<<<< HEAD:sdk/copilot_events/copilot_events/__init__.py
     # Schema Providers
     "SchemaProvider",
     "FileSchemaProvider",
@@ -125,6 +129,8 @@ __all__ = [
     "PrometheusMetricsCollector",
     "create_metrics_collector",
 >>>>>>> 8fcb7e4 (Add metrics abstraction layer with NoOp and Prometheus implementations):sdk/copilot_events/__init__.py
+=======
+>>>>>>> a519bf9 (Restructure metrics as self-contained copilot_metrics module):sdk/copilot_events/__init__.py
     # Event Models
     "BaseEvent",
     "ArchiveIngestedEvent",
@@ -141,4 +147,22 @@ __all__ = [
     "SummarizationFailedEvent",
     "ReportPublishedEvent",
     "ReportDeliveryFailedEvent",
+]
+
+__all__ = [
+    # Publishers
+    "EventPublisher",
+    "create_publisher",
+    "RabbitMQPublisher",
+    "NoopPublisher",
+    # Subscribers
+    "EventSubscriber",
+    "create_subscriber",
+    "RabbitMQSubscriber",
+    "NoopSubscriber",
+    # Event Models
+    "ArchiveIngestedEvent",
+    "ArchiveIngestionFailedEvent",
+    "JSONParsedEvent",
+    "ParsingFailedEvent",
 ]

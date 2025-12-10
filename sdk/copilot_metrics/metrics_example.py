@@ -13,7 +13,7 @@ import time
 import random
 from typing import Dict, Any
 
-from copilot_events import create_metrics_collector, MetricsCollector
+from copilot_metrics import create_metrics_collector, MetricsCollector
 
 logging.basicConfig(
     level=logging.INFO,

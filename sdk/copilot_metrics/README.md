@@ -15,7 +15,7 @@ The metrics collection abstraction provides a pluggable interface for collecting
 ### Basic Usage
 
 ```python
-from copilot_events import create_metrics_collector
+from copilot_metrics import create_metrics_collector
 
 # Create a metrics collector (auto-detects from METRICS_BACKEND env var)
 metrics = create_metrics_collector()
@@ -115,7 +115,7 @@ The NoOp collector stores metrics in memory without external dependencies. Perfe
 - Debugging metrics instrumentation
 
 ```python
-from copilot_events import NoOpMetricsCollector
+from copilot_metrics import NoOpMetricsCollector
 
 metrics = NoOpMetricsCollector()
 
@@ -144,7 +144,7 @@ pip install prometheus-client
 **Usage:**
 
 ```python
-from copilot_events import PrometheusMetricsCollector
+from copilot_metrics import PrometheusMetricsCollector
 from prometheus_client import start_http_server
 
 # Create collector with custom namespace
@@ -177,7 +177,8 @@ Here's how to integrate metrics into a microservice:
 ```python
 import os
 import logging
-from copilot_events import create_metrics_collector, EventPublisher
+from copilot_metrics import create_metrics_collector
+from copilot_events import EventPublisher
 
 logger = logging.getLogger(__name__)
 
@@ -270,7 +271,7 @@ Use the NoOp collector in tests to verify metrics are emitted correctly:
 
 ```python
 import pytest
-from copilot_events import NoOpMetricsCollector
+from copilot_metrics import NoOpMetricsCollector
 from myapp.service import MyService
 
 def test_service_emits_metrics():
@@ -328,7 +329,7 @@ Potential future backends:
 To add a new backend:
 
 ```python
-from copilot_events.metrics import MetricsCollector
+from copilot_metrics.metrics import MetricsCollector
 
 class MyCustomCollector(MetricsCollector):
     def increment(self, name, value=1.0, tags=None):
