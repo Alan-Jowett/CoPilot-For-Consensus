@@ -1,0 +1,357 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Storage Module CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'sdk/copilot_storage/**'
+      - '.github/workflows/storage-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'sdk/copilot_storage/**'
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        cd sdk/copilot_storage
+        pip install -e .
+        pip install pytest pytest-cov
+
+    - name: Run unit tests
+      run: |
+        cd sdk/copilot_storage
+        pytest tests/ -v --tb=short --junit-xml=test-results.xml
+
+    - name: Generate coverage report
+      run: |
+        cd sdk/copilot_storage
+        pytest tests/ --cov=copilot_storage --cov-report=lcov --cov-report=html --cov-report=term
+
+    - name: Upload coverage to Coveralls
+      uses: coverallsapp/github-action@v2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-lcov: ./sdk/copilot_storage/coverage.lcov
+        flag-name: python-${{ matrix.python-version }}
+        parallel: true
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: unit-test-results-${{ matrix.python-version }}
+        path: sdk/copilot_storage/test-results.xml
+
+    - name: Upload coverage reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: unit-coverage-report-${{ matrix.python-version }}
+        path: sdk/copilot_storage/htmlcov
+
+    - name: Test Report
+      if: always()
+      uses: dorny/test-reporter@v1
+      with:
+        name: Unit Test Results (Python ${{ matrix.python-version }})
+        path: sdk/copilot_storage/test-results.xml
+        reporter: 'java-junit'
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+        mongodb-version: ['6.0', '7.0']
+    
+    services:
+      mongodb:
+        image: mongo:${{ matrix.mongodb-version }}
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: testuser
+          MONGO_INITDB_ROOT_PASSWORD: testpass
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 })' --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        cd sdk/copilot_storage
+        pip install -e .
+        pip install pytest pytest-cov
+
+    - name: Wait for MongoDB to be ready
+      run: |
+        echo "Waiting for MongoDB to be ready..."
+        for i in {1..30}; do
+          if docker exec $(docker ps -q -f ancestor=mongo:${{ matrix.mongodb-version }}) mongosh --eval "db.runCommand({ ping: 1 })" --quiet 2>/dev/null; then
+            echo "MongoDB is ready!"
+            break
+          fi
+          echo "Waiting... ($i/30)"
+          sleep 2
+        done
+
+    - name: Run integration tests
+      env:
+        MONGODB_HOST: localhost
+        MONGODB_PORT: 27017
+        MONGODB_USERNAME: testuser
+        MONGODB_PASSWORD: testpass
+        MONGODB_DATABASE: test_copilot
+      run: |
+        cd sdk/copilot_storage
+        pytest tests/test_integration_mongodb.py -v --tb=short --junit-xml=integration-test-results.xml
+
+    - name: Generate integration coverage report
+      env:
+        MONGODB_HOST: localhost
+        MONGODB_PORT: 27017
+        MONGODB_USERNAME: testuser
+        MONGODB_PASSWORD: testpass
+        MONGODB_DATABASE: test_copilot
+      run: |
+        cd sdk/copilot_storage
+        pytest tests/test_integration_mongodb.py --cov=copilot_storage --cov-report=lcov --cov-report=html --cov-report=term
+
+    - name: Upload integration test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-test-results-py${{ matrix.python-version }}-mongo${{ matrix.mongodb-version }}
+        path: sdk/copilot_storage/integration-test-results.xml
+
+    - name: Upload integration coverage reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-coverage-report-py${{ matrix.python-version }}-mongo${{ matrix.mongodb-version }}
+        path: sdk/copilot_storage/htmlcov
+
+    - name: Integration Test Report
+      if: always()
+      uses: dorny/test-reporter@v1
+      with:
+        name: Integration Test Results (Python ${{ matrix.python-version }}, MongoDB ${{ matrix.mongodb-version }})
+        path: sdk/copilot_storage/integration-test-results.xml
+        reporter: 'java-junit'
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        cd sdk/copilot_storage
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install pylint flake8
+
+    - name: Run pylint
+      run: |
+        cd sdk/copilot_storage
+        pylint copilot_storage/*.py --disable=C0111,C0103,R0903 || echo "Pylint warnings found but continuing..."
+
+    - name: Run flake8
+      run: |
+        cd sdk/copilot_storage
+        flake8 copilot_storage/*.py tests/*.py --count --select=E9,F63,F7,F82 --show-source --statistics
+
+  type-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        cd sdk/copilot_storage
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install mypy
+
+    - name: Run mypy
+      run: |
+        cd sdk/copilot_storage
+        mypy copilot_storage/ --ignore-missing-imports || echo "Type checking warnings found but continuing..."
+
+  test-imports:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        cd sdk/copilot_storage
+        python -m pip install --upgrade pip
+        pip install -e .
+
+    - name: Test imports
+      run: |
+        python -c "
+        from copilot_storage import DocumentStore, MongoDocumentStore, InMemoryDocumentStore
+        from copilot_storage import create_document_store
+        print('✓ All imports successful')
+        "
+
+    - name: Test factory creation
+      run: |
+        python -c "
+        from copilot_storage import create_document_store
+        
+        # Test in-memory store
+        store = create_document_store(store_type='inmemory')
+        store.connect()
+        doc_id = store.insert_document('test', {'name': 'test'})
+        doc = store.get_document('test', doc_id)
+        assert doc['name'] == 'test', 'InMemory store test failed'
+        store.disconnect()
+        print('✓ InMemory store test passed')
+        
+        # Test MongoDB store configuration
+        mongo_store = create_document_store(
+            store_type='mongodb',
+            host='localhost',
+            port=27017,
+            database='test'
+        )
+        print('✓ MongoDB store configuration test passed')
+        "
+
+  security-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        cd sdk/copilot_storage
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install bandit safety
+
+    - name: Run security check (bandit)
+      run: |
+        cd sdk/copilot_storage
+        bandit -r copilot_storage/ -f json -o bandit-report.json || true
+      continue-on-error: true
+
+    - name: Run dependency security check (safety)
+      run: |
+        cd sdk/copilot_storage
+        safety check --json || true
+      continue-on-error: true
+
+  coveralls-finish:
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    if: always()
+    steps:
+    - name: Finalize Coveralls
+      uses: coverallsapp/github-action@v2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        parallel-finished: true
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, lint, type-check, test-imports, security-check]
+    if: always()
+    
+    steps:
+    - name: Check unit tests status
+      run: |
+        if [ "${{ needs.unit-tests.result }}" == "success" ]; then
+          echo "✓ Unit tests passed"
+        else
+          echo "✗ Unit tests failed"
+          exit 1
+        fi
+    
+    - name: Check integration tests status
+      run: |
+        if [ "${{ needs.integration-tests.result }}" == "success" ]; then
+          echo "✓ Integration tests passed"
+        else
+          echo "✗ Integration tests failed"
+          exit 1
+        fi
+    
+    - name: Report summary
+      run: |
+        echo "Storage Module CI Summary:"
+        echo "- Unit Tests: ${{ needs.unit-tests.result }}"
+        echo "- Integration Tests: ${{ needs.integration-tests.result }}"
+        echo "- Lint: ${{ needs.lint.result }}"
+        echo "- Type Check: ${{ needs.type-check.result }}"
+        echo "- Import Tests: ${{ needs.test-imports.result }}"
+        echo "- Security Check: ${{ needs.security-check.result }}"

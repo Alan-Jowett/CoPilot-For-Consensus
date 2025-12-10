@@ -51,7 +51,11 @@ class MongoDocumentStore(DocumentStore):
         try:
             from pymongo import MongoClient
             from pymongo.errors import ConnectionFailure
-            
+        except ImportError:
+            logger.error("MongoDocumentStore: pymongo not installed")
+            return False
+        
+        try:
             # Build connection using separate auth parameters (more secure than URI)
             connection_params = {
                 "host": self.host,
@@ -80,9 +84,6 @@ class MongoDocumentStore(DocumentStore):
             
         except ConnectionFailure as e:
             logger.error(f"MongoDocumentStore: connection failed - {e}")
-            return False
-        except ImportError:
-            logger.error("MongoDocumentStore: pymongo not installed")
             return False
         except Exception as e:
             logger.error(f"MongoDocumentStore: unexpected error during connect - {e}")
