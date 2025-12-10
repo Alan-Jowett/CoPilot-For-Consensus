@@ -151,8 +151,8 @@ class TestPrometheusMetricsCollector:
     """Tests for PrometheusMetricsCollector."""
 
     @pytest.mark.skipif(
-        sys.modules.get('prometheus_client') is not None,
-        reason="prometheus_client is installed"
+        sys.modules.get('prometheus_client') is None,
+        reason="prometheus_client is not installed"
     )
     def test_requires_prometheus_client(self):
         """Test that PrometheusMetricsCollector requires prometheus_client."""
