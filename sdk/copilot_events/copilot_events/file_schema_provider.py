@@ -28,9 +28,9 @@ class FileSchemaProvider(SchemaProvider):
         """
         if schema_dir is None:
             # Default to repository schema location
-            sdk_dir = Path(__file__).parent.parent
-            repo_root = sdk_dir.parent
-            schema_dir = repo_root / "documents" / "schemas" / "events"
+            # Path: sdk/copilot_events/copilot_events/file_schema_provider.py
+            # Go up 4 levels to reach repo root
+            schema_dir = Path(__file__).parent.parent.parent.parent / "documents" / "schemas" / "events"
 
         self.schema_dir = Path(schema_dir)
         if not self.schema_dir.exists():
