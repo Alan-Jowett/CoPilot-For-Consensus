@@ -150,8 +150,9 @@ jobs:
 
     - name: Install dependencies
       run: |
-        cd ingestion
         python -m pip install --upgrade pip
+        pip install ./sdk
+        cd ingestion
         pip install -r requirements.txt pytest
 
     - name: Test local archive ingestion
@@ -161,7 +162,7 @@ jobs:
         import tempfile
         import os
         from app.config import IngestionConfig, SourceConfig
-        from app.event_publisher import create_publisher
+        from copilot_events import create_publisher
         from app.service import IngestionService
         
         # Create temp directories
