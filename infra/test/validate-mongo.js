@@ -63,11 +63,22 @@ function validateEventSchemas(targetDb) {
     throw new Error('No event schema files found in /schemas/events');
   }
 
+  // Expected count includes event schemas + event-envelope schema
+  const expectedCount = eventFiles.length + 1; // +1 for event-envelope.schema.json
   const storedCount = coll.countDocuments({});
-  if (storedCount !== eventFiles.length) {
+  if (storedCount !== expectedCount) {
     throw new Error(
-      `Event schemas count mismatch: found ${eventFiles.length} files but only ${storedCount} documents in collection`
+      `Event schemas count mismatch: expected ${expectedCount} documents (${eventFiles.length} events + envelope) but found ${storedCount} in collection`
     );
+  }
+
+  // Verify the event-envelope schema is present
+  const envelopeDoc = coll.findOne({ name: 'event-envelope' });
+  if (!envelopeDoc) {
+    throw new Error('Missing event-envelope schema document');
+  }
+  if (!envelopeDoc.schema || typeof envelopeDoc.schema !== 'object') {
+    throw new Error('Event-envelope schema document missing or invalid schema field');
   }
 
   // Verify each expected event type is present

@@ -6,9 +6,10 @@
 from setuptools import setup, find_packages
 from pathlib import Path
 
-# Read the README file
+# Read the README file if it exists
 this_directory = Path(__file__).parent
-long_description = (this_directory / "README.md").read_text(encoding="utf-8")
+readme_path = this_directory / "README.md"
+long_description = readme_path.read_text(encoding="utf-8") if readme_path.exists() else "Shared event publishing library for Copilot-for-Consensus microservices"
 
 setup(
     name="copilot-events",
@@ -30,6 +31,9 @@ setup(
     python_requires=">=3.11",
     install_requires=[
         "pika>=1.3.0",  # RabbitMQ client
+        "pymongo>=4.0.0",  # MongoDB client for schema provider
+        "jsonschema>=4.18.0",  # JSON Schema validation
+        "referencing>=0.30.0",  # Modern JSON reference resolution
     ],
     extras_require={
         "dev": [
