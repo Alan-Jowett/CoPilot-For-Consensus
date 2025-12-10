@@ -3,7 +3,7 @@
 
 """Utilities for validating JSON documents against JSON Schemas."""
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 import copy
 import json
 import logging
