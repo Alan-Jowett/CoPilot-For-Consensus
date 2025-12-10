@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 
 import yaml
+from copilot_events import ConfigProvider, create_config_provider
 
 
 @dataclass
@@ -67,36 +68,48 @@ class IngestionConfig:
     sources: List[SourceConfig] = field(default_factory=list)
 
     @classmethod
-    def from_env(cls) -> "IngestionConfig":
-        """Load configuration from environment variables."""
+    def from_env(cls, config_provider: Optional[ConfigProvider] = None) -> "IngestionConfig":
+        """Load configuration from environment variables.
+        
+        Args:
+            config_provider: ConfigProvider to use (defaults to EnvConfigProvider)
+        """
+        if config_provider is None:
+            config_provider = create_config_provider()
+        
         return cls(
-            storage_path=os.getenv("STORAGE_PATH", "/data/raw_archives"),
-            message_bus_host=os.getenv("MESSAGE_BUS_HOST", "messagebus"),
-            message_bus_port=int(os.getenv("MESSAGE_BUS_PORT", "5672")),
-            message_bus_user=os.getenv("MESSAGE_BUS_USER", "guest"),
-            message_bus_password=os.getenv("MESSAGE_BUS_PASSWORD", "guest"),
-            message_bus_type=os.getenv("MESSAGE_BUS_TYPE", "rabbitmq"),
-            ingestion_schedule_cron=os.getenv("INGESTION_SCHEDULE_CRON", "0 */6 * * *"),
-            blob_storage_enabled=os.getenv("BLOB_STORAGE_ENABLED", "false").lower() == "true",
-            blob_storage_connection_string=os.getenv("BLOB_STORAGE_CONNECTION_STRING"),
-            blob_storage_container=os.getenv("BLOB_STORAGE_CONTAINER", "raw-archives"),
-            log_level=os.getenv("LOG_LEVEL", "INFO"),
-            retry_max_attempts=int(os.getenv("RETRY_MAX_ATTEMPTS", "3")),
-            retry_backoff_seconds=int(os.getenv("RETRY_BACKOFF_SECONDS", "60")),
-            error_reporter_type=os.getenv("ERROR_REPORTER_TYPE", "console"),
-            sentry_dsn=os.getenv("SENTRY_DSN"),
-            sentry_environment=os.getenv("SENTRY_ENVIRONMENT", "production"),
+            storage_path=config_provider.get("STORAGE_PATH", "/data/raw_archives"),
+            message_bus_host=config_provider.get("MESSAGE_BUS_HOST", "messagebus"),
+            message_bus_port=config_provider.get_int("MESSAGE_BUS_PORT", 5672),
+            message_bus_user=config_provider.get("MESSAGE_BUS_USER", "guest"),
+            message_bus_password=config_provider.get("MESSAGE_BUS_PASSWORD", "guest"),
+            message_bus_type=config_provider.get("MESSAGE_BUS_TYPE", "rabbitmq"),
+            ingestion_schedule_cron=config_provider.get("INGESTION_SCHEDULE_CRON", "0 */6 * * *"),
+            blob_storage_enabled=config_provider.get_bool("BLOB_STORAGE_ENABLED", False),
+            blob_storage_connection_string=config_provider.get("BLOB_STORAGE_CONNECTION_STRING"),
+            blob_storage_container=config_provider.get("BLOB_STORAGE_CONTAINER", "raw-archives"),
+            log_level=config_provider.get("LOG_LEVEL", "INFO"),
+            retry_max_attempts=config_provider.get_int("RETRY_MAX_ATTEMPTS", 3),
+            retry_backoff_seconds=config_provider.get_int("RETRY_BACKOFF_SECONDS", 60),
+            error_reporter_type=config_provider.get("ERROR_REPORTER_TYPE", "console"),
+            sentry_dsn=config_provider.get("SENTRY_DSN"),
+            sentry_environment=config_provider.get("SENTRY_ENVIRONMENT", "production"),
         )
 
     @classmethod
-    def from_yaml_file(cls, filepath: str) -> "IngestionConfig":
-        """Load configuration from YAML file (config.yaml)."""
+    def from_yaml_file(cls, filepath: str, config_provider: Optional[ConfigProvider] = None) -> "IngestionConfig":
+        """Load configuration from YAML file (config.yaml).
+        
+        Args:
+            filepath: Path to YAML configuration file
+            config_provider: ConfigProvider to use for env vars (defaults to EnvConfigProvider)
+        """
         try:
             import yaml
         except ImportError:
             raise ImportError("PyYAML required for YAML configuration. Install with: pip install pyyaml")
         
-        config = cls.from_env()
+        config = cls.from_env(config_provider)
         
         if not os.path.exists(filepath):
             return config
