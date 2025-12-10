@@ -13,7 +13,7 @@ from .silent_logger import SilentLogger
 
 def create_logger(
     logger_type: Optional[str] = None,
-    level: str = "INFO",
+    level: Optional[str] = None,
     name: Optional[str] = None,
 ) -> Logger:
     """Factory function to create a logger instance.
@@ -23,10 +23,10 @@ def create_logger(
                     If None, reads from LOG_TYPE environment variable.
                     Defaults to "stdout" if not specified.
         level: Logging level (DEBUG, INFO, WARNING, ERROR).
-              If not provided, reads from LOG_LEVEL environment variable.
+              If None, reads from LOG_LEVEL environment variable.
               Defaults to "INFO" if not specified.
         name: Optional logger name for identification.
-              If not provided, reads from LOG_NAME environment variable.
+              If None, reads from LOG_NAME environment variable.
         
     Returns:
         Logger instance
@@ -51,7 +51,7 @@ def create_logger(
         logger_type = logger_type.lower()
     
     # Determine log level from environment or parameter
-    if level is None or level == "INFO":
+    if level is None:
         level = os.getenv("LOG_LEVEL", "INFO").upper()
     else:
         level = level.upper()
