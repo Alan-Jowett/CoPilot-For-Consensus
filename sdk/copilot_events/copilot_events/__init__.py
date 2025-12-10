@@ -7,8 +7,6 @@ A shared library for event publishing and subscribing across microservices
 in the Copilot-for-Consensus system.
 """
 
-from typing import Optional
-
 __version__ = "0.1.0"
 
 from .publisher import EventPublisher, create_publisher

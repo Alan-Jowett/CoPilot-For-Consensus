@@ -319,6 +319,15 @@ Testing subscriber implementation with:
 - Subscription introspection
 - Zero external dependencies
 
+### Event Models
+
+Event models provide:
+- Auto-generated UUIDs
+- ISO 8601 timestamps
+- Consistent structure
+- Type safety
+- Easy serialization
+
 ## Development
 
 ### Running Tests
