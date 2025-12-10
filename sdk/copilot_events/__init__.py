@@ -10,8 +10,8 @@ in the Copilot-for-Consensus system.
 __version__ = "0.1.0"
 
 from .publisher import EventPublisher, create_publisher
-from .rabbitmq import RabbitMQPublisher
-from .noop import NoopPublisher
+from .rabbitmq_publisher import RabbitMQPublisher
+from .noop_publisher import NoopPublisher
 from .subscriber import EventSubscriber
 from .rabbitmq_subscriber import RabbitMQSubscriber
 from .noop_subscriber import NoopSubscriber

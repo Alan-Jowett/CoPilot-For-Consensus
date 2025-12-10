@@ -62,10 +62,10 @@ def create_publisher(
         ValueError: If message_bus_type is not recognized
     """
     if message_bus_type == "rabbitmq":
-        from .rabbitmq import RabbitMQPublisher
+        from .rabbitmq_publisher import RabbitMQPublisher
         return RabbitMQPublisher(host=host, port=port, username=username, password=password)
     elif message_bus_type == "noop":
-        from .noop import NoopPublisher
+        from .noop_publisher import NoopPublisher
         return NoopPublisher()
     else:
         raise ValueError(f"Unknown message_bus_type: {message_bus_type}")
