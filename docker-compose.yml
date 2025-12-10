@@ -11,7 +11,9 @@ services:
       - STORAGE_PATH=/data/raw_archives
     volumes:
       - raw_archives:/data/raw_archives
-    restart: unless-stopped
+    restart: "no"
+    profiles:
+      - manual
 
   parsing:
     image: copilot-parsing:latest
@@ -21,8 +23,6 @@ services:
       - STORAGE_PATH=/data/parsed_json
     volumes:
       - parsed_json:/data/parsed_json
-    depends_on:
-      - ingestion
     restart: unless-stopped
 
   chunking:
