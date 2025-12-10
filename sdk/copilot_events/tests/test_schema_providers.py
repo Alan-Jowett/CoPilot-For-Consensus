@@ -4,23 +4,12 @@
 """Tests for schema provider implementations."""
 
 import json
-import sys
-import types
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 import pytest
 
-# Only provide a stub pymongo module if it's not already installed.
-# This allows unit tests to run without pymongo, but integration tests
-# can use the real pymongo when it's available.
-if "pymongo" not in sys.modules:
-    try:
-        import pymongo  # Try to import real pymongo first
-    except ImportError:
-        # Only use mock if pymongo is not available
-        sys.modules["pymongo"] = types.SimpleNamespace(MongoClient=MagicMock())
-
 from copilot_events.file_schema_provider import FileSchemaProvider
-from copilot_events.mongo_schema_provider import MongoSchemaProvider
+from copilot_events.document_store_schema_provider import DocumentStoreSchemaProvider
+from copilot_storage import InMemoryDocumentStore
 
 
 class TestFileSchemaProvider:
@@ -149,177 +138,107 @@ class TestFileSchemaProvider:
         assert event_types == []
 
 
-class TestMongoSchemaProvider:
-    """Tests for MongoSchemaProvider."""
+class TestDocumentStoreSchemaProvider:
+    """Tests for DocumentStoreSchemaProvider."""
 
     def test_initialization(self):
-        """Test MongoSchemaProvider initialization."""
-        provider = MongoSchemaProvider(
-            mongo_uri="mongodb://localhost:27017",
+        """Test DocumentStoreSchemaProvider initialization."""
+        store = InMemoryDocumentStore()
+        provider = DocumentStoreSchemaProvider(
+            document_store=store,
             database_name="test_db",
-            collection_name="test_schemas"
+            collection_name="test_schemas",
         )
 
-        assert provider.mongo_uri == "mongodb://localhost:27017"
+        assert provider.mongo_uri is None
         assert provider.database_name == "test_db"
         assert provider.collection_name == "test_schemas"
         assert provider._schema_cache == {}
+        assert provider._store is store
 
-    @patch('pymongo.MongoClient')
-    def test_ensure_connected(self, mock_mongo_client):
-        """Test MongoDB connection establishment."""
-        mock_client = MagicMock()
-        mock_db = MagicMock()
-        mock_collection = MagicMock()
-        
-        mock_mongo_client.return_value = mock_client
-        mock_client.__getitem__.return_value = mock_db
-        mock_db.__getitem__.return_value = mock_collection
+    def test_ensure_connected_with_store(self):
+        store = InMemoryDocumentStore()
+        provider = DocumentStoreSchemaProvider(document_store=store)
 
-        provider = MongoSchemaProvider("mongodb://localhost:27017")
-        result = provider._ensure_connected()
+        assert provider._ensure_connected() is True
+        assert store.connected is True
 
-        assert result is True
-        assert provider._client is not None
-        assert provider._collection is not None
-        mock_mongo_client.assert_called_once_with("mongodb://localhost:27017")
-
-    @patch('pymongo.MongoClient')
-    def test_get_schema_success(self, mock_mongo_client):
-        """Test successfully retrieving a schema from MongoDB."""
-        mock_client = MagicMock()
-        mock_db = MagicMock()
-        mock_collection = MagicMock()
-        
+    def test_get_schema_success(self):
+        store = InMemoryDocumentStore()
+        store.connect()
         test_schema = {"type": "object", "properties": {}}
-        mock_collection.find_one.return_value = {
-            "name": "TestEvent",
-            "schema": test_schema
-        }
+        store.insert_document("event_schemas", {"name": "TestEvent", "schema": test_schema})
 
-        mock_mongo_client.return_value = mock_client
-        mock_client.__getitem__.return_value = mock_db
-        mock_db.__getitem__.return_value = mock_collection
-
-        provider = MongoSchemaProvider("mongodb://localhost:27017")
+        provider = DocumentStoreSchemaProvider(document_store=store)
         schema = provider.get_schema("TestEvent")
 
         assert schema is not None
         assert schema == test_schema
-        mock_collection.find_one.assert_called_once_with({"name": "TestEvent"})
 
-    @patch('pymongo.MongoClient')
-    def test_get_schema_caching(self, mock_mongo_client):
-        """Test that schemas are cached after first retrieval."""
-        mock_client = MagicMock()
-        mock_db = MagicMock()
-        mock_collection = MagicMock()
-        
+    def test_get_schema_caching(self):
+        store = InMemoryDocumentStore()
+        store.connect()
         test_schema = {"type": "object"}
-        mock_collection.find_one.return_value = {
-            "name": "TestEvent",
-            "schema": test_schema
-        }
+        store.insert_document("event_schemas", {"name": "TestEvent", "schema": test_schema})
 
-        mock_mongo_client.return_value = mock_client
-        mock_client.__getitem__.return_value = mock_db
-        mock_db.__getitem__.return_value = mock_collection
+        provider = DocumentStoreSchemaProvider(document_store=store)
 
-        provider = MongoSchemaProvider("mongodb://localhost:27017")
-        
-        # Retrieve schema twice
         schema1 = provider.get_schema("TestEvent")
         schema2 = provider.get_schema("TestEvent")
 
-        # Should only call MongoDB once (second time uses cache)
-        assert mock_collection.find_one.call_count == 1
         assert schema1 is schema2
+        assert provider._schema_cache["TestEvent"] == test_schema
 
-    @patch('pymongo.MongoClient')
-    def test_get_schema_not_found(self, mock_mongo_client):
-        """Test retrieving a non-existent schema."""
-        mock_client = MagicMock()
-        mock_db = MagicMock()
-        mock_collection = MagicMock()
-        
-        mock_collection.find_one.return_value = None
+    def test_get_schema_not_found(self):
+        store = InMemoryDocumentStore()
+        store.connect()
+        provider = DocumentStoreSchemaProvider(document_store=store)
 
-        mock_mongo_client.return_value = mock_client
-        mock_client.__getitem__.return_value = mock_db
-        mock_db.__getitem__.return_value = mock_collection
-
-        provider = MongoSchemaProvider("mongodb://localhost:27017")
         schema = provider.get_schema("NonExistentEvent")
 
         assert schema is None
 
-    @patch('pymongo.MongoClient')
-    def test_list_event_types(self, mock_mongo_client):
-        """Test listing all event types from MongoDB."""
-        mock_client = MagicMock()
-        mock_db = MagicMock()
-        mock_collection = MagicMock()
-        
-        mock_cursor = [
-            {"name": "EventA"},
-            {"name": "EventB"},
-            {"name": "EventC"}
-        ]
-        mock_collection.find.return_value = mock_cursor
+    def test_list_event_types(self):
+        store = InMemoryDocumentStore()
+        store.connect()
+        store.insert_document("event_schemas", {"name": "EventA", "schema": {}})
+        store.insert_document("event_schemas", {"name": "EventB", "schema": {}})
+        store.insert_document("event_schemas", {"name": "EventC", "schema": {}})
 
-        mock_mongo_client.return_value = mock_client
-        mock_client.__getitem__.return_value = mock_db
-        mock_db.__getitem__.return_value = mock_collection
-
-        provider = MongoSchemaProvider("mongodb://localhost:27017")
+        provider = DocumentStoreSchemaProvider(document_store=store)
         event_types = provider.list_event_types()
 
         assert len(event_types) == 3
-        assert "EventA" in event_types
-        assert "EventB" in event_types
-        assert "EventC" in event_types
-        assert event_types == sorted(event_types)  # Should be sorted
-        mock_collection.find.assert_called_once_with({}, {"name": 1, "_id": 0})
+        assert event_types == sorted(event_types)
 
-    @patch('pymongo.MongoClient')
-    def test_context_manager(self, mock_mongo_client):
-        """Test using MongoSchemaProvider as a context manager."""
-        mock_client = MagicMock()
-        mock_db = MagicMock()
-        mock_collection = MagicMock()
-        
-        mock_mongo_client.return_value = mock_client
-        mock_client.__getitem__.return_value = mock_db
-        mock_db.__getitem__.return_value = mock_collection
+    def test_context_manager(self):
+        store = InMemoryDocumentStore()
+        provider = DocumentStoreSchemaProvider(document_store=store)
 
-        with MongoSchemaProvider("mongodb://localhost:27017") as provider:
-            assert provider._collection is not None
+        with provider as p:
+            assert p._store is store
+            assert store.connected is True
 
-        mock_client.close.assert_called_once()
+    def test_close_does_not_disconnect_external_store(self):
+        class TrackStore(InMemoryDocumentStore):
+            def __init__(self):
+                super().__init__()
+                self.disconnect_called = False
 
-    @patch('pymongo.MongoClient')
-    def test_close(self, mock_mongo_client):
-        """Test closing MongoDB connection."""
-        mock_client = MagicMock()
-        mock_db = MagicMock()
-        mock_collection = MagicMock()
-        
-        mock_mongo_client.return_value = mock_client
-        mock_client.__getitem__.return_value = mock_db
-        mock_db.__getitem__.return_value = mock_collection
+            def disconnect(self) -> None:
+                self.disconnect_called = True
+                super().disconnect()
 
-        provider = MongoSchemaProvider("mongodb://localhost:27017")
-        provider._ensure_connected()
-        
+        store = TrackStore()
+        store.connect()
+        provider = DocumentStoreSchemaProvider(document_store=store)
+
         provider.close()
-        
-        mock_client.close.assert_called_once()
-        assert provider._client is None
-        assert provider._collection is None
+        assert store.disconnect_called is False
 
-    def test_pymongo_not_available(self):
-        """Test behavior when pymongo is not installed."""
-        with patch.dict('sys.modules', {'pymongo': None}):
-            provider = MongoSchemaProvider("mongodb://localhost:27017")
-            # Should fail gracefully
-            assert provider._ensure_connected() is False
+    def test_error_when_no_store_or_uri(self, caplog):
+        caplog.set_level("ERROR")
+        provider = DocumentStoreSchemaProvider()
+
+        assert provider.get_schema("Anything") is None
+        assert any("mongo_uri is required" in msg for msg in caplog.messages)

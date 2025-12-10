@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Integration test for MongoSchemaProvider using seeded MongoDB schemas.
+"""Integration test for the document-store-backed schema provider.
 
 Requires a running MongoDB seeded by infra/init (db-init container). The test
 skips automatically if MongoDB is unavailable.
@@ -13,8 +13,9 @@ from datetime import datetime, timezone
 
 import pytest
 
-from copilot_events.mongo_schema_provider import MongoSchemaProvider
+from copilot_events.document_store_schema_provider import DocumentStoreSchemaProvider
 from copilot_events.schema_validator import validate_json
+from copilot_storage import create_document_store
 
 
 DEFAULT_USERNAME = os.getenv("MONGO_USERNAME", "admin")
@@ -29,12 +30,10 @@ DEFAULT_COLLECTION = os.getenv("MONGO_COLLECTION", "event_schemas")
 
 def _mongo_available(uri: str) -> bool:
     try:
-        from pymongo import MongoClient
-
-        client = MongoClient(uri, serverSelectionTimeoutMS=3000)
-        client.admin.command("ping")
-        client.close()
-        return True
+        store = create_document_store(store_type="mongodb", host=uri, database=DEFAULT_DB)
+        connected = store.connect()
+        store.disconnect()
+        return connected
     except Exception:
         return False
 
@@ -44,7 +43,7 @@ def test_seeded_archive_ingested_schema_allows_valid_event():
     if not _mongo_available(DEFAULT_URI):
         pytest.skip("MongoDB not available; ensure db-init container has seeded schemas")
 
-    provider = MongoSchemaProvider(
+    provider = DocumentStoreSchemaProvider(
         mongo_uri=DEFAULT_URI,
         database_name=DEFAULT_DB,
         collection_name=DEFAULT_COLLECTION,

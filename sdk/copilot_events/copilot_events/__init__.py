@@ -17,7 +17,7 @@ from .rabbitmq_subscriber import RabbitMQSubscriber
 from .noop_subscriber import NoopSubscriber
 from .schema_provider import SchemaProvider
 from .file_schema_provider import FileSchemaProvider
-from .mongo_schema_provider import MongoSchemaProvider
+from .document_store_schema_provider import DocumentStoreSchemaProvider
 from .schema_validator import validate_json
 from .models import (
     BaseEvent,
@@ -107,7 +107,7 @@ __all__ = [
     # Schema Providers
     "SchemaProvider",
     "FileSchemaProvider",
-    "MongoSchemaProvider",
+    "DocumentStoreSchemaProvider",
     "validate_json",
     # Event Models
     "BaseEvent",
