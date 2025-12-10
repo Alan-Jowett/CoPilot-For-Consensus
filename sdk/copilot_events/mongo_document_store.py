@@ -213,7 +213,7 @@ class MongoDocumentStore(DocumentStore):
             patch: Update data as dictionary
             
         Returns:
-            True if update succeeded, False otherwise
+            True if document exists and update succeeded, False if document not found
         """
         if not self.database:
             logger.error("MongoDocumentStore: not connected")

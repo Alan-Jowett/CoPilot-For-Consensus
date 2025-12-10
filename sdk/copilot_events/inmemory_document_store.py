@@ -120,7 +120,7 @@ class InMemoryDocumentStore(DocumentStore):
             patch: Update data as dictionary
             
         Returns:
-            True if update succeeded, False otherwise
+            True if document exists and update succeeded, False if document not found
         """
         if doc_id not in self.collections[collection]:
             logger.debug(

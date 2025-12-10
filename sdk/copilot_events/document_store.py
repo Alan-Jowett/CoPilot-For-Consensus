@@ -81,7 +81,8 @@ class DocumentStore(ABC):
             patch: Update data as dictionary
             
         Returns:
-            True if update succeeded, False otherwise
+            True if document exists and update succeeded, False if document not found
+            (Note: Returns True even if no fields were actually modified)
         """
         pass
 
