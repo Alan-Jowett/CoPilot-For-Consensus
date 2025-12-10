@@ -29,7 +29,7 @@ class TestCalculateFileHash:
         try:
             file_hash = calculate_file_hash(file_path)
             # Known hash for "test content"
-            expected = "6ae8a75555209fd6c44157c0aed8016e763ff09ac2401b80d5d174c9ca3a6b61"
+            expected = "6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72"
             assert file_hash == expected
         finally:
             os.unlink(file_path)
