@@ -4,7 +4,7 @@
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -107,11 +107,13 @@ class RabbitMQPublisher(EventPublisher):
             return False
 
         try:
+            import pika
+
             self.channel.basic_publish(
                 exchange=exchange,
                 routing_key=routing_key,
                 body=json.dumps(event),
-                properties=None,
+                properties=pika.BasicProperties(delivery_mode=2),
             )
             logger.info(
                 f"Published event to {exchange}/{routing_key}: {event.get('event_type')}"

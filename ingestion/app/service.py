@@ -4,8 +4,8 @@
 import json
 import logging
 import os
+import time
 from datetime import datetime
-from pathlib import Path
 from typing import Optional, Dict, Any
 from uuid import uuid4
 
@@ -142,8 +142,6 @@ class IngestionService:
                             f"Fetch attempt {attempt + 1} failed: {last_error}. "
                             f"Retrying in {wait_time} seconds..."
                         )
-                        import time
-
                         time.sleep(wait_time)
                         continue
                     else:
@@ -221,8 +219,6 @@ class IngestionService:
                 if attempt < max_retries:
                     wait_time = self.config.retry_backoff_seconds * (2 ** attempt)
                     logger.warning(f"Retrying in {wait_time} seconds...")
-                    import time
-
                     time.sleep(wait_time)
                     continue
                 else:

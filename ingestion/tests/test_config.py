@@ -5,9 +5,6 @@
 
 import os
 import tempfile
-import pytest
-from pathlib import Path
-
 from app.config import SourceConfig, IngestionConfig
 
 

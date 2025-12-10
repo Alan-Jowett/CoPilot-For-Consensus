@@ -6,8 +6,6 @@ import logging
 import os
 import subprocess
 from abc import ABC, abstractmethod
-from datetime import datetime
-from pathlib import Path
 from typing import Optional, Tuple
 
 from .config import SourceConfig
@@ -256,6 +254,12 @@ class IMAPFetcher(ArchiveFetcher):
             username = self.source.username
             password = self.source.password
             folder = self.source.folder or "INBOX"
+
+            # Validate required credentials
+            if not username or not password:
+                error_msg = "IMAP credentials missing: 'username' and 'password' are required in the source configuration."
+                logger.error(error_msg)
+                return False, None, error_msg
 
             logger.info(f"Connecting to IMAP {host}:{port}")
 

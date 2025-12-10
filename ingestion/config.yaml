@@ -6,22 +6,22 @@
 
 sources:
   - name: "ietf-quic"
-    type: "rsync"
+    source_type: "rsync"
     url: "rsync.ietf.org::mailman-archive/quic/"
     enabled: true
 
   - name: "ietf-tls"
-    type: "rsync"
+    source_type: "rsync"
     url: "rsync.ietf.org::mailman-archive/tls/"
     enabled: true
 
   - name: "ietf-httpbis"
-    type: "rsync"
+    source_type: "rsync"
     url: "rsync.ietf.org::mailman-archive/httpbis/"
     enabled: false
 
   - name: "custom-imap"
-    type: "imap"
+    source_type: "imap"
     url: "imap.example.com"
     port: 993
     username: "${IMAP_USERNAME}"
@@ -30,6 +30,6 @@ sources:
     enabled: false
 
   - name: "custom-http"
-    type: "http"
+    source_type: "http"
     url: "https://example.com/archives/mailing-list.mbox"
     enabled: false

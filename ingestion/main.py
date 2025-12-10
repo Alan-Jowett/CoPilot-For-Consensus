@@ -6,8 +6,6 @@
 import logging
 import os
 import sys
-import time
-from pathlib import Path
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -34,7 +32,16 @@ def main():
         config = IngestionConfig.from_env()
 
         # Try to load from config file if it exists
-        config_file = os.getenv("CONFIG_FILE", "/app/config.yaml")
+        # Check both /app/config.yaml (Docker) and ./config.yaml (local development)
+        config_file = os.getenv("CONFIG_FILE")
+        if not config_file:
+            if os.path.exists("/app/config.yaml"):
+                config_file = "/app/config.yaml"
+            elif os.path.exists("config.yaml"):
+                config_file = "config.yaml"
+            else:
+                config_file = "/app/config.yaml"  # Default to Docker path
+        
         if os.path.exists(config_file):
             try:
                 config = IngestionConfig.from_yaml_file(config_file)

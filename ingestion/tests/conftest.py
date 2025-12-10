@@ -2,8 +2,6 @@
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
 """Pytest configuration and fixtures."""
-
-import os
 import sys
 from pathlib import Path
 

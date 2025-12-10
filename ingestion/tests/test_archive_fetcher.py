@@ -6,8 +6,6 @@
 import os
 import tempfile
 import pytest
-from pathlib import Path
-
 from app.archive_fetcher import (
     LocalFetcher,
     calculate_file_hash,
