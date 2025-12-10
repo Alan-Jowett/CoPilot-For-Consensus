@@ -220,3 +220,40 @@ class TestIngestionService:
 
             event = success_events[0]["event"]
             assert event["data"]["source_name"] == "test-source"
+
+    def test_error_reporter_integration(self, temp_storage):
+        """Test error reporter integration."""
+        from copilot_events import SilentErrorReporter
+        
+        config = IngestionConfig(storage_path=temp_storage)
+        publisher = NoopPublisher()
+        publisher.connect()
+        error_reporter = SilentErrorReporter()
+        
+        service = IngestionService(config, publisher, error_reporter=error_reporter)
+        
+        # Verify error reporter is initialized
+        assert service.error_reporter is error_reporter
+        assert isinstance(service.error_reporter, SilentErrorReporter)
+        
+        # Force a save_checksums error by using an invalid path
+        service.config.storage_path = "/invalid/path/that/does/not/exist"
+        service.save_checksums()
+        
+        # Verify error was reported
+        assert error_reporter.has_errors()
+        errors = error_reporter.get_errors()
+        assert len(errors) >= 1
+        assert errors[0]["context"]["operation"] == "save_checksums"
+
+    def test_error_reporter_default_initialization(self, config):
+        """Test default error reporter initialization from config."""
+        config.error_reporter_type = "silent"
+        publisher = NoopPublisher()
+        publisher.connect()
+        
+        service = IngestionService(config, publisher)
+        
+        # Verify error reporter was created from config
+        from copilot_events import SilentErrorReporter
+        assert isinstance(service.error_reporter, SilentErrorReporter)

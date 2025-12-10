@@ -61,6 +61,9 @@ class IngestionConfig:
     log_level: str = "INFO"
     retry_max_attempts: int = 3
     retry_backoff_seconds: int = 60
+    error_reporter_type: str = "console"  # "console", "silent", "sentry"
+    sentry_dsn: Optional[str] = None
+    sentry_environment: str = "production"
     sources: List[SourceConfig] = field(default_factory=list)
 
     @classmethod
@@ -80,6 +83,9 @@ class IngestionConfig:
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             retry_max_attempts=int(os.getenv("RETRY_MAX_ATTEMPTS", "3")),
             retry_backoff_seconds=int(os.getenv("RETRY_BACKOFF_SECONDS", "60")),
+            error_reporter_type=os.getenv("ERROR_REPORTER_TYPE", "console"),
+            sentry_dsn=os.getenv("SENTRY_DSN"),
+            sentry_environment=os.getenv("SENTRY_ENVIRONMENT", "production"),
         )
 
     @classmethod

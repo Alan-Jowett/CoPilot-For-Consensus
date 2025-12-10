@@ -20,16 +20,33 @@ logger = logging.getLogger(__name__)
 class IngestionService:
     """Main ingestion service for fetching and ingesting archives."""
 
-    def __init__(self, config: IngestionConfig, publisher: EventPublisher):
+    def __init__(
+        self,
+        config: IngestionConfig,
+        publisher: EventPublisher,
+        error_reporter: Optional[ErrorReporter] = None,
+    ):
         """Initialize ingestion service.
         
         Args:
             config: Ingestion configuration
             publisher: Event publisher for publishing ingestion events
+            error_reporter: Error reporter for structured error reporting (optional)
         """
         self.config = config
         self.publisher = publisher
         self.checksums: Dict[str, Dict[str, Any]] = {}
+        
+        # Initialize error reporter
+        if error_reporter is None:
+            self.error_reporter = create_error_reporter(
+                reporter_type=config.error_reporter_type,
+                dsn=config.sentry_dsn,
+                environment=config.sentry_environment,
+            )
+        else:
+            self.error_reporter = error_reporter
+        
         self.load_checksums()
 
     def load_checksums(self) -> None:
@@ -43,6 +60,13 @@ class IngestionService:
                 logger.info(f"Loaded {len(self.checksums)} checksums from {checksums_path}")
             except Exception as e:
                 logger.warning(f"Failed to load checksums: {e}")
+                self.error_reporter.report(
+                    e,
+                    context={
+                        "operation": "load_checksums",
+                        "checksums_path": checksums_path,
+                    }
+                )
                 self.checksums = {}
         else:
             self.checksums = {}
@@ -58,6 +82,14 @@ class IngestionService:
             logger.info(f"Saved {len(self.checksums)} checksums to {checksums_path}")
         except Exception as e:
             logger.error(f"Failed to save checksums: {e}")
+            self.error_reporter.report(
+                e,
+                context={
+                    "operation": "save_checksums",
+                    "checksums_path": checksums_path,
+                    "checksum_count": len(self.checksums),
+                }
+            )
 
     def is_file_already_ingested(self, file_hash: str) -> bool:
         """Check if a file has already been ingested.
@@ -211,6 +243,18 @@ class IngestionService:
                 last_error = f"Unexpected error: {str(e)}"
                 retry_count += 1
                 logger.error(f"Ingestion error: {last_error}")
+                
+                # Report error with context
+                self.error_reporter.report(
+                    e,
+                    context={
+                        "operation": "ingest_archive",
+                        "source_name": source.name,
+                        "source_type": source.source_type,
+                        "attempt": attempt + 1,
+                        "max_retries": max_retries,
+                    }
+                )
 
                 if attempt < max_retries:
                     wait_time = self.config.retry_backoff_seconds * (2 ** attempt)
@@ -300,6 +344,14 @@ class IngestionService:
             logger.debug(f"Saved ingestion log entry to {log_path}")
         except Exception as e:
             logger.error(f"Failed to save ingestion log: {e}")
+            self.error_reporter.report(
+                e,
+                context={
+                    "operation": "save_ingestion_log",
+                    "log_path": log_path,
+                    "archive_id": metadata.archive_id,
+                }
+            )
 
     def _publish_success_event(self, metadata: ArchiveMetadata) -> None:
         """Publish ArchiveIngested event.
@@ -317,6 +369,15 @@ class IngestionService:
 
         if not success:
             logger.error(f"Failed to publish ArchiveIngested event for {metadata.archive_id}")
+            self.error_reporter.capture_message(
+                f"Failed to publish ArchiveIngested event",
+                level="error",
+                context={
+                    "operation": "publish_success_event",
+                    "archive_id": metadata.archive_id,
+                    "source_name": metadata.source_name,
+                }
+            )
 
     def _publish_failure_event(
         self,
@@ -358,3 +419,12 @@ class IngestionService:
 
         if not success:
             logger.error(f"Failed to publish ArchiveIngestionFailed event for {source.name}")
+            self.error_reporter.capture_message(
+                f"Failed to publish ArchiveIngestionFailed event",
+                level="error",
+                context={
+                    "operation": "publish_failure_event",
+                    "source_name": source.name,
+                    "error_type": error_type,
+                }
+            )
