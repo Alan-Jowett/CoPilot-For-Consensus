@@ -90,7 +90,19 @@ jobs:
         # Create index
         coll.create_index('name', unique=True)
 
-        # Seed schemas
+        # Seed the event envelope schema first
+        envelope_path = Path('documents/schemas/event-envelope.schema.json')
+        if envelope_path.exists():
+            with open(envelope_path, 'r') as f:
+                envelope_schema = json.load(f)
+            coll.update_one(
+                {'name': 'event-envelope'},
+                {'$set': {'name': 'event-envelope', 'fileName': 'event-envelope.schema.json', 'schema': envelope_schema}},
+                upsert=True
+            )
+            print('Seeded event-envelope schema')
+
+        # Seed event schemas
         events_dir = Path('documents/schemas/events')
         schema_files = list(events_dir.glob('*.json'))
         

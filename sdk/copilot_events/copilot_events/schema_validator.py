@@ -3,7 +3,7 @@
 
 """Utilities for validating JSON documents against JSON Schemas."""
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import copy
 import json
 import logging
@@ -18,24 +18,49 @@ logger = logging.getLogger(__name__)
 # Small helper to preload shared schemas (e.g., event envelope) so $ref resolution
 # works even when schemas are stored outside the local filesystem (like MongoDB).
 # Falls back silently if the supporting schema file is not present.
-def _build_registry() -> Registry:
-    """Build a referencing Registry with preloaded schemas."""
+def _build_registry(schema_provider=None) -> Registry:
+    """Build a referencing Registry with preloaded schemas.
+    
+    Args:
+        schema_provider: Optional SchemaProvider to use for loading envelope schema
+        
+    Returns:
+        Registry with preloaded schemas for $ref resolution
+    """
     resources = {}
-    try:
-        envelope_path = Path(__file__).resolve().parents[2] / "documents" / "schemas" / "event-envelope.schema.json"
-        if envelope_path.exists():
-            envelope_schema = json.loads(envelope_path.read_text(encoding="utf-8"))
-            resource = Resource.from_contents(envelope_schema)
-            
-            # Register by $id if present
-            schema_id = envelope_schema.get("$id")
-            if schema_id:
-                resources[schema_id] = resource
-            
-            # Also register under the filename used in references
-            resources["event-envelope.schema.json"] = resource
-    except Exception as exc:  # Defensive: missing files or JSON parse errors
-        logger.debug(f"Unable to preload shared schemas: {exc}")
+    envelope_schema = None
+    
+    # Try to load from schema provider first (e.g., MongoDB)
+    if schema_provider is not None:
+        try:
+            envelope_schema = schema_provider.get_schema("event-envelope")
+            if envelope_schema:
+                logger.debug("Loaded event-envelope schema from schema provider")
+        except Exception as exc:
+            logger.debug(f"Could not load envelope from schema provider: {exc}")
+    
+    # Fallback to filesystem if not found in provider
+    if envelope_schema is None:
+        try:
+            envelope_path = Path(__file__).resolve().parents[2] / "documents" / "schemas" / "event-envelope.schema.json"
+            if envelope_path.exists():
+                envelope_schema = json.loads(envelope_path.read_text(encoding="utf-8"))
+                logger.debug("Loaded event-envelope schema from filesystem")
+        except Exception as exc:
+            logger.debug(f"Unable to preload envelope schema from filesystem: {exc}")
+    
+    # Register the envelope schema if found
+    if envelope_schema:
+        resource = Resource.from_contents(envelope_schema)
+        
+        # Register by $id if present
+        schema_id = envelope_schema.get("$id")
+        if schema_id:
+            resources[schema_id] = resource
+        
+        # Also register under the relative path used in references
+        resources["../event-envelope.schema.json"] = resource
+        resources["event-envelope.schema.json"] = resource
     
     # Build the registry with all preloaded resources
     return Registry().with_resources(resources.items())
@@ -68,12 +93,13 @@ def _strip_allof_additional_properties(schema: Dict[str, Any]) -> Dict[str, Any]
     return normalized
 
 
-def validate_json(document: Dict[str, Any], schema: Dict[str, Any]) -> Tuple[bool, List[str]]:
+def validate_json(document: Dict[str, Any], schema: Dict[str, Any], schema_provider=None) -> Tuple[bool, List[str]]:
     """Validate a JSON document against a JSON schema.
 
     Args:
         document: The JSON document to validate.
         schema: The JSON schema to validate against.
+        schema_provider: Optional SchemaProvider for resolving schema references (e.g., event-envelope)
 
     Returns:
         Tuple of (is_valid, errors). is_valid is True when the document conforms
@@ -81,7 +107,7 @@ def validate_json(document: Dict[str, Any], schema: Dict[str, Any]) -> Tuple[boo
     """
     try:
         normalized_schema = _strip_allof_additional_properties(schema)
-        registry = _build_registry()
+        registry = _build_registry(schema_provider)
         validator = Draft202012Validator(normalized_schema, registry=registry)
         errors = sorted(validator.iter_errors(document), key=lambda e: e.path)
         if not errors:

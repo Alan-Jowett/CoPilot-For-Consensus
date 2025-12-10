@@ -72,7 +72,7 @@ def test_seeded_archive_ingested_schema_allows_valid_event():
         },
     }
 
-    is_valid, errors = validate_json(event, schema)
+    is_valid, errors = validate_json(event, schema, schema_provider=provider)
     provider.close()
 
     assert is_valid, f"Seeded schema rejected valid event: {errors}"
