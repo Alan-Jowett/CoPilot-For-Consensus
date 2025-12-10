@@ -70,8 +70,11 @@ class SentryErrorReporter(ErrorReporter):
             # Set context if provided
             if context:
                 with sentry_sdk.push_scope() as scope:
+                    # Set tags for simple key-value pairs
                     for key, value in context.items():
-                        scope.set_context(key, value)
+                        scope.set_tag(key, str(value))
+                    # Also set full context as a dictionary
+                    scope.set_context("error_context", context)
                     sentry_sdk.capture_exception(error)
             else:
                 sentry_sdk.capture_exception(error)
@@ -115,8 +118,11 @@ class SentryErrorReporter(ErrorReporter):
             # Set context if provided
             if context:
                 with sentry_sdk.push_scope() as scope:
+                    # Set tags for simple key-value pairs
                     for key, value in context.items():
-                        scope.set_context(key, value)
+                        scope.set_tag(key, str(value))
+                    # Also set full context as a dictionary
+                    scope.set_context("message_context", context)
                     sentry_sdk.capture_message(message, level=sentry_level)
             else:
                 sentry_sdk.capture_message(message, level=sentry_level)
