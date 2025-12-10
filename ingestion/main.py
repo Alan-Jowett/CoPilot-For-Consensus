@@ -10,9 +10,10 @@ import sys
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
+from copilot_events import create_publisher
+
 from app import __version__
 from app.config import IngestionConfig
-from app.event_publisher import create_publisher
 from app.service import IngestionService
 
 # Configure logging

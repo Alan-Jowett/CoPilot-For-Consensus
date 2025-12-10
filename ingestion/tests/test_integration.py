@@ -8,8 +8,9 @@ import os
 import tempfile
 import pytest
 
+from copilot_events import NoopPublisher
+
 from app.config import IngestionConfig, SourceConfig
-from app.event_publisher import NoopPublisher
 from app.service import IngestionService
 
 

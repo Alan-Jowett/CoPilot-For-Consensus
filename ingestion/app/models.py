@@ -1,66 +1,14 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
+"""Ingestion-specific data models.
+
+Note: Event models (ArchiveIngestedEvent, ArchiveIngestionFailedEvent) 
+have been moved to the shared copilot_events SDK.
+"""
+
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Dict, Any
-from uuid import uuid4
-
-
-@dataclass
-class ArchiveIngestedEvent:
-    """ArchiveIngested event payload."""
-    event_type: str = "ArchiveIngested"
-    event_id: str = None  # UUID
-    timestamp: str = None  # ISO 8601 datetime
-    version: str = "1.0"
-    data: Dict[str, Any] = None  # Archive data
-
-    def __post_init__(self):
-        if self.event_id is None:
-            self.event_id = str(uuid4())
-        if self.timestamp is None:
-            self.timestamp = datetime.utcnow().isoformat() + "Z"
-        if self.data is None:
-            self.data = {}
-
-    def to_dict(self) -> dict:
-        """Convert to dictionary for serialization."""
-        return {
-            "event_type": self.event_type,
-            "event_id": self.event_id,
-            "timestamp": self.timestamp,
-            "version": self.version,
-            "data": self.data,
-        }
-
-
-@dataclass
-class ArchiveIngestionFailedEvent:
-    """ArchiveIngestionFailed event payload."""
-    event_type: str = "ArchiveIngestionFailed"
-    event_id: str = None  # UUID
-    timestamp: str = None  # ISO 8601 datetime
-    version: str = "1.0"
-    data: Dict[str, Any] = None  # Failure data
-
-    def __post_init__(self):
-        if self.event_id is None:
-            self.event_id = str(uuid4())
-        if self.timestamp is None:
-            self.timestamp = datetime.utcnow().isoformat() + "Z"
-        if self.data is None:
-            self.data = {}
-
-    def to_dict(self) -> dict:
-        """Convert to dictionary for serialization."""
-        return {
-            "event_type": self.event_type,
-            "event_id": self.event_id,
-            "timestamp": self.timestamp,
-            "version": self.version,
-            "data": self.data,
-        }
 
 
 @dataclass

@@ -6,12 +6,12 @@
 import json
 import pytest
 
-from app.event_publisher import (
+from copilot_events import (
     NoopPublisher,
     RabbitMQPublisher,
     create_publisher,
+    ArchiveIngestedEvent,
 )
-from app.models import ArchiveIngestedEvent
 
 
 class TestNoopPublisher:
