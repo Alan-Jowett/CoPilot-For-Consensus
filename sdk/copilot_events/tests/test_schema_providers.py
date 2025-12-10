@@ -4,7 +4,7 @@
 """Tests for schema provider implementations."""
 
 import json
-from unittest.mock import MagicMock
+import logging
 import pytest
 
 from copilot_events.file_schema_provider import FileSchemaProvider
@@ -237,8 +237,75 @@ class TestDocumentStoreSchemaProvider:
         assert store.disconnect_called is False
 
     def test_error_when_no_store_or_uri(self, caplog):
-        caplog.set_level("ERROR")
+        caplog.set_level(logging.ERROR)
         provider = DocumentStoreSchemaProvider()
 
         assert provider.get_schema("Anything") is None
         assert any("mongo_uri is required" in msg for msg in caplog.messages)
+
+    def test_connect_error_is_logged(self, caplog):
+        class FailingStore(InMemoryDocumentStore):
+            def connect(self) -> bool:
+                raise RuntimeError("boom")
+
+        caplog.set_level(logging.ERROR)
+        provider = DocumentStoreSchemaProvider(document_store=FailingStore())
+
+        assert provider._ensure_connected() is False
+        assert any("Failed to connect document store" in msg for msg in caplog.messages)
+
+    def test_close_disconnects_owned_store(self, monkeypatch):
+        disconnect_calls = []
+
+        class DummyStore(InMemoryDocumentStore):
+            def disconnect(self) -> None:
+                disconnect_calls.append(True)
+                super().disconnect()
+
+        def fake_create_document_store(**kwargs):
+            return DummyStore()
+
+        monkeypatch.setattr(
+            "copilot_events.document_store_schema_provider.create_document_store",
+            fake_create_document_store,
+        )
+
+        provider = DocumentStoreSchemaProvider(mongo_uri="mongodb://host:27017")
+        assert provider._ensure_connected() is True
+
+        provider.close()
+        assert disconnect_calls, "Owned store should be disconnected on close"
+
+    def test_list_event_types_warns_on_truncation(self, caplog):
+        store = InMemoryDocumentStore()
+        store.connect()
+        for i in range(3):
+            store.insert_document("event_schemas", {"name": f"Event{i}", "schema": {}})
+
+        caplog.set_level(logging.WARNING)
+        provider = DocumentStoreSchemaProvider(document_store=store, list_limit=2)
+        event_types = provider.list_event_types()
+
+        assert len(event_types) == 2
+        assert any("truncated" in msg for msg in caplog.messages)
+
+    def test_uri_does_not_pass_port(self, monkeypatch):
+        captured_kwargs = {}
+
+        def fake_create_document_store(**kwargs):
+            captured_kwargs.update(kwargs)
+            return InMemoryDocumentStore()
+
+        monkeypatch.setattr(
+            "copilot_events.document_store_schema_provider.create_document_store",
+            fake_create_document_store,
+        )
+
+        provider = DocumentStoreSchemaProvider(
+            mongo_uri="mongodb://admin:password@localhost:27017/cooldb",
+            port=27017,
+        )
+        provider._ensure_connected()
+
+        assert "port" not in captured_kwargs
+        assert captured_kwargs.get("host").startswith("mongodb://admin:password@localhost:27017")

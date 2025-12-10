@@ -173,14 +173,13 @@ Schemas can be loaded via the document store abstraction (Mongo implementation l
 ```python
 from copilot_events import DocumentStoreSchemaProvider
 
-provider = DocumentStoreSchemaProvider(
+# Prefer context manager usage for automatic cleanup
+with DocumentStoreSchemaProvider(
     mongo_uri="mongodb://admin:password@documentdb:27017/admin?authSource=admin",
     collection_name="event_schemas",
-)
-
-schema = provider.get_schema("ArchiveIngested")
-event_types = provider.list_event_types()
-provider.close()
+) as provider:
+    schema = provider.get_schema("ArchiveIngested")
+    event_types = provider.list_event_types()
 ```
 
 For tests, inject `InMemoryDocumentStore` from `copilot-storage` to avoid external services.

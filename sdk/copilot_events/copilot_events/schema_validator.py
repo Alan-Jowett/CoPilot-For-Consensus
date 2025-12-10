@@ -54,7 +54,9 @@ def _build_registry(schema_provider=None) -> Registry:
                     logger.debug(f"Loaded event-envelope schema from filesystem: {envelope_path}")
                     break
             except Exception as exc:
-                logger.debug(f"Unable to preload envelope schema from filesystem at {envelope_path}: {exc}")
+                logger.debug(
+                    f"Could not load envelope schema from {envelope_path} (will try next candidate): {exc}"
+                )
     
     # Register the envelope schema if found
     if envelope_schema:
