@@ -112,22 +112,12 @@ class DocumentStore(ABC):
 
 def create_document_store(
     store_type: str = "inmemory",
-    host: str = "localhost",
-    port: int = 27017,
-    username: Optional[str] = None,
-    password: Optional[str] = None,
-    database: str = "copilot",
     **kwargs
 ) -> DocumentStore:
     """Factory function to create a document store.
     
     Args:
         store_type: Type of document store ("mongodb", "inmemory")
-        host: Database host (for mongodb)
-        port: Database port (for mongodb)
-        username: Database username (for mongodb)
-        password: Database password (for mongodb)
-        database: Database name (for mongodb)
         **kwargs: Additional store-specific arguments
         
     Returns:
@@ -139,11 +129,6 @@ def create_document_store(
     if store_type == "mongodb":
         from .mongo_document_store import MongoDocumentStore
         return MongoDocumentStore(
-            host=host,
-            port=port,
-            username=username,
-            password=password,
-            database=database,
             **kwargs
         )
     elif store_type == "inmemory":

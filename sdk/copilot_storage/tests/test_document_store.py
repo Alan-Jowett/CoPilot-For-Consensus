@@ -271,6 +271,41 @@ class TestInMemoryDocumentStore:
         assert len(retrieved_again["metadata"]["tags"]) == 2
         assert retrieved_again["metadata"]["scores"]["skill"] == 85
 
+    def test_deep_nested_document_isolation(self):
+        """Ensure deeply nested dict/list structures are isolated from stored state."""
+        store = InMemoryDocumentStore()
+        store.connect()
+
+        doc_id = store.insert_document("users", {
+            "name": "Dana",
+            "projects": [
+                {
+                    "title": "alpha",
+                    "contributors": [
+                        {"id": 1, "roles": ["dev", "reviewer"]},
+                        {"id": 2, "roles": ["dev"]},
+                    ],
+                },
+                {
+                    "title": "beta",
+                    "contributors": [
+                        {"id": 3, "roles": ["pm"]}
+                    ],
+                },
+            ],
+        })
+
+        # Mutate a deep copy returned from get_document
+        retrieved = store.get_document("users", doc_id)
+        retrieved["projects"][0]["contributors"][0]["roles"].append("admin")
+        retrieved["projects"][1]["contributors"].append({"id": 4, "roles": ["qa"]})
+
+        # Fetch again to ensure stored state was not affected
+        retrieved_again = store.get_document("users", doc_id)
+        assert retrieved_again["projects"][0]["contributors"][0]["roles"] == ["dev", "reviewer"]
+        assert len(retrieved_again["projects"][1]["contributors"]) == 1
+        assert retrieved_again["projects"][1]["contributors"][0]["roles"] == ["pm"]
+
 
 class TestMongoDocumentStore:
     """Tests for MongoDocumentStore."""
