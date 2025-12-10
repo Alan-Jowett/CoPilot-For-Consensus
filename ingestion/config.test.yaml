@@ -1,0 +1,5 @@
+sources:
+  - name: ietf-ipsec
+    source_type: rsync
+    url: rsync.ietf.org::mailman-archive/ipsec/
+    enabled: true

@@ -19,14 +19,14 @@ class ArchiveFetcher(ABC):
     """Abstract base class for archive fetchers."""
 
     @abstractmethod
-    def fetch(self, output_dir: str) -> Tuple[bool, Optional[str], Optional[str]]:
+    def fetch(self, output_dir: str) -> Tuple[bool, Optional[list], Optional[str]]:
         """Fetch archive from source.
         
         Args:
             output_dir: Directory to store the fetched archive
             
         Returns:
-            Tuple of (success: bool, file_path: Optional[str], error_message: Optional[str])
+            Tuple of (success: bool, list_of_file_paths: Optional[list], error_message: Optional[str])
         """
         pass
 
@@ -42,14 +42,14 @@ class RsyncFetcher(ArchiveFetcher):
         """
         self.source = source
 
-    def fetch(self, output_dir: str) -> Tuple[bool, Optional[str], Optional[str]]:
+    def fetch(self, output_dir: str) -> Tuple[bool, Optional[list], Optional[str]]:
         """Fetch archives via rsync.
         
         Args:
             output_dir: Directory to store the fetched archives
             
         Returns:
-            Tuple of (success, file_path, error_message)
+            Tuple of (success, list_of_file_paths, error_message)
         """
         try:
             # Create output directory for this source
@@ -87,9 +87,15 @@ class RsyncFetcher(ArchiveFetcher):
 
             logger.info(f"rsync completed successfully for source {self.source.name}")
 
-            # Return the source directory as the file path
-            # (In practice, rsync syncs multiple files, so we return the directory)
-            return True, source_dir, None
+            # Collect all files in the source directory
+            file_paths = []
+            for root, dirs, files in os.walk(source_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    file_paths.append(file_path)
+
+            logger.info(f"Found {len(file_paths)} files in {source_dir}")
+            return True, file_paths, None
 
         except subprocess.TimeoutExpired:
             error_msg = "rsync operation timed out"
@@ -112,14 +118,14 @@ class HTTPFetcher(ArchiveFetcher):
         """
         self.source = source
 
-    def fetch(self, output_dir: str) -> Tuple[bool, Optional[str], Optional[str]]:
+    def fetch(self, output_dir: str) -> Tuple[bool, Optional[list], Optional[str]]:
         """Fetch archive via HTTP.
         
         Args:
             output_dir: Directory to store the fetched archive
             
         Returns:
-            Tuple of (success, file_path, error_message)
+            Tuple of (success, list_of_file_paths, error_message)
         """
         try:
             import requests
@@ -143,7 +149,7 @@ class HTTPFetcher(ArchiveFetcher):
                     f.write(chunk)
 
             logger.info(f"Downloaded {file_path}")
-            return True, file_path, None
+            return True, [file_path], None
 
         except ImportError:
             error_msg = "requests library not installed"
@@ -166,14 +172,14 @@ class LocalFetcher(ArchiveFetcher):
         """
         self.source = source
 
-    def fetch(self, output_dir: str) -> Tuple[bool, Optional[str], Optional[str]]:
+    def fetch(self, output_dir: str) -> Tuple[bool, Optional[list], Optional[str]]:
         """Copy archive from local filesystem.
         
         Args:
             output_dir: Directory to store the copied archive
             
         Returns:
-            Tuple of (success, file_path, error_message)
+            Tuple of (success, list_of_file_paths, error_message)
         """
         try:
             import shutil
@@ -193,13 +199,21 @@ class LocalFetcher(ArchiveFetcher):
                 file_path = os.path.join(output_dir, filename)
                 shutil.copy2(source_path, file_path)
                 logger.info(f"Copied {source_path} to {file_path}")
-                return True, file_path, None
+                return True, [file_path], None
             elif os.path.isdir(source_path):
-                # Copy directory
+                # Copy directory and collect all files
                 dest_path = os.path.join(output_dir, self.source.name)
                 shutil.copytree(source_path, dest_path, dirs_exist_ok=True)
-                logger.info(f"Copied directory {source_path} to {dest_path}")
-                return True, dest_path, None
+                
+                # Collect all files in the copied directory
+                file_paths = []
+                for root, dirs, files in os.walk(dest_path):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        file_paths.append(file_path)
+                
+                logger.info(f"Copied directory {source_path} to {dest_path} ({len(file_paths)} files)")
+                return True, file_paths, None
             else:
                 error_msg = f"Source is neither file nor directory: {source_path}"
                 logger.error(error_msg)
@@ -222,14 +236,14 @@ class IMAPFetcher(ArchiveFetcher):
         """
         self.source = source
 
-    def fetch(self, output_dir: str) -> Tuple[bool, Optional[str], Optional[str]]:
+    def fetch(self, output_dir: str) -> Tuple[bool, Optional[list], Optional[str]]:
         """Fetch emails via IMAP.
         
         Args:
             output_dir: Directory to store the fetched mbox file
             
         Returns:
-            Tuple of (success, file_path, error_message)
+            Tuple of (success, list_of_file_paths, error_message)
         """
         try:
             import imapclient
@@ -276,7 +290,7 @@ class IMAPFetcher(ArchiveFetcher):
             client.logout()
 
             logger.info(f"Saved {len(msg_ids)} messages to {file_path}")
-            return True, file_path, None
+            return True, [file_path], None
 
         except ImportError as e:
             error_msg = f"Required library not installed: {e}"

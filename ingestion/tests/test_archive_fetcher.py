@@ -70,10 +70,12 @@ class TestLocalFetcher:
                 url=source_file,
             )
             fetcher = LocalFetcher(source)
-            success, file_path, error = fetcher.fetch(dest_dir)
+            success, file_paths, error = fetcher.fetch(dest_dir)
 
             assert success is True
-            assert file_path is not None
+            assert file_paths is not None
+            assert len(file_paths) == 1
+            file_path = file_paths[0]
             assert os.path.exists(file_path)
             assert "source.mbox" in file_path
 
@@ -103,12 +105,12 @@ class TestLocalFetcher:
                 url=source_dir,
             )
             fetcher = LocalFetcher(source)
-            success, file_path, error = fetcher.fetch(dest_dir)
+            success, file_paths, error = fetcher.fetch(dest_dir)
 
             assert success is True
-            assert os.path.isdir(file_path)
-            assert os.path.exists(os.path.join(file_path, "file1.mbox"))
-            assert os.path.exists(os.path.join(file_path, "file2.mbox"))
+            assert len(file_paths) == 2
+            assert any("file1.mbox" in fp for fp in file_paths)
+            assert any("file2.mbox" in fp for fp in file_paths)
 
     def test_local_fetcher_nonexistent_source(self):
         """Test with nonexistent source."""
@@ -119,7 +121,7 @@ class TestLocalFetcher:
                 url="/nonexistent/path",
             )
             fetcher = LocalFetcher(source)
-            success, file_path, error = fetcher.fetch(tmpdir)
+            success, file_paths, error = fetcher.fetch(tmpdir)
 
             assert success is False
             assert error is not None

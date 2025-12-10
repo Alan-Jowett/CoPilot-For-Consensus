@@ -129,8 +129,8 @@ class IngestionService:
                 # Create output directory
                 output_dir = os.path.join(self.config.storage_path, source.name)
 
-                # Fetch archive
-                success, file_path, error_message = fetcher.fetch(output_dir)
+                # Fetch archives
+                success, file_paths, error_message = fetcher.fetch(output_dir)
 
                 if not success:
                     last_error = error_message or "Unknown error"
@@ -157,53 +157,60 @@ class IngestionService:
                         )
                         return False
 
-                # Calculate hash
-                if os.path.isfile(file_path):
+                # Process each file individually
+                files_processed = 0
+                files_skipped = 0
+
+                for file_path in file_paths:
+                    # Calculate hash for this file
                     file_hash = calculate_file_hash(file_path)
                     file_size = os.path.getsize(file_path)
-                else:
-                    # If it's a directory, hash the directory contents
-                    # For now, we'll use a simple approach: hash all files in the directory
-                    file_hash = self._calculate_directory_hash(file_path)
-                    file_size = self._calculate_directory_size(file_path)
 
-                # Check if already ingested
-                if self.is_file_already_ingested(file_hash):
-                    logger.info(
-                        f"Archive from {source.name} already ingested (hash: {file_hash})"
+                    # Check if already ingested
+                    if self.is_file_already_ingested(file_hash):
+                        logger.debug(
+                            f"File {file_path} already ingested (hash: {file_hash[:16]}...)"
+                        )
+                        files_skipped += 1
+                        continue
+
+                    # Generate archive ID for this file
+                    archive_id = str(uuid4())
+
+                    # Create metadata
+                    ingestion_completed_at = datetime.utcnow().isoformat() + "Z"
+
+                    metadata = ArchiveMetadata(
+                        archive_id=archive_id,
+                        source_name=source.name,
+                        source_type=source.source_type,
+                        source_url=source.url,
+                        file_path=file_path,
+                        file_size_bytes=file_size,
+                        file_hash_sha256=file_hash,
+                        ingestion_started_at=ingestion_started_at,
+                        ingestion_completed_at=ingestion_completed_at,
+                        status="success",
                     )
-                    return True
 
-                # Generate archive ID
-                archive_id = str(uuid4())
+                    # Store checksum
+                    self.add_checksum(file_hash, archive_id, file_path, ingestion_started_at)
 
-                # Create metadata
-                ingestion_completed_at = datetime.utcnow().isoformat() + "Z"
+                    # Save metadata to log
+                    self._save_ingestion_log(metadata)
 
-                metadata = ArchiveMetadata(
-                    archive_id=archive_id,
-                    source_name=source.name,
-                    source_type=source.source_type,
-                    source_url=source.url,
-                    file_path=file_path,
-                    file_size_bytes=file_size,
-                    file_hash_sha256=file_hash,
-                    ingestion_started_at=ingestion_started_at,
-                    ingestion_completed_at=ingestion_completed_at,
-                    status="success",
-                )
+                    # Publish success event
+                    self._publish_success_event(metadata)
 
-                # Store checksum
-                self.add_checksum(file_hash, archive_id, file_path, ingestion_started_at)
+                    files_processed += 1
+
+                # Save all checksums at once
                 self.save_checksums()
 
-                # Save metadata to log
-                self._save_ingestion_log(metadata)
-
-                # Publish success event
-                self._publish_success_event(metadata)
-
-                logger.info(f"Successfully ingested archive from {source.name}")
+                logger.info(
+                    f"Successfully ingested from {source.name}: "
+                    f"{files_processed} new files, {files_skipped} already ingested"
+                )
                 return True
 
             except Exception as e:
