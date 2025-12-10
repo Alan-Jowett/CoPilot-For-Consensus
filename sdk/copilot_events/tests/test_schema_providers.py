@@ -241,7 +241,7 @@ class TestDocumentStoreSchemaProvider:
         provider = DocumentStoreSchemaProvider()
 
         assert provider.get_schema("Anything") is None
-        assert any("mongo_uri is required" in msg for msg in caplog.messages)
+        assert any("Either document_store must be provided" in msg for msg in caplog.messages)
 
     def test_connect_error_is_logged(self, caplog):
         class FailingStore(InMemoryDocumentStore):
@@ -290,11 +290,37 @@ class TestDocumentStoreSchemaProvider:
         assert any("truncated" in msg for msg in caplog.messages)
 
     def test_uri_does_not_pass_port(self, monkeypatch):
+         captured_kwargs = {}
+ 
+         def fake_create_document_store(**kwargs):
+             captured_kwargs.update(kwargs)
+             return InMemoryDocumentStore()
+ 
+         monkeypatch.setattr(
+             "copilot_events.document_store_schema_provider.create_document_store",
+             fake_create_document_store,
+         )
+ 
+         provider = DocumentStoreSchemaProvider(
+             mongo_uri="mongodb://admin:password@localhost:27017/cooldb",
+             port=27017,
+         )
+         provider._ensure_connected()
+ 
+         assert "port" not in captured_kwargs
+         assert captured_kwargs.get("host").startswith("mongodb://admin:password@localhost:27017")
+
+    def test_mongo_uri_initialization_creates_store(self, monkeypatch):
         captured_kwargs = {}
+
+        class DummyStore(InMemoryDocumentStore):
+            def connect(self) -> bool:
+                self.connected = True
+                return True
 
         def fake_create_document_store(**kwargs):
             captured_kwargs.update(kwargs)
-            return InMemoryDocumentStore()
+            return DummyStore()
 
         monkeypatch.setattr(
             "copilot_events.document_store_schema_provider.create_document_store",
@@ -302,10 +328,31 @@ class TestDocumentStoreSchemaProvider:
         )
 
         provider = DocumentStoreSchemaProvider(
-            mongo_uri="mongodb://admin:password@localhost:27017/cooldb",
-            port=27017,
+            mongo_uri="mongodb://localhost:27017",
+            database_name="mydb",
+            collection_name="event_schemas",
         )
-        provider._ensure_connected()
 
-        assert "port" not in captured_kwargs
-        assert captured_kwargs.get("host").startswith("mongodb://admin:password@localhost:27017")
+        assert provider._ensure_connected() is True
+        assert isinstance(provider._store, InMemoryDocumentStore)
+        assert captured_kwargs.get("host") == "mongodb://localhost:27017"
+        assert captured_kwargs.get("database") == "mydb"
+
+    def test_connect_error_with_mongo_uri_logs(self, caplog, monkeypatch):
+        class FailingStore(InMemoryDocumentStore):
+            def connect(self) -> bool:
+                raise RuntimeError("cannot connect")
+
+        def fake_create_document_store(**kwargs):
+            return FailingStore()
+
+        monkeypatch.setattr(
+            "copilot_events.document_store_schema_provider.create_document_store",
+            fake_create_document_store,
+        )
+
+        caplog.set_level(logging.ERROR)
+        provider = DocumentStoreSchemaProvider(mongo_uri="mongodb://bad-uri")
+
+        assert provider._ensure_connected() is False
+        assert any("Failed to connect document store" in msg for msg in caplog.messages)

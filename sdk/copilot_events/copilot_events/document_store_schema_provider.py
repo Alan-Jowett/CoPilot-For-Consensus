@@ -24,6 +24,7 @@ class DocumentStoreSchemaProvider(SchemaProvider):
     def __init__(
         self,
         mongo_uri: Optional[str] = None,
+        store_uri: Optional[str] = None,
         database_name: str = "copilot",
         collection_name: str = "event_schemas",
         document_store: Optional[DocumentStore] = None,
@@ -33,14 +34,16 @@ class DocumentStoreSchemaProvider(SchemaProvider):
         """Initialize the provider.
 
         Args:
-            mongo_uri: Optional connection string; when provided, builds a
+            mongo_uri: Optional MongoDB connection string; kept for backward
+                compatibility. Use store_uri for generic naming.
+            store_uri: Optional connection string; when provided, builds a
                 Mongo-backed DocumentStore via create_document_store.
             database_name: Database name for Mongo-backed stores.
             collection_name: Collection that stores event schemas.
             document_store: Optional pre-built DocumentStore instance.
             **store_kwargs: Extra arguments forwarded to create_document_store.
         """
-        self.mongo_uri = mongo_uri
+        self.mongo_uri = store_uri or mongo_uri
         self.database_name = database_name
         self.collection_name = collection_name
         self._schema_cache: Dict[str, Dict] = {}
@@ -52,7 +55,9 @@ class DocumentStoreSchemaProvider(SchemaProvider):
     def _ensure_store(self) -> Optional[DocumentStore]:
         if self._store is None:
             if not self.mongo_uri:
-                logger.error("mongo_uri is required when no document_store is provided")
+                logger.error(
+                    "Either document_store must be provided or mongo_uri/store_uri must be specified to create a document store"
+                )
                 return None
             is_uri = isinstance(self.mongo_uri, str) and (
                 self.mongo_uri.startswith("mongodb://")
@@ -126,7 +131,7 @@ class DocumentStoreSchemaProvider(SchemaProvider):
                     "Schema list may be truncated; increase list_limit if more than %s schemas exist",
                     self._list_limit,
                 )
-            return sorted(set(event_types))
+            return sorted(event_types)
         except Exception as exc:
             logger.error(f"Error listing event types from document store: {exc}")
             return []

@@ -175,14 +175,13 @@ from copilot_events import DocumentStoreSchemaProvider
 
 # Prefer context manager usage for automatic cleanup
 with DocumentStoreSchemaProvider(
-    mongo_uri="mongodb://admin:password@documentdb:27017/admin?authSource=admin",
-    collection_name="event_schemas",
-) as provider:
-    schema = provider.get_schema("ArchiveIngested")
-    event_types = provider.list_event_types()
-```
-
-For tests, inject `InMemoryDocumentStore` from `copilot-storage` to avoid external services.
+     mongo_uri="mongodb://admin:password@documentdb:27017/admin?authSource=admin",
+     collection_name="event_schemas",
+     database_name="copilot",  # optional; defaults to "copilot"
+ ) as provider:
+     schema = provider.get_schema("ArchiveIngested")
+     event_types = provider.list_event_types()
+```For tests, inject `InMemoryDocumentStore` from `copilot-storage` to avoid external services.
 
 ## Architecture
 
