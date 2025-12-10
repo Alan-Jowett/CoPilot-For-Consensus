@@ -12,7 +12,12 @@ __version__ = "0.1.0"
 from .publisher import EventPublisher, create_publisher
 from .rabbitmq import RabbitMQPublisher
 from .noop import NoopPublisher
-from .models import ArchiveIngestedEvent, ArchiveIngestionFailedEvent
+from .models import (
+    ArchiveIngestedEvent,
+    ArchiveIngestionFailedEvent,
+    JSONParsedEvent,
+    ParsingFailedEvent,
+)
 
 __all__ = [
     "EventPublisher",
@@ -21,4 +26,6 @@ __all__ = [
     "NoopPublisher",
     "ArchiveIngestedEvent",
     "ArchiveIngestionFailedEvent",
+    "JSONParsedEvent",
+    "ParsingFailedEvent",
 ]
