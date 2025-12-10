@@ -38,5 +38,11 @@ setup(
             "pylint>=3.0.0",
             "mypy>=1.0.0",
         ],
+        "faiss": [
+            "faiss-cpu>=1.7.0",  # FAISS for vector similarity search
+        ],
+        "faiss-gpu": [
+            "faiss-gpu>=1.7.0",  # FAISS GPU version for faster search
+        ],
     },
 )
