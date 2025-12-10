@@ -6,7 +6,7 @@
 import logging
 import pytest
 
-from copilot_events import (
+from copilot_reporting import (
     create_error_reporter,
     ErrorReporter,
     ConsoleErrorReporter,

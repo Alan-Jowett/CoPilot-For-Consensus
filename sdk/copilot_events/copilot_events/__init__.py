@@ -95,38 +95,6 @@ def create_subscriber(
         raise ValueError(f"Unknown message bus type: {message_bus_type}")
 
 
-def create_error_reporter(
-    reporter_type: str = "console",
-    logger_name: Optional[str] = None,
-    dsn: Optional[str] = None,
-    environment: str = "production",
-    **kwargs
-) -> ErrorReporter:
-    """Create an error reporter based on type.
-    
-    Args:
-        reporter_type: Type of reporter ("console", "silent", "sentry")
-        logger_name: Logger name for console reporter (optional)
-        dsn: Sentry DSN for sentry reporter (optional)
-        environment: Environment name for sentry reporter (optional)
-        **kwargs: Additional reporter-specific arguments
-        
-    Returns:
-        ErrorReporter instance
-        
-    Raises:
-        ValueError: If reporter_type is unknown
-    """
-    if reporter_type == "console":
-        return ConsoleErrorReporter(logger_name=logger_name)
-    elif reporter_type == "silent":
-        return SilentErrorReporter()
-    elif reporter_type == "sentry":
-        return SentryErrorReporter(dsn=dsn, environment=environment)
-    else:
-        raise ValueError(f"Unknown reporter type: {reporter_type}")
-
-
 __all__ = [
     # Version
     "__version__",

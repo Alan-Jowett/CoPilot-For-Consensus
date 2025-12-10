@@ -223,7 +223,7 @@ class TestIngestionService:
 
     def test_error_reporter_integration(self, temp_storage):
         """Test error reporter integration."""
-        from copilot_events import SilentErrorReporter
+        from copilot_reporting import SilentErrorReporter
         
         config = IngestionConfig(storage_path=temp_storage)
         publisher = NoopPublisher()
@@ -255,5 +255,5 @@ class TestIngestionService:
         service = IngestionService(config, publisher)
         
         # Verify error reporter was created from config
-        from copilot_events import SilentErrorReporter
+        from copilot_reporting import SilentErrorReporter
         assert isinstance(service.error_reporter, SilentErrorReporter)

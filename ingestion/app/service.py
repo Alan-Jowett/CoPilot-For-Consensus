@@ -10,6 +10,7 @@ from typing import Optional, Dict, Any
 from uuid import uuid4
 
 from copilot_events import EventPublisher, ArchiveIngestedEvent, ArchiveIngestionFailedEvent, ArchiveMetadata
+from copilot_reporting import ErrorReporter, create_error_reporter
 
 from .config import IngestionConfig, SourceConfig
 from .archive_fetcher import create_fetcher, calculate_file_hash
