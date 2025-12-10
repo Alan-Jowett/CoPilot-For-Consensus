@@ -8,8 +8,6 @@ import logging
 import re
 from typing import Callable, Dict, Any, Optional
 
-import pika
-
 from .subscriber import EventSubscriber
 from .schema_provider import SchemaProvider
 from .file_schema_provider import FileSchemaProvider
@@ -73,6 +71,8 @@ class RabbitMQSubscriber(EventSubscriber):
     def connect(self) -> None:
         """Connect to RabbitMQ server."""
         try:
+            import pika
+            
             credentials = pika.PlainCredentials(self.username, self.password)
             parameters = pika.ConnectionParameters(
                 host=self.host,
