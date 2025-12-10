@@ -48,6 +48,8 @@ class MockEmbeddingProvider(EmbeddingProvider):
             List of floats representing the mock embedding vector
         """
         # Generate deterministic mock embeddings based on text hash
+        # Uses modulo arithmetic to create different values for each dimension
+        # Formula ensures values are in [0, 1] range and deterministic for same text
         text_hash = hash(text)
         return [(text_hash % (i + 1)) / (i + 1) for i in range(self.dimension)]
 
@@ -169,12 +171,16 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
 
 class HuggingFaceEmbeddingProvider(EmbeddingProvider):
     """HuggingFace embedding provider for Transformers models."""
+    
+    # Default maximum sequence length for tokenization
+    DEFAULT_MAX_LENGTH = 512
 
     def __init__(
         self,
         model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
         device: str = "cpu",
-        cache_dir: Optional[str] = None
+        cache_dir: Optional[str] = None,
+        max_length: int = DEFAULT_MAX_LENGTH
     ):
         """Initialize HuggingFace embedding provider.
         
@@ -182,6 +188,7 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
             model_name: Name of the HuggingFace model
             device: Device to run inference on (cpu, cuda, mps)
             cache_dir: Directory to cache models
+            max_length: Maximum sequence length for tokenization
         """
         try:
             from transformers import AutoTokenizer, AutoModel
@@ -195,6 +202,7 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
         self.model_name = model_name
         self.device = device
         self.cache_dir = cache_dir
+        self.max_length = max_length
         self.torch = torch
         
         logger.info(f"Loading HuggingFace model: {model_name} on device: {device}")
@@ -223,7 +231,7 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
             return_tensors="pt",
             padding=True,
             truncation=True,
-            max_length=512
+            max_length=self.max_length
         ).to(self.device)
         
         # Generate embeddings
