@@ -91,7 +91,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 
@@ -105,14 +105,12 @@ jobs:
     - name: Run pylint
       run: |
         cd ingestion
-        pylint app/*.py --disable=C0111,C0103,R0903 || echo "Pylint warnings found but continuing..."
-      continue-on-error: true
+        pylint app/*.py --disable=C0111,C0103,R0903
 
     - name: Run flake8
       run: |
         cd ingestion
         flake8 app/*.py tests/*.py --count --select=E9,F63,F7,F82 --show-source --statistics
-      continue-on-error: true
 
   build-docker:
     runs-on: ubuntu-latest
@@ -142,7 +140,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 
@@ -206,7 +204,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 

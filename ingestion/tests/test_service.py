@@ -7,7 +7,6 @@ import json
 import os
 import tempfile
 import pytest
-from pathlib import Path
 
 from app.config import IngestionConfig, SourceConfig
 from app.event_publisher import NoopPublisher
