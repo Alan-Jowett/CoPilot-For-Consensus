@@ -103,8 +103,10 @@ class MockDiffProvider(DraftDiffProvider):
 Changes from version {version_a} to {version_b}
 
 ## Changes
-- ~~Old content from version {version_a}~~
-- **New content in version {version_b}**
+```diff
+- Old content from version {version_a}
++ New content in version {version_b}
+```
 """
         else:  # text format
             return f"""Mock diff for {draft_name}
