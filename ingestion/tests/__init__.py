@@ -1,9 +1,4 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-python-dotenv==1.0.0
-pika==1.3.1
-pyyaml==6.0.1
-imapclient==3.0.1
-requests==2.31.0
-
+"""Unit tests for the ingestion service."""

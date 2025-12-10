@@ -1,0 +1,287 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+"""Integration tests for the ingestion service."""
+
+import json
+import os
+import tempfile
+import pytest
+from pathlib import Path
+
+from app.config import IngestionConfig, SourceConfig
+from app.event_publisher import NoopPublisher
+from app.service import IngestionService
+
+
+class TestIngestionIntegration:
+    """Integration tests for the complete ingestion workflow."""
+
+    @pytest.fixture
+    def temp_environment(self):
+        """Create temporary environment for testing."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            storage_path = os.path.join(tmpdir, "archives")
+            os.makedirs(storage_path)
+
+            yield {
+                "storage_path": storage_path,
+                "source_dir": os.path.join(tmpdir, "sources"),
+                "tmpdir": tmpdir,
+            }
+
+    @pytest.fixture
+    def test_sources(self, temp_environment):
+        """Create test mail sources."""
+        source_dir = temp_environment["source_dir"]
+        os.makedirs(source_dir)
+
+        # Create multiple test mbox files
+        sources = []
+        for i in range(3):
+            source_name = f"test-list-{i}"
+            source_file = os.path.join(source_dir, f"{source_name}.mbox")
+
+            with open(source_file, "w") as f:
+                # Write minimal mbox format
+                for j in range(5):
+                    f.write(f"From: user{j}@example.com\n")
+                    f.write(f"To: {source_name}@example.com\n")
+                    f.write(f"Subject: Test Message {j}\n")
+                    f.write(f"Date: Mon, 01 Jan 2023 {j:02d}:00:00 +0000\n")
+                    f.write(f"\n")
+                    f.write(f"This is test message {j}\n")
+                    f.write(f"\n")
+
+            sources.append(
+                SourceConfig(
+                    name=source_name,
+                    source_type="local",
+                    url=source_file,
+                    enabled=True,
+                )
+            )
+
+        return sources
+
+    def test_end_to_end_ingestion(self, temp_environment, test_sources):
+        """Test complete end-to-end ingestion workflow."""
+        # Create configuration
+        config = IngestionConfig(
+            storage_path=temp_environment["storage_path"],
+            sources=test_sources,
+            retry_max_attempts=1,
+        )
+
+        # Create publisher and service
+        publisher = NoopPublisher()
+        publisher.connect()
+
+        service = IngestionService(config, publisher)
+
+        # Ingest all sources
+        results = service.ingest_all_enabled_sources()
+
+        # Verify results
+        assert len(results) == 3
+        for source_name, success in results.items():
+            assert success is True
+
+        # Verify checksums were saved
+        checksums_path = os.path.join(
+            temp_environment["storage_path"], "metadata", "checksums.json"
+        )
+        assert os.path.exists(checksums_path)
+
+        with open(checksums_path, "r") as f:
+            checksums = json.load(f)
+            assert len(checksums) == 3
+
+        # Verify ingestion log
+        log_path = os.path.join(
+            temp_environment["storage_path"], "metadata", "ingestion_log.jsonl"
+        )
+        assert os.path.exists(log_path)
+
+        with open(log_path, "r") as f:
+            lines = f.readlines()
+            assert len(lines) == 3
+
+        # Verify events were published
+        assert len(publisher.published_events) == 3
+
+        # All should be success events
+        for event_wrapper in publisher.published_events:
+            assert event_wrapper["event"]["event_type"] == "ArchiveIngested"
+
+    def test_ingestion_with_duplicates(self, temp_environment, test_sources):
+        """Test ingestion handling of duplicate archives."""
+        config = IngestionConfig(
+            storage_path=temp_environment["storage_path"],
+            sources=test_sources,
+        )
+
+        publisher = NoopPublisher()
+        publisher.connect()
+
+        service = IngestionService(config, publisher)
+
+        # First ingestion
+        results1 = service.ingest_all_enabled_sources()
+        assert all(results1.values())
+
+        initial_event_count = len(publisher.published_events)
+
+        # Second ingestion (should skip duplicates)
+        results2 = service.ingest_all_enabled_sources()
+        assert all(results2.values())
+
+        # Should have same number of events (no new success events for duplicates)
+        # Note: actual behavior depends on implementation
+        # For now we expect same count if duplicates are skipped
+        assert len(publisher.published_events) == initial_event_count
+
+    def test_ingestion_with_mixed_sources(self, temp_environment, test_sources):
+        """Test ingestion with mix of enabled and disabled sources."""
+        # Mix enabled and disabled
+        test_sources[1].enabled = False
+        test_sources[2].enabled = False
+
+        config = IngestionConfig(
+            storage_path=temp_environment["storage_path"],
+            sources=test_sources,
+        )
+
+        publisher = NoopPublisher()
+        publisher.connect()
+
+        service = IngestionService(config, publisher)
+
+        results = service.ingest_all_enabled_sources()
+
+        # Only one source should be ingested
+        assert len(results) == 1
+        assert results["test-list-0"] is True
+
+    def test_checksums_persist_across_instances(self, temp_environment, test_sources):
+        """Test that checksums persist across service instances."""
+        config = IngestionConfig(
+            storage_path=temp_environment["storage_path"],
+            sources=test_sources[:1],  # Just first source
+        )
+
+        # First service instance
+        publisher1 = NoopPublisher()
+        publisher1.connect()
+        service1 = IngestionService(config, publisher1)
+        service1.ingest_all_enabled_sources()
+
+        first_checksum = list(service1.checksums.keys())[0]
+
+        # Second service instance
+        publisher2 = NoopPublisher()
+        publisher2.connect()
+        service2 = IngestionService(config, publisher2)
+
+        # Verify checksum was loaded
+        assert first_checksum in service2.checksums
+
+    def test_ingestion_log_format(self, temp_environment, test_sources):
+        """Test that ingestion log has correct format."""
+        config = IngestionConfig(
+            storage_path=temp_environment["storage_path"],
+            sources=test_sources[:1],
+        )
+
+        publisher = NoopPublisher()
+        publisher.connect()
+
+        service = IngestionService(config, publisher)
+        service.ingest_all_enabled_sources()
+
+        log_path = os.path.join(
+            temp_environment["storage_path"], "metadata", "ingestion_log.jsonl"
+        )
+
+        with open(log_path, "r") as f:
+            for line in f:
+                entry = json.loads(line)
+
+                # Verify required fields
+                assert "archive_id" in entry
+                assert "source_name" in entry
+                assert "source_type" in entry
+                assert "source_url" in entry
+                assert "file_path" in entry
+                assert "file_size_bytes" in entry
+                assert "file_hash_sha256" in entry
+                assert "ingestion_started_at" in entry
+                assert "ingestion_completed_at" in entry
+                assert "status" in entry
+
+    def test_published_event_format(self, temp_environment, test_sources):
+        """Test that published events have correct format."""
+        config = IngestionConfig(
+            storage_path=temp_environment["storage_path"],
+            sources=test_sources[:1],
+        )
+
+        publisher = NoopPublisher()
+        publisher.connect()
+
+        service = IngestionService(config, publisher)
+        service.ingest_all_enabled_sources()
+
+        # Get published events
+        assert len(publisher.published_events) >= 1
+
+        for event_wrapper in publisher.published_events:
+            event = event_wrapper["event"]
+
+            # Verify event structure
+            assert "event_type" in event
+            assert "event_id" in event
+            assert "timestamp" in event
+            assert "version" in event
+            assert "data" in event
+
+            # Verify event data
+            if event["event_type"] == "ArchiveIngested":
+                data = event["data"]
+                assert "archive_id" in data
+                assert "source_name" in data
+                assert "source_type" in data
+                assert "source_url" in data
+                assert "file_path" in data
+                assert "file_size_bytes" in data
+                assert "file_hash_sha256" in data
+                assert "ingestion_started_at" in data
+                assert "ingestion_completed_at" in data
+
+    def test_storage_directory_structure(self, temp_environment, test_sources):
+        """Test that storage directory structure is correct."""
+        config = IngestionConfig(
+            storage_path=temp_environment["storage_path"],
+            sources=test_sources[:2],
+        )
+
+        publisher = NoopPublisher()
+        publisher.connect()
+
+        service = IngestionService(config, publisher)
+        service.ingest_all_enabled_sources()
+
+        storage_path = temp_environment["storage_path"]
+
+        # Verify directory structure
+        assert os.path.exists(storage_path)
+        assert os.path.exists(os.path.join(storage_path, "metadata"))
+
+        # Verify source directories were created
+        for source in test_sources[:2]:
+            source_dir = os.path.join(storage_path, source.name)
+            assert os.path.exists(source_dir)
+
+        # Verify metadata files
+        assert os.path.exists(os.path.join(storage_path, "metadata", "checksums.json"))
+        assert os.path.exists(os.path.join(storage_path, "metadata", "ingestion_log.jsonl"))

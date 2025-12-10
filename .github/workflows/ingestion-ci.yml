@@ -1,0 +1,264 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Ingestion Service CI
+
+on:
+  push:
+    branches: [ main, centralize-schema ]
+    paths:
+      - 'ingestion/**'
+      - '.github/workflows/ingestion-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'ingestion/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        cd ingestion
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+
+    - name: Run unit and integration tests
+      run: |
+        cd ingestion
+        pytest tests/ -v --tb=short --junit-xml=test-results.xml
+
+    - name: Generate coverage report
+      run: |
+        cd ingestion
+        pytest tests/ --cov=app --cov-report=xml --cov-report=html --cov-report=term
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./ingestion/coverage.xml
+        flags: ingestion
+        name: ingestion-coverage
+        fail_ci_if_error: false
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ matrix.python-version }}
+        path: ingestion/test-results.xml
+
+    - name: Upload coverage reports
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report-${{ matrix.python-version }}
+        path: ingestion/htmlcov
+
+    - name: Test Report
+      if: always()
+      uses: dorny/test-reporter@v1
+      with:
+        name: Test Results (Python ${{ matrix.python-version }})
+        path: ingestion/test-results.xml
+        reporter: 'java-junit'
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        cd ingestion
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pylint flake8
+
+    - name: Run pylint
+      run: |
+        cd ingestion
+        pylint app/*.py --disable=C0111,C0103,R0903 --fail-under=8.0 || echo "Pylint warnings found but continuing..."
+      continue-on-error: true
+
+    - name: Run flake8
+      run: |
+        cd ingestion
+        flake8 app/*.py tests/*.py --count --select=E9,F63,F7,F82 --show-source --statistics
+      continue-on-error: true
+
+  build-docker:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./ingestion
+        push: false
+        tags: ingestion-service:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  test-local:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        cd ingestion
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt pytest
+
+    - name: Test local archive ingestion
+      run: |
+        cd ingestion
+        python -c "
+        import tempfile
+        import os
+        from app.config import IngestionConfig, SourceConfig
+        from app.event_publisher import create_publisher
+        from app.service import IngestionService
+        
+        # Create temp directories
+        with tempfile.TemporaryDirectory() as tmpdir:
+            storage_path = os.path.join(tmpdir, 'archives')
+            os.makedirs(storage_path)
+            
+            # Create test archive
+            source_dir = os.path.join(tmpdir, 'sources')
+            os.makedirs(source_dir)
+            test_file = os.path.join(source_dir, 'test.mbox')
+            with open(test_file, 'w') as f:
+                f.write('From: test@example.com\nSubject: Test\n\nContent')
+            
+            # Configure and run ingestion
+            config = IngestionConfig(storage_path=storage_path)
+            source = SourceConfig(
+                name='test-source',
+                source_type='local',
+                url=test_file,
+            )
+            config.sources = [source]
+            
+            publisher = create_publisher(message_bus_type='noop')
+            publisher.connect()
+            service = IngestionService(config, publisher)
+            
+            # Run ingestion
+            success = service.ingest_archive(source, max_retries=1)
+            
+            if success:
+                print('✓ Local ingestion test passed')
+            else:
+                print('✗ Local ingestion test failed')
+                exit(1)
+        "
+
+  code-quality:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        cd ingestion
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pylint bandit
+
+    - name: Run security check (bandit)
+      run: |
+        cd ingestion
+        bandit -r app/ -f json -o bandit-report.json || true
+      continue-on-error: true
+
+    - name: Check imports
+      run: |
+        cd ingestion
+        python -c "
+        from app.config import IngestionConfig, SourceConfig
+        from app.models import ArchiveIngestedEvent, ArchiveIngestionFailedEvent
+        from app.event_publisher import create_publisher, RabbitMQPublisher, NoopPublisher
+        from app.archive_fetcher import create_fetcher, calculate_file_hash
+        from app.service import IngestionService
+        print('✓ All imports successful')
+        "
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [test, lint, build-docker, test-local, code-quality]
+    if: always()
+    
+    steps:
+    - name: Check test status
+      run: |
+        if [ "${{ needs.test.result }}" == "success" ]; then
+          echo "✓ Tests passed"
+        else
+          echo "✗ Tests failed"
+          exit 1
+        fi
+    
+    - name: Check build status
+      run: |
+        if [ "${{ needs.build-docker.result }}" == "success" ]; then
+          echo "✓ Docker build passed"
+        else
+          echo "✗ Docker build failed"
+          exit 1
+        fi
+    
+    - name: Report summary
+      run: |
+        echo "Ingestion Service CI Summary:"
+        echo "- Tests: ${{ needs.test.result }}"
+        echo "- Lint: ${{ needs.lint.result }}"
+        echo "- Docker Build: ${{ needs.build-docker.result }}"
+        echo "- Local Test: ${{ needs.test-local.result }}"
+        echo "- Code Quality: ${{ needs.code-quality.result }}"

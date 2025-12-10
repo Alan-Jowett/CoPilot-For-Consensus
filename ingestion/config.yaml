@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+# Ingestion Service Configuration
+# This file defines the mail archive sources to ingest
+
+sources:
+  - name: "ietf-quic"
+    type: "rsync"
+    url: "rsync.ietf.org::mailman-archive/quic/"
+    enabled: true
+
+  - name: "ietf-tls"
+    type: "rsync"
+    url: "rsync.ietf.org::mailman-archive/tls/"
+    enabled: true
+
+  - name: "ietf-httpbis"
+    type: "rsync"
+    url: "rsync.ietf.org::mailman-archive/httpbis/"
+    enabled: false
+
+  - name: "custom-imap"
+    type: "imap"
+    url: "imap.example.com"
+    port: 993
+    username: "${IMAP_USERNAME}"
+    password: "${IMAP_PASSWORD}"
+    folder: "INBOX"
+    enabled: false
+
+  - name: "custom-http"
+    type: "http"
+    url: "https://example.com/archives/mailing-list.mbox"
+    enabled: false
