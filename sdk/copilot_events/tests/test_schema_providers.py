@@ -6,14 +6,11 @@
 import json
 import sys
 import types
-import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 
 # Provide a stub pymongo module so patching works even if pymongo is not installed.
 sys.modules.setdefault("pymongo", types.SimpleNamespace(MongoClient=MagicMock()))
 
-from copilot_events.schema_provider import SchemaProvider
 from copilot_events.file_schema_provider import FileSchemaProvider
 from copilot_events.mongo_schema_provider import MongoSchemaProvider
 

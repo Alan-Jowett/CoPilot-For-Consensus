@@ -38,7 +38,7 @@ jobs:
           MONGO_INITDB_ROOT_USERNAME: admin
           MONGO_INITDB_ROOT_PASSWORD: testpass
         options: >-
-          --health-cmd mongosh
+          --health-cmd mongosh --host localhost:27017 -u admin -p testpass --authenticationDatabase admin --quiet --eval "db.adminCommand('ping')"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -130,7 +130,7 @@ jobs:
       uses: dorny/test-reporter@v1
       with:
         name: Integration Test Results (Python ${{ matrix.python-version }})
-        path: sdk/test-results-integration.xml
+        path: sdk/copilot_events/test-results-integration.xml
         reporter: 'java-junit'
 
   docker-compose-integration:
@@ -181,7 +181,7 @@ jobs:
       uses: dorny/test-reporter@v1
       with:
         name: Docker Compose Integration Test Results
-        path: sdk/test-results-docker.xml
+        path: sdk/copilot_events/test-results-docker.xml
         reporter: 'java-junit'
 
     - name: Cleanup
