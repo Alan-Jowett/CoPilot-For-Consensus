@@ -1,14 +1,15 @@
 # Copilot Events SDK
 
-A shared Python library for event publishing across microservices in the Copilot-for-Consensus system.
+A shared Python library for event publishing and subscribing across microservices in the Copilot-for-Consensus system.
 
 ## Features
 
 - **Abstract Publisher Interface**: Common interface for all event publishers
-- **RabbitMQ Implementation**: Production-ready RabbitMQ publisher with persistent messages
-- **No-op Implementation**: Testing publisher that stores events in memory
+- **Abstract Subscriber Interface**: Common interface for all event subscribers
+- **RabbitMQ Implementation**: Production-ready RabbitMQ publisher and subscriber with persistent messages
+- **No-op Implementation**: Testing publisher and subscriber that work in-memory
 - **Event Models**: Common event data structures for system-wide consistency
-- **Factory Pattern**: Simple factory function for creating publishers
+- **Factory Pattern**: Simple factory functions for creating publishers and subscribers
 
 ## Installation
 
@@ -98,6 +99,72 @@ assert len(publisher.published_events) == 1
 assert publisher.published_events[0]["routing_key"] == "test.event"
 ```
 
+### Subscribing to Events
+
+```python
+from copilot_events import create_subscriber
+
+# Create RabbitMQ subscriber
+subscriber = create_subscriber(
+    message_bus_type="rabbitmq",
+    host="messagebus",
+    port=5672,
+    username="guest",
+    password="guest"
+)
+
+# Connect to message bus
+subscriber.connect()
+
+# Define callback for handling events
+def handle_archive_ingested(event):
+    print(f"Received event: {event['event_id']}")
+    archive_id = event['data']['archive_id']
+    print(f"Processing archive: {archive_id}")
+
+# Subscribe to event type
+subscriber.subscribe(
+    event_type="ArchiveIngested",
+    callback=handle_archive_ingested,
+    routing_key="archive.ingested"  # Optional, auto-generated if not provided
+)
+
+# Start consuming (blocks)
+try:
+    subscriber.start_consuming()
+except KeyboardInterrupt:
+    subscriber.stop_consuming()
+    subscriber.disconnect()
+```
+
+### Testing with NoopSubscriber
+
+```python
+from copilot_events import create_subscriber
+
+# Create no-op subscriber for testing
+subscriber = create_subscriber(message_bus_type="noop")
+subscriber.connect()
+
+# Register callback
+received_events = []
+subscriber.subscribe(
+    event_type="TestEvent",
+    callback=lambda e: received_events.append(e)
+)
+
+# Manually inject event for testing
+subscriber.inject_event({
+    "event_type": "TestEvent",
+    "event_id": "123",
+    "data": {"test": "value"}
+})
+
+# Verify callback was called
+assert len(received_events) == 1
+assert received_events[0]["event_id"] == "123"
+```
+
 ## Architecture
 
 ### Publisher Interface
@@ -108,24 +175,51 @@ The `EventPublisher` abstract base class defines the contract:
 - `disconnect() -> None`: Close connection
 - `publish(exchange, routing_key, event) -> bool`: Publish an event
 
+### Subscriber Interface
+
+The `EventSubscriber` abstract base class defines the contract:
+
+- `connect() -> None`: Establish connection to message bus
+- `disconnect() -> None`: Close connection
+- `subscribe(event_type, callback, routing_key) -> None`: Register event handler
+- `start_consuming() -> None`: Start processing events (blocking)
+- `stop_consuming() -> None`: Stop processing events
+
 ### Implementations
 
 #### RabbitMQPublisher
 
-Production implementation with:
+Production publisher implementation with:
 - Persistent messages (delivery_mode=2)
 - Durable exchanges
 - Connection retry logic
 - JSON serialization
 - Comprehensive logging
 
+#### RabbitMQSubscriber
+
+Production subscriber implementation with:
+- Topic-based routing
+- Manual acknowledgment support
+- Error handling with requeue
+- Automatic routing key generation
+- Callback-based event dispatch
+
 #### NoopPublisher
 
-Testing implementation with:
+Testing publisher implementation with:
 - In-memory event storage
 - Query and filter capabilities
 - Zero external dependencies
 - Fast execution for unit tests
+
+#### NoopSubscriber
+
+Testing subscriber implementation with:
+- Manual event injection
+- In-memory callback registry
+- Subscription introspection
+- Zero external dependencies
 
 ### Event Models
 
