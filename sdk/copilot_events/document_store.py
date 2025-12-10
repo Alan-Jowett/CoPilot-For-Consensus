@@ -103,8 +103,8 @@ def create_document_store(
     store_type: str = "inmemory",
     host: str = "localhost",
     port: int = 27017,
-    username: str = None,
-    password: str = None,
+    username: Optional[str] = None,
+    password: Optional[str] = None,
     database: str = "copilot",
     **kwargs
 ) -> DocumentStore:

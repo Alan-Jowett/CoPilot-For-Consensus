@@ -18,8 +18,8 @@ class MongoDocumentStore(DocumentStore):
         self,
         host: str = "localhost",
         port: int = 27017,
-        username: str = None,
-        password: str = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
         database: str = "copilot",
         **kwargs
     ):
@@ -52,14 +52,22 @@ class MongoDocumentStore(DocumentStore):
             from pymongo import MongoClient
             from pymongo.errors import ConnectionFailure
             
-            # Build connection URI
+            # Build connection using separate auth parameters (more secure than URI)
+            connection_params = {
+                "host": self.host,
+                "port": self.port,
+            }
+            
+            # Add authentication if provided
             if self.username and self.password:
-                uri = f"mongodb://{self.username}:{self.password}@{self.host}:{self.port}/"
-            else:
-                uri = f"mongodb://{self.host}:{self.port}/"
+                connection_params["username"] = self.username
+                connection_params["password"] = self.password
+            
+            # Merge additional client options
+            connection_params.update(self.client_options)
             
             # Create client with options
-            self.client = MongoClient(uri, **self.client_options)
+            self.client = MongoClient(**connection_params)
             
             # Test connection
             self.client.admin.command('ping')
