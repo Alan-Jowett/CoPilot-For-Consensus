@@ -62,14 +62,14 @@ jobs:
 
     - name: Upload test results
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: unit-test-results-${{ matrix.python-version }}
         path: sdk/copilot_events/test-results.xml
 
     - name: Upload coverage report
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: unit-coverage-${{ matrix.python-version }}
         path: sdk/copilot_events/htmlcov
