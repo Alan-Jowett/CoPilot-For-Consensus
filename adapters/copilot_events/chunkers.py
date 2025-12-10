@@ -159,8 +159,8 @@ class TokenWindowChunker(ThreadChunker):
                 break
             start_idx = end_idx - self.overlap
             
-            # Ensure we make progress
-            if start_idx <= chunks[-1].chunk_index * (self.chunk_size - self.overlap) if chunks else 0:
+            # Ensure we make progress (avoid infinite loops)
+            if chunks and start_idx <= chunks[-1].chunk_index * (self.chunk_size - self.overlap):
                 start_idx = end_idx
         
         return chunks
