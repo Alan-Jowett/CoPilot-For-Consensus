@@ -139,7 +139,7 @@ jobs:
 
     - name: Test Report
       if: always()
-      uses: dorny/test-reporter@v1
+      uses: dorny/test-reporter@v2
       with:
         name: Integration Test Results (Python ${{ matrix.python-version }})
         path: sdk/copilot_events/test-results-integration.xml
@@ -190,7 +190,7 @@ jobs:
 
     - name: Test Report
       if: always()
-      uses: dorny/test-reporter@v1
+      uses: dorny/test-reporter@v2
       with:
         name: Docker Compose Integration Test Results
         path: sdk/copilot_events/test-results-docker.xml
