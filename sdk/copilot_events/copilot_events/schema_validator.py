@@ -41,13 +41,22 @@ def _build_registry(schema_provider=None) -> Registry:
     
     # Fallback to filesystem if not found in provider
     if envelope_schema is None:
-        try:
-            envelope_path = Path(__file__).resolve().parents[2] / "documents" / "schemas" / "event-envelope.schema.json"
-            if envelope_path.exists():
-                envelope_schema = json.loads(envelope_path.read_text(encoding="utf-8"))
-                logger.debug("Loaded event-envelope schema from filesystem")
-        except Exception as exc:
-            logger.debug(f"Unable to preload envelope schema from filesystem: {exc}")
+        candidate_bases = [
+            Path(__file__).resolve().parents[2],  # when running from repo package folder
+            Path(__file__).resolve().parents[3],  # repo root (common during editable installs)
+        ]
+
+        for base in candidate_bases:
+            envelope_path = base / "documents" / "schemas" / "event-envelope.schema.json"
+            try:
+                if envelope_path.exists():
+                    envelope_schema = json.loads(envelope_path.read_text(encoding="utf-8"))
+                    logger.debug(f"Loaded event-envelope schema from filesystem: {envelope_path}")
+                    break
+            except Exception as exc:
+                logger.debug(
+                    f"Could not load envelope schema from {envelope_path} (will try next candidate): {exc}"
+                )
     
     # Register the envelope schema if found
     if envelope_schema:
