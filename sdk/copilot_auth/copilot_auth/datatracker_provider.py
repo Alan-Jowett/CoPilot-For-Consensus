@@ -10,7 +10,7 @@ to authenticate using their Datatracker credentials.
 from typing import Optional
 
 from .models import User
-from .provider import IdentityProvider, AuthenticationError, ProviderError
+from .provider import IdentityProvider
 
 
 class DatatrackerIdentityProvider(IdentityProvider):

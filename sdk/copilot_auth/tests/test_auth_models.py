@@ -3,8 +3,6 @@
 
 """Tests for authentication models."""
 
-import pytest
-
 from copilot_auth import User
 
 

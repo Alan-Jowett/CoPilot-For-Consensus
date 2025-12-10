@@ -3,7 +3,6 @@
 
 """Tests for identity provider factory."""
 
-import os
 import pytest
 
 from copilot_auth import (
@@ -58,8 +57,11 @@ class TestCreateIdentityProvider:
         assert provider.client_id == "env-client-id"
         assert provider.client_secret == "env-client-secret"
 
-    def test_create_github_provider_raises_error_without_credentials(self):
+    def test_create_github_provider_raises_error_without_credentials(self, monkeypatch):
         """Test creating a GitHub provider without credentials raises error."""
+        monkeypatch.delenv("GITHUB_CLIENT_ID", raising=False)
+        monkeypatch.delenv("GITHUB_CLIENT_SECRET", raising=False)
+        
         with pytest.raises(ValueError, match="requires 'client_id' and 'client_secret'"):
             create_identity_provider("github")
 

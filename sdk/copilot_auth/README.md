@@ -235,13 +235,14 @@ export DATATRACKER_API_BASE_URL=https://test.datatracker.ietf.org/api
 The authentication module includes comprehensive tests:
 
 ```bash
-cd sdk
+cd sdk/copilot_auth
 pytest tests/test_auth*.py -v
 ```
 
 ### Test Coverage
 
 ```bash
+cd sdk/copilot_auth
 pytest tests/test_auth*.py --cov=copilot_auth --cov-report=html
 ```
 

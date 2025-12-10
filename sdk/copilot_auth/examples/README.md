@@ -23,13 +23,13 @@ A complete Flask application demonstrating how to integrate the authentication a
 1. Install dependencies:
    ```bash
    pip install flask
-   cd sdk
+   cd sdk/copilot_auth
    pip install -e .
    ```
 
 2. Run the example:
    ```bash
-   cd sdk/examples
+   cd sdk/copilot_auth/examples
    python3 auth_example.py
    ```
 

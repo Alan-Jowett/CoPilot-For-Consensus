@@ -10,7 +10,7 @@ authenticate using their GitHub accounts.
 from typing import Optional
 
 from .models import User
-from .provider import IdentityProvider, AuthenticationError, ProviderError
+from .provider import IdentityProvider
 
 
 class GitHubIdentityProvider(IdentityProvider):
