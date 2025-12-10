@@ -12,7 +12,12 @@ from uuid import uuid4
 from copilot_events import EventPublisher, ArchiveIngestedEvent, ArchiveIngestionFailedEvent
 
 from .config import IngestionConfig, SourceConfig
-from .models import ArchiveMetadata
+from ...sdk.copilot_events.models import (
+    ArchiveIngestedEvent,
+    ArchiveIngestionFailedEvent,
+    ArchiveMetadata,
+)
+from .event_publisher import EventPublisher
 from .archive_fetcher import create_fetcher, calculate_file_hash
 
 logger = logging.getLogger(__name__)

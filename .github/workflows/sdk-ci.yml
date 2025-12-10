@@ -1,0 +1,123 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: SDK Unit Tests
+
+on:
+  push:
+    branches: [ main, feature/shared-events-sdk ]
+    paths:
+      - 'sdk/**'
+      - '.github/workflows/sdk-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'sdk/**'
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: Install SDK and test dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install ./sdk/copilot_events
+        pip install pytest pytest-cov jsonschema pymongo
+
+    - name: Run unit tests (exclude integration)
+      run: |
+        cd sdk/copilot_events
+        pytest tests/ -v --tb=short -m "not integration" --junit-xml=test-results.xml
+
+    - name: Generate coverage report
+      run: |
+        cd sdk/copilot_events
+        pytest tests/ -m "not integration" --cov=copilot_events --cov-report=lcov --cov-report=html --cov-report=term
+
+    - name: Upload coverage to Coveralls
+      uses: coverallsapp/github-action@v2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-lcov: ./sdk/copilot_events/coverage.lcov
+        flag-name: python-${{ matrix.python-version }}-unit
+        parallel: true
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: unit-test-results-${{ matrix.python-version }}
+        path: sdk/copilot_events/test-results.xml
+
+    - name: Upload coverage report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: unit-coverage-${{ matrix.python-version }}
+        path: sdk/copilot_events/htmlcov
+
+    - name: Test Report
+      if: always()
+      uses: dorny/test-reporter@v1
+      with:
+        name: Unit Test Results (Python ${{ matrix.python-version }})
+        path: sdk/test-results.xml
+        reporter: 'java-junit'
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install ./sdk/copilot_events
+        pip install flake8 pylint
+
+    - name: Lint with flake8
+      run: |
+        cd sdk/copilot_events
+        flake8 copilot_events tests --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 copilot_events tests --count --exit-zero --max-complexity=10 --max-line-length=100 --statistics
+
+    - name: Lint with pylint
+      run: |
+        cd sdk/copilot_events
+        pylint copilot_events --exit-zero --max-line-length=100 || true
+
+  finalize-coverage:
+    needs: test
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Coveralls finished
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          parallel-finished: true
