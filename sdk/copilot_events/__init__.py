@@ -16,10 +16,28 @@ from .subscriber import EventSubscriber
 from .rabbitmq_subscriber import RabbitMQSubscriber
 from .noop_subscriber import NoopSubscriber
 from .models import (
+    BaseEvent,
+    # Ingestion Service Events
     ArchiveIngestedEvent,
     ArchiveIngestionFailedEvent,
+    # Parsing Service Events
     JSONParsedEvent,
     ParsingFailedEvent,
+    # Chunking Service Events
+    ChunksPreparedEvent,
+    ChunkingFailedEvent,
+    # Embedding Service Events
+    EmbeddingsGeneratedEvent,
+    EmbeddingGenerationFailedEvent,
+    # Orchestration Service Events
+    SummarizationRequestedEvent,
+    OrchestrationFailedEvent,
+    # Summarization Service Events
+    SummaryCompleteEvent,
+    SummarizationFailedEvent,
+    # Reporting Service Events
+    ReportPublishedEvent,
+    ReportDeliveryFailedEvent,
 )
 
 
@@ -62,6 +80,37 @@ def create_subscriber(
     else:
         raise ValueError(f"Unknown message bus type: {message_bus_type}")
 
+
+__all__ = [
+    # Version
+    "__version__",
+    # Publishers
+    "EventPublisher",
+    "RabbitMQPublisher",
+    "NoopPublisher",
+    "create_publisher",
+    # Subscribers
+    "EventSubscriber",
+    "RabbitMQSubscriber",
+    "NoopSubscriber",
+    "create_subscriber",
+    # Event Models
+    "BaseEvent",
+    "ArchiveIngestedEvent",
+    "ArchiveIngestionFailedEvent",
+    "JSONParsedEvent",
+    "ParsingFailedEvent",
+    "ChunksPreparedEvent",
+    "ChunkingFailedEvent",
+    "EmbeddingsGeneratedEvent",
+    "EmbeddingGenerationFailedEvent",
+    "SummarizationRequestedEvent",
+    "OrchestrationFailedEvent",
+    "SummaryCompleteEvent",
+    "SummarizationFailedEvent",
+    "ReportPublishedEvent",
+    "ReportDeliveryFailedEvent",
+]
 
 __all__ = [
     # Publishers
