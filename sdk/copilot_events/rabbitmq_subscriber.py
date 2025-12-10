@@ -5,6 +5,7 @@
 
 import json
 import logging
+import re
 from typing import Callable, Dict, Any
 
 import pika
@@ -242,7 +243,8 @@ class RabbitMQSubscriber(EventSubscriber):
         Returns:
             Routing key in dot notation (e.g., "archive.ingested")
         """
-        # Insert dots before uppercase letters and convert to lowercase
-        import re
-        key = re.sub(r'(?<!^)(?=[A-Z])', '.', event_type).lower()
-        return key
+        # Handle consecutive uppercase blocks (e.g., JSON) before standard casing
+        key = re.sub(r'([A-Z]+)([A-Z][a-z])', r"\1.\2", event_type)
+        # Handle remaining transitions from lower/number to upper
+        key = re.sub(r'([a-z\d])([A-Z])', r"\1.\2", key)
+        return key.lower()

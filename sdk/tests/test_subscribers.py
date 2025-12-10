@@ -6,7 +6,6 @@
 import pytest
 
 from copilot_events import (
-    EventSubscriber,
     create_subscriber,
     RabbitMQSubscriber,
     NoopSubscriber,
@@ -224,6 +223,6 @@ class TestRabbitMQSubscriber:
         subscriber = RabbitMQSubscriber(host="localhost")
         
         assert subscriber._event_type_to_routing_key("ArchiveIngested") == "archive.ingested"
-        assert subscriber._event_type_to_routing_key("JSONParsed") == "j.s.o.n.parsed"
+        assert subscriber._event_type_to_routing_key("JSONParsed") == "json.parsed"
         assert subscriber._event_type_to_routing_key("ParsingFailed") == "parsing.failed"
         assert subscriber._event_type_to_routing_key("TestEvent") == "test.event"
