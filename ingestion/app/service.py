@@ -9,15 +9,9 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 from uuid import uuid4
 
-from copilot_events import EventPublisher, ArchiveIngestedEvent, ArchiveIngestionFailedEvent
+from copilot_events import EventPublisher, ArchiveIngestedEvent, ArchiveIngestionFailedEvent, ArchiveMetadata
 
 from .config import IngestionConfig, SourceConfig
-from ...sdk.copilot_events.models import (
-    ArchiveIngestedEvent,
-    ArchiveIngestionFailedEvent,
-    ArchiveMetadata,
-)
-from .event_publisher import EventPublisher
 from .archive_fetcher import create_fetcher, calculate_file_hash
 
 logger = logging.getLogger(__name__)
