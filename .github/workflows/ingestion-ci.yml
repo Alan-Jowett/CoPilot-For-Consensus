@@ -128,7 +128,7 @@ jobs:
     - name: Build Docker image
       uses: docker/build-push-action@v5
       with:
-        context: ./ingestion
+        context: ./
         push: false
         tags: ingestion-service:latest
         cache-from: type=gha
