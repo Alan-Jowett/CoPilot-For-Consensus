@@ -12,7 +12,7 @@ WORKDIR /app
 
 # Install shared SDK first
 COPY sdk/ /app/sdk/
-RUN pip install --no-cache-dir /app/sdk
+RUN pip install --no-cache-dir /app/sdk/copilot_events
 
 # Install service dependencies
 COPY ingestion/requirements.txt .
