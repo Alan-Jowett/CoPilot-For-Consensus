@@ -283,6 +283,14 @@ The `EventSubscriber` abstract base class defines the contract:
 - `start_consuming() -> None`: Start processing events (blocking)
 - `stop_consuming() -> None`: Stop processing events
 
+### ConfigProvider Interface
+
+The `ConfigProvider` abstract base class defines the contract for configuration access:
+
+- `get(key, default=None) -> Any`: Get a configuration value
+- `get_bool(key, default=False) -> bool`: Get a boolean configuration value
+- `get_int(key, default=0) -> int`: Get an integer configuration value
+
 ### Implementations
 
 #### RabbitMQPublisher
@@ -318,6 +326,24 @@ Testing subscriber implementation with:
 - In-memory callback registry
 - Subscription introspection
 - Zero external dependencies
+
+#### EnvConfigProvider
+
+Production configuration provider implementation with:
+- Reads from environment variables (os.environ)
+- Smart type conversion for bool and int types
+- Accepts various boolean formats ("true", "1", "yes", "on" for True)
+- Returns defaults for missing or invalid values
+- Zero external dependencies
+
+#### StaticConfigProvider
+
+Testing configuration provider implementation with:
+- Accepts hardcoded configuration dictionary
+- Supports native Python types (bool, int, str)
+- Includes `set()` method for dynamic updates
+- Perfect for unit testing without environment variable side effects
+- Isolated from actual system environment
 
 ### Event Models
 
