@@ -9,7 +9,12 @@ in the Copilot-for-Consensus system.
 
 __version__ = "0.1.0"
 
-from .document_store import DocumentStore, create_document_store
+from .document_store import (
+    DocumentStore,
+    DocumentStoreError,
+    DocumentStoreNotConnectedError,
+    create_document_store,
+)
 from .mongo_document_store import MongoDocumentStore
 from .inmemory_document_store import InMemoryDocumentStore
 
@@ -21,4 +26,7 @@ __all__ = [
     "MongoDocumentStore",
     "InMemoryDocumentStore",
     "create_document_store",
+    # Exceptions
+    "DocumentStoreError",
+    "DocumentStoreNotConnectedError",
 ]

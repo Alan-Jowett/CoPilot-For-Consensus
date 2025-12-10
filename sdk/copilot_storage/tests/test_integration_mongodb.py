@@ -7,7 +7,11 @@ import os
 import pytest
 import time
 
-from copilot_storage import create_document_store, MongoDocumentStore
+from copilot_storage import (
+    create_document_store,
+    MongoDocumentStore,
+    DocumentStoreNotConnectedError,
+)
 
 
 def get_mongodb_config():
@@ -286,8 +290,9 @@ class TestMongoDBEdgeCases:
         store = MongoDocumentStore(host="nonexistent_host", port=27017)
         # Don't connect
         
-        with pytest.raises(Exception):
+        with pytest.raises(DocumentStoreNotConnectedError) as excinfo:
             store.insert_document("test", {"name": "test"})
+        assert str(excinfo.value) == "Not connected to MongoDB"
 
     def test_invalid_document_id(self, mongodb_store, clean_collection):
         """Test getting a document with an invalid ID format."""

@@ -7,6 +7,16 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 
 
+class DocumentStoreError(Exception):
+    """Base exception for document store errors."""
+    pass
+
+
+class DocumentStoreNotConnectedError(DocumentStoreError):
+    """Exception raised when attempting operations on a disconnected store."""
+    pass
+
+
 class DocumentStore(ABC):
     """Abstract base class for document storage backends."""
 

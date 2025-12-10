@@ -202,12 +202,12 @@ jobs:
     - name: Run pylint
       run: |
         cd sdk/copilot_storage
-        pylint copilot_storage/*.py --disable=C0111,C0103,R0903 || echo "Pylint warnings found but continuing..."
+        pylint copilot_storage/ --disable=C0111,C0103,R0903 || echo "Pylint warnings found but continuing..."
 
     - name: Run flake8
       run: |
         cd sdk/copilot_storage
-        flake8 copilot_storage/*.py tests/*.py --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 copilot_storage/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
 
   type-check:
     runs-on: ubuntu-latest
@@ -305,13 +305,20 @@ jobs:
     - name: Run security check (bandit)
       run: |
         cd sdk/copilot_storage
-        bandit -r copilot_storage/ -f json -o bandit-report.json || true
+        bandit -r copilot_storage/ -f json -o bandit-report.json
       continue-on-error: true
+
+    - name: Upload Bandit report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: bandit-report
+        path: sdk/copilot_storage/bandit-report.json
 
     - name: Run dependency security check (safety)
       run: |
         cd sdk/copilot_storage
-        safety check --json || true
+        safety check --json
       continue-on-error: true
 
   coveralls-finish:

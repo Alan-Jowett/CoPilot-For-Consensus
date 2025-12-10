@@ -3,6 +3,7 @@
 
 """In-memory document store for testing and local development."""
 
+import copy
 import logging
 import uuid
 from typing import Dict, Any, List, Optional
@@ -49,8 +50,8 @@ class InMemoryDocumentStore(DocumentStore):
         # Generate ID if not provided
         doc_id = doc.get("_id", str(uuid.uuid4()))
         
-        # Make a copy to avoid external mutations
-        doc_copy = doc.copy()
+        # Make a deep copy to avoid external mutations affecting stored data
+        doc_copy = copy.deepcopy(doc)
         doc_copy["_id"] = doc_id
         
         self.collections[collection][doc_id] = doc_copy
@@ -71,8 +72,8 @@ class InMemoryDocumentStore(DocumentStore):
         doc = self.collections[collection].get(doc_id)
         if doc:
             logger.debug(f"InMemoryDocumentStore: retrieved document {doc_id} from {collection}")
-            # Return a copy to avoid external mutations
-            return doc.copy()
+            # Return a deep copy to prevent external mutations affecting stored data
+            return copy.deepcopy(doc)
         logger.debug(f"InMemoryDocumentStore: document {doc_id} not found in {collection}")
         return None
 
@@ -99,7 +100,8 @@ class InMemoryDocumentStore(DocumentStore):
             )
             
             if matches:
-                results.append(doc.copy())
+                # Use deep copy to prevent external mutations affecting stored data
+                results.append(copy.deepcopy(doc))
                 if len(results) >= limit:
                     break
         

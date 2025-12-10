@@ -62,15 +62,16 @@ store.disconnect()
 ### Using MongoDB Store
 
 ```python
+import os
 from copilot_storage import create_document_store
 
-# Create MongoDB store
+# Create MongoDB store using environment variables for credentials
 store = create_document_store(
     store_type="mongodb",
     host="mongodb",
     port=27017,
-    username="user",
-    password="pass",
+    username=os.getenv("MONGODB_USERNAME"),
+    password=os.getenv("MONGODB_PASSWORD"),
     database="copilot_db"
 )
 

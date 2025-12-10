@@ -246,6 +246,31 @@ class TestInMemoryDocumentStore:
         retrieved_again = store.get_document("users", doc_id)
         assert retrieved_again["age"] == 30
 
+    def test_nested_document_isolation(self):
+        """Test that nested structures in documents are also isolated."""
+        store = InMemoryDocumentStore()
+        store.connect()
+
+        # Insert document with nested structures
+        doc_id = store.insert_document("users", {
+            "name": "Alice",
+            "metadata": {
+                "tags": ["python", "developer"],
+                "scores": {"skill": 85, "experience": 90}
+            }
+        })
+
+        # Get document and modify nested structures
+        retrieved = store.get_document("users", doc_id)
+        retrieved["metadata"]["tags"].append("hacker")
+        retrieved["metadata"]["scores"]["skill"] = 100
+
+        # Get document again and verify nested structures weren't affected
+        retrieved_again = store.get_document("users", doc_id)
+        assert "hacker" not in retrieved_again["metadata"]["tags"]
+        assert len(retrieved_again["metadata"]["tags"]) == 2
+        assert retrieved_again["metadata"]["scores"]["skill"] == 85
+
 
 class TestMongoDocumentStore:
     """Tests for MongoDocumentStore."""

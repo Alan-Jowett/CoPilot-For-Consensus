@@ -6,7 +6,7 @@
 import logging
 from typing import Dict, Any, List, Optional
 
-from .document_store import DocumentStore
+from .document_store import DocumentStore, DocumentStoreNotConnectedError
 
 logger = logging.getLogger(__name__)
 
@@ -82,14 +82,14 @@ class MongoDocumentStore(DocumentStore):
             # Get database
             self.database = self.client[self.database_name]
             
-            logger.info(f"MongoDocumentStore: connected to {self.host}:{self.port}/{self.database_name}")
+            logger.info("MongoDocumentStore: connected to %s:%s/%s", self.host, self.port, self.database_name)
             return True
             
         except ConnectionFailure as e:
-            logger.error(f"MongoDocumentStore: connection failed - {e}")
+            logger.error("MongoDocumentStore: connection failed - %s", e)
             return False
         except Exception as e:
-            logger.error(f"MongoDocumentStore: unexpected error during connect - {e}")
+            logger.error("MongoDocumentStore: unexpected error during connect - %s", e)
             return False
 
     def disconnect(self) -> None:
@@ -111,10 +111,10 @@ class MongoDocumentStore(DocumentStore):
             Document ID as string
             
         Raises:
-            Exception: If insertion fails or not connected
+            DocumentStoreNotConnectedError: If not connected to MongoDB
         """
         if self.database is None:
-            raise Exception("Not connected to MongoDB")
+            raise DocumentStoreNotConnectedError("Not connected to MongoDB")
         
         try:
             coll = self.database[collection]
