@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 <!-- SPDX-License-Identifier: MIT
      Copyright (c) 2025 Copilot-for-Consensus contributors -->
 
@@ -21,32 +20,19 @@ Event-driven communication infrastructure for microservices.
 
 ### [copilot_auth](copilot_auth/)
 
-<<<<<<<< HEAD:sdk/copilot_events/README.md
-### Event System
-=======
 # Copilot Events SDK
 
 A shared Python library for event publishing and subscribing across microservices in the Copilot-for-Consensus system.
 
 ## Features
 
->>>>>>> 4ff47ee (Restructure SDK: each module is now self-contained with its own setup.py, tests, and README)
 - **Abstract Publisher Interface**: Common interface for all event publishers
 - **Abstract Subscriber Interface**: Common interface for all event subscribers
 - **RabbitMQ Implementation**: Production-ready RabbitMQ publisher and subscriber with persistent messages
 - **No-op Implementation**: Testing publisher and subscriber that work in-memory
 - **Event Models**: Common event data structures for system-wide consistency
 - **Factory Pattern**: Simple factory functions for creating publishers and subscribers
-<<<<<<< HEAD
 - **Pluggable Schema Provider**: Load schemas via filesystem or any `DocumentStore` (Mongo via `copilot-storage`)
-========
-Identity and authentication abstraction layer.
->>>>>>>> 4ff47ee (Restructure SDK: each module is now self-contained with its own setup.py, tests, and README):sdk/README.md
-
-- **Purpose**: Pluggable authentication providers (GitHub OAuth, IETF Datatracker, mock)
-- **Features**: User model with roles/affiliations, provider factory, role-based access control
-- **Installation**: `cd copilot_auth && pip install -e .`
-- **Documentation**: [copilot_auth/README.md](copilot_auth/README.md)
 
 ## Development
 
@@ -121,7 +107,6 @@ See [CONTRIBUTING.md](../documents/CONTRIBUTING.md) in the main repository.
 ## License
 
 MIT License - see [LICENSE](../LICENSE) file for details.
-=======
 
 ## Installation
 
@@ -375,4 +360,3 @@ MIT License - see LICENSE file for details.
 ## Contributing
 
 See CONTRIBUTING.md in the main repository for contribution guidelines.
->>>>>>> 4ff47ee (Restructure SDK: each module is now self-contained with its own setup.py, tests, and README)
