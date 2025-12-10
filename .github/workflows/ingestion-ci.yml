@@ -51,15 +51,15 @@ jobs:
     - name: Generate coverage report
       run: |
         cd ingestion
-        pytest tests/ --cov=app --cov-report=xml --cov-report=html --cov-report=term
+        pytest tests/ --cov=app --cov-report=lcov --cov-report=html --cov-report=term
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+    - name: Upload coverage to Coveralls
+      uses: coverallsapp/github-action@v2
       with:
-        files: ./ingestion/coverage.xml
-        flags: ingestion
-        name: ingestion-coverage
-        fail_ci_if_error: false
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-lcov: ./ingestion/coverage.lcov
+        flag-name: python-${{ matrix.python-version }}
+        parallel: true
 
     - name: Upload test results
       if: always()
@@ -234,6 +234,17 @@ jobs:
         from app.service import IngestionService
         print('✓ All imports successful')
         "
+
+  coveralls-finish:
+    runs-on: ubuntu-latest
+    needs: test
+    if: always()
+    steps:
+    - name: Finalize Coveralls
+      uses: coverallsapp/github-action@v2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        parallel-finished: true
 
   summary:
     runs-on: ubuntu-latest
