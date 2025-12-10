@@ -1,9 +1,18 @@
-# Copilot Events SDK
+# Copilot SDK
 
-A shared Python library for event publishing and subscribing across microservices in the Copilot-for-Consensus system.
+A shared Python library for Copilot-for-Consensus microservices, providing event publishing/subscribing and authentication capabilities.
+
+## Modules
+
+### Copilot Events (`copilot_events`)
+Event-driven communication infrastructure for microservices.
+
+### Copilot Authentication (`copilot_auth`)
+Identity and authentication abstraction layer for secure access control.
 
 ## Features
 
+### Event System
 - **Abstract Publisher Interface**: Common interface for all event publishers
 - **Abstract Subscriber Interface**: Common interface for all event subscribers
 - **RabbitMQ Implementation**: Production-ready RabbitMQ publisher and subscriber with persistent messages
@@ -11,6 +20,13 @@ A shared Python library for event publishing and subscribing across microservice
 - **Event Models**: Common event data structures for system-wide consistency
 - **Factory Pattern**: Simple factory functions for creating publishers and subscribers
 - **Pluggable Schema Provider**: Load schemas via filesystem or any `DocumentStore` (Mongo via `copilot-storage`)
+
+### Authentication System
+- **Abstract IdentityProvider Interface**: Common interface for all identity providers
+- **User Model**: Standardized user representation with roles and affiliations
+- **Multiple Provider Support**: GitHub OAuth, IETF Datatracker, and mock providers
+- **Role-Based Access**: Support for role and affiliation checking
+- **Factory Pattern**: Simple factory function for creating providers based on configuration
 
 ## Installation
 
@@ -247,6 +263,104 @@ Event models provide:
 - Consistent structure
 - Type safety
 - Easy serialization
+
+## Authentication
+
+### Quick Start
+
+```python
+from copilot_auth import create_identity_provider, User
+
+# Create a mock provider for testing
+provider = create_identity_provider("mock")
+
+# Add a test user
+test_user = User(
+    id="user-123",
+    email="test@example.com",
+    name="Test User",
+    roles=["contributor"],
+    affiliations=["IETF"]
+)
+provider.add_user("test-token", test_user)
+
+# Retrieve and verify user
+user = provider.get_user("test-token")
+if user and user.has_role("contributor"):
+    print(f"Welcome, {user.name}!")
+```
+
+### Provider Types
+
+#### MockIdentityProvider
+
+For testing and local development:
+```python
+provider = create_identity_provider("mock")
+provider.add_user("token", User(...))
+```
+
+#### GitHubIdentityProvider (Scaffold)
+
+For GitHub OAuth authentication:
+```python
+provider = create_identity_provider(
+    "github",
+    client_id="your-client-id",
+    client_secret="your-client-secret"
+)
+```
+
+#### DatatrackerIdentityProvider (Scaffold)
+
+For IETF Datatracker authentication:
+```python
+provider = create_identity_provider("datatracker")
+```
+
+### Configuration
+
+Use environment variables to configure providers:
+
+```bash
+# Provider selection
+export IDENTITY_PROVIDER=mock  # or "github", "datatracker"
+
+# GitHub OAuth
+export GITHUB_CLIENT_ID=your-client-id
+export GITHUB_CLIENT_SECRET=your-client-secret
+
+# Custom Datatracker URL
+export DATATRACKER_API_BASE_URL=https://test.datatracker.ietf.org/api
+```
+
+### Integration Example
+
+Protect API endpoints with authentication:
+
+```python
+from flask import Flask, request, jsonify
+from copilot_auth import create_identity_provider, AuthenticationError
+
+app = Flask(__name__)
+provider = create_identity_provider()
+
+@app.route("/api/summaries", methods=["GET"])
+def get_summaries():
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return jsonify({"error": "Missing authorization"}), 401
+    
+    token = auth_header[7:]
+    user = provider.get_user(token)
+    
+    if not user or not user.has_role("contributor"):
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    return jsonify({"summaries": [], "user": user.to_dict()})
+```
+
+For more details, see [copilot_auth/README.md](copilot_auth/README.md).
 
 ## Development
 
