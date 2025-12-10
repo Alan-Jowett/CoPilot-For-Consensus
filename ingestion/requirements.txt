@@ -5,5 +5,5 @@ python-dotenv==1.0.0
 pyyaml==6.0.1
 imapclient==3.0.1
 requests==2.32.0
-# Local shared SDK (install with: pip install -e ../)
-copilot-events>=0.1.0
+# Local shared SDK - installed separately in Dockerfile
+# copilot-events>=0.1.0

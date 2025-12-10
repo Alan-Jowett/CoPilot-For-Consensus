@@ -10,9 +10,15 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-COPY requirements.txt .
+# Install shared SDK first
+COPY sdk/ /app/sdk/
+RUN pip install --no-cache-dir /app/sdk
+
+# Install service dependencies
+COPY ingestion/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Copy service code
+COPY ingestion/ .
 
 CMD ["python", "main.py"]

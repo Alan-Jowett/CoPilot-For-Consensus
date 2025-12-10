@@ -5,7 +5,8 @@ services:
   ingestion:
     image: copilot-ingestion:latest
     build:
-      context: ./ingestion
+      context: .
+      dockerfile: ./ingestion/Dockerfile
     environment:
       - STORAGE_PATH=/data/raw_archives
     volumes:
