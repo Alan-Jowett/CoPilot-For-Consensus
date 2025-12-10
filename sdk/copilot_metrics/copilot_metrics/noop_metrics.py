@@ -22,8 +22,12 @@ class NoOpMetricsCollector(MetricsCollector):
     Stores all metrics calls in memory for testing/inspection purposes.
     """
 
-    def __init__(self):
-        """Initialize no-op metrics collector."""
+    def __init__(self, **kwargs):
+        """Initialize no-op metrics collector.
+        
+        Args:
+            **kwargs: Ignored (for compatibility with factory method)
+        """
         self.counters: List[Tuple[str, float, Optional[Dict[str, str]]]] = []
         self.observations: List[Tuple[str, float, Optional[Dict[str, str]]]] = []
         self.gauges: List[Tuple[str, float, Optional[Dict[str, str]]]] = []

@@ -79,6 +79,6 @@ def create_metrics_collector(
         return PrometheusMetricsCollector(**kwargs)
     elif backend == "noop":
         from .noop_metrics import NoOpMetricsCollector
-        return NoOpMetricsCollector()
+        return NoOpMetricsCollector(**kwargs)
     else:
         raise ValueError(f"Unknown metrics backend: {backend}")

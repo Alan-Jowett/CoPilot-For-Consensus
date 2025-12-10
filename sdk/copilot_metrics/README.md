@@ -191,15 +191,15 @@ class IngestionService:
     
     def ingest_archive(self, archive_id: str, source: str):
         """Ingest an archive and emit metrics."""
+        # Measure processing time - initialize before try block
+        import time
+        start_time = time.time()
+        
         try:
             # Track that we started processing
             self.metrics.increment("archives_started", tags={
                 "source": source
             })
-            
-            # Measure processing time
-            import time
-            start_time = time.time()
             
             # ... actual ingestion logic ...
             
@@ -217,6 +217,8 @@ class IngestionService:
             logger.info(f"Archive {archive_id} ingested in {duration:.2f}s")
             
         except Exception as e:
+            duration = time.time() - start_time
+            
             # Track failures
             self.metrics.increment("archives_ingested", tags={
                 "source": source,

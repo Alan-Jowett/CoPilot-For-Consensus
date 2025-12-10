@@ -36,6 +36,9 @@ class ExampleService:
         
         # Track service startup
         self.metrics.increment("service_starts_total")
+        
+        # Track active items count
+        self._active_items = 0
 
     def process_item(self, item_id: str, item_type: str) -> Dict[str, Any]:
         """Process an item and emit metrics.
@@ -54,8 +57,9 @@ class ExampleService:
             "item_type": item_type
         })
         
-        # Track active processing with a gauge
-        self.metrics.gauge("active_items", 1.0)
+        # Track active processing with a gauge - increment count
+        self._active_items += 1
+        self.metrics.gauge("active_items", float(self._active_items))
         
         try:
             # Measure processing time
@@ -110,7 +114,8 @@ class ExampleService:
             
         finally:
             # Always decrement active items gauge
-            self.metrics.gauge("active_items", 0.0)
+            self._active_items -= 1
+            self.metrics.gauge("active_items", float(self._active_items))
 
     def _simulate_processing(self, item_id: str, item_type: str) -> Dict[str, Any]:
         """Simulate processing work (replace with real logic in production).
@@ -178,11 +183,9 @@ class ExampleService:
             
             # Simulate occasional errors
             if random.random() < 0.05:
-                status_code = 500
                 raise RuntimeError("Simulated server error")
-            else:
-                status_code = 200
             
+            status_code = 200
             duration = time.time() - start_time
             
             # Track response metrics
