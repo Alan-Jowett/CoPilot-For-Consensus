@@ -15,12 +15,18 @@ from .noop_publisher import NoopPublisher
 from .subscriber import EventSubscriber
 from .rabbitmq_subscriber import RabbitMQSubscriber
 from .noop_subscriber import NoopSubscriber
+<<<<<<< HEAD:sdk/copilot_events/copilot_events/__init__.py
 from .schema_provider import SchemaProvider
 from .file_schema_provider import FileSchemaProvider
 from .document_store_schema_provider import DocumentStoreSchemaProvider
 # Backward compatibility alias for previous MongoSchemaProvider name
 MongoSchemaProvider = DocumentStoreSchemaProvider
 from .schema_validator import validate_json
+=======
+from .metrics import MetricsCollector, create_metrics_collector
+from .noop_metrics import NoOpMetricsCollector
+from .prometheus_metrics import PrometheusMetricsCollector
+>>>>>>> 8fcb7e4 (Add metrics abstraction layer with NoOp and Prometheus implementations):sdk/copilot_events/__init__.py
 from .models import (
     BaseEvent,
     # Ingestion Service Events
@@ -106,11 +112,19 @@ __all__ = [
     "RabbitMQSubscriber",
     "NoopSubscriber",
     "create_subscriber",
+<<<<<<< HEAD:sdk/copilot_events/copilot_events/__init__.py
     # Schema Providers
     "SchemaProvider",
     "FileSchemaProvider",
     "DocumentStoreSchemaProvider",
     "validate_json",
+=======
+    # Metrics
+    "MetricsCollector",
+    "NoOpMetricsCollector",
+    "PrometheusMetricsCollector",
+    "create_metrics_collector",
+>>>>>>> 8fcb7e4 (Add metrics abstraction layer with NoOp and Prometheus implementations):sdk/copilot_events/__init__.py
     # Event Models
     "BaseEvent",
     "ArchiveIngestedEvent",
