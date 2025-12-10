@@ -47,6 +47,15 @@ from .models import (
     # Data Models
     ArchiveMetadata,
 )
+from .chunkers import (
+    ThreadChunker,
+    TokenWindowChunker,
+    FixedSizeChunker,
+    SemanticChunker,
+    Chunk,
+    Thread,
+    create_chunker,
+)
 
 
 def create_subscriber(
@@ -127,4 +136,12 @@ __all__ = [
     "SummarizationFailedEvent",
     "ReportPublishedEvent",
     "ReportDeliveryFailedEvent",
+    # Chunking Strategies
+    "ThreadChunker",
+    "TokenWindowChunker",
+    "FixedSizeChunker",
+    "SemanticChunker",
+    "Chunk",
+    "Thread",
+    "create_chunker",
 ]
