@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-**/__pycache__/**
-**/*.egg-info/**
+"""Tests for the copilot_events package."""
