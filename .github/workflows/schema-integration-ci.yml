@@ -58,7 +58,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ./sdk/copilot_storage ./sdk/copilot_events ./sdk/copilot_auth
+        pip install ./sdk/copilot_storage ./sdk/copilot_events ./sdk/copilot_auth ./sdk/copilot_metrics
         pip install pytest jsonschema pymongo
 
     - name: Install MongoDB Shell
@@ -169,7 +169,7 @@ jobs:
     - name: Install SDK and test dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ./sdk/copilot_storage ./sdk/copilot_events ./sdk/copilot_auth
+        pip install ./sdk/copilot_storage ./sdk/copilot_events ./sdk/copilot_auth ./sdk/copilot_metrics
         pip install pytest jsonschema pymongo
 
     - name: Run integration tests against seeded Mongo
