@@ -179,7 +179,7 @@ jobs:
         MONGO_COLLECTION: event_schemas
       run: |
         cd sdk/copilot_events
-        pytest tests/test_mongo_schema_provider_integration.py -v --tb=short --junit-xml=test-results-docker.xml
+        pytest tests/test_document_store_schema_provider_integration.py -v --tb=short --junit-xml=test-results-docker.xml
 
     - name: Upload test results
       if: always()
