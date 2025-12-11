@@ -473,7 +473,7 @@ def create_chunker(strategy: str, **kwargs) -> ThreadChunker:
 The SDK includes comprehensive unit tests for all chunkers:
 
 ```bash
-cd adapters
+cd adapters/copilot_chunking
 pytest tests/test_chunkers.py -v
 ```
 
@@ -566,12 +566,7 @@ Planned improvements to the chunking abstraction:
 
 ## Examples
 
-See the following example files for complete implementations:
-
-- `chunking/chunking_service.py`: Chunking service using the abstraction
-- `chunking/chunking_config.py`: Configuration management
-- `embedding/embedding_integration.py`: Embedding service integration
-- `summarization/summarization_integration.py`: Summarization service integration
+The chunking abstraction can be integrated into services following the patterns shown in the test suite (`tests/test_chunkers.py`).
 
 ## References
 

@@ -361,7 +361,7 @@ ChunksPrepared ◄───┘
 
 ## References
 
-- [Chunking Implementation](../adapters/copilot_events/chunkers.py)
-- [Chunking Documentation](../adapters/copilot_events/CHUNKING.md)
-- [Chunking Service](../chunking/chunking_service.py)
-- [Test Suite](../sdk/tests/test_chunkers.py)
+- [Chunking Implementation](../adapters/copilot_chunking/copilot_chunking/chunkers.py)
+- [Chunking Documentation](../adapters/copilot_chunking/README.md)
+- [Chunking Service README](../chunking/README.md)
+- [Test Suite](../adapters/copilot_chunking/tests/test_chunkers.py)

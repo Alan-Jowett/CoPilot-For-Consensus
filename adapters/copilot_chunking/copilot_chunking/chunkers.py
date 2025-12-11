@@ -157,10 +157,12 @@ class TokenWindowChunker(ThreadChunker):
             # Move to next window with overlap
             if end_idx == len(words):
                 break
+            
+            prev_start_idx = start_idx
             start_idx = end_idx - self.overlap
             
             # Ensure we make progress (avoid infinite loops)
-            if chunks and start_idx <= chunks[-1].chunk_index * (self.chunk_size - self.overlap):
+            if start_idx <= prev_start_idx:
                 start_idx = end_idx
         
         return chunks
