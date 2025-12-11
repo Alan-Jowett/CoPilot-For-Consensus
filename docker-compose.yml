@@ -99,7 +99,7 @@ services:
     restart: unless-stopped
 
   documentdb:
-    image: mongo:6.0
+    image: mongo:7.0
     ports:
       - "27017:27017"
     volumes:
@@ -116,7 +116,7 @@ services:
     restart: unless-stopped
 
   db-init:
-    image: mongo:6.0
+    image: mongo:7.0
     depends_on:
       documentdb:
         condition: service_healthy
@@ -136,7 +136,7 @@ services:
     restart: "no"
 
   db-validate:
-    image: mongo:6.0
+    image: mongo:7.0
     depends_on:
       documentdb:
         condition: service_healthy

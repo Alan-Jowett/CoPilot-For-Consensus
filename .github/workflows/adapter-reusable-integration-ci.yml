@@ -18,16 +18,16 @@ on:
         description: 'Python package import name'
         required: true
         type: string
-      mongodb_versions:
-        description: 'JSON array of MongoDB versions for matrix (e.g., ["6.0","7.0"])'
+      mongodb_version:
+        description: 'MongoDB version to use (e.g., "7.0")'
         required: false
         type: string
-        default: '["6.0","7.0"]'
-      python_versions:
-        description: 'JSON array of Python versions for matrix (e.g., ["3.11","3.12"])'
+        default: '7.0'
+      python_version:
+        description: 'Python version to use (e.g., "3.11")'
         required: false
         type: string
-        default: '["3.11","3.12","3.13"]'
+        default: '3.11'
       enable_rsync_daemon:
         description: 'Start a local rsync daemon with provided fixtures'
         required: false
@@ -57,13 +57,9 @@ permissions:
 jobs:
   integration-tests:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ${{ fromJSON(inputs.python_versions) }}
-        mongodb-version: ${{ fromJSON(inputs.mongodb_versions) }}
     services:
       mongodb:
-        image: mongo:${{ matrix.mongodb-version }}
+        image: mongo:${{ inputs.mongodb_version }}
         ports:
           - 27017:27017
         env:
@@ -79,10 +75,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python ${{ inputs.python_version }}
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ inputs.python_version }}
           cache: 'pip'
 
       - name: Install dependencies
@@ -170,20 +166,20 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: ${{ inputs.adapter_id }}-integration-test-results-py${{ matrix.python-version }}-mongo${{ matrix.mongodb-version }}
+          name: ${{ inputs.adapter_id }}-integration-test-results
           path: ${{ inputs.adapter_path }}/integration-test-results.xml
 
       - name: Upload integration coverage reports
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: ${{ inputs.adapter_id }}-integration-coverage-report-py${{ matrix.python-version }}-mongo${{ matrix.mongodb-version }}
+          name: ${{ inputs.adapter_id }}-integration-coverage-report
           path: ${{ inputs.adapter_path }}/integration-htmlcov
 
       - name: Integration Test Report
         if: always()
         uses: dorny/test-reporter@v2
         with:
-          name: ${{ inputs.adapter_id }} Integration (Python ${{ matrix.python-version }}, MongoDB ${{ matrix.mongodb-version }})
+          name: ${{ inputs.adapter_id }} Integration Tests
           path: ${{ inputs.adapter_path }}/integration-test-results.xml
           reporter: 'java-junit'

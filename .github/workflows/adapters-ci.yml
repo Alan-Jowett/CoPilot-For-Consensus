@@ -215,7 +215,6 @@ jobs:
       adapter_id: copilot_vectorstore
       adapter_path: adapters/copilot_vectorstore
       package_name: copilot_vectorstore
-      python_versions: '["3.11","3.12"]'
       extra_pip_packages: '["faiss-cpu"]'
 
   storage-integration-ci:
@@ -226,5 +225,3 @@ jobs:
       adapter_id: copilot_storage
       adapter_path: adapters/copilot_storage
       package_name: copilot_storage
-      mongodb_versions: '["6.0","7.0"]'
-      python_versions: '["3.11","3.12"]'
