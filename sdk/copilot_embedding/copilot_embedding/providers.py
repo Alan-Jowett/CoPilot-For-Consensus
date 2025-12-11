@@ -46,7 +46,17 @@ class MockEmbeddingProvider(EmbeddingProvider):
             
         Returns:
             List of floats representing the mock embedding vector
+            
+        Raises:
+            ValueError: If text is None or empty
         """
+        if text is None:
+            raise ValueError("Text cannot be None")
+        if not isinstance(text, str):
+            raise ValueError(f"Text must be a string, got {type(text).__name__}")
+        if not text.strip():
+            raise ValueError("Text cannot be empty or whitespace-only")
+            
         # Generate deterministic mock embeddings based on text hash
         # Uses modulo arithmetic to create different values for each dimension
         # Formula ensures values are in [0, 1] range and deterministic for same text
@@ -98,7 +108,17 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
             
         Returns:
             List of floats representing the embedding vector
+            
+        Raises:
+            ValueError: If text is None or empty
         """
+        if text is None:
+            raise ValueError("Text cannot be None")
+        if not isinstance(text, str):
+            raise ValueError(f"Text must be a string, got {type(text).__name__}")
+        if not text.strip():
+            raise ValueError("Text cannot be empty or whitespace-only")
+            
         embedding = self.model.encode(text, convert_to_numpy=True)
         return embedding.tolist()
 
@@ -154,7 +174,17 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             
         Returns:
             List of floats representing the embedding vector
+            
+        Raises:
+            ValueError: If text is None or empty
         """
+        if text is None:
+            raise ValueError("Text cannot be None")
+        if not isinstance(text, str):
+            raise ValueError(f"Text must be a string, got {type(text).__name__}")
+        if not text.strip():
+            raise ValueError("Text cannot be empty or whitespace-only")
+            
         if self.is_azure:
             response = self.client.embeddings.create(
                 input=text,
@@ -224,7 +254,22 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
             
         Returns:
             List of floats representing the embedding vector
+            
+        Raises:
+            ValueError: If text is None or empty
+            
+        Note:
+            This method performs CPU-to-GPU and GPU-to-CPU transfers on each call.
+            For high-frequency embedding generation, consider batch processing for
+            better performance in production use cases.
         """
+        if text is None:
+            raise ValueError("Text cannot be None")
+        if not isinstance(text, str):
+            raise ValueError(f"Text must be a string, got {type(text).__name__}")
+        if not text.strip():
+            raise ValueError("Text cannot be empty or whitespace-only")
+            
         # Tokenize and encode
         inputs = self.tokenizer(
             text,

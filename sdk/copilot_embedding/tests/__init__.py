@@ -1,4 +1,4 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Tests for embedding service."""
+"""Tests for copilot_embedding SDK module."""

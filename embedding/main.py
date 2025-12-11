@@ -5,7 +5,7 @@ import os
 import time
 import logging
 
-from copilot_embedding import create_embedding_provider
+from copilot_embedding import create_embedding_provider, MockEmbeddingProvider
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,7 +27,12 @@ def main():
         logger.info(f"Generated test embedding with dimension: {len(embedding)}")
     except Exception as e:
         logger.error(f"Failed to initialize embedding provider: {e}")
-        logger.info("Service will continue but embeddings may not be available")
+        logger.info("Using MockEmbeddingProvider as fallback.")
+        embedding_provider = MockEmbeddingProvider()
+        # Test embedding generation with mock
+        test_text = "This is a test message for embedding generation."
+        embedding = embedding_provider.embed(test_text)
+        logger.info(f"Generated test embedding with dimension: {len(embedding)}")
     
     # Keep service running
     while True:

@@ -4,7 +4,7 @@
 """Tests for embedding providers."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 from copilot_embedding.providers import (
     EmbeddingProvider,
@@ -63,6 +63,42 @@ class TestMockEmbeddingProvider:
         embedding2 = provider.embed("text two")
         
         assert embedding1 != embedding2
+
+    def test_embed_with_none_raises(self):
+        """Test that embedding with None input raises ValueError."""
+        provider = MockEmbeddingProvider()
+        
+        with pytest.raises(ValueError) as exc_info:
+            provider.embed(None)
+        
+        assert "cannot be None" in str(exc_info.value)
+
+    def test_embed_with_empty_string_raises(self):
+        """Test that embedding with empty string raises ValueError."""
+        provider = MockEmbeddingProvider()
+        
+        with pytest.raises(ValueError) as exc_info:
+            provider.embed("")
+        
+        assert "cannot be empty" in str(exc_info.value)
+
+    def test_embed_with_whitespace_only_raises(self):
+        """Test that embedding with whitespace-only string raises ValueError."""
+        provider = MockEmbeddingProvider()
+        
+        with pytest.raises(ValueError) as exc_info:
+            provider.embed("   ")
+        
+        assert "cannot be empty" in str(exc_info.value)
+
+    def test_embed_with_non_string_raises(self):
+        """Test that embedding with non-string input raises ValueError."""
+        provider = MockEmbeddingProvider()
+        
+        with pytest.raises(ValueError) as exc_info:
+            provider.embed(123)
+        
+        assert "must be a string" in str(exc_info.value)
 
 
 class TestSentenceTransformerEmbeddingProvider:
@@ -314,7 +350,9 @@ class TestHuggingFaceEmbeddingProvider:
         
         # Create a mock numpy array
         mock_numpy_array = Mock()
-        mock_numpy_array.__getitem__ = lambda self, idx: Mock(tolist=Mock(return_value=[0.1, 0.2, 0.3]))
+        mock_item = Mock()
+        mock_item.tolist.return_value = [0.1, 0.2, 0.3]
+        mock_numpy_array.__getitem__ = Mock(return_value=mock_item)
         
         mock_cpu.numpy.return_value = mock_numpy_array
         mock_mean.cpu.return_value = mock_cpu

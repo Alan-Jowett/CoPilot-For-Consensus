@@ -116,7 +116,7 @@ class TestCreateEmbeddingProvider:
         with pytest.raises(ValueError) as exc_info:
             create_embedding_provider(backend="openai")
         
-        assert "OPENAI_API_KEY is required" in str(exc_info.value)
+        assert "api_key parameter or OPENAI_API_KEY environment variable is required" in str(exc_info.value)
 
     def test_create_azure_provider(self):
         """Test creating Azure OpenAI provider."""
@@ -169,7 +169,7 @@ class TestCreateEmbeddingProvider:
                 api_base="https://test.openai.azure.com/"
             )
         
-        assert "AZURE_OPENAI_KEY is required" in str(exc_info.value)
+        assert "api_key parameter or AZURE_OPENAI_KEY environment variable is required" in str(exc_info.value)
 
     def test_create_azure_without_endpoint_raises(self):
         """Test that creating Azure provider without endpoint raises error."""
@@ -179,7 +179,7 @@ class TestCreateEmbeddingProvider:
                 api_key="test-key"
             )
         
-        assert "AZURE_OPENAI_ENDPOINT is required" in str(exc_info.value)
+        assert "api_base parameter or AZURE_OPENAI_ENDPOINT environment variable is required" in str(exc_info.value)
 
     def test_create_huggingface_provider(self):
         """Test creating HuggingFace provider."""

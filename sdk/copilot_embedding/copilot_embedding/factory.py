@@ -62,7 +62,7 @@ def create_embedding_provider(
     elif backend == "openai":
         api_key = kwargs.get("api_key") or os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise ValueError("OPENAI_API_KEY is required for OpenAI backend")
+            raise ValueError("api_key parameter or OPENAI_API_KEY environment variable is required for OpenAI backend")
         
         model = model or os.getenv("EMBEDDING_MODEL", "text-embedding-ada-002")
         
@@ -78,9 +78,9 @@ def create_embedding_provider(
         deployment_name = kwargs.get("deployment_name") or os.getenv("AZURE_OPENAI_DEPLOYMENT")
         
         if not api_key:
-            raise ValueError("AZURE_OPENAI_KEY is required for Azure backend")
+            raise ValueError("api_key parameter or AZURE_OPENAI_KEY environment variable is required for Azure backend")
         if not api_base:
-            raise ValueError("AZURE_OPENAI_ENDPOINT is required for Azure backend")
+            raise ValueError("api_base parameter or AZURE_OPENAI_ENDPOINT environment variable is required for Azure backend")
         
         model = model or deployment_name or "text-embedding-ada-002"
         
@@ -96,11 +96,13 @@ def create_embedding_provider(
         model = model or os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
         device = kwargs.get("device") or os.getenv("DEVICE", "cpu")
         cache_dir = kwargs.get("cache_dir") or os.getenv("MODEL_CACHE_DIR")
+        max_length = kwargs.get("max_length")
         
         return HuggingFaceEmbeddingProvider(
             model_name=model,
             device=device,
-            cache_dir=cache_dir
+            cache_dir=cache_dir,
+            max_length=max_length
         )
     
     else:
