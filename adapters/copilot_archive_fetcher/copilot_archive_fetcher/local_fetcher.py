@@ -10,7 +10,6 @@ from typing import Optional, Tuple
 
 from .base import ArchiveFetcher
 from .models import SourceConfig
-from .exceptions import FetchError
 
 logger = logging.getLogger(__name__)
 

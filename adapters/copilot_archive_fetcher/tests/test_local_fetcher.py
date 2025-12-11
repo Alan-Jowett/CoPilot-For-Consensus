@@ -4,9 +4,7 @@
 """Tests for local filesystem fetcher."""
 
 import os
-import pytest
 import tempfile
-import shutil
 from copilot_archive_fetcher import LocalFetcher, SourceConfig
 
 

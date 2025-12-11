@@ -3,7 +3,6 @@
 
 """Tests for HTTP fetcher."""
 
-import os
 import pytest
 import tempfile
 from copilot_archive_fetcher import HTTPFetcher, SourceConfig, ArchiveFetcher

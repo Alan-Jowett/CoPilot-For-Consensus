@@ -7,7 +7,6 @@ import logging
 from copilot_archive_fetcher import (
     create_fetcher,
     SourceConfig,
-    ArchiveFetcherError,
     UnsupportedSourceTypeError,
 )
 
@@ -68,12 +67,6 @@ def fetch_and_process_archive(config_dict: dict, output_dir: str) -> dict:
         return {
             "success": False,
             "error": f"Unsupported source type: {e}",
-        }
-    except ArchiveFetcherError as e:
-        logger.error(f"Archive fetch error: {e}")
-        return {
-            "success": False,
-            "error": f"Archive fetch error: {e}",
         }
     except Exception as e:
         logger.error(f"Unexpected error during archive fetch: {e}")

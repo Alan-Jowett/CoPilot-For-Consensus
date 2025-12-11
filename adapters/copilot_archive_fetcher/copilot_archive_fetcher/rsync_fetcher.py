@@ -10,7 +10,6 @@ from typing import Optional, Tuple
 
 from .base import ArchiveFetcher
 from .models import SourceConfig
-from .exceptions import FetchError
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +81,7 @@ class RsyncFetcher(ArchiveFetcher):
             return True, file_paths, None
 
         except subprocess.TimeoutExpired as e:
-            error_msg = "rsync operation timed out"
+            error_msg = f"rsync operation timed out: {str(e)}"
             logger.error(error_msg)
             return False, None, error_msg
         except Exception as e:

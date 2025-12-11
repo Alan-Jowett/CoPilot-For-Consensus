@@ -3,7 +3,6 @@
 
 """Tests for archive fetcher models."""
 
-import pytest
 from copilot_archive_fetcher import SourceConfig
 
 
