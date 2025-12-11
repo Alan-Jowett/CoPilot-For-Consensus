@@ -22,20 +22,20 @@ A modular abstraction layer for vector storage backends, enabling flexible switc
 ### Basic Installation (In-Memory Only)
 
 ```bash
-pip install -e sdk/
+pip install -e adapters/copilot_vectorstore/
 ```
 
 ### With FAISS Support
 
 ```bash
-pip install -e sdk/
+pip install -e adapters/copilot_vectorstore/
 pip install faiss-cpu  # or faiss-gpu for GPU support
 ```
 
 ### Development Installation
 
 ```bash
-pip install -e "sdk/[dev]"
+pip install -e "adapters/copilot_vectorstore/[dev]"
 pip install faiss-cpu numpy
 ```
 
@@ -228,7 +228,7 @@ pytest tests/vectorstore/ --cov=copilot_vectorstore --cov-report=html
 
 ### Adding a New Backend
 
-1. Create a new file `sdk/copilot_vectorstore/your_backend.py`
+1. Create a new file `adapters/copilot_vectorstore/your_backend.py`
 2. Implement the `VectorStore` interface
 3. Add to `factory.py` and `__init__.py`
 4. Write comprehensive tests in `sdk/tests/vectorstore/test_your_backend.py`

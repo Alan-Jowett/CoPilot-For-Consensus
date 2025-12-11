@@ -14,14 +14,14 @@ The vector store abstraction provides a unified interface for storing and queryi
 ### Basic Installation (InMemory only)
 
 ```bash
-cd sdk
+cd adapters/copilot_vectorstore
 pip install -e .
 ```
 
 ### With FAISS Support (Recommended for Production)
 
 ```bash
-cd sdk
+cd adapters/copilot_vectorstore
 pip install -e .
 pip install faiss-cpu  # or faiss-gpu for GPU acceleration
 ```
@@ -330,7 +330,7 @@ store = create_vector_store(backend="qdrant", dimension=384)
 
 ## Next Steps
 
-1. **For Embedding Service**: See `sdk/copilot_vectorstore/examples.py` for complete examples
+1. **For Embedding Service**: See `adapters/copilot_vectorstore/examples.py` for complete examples
 2. **For Summarization Service**: Integrate query functionality for retrieval
 3. **For Production**: Configure FAISS with persistence and appropriate index type
 4. **For Scale**: Consider migrating to Qdrant or Azure Cognitive Search
@@ -339,10 +339,10 @@ store = create_vector_store(backend="qdrant", dimension=384)
 
 To add support for a new backend:
 
-1. Create a new file `sdk/copilot_vectorstore/your_backend.py`
+1. Create a new file `adapters/copilot_vectorstore/your_backend.py`
 2. Implement the `VectorStore` interface
 3. Add to `factory.py` and `__init__.py`
-4. Write tests in `sdk/tests/vectorstore/test_your_backend.py`
+4. Write tests in `adapters/copilot_vectorstore/tests/test_your_backend.py`
 5. Update documentation
 
-See `sdk/copilot_vectorstore/README.md` for detailed contribution guidelines.
+See `adapters/copilot_vectorstore/README.md` for detailed contribution guidelines.

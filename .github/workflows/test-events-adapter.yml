@@ -98,24 +98,24 @@ jobs:
     - name: Install copilot-vectorstore and test dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ./sdk/copilot_vectorstore
+        pip install ./adapters/copilot_vectorstore
         pip install pytest pytest-cov numpy faiss-cpu
 
     - name: Run vectorstore unit tests
       run: |
-        cd sdk/copilot_vectorstore
+        cd adapters/copilot_vectorstore
         pytest tests/ -v --tb=short --junit-xml=test-results.xml
 
     - name: Generate coverage report
       run: |
-        cd sdk/copilot_vectorstore
+        cd adapters/copilot_vectorstore
         pytest tests/ --cov=copilot_vectorstore --cov-report=lcov --cov-report=html --cov-report=term
 
     - name: Upload coverage to Coveralls
       uses: coverallsapp/github-action@v2
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        path-to-lcov: ./sdk/copilot_vectorstore/coverage.lcov
+        path-to-lcov: ./adapters/copilot_vectorstore/coverage.lcov
         flag-name: python-${{ matrix.python-version }}-vectorstore
         parallel: true
 
@@ -124,21 +124,21 @@ jobs:
       uses: actions/upload-artifact@v5
       with:
         name: vectorstore-test-results-${{ matrix.python-version }}
-        path: sdk/copilot_vectorstore/test-results.xml
+        path: adapters/copilot_vectorstore/test-results.xml
 
     - name: Upload coverage report
       if: always()
       uses: actions/upload-artifact@v5
       with:
         name: vectorstore-coverage-${{ matrix.python-version }}
-        path: sdk/copilot_vectorstore/htmlcov
+        path: adapters/copilot_vectorstore/htmlcov
 
     - name: Test Report
       if: always()
       uses: dorny/test-reporter@v2
       with:
         name: Vectorstore Test Results (Python ${{ matrix.python-version }})
-        path: sdk/copilot_vectorstore/test-results.xml
+        path: adapters/copilot_vectorstore/test-results.xml
         reporter: 'java-junit'
 
   lint:
