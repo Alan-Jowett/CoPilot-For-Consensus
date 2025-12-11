@@ -439,7 +439,11 @@ class IngestionService:
         Args:
             metadata: Archive metadata
         """
-        event = ArchiveIngestedEvent(data=metadata.to_dict())
+        # Convert metadata to dict and remove status field (not part of event schema)
+        event_data = metadata.to_dict()
+        event_data.pop('status', None)  # Remove status field if present
+        
+        event = ArchiveIngestedEvent(data=event_data)
 
         success = self.publisher.publish(
             exchange="copilot.events",

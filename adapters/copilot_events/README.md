@@ -32,6 +32,7 @@ A shared Python library for event publishing and subscribing across microservice
 - **No-op Implementation**: Testing publisher and subscriber that work in-memory
 - **Event Models**: Common event data structures for system-wide consistency
 - **Factory Pattern**: Simple factory functions for creating publishers and subscribers
+- **Schema Validation**: ValidatingEventPublisher wrapper for enforcing schema validation on published events
 - **Publisher Confirms**: Guaranteed message delivery with broker acknowledgments
 - **Queue Pre-declaration**: Ensures queues exist before publishing to avoid message loss
 
@@ -263,6 +264,67 @@ assert len(received_events) == 1
 assert received_events[0]["event_id"] == "123"
 ```
 
+### Validating Events with Schema Validation
+
+The `ValidatingEventPublisher` wrapper enforces schema validation before publishing:
+
+```python
+from copilot_events import create_publisher, ValidatingEventPublisher
+from copilot_schema_validation import FileSchemaProvider
+
+# Create base publisher
+base_publisher = create_publisher("rabbitmq", host="messagebus")
+base_publisher.connect()
+
+# Create schema provider (loads schemas from filesystem or database)
+schema_provider = FileSchemaProvider()
+
+# Wrap publisher with validation
+validating_publisher = ValidatingEventPublisher(
+    publisher=base_publisher,
+    schema_provider=schema_provider,
+    strict=True  # Raise error on validation failure
+)
+
+# Valid event passes validation
+valid_event = {
+    "event_type": "ArchiveIngested",
+    "event_id": "550e8400-e29b-41d4-a716-446655440000",
+    "timestamp": "2025-12-11T00:00:00Z",
+    "version": "1.0",
+    "data": {
+        "archive_id": "archive-123",
+        "source_name": "ietf-quic",
+        "file_path": "/data/archives/quic.mbox"
+    }
+}
+validating_publisher.publish("copilot.events", "archive.ingested", valid_event)
+
+# Invalid event raises ValidationError in strict mode
+invalid_event = {
+    "event_type": "ArchiveIngested",
+    "event_id": "123",
+    "timestamp": "2025-12-11T00:00:00Z",
+    "version": "1.0",
+    "data": {}  # Missing required fields
+}
+
+try:
+    validating_publisher.publish("copilot.events", "archive.ingested", invalid_event)
+except ValidationError as e:
+    print(f"Validation failed: {e.errors}")
+
+# Non-strict mode: logs warning but allows publishing
+permissive_publisher = ValidatingEventPublisher(
+    publisher=base_publisher,
+    schema_provider=schema_provider,
+    strict=False  # Log warning but continue
+)
+permissive_publisher.publish("copilot.events", "archive.ingested", invalid_event)
+```
+
+See [examples/validating_publisher_example.py](examples/validating_publisher_example.py) for a complete demonstration.
+
 ## Architecture
 
 ### Publisher Interface
@@ -374,6 +436,15 @@ Testing subscriber implementation with:
 - Subscription introspection
 - Zero external dependencies
 
+#### ValidatingEventPublisher
+
+Schema validation wrapper that:
+- Validates events against JSON schemas before publishing
+- Supports both strict (raise error) and non-strict (log warning) modes
+- Works with any schema provider (FileSchemaProvider, DocumentStoreSchemaProvider)
+- Composes cleanly with any EventPublisher implementation
+- Provides structured ValidationError with detailed error messages
+
 ### Event Models
 
 Event models provide:
@@ -457,6 +528,7 @@ pylint copilot_events/
 
 - Python 3.11+
 - pika (for RabbitMQ)
+- copilot-schema-validation (for ValidatingEventPublisher)
 
 ## License
 

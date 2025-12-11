@@ -10,8 +10,9 @@ import time
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
-from copilot_events import create_publisher
+from copilot_events import create_publisher, ValidatingEventPublisher
 from copilot_logging import create_logger
+from copilot_schema_validation import FileSchemaProvider
 from copilot_metrics import create_metrics_collector
 
 from app import __version__
@@ -109,7 +110,7 @@ def main():
         log.info("Storage path prepared", storage_path=config.storage_path)
 
         # Create event publisher
-        publisher = create_publisher(
+        base_publisher = create_publisher(
             message_bus_type=config.message_bus_type,
             host=config.message_bus_host,
             port=config.message_bus_port,
@@ -118,12 +119,22 @@ def main():
         )
 
         # Connect publisher
-        if not publisher.connect():
+        if not base_publisher.connect():
             log.warning(
                 "Failed to connect to message bus. Will continue with noop publisher.",
                 host=config.message_bus_host,
                 port=config.message_bus_port,
             )
+
+        # Wrap publisher with validation layer
+        # This ensures all published events are validated against their schemas
+        schema_provider = FileSchemaProvider()
+        publisher = ValidatingEventPublisher(
+            publisher=base_publisher,
+            schema_provider=schema_provider,
+            strict=True,  # Raise ValidationError if event doesn't match schema
+        )
+        log.info("Event publisher configured with schema validation")
 
         # Create ingestion service
         service = IngestionService(
@@ -155,7 +166,7 @@ def main():
         )
 
         # Cleanup
-        publisher.disconnect()
+        base_publisher.disconnect()
 
         # Push metrics to Pushgateway for short-lived jobs
         is_pushgateway_backend = metrics_backend in ("prometheus_pushgateway", "pushgateway")

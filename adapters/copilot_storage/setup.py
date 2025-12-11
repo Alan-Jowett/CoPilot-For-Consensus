@@ -38,5 +38,8 @@ setup(
             "pylint>=3.0.0",
             "mypy>=1.0.0",
         ],
+        "validation": [
+            "copilot-schema-validation>=0.1.0",  # Optional: for ValidatingDocumentStore
+        ],
     },
 )

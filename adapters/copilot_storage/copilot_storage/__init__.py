@@ -17,6 +17,7 @@ from .document_store import (
 )
 from .mongo_document_store import MongoDocumentStore
 from .inmemory_document_store import InMemoryDocumentStore
+from .validating_document_store import ValidatingDocumentStore, DocumentValidationError
 
 __all__ = [
     # Version
@@ -26,7 +27,9 @@ __all__ = [
     "MongoDocumentStore",
     "InMemoryDocumentStore",
     "create_document_store",
+    "ValidatingDocumentStore",
     # Exceptions
     "DocumentStoreError",
     "DocumentStoreNotConnectedError",
+    "DocumentValidationError",
 ]

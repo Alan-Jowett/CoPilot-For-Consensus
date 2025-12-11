@@ -27,6 +27,7 @@ CONFIG_FILE=config.local.yaml python main.py   # Custom config
 
 - **Multiple Source Types:** rsync, HTTP/HTTPS, IMAP, local filesystem
 - **Event Publishing:** RabbitMQ integration with schema-compliant events
+- **Schema Validation:** All published events are automatically validated against JSON schemas
 - **Deduplication:** SHA256-based duplicate detection with persistent checksums
 - **Retry Logic:** Exponential backoff for failed fetches
 - **Audit Logging:** JSONL format for all ingestion operations
@@ -110,7 +111,7 @@ sources:
 
 ## Events Published
 
-The service publishes events to RabbitMQ. See [../documents/SCHEMA.md](../documents/SCHEMA.md) for complete schemas.
+The service publishes events to RabbitMQ with automatic schema validation. All events are validated against their JSON schemas before being published, ensuring data consistency across the system. See [../documents/SCHEMA.md](../documents/SCHEMA.md) for complete schemas.
 
 ### ArchiveIngested
 

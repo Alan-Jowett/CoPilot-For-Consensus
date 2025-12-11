@@ -15,6 +15,7 @@ from .noop_publisher import NoopPublisher
 from .subscriber import EventSubscriber
 from .rabbitmq_subscriber import RabbitMQSubscriber
 from .noop_subscriber import NoopSubscriber
+from .validating_publisher import ValidatingEventPublisher, ValidationError
 # Import event models from the schema validation module
 from copilot_schema_validation import (
     BaseEvent,
@@ -91,6 +92,8 @@ __all__ = [
     "RabbitMQPublisher",
     "NoopPublisher",
     "create_publisher",
+    "ValidatingEventPublisher",
+    "ValidationError",
     # Subscribers
     "EventSubscriber",
     "RabbitMQSubscriber",
