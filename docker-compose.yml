@@ -237,7 +237,7 @@ services:
       - "8081:8081"
     restart: unless-stopped
 
-pushgateway:
+  pushgateway:
     image: prom/pushgateway:latest
     ports:
       - "9091:9091"
