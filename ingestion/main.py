@@ -101,7 +101,7 @@ def main():
         )
 
         # Connect publisher
-        if not publisher.connect():
+        if not base_publisher.connect():
             log.warning(
                 "Failed to connect to message bus. Will continue with noop publisher.",
                 host=config.message_bus_host,
@@ -116,7 +116,7 @@ def main():
             schema_provider=schema_provider,
             strict=True,  # Raise ValidationError if event doesn't match schema
         )
-        logger.info("Event publisher configured with schema validation")
+        log.info("Event publisher configured with schema validation")
 
         # Create ingestion service
         service = IngestionService(
