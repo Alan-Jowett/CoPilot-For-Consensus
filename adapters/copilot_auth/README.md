@@ -36,7 +36,7 @@ An abstraction layer for identity and authentication providers in the Copilot-fo
 Install the copilot-auth module:
 
 ```bash
-cd sdk/copilot_auth
+cd adapters/copilot_auth
 pip install -e .
 ```
 
@@ -235,14 +235,14 @@ export DATATRACKER_API_BASE_URL=https://test.datatracker.ietf.org/api
 The authentication module includes comprehensive tests:
 
 ```bash
-cd sdk/copilot_auth
+cd adapters/copilot_auth
 pytest tests/test_auth*.py -v
 ```
 
 ### Test Coverage
 
 ```bash
-cd sdk/copilot_auth
+cd adapters/copilot_auth
 pytest tests/test_auth*.py --cov=copilot_auth --cov-report=html
 ```
 

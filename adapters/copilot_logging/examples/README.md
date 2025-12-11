@@ -7,7 +7,7 @@ This directory contains example scripts demonstrating the usage of the `copilot_
 Make sure you have installed the `copilot_logging` package first:
 
 ```bash
-cd sdk/copilot_logging
+cd adapters/copilot_logging
 pip install -e .
 ```
 

@@ -17,7 +17,7 @@ A shared Python library for configuration management across microservices in the
 From the SDK root directory:
 
 ```bash
-cd sdk/copilot_config
+cd adapters/copilot_config
 pip install -e .
 ```
 

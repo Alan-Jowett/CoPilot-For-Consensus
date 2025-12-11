@@ -10,9 +10,9 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-# Install shared SDK first (storage before events to satisfy dependency)
-COPY sdk/ /app/sdk/
-RUN pip install --no-cache-dir /app/sdk/copilot_storage /app/sdk/copilot_events /app/sdk/copilot_reporting /app/sdk/copilot_config
+# Install shared adapters first (storage before events to satisfy dependency)
+COPY adapters/ /app/adapters/
+RUN pip install --no-cache-dir /app/adapters/copilot_storage /app/adapters/copilot_events /app/adapters/copilot_reporting /app/adapters/copilot_config
 
 # Install service dependencies
 COPY ingestion/requirements.txt .

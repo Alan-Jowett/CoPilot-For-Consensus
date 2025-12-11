@@ -17,7 +17,7 @@ A shared Python library for error reporting and diagnostics across microservices
 From the SDK directory:
 
 ```bash
-cd sdk/copilot_reporting
+cd adapters/copilot_reporting
 pip install -e ".[dev]"
 ```
 
