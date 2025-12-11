@@ -18,23 +18,23 @@ A shared library for embedding generation with support for multiple backends inc
 ### Basic Installation
 
 ```bash
-pip install ./adapter/copilot_embedding
+pip install ./adapters/copilot_embedding
 ```
 
 ### With Optional Backends
 
 ```bash
 # For SentenceTransformers (local models)
-pip install "./adapter/copilot_embedding[sentencetransformers]"
+pip install "./adapters/copilot_embedding[sentencetransformers]"
 
 # For OpenAI/Azure OpenAI
-pip install "./adapter/copilot_embedding[openai]"
+pip install "./adapters/copilot_embedding[openai]"
 
 # For HuggingFace Transformers
-pip install "./adapter/copilot_embedding[huggingface]"
+pip install "./adapters/copilot_embedding[huggingface]"
 
 # For all backends
-pip install "./adapter/copilot_embedding[all]"
+pip install "./adapters/copilot_embedding[all]"
 ```
 
 ## Quick Start
@@ -131,14 +131,14 @@ class EmbeddingProvider(ABC):
 ### Running Tests
 
 ```bash
-cd adapter/copilot_embedding
+cd adapters/copilot_embedding
 pytest tests/ -v
 ```
 
 ### Running Tests with Coverage
 
 ```bash
-cd adapter/copilot_embedding
+cd adapters/copilot_embedding
 pytest tests/ --cov=copilot_embedding --cov-report=html
 ```
 
