@@ -34,10 +34,6 @@ permissions:
   checks: write
   pull-requests: write
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
