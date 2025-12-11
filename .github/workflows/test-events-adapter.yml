@@ -49,6 +49,7 @@ jobs:
         pytest tests/ -v --tb=short -m "not integration" --junit-xml=test-results.xml --cov=copilot_events --cov-report=lcov --cov-report=html --cov-report=term
 
     - name: Upload coverage to Coveralls
+      continue-on-error: true
       uses: coverallsapp/github-action@v2
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -113,6 +114,7 @@ jobs:
     if: always()
     steps:
     - name: Finalize Coveralls
+      continue-on-error: true
       uses: coverallsapp/github-action@v2
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}

@@ -57,6 +57,7 @@ jobs:
         pytest tests/ --cov=app --cov-report=lcov --cov-report=html --cov-report=term
 
     - name: Upload coverage to Coveralls
+      continue-on-error: true
       uses: coverallsapp/github-action@v2
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -245,6 +246,7 @@ jobs:
     if: always()
     steps:
     - name: Finalize Coveralls
+      continue-on-error: true
       uses: coverallsapp/github-action@v2
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
