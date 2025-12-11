@@ -226,6 +226,11 @@ class ParsingService:
         
         Args:
             messages: List of message dictionaries
+            
+        Note:
+            Currently inserts documents one at a time. For large archives,
+            consider implementing bulk insert operations if the DocumentStore
+            interface is extended to support it.
         """
         try:
             # Store in 'messages' collection
@@ -240,6 +245,11 @@ class ParsingService:
         
         Args:
             threads: List of thread dictionaries
+            
+        Note:
+            Currently inserts documents one at a time. For large archives,
+            consider implementing bulk insert operations if the DocumentStore
+            interface is extended to support it.
         """
         try:
             # Store in 'threads' collection

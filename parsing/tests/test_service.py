@@ -3,10 +3,36 @@
 
 """Integration tests for parsing service."""
 
+import pytest
+from unittest.mock import Mock, MagicMock
+
 from copilot_events import NoopPublisher, NoopSubscriber
 from copilot_storage import InMemoryDocumentStore
 
 from app.service import ParsingService
+
+
+class MockPublisher:
+    """Mock publisher that tracks published events."""
+    
+    def __init__(self):
+        self.published_events = []
+        self.connected = False
+    
+    def connect(self):
+        self.connected = True
+        return True
+    
+    def disconnect(self):
+        self.connected = False
+    
+    def publish(self, exchange, routing_key, event):
+        self.published_events.append({
+            "exchange": exchange,
+            "routing_key": routing_key,
+            "event": event,
+        })
+        return True
 
 
 class TestParsingService:
@@ -215,3 +241,105 @@ class TestParsingService:
         assert stats["messages_parsed"] == 2
         assert stats["threads_created"] == 1
         assert stats["last_processing_time_seconds"] > 0
+
+    def test_event_publishing_on_success(self, document_store, subscriber, sample_mbox_file):
+        """Test that JSONParsed event is published on successful parsing."""
+        mock_publisher = MockPublisher()
+        mock_publisher.connect()
+        
+        service = ParsingService(
+            document_store=document_store,
+            publisher=mock_publisher,
+            subscriber=subscriber,
+        )
+        
+        archive_data = {
+            "archive_id": "test-archive-9",
+            "file_path": sample_mbox_file,
+        }
+        
+        service.process_archive(archive_data)
+        
+        # Verify JSONParsed event was published
+        assert len(mock_publisher.published_events) == 1
+        event = mock_publisher.published_events[0]
+        assert event["exchange"] == "copilot.events"
+        assert event["routing_key"] == "json.parsed"
+        assert event["event"]["event_type"] == "JSONParsed"
+        assert event["event"]["data"]["archive_id"] == "test-archive-9"
+        assert event["event"]["data"]["message_count"] == 2
+        assert event["event"]["data"]["thread_count"] == 1
+
+    def test_event_publishing_on_failure(self, document_store, subscriber):
+        """Test that ParsingFailed event is published on parsing failure."""
+        mock_publisher = MockPublisher()
+        mock_publisher.connect()
+        
+        service = ParsingService(
+            document_store=document_store,
+            publisher=mock_publisher,
+            subscriber=subscriber,
+        )
+        
+        archive_data = {
+            "archive_id": "test-archive-10",
+            "file_path": "/nonexistent/file.mbox",
+        }
+        
+        service.process_archive(archive_data)
+        
+        # Verify ParsingFailed event was published
+        assert len(mock_publisher.published_events) == 1
+        event = mock_publisher.published_events[0]
+        assert event["exchange"] == "copilot.events"
+        assert event["routing_key"] == "parsing.failed"
+        assert event["event"]["event_type"] == "ParsingFailed"
+        assert event["event"]["data"]["archive_id"] == "test-archive-10"
+        assert "error_message" in event["event"]["data"]
+        assert event["event"]["data"]["messages_parsed_before_failure"] == 0
+
+    def test_event_subscription(self, document_store, publisher, subscriber):
+        """Test that service subscribes to archive.ingested events."""
+        # Create a mock subscriber to track subscription
+        mock_subscriber = Mock()
+        mock_subscriber.connect.return_value = True
+        
+        service = ParsingService(
+            document_store=document_store,
+            publisher=publisher,
+            subscriber=mock_subscriber,
+        )
+        
+        # Start the service
+        service.start()
+        
+        # Verify subscription was called
+        mock_subscriber.subscribe.assert_called_once()
+        call_args = mock_subscriber.subscribe.call_args
+        assert call_args[1]["exchange"] == "copilot.events"
+        assert call_args[1]["routing_key"] == "archive.ingested"
+        assert call_args[1]["callback"] == service._handle_archive_ingested
+
+    def test_handle_archive_ingested_event(self, document_store, publisher, subscriber, sample_mbox_file):
+        """Test that _handle_archive_ingested processes events correctly."""
+        service = ParsingService(
+            document_store=document_store,
+            publisher=publisher,
+            subscriber=subscriber,
+        )
+        
+        # Simulate receiving an event
+        event = {
+            "event_type": "ArchiveIngested",
+            "data": {
+                "archive_id": "test-archive-11",
+                "file_path": sample_mbox_file,
+            }
+        }
+        
+        service._handle_archive_ingested(event)
+        
+        # Verify the archive was processed
+        stats = service.get_stats()
+        assert stats["archives_processed"] == 1
+        assert stats["messages_parsed"] == 2
