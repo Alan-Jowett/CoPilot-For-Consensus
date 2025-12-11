@@ -106,6 +106,8 @@ jobs:
             exit 1
           fi
           mkdir -p /tmp/rsync-data
+            touch /tmp/rsyncd.lock /tmp/rsyncd.pid
+            chmod 666 /tmp/rsyncd.lock /tmp/rsyncd.pid
           cp -r "$FIXTURE_PATH"/. /tmp/rsync-data/
           cat >/tmp/rsyncd.conf <<EOF
           uid = nobody
@@ -113,6 +115,8 @@ jobs:
           use chroot = no
           max connections = 4
           log file = /tmp/rsyncd.log
+            lock file = /tmp/rsyncd.lock
+            pid file = /tmp/rsyncd.pid
           [${{ inputs.rsync_module }}]
               path = /tmp/rsync-data
               read only = yes
