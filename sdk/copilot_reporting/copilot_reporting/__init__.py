@@ -9,12 +9,12 @@ in the Copilot-for-Consensus system.
 
 from typing import Optional
 
-__version__ = "0.1.0"
-
 from .error_reporter import ErrorReporter
 from .console_error_reporter import ConsoleErrorReporter
 from .silent_error_reporter import SilentErrorReporter
 from .sentry_error_reporter import SentryErrorReporter
+
+__version__ = "0.1.0"
 
 
 def create_error_reporter(

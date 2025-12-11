@@ -138,6 +138,24 @@ class TestConsoleErrorReporter:
         
         assert "Critical message" in caplog.text
 
+    def test_capture_message_debug_level(self, caplog):
+        """Test capturing a message with debug level."""
+        reporter = ConsoleErrorReporter()
+        
+        with caplog.at_level(logging.DEBUG):
+            reporter.capture_message("Debug message", level="debug")
+        
+        assert "Debug message" in caplog.text
+
+    def test_capture_message_invalid_level(self, caplog):
+        """Test capturing a message with invalid level defaults to error."""
+        reporter = ConsoleErrorReporter()
+        
+        with caplog.at_level(logging.ERROR):
+            reporter.capture_message("Message with invalid level", level="invalid_level")
+        
+        assert "Message with invalid level" in caplog.text
+
     def test_capture_message_with_context(self, caplog):
         """Test capturing a message with context."""
         reporter = ConsoleErrorReporter()
