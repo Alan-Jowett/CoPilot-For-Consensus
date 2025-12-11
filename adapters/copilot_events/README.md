@@ -28,11 +28,29 @@ A shared Python library for event publishing and subscribing across microservice
 
 - **Abstract Publisher Interface**: Common interface for all event publishers
 - **Abstract Subscriber Interface**: Common interface for all event subscribers
-- **RabbitMQ Implementation**: Production-ready RabbitMQ publisher and subscriber with persistent messages
+- **RabbitMQ Implementation**: Production-ready RabbitMQ publisher and subscriber with persistent messages and guaranteed delivery
 - **No-op Implementation**: Testing publisher and subscriber that work in-memory
 - **Event Models**: Common event data structures for system-wide consistency
 - **Factory Pattern**: Simple factory functions for creating publishers and subscribers
 - **Schema Validation**: ValidatingEventPublisher wrapper for enforcing schema validation on published events
+- **Publisher Confirms**: Guaranteed message delivery with broker acknowledgments
+- **Queue Pre-declaration**: Ensures queues exist before publishing to avoid message loss
+
+## Persistent Messaging Guarantees
+
+The RabbitMQ implementation provides production-quality message durability:
+
+1. **Durable Queues**: All queues survive broker restarts (`durable=True`, `auto_delete=False`, `exclusive=False`)
+2. **Persistent Messages**: All messages written to disk (`delivery_mode=2`)
+3. **Publisher Confirms**: Broker acknowledges message persistence before returning success
+4. **Pre-declared Queues**: Queues created before messages are published (via `definitions.json` or `declare_queue()`)
+5. **Unroutable Detection**: Publisher detects messages sent to non-existent queues (`mandatory=True`)
+
+These features ensure:
+- Messages survive RabbitMQ restarts
+- No loss when consumer services are offline
+- No silent drops when queues are missing
+- Full compliance with RabbitMQ persistence best practices
 
 ## Development
 
@@ -333,19 +351,74 @@ The `EventSubscriber` abstract base class defines the contract:
 
 Production publisher implementation with:
 - Persistent messages (delivery_mode=2)
-- Durable exchanges
+- Durable exchanges and queues
+- Publisher confirms for guaranteed delivery
+- Queue pre-declaration support
+- Mandatory flag to detect unroutable messages
 - Connection retry logic
 - JSON serialization
 - Comprehensive logging
+
+**Persistent Messaging Features:**
+
+The RabbitMQPublisher ensures no message loss through:
+
+1. **Publisher Confirms**: Enabled by default, the publisher waits for broker acknowledgment
+2. **Queue Pre-declaration**: Declare queues before publishing to avoid dropped messages
+3. **Durable Queues**: All queues are durable with `auto_delete=False` and `exclusive=False`
+4. **Persistent Messages**: All messages use `delivery_mode=2` for disk persistence
+5. **Unroutable Detection**: Messages published to non-existent queues are detected
+
+**Usage with Queue Pre-declaration:**
+
+```python
+from copilot_events import RabbitMQPublisher
+
+# Create publisher with confirms enabled (default)
+publisher = RabbitMQPublisher(
+    host="messagebus",
+    enable_publisher_confirms=True  # Default
+)
+publisher.connect()
+
+# Declare queues before publishing
+publisher.declare_queue(
+    queue_name="archive.ingested",
+    routing_key="archive.ingested",
+    exchange="copilot.events"
+)
+
+# Now publish - guaranteed delivery
+success = publisher.publish(
+    exchange="copilot.events",
+    routing_key="archive.ingested",
+    event={"event_type": "ArchiveIngested", "data": {...}}
+)
+
+# Or declare multiple queues at once
+queues = [
+    {"queue_name": "archive.ingested", "routing_key": "archive.ingested"},
+    {"queue_name": "json.parsed", "routing_key": "json.parsed"},
+]
+publisher.declare_queues(queues)
+```
 
 #### RabbitMQSubscriber
 
 Production subscriber implementation with:
 - Topic-based routing
 - Manual acknowledgment support
+- Durable queue declarations with proper persistence flags
 - Error handling with requeue
 - Automatic routing key generation
 - Callback-based event dispatch
+
+**Persistence Settings:**
+
+Named queues are declared with:
+- `durable=True`: Queue survives broker restart
+- `auto_delete=False`: Queue persists when no consumers
+- `exclusive=False`: Queue can be accessed by multiple connections
 
 #### NoopPublisher
 
@@ -380,6 +453,56 @@ Event models provide:
 - Consistent structure
 - Type safety
 - Easy serialization
+
+## RabbitMQ Configuration for Production
+
+### Docker Compose Setup
+
+The repository includes a pre-configured `infra/rabbitmq/definitions.json` file that declares all queues, exchanges, and bindings needed for the Copilot-for-Consensus pipeline. This ensures queues exist before any service starts publishing.
+
+**In docker-compose.yml:**
+
+```yaml
+messagebus:
+  image: rabbitmq:3-management
+  ports:
+    - "5672:5672"
+    - "15672:15672"
+  volumes:
+    - ./infra/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+  environment:
+    - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbitmq_management load_definitions "/etc/rabbitmq/definitions.json"
+```
+
+### Pre-declared Queues
+
+The following durable queues are pre-created:
+
+- `archive.ingested` - Ingestion success events
+- `archive.ingestion.failed` - Ingestion failure events
+- `json.parsed` - Parsing success events
+- `parsing.failed` - Parsing failure events
+- `chunks.prepared` - Chunking success events
+- `chunking.failed` - Chunking failure events
+- `embeddings.generated` - Embedding success events
+- `embedding.generation.failed` - Embedding failure events
+- `summarization.requested` - Summarization request events
+- `orchestration.failed` - Orchestration failure events
+- `summary.complete` - Summarization success events
+- `summarization.failed` - Summarization failure events
+- `report.published` - Report publishing success events
+- `report.delivery.failed` - Report delivery failure events
+
+All queues are bound to the `copilot.events` topic exchange with matching routing keys.
+
+### Adding New Event Types
+
+When adding new event types:
+
+1. Add the queue definition to `infra/rabbitmq/definitions.json`
+2. Add the binding to the `copilot.events` exchange
+3. Create a new event model class (if needed)
+4. Update services to publish/subscribe to the new event
 
 ## Development
 
