@@ -148,6 +148,20 @@ class TestRabbitMQPublisher:
         assert publisher.password == "guest"
         assert publisher.exchange == "copilot.events"
         assert publisher.exchange_type == "topic"
+        assert publisher.enable_publisher_confirms is True
+
+    def test_publisher_confirms_disabled(self):
+        """Test initialization with publisher confirms disabled."""
+        publisher = RabbitMQPublisher(enable_publisher_confirms=False)
+        
+        assert publisher.enable_publisher_confirms is False
+
+    def test_declared_queues_tracking(self):
+        """Test that declared queues are tracked."""
+        publisher = RabbitMQPublisher()
+        
+        # Initially no queues declared
+        assert len(publisher._declared_queues) == 0
 
     # Note: Actual connection tests would require a running RabbitMQ instance
     # or mocking the pika library, which is beyond the scope of basic unit tests
