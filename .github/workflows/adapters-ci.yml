@@ -107,5 +107,3 @@ jobs:
       adapter_id: ${{ matrix.adapter_id }}
       adapter_path: ${{ matrix.adapter_path }}
       package_name: ${{ matrix.package_name }}
-    secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

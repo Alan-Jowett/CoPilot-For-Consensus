@@ -18,9 +18,6 @@ on:
         description: 'Python package import name'
         required: true
         type: string
-    secrets:
-      GITHUB_TOKEN:
-        required: false
 
 permissions:
   contents: read
@@ -59,7 +56,7 @@ jobs:
         continue-on-error: true
         uses: coverallsapp/github-action@v2
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ github.token }}
           path-to-lcov: ./${{ inputs.adapter_path }}/coverage.lcov
           flag-name: python-${{ matrix.python-version }}
           parallel: true
@@ -123,7 +120,7 @@ jobs:
         continue-on-error: true
         uses: coverallsapp/github-action@v2
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ github.token }}
           parallel-finished: true
 
   summary:
