@@ -10,7 +10,8 @@ import sys
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
-from copilot_events import create_publisher
+from copilot_events import create_publisher, ValidatingEventPublisher
+from copilot_schema_validation import FileSchemaProvider
 
 from app import __version__
 from app.config import IngestionConfig
@@ -63,7 +64,7 @@ def main():
         logger.info(f"Storage path: {config.storage_path}")
 
         # Create event publisher
-        publisher = create_publisher(
+        base_publisher = create_publisher(
             message_bus_type=config.message_bus_type,
             host=config.message_bus_host,
             port=config.message_bus_port,
@@ -71,9 +72,19 @@ def main():
             password=config.message_bus_password,
         )
 
-        # Connect publisher
-        if not publisher.connect():
+        # Connect base publisher
+        if not base_publisher.connect():
             logger.warning("Failed to connect to message bus. Will continue with noop publisher.")
+
+        # Wrap publisher with validation layer
+        # This ensures all published events are validated against their schemas
+        schema_provider = FileSchemaProvider()
+        publisher = ValidatingEventPublisher(
+            publisher=base_publisher,
+            schema_provider=schema_provider,
+            strict=True,  # Raise ValidationError if event doesn't match schema
+        )
+        logger.info("Event publisher configured with schema validation")
 
         # Create ingestion service
         service = IngestionService(config, publisher)
@@ -93,7 +104,7 @@ def main():
         logger.info(f"Ingestion complete: {successful}/{len(results)} sources succeeded")
 
         # Cleanup
-        publisher.disconnect()
+        base_publisher.disconnect()
 
         # Exit with appropriate code
         sys.exit(0 if successful == len(results) else 1)
