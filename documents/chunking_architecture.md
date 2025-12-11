@@ -27,7 +27,7 @@ This document describes the architecture of the thread chunking abstraction laye
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│              Chunking Abstraction Layer (SDK)                    │
+│              Chunking Abstraction Layer (Adapter)                    │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                   │
 │  ┌────────────────────────────────────────────────────────┐     │

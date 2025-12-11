@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Copilot-for-Consensus Authentication SDK.
+"""Copilot-for-Consensus Authentication Adapter.
 
 A shared library for identity and authentication across microservices
 in the Copilot-for-Consensus system. Supports multiple authentication

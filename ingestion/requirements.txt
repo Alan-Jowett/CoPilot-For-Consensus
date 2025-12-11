@@ -5,5 +5,5 @@ python-dotenv==1.2.1
 pyyaml==6.0.3
 imapclient==3.0.1
 requests==2.32.5
-# Local shared SDK - installed separately in Dockerfile
+# Local shared Adapter - installed separately in Dockerfile
 # copilot-events>=0.1.0

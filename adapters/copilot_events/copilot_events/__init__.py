@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Copilot-for-Consensus Events SDK.
+"""Copilot-for-Consensus Events Adapter.
 
 A shared library for event publishing and subscribing across microservices
 in the Copilot-for-Consensus system.

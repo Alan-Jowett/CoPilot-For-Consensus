@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Copilot-for-Consensus Chunking SDK.
+"""Copilot-for-Consensus Chunking Adapter.
 
 A shared library for thread chunking strategies that break up email threads
 into smaller, semantically coherent chunks suitable for embedding or summarization.

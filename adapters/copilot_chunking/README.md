@@ -470,7 +470,7 @@ def create_chunker(strategy: str, **kwargs) -> ThreadChunker:
 
 ### Unit Tests
 
-The SDK includes comprehensive unit tests for all chunkers:
+The Adapter includes comprehensive unit tests for all chunkers:
 
 ```bash
 cd adapters/copilot_chunking

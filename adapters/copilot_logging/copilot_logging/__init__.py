@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Copilot-for-Consensus Logging SDK.
+"""Copilot-for-Consensus Logging Adapter.
 
 A shared library for consistent, structured, and configurable logging
 across microservices in the Copilot-for-Consensus system.

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Copilot-for-Consensus Reporting SDK.
+"""Copilot-for-Consensus Reporting Adapter.
 
 A shared library for error reporting and diagnostics across microservices
 in the Copilot-for-Consensus system.

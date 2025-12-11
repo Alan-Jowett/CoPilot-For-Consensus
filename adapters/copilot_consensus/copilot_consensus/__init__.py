@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Copilot-for-Consensus Consensus Detection SDK.
+"""Copilot-for-Consensus Consensus Detection Adapter.
 
 A shared library for consensus detection across discussion threads
 in the Copilot-for-Consensus system.
