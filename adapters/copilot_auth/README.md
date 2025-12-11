@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: MIT
      Copyright (c) 2025 Copilot-for-Consensus contributors -->
 
-# Copilot Authentication SDK
+# Copilot Authentication Adapter
 
 An abstraction layer for identity and authentication providers in the Copilot-for-Consensus system. This module enables secure, role-aware access to summaries, drafts, and feedback tools while supporting multiple authentication strategies.
 

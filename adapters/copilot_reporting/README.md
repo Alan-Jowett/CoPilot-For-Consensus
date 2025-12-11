@@ -1,4 +1,4 @@
-# Copilot Reporting SDK
+# Copilot Reporting Adapter
 
 A shared Python library for error reporting and diagnostics across microservices in the Copilot-for-Consensus system.
 
@@ -14,7 +14,7 @@ A shared Python library for error reporting and diagnostics across microservices
 
 ### For Development (Editable Mode)
 
-From the SDK directory:
+From the adapters directory:
 
 ```bash
 cd adapters/copilot_reporting

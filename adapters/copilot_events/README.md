@@ -20,7 +20,7 @@ Event-driven communication infrastructure for microservices.
 
 ### [copilot_auth](copilot_auth/)
 
-# Copilot Events SDK
+# Copilot Events Adapter
 
 A shared Python library for event publishing and subscribing across microservices in the Copilot-for-Consensus system.
 

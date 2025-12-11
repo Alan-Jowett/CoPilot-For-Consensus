@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: MIT
      Copyright (c) 2025 Copilot-for-Consensus contributors -->
 
-# Copilot SDK Examples
+# Copilot Adapter Examples
 
-This directory contains example applications demonstrating how to use the Copilot SDK modules.
+This directory contains example applications demonstrating how to use the Copilot adapter modules.
 
 ## Authentication Example
 

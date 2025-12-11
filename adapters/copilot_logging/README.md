@@ -1,4 +1,4 @@
-# Copilot Logging SDK
+# Copilot Logging Adapter
 
 A pluggable logging abstraction layer for Copilot-for-Consensus microservices.
 
