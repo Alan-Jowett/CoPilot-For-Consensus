@@ -10,12 +10,14 @@ on:
       - 'adapters/**'
       - '.github/workflows/adapters-ci.yml'
       - '.github/workflows/adapter-reusable-unit-test-ci.yml'
+      - '.github/workflows/adapter-reusable-integration-ci.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'adapters/**'
       - '.github/workflows/adapters-ci.yml'
       - '.github/workflows/adapter-reusable-unit-test-ci.yml'
+      - '.github/workflows/adapter-reusable-integration-ci.yml'
 
 permissions:
   contents: read
@@ -51,6 +53,7 @@ jobs:
           filters: |
             ci_workflows:
               - '.github/workflows/adapter-reusable-unit-test-ci.yml'
+              - '.github/workflows/adapter-reusable-integration-ci.yml'
               - '.github/workflows/adapters-ci.yml'
             copilot_auth:
               - 'adapters/copilot_auth/**'
@@ -184,3 +187,15 @@ jobs:
       adapter_id: copilot_vectorstore
       adapter_path: adapters/copilot_vectorstore
       package_name: copilot_vectorstore
+
+  storage-integration-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_storage == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-integration-ci.yml
+    with:
+      adapter_id: copilot_storage
+      adapter_path: adapters/copilot_storage
+      package_name: copilot_storage
+      mongodb_enabled: true
+      mongodb_versions: '6.0,7.0'
+      python_versions: '3.11,3.12'

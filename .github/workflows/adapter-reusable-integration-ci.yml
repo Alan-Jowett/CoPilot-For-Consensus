@@ -1,0 +1,142 @@
+# SPDX-License-Identifier: MIT
+
+name: Reusable Adapter Integration CI
+
+on:
+  workflow_call:
+    inputs:
+      adapter_id:
+        description: 'Adapter identifier (e.g., copilot_storage)'
+        required: true
+        type: string
+      adapter_path:
+        description: 'Path to adapter root folder'
+        required: true
+        type: string
+      package_name:
+        description: 'Python package import name'
+        required: true
+        type: string
+      mongodb_enabled:
+        description: 'Enable MongoDB service for tests'
+        required: false
+        type: boolean
+        default: false
+      mongodb_versions:
+        description: 'Comma-separated MongoDB versions for matrix (e.g., 6.0,7.0)'
+        required: false
+        type: string
+        default: '6.0,7.0'
+      python_versions:
+        description: 'Comma-separated Python versions for matrix (e.g., 3.11,3.12)'
+        required: false
+        type: string
+        default: '3.11,3.12,3.13'
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ${{ fromJSON(format('["%s"]', replace(inputs.python_versions, ',', '","'))) }}
+        mongodb-version: ${{ inputs.mongodb_enabled && fromJSON(format('["%s"]', replace(inputs.mongodb_versions, ',', '","'))) || null }}
+    services:
+      mongodb:
+        if: ${{ inputs.mongodb_enabled }}
+        image: mongo:${{ matrix.mongodb-version }}
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: testuser
+          MONGO_INITDB_ROOT_PASSWORD: testpass
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 }).ok' --quiet || mongo --eval 'db.runCommand({ ping: 1 }).ok' --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          cd ${{ inputs.adapter_path }}
+          pip install -e .
+          pip install pytest pytest-cov
+
+      - name: Wait for MongoDB to be ready
+        if: ${{ inputs.mongodb_enabled }}
+        run: |
+          echo "Waiting for MongoDB to be ready..."
+          pip install pymongo
+          python -c "
+          import time
+          import sys
+          from pymongo import MongoClient
+          from pymongo.errors import ConnectionFailure, OperationFailure
+          for i in range(30):
+              try:
+                  client = MongoClient(
+                      host='localhost',
+                      port=27017,
+                      username='testuser',
+                      password='testpass',
+                      authSource='admin',
+                      serverSelectionTimeoutMS=2000
+                  )
+                  client.admin.command('ping')
+                  print('MongoDB is ready!')
+                  sys.exit(0)
+              except (ConnectionFailure, OperationFailure) as e:
+                  print(f'Waiting... ({i+1}/30): {e}')
+                  time.sleep(2)
+          print('MongoDB failed to become ready')
+          sys.exit(1)
+          "
+
+      - name: Run integration tests
+        env:
+          MONGODB_HOST: ${{ inputs.mongodb_enabled && 'localhost' || '' }}
+          MONGODB_PORT: ${{ inputs.mongodb_enabled && 27017 || '' }}
+          MONGODB_USERNAME: ${{ inputs.mongodb_enabled && 'testuser' || '' }}
+          MONGODB_PASSWORD: ${{ inputs.mongodb_enabled && 'testpass' || '' }}
+          MONGODB_DATABASE: ${{ inputs.mongodb_enabled && 'test_copilot' || '' }}
+        run: |
+          cd ${{ inputs.adapter_path }}
+          # Default to running all tests marked integration
+          pytest tests -v -m integration --tb=short --junit-xml=integration-test-results.xml --cov=${{ inputs.package_name }} --cov-report=lcov:integration-coverage.lcov --cov-report=html:integration-htmlcov --cov-report=term
+
+      - name: Upload integration test results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ${{ inputs.adapter_id }}-integration-test-results-py${{ matrix.python-version }}${{ inputs.mongodb_enabled && format('-mongo%s', matrix.mongodb-version) || '' }}
+          path: ${{ inputs.adapter_path }}/integration-test-results.xml
+
+      - name: Upload integration coverage reports
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ${{ inputs.adapter_id }}-integration-coverage-report-py${{ matrix.python-version }}${{ inputs.mongodb_enabled && format('-mongo%s', matrix.mongodb-version) || '' }}
+          path: ${{ inputs.adapter_path }}/integration-htmlcov
+
+      - name: Integration Test Report
+        if: always()
+        uses: dorny/test-reporter@v2
+        with:
+          name: ${{ inputs.adapter_id }} Integration (Python ${{ matrix.python-version }}${{ inputs.mongodb_enabled && format(', MongoDB %s', matrix.mongodb-version) || '' }})
+          path: ${{ inputs.adapter_path }}/integration-test-results.xml
+          reporter: 'java-junit'
