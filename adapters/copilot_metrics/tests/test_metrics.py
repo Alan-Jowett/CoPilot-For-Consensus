@@ -153,10 +153,13 @@ class TestPrometheusMetricsCollector:
 
     @pytest.mark.skipif(
         sys.modules.get('prometheus_client') is not None,
-        reason="prometheus_client is installed"
+        reason="prometheus_client is installed; test requires it to be missing"
     )
     def test_requires_prometheus_client(self):
-        """Test that PrometheusMetricsCollector requires prometheus_client."""
+        """Test that PrometheusMetricsCollector raises ImportError when prometheus_client is missing.
+        
+        This test only runs in environments where prometheus_client is NOT installed.
+        """
         with pytest.raises(ImportError, match="prometheus_client is required"):
             PrometheusMetricsCollector()
 

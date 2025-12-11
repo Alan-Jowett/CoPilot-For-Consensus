@@ -26,6 +26,8 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
     Uses a dedicated registry so we only push ingestion-specific metrics and
     avoid leaking default process metrics.
     """
+    # Hint for runtimes that feature-detect push capability
+    can_push: bool = True
 
     def __init__(
         self,
