@@ -123,3 +123,26 @@ class TestIngestionConfig:
         assert len(enabled) == 2
         assert enabled[0].name == "enabled1"
         assert enabled[1].name == "enabled2"
+
+    def test_ingestion_config_with_static_provider(self):
+        """Test using StaticConfigProvider for testing."""
+        from copilot_config import StaticConfigProvider
+
+        # Create a static config provider with test values
+        provider = StaticConfigProvider({
+            "STORAGE_PATH": "/test/storage",
+            "MESSAGE_BUS_HOST": "test-host",
+            "MESSAGE_BUS_PORT": "6000",
+            "LOG_LEVEL": "DEBUG",
+            "RETRY_MAX_ATTEMPTS": "5",
+            "BLOB_STORAGE_ENABLED": "true",
+        })
+
+        config = IngestionConfig.from_env(config_provider=provider)
+
+        assert config.storage_path == "/test/storage"
+        assert config.message_bus_host == "test-host"
+        assert config.message_bus_port == 6000
+        assert config.log_level == "DEBUG"
+        assert config.retry_max_attempts == 5
+        assert config.blob_storage_enabled is True

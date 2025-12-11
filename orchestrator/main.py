@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-import os
 import time
 import logging
+from copilot_config import create_config_provider
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -11,8 +11,12 @@ logger = logging.getLogger(__name__)
 def main():
     """Orchestration service: Coordinate summarization and analysis tasks."""
     logger.info("Starting Orchestration Service")
-    vector_db_host = os.getenv("VECTOR_DB_HOST", "localhost")
-    doc_db_host = os.getenv("DOC_DB_HOST", "localhost")
+    
+    # Use ConfigProvider for configuration
+    config = create_config_provider()
+    vector_db_host = config.get("VECTOR_DB_HOST", "localhost")
+    doc_db_host = config.get("DOC_DB_HOST", "localhost")
+    
     logger.info(f"Vector DB host: {vector_db_host}")
     logger.info(f"Document DB host: {doc_db_host}")
     
