@@ -112,5 +112,4 @@ __all__ = [
     "SummarizationFailedEvent",
     "ReportPublishedEvent",
     "ReportDeliveryFailedEvent",
-    "ArchiveMetadata",
 ]

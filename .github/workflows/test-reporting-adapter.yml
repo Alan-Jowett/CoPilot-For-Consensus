@@ -114,6 +114,7 @@ jobs:
     needs: unit-tests
     if: always()
     steps:
+      continue-on-error: true
     - name: Finalize Coveralls
       continue-on-error: true
       uses: coverallsapp/github-action@v2
