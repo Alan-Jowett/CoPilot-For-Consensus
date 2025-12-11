@@ -236,7 +236,7 @@ jobs:
         from app.config import IngestionConfig, SourceConfig
         from copilot_events import ArchiveIngestedEvent, ArchiveIngestionFailedEvent
         from copilot_events import create_publisher, RabbitMQPublisher, NoopPublisher
-        from app.archive_fetcher import create_fetcher, calculate_file_hash
+        from copilot_archive_fetcher import create_fetcher, calculate_file_hash
         from app.service import IngestionService
         print('✓ All imports successful')
         "
