@@ -19,6 +19,7 @@ This project aims to be:
 ## Key Features (MVP)
 - **Mailing List Ingestion:** Fetch archives via rsync or IMAP.
 - **Parsing & Normalization:** Use Python `mailbox` or equivalent for structured extraction.
+- **Vector Store Abstraction:** Modular backend support (FAISS, in-memory, future: Qdrant, Azure) for semantic search.
 - **Summarization Engine:** Extractive + abstractive summaries powered by LLMs.
 - **Consensus Detection:** Identify agreement/dissent signals in threads.
 - **Draft Tracking:** Monitor mentions and evolution of RFC drafts.
