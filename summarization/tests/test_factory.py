@@ -8,10 +8,10 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
-from factory import SummarizerFactory
-from openai_summarizer import OpenAISummarizer
-from mock_summarizer import MockSummarizer
-from local_llm_summarizer import LocalLLMSummarizer
+from adapters.factory import SummarizerFactory
+from adapters.openai_summarizer import OpenAISummarizer
+from adapters.mock_summarizer import MockSummarizer
+from adapters.local_llm_summarizer import LocalLLMSummarizer
 
 
 class TestSummarizerFactory:

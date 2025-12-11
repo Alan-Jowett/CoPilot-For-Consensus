@@ -7,8 +7,8 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from openai_summarizer import OpenAISummarizer
-from models import Thread
+from adapters.openai_summarizer import OpenAISummarizer
+from adapters.models import Thread
 
 
 class TestOpenAISummarizer:

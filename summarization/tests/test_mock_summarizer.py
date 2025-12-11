@@ -7,8 +7,8 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from mock_summarizer import MockSummarizer
-from models import Thread
+from adapters.mock_summarizer import MockSummarizer
+from adapters.models import Thread
 
 
 class TestMockSummarizer:

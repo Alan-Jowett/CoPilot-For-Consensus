@@ -7,8 +7,8 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from local_llm_summarizer import LocalLLMSummarizer
-from models import Thread
+from adapters.local_llm_summarizer import LocalLLMSummarizer
+from adapters.models import Thread
 
 
 class TestLocalLLMSummarizer:

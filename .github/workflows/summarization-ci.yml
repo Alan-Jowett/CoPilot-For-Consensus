@@ -51,7 +51,7 @@ jobs:
     - name: Generate coverage report
       run: |
         cd summarization
-        pytest tests/ --cov=. --cov-report=lcov --cov-report=html --cov-report=term
+        pytest tests/ --cov=adapters --cov-report=lcov --cov-report=html --cov-report=term
 
     - name: Upload coverage to Coveralls
       uses: coverallsapp/github-action@v2
@@ -105,12 +105,12 @@ jobs:
     - name: Run pylint
       run: |
         cd summarization
-        pylint *.py --disable=C0111,C0103,R0903 || echo "Pylint warnings found but continuing..."
+        pylint *.py adapters/*.py --disable=C0111,C0103,R0903 || echo "Pylint warnings found but continuing..."
 
     - name: Run flake8
       run: |
         cd summarization
-        flake8 *.py tests/*.py --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 *.py adapters/*.py tests/*.py --count --select=E9,F63,F7,F82 --show-source --statistics
 
   build-docker:
     runs-on: ubuntu-latest
@@ -155,12 +155,12 @@ jobs:
       run: |
         cd summarization
         python -c "
-        from models import Thread, Summary, Citation
-        from summarizer import Summarizer
-        from openai_summarizer import OpenAISummarizer
-        from mock_summarizer import MockSummarizer
-        from local_llm_summarizer import LocalLLMSummarizer
-        from factory import SummarizerFactory
+        from adapters import Thread, Summary, Citation
+        from adapters import Summarizer
+        from adapters import OpenAISummarizer
+        from adapters import MockSummarizer
+        from adapters import LocalLLMSummarizer
+        from adapters import SummarizerFactory
         print('✓ All imports successful')
         "
 
@@ -168,8 +168,7 @@ jobs:
       run: |
         cd summarization
         python -c "
-        from factory import SummarizerFactory
-        from mock_summarizer import MockSummarizer
+        from adapters import SummarizerFactory, MockSummarizer
         
         # Test default (mock) provider
         summarizer = SummarizerFactory.create_summarizer()
@@ -181,8 +180,7 @@ jobs:
       run: |
         cd summarization
         python -c "
-        from factory import SummarizerFactory
-        from models import Thread
+        from adapters import SummarizerFactory, Thread
         
         # Create summarizer
         summarizer = SummarizerFactory.create_summarizer(provider='mock')
@@ -226,7 +224,7 @@ jobs:
     - name: Run security check (bandit)
       run: |
         cd summarization
-        bandit -r *.py -f json -o bandit-report.json || true
+        bandit -r *.py adapters/*.py -f json -o bandit-report.json || true
       continue-on-error: true
 
   coveralls-finish:
