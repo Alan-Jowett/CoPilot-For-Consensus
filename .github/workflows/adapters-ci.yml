@@ -9,13 +9,13 @@ on:
     paths:
       - 'adapters/**'
       - '.github/workflows/adapters-ci.yml'
-      - '.github/workflows/adapter-reusable-ci.yml'
+      - '.github/workflows/adapter-reusable-unit-test-ci.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'adapters/**'
       - '.github/workflows/adapters-ci.yml'
-      - '.github/workflows/adapter-reusable-ci.yml'
+      - '.github/workflows/adapter-reusable-unit-test-ci.yml'
 
 permissions:
   contents: read
@@ -50,7 +50,7 @@ jobs:
           token: ${{ github.token }}
           filters: |
             ci_workflows:
-              - '.github/workflows/adapter-reusable-ci.yml'
+              - '.github/workflows/adapter-reusable-unit-test-ci.yml'
               - '.github/workflows/adapters-ci.yml'
             copilot_auth:
               - 'adapters/copilot_auth/**'
@@ -80,7 +80,7 @@ jobs:
   auth-ci:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.copilot_auth == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-ci.yml
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_auth
       adapter_path: adapters/copilot_auth
@@ -89,7 +89,7 @@ jobs:
   config-ci:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.copilot_config == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-ci.yml
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_config
       adapter_path: adapters/copilot_config
@@ -98,7 +98,7 @@ jobs:
   events-ci:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.copilot_events == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-ci.yml
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_events
       adapter_path: adapters/copilot_events
@@ -107,7 +107,7 @@ jobs:
   logging-ci:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.copilot_logging == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-ci.yml
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_logging
       adapter_path: adapters/copilot_logging
@@ -116,7 +116,7 @@ jobs:
   metrics-ci:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.copilot_metrics == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-ci.yml
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_metrics
       adapter_path: adapters/copilot_metrics
@@ -125,7 +125,7 @@ jobs:
   reporting-ci:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.copilot_reporting == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-ci.yml
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_reporting
       adapter_path: adapters/copilot_reporting
@@ -134,7 +134,7 @@ jobs:
   storage-ci:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.copilot_storage == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-ci.yml
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_storage
       adapter_path: adapters/copilot_storage
@@ -143,7 +143,7 @@ jobs:
   embedding-ci:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.copilot_embedding == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-ci.yml
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_embedding
       adapter_path: adapters/copilot_embedding
@@ -152,7 +152,7 @@ jobs:
   chunking-ci:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.copilot_chunking == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-ci.yml
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_chunking
       adapter_path: adapters/copilot_chunking
@@ -161,7 +161,7 @@ jobs:
   consensus-ci:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.copilot_consensus == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-ci.yml
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_consensus
       adapter_path: adapters/copilot_consensus
@@ -170,7 +170,7 @@ jobs:
   schema-validation-ci:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.copilot_schema_validation == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-ci.yml
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_schema_validation
       adapter_path: adapters/copilot_schema_validation
@@ -179,7 +179,7 @@ jobs:
   vectorstore-ci:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.copilot_vectorstore == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-ci.yml
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_vectorstore
       adapter_path: adapters/copilot_vectorstore
