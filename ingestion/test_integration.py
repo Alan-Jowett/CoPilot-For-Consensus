@@ -179,6 +179,7 @@ def main():
     if not (rabbitmq_ok and prometheus_ok and management_ok):
         print("\n❌ Prerequisites not met. Ensure RabbitMQ, RabbitMQ Management, and Prometheus are running:")
         print("   docker compose up -d messagebus monitoring")
+        print("   RabbitMQ Management UI: http://localhost:15672 (guest/guest)")
         sys.exit(1)
     
     print("\n✅ All prerequisites met!")
