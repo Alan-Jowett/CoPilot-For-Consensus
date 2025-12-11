@@ -141,6 +141,18 @@ jobs:
       adapter_path: adapters/copilot_archive_fetcher
       package_name: copilot_archive_fetcher
 
+  archive-fetcher-integration-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_archive_fetcher == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-integration-ci.yml
+    with:
+      adapter_id: copilot_archive_fetcher
+      adapter_path: adapters/copilot_archive_fetcher
+      package_name: copilot_archive_fetcher
+      enable_rsync_daemon: true
+      rsync_module: data
+      rsync_port: '8730'
+
   reporting-ci:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.copilot_reporting == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
