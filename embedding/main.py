@@ -5,6 +5,8 @@ import time
 import logging
 from copilot_config import create_config_provider
 
+from copilot_embedding import create_embedding_provider, MockEmbeddingProvider
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -17,6 +19,24 @@ def main():
     vector_db_host = config.get("VECTOR_DB_HOST", "localhost")
     
     logger.info(f"Vector DB host: {vector_db_host}")
+    
+    # Initialize embedding provider
+    try:
+        embedding_provider = create_embedding_provider()
+        logger.info(f"Embedding provider initialized: {type(embedding_provider).__name__}")
+        
+        # Test embedding generation
+        test_text = "This is a test message for embedding generation."
+        embedding = embedding_provider.embed(test_text)
+        logger.info(f"Generated test embedding with dimension: {len(embedding)}")
+    except Exception as e:
+        logger.error(f"Failed to initialize embedding provider: {e}")
+        logger.info("Using MockEmbeddingProvider as fallback.")
+        embedding_provider = MockEmbeddingProvider()
+        # Test embedding generation with mock
+        test_text = "This is a test message for embedding generation."
+        embedding = embedding_provider.embed(test_text)
+        logger.info(f"Generated test embedding with dimension: {len(embedding)}")
     
     # Keep service running
     while True:
