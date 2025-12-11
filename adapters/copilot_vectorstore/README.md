@@ -214,14 +214,14 @@ The module includes comprehensive tests for all implementations:
 
 ```bash
 # Run all tests
-cd sdk
-pytest tests/vectorstore/
+cd adapters/copilot_vectorstore
+pytest tests/
 
 # Run specific test file
-pytest tests/vectorstore/test_inmemory.py
+pytest tests/test_inmemory.py
 
 # Run with coverage
-pytest tests/vectorstore/ --cov=copilot_vectorstore --cov-report=html
+pytest tests/ --cov=copilot_vectorstore --cov-report=html
 ```
 
 ## Contributing
@@ -231,7 +231,7 @@ pytest tests/vectorstore/ --cov=copilot_vectorstore --cov-report=html
 1. Create a new file `adapters/copilot_vectorstore/your_backend.py`
 2. Implement the `VectorStore` interface
 3. Add to `factory.py` and `__init__.py`
-4. Write comprehensive tests in `sdk/tests/vectorstore/test_your_backend.py`
+4. Write comprehensive tests in `adapters/copilot_vectorstore/tests/test_your_backend.py`
 5. Update this README
 
 Example skeleton:

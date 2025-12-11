@@ -330,7 +330,7 @@ store = create_vector_store(backend="qdrant", dimension=384)
 
 ## Next Steps
 
-1. **For Embedding Service**: See `adapters/copilot_vectorstore/examples.py` for complete examples
+1. **For Embedding Service**: See `adapters/copilot_vectorstore/copilot_vectorstore/examples.py` for complete examples
 2. **For Summarization Service**: Integrate query functionality for retrieval
 3. **For Production**: Configure FAISS with persistence and appropriate index type
 4. **For Scale**: Consider migrating to Qdrant or Azure Cognitive Search

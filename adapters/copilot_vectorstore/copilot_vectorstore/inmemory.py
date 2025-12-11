@@ -97,13 +97,15 @@ class InMemoryVectorStore(VectorStore):
             )
         
         # Calculate cosine similarity for all vectors
+        # Precompute normalized query vector for better performance
+        query_norm = query_array / (np.linalg.norm(query_array) + 1e-8)
+        
         similarities = []
-        for id, vector in self._vectors.items():
-            # Normalize vectors for cosine similarity
-            query_norm = query_array / (np.linalg.norm(query_array) + 1e-8)
+        for embedding_id, vector in self._vectors.items():
+            # Normalize stored vector for cosine similarity
             vector_norm = vector / (np.linalg.norm(vector) + 1e-8)
             similarity = np.dot(query_norm, vector_norm)
-            similarities.append((id, float(similarity)))
+            similarities.append((embedding_id, float(similarity)))
         
         # Sort by similarity (descending) and take top_k
         similarities.sort(key=lambda x: x[1], reverse=True)

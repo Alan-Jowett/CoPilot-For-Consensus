@@ -254,3 +254,52 @@ class TestFAISSVectorStore:
         results = store.query(vectors[0], top_k=3)
         assert len(results) >= 1  # At least one result
         assert results[0].id == "doc0"  # Should find the exact match
+    
+    def test_save_and_load(self):
+        """Test saving and loading FAISS index."""
+        import tempfile
+        import os
+        
+        # Create a temporary file for the index
+        with tempfile.NamedTemporaryFile(suffix='.faiss', delete=False) as tmp:
+            tmp_path = tmp.name
+        
+        try:
+            # Create a store and add some data
+            store = FAISSVectorStore(dimension=128, index_type="flat", persist_path=tmp_path)
+            store.add_embedding("id1", [1.0] * 128, {"key": "value1"})
+            store.add_embedding("id2", [2.0] * 128, {"key": "value2"})
+            
+            # Save the index
+            store.save()
+            
+            # Verify file was created
+            assert os.path.exists(tmp_path)
+            
+            # Create a new store and load the index
+            new_store = FAISSVectorStore(dimension=128, index_type="flat", persist_path=tmp_path)
+            new_store.load()
+            
+            # The index should be loaded, but metadata is not persisted
+            # So count should show the FAISS index size, but queries won't work
+            # without metadata
+            assert new_store._index.ntotal == 2
+            
+        finally:
+            # Clean up
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+    
+    def test_save_without_path_raises_error(self):
+        """Test that save without path raises ValueError."""
+        store = FAISSVectorStore(dimension=128)
+        
+        with pytest.raises(ValueError, match="No path provided"):
+            store.save()
+    
+    def test_load_without_path_raises_error(self):
+        """Test that load without path raises ValueError."""
+        store = FAISSVectorStore(dimension=128)
+        
+        with pytest.raises(ValueError, match="No path provided"):
+            store.load()

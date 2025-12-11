@@ -4,7 +4,7 @@
 """Example integration patterns for embedding and summarization services."""
 
 from typing import List, Dict, Any
-from copilot_vectorstore import create_vector_store, VectorStore
+from copilot_vectorstore import create_vector_store
 
 
 class EmbeddingServiceExample:

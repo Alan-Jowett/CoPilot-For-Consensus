@@ -57,19 +57,6 @@ class FAISSVectorStore(VectorStore):
         self._persist_path = persist_path
         self._faiss = faiss
         
-        # Initialize FAISS index
-        if index_type == "flat":
-            # Flat index for exact search (using L2 distance)
-            self._index = faiss.IndexFlatL2(dimension)
-        else:
-            # IVF index for approximate search
-            quantizer = faiss.IndexFlatL2(dimension)
-            self._index = faiss.IndexIVFFlat(quantizer, dimension, 100)
-            # Train with deterministic random data for initialization
-            # In production, this will be replaced by actual data during first batch add
-            np.random.seed(42)
-            self._index.train(np.random.rand(1000, dimension).astype('float32'))
-        
         # Maintain mapping from FAISS index to our IDs and metadata
         self._id_to_idx: Dict[str, int] = {}
         self._idx_to_id: Dict[int, str] = {}
@@ -77,7 +64,29 @@ class FAISSVectorStore(VectorStore):
         self._vectors: Dict[str, np.ndarray] = {}
         self._next_idx = 0
         
+        # Initialize FAISS index
+        self._index = self._create_index()
+        
         logger.info(f"Initialized FAISS vector store with dimension={dimension}, type={index_type}")
+    
+    def _create_index(self):
+        """Create a new FAISS index based on the configured type.
+        
+        Returns:
+            A new FAISS index instance
+        """
+        if self._index_type == "flat":
+            # Flat index for exact search (using L2 distance)
+            return self._faiss.IndexFlatL2(self._dimension)
+        else:
+            # IVF index for approximate search
+            quantizer = self._faiss.IndexFlatL2(self._dimension)
+            index = self._faiss.IndexIVFFlat(quantizer, self._dimension, 100)
+            # Train with deterministic random data for initialization
+            # In production, this will be replaced by actual data during first batch add
+            np.random.seed(42)
+            index.train(np.random.rand(1000, self._dimension).astype('float32'))
+            return index
     
     def add_embedding(self, id: str, vector: List[float], metadata: Dict[str, Any]) -> None:
         """Add a single embedding to the vector store.
@@ -235,15 +244,8 @@ class FAISSVectorStore(VectorStore):
     
     def clear(self) -> None:
         """Remove all embeddings from the vector store."""
-        # Recreate the index
-        if self._index_type == "flat":
-            self._index = self._faiss.IndexFlatL2(self._dimension)
-        else:
-            quantizer = self._faiss.IndexFlatL2(self._dimension)
-            self._index = self._faiss.IndexIVFFlat(quantizer, self._dimension, 100)
-            # Train with deterministic random data for initialization
-            np.random.seed(42)
-            self._index.train(np.random.rand(1000, self._dimension).astype('float32'))
+        # Recreate the index using the helper method
+        self._index = self._create_index()
         
         # Clear all mappings
         self._id_to_idx.clear()
@@ -285,6 +287,12 @@ class FAISSVectorStore(VectorStore):
     def save(self, path: Optional[str] = None) -> None:
         """Save the FAISS index to disk.
         
+        WARNING: This method only saves the FAISS index itself. The metadata
+        mappings (_id_to_idx, _idx_to_id, _metadata, _vectors) are NOT persisted.
+        After loading an index, you will need to rebuild these mappings or the
+        store will not function correctly. For full persistence, consider using
+        a database backend or implementing custom serialization.
+        
         Args:
             path: Path to save the index. Uses persist_path if not provided.
             
@@ -296,10 +304,17 @@ class FAISSVectorStore(VectorStore):
             raise ValueError("No path provided for saving the index")
         
         self._faiss.write_index(self._index, save_path)
-        logger.info(f"Saved FAISS index to {save_path}")
+        logger.warning(
+            f"Saved FAISS index to {save_path}. Note: Metadata mappings are NOT saved. "
+            "Loading this index without rebuilding metadata will cause errors."
+        )
     
     def load(self, path: Optional[str] = None) -> None:
         """Load a FAISS index from disk.
+        
+        WARNING: This method only loads the FAISS index. Metadata mappings are NOT
+        restored. The store will not work correctly without metadata. This method
+        is primarily useful for inspection or when you plan to rebuild metadata.
         
         Args:
             path: Path to load the index from. Uses persist_path if not provided.
@@ -312,4 +327,7 @@ class FAISSVectorStore(VectorStore):
             raise ValueError("No path provided for loading the index")
         
         self._index = self._faiss.read_index(load_path)
-        logger.info(f"Loaded FAISS index from {load_path}")
+        logger.warning(
+            f"Loaded FAISS index from {load_path}. Note: Metadata mappings were NOT loaded. "
+            "You must rebuild metadata mappings for the store to function correctly."
+        )
