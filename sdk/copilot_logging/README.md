@@ -12,10 +12,10 @@ A pluggable logging abstraction layer for Copilot-for-Consensus microservices.
 
 ## Installation
 
-The logging SDK is part of the copilot-events package. Install it in editable mode for development:
+The `copilot_logging` module is a standalone package with its own setup.py. Install it in editable mode for development:
 
 ```bash
-cd sdk
+cd sdk/copilot_logging
 pip install -e .
 ```
 

@@ -8,12 +8,7 @@ This script demonstrates how to use the logging abstraction layer
 for structured logging across microservices.
 """
 
-import sys
 import os
-
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
 from copilot_logging import create_logger
 
 
