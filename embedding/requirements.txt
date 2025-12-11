@@ -3,8 +3,13 @@
 
 python-dotenv==1.2.1
 
-# Optional dependencies for different embedding backends
-# Install based on your chosen backend:
-# - For local models: pip install sentence-transformers
-# - For OpenAI/Azure: pip install openai
-# - For HuggingFace: pip install transformers torch
+# Copilot SDK dependencies
+# Install the embedding provider SDK from the local sdk directory
+# Example: pip install ./sdk/copilot_embedding
+#
+# Optional backend dependencies can be installed with extras:
+# - For local models: pip install "./sdk/copilot_embedding[sentencetransformers]"
+# - For OpenAI/Azure: pip install "./sdk/copilot_embedding[openai]"
+# - For HuggingFace: pip install "./sdk/copilot_embedding[huggingface]"
+# - For all backends: pip install "./sdk/copilot_embedding[all]"
+

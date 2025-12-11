@@ -6,7 +6,7 @@
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 
-from embedding.providers import (
+from copilot_embedding.providers import (
     EmbeddingProvider,
     MockEmbeddingProvider,
     SentenceTransformerEmbeddingProvider,

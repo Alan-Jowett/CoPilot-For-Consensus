@@ -5,7 +5,7 @@ import os
 import time
 import logging
 
-from embedding.factory import create_embedding_provider
+from copilot_embedding import create_embedding_provider
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

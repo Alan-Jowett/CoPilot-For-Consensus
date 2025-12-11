@@ -7,8 +7,8 @@ import os
 import pytest
 from unittest.mock import patch, Mock
 
-from embedding.factory import create_embedding_provider
-from embedding.providers import (
+from copilot_embedding.factory import create_embedding_provider
+from copilot_embedding.providers import (
     MockEmbeddingProvider,
     SentenceTransformerEmbeddingProvider,
     OpenAIEmbeddingProvider,

@@ -4,6 +4,23 @@
 
 This guide demonstrates how to use the embedding provider abstraction layer.
 
+**Note:** The embedding provider implementation has been moved to the `copilot_embedding` SDK module located in `sdk/copilot_embedding/`. This allows it to be shared across multiple services.
+
+## Installation
+
+First, install the SDK module:
+
+```bash
+# Basic installation
+pip install ./sdk/copilot_embedding
+
+# With specific backend support
+pip install "./sdk/copilot_embedding[sentencetransformers]"  # For local models
+pip install "./sdk/copilot_embedding[openai]"                 # For OpenAI/Azure
+pip install "./sdk/copilot_embedding[huggingface]"            # For HuggingFace
+pip install "./sdk/copilot_embedding[all]"                    # For all backends
+```
+
 ## Quick Start
 
 ### Using the Factory Method
@@ -11,7 +28,7 @@ This guide demonstrates how to use the embedding provider abstraction layer.
 The easiest way to create an embedding provider is using the factory method with environment variables:
 
 ```python
-from embedding.factory import create_embedding_provider
+from copilot_embedding import create_embedding_provider
 
 # Uses environment variables to select and configure provider
 provider = create_embedding_provider()
@@ -57,7 +74,7 @@ export EMBEDDING_DIMENSION=384
 ### 1. Mock Provider (for Testing)
 
 ```python
-from embedding.providers import MockEmbeddingProvider
+from copilot_embedding import MockEmbeddingProvider
 
 provider = MockEmbeddingProvider(dimension=384)
 embedding = provider.embed("Test text")
@@ -67,7 +84,7 @@ embedding = provider.embed("Test text")
 ### 2. SentenceTransformers (Local, Offline)
 
 ```python
-from embedding.providers import SentenceTransformerEmbeddingProvider
+from copilot_embedding import SentenceTransformerEmbeddingProvider
 
 provider = SentenceTransformerEmbeddingProvider(
     model_name="all-MiniLM-L6-v2",
@@ -85,7 +102,7 @@ embedding = provider.embed("Your text here")
 ### 3. OpenAI API
 
 ```python
-from embedding.providers import OpenAIEmbeddingProvider
+from copilot_embedding import OpenAIEmbeddingProvider
 
 provider = OpenAIEmbeddingProvider(
     api_key="your-openai-api-key",
@@ -97,7 +114,7 @@ embedding = provider.embed("Your text here")
 ### 4. Azure OpenAI
 
 ```python
-from embedding.providers import OpenAIEmbeddingProvider
+from copilot_embedding import OpenAIEmbeddingProvider
 
 provider = OpenAIEmbeddingProvider(
     api_key="your-azure-api-key",
@@ -112,7 +129,7 @@ embedding = provider.embed("Your text here")
 ### 5. HuggingFace Transformers
 
 ```python
-from embedding.providers import HuggingFaceEmbeddingProvider
+from copilot_embedding import HuggingFaceEmbeddingProvider
 
 provider = HuggingFaceEmbeddingProvider(
     model_name="sentence-transformers/all-MiniLM-L6-v2",
@@ -128,7 +145,7 @@ embedding = provider.embed("Your text here")
 You can also pass parameters directly to the factory:
 
 ```python
-from embedding.factory import create_embedding_provider
+from copilot_embedding import create_embedding_provider
 
 # Mock provider
 provider = create_embedding_provider(backend="mock", dimension=128)
@@ -154,21 +171,6 @@ provider = create_embedding_provider(
     api_base="https://your-resource.openai.azure.com/",
     deployment_name="your-deployment"
 )
-```
-
-## Installation
-
-Install the dependencies for your chosen backend:
-
-```bash
-# For local SentenceTransformers
-pip install sentence-transformers
-
-# For OpenAI/Azure OpenAI
-pip install openai
-
-# For HuggingFace Transformers
-pip install transformers torch
 ```
 
 ## Interface
