@@ -41,7 +41,15 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ./adapters/copilot_storage ./adapters/copilot_events ./adapters/copilot_logging ./adapters/copilot_reporting ./adapters/copilot_config
+        pip install --no-cache-dir \
+            ./adapters/copilot_storage \
+            ./adapters/copilot_schema_validation \
+            ./adapters/copilot_events \
+            ./adapters/copilot_reporting \
+            ./adapters/copilot_config \
+            ./adapters/copilot_logging \
+            ./adapters/copilot_metrics \
+            ./adapters/copilot_auth
         cd ingestion
         pip install -r requirements.txt
         pip install pytest pytest-cov
@@ -152,7 +160,15 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ./adapters/copilot_storage ./adapters/copilot_events ./adapters/copilot_logging ./adapters/copilot_reporting ./adapters/copilot_config
+        pip install --no-cache-dir \
+            ./adapters/copilot_storage \
+            ./adapters/copilot_schema_validation \
+            ./adapters/copilot_events \
+            ./adapters/copilot_reporting \
+            ./adapters/copilot_config \
+            ./adapters/copilot_logging \
+            ./adapters/copilot_metrics \
+            ./adapters/copilot_auth
         cd ingestion
         pip install -r requirements.txt pytest
 
@@ -217,7 +233,15 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ./adapters/copilot_storage ./adapters/copilot_events ./adapters/copilot_logging ./adapters/copilot_reporting ./adapters/copilot_config
+        pip install --no-cache-dir \
+            ./adapters/copilot_storage \
+            ./adapters/copilot_schema_validation \
+            ./adapters/copilot_events \
+            ./adapters/copilot_reporting \
+            ./adapters/copilot_config \
+            ./adapters/copilot_logging \
+            ./adapters/copilot_metrics \
+            ./adapters/copilot_auth
         cd ingestion
         pip install -r requirements.txt
         pip install pylint bandit

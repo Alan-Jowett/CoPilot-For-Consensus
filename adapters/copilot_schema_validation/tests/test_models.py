@@ -5,7 +5,7 @@
 
 import json
 
-from copilot_events import (
+from copilot_schema_validation import (
     ArchiveIngestedEvent,
     ArchiveIngestionFailedEvent,
     JSONParsedEvent,

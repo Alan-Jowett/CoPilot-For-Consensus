@@ -6,12 +6,9 @@
 import json
 import logging
 import re
-from typing import Callable, Dict, Any, Optional
+from typing import Callable, Dict, Any
 
 from .subscriber import EventSubscriber
-from .schema_provider import SchemaProvider
-from .file_schema_provider import FileSchemaProvider
-from .schema_validator import validate_json
 
 
 logger = logging.getLogger(__name__)
@@ -35,8 +32,6 @@ class RabbitMQSubscriber(EventSubscriber):
         queue_name: str = None,
         queue_durable: bool = True,
         auto_ack: bool = False,
-        validate_events: bool = True,
-        schema_provider: Optional[SchemaProvider] = None,
     ):
         """Initialize RabbitMQ subscriber.
         
@@ -60,8 +55,6 @@ class RabbitMQSubscriber(EventSubscriber):
         self.queue_name = queue_name
         self.queue_durable = queue_durable
         self.auto_ack = auto_ack
-        self.validate_events = validate_events
-        self.schema_provider = schema_provider or FileSchemaProvider()
         
         self.connection = None
         self.channel = None
@@ -205,25 +198,6 @@ class RabbitMQSubscriber(EventSubscriber):
                     channel.basic_ack(delivery_tag=method.delivery_tag)
                 return
             
-            if self.validate_events:
-                schema = self.schema_provider.get_schema(event_type)
-                if schema is None:
-                    logger.error(
-                        "No schema found for event_type '%s'; dropping message", event_type
-                    )
-                    if not self.auto_ack:
-                        channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
-                    return
-
-                is_valid, errors = validate_json(event, schema)
-                if not is_valid:
-                    logger.error(
-                        "Event validation failed for '%s': %s", event_type, "; ".join(errors)
-                    )
-                    if not self.auto_ack:
-                        channel.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
-                    return
-
             # Find and call registered callback
             callback = self.callbacks.get(event_type)
             

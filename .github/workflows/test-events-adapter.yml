@@ -40,7 +40,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ./adapters/copilot_storage ./adapters/copilot_events
+        pip install ./adapters/copilot_storage ./adapters/copilot_schema_validation ./adapters/copilot_events
         pip install pytest pytest-cov jsonschema pymongo
 
     - name: Run unit tests (exclude integration)
