@@ -3,12 +3,8 @@
 
 """Tests for OpenAISummarizer."""
 
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from adapters.openai_summarizer import OpenAISummarizer
-from adapters.models import Thread
+from copilot_summarization.openai_summarizer import OpenAISummarizer
+from copilot_summarization.models import Thread
 
 
 class TestOpenAISummarizer:

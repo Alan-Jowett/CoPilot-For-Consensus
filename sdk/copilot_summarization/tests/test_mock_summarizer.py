@@ -3,12 +3,8 @@
 
 """Tests for MockSummarizer."""
 
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from adapters.mock_summarizer import MockSummarizer
-from adapters.models import Thread
+from copilot_summarization.mock_summarizer import MockSummarizer
+from copilot_summarization.models import Thread
 
 
 class TestMockSummarizer:

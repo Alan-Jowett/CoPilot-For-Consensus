@@ -3,12 +3,8 @@
 
 """Tests for LocalLLMSummarizer."""
 
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from adapters.local_llm_summarizer import LocalLLMSummarizer
-from adapters.models import Thread
+from copilot_summarization.local_llm_summarizer import LocalLLMSummarizer
+from copilot_summarization.models import Thread
 
 
 class TestLocalLLMSummarizer:

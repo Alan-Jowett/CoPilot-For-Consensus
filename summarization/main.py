@@ -3,7 +3,7 @@
 
 import time
 import logging
-from adapters import SummarizerFactory
+from copilot_summarization import SummarizerFactory
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

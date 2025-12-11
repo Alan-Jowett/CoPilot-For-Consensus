@@ -3,15 +3,12 @@
 
 """Tests for SummarizerFactory."""
 
-import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 import pytest
-from adapters.factory import SummarizerFactory
-from adapters.openai_summarizer import OpenAISummarizer
-from adapters.mock_summarizer import MockSummarizer
-from adapters.local_llm_summarizer import LocalLLMSummarizer
+from copilot_summarization.factory import SummarizerFactory
+from copilot_summarization.openai_summarizer import OpenAISummarizer
+from copilot_summarization.mock_summarizer import MockSummarizer
+from copilot_summarization.local_llm_summarizer import LocalLLMSummarizer
 
 
 class TestSummarizerFactory:
