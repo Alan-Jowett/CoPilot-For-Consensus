@@ -11,8 +11,8 @@ import logging
 import sys
 import os
 
-# Add SDK to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'sdk', 'copilot_consensus'))
+# Add adapters to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'adapters', 'copilot_consensus'))
 
 from copilot_consensus import (
     Thread,
