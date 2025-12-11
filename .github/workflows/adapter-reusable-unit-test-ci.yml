@@ -55,6 +55,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest pytest-cov
           python adapters/scripts/install_adapters.py
+          python adapters/scripts/install_extras.py '${{ inputs.extra_pip_packages }}'
 
       - name: Run unit tests
         run: |
