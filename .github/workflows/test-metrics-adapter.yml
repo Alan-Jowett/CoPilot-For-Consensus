@@ -13,6 +13,7 @@ on:
     branches: [ main ]
     paths:
       - 'adapters/copilot_metrics/**'
+      - '.github/workflows/test-metrics-adapter.yml'
 
 permissions:
   contents: read

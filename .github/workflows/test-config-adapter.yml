@@ -13,6 +13,7 @@ on:
     branches: [ main ]
     paths:
       - 'adapters/copilot_config/**'
+      - '.github/workflows/test-config-adapter.yml'
 
 permissions:
   contents: read
