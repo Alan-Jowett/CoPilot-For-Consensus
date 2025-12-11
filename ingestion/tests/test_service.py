@@ -9,6 +9,8 @@ import tempfile
 import pytest
 
 from copilot_events import NoopPublisher
+from copilot_logging import create_logger
+from copilot_metrics import NoOpMetricsCollector
 
 from app.config import IngestionConfig, SourceConfig
 from app.service import IngestionService
@@ -33,7 +35,9 @@ class TestIngestionService:
         """Create test ingestion service."""
         publisher = NoopPublisher()
         publisher.connect()
-        return IngestionService(config, publisher)
+        logger = create_logger(logger_type="silent", name="ingestion-test")
+        metrics = NoOpMetricsCollector()
+        return IngestionService(config, publisher, logger=logger, metrics=metrics)
 
     def test_service_initialization(self, service):
         """Test service initialization."""
@@ -91,6 +95,36 @@ class TestIngestionService:
 
             assert success is True
             assert len(service.checksums) == 1
+
+    def test_metrics_emitted_on_success(self, service, temp_storage):
+        """Ensure metrics are emitted for successful ingestion."""
+        with tempfile.TemporaryDirectory() as source_dir:
+            test_file = os.path.join(source_dir, "test.mbox")
+            with open(test_file, "w") as f:
+                f.write("content")
+
+            source = SourceConfig(
+                name="test-source",
+                source_type="local",
+                url=test_file,
+            )
+
+            service.ingest_archive(source, max_retries=1)
+
+            metric_tags = {"source_name": "test-source", "source_type": "local"}
+            assert isinstance(service.metrics, NoOpMetricsCollector)
+            assert service.metrics.get_counter_total(
+                "ingestion_sources_total",
+                tags={**metric_tags, "status": "success"},
+            ) == 1.0
+            assert service.metrics.get_counter_total(
+                "ingestion_files_total",
+                tags={**metric_tags, "status": "success"},
+            ) == 1.0
+            assert service.metrics.get_gauge_value(
+                "ingestion_files_processed",
+                tags=metric_tags,
+            ) == 1.0
 
     def test_ingest_archive_duplicate(self, service, temp_storage):
         """Test skipping duplicate archive."""
@@ -226,11 +260,20 @@ class TestIngestionService:
         from copilot_reporting import SilentErrorReporter
         
         config = IngestionConfig(storage_path=temp_storage)
+        config.log_type = "silent"
         publisher = NoopPublisher()
         publisher.connect()
         error_reporter = SilentErrorReporter()
-        
-        service = IngestionService(config, publisher, error_reporter=error_reporter)
+        logger = create_logger(logger_type="silent", name="ingestion-test")
+        metrics = NoOpMetricsCollector()
+
+        service = IngestionService(
+            config,
+            publisher,
+            error_reporter=error_reporter,
+            logger=logger,
+            metrics=metrics,
+        )
         
         # Verify error reporter is initialized
         assert service.error_reporter is error_reporter
@@ -249,10 +292,13 @@ class TestIngestionService:
     def test_error_reporter_default_initialization(self, config):
         """Test default error reporter initialization from config."""
         config.error_reporter_type = "silent"
+        config.log_type = "silent"
         publisher = NoopPublisher()
         publisher.connect()
-        
-        service = IngestionService(config, publisher)
+        logger = create_logger(logger_type="silent", name="ingestion-test")
+        metrics = NoOpMetricsCollector()
+
+        service = IngestionService(config, publisher, logger=logger, metrics=metrics)
         
         # Verify error reporter was created from config
         from copilot_reporting import SilentErrorReporter

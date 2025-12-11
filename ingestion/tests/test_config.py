@@ -73,12 +73,18 @@ class TestIngestionConfig:
         os.environ["STORAGE_PATH"] = "/custom/storage"
         os.environ["MESSAGE_BUS_HOST"] = "custom-host"
         os.environ["LOG_LEVEL"] = "DEBUG"
+        os.environ["LOG_TYPE"] = "silent"
+        os.environ["LOG_NAME"] = "ingestion-test"
+        os.environ["METRICS_BACKEND"] = "noop"
 
         config = IngestionConfig.from_env()
 
         assert config.storage_path == "/custom/storage"
         assert config.message_bus_host == "custom-host"
         assert config.log_level == "DEBUG"
+        assert config.log_type == "silent"
+        assert config.logger_name == "ingestion-test"
+        assert config.metrics_backend == "noop"
 
     def test_ingestion_config_defaults(self):
         """Test IngestionConfig defaults."""
@@ -88,6 +94,9 @@ class TestIngestionConfig:
             "MESSAGE_BUS_HOST",
             "MESSAGE_BUS_PORT",
             "RETRY_MAX_ATTEMPTS",
+            "LOG_TYPE",
+            "LOG_NAME",
+            "METRICS_BACKEND",
         ]:
             os.environ.pop(key, None)
 
@@ -97,6 +106,9 @@ class TestIngestionConfig:
         assert config.message_bus_host == "messagebus"
         assert config.message_bus_port == 5672
         assert config.retry_max_attempts == 3
+        assert config.log_type == "stdout"
+        assert config.logger_name == "ingestion-service"
+        assert config.metrics_backend == "noop"
 
     def test_ingestion_config_ensure_storage_path(self):
         """Test storage path creation."""
