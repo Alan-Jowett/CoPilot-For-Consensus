@@ -18,7 +18,8 @@ services:
   parsing:
     image: copilot-parsing:latest
     build:
-      context: ./parsing
+      context: .
+      dockerfile: ./parsing/Dockerfile
     environment:
       - STORAGE_PATH=/data/parsed_json
     volumes:
@@ -36,7 +37,8 @@ services:
   embedding:
     image: copilot-embedding:latest
     build:
-      context: ./embedding
+      context: .
+      dockerfile: ./embedding/Dockerfile
     environment:
       - VECTOR_DB_HOST=vectorstore
       - EMBEDDING_BACKEND=${EMBEDDING_BACKEND:-sentencetransformers}
@@ -65,7 +67,8 @@ services:
   orchestrator:
     image: copilot-orchestrator:latest
     build:
-      context: ./orchestrator
+      context: .
+      dockerfile: ./orchestrator/Dockerfile
     environment:
       - VECTOR_DB_HOST=vectorstore
       - DOC_DB_HOST=documentdb
