@@ -110,13 +110,11 @@ jobs:
             chmod 666 /tmp/rsyncd.lock /tmp/rsyncd.pid
           cp -r "$FIXTURE_PATH"/. /tmp/rsync-data/
           cat >/tmp/rsyncd.conf <<EOF
-          uid = nobody
-          gid = nogroup
           use chroot = no
           max connections = 4
           log file = /tmp/rsyncd.log
-            lock file = /tmp/rsyncd.lock
-            pid file = /tmp/rsyncd.pid
+          lock file = /tmp/rsyncd.lock
+          pid file = /tmp/rsyncd.pid
           [${{ inputs.rsync_module }}]
               path = /tmp/rsync-data
               read only = yes
