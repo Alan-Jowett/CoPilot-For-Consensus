@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-python-dotenv==1.2.1
-pytest==7.4.3
+"""Tests for summarization service."""

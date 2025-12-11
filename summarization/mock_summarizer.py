@@ -5,8 +5,12 @@
 
 import time
 import logging
-from .summarizer import Summarizer
-from .models import Thread, Summary, Citation
+try:
+    from summarizer import Summarizer
+    from models import Thread, Summary, Citation
+except ImportError:
+    from .summarizer import Summarizer
+    from .models import Thread, Summary, Citation
 
 logger = logging.getLogger(__name__)
 

@@ -6,10 +6,16 @@
 import os
 import logging
 from typing import Optional
-from .summarizer import Summarizer
-from .openai_summarizer import OpenAISummarizer
-from .mock_summarizer import MockSummarizer
-from .local_llm_summarizer import LocalLLMSummarizer
+try:
+    from summarizer import Summarizer
+    from openai_summarizer import OpenAISummarizer
+    from mock_summarizer import MockSummarizer
+    from local_llm_summarizer import LocalLLMSummarizer
+except ImportError:
+    from .summarizer import Summarizer
+    from .openai_summarizer import OpenAISummarizer
+    from .mock_summarizer import MockSummarizer
+    from .local_llm_summarizer import LocalLLMSummarizer
 
 logger = logging.getLogger(__name__)
 
