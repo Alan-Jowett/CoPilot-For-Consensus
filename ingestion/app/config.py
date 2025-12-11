@@ -60,6 +60,9 @@ class IngestionConfig:
     blob_storage_connection_string: Optional[str] = None
     blob_storage_container: str = "raw-archives"
     log_level: str = "INFO"
+    log_type: str = "stdout"
+    logger_name: str = "ingestion-service"
+    metrics_backend: str = "noop"
     retry_max_attempts: int = 3
     retry_backoff_seconds: int = 60
     error_reporter_type: str = "console"  # "console", "silent", "sentry"
@@ -89,6 +92,9 @@ class IngestionConfig:
             blob_storage_connection_string=config_provider.get("BLOB_STORAGE_CONNECTION_STRING"),
             blob_storage_container=config_provider.get("BLOB_STORAGE_CONTAINER", "raw-archives"),
             log_level=config_provider.get("LOG_LEVEL", "INFO"),
+            log_type=config_provider.get("LOG_TYPE", "stdout"),
+            logger_name=config_provider.get("LOG_NAME", "ingestion-service"),
+            metrics_backend=config_provider.get("METRICS_BACKEND", "noop"),
             retry_max_attempts=config_provider.get_int("RETRY_MAX_ATTEMPTS", 3),
             retry_backoff_seconds=config_provider.get_int("RETRY_BACKOFF_SECONDS", 60),
             error_reporter_type=config_provider.get("ERROR_REPORTER_TYPE", "console"),

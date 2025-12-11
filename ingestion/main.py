@@ -3,7 +3,6 @@
 
 """Ingestion Service: Fetch mailing list archives from various sources."""
 
-import logging
 import os
 import sys
 
@@ -11,22 +10,21 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 from copilot_events import create_publisher
+from copilot_logging import create_logger
+from copilot_metrics import create_metrics_collector
 
 from app import __version__
 from app.config import IngestionConfig
 from app.service import IngestionService
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+# Bootstrap logger before configuration is loaded
+bootstrap_logger = create_logger(name="ingestion-bootstrap")
 
 
 def main():
     """Main entry point for the ingestion service."""
-    logger.info(f"Starting Ingestion Service (version {__version__})")
+    log = bootstrap_logger
+    log.info("Starting Ingestion Service", version=__version__)
 
     try:
         # Load configuration from environment and optional config file
@@ -46,21 +44,51 @@ def main():
         if os.path.exists(config_file):
             try:
                 config = IngestionConfig.from_yaml_file(config_file)
-                logger.info(f"Loaded configuration from {config_file}")
+                log.info("Loaded configuration from file", config_file=config_file)
             except Exception as e:
-                logger.warning(
-                    f"Failed to load config file {config_file}: {e}. Using environment variables."
+                log.warning(
+                    "Failed to load config file, using environment variables",
+                    config_file=config_file,
+                    error=str(e),
                 )
         else:
-            logger.info(f"No config file found at {config_file}, using environment variables")
+            log.info(
+                "No config file found, using environment variables",
+                expected_path=config_file,
+            )
 
-        # Set logging level
-        logging.getLogger().setLevel(config.log_level)
-        logger.info(f"Log level set to {config.log_level}")
+        # Recreate logger with configured settings
+        service_logger = create_logger(
+            logger_type=config.log_type,
+            level=config.log_level,
+            name=config.logger_name,
+        )
+
+        # Build metrics collector, fall back to NoOp if backend unavailable
+        try:
+            metrics = create_metrics_collector(backend=config.metrics_backend)
+        except Exception as e:  # graceful fallback for missing optional deps
+            from copilot_metrics import NoOpMetricsCollector
+
+            service_logger.warning(
+                "Metrics backend unavailable; falling back to NoOp",
+                backend=config.metrics_backend,
+                error=str(e),
+            )
+            metrics = NoOpMetricsCollector()
+
+        log = service_logger
+
+        log.info(
+            "Logger configured",
+            log_level=config.log_level,
+            log_type=config.log_type,
+            metrics_backend=config.metrics_backend,
+        )
 
         # Ensure storage path exists
         config.ensure_storage_path()
-        logger.info(f"Storage path: {config.storage_path}")
+        log.info("Storage path prepared", storage_path=config.storage_path)
 
         # Create event publisher
         publisher = create_publisher(
@@ -73,24 +101,40 @@ def main():
 
         # Connect publisher
         if not publisher.connect():
-            logger.warning("Failed to connect to message bus. Will continue with noop publisher.")
+            log.warning(
+                "Failed to connect to message bus. Will continue with noop publisher.",
+                host=config.message_bus_host,
+                port=config.message_bus_port,
+            )
 
         # Create ingestion service
-        service = IngestionService(config, publisher)
+        service = IngestionService(
+            config,
+            publisher,
+            logger=log,
+            metrics=metrics,
+        )
 
         # Ingest from all enabled sources
-        logger.info(f"Found {len(config.get_enabled_sources())} enabled source(s)")
+        log.info(
+            "Starting ingestion for enabled sources",
+            enabled_source_count=len(config.get_enabled_sources()),
+        )
 
         results = service.ingest_all_enabled_sources()
 
         # Log results
         for source_name, success in results.items():
             status = "SUCCESS" if success else "FAILED"
-            logger.info(f"Source '{source_name}': {status}")
+            log.info("Source ingestion summary", source_name=source_name, status=status)
 
         # Count successes
         successful = sum(1 for s in results.values() if s)
-        logger.info(f"Ingestion complete: {successful}/{len(results)} sources succeeded")
+        log.info(
+            "Ingestion complete",
+            successful_sources=successful,
+            total_sources=len(results),
+        )
 
         # Cleanup
         publisher.disconnect()
@@ -99,7 +143,7 @@ def main():
         sys.exit(0 if successful == len(results) else 1)
 
     except Exception as e:
-        logger.error(f"Fatal error in ingestion service: {e}", exc_info=True)
+        log.error("Fatal error in ingestion service", error=str(e))
         sys.exit(1)
 
 

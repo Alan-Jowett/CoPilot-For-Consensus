@@ -2,7 +2,6 @@
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
 import json
-import logging
 import os
 import time
 from datetime import datetime
@@ -10,12 +9,12 @@ from typing import Optional, Dict, Any
 from uuid import uuid4
 
 from copilot_events import EventPublisher, ArchiveIngestedEvent, ArchiveIngestionFailedEvent, ArchiveMetadata
+from copilot_logging import Logger, create_logger
+from copilot_metrics import MetricsCollector, create_metrics_collector
 from copilot_reporting import ErrorReporter, create_error_reporter
 from copilot_archive_fetcher import create_fetcher, calculate_file_hash
 
 from .config import IngestionConfig, SourceConfig
-
-logger = logging.getLogger(__name__)
 
 
 class IngestionService:
@@ -26,6 +25,8 @@ class IngestionService:
         config: IngestionConfig,
         publisher: EventPublisher,
         error_reporter: Optional[ErrorReporter] = None,
+        logger: Optional[Logger] = None,
+        metrics: Optional[MetricsCollector] = None,
     ):
         """Initialize ingestion service.
         
@@ -33,10 +34,20 @@ class IngestionService:
             config: Ingestion configuration
             publisher: Event publisher for publishing ingestion events
             error_reporter: Error reporter for structured error reporting (optional)
+            logger: Structured logger for observability (optional)
+            metrics: Metrics collector for observability (optional)
         """
         self.config = config
         self.publisher = publisher
         self.checksums: Dict[str, Dict[str, Any]] = {}
+        self.logger = logger or create_logger(
+            logger_type=config.log_type,
+            level=config.log_level,
+            name=config.logger_name,
+        )
+        self.metrics = metrics or create_metrics_collector(backend=config.metrics_backend)
+        self.config.ensure_storage_path()
+        self._initial_storage_path = self.config.storage_path
         
         # Initialize error reporter
         if error_reporter is None:
@@ -44,6 +55,7 @@ class IngestionService:
                 reporter_type=config.error_reporter_type,
                 dsn=config.sentry_dsn,
                 environment=config.sentry_environment,
+                logger_name=config.logger_name,
             )
         else:
             self.error_reporter = error_reporter
@@ -58,9 +70,13 @@ class IngestionService:
             try:
                 with open(checksums_path, "r") as f:
                     self.checksums = json.load(f)
-                logger.info(f"Loaded {len(self.checksums)} checksums from {checksums_path}")
+                self.logger.info(
+                    "Loaded checksums",
+                    checksum_count=len(self.checksums),
+                    checksums_path=checksums_path,
+                )
             except Exception as e:
-                logger.warning(f"Failed to load checksums: {e}")
+                self.logger.warning("Failed to load checksums", error=str(e))
                 self.error_reporter.report(
                     e,
                     context={
@@ -75,14 +91,21 @@ class IngestionService:
     def save_checksums(self) -> None:
         """Save checksums to metadata file."""
         checksums_path = os.path.join(self.config.storage_path, "metadata", "checksums.json")
-
         try:
+            if self.config.storage_path != self._initial_storage_path:
+                raise ValueError("Storage path changed after initialization")
+            if not os.path.exists(self.config.storage_path):
+                raise FileNotFoundError(f"Storage path does not exist: {self.config.storage_path}")
             os.makedirs(os.path.dirname(checksums_path), exist_ok=True)
             with open(checksums_path, "w") as f:
                 json.dump(self.checksums, f, indent=2)
-            logger.info(f"Saved {len(self.checksums)} checksums to {checksums_path}")
+            self.logger.info(
+                "Saved checksums",
+                checksum_count=len(self.checksums),
+                checksums_path=checksums_path,
+            )
         except Exception as e:
-            logger.error(f"Failed to save checksums: {e}")
+            self.logger.error("Failed to save checksums", error=str(e))
             self.error_reporter.report(
                 e,
                 context={
@@ -142,14 +165,20 @@ class IngestionService:
             max_retries = self.config.retry_max_attempts
 
         ingestion_started_at = datetime.utcnow().isoformat() + "Z"
+        started_monotonic = time.monotonic()
+        metric_tags = self._metric_tags(source)
 
         retry_count = 0
         last_error = None
 
         for attempt in range(max_retries + 1):
             try:
-                logger.info(
-                    f"Ingesting from source {source.name} (attempt {attempt + 1}/{max_retries + 1})"
+                self.logger.info(
+                    "Ingesting from source",
+                    source_name=source.name,
+                    source_type=source.source_type,
+                    attempt=attempt + 1,
+                    max_attempts=max_retries + 1,
                 )
 
                 # Create fetcher
@@ -167,9 +196,12 @@ class IngestionService:
 
                     if attempt < max_retries:
                         wait_time = self.config.retry_backoff_seconds * (2 ** attempt)
-                        logger.warning(
-                            f"Fetch attempt {attempt + 1} failed: {last_error}. "
-                            f"Retrying in {wait_time} seconds..."
+                        self.logger.warning(
+                            "Fetch attempt failed",
+                            source_name=source.name,
+                            attempt=attempt + 1,
+                            wait_time_seconds=wait_time,
+                            error=last_error,
                         )
                         time.sleep(wait_time)
                         continue
@@ -182,6 +214,7 @@ class IngestionService:
                             retry_count,
                             ingestion_started_at,
                         )
+                        self._record_failure_metrics(metric_tags, started_monotonic)
                         return False
 
                 # Process each file individually
@@ -195,10 +228,17 @@ class IngestionService:
 
                     # Check if already ingested
                     if self.is_file_already_ingested(file_hash):
-                        logger.debug(
-                            f"File {file_path} already ingested (hash: {file_hash[:16]}...)"
+                        self.logger.debug(
+                            "File already ingested",
+                            file_path=file_path,
+                            file_hash=file_hash,
+                            source_name=source.name,
                         )
                         files_skipped += 1
+                        self.metrics.increment(
+                            "ingestion_files_total",
+                            tags={**metric_tags, "status": "skipped"},
+                        )
                         continue
 
                     # Generate archive ID for this file
@@ -229,21 +269,46 @@ class IngestionService:
                     # Publish success event
                     self._publish_success_event(metadata)
 
+                    self.metrics.increment(
+                        "ingestion_files_total",
+                        tags={**metric_tags, "status": "success"},
+                    )
+                    self.metrics.observe(
+                        "ingestion_file_size_bytes",
+                        file_size,
+                        tags=metric_tags,
+                    )
+
                     files_processed += 1
 
                 # Save all checksums at once
                 self.save_checksums()
 
-                logger.info(
-                    f"Successfully ingested from {source.name}: "
-                    f"{files_processed} new files, {files_skipped} already ingested"
+                duration_seconds = time.monotonic() - started_monotonic
+                self.logger.info(
+                    "Ingestion completed",
+                    source_name=source.name,
+                    files_processed=files_processed,
+                    files_skipped=files_skipped,
+                    duration_seconds=duration_seconds,
+                )
+                self._record_success_metrics(
+                    metric_tags,
+                    duration_seconds,
+                    files_processed,
+                    files_skipped,
                 )
                 return True
 
             except Exception as e:
                 last_error = f"Unexpected error: {str(e)}"
                 retry_count += 1
-                logger.error(f"Ingestion error: {last_error}")
+                self.logger.error(
+                    "Ingestion error",
+                    error=last_error,
+                    attempt=attempt + 1,
+                    source_name=source.name,
+                )
                 
                 # Report error with context
                 self.error_reporter.report(
@@ -259,7 +324,12 @@ class IngestionService:
 
                 if attempt < max_retries:
                     wait_time = self.config.retry_backoff_seconds * (2 ** attempt)
-                    logger.warning(f"Retrying in {wait_time} seconds...")
+                    self.logger.warning(
+                        "Retrying after error",
+                        wait_time_seconds=wait_time,
+                        attempt=attempt + 1,
+                        source_name=source.name,
+                    )
                     time.sleep(wait_time)
                     continue
                 else:
@@ -271,6 +341,7 @@ class IngestionService:
                         retry_count,
                         ingestion_started_at,
                     )
+                    self._record_failure_metrics(metric_tags, started_monotonic)
                     return False
 
         return False
@@ -284,10 +355,14 @@ class IngestionService:
         results = {}
 
         for source in self.config.get_enabled_sources():
-            logger.info(f"Ingesting from source: {source.name}")
+            self.logger.info("Starting source ingestion", source_name=source.name)
             success = self.ingest_archive(source)
             results[source.name] = success
-            logger.info(f"Source {source.name}: {'success' if success else 'failed'}")
+            self.logger.info(
+                "Source ingestion finished",
+                source_name=source.name,
+                status="success" if success else "failed",
+            )
 
         return results
 
@@ -342,9 +417,13 @@ class IngestionService:
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
             with open(log_path, "a") as f:
                 f.write(json.dumps(metadata.to_dict()) + "\n")
-            logger.debug(f"Saved ingestion log entry to {log_path}")
+            self.logger.debug(
+                "Saved ingestion log entry",
+                log_path=log_path,
+                archive_id=metadata.archive_id,
+            )
         except Exception as e:
-            logger.error(f"Failed to save ingestion log: {e}")
+            self.logger.error("Failed to save ingestion log", error=str(e))
             self.error_reporter.report(
                 e,
                 context={
@@ -369,7 +448,11 @@ class IngestionService:
         )
 
         if not success:
-            logger.error(f"Failed to publish ArchiveIngested event for {metadata.archive_id}")
+            self.logger.error(
+                "Failed to publish success event",
+                archive_id=metadata.archive_id,
+                source_name=metadata.source_name,
+            )
             self.error_reporter.capture_message(
                 f"Failed to publish ArchiveIngested event",
                 level="error",
@@ -419,7 +502,11 @@ class IngestionService:
         )
 
         if not success:
-            logger.error(f"Failed to publish ArchiveIngestionFailed event for {source.name}")
+            self.logger.error(
+                "Failed to publish failure event",
+                source_name=source.name,
+                error_type=error_type,
+            )
             self.error_reporter.capture_message(
                 f"Failed to publish ArchiveIngestionFailed event",
                 level="error",
@@ -429,3 +516,52 @@ class IngestionService:
                     "error_type": error_type,
                 }
             )
+
+    def _record_success_metrics(
+        self,
+        tags: Dict[str, str],
+        duration_seconds: float,
+        files_processed: int,
+        files_skipped: int,
+    ) -> None:
+        """Emit success metrics for a source ingestion."""
+        self.metrics.increment(
+            "ingestion_sources_total",
+            tags={**tags, "status": "success"},
+        )
+        self.metrics.observe(
+            "ingestion_duration_seconds",
+            duration_seconds,
+            tags=tags,
+        )
+        self.metrics.gauge(
+            "ingestion_files_processed",
+            float(files_processed),
+            tags=tags,
+        )
+        self.metrics.gauge(
+            "ingestion_files_skipped",
+            float(files_skipped),
+            tags=tags,
+        )
+
+    def _record_failure_metrics(self, tags: Dict[str, str], started_monotonic: float) -> None:
+        """Emit failure metrics for a source ingestion."""
+        duration_seconds = time.monotonic() - started_monotonic
+        self.metrics.increment(
+            "ingestion_sources_total",
+            tags={**tags, "status": "failure"},
+        )
+        self.metrics.observe(
+            "ingestion_duration_seconds",
+            duration_seconds,
+            tags=tags,
+        )
+
+    @staticmethod
+    def _metric_tags(source: SourceConfig) -> Dict[str, str]:
+        """Build consistent metric tags for a source."""
+        return {
+            "source_name": source.name,
+            "source_type": source.source_type,
+        }
