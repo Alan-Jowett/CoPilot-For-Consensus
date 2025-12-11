@@ -50,7 +50,7 @@ jobs:
       - name: Run unit tests
         run: |
           cd ${{ inputs.adapter_path }}
-          pytest tests/ -v --tb=short --junit-xml=test-results.xml --cov=${{ inputs.package_name }} --cov-report=lcov --cov-report=html --cov-report=term
+          pytest tests/ -v --tb=short -m "not integration" --junit-xml=test-results.xml --cov=${{ inputs.package_name }} --cov-report=lcov --cov-report=html --cov-report=term
 
       - name: Upload coverage to Coveralls
         continue-on-error: true

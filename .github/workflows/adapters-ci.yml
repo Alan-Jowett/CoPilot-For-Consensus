@@ -27,17 +27,18 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       copilot_auth: ${{ steps.filter.outputs.copilot_auth }}
+      copilot_chunking: ${{ steps.filter.outputs.copilot_chunking }}
       copilot_config: ${{ steps.filter.outputs.copilot_config }}
+      copilot_consensus: ${{ steps.filter.outputs.copilot_consensus }}
+      copilot_embedding: ${{ steps.filter.outputs.copilot_embedding }}
       copilot_events: ${{ steps.filter.outputs.copilot_events }}
       copilot_logging: ${{ steps.filter.outputs.copilot_logging }}
       copilot_metrics: ${{ steps.filter.outputs.copilot_metrics }}
       copilot_reporting: ${{ steps.filter.outputs.copilot_reporting }}
-      copilot_storage: ${{ steps.filter.outputs.copilot_storage }}
-      copilot_embedding: ${{ steps.filter.outputs.copilot_embedding }}
-      copilot_chunking: ${{ steps.filter.outputs.copilot_chunking }}
-      copilot_consensus: ${{ steps.filter.outputs.copilot_consensus }}
       copilot_schema_validation: ${{ steps.filter.outputs.copilot_schema_validation }}
+      copilot_storage: ${{ steps.filter.outputs.copilot_storage }}
       copilot_vectorstore: ${{ steps.filter.outputs.copilot_vectorstore }}
+      ci_workflows: ${{ steps.filter.outputs.ci_workflows }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -46,8 +47,11 @@ jobs:
         id: filter
         uses: dorny/paths-filter@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ github.token }}
           filters: |
+            ci_workflows:
+              - '.github/workflows/adapter-reusable-ci.yml'
+              - '.github/workflows/adapters-ci.yml'
             copilot_auth:
               - 'adapters/copilot_auth/**'
             copilot_config:
@@ -75,7 +79,7 @@ jobs:
 
   auth-ci:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_auth == 'true' }}
+    if: ${{ needs.detect-changes.outputs.copilot_auth == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
     uses: ./.github/workflows/adapter-reusable-ci.yml
     with:
       adapter_id: copilot_auth
@@ -84,7 +88,7 @@ jobs:
 
   config-ci:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_config == 'true' }}
+    if: ${{ needs.detect-changes.outputs.copilot_config == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
     uses: ./.github/workflows/adapter-reusable-ci.yml
     with:
       adapter_id: copilot_config
@@ -93,7 +97,7 @@ jobs:
 
   events-ci:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_events == 'true' }}
+    if: ${{ needs.detect-changes.outputs.copilot_events == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
     uses: ./.github/workflows/adapter-reusable-ci.yml
     with:
       adapter_id: copilot_events
@@ -102,7 +106,7 @@ jobs:
 
   logging-ci:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_logging == 'true' }}
+    if: ${{ needs.detect-changes.outputs.copilot_logging == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
     uses: ./.github/workflows/adapter-reusable-ci.yml
     with:
       adapter_id: copilot_logging
@@ -111,7 +115,7 @@ jobs:
 
   metrics-ci:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_metrics == 'true' }}
+    if: ${{ needs.detect-changes.outputs.copilot_metrics == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
     uses: ./.github/workflows/adapter-reusable-ci.yml
     with:
       adapter_id: copilot_metrics
@@ -120,7 +124,7 @@ jobs:
 
   reporting-ci:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_reporting == 'true' }}
+    if: ${{ needs.detect-changes.outputs.copilot_reporting == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
     uses: ./.github/workflows/adapter-reusable-ci.yml
     with:
       adapter_id: copilot_reporting
@@ -129,7 +133,7 @@ jobs:
 
   storage-ci:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_storage == 'true' }}
+    if: ${{ needs.detect-changes.outputs.copilot_storage == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
     uses: ./.github/workflows/adapter-reusable-ci.yml
     with:
       adapter_id: copilot_storage
@@ -138,7 +142,7 @@ jobs:
 
   embedding-ci:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_embedding == 'true' }}
+    if: ${{ needs.detect-changes.outputs.copilot_embedding == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
     uses: ./.github/workflows/adapter-reusable-ci.yml
     with:
       adapter_id: copilot_embedding
@@ -147,7 +151,7 @@ jobs:
 
   chunking-ci:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_chunking == 'true' }}
+    if: ${{ needs.detect-changes.outputs.copilot_chunking == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
     uses: ./.github/workflows/adapter-reusable-ci.yml
     with:
       adapter_id: copilot_chunking
@@ -156,7 +160,7 @@ jobs:
 
   consensus-ci:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_consensus == 'true' }}
+    if: ${{ needs.detect-changes.outputs.copilot_consensus == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
     uses: ./.github/workflows/adapter-reusable-ci.yml
     with:
       adapter_id: copilot_consensus
@@ -165,7 +169,7 @@ jobs:
 
   schema-validation-ci:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_schema_validation == 'true' }}
+    if: ${{ needs.detect-changes.outputs.copilot_schema_validation == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
     uses: ./.github/workflows/adapter-reusable-ci.yml
     with:
       adapter_id: copilot_schema_validation
@@ -174,7 +178,7 @@ jobs:
 
   vectorstore-ci:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_vectorstore == 'true' }}
+    if: ${{ needs.detect-changes.outputs.copilot_vectorstore == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
     uses: ./.github/workflows/adapter-reusable-ci.yml
     with:
       adapter_id: copilot_vectorstore
