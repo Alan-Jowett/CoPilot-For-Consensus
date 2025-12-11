@@ -77,6 +77,9 @@ def create_metrics_collector(
     if backend == "prometheus":
         from .prometheus_metrics import PrometheusMetricsCollector
         return PrometheusMetricsCollector(**kwargs)
+    elif backend in ("prometheus_pushgateway", "pushgateway"):
+        from .pushgateway_metrics import PrometheusPushGatewayMetricsCollector
+        return PrometheusPushGatewayMetricsCollector(**kwargs)
     elif backend == "noop":
         from .noop_metrics import NoOpMetricsCollector
         return NoOpMetricsCollector(**kwargs)

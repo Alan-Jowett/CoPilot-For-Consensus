@@ -20,6 +20,14 @@ except ImportError:
     _prometheus_available = False
     # PrometheusMetricsCollector will be available through factory but not as direct import
 
+# Lazy import for PrometheusPushGatewayMetricsCollector
+try:
+    from .pushgateway_metrics import PrometheusPushGatewayMetricsCollector
+    _pushgateway_available = True
+except ImportError:
+    _pushgateway_available = False
+    # Available through factory when prometheus_client is installed
+
 __all__ = [
     # Version
     "__version__",
@@ -32,3 +40,6 @@ __all__ = [
 # Only export PrometheusMetricsCollector if it's available
 if _prometheus_available:
     __all__.append("PrometheusMetricsCollector")
+
+if _pushgateway_available:
+    __all__.append("PrometheusPushGatewayMetricsCollector")

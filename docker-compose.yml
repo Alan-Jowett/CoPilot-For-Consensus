@@ -9,8 +9,18 @@ services:
       dockerfile: ./ingestion/Dockerfile
     environment:
       - STORAGE_PATH=/data/raw_archives
+      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - MESSAGE_BUS_HOST=messagebus
+      - MESSAGE_BUS_PORT=5672
+      - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY:-pushgateway:9091}
     volumes:
       - raw_archives:/data/raw_archives
+    ports:
+      - "8000:8000"
+    depends_on:
+      - messagebus
+      - monitoring
+      - pushgateway
     restart: "no"
     profiles:
       - manual
@@ -165,6 +175,10 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    volumes:
+      - ./infra/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+    environment:
+      - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbitmq_management load_definitions "/etc/rabbitmq/definitions.json"
     restart: unless-stopped
 
   monitoring:
@@ -221,6 +235,12 @@ services:
       context: ./error-reporting
     ports:
       - "8081:8081"
+    restart: unless-stopped
+
+pushgateway:
+    image: prom/pushgateway:latest
+    ports:
+      - "9091:9091"
     restart: unless-stopped
 
 volumes:

@@ -26,3 +26,8 @@ scrape_configs:
         regex: '([^:]+):.*'
         target_label: service
         replacement: '$1'
+
+  - job_name: 'pushgateway'
+    static_configs:
+      - targets:
+          - 'pushgateway:9091'
