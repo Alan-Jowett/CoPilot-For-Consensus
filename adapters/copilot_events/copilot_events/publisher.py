@@ -45,8 +45,6 @@ def create_publisher(
     port: int = 5672,
     username: str = "guest",
     password: str = "guest",
-    validate_events: bool = True,
-    schema_provider=None,
 ) -> EventPublisher:
     """Factory function to create an event publisher.
     
@@ -70,8 +68,6 @@ def create_publisher(
             port=port,
             username=username,
             password=password,
-            validate_events=validate_events,
-            schema_provider=schema_provider,
         )
     elif message_bus_type == "noop":
         from .noop_publisher import NoopPublisher

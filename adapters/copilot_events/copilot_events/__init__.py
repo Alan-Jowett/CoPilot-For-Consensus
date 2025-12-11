@@ -15,13 +15,8 @@ from .noop_publisher import NoopPublisher
 from .subscriber import EventSubscriber
 from .rabbitmq_subscriber import RabbitMQSubscriber
 from .noop_subscriber import NoopSubscriber
-from .schema_provider import SchemaProvider
-from .file_schema_provider import FileSchemaProvider
-from .document_store_schema_provider import DocumentStoreSchemaProvider
-# Backward compatibility alias for previous MongoSchemaProvider name
-MongoSchemaProvider = DocumentStoreSchemaProvider
-from .schema_validator import validate_json
-from .models import (
+# Import event models from the schema validation module
+from copilot_schema_validation import (
     BaseEvent,
     # Ingestion Service Events
     ArchiveIngestedEvent,
@@ -48,15 +43,12 @@ from .models import (
     ArchiveMetadata,
 )
 
-
 def create_subscriber(
     message_bus_type: str,
     host: str = None,
     port: int = None,
     username: str = None,
     password: str = None,
-    validate_events: bool = True,
-    schema_provider=None,
     **kwargs
 ) -> EventSubscriber:
     """Create an event subscriber based on message bus type.
@@ -83,8 +75,6 @@ def create_subscriber(
             port=port or 5672,
             username=username or "guest",
             password=password or "guest",
-            validate_events=validate_events,
-            schema_provider=schema_provider,
             **kwargs
         )
     elif message_bus_type == "noop":
@@ -106,11 +96,6 @@ __all__ = [
     "RabbitMQSubscriber",
     "NoopSubscriber",
     "create_subscriber",
-    # Schema Providers
-    "SchemaProvider",
-    "FileSchemaProvider",
-    "DocumentStoreSchemaProvider",
-    "validate_json",
     # Event Models
     "BaseEvent",
     "ArchiveIngestedEvent",
@@ -127,4 +112,5 @@ __all__ = [
     "SummarizationFailedEvent",
     "ReportPublishedEvent",
     "ReportDeliveryFailedEvent",
+    "ArchiveMetadata",
 ]

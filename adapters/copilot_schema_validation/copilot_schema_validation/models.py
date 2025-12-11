@@ -429,4 +429,3 @@ class ArchiveMetadata:
             "ingestion_completed_at": self.ingestion_completed_at,
             "status": self.status,
         }
-

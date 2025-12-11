@@ -13,8 +13,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from copilot_events.document_store_schema_provider import DocumentStoreSchemaProvider
-from copilot_events.schema_validator import validate_json
+from copilot_schema_validation.document_store_schema_provider import DocumentStoreSchemaProvider
+from copilot_schema_validation.schema_validator import validate_json
 from copilot_storage import create_document_store
 
 
@@ -75,3 +75,4 @@ def test_seeded_archive_ingested_schema_allows_valid_event():
     provider.close()
 
     assert is_valid, f"Seeded schema rejected valid event: {errors}"
+

@@ -7,8 +7,8 @@ import json
 import logging
 import pytest
 
-from copilot_events.file_schema_provider import FileSchemaProvider
-from copilot_events.document_store_schema_provider import DocumentStoreSchemaProvider
+from copilot_schema_validation.file_schema_provider import FileSchemaProvider
+from copilot_schema_validation.document_store_schema_provider import DocumentStoreSchemaProvider
 from copilot_storage import InMemoryDocumentStore
 
 
@@ -266,7 +266,7 @@ class TestDocumentStoreSchemaProvider:
             return DummyStore()
 
         monkeypatch.setattr(
-            "copilot_events.document_store_schema_provider.create_document_store",
+            "copilot_schema_validation.document_store_schema_provider.create_document_store",
             fake_create_document_store,
         )
 
@@ -297,7 +297,7 @@ class TestDocumentStoreSchemaProvider:
              return InMemoryDocumentStore()
  
          monkeypatch.setattr(
-             "copilot_events.document_store_schema_provider.create_document_store",
+             "copilot_schema_validation.document_store_schema_provider.create_document_store",
              fake_create_document_store,
          )
  
@@ -323,7 +323,7 @@ class TestDocumentStoreSchemaProvider:
             return DummyStore()
 
         monkeypatch.setattr(
-            "copilot_events.document_store_schema_provider.create_document_store",
+            "copilot_schema_validation.document_store_schema_provider.create_document_store",
             fake_create_document_store,
         )
 
@@ -347,7 +347,7 @@ class TestDocumentStoreSchemaProvider:
             return FailingStore()
 
         monkeypatch.setattr(
-            "copilot_events.document_store_schema_provider.create_document_store",
+            "copilot_schema_validation.document_store_schema_provider.create_document_store",
             fake_create_document_store,
         )
 
@@ -356,3 +356,4 @@ class TestDocumentStoreSchemaProvider:
 
         assert provider._ensure_connected() is False
         assert any("Failed to connect document store" in msg for msg in caplog.messages)
+

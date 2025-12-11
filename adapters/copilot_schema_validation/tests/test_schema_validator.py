@@ -3,7 +3,7 @@
 
 """Tests for schema validation utility."""
 
-from copilot_events.schema_validator import validate_json
+from copilot_schema_validation.schema_validator import validate_json
 
 
 def test_validate_json_success():
@@ -53,3 +53,4 @@ def test_validate_json_malformed_schema():
 
     assert valid is False
     assert len(errors) > 0
+

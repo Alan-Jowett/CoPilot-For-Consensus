@@ -5,12 +5,9 @@
 
 import json
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 from .publisher import EventPublisher
-from .schema_provider import SchemaProvider
-from .file_schema_provider import FileSchemaProvider
-from .schema_validator import validate_json
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +23,6 @@ class RabbitMQPublisher(EventPublisher):
         password: str = "guest",
         exchange: str = "copilot.events",
         exchange_type: str = "topic",
-        validate_events: bool = True,
-        schema_provider: Optional[SchemaProvider] = None,
     ):
         """Initialize RabbitMQ publisher.
         
@@ -45,8 +40,6 @@ class RabbitMQPublisher(EventPublisher):
         self.password = password
         self.exchange = exchange
         self.exchange_type = exchange_type
-        self.validate_events = validate_events
-        self.schema_provider = schema_provider or FileSchemaProvider()
         self.connection = None
         self.channel = None
 
@@ -106,26 +99,6 @@ class RabbitMQPublisher(EventPublisher):
         if not self.channel:
             logger.error("Not connected to RabbitMQ")
             return False
-
-        if self.validate_events:
-            event_type = event.get("event_type")
-            if not event_type:
-                logger.error("Event missing 'event_type'; validation failed")
-                return False
-
-            schema = self.schema_provider.get_schema(event_type)
-            if schema is None:
-                logger.error(
-                    "No schema found for event_type '%s'; refusing to publish", event_type
-                )
-                return False
-
-            is_valid, errors = validate_json(event, schema)
-            if not is_valid:
-                logger.error(
-                    "Event validation failed for '%s': %s", event_type, "; ".join(errors)
-                )
-                return False
 
         try:
             import pika

@@ -32,7 +32,6 @@ A shared Python library for event publishing and subscribing across microservice
 - **No-op Implementation**: Testing publisher and subscriber that work in-memory
 - **Event Models**: Common event data structures for system-wide consistency
 - **Factory Pattern**: Simple factory functions for creating publishers and subscribers
-- **Pluggable Schema Provider**: Load schemas via filesystem or any `DocumentStore` (Mongo via `copilot-storage`)
 
 ## Development
 
@@ -65,23 +64,6 @@ Or install from local development:
 pip install -e adapters/copilot_events
 pip install -e adapters/copilot_auth
 ```
-
-### Using the Document-Store Schema Provider
-
-Schemas can be loaded via the document store abstraction (Mongo implementation lives in `copilot-storage`):
-
-```python
-from copilot_events import DocumentStoreSchemaProvider
-
-# Prefer context manager usage for automatic cleanup
-with DocumentStoreSchemaProvider(
-     mongo_uri="mongodb://admin:password@documentdb:27017/admin?authSource=admin",
-     collection_name="event_schemas",
-     database_name="copilot",  # optional; defaults to "copilot"
- ) as provider:
-     schema = provider.get_schema("ArchiveIngested")
-     event_types = provider.list_event_types()
-```For tests, inject `InMemoryDocumentStore` from `copilot-storage` to avoid external services.
 
 ## Architecture
 
