@@ -54,8 +54,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pytest pytest-cov
-          # Install all adapters at once so pip can resolve local dependencies
-          pip install -e ./adapters/*
+          python .github/scripts/install_adapters.py
           python .github/scripts/install_extras.py '[]' '${{ inputs.extra_pip_packages }}'
 
       - name: Run unit tests

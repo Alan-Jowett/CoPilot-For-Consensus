@@ -10,17 +10,10 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-# Install shared adapters (dependency order: storage → schema_validation → events → others)
+# Install shared adapters in dependency order using centralized script
 COPY adapters/ /app/adapters/
-RUN pip install --no-cache-dir \
-    /app/adapters/copilot_storage \
-    /app/adapters/copilot_schema_validation \
-    /app/adapters/copilot_events \
-    /app/adapters/copilot_reporting \
-    /app/adapters/copilot_config \
-    /app/adapters/copilot_logging \
-    /app/adapters/copilot_metrics \
-    /app/adapters/copilot_auth
+COPY .github/scripts/install_adapters.py /tmp/
+RUN python /tmp/install_adapters.py --no-dev
 
 # Install service dependencies
 COPY ingestion/requirements.txt .
