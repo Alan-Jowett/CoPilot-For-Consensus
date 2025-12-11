@@ -3,7 +3,6 @@
 
 """Tests for validation integration."""
 
-from pathlib import Path
 
 from copilot_schema_validation import FileSchemaProvider, validate_json
 
