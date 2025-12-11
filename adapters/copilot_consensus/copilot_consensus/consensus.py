@@ -10,7 +10,7 @@ for identifying signs of agreement, dissent, or stagnation in threads.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Dict, Any, Optional
 import re
@@ -230,7 +230,7 @@ class HeuristicConsensusDetector(ConsensusDetector):
         """Count occurrences of patterns across all messages in thread."""
         count = 0
         for message in thread.messages:
-            content = message.content.lower()
+            content = message.content
             for pattern in patterns:
                 if re.search(pattern, content, re.IGNORECASE):
                     count += 1
