@@ -9,8 +9,18 @@ services:
       dockerfile: ./ingestion/Dockerfile
     environment:
       - STORAGE_PATH=/data/raw_archives
+      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - MESSAGE_BUS_HOST=messagebus
+      - MESSAGE_BUS_PORT=5672
+      - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY:-pushgateway:9091}
     volumes:
       - raw_archives:/data/raw_archives
+    ports:
+      - "8000:8000"
+    depends_on:
+      - messagebus
+      - monitoring
+      - pushgateway
     restart: "no"
     profiles:
       - manual
@@ -175,6 +185,12 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
+    restart: unless-stopped
+
+  pushgateway:
+    image: prom/pushgateway:latest
+    ports:
+      - "9091:9091"
     restart: unless-stopped
 
 volumes:
