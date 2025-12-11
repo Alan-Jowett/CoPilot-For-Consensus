@@ -109,9 +109,12 @@ class TextNormalizer:
             return soup.get_text()
         else:
             # Simple fallback: remove HTML tags with regex
-            # This is not as robust as BeautifulSoup but works for basic cases
-            text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL | re.IGNORECASE)
-            text = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.DOTALL | re.IGNORECASE)
+            # WARNING: This is not secure for untrusted input and should only be used
+            # as a last resort when BeautifulSoup is not available.
+            # For production use, ensure beautifulsoup4 is installed.
+            # The regex patterns here are intentionally simple and may not catch all edge cases.
+            text = re.sub(r'<style(?:\s[^>]*)?>.*?</style(?:\s[^>]*)?>', '', text, flags=re.DOTALL | re.IGNORECASE)
+            text = re.sub(r'<script(?:\s[^>]*)?>.*?</script(?:\s[^>]*)?>', '', text, flags=re.DOTALL | re.IGNORECASE)
             text = re.sub(r'<[^>]+>', '', text)
             # Decode common HTML entities
             text = text.replace('&nbsp;', ' ')
