@@ -26,8 +26,18 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.build-matrix.outputs.matrix }}
-      has_changes: ${{ steps.build-matrix.outputs.has_changes }}
+      copilot_auth: ${{ steps.filter.outputs.copilot_auth }}
+      copilot_config: ${{ steps.filter.outputs.copilot_config }}
+      copilot_events: ${{ steps.filter.outputs.copilot_events }}
+      copilot_logging: ${{ steps.filter.outputs.copilot_logging }}
+      copilot_metrics: ${{ steps.filter.outputs.copilot_metrics }}
+      copilot_reporting: ${{ steps.filter.outputs.copilot_reporting }}
+      copilot_storage: ${{ steps.filter.outputs.copilot_storage }}
+      copilot_embedding: ${{ steps.filter.outputs.copilot_embedding }}
+      copilot_chunking: ${{ steps.filter.outputs.copilot_chunking }}
+      copilot_consensus: ${{ steps.filter.outputs.copilot_consensus }}
+      copilot_schema_validation: ${{ steps.filter.outputs.copilot_schema_validation }}
+      copilot_vectorstore: ${{ steps.filter.outputs.copilot_vectorstore }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -94,16 +104,113 @@ jobs:
           if [ "$changed_list" != "[]" ]; then
             echo "has_changes=true" >> $GITHUB_OUTPUT
           else
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          fi
+                  copilot_vectorstore:
+                    - 'adapters/copilot_vectorstore/**'
 
-  run-adapter-ci:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.has_changes == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-ci.yml
-    strategy:
-      matrix: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
-    with:
-      adapter_id: ${{ matrix.adapter_id }}
-      adapter_path: ${{ matrix.adapter_path }}
-      package_name: ${{ matrix.package_name }}
+        auth-ci:
+          needs: detect-changes
+          if: ${{ needs.detect-changes.outputs.copilot_auth == 'true' }}
+          uses: ./.github/workflows/adapter-reusable-ci.yml
+          with:
+            adapter_id: copilot_auth
+            adapter_path: adapters/copilot_auth
+            package_name: copilot_auth
+
+        config-ci:
+          needs: detect-changes
+          if: ${{ needs.detect-changes.outputs.copilot_config == 'true' }}
+          uses: ./.github/workflows/adapter-reusable-ci.yml
+          with:
+            adapter_id: copilot_config
+            adapter_path: adapters/copilot_config
+            package_name: copilot_config
+
+        events-ci:
+          needs: detect-changes
+          if: ${{ needs.detect-changes.outputs.copilot_events == 'true' }}
+          uses: ./.github/workflows/adapter-reusable-ci.yml
+          with:
+            adapter_id: copilot_events
+            adapter_path: adapters/copilot_events
+            package_name: copilot_events
+
+        logging-ci:
+          needs: detect-changes
+          if: ${{ needs.detect-changes.outputs.copilot_logging == 'true' }}
+          uses: ./.github/workflows/adapter-reusable-ci.yml
+          with:
+            adapter_id: copilot_logging
+            adapter_path: adapters/copilot_logging
+            package_name: copilot_logging
+
+        metrics-ci:
+          needs: detect-changes
+          if: ${{ needs.detect-changes.outputs.copilot_metrics == 'true' }}
+          uses: ./.github/workflows/adapter-reusable-ci.yml
+          with:
+            adapter_id: copilot_metrics
+            adapter_path: adapters/copilot_metrics
+            package_name: copilot_metrics
+
+        reporting-ci:
+          needs: detect-changes
+          if: ${{ needs.detect-changes.outputs.copilot_reporting == 'true' }}
+          uses: ./.github/workflows/adapter-reusable-ci.yml
+          with:
+            adapter_id: copilot_reporting
+            adapter_path: adapters/copilot_reporting
+            package_name: copilot_reporting
+
+        storage-ci:
+          needs: detect-changes
+          if: ${{ needs.detect-changes.outputs.copilot_storage == 'true' }}
+          uses: ./.github/workflows/adapter-reusable-ci.yml
+          with:
+            adapter_id: copilot_storage
+            adapter_path: adapters/copilot_storage
+            package_name: copilot_storage
+
+        embedding-ci:
+          needs: detect-changes
+          if: ${{ needs.detect-changes.outputs.copilot_embedding == 'true' }}
+          uses: ./.github/workflows/adapter-reusable-ci.yml
+          with:
+            adapter_id: copilot_embedding
+            adapter_path: adapters/copilot_embedding
+            package_name: copilot_embedding
+
+        chunking-ci:
+          needs: detect-changes
+          if: ${{ needs.detect-changes.outputs.copilot_chunking == 'true' }}
+          uses: ./.github/workflows/adapter-reusable-ci.yml
+          with:
+            adapter_id: copilot_chunking
+            adapter_path: adapters/copilot_chunking
+            package_name: copilot_chunking
+
+        consensus-ci:
+          needs: detect-changes
+          if: ${{ needs.detect-changes.outputs.copilot_consensus == 'true' }}
+          uses: ./.github/workflows/adapter-reusable-ci.yml
+          with:
+            adapter_id: copilot_consensus
+            adapter_path: adapters/copilot_consensus
+            package_name: copilot_consensus
+
+        schema-validation-ci:
+          needs: detect-changes
+          if: ${{ needs.detect-changes.outputs.copilot_schema_validation == 'true' }}
+          uses: ./.github/workflows/adapter-reusable-ci.yml
+          with:
+            adapter_id: copilot_schema_validation
+            adapter_path: adapters/copilot_schema_validation
+            package_name: copilot_schema_validation
+
+        vectorstore-ci:
+          needs: detect-changes
+          if: ${{ needs.detect-changes.outputs.copilot_vectorstore == 'true' }}
+          uses: ./.github/workflows/adapter-reusable-ci.yml
+          with:
+            adapter_id: copilot_vectorstore
+            adapter_path: adapters/copilot_vectorstore
+            package_name: copilot_vectorstore
