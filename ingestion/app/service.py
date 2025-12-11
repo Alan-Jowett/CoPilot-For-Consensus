@@ -96,6 +96,7 @@ class IngestionService:
                 raise ValueError("Storage path changed after initialization")
             if not os.path.exists(self.config.storage_path):
                 raise FileNotFoundError(f"Storage path does not exist: {self.config.storage_path}")
+            os.makedirs(os.path.dirname(checksums_path), exist_ok=True)
             with open(checksums_path, "w") as f:
                 json.dump(self.checksums, f, indent=2)
             self.logger.info(
