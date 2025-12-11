@@ -7,7 +7,7 @@ import logging
 from typing import List, Dict, Any
 
 # Import from the SDK
-from copilot_events.chunkers import Chunk, create_chunker
+from copilot_chunking import Chunk, create_chunker
 
 
 logger = logging.getLogger(__name__)

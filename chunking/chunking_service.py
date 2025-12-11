@@ -7,7 +7,7 @@ import logging
 from typing import List, Dict, Any
 
 # Import from the SDK
-from copilot_events.chunkers import (
+from copilot_chunking import (
     ThreadChunker,
     Thread,
     Chunk,
