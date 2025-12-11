@@ -4,7 +4,6 @@
 """Integration tests for rsync fetcher."""
 
 import os
-import tempfile
 
 import pytest
 
