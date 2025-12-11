@@ -9,7 +9,6 @@ Integration test script to verify ingestion service can:
 3. Publish events when ingesting archives
 """
 
-import os
 import sys
 import time
 import requests
