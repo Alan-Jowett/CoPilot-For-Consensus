@@ -63,31 +63,31 @@ jobs:
           pip install pytest pytest-cov
           cd -
           python - <<'PY'
-          import json
-          import subprocess
-          import sys
+      import json
+      import subprocess
+      import sys
 
-          paths = json.loads(r'''${{ inputs.extra_editable_paths }}''')
-          for p in paths:
-              if not p:
-                  continue
-              print(f"Installing extra editable dependency: {p}")
-              try:
-                  subprocess.run([sys.executable, '-m', 'pip', 'install', '-e', p], check=True)
-              except subprocess.CalledProcessError as exc:
-                  print(f"Failed to install {p}: {exc}")
-                  sys.exit(exc.returncode)
+      paths = json.loads(r'''${{ inputs.extra_editable_paths }}''')
+      for p in paths:
+        if not p:
+          continue
+        print(f"Installing extra editable dependency: {p}")
+        try:
+          subprocess.run([sys.executable, '-m', 'pip', 'install', '-e', p], check=True)
+        except subprocess.CalledProcessError as exc:
+          print(f"Failed to install {p}: {exc}")
+          sys.exit(exc.returncode)
 
-          packages = json.loads(r'''${{ inputs.extra_pip_packages }}''')
-          for pkg in packages:
-              if not pkg:
-                  continue
-              print(f"Installing extra package: {pkg}")
-              try:
-                  subprocess.run([sys.executable, '-m', 'pip', 'install', pkg], check=True)
-              except subprocess.CalledProcessError as exc:
-                  print(f"Failed to install {pkg}: {exc}")
-                  sys.exit(exc.returncode)
+      packages = json.loads(r'''${{ inputs.extra_pip_packages }}''')
+      for pkg in packages:
+        if not pkg:
+          continue
+        print(f"Installing extra package: {pkg}")
+        try:
+          subprocess.run([sys.executable, '-m', 'pip', 'install', pkg], check=True)
+        except subprocess.CalledProcessError as exc:
+          print(f"Failed to install {pkg}: {exc}")
+          sys.exit(exc.returncode)
     PY
 
       - name: Run unit tests
