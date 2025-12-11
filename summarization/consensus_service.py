@@ -12,9 +12,9 @@ import sys
 import os
 
 # Add SDK to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'sdk'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'sdk', 'copilot_consensus'))
 
-from copilot_events import (
+from copilot_consensus import (
     Thread,
     Message,
     ConsensusDetector,

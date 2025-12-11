@@ -7,9 +7,9 @@ import sys
 import os
 
 # Add SDK to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'sdk'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'sdk', 'copilot_consensus'))
 
-from copilot_events import create_consensus_detector
+from copilot_consensus import create_consensus_detector
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
