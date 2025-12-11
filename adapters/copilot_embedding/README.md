@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Copilot Embedding Provider Adapter
 
 A shared library for embedding generation with support for multiple backends including OpenAI, Azure OpenAI, local models, and test mocks.

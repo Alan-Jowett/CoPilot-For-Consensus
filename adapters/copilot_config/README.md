@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Copilot Config Adapter
 
 A shared Python library for configuration management across microservices in the Copilot-for-Consensus system.

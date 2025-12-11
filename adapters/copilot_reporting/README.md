@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Copilot Reporting Adapter
 
 A shared Python library for error reporting and diagnostics across microservices in the Copilot-for-Consensus system.

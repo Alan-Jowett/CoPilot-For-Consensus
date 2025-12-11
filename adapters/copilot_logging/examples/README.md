@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Copilot Logging Examples
 
 This directory contains example scripts demonstrating the usage of the `copilot_logging` module.
