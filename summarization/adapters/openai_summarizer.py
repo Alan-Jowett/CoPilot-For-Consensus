@@ -8,10 +8,10 @@ import logging
 from typing import Optional
 try:
     from summarizer import Summarizer
-    from models import Thread, Summary, Citation
+    from models import Thread, Summary
 except ImportError:
     from .summarizer import Summarizer
-    from .models import Thread, Summary, Citation
+    from .models import Thread, Summary
 
 logger = logging.getLogger(__name__)
 

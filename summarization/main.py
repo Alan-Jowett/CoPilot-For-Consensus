@@ -3,7 +3,7 @@
 
 import time
 import logging
-from adapters import SummarizerFactory, Thread
+from adapters import SummarizerFactory
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
