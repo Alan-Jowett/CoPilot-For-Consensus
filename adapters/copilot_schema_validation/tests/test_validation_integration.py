@@ -3,9 +3,8 @@
 
 """Tests for validation integration."""
 
-
 from copilot_schema_validation import FileSchemaProvider, validate_json
-
+import json
 
 class TestValidationIntegration:
     """Integration tests for schema validation with providers."""
@@ -26,7 +25,6 @@ class TestValidationIntegration:
             "required": ["id", "name"]
         }
         
-        import json
         (schema_dir / "TestEvent.schema.json").write_text(json.dumps(schema))
         
         provider = FileSchemaProvider(schema_dir=schema_dir)
