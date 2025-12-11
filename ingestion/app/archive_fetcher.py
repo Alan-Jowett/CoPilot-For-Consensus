@@ -152,7 +152,7 @@ class RsyncFetcher(ArchiveFetcher):
 class HTTPFetcher(ArchiveFetcher):
     """Fetcher for HTTP sources."""
 
-    def __init__(self, source: SourceConfig, metrics_collector: Optional[Any] = None):
+    def __init__(self, source: SourceConfig, metrics_collector: Optional[Any] = None, error_reporter_instance: Optional[ErrorReporter] = None):
         """Initialize HTTP fetcher.
         
         Args:
