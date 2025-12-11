@@ -31,6 +31,7 @@ setup(
     python_requires=">=3.11",
     install_requires=[
         "pika>=1.3.0",  # RabbitMQ client
+        "copilot-schema-validation>=0.1.0",  # Schema validation for validating publisher
     ],
     extras_require={
         "dev": [

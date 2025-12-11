@@ -1,0 +1,351 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+"""Tests for validating document store."""
+
+import pytest
+
+from copilot_storage import InMemoryDocumentStore
+from copilot_storage.validating_document_store import ValidatingDocumentStore, DocumentValidationError
+
+
+class MockSchemaProvider:
+    """Mock schema provider for testing."""
+    
+    def __init__(self, schemas=None):
+        """Initialize with optional schemas dictionary."""
+        self.schemas = schemas or {}
+    
+    def get_schema(self, schema_name: str):
+        """Return schema for schema name or None if not found."""
+        return self.schemas.get(schema_name)
+
+
+class TestValidatingDocumentStore:
+    """Tests for ValidatingDocumentStore."""
+    
+    def test_init(self):
+        """Test initializing a validating document store."""
+        base = InMemoryDocumentStore()
+        provider = MockSchemaProvider()
+        
+        store = ValidatingDocumentStore(
+            store=base,
+            schema_provider=provider,
+            strict=True,
+            validate_reads=False
+        )
+        
+        assert store._store is base
+        assert store._schema_provider is provider
+        assert store._strict is True
+        assert store._validate_reads is False
+    
+    def test_collection_to_schema_name(self):
+        """Test conversion of collection names to schema names."""
+        base = InMemoryDocumentStore()
+        store = ValidatingDocumentStore(base)
+        
+        assert store._collection_to_schema_name("archive_metadata") == "ArchiveMetadata"
+        assert store._collection_to_schema_name("messages") == "Messages"
+        assert store._collection_to_schema_name("thread_summaries") == "ThreadSummaries"
+        assert store._collection_to_schema_name("simple") == "Simple"
+    
+    def test_insert_valid_document_strict_mode(self):
+        """Test inserting a valid document in strict mode."""
+        base = InMemoryDocumentStore()
+        base.connect()
+        
+        schema = {
+            "type": "object",
+            "properties": {
+                "archive_id": {"type": "string"},
+                "status": {"type": "string"}
+            },
+            "required": ["archive_id", "status"]
+        }
+        
+        provider = MockSchemaProvider({"ArchiveMetadata": schema})
+        store = ValidatingDocumentStore(base, provider, strict=True)
+        
+        doc = {"archive_id": "abc", "status": "success"}
+        doc_id = store.insert_document("archive_metadata", doc)
+        
+        assert doc_id is not None
+        assert len(doc_id) > 0
+    
+    def test_insert_invalid_document_strict_mode(self):
+        """Test inserting an invalid document in strict mode raises DocumentValidationError."""
+        base = InMemoryDocumentStore()
+        base.connect()
+        
+        schema = {
+            "type": "object",
+            "properties": {
+                "archive_id": {"type": "string"},
+                "status": {"type": "string"}
+            },
+            "required": ["archive_id", "status"]
+        }
+        
+        provider = MockSchemaProvider({"ArchiveMetadata": schema})
+        store = ValidatingDocumentStore(base, provider, strict=True)
+        
+        # Missing required status field
+        doc = {"archive_id": "abc"}
+        
+        with pytest.raises(DocumentValidationError) as exc_info:
+            store.insert_document("archive_metadata", doc)
+        
+        assert exc_info.value.collection == "archive_metadata"
+        assert len(exc_info.value.errors) > 0
+        assert any("status" in err for err in exc_info.value.errors)
+    
+    def test_insert_invalid_document_non_strict_mode(self):
+        """Test inserting an invalid document in non-strict mode succeeds with warning."""
+        base = InMemoryDocumentStore()
+        base.connect()
+        
+        schema = {
+            "type": "object",
+            "properties": {
+                "archive_id": {"type": "string"},
+                "status": {"type": "string"}
+            },
+            "required": ["archive_id", "status"]
+        }
+        
+        provider = MockSchemaProvider({"ArchiveMetadata": schema})
+        store = ValidatingDocumentStore(base, provider, strict=False)
+        
+        # Missing required status field
+        doc = {"archive_id": "abc"}
+        
+        # Should succeed despite validation failure
+        doc_id = store.insert_document("archive_metadata", doc)
+        assert doc_id is not None
+    
+    def test_insert_without_schema_provider(self):
+        """Test inserting without schema provider skips validation."""
+        base = InMemoryDocumentStore()
+        base.connect()
+        
+        store = ValidatingDocumentStore(base, schema_provider=None, strict=True)
+        
+        # Even invalid document should pass without schema provider
+        doc = {"anything": "goes"}
+        
+        doc_id = store.insert_document("test_collection", doc)
+        assert doc_id is not None
+    
+    def test_insert_schema_not_found_strict_mode(self):
+        """Test inserting document with no schema in strict mode fails."""
+        base = InMemoryDocumentStore()
+        base.connect()
+        
+        provider = MockSchemaProvider({})  # Empty schemas
+        store = ValidatingDocumentStore(base, provider, strict=True)
+        
+        doc = {"data": "test"}
+        
+        with pytest.raises(DocumentValidationError) as exc_info:
+            store.insert_document("unknown_collection", doc)
+        
+        assert "unknown_collection" in str(exc_info.value)
+    
+    def test_insert_schema_not_found_non_strict_mode(self):
+        """Test inserting document with no schema in non-strict mode succeeds."""
+        base = InMemoryDocumentStore()
+        base.connect()
+        
+        provider = MockSchemaProvider({})  # Empty schemas
+        store = ValidatingDocumentStore(base, provider, strict=False)
+        
+        doc = {"data": "test"}
+        
+        # Should succeed in non-strict mode
+        doc_id = store.insert_document("unknown_collection", doc)
+        assert doc_id is not None
+    
+    def test_get_document_without_validation(self):
+        """Test getting a document without read validation."""
+        base = InMemoryDocumentStore()
+        base.connect()
+        
+        provider = MockSchemaProvider()
+        store = ValidatingDocumentStore(base, provider, validate_reads=False)
+        
+        # Insert document directly to base store
+        doc = {"data": "test"}
+        doc_id = base.insert_document("test_collection", doc)
+        
+        # Retrieve through validating store (no validation)
+        retrieved = store.get_document("test_collection", doc_id)
+        assert retrieved is not None
+        assert retrieved["data"] == "test"
+    
+    def test_get_document_with_validation_valid(self):
+        """Test getting a valid document with read validation."""
+        base = InMemoryDocumentStore()
+        base.connect()
+        
+        schema = {
+            "type": "object",
+            "properties": {
+                "data": {"type": "string"}
+            },
+            "required": ["data"]
+        }
+        
+        provider = MockSchemaProvider({"TestCollection": schema})
+        store = ValidatingDocumentStore(base, provider, validate_reads=True, strict=True)
+        
+        # Insert valid document
+        doc = {"data": "test"}
+        doc_id = base.insert_document("test_collection", doc)
+        
+        # Retrieve with validation
+        retrieved = store.get_document("test_collection", doc_id)
+        assert retrieved is not None
+        assert retrieved["data"] == "test"
+    
+    def test_get_document_with_validation_invalid_strict(self):
+        """Test getting an invalid document with read validation in strict mode fails."""
+        base = InMemoryDocumentStore()
+        base.connect()
+        
+        schema = {
+            "type": "object",
+            "properties": {
+                "data": {"type": "string"}
+            },
+            "required": ["data"]
+        }
+        
+        provider = MockSchemaProvider({"TestCollection": schema})
+        store = ValidatingDocumentStore(base, provider, validate_reads=True, strict=True)
+        
+        # Insert invalid document directly to base store
+        doc = {"wrong_field": "test"}
+        doc_id = base.insert_document("test_collection", doc)
+        
+        # Retrieve with validation should fail
+        with pytest.raises(DocumentValidationError):
+            store.get_document("test_collection", doc_id)
+    
+    def test_get_document_not_found(self):
+        """Test getting a non-existent document returns None."""
+        base = InMemoryDocumentStore()
+        base.connect()
+        
+        provider = MockSchemaProvider()
+        store = ValidatingDocumentStore(base, provider)
+        
+        retrieved = store.get_document("test_collection", "nonexistent")
+        assert retrieved is None
+    
+    def test_update_valid_document_strict_mode(self):
+        """Test updating with a valid patch in strict mode."""
+        base = InMemoryDocumentStore()
+        base.connect()
+        
+        schema = {
+            "type": "object",
+            "properties": {
+                "status": {"type": "string"}
+            }
+        }
+        
+        provider = MockSchemaProvider({"TestCollection": schema})
+        store = ValidatingDocumentStore(base, provider, strict=True)
+        
+        # Insert document
+        doc_id = base.insert_document("test_collection", {"data": "test"})
+        
+        # Update with valid patch
+        patch = {"status": "updated"}
+        result = store.update_document("test_collection", doc_id, patch)
+        assert result is True
+    
+    def test_update_invalid_document_strict_mode(self):
+        """Test updating with an invalid patch in strict mode fails."""
+        base = InMemoryDocumentStore()
+        base.connect()
+        
+        schema = {
+            "type": "object",
+            "properties": {
+                "status": {"type": "string"}
+            }
+        }
+        
+        provider = MockSchemaProvider({"TestCollection": schema})
+        store = ValidatingDocumentStore(base, provider, strict=True)
+        
+        # Insert document
+        doc_id = base.insert_document("test_collection", {"data": "test"})
+        
+        # Update with invalid patch (wrong type)
+        patch = {"status": 123}
+        
+        with pytest.raises(DocumentValidationError) as exc_info:
+            store.update_document("test_collection", doc_id, patch)
+        
+        assert "status" in str(exc_info.value).lower()
+    
+    def test_query_documents(self):
+        """Test querying documents."""
+        base = InMemoryDocumentStore()
+        base.connect()
+        
+        provider = MockSchemaProvider()
+        store = ValidatingDocumentStore(base, provider)
+        
+        # Insert documents
+        base.insert_document("test_collection", {"status": "active"})
+        base.insert_document("test_collection", {"status": "inactive"})
+        
+        # Query through validating store
+        results = store.query_documents("test_collection", {"status": "active"})
+        assert len(results) == 1
+        assert results[0]["status"] == "active"
+    
+    def test_delete_document(self):
+        """Test deleting a document."""
+        base = InMemoryDocumentStore()
+        base.connect()
+        
+        provider = MockSchemaProvider()
+        store = ValidatingDocumentStore(base, provider)
+        
+        # Insert document
+        doc_id = base.insert_document("test_collection", {"data": "test"})
+        
+        # Delete through validating store
+        result = store.delete_document("test_collection", doc_id)
+        assert result is True
+        
+        # Verify deletion
+        retrieved = store.get_document("test_collection", doc_id)
+        assert retrieved is None
+    
+    def test_connect_delegates_to_underlying_store(self):
+        """Test that connect is delegated to underlying store."""
+        base = InMemoryDocumentStore()
+        provider = MockSchemaProvider()
+        store = ValidatingDocumentStore(base, provider)
+        
+        result = store.connect()
+        assert result is True
+    
+    def test_disconnect_delegates_to_underlying_store(self):
+        """Test that disconnect is delegated to underlying store."""
+        base = InMemoryDocumentStore()
+        base.connect()
+        
+        provider = MockSchemaProvider()
+        store = ValidatingDocumentStore(base, provider)
+        
+        store.disconnect()
+        # InMemoryDocumentStore doesn't have a connected state to check
+        # but we can verify it doesn't raise an error

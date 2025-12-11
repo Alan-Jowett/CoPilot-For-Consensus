@@ -1,0 +1,273 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+"""Validating document store that enforces schema validation."""
+
+from typing import Dict, Any, Optional, List, Tuple
+import logging
+
+from .document_store import DocumentStore
+
+logger = logging.getLogger(__name__)
+
+
+class DocumentValidationError(Exception):
+    """Exception raised when document validation fails.
+    
+    Attributes:
+        collection: The collection where validation failed
+        errors: List of validation error messages
+    """
+    
+    def __init__(self, collection: str, errors: List[str]):
+        self.collection = collection
+        self.errors = errors
+        error_msg = f"Validation failed for collection '{collection}': {'; '.join(errors)}"
+        super().__init__(error_msg)
+
+
+class ValidatingDocumentStore(DocumentStore):
+    """Document store that validates documents against schemas before operations.
+    
+    This is a decorator/wrapper around any DocumentStore implementation that
+    adds schema validation. It uses a SchemaProvider to retrieve schemas and
+    validates documents before delegating to the underlying store.
+    
+    Schema names are derived from collection names by converting to PascalCase
+    (e.g., "archive_metadata" -> "ArchiveMetadata").
+    
+    Example:
+        >>> from copilot_storage import create_document_store
+        >>> from copilot_schema_validation import FileSchemaProvider
+        >>> 
+        >>> base_store = create_document_store("inmemory")
+        >>> schema_provider = FileSchemaProvider()
+        >>> validating_store = ValidatingDocumentStore(
+        ...     store=base_store,
+        ...     schema_provider=schema_provider
+        ... )
+        >>> 
+        >>> doc = {"archive_id": "abc", "status": "success"}
+        >>> validating_store.insert_document("archive_metadata", doc)
+    """
+    
+    def __init__(
+        self,
+        store: DocumentStore,
+        schema_provider: Optional[Any] = None,
+        strict: bool = True,
+        validate_reads: bool = False,
+    ):
+        """Initialize the validating document store.
+        
+        Args:
+            store: Underlying DocumentStore to delegate to
+            schema_provider: SchemaProvider for retrieving schemas (optional)
+            strict: If True, raise DocumentValidationError on validation failure.
+                   If False, log error and allow operation to proceed.
+            validate_reads: If True, validate documents on read operations (get_document).
+                           Useful for debugging but has performance impact.
+        """
+        self._store = store
+        self._schema_provider = schema_provider
+        self._strict = strict
+        self._validate_reads = validate_reads
+    
+    def _collection_to_schema_name(self, collection: str) -> str:
+        """Convert collection name to schema name.
+        
+        Converts snake_case collection names to PascalCase schema names.
+        Examples:
+            - "archive_metadata" -> "ArchiveMetadata"
+            - "messages" -> "Messages"
+            
+        Args:
+            collection: Collection name
+            
+        Returns:
+            Schema name in PascalCase
+        """
+        # Split on underscores and capitalize each part
+        parts = collection.split("_")
+        return "".join(part.capitalize() for part in parts)
+    
+    def _validate_document(self, collection: str, doc: Dict[str, Any]) -> Tuple[bool, List[str]]:
+        """Validate a document against its schema.
+        
+        Args:
+            collection: Collection name (used to determine schema)
+            doc: Document dictionary to validate
+            
+        Returns:
+            Tuple of (is_valid, errors). is_valid is True if document conforms
+            to schema or if no schema provider is configured. errors is a list
+            of validation error messages.
+        """
+        # If no schema provider, skip validation
+        if self._schema_provider is None:
+            logger.debug("No schema provider configured, skipping validation")
+            return True, []
+        
+        # Derive schema name from collection
+        schema_name = self._collection_to_schema_name(collection)
+        
+        # Get schema
+        try:
+            schema = self._schema_provider.get_schema(schema_name)
+            if schema is None:
+                logger.debug(f"No schema found for collection '{collection}' (schema: '{schema_name}')")
+                # If schema not found, allow document to pass in non-strict mode
+                return not self._strict, [] if not self._strict else [f"No schema found for collection '{collection}'"]
+        except Exception as exc:
+            logger.error(f"Failed to retrieve schema for collection '{collection}': {exc}")
+            return False, [f"Schema retrieval failed: {exc}"]
+        
+        # Validate document against schema
+        try:
+            from copilot_schema_validation import validate_json
+            is_valid, errors = validate_json(doc, schema, schema_provider=self._schema_provider)
+            return is_valid, errors
+        except Exception as exc:
+            logger.error(f"Validation failed with exception: {exc}")
+            return False, [f"Validation exception: {exc}"]
+    
+    def _handle_validation_failure(self, collection: str, errors: List[str]) -> None:
+        """Handle validation failure based on strict mode.
+        
+        Args:
+            collection: Collection where validation failed
+            errors: List of validation errors
+            
+        Raises:
+            DocumentValidationError: If strict=True
+        """
+        if self._strict:
+            # In strict mode, raise exception
+            raise DocumentValidationError(collection, errors)
+        else:
+            # In non-strict mode, log warning
+            logger.warning(
+                f"Document validation failed for collection '{collection}' "
+                f"but continuing in non-strict mode: {errors}"
+            )
+    
+    def connect(self) -> bool:
+        """Connect to the document store.
+        
+        Returns:
+            True if connection succeeded, False otherwise
+        """
+        return self._store.connect()
+    
+    def disconnect(self) -> None:
+        """Disconnect from the document store."""
+        self._store.disconnect()
+    
+    def insert_document(self, collection: str, doc: Dict[str, Any]) -> str:
+        """Insert a document after validating it against its schema.
+        
+        Args:
+            collection: Name of the collection/table
+            doc: Document data as dictionary
+            
+        Returns:
+            Document ID as string
+            
+        Raises:
+            DocumentValidationError: If strict=True and validation fails
+            Exception: If insertion fails
+        """
+        # Validate document
+        is_valid, errors = self._validate_document(collection, doc)
+        
+        if not is_valid:
+            self._handle_validation_failure(collection, errors)
+        
+        # Delegate to underlying store
+        return self._store.insert_document(collection, doc)
+    
+    def get_document(self, collection: str, doc_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve a document by its ID.
+        
+        Optionally validates the retrieved document if validate_reads=True.
+        
+        Args:
+            collection: Name of the collection/table
+            doc_id: Document ID
+            
+        Returns:
+            Document data as dictionary, or None if not found
+            
+        Raises:
+            DocumentValidationError: If validate_reads=True, strict=True, and validation fails
+        """
+        # Retrieve document
+        doc = self._store.get_document(collection, doc_id)
+        
+        # Optionally validate on read
+        if doc is not None and self._validate_reads:
+            is_valid, errors = self._validate_document(collection, doc)
+            if not is_valid:
+                self._handle_validation_failure(collection, errors)
+        
+        return doc
+    
+    def query_documents(
+        self, collection: str, filter_dict: Dict[str, Any], limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """Query documents matching the filter criteria.
+        
+        Args:
+            collection: Name of the collection/table
+            filter_dict: Filter criteria as dictionary
+            limit: Maximum number of documents to return
+            
+        Returns:
+            List of matching documents
+        """
+        # Delegate to underlying store
+        return self._store.query_documents(collection, filter_dict, limit)
+    
+    def update_document(
+        self, collection: str, doc_id: str, patch: Dict[str, Any]
+    ) -> bool:
+        """Update a document with the provided patch.
+        
+        Validates the patch against the schema before updating.
+        Note: This validates the patch itself, not the merged result.
+        For full validation, set validate_reads=True to validate on subsequent reads.
+        
+        Args:
+            collection: Name of the collection/table
+            doc_id: Document ID
+            patch: Update data as dictionary
+            
+        Returns:
+            True if document exists and update succeeded, False if document not found
+            
+        Raises:
+            DocumentValidationError: If strict=True and validation fails
+        """
+        # Validate patch
+        # Note: Ideally we'd validate the merged document, but that requires
+        # fetching the current document first. For now, we validate the patch.
+        is_valid, errors = self._validate_document(collection, patch)
+        
+        if not is_valid:
+            self._handle_validation_failure(collection, errors)
+        
+        # Delegate to underlying store
+        return self._store.update_document(collection, doc_id, patch)
+    
+    def delete_document(self, collection: str, doc_id: str) -> bool:
+        """Delete a document by its ID.
+        
+        Args:
+            collection: Name of the collection/table
+            doc_id: Document ID
+            
+        Returns:
+            True if deletion succeeded, False otherwise
+        """
+        # No validation needed for deletion
+        return self._store.delete_document(collection, doc_id)
