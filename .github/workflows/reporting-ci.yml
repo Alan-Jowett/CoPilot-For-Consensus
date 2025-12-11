@@ -13,6 +13,7 @@ on:
     branches: [ main ]
     paths:
       - 'sdk/copilot_reporting/**'
+      - '.github/workflows/reporting-ci.yml'
 
 permissions:
   contents: read
