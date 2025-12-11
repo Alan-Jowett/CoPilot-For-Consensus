@@ -63,6 +63,7 @@ def clean_collection(mongodb_store):
         mongodb_store.database[collection_name].drop()
 
 
+@pytest.mark.integration
 class TestMongoDBIntegration:
     """Integration tests for MongoDB document store."""
 
@@ -282,6 +283,7 @@ class TestMongoDBIntegration:
         assert retrieved["data"][999]["index"] == 999
 
 
+@pytest.mark.integration
 class TestMongoDBEdgeCases:
     """Test edge cases and error handling."""
 
