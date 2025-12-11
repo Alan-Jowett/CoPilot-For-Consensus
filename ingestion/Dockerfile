@@ -12,7 +12,7 @@ WORKDIR /app
 
 # Install shared SDK first (storage before events to satisfy dependency)
 COPY sdk/ /app/sdk/
-RUN pip install --no-cache-dir /app/sdk/copilot_storage /app/sdk/copilot_events /app/sdk/copilot_reporting /app/sdk/copilot_config
+RUN pip install --no-cache-dir /app/sdk/copilot_storage /app/sdk/copilot_events /app/sdk/copilot_reporting /app/sdk/copilot_config /app/sdk/copilot_logging /app/sdk/copilot_metrics
 
 # Install service dependencies
 COPY ingestion/requirements.txt .
