@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+# Dependabot configuration for tracking and updating dependencies
+# Documentation: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # Monitor Python dependencies in chunking service
+  - package-ecosystem: "pip"
+    directory: "/chunking"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in embedding service
+  - package-ecosystem: "pip"
+    directory: "/embedding"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in ingestion service
+  - package-ecosystem: "pip"
+    directory: "/ingestion"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in orchestrator service
+  - package-ecosystem: "pip"
+    directory: "/orchestrator"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in parsing service
+  - package-ecosystem: "pip"
+    directory: "/parsing"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in reporting service
+  - package-ecosystem: "pip"
+    directory: "/reporting"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in summarization service
+  - package-ecosystem: "pip"
+    directory: "/summarization"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in copilot_events SDK
+  - package-ecosystem: "pip"
+    directory: "/sdk/copilot_events"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in copilot_storage SDK
+  - package-ecosystem: "pip"
+    directory: "/sdk/copilot_storage"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+  # Monitor GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5

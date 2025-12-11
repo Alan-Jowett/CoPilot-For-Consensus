@@ -30,10 +30,10 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
@@ -41,7 +41,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ./sdk
+        pip install ./sdk/copilot_storage ./sdk/copilot_events ./sdk/copilot_logging ./sdk/copilot_reporting
         cd ingestion
         pip install -r requirements.txt
         pip install pytest pytest-cov
@@ -66,21 +66,21 @@ jobs:
 
     - name: Upload test results
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: test-results-${{ matrix.python-version }}
         path: ingestion/test-results.xml
 
     - name: Upload coverage reports
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: coverage-report-${{ matrix.python-version }}
         path: ingestion/htmlcov
 
     - name: Test Report
       if: always()
-      uses: dorny/test-reporter@v1
+      uses: dorny/test-reporter@v2
       with:
         name: Test Results (Python ${{ matrix.python-version }})
         path: ingestion/test-results.xml
@@ -91,10 +91,10 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.11'
 
@@ -120,13 +120,13 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
     - name: Build Docker image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: ./
         file: ./ingestion/Dockerfile
@@ -141,17 +141,17 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.11'
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ./sdk
+        pip install ./sdk/copilot_storage ./sdk/copilot_events ./sdk/copilot_logging ./sdk/copilot_reporting
         cd ingestion
         pip install -r requirements.txt pytest
 
@@ -206,17 +206,17 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.11'
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ./sdk
+        pip install ./sdk/copilot_storage ./sdk/copilot_events ./sdk/copilot_logging ./sdk/copilot_reporting
         cd ingestion
         pip install -r requirements.txt
         pip install pylint bandit

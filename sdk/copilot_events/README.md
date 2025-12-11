@@ -1,3 +1,25 @@
+<!-- SPDX-License-Identifier: MIT
+     Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
+# Copilot SDK
+
+Shared Python libraries for Copilot-for-Consensus microservices.
+
+## Modules
+
+Each module is self-contained with its own code, tests, documentation, and setup.py.
+
+### [copilot_events](copilot_events/)
+
+Event-driven communication infrastructure for microservices.
+
+- **Purpose**: Event publishing and subscribing across services
+- **Features**: RabbitMQ and in-memory implementations, event models
+- **Installation**: `cd copilot_events && pip install -e .`
+- **Documentation**: [copilot_events/README.md](copilot_events/README.md)
+
+### [copilot_auth](copilot_auth/)
+
 # Copilot Events SDK
 
 A shared Python library for event publishing and subscribing across microservices in the Copilot-for-Consensus system.
@@ -10,14 +32,90 @@ A shared Python library for event publishing and subscribing across microservice
 - **No-op Implementation**: Testing publisher and subscriber that work in-memory
 - **Event Models**: Common event data structures for system-wide consistency
 - **Factory Pattern**: Simple factory functions for creating publishers and subscribers
+- **Pluggable Schema Provider**: Load schemas via filesystem or any `DocumentStore` (Mongo via `copilot-storage`)
+
+## Development
+
+Each module can be developed and tested independently:
+
+```bash
+# Install and test copilot_events
+cd copilot_events
+pip install -e .[dev]
+pytest tests/ -v
+
+# Install and test copilot_auth
+cd copilot_auth
+pip install -e .[dev]
+pytest tests/ -v
+```
+
+## Usage in Services
+
+Services can depend on individual modules as needed:
+
+**requirements.txt:**
+```
+copilot-events>=0.1.0
+copilot-auth>=0.1.0
+```
+
+Or install from local development:
+```bash
+pip install -e sdk/copilot_events
+pip install -e sdk/copilot_auth
+```
+
+### Using the Document-Store Schema Provider
+
+Schemas can be loaded via the document store abstraction (Mongo implementation lives in `copilot-storage`):
+
+```python
+from copilot_events import DocumentStoreSchemaProvider
+
+# Prefer context manager usage for automatic cleanup
+with DocumentStoreSchemaProvider(
+     mongo_uri="mongodb://admin:password@documentdb:27017/admin?authSource=admin",
+     collection_name="event_schemas",
+     database_name="copilot",  # optional; defaults to "copilot"
+ ) as provider:
+     schema = provider.get_schema("ArchiveIngested")
+     event_types = provider.list_event_types()
+```For tests, inject `InMemoryDocumentStore` from `copilot-storage` to avoid external services.
+
+## Architecture
+
+Each module follows a consistent structure:
+
+```
+module_name/
+├── module_name/       # Package code
+│   ├── __init__.py
+│   └── ...
+├── tests/            # Module-specific tests
+│   └── test_*.py
+├── examples/         # Example applications (optional)
+│   └── *.py
+├── README.md         # Module documentation
+└── setup.py          # Module setup configuration
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](../documents/CONTRIBUTING.md) in the main repository.
+
+## License
+
+MIT License - see [LICENSE](../LICENSE) file for details.
 
 ## Installation
 
 ### For Development (Editable Mode)
 
-From the root of the repository:
+From the copilot_events directory:
 
 ```bash
+cd sdk/copilot_events
 pip install -e .
 ```
 

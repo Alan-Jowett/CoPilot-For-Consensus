@@ -375,3 +375,58 @@ class ReportDeliveryFailedEvent(BaseEvent):
         retry_count: Number of retry attempts made
     """
     event_type: str = field(default="ReportDeliveryFailed", init=False)
+
+
+# ============================================================================
+# Data Models (used internally by services)
+# ============================================================================
+
+@dataclass
+class ArchiveMetadata:
+    """Metadata for an archived file during ingestion.
+    
+    This is an internal data model used by the Ingestion Service to track
+    information about ingested archives.
+    
+    Attributes:
+        archive_id: Unique identifier for the archive
+        source_name: Source identifier (e.g., "ietf-quic")
+        source_type: Archive source type (e.g., "rsync")
+        source_url: URL or path to original archive
+        file_path: Storage path for raw archive
+        file_size_bytes: Size of archive file in bytes
+        file_hash_sha256: SHA256 hash of archive file
+        ingestion_started_at: When ingestion began (ISO 8601)
+        ingestion_completed_at: When ingestion completed (ISO 8601)
+        status: Status of ingestion ("success" or "failed")
+    """
+    archive_id: str
+    source_name: str
+    source_type: str
+    source_url: str
+    file_path: str
+    file_size_bytes: int
+    file_hash_sha256: str
+    ingestion_started_at: str
+    ingestion_completed_at: str
+    status: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert metadata to dictionary.
+        
+        Returns:
+            Dictionary representation of metadata
+        """
+        return {
+            "archive_id": self.archive_id,
+            "source_name": self.source_name,
+            "source_type": self.source_type,
+            "source_url": self.source_url,
+            "file_path": self.file_path,
+            "file_size_bytes": self.file_size_bytes,
+            "file_hash_sha256": self.file_hash_sha256,
+            "ingestion_started_at": self.ingestion_started_at,
+            "ingestion_completed_at": self.ingestion_completed_at,
+            "status": self.status,
+        }
+
