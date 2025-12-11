@@ -154,7 +154,7 @@ class RabbitMQPublisher(EventPublisher):
             logger.error(f"Failed to declare queue '{queue_name}': {e}")
             return False
 
-    def declare_queues(self, queues: List[Dict[str, str]]) -> bool:
+    def declare_queues(self, queues: List[Dict[str, Optional[str]]]) -> bool:
         """Declare multiple queues at once.
         
         Args:
