@@ -106,9 +106,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd ${{ inputs.adapter_path }}
           python -m pip install --upgrade pip
-          pip install -e .
+          python adapters/scripts/install_adapters.py
+          python adapters/scripts/install_extras.py '${{ inputs.extra_pip_packages }}'
           pip install pylint flake8
 
       - name: Run flake8
