@@ -50,6 +50,7 @@ jobs:
         pytest tests/test_document_store.py -v --tb=short --junit-xml=test-results.xml --cov=copilot_storage --cov-report=lcov --cov-report=html --cov-report=term
 
     - name: Upload coverage to Coveralls
+      continue-on-error: true
       uses: coverallsapp/github-action@v2
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -328,6 +329,7 @@ jobs:
     if: always()
     steps:
     - name: Finalize Coveralls
+      continue-on-error: true
       uses: coverallsapp/github-action@v2
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
