@@ -115,7 +115,7 @@ if ($Monitor) {
     Write-Host "     - Look for exchanges: 'copilot.events'" -ForegroundColor Cyan
     Write-Host "     - Check queues for messages" -ForegroundColor Cyan
     Write-Host "`n  2. Check Prometheus metrics: http://localhost:9090" -ForegroundColor Cyan
-    Write-Host "     - Try query: ingestion_" -ForegroundColor Cyan
+    Write-Host "     - Try query: copilot_ingestion" -ForegroundColor Cyan
     Write-Host "`n  3. Run monitoring script:" -ForegroundColor Cyan
     Write-Host "     .\run_ingestion_test.ps1 -Monitor" -ForegroundColor White
 }

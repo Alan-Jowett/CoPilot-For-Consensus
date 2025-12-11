@@ -159,7 +159,8 @@ def main():
 
         # Push metrics to Pushgateway for short-lived jobs
         is_pushgateway_backend = metrics_backend in ("prometheus_pushgateway", "pushgateway")
-        if is_pushgateway_backend and hasattr(metrics, "push"):
+        # Prefer explicit capability check over hasattr; see MetricsCollector.can_push
+        if is_pushgateway_backend and getattr(metrics, "can_push", False):
             try:
                 metrics.push()
                 log.info(

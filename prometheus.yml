@@ -9,7 +9,7 @@ scrape_configs:
   - job_name: 'copilot-services'
     static_configs:
       - targets:
-          - 'localhost:9090'
+          - 'copilot-services:9090'
 
   - job_name: 'pushgateway'
     static_configs:

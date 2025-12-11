@@ -10,8 +10,8 @@ services:
     environment:
       - STORAGE_PATH=/data/raw_archives
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
-      - RABBITMQ_HOST=messagebus
-      - RABBITMQ_PORT=5672
+      - MESSAGE_BUS_HOST=messagebus
+      - MESSAGE_BUS_PORT=5672
       - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY:-pushgateway:9091}
     volumes:
       - raw_archives:/data/raw_archives

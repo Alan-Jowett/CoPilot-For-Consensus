@@ -176,8 +176,8 @@ def main():
     prometheus_ok = test_prometheus_connection()
     management_ok = check_rabbitmq_management()
     
-    if not (rabbitmq_ok and prometheus_ok):
-        print("\n❌ Prerequisites not met. Ensure RabbitMQ and Prometheus are running:")
+    if not (rabbitmq_ok and prometheus_ok and management_ok):
+        print("\n❌ Prerequisites not met. Ensure RabbitMQ, RabbitMQ Management, and Prometheus are running:")
         print("   docker compose up -d messagebus monitoring")
         sys.exit(1)
     
@@ -204,9 +204,9 @@ if __name__ == "__main__":
         import pika
         import requests
     except ImportError:
-        print("Required packages not found. Installing...")
-        os.system(f"{sys.executable} -m pip install pika requests")
-        print("\nPlease run the script again.")
+        print("Required packages not found.")
+        print("Please install the required packages by running:")
+        print(f"  {sys.executable} -m pip install pika requests")
         sys.exit(1)
     
     main()
