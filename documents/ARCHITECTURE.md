@@ -95,6 +95,36 @@ This design ensures the system can operate in air-gapped environments, resource-
   - Track LLM performance and cost metrics.
   - Monitor pipeline health with Prometheus/Grafana.
 
+### 10. Observability Stack
+- **Purpose:** Comprehensive monitoring, logging, and error tracking for all services.
+- **Components:**
+  - **Prometheus** (Port 9090): Metrics collection and storage
+    - Scrapes metrics from all microservices
+    - Time-series database for performance tracking
+    - Monitors throughput, latency, and resource usage
+  - **Grafana** (Port 3000): Visualization dashboards
+    - Pre-configured dashboards for system health and service metrics
+    - Queries Prometheus for metrics visualization
+    - Queries Loki for centralized log exploration
+    - Default credentials: admin/admin
+  - **Loki** (Port 3100): Centralized log aggregation
+    - Collects logs from all Docker containers
+    - Enables log queries and filtering by service
+    - Integrated with Grafana for unified observability
+  - **Promtail**: Log collection agent
+    - Scrapes Docker container logs automatically
+    - Labels logs by service, container, and level
+    - Forwards structured logs to Loki
+  - **Error Reporting Service** (Port 8081): Error tracking and debugging
+    - REST API for error submission at `/api/errors`
+    - Web UI at `/ui` for browsing and filtering errors
+    - Statistics dashboard showing error distribution by service, level, and type
+    - In-memory storage for up to 10,000 recent errors
+- **Access Points:**
+  - Grafana: http://localhost:3000
+  - Error Tracking UI: http://localhost:8081/ui
+  - Prometheus: http://localhost:9090
+
 ## Data Storage Layer
 
 ### Parsed JSON Storage
@@ -191,9 +221,33 @@ graph LR
     G["🎨 Reporting & Front-End<br/>(Dashboard/Export)"] -->|REST API| VS
     G -->|REST API| DB
     
-    H["📊 Diagnostics & Monitoring<br/>(Prometheus/Grafana)"] -.->|observe| MB
-    H -.->|observe| DB
-    H -.->|observe| VS
+    H["📊 Prometheus<br/>(Metrics)"] -.->|scrape| A
+    H -.->|scrape| B
+    H -.->|scrape| C
+    H -.->|scrape| D
+    H -.->|scrape| E
+    H -.->|scrape| F
+    H -.->|scrape| G
+    
+    I["📊 Grafana<br/>(Visualization)"] -->|query| H
+    I -->|query| J["📋 Loki<br/>(Logs)"]
+    
+    K["📝 Promtail<br/>(Log Collector)"] -.->|collect| A
+    K -.->|collect| B
+    K -.->|collect| C
+    K -.->|collect| D
+    K -.->|collect| E
+    K -.->|collect| F
+    K -.->|collect| G
+    K -->|forward| J
+    
+    L["🚨 Error Reporting<br/>(Error Tracking)"] -.->|errors| A
+    L -.->|errors| B
+    L -.->|errors| C
+    L -.->|errors| D
+    L -.->|errors| E
+    L -.->|errors| F
+    L -.->|errors| G
 ```
 
 ### Key Design Principles
