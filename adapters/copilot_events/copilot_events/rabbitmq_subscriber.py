@@ -85,12 +85,15 @@ class RabbitMQSubscriber(EventSubscriber):
             
             # Declare queue
             if self.queue_name:
+                # Named queue - must be durable with correct persistence flags
                 self.channel.queue_declare(
                     queue=self.queue_name,
-                    durable=self.queue_durable
+                    durable=self.queue_durable,
+                    auto_delete=False,
+                    exclusive=False,
                 )
             else:
-                # Let RabbitMQ generate a unique queue name
+                # Let RabbitMQ generate a unique queue name (temporary queue)
                 result = self.channel.queue_declare(
                     queue='',
                     exclusive=True
