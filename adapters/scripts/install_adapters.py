@@ -4,16 +4,12 @@ Centralized script to install adapters in dependency order.
 Used by both GitHub Actions CI and Docker builds.
 
 Usage:
-    python adapters/scripts/install_adapters.py [--no-dev]
-    or from within adapters: python scripts/install_adapters.py [--no-dev]
-    
-Options:
-    --no-dev    Skip installing test/dev dependencies (for production builds)
+    python adapters/scripts/install_adapters.py
+    or from within adapters: python scripts/install_adapters.py
 """
 
 import sys
 import subprocess
-import json
 from pathlib import Path
 
 # Dependency order - install these first, then others
@@ -69,8 +65,6 @@ def install_adapter(adapter_path):
 
 def main():
     """Install all adapters in dependency order."""
-    include_dev = "--no-dev" not in sys.argv
-    
     adapter_dirs = get_adapter_dirs()
     if not adapter_dirs:
         print("WARNING: No adapters found to install")
