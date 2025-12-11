@@ -91,6 +91,8 @@ if store.connect():
 
 ### Validating Documents with Schema Validation
 
+**Note:** To use `ValidatingDocumentStore`, you need to install the validation extra: `pip install copilot-storage[validation]`
+
 The `ValidatingDocumentStore` wrapper enforces schema validation on document operations:
 
 ```python
@@ -241,7 +243,7 @@ pylint copilot_storage/
 
 - Python 3.11+
 - pymongo (for MongoDB)
-- copilot-schema-validation (for ValidatingDocumentStore)
+- copilot-schema-validation (optional: for ValidatingDocumentStore - install with `pip install copilot-storage[validation]`)
 
 ## License
 

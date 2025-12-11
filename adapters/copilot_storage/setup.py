@@ -30,7 +30,6 @@ setup(
     python_requires=">=3.11",
     install_requires=[
         "pymongo>=4.0.0",  # MongoDB client
-        "copilot-schema-validation>=0.1.0",  # Schema validation for validating document store
     ],
     extras_require={
         "dev": [
@@ -38,6 +37,9 @@ setup(
             "pytest-cov>=4.0.0",
             "pylint>=3.0.0",
             "mypy>=1.0.0",
+        ],
+        "validation": [
+            "copilot-schema-validation>=0.1.0",  # Optional: for ValidatingDocumentStore
         ],
     },
 )

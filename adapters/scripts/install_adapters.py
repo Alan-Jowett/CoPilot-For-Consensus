@@ -13,14 +13,16 @@ import subprocess
 from pathlib import Path
 
 # Dependency order - install these first, then others
-# Events and Config have no internal dependencies
+# Storage has no dependencies
 # Schema-validation depends on storage
+# Events depends on schema-validation
+# Config has no dependencies
 # Everything else can come after
 PRIORITY_ADAPTERS = [
-    "copilot_events",
-    "copilot_config",
     "copilot_storage",
     "copilot_schema_validation",
+    "copilot_events",
+    "copilot_config",
 ]
 
 def get_adapters_dir():
