@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Copilot Logging Adapter
 
 A pluggable logging abstraction layer for Copilot-for-Consensus microservices.

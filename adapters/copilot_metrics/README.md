@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Metrics Collection Abstraction
 
 The metrics collection abstraction provides a pluggable interface for collecting observability metrics across different backends (Prometheus, OpenTelemetry, StatsD, etc.).
