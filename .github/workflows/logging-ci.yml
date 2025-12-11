@@ -61,14 +61,14 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v5
       with:
-        name: unit-test-results-${{ matrix.python-version }}
+        name: logging-unit-test-results-${{ matrix.python-version }}
         path: sdk/copilot_logging/test-results.xml
 
     - name: Upload coverage reports
       if: always()
       uses: actions/upload-artifact@v5
       with:
-        name: unit-coverage-report-${{ matrix.python-version }}
+        name: logging-unit-coverage-report-${{ matrix.python-version }}
         path: sdk/copilot_logging/htmlcov
 
     - name: Test Report
@@ -184,7 +184,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v5
       with:
-        name: bandit-report
+        name: logging-bandit-report
         path: sdk/copilot_logging/bandit-report.json
 
     - name: Run dependency security check (safety)
