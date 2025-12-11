@@ -1,22 +1,20 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-name: SDK Core CI
+name: Draft Diff CI
 
 on:
   push:
     branches: [ main ]
     paths:
-      - 'sdk/copilot_events/**'
-      - 'sdk/tests/test_*.py'
-      - 'sdk/setup.py'
-      - '.github/workflows/sdk-ci.yml'
+      - 'sdk/draft_diff/**'
+      - 'sdk/tests/test_draft_diff/**'
+      - '.github/workflows/draft-diff-ci.yml'
   pull_request:
     branches: [ main ]
     paths:
-      - 'sdk/copilot_events/**'
-      - 'sdk/tests/test_*.py'
-      - 'sdk/setup.py'
+      - 'sdk/draft_diff/**'
+      - 'sdk/tests/test_draft_diff/**'
 
 permissions:
   contents: read
@@ -47,44 +45,44 @@ jobs:
         pip install -e .
         pip install pytest pytest-cov
 
-    - name: Run SDK core tests
+    - name: Run draft_diff tests
       run: |
         cd sdk
-        pytest tests/ -v --tb=short --junit-xml=test-results.xml --ignore=tests/test_draft_diff
+        pytest tests/test_draft_diff/ -v --tb=short --junit-xml=draft-diff-test-results.xml
 
     - name: Generate coverage report
       run: |
         cd sdk
-        pytest tests/ --cov=copilot_events --cov-report=lcov --cov-report=html --cov-report=term --ignore=tests/test_draft_diff
+        pytest tests/test_draft_diff/ --cov=draft_diff --cov-report=lcov --cov-report=html --cov-report=term
 
     - name: Upload coverage to Coveralls
       uses: coverallsapp/github-action@v2
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path-to-lcov: ./sdk/coverage.lcov
-        flag-name: sdk-core-python-${{ matrix.python-version }}
+        flag-name: draft-diff-python-${{ matrix.python-version }}
         parallel: true
 
     - name: Upload test results
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: sdk-core-test-results-${{ matrix.python-version }}
-        path: sdk/test-results.xml
+        name: draft-diff-test-results-${{ matrix.python-version }}
+        path: sdk/draft-diff-test-results.xml
 
     - name: Upload coverage reports
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: sdk-core-coverage-report-${{ matrix.python-version }}
+        name: draft-diff-coverage-report-${{ matrix.python-version }}
         path: sdk/htmlcov
 
     - name: Test Report
       if: always()
       uses: dorny/test-reporter@v1
       with:
-        name: SDK Core Test Results (Python ${{ matrix.python-version }})
-        path: sdk/test-results.xml
+        name: Draft Diff Test Results (Python ${{ matrix.python-version }})
+        path: sdk/draft-diff-test-results.xml
         reporter: 'java-junit'
 
   lint:
@@ -106,15 +104,15 @@ jobs:
         pip install -e .
         pip install pylint flake8
 
-    - name: Run pylint on copilot_events
+    - name: Run pylint on draft_diff
       run: |
         cd sdk
-        pylint copilot_events/*.py --disable=C0111,C0103,R0903 || echo "Pylint warnings found but continuing..."
+        pylint draft_diff/*.py --disable=C0111,C0103,R0903 || echo "Pylint warnings found but continuing..."
 
-    - name: Run flake8 on copilot_events
+    - name: Run flake8 on draft_diff
       run: |
         cd sdk
-        flake8 copilot_events/*.py tests/test_*.py --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 draft_diff/*.py tests/test_draft_diff/**/*.py --count --select=E9,F63,F7,F82 --show-source --statistics
 
   type-check:
     runs-on: ubuntu-latest
@@ -135,10 +133,10 @@ jobs:
         pip install -e .
         pip install mypy types-pika
 
-    - name: Run mypy on copilot_events
+    - name: Run mypy on draft_diff
       run: |
         cd sdk
-        mypy copilot_events --ignore-missing-imports || echo "Type checking completed with warnings"
+        mypy draft_diff --ignore-missing-imports || echo "Type checking completed with warnings"
 
   test-imports:
     runs-on: ubuntu-latest
@@ -157,19 +155,43 @@ jobs:
         python -m pip install --upgrade pip
         pip install ./sdk
 
-    - name: Test copilot_events imports
+    - name: Test draft_diff imports
       run: |
         python -c "
-        from copilot_events import (
-            EventPublisher,
-            ArchiveIngestedEvent,
-            ArchiveIngestionFailedEvent,
-            create_publisher,
-            RabbitMQPublisher,
-            NoopPublisher
+        from draft_diff import (
+            DraftDiff,
+            DraftDiffProvider,
+            DatatrackerDiffProvider,
+            MockDiffProvider,
+            DiffProviderFactory,
+            create_diff_provider
         )
-        print('✓ copilot_events imports successful')
+        print('✓ draft_diff imports successful')
         "
+
+    - name: Test draft_diff functionality
+      run: |
+        python -c "
+        from draft_diff import create_diff_provider
+        
+        # Test mock provider
+        provider = create_diff_provider('mock', {'default_format': 'text'})
+        diff = provider.getdiff('draft-test', '01', '02')
+        
+        assert diff.draft_name == 'draft-test'
+        assert diff.version_a == '01'
+        assert diff.version_b == '02'
+        assert diff.format == 'text'
+        assert diff.source == 'mock'
+        
+        print('✓ draft_diff functionality test passed')
+        "
+
+    - name: Test example scripts
+      run: |
+        cd sdk
+        python draft_diff/example.py
+        python draft_diff/integration_example.py
 
   coveralls-finish:
     runs-on: ubuntu-latest
@@ -199,7 +221,7 @@ jobs:
     
     - name: Report summary
       run: |
-        echo "SDK Core CI Summary:"
+        echo "Draft Diff CI Summary:"
         echo "- Tests: ${{ needs.test.result }}"
         echo "- Lint: ${{ needs.lint.result }}"
         echo "- Type Check: ${{ needs.type-check.result }}"
