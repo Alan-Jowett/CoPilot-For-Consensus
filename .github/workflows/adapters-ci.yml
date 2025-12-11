@@ -106,7 +106,6 @@ jobs:
       adapter_id: copilot_events
       adapter_path: adapters/copilot_events
       package_name: copilot_events
-      extra_editable_paths: '["adapters/copilot_schema_validation","adapters/copilot_storage"]'
 
   logging-ci:
     needs: detect-changes
@@ -179,7 +178,6 @@ jobs:
       adapter_id: copilot_schema_validation
       adapter_path: adapters/copilot_schema_validation
       package_name: copilot_schema_validation
-      extra_editable_paths: '["adapters/copilot_storage"]'
 
   vectorstore-ci:
     needs: detect-changes
