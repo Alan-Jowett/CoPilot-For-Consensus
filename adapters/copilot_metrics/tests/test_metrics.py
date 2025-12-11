@@ -11,6 +11,7 @@ from copilot_metrics import (
     MetricsCollector,
     NoOpMetricsCollector,
     PrometheusMetricsCollector,
+    PrometheusPushGatewayMetricsCollector,
 )
 
 
@@ -151,8 +152,8 @@ class TestPrometheusMetricsCollector:
     """Tests for PrometheusMetricsCollector."""
 
     @pytest.mark.skipif(
-        sys.modules.get('prometheus_client') is None,
-        reason="prometheus_client is not installed"
+        sys.modules.get('prometheus_client') is not None,
+        reason="prometheus_client is installed"
     )
     def test_requires_prometheus_client(self):
         """Test that PrometheusMetricsCollector requires prometheus_client."""
@@ -227,6 +228,92 @@ class TestPrometheusMetricsCollector:
         # Verify metric was created with correct labels
         labelnames = tuple(sorted(tags.keys()))
         assert ("http_requests", labelnames) in collector._counters
+
+
+class TestPrometheusPushGatewayMetricsCollector:
+    """Tests for PrometheusPushGatewayMetricsCollector."""
+
+    @pytest.mark.skipif(
+        sys.modules.get('prometheus_client') is None,
+        reason="prometheus_client not installed"
+    )
+    def test_initialization_defaults(self, monkeypatch):
+        """Collector should initialize with default gateway and job, normalizing URL."""
+        # Ensure no env overrides
+        monkeypatch.delenv("PROMETHEUS_PUSHGATEWAY", raising=False)
+        monkeypatch.delenv("METRICS_JOB_NAME", raising=False)
+
+        collector = PrometheusPushGatewayMetricsCollector()
+        assert collector.gateway.startswith("http://")
+        assert collector.job == "ingestion"
+
+    @pytest.mark.skipif(
+        sys.modules.get('prometheus_client') is None,
+        reason="prometheus_client not installed"
+    )
+    def test_initialization_with_env(self, monkeypatch):
+        """Gateway and job can be configured via environment variables."""
+        monkeypatch.setenv("PROMETHEUS_PUSHGATEWAY", "monitoring:9091")
+        monkeypatch.setenv("METRICS_JOB_NAME", "ingestion-test")
+
+        collector = PrometheusPushGatewayMetricsCollector()
+        assert collector.gateway == "http://monitoring:9091"
+        assert collector.job == "ingestion-test"
+
+    @pytest.mark.skipif(
+        sys.modules.get('prometheus_client') is None,
+        reason="prometheus_client not installed"
+    )
+    def test_push_calls_pushgateway(self, monkeypatch):
+        """push() should call prometheus_client.push_to_gateway with expected args."""
+        calls = {}
+
+        def fake_push_to_gateway(gateway, job, registry, grouping_key=None):
+            calls["gateway"] = gateway
+            calls["job"] = job
+            calls["registry"] = registry
+            calls["grouping_key"] = grouping_key or {}
+
+        # Patch push_to_gateway in module where it's imported
+        import copilot_metrics.pushgateway_metrics as pgm
+        monkeypatch.setattr(pgm, "push_to_gateway", fake_push_to_gateway)
+
+        collector = PrometheusPushGatewayMetricsCollector(
+            gateway="http://pushgateway:9091",
+            job="ingestion",
+            grouping_key={"instance": "test"},
+        )
+
+        # Add a metric so registry is non-empty
+        collector.increment("unit_test_counter", value=1.0)
+        collector.push()
+
+        assert calls["gateway"] == "http://pushgateway:9091"
+        assert calls["job"] == "ingestion"
+        assert calls["grouping_key"] == {"instance": "test"}
+        assert calls["registry"] is collector.registry
+
+    @pytest.mark.skipif(
+        sys.modules.get('prometheus_client') is None,
+        reason="prometheus_client not installed"
+    )
+    def test_push_error_propagation(self, monkeypatch):
+        """Collector should raise if push_to_gateway fails."""
+        import copilot_metrics.pushgateway_metrics as pgm
+
+        def fake_push_to_gateway(*args, **kwargs):
+            raise RuntimeError("simulated push failure")
+
+        monkeypatch.setattr(pgm, "push_to_gateway", fake_push_to_gateway)
+
+        collector = PrometheusPushGatewayMetricsCollector(
+            gateway="http://pushgateway:9091",
+            job="ingestion",
+        )
+        collector.increment("unit_test_counter", value=1.0)
+
+        with pytest.raises(RuntimeError, match="simulated push failure"):
+            collector.push()
 
 
 class TestMetricsIntegration:
