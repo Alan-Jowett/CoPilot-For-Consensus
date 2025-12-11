@@ -10,6 +10,7 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 from copilot_events import create_publisher, ValidatingEventPublisher
+from copilot_logging import create_logger
 from copilot_schema_validation import FileSchemaProvider
 from copilot_metrics import create_metrics_collector
 
