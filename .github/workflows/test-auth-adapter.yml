@@ -1,0 +1,131 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Auth Adapter CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'adapters/copilot_auth/**'
+      - '.github/workflows/test-auth-adapter.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'adapters/copilot_auth/**'
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        cd adapters/copilot_auth
+        pip install -e .
+        pip install pytest pytest-cov
+
+    - name: Run unit tests
+      run: |
+        cd adapters/copilot_auth
+        pytest tests/ -v --tb=short --junit-xml=test-results.xml --cov=copilot_auth --cov-report=lcov --cov-report=html --cov-report=term
+
+    - name: Upload coverage to Coveralls
+      uses: coverallsapp/github-action@v2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-lcov: ./adapters/copilot_auth/coverage.lcov
+        flag-name: python-${{ matrix.python-version }}
+        parallel: true
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v5
+      with:
+        name: auth-test-results-${{ matrix.python-version }}
+        path: adapters/copilot_auth/test-results.xml
+
+    - name: Upload coverage reports
+      if: always()
+      uses: actions/upload-artifact@v5
+      with:
+        name: auth-coverage-report-${{ matrix.python-version }}
+        path: adapters/copilot_auth/htmlcov
+
+    - name: Test Report
+      if: always()
+      uses: dorny/test-reporter@v2
+      with:
+        name: Auth Adapter Test Results (Python ${{ matrix.python-version }})
+        path: adapters/copilot_auth/test-results.xml
+        reporter: 'java-junit'
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        cd adapters/copilot_auth
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install pylint flake8
+
+    - name: Run flake8
+      run: |
+        cd adapters/copilot_auth
+        flake8 copilot_auth/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+    - name: Run pylint
+      run: |
+        cd adapters/copilot_auth
+        pylint copilot_auth/ --disable=C0111,C0103,R0903 || echo "Pylint warnings found but continuing..."
+
+  coveralls-finish:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    if: always()
+    steps:
+    - name: Finalize Coveralls
+      uses: coverallsapp/github-action@v2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        parallel-finished: true
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [unit-tests, lint]
+    if: always()
+    
+    steps:
+    - name: Report summary
+      run: |
+        echo "Auth Adapter CI Summary:"
+        echo "- Unit Tests: ${{ needs.unit-tests.result }}"
+        echo "- Lint: ${{ needs.lint.result }}"
