@@ -18,11 +18,11 @@ on:
         description: 'Python package import name'
         required: true
         type: string
-      python_versions:
-        description: 'JSON array of Python versions for matrix (e.g., ["3.11","3.12"])'
+      python_version:
+        description: 'Python version to use (e.g., "3.11")'
         required: false
         type: string
-        default: '["3.11","3.12","3.13"]'
+        default: '3.11'
       extra_pip_packages:
         description: 'JSON array of extra pip packages to install before tests (e.g., ["faiss-cpu"])'
         required: false
@@ -37,17 +37,14 @@ permissions:
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ${{ fromJSON(inputs.python_versions) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python ${{ inputs.python_version }}
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ inputs.python_version }}
           cache: 'pip'
 
       - name: Install dependencies
@@ -68,28 +65,27 @@ jobs:
         with:
           github-token: ${{ github.token }}
           path-to-lcov: ./${{ inputs.adapter_path }}/coverage.lcov
-          flag-name: python-${{ matrix.python-version }}
-          parallel: true
+          flag-name: python-${{ inputs.python_version }}
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: ${{ inputs.adapter_id }}-test-results-${{ matrix.python-version }}
+          name: ${{ inputs.adapter_id }}-test-results
           path: ${{ inputs.adapter_path }}/test-results.xml
 
       - name: Upload coverage reports
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: ${{ inputs.adapter_id }}-coverage-report-${{ matrix.python-version }}
+          name: ${{ inputs.adapter_id }}-coverage-report
           path: ${{ inputs.adapter_path }}/htmlcov
 
       - name: Test Report
         if: always()
         uses: dorny/test-reporter@v2
         with:
-          name: ${{ inputs.adapter_id }} Test Results (Python ${{ matrix.python-version }})
+          name: ${{ inputs.adapter_id }} Test Results
           path: ${{ inputs.adapter_path }}/test-results.xml
           reporter: 'java-junit'
 
@@ -120,18 +116,6 @@ jobs:
         run: |
           cd ${{ inputs.adapter_path }}
           pylint ${{ inputs.package_name }}/ --disable=C0111,C0103,R0903 || echo "Pylint warnings found but continuing..."
-
-  coveralls-finish:
-    runs-on: ubuntu-latest
-    needs: unit-tests
-    if: always()
-    steps:
-      - name: Finalize Coveralls
-        continue-on-error: true
-        uses: coverallsapp/github-action@v2
-        with:
-          github-token: ${{ github.token }}
-          parallel-finished: true
 
   summary:
     runs-on: ubuntu-latest
