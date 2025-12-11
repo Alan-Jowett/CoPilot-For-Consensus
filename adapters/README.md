@@ -3,6 +3,16 @@
 
 # Adapters
 
+## CI Status
+
+[![Auth Adapter CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-auth-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-auth-adapter.yml)
+[![Config Adapter CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-config-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-config-adapter.yml)
+[![Events Adapter CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-events-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-events-adapter.yml)
+[![Logging Adapter CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-logging-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-logging-adapter.yml)
+[![Metrics Adapter CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-metrics-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-metrics-adapter.yml)
+[![Reporting Adapter CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-reporting-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-reporting-adapter.yml)
+[![Storage Adapter CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-storage-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-storage-adapter.yml)
+
 This directory contains the **adapter layer** that sits at the architectural boundary between our core business logic and external systems. These modules abstract away specific technology choices and provide stable interfaces for the rest of the application.
 
 ## Purpose
@@ -18,19 +28,19 @@ The adapters in this directory serve as the **integration boundary layer** follo
 ## Available Adapters
 
 ### Storage & Persistence
-- **copilot_storage**: Document store abstraction (MongoDB, in-memory)
+- **copilot_storage**: Document store abstraction (MongoDB, in-memory) · [![CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-storage-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-storage-adapter.yml)
 
 ### Events & Messaging
-- **copilot_events**: Event publishing, subscription, and schema validation
+- **copilot_events**: Event publishing, subscription, and schema validation · [![CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-events-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-events-adapter.yml)
 
 ### Observability
-- **copilot_logging**: Structured logging abstraction
-- **copilot_metrics**: Metrics collection (Prometheus, no-op)
-- **copilot_reporting**: Error reporting (Console, Sentry)
+- **copilot_logging**: Structured logging abstraction · [![CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-logging-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-logging-adapter.yml)
+- **copilot_metrics**: Metrics collection (Prometheus, no-op) · [![CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-metrics-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-metrics-adapter.yml)
+- **copilot_reporting**: Error reporting (Console, Sentry) · [![CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-reporting-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-reporting-adapter.yml)
 
 ### Infrastructure
-- **copilot_auth**: Authentication and authorization
-- **copilot_config**: Configuration management
+- **copilot_auth**: Authentication and authorization · [![CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-auth-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-auth-adapter.yml)
+- **copilot_config**: Configuration management · [![CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-config-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-config-adapter.yml)
 
 ## Design Principles
 

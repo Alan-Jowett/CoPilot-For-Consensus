@@ -1,18 +1,19 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-name: Storage Module CI
+name: Storage Adapter CI
 
 on:
   push:
     branches: [ main ]
     paths:
       - 'adapters/copilot_storage/**'
-      - '.github/workflows/storage-ci.yml'
+      - '.github/workflows/test-storage-adapter.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'adapters/copilot_storage/**'
+      - '.github/workflows/test-storage-adapter.yml'
 
 permissions:
   contents: read
