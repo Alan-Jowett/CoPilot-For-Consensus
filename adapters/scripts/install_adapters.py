@@ -4,7 +4,8 @@ Centralized script to install adapters in dependency order.
 Used by both GitHub Actions CI and Docker builds.
 
 Usage:
-    python install_adapters.py [--no-dev]
+    python adapters/scripts/install_adapters.py [--no-dev]
+    or from within adapters: python scripts/install_adapters.py [--no-dev]
     
 Options:
     --no-dev    Skip installing test/dev dependencies (for production builds)
@@ -28,11 +29,11 @@ PRIORITY_ADAPTERS = [
 
 def get_adapters_dir():
     """Get the adapters directory relative to this script."""
-    script_dir = Path(__file__).parent.parent.parent  # Navigate from .github/scripts to root
-    adapters_dir = script_dir / "adapters"
-    if not adapters_dir.exists():
-        raise FileNotFoundError(f"Adapters directory not found: {adapters_dir}")
-    return adapters_dir
+    # Script is at adapters/scripts/install_adapters.py
+    script_dir = Path(__file__).parent.parent  # Navigate to adapters/
+    if not script_dir.exists():
+        raise FileNotFoundError(f"Adapters directory not found: {script_dir}")
+    return script_dir
 
 def get_adapter_dirs():
     """Get all valid adapter directories, sorted by dependency order."""
@@ -41,7 +42,7 @@ def get_adapter_dirs():
     # Get all directories that contain setup.py or pyproject.toml
     all_adapters = []
     for item in adapters_dir.iterdir():
-        if item.is_dir() and (item / "setup.py").exists() or (item / "pyproject.toml").exists():
+        if item.is_dir() and ((item / "setup.py").exists() or (item / "pyproject.toml").exists()):
             all_adapters.append(item.name)
     
     # Sort with priority adapters first, then alphabetically

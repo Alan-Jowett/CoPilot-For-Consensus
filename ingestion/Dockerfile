@@ -12,8 +12,7 @@ WORKDIR /app
 
 # Install shared adapters in dependency order using centralized script
 COPY adapters/ /app/adapters/
-COPY .github/scripts/install_adapters.py /tmp/
-RUN python /tmp/install_adapters.py --no-dev
+RUN python /app/adapters/scripts/install_adapters.py --no-dev
 
 # Install service dependencies
 COPY ingestion/requirements.txt .
