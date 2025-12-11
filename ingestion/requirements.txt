@@ -7,3 +7,5 @@ imapclient==3.0.1
 requests==2.32.5
 # Local shared SDK - installed separately in Dockerfile
 # copilot-events>=0.1.0
+# copilot-logging>=0.1.0
+# copilot-metrics>=0.1.0

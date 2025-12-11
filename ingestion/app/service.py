@@ -2,20 +2,22 @@
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
 import json
-import logging
 import os
 import time
 from datetime import datetime
 from typing import Optional, Dict, Any
 from uuid import uuid4
 
+from copilot_logging import create_logger
+from copilot_metrics import create_metrics_collector
 from copilot_events import EventPublisher, ArchiveIngestedEvent, ArchiveIngestionFailedEvent, ArchiveMetadata
 from copilot_reporting import ErrorReporter, create_error_reporter
 
 from .config import IngestionConfig, SourceConfig
 from .archive_fetcher import create_fetcher, calculate_file_hash
 
-logger = logging.getLogger(__name__)
+logger = create_logger(name="ingestion.service")
+metrics = create_metrics_collector()
 
 
 class IngestionService:
@@ -26,6 +28,7 @@ class IngestionService:
         config: IngestionConfig,
         publisher: EventPublisher,
         error_reporter: Optional[ErrorReporter] = None,
+        metrics_collector: Optional[Any] = None,
     ):
         """Initialize ingestion service.
         
@@ -33,10 +36,12 @@ class IngestionService:
             config: Ingestion configuration
             publisher: Event publisher for publishing ingestion events
             error_reporter: Error reporter for structured error reporting (optional)
+            metrics_collector: Metrics collector for observability (optional)
         """
         self.config = config
         self.publisher = publisher
         self.checksums: Dict[str, Dict[str, Any]] = {}
+        self.metrics = metrics_collector or metrics
         
         # Initialize error reporter
         if error_reporter is None:
@@ -142,6 +147,7 @@ class IngestionService:
             max_retries = self.config.retry_max_attempts
 
         ingestion_started_at = datetime.utcnow().isoformat() + "Z"
+        ingest_start_time = time.time()
 
         retry_count = 0
         last_error = None
@@ -153,17 +159,25 @@ class IngestionService:
                 )
 
                 # Create fetcher
-                fetcher = create_fetcher(source)
+                fetcher = create_fetcher(source, self.metrics, self.error_reporter)
 
                 # Create output directory
                 output_dir = os.path.join(self.config.storage_path, source.name)
 
                 # Fetch archives
+                fetch_start_time = time.time()
                 success, file_paths, error_message = fetcher.fetch(output_dir)
+                fetch_duration = time.time() - fetch_start_time
 
                 if not success:
                     last_error = error_message or "Unknown error"
                     retry_count += 1
+                    
+                    # Record fetch failure metric
+                    self.metrics.increment("archiving_fetch_failures_total", tags={
+                        "source_name": source.name,
+                        "source_type": source.source_type,
+                    })
 
                     if attempt < max_retries:
                         wait_time = self.config.retry_backoff_seconds * (2 ** attempt)
@@ -184,20 +198,50 @@ class IngestionService:
                         )
                         return False
 
+                # Record successful fetch
+                self.metrics.observe("archiving_fetch_duration_seconds", fetch_duration, tags={
+                    "source_name": source.name,
+                    "source_type": source.source_type,
+                    "status": "success",
+                })
+                self.metrics.increment("archiving_mailboxes_downloaded_total", value=len(file_paths), tags={
+                    "source_name": source.name,
+                    "source_type": source.source_type,
+                })
+
                 # Process each file individually
                 files_processed = 0
                 files_skipped = 0
+                total_file_size = 0
 
                 for file_path in file_paths:
-                    # Calculate hash for this file
-                    file_hash = calculate_file_hash(file_path)
-                    file_size = os.path.getsize(file_path)
+                    try:
+                        # Calculate hash for this file
+                        file_hash = calculate_file_hash(file_path)
+                        file_size = os.path.getsize(file_path)
+                    except Exception as e:
+                        logger.error(f"Failed to calculate hash for file {file_path}: {e}")
+                        self.error_reporter.report(
+                            e,
+                            context={
+                                "operation": "calculate_file_hash",
+                                "file_path": file_path,
+                                "source_name": source.name,
+                            }
+                        )
+                        continue
+                    total_file_size += file_size
 
                     # Check if already ingested
                     if self.is_file_already_ingested(file_hash):
                         logger.debug(
                             f"File {file_path} already ingested (hash: {file_hash[:16]}...)"
                         )
+                        # Record duplicate detection
+                        self.metrics.increment("archiving_duplicate_mailboxes_total", tags={
+                            "source_name": source.name,
+                            "source_type": source.source_type,
+                        })
                         files_skipped += 1
                         continue
 
@@ -207,21 +251,46 @@ class IngestionService:
                     # Create metadata
                     ingestion_completed_at = datetime.utcnow().isoformat() + "Z"
 
-                    metadata = ArchiveMetadata(
-                        archive_id=archive_id,
-                        source_name=source.name,
-                        source_type=source.source_type,
-                        source_url=source.url,
-                        file_path=file_path,
-                        file_size_bytes=file_size,
-                        file_hash_sha256=file_hash,
-                        ingestion_started_at=ingestion_started_at,
-                        ingestion_completed_at=ingestion_completed_at,
-                        status="success",
-                    )
+                    try:
+                        metadata = ArchiveMetadata(
+                            archive_id=archive_id,
+                            source_name=source.name,
+                            source_type=source.source_type,
+                            source_url=source.url,
+                            file_path=file_path,
+                            file_size_bytes=file_size,
+                            file_hash_sha256=file_hash,
+                            ingestion_started_at=ingestion_started_at,
+                            ingestion_completed_at=ingestion_completed_at,
+                            status="success",
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to create metadata for file {file_path}: {e}")
+                        self.error_reporter.report(
+                            e,
+                            context={
+                                "operation": "create_metadata",
+                                "file_path": file_path,
+                                "archive_id": archive_id,
+                                "source_name": source.name,
+                            }
+                        )
+                        continue
 
                     # Store checksum
-                    self.add_checksum(file_hash, archive_id, file_path, ingestion_started_at)
+                    try:
+                        self.add_checksum(file_hash, archive_id, file_path, ingestion_started_at)
+                    except Exception as e:
+                        logger.error(f"Failed to store checksum for {file_path}: {e}")
+                        self.error_reporter.report(
+                            e,
+                            context={
+                                "operation": "add_checksum",
+                                "file_path": file_path,
+                                "archive_id": archive_id,
+                            }
+                        )
+                        continue
 
                     # Save metadata to log
                     self._save_ingestion_log(metadata)
@@ -229,10 +298,44 @@ class IngestionService:
                     # Publish success event
                     self._publish_success_event(metadata)
 
+                    # Record file size metric
+                    self.metrics.observe("archiving_mailbox_size_bytes", file_size, tags={
+                        "source_name": source.name,
+                        "source_type": source.source_type,
+                    })
+
                     files_processed += 1
 
                 # Save all checksums at once
-                self.save_checksums()
+                try:
+                    self.save_checksums()
+                except Exception as e:
+                    logger.error(f"Failed to save checksums after processing: {e}")
+                    self.error_reporter.report(
+                        e,
+                        context={
+                            "operation": "ingest_archive",
+                            "sub_operation": "save_checksums",
+                            "source_name": source.name,
+                            "files_processed": files_processed,
+                        }
+                    )
+
+                # Record final ingestion metrics
+                total_duration = time.time() - ingest_start_time
+                self.metrics.observe("archiving_ingestion_duration_seconds", total_duration, tags={
+                    "source_name": source.name,
+                    "source_type": source.source_type,
+                    "status": "success",
+                })
+                self.metrics.increment("archiving_ingestion_success_total", tags={
+                    "source_name": source.name,
+                    "source_type": source.source_type,
+                })
+                self.metrics.observe("archiving_total_ingested_bytes", total_file_size, tags={
+                    "source_name": source.name,
+                    "source_type": source.source_type,
+                })
 
                 logger.info(
                     f"Successfully ingested from {source.name}: "
@@ -243,6 +346,13 @@ class IngestionService:
             except Exception as e:
                 last_error = f"Unexpected error: {str(e)}"
                 retry_count += 1
+                
+                # Record exception metric
+                self.metrics.increment("archiving_ingestion_errors_total", tags={
+                    "source_name": source.name,
+                    "source_type": source.source_type,
+                    "error_type": type(e).__name__,
+                })
                 logger.error(f"Ingestion error: {last_error}")
                 
                 # Report error with context
@@ -282,13 +392,29 @@ class IngestionService:
             Dictionary mapping source name to ingestion success (True/False)
         """
         results = {}
+        session_start_time = time.time()
 
         for source in self.config.get_enabled_sources():
             logger.info(f"Ingesting from source: {source.name}")
             success = self.ingest_archive(source)
             results[source.name] = success
-            logger.info(f"Source {source.name}: {'success' if success else 'failed'}")
+            
+            # Record per-source result
+            self.metrics.increment(f"archiving_source_attempts_total", tags={
+                "source_name": source.name,
+                "source_type": source.source_type,
+                "status": "success" if success else "failed",
+            })
 
+        # Record overall session metrics
+        session_duration = time.time() - session_start_time
+        successful_sources = sum(1 for s in results.values() if s)
+        
+        self.metrics.observe("archiving_session_duration_seconds", session_duration)
+        self.metrics.increment("archiving_sessions_total")
+        self.metrics.gauge("archiving_successful_sources", float(successful_sources))
+        
+        logger.info(f"Ingestion session complete: {successful_sources}/{len(results)} sources succeeded")
         return results
 
     def _calculate_directory_hash(self, dir_path: str) -> str:

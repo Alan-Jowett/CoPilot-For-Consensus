@@ -3,25 +3,23 @@
 
 """Ingestion Service: Fetch mailing list archives from various sources."""
 
-import logging
 import os
 import sys
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
+from copilot_logging import create_logger
+from copilot_reporting import create_error_reporter
 from copilot_events import create_publisher
 
 from app import __version__
 from app.config import IngestionConfig
 from app.service import IngestionService
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+# Create logger and error reporter
+logger = create_logger(name="ingestion.main")
+error_reporter = create_error_reporter()
 
 
 def main():
@@ -51,29 +49,68 @@ def main():
                 logger.warning(
                     f"Failed to load config file {config_file}: {e}. Using environment variables."
                 )
+                error_reporter.report(
+                    e,
+                    context={
+                        "operation": "load_config_file",
+                        "config_file": config_file,
+                    }
+                )
         else:
             logger.info(f"No config file found at {config_file}, using environment variables")
 
         # Set logging level
-        logging.getLogger().setLevel(config.log_level)
+        logger = create_logger(level=config.log_level, name="ingestion.main")
         logger.info(f"Log level set to {config.log_level}")
 
         # Ensure storage path exists
-        config.ensure_storage_path()
-        logger.info(f"Storage path: {config.storage_path}")
+        try:
+            config.ensure_storage_path()
+            logger.info(f"Storage path: {config.storage_path}")
+        except Exception as e:
+            error_reporter.capture_message(
+                f"Failed to create storage path: {e}",
+                level="error",
+                context={
+                    "storage_path": config.storage_path,
+                    "operation": "ensure_storage_path",
+                }
+            )
+            raise
 
         # Create event publisher
-        publisher = create_publisher(
-            message_bus_type=config.message_bus_type,
-            host=config.message_bus_host,
-            port=config.message_bus_port,
-            username=config.message_bus_user,
-            password=config.message_bus_password,
-        )
+        try:
+            publisher = create_publisher(
+                message_bus_type=config.message_bus_type,
+                host=config.message_bus_host,
+                port=config.message_bus_port,
+                username=config.message_bus_user,
+                password=config.message_bus_password,
+            )
 
-        # Connect publisher
-        if not publisher.connect():
-            logger.warning("Failed to connect to message bus. Will continue with noop publisher.")
+            # Connect publisher
+            if not publisher.connect():
+                error_reporter.capture_message(
+                    "Failed to connect to message bus. Will continue with noop publisher.",
+                    level="warning",
+                    context={
+                        "message_bus_type": config.message_bus_type,
+                        "message_bus_host": config.message_bus_host,
+                        "message_bus_port": config.message_bus_port,
+                        "operation": "connect_publisher",
+                    }
+                )
+                logger.warning("Failed to connect to message bus. Will continue with noop publisher.")
+        except Exception as e:
+            error_reporter.report(
+                e,
+                context={
+                    "operation": "create_publisher",
+                    "message_bus_type": config.message_bus_type,
+                    "message_bus_host": config.message_bus_host,
+                }
+            )
+            raise
 
         # Create ingestion service
         service = IngestionService(config, publisher)
@@ -99,6 +136,13 @@ def main():
         sys.exit(0 if successful == len(results) else 1)
 
     except Exception as e:
+        error_reporter.report(
+            e,
+            context={
+                "operation": "main",
+                "version": __version__,
+            }
+        )
         logger.error(f"Fatal error in ingestion service: {e}", exc_info=True)
         sys.exit(1)
 
