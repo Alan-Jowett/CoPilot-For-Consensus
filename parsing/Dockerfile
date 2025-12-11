@@ -5,9 +5,24 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
+# Install shared SDK first
+COPY sdk/ /app/sdk/
+RUN pip install --no-cache-dir \
+    /app/sdk/copilot_events \
+    /app/sdk/copilot_storage \
+    /app/sdk/copilot_metrics \
+    /app/sdk/copilot_reporting \
+    /app/sdk/copilot_logging
+
+# Install service dependencies
+COPY parsing/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Copy service code
+COPY parsing/app/ ./app/
+COPY parsing/*.py ./
+
+# Expose port for health endpoint
+EXPOSE 8000
 
 CMD ["python", "main.py"]
