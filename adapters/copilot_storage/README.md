@@ -143,7 +143,7 @@ doc_id = validating_store.insert_document("user", valid_user)
 # Invalid document raises DocumentValidationError in strict mode
 invalid_user = {
     "user_id": "user-456",
-    "name": "Bob Jones"
+    "name": "Bob Jones",
     # Missing required field: email
 }
 
