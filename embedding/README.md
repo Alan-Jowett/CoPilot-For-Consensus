@@ -2,7 +2,7 @@
   Copyright (c) 2025 Copilot-for-Consensus contributors -->
 # Embedding Generation Service
 
-> **Note:** The embedding provider implementation has been moved to the `copilot_embedding` SDK module located in `sdk/copilot_embedding/`. This allows the embedding provider to be shared across multiple services. See the [SDK README](../sdk/copilot_embedding/README.md) for detailed documentation on the embedding provider API.
+> **Note:** The embedding provider implementation has been moved to the `copilot_embedding` SDK module located in `adapter/copilot_embedding/`. This allows the embedding provider to be shared across multiple services. See the [SDK README](../adapter/copilot_embedding/README.md) for detailed documentation on the embedding provider API.
 
 ## Overview
 

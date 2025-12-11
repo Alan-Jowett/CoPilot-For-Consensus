@@ -4,7 +4,7 @@
 
 This guide demonstrates how to use the embedding provider abstraction layer.
 
-**Note:** The embedding provider implementation has been moved to the `copilot_embedding` SDK module located in `sdk/copilot_embedding/`. This allows it to be shared across multiple services.
+**Note:** The embedding provider implementation has been moved to the `copilot_embedding` SDK module located in `adapter/copilot_embedding/`. This allows it to be shared across multiple services.
 
 ## Installation
 
@@ -12,13 +12,13 @@ First, install the SDK module:
 
 ```bash
 # Basic installation
-pip install ./sdk/copilot_embedding
+pip install ./adapter/copilot_embedding
 
 # With specific backend support
-pip install "./sdk/copilot_embedding[sentencetransformers]"  # For local models
-pip install "./sdk/copilot_embedding[openai]"                 # For OpenAI/Azure
-pip install "./sdk/copilot_embedding[huggingface]"            # For HuggingFace
-pip install "./sdk/copilot_embedding[all]"                    # For all backends
+pip install "./adapter/copilot_embedding[sentencetransformers]"  # For local models
+pip install "./adapter/copilot_embedding[openai]"                 # For OpenAI/Azure
+pip install "./adapter/copilot_embedding[huggingface]"            # For HuggingFace
+pip install "./adapter/copilot_embedding[all]"                    # For all backends
 ```
 
 ## Quick Start
