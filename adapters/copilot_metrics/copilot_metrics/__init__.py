@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Copilot-for-Consensus Metrics SDK.
+"""Copilot-for-Consensus Metrics Adapter.
 
 A shared library for metrics collection across microservices
 in the Copilot-for-Consensus system.

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Copilot-for-Consensus Storage SDK.
+"""Copilot-for-Consensus Storage Adapter.
 
 A shared library for document storage across microservices
 in the Copilot-for-Consensus system.

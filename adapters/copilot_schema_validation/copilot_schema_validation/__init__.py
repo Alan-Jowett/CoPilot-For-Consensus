@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Copilot-for-Consensus Schema Validation SDK.
+"""Copilot-for-Consensus Schema Validation Adapter.
 
 A shared library for JSON schema validation and event models across microservices 
 in the Copilot-for-Consensus system.

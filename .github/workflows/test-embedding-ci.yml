@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-name: Embedding Provider SDK CI
+name: Embedding Adapter CI
 
 on:
   push:
@@ -38,7 +38,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
 
-    - name: Install SDK and test dependencies
+    - name: Install Adapter and test dependencies
       run: |
         python -m pip install --upgrade pip
         pip install ./adapter/copilot_embedding
@@ -126,7 +126,7 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Install SDK
+    - name: Install Adapter
       run: |
         python -m pip install --upgrade pip
         pip install ./adapter/copilot_embedding
@@ -179,7 +179,7 @@ jobs:
     
     - name: Report summary
       run: |
-        echo "Embedding Provider SDK CI Summary:"
+        echo "Embedding Provider Adapter CI Summary:"
         echo "- Tests: ${{ needs.test.result }}"
         echo "- Lint: ${{ needs.lint.result }}"
         echo "- Test Imports: ${{ needs.test-imports.result }}"

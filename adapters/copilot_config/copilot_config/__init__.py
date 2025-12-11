@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Copilot-for-Consensus Configuration SDK.
+"""Copilot-for-Consensus Configuration Adapter.
 
 A shared library for configuration management across microservices
 in the Copilot-for-Consensus system.

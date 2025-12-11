@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: MIT
      Copyright (c) 2025 Copilot-for-Consensus contributors -->
 
-# Copilot SDK
+# Copilot Adapter
 
 Shared Python libraries for Copilot-for-Consensus microservices.
 
