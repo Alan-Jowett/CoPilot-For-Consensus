@@ -3,7 +3,7 @@
 
 python-dotenv==1.2.1
 pyyaml==6.0.3
-imapclient==3.0.1
-requests==2.32.5
+# Archive Fetcher Adapter
+copilot-archive-fetcher[http,imap]>=0.1.0
 # Local shared Adapter - installed separately in Dockerfile
 # copilot-events>=0.1.0

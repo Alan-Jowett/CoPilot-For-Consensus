@@ -11,9 +11,9 @@ from uuid import uuid4
 
 from copilot_events import EventPublisher, ArchiveIngestedEvent, ArchiveIngestionFailedEvent, ArchiveMetadata
 from copilot_reporting import ErrorReporter, create_error_reporter
+from copilot_archive_fetcher import create_fetcher, calculate_file_hash
 
 from .config import IngestionConfig, SourceConfig
-from .archive_fetcher import create_fetcher, calculate_file_hash
 
 logger = logging.getLogger(__name__)
 
