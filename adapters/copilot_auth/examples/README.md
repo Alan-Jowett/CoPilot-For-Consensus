@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: MIT
      Copyright (c) 2025 Copilot-for-Consensus contributors -->
 
-# Copilot SDK Examples
+# Copilot Adapter Examples
 
-This directory contains example applications demonstrating how to use the Copilot SDK modules.
+This directory contains example applications demonstrating how to use the Copilot adapter modules.
 
 ## Authentication Example
 
@@ -23,13 +23,13 @@ A complete Flask application demonstrating how to integrate the authentication a
 1. Install dependencies:
    ```bash
    pip install flask
-   cd sdk/copilot_auth
+   cd adapters/copilot_auth
    pip install -e .
    ```
 
 2. Run the example:
    ```bash
-   cd sdk/copilot_auth/examples
+   cd adapters/copilot_auth/examples
    python3 auth_example.py
    ```
 

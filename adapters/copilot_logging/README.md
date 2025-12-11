@@ -1,4 +1,4 @@
-# Copilot Logging SDK
+# Copilot Logging Adapter
 
 A pluggable logging abstraction layer for Copilot-for-Consensus microservices.
 
@@ -15,7 +15,7 @@ A pluggable logging abstraction layer for Copilot-for-Consensus microservices.
 The `copilot_logging` module is a standalone package with its own setup.py. Install it in editable mode for development:
 
 ```bash
-cd sdk/copilot_logging
+cd adapters/copilot_logging
 pip install -e .
 ```
 

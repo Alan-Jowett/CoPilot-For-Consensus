@@ -20,7 +20,7 @@ Event-driven communication infrastructure for microservices.
 
 ### [copilot_auth](copilot_auth/)
 
-# Copilot Events SDK
+# Copilot Events Adapter
 
 A shared Python library for event publishing and subscribing across microservices in the Copilot-for-Consensus system.
 
@@ -62,8 +62,8 @@ copilot-auth>=0.1.0
 
 Or install from local development:
 ```bash
-pip install -e sdk/copilot_events
-pip install -e sdk/copilot_auth
+pip install -e adapters/copilot_events
+pip install -e adapters/copilot_auth
 ```
 
 ### Using the Document-Store Schema Provider
@@ -115,7 +115,7 @@ MIT License - see [LICENSE](../LICENSE) file for details.
 From the copilot_events directory:
 
 ```bash
-cd sdk/copilot_events
+cd adapters/copilot_events
 pip install -e .
 ```
 

@@ -1,4 +1,4 @@
-# Copilot Storage SDK
+# Copilot Storage Adapter
 
 A shared Python library for document storage across microservices in the Copilot-for-Consensus system.
 

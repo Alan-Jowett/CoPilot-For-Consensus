@@ -55,16 +55,16 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
 
-  # Monitor Python dependencies in copilot_events SDK
+  # Monitor Python dependencies in copilot_events adapter
   - package-ecosystem: "pip"
-    directory: "/sdk/copilot_events"
+    directory: "/adapters/copilot_events"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
 
-  # Monitor Python dependencies in copilot_storage SDK
+  # Monitor Python dependencies in copilot_storage adapter
   - package-ecosystem: "pip"
-    directory: "/sdk/copilot_storage"
+    directory: "/adapters/copilot_storage"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5

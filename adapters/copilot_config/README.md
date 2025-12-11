@@ -1,4 +1,4 @@
-# Copilot Config SDK
+# Copilot Config Adapter
 
 A shared Python library for configuration management across microservices in the Copilot-for-Consensus system.
 
@@ -14,10 +14,10 @@ A shared Python library for configuration management across microservices in the
 
 ### For Development (Editable Mode)
 
-From the SDK root directory:
+From the adapters root directory:
 
 ```bash
-cd sdk/copilot_config
+cd adapters/copilot_config
 pip install -e .
 ```
 
