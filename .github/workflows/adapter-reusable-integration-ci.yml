@@ -17,21 +17,16 @@ on:
         description: 'Python package import name'
         required: true
         type: string
-      mongodb_enabled:
-        description: 'Enable MongoDB service for tests'
-        required: false
-        type: boolean
-        default: false
       mongodb_versions:
-        description: 'Comma-separated MongoDB versions for matrix (e.g., 6.0,7.0)'
+        description: 'JSON array of MongoDB versions for matrix (e.g., ["6.0","7.0"])'
         required: false
         type: string
-        default: '6.0,7.0'
+        default: '["6.0","7.0"]'
       python_versions:
-        description: 'Comma-separated Python versions for matrix (e.g., 3.11,3.12)'
+        description: 'JSON array of Python versions for matrix (e.g., ["3.11","3.12"])'
         required: false
         type: string
-        default: '3.11,3.12,3.13'
+        default: '["3.11","3.12","3.13"]'
 
 permissions:
   contents: read
@@ -43,11 +38,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ${{ fromJSON(format('["%s"]', replace(inputs.python_versions, ',', '","'))) }}
-        mongodb-version: ${{ inputs.mongodb_enabled && fromJSON(format('["%s"]', replace(inputs.mongodb_versions, ',', '","'))) || null }}
+        python-version: ${{ fromJSON(inputs.python_versions) }}
+        mongodb-version: ${{ fromJSON(inputs.mongodb_versions) }}
     services:
       mongodb:
-        if: ${{ inputs.mongodb_enabled }}
         image: mongo:${{ matrix.mongodb-version }}
         ports:
           - 27017:27017
@@ -78,7 +72,6 @@ jobs:
           pip install pytest pytest-cov
 
       - name: Wait for MongoDB to be ready
-        if: ${{ inputs.mongodb_enabled }}
         run: |
           echo "Waiting for MongoDB to be ready..."
           pip install pymongo
@@ -109,11 +102,11 @@ jobs:
 
       - name: Run integration tests
         env:
-          MONGODB_HOST: ${{ inputs.mongodb_enabled && 'localhost' || '' }}
-          MONGODB_PORT: ${{ inputs.mongodb_enabled && 27017 || '' }}
-          MONGODB_USERNAME: ${{ inputs.mongodb_enabled && 'testuser' || '' }}
-          MONGODB_PASSWORD: ${{ inputs.mongodb_enabled && 'testpass' || '' }}
-          MONGODB_DATABASE: ${{ inputs.mongodb_enabled && 'test_copilot' || '' }}
+          MONGODB_HOST: localhost
+          MONGODB_PORT: 27017
+          MONGODB_USERNAME: testuser
+          MONGODB_PASSWORD: testpass
+          MONGODB_DATABASE: test_copilot
         run: |
           cd ${{ inputs.adapter_path }}
           # Default to running all tests marked integration
@@ -137,6 +130,6 @@ jobs:
         if: always()
         uses: dorny/test-reporter@v2
         with:
-          name: ${{ inputs.adapter_id }} Integration (Python ${{ matrix.python-version }}${{ inputs.mongodb_enabled && format(', MongoDB %s', matrix.mongodb-version) || '' }})
+          name: ${{ inputs.adapter_id }} Integration (Python ${{ matrix.python-version }}, MongoDB ${{ matrix.mongodb-version }})
           path: ${{ inputs.adapter_path }}/integration-test-results.xml
           reporter: 'java-junit'

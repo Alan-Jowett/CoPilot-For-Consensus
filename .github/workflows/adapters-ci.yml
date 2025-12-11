@@ -196,6 +196,5 @@ jobs:
       adapter_id: copilot_storage
       adapter_path: adapters/copilot_storage
       package_name: copilot_storage
-      mongodb_enabled: true
-      mongodb_versions: '6.0,7.0'
-      python_versions: '3.11,3.12'
+      mongodb_versions: '["6.0","7.0"]'
+      python_versions: '["3.11","3.12"]'
