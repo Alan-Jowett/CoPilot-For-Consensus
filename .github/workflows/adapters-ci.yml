@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
 
 name: Adapters CI (Changed-Only)
 
@@ -25,8 +26,8 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      changed: ${{ steps.filter.outputs.changed }}
       matrix: ${{ steps.build-matrix.outputs.matrix }}
+      has_changes: ${{ steps.build-matrix.outputs.has_changes }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -64,36 +65,41 @@ jobs:
         id: build-matrix
         run: |
           set -euo pipefail
-          changed_list=()
-          add_entry() {
-            id="$1"; path="$2"; pkg="$3"
-            changed_flag="${{ steps.filter.outputs.$1 }}"
+          changed_list="[]"
+          append_if_changed() {
+            id="$1"; path="$2"; pkg="$3"; changed_flag="$4"
             if [ "$changed_flag" = 'true' ]; then
-              changed_list+=("{\"adapter_id\":\"$id\",\"adapter_path\":\"$path\",\"package_name\":\"$pkg\"}")
+              entry="{\"adapter_id\":\"$id\",\"adapter_path\":\"$path\",\"package_name\":\"$pkg\"}"
+              if [ "$changed_list" = "[]" ]; then
+                changed_list="[$entry]"
+              else
+                changed_list="${changed_list%,}] , $entry]"
+              fi
             fi
           }
-          add_entry copilot_auth adapters/copilot_auth copilot_auth
-          add_entry copilot_config adapters/copilot_config copilot_config
-          add_entry copilot_events adapters/copilot_events copilot_events
-          add_entry copilot_logging adapters/copilot_logging copilot_logging
-          add_entry copilot_metrics adapters/copilot_metrics copilot_metrics
-          add_entry copilot_reporting adapters/copilot_reporting copilot_reporting
-          add_entry copilot_storage adapters/copilot_storage copilot_storage
-          add_entry copilot_embedding adapters/copilot_embedding copilot_embedding
-          add_entry copilot_chunking adapters/copilot_chunking copilot_chunking
-          add_entry copilot_consensus adapters/copilot_consensus copilot_consensus
-          add_entry copilot_schema_validation adapters/copilot_schema_validation copilot_schema_validation
 
-          if [ ${#changed_list[@]} -eq 0 ]; then
-            echo "matrix={\"include\":[]}" >> $GITHUB_OUTPUT
+          append_if_changed copilot_auth adapters/copilot_auth copilot_auth "${{ steps.filter.outputs.copilot_auth }}"
+          append_if_changed copilot_config adapters/copilot_config copilot_config "${{ steps.filter.outputs.copilot_config }}"
+          append_if_changed copilot_events adapters/copilot_events copilot_events "${{ steps.filter.outputs.copilot_events }}"
+          append_if_changed copilot_logging adapters/copilot_logging copilot_logging "${{ steps.filter.outputs.copilot_logging }}"
+          append_if_changed copilot_metrics adapters/copilot_metrics copilot_metrics "${{ steps.filter.outputs.copilot_metrics }}"
+          append_if_changed copilot_reporting adapters/copilot_reporting copilot_reporting "${{ steps.filter.outputs.copilot_reporting }}"
+          append_if_changed copilot_storage adapters/copilot_storage copilot_storage "${{ steps.filter.outputs.copilot_storage }}"
+          append_if_changed copilot_embedding adapters/copilot_embedding copilot_embedding "${{ steps.filter.outputs.copilot_embedding }}"
+          append_if_changed copilot_chunking adapters/copilot_chunking copilot_chunking "${{ steps.filter.outputs.copilot_chunking }}"
+          append_if_changed copilot_consensus adapters/copilot_consensus copilot_consensus "${{ steps.filter.outputs.copilot_consensus }}"
+          append_if_changed copilot_schema_validation adapters/copilot_schema_validation copilot_schema_validation "${{ steps.filter.outputs.copilot_schema_validation }}"
+
+          echo "matrix={\"include\":$changed_list}" >> $GITHUB_OUTPUT
+          if [ "$changed_list" != "[]" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
           else
-            json="{\"include\":[${changed_list[*]}]}"
-            echo "matrix=$json" >> $GITHUB_OUTPUT
+            echo "has_changes=false" >> $GITHUB_OUTPUT
           fi
 
   run-adapter-ci:
     needs: detect-changes
-    if: ${{ fromJSON(needs.detect-changes.outputs.matrix).include != null && length(fromJSON(needs.detect-changes.outputs.matrix).include) > 0 }}
+    if: ${{ needs.detect-changes.outputs.has_changes == 'true' }}
     uses: ./.github/workflows/adapter-reusable-ci.yml
     strategy:
       matrix: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
