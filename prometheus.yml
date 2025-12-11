@@ -6,6 +6,23 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: 'copilot-services'
+  - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
+
+  - job_name: 'copilot-services'
+    static_configs:
+      - targets: 
+        - 'ingestion:8000'
+        - 'parsing:8000'
+        - 'chunking:8000'
+        - 'embedding:8000'
+        - 'orchestrator:8000'
+        - 'summarization:8000'
+        - 'reporting:8080'
+        - 'error-reporting:8081'
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '([^:]+):.*'
+        target_label: service
+        replacement: '$1'
