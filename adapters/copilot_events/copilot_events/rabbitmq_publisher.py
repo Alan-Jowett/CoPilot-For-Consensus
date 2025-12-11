@@ -7,6 +7,11 @@ import json
 import logging
 from typing import Dict, Any, List, Optional
 
+try:
+    import pika
+except ImportError:
+    pika = None  # type: ignore
+
 from .publisher import EventPublisher
 
 logger = logging.getLogger(__name__)
@@ -53,9 +58,11 @@ class RabbitMQPublisher(EventPublisher):
         Returns:
             True if connection succeeded, False otherwise
         """
+        if pika is None:
+            logger.error("pika library is not installed")
+            return False
+            
         try:
-            import pika
-
             credentials = pika.PlainCredentials(self.username, self.password)
             parameters = pika.ConnectionParameters(
                 host=self.host,
@@ -197,9 +204,11 @@ class RabbitMQPublisher(EventPublisher):
             logger.error("Not connected to RabbitMQ")
             return False
 
-        try:
-            import pika
+        if pika is None:
+            logger.error("pika library is not installed")
+            return False
 
+        try:
             # Publish with persistence and mandatory flag
             self.channel.basic_publish(
                 exchange=exchange,
@@ -216,20 +225,17 @@ class RabbitMQPublisher(EventPublisher):
                 f"Published event to {exchange}/{routing_key}: {event.get('event_type')}"
             )
             return True
+        except pika.exceptions.UnroutableError:
+            logger.error(
+                f"Message unroutable - no queue bound for {exchange}/{routing_key}. "
+                "Ensure queues are declared before publishing."
+            )
+            return False
+        except pika.exceptions.NackError:
+            logger.error(
+                f"Message rejected (NACK) by broker for {exchange}/{routing_key}"
+            )
+            return False
         except Exception as e:
-            # Handle pika-specific exceptions if pika is available
-            error_type = type(e).__name__
-            
-            if "UnroutableError" in error_type:
-                logger.error(
-                    f"Message unroutable - no queue bound for {exchange}/{routing_key}. "
-                    "Ensure queues are declared before publishing."
-                )
-            elif "NackError" in error_type:
-                logger.error(
-                    f"Message rejected (NACK) by broker for {exchange}/{routing_key}"
-                )
-            else:
-                logger.error(f"Failed to publish event: {e}")
-            
+            logger.error(f"Failed to publish event: {e}")
             return False
