@@ -57,13 +57,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          cd adapters
-          for adapter in */; do
-            echo "Installing adapter: $adapter"
-            pip install -e "$adapter"
-          done
-          cd ..
           pip install pytest pytest-cov
+          # Install all adapters at once so pip can resolve local dependencies
+          pip install -e ./adapters/*
           python .github/scripts/install_extras.py '[]' '${{ inputs.extra_pip_packages }}'
 
       - name: Run unit tests
