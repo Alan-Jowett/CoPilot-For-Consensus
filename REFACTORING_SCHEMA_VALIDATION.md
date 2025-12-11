@@ -43,8 +43,8 @@ Created a new standalone adapter at `adapters/copilot_schema_validation/` with:
 
 **copilot_events/__init__.py:**
 - Changed schema validation imports from internal modules to `copilot_schema_validation`
-- Now imports: `SchemaProvider`, `FileSchemaProvider`, `DocumentStoreSchemaProvider`, `MongoSchemaProvider`, `validate_json`
-- Maintains backward compatibility through re-exports
+- Only event models (e.g., `BaseEvent`, `ArchiveIngestedEvent`, etc.) are re-exported from `copilot_schema_validation`
+- Schema validation components (`SchemaProvider`, `FileSchemaProvider`, `DocumentStoreSchemaProvider`, `MongoSchemaProvider`, `validate_json`) are now only available via `copilot_schema_validation`
 
 **tests/test_schema_validator.py:**
 - Updated import from `copilot_events.schema_validator` to `copilot_schema_validation`
@@ -86,9 +86,9 @@ Created a new standalone adapter at `adapters/copilot_schema_validation/` with:
 4. **Reusability**: Other adapters can now use schema validation without coupling to events
    - Better modular architecture
 
-5. **Backward Compatibility**: 
-   - `copilot_events` re-exports schema validation components
-   - Existing code importing from `copilot_events` continues to work
+5. **Breaking Change**: 
+   - `copilot_events` no longer re-exports schema validation components.
+   - Users must update their imports to use `copilot_schema_validation` directly for schema validation functionality.
 
 ## Dependency Graph
 
@@ -131,6 +131,7 @@ from copilot_events import BaseEvent, ArchiveIngestedEvent, ArchiveMetadata
 from copilot_schema_validation import BaseEvent, ArchiveIngestedEvent, ArchiveMetadata
 ```
 
+**Note:** Only event models (`BaseEvent`, `ArchiveIngestedEvent`, `ArchiveMetadata`, etc.) are re-exported from `copilot_events` for backward compatibility. Schema validation components such as `SchemaProvider`, `FileSchemaProvider`, `DocumentStoreSchemaProvider`, and `validate_json` are **not** re-exported and must be imported directly from `copilot_schema_validation`. This is a breaking change for users who previously imported these components from `copilot_events`.
 ## Testing Verification
 
 All test files have been updated with correct imports and are ready to run:
