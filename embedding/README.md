@@ -2,8 +2,6 @@
   Copyright (c) 2025 Copilot-for-Consensus contributors -->
 # Embedding Generation Service
 
-> **Note:** The embedding provider implementation has been moved to the `copilot_embedding` SDK module located in `adapter/copilot_embedding/`. This allows the embedding provider to be shared across multiple services. See the [SDK README](../adapter/copilot_embedding/README.md) for detailed documentation on the embedding provider API.
-
 ## Overview
 
 The Embedding Generation Service converts text chunks into high-dimensional vector embeddings for semantic search and retrieval-augmented generation (RAG). This service supports multiple embedding backends including local offline models (SentenceTransformers), cloud APIs (Azure OpenAI), and Ollama-compatible models, enabling both fully self-contained and cloud-integrated deployments.

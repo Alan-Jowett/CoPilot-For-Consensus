@@ -2,14 +2,3 @@
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
 python-dotenv==1.2.1
-
-# Copilot SDK dependencies
-# Install the embedding provider SDK from the local adapter directory
-# Example: pip install ./adapter/copilot_embedding
-#
-# Optional backend dependencies can be installed with extras:
-# - For local models: pip install "./adapter/copilot_embedding[sentencetransformers]"
-# - For OpenAI/Azure: pip install "./adapter/copilot_embedding[openai]"
-# - For HuggingFace: pip install "./adapter/copilot_embedding[huggingface]"
-# - For all backends: pip install "./adapter/copilot_embedding[all]"
-
