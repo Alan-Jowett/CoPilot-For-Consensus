@@ -3,8 +3,6 @@
 
 """Unit tests for draft detector."""
 
-import pytest
-
 from app.draft_detector import DraftDetector
 
 

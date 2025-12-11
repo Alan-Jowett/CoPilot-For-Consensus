@@ -7,7 +7,6 @@ import logging
 import os
 import sys
 import threading
-from datetime import datetime
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))

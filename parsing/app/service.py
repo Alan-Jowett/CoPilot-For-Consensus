@@ -188,7 +188,7 @@ class ParsingService:
             
         except Exception as e:
             duration = time.time() - start_time
-            logger.error(f"Failed to parse archive {archive_id}: {e}", exc_info=True)
+            logger.error(f"Failed to parse archive {archive_id} after {duration:.2f}s: {e}", exc_info=True)
             
             # Collect metrics
             if self.metrics_collector:
@@ -218,7 +218,7 @@ class ParsingService:
                 file_path,
                 str(e),
                 type(e).__name__,
-                self.messages_parsed,
+                0,
             )
 
     def _store_messages(self, messages: list):

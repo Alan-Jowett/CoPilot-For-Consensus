@@ -4,7 +4,6 @@
 """Unit tests for message parser."""
 
 import os
-import pytest
 
 from app.parser import MessageParser
 

@@ -213,7 +213,8 @@ class MessageParser:
         try:
             dt = parsedate_to_datetime(date_str)
             # Convert to UTC and format as ISO 8601
-            return dt.isoformat().replace("+00:00", "Z")
+            dt_utc = dt.astimezone(timezone.utc)
+            return dt_utc.isoformat().replace("+00:00", "Z")
         except Exception as e:
             logger.debug(f"Failed to parse date '{date_str}': {e}")
             return None

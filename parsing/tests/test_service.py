@@ -3,9 +3,6 @@
 
 """Integration tests for parsing service."""
 
-import os
-import pytest
-
 from copilot_events import NoopPublisher, NoopSubscriber
 from copilot_storage import InMemoryDocumentStore
 

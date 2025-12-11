@@ -3,8 +3,6 @@
 
 """Unit tests for thread builder."""
 
-import pytest
-
 from app.thread_builder import ThreadBuilder
 
 

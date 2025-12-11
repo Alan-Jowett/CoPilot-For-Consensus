@@ -4,7 +4,6 @@
 """Text normalization for email messages."""
 
 import re
-from typing import Optional
 
 # Try to import BeautifulSoup, but provide fallback
 try:

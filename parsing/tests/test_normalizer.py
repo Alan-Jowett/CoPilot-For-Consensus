@@ -3,8 +3,6 @@
 
 """Unit tests for text normalizer."""
 
-import pytest
-
 from app.normalizer import TextNormalizer
 
 
