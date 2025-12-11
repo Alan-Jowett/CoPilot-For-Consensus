@@ -4,7 +4,7 @@
 """Thread relationship building for email messages."""
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Set
 
 logger = logging.getLogger(__name__)
@@ -70,7 +70,7 @@ class ThreadBuilder:
                     "first_message_date": message.get("date"),
                     "last_message_date": message.get("date"),
                     "draft_mentions": set(),
-                    "created_at": datetime.utcnow().isoformat() + "Z",
+                    "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
                 }
             
             thread = threads[thread_id]
@@ -176,9 +176,17 @@ class ThreadBuilder:
         if not subject:
             return ""
         
-        # Remove common prefixes
+        # Remove common prefixes (case insensitive) in a loop
         import re
-        subject = re.sub(r'^(Re:|RE:|Fwd:|FW:|FWD:)\s*', '', subject, flags=re.IGNORECASE)
-        subject = re.sub(r'^\[.*?\]\s*', '', subject)  # Remove [list-name] prefixes
         
-        return subject.strip()
+        # Keep removing prefixes until no more matches
+        prev = None
+        while prev != subject:
+            prev = subject
+            # Remove Re:, Fwd:, etc.
+            subject = re.sub(r'^(Re:|RE:|Fwd:|FWD:|FW:)\s*', '', subject, flags=re.IGNORECASE)
+            # Remove [list-name] prefixes
+            subject = re.sub(r'^\[.*?\]\s*', '', subject)
+            subject = subject.strip()
+        
+        return subject

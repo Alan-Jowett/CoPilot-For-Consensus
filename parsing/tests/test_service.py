@@ -70,10 +70,10 @@ class TestParsingService:
         assert stats["last_processing_time_seconds"] > 0
         
         # Check document store
-        messages = list(service.document_store.find("messages", {}))
+        messages = service.document_store.query_documents("messages", {})
         assert len(messages) == 2
         
-        threads = list(service.document_store.find("threads", {}))
+        threads = service.document_store.query_documents("threads", {})
         assert len(threads) == 1
 
     def test_process_archive_with_corrupted_file(self, service, corrupted_mbox_file):
@@ -87,7 +87,7 @@ class TestParsingService:
         service.process_archive(archive_data)
         
         # No messages should be parsed from corrupted file
-        messages = list(service.document_store.find("messages", {}))
+        messages = service.document_store.query_documents("messages", {})
         assert len(messages) == 0
 
     def test_process_archive_missing_file(self, service):
@@ -101,7 +101,7 @@ class TestParsingService:
         service.process_archive(archive_data)
         
         # No messages should be stored
-        messages = list(service.document_store.find("messages", {}))
+        messages = service.document_store.query_documents("messages", {})
         assert len(messages) == 0
 
     def test_message_persistence(self, service, sample_mbox_file):
@@ -114,7 +114,7 @@ class TestParsingService:
         service.process_archive(archive_data)
         
         # Retrieve messages
-        messages = list(service.document_store.find("messages", {}))
+        messages = service.document_store.query_documents("messages", {})
         
         # Check required fields
         for msg in messages:
@@ -138,7 +138,7 @@ class TestParsingService:
         service.process_archive(archive_data)
         
         # Retrieve threads
-        threads = list(service.document_store.find("threads", {}))
+        threads = service.document_store.query_documents("threads", {})
         
         assert len(threads) == 1
         thread = threads[0]
@@ -166,7 +166,7 @@ class TestParsingService:
         service.process_archive(archive_data)
         
         # Check messages for draft mentions
-        messages = list(service.document_store.find("messages", {}))
+        messages = service.document_store.query_documents("messages", {})
         
         draft_mentions_found = []
         for msg in messages:
@@ -187,7 +187,7 @@ class TestParsingService:
         service.process_archive(archive_data)
         
         # Retrieve messages
-        messages = list(service.document_store.find("messages", {}))
+        messages = service.document_store.query_documents("messages", {})
         
         # Both messages should be in the same thread
         thread_ids = [msg["thread_id"] for msg in messages]

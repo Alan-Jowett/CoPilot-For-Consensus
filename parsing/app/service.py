@@ -5,7 +5,7 @@
 
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 
 from copilot_events import (
@@ -230,7 +230,7 @@ class ParsingService:
         try:
             # Store in 'messages' collection
             for message in messages:
-                self.document_store.insert_one("messages", message)
+                self.document_store.insert_document("messages", message)
         except Exception as e:
             logger.error(f"Failed to store messages: {e}")
             raise
@@ -244,7 +244,7 @@ class ParsingService:
         try:
             # Store in 'threads' collection
             for thread in threads:
-                self.document_store.insert_one("threads", thread)
+                self.document_store.insert_document("threads", thread)
         except Exception as e:
             logger.error(f"Failed to store threads: {e}")
             raise
@@ -319,7 +319,7 @@ class ParsingService:
                 "error_type": error_type,
                 "messages_parsed_before_failure": messages_parsed_before_failure,
                 "retry_count": 0,
-                "failed_at": datetime.utcnow().isoformat() + "Z",
+                "failed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             }
         )
         

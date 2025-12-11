@@ -6,7 +6,7 @@
 import mailbox
 import email
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from email.utils import parseaddr, parsedate_to_datetime
 from typing import Dict, Any, List, Optional
 
@@ -123,7 +123,7 @@ class MessageParser:
             "body_normalized": body_normalized,
             "headers": self._extract_extra_headers(message),
             "draft_mentions": draft_mentions,
-            "created_at": datetime.utcnow().isoformat() + "Z",
+            "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
         
         return parsed
