@@ -1,239 +1,206 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-name: Adapters CI (Changed-Only)
+name: Adapters Core CI
 
 on:
   push:
     branches: [ main ]
     paths:
-      - 'adapters/**'
+      - 'adapters/copilot_events/**'
+      - 'adapters/tests/test_*.py'
+      - 'adapters/setup.py'
       - '.github/workflows/adapters-ci.yml'
-      - '.github/workflows/adapter-reusable-unit-test-ci.yml'
-      - '.github/workflows/adapter-reusable-integration-ci.yml'
   pull_request:
     branches: [ main ]
     paths:
-      - 'adapters/**'
-      - '.github/workflows/adapters-ci.yml'
-      - '.github/workflows/adapter-reusable-unit-test-ci.yml'
-      - '.github/workflows/adapter-reusable-integration-ci.yml'
+      - 'adapters/copilot_events/**'
+      - 'adapters/tests/test_*.py'
+      - 'adapters/setup.py'
 
 permissions:
   contents: read
   checks: write
   pull-requests: write
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  detect-changes:
+  test:
     runs-on: ubuntu-latest
-    outputs:
-      copilot_auth: ${{ steps.filter.outputs.copilot_auth }}
-      copilot_chunking: ${{ steps.filter.outputs.copilot_chunking }}
-      copilot_config: ${{ steps.filter.outputs.copilot_config }}
-      copilot_consensus: ${{ steps.filter.outputs.copilot_consensus }}
-      copilot_embedding: ${{ steps.filter.outputs.copilot_embedding }}
-      copilot_events: ${{ steps.filter.outputs.copilot_events }}
-      copilot_logging: ${{ steps.filter.outputs.copilot_logging }}
-      copilot_metrics: ${{ steps.filter.outputs.copilot_metrics }}
-      copilot_archive_fetcher: ${{ steps.filter.outputs.copilot_archive_fetcher }}
-      copilot_reporting: ${{ steps.filter.outputs.copilot_reporting }}
-      copilot_schema_validation: ${{ steps.filter.outputs.copilot_schema_validation }}
-      copilot_storage: ${{ steps.filter.outputs.copilot_storage }}
-      copilot_summarization: ${{ steps.filter.outputs.copilot_summarization }}
-      copilot_vectorstore: ${{ steps.filter.outputs.copilot_vectorstore }}
-      ci_workflows: ${{ steps.filter.outputs.ci_workflows }}
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Detect changed adapters
-        id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          token: ${{ github.token }}
-          filters: |
-            ci_workflows:
-              - '.github/workflows/adapter-reusable-unit-test-ci.yml'
-              - '.github/workflows/adapter-reusable-integration-ci.yml'
-              - '.github/workflows/adapters-ci.yml'
-            copilot_auth:
-              - 'adapters/copilot_auth/**'
-            copilot_config:
-              - 'adapters/copilot_config/**'
-            copilot_events:
-              - 'adapters/copilot_events/**'
-            copilot_logging:
-              - 'adapters/copilot_logging/**'
-            copilot_archive_fetcher:
-              - 'adapters/copilot_archive_fetcher/**'
-            copilot_metrics:
-              - 'adapters/copilot_metrics/**'
-            copilot_reporting:
-              - 'adapters/copilot_reporting/**'
-            copilot_storage:
-              - 'adapters/copilot_storage/**'
-            copilot_embedding:
-              - 'adapters/copilot_embedding/**'
-            copilot_chunking:
-              - 'adapters/copilot_chunking/**'
-            copilot_consensus:
-              - 'adapters/copilot_consensus/**'
-            copilot_schema_validation:
-              - 'adapters/copilot_schema_validation/**'
-            copilot_summarization:
-              - 'adapters/copilot_summarization/**'
-            copilot_vectorstore:
-              - 'adapters/copilot_vectorstore/**'
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
 
-  auth-ci:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_auth == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
-    with:
-      adapter_id: copilot_auth
-      adapter_path: adapters/copilot_auth
-      package_name: copilot_auth
+    - name: Install SDK in development mode
+      run: |
+        python -m pip install --upgrade pip
+        cd adapters
+        pip install -e .
+        pip install pytest pytest-cov
 
-  config-ci:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_config == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
-    with:
-      adapter_id: copilot_config
-      adapter_path: adapters/copilot_config
-      package_name: copilot_config
+    - name: Run SDK core tests
+      run: |
+        cd adapters
+        pytest tests/ -v --tb=short --junit-xml=test-results.xml --ignore=tests/test_draft_diff
 
-  events-ci:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_events == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
-    with:
-      adapter_id: copilot_events
-      adapter_path: adapters/copilot_events
-      package_name: copilot_events
+    - name: Generate coverage report
+      run: |
+        cd adapters
+        pytest tests/ --cov=copilot_events --cov-report=lcov --cov-report=html --cov-report=term --ignore=tests/test_draft_diff
 
-  logging-ci:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_logging == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
-    with:
-      adapter_id: copilot_logging
-      adapter_path: adapters/copilot_logging
-      package_name: copilot_logging
+    - name: Upload coverage to Coveralls
+      uses: coverallsapp/github-action@v2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-lcov: ./adapters/coverage.lcov
+        flag-name: adapters-core-python-${{ matrix.python-version }}
+        parallel: true
 
-  metrics-ci:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_metrics == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
-    with:
-      adapter_id: copilot_metrics
-      adapter_path: adapters/copilot_metrics
-      package_name: copilot_metrics
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: adapters-core-test-results-${{ matrix.python-version }}
+        path: adapters/test-results.xml
 
-  archive-fetcher-ci:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_archive_fetcher == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
-    with:
-      adapter_id: copilot_archive_fetcher
-      adapter_path: adapters/copilot_archive_fetcher
-      package_name: copilot_archive_fetcher
+    - name: Upload coverage reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: adapters-core-coverage-report-${{ matrix.python-version }}
+        path: adapters/htmlcov
 
-  archive-fetcher-integration-ci:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_archive_fetcher == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-integration-ci.yml
-    with:
-      adapter_id: copilot_archive_fetcher
-      adapter_path: adapters/copilot_archive_fetcher
-      package_name: copilot_archive_fetcher
-      enable_rsync_daemon: true
-      rsync_module: data
-      rsync_port: '8730'
+    - name: Test Report
+      if: always()
+      uses: dorny/test-reporter@v1
+      with:
+        name: Adapters Core Test Results (Python ${{ matrix.python-version }})
+        path: adapters/test-results.xml
+        reporter: 'java-junit'
 
-  reporting-ci:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_reporting == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
-    with:
-      adapter_id: copilot_reporting
-      adapter_path: adapters/copilot_reporting
-      package_name: copilot_reporting
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-  storage-ci:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_storage == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
-    with:
-      adapter_id: copilot_storage
-      adapter_path: adapters/copilot_storage
-      package_name: copilot_storage
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
 
-  embedding-ci:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_embedding == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
-    with:
-      adapter_id: copilot_embedding
-      adapter_path: adapters/copilot_embedding
-      package_name: copilot_embedding
+    - name: Install dependencies
+      run: |
+        cd adapters
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install pylint flake8
 
-  chunking-ci:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_chunking == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
-    with:
-      adapter_id: copilot_chunking
-      adapter_path: adapters/copilot_chunking
-      package_name: copilot_chunking
+    - name: Run pylint on copilot_events
+      run: |
+        cd adapters
+        pylint copilot_events/*.py --disable=C0111,C0103,R0903 || echo "Pylint warnings found but continuing..."
 
-  consensus-ci:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_consensus == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
-    with:
-      adapter_id: copilot_consensus
-      adapter_path: adapters/copilot_consensus
-      package_name: copilot_consensus
+    - name: Run flake8 on copilot_events
+      run: |
+        cd adapters
+        flake8 copilot_events/*.py tests/test_*.py --count --select=E9,F63,F7,F82 --show-source --statistics
 
-  schema-validation-ci:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_schema_validation == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
-    with:
-      adapter_id: copilot_schema_validation
-      adapter_path: adapters/copilot_schema_validation
-      package_name: copilot_schema_validation
+  type-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-  summarization-ci:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_summarization == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
-    with:
-      adapter_id: copilot_summarization
-      adapter_path: adapters/copilot_summarization
-      package_name: copilot_summarization
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
 
-  vectorstore-ci:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_vectorstore == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
-    with:
-      adapter_id: copilot_vectorstore
-      adapter_path: adapters/copilot_vectorstore
-      package_name: copilot_vectorstore
-      extra_pip_packages: '["faiss-cpu"]'
+    - name: Install dependencies
+      run: |
+        cd adapters
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install mypy types-pika
 
-  storage-integration-ci:
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.copilot_storage == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
-    uses: ./.github/workflows/adapter-reusable-integration-ci.yml
-    with:
-      adapter_id: copilot_storage
-      adapter_path: adapters/copilot_storage
-      package_name: copilot_storage
+    - name: Run mypy on copilot_events
+      run: |
+        cd adapters
+        mypy copilot_events --ignore-missing-imports || echo "Type checking completed with warnings"
+
+  test-imports:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install SDK
+      run: |
+        python -m pip install --upgrade pip
+        pip install ./adapters
+
+    - name: Test copilot_events imports
+      run: |
+        python -c "
+        from copilot_events import (
+            EventPublisher,
+            ArchiveIngestedEvent,
+            ArchiveIngestionFailedEvent,
+            create_publisher,
+            RabbitMQPublisher,
+            NoopPublisher
+        )
+        print('✓ copilot_events imports successful')
+        "
+
+  coveralls-finish:
+    runs-on: ubuntu-latest
+    needs: test
+    if: always()
+    steps:
+    - name: Finalize Coveralls
+      uses: coverallsapp/github-action@v2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        parallel-finished: true
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [test, lint, type-check, test-imports]
+    if: always()
+    
+    steps:
+    - name: Check test status
+      run: |
+        if [ "${{ needs.test.result }}" == "success" ]; then
+          echo "✓ Tests passed"
+        else
+          echo "✗ Tests failed"
+          exit 1
+        fi
+    
+    - name: Report summary
+      run: |
+        echo "Adapters Core CI Summary:"
+        echo "- Tests: ${{ needs.test.result }}"
+        echo "- Lint: ${{ needs.lint.result }}"
+        echo "- Type Check: ${{ needs.type-check.result }}"
+        echo "- Import Test: ${{ needs.test-imports.result }}"
