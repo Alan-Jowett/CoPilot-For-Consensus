@@ -107,7 +107,19 @@ jobs:
     - name: Test Loki health endpoint
       run: |
         echo "Testing Loki..."
-        curl -f http://localhost:3100/ready || exit 1
+        max_attempts=30
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+          if curl -f http://localhost:3100/ready 2>/dev/null; then
+            echo "Loki is ready"
+            exit 0
+          fi
+          echo "Attempt $attempt/$max_attempts: Loki not ready yet, waiting..."
+          sleep 5
+          attempt=$((attempt + 1))
+        done
+        echo "Loki failed to become ready after $max_attempts attempts"
+        exit 1
 
     - name: View service logs
       if: always()
