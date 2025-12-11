@@ -28,6 +28,26 @@ on:
         required: false
         type: string
         default: '3.11'
+      enable_rsync_daemon:
+        description: 'Start a local rsync daemon with provided fixtures'
+        required: false
+        type: boolean
+        default: false
+      rsync_fixture_path:
+        description: 'Path to rsync fixture directory (defaults to <adapter_path>/tests/integration/fixtures/rsync)'
+        required: false
+        type: string
+        default: ''
+      rsync_module:
+        description: 'Module name exposed by the rsync daemon'
+        required: false
+        type: string
+        default: 'data'
+      rsync_port:
+        description: 'Port to expose the rsync daemon on'
+        required: false
+        type: string
+        default: '8730'
 
 permissions:
   contents: read
@@ -67,6 +87,37 @@ jobs:
           pip install pytest pytest-cov pymongo
           python adapters/scripts/install_adapters.py
 
+      - name: Start rsync daemon (fixtures)
+        if: ${{ inputs.enable_rsync_daemon }}
+        env:
+          RSYNC_FIXTURE_PATH: ${{ inputs.rsync_fixture_path }}
+        run: |
+          set -e
+          FIXTURE_PATH="$RSYNC_FIXTURE_PATH"
+          if [ -z "$FIXTURE_PATH" ]; then
+            FIXTURE_PATH="${{ inputs.adapter_path }}/tests/integration/fixtures/rsync"
+          fi
+          if [ ! -d "$FIXTURE_PATH" ]; then
+            echo "Fixture path not found: $FIXTURE_PATH"
+            exit 1
+          fi
+          mkdir -p /tmp/rsync-data
+            touch /tmp/rsyncd.lock /tmp/rsyncd.pid
+            chmod 666 /tmp/rsyncd.lock /tmp/rsyncd.pid
+          cp -r "$FIXTURE_PATH"/. /tmp/rsync-data/
+          cat >/tmp/rsyncd.conf <<EOF
+          use chroot = no
+          max connections = 4
+          log file = /tmp/rsyncd.log
+          lock file = /tmp/rsyncd.lock
+          pid file = /tmp/rsyncd.pid
+          [${{ inputs.rsync_module }}]
+              path = /tmp/rsync-data
+              read only = yes
+              list = yes
+          EOF
+          rsync --daemon --config=/tmp/rsyncd.conf --port=${{ inputs.rsync_port }}
+
       - name: Wait for MongoDB to be ready
         run: |
           echo "Waiting for MongoDB to be ready..."
@@ -102,6 +153,10 @@ jobs:
           MONGODB_USERNAME: testuser
           MONGODB_PASSWORD: testpass
           MONGODB_DATABASE: test_copilot
+          RSYNC_HOST: localhost
+          RSYNC_PORT: ${{ inputs.rsync_port }}
+          RSYNC_MODULE: ${{ inputs.rsync_module }}
+          RSYNC_INTEGRATION_ENABLED: ${{ inputs.enable_rsync_daemon }}
         run: |
           cd ${{ inputs.adapter_path }}
           # Default to running all tests marked integration
