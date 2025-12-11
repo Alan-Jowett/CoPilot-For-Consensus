@@ -473,7 +473,7 @@ def create_chunker(strategy: str, **kwargs) -> ThreadChunker:
 The SDK includes comprehensive unit tests for all chunkers:
 
 ```bash
-cd sdk
+cd adapters
 pytest tests/test_chunkers.py -v
 ```
 
