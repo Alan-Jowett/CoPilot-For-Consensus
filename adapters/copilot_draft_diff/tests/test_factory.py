@@ -5,10 +5,10 @@
 
 import os
 import pytest
-from draft_diff.factory import DiffProviderFactory, create_diff_provider
-from draft_diff.provider import DraftDiffProvider
-from draft_diff.datatracker_provider import DatatrackerDiffProvider
-from draft_diff.mock_provider import MockDiffProvider
+from copilot_draft_diff.factory import DiffProviderFactory, create_diff_provider
+from copilot_draft_diff.provider import DraftDiffProvider
+from copilot_draft_diff.datatracker_provider import DatatrackerDiffProvider
+from copilot_draft_diff.mock_provider import MockDiffProvider
 
 
 class TestDiffProviderFactory:

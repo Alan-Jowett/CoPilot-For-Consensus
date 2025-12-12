@@ -9,7 +9,7 @@ can be integrated into services like summarization, reporting, etc.
 """
 
 import os
-from draft_diff import create_diff_provider
+from copilot_draft_diff import create_diff_provider
 
 
 class DraftSummaryService:

@@ -4,7 +4,7 @@
 """Tests for datatracker diff provider."""
 
 import pytest
-from draft_diff.datatracker_provider import DatatrackerDiffProvider
+from copilot_draft_diff.datatracker_provider import DatatrackerDiffProvider
 
 
 class TestDatatrackerDiffProvider:

@@ -4,7 +4,7 @@
 """Tests for draft diff models."""
 
 import pytest
-from draft_diff.models import DraftDiff
+from copilot_draft_diff.models import DraftDiff
 
 
 class TestDraftDiff:

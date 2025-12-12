@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Example usage of the draft_diff module.
+"""Example usage of the copilot_draft_diff module.
 
 This script demonstrates how to use the draft diff provider abstraction layer
 to fetch and display draft diffs from different sources.
 """
 
-from draft_diff import create_diff_provider, MockDiffProvider, DraftDiff
+from copilot_draft_diff import create_diff_provider, MockDiffProvider, DraftDiff
 
 
 def example_basic_usage():

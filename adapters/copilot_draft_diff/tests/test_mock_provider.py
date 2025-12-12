@@ -4,8 +4,8 @@
 """Tests for mock diff provider."""
 
 import pytest
-from draft_diff.mock_provider import MockDiffProvider
-from draft_diff.models import DraftDiff
+from copilot_draft_diff.mock_provider import MockDiffProvider
+from copilot_draft_diff.models import DraftDiff
 
 
 class TestMockDiffProvider:

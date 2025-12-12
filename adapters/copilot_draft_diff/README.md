@@ -17,7 +17,7 @@ This package provides an abstraction layer for fetching and representing draft d
 ### Basic Usage
 
 ```python
-from draft_diff import create_diff_provider
+from copilot_draft_diff import create_diff_provider
 
 # Create a provider (uses environment variables by default)
 provider = create_diff_provider()
@@ -37,7 +37,7 @@ print(f"Content:\n{diff.content}")
 ### Using Specific Providers
 
 ```python
-from draft_diff import create_diff_provider
+from copilot_draft_diff import create_diff_provider
 
 # Use mock provider for testing
 provider = create_diff_provider("mock", {"default_format": "html"})
@@ -66,7 +66,7 @@ export DRAFT_DIFF_FORMAT=html
 Then in your code:
 
 ```python
-from draft_diff import create_diff_provider
+from copilot_draft_diff import create_diff_provider
 
 # Automatically uses environment configuration
 provider = create_diff_provider()
@@ -76,7 +76,7 @@ diff = provider.getdiff("draft-ietf-quic-transport", "01", "02")
 ### Using the Factory Directly
 
 ```python
-from draft_diff import DiffProviderFactory
+from copilot_draft_diff import DiffProviderFactory
 
 # Create provider
 provider = DiffProviderFactory.create("mock", {"default_format": "markdown"})
@@ -90,7 +90,7 @@ provider = DiffProviderFactory.create_from_env()
 You can register custom provider implementations:
 
 ```python
-from draft_diff import DiffProviderFactory, DraftDiffProvider, DraftDiff
+from copilot_draft_diff import DiffProviderFactory, DraftDiffProvider, DraftDiff
 
 class CustomProvider(DraftDiffProvider):
     def getdiff(self, draft_name: str, version_a: str, version_b: str) -> DraftDiff:
@@ -119,7 +119,7 @@ diff = provider.getdiff("draft-test", "01", "02")
 For testing purposes. Generates synthetic diff data.
 
 ```python
-from draft_diff import MockDiffProvider, DraftDiff
+from copilot_draft_diff import MockDiffProvider, DraftDiff
 
 # Create with auto-generation
 provider = MockDiffProvider(default_format="html")
@@ -142,7 +142,7 @@ provider.add_mock_diff("draft-custom", "01", "02", predefined)
 For fetching diffs from IETF Datatracker (stub implementation).
 
 ```python
-from draft_diff import DatatrackerDiffProvider
+from copilot_draft_diff import DatatrackerDiffProvider
 
 provider = DatatrackerDiffProvider(
     base_url="https://datatracker.ietf.org",
@@ -177,7 +177,7 @@ class DraftDiff:
 ### In Summarization Service
 
 ```python
-from draft_diff import create_diff_provider
+from copilot_draft_diff import create_diff_provider
 
 # In your service initialization
 diff_provider = create_diff_provider()
