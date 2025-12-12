@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+    Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Archive Fetcher Adapter
 
 A shared library for fetching archives from various sources in the Copilot-for-Consensus system.

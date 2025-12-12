@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
 #!/usr/bin/env python3
 """
 Centralized script to install adapters in dependency order.

@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: license-header-check
+        name: License header check
+        entry: python scripts/check_license_headers.py --root .
+        language: system
+        pass_filenames: false
+        stages: [commit, push]
