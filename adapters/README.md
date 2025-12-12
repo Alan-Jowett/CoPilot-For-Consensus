@@ -79,6 +79,32 @@ Each adapter provides test-friendly implementations:
 - **copilot_metrics**: `NoOpMetricsCollector`
 - **copilot_reporting**: `SilentErrorReporter`
 
+### Integration Tests
+
+Adapters that interact with external services have dedicated integration tests:
+
+- **copilot_storage**: MongoDB integration tests (`test_integration_mongodb.py`)
+- **copilot_events**: RabbitMQ integration tests (`test_integration_rabbitmq.py`)
+- **copilot_archive_fetcher**: rsync and HTTP integration tests
+- **copilot_schema_validation**: MongoDB-backed schema provider integration tests
+
+Integration tests are marked with `@pytest.mark.integration` and can be run with:
+
+```bash
+# Run all integration tests
+pytest -m integration
+
+# Run integration tests for a specific adapter
+cd adapters/copilot_events
+pytest -m integration
+
+# Skip integration tests
+pytest -m "not integration"
+```
+
+Integration tests require external services (MongoDB, RabbitMQ, etc.) to be running. 
+The CI pipeline automatically provisions these services using GitHub Actions service containers.
+
 ## Contributing
 
 When adding new adapters or modifying existing ones:
