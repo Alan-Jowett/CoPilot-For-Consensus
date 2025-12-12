@@ -4,6 +4,7 @@
 """Main error reporting service application."""
 
 import logging
+import os
 from datetime import datetime
 from flask import Flask, request, render_template
 from copilot_config import load_typed_config
@@ -18,6 +19,9 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Load configuration from schema
+config = load_typed_config("error-reporting")
 
 app = Flask(__name__, template_folder='templates')
 error_store = None
