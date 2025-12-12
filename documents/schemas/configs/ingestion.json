@@ -140,11 +140,10 @@
     },
     "sources": {
       "type": "list",
-      "source": "file",
-      "file_path": "config.yaml",
-      "file_key": "sources",
+      "source": "storage",
+      "storage_collection": "sources",
       "default": [],
-      "description": "List of mail archive sources to ingest",
+      "description": "List of mail archive sources to ingest (loaded from document store)",
       "item_schema": {
         "type": "object",
         "required": ["name", "source_type", "url", "enabled"],

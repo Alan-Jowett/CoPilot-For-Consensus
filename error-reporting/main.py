@@ -9,6 +9,7 @@ from flask import Flask, request, render_template
 from copilot_config import load_typed_config
 from app.error_store import ErrorStore, ErrorEvent
 import uuid
+from functools import lru_cache
 
 # Valid error levels
 VALID_LEVELS = {"error", "warning", "critical", "info"}
@@ -20,7 +21,24 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__, template_folder='templates')
+
+# Lazy-loaded configuration and error store
+config = None
 error_store = None
+
+
+@lru_cache(maxsize=1)
+def get_config():
+    """Load and cache service configuration lazily."""
+    return load_typed_config("error-reporting")
+
+
+def get_error_store() -> ErrorStore:
+    """Get or initialize the ErrorStore with configured capacity."""
+    global error_store
+    if error_store is None:
+        error_store = ErrorStore(max_errors=get_config().max_errors)
+    return error_store
 
 
 @app.route("/", methods=["GET"])
@@ -75,7 +93,7 @@ def report_error():
         )
         
         # Store error
-        error_id = error_store.add_error(error_event)
+        error_id = get_error_store().add_error(error_event)
         
         logger.info(f"Received error from {data['service']}: {data['message'][:100]}")
         
@@ -124,7 +142,7 @@ def get_errors():
         except (TypeError, ValueError):
             return {"error": "Invalid 'offset' parameter, must be an integer"}, 400
         
-        errors = error_store.get_errors(
+        errors = get_error_store().get_errors(
             service=service,
             level=level,
             error_type=error_type,
@@ -148,7 +166,7 @@ def get_errors():
 def get_error(error_id):
     """Get a specific error by ID."""
     try:
-        error = error_store.get_error_by_id(error_id)
+        error = get_error_store().get_error_by_id(error_id)
         
         if not error:
             return {"error": "Error not found"}, 404
@@ -164,7 +182,7 @@ def get_error(error_id):
 def get_stats():
     """Get error statistics."""
     try:
-        stats = error_store.get_stats()
+        stats = get_error_store().get_stats()
         return stats, 200
         
     except Exception as e:
@@ -181,14 +199,14 @@ def ui():
         level = request.args.get("level")
         
         # Get errors
-        errors = error_store.get_errors(
+        errors = get_error_store().get_errors(
             service=service,
             level=level,
             limit=100
         )
         
         # Get stats
-        stats = error_store.get_stats()
+        stats = get_error_store().get_stats()
         
         return render_template(
             "errors.html",
@@ -204,11 +222,6 @@ def ui():
 
 
 if __name__ == "__main__":
-    # Load configuration from schema
-    config = load_typed_config("error-reporting")
-    
-    # Initialize error store with config
-    error_store = ErrorStore(max_errors=config.max_errors)
-    
-    logger.info(f"Starting Error Reporting Service on port {config.http_port}")
-    app.run(host="0.0.0.0", port=config.http_port, debug=False)
+    port = get_config().http_port
+    logger.info(f"Starting Error Reporting Service on port {port}")
+    app.run(host="0.0.0.0", port=port, debug=False)

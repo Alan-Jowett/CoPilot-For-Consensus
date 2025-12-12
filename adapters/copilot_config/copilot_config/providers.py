@@ -135,6 +135,39 @@ class DocStoreConfigProvider(ConfigProvider):
         self._collection = collection
         self._cache: Optional[Dict[str, Any]] = None
 
+    def is_connected(self) -> bool:
+        """Check if the document store is connected.
+        
+        Returns:
+            True if document store is available, False otherwise
+        """
+        try:
+            # Try to ensure cache is loaded to verify connection
+            self._ensure_cache()
+            return self._cache is not None
+        except Exception:
+            return False
+
+    def query_documents_from_collection(self, collection_name: str, limit: int = 10000) -> list:
+        """Query all documents from a collection.
+        
+        Args:
+            collection_name: Name of the collection to query
+            limit: Maximum number of documents to return
+            
+        Returns:
+            List of documents from the collection
+        """
+        try:
+            documents = self._doc_store.query_documents(
+                collection=collection_name,
+                filter_dict={},
+                limit=limit
+            )
+            return documents if documents else []
+        except Exception:
+            return []
+
     def _ensure_cache(self) -> None:
         """Ensure configuration cache is loaded."""
         if self._cache is not None:
