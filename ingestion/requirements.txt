@@ -3,6 +3,8 @@
 
 python-dotenv==1.2.1
 pyyaml==6.0.3
+# Config adapter
+# copilot_config
 # Archive Fetcher Adapter
 copilot-archive-fetcher[http,imap]>=0.1.0
 # Observability

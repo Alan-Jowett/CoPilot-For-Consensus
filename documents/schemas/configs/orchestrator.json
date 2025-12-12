@@ -124,6 +124,13 @@
       "default": 2048,
       "description": "LLM max tokens"
     },
+    "http_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "HTTP_PORT",
+      "default": 8000,
+      "description": "HTTP server port"
+    },
     "metrics_backend": {
       "type": "string",
       "source": "env",

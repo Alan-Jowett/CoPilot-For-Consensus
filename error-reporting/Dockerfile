@@ -5,10 +5,18 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy requirements and install dependencies
 # NOTE: If your environment uses SSL inspection or a custom CA, configure pip
 # to use the correct CA certificate bundle instead of disabling TLS verification.
 # See: https://pip.pypa.io/en/stable/topics/configuration/
+
+# Install shared adapters in dependency order using centralized script
+COPY adapters/ /app/adapters/
+RUN python /app/adapters/scripts/install_adapters.py --no-dev
+
+# Copy schema files for validation
+COPY documents/schemas /app/documents/schemas
+
+# Copy requirements and install dependencies
 COPY error-reporting/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 

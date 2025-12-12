@@ -96,6 +96,20 @@
       "default": "",
       "description": "Webhook URL for notifications"
     },
+    "webhook_summary_max_length": {
+      "type": "int",
+      "source": "env",
+      "env_var": "WEBHOOK_SUMMARY_MAX_LENGTH",
+      "default": 500,
+      "description": "Maximum length of summary in webhook notifications"
+    },
+    "http_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "HTTP_PORT",
+      "default": 8080,
+      "description": "HTTP server port"
+    },
     "metrics_backend": {
       "type": "string",
       "source": "env",

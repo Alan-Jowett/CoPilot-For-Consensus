@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 
 import yaml
-from copilot_config import ConfigProvider, create_config_provider
+from copilot_config import load_typed_config
 
 
 @dataclass
@@ -71,51 +71,50 @@ class IngestionConfig:
     sources: List[SourceConfig] = field(default_factory=list)
 
     @classmethod
-    def from_env(cls, config_provider: Optional[ConfigProvider] = None) -> "IngestionConfig":
-        """Load configuration from environment variables.
+    def from_env(cls, schema_path: Optional[str] = None) -> "IngestionConfig":
+        """Load configuration from environment variables using schema.
         
         Args:
-            config_provider: ConfigProvider to use (defaults to EnvConfigProvider)
+            schema_path: Path to schema file (defaults to standard location)
         """
-        if config_provider is None:
-            config_provider = create_config_provider()
+        config_obj = load_typed_config("ingestion")
         
         return cls(
-            storage_path=config_provider.get("STORAGE_PATH", "/data/raw_archives"),
-            message_bus_host=config_provider.get("MESSAGE_BUS_HOST", "messagebus"),
-            message_bus_port=config_provider.get_int("MESSAGE_BUS_PORT", 5672),
-            message_bus_user=config_provider.get("MESSAGE_BUS_USER", "guest"),
-            message_bus_password=config_provider.get("MESSAGE_BUS_PASSWORD", "guest"),
-            message_bus_type=config_provider.get("MESSAGE_BUS_TYPE", "rabbitmq"),
-            ingestion_schedule_cron=config_provider.get("INGESTION_SCHEDULE_CRON", "0 */6 * * *"),
-            blob_storage_enabled=config_provider.get_bool("BLOB_STORAGE_ENABLED", False),
-            blob_storage_connection_string=config_provider.get("BLOB_STORAGE_CONNECTION_STRING"),
-            blob_storage_container=config_provider.get("BLOB_STORAGE_CONTAINER", "raw-archives"),
-            log_level=config_provider.get("LOG_LEVEL", "INFO"),
-            log_type=config_provider.get("LOG_TYPE", "stdout"),
-            logger_name=config_provider.get("LOG_NAME", "ingestion-service"),
-            metrics_backend=config_provider.get("METRICS_BACKEND", "noop"),
-            retry_max_attempts=config_provider.get_int("RETRY_MAX_ATTEMPTS", 3),
-            retry_backoff_seconds=config_provider.get_int("RETRY_BACKOFF_SECONDS", 60),
-            error_reporter_type=config_provider.get("ERROR_REPORTER_TYPE", "console"),
-            sentry_dsn=config_provider.get("SENTRY_DSN"),
-            sentry_environment=config_provider.get("SENTRY_ENVIRONMENT", "production"),
+            storage_path=config_obj.storage_path,
+            message_bus_host=config_obj.message_bus_host,
+            message_bus_port=config_obj.message_bus_port,
+            message_bus_user=config_obj.message_bus_user,
+            message_bus_password=config_obj.message_bus_password,
+            message_bus_type=config_obj.message_bus_type,
+            ingestion_schedule_cron=config_obj.ingestion_schedule_cron,
+            blob_storage_enabled=config_obj.blob_storage_enabled,
+            blob_storage_connection_string=config_obj.blob_storage_connection_string,
+            blob_storage_container=config_obj.blob_storage_container,
+            log_level=config_obj.log_level,
+            log_type=config_obj.log_type,
+            logger_name=config_obj.logger_name,
+            metrics_backend=config_obj.metrics_backend,
+            retry_max_attempts=config_obj.retry_max_attempts,
+            retry_backoff_seconds=config_obj.retry_backoff_seconds,
+            error_reporter_type=config_obj.error_reporter_type,
+            sentry_dsn=config_obj.sentry_dsn,
+            sentry_environment=config_obj.sentry_environment,
         )
 
     @classmethod
-    def from_yaml_file(cls, filepath: str, config_provider: Optional[ConfigProvider] = None) -> "IngestionConfig":
+    def from_yaml_file(cls, filepath: str, schema_path: Optional[str] = None) -> "IngestionConfig":
         """Load configuration from YAML file (config.yaml).
         
         Args:
             filepath: Path to YAML configuration file
-            config_provider: ConfigProvider to use for env vars (defaults to EnvConfigProvider)
+            schema_path: Path to schema file (defaults to standard location)
         """
         try:
             import yaml
         except ImportError:
             raise ImportError("PyYAML required for YAML configuration. Install with: pip install pyyaml")
         
-        config = cls.from_env(config_provider)
+        config = cls.from_env(schema_path)
         
         if not os.path.exists(filepath):
             return config

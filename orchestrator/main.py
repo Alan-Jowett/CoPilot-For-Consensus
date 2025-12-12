@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from fastapi import FastAPI
 import uvicorn
 
+from copilot_config import load_typed_config
 from copilot_events import create_publisher, create_subscriber
 from copilot_storage import create_document_store
 from copilot_metrics import create_metrics_collector
@@ -89,55 +90,37 @@ def main():
     logger.info(f"Starting Orchestration Service (version {__version__})")
 
     try:
-        # Load configuration from environment
-        message_bus_type = os.getenv("MESSAGE_BUS_TYPE", "rabbitmq")
-        message_bus_host = os.getenv("MESSAGE_BUS_HOST", "messagebus")
-        message_bus_port = int(os.getenv("MESSAGE_BUS_PORT", "5672"))
-        message_bus_user = os.getenv("MESSAGE_BUS_USER", "guest")
-        message_bus_password = os.getenv("MESSAGE_BUS_PASSWORD", "guest")
-
-        doc_store_type = os.getenv("DOC_STORE_TYPE", "mongodb")
-        doc_store_host = os.getenv("DOC_DB_HOST", "documentdb")
-        doc_store_port = int(os.getenv("DOC_DB_PORT", "27017"))
-        doc_store_name = os.getenv("DOC_DB_NAME", "copilot")
-        doc_store_user = os.getenv("DOC_DB_USER", "")
-        doc_store_password = os.getenv("DOC_DB_PASSWORD", "")
-
-        # Orchestration configuration
-        top_k = int(os.getenv("TOP_K", "12"))
-        context_window_tokens = int(os.getenv("CONTEXT_WINDOW_TOKENS", "3000"))
-        llm_backend = os.getenv("LLM_BACKEND", "ollama")
-        llm_model = os.getenv("LLM_MODEL", "mistral")
-        llm_temperature = float(os.getenv("LLM_TEMPERATURE", "0.2"))
-        llm_max_tokens = int(os.getenv("LLM_MAX_TOKENS", "2048"))
+        # Load configuration using config adapter
+        config = load_typed_config("orchestrator")
+        logger.info("Configuration loaded successfully")
 
         # Create adapters
         logger.info("Creating message bus publisher...")
         publisher = create_publisher(
-            message_bus_type=message_bus_type,
-            host=message_bus_host,
-            port=message_bus_port,
-            username=message_bus_user,
-            password=message_bus_password,
+            message_bus_type=config.message_bus_type,
+            host=config.message_bus_host,
+            port=config.message_bus_port,
+            username=config.message_bus_user,
+            password=config.message_bus_password,
         )
 
         logger.info("Creating message bus subscriber...")
         subscriber = create_subscriber(
-            message_bus_type=message_bus_type,
-            host=message_bus_host,
-            port=message_bus_port,
-            username=message_bus_user,
-            password=message_bus_password,
+            message_bus_type=config.message_bus_type,
+            host=config.message_bus_host,
+            port=config.message_bus_port,
+            username=config.message_bus_user,
+            password=config.message_bus_password,
         )
 
         logger.info("Creating document store...")
         document_store = create_document_store(
-            store_type=doc_store_type,
-            host=doc_store_host,
-            port=doc_store_port,
-            database=doc_store_name,
-            username=doc_store_user if doc_store_user else None,
-            password=doc_store_password if doc_store_password else None,
+            store_type=config.doc_store_type,
+            host=config.doc_store_host,
+            port=config.doc_store_port,
+            database=config.doc_store_name,
+            username=config.doc_store_user if config.doc_store_user else None,
+            password=config.doc_store_password if config.doc_store_password else None,
         )
 
         # Create optional services
@@ -161,12 +144,12 @@ def main():
             document_store=document_store,
             publisher=publisher,
             subscriber=subscriber,
-            top_k=top_k,
-            context_window_tokens=context_window_tokens,
-            llm_backend=llm_backend,
-            llm_model=llm_model,
-            llm_temperature=llm_temperature,
-            llm_max_tokens=llm_max_tokens,
+            top_k=config.top_k,
+            context_window_tokens=config.context_window_tokens,
+            llm_backend=config.llm_backend,
+            llm_model=config.llm_model,
+            llm_temperature=config.llm_temperature,
+            llm_max_tokens=config.llm_max_tokens,
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
         )
@@ -181,9 +164,8 @@ def main():
         logger.info("Subscriber thread started")
 
         # Start FastAPI server
-        http_port = int(os.getenv("HTTP_PORT", "8000"))
-        logger.info(f"Starting HTTP server on port {http_port}...")
-        uvicorn.run(app, host="0.0.0.0", port=http_port)
+        logger.info(f"Starting HTTP server on port {config.http_port}...")
+        uvicorn.run(app, host="0.0.0.0", port=config.http_port)
 
     except Exception as e:
         logger.error(f"Failed to start orchestration service: {e}", exc_info=True)

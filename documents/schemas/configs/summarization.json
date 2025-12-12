@@ -165,6 +165,13 @@
       "env_var": "ERROR_REPORTER_TYPE",
       "default": "console",
       "description": "Error reporter type"
+    },
+    "http_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "HTTP_PORT",
+      "default": 8000,
+      "description": "HTTP server port"
     }
   }
 }

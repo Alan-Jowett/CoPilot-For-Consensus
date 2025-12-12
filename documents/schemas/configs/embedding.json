@@ -145,12 +145,19 @@
       "default": 3,
       "description": "Maximum retry attempts"
     },
-    "retry_delay": {
+    "retry_backoff": {
       "type": "int",
       "source": "env",
-      "env_var": "RETRY_DELAY_SECONDS",
+      "env_var": "RETRY_BACKOFF_SECONDS",
       "default": 5,
-      "description": "Retry delay in seconds"
+      "description": "Retry backoff in seconds"
+    },
+    "http_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "HTTP_PORT",
+      "default": 8000,
+      "description": "HTTP server port"
     },
     "metrics_backend": {
       "type": "string",

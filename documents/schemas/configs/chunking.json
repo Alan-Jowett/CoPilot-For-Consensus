@@ -85,23 +85,44 @@
     "chunk_size": {
       "type": "int",
       "source": "env",
-      "env_var": "CHUNK_SIZE",
-      "default": 512,
+      "env_var": "CHUNK_SIZE_TOKENS",
+      "default": 384,
       "description": "Target chunk size in tokens"
     },
     "chunk_overlap": {
       "type": "int",
       "source": "env",
-      "env_var": "CHUNK_OVERLAP",
+      "env_var": "CHUNK_OVERLAP_TOKENS",
       "default": 50,
       "description": "Chunk overlap in tokens"
+    },
+    "min_chunk_size": {
+      "type": "int",
+      "source": "env",
+      "env_var": "MIN_CHUNK_SIZE_TOKENS",
+      "default": 100,
+      "description": "Minimum chunk size in tokens"
+    },
+    "max_chunk_size": {
+      "type": "int",
+      "source": "env",
+      "env_var": "MAX_CHUNK_SIZE_TOKENS",
+      "default": 512,
+      "description": "Maximum chunk size in tokens"
     },
     "chunking_strategy": {
       "type": "string",
       "source": "env",
       "env_var": "CHUNKING_STRATEGY",
-      "default": "recursive",
-      "description": "Chunking strategy (recursive, token, sentence)"
+      "default": "token_window",
+      "description": "Chunking strategy (token_window, recursive, sentence)"
+    },
+    "http_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "HTTP_PORT",
+      "default": 8000,
+      "description": "HTTP server port"
     },
     "metrics_backend": {
       "type": "string",
