@@ -168,7 +168,7 @@ jobs:
     - name: Test local integration
       run: |
         cd ${{ inputs.service_path }}
-        python -c "${{ inputs.local_test_script }}"
+        ${{ inputs.local_test_script }}
 
   code-quality:
     runs-on: ubuntu-latest

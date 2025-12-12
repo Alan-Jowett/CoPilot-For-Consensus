@@ -125,46 +125,7 @@ jobs:
       app_module: 'app'
       python_version: '3.11'
       run_local_test: true
-      local_test_script: |
-        import tempfile
-        import os
-        from app.config import IngestionConfig, SourceConfig
-        from copilot_events import create_publisher
-        from app.service import IngestionService
-        
-        # Create temp directories
-        with tempfile.TemporaryDirectory() as tmpdir:
-            storage_path = os.path.join(tmpdir, 'archives')
-            os.makedirs(storage_path)
-            
-            # Create test archive
-            source_dir = os.path.join(tmpdir, 'sources')
-            os.makedirs(source_dir)
-            test_file = os.path.join(source_dir, 'test.mbox')
-            with open(test_file, 'w') as f:
-                f.write('From: test@example.com\nSubject: Test\n\nContent')
-            
-            # Configure and run ingestion
-            config = IngestionConfig(storage_path=storage_path)
-            source = SourceConfig(
-                name='test-source',
-                source_type='local',
-                url=test_file,
-            )
-            config.sources = [source]
-            
-            publisher = create_publisher(message_bus_type='noop')
-            publisher.connect()
-            service = IngestionService(config, publisher)
-            
-            # Run ingestion
-            success = service.ingest_archive(source, max_retries=1)
-            
-            if success:
-                print('✓ Local ingestion test passed')
-            else:
-                print('✗ Local ingestion test failed')
-                exit(1)
+        local_test_script: "python tests/test_local_integration.py"
     secrets: inherit
 
   orchestrator:
