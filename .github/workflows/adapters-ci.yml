@@ -237,3 +237,27 @@ jobs:
       adapter_id: copilot_storage
       adapter_path: adapters/copilot_storage
       package_name: copilot_storage
+      enable_mongodb: true
+      enable_rabbitmq: false
+
+  events-integration-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_events == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-integration-ci.yml
+    with:
+      adapter_id: copilot_events
+      adapter_path: adapters/copilot_events
+      package_name: copilot_events
+      enable_mongodb: false
+      enable_rabbitmq: true
+
+  schema-validation-integration-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_schema_validation == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-integration-ci.yml
+    with:
+      adapter_id: copilot_schema_validation
+      adapter_path: adapters/copilot_schema_validation
+      package_name: copilot_schema_validation
+      enable_mongodb: true
+      enable_rabbitmq: false
