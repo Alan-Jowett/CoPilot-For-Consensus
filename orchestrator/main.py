@@ -16,7 +16,6 @@ import uvicorn
 
 from copilot_events import create_publisher, create_subscriber
 from copilot_storage import create_document_store
-from copilot_vectorstore import create_vector_store
 from copilot_metrics import create_metrics_collector
 from copilot_reporting import create_error_reporter
 
@@ -104,11 +103,6 @@ def main():
         doc_store_user = os.getenv("DOC_DB_USER", "")
         doc_store_password = os.getenv("DOC_DB_PASSWORD", "")
 
-        vector_store_type = os.getenv("VECTOR_STORE_TYPE", "inmemory")
-        vector_store_host = os.getenv("VECTOR_DB_HOST", "vectorstore")
-        vector_store_port = int(os.getenv("VECTOR_DB_PORT", "6333"))
-        vector_collection = os.getenv("VECTOR_DB_COLLECTION", "message_embeddings")
-
         # Orchestration configuration
         top_k = int(os.getenv("TOP_K", "12"))
         context_window_tokens = int(os.getenv("CONTEXT_WINDOW_TOKENS", "3000"))
@@ -146,14 +140,6 @@ def main():
             password=doc_store_password if doc_store_password else None,
         )
 
-        logger.info(f"Creating vector store (type: {vector_store_type})...")
-        vector_store = create_vector_store(
-            store_type=vector_store_type,
-            host=vector_store_host,
-            port=vector_store_port,
-            collection_name=vector_collection,
-        )
-
         # Create optional services
         metrics_collector = None
         error_reporter = None
@@ -173,7 +159,6 @@ def main():
         # Create orchestration service
         orchestration_service = OrchestrationService(
             document_store=document_store,
-            vector_store=vector_store,
             publisher=publisher,
             subscriber=subscriber,
             top_k=top_k,

@@ -4,8 +4,7 @@
 """Unit tests for the orchestration service."""
 
 import pytest
-from unittest.mock import Mock, MagicMock
-from datetime import datetime
+from unittest.mock import Mock
 
 from app.service import OrchestrationService
 
@@ -15,14 +14,6 @@ def mock_document_store():
     """Create a mock document store."""
     store = Mock()
     store.query_documents = Mock(return_value=[])
-    return store
-
-
-@pytest.fixture
-def mock_vector_store():
-    """Create a mock vector store."""
-    store = Mock()
-    store.query = Mock(return_value=[])
     return store
 
 
@@ -43,11 +34,10 @@ def mock_subscriber():
 
 
 @pytest.fixture
-def orchestration_service(mock_document_store, mock_vector_store, mock_publisher, mock_subscriber):
+def orchestration_service(mock_document_store, mock_publisher, mock_subscriber):
     """Create an orchestration service instance."""
     return OrchestrationService(
         document_store=mock_document_store,
-        vector_store=mock_vector_store,
         publisher=mock_publisher,
         subscriber=mock_subscriber,
         top_k=12,
@@ -60,7 +50,6 @@ def orchestration_service(mock_document_store, mock_vector_store, mock_publisher
 def test_service_initialization(orchestration_service):
     """Test that the service initializes correctly."""
     assert orchestration_service.document_store is not None
-    assert orchestration_service.vector_store is not None
     assert orchestration_service.publisher is not None
     assert orchestration_service.subscriber is not None
     assert orchestration_service.events_processed == 0
@@ -246,12 +235,28 @@ def test_handle_embeddings_generated_event(orchestration_service, mock_document_
     }
     
     chunks = [
-        {"chunk_id": "chunk-1", "thread_id": "<thread-1@example.com>", "message_id": "<msg-1@example.com>", "embedding_generated": True},
-        {"chunk_id": "chunk-2", "thread_id": "<thread-1@example.com>", "message_id": "<msg-1@example.com>", "embedding_generated": True},
+        {
+            "chunk_id": "chunk-1",
+            "thread_id": "<thread-1@example.com>",
+            "message_id": "<msg-1@example.com>",
+            "embedding_generated": True
+        },
+        {
+            "chunk_id": "chunk-2",
+            "thread_id": "<thread-1@example.com>",
+            "message_id": "<msg-1@example.com>",
+            "embedding_generated": True
+        },
     ]
-    
+
     messages = [
-        {"message_id": "<msg-1@example.com>", "subject": "Test", "from": {"email": "user@example.com"}, "date": "2023-10-15T12:00:00Z", "draft_mentions": []},
+        {
+            "message_id": "<msg-1@example.com>",
+            "subject": "Test",
+            "from": {"email": "user@example.com"},
+            "date": "2023-10-15T12:00:00Z",
+            "draft_mentions": []
+        },
     ]
     
     # Mock query_documents to return different results

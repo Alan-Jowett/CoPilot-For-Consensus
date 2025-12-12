@@ -4,12 +4,9 @@
 """Integration tests for the orchestration service."""
 
 import pytest
-import time
-from unittest.mock import Mock
 
 from copilot_events import NoopPublisher, NoopSubscriber
 from copilot_storage import InMemoryDocumentStore
-from copilot_vectorstore import InMemoryVectorStore
 
 from app.service import OrchestrationService
 
@@ -56,12 +53,6 @@ def document_store():
 
 
 @pytest.fixture
-def vector_store():
-    """Create an in-memory vector store for testing."""
-    return InMemoryVectorStore()
-
-
-@pytest.fixture
 def publisher():
     """Create a noop publisher for testing."""
     return NoopPublisher()
@@ -74,11 +65,10 @@ def subscriber():
 
 
 @pytest.fixture
-def service(document_store, vector_store, publisher, subscriber):
+def service(document_store, publisher, subscriber):
     """Create an orchestration service for integration testing."""
     return OrchestrationService(
         document_store=document_store,
-        vector_store=vector_store,
         publisher=publisher,
         subscriber=subscriber,
         top_k=5,

@@ -16,7 +16,6 @@ from copilot_events import (
     OrchestrationFailedEvent,
 )
 from copilot_storage import DocumentStore
-from copilot_vectorstore import VectorStore
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
 
@@ -29,7 +28,6 @@ class OrchestrationService:
     def __init__(
         self,
         document_store: DocumentStore,
-        vector_store: VectorStore,
         publisher: EventPublisher,
         subscriber: EventSubscriber,
         top_k: int = 12,
@@ -45,7 +43,6 @@ class OrchestrationService:
 
         Args:
             document_store: Document store for retrieving chunk metadata
-            vector_store: Vector store for similarity search
             publisher: Event publisher for publishing events
             subscriber: Event subscriber for consuming events
             top_k: Number of top chunks to retrieve per thread
@@ -58,7 +55,6 @@ class OrchestrationService:
             error_reporter: Error reporter (optional)
         """
         self.document_store = document_store
-        self.vector_store = vector_store
         self.publisher = publisher
         self.subscriber = subscriber
         self.top_k = top_k
@@ -100,7 +96,8 @@ class OrchestrationService:
             # Parse event
             embeddings_event = EmbeddingsGeneratedEvent(data=event.get("data", {}))
 
-            logger.info(f"Received EmbeddingsGenerated event with {len(embeddings_event.data.get('chunk_ids', []))} chunks")
+            chunk_count = len(embeddings_event.data.get('chunk_ids', []))
+            logger.info(f"Received EmbeddingsGenerated event with {chunk_count} chunks")
 
             # Process the embeddings
             self.process_embeddings(embeddings_event.data)
