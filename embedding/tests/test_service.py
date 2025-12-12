@@ -4,7 +4,7 @@
 """Unit tests for the embedding service."""
 
 import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 from app.service import EmbeddingService
 
@@ -204,14 +204,14 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
     assert publish_call[1]["exchange"] == "copilot.events"
     assert publish_call[1]["routing_key"] == "embeddings.generated"
     
-    message = publish_call[1]["message"]
-    assert message["event_type"] == "EmbeddingsGenerated"
-    assert message["data"]["chunk_ids"] == chunk_ids
-    assert message["data"]["embedding_count"] == 3
-    assert message["data"]["embedding_model"] == "all-MiniLM-L6-v2"
-    assert message["data"]["embedding_backend"] == "sentencetransformers"
-    assert message["data"]["embedding_dimension"] == 384
-    assert message["data"]["vector_store_updated"] is True
+    event = publish_call[1]["event"]
+    assert event["event_type"] == "EmbeddingsGenerated"
+    assert event["data"]["chunk_ids"] == chunk_ids
+    assert event["data"]["embedding_count"] == 3
+    assert event["data"]["embedding_model"] == "all-MiniLM-L6-v2"
+    assert event["data"]["embedding_backend"] == "sentencetransformers"
+    assert event["data"]["embedding_dimension"] == 384
+    assert event["data"]["vector_store_updated"] is True
     
     # Verify stats were updated
     assert embedding_service.chunks_processed == 3
@@ -234,10 +234,10 @@ def test_process_chunks_no_chunks_found(embedding_service, mock_document_store, 
     publish_call = mock_publisher.publish.call_args
     assert publish_call[1]["routing_key"] == "embedding.generation.failed"
     
-    message = publish_call[1]["message"]
-    assert message["event_type"] == "EmbeddingGenerationFailed"
-    assert message["data"]["chunk_ids"] == chunk_ids
-    assert message["data"]["error_type"] == "ChunkNotFoundError"
+    event = publish_call[1]["event"]
+    assert event["event_type"] == "EmbeddingGenerationFailed"
+    assert event["data"]["chunk_ids"] == chunk_ids
+    assert event["data"]["error_type"] == "ChunkNotFoundError"
 
 
 def test_process_chunks_empty_chunk_ids(embedding_service, mock_document_store):
@@ -343,10 +343,10 @@ def test_process_chunks_max_retries_exceeded(embedding_service, mock_document_st
     publish_call = mock_publisher.publish.call_args
     assert publish_call[1]["routing_key"] == "embedding.generation.failed"
     
-    message = publish_call[1]["message"]
-    assert message["event_type"] == "EmbeddingGenerationFailed"
-    assert message["data"]["chunk_ids"] == chunk_ids
-    assert message["data"]["retry_count"] == 2
+    event = publish_call[1]["event"]
+    assert event["event_type"] == "EmbeddingGenerationFailed"
+    assert event["data"]["chunk_ids"] == chunk_ids
+    assert event["data"]["retry_count"] == 2
 
 
 def test_get_stats(embedding_service):

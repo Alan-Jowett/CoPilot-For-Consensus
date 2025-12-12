@@ -226,10 +226,11 @@ class EmbeddingService:
                     
                     return
                 else:
-                    # Wait before retry with exponential backoff
+                    # Wait before retry with exponential backoff (capped at 60 seconds)
                     backoff_time = self.retry_backoff_seconds * (2 ** (retry_count - 1))
-                    logger.info(f"Retrying in {backoff_time} seconds...")
-                    time.sleep(backoff_time)
+                    capped_backoff_time = min(backoff_time, 60)
+                    logger.info(f"Retrying in {capped_backoff_time} seconds...")
+                    time.sleep(capped_backoff_time)
 
     def _generate_batch_embeddings(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Generate embeddings for a batch of chunks.
@@ -342,7 +343,7 @@ class EmbeddingService:
         self.publisher.publish(
             exchange="copilot.events",
             routing_key="embeddings.generated",
-            message=event.to_dict(),
+            event=event.to_dict(),
         )
         
         logger.info(f"Published EmbeddingsGenerated event for {len(chunk_ids)} chunks")
@@ -376,7 +377,7 @@ class EmbeddingService:
         self.publisher.publish(
             exchange="copilot.events",
             routing_key="embedding.generation.failed",
-            message=event.to_dict(),
+            event=event.to_dict(),
         )
         
         logger.error(f"Published EmbeddingGenerationFailed event for {len(chunk_ids)} chunks")

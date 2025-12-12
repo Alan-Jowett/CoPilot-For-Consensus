@@ -188,10 +188,10 @@ def test_end_to_end_embedding_generation(
     publish_call = mock_publisher.publish.call_args
     assert publish_call[1]["routing_key"] == "embeddings.generated"
     
-    message = publish_call[1]["message"]
-    assert message["event_type"] == "EmbeddingsGenerated"
-    assert len(message["data"]["chunk_ids"]) == 3
-    assert message["data"]["embedding_count"] == 3
+    event = publish_call[1]["event"]
+    assert event["event_type"] == "EmbeddingsGenerated"
+    assert len(event["data"]["chunk_ids"]) == 3
+    assert event["data"]["embedding_count"] == 3
     
     # Verify embeddings can be queried
     query_vector = [0.1] * 384
