@@ -270,7 +270,8 @@ services:
   error-reporting:
     image: copilot-error-reporting:latest
     build:
-      context: ./error-reporting
+      context: .
+      dockerfile: ./error-reporting/Dockerfile
     ports:
       - "127.0.0.1:8081:8081"
     restart: unless-stopped

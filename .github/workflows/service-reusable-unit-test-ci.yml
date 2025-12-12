@@ -1,0 +1,253 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Reusable Service Unit Test CI
+
+on:
+  workflow_call:
+    inputs:
+      service_id:
+        description: 'Service identifier (e.g., ingestion, chunking)'
+        required: true
+        type: string
+      service_path:
+        description: 'Path to service root folder'
+        required: true
+        type: string
+      app_module:
+        description: 'Python app module name (default: app)'
+        required: false
+        type: string
+        default: 'app'
+      python_version:
+        description: 'Python version to use (e.g., "3.11")'
+        required: false
+        type: string
+        default: '3.11'
+      run_local_test:
+        description: 'Whether to run local integration test'
+        required: false
+        type: boolean
+        default: false
+      local_test_script:
+        description: 'Python script for local integration test'
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+
+    - name: Set up Python ${{ inputs.python_version }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python_version }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python adapters/scripts/install_adapters.py
+        cd ${{ inputs.service_path }}
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+
+    - name: Run unit and integration tests
+      run: |
+        cd ${{ inputs.service_path }}
+        pytest tests/ -v --tb=short --junit-xml=test-results.xml --cov=${{ inputs.app_module }} --cov-report=lcov --cov-report=html --cov-report=term
+
+    # Coverage is generated in the test run above
+
+    - name: Upload coverage to Coveralls
+      continue-on-error: true
+      uses: coverallsapp/github-action@v2
+      with:
+        github-token: ${{ github.token }}
+        path-to-lcov: ./${{ inputs.service_path }}/coverage.lcov
+        flag-name: ${{ inputs.service_id }}
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v5
+      with:
+        name: ${{ inputs.service_id }}-test-results
+        path: ${{ inputs.service_path }}/test-results.xml
+
+    - name: Upload coverage reports
+      if: always()
+      uses: actions/upload-artifact@v5
+      with:
+        name: ${{ inputs.service_id }}-coverage-report
+        path: ${{ inputs.service_path }}/htmlcov
+
+    - name: Test Report
+      if: always()
+      uses: dorny/test-reporter@v2
+      with:
+        name: ${{ inputs.service_id }} Test Results
+        path: ${{ inputs.service_path }}/test-results.xml
+        reporter: 'java-junit'
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python_version }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python adapters/scripts/install_adapters.py
+        cd ${{ inputs.service_path }}
+        pip install -r requirements.txt
+        pip install pylint flake8
+
+    - name: Run flake8
+      run: |
+        cd ${{ inputs.service_path }}
+        flake8 ${{ inputs.app_module }} tests --count --select=E9,F63,F7,F82 --show-source --statistics
+
+    - name: Run pylint
+      run: |
+        cd ${{ inputs.service_path }}
+        pylint ${{ inputs.app_module }}/*.py --disable=C0111,C0103,R0903 || echo "Pylint warnings found but continuing..."
+
+  build-docker:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      uses: docker/build-push-action@v6
+      with:
+        context: ./
+        file: ./${{ inputs.service_path }}/Dockerfile
+        push: false
+        tags: ${{ inputs.service_id }}-service:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  test-local:
+    runs-on: ubuntu-latest
+    needs: test
+    if: ${{ inputs.run_local_test }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python_version }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python adapters/scripts/install_adapters.py
+        cd ${{ inputs.service_path }}
+        pip install -r requirements.txt pytest
+
+    - name: Test local integration
+      run: |
+        cd ${{ inputs.service_path }}
+        ${{ inputs.local_test_script }}
+
+  code-quality:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python_version }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python adapters/scripts/install_adapters.py
+        cd ${{ inputs.service_path }}
+        pip install -r requirements.txt
+        pip install pylint bandit
+
+    - name: Run security check (bandit)
+      run: |
+        cd ${{ inputs.service_path }}
+        bandit -r ${{ inputs.app_module }}/ -f json -o bandit-report.json
+      continue-on-error: false
+
+    - name: Check imports
+      run: |
+        cd ${{ inputs.service_path }}
+        python -c "import ${{ inputs.app_module }}; print('✓ Module imports successful')"
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [test, lint, build-docker, code-quality]
+    if: always()
+    
+    steps:
+    - name: Check test status
+      run: |
+        if [ "${{ needs.test.result }}" == "success" ]; then
+          echo "✓ Tests passed"
+        else
+          echo "✗ Tests failed"
+          exit 1
+        fi
+    
+    - name: Check build status
+      run: |
+        if [ "${{ needs.build-docker.result }}" == "success" ]; then
+          echo "✓ Docker build passed"
+        else
+          echo "✗ Docker build failed"
+          exit 1
+        fi
+    
+    - name: Check lint status
+      run: |
+        if [ "${{ needs.lint.result }}" == "success" ]; then
+          echo "✓ Lint passed"
+        else
+          echo "✗ Lint failed"
+          exit 1
+        fi
+
+    - name: Check code quality status
+      run: |
+        if [ "${{ needs.code-quality.result }}" == "success" ]; then
+          echo "✓ Code quality checks passed"
+        else
+          echo "✗ Code quality checks failed"
+          exit 1
+        fi
+    
+    - name: Report summary
+      run: |
+        echo "${{ inputs.service_id }} Service CI Summary:"
+        echo "- Tests: ${{ needs.test.result }}"
+        echo "- Lint: ${{ needs.lint.result }}"
+        echo "- Docker Build: ${{ needs.build-docker.result }}"
+        echo "- Code Quality: ${{ needs.code-quality.result }}"
