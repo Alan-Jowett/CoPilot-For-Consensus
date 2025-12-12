@@ -3,7 +3,7 @@
 
 """Validating event subscriber that enforces schema validation."""
 
-from typing import Dict, Any, Optional, Callable, List
+from typing import Dict, Any, Optional, Callable, List, Tuple
 import logging
 
 from .subscriber import EventSubscriber
@@ -73,7 +73,7 @@ class ValidatingEventSubscriber(EventSubscriber):
         self._strict = strict
         self._callbacks: Dict[str, Callable] = {}
 
-    def _validate_event(self, event: Dict[str, Any]) -> tuple[bool, List[str]]:
+    def _validate_event(self, event: Dict[str, Any]) -> Tuple[bool, List[str]]:
         """Validate a received event against its schema.
 
         Args:
@@ -154,13 +154,16 @@ class ValidatingEventSubscriber(EventSubscriber):
 
         return wrapper
 
-    def connect(self) -> bool:
+    def connect(self) -> None:
         """Connect to the message bus.
 
-        Returns:
-            True if connection succeeded, False otherwise
+        Raises:
+            Exception: If connection fails.
         """
-        return self._subscriber.connect()
+        result = self._subscriber.connect()
+        if result is False:
+            raise RuntimeError("Underlying subscriber failed to connect")
+        # If result is None or True, treat as success and return None.
 
     def disconnect(self) -> None:
         """Disconnect from the message bus."""
@@ -168,8 +171,8 @@ class ValidatingEventSubscriber(EventSubscriber):
 
     def subscribe(
         self,
-        event_type: str = None,
-        callback: Callable[[Dict[str, Any]], None] = None,
+        event_type: str,
+        callback: Callable[[Dict[str, Any]], None],
         routing_key: str = None,
         exchange: str = None,
     ) -> None:
