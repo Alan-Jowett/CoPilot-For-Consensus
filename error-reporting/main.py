@@ -19,9 +19,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Load configuration from schema
-config = load_typed_config("error-reporting")
-
 app = Flask(__name__, template_folder='templates')
 error_store = None
 
