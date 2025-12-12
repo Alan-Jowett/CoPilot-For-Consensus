@@ -4,7 +4,7 @@
 
 ## 🧭 Overview
 
-This document captures how GitHub Copilot was used to scaffold a modular, schema-governed microservice architecture for civic tooling. It outlines a repeatable pattern for using Copilot effectively in principled, contributor-friendly projects like [Copilot for Consensus](https://github.com/Alan-Jowett/CoPilot-For-Consensus).
+This document captures how GitHub Copilot was used to scaffold a modular, schema-governed microservice architecture for civic tooling. It outlines a repeatable pattern for using Copilot effectively in principled, contributor-friendly projects like [Copilot for Consensus](https://github.com/Alan-Jowett/Copilot-for-Consensus).
 
 ---
 
