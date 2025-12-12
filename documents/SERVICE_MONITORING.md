@@ -13,7 +13,7 @@ This guide explains how to monitor and troubleshoot the services in this reposit
 - Stop: `docker compose down`
 
 ## 2) Observability Endpoints & Ports (default compose values)
-- Grafana: http://localhost:3000 (dashboards + Loki Explore)
+- Grafana: http://localhost:3000 (dashboards + Loki Explore; default creds: `admin` / `admin`)
 - Prometheus: http://localhost:9090 (raw metrics, ad-hoc queries)
 - Loki HTTP API: http://localhost:3100 (log store)
 - Promtail (shipper): publishes container logs into Loki
@@ -73,7 +73,7 @@ This guide explains how to monitor and troubleshoot the services in this reposit
 - Unexpected restarts:
   - `docker compose ps` for restart count; `docker compose logs <service>` for crash reason.
 
-## 8a) End-to-End Pipeline Status (Mail Archive)
+## 8.1) End-to-End Pipeline Status (Mail Archive)
 Use these signals to see whether a mail archive was ingested and where it is in the pipeline.
 
 - Ingestion → Parsing → Chunking → Embedding → Summarization → Reporting
@@ -105,7 +105,7 @@ Use these signals to see whether a mail archive was ingested and where it is in 
   - Inspect that stage’s container logs for errors (auth, schema, upstream/downstream unavailable).
   - Validate config/credentials for dependent services (doc store, vector store, message bus).
 
-## 8b) Using the Orchestrator
+## 8.2) Using the Orchestrator
 - Purpose: coordinates cross-service workflows and may dispatch work to the pipeline.
 - Observability:
   - Metrics: `up{job="orchestrator"}` plus any orchestrator-specific counters (dispatch counts, failures).
