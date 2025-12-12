@@ -4,8 +4,7 @@
 """Unit tests for the reporting service."""
 
 import pytest
-from unittest.mock import Mock, patch, call
-from datetime import datetime, timezone
+from unittest.mock import Mock, patch
 
 from app.service import ReportingService
 
@@ -279,9 +278,8 @@ def test_get_reports_queries_document_store(reporting_service, mock_document_sto
     assert len(reports) == 2
     mock_document_store.query_documents.assert_called_once_with(
         "summaries",
-        filters={},
+        filter_dict={},
         limit=10,
-        skip=0,
     )
 
 
@@ -296,9 +294,8 @@ def test_get_reports_with_thread_filter(reporting_service, mock_document_store):
     assert len(reports) == 1
     mock_document_store.query_documents.assert_called_once_with(
         "summaries",
-        filters={"thread_id": "thread1"},
+        filter_dict={"thread_id": "thread1"},
         limit=10,
-        skip=0,
     )
 
 
@@ -314,7 +311,7 @@ def test_get_report_by_id(reporting_service, mock_document_store):
     assert report["summary_id"] == "rpt1"
     mock_document_store.query_documents.assert_called_once_with(
         "summaries",
-        filters={"summary_id": "rpt1"},
+        filter_dict={"summary_id": "rpt1"},
         limit=1,
     )
 
@@ -340,7 +337,7 @@ def test_get_thread_summary(reporting_service, mock_document_store):
     assert summary["thread_id"] == "thread1"
     mock_document_store.query_documents.assert_called_once_with(
         "summaries",
-        filters={"thread_id": "thread1"},
+        filter_dict={"thread_id": "thread1"},
         limit=1,
     )
 
@@ -369,7 +366,7 @@ def test_handle_summary_complete_with_metrics(
     # Should increment success metric
     mock_metrics.increment.assert_any_call(
         "reporting_events_total",
-        {"event_type": "summary_complete", "outcome": "success"}
+        tags={"event_type": "summary_complete", "outcome": "success"}
     )
     
     # Should observe latency
@@ -394,13 +391,13 @@ def test_handle_summary_complete_error_handling(
     # Should increment error metric
     mock_metrics.increment.assert_any_call(
         "reporting_events_total",
-        {"event_type": "summary_complete", "outcome": "error"}
+        tags={"event_type": "summary_complete", "outcome": "error"}
     )
     
     # Should increment failure metric
     mock_metrics.increment.assert_any_call(
         "reporting_failures_total",
-        {"error_type": "Exception"}
+        tags={"error_type": "Exception"}
     )
     
     # Should report error

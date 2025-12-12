@@ -94,14 +94,14 @@ class ReportingService:
             logger.info(f"Received SummaryComplete event: {summary_complete.data.get('thread_id')}")
             
             # Process the summary
-            report_id = self.process_summary(summary_complete.data, event)
+            self.process_summary(summary_complete.data, event)
             
             # Record processing time
             self.last_processing_time = time.time() - start_time
             
             # Record metrics
             if self.metrics_collector:
-                self.metrics_collector.increment("reporting_events_total", {"event_type": "summary_complete", "outcome": "success"})
+                self.metrics_collector.increment("reporting_events_total", tags={"event_type": "summary_complete", "outcome": "success"})
                 self.metrics_collector.observe("reporting_latency_seconds", self.last_processing_time)
             
         except Exception as e:
@@ -109,8 +109,8 @@ class ReportingService:
             
             # Record metrics
             if self.metrics_collector:
-                self.metrics_collector.increment("reporting_events_total", {"event_type": "summary_complete", "outcome": "error"})
-                self.metrics_collector.increment("reporting_failures_total", {"error_type": type(e).__name__})
+                self.metrics_collector.increment("reporting_events_total", tags={"event_type": "summary_complete", "outcome": "error"})
+                self.metrics_collector.increment("reporting_failures_total", tags={"error_type": type(e).__name__})
             
             # Report error
             if self.error_reporter:
@@ -186,14 +186,14 @@ class ReportingService:
                 self.notifications_sent += 1
                 
                 if self.metrics_collector:
-                    self.metrics_collector.increment("reporting_delivery_total", {"channel": "webhook", "status": "success"})
+                    self.metrics_collector.increment("reporting_delivery_total", tags={"channel": "webhook", "status": "success"})
                     
             except Exception as e:
                 logger.warning(f"Failed to send webhook notification: {e}")
                 self.notifications_failed += 1
                 
                 if self.metrics_collector:
-                    self.metrics_collector.increment("reporting_delivery_total", {"channel": "webhook", "status": "failed"})
+                    self.metrics_collector.increment("reporting_delivery_total", tags={"channel": "webhook", "status": "failed"})
                 
                 # Publish ReportDeliveryFailed event
                 self._publish_delivery_failed(report_id, thread_id, "webhook", str(e), type(e).__name__)
@@ -316,18 +316,19 @@ class ReportingService:
         Returns:
             List of report documents
         """
-        filters = {}
+        filter_dict = {}
         if thread_id:
-            filters["thread_id"] = thread_id
+            filter_dict["thread_id"] = thread_id
         
+        # DocumentStore doesn't support skip, so we fetch more and slice
         results = self.document_store.query_documents(
             "summaries",
-            filters=filters,
-            limit=limit,
-            skip=skip,
+            filter_dict=filter_dict,
+            limit=limit + skip,
         )
         
-        return results
+        # Apply skip by slicing the results
+        return results[skip:skip + limit]
 
     def get_report_by_id(self, report_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific report by ID.
@@ -340,7 +341,7 @@ class ReportingService:
         """
         results = self.document_store.query_documents(
             "summaries",
-            filters={"summary_id": report_id},
+            filter_dict={"summary_id": report_id},
             limit=1,
         )
         
@@ -348,6 +349,11 @@ class ReportingService:
 
     def get_thread_summary(self, thread_id: str) -> Optional[Dict[str, Any]]:
         """Get the latest summary for a thread.
+        
+        Note: Without ordering support in DocumentStore, this returns the first
+        matching document. In practice, MongoDB may return documents in insertion
+        order, but this is not guaranteed. For true "latest" behavior, consider
+        fetching all and sorting by generated_at timestamp.
         
         Args:
             thread_id: Thread identifier
@@ -357,7 +363,7 @@ class ReportingService:
         """
         results = self.document_store.query_documents(
             "summaries",
-            filters={"thread_id": thread_id},
+            filter_dict={"thread_id": thread_id},
             limit=1,
         )
         

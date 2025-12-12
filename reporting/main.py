@@ -12,7 +12,6 @@ import threading
 sys.path.insert(0, os.path.dirname(__file__))
 
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import JSONResponse
 import uvicorn
 
 from copilot_events import create_publisher, create_subscriber

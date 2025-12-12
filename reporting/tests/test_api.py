@@ -4,10 +4,10 @@
 """Integration tests for the reporting service API."""
 
 import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 from fastapi.testclient import TestClient
 
-from main import app, reporting_service
+from main import app
 from app.service import ReportingService
 
 
@@ -140,7 +140,7 @@ def test_get_reports_with_thread_filter(client, test_service, mock_document_stor
     # Verify the service was called with correct filter
     mock_document_store.query_documents.assert_called_once()
     call_args = mock_document_store.query_documents.call_args
-    assert call_args[1]["filters"]["thread_id"] == "thread1"
+    assert call_args[1]["filter_dict"]["thread_id"] == "thread1"
 
 
 @pytest.mark.integration
@@ -157,10 +157,10 @@ def test_get_reports_with_pagination(client, test_service, mock_document_store):
     assert data["skip"] == 10
     
     # Verify the service was called with correct pagination
+    # Note: DocumentStore doesn't support skip, so we fetch limit+skip
     mock_document_store.query_documents.assert_called_once()
     call_args = mock_document_store.query_documents.call_args
-    assert call_args[1]["limit"] == 5
-    assert call_args[1]["skip"] == 10
+    assert call_args[1]["limit"] == 15  # limit + skip
 
 
 @pytest.mark.integration
