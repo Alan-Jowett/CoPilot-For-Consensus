@@ -173,12 +173,13 @@ class QdrantVectorStore(VectorStore):
             )
             if existing:
                 raise ValueError(f"ID '{id}' already exists in the vector store")
-        except Exception as e:
-            # If error is not about non-existent point, re-raise
-            if "not found" not in str(e).lower() and "does not exist" not in str(e).lower():
-                # Only raise if it's actually a duplicate error
-                if "already exists" in str(e).lower():
-                    raise ValueError(f"ID '{id}' already exists in the vector store") from e
+        except ValueError:
+            # Re-raise our ValueError
+            raise
+        except Exception:
+            # If retrieve fails for other reasons (e.g., collection doesn't exist),
+            # we can proceed with upsert
+            pass
         
         # Add the point
         point = self._PointStruct(
@@ -231,10 +232,12 @@ class QdrantVectorStore(VectorStore):
                 raise ValueError(
                     f"The following IDs already exist in the vector store: {existing_ids}"
                 )
-        except Exception as e:
-            # If error is not about non-existent points, handle it
-            if "already exist" in str(e).lower():
-                raise
+        except ValueError:
+            # Re-raise our ValueError
+            raise
+        except Exception:
+            # If retrieve fails for other reasons, we can proceed with upsert
+            pass
         
         # Create points
         points = [
@@ -308,18 +311,13 @@ class QdrantVectorStore(VectorStore):
             KeyError: If id doesn't exist
         """
         # Check if ID exists
-        try:
-            uuid_id = _string_to_uuid(id)
-            existing = self._client.retrieve(
-                collection_name=self._collection_name,
-                ids=[uuid_id],
-            )
-            if not existing:
-                raise KeyError(f"ID '{id}' not found in vector store")
-        except Exception as e:
-            if "not found" in str(e).lower():
-                raise KeyError(f"ID '{id}' not found in vector store") from e
-            raise
+        uuid_id = _string_to_uuid(id)
+        existing = self._client.retrieve(
+            collection_name=self._collection_name,
+            ids=[uuid_id],
+        )
+        if not existing:
+            raise KeyError(f"ID '{id}' not found in vector store")
         
         # Delete the point
         from qdrant_client.models import PointIdsList
