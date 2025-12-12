@@ -219,14 +219,14 @@ jobs:
 
       - name: Upload integration test results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ inputs.adapter_id }}-integration-test-results
           path: ${{ inputs.adapter_path }}/integration-test-results.xml
 
       - name: Upload integration coverage reports
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ inputs.adapter_id }}-integration-coverage-report
           path: ${{ inputs.adapter_path }}/integration-htmlcov

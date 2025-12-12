@@ -69,14 +69,14 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ inputs.adapter_id }}-test-results
           path: ${{ inputs.adapter_path }}/test-results.xml
 
       - name: Upload coverage reports
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ inputs.adapter_id }}-coverage-report
           path: ${{ inputs.adapter_path }}/htmlcov
