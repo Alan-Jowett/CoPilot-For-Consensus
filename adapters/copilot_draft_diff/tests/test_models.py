@@ -3,7 +3,6 @@
 
 """Tests for draft diff models."""
 
-import pytest
 from copilot_draft_diff.models import DraftDiff
 
 

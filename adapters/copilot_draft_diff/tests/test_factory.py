@@ -25,13 +25,13 @@ class TestDiffProviderFactory:
         """Test creating datatracker provider with custom config."""
         config = {
             "base_url": "https://custom.example.com",
-            "format": "text"
+            "diff_format": "text"
         }
         provider = DiffProviderFactory.create("datatracker", config)
         
         assert isinstance(provider, DatatrackerDiffProvider)
         assert provider.base_url == "https://custom.example.com"
-        assert provider.format == "text"
+        assert provider.diff_format == "text"
     
     def test_create_mock_provider(self):
         """Test creating mock provider."""
@@ -86,7 +86,7 @@ class TestDiffProviderFactory:
             
             assert isinstance(provider, DatatrackerDiffProvider)
             assert provider.base_url == "https://test.example.com"
-            assert provider.format == "text"
+            assert provider.diff_format == "text"
         finally:
             for key in ["DRAFT_DIFF_PROVIDER", "DRAFT_DIFF_BASE_URL", "DRAFT_DIFF_FORMAT"]:
                 os.environ.pop(key, None)

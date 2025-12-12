@@ -12,7 +12,7 @@ readme_path = this_directory / "README.md"
 long_description = readme_path.read_text(encoding="utf-8") if readme_path.exists() else "Draft diff provider abstraction for Copilot-for-Consensus"
 
 setup(
-    name="draft-diff",
+    name="copilot-draft-diff",
     version="0.1.0",
     author="Copilot-for-Consensus Contributors",
     description="Draft diff provider abstraction for fetching RFC draft diffs",

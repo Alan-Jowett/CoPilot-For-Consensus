@@ -15,18 +15,18 @@ class DatatrackerDiffProvider(DraftDiffProvider):
     
     Attributes:
         base_url: Base URL for the Datatracker service
-        format: Default format for diffs (html, text)
+        diff_format: Default format for diffs (html, text)
     """
     
-    def __init__(self, base_url: str = "https://datatracker.ietf.org", format: str = "html"):
+    def __init__(self, base_url: str = "https://datatracker.ietf.org", diff_format: str = "html"):
         """Initialize Datatracker diff provider.
         
         Args:
             base_url: Base URL for Datatracker service
-            format: Default format for diffs (html, text)
+            diff_format: Default format for diffs (html, text)
         """
         self.base_url = base_url.rstrip("/")
-        self.format = format
+        self.diff_format = diff_format
     
     def getdiff(self, draft_name: str, version_a: str, version_b: str) -> DraftDiff:
         """Fetch a diff between two versions of a draft from Datatracker.
@@ -44,12 +44,9 @@ class DatatrackerDiffProvider(DraftDiffProvider):
             ConnectionError: If unable to fetch diff from Datatracker
             NotImplementedError: As this is a stub implementation
         """
-        # Construct the URL for the diff
-        # Typical format: https://www.ietf.org/rfcdiff?url1=draft-name-01&url2=draft-name-02
-        url = f"{self.base_url}/doc/{draft_name}/diff/"
-        
         # TODO: Implement actual HTTP request to fetch diff from Datatracker
         # This is a stub implementation for now
+        # Typical URL format: https://www.ietf.org/rfcdiff?url1=draft-name-01&url2=draft-name-02
         raise NotImplementedError(
             "DatatrackerDiffProvider.getdiff is not yet fully implemented. "
             "This requires HTTP client integration to fetch diffs from "

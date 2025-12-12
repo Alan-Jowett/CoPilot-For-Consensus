@@ -202,8 +202,8 @@ def process_draft_changes(draft_name: str, old_version: str, new_version: str):
 Run the tests:
 
 ```bash
-cd adapters
-python -m pytest tests/test_draft_diff/ -v
+cd adapters/copilot_draft_diff
+python -m pytest tests/ -v
 ```
 
 ## Future Enhancements

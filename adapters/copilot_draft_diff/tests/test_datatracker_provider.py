@@ -15,7 +15,7 @@ class TestDatatrackerDiffProvider:
         provider = DatatrackerDiffProvider()
         
         assert provider.base_url == "https://datatracker.ietf.org"
-        assert provider.format == "html"
+        assert provider.diff_format == "html"
     
     def test_initialization_custom_url(self):
         """Test initialization with custom URL."""
@@ -31,9 +31,9 @@ class TestDatatrackerDiffProvider:
     
     def test_initialization_custom_format(self):
         """Test initialization with custom format."""
-        provider = DatatrackerDiffProvider(format="text")
+        provider = DatatrackerDiffProvider(diff_format="text")
         
-        assert provider.format == "text"
+        assert provider.diff_format == "text"
     
     def test_getdiff_not_implemented(self):
         """Test that getdiff raises NotImplementedError as it's a stub."""

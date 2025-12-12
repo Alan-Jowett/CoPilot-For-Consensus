@@ -3,6 +3,7 @@
 
 """Mock diff provider implementation for testing."""
 
+from typing import Optional, Dict, Tuple
 from .provider import DraftDiffProvider
 from .models import DraftDiff
 
@@ -20,7 +21,7 @@ class MockDiffProvider(DraftDiffProvider):
         default_format: Default format for generated mock diffs
     """
     
-    def __init__(self, mock_diffs: dict = None, default_format: str = "text"):
+    def __init__(self, mock_diffs: Optional[Dict[Tuple[str, str, str], DraftDiff]] = None, default_format: str = "text"):
         """Initialize mock diff provider.
         
         Args:

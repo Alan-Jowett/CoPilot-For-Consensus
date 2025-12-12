@@ -72,14 +72,14 @@ class DiffProviderFactory:
             if base_url:
                 config["base_url"] = base_url
             
-            format = os.getenv("DRAFT_DIFF_FORMAT")
-            if format:
-                config["format"] = format
+            diff_format = os.getenv("DRAFT_DIFF_FORMAT")
+            if diff_format:
+                config["diff_format"] = diff_format
         
         elif provider_type == "mock":
-            format = os.getenv("DRAFT_DIFF_FORMAT")
-            if format:
-                config["default_format"] = format
+            diff_format = os.getenv("DRAFT_DIFF_FORMAT")
+            if diff_format:
+                config["default_format"] = diff_format
         
         return cls.create(provider_type, config)
     
