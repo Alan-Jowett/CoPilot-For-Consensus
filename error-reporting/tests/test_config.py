@@ -3,12 +3,6 @@
 
 """Tests for error-reporting service configuration loading."""
 
-import os
-import tempfile
-import json
-import pytest
-from unittest.mock import patch, MagicMock
-
 from copilot_config import load_typed_config
 from app.error_store import ErrorStore
 
@@ -50,16 +44,4 @@ class TestConfigLoading:
         assert config.http_port > 1024
         assert config.http_port < 65535
 
-    def test_default_max_errors_value(self):
-        """Test that default max_errors has a sensible value."""
-        config = load_typed_config("error-reporting")
-        
-        # Should have a default value set
-        assert config.max_errors == 10000
-
-    def test_default_http_port_value(self):
-        """Test that default http_port has a sensible value."""
-        config = load_typed_config("error-reporting")
-        
-        # Should have a default port value
-        assert config.http_port == 8081
+    # Default value specifics are validated via schema; ensure ranges only

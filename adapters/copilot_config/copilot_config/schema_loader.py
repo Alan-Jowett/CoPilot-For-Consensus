@@ -413,7 +413,6 @@ def load_config(
                     "Service: %s", service_name
                 )
                 # Required fields will fail validation if storage is needed
-                pass
         except Exception as e:
             # If document store is unavailable, log warning and continue without it
             logger = __import__('logging').getLogger(__name__)
@@ -423,7 +422,6 @@ def load_config(
                 "Service: %s, Error: %s", service_name, str(e)
             )
             # Required fields will fail validation if storage is needed
-            pass
     
     # Create loader
     loader = SchemaConfigLoader(
