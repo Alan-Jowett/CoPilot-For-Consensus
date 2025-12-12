@@ -32,11 +32,15 @@ setup(
         # No external dependencies - uses stdlib only
     ],
     extras_require={
+        "yaml": [
+            "pyyaml>=6.0.0",
+        ],
         "dev": [
             "pytest>=7.0.0",
             "pytest-cov>=4.0.0",
             "pylint>=3.0.0",
             "mypy>=1.0.0",
+            "pyyaml>=6.0.0",
         ],
     },
 )

@@ -1,0 +1,116 @@
+{
+  "service_name": "reporting",
+  "metadata": {
+    "description": "Reporting service configuration schema",
+    "version": "1.0.0"
+  },
+  "fields": {
+    "message_bus_type": {
+      "type": "string",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_TYPE",
+      "default": "rabbitmq",
+      "description": "Message bus type"
+    },
+    "message_bus_host": {
+      "type": "string",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_HOST",
+      "default": "messagebus",
+      "required": true,
+      "description": "Message bus hostname"
+    },
+    "message_bus_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_PORT",
+      "default": 5672,
+      "description": "Message bus port"
+    },
+    "message_bus_user": {
+      "type": "string",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_USER",
+      "default": "guest",
+      "description": "Message bus username"
+    },
+    "message_bus_password": {
+      "type": "string",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_PASSWORD",
+      "default": "guest",
+      "description": "Message bus password"
+    },
+    "doc_store_type": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOC_STORE_TYPE",
+      "default": "mongodb",
+      "description": "Document store type"
+    },
+    "doc_store_host": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOC_DB_HOST",
+      "default": "documentdb",
+      "required": true,
+      "description": "Document store hostname"
+    },
+    "doc_store_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "DOC_DB_PORT",
+      "default": 27017,
+      "description": "Document store port"
+    },
+    "doc_store_name": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOC_DB_NAME",
+      "default": "copilot",
+      "description": "Document store database name"
+    },
+    "doc_store_user": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOC_DB_USER",
+      "default": "",
+      "description": "Document store username"
+    },
+    "doc_store_password": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOC_DB_PASSWORD",
+      "default": "",
+      "description": "Document store password"
+    },
+    "notify_enabled": {
+      "type": "bool",
+      "source": "env",
+      "env_var": "NOTIFY_ENABLED",
+      "default": false,
+      "description": "Enable webhook notifications"
+    },
+    "notify_webhook_url": {
+      "type": "string",
+      "source": "env",
+      "env_var": "NOTIFY_WEBHOOK_URL",
+      "default": null,
+      "description": "Webhook URL for notifications"
+    },
+    "metrics_backend": {
+      "type": "string",
+      "source": "env",
+      "env_var": "METRICS_BACKEND",
+      "default": "noop",
+      "description": "Metrics backend"
+    },
+    "error_reporter_type": {
+      "type": "string",
+      "source": "env",
+      "env_var": "ERROR_REPORTER_TYPE",
+      "default": "console",
+      "description": "Error reporter type"
+    }
+  }
+}
