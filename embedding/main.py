@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from fastapi import FastAPI
 import uvicorn
 
+from copilot_config import load_typed_config
 from copilot_events import create_publisher, create_subscriber
 from copilot_storage import create_document_store
 from copilot_vectorstore import create_vector_store
@@ -91,78 +92,53 @@ def main():
     logger.info(f"Starting Embedding Service (version {__version__})")
     
     try:
-        # Load configuration from environment
-        message_bus_type = os.getenv("MESSAGE_BUS_TYPE", "rabbitmq")
-        message_bus_host = os.getenv("MESSAGE_BUS_HOST", "messagebus")
-        message_bus_port = int(os.getenv("MESSAGE_BUS_PORT", "5672"))
-        message_bus_user = os.getenv("MESSAGE_BUS_USER", "guest")
-        message_bus_password = os.getenv("MESSAGE_BUS_PASSWORD", "guest")
-        
-        doc_store_type = os.getenv("DOC_STORE_TYPE", "mongodb")
-        doc_store_host = os.getenv("DOC_DB_HOST", "documentdb")
-        doc_store_port = int(os.getenv("DOC_DB_PORT", "27017"))
-        doc_store_name = os.getenv("DOC_DB_NAME", "copilot")
-        doc_store_user = os.getenv("DOC_DB_USER", "")
-        doc_store_password = os.getenv("DOC_DB_PASSWORD", "")
-        
-        vector_store_type = os.getenv("VECTOR_STORE_TYPE", "faiss")
-        vector_store_host = os.getenv("VECTOR_DB_HOST", "vectorstore")
-        vector_store_port = int(os.getenv("VECTOR_DB_PORT", "6333"))
-        
-        # Embedding configuration
-        embedding_backend = os.getenv("EMBEDDING_BACKEND", "sentencetransformers")
-        embedding_model = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-        embedding_dimension = int(os.getenv("EMBEDDING_DIMENSION", "384"))
-        batch_size = int(os.getenv("BATCH_SIZE", "32"))
-        device = os.getenv("DEVICE", "cpu")
-        
-        # Retry configuration
-        max_retries = int(os.getenv("RETRY_MAX_ATTEMPTS", "3"))
-        retry_backoff = int(os.getenv("RETRY_BACKOFF_SECONDS", "5"))
+        # Load configuration using config adapter
+        config = load_typed_config("embedding")
+        logger.info("Configuration loaded successfully")
         
         # Create adapters
         logger.info("Creating message bus publisher...")
         publisher = create_publisher(
-            message_bus_type=message_bus_type,
-            host=message_bus_host,
-            port=message_bus_port,
-            username=message_bus_user,
-            password=message_bus_password,
+            message_bus_type=config.message_bus_type,
+            host=config.message_bus_host,
+            port=config.message_bus_port,
+            username=config.message_bus_user,
+            password=config.message_bus_password,
         )
         
         logger.info("Creating message bus subscriber...")
         subscriber = create_subscriber(
-            message_bus_type=message_bus_type,
-            host=message_bus_host,
-            port=message_bus_port,
-            username=message_bus_user,
-            password=message_bus_password,
+            message_bus_type=config.message_bus_type,
+            host=config.message_bus_host,
+            port=config.message_bus_port,
+            username=config.message_bus_user,
+            password=config.message_bus_password,
         )
         
         logger.info("Creating document store...")
         document_store = create_document_store(
-            store_type=doc_store_type,
-            host=doc_store_host,
-            port=doc_store_port,
-            database=doc_store_name,
-            username=doc_store_user if doc_store_user else None,
-            password=doc_store_password if doc_store_password else None,
+            store_type=config.doc_store_type,
+            host=config.doc_store_host,
+            port=config.doc_store_port,
+            database=config.doc_store_name,
+            username=config.doc_store_user if config.doc_store_user else None,
+            password=config.doc_store_password if config.doc_store_password else None,
         )
         
-        logger.info(f"Creating vector store ({vector_store_type})...")
+        logger.info(f"Creating vector store ({config.vector_store_type})...")
         vector_store = create_vector_store(
-            backend=vector_store_type,
-            dimension=embedding_dimension,
-            host=vector_store_host if vector_store_type == "qdrant" else None,
-            port=vector_store_port if vector_store_type == "qdrant" else None,
+            backend=config.vector_store_type,
+            dimension=config.embedding_dimension,
+            host=config.vector_store_host if config.vector_store_type == "qdrant" else None,
+            port=config.vector_store_port if config.vector_store_type == "qdrant" else None,
         )
         
-        logger.info(f"Creating embedding provider ({embedding_backend})...")
+        logger.info(f"Creating embedding provider ({config.embedding_backend})...")
         embedding_provider = create_embedding_provider(
-            backend=embedding_backend,
-            model=embedding_model,
-            dimension=embedding_dimension,
-            device=device,
+            backend=config.embedding_backend,
+            model=config.embedding_model,
+            dimension=config.embedding_dimension,
+            device=config.device,
         )
         
         # Create optional services
@@ -190,12 +166,12 @@ def main():
             subscriber=subscriber,
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
-            embedding_model=embedding_model,
-            embedding_backend=embedding_backend,
-            embedding_dimension=embedding_dimension,
-            batch_size=batch_size,
-            max_retries=max_retries,
-            retry_backoff_seconds=retry_backoff,
+            embedding_model=config.embedding_model,
+            embedding_backend=config.embedding_backend,
+            embedding_dimension=config.embedding_dimension,
+            batch_size=config.batch_size,
+            max_retries=config.max_retries,
+            retry_backoff_seconds=config.retry_backoff,
         )
         
         # Start subscriber in background thread
@@ -208,9 +184,8 @@ def main():
         logger.info("Subscriber thread started")
         
         # Start FastAPI server
-        http_port = int(os.getenv("HTTP_PORT", "8000"))
-        logger.info(f"Starting HTTP server on port {http_port}...")
-        uvicorn.run(app, host="0.0.0.0", port=http_port)
+        logger.info(f"Starting HTTP server on port {config.http_port}...")
+        uvicorn.run(app, host="0.0.0.0", port=config.http_port)
         
     except Exception as e:
         logger.error(f"Failed to start embedding service: {e}", exc_info=True)

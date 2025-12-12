@@ -4,7 +4,42 @@
 """Test helper utilities for schema validation and event testing."""
 
 from typing import Dict, Any
+from types import SimpleNamespace
 from copilot_schema_validation import FileSchemaProvider, validate_json
+
+
+def make_config(**overrides):
+    defaults = {
+        "storage_path": "/data/raw_archives",
+        "message_bus_host": "messagebus",
+        "message_bus_port": 5672,
+        "message_bus_user": "guest",
+        "message_bus_password": "guest",
+        "message_bus_type": "rabbitmq",
+        "log_level": "INFO",
+        "log_type": "stdout",
+        "logger_name": "ingestion-test",
+        "metrics_backend": "noop",
+        "retry_max_attempts": 3,
+        "retry_backoff_seconds": 1,
+        "error_reporter_type": "console",
+        "sentry_dsn": None,
+        "sentry_environment": "test",
+        "sources": [],
+    }
+    defaults.update(overrides)
+    return SimpleNamespace(**defaults)
+
+
+def make_source(**overrides) -> dict:
+    source = {
+        "name": overrides.pop("name", "test-source"),
+        "source_type": overrides.pop("source_type", "local"),
+        "url": overrides.pop("url", "/tmp/test.mbox"),
+        "enabled": overrides.pop("enabled", True),
+    }
+    source.update(overrides)
+    return source
 
 
 def get_schema_provider():

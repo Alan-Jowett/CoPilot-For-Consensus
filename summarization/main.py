@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from fastapi import FastAPI
 import uvicorn
 
+from copilot_config import load_typed_config
 from copilot_events import create_publisher, create_subscriber
 from copilot_storage import create_document_store
 from copilot_vectorstore import create_vector_store
@@ -89,75 +90,51 @@ def main():
     logger.info(f"Starting Summarization Service (version {__version__})")
     
     try:
-        # Load configuration from environment
-        message_bus_type = os.getenv("MESSAGE_BUS_TYPE", "rabbitmq")
-        message_bus_host = os.getenv("MESSAGE_BUS_HOST", "messagebus")
-        message_bus_port = int(os.getenv("MESSAGE_BUS_PORT", "5672"))
-        message_bus_user = os.getenv("MESSAGE_BUS_USER", "guest")
-        message_bus_password = os.getenv("MESSAGE_BUS_PASSWORD", "guest")
-        
-        doc_store_type = os.getenv("DOC_STORE_TYPE", "mongodb")
-        doc_store_host = os.getenv("DOC_DB_HOST", "documentdb")
-        doc_store_port = int(os.getenv("DOC_DB_PORT", "27017"))
-        doc_store_name = os.getenv("DOC_DB_NAME", "copilot")
-        doc_store_user = os.getenv("DOC_DB_USER", "")
-        doc_store_password = os.getenv("DOC_DB_PASSWORD", "")
-        
-        vector_store_type = os.getenv("VECTOR_STORE_TYPE", "inmemory")
-        vector_store_host = os.getenv("VECTOR_DB_HOST", "vectorstore")
-        vector_store_port = int(os.getenv("VECTOR_DB_PORT", "6333"))
-        vector_store_collection = os.getenv("VECTOR_DB_COLLECTION", "message_embeddings")
-        
-        # Summarization configuration
-        llm_backend = os.getenv("LLM_BACKEND", "mock")
-        llm_model = os.getenv("LLM_MODEL", "mistral")
-        top_k = int(os.getenv("TOP_K", "12"))
-        citation_count = int(os.getenv("CITATION_COUNT", "12"))
-        retry_max_attempts = int(os.getenv("RETRY_MAX_ATTEMPTS", "3"))
-        retry_backoff_seconds = int(os.getenv("RETRY_BACKOFF_SECONDS", "5"))
+        # Load configuration from schema with typed access
+        config = load_typed_config("summarization")
         
         # Create adapters
         logger.info("Creating message bus publisher...")
         publisher = create_publisher(
-            message_bus_type=message_bus_type,
-            host=message_bus_host,
-            port=message_bus_port,
-            username=message_bus_user,
-            password=message_bus_password,
+            message_bus_type=config.message_bus_type,
+            host=config.message_bus_host,
+            port=config.message_bus_port,
+            username=config.message_bus_user,
+            password=config.message_bus_password,
         )
         
         logger.info("Creating message bus subscriber...")
         subscriber = create_subscriber(
-            message_bus_type=message_bus_type,
-            host=message_bus_host,
-            port=message_bus_port,
-            username=message_bus_user,
-            password=message_bus_password,
+            message_bus_type=config.message_bus_type,
+            host=config.message_bus_host,
+            port=config.message_bus_port,
+            username=config.message_bus_user,
+            password=config.message_bus_password,
         )
         
         logger.info("Creating document store...")
         document_store = create_document_store(
-            store_type=doc_store_type,
-            host=doc_store_host,
-            port=doc_store_port,
-            database=doc_store_name,
-            username=doc_store_user if doc_store_user else None,
-            password=doc_store_password if doc_store_password else None,
+            store_type=config.doc_store_type,
+            host=config.doc_store_host,
+            port=config.doc_store_port,
+            database=config.doc_store_name,
+            username=config.doc_store_user if config.doc_store_user else None,
+            password=config.doc_store_password if config.doc_store_password else None,
         )
         
         logger.info("Creating vector store...")
         vector_store = create_vector_store(
-            store_type=vector_store_type,
-            host=vector_store_host if vector_store_type != "inmemory" else None,
-            port=vector_store_port if vector_store_type != "inmemory" else None,
-            collection_name=vector_store_collection,
+            store_type=config.vector_store_type,
+            host=config.vector_store_host if config.vector_store_type != "inmemory" else None,
+            port=config.vector_store_port if config.vector_store_type != "inmemory" else None,
+            collection_name=config.vector_store_collection,
         )
         
         # Create summarizer
-        logger.info(f"Creating summarizer with backend: {llm_backend}")
+        logger.info(f"Creating summarizer with backend: {config.llm_backend}")
         summarizer = SummarizerFactory.create_summarizer(
-            provider=llm_backend,
-            model=llm_model,
+            provider=config.llm_backend,
+            model=config.llm_model,
         )
         
         # Create optional services
@@ -183,10 +160,10 @@ def main():
             publisher=publisher,
             subscriber=subscriber,
             summarizer=summarizer,
-            top_k=top_k,
-            citation_count=citation_count,
-            retry_max_attempts=retry_max_attempts,
-            retry_backoff_seconds=retry_backoff_seconds,
+            top_k=config.top_k,
+            citation_count=config.citation_count,
+            retry_max_attempts=config.max_retries,
+            retry_backoff_seconds=config.retry_delay,
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
         )
@@ -201,9 +178,8 @@ def main():
         logger.info("Subscriber thread started")
         
         # Start FastAPI server
-        http_port = int(os.getenv("HTTP_PORT", "8000"))
-        logger.info(f"Starting HTTP server on port {http_port}...")
-        uvicorn.run(app, host="0.0.0.0", port=http_port)
+        logger.info(f"Starting HTTP server on port {config.http_port}...")
+        uvicorn.run(app, host="0.0.0.0", port=config.http_port)
         
     except Exception as e:
         logger.error(f"Failed to start summarization service: {e}", exc_info=True)

@@ -10,14 +10,14 @@ import time
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
+from copilot_config import load_typed_config
 from copilot_events import create_publisher, ValidatingEventPublisher
 from copilot_logging import create_logger
 from copilot_schema_validation import FileSchemaProvider
 from copilot_metrics import create_metrics_collector
 
 from app import __version__
-from app.config import IngestionConfig
-from app.service import IngestionService
+from app.service import IngestionService, _enabled_sources
 
 # Bootstrap logger before configuration is loaded
 bootstrap_logger = create_logger(name="ingestion-bootstrap")
@@ -29,35 +29,8 @@ def main():
     log.info("Starting Ingestion Service", version=__version__)
 
     try:
-        # Load configuration from environment and optional config file
-        config = IngestionConfig.from_env()
-
-        # Try to load from config file if it exists
-        # Check both /app/config.yaml (Docker) and ./config.yaml (local development)
-        config_file = os.getenv("CONFIG_FILE")
-        if not config_file:
-            if os.path.exists("/app/config.yaml"):
-                config_file = "/app/config.yaml"
-            elif os.path.exists("config.yaml"):
-                config_file = "config.yaml"
-            else:
-                config_file = "/app/config.yaml"  # Default to Docker path
-        
-        if os.path.exists(config_file):
-            try:
-                config = IngestionConfig.from_yaml_file(config_file)
-                log.info("Loaded configuration from file", config_file=config_file)
-            except Exception as e:
-                log.warning(
-                    "Failed to load config file, using environment variables",
-                    config_file=config_file,
-                    error=str(e),
-                )
-        else:
-            log.info(
-                "No config file found, using environment variables",
-                expected_path=config_file,
-            )
+        # Load configuration using adapter (env + defaults validated by schema)
+        config = load_typed_config("ingestion")
 
         # Recreate logger with configured settings
         service_logger = create_logger(
@@ -106,7 +79,7 @@ def main():
                 )
 
         # Ensure storage path exists
-        config.ensure_storage_path()
+        IngestionService._ensure_storage_path(config.storage_path)
         log.info("Storage path prepared", storage_path=config.storage_path)
 
         # Create event publisher
@@ -147,7 +120,7 @@ def main():
         # Ingest from all enabled sources
         log.info(
             "Starting ingestion for enabled sources",
-            enabled_source_count=len(config.get_enabled_sources()),
+            enabled_source_count=len(_enabled_sources(getattr(config, "sources", []))),
         )
 
         results = service.ingest_all_enabled_sources()

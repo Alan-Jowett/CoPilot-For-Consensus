@@ -6,6 +6,7 @@
 import logging
 from datetime import datetime
 from flask import Flask, request, render_template
+from copilot_config import load_typed_config
 from app.error_store import ErrorStore, ErrorEvent
 import uuid
 
@@ -19,7 +20,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__, template_folder='templates')
-error_store = ErrorStore(max_errors=10000)
+error_store = None
 
 
 @app.route("/", methods=["GET"])
@@ -203,5 +204,11 @@ def ui():
 
 
 if __name__ == "__main__":
-    logger.info("Starting Error Reporting Service on port 8081")
-    app.run(host="0.0.0.0", port=8081, debug=False)
+    # Load configuration from schema
+    config = load_typed_config("error-reporting")
+    
+    # Initialize error store with config
+    error_store = ErrorStore(max_errors=config.max_errors)
+    
+    logger.info(f"Starting Error Reporting Service on port {config.http_port}")
+    app.run(host="0.0.0.0", port=config.http_port, debug=False)

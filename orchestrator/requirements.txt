@@ -8,3 +8,6 @@ uvicorn==0.34.0
 # Type hints
 python-dotenv==1.2.1
 
+# Adapters
+# copilot_config
+

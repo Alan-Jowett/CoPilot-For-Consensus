@@ -96,6 +96,20 @@
       "default": "console",
       "description": "Error reporter type"
     },
+    "log_level": {
+      "type": "string",
+      "source": "env",
+      "env_var": "LOG_LEVEL",
+      "default": "INFO",
+      "description": "Logging level"
+    },
+    "http_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "HTTP_PORT",
+      "default": 8000,
+      "description": "HTTP server port"
+    },
     "max_retries": {
       "type": "int",
       "source": "env",
