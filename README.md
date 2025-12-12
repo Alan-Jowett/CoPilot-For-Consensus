@@ -219,6 +219,8 @@ Common flags:
 - `--filenames`: specific filenames to include (default includes `Dockerfile`)
 - `--exclude`: directories or patterns to exclude (defaults include common build and cache folders)
 - `--ignore-file`: path to a repository-relative ignore file (default `.headercheckignore`)
+- `--root`: root directory to search for files (default is current directory)
+- `--head-lines`: number of lines at the top of each file to check for headers (default is 20)
 
 ### Ignore file
 

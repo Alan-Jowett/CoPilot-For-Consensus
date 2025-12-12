@@ -9,4 +9,5 @@ repos:
         entry: python scripts/check_license_headers.py --root .
         language: system
         pass_filenames: false
+        always_run: true
         stages: [commit, push]

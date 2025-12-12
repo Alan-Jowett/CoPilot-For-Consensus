@@ -39,7 +39,7 @@ def should_check(path: Path, extensions: set[str], filenames: set[str], excludes
     # Check by extension or filename
     if path.name in filenames:
         return True
-    return path.suffix in extensions
+    return path.suffix.lower() in extensions
 
 
 def file_head(path: Path, head_lines: int = 30) -> str:
