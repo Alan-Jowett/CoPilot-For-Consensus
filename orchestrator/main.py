@@ -135,21 +135,13 @@ def main():
             logger.error("Failed to connect to document store.")
             sys.exit(1)
 
-        # Create optional services
-        metrics_collector = None
-        error_reporter = None
-
-        try:
-            metrics_collector = create_metrics_collector()
-            logger.info("Metrics collector created")
-        except Exception as e:
-            logger.warning(f"Could not create metrics collector: {e}")
-
-        try:
-            error_reporter = create_error_reporter()
-            logger.info("Error reporter created")
-        except Exception as e:
-            logger.warning(f"Could not create error reporter: {e}")
+        # Create metrics collector - fail fast on errors
+        logger.info("Creating metrics collector...")
+        metrics_collector = create_metrics_collector()
+        
+        # Create error reporter - fail fast on errors
+        logger.info("Creating error reporter...")
+        error_reporter = create_error_reporter()
 
         # Create orchestration service
         orchestration_service = OrchestrationService(

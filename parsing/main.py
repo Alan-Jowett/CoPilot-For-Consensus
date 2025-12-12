@@ -163,10 +163,12 @@ def main():
             schema_provider=schema_provider,
         )
         
-        # Create metrics collector
+        # Create metrics collector - fail fast on errors
+        logger.info(f"Creating metrics collector ({config.metrics_backend})...")
         metrics_collector = create_metrics_collector(backend=config.metrics_backend)
         
-        # Create error reporter
+        # Create error reporter - fail fast on errors
+        logger.info(f"Creating error reporter ({config.error_reporter_type})...")
         error_reporter = create_error_reporter(reporter_type=config.error_reporter_type)
         
         # Create parsing service

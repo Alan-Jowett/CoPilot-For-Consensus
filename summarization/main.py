@@ -158,21 +158,13 @@ def main():
             model=config.llm_model,
         )
         
-        # Create optional services
-        metrics_collector = None
-        error_reporter = None
+        # Create metrics collector - fail fast on errors
+        logger.info("Creating metrics collector...")
+        metrics_collector = create_metrics_collector()
         
-        try:
-            metrics_collector = create_metrics_collector()
-            logger.info("Metrics collector created")
-        except Exception as e:
-            logger.warning(f"Could not create metrics collector: {e}")
-        
-        try:
-            error_reporter = create_error_reporter()
-            logger.info("Error reporter created")
-        except Exception as e:
-            logger.warning(f"Could not create error reporter: {e}")
+        # Create error reporter - fail fast on errors
+        logger.info("Creating error reporter...")
+        error_reporter = create_error_reporter()
         
         # Create summarization service
         summarization_service = SummarizationService(
