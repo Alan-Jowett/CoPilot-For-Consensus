@@ -10,7 +10,7 @@ A shared Python library for error reporting and diagnostics across microservices
 - **Abstract Reporter Interface**: Common interface for all error reporters
 - **Console Reporter**: Default implementation that logs to stdout
 - **Silent Reporter**: Testing implementation with in-memory storage
-- **Sentry Reporter**: Scaffold for cloud-based error tracking (requires `sentry-adapter`)
+- **Sentry Reporter**: Scaffold for cloud-based error tracking (requires `sentry-sdk`)
 - **Factory Pattern**: Simple factory function for creating reporters
 
 ## Installation
@@ -112,7 +112,7 @@ reporter.clear()
 #### SentryErrorReporter
 
 Production error reporter for cloud-based error tracking (scaffold for future use):
-- Requires `sentry-adapter` package
+- Requires `sentry-sdk` package
 - Environment-aware reporting
 - Context propagation to Sentry
 - Level mapping to Sentry severity
@@ -193,7 +193,7 @@ pylint copilot_reporting/
 ## Requirements
 
 - Python 3.11+
-- sentry-adapter (optional, for Sentry integration)
+- sentry-sdk (optional, for Sentry integration)
 
 ## License
 

@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import types
 
 # Mock pymongo before any imports that might use it
-# This prevents the Adapter from trying to connect to MongoDB during tests
+# This prevents the SDK from trying to connect to MongoDB during tests
 if "pymongo" not in sys.modules:
     sys.modules["pymongo"] = types.SimpleNamespace(MongoClient=MagicMock())
 
