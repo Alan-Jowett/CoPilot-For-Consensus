@@ -10,11 +10,12 @@ import time
 from copilot_vectorstore import create_vector_store, SearchResult
 
 # Check if qdrant-client is available
+QDRANT_AVAILABLE = False
 try:
-    from copilot_vectorstore import QdrantVectorStore
+    import qdrant_client
     QDRANT_AVAILABLE = True
 except ImportError:
-    QDRANT_AVAILABLE = False
+    pass
 
 
 def get_qdrant_config():

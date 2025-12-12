@@ -225,7 +225,7 @@ class QdrantVectorStore(VectorStore):
                 ids=uuid_ids,
             )
             if existing:
-                existing_ids = [p.id for p in existing]
+                existing_ids = [p.payload.get("_original_id", p.id) for p in existing]
                 raise ValueError(
                     f"The following IDs already exist in the vector store: {existing_ids}"
                 )
@@ -286,7 +286,7 @@ class QdrantVectorStore(VectorStore):
         search_results = []
         for result in results:
             # Extract original ID from payload
-            payload = result.payload if result.payload else {}
+            payload = result.payload.copy() if result.payload else {}
             original_id = payload.pop("_original_id", str(result.id))
             
             search_results.append(SearchResult(
