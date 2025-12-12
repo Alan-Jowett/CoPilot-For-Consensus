@@ -66,7 +66,7 @@ class QdrantVectorStore(VectorStore):
         """
         try:
             from qdrant_client import QdrantClient
-            from qdrant_client.models import Distance, VectorParams, PointStruct
+            from qdrant_client.models import Distance, VectorParams, PointStruct, PointIdsList
         except ImportError as e:
             raise ImportError(
                 "qdrant-client is not installed. Install it with: pip install qdrant-client"
@@ -90,6 +90,7 @@ class QdrantVectorStore(VectorStore):
         self._Distance = Distance
         self._VectorParams = VectorParams
         self._PointStruct = PointStruct
+        self._PointIdsList = PointIdsList
         
         # Initialize Qdrant client
         try:
@@ -114,38 +115,34 @@ class QdrantVectorStore(VectorStore):
     
     def _ensure_collection(self) -> None:
         """Ensure the collection exists, create it if not."""
-        try:
-            # Check if collection exists
-            collections = self._client.get_collections().collections
-            collection_exists = any(c.name == self._collection_name for c in collections)
-            
-            if collection_exists:
-                # Verify collection configuration matches
-                collection_info = self._client.get_collection(self._collection_name)
-                if collection_info.config.params.vectors.size != self._vector_size:
-                    raise ValueError(
-                        f"Collection '{self._collection_name}' exists with different vector size: "
-                        f"expected {self._vector_size}, found {collection_info.config.params.vectors.size}"
-                    )
-                logger.info(f"Using existing collection '{self._collection_name}'")
-            else:
-                # Create collection
-                distance_map = {
-                    "cosine": self._Distance.COSINE,
-                    "euclid": self._Distance.EUCLID,
-                }
-                
-                self._client.create_collection(
-                    collection_name=self._collection_name,
-                    vectors_config=self._VectorParams(
-                        size=self._vector_size,
-                        distance=distance_map[self._distance],
-                    ),
+        # Check if collection exists
+        collections = self._client.get_collections().collections
+        collection_exists = any(c.name == self._collection_name for c in collections)
+        
+        if collection_exists:
+            # Verify collection configuration matches
+            collection_info = self._client.get_collection(self._collection_name)
+            if collection_info.config.params.vectors.size != self._vector_size:
+                raise ValueError(
+                    f"Collection '{self._collection_name}' exists with different vector size: "
+                    f"expected {self._vector_size}, found {collection_info.config.params.vectors.size}"
                 )
-                logger.info(f"Created new collection '{self._collection_name}'")
-        except Exception as e:
-            if "exists" not in str(e).lower():
-                raise
+            logger.info(f"Using existing collection '{self._collection_name}'")
+        else:
+            # Create collection
+            distance_map = {
+                "cosine": self._Distance.COSINE,
+                "euclid": self._Distance.EUCLID,
+            }
+            
+            self._client.create_collection(
+                collection_name=self._collection_name,
+                vectors_config=self._VectorParams(
+                    size=self._vector_size,
+                    distance=distance_map[self._distance],
+                ),
+            )
+            logger.info(f"Created new collection '{self._collection_name}'")
     
     def add_embedding(self, id: str, vector: List[float], metadata: Dict[str, Any]) -> None:
         """Add a single embedding to the vector store.
@@ -320,10 +317,9 @@ class QdrantVectorStore(VectorStore):
             raise KeyError(f"ID '{id}' not found in vector store")
         
         # Delete the point
-        from qdrant_client.models import PointIdsList
         self._client.delete(
             collection_name=self._collection_name,
-            points_selector=PointIdsList(points=[uuid_id]),
+            points_selector=self._PointIdsList(points=[uuid_id]),
         )
     
     def clear(self) -> None:
