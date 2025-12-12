@@ -33,6 +33,11 @@ on:
       - '.github/workflows/services-ci.yml'
       - '.github/workflows/service-reusable-unit-test-ci.yml'
 
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
 jobs:
   chunking:
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
