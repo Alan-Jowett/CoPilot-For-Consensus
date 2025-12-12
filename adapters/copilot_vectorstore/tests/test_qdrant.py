@@ -18,7 +18,7 @@ except ImportError:
 class TestQdrantVectorStore:
     """Unit tests for QdrantVectorStore."""
     
-    @patch('copilot_vectorstore.qdrant_store.QdrantClient')
+    @patch('qdrant_client.QdrantClient')
     def test_initialization(self, mock_client_class):
         """Test that store initializes with correct parameters."""
         mock_client = Mock()
@@ -44,13 +44,13 @@ class TestQdrantVectorStore:
         # Verify collection creation was attempted
         mock_client.get_collections.assert_called()
     
-    @patch('copilot_vectorstore.qdrant_store.QdrantClient')
+    @patch('qdrant_client.QdrantClient')
     def test_invalid_distance_raises_error(self, mock_client_class):
         """Test that invalid distance metric raises ValueError."""
         with pytest.raises(ValueError, match="Invalid distance metric"):
             QdrantVectorStore(distance="invalid")
     
-    @patch('copilot_vectorstore.qdrant_store.QdrantClient')
+    @patch('qdrant_client.QdrantClient')
     def test_invalid_vector_size_raises_error(self, mock_client_class):
         """Test that invalid vector size raises ValueError."""
         with pytest.raises(ValueError, match="Vector size must be positive"):
@@ -59,7 +59,7 @@ class TestQdrantVectorStore:
         with pytest.raises(ValueError, match="Vector size must be positive"):
             QdrantVectorStore(vector_size=-10)
     
-    @patch('copilot_vectorstore.qdrant_store.QdrantClient')
+    @patch('qdrant_client.QdrantClient')
     def test_add_embedding_validates_dimension(self, mock_client_class):
         """Test that add_embedding validates vector dimension."""
         mock_client = Mock()
@@ -73,7 +73,7 @@ class TestQdrantVectorStore:
         with pytest.raises(ValueError, match="Vector dimension"):
             store.add_embedding("doc1", [1.0, 0.0], {"text": "hello"})
     
-    @patch('copilot_vectorstore.qdrant_store.QdrantClient')
+    @patch('qdrant_client.QdrantClient')
     def test_add_embedding_success(self, mock_client_class):
         """Test successful add_embedding."""
         mock_client = Mock()
@@ -91,7 +91,7 @@ class TestQdrantVectorStore:
         assert call_args[1]['collection_name'] == 'embeddings'
         assert len(call_args[1]['points']) == 1
     
-    @patch('copilot_vectorstore.qdrant_store.QdrantClient')
+    @patch('qdrant_client.QdrantClient')
     def test_add_embeddings_validates_lengths(self, mock_client_class):
         """Test that add_embeddings validates input lengths."""
         mock_client = Mock()
@@ -108,7 +108,7 @@ class TestQdrantVectorStore:
                 metadatas=[{"text": "hello"}]
             )
     
-    @patch('copilot_vectorstore.qdrant_store.QdrantClient')
+    @patch('qdrant_client.QdrantClient')
     def test_add_embeddings_validates_dimensions(self, mock_client_class):
         """Test that add_embeddings validates vector dimensions."""
         mock_client = Mock()
@@ -126,7 +126,7 @@ class TestQdrantVectorStore:
                 metadatas=[{}, {}]
             )
     
-    @patch('copilot_vectorstore.qdrant_store.QdrantClient')
+    @patch('qdrant_client.QdrantClient')
     def test_add_embeddings_detects_duplicates(self, mock_client_class):
         """Test that add_embeddings detects duplicate IDs in batch."""
         mock_client = Mock()
@@ -143,7 +143,7 @@ class TestQdrantVectorStore:
                 metadatas=[{}, {}]
             )
     
-    @patch('copilot_vectorstore.qdrant_store.QdrantClient')
+    @patch('qdrant_client.QdrantClient')
     def test_query_validates_dimension(self, mock_client_class):
         """Test that query validates vector dimension."""
         mock_client = Mock()
@@ -156,7 +156,7 @@ class TestQdrantVectorStore:
         with pytest.raises(ValueError, match="Query vector dimension"):
             store.query([1.0, 0.0], top_k=5)
     
-    @patch('copilot_vectorstore.qdrant_store.QdrantClient')
+    @patch('qdrant_client.QdrantClient')
     def test_query_returns_results(self, mock_client_class):
         """Test that query returns properly formatted results."""
         mock_client = Mock()
@@ -179,7 +179,7 @@ class TestQdrantVectorStore:
         assert results[0].score == 0.95
         assert results[0].metadata == {"text": "hello"}
     
-    @patch('copilot_vectorstore.qdrant_store.QdrantClient')
+    @patch('qdrant_client.QdrantClient')
     def test_delete_nonexistent_raises_error(self, mock_client_class):
         """Test that deleting nonexistent ID raises KeyError."""
         mock_client = Mock()
@@ -192,7 +192,7 @@ class TestQdrantVectorStore:
         with pytest.raises(KeyError, match="not found"):
             store.delete("nonexistent")
     
-    @patch('copilot_vectorstore.qdrant_store.QdrantClient')
+    @patch('qdrant_client.QdrantClient')
     def test_get_nonexistent_raises_error(self, mock_client_class):
         """Test that getting nonexistent ID raises KeyError."""
         mock_client = Mock()
@@ -205,7 +205,7 @@ class TestQdrantVectorStore:
         with pytest.raises(KeyError, match="not found"):
             store.get("nonexistent")
     
-    @patch('copilot_vectorstore.qdrant_store.QdrantClient')
+    @patch('qdrant_client.QdrantClient')
     def test_count_returns_collection_size(self, mock_client_class):
         """Test that count returns the correct number of points."""
         mock_client = Mock()
@@ -222,7 +222,7 @@ class TestQdrantVectorStore:
         
         assert count == 42
     
-    @patch('copilot_vectorstore.qdrant_store.QdrantClient')
+    @patch('qdrant_client.QdrantClient')
     def test_clear_recreates_collection(self, mock_client_class):
         """Test that clear deletes and recreates the collection."""
         mock_client = Mock()

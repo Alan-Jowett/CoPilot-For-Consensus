@@ -99,14 +99,10 @@ class TestCreateVectorStore:
                 create_vector_store(backend="qdrant", dimension=384)
         else:
             # If client is installed, should raise ConnectionError (can't connect)
-            # unless we're in an environment where Qdrant is actually running
-            try:
+            # We expect this in a test environment where Qdrant is not running
+            from qdrant_client.http.exceptions import ResponseHandlingException
+            with pytest.raises((ConnectionError, ResponseHandlingException)):
                 store = create_vector_store(backend="qdrant", dimension=384)
-                # If we get here, Qdrant is actually running
-                assert isinstance(store, QdrantVectorStore)
-            except ConnectionError:
-                # Expected when Qdrant is not running
-                pass
     
     def test_azure_backend_not_implemented(self):
         """Test that Azure backend raises NotImplementedError."""
