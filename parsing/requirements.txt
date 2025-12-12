@@ -1,4 +1,14 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-python-dotenv==1.2.1
+# Core dependencies
+beautifulsoup4==4.12.3
+fastapi==0.109.2
+uvicorn==0.27.1
+
+# Adapter dependencies
+adapters/copilot_events
+adapters/copilot_storage
+adapters/copilot_metrics
+adapters/copilot_reporting
+adapters/copilot_logging

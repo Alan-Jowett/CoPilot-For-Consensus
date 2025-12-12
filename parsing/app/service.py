@@ -1,0 +1,362 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+"""Main parsing service implementation."""
+
+import logging
+import time
+from datetime import datetime, timezone
+from typing import Optional, Dict, Any
+
+from copilot_events import (
+    EventPublisher,
+    EventSubscriber,
+    ArchiveIngestedEvent,
+    JSONParsedEvent,
+    ParsingFailedEvent,
+)
+from copilot_storage import DocumentStore
+from copilot_metrics import MetricsCollector
+from copilot_reporting import ErrorReporter
+
+from .parser import MessageParser
+from .thread_builder import ThreadBuilder
+
+logger = logging.getLogger(__name__)
+
+
+class ParsingService:
+    """Main parsing service for converting mbox archives to structured JSON."""
+
+    def __init__(
+        self,
+        document_store: DocumentStore,
+        publisher: EventPublisher,
+        subscriber: EventSubscriber,
+        metrics_collector: Optional[MetricsCollector] = None,
+        error_reporter: Optional[ErrorReporter] = None,
+    ):
+        """Initialize parsing service.
+        
+        Args:
+            document_store: Document store for persisting messages and threads
+            publisher: Event publisher for publishing events
+            subscriber: Event subscriber for consuming events
+            metrics_collector: Metrics collector (optional)
+            error_reporter: Error reporter (optional)
+        """
+        self.document_store = document_store
+        self.publisher = publisher
+        self.subscriber = subscriber
+        self.metrics_collector = metrics_collector
+        self.error_reporter = error_reporter
+        
+        # Create parser and thread builder
+        self.parser = MessageParser()
+        self.thread_builder = ThreadBuilder()
+        
+        # Stats
+        self.archives_processed = 0
+        self.messages_parsed = 0
+        self.threads_created = 0
+        self.last_processing_time = 0.0
+
+    def start(self):
+        """Start the parsing service and subscribe to events."""
+        logger.info("Starting Parsing Service")
+        
+        # Subscribe to ArchiveIngested events
+        self.subscriber.subscribe(
+            exchange="copilot.events",
+            routing_key="archive.ingested",
+            callback=self._handle_archive_ingested,
+        )
+        
+        logger.info("Subscribed to archive.ingested events")
+        logger.info("Parsing service is ready")
+
+    def _handle_archive_ingested(self, event: Dict[str, Any]):
+        """Handle ArchiveIngested event.
+        
+        Args:
+            event: Event dictionary
+        """
+        try:
+            # Parse event
+            archive_ingested = ArchiveIngestedEvent(data=event.get("data", {}))
+            
+            logger.info(f"Received ArchiveIngested event: {archive_ingested.data.get('archive_id')}")
+            
+            # Process the archive
+            self.process_archive(archive_ingested.data)
+            
+        except Exception as e:
+            logger.error(f"Error handling ArchiveIngested event: {e}", exc_info=True)
+            if self.error_reporter:
+                self.error_reporter.report(e, context={"event": event})
+
+    def process_archive(self, archive_data: Dict[str, Any]):
+        """Process an archive and parse messages.
+        
+        Args:
+            archive_data: Archive metadata from ArchiveIngested event
+        """
+        archive_id = archive_data.get("archive_id")
+        file_path = archive_data.get("file_path")
+        
+        if not archive_id or not file_path:
+            logger.error("Missing required fields in archive data")
+            return
+        
+        start_time = time.time()
+        
+        try:
+            logger.info(f"Parsing archive {archive_id} from {file_path}")
+            
+            # Parse mbox file
+            parsed_messages, errors = self.parser.parse_mbox(file_path, archive_id)
+            
+            if not parsed_messages:
+                # No messages parsed
+                error_msg = f"No messages parsed from archive. Errors: {errors}"
+                logger.warning(error_msg)
+                self._publish_parsing_failed(
+                    archive_id,
+                    file_path,
+                    error_msg,
+                    "NoMessagesError",
+                    0,
+                )
+                return
+            
+            # Build threads
+            threads = self.thread_builder.build_threads(parsed_messages)
+            
+            # Store messages in document store
+            if parsed_messages:
+                self._store_messages(parsed_messages)
+                logger.info(f"Stored {len(parsed_messages)} messages")
+            
+            # Store threads
+            if threads:
+                self._store_threads(threads)
+                logger.info(f"Created {len(threads)} threads")
+            
+            # Calculate duration
+            duration = time.time() - start_time
+            self.last_processing_time = duration
+            
+            # Update stats
+            self.archives_processed += 1
+            self.messages_parsed += len(parsed_messages)
+            self.threads_created += len(threads)
+            
+            # Collect metrics
+            if self.metrics_collector:
+                self.metrics_collector.increment(
+                    "parsing_archives_processed_total",
+                    tags={"status": "success"},
+                )
+                self.metrics_collector.increment(
+                    "parsing_messages_parsed_total",
+                    value=len(parsed_messages),
+                )
+                self.metrics_collector.increment(
+                    "parsing_threads_created_total",
+                    value=len(threads),
+                )
+                self.metrics_collector.observe(
+                    "parsing_duration_seconds",
+                    duration,
+                )
+            
+            # Publish JSONParsed event
+            self._publish_json_parsed(
+                archive_id,
+                len(parsed_messages),
+                [msg["message_id"] for msg in parsed_messages],
+                len(threads),
+                [thread["thread_id"] for thread in threads],
+                duration,
+            )
+            
+            logger.info(
+                f"Successfully parsed archive {archive_id}: "
+                f"{len(parsed_messages)} messages, {len(threads)} threads, "
+                f"{duration:.2f}s"
+            )
+            
+        except Exception as e:
+            duration = time.time() - start_time
+            logger.error(f"Failed to parse archive {archive_id} after {duration:.2f}s: {e}", exc_info=True)
+            
+            # Collect metrics
+            if self.metrics_collector:
+                self.metrics_collector.increment(
+                    "parsing_archives_processed_total",
+                    tags={"status": "failed"},
+                )
+                self.metrics_collector.increment(
+                    "parsing_failures_total",
+                    tags={"error_type": type(e).__name__},
+                )
+            
+            # Report error
+            if self.error_reporter:
+                self.error_reporter.report(
+                    e,
+                    context={
+                        "archive_id": archive_id,
+                        "file_path": file_path,
+                        "operation": "process_archive",
+                    }
+                )
+            
+            # Publish ParsingFailed event
+            self._publish_parsing_failed(
+                archive_id,
+                file_path,
+                str(e),
+                type(e).__name__,
+                0,
+            )
+
+    def _store_messages(self, messages: list):
+        """Store messages in document store.
+        
+        Args:
+            messages: List of message dictionaries
+            
+        Note:
+            Currently inserts documents one at a time. For large archives,
+            consider implementing bulk insert operations if the DocumentStore
+            interface is extended to support it.
+        """
+        try:
+            # Store in 'messages' collection
+            for message in messages:
+                self.document_store.insert_document("messages", message)
+        except Exception as e:
+            logger.error(f"Failed to store messages: {e}")
+            raise
+
+    def _store_threads(self, threads: list):
+        """Store threads in document store.
+        
+        Args:
+            threads: List of thread dictionaries
+            
+        Note:
+            Currently inserts documents one at a time. For large archives,
+            consider implementing bulk insert operations if the DocumentStore
+            interface is extended to support it.
+        """
+        try:
+            # Store in 'threads' collection
+            for thread in threads:
+                self.document_store.insert_document("threads", thread)
+        except Exception as e:
+            logger.error(f"Failed to store threads: {e}")
+            raise
+
+    def _publish_json_parsed(
+        self,
+        archive_id: str,
+        message_count: int,
+        parsed_message_ids: list,
+        thread_count: int,
+        thread_ids: list,
+        duration: float,
+    ):
+        """Publish JSONParsed event.
+        
+        Args:
+            archive_id: Archive identifier
+            message_count: Number of messages parsed
+            parsed_message_ids: List of message IDs
+            thread_count: Number of threads created
+            thread_ids: List of thread IDs
+            duration: Parsing duration in seconds
+        """
+        event = JSONParsedEvent(
+            data={
+                "archive_id": archive_id,
+                "message_count": message_count,
+                "parsed_message_ids": parsed_message_ids,
+                "thread_count": thread_count,
+                "thread_ids": thread_ids,
+                "parsing_duration_seconds": duration,
+            }
+        )
+        
+        success = self.publisher.publish(
+            exchange="copilot.events",
+            routing_key="json.parsed",
+            event=event.to_dict(),
+        )
+        
+        if not success:
+            logger.error(f"Failed to publish JSONParsed event for {archive_id}")
+            if self.error_reporter:
+                self.error_reporter.capture_message(
+                    "Failed to publish JSONParsed event",
+                    level="error",
+                    context={"archive_id": archive_id},
+                )
+
+    def _publish_parsing_failed(
+        self,
+        archive_id: str,
+        file_path: str,
+        error_message: str,
+        error_type: str,
+        messages_parsed_before_failure: int,
+    ):
+        """Publish ParsingFailed event.
+        
+        Args:
+            archive_id: Archive identifier
+            file_path: Path to mbox file
+            error_message: Error description
+            error_type: Error type
+            messages_parsed_before_failure: Partial progress
+        """
+        event = ParsingFailedEvent(
+            data={
+                "archive_id": archive_id,
+                "file_path": file_path,
+                "error_message": error_message,
+                "error_type": error_type,
+                "messages_parsed_before_failure": messages_parsed_before_failure,
+                "retry_count": 0,
+                "failed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            }
+        )
+        
+        success = self.publisher.publish(
+            exchange="copilot.events",
+            routing_key="parsing.failed",
+            event=event.to_dict(),
+        )
+        
+        if not success:
+            logger.error(f"Failed to publish ParsingFailed event for {archive_id}")
+            if self.error_reporter:
+                self.error_reporter.capture_message(
+                    "Failed to publish ParsingFailed event",
+                    level="error",
+                    context={"archive_id": archive_id},
+                )
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get parsing statistics.
+        
+        Returns:
+            Dictionary of statistics
+        """
+        return {
+            "archives_processed": self.archives_processed,
+            "messages_parsed": self.messages_parsed,
+            "threads_created": self.threads_created,
+            "last_processing_time_seconds": self.last_processing_time,
+        }

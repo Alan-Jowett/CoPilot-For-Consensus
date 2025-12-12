@@ -14,11 +14,18 @@ WORKDIR /app
 COPY adapters/ /app/adapters/
 RUN python /app/adapters/scripts/install_adapters.py --no-dev
 
+# Copy schema files for validation
+COPY documents/schemas /app/documents/schemas
+
 # Install service dependencies
 COPY parsing/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy service code
+COPY parsing/app/ ./app/
 COPY parsing/*.py ./
+
+# Expose port for health endpoint
+EXPOSE 8000
 
 CMD ["python", "main.py"]
