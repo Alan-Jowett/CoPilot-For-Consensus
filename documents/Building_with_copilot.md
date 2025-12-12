@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: MIT
+     Copyright (c) 2025 Copilot-for-Consensus contributors -->
 # Scaling Modular Civic Infrastructure with GitHub Copilot
 
 ## 🧭 Overview
