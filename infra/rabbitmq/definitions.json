@@ -3,13 +3,27 @@
   "rabbitmq_version": "3.12.0",
   "product_name": "RabbitMQ",
   "product_version": "3.12.0",
-  "users": [],
+  "users": [
+    {
+      "name": "guest",
+      "password": "guest",
+      "tags": "administrator"
+    }
+  ],
   "vhosts": [
     {
       "name": "/"
     }
   ],
-  "permissions": [],
+  "permissions": [
+    {
+      "user": "guest",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
   "topic_permissions": [],
   "parameters": [],
   "global_parameters": [

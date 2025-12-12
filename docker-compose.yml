@@ -175,6 +175,8 @@ services:
     volumes:
       - ./infra/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
     environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER:-guest}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS:-guest}
       - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbitmq_management load_definitions "/etc/rabbitmq/definitions.json"
     restart: unless-stopped
 
