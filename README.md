@@ -204,7 +204,7 @@ This repository includes a utility to verify that files contain both an SPDX lic
 
 ### Run
 
-On Windows PowerShell:
+Run the check manually:
 
 ```
 python scripts/check_license_headers.py --root .

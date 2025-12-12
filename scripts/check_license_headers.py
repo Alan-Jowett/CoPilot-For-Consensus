@@ -69,7 +69,7 @@ def scan_repo(root: Path, extensions: set[str], filenames: set[str], excludes: s
 
         for fname in filenames_list:
             fpath = Path(dirpath) / fname
-            if not should_check(fpath, extensions, DEFAULT_FILENAMES, excludes):
+            if not should_check(fpath, extensions, filenames, excludes):
                 continue
             head = file_head(fpath, head_lines=head_lines)
             spdx, copyright = has_headers(head)
