@@ -18,7 +18,7 @@ from copilot_storage import DocumentStore
 from copilot_vectorstore import VectorStore
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
-from copilot_summarization import Summarizer, Thread, Summary, Citation
+from copilot_summarization import Summarizer, Thread, Citation
 
 logger = logging.getLogger(__name__)
 
@@ -207,7 +207,7 @@ class SummarizationService:
                 if self.metrics_collector:
                     self.metrics_collector.increment(
                         "summarization_events_total",
-                        labels={"event_type": "requested", "outcome": "success"},
+                        tags={"event_type": "requested", "outcome": "success"},
                     )
                     self.metrics_collector.observe(
                         "summarization_latency_seconds",
@@ -215,17 +215,17 @@ class SummarizationService:
                     )
                     self.metrics_collector.increment(
                         "summarization_llm_calls_total",
-                        labels={"backend": summary.llm_backend, "model": summary.llm_model},
+                        tags={"backend": summary.llm_backend, "model": summary.llm_model},
                     )
-                    self.metrics_collector.add(
+                    self.metrics_collector.increment(
                         "summarization_tokens_total",
                         summary.tokens_prompt,
-                        labels={"type": "prompt"},
+                        tags={"type": "prompt"},
                     )
-                    self.metrics_collector.add(
+                    self.metrics_collector.increment(
                         "summarization_tokens_total",
                         summary.tokens_completion,
-                        labels={"type": "completion"},
+                        tags={"type": "completion"},
                     )
                 
                 return
@@ -269,7 +269,7 @@ class SummarizationService:
                     if self.metrics_collector:
                         self.metrics_collector.increment(
                             "summarization_failures_total",
-                            labels={"error_type": error_type},
+                            tags={"error_type": error_type},
                         )
 
     def _retrieve_context(self, thread_id: str, top_k: int) -> Dict[str, Any]:

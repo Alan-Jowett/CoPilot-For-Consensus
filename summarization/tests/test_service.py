@@ -4,8 +4,7 @@
 """Unit tests for the summarization service."""
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch
-import time
+from unittest.mock import Mock
 
 from app.service import SummarizationService
 from copilot_summarization import Summary, Citation

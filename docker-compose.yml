@@ -110,6 +110,7 @@ services:
       - orchestrator
       - documentdb
       - vectorstore
+      - messagebus
     restart: unless-stopped
 
   reporting:
