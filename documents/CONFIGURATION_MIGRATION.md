@@ -20,7 +20,7 @@ The schema-driven configuration system provides:
 
 ### Step 1: Define Configuration Schema
 
-Create a JSON schema file in `schemas/<service>.json`:
+Create a JSON schema file in `documents/schemas/configs/<service>.json`:
 
 ```json
 {
@@ -241,10 +241,10 @@ chunking_strategy = config.chunking_strategy
 ### Schema not found error
 
 ```
-ConfigSchemaError: Schema file not found: /path/to/schemas/my-service.json
+ConfigSchemaError: Schema file not found: /path/to/documents/schemas/configs/my-service.json
 ```
 
-**Solution**: Ensure the schema file exists in the `schemas/` directory at the repository root.
+**Solution**: Ensure the schema file exists in the `documents/schemas/configs/` directory at the repository root.
 
 ### Validation error for required field
 

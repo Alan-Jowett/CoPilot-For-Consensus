@@ -133,7 +133,7 @@ All microservices use a unified **schema-driven configuration system** provided 
 
 #### Key Features
 
-- **Centralized Schema Definitions**: Each service has a JSON schema file in `schemas/<service>.json` defining all configuration fields
+- **Centralized Schema Definitions**: Each service has a JSON schema file in `documents/schemas/configs/<service>.json` defining all configuration fields
 - **Multi-Source Support**: Configuration can be loaded from:
   - Environment variables (default for production)
   - YAML files (for local development)
