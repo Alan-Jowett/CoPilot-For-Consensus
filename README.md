@@ -5,6 +5,22 @@
 
 ***
 
+## Pre-commit Hook
+
+Install and enable the pre-commit hook to run the header check locally before commits:
+
+```
+pip install pre-commit
+pre-commit install
+```
+
+You can run it against all files at any time:
+
+```
+pre-commit run --all-files
+```
+
+
 ## Overview
 Copilot-for-Consensus is designed to **scale institutional memory and accelerate decision-making** in technical communities like IETF working groups. It uses **LLM-powered summarization and insight extraction** to help participants keep up with mailing list traffic, track draft evolution, and identify consensus or dissent.
 
@@ -181,3 +197,32 @@ Query centralized logs in Grafana:
 4. Query: `{service="parsing"}` to see parsing service logs
 
 ***  
+
+## License Header Check
+
+This repository includes a utility to verify that files contain both an SPDX license identifier and a copyright header.
+
+### Run
+
+Run the check manually:
+
+```
+python scripts/check_license_headers.py --root .
+```
+### CI enforcement
+
+All pull requests run a GitHub Action that executes the same header check. If any file that should have headers is missing either the SPDX identifier or the copyright line, the workflow fails.
+
+
+Common flags:
+- `--extensions`: space-separated list of extensions to check (default covers common source and config files)
+- `--filenames`: specific filenames to include (default includes `Dockerfile`)
+- `--exclude`: directories or patterns to exclude (defaults include common build and cache folders)
+- `--ignore-file`: path to a repository-relative ignore file (default `.headercheckignore`)
+- `--root`: root directory to search for files (default is current directory)
+- `--head-lines`: number of lines at the top of each file to check for headers (default is 30)
+
+### Ignore file
+
+You can create `.headercheckignore` at the repo root to exclude additional folders or patterns, one per line. Lines starting with `#` are comments.
+

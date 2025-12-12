@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Schema Versioning Guide
 
 This document outlines the versioning strategy for all JSON Schemas used in the Copilot for Consensus project, including event schemas and document schemas. It ensures long-term compatibility, contributor clarity, and safe schema evolution.

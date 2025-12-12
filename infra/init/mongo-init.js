@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: MIT
+// Copyright (c) 2025 Copilot-for-Consensus contributors
+
 // MongoDB initialization: collections, validators, indexes
 // Validators are pulled directly from JSON Schemas in /schemas/documents to avoid duplication.
 

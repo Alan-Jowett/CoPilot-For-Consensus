@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+repos:
+  - repo: local
+    hooks:
+      - id: license-header-check
+        name: License header check
+        entry: python scripts/check_license_headers.py --root .
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit, push]
