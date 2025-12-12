@@ -110,6 +110,7 @@ jobs:
       adapter_id: copilot_config
       adapter_path: adapters/copilot_config
       package_name: copilot_config
+      extra_pip_packages: '["pyyaml>=6.0.0"]'
 
   events-ci:
     needs: detect-changes

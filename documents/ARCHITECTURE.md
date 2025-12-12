@@ -125,6 +125,102 @@ This design ensures the system can operate in air-gapped environments, resource-
   - Error Tracking UI: http://localhost:8081/ui
   - Prometheus: http://localhost:9090
 
+## Configuration Management
+
+### Schema-Driven Configuration System
+
+All microservices use a unified **schema-driven configuration system** provided by the `copilot_config` adapter.
+
+#### Key Features
+
+- **Centralized Schema Definitions**: Each service has a JSON schema file in `documents/schemas/configs/<service>.json` defining all configuration fields
+- **Multi-Source Support**: Configuration can be loaded from:
+  - Environment variables (default for production)
+  - YAML files (for local development)
+  - Document stores (for centralized management)
+  - Static values (for testing)
+- **Type Safety**: Automatic type conversion and validation
+- **Fast-Fail Validation**: Configuration errors detected at startup before service initialization
+- **Provider Abstraction**: Services are agnostic about configuration source
+
+#### Configuration Schema Structure
+
+Each service schema defines:
+
+```json
+{
+  "service_name": "service-name",
+  "metadata": {
+    "description": "Service configuration schema",
+    "version": "1.0.0"
+  },
+  "fields": {
+    "field_name": {
+      "type": "string|int|bool|float|object|array",
+      "source": "env|yaml|document_store|static",
+      "env_var": "ENV_VAR_NAME",
+      "default": "default_value",
+      "required": true|false,
+      "description": "Field description"
+    }
+  }
+}
+```
+
+#### Service Integration
+
+Services load configuration using the unified API:
+
+```python
+from copilot_config import load_typed_config, ConfigValidationError
+
+try:
+    config = load_typed_config("service-name")
+except ConfigValidationError as e:
+    logger.error(f"Configuration validation failed: {e}")
+    sys.exit(1)
+
+# Access configuration via attributes
+message_bus_host = config.message_bus_host
+message_bus_port = config.message_bus_port
+```
+
+#### Common Configuration Fields
+
+All services share common configuration fields:
+
+- **Message Bus**: `message_bus_host`, `message_bus_port`, `message_bus_user`, `message_bus_password`, `message_bus_type`
+- **Document Store**: `doc_store_type`, `doc_store_host`, `doc_store_port`, `doc_store_name`, `doc_store_user`, `doc_store_password`
+- **Observability**: `metrics_backend`, `error_reporter_type`, `log_level`
+- **Retry Logic**: `max_retries`, `retry_delay`
+
+Service-specific configuration is defined in individual schemas.
+
+#### Configuration Sources
+
+1. **Environment Variables** (Default Production):
+   - Services read from `os.environ` via `EnvConfigProvider`
+   - Supports Docker Compose, Kubernetes ConfigMaps, Azure App Configuration
+
+2. **YAML Files** (Local Development):
+   - Load from `config.yaml` via `YamlConfigProvider`
+   - Supports nested configuration with dot notation
+   - Useful for local development with multiple services
+
+3. **Document Store** (Centralized Management):
+   - Load from MongoDB/Cosmos DB via `DocStoreConfigProvider`
+   - Enables runtime configuration updates
+   - Useful for multi-environment deployments
+
+4. **Static Configuration** (Testing):
+   - Hardcoded values via `StaticConfigProvider`
+   - Isolated from environment variables
+   - Perfect for unit testing
+
+#### Migration Guide
+
+See [CONFIGURATION_MIGRATION.md](./CONFIGURATION_MIGRATION.md) for detailed migration instructions for existing services.
+
 ## Data Storage Layer
 
 ### Parsed JSON Storage

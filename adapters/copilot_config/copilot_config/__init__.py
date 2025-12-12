@@ -15,13 +15,41 @@ from .config import (
     StaticConfigProvider,
     create_config_provider,
 )
+from .providers import (
+    YamlConfigProvider,
+    DocStoreConfigProvider,
+)
+from .schema_loader import (
+    ConfigSchema,
+    ConfigSchemaError,
+    ConfigValidationError,
+    FieldSpec,
+    SchemaConfigLoader,
+    load_config,
+)
+from .typed_config import (
+    TypedConfig,
+    load_typed_config,
+)
 
 __all__ = [
     # Version
     "__version__",
-    # Configuration
+    # Configuration Providers
     "ConfigProvider",
     "EnvConfigProvider",
     "StaticConfigProvider",
+    "YamlConfigProvider",
+    "DocStoreConfigProvider",
     "create_config_provider",
+    # Schema-driven configuration
+    "ConfigSchema",
+    "ConfigSchemaError",
+    "ConfigValidationError",
+    "FieldSpec",
+    "SchemaConfigLoader",
+    "load_config",
+    # Typed configuration
+    "TypedConfig",
+    "load_typed_config",
 ]

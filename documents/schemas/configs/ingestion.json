@@ -1,0 +1,142 @@
+{
+  "service_name": "ingestion",
+  "metadata": {
+    "description": "Ingestion service configuration schema",
+    "version": "1.0.0"
+  },
+  "fields": {
+    "storage_path": {
+      "type": "string",
+      "source": "env",
+      "env_var": "STORAGE_PATH",
+      "default": "/data/raw_archives",
+      "description": "Path to store downloaded archives"
+    },
+    "message_bus_host": {
+      "type": "string",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_HOST",
+      "default": "messagebus",
+      "description": "Message bus hostname"
+    },
+    "message_bus_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_PORT",
+      "default": 5672,
+      "description": "Message bus port"
+    },
+    "message_bus_user": {
+      "type": "string",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_USER",
+      "default": "guest",
+      "description": "Message bus username"
+    },
+    "message_bus_password": {
+      "type": "string",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_PASSWORD",
+      "default": "guest",
+      "description": "Message bus password"
+    },
+    "message_bus_type": {
+      "type": "string",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_TYPE",
+      "default": "rabbitmq",
+      "description": "Message bus type (rabbitmq, service_bus)"
+    },
+    "ingestion_schedule_cron": {
+      "type": "string",
+      "source": "env",
+      "env_var": "INGESTION_SCHEDULE_CRON",
+      "default": "0 */6 * * *",
+      "description": "Cron schedule for ingestion"
+    },
+    "blob_storage_enabled": {
+      "type": "bool",
+      "source": "env",
+      "env_var": "BLOB_STORAGE_ENABLED",
+      "default": false,
+      "description": "Enable blob storage"
+    },
+    "blob_storage_connection_string": {
+      "type": "string",
+      "source": "env",
+      "env_var": "BLOB_STORAGE_CONNECTION_STRING",
+      "default": "",
+      "description": "Blob storage connection string"
+    },
+    "blob_storage_container": {
+      "type": "string",
+      "source": "env",
+      "env_var": "BLOB_STORAGE_CONTAINER",
+      "default": "raw-archives",
+      "description": "Blob storage container name"
+    },
+    "log_level": {
+      "type": "string",
+      "source": "env",
+      "env_var": "LOG_LEVEL",
+      "default": "INFO",
+      "description": "Logging level"
+    },
+    "log_type": {
+      "type": "string",
+      "source": "env",
+      "env_var": "LOG_TYPE",
+      "default": "stdout",
+      "description": "Logging type (stdout, json)"
+    },
+    "logger_name": {
+      "type": "string",
+      "source": "env",
+      "env_var": "LOG_NAME",
+      "default": "ingestion-service",
+      "description": "Logger name"
+    },
+    "metrics_backend": {
+      "type": "string",
+      "source": "env",
+      "env_var": "METRICS_BACKEND",
+      "default": "noop",
+      "description": "Metrics backend (prometheus, noop)"
+    },
+    "retry_max_attempts": {
+      "type": "int",
+      "source": "env",
+      "env_var": "RETRY_MAX_ATTEMPTS",
+      "default": 3,
+      "description": "Maximum retry attempts"
+    },
+    "retry_backoff_seconds": {
+      "type": "int",
+      "source": "env",
+      "env_var": "RETRY_BACKOFF_SECONDS",
+      "default": 60,
+      "description": "Retry backoff in seconds"
+    },
+    "error_reporter_type": {
+      "type": "string",
+      "source": "env",
+      "env_var": "ERROR_REPORTER_TYPE",
+      "default": "console",
+      "description": "Error reporter type (console, silent, sentry)"
+    },
+    "sentry_dsn": {
+      "type": "string",
+      "source": "env",
+      "env_var": "SENTRY_DSN",
+      "default": "",
+      "description": "Sentry DSN for error reporting"
+    },
+    "sentry_environment": {
+      "type": "string",
+      "source": "env",
+      "env_var": "SENTRY_ENVIRONMENT",
+      "default": "production",
+      "description": "Sentry environment"
+    }
+  }
+}
