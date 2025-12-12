@@ -273,8 +273,8 @@ class ChunkingService:
                 "token_count": chunk.token_count,
                 "start_offset": chunk.start_offset,
                 "end_offset": chunk.end_offset,
-                "overlap_with_previous": chunk.chunk_index > 0 and hasattr(self.chunker, 'overlap') and self.chunker.overlap > 0,
-                "overlap_with_next": chunk.chunk_index < len(chunks) - 1 and hasattr(self.chunker, 'overlap') and self.chunker.overlap > 0,
+                "overlap_with_previous": chunk.chunk_index > 0 and self._has_overlap(),
+                "overlap_with_next": chunk.chunk_index < len(chunks) - 1 and self._has_overlap(),
                 "metadata": chunk.metadata,
                 "chunking_strategy": type(self.chunker).__name__,
                 "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -283,6 +283,14 @@ class ChunkingService:
             chunk_docs.append(chunk_doc)
         
         return chunk_docs
+
+    def _has_overlap(self) -> bool:
+        """Check if the chunker uses overlap.
+        
+        Returns:
+            True if chunker has overlap configured, False otherwise
+        """
+        return hasattr(self.chunker, 'overlap') and self.chunker.overlap > 0
 
     def _publish_chunks_prepared(
         self,
