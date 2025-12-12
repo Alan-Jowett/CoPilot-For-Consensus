@@ -6,9 +6,9 @@ beautifulsoup4==4.12.3
 fastapi==0.109.2
 uvicorn==0.27.1
 
-# SDK dependencies
-../sdk/copilot_events
-../sdk/copilot_storage
-../sdk/copilot_metrics
-../sdk/copilot_reporting
-../sdk/copilot_logging
+# Adapter dependencies
+../adapters/copilot_events
+../adapters/copilot_storage
+../adapters/copilot_metrics
+../adapters/copilot_reporting
+../adapters/copilot_logging
