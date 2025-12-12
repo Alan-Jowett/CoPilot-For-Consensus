@@ -229,6 +229,24 @@ jobs:
           exit 1
         fi
     
+    - name: Check lint status
+      run: |
+        if [ "${{ needs.lint.result }}" == "success" ]; then
+          echo "✓ Lint passed"
+        else
+          echo "✗ Lint failed"
+          exit 1
+        fi
+
+    - name: Check code quality status
+      run: |
+        if [ "${{ needs.code-quality.result }}" == "success" ]; then
+          echo "✓ Code quality checks passed"
+        else
+          echo "✗ Code quality checks failed"
+          exit 1
+        fi
+    
     - name: Report summary
       run: |
         echo "${{ inputs.service_id }} Service CI Summary:"
