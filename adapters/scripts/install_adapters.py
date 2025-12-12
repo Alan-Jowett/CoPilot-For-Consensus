@@ -23,6 +23,7 @@ PRIORITY_ADAPTERS = [
     "copilot_schema_validation",
     "copilot_events",
     "copilot_config",
+    "copilot_summarization",
 ]
 
 def get_adapters_dir():
