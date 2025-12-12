@@ -55,6 +55,13 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
 
+  # Monitor Python dependencies in error-reporting service
+  - package-ecosystem: "pip"
+    directory: "/error-reporting"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
   # Monitor Python dependencies in copilot_events adapter
   - package-ecosystem: "pip"
     directory: "/adapters/copilot_events"
@@ -65,6 +72,13 @@ updates:
   # Monitor Python dependencies in copilot_storage adapter
   - package-ecosystem: "pip"
     directory: "/adapters/copilot_storage"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in copilot_summarization adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_summarization"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
