@@ -229,6 +229,15 @@ jobs:
       package_name: copilot_vectorstore
       extra_pip_packages: '["faiss-cpu"]'
 
+  vectorstore-integration-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_vectorstore == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-vectorstore-integration-ci.yml
+    with:
+      adapter_id: copilot_vectorstore
+      adapter_path: adapters/copilot_vectorstore
+      package_name: copilot_vectorstore
+
   storage-integration-ci:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.copilot_storage == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}

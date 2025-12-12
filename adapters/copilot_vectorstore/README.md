@@ -11,7 +11,7 @@ A modular abstraction layer for vector storage backends, enabling flexible switc
 - **Multiple Backends**: 
   - `InMemoryVectorStore`: Simple in-memory storage for testing and development
   - `FAISSVectorStore`: Production-ready FAISS backend for efficient similarity search
-  - `QdrantVectorStore`: (Planned) Qdrant cloud/self-hosted vector database
+  - `QdrantVectorStore`: Qdrant cloud/self-hosted vector database with persistence
   - `AzureVectorStore`: (Planned) Azure Cognitive Search integration
 - **Factory Pattern**: Easy backend selection via config or environment variables
 - **Type-Safe**: Full type hints for better IDE support and error detection
@@ -32,11 +32,18 @@ pip install -e adapters/copilot_vectorstore/
 pip install faiss-cpu  # or faiss-gpu for GPU support
 ```
 
+### With Qdrant Support
+
+```bash
+pip install -e adapters/copilot_vectorstore/
+pip install qdrant-client
+```
+
 ### Development Installation
 
 ```bash
 pip install -e "adapters/copilot_vectorstore/[dev]"
-pip install faiss-cpu numpy
+pip install faiss-cpu numpy qdrant-client
 ```
 
 ## Quick Start
@@ -115,6 +122,15 @@ store.clear()
 - `VECTOR_STORE_BACKEND`: Backend to use (`inmemory`, `faiss`, `qdrant`, `azure`)
   - Default: `faiss`
 
+#### Qdrant Configuration
+
+- `QDRANT_HOST`: Qdrant server host (default: `localhost`)
+- `QDRANT_PORT`: Qdrant server port (default: `6333`)
+- `QDRANT_API_KEY`: Optional API key for authentication
+- `QDRANT_COLLECTION`: Collection name (default: `embeddings`)
+- `QDRANT_DISTANCE`: Distance metric - `cosine` or `euclid` (default: `cosine`)
+- `QDRANT_BATCH_SIZE`: Batch size for upsert operations (default: `100`)
+
 ### Backend-Specific Options
 
 #### FAISS
@@ -126,6 +142,37 @@ store = create_vector_store(
     index_type="flat",  # or "ivf" for large datasets
     persist_path="/path/to/index.faiss"  # optional
 )
+```
+
+#### Qdrant
+
+```python
+# Local Qdrant instance
+store = create_vector_store(
+    backend="qdrant",
+    dimension=384,
+    host="localhost",
+    port=6333,
+    collection_name="embeddings",
+    distance="cosine",  # or "euclid"
+)
+
+# Qdrant Cloud with API key
+store = create_vector_store(
+    backend="qdrant",
+    dimension=768,
+    host="your-cluster.cloud.qdrant.io",
+    port=6333,
+    api_key="your-api-key",
+    collection_name="production_embeddings",
+)
+
+# Using environment variables
+os.environ["QDRANT_HOST"] = "qdrant.example.com"
+os.environ["QDRANT_PORT"] = "6333"
+os.environ["QDRANT_API_KEY"] = "secret"
+os.environ["QDRANT_COLLECTION"] = "my_collection"
+store = create_vector_store(backend="qdrant", dimension=384)
 ```
 
 ## Architecture
@@ -266,6 +313,59 @@ class YourBackendVectorStore(VectorStore):
 - **Index types**:
   - `flat`: Exact search, slower but accurate
   - `ivf`: Approximate search, faster for large datasets
+
+### QdrantVectorStore
+- **Best for**: Production, persistent storage, distributed deployments
+- **Complexity**: O(log n) with HNSW indexing
+- **Persistence**: Automatic persistence to disk
+- **Features**:
+  - Built-in filtering on metadata
+  - Horizontal scaling support
+  - Cloud-hosted or self-hosted options
+  - HNSW (Hierarchical Navigable Small World) algorithm for fast approximate search
+
+## Troubleshooting
+
+### Qdrant Connection Issues
+
+**Problem**: `ConnectionError: Failed to connect to Qdrant`
+
+**Solutions**:
+- Verify Qdrant server is running: `curl http://localhost:6333/health`
+- Check `QDRANT_HOST` and `QDRANT_PORT` environment variables
+- Ensure firewall allows connection to Qdrant port
+- For Qdrant Cloud, verify API key is correct
+
+**Problem**: `ValueError: Collection 'X' exists with different vector size`
+
+**Solutions**:
+- Delete the existing collection or use a different collection name
+- Ensure `dimension` parameter matches the existing collection's vector size
+
+**Problem**: `ImportError: qdrant-client is not installed`
+
+**Solution**:
+```bash
+pip install qdrant-client
+```
+
+### Running Qdrant Locally
+
+Using Docker:
+```bash
+docker run -p 6333:6333 qdrant/qdrant
+```
+
+Using Docker Compose:
+```yaml
+services:
+  qdrant:
+    image: qdrant/qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - ./qdrant_storage:/qdrant/storage
+```
 
 ## License
 

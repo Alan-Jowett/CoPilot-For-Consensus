@@ -10,6 +10,7 @@ from typing import Optional
 from .interface import VectorStore
 from .inmemory import InMemoryVectorStore
 from .faiss_store import FAISSVectorStore
+from .qdrant_store import QdrantVectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -69,10 +70,22 @@ def create_vector_store(
         )
     
     elif backend == "qdrant":
-        # Scaffold for future implementation
-        raise NotImplementedError(
-            "Qdrant backend is not yet implemented. "
-            "Contributions welcome! See the VectorStore interface for requirements."
+        # Get Qdrant configuration from environment or kwargs
+        host = kwargs.get("host", os.getenv("QDRANT_HOST", "localhost"))
+        port = kwargs.get("port", int(os.getenv("QDRANT_PORT", "6333")))
+        api_key = kwargs.get("api_key", os.getenv("QDRANT_API_KEY"))
+        collection_name = kwargs.get("collection_name", os.getenv("QDRANT_COLLECTION", "embeddings"))
+        distance = kwargs.get("distance", os.getenv("QDRANT_DISTANCE", "cosine"))
+        upsert_batch_size = kwargs.get("upsert_batch_size", int(os.getenv("QDRANT_BATCH_SIZE", "100")))
+        
+        return QdrantVectorStore(
+            host=host,
+            port=port,
+            api_key=api_key,
+            collection_name=collection_name,
+            vector_size=dimension,
+            distance=distance,
+            upsert_batch_size=upsert_batch_size,
         )
     
     elif backend == "azure":

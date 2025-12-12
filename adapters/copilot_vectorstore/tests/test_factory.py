@@ -13,6 +13,12 @@ try:
 except ImportError:
     FAISS_AVAILABLE = False
 
+try:
+    from copilot_vectorstore import QdrantVectorStore
+    QDRANT_AVAILABLE = True
+except ImportError:
+    QDRANT_AVAILABLE = False
+
 
 class TestCreateVectorStore:
     """Tests for create_vector_store factory function."""
@@ -86,9 +92,21 @@ class TestCreateVectorStore:
                     del os.environ["VECTOR_STORE_BACKEND"]
     
     def test_qdrant_backend_not_implemented(self):
-        """Test that Qdrant backend raises NotImplementedError."""
-        with pytest.raises(NotImplementedError, match="Qdrant"):
-            create_vector_store(backend="qdrant")
+        """Test that Qdrant backend can be created if client is installed."""
+        if not QDRANT_AVAILABLE:
+            # If client not installed, should raise ImportError
+            with pytest.raises(ImportError, match="qdrant-client"):
+                create_vector_store(backend="qdrant", dimension=384)
+        else:
+            # If client is installed, should raise ConnectionError (can't connect)
+            # unless we're in an environment where Qdrant is actually running
+            try:
+                store = create_vector_store(backend="qdrant", dimension=384)
+                # If we get here, Qdrant is actually running
+                assert isinstance(store, QdrantVectorStore)
+            except ConnectionError:
+                # Expected when Qdrant is not running
+                pass
     
     def test_azure_backend_not_implemented(self):
         """Test that Azure backend raises NotImplementedError."""

@@ -10,13 +10,24 @@ and simplify testing.
 
 from .interface import VectorStore, SearchResult
 from .inmemory import InMemoryVectorStore
-from .faiss_store import FAISSVectorStore
 from .factory import create_vector_store
+
+# Optional imports that may not be available
+try:
+    from .faiss_store import FAISSVectorStore
+except ImportError:
+    FAISSVectorStore = None
+
+try:
+    from .qdrant_store import QdrantVectorStore
+except ImportError:
+    QdrantVectorStore = None
 
 __all__ = [
     "VectorStore",
     "SearchResult",
     "InMemoryVectorStore",
     "FAISSVectorStore",
+    "QdrantVectorStore",
     "create_vector_store",
 ]

@@ -44,5 +44,8 @@ setup(
         "faiss-gpu": [
             "faiss-gpu>=1.7.0",  # FAISS GPU version for faster search
         ],
+        "qdrant": [
+            "qdrant-client>=1.7.0",  # Qdrant for cloud/self-hosted vector search
+        ],
     },
 )

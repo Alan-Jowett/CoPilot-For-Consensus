@@ -1,0 +1,110 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Reusable Vectorstore Integration CI
+
+on:
+  workflow_call:
+    inputs:
+      adapter_id:
+        description: 'Adapter identifier (e.g., copilot_vectorstore)'
+        required: true
+        type: string
+      adapter_path:
+        description: 'Path to adapter root folder'
+        required: true
+        type: string
+      package_name:
+        description: 'Python package import name'
+        required: true
+        type: string
+      python_version:
+        description: 'Python version to use (e.g., "3.11")'
+        required: false
+        type: string
+        default: '3.11'
+      qdrant_version:
+        description: 'Qdrant version to use (e.g., "v1.7.4")'
+        required: false
+        type: string
+        default: 'latest'
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    services:
+      qdrant:
+        image: qdrant/qdrant:${{ inputs.qdrant_version }}
+        ports:
+          - 6333:6333
+        options: >-
+          --health-cmd "curl -f http://localhost:6333/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python ${{ inputs.python_version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ inputs.python_version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov qdrant-client
+          python adapters/scripts/install_adapters.py
+
+      - name: Wait for Qdrant to be ready
+        run: |
+          echo "Waiting for Qdrant to be ready..."
+          for i in {1..30}; do
+            if curl -f http://localhost:6333/health; then
+              echo "Qdrant is ready!"
+              exit 0
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+          echo "Qdrant failed to become ready"
+          exit 1
+
+      - name: Run integration tests
+        env:
+          QDRANT_HOST: localhost
+          QDRANT_PORT: 6333
+          QDRANT_COLLECTION: test_embeddings
+        run: |
+          cd ${{ inputs.adapter_path }}
+          pytest tests -v -m integration --tb=short --junit-xml=integration-test-results.xml --cov=${{ inputs.package_name }} --cov-report=lcov:integration-coverage.lcov --cov-report=html:integration-htmlcov --cov-report=term
+
+      - name: Upload integration test results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ${{ inputs.adapter_id }}-integration-test-results
+          path: ${{ inputs.adapter_path }}/integration-test-results.xml
+
+      - name: Upload integration coverage reports
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ${{ inputs.adapter_id }}-integration-coverage-report
+          path: ${{ inputs.adapter_path }}/integration-htmlcov
+
+      - name: Integration Test Report
+        if: always()
+        uses: dorny/test-reporter@v2
+        with:
+          name: ${{ inputs.adapter_id }} Integration Tests
+          path: ${{ inputs.adapter_path }}/integration-test-results.xml
+          reporter: 'java-junit'
