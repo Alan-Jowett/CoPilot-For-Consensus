@@ -152,7 +152,7 @@ class SummarizationService:
                 # Retrieve context
                 context = self._retrieve_context(thread_id, top_k)
                 
-                if not context:
+                if not context or not context.get("messages"):
                     logger.warning(f"No context retrieved for thread {thread_id}")
                     self._publish_summarization_failed(
                         thread_id=thread_id,
