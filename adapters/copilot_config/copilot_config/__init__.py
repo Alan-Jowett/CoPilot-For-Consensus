@@ -9,12 +9,11 @@ in the Copilot-for-Consensus system.
 
 __version__ = "0.1.0"
 
-from .config import (
-    ConfigProvider,
-    EnvConfigProvider,
-    StaticConfigProvider,
-    create_config_provider,
-)
+from .base import ConfigProvider
+from .env_provider import EnvConfigProvider
+from .static_provider import StaticConfigProvider
+from .factory import create_config_provider
+from .storage_provider import StorageConfigProvider
 from .providers import (
     YamlConfigProvider,
     DocStoreConfigProvider,
@@ -39,6 +38,7 @@ __all__ = [
     "ConfigProvider",
     "EnvConfigProvider",
     "StaticConfigProvider",
+    "StorageConfigProvider",
     "YamlConfigProvider",
     "DocStoreConfigProvider",
     "create_config_provider",

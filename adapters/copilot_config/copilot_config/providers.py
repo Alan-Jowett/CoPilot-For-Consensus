@@ -6,7 +6,7 @@
 import os
 from typing import Any, Dict, Optional
 
-from .config import ConfigProvider
+from .base import ConfigProvider
 
 
 class YamlConfigProvider(ConfigProvider):
