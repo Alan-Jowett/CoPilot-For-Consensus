@@ -27,6 +27,10 @@ from .schema_loader import (
     SchemaConfigLoader,
     load_config,
 )
+from .typed_config import (
+    TypedConfig,
+    load_typed_config,
+)
 
 __all__ = [
     # Version
@@ -45,4 +49,7 @@ __all__ = [
     "FieldSpec",
     "SchemaConfigLoader",
     "load_config",
+    # Typed configuration
+    "TypedConfig",
+    "load_typed_config",
 ]

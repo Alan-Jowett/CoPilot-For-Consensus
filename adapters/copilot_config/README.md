@@ -10,8 +10,14 @@ A shared Python library for configuration management across microservices in the
 - **Abstract ConfigProvider Interface**: Common interface for all configuration providers
 - **EnvConfigProvider**: Production-ready provider that reads from environment variables
 - **StaticConfigProvider**: Testing provider with hardcoded configuration values
+- **YamlConfigProvider**: Provider that reads configuration from YAML files
+- **DocStoreConfigProvider**: Provider that reads configuration from document stores
+- **Schema-Driven Configuration**: JSON schema-based configuration with validation
+- **Typed Configuration**: Type-safe configuration access with attribute-style syntax
+- **Multi-Source Support**: Load configuration from environment, YAML, document stores, or static sources
+- **Fast-Fail Validation**: Validate configuration at startup and fail fast on errors
 - **Factory Pattern**: Simple factory function for creating configuration providers
-- **Type-Safe Access**: Smart type conversion for bool and int types with proper defaults
+- **Type-Safe Access**: Smart type conversion for bool, int, float, and string types with proper defaults
 
 ## Installation
 
@@ -21,18 +27,143 @@ From the adapters root directory:
 
 ```bash
 cd adapters/copilot_config
-pip install -e .
+pip install -e ".[dev]"  # Includes YAML support
 ```
 
 ### For Production
 
 ```bash
-pip install copilot-config
+pip install copilot-config[yaml]  # Includes YAML support
 ```
 
 ## Usage
 
-### Production Configuration
+### Schema-Driven Configuration (Recommended)
+
+The recommended approach is to use schema-driven configuration with the `load_config()` function.
+
+#### 1. Define a Schema
+
+Create a JSON schema file in `schemas/<service>.json`:
+
+```json
+{
+  "service_name": "my-service",
+  "metadata": {
+    "description": "My service configuration schema",
+    "version": "1.0.0"
+  },
+  "fields": {
+    "message_bus_host": {
+      "type": "string",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_HOST",
+      "default": "messagebus",
+      "required": true,
+      "description": "Message bus hostname"
+    },
+    "message_bus_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_PORT",
+      "default": 5672,
+      "description": "Message bus port"
+    },
+    "debug": {
+      "type": "bool",
+      "source": "env",
+      "env_var": "DEBUG",
+      "default": false,
+      "description": "Enable debug mode"
+    },
+    "database_settings": {
+      "type": "object",
+      "source": "yaml",
+      "yaml_path": "database",
+      "description": "Database configuration from YAML"
+    }
+  }
+}
+```
+
+#### 2. Load Configuration
+
+```python
+from copilot_config import load_config
+
+# Load configuration based on schema
+config = load_config("my-service")
+
+# Access configuration values
+print(config["message_bus_host"])  # "messagebus"
+print(config["message_bus_port"])  # 5672
+print(config["debug"])             # False
+```
+
+#### 3. Use Typed Configuration (Optional)
+
+For attribute-style access:
+
+```python
+from copilot_config import load_typed_config
+
+# Load typed configuration
+config = load_typed_config("my-service")
+
+# Access via attributes
+print(config.message_bus_host)  # "messagebus"
+print(config.message_bus_port)  # 5672
+print(config.debug)             # False
+
+# Still supports dict-style access
+print(config["message_bus_host"])  # "messagebus"
+print(config.get("missing_key", "default"))  # "default"
+```
+
+### Schema Field Types
+
+Supported field types:
+- `string`: String values
+- `int`: Integer values
+- `bool`: Boolean values (accepts "true", "1", "yes", "on" as True)
+- `float`: Floating-point values
+- `object`: Nested objects (dictionaries)
+- `array`: Array/list values
+
+### Configuration Sources
+
+Each field can specify where its value comes from:
+
+- `env`: Environment variables (via `env_var` parameter)
+- `yaml`: YAML files (via `yaml_path` parameter)
+- `document_store`: Document store (via `doc_store_path` parameter)
+- `static`: Static/hardcoded values
+
+### Validation
+
+The schema loader validates:
+- **Required fields**: Fields marked as `required: true` must have values
+- **Type validation**: Values are converted to the correct type
+- **Fast-fail**: Configuration errors are detected at startup
+
+Example error:
+
+```python
+from copilot_config import load_config, ConfigValidationError
+
+try:
+    config = load_config("my-service")
+except ConfigValidationError as e:
+    print(f"Configuration error: {e}")
+    # Configuration validation failed for my-service:
+    #   - message_bus_host: Required field 'message_bus_host' is missing
+```
+
+### Traditional Configuration Providers
+
+You can also use the low-level configuration providers directly:
+
+#### Production Configuration
 
 ```python
 from copilot_config import create_config_provider
@@ -50,7 +181,7 @@ enabled = config.get_bool("FEATURE_ENABLED", False)
 port = config.get_int("MESSAGE_BUS_PORT", 5672)
 ```
 
-### Testing Configuration
+#### Testing Configuration
 
 ```python
 from copilot_config import StaticConfigProvider
@@ -71,42 +202,17 @@ enabled = config.get_bool("FEATURE_ENABLED")  # True
 config.set("NEW_KEY", "new_value")
 ```
 
-### Service Integration Example
+#### YAML Configuration
 
 ```python
-from copilot_config import create_config_provider, ConfigProvider
-from typing import Optional
+from copilot_config import YamlConfigProvider
 
-class MyServiceConfig:
-    def __init__(self, host: str, port: int, enabled: bool):
-        self.host = host
-        self.port = port
-        self.enabled = enabled
-    
-    @classmethod
-    def from_env(cls, config_provider: Optional[ConfigProvider] = None):
-        """Load configuration from environment variables."""
-        if config_provider is None:
-            config_provider = create_config_provider()
-        
-        return cls(
-            host=config_provider.get("SERVICE_HOST", "localhost"),
-            port=config_provider.get_int("SERVICE_PORT", 8080),
-            enabled=config_provider.get_bool("SERVICE_ENABLED", True),
-        )
+# Load from YAML file
+config = YamlConfigProvider("config.yaml")
 
-# Production: uses environment variables
-config = MyServiceConfig.from_env()
-
-# Testing: uses static configuration
-from copilot_config import StaticConfigProvider
-test_config = MyServiceConfig.from_env(
-    config_provider=StaticConfigProvider({
-        "SERVICE_HOST": "test-host",
-        "SERVICE_PORT": "9000",
-        "SERVICE_ENABLED": "false"
-    })
-)
+# Supports nested keys with dot notation
+host = config.get("database.host")
+port = config.get_int("database.port")
 ```
 
 ## Architecture
@@ -138,6 +244,31 @@ Testing configuration provider implementation with:
 - Includes `set()` method for dynamic updates
 - Perfect for unit testing without environment variable side effects
 - Isolated from actual system environment
+
+#### YamlConfigProvider
+
+YAML file configuration provider with:
+- Loads configuration from YAML files
+- Supports nested keys with dot notation (e.g., "database.host")
+- Gracefully handles missing files
+- Requires PyYAML (install with `pip install copilot-config[yaml]`)
+
+#### DocStoreConfigProvider
+
+Document store configuration provider with:
+- Loads configuration from document stores (MongoDB, etc.)
+- Caches configuration for performance
+- Supports nested keys and objects
+- Useful for centralized configuration management
+
+### Schema-Driven Configuration
+
+The schema-driven system provides:
+- **ConfigSchema**: Represents a service's configuration schema
+- **FieldSpec**: Defines individual configuration fields
+- **SchemaConfigLoader**: Loads and validates configuration based on schema
+- **load_config()**: Main entry point for schema-driven configuration
+- **TypedConfig**: Typed wrapper for attribute-style configuration access
 
 ## Development
 
