@@ -3,6 +3,9 @@
 
 # Dependabot configuration for tracking and updating dependencies
 # Documentation: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+# 
+# THIS FILE IS AUTO-GENERATED - DO NOT EDIT MANUALLY
+# Run `python scripts/update-dependabot.py` to regenerate
 
 version: 2
 updates:
@@ -16,6 +19,13 @@ updates:
   # Monitor Python dependencies in embedding service
   - package-ecosystem: "pip"
     directory: "/embedding"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in error-reporting service
+  - package-ecosystem: "pip"
+    directory: "/error-reporting"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
@@ -55,34 +65,6 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
 
-  # Monitor Python dependencies in error-reporting service
-  - package-ecosystem: "pip"
-    directory: "/error-reporting"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-
-  # Monitor Python dependencies in copilot_events adapter
-  - package-ecosystem: "pip"
-    directory: "/adapters/copilot_events"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-
-  # Monitor Python dependencies in copilot_storage adapter
-  - package-ecosystem: "pip"
-    directory: "/adapters/copilot_storage"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-
-  # Monitor Python dependencies in copilot_summarization adapter
-  - package-ecosystem: "pip"
-    directory: "/adapters/copilot_summarization"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-
   # Monitor Python dependencies in copilot_archive_fetcher adapter
   - package-ecosystem: "pip"
     directory: "/adapters/copilot_archive_fetcher"
@@ -118,9 +100,23 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
 
+  # Monitor Python dependencies in copilot_draft_diff adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_draft_diff"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
   # Monitor Python dependencies in copilot_embedding adapter
   - package-ecosystem: "pip"
     directory: "/adapters/copilot_embedding"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in copilot_events adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_events"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
@@ -149,6 +145,20 @@ updates:
   # Monitor Python dependencies in copilot_schema_validation adapter
   - package-ecosystem: "pip"
     directory: "/adapters/copilot_schema_validation"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in copilot_storage adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_storage"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in copilot_summarization adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_summarization"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
