@@ -12,6 +12,7 @@ A shared Python library for configuration management across microservices in the
 - **StaticConfigProvider**: Testing provider with hardcoded configuration values
 - **YamlConfigProvider**: Provider that reads configuration from YAML files
 - **DocStoreConfigProvider**: Provider that reads configuration from document stores
+- **StorageConfigProvider**: Dynamic configuration backed by copilot_storage document stores with TTL-based refresh
 - **Schema-Driven Configuration**: JSON schema-based configuration with validation
 - **Typed Configuration**: Type-safe configuration access with attribute-style syntax
 - **Multi-Source Support**: Load configuration from environment, YAML, document stores, or static sources
@@ -214,6 +215,33 @@ config = YamlConfigProvider("config.yaml")
 host = config.get("database.host")
 port = config.get_int("database.port")
 ```
+
+#### Dynamic Configuration via copilot_storage
+
+```python
+from copilot_config import StorageConfigProvider
+from copilot_storage import create_document_store
+
+# Backed by any copilot_storage DocumentStore implementation
+store = create_document_store(store_type="inmemory")
+store.connect()
+store.insert_document("config", {"key": "PROMPT", "value": "Use the newest prompt."})
+
+# Cached reads with a small TTL for dynamic values
+config = StorageConfigProvider(doc_store=store, cache_ttl_seconds=10)
+
+prompt = config.get("PROMPT")
+```
+
+If you do not pass a `doc_store`, `StorageConfigProvider` will create one using
+environment variables (defaults to `mongodb`):
+
+- `CONFIG_STORE_TYPE` (e.g., `mongodb`, `inmemory`)
+- `CONFIG_STORE_HOST` / `CONFIG_STORE_PORT`
+- `CONFIG_STORE_USERNAME` / `CONFIG_STORE_PASSWORD`
+- `CONFIG_STORE_DATABASE` (default: `copilot_config`)
+
+Install copilot_storage support with `pip install copilot-config[storage]`.
 
 ## Architecture
 

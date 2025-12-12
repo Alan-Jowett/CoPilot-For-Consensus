@@ -35,6 +35,9 @@ setup(
         "yaml": [
             "pyyaml>=6.0.0",
         ],
+        "storage": [
+            "copilot-storage>=0.1.0",
+        ],
         "dev": [
             "pytest>=7.0.0",
             "pytest-cov>=4.0.0",
