@@ -1,0 +1,38 @@
+{
+  "sources": [
+    {
+      "name": "ietf-quic",
+      "source_type": "rsync",
+      "url": "rsync.ietf.org::mailman-archive/quic/",
+      "enabled": true
+    },
+    {
+      "name": "ietf-tls",
+      "source_type": "rsync",
+      "url": "rsync.ietf.org::mailman-archive/tls/",
+      "enabled": true
+    },
+    {
+      "name": "ietf-httpbis",
+      "source_type": "rsync",
+      "url": "rsync.ietf.org::mailman-archive/httpbis/",
+      "enabled": false
+    },
+    {
+      "name": "custom-imap",
+      "source_type": "imap",
+      "url": "imap.example.com",
+      "port": 993,
+      "username": "${IMAP_USERNAME}",
+      "password": "${IMAP_PASSWORD}",
+      "folder": "INBOX",
+      "enabled": false
+    },
+    {
+      "name": "custom-http",
+      "source_type": "http",
+      "url": "https://example.com/archives/mailing-list.mbox",
+      "enabled": false
+    }
+  ]
+}

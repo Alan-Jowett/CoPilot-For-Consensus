@@ -29,5 +29,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy service code
 COPY ingestion/app/ ./app/
 COPY ingestion/*.py ./
+COPY ingestion/upload_ingestion_sources.py ./
 
 CMD ["python", "main.py"]
