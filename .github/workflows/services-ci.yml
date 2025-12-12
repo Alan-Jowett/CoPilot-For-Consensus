@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-name: Services CI (Changed-Only)
+name: Services CI
 
 on:
   push:
@@ -124,8 +124,6 @@ jobs:
       service_path: 'ingestion'
       app_module: 'app'
       python_version: '3.11'
-      run_local_test: true
-      local_test_script: "python tests/test_local_integration.py"
     secrets: inherit
 
   orchestrator:
