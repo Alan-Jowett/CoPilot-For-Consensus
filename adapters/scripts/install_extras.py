@@ -1,7 +1,6 @@
+#!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
-
-#!/usr/bin/env python3
 """
 Helper script to install extra pip packages for adapters.
 Used by GitHub Actions CI workflows.
