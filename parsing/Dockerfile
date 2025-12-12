@@ -5,18 +5,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install shared SDK first
-COPY ../sdk/ /app/sdk/
-RUN pip install --no-cache-dir \
-    /app/sdk/copilot_events \
-    /app/sdk/copilot_storage \
-    /app/sdk/copilot_metrics \
-    /app/sdk/copilot_reporting \
-    /app/sdk/copilot_logging
 
-# Install service dependencies
+COPY ../sdk/ /app/sdk/
+COPY adapters/ /app/adapters/
 COPY requirements.txt .
+COPY documents/schemas /app/documents/schemas
+
 RUN pip install --no-cache-dir -r requirements.txt
+RUN python /app/adapters/scripts/install_adapters.py --no-dev
 
 # Copy service code
 COPY app/ ./app/

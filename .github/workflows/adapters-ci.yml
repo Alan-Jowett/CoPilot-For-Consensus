@@ -1,0 +1,227 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Adapters CI (Changed-Only)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'adapters/**'
+      - '.github/workflows/adapters-ci.yml'
+      - '.github/workflows/adapter-reusable-unit-test-ci.yml'
+      - '.github/workflows/adapter-reusable-integration-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'adapters/**'
+      - '.github/workflows/adapters-ci.yml'
+      - '.github/workflows/adapter-reusable-unit-test-ci.yml'
+      - '.github/workflows/adapter-reusable-integration-ci.yml'
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      copilot_auth: ${{ steps.filter.outputs.copilot_auth }}
+      copilot_chunking: ${{ steps.filter.outputs.copilot_chunking }}
+      copilot_config: ${{ steps.filter.outputs.copilot_config }}
+      copilot_consensus: ${{ steps.filter.outputs.copilot_consensus }}
+      copilot_embedding: ${{ steps.filter.outputs.copilot_embedding }}
+      copilot_events: ${{ steps.filter.outputs.copilot_events }}
+      copilot_logging: ${{ steps.filter.outputs.copilot_logging }}
+      copilot_metrics: ${{ steps.filter.outputs.copilot_metrics }}
+      copilot_archive_fetcher: ${{ steps.filter.outputs.copilot_archive_fetcher }}
+      copilot_reporting: ${{ steps.filter.outputs.copilot_reporting }}
+      copilot_schema_validation: ${{ steps.filter.outputs.copilot_schema_validation }}
+      copilot_storage: ${{ steps.filter.outputs.copilot_storage }}
+      copilot_vectorstore: ${{ steps.filter.outputs.copilot_vectorstore }}
+      ci_workflows: ${{ steps.filter.outputs.ci_workflows }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Detect changed adapters
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          token: ${{ github.token }}
+          filters: |
+            ci_workflows:
+              - '.github/workflows/adapter-reusable-unit-test-ci.yml'
+              - '.github/workflows/adapter-reusable-integration-ci.yml'
+              - '.github/workflows/adapters-ci.yml'
+            copilot_auth:
+              - 'adapters/copilot_auth/**'
+            copilot_config:
+              - 'adapters/copilot_config/**'
+            copilot_events:
+              - 'adapters/copilot_events/**'
+            copilot_logging:
+              - 'adapters/copilot_logging/**'
+            copilot_archive_fetcher:
+              - 'adapters/copilot_archive_fetcher/**'
+            copilot_metrics:
+              - 'adapters/copilot_metrics/**'
+            copilot_reporting:
+              - 'adapters/copilot_reporting/**'
+            copilot_storage:
+              - 'adapters/copilot_storage/**'
+            copilot_embedding:
+              - 'adapters/copilot_embedding/**'
+            copilot_chunking:
+              - 'adapters/copilot_chunking/**'
+            copilot_consensus:
+              - 'adapters/copilot_consensus/**'
+            copilot_schema_validation:
+              - 'adapters/copilot_schema_validation/**'
+            copilot_vectorstore:
+              - 'adapters/copilot_vectorstore/**'
+
+  auth-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_auth == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
+    with:
+      adapter_id: copilot_auth
+      adapter_path: adapters/copilot_auth
+      package_name: copilot_auth
+
+  config-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_config == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
+    with:
+      adapter_id: copilot_config
+      adapter_path: adapters/copilot_config
+      package_name: copilot_config
+
+  events-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_events == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
+    with:
+      adapter_id: copilot_events
+      adapter_path: adapters/copilot_events
+      package_name: copilot_events
+
+  logging-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_logging == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
+    with:
+      adapter_id: copilot_logging
+      adapter_path: adapters/copilot_logging
+      package_name: copilot_logging
+
+  metrics-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_metrics == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
+    with:
+      adapter_id: copilot_metrics
+      adapter_path: adapters/copilot_metrics
+      package_name: copilot_metrics
+
+  archive-fetcher-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_archive_fetcher == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
+    with:
+      adapter_id: copilot_archive_fetcher
+      adapter_path: adapters/copilot_archive_fetcher
+      package_name: copilot_archive_fetcher
+
+  archive-fetcher-integration-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_archive_fetcher == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-integration-ci.yml
+    with:
+      adapter_id: copilot_archive_fetcher
+      adapter_path: adapters/copilot_archive_fetcher
+      package_name: copilot_archive_fetcher
+      enable_rsync_daemon: true
+      rsync_module: data
+      rsync_port: '8730'
+
+  reporting-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_reporting == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
+    with:
+      adapter_id: copilot_reporting
+      adapter_path: adapters/copilot_reporting
+      package_name: copilot_reporting
+
+  storage-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_storage == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
+    with:
+      adapter_id: copilot_storage
+      adapter_path: adapters/copilot_storage
+      package_name: copilot_storage
+
+  embedding-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_embedding == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
+    with:
+      adapter_id: copilot_embedding
+      adapter_path: adapters/copilot_embedding
+      package_name: copilot_embedding
+
+  chunking-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_chunking == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
+    with:
+      adapter_id: copilot_chunking
+      adapter_path: adapters/copilot_chunking
+      package_name: copilot_chunking
+
+  consensus-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_consensus == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
+    with:
+      adapter_id: copilot_consensus
+      adapter_path: adapters/copilot_consensus
+      package_name: copilot_consensus
+
+  schema-validation-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_schema_validation == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
+    with:
+      adapter_id: copilot_schema_validation
+      adapter_path: adapters/copilot_schema_validation
+      package_name: copilot_schema_validation
+
+  vectorstore-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_vectorstore == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
+    with:
+      adapter_id: copilot_vectorstore
+      adapter_path: adapters/copilot_vectorstore
+      package_name: copilot_vectorstore
+      extra_pip_packages: '["faiss-cpu"]'
+
+  storage-integration-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_storage == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-integration-ci.yml
+    with:
+      adapter_id: copilot_storage
+      adapter_path: adapters/copilot_storage
+      package_name: copilot_storage

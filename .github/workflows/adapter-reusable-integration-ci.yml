@@ -1,0 +1,185 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Reusable Adapter Integration CI
+
+on:
+  workflow_call:
+    inputs:
+      adapter_id:
+        description: 'Adapter identifier (e.g., copilot_storage)'
+        required: true
+        type: string
+      adapter_path:
+        description: 'Path to adapter root folder'
+        required: true
+        type: string
+      package_name:
+        description: 'Python package import name'
+        required: true
+        type: string
+      mongodb_version:
+        description: 'MongoDB version to use (e.g., "7.0")'
+        required: false
+        type: string
+        default: '7.0'
+      python_version:
+        description: 'Python version to use (e.g., "3.11")'
+        required: false
+        type: string
+        default: '3.11'
+      enable_rsync_daemon:
+        description: 'Start a local rsync daemon with provided fixtures'
+        required: false
+        type: boolean
+        default: false
+      rsync_fixture_path:
+        description: 'Path to rsync fixture directory (defaults to <adapter_path>/tests/integration/fixtures/rsync)'
+        required: false
+        type: string
+        default: ''
+      rsync_module:
+        description: 'Module name exposed by the rsync daemon'
+        required: false
+        type: string
+        default: 'data'
+      rsync_port:
+        description: 'Port to expose the rsync daemon on'
+        required: false
+        type: string
+        default: '8730'
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:${{ inputs.mongodb_version }}
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: testuser
+          MONGO_INITDB_ROOT_PASSWORD: testpass
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 }).ok' --quiet || mongo --eval 'db.runCommand({ ping: 1 }).ok' --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python ${{ inputs.python_version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ inputs.python_version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov pymongo
+          python adapters/scripts/install_adapters.py
+
+      - name: Start rsync daemon (fixtures)
+        if: ${{ inputs.enable_rsync_daemon }}
+        env:
+          RSYNC_FIXTURE_PATH: ${{ inputs.rsync_fixture_path }}
+        run: |
+          set -e
+          FIXTURE_PATH="$RSYNC_FIXTURE_PATH"
+          if [ -z "$FIXTURE_PATH" ]; then
+            FIXTURE_PATH="${{ inputs.adapter_path }}/tests/integration/fixtures/rsync"
+          fi
+          if [ ! -d "$FIXTURE_PATH" ]; then
+            echo "Fixture path not found: $FIXTURE_PATH"
+            exit 1
+          fi
+          mkdir -p /tmp/rsync-data
+            touch /tmp/rsyncd.lock /tmp/rsyncd.pid
+            chmod 666 /tmp/rsyncd.lock /tmp/rsyncd.pid
+          cp -r "$FIXTURE_PATH"/. /tmp/rsync-data/
+          cat >/tmp/rsyncd.conf <<EOF
+          use chroot = no
+          max connections = 4
+          log file = /tmp/rsyncd.log
+          lock file = /tmp/rsyncd.lock
+          pid file = /tmp/rsyncd.pid
+          [${{ inputs.rsync_module }}]
+              path = /tmp/rsync-data
+              read only = yes
+              list = yes
+          EOF
+          rsync --daemon --config=/tmp/rsyncd.conf --port=${{ inputs.rsync_port }}
+
+      - name: Wait for MongoDB to be ready
+        run: |
+          echo "Waiting for MongoDB to be ready..."
+          python -c "
+          import time
+          import sys
+          from pymongo import MongoClient
+          from pymongo.errors import ConnectionFailure, OperationFailure
+          for i in range(30):
+              try:
+                  client = MongoClient(
+                      host='localhost',
+                      port=27017,
+                      username='testuser',
+                      password='testpass',
+                      authSource='admin',
+                      serverSelectionTimeoutMS=2000
+                  )
+                  client.admin.command('ping')
+                  print('MongoDB is ready!')
+                  sys.exit(0)
+              except (ConnectionFailure, OperationFailure) as e:
+                  print(f'Waiting... ({i+1}/30): {e}')
+                  time.sleep(2)
+          print('MongoDB failed to become ready')
+          sys.exit(1)
+          "
+
+      - name: Run integration tests
+        env:
+          MONGODB_HOST: localhost
+          MONGODB_PORT: 27017
+          MONGODB_USERNAME: testuser
+          MONGODB_PASSWORD: testpass
+          MONGODB_DATABASE: test_copilot
+          RSYNC_HOST: localhost
+          RSYNC_PORT: ${{ inputs.rsync_port }}
+          RSYNC_MODULE: ${{ inputs.rsync_module }}
+          RSYNC_INTEGRATION_ENABLED: ${{ inputs.enable_rsync_daemon }}
+        run: |
+          cd ${{ inputs.adapter_path }}
+          # Default to running all tests marked integration
+          pytest tests -v -m integration --tb=short --junit-xml=integration-test-results.xml --cov=${{ inputs.package_name }} --cov-report=lcov:integration-coverage.lcov --cov-report=html:integration-htmlcov --cov-report=term
+
+      - name: Upload integration test results
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ${{ inputs.adapter_id }}-integration-test-results
+          path: ${{ inputs.adapter_path }}/integration-test-results.xml
+
+      - name: Upload integration coverage reports
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: ${{ inputs.adapter_id }}-integration-coverage-report
+          path: ${{ inputs.adapter_path }}/integration-htmlcov
+
+      - name: Integration Test Report
+        if: always()
+        uses: dorny/test-reporter@v2
+        with:
+          name: ${{ inputs.adapter_id }} Integration Tests
+          path: ${{ inputs.adapter_path }}/integration-test-results.xml
+          reporter: 'java-junit'
