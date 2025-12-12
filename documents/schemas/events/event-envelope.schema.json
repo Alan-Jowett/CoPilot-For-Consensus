@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/event-envelope.schema.json",
+  "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/events/event-envelope.schema.json",
   "title": "Event Envelope",
   "type": "object",
   "properties": {

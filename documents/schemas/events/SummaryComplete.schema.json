@@ -3,7 +3,7 @@
   "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/events/summary-complete.schema.json",
   "title": "SummaryComplete Event",
   "allOf": [
-    { "$ref": "../event-envelope.schema.json" },
+    { "$ref": "./event-envelope.schema.json" },
     {
       "type": "object",
       "properties": {

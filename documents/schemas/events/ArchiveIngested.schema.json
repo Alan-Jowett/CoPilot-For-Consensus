@@ -3,7 +3,7 @@
   "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/events/archive-ingested.schema.json",
   "title": "ArchiveIngested Event",
   "allOf": [
-    { "$ref": "../event-envelope.schema.json" },
+    { "$ref": "./event-envelope.schema.json" },
     {
       "type": "object",
       "properties": {

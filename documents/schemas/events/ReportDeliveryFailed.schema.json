@@ -3,7 +3,7 @@
   "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/events/report-delivery-failed.schema.json",
   "title": "ReportDeliveryFailed Event",
   "allOf": [
-    { "$ref": "../event-envelope.schema.json" },
+    { "$ref": "./event-envelope.schema.json" },
     {
       "type": "object",
       "properties": {
