@@ -105,7 +105,8 @@ services:
   reporting:
     image: copilot-reporting:latest
     build:
-      context: ./reporting
+      context: .
+      dockerfile: ./reporting/Dockerfile
     ports:
       - "8080:8080"
     depends_on:
