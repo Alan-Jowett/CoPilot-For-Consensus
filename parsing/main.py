@@ -14,10 +14,11 @@ sys.path.insert(0, os.path.dirname(__file__))
 from fastapi import FastAPI
 import uvicorn
 
-from copilot_events import create_publisher, create_subscriber
-from copilot_storage import create_document_store
+from copilot_events import create_publisher, create_subscriber, ValidatingEventPublisher, ValidatingEventSubscriber
+from copilot_storage import create_document_store, ValidatingDocumentStore
 from copilot_metrics import create_metrics_collector
 from copilot_reporting import create_error_reporter
+from copilot_schema_validation import FileSchemaProvider
 
 from app import __version__
 from app.service import ParsingService
@@ -108,9 +109,9 @@ def main():
         log_level = os.getenv("LOG_LEVEL", "INFO")
         logging.getLogger().setLevel(log_level)
         
-        # Create event publisher
+        # Create event publisher with schema validation
         logger.info(f"Creating event publisher ({message_bus_type})")
-        publisher = create_publisher(
+        base_publisher = create_publisher(
             message_bus_type=message_bus_type,
             host=message_bus_host,
             port=message_bus_port,
@@ -118,12 +119,19 @@ def main():
             password=message_bus_password,
         )
         
-        if not publisher.connect():
+        if not base_publisher.connect():
             logger.warning("Failed to connect publisher to message bus. Will continue with noop publisher.")
         
-        # Create event subscriber
+        # Wrap with schema validation
+        schema_provider = FileSchemaProvider()
+        publisher = ValidatingEventPublisher(
+            publisher=base_publisher,
+            schema_provider=schema_provider,
+        )
+        
+        # Create event subscriber with schema validation
         logger.info(f"Creating event subscriber ({message_bus_type})")
-        subscriber = create_subscriber(
+        base_subscriber = create_subscriber(
             message_bus_type=message_bus_type,
             host=message_bus_host,
             port=message_bus_port,
@@ -131,13 +139,19 @@ def main():
             password=message_bus_password,
         )
         
-        if not subscriber.connect():
+        if not base_subscriber.connect():
             logger.error("Failed to connect subscriber to message bus")
             sys.exit(1)
         
-        # Create document store
+        # Wrap with schema validation
+        subscriber = ValidatingEventSubscriber(
+            subscriber=base_subscriber,
+            schema_provider=schema_provider,
+        )
+        
+        # Create document store with schema validation
         logger.info(f"Creating document store ({doc_store_type})")
-        document_store = create_document_store(
+        base_document_store = create_document_store(
             store_type=doc_store_type,
             host=doc_store_host,
             port=doc_store_port,
@@ -146,9 +160,15 @@ def main():
             password=doc_store_password,
         )
         
-        if not document_store.connect():
+        if not base_document_store.connect():
             logger.error("Failed to connect to document store")
             sys.exit(1)
+        
+        # Wrap with schema validation
+        document_store = ValidatingDocumentStore(
+            store=base_document_store,
+            schema_provider=schema_provider,
+        )
         
         # Create metrics collector
         metrics_collector = create_metrics_collector(backend=metrics_backend)
