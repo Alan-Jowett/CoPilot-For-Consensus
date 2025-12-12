@@ -5,6 +5,7 @@
 
 from typing import Dict, Any
 from types import SimpleNamespace
+from copilot_schema_validation import FileSchemaProvider, validate_json
 
 
 def make_config(**overrides):
@@ -39,7 +40,6 @@ def make_source(**overrides) -> dict:
     }
     source.update(overrides)
     return source
-from copilot_schema_validation import FileSchemaProvider, validate_json
 
 
 def get_schema_provider():

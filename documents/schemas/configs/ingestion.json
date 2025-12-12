@@ -155,7 +155,7 @@
           },
           "source_type": {
             "type": "string",
-            "enum": ["rsync", "imap", "http"],
+            "enum": ["rsync", "imap", "http", "local"],
             "description": "Type of source (rsync, imap, http)"
           },
           "url": {
