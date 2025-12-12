@@ -38,6 +38,10 @@ permissions:
   checks: write
   pull-requests: write
 
+concurrency:
+  group: services-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   chunking:
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
