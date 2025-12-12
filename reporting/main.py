@@ -36,6 +36,12 @@ app = FastAPI(title="Reporting Service", version=__version__)
 reporting_service = None
 
 
+@app.get("/")
+def root():
+    """Root endpoint redirects to health check."""
+    return health()
+
+
 @app.get("/health")
 def health():
     """Health check endpoint."""

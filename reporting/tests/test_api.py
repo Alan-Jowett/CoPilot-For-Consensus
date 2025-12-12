@@ -57,6 +57,23 @@ def client(test_service, monkeypatch):
 
 
 @pytest.mark.integration
+def test_root_endpoint(client, test_service):
+    """Test the root endpoint."""
+    test_service.reports_stored = 5
+    test_service.notifications_sent = 3
+    
+    response = client.get("/")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["status"] == "healthy"
+    assert data["service"] == "reporting"
+    assert data["reports_stored"] == 5
+    assert data["notifications_sent"] == 3
+
+
+@pytest.mark.integration
 def test_health_endpoint(client, test_service):
     """Test the health endpoint."""
     test_service.reports_stored = 5
