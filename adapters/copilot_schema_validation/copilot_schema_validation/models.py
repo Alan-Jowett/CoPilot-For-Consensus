@@ -20,7 +20,7 @@ class BaseEvent:
     All events follow the event envelope format with common fields.
     Subclasses set event_type to their specific event name.
     
-    Schema: documents/schemas/event-envelope.schema.json
+    Schema: documents/schemas/events/event-envelope.schema.json
     
     Attributes:
         event_type: Type of event (set by subclass)

@@ -64,7 +64,7 @@ function validateEventSchemas(targetDb) {
   }
 
   // Expected count includes event schemas + event-envelope schema
-  const expectedCount = eventFiles.length + 1; // +1 for event-envelope.schema.json
+  const expectedCount = eventFiles.length;
   const storedCount = coll.countDocuments({});
   if (storedCount !== expectedCount) {
     throw new Error(

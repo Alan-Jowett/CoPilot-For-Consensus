@@ -114,7 +114,7 @@ function seedEventSchemas() {
   coll.createIndex({ name: 1 }, { unique: true, name: 'event_schema_name_unique' });
 
   // Seed the event envelope schema first (required for $ref resolution)
-  const envelopePath = '/schemas/event-envelope.schema.json';
+  const envelopePath = '/schemas/events/event-envelope.schema.json';
   if (fs.existsSync(envelopePath)) {
     const envelopeSchema = JSON.parse(fs.readFileSync(envelopePath, 'utf8'));
     coll.updateOne(
@@ -122,7 +122,7 @@ function seedEventSchemas() {
       {
         $set: {
           name: 'event-envelope',
-          fileName: 'event-envelope.schema.json',
+          fileName: 'events/event-envelope.schema.json',
           schema: envelopeSchema
         }
       },
