@@ -33,8 +33,7 @@ jobs:
 
       - name: Generate expected dependabot.yml
         run: |
-          python scripts/update-dependabot.py
-          cp .github/dependabot.yml .github/dependabot.yml.generated
+          python scripts/update-dependabot.py .github/dependabot.yml.generated
 
       - name: Compare configurations
         id: compare
@@ -50,7 +49,6 @@ jobs:
           fi
 
       - name: Find existing issue
-        if: steps.compare.outputs.outdated == 'true'
         id: find-issue
         uses: actions/github-script@v7
         with:
@@ -59,8 +57,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'open',
-              labels: 'dependabot-config',
-              creator: 'github-actions[bot]'
+              labels: 'dependabot-config'
             });
             
             const existingIssue = issues.data.find(issue => 
@@ -79,8 +76,6 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const fs = require('fs');
-            
             // Read the diff
             const { execSync } = require('child_process');
             let diffOutput = '';

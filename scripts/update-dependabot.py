@@ -103,8 +103,12 @@ def generate_dependabot_config(packages: List[Tuple[str, str]]) -> str:
     return content
 
 
-def main():
-    """Main entry point."""
+def main(output_path_arg=None):
+    """Main entry point.
+    
+    Args:
+        output_path_arg: Optional output path for dependabot.yml. Defaults to .github/dependabot.yml
+    """
     # Get the repository root (parent of scripts directory)
     script_dir = Path(__file__).parent
     repo_root = script_dir.parent
@@ -121,8 +125,12 @@ def main():
     # Generate the config
     config_content = generate_dependabot_config(packages)
     
-    # Write to .github/dependabot.yml
-    output_path = repo_root / '.github' / 'dependabot.yml'
+    # Determine output path
+    if output_path_arg:
+        output_path = Path(output_path_arg)
+    else:
+        output_path = repo_root / '.github' / 'dependabot.yml'
+    
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
     with open(output_path, 'w', encoding='utf-8') as f:
@@ -133,4 +141,6 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    import sys
+    output_path = sys.argv[1] if len(sys.argv) > 1 else None
+    main(output_path)
