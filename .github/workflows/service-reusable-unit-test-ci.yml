@@ -60,12 +60,9 @@ jobs:
     - name: Run unit and integration tests
       run: |
         cd ${{ inputs.service_path }}
-        pytest tests/ -v --tb=short --junit-xml=test-results.xml
+        pytest tests/ -v --tb=short --junit-xml=test-results.xml --cov=${{ inputs.app_module }} --cov-report=lcov --cov-report=html --cov-report=term
 
-    - name: Generate coverage report
-      run: |
-        cd ${{ inputs.service_path }}
-        pytest tests/ --cov=${{ inputs.app_module }} --cov-report=lcov --cov-report=html --cov-report=term
+    # Coverage is generated in the test run above
 
     - name: Upload coverage to Coveralls
       continue-on-error: true
