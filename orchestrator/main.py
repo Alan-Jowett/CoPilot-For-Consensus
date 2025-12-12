@@ -41,9 +41,9 @@ orchestration_service = None
 def health():
     """Health check endpoint."""
     global orchestration_service
-    
+
     stats = orchestration_service.get_stats() if orchestration_service is not None else {}
-    
+
     return {
         "status": "healthy",
         "service": "orchestration",
@@ -60,16 +60,16 @@ def health():
 def get_stats():
     """Get orchestration statistics."""
     global orchestration_service
-    
+
     if not orchestration_service:
         return {"error": "Service not initialized"}
-    
+
     return orchestration_service.get_stats()
 
 
 def start_subscriber_thread(service: OrchestrationService):
     """Start the event subscriber in a separate thread.
-    
+
     Args:
         service: Orchestration service instance
     """
@@ -86,9 +86,9 @@ def start_subscriber_thread(service: OrchestrationService):
 def main():
     """Main entry point for the orchestration service."""
     global orchestration_service
-    
+
     logger.info(f"Starting Orchestration Service (version {__version__})")
-    
+
     try:
         # Load configuration from environment
         message_bus_type = os.getenv("MESSAGE_BUS_TYPE", "rabbitmq")
@@ -96,19 +96,19 @@ def main():
         message_bus_port = int(os.getenv("MESSAGE_BUS_PORT", "5672"))
         message_bus_user = os.getenv("MESSAGE_BUS_USER", "guest")
         message_bus_password = os.getenv("MESSAGE_BUS_PASSWORD", "guest")
-        
+
         doc_store_type = os.getenv("DOC_STORE_TYPE", "mongodb")
         doc_store_host = os.getenv("DOC_DB_HOST", "documentdb")
         doc_store_port = int(os.getenv("DOC_DB_PORT", "27017"))
         doc_store_name = os.getenv("DOC_DB_NAME", "copilot")
         doc_store_user = os.getenv("DOC_DB_USER", "")
         doc_store_password = os.getenv("DOC_DB_PASSWORD", "")
-        
+
         vector_store_type = os.getenv("VECTOR_STORE_TYPE", "inmemory")
         vector_store_host = os.getenv("VECTOR_DB_HOST", "vectorstore")
         vector_store_port = int(os.getenv("VECTOR_DB_PORT", "6333"))
         vector_collection = os.getenv("VECTOR_DB_COLLECTION", "message_embeddings")
-        
+
         # Orchestration configuration
         top_k = int(os.getenv("TOP_K", "12"))
         context_window_tokens = int(os.getenv("CONTEXT_WINDOW_TOKENS", "3000"))
@@ -116,7 +116,7 @@ def main():
         llm_model = os.getenv("LLM_MODEL", "mistral")
         llm_temperature = float(os.getenv("LLM_TEMPERATURE", "0.2"))
         llm_max_tokens = int(os.getenv("LLM_MAX_TOKENS", "2048"))
-        
+
         # Create adapters
         logger.info("Creating message bus publisher...")
         publisher = create_publisher(
@@ -126,7 +126,7 @@ def main():
             username=message_bus_user,
             password=message_bus_password,
         )
-        
+
         logger.info("Creating message bus subscriber...")
         subscriber = create_subscriber(
             message_bus_type=message_bus_type,
@@ -135,7 +135,7 @@ def main():
             username=message_bus_user,
             password=message_bus_password,
         )
-        
+
         logger.info("Creating document store...")
         document_store = create_document_store(
             store_type=doc_store_type,
@@ -145,7 +145,7 @@ def main():
             username=doc_store_user if doc_store_user else None,
             password=doc_store_password if doc_store_password else None,
         )
-        
+
         logger.info(f"Creating vector store (type: {vector_store_type})...")
         vector_store = create_vector_store(
             store_type=vector_store_type,
@@ -153,23 +153,23 @@ def main():
             port=vector_store_port,
             collection_name=vector_collection,
         )
-        
+
         # Create optional services
         metrics_collector = None
         error_reporter = None
-        
+
         try:
             metrics_collector = create_metrics_collector()
             logger.info("Metrics collector created")
         except Exception as e:
             logger.warning(f"Could not create metrics collector: {e}")
-        
+
         try:
             error_reporter = create_error_reporter()
             logger.info("Error reporter created")
         except Exception as e:
             logger.warning(f"Could not create error reporter: {e}")
-        
+
         # Create orchestration service
         orchestration_service = OrchestrationService(
             document_store=document_store,
@@ -185,7 +185,7 @@ def main():
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
         )
-        
+
         # Start subscriber in background thread
         subscriber_thread = threading.Thread(
             target=start_subscriber_thread,
@@ -194,12 +194,12 @@ def main():
         )
         subscriber_thread.start()
         logger.info("Subscriber thread started")
-        
+
         # Start FastAPI server
         http_port = int(os.getenv("HTTP_PORT", "8000"))
         logger.info(f"Starting HTTP server on port {http_port}...")
         uvicorn.run(app, host="0.0.0.0", port=http_port)
-        
+
     except Exception as e:
         logger.error(f"Failed to start orchestration service: {e}", exc_info=True)
         sys.exit(1)
