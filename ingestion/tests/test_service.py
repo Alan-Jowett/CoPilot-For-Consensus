@@ -12,9 +12,8 @@ from copilot_events import NoopPublisher
 from copilot_logging import create_logger
 from copilot_metrics import NoOpMetricsCollector
 
-from app.config import IngestionConfig, SourceConfig
 from app.service import IngestionService
-from .test_helpers import assert_valid_event_schema
+from .test_helpers import assert_valid_event_schema, make_config, make_source
 
 
 class TestIngestionService:
@@ -29,7 +28,7 @@ class TestIngestionService:
     @pytest.fixture
     def config(self, temp_storage):
         """Create test configuration."""
-        return IngestionConfig(storage_path=temp_storage)
+        return make_config(storage_path=temp_storage)
 
     @pytest.fixture
     def service(self, config):
@@ -58,12 +57,11 @@ class TestIngestionService:
 
     def test_save_and_load_checksums(self, temp_storage):
         """Test saving and loading checksums."""
-        config = IngestionConfig(storage_path=temp_storage)
+        config = make_config(storage_path=temp_storage)
         publisher = NoopPublisher()
         publisher.connect()
         service1 = IngestionService(config, publisher)
 
-        # Add checksum and save
         file_hash = "hash123"
         archive_id = "archive-1"
         file_path = "/path/to/file"
@@ -72,26 +70,18 @@ class TestIngestionService:
         service1.add_checksum(file_hash, archive_id, file_path, timestamp)
         service1.save_checksums()
 
-        # Create new service and verify checksum was loaded
         service2 = IngestionService(config, publisher)
         assert service2.is_file_already_ingested(file_hash) is True
 
     def test_ingest_archive_success(self, service, temp_storage):
         """Test successful archive ingestion."""
         with tempfile.TemporaryDirectory() as source_dir:
-            # Create a test mbox file
             test_file = os.path.join(source_dir, "test.mbox")
             with open(test_file, "w") as f:
                 f.write("From: test@example.com\nTo: dev@example.com\nSubject: Test\n\nContent")
 
-            # Create local source
-            source = SourceConfig(
-                name="test-source",
-                source_type="local",
-                url=test_file,
-            )
+            source = make_source(name="test-source", url=test_file)
 
-            # Ingest
             success = service.ingest_archive(source, max_retries=1)
 
             assert success is True
@@ -104,11 +94,7 @@ class TestIngestionService:
             with open(test_file, "w") as f:
                 f.write("content")
 
-            source = SourceConfig(
-                name="test-source",
-                source_type="local",
-                url=test_file,
-            )
+            source = make_source(name="test-source", url=test_file)
 
             service.ingest_archive(source, max_retries=1)
 
@@ -130,37 +116,28 @@ class TestIngestionService:
     def test_ingest_archive_duplicate(self, service, temp_storage):
         """Test skipping duplicate archive."""
         with tempfile.TemporaryDirectory() as source_dir:
-            # Create a test mbox file
             test_file = os.path.join(source_dir, "test.mbox")
             with open(test_file, "w") as f:
                 f.write("From: test@example.com\nTo: dev@example.com\nSubject: Test\n\nContent")
 
-            source = SourceConfig(
-                name="test-source",
-                source_type="local",
-                url=test_file,
-            )
+            source = make_source(name="test-source", url=test_file)
 
-            # First ingestion
             success1 = service.ingest_archive(source, max_retries=1)
             assert success1 is True
 
-            # Second ingestion (should be skipped)
             success2 = service.ingest_archive(source, max_retries=1)
             assert success2 is True
 
-            # Should still have only one checksum
             assert len(service.checksums) == 1
 
     def test_ingest_all_enabled_sources(self, temp_storage):
         """Test ingesting from all enabled sources."""
-        config = IngestionConfig(storage_path=temp_storage)
+        config = make_config(storage_path=temp_storage)
         publisher = NoopPublisher()
         publisher.connect()
         service = IngestionService(config, publisher)
 
         with tempfile.TemporaryDirectory() as source_dir:
-            # Create test files
             file1 = os.path.join(source_dir, "file1.mbox")
             with open(file1, "w") as f:
                 f.write("content1")
@@ -169,26 +146,10 @@ class TestIngestionService:
             with open(file2, "w") as f:
                 f.write("content2")
 
-            # Create sources
             sources = [
-                SourceConfig(
-                    name="source1",
-                    source_type="local",
-                    url=file1,
-                    enabled=True,
-                ),
-                SourceConfig(
-                    name="source2",
-                    source_type="local",
-                    url=file2,
-                    enabled=True,
-                ),
-                SourceConfig(
-                    name="source3",
-                    source_type="local",
-                    url=file1,
-                    enabled=False,  # Disabled
-                ),
+                make_source(name="source1", url=file1),
+                make_source(name="source2", url=file2),
+                make_source(name="source3", url=file1, enabled=False),
             ]
 
             config.sources = sources
@@ -201,20 +162,14 @@ class TestIngestionService:
     def test_ingestion_log_created(self, service, temp_storage):
         """Test that ingestion log is created."""
         with tempfile.TemporaryDirectory() as source_dir:
-            # Create a test file
             test_file = os.path.join(source_dir, "test.mbox")
             with open(test_file, "w") as f:
                 f.write("content")
 
-            source = SourceConfig(
-                name="test-source",
-                source_type="local",
-                url=test_file,
-            )
+            source = make_source(name="test-source", url=test_file)
 
             service.ingest_archive(source, max_retries=1)
 
-            # Check log file
             log_path = os.path.join(temp_storage, "metadata", "ingestion_log.jsonl")
             assert os.path.exists(log_path)
 
@@ -228,25 +183,18 @@ class TestIngestionService:
     def test_publish_success_event(self, service, temp_storage):
         """Test that success event is published."""
         with tempfile.TemporaryDirectory() as source_dir:
-            # Create a test file
             test_file = os.path.join(source_dir, "test.mbox")
             with open(test_file, "w") as f:
                 f.write("content")
 
-            source = SourceConfig(
-                name="test-source",
-                source_type="local",
-                url=test_file,
-            )
+            source = make_source(name="test-source", url=test_file)
 
             service.ingest_archive(source, max_retries=1)
 
-            # Check published events
             publisher = service.publisher
             assert isinstance(publisher, NoopPublisher)
             assert len(publisher.published_events) >= 1
 
-            # Find success event
             success_events = [
                 e for e in publisher.published_events
                 if e["event"]["event_type"] == "ArchiveIngested"
@@ -255,15 +203,14 @@ class TestIngestionService:
 
             event = success_events[0]["event"]
             assert event["data"]["source_name"] == "test-source"
-            
-            # Validate event against JSON schema
+
             assert_valid_event_schema(event)
 
     def test_error_reporter_integration(self, temp_storage):
         """Test error reporter integration."""
         from copilot_reporting import SilentErrorReporter
-        
-        config = IngestionConfig(storage_path=temp_storage)
+
+        config = make_config(storage_path=temp_storage)
         config.log_type = "silent"
         publisher = NoopPublisher()
         publisher.connect()
@@ -278,16 +225,13 @@ class TestIngestionService:
             logger=logger,
             metrics=metrics,
         )
-        
-        # Verify error reporter is initialized
+
         assert service.error_reporter is error_reporter
         assert isinstance(service.error_reporter, SilentErrorReporter)
-        
-        # Force a save_checksums error by using an invalid path
+
         service.config.storage_path = "/invalid/path/that/does/not/exist"
         service.save_checksums()
-        
-        # Verify error was reported
+
         assert error_reporter.has_errors()
         errors = error_reporter.get_errors()
         assert len(errors) >= 1
@@ -303,8 +247,7 @@ class TestIngestionService:
         metrics = NoOpMetricsCollector()
 
         service = IngestionService(config, publisher, logger=logger, metrics=metrics)
-        
-        # Verify error reporter was created from config
+
         from copilot_reporting import SilentErrorReporter
         assert isinstance(service.error_reporter, SilentErrorReporter)
 
@@ -317,35 +260,29 @@ class TestIngestionService:
 def test_archive_ingested_event_schema_validation():
     """Test that ArchiveIngested events validate against schema."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        config = IngestionConfig(storage_path=tmpdir)
+        config = make_config(storage_path=tmpdir)
         publisher = NoopPublisher()
         publisher.connect()
         logger = create_logger(logger_type="silent", name="ingestion-test")
         metrics = NoOpMetricsCollector()
         service = IngestionService(config, publisher, logger=logger, metrics=metrics)
-        
+
         with tempfile.TemporaryDirectory() as source_dir:
             test_file = os.path.join(source_dir, "test.mbox")
             with open(test_file, "w") as f:
                 f.write("From: test@example.com\n\nContent")
-            
-            source = SourceConfig(
-                name="test-source",
-                source_type="local",
-                url=test_file,
-            )
-            
+
+            source = make_source(name="test-source", url=test_file)
+
             service.ingest_archive(source, max_retries=1)
-            
-            # Get published events
+
             success_events = [
                 e for e in publisher.published_events
                 if e["event"]["event_type"] == "ArchiveIngested"
             ]
-            
+
             assert len(success_events) >= 1
-            
-            # Validate each event
+
             for event_record in success_events:
                 assert_valid_event_schema(event_record["event"])
 
@@ -353,30 +290,23 @@ def test_archive_ingested_event_schema_validation():
 def test_archive_ingestion_failed_event_schema_validation():
     """Test that ArchiveIngestionFailed events validate against schema."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        config = IngestionConfig(storage_path=tmpdir)
+        config = make_config(storage_path=tmpdir)
         publisher = NoopPublisher()
         publisher.connect()
         logger = create_logger(logger_type="silent", name="ingestion-test")
         metrics = NoOpMetricsCollector()
         service = IngestionService(config, publisher, logger=logger, metrics=metrics)
-        
-        # Try to ingest a non-existent file
-        source = SourceConfig(
-            name="test-source",
-            source_type="local",
-            url="/nonexistent/file.mbox",
-        )
-        
+
+        source = make_source(name="test-source", url="/nonexistent/file.mbox")
+
         service.ingest_archive(source, max_retries=1)
-        
-        # Get published events
+
         failure_events = [
             e for e in publisher.published_events
             if e["event"]["event_type"] == "ArchiveIngestionFailed"
         ]
-        
+
         assert len(failure_events) >= 1
-        
-        # Validate each event
+
         for event_record in failure_events:
             assert_valid_event_schema(event_record["event"])
