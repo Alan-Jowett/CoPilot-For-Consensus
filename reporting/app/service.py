@@ -36,6 +36,7 @@ class ReportingService:
         error_reporter: Optional[ErrorReporter] = None,
         webhook_url: Optional[str] = None,
         notify_enabled: bool = False,
+        webhook_summary_max_length: int = 500,
     ):
         """Initialize reporting service.
         
@@ -47,6 +48,7 @@ class ReportingService:
             error_reporter: Error reporter (optional)
             webhook_url: Webhook URL for notifications (optional)
             notify_enabled: Enable webhook notifications
+            webhook_summary_max_length: Max length for summary in webhook payload
         """
         self.document_store = document_store
         self.publisher = publisher
@@ -55,6 +57,7 @@ class ReportingService:
         self.error_reporter = error_reporter
         self.webhook_url = webhook_url
         self.notify_enabled = notify_enabled
+        self.webhook_summary_max_length = webhook_summary_max_length
         
         # Stats
         self.reports_stored = 0
@@ -148,8 +151,8 @@ class ReportingService:
                 {
                     "chunk_id": c.get("chunk_id", ""),
                     "message_id": c.get("message_id", ""),
-                    "quote": "",  # Not provided in event
-                    "relevance_score": 1.0,  # Default score
+                    "quote": "",  # Not provided in SummaryComplete event
+                    "relevance_score": 1.0,  # Default score; not provided in event
                 }
                 for c in citations
             ],
@@ -161,6 +164,8 @@ class ReportingService:
                 "tokens_completion": tokens_completion,
                 "latency_ms": latency_ms,
                 "event_timestamp": full_event.get("timestamp", now),
+                # Store original event citations with offset for reference
+                "original_citations": citations,
             },
         }
         
@@ -212,7 +217,7 @@ class ReportingService:
         payload = {
             "report_id": report_id,
             "thread_id": thread_id,
-            "summary": summary[:500],  # Truncate for webhook
+            "summary": summary[:self.webhook_summary_max_length],  # Truncate for webhook
             "url": f"/api/reports/{report_id}",
         }
         

@@ -183,6 +183,7 @@ def main():
         # Notification configuration
         webhook_url = os.getenv("NOTIFY_WEBHOOK_URL", "")
         notify_enabled = os.getenv("NOTIFY_ENABLED", "false").lower() in ("true", "1", "yes")
+        webhook_summary_max_length = int(os.getenv("WEBHOOK_SUMMARY_MAX_LENGTH", "500"))
         
         # Create adapters
         logger.info("Creating message bus publisher...")
@@ -238,6 +239,7 @@ def main():
             error_reporter=error_reporter,
             webhook_url=webhook_url if webhook_url else None,
             notify_enabled=notify_enabled,
+            webhook_summary_max_length=webhook_summary_max_length,
         )
         
         logger.info(f"Webhook notifications: {'enabled' if notify_enabled else 'disabled'}")

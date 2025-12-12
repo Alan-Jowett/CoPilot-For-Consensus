@@ -7,11 +7,6 @@ import pytest
 from unittest.mock import Mock, MagicMock
 from fastapi.testclient import TestClient
 
-# Import main app
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
 from main import app, reporting_service
 from app.service import ReportingService
 
