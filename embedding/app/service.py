@@ -42,6 +42,7 @@ class EmbeddingService:
         batch_size: int = 32,
         max_retries: int = 3,
         retry_backoff_seconds: int = 5,
+        vector_store_collection: str = "message_embeddings",
     ):
         """Initialize embedding service.
         
@@ -59,6 +60,7 @@ class EmbeddingService:
             batch_size: Batch size for processing chunks
             max_retries: Maximum retry attempts
             retry_backoff_seconds: Base backoff time for retries
+            vector_store_collection: Vector store collection name
         """
         self.document_store = document_store
         self.vector_store = vector_store
@@ -73,6 +75,7 @@ class EmbeddingService:
         self.batch_size = batch_size
         self.max_retries = max_retries
         self.retry_backoff_seconds = retry_backoff_seconds
+        self.vector_store_collection = vector_store_collection
         
         # Stats
         self.chunks_processed = 0
@@ -219,7 +222,7 @@ class EmbeddingService:
                         self.error_reporter.report(e, context={"chunk_ids": chunk_ids, "retry_count": retry_count})
                     
                     if self.metrics_collector:
-                        self.metrics_collector.increment("embedding_failures_total", 1, tags={"error_type": error_type})
+                        self.metrics_collector.increment("embedding_failures_total", 1, labels={"error_type": error_type})
                     
                     return
                 else:
@@ -330,6 +333,7 @@ class EmbeddingService:
                 "embedding_model": self.embedding_model,
                 "embedding_backend": self.embedding_backend,
                 "embedding_dimension": self.embedding_dimension,
+                "vector_store_collection": self.vector_store_collection,
                 "vector_store_updated": True,
                 "avg_generation_time_ms": avg_generation_time_ms,
             }

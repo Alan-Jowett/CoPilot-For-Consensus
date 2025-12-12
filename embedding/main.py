@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 # Create FastAPI app
 app = FastAPI(title="Embedding Service", version=__version__)
 
-# Global service instance
+# Global service instance (consistent with other services in the codebase)
 embedding_service = None
 
 

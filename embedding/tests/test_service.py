@@ -296,10 +296,8 @@ def test_process_chunks_retry_on_failure(embedding_service, mock_document_store,
     assert mock_vector_store.add_embeddings.call_count == 2
     
     # Verify success event was published (after retry)
-    assert any(
-        call[1]["routing_key"] == "embeddings.generated" 
-        for call in mock_publisher.publish.call_args_list
-    )
+    success_calls = [call for call in mock_publisher.publish.call_args_list if call[1]["routing_key"] == "embeddings.generated"]
+    assert len(success_calls) == 1, "Should publish exactly one success event after retry"
 
 
 def test_process_chunks_max_retries_exceeded(embedding_service, mock_document_store, mock_vector_store, mock_publisher):
