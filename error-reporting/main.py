@@ -4,7 +4,6 @@
 """Main error reporting service application."""
 
 import logging
-import os
 from datetime import datetime
 from flask import Flask, request, render_template
 from copilot_config import load_typed_config

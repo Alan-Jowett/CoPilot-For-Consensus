@@ -103,6 +103,13 @@
       "default": 6333,
       "description": "Vector store port"
     },
+    "vector_store_collection": {
+      "type": "string",
+      "source": "env",
+      "env_var": "VECTOR_DB_COLLECTION",
+      "default": "message_embeddings",
+      "description": "Vector store collection name"
+    },
     "llm_backend": {
       "type": "string",
       "source": "env",
@@ -137,6 +144,13 @@
       "env_var": "TOP_K",
       "default": 12,
       "description": "Number of top chunks to retrieve"
+    },
+    "citation_count": {
+      "type": "int",
+      "source": "env",
+      "env_var": "CITATION_COUNT",
+      "default": 12,
+      "description": "Number of citations to include in summaries"
     },
     "max_retries": {
       "type": "int",

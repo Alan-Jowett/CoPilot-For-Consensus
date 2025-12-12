@@ -106,7 +106,7 @@
     "http_port": {
       "type": "int",
       "source": "env",
-      "env_var": "PORT",
+      "env_var": "HTTP_PORT",
       "default": 8000,
       "description": "HTTP server port"
     },

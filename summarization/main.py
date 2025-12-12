@@ -90,8 +90,8 @@ def main():
     logger.info(f"Starting Summarization Service (version {__version__})")
     
     try:
-        # Load configuration from schema
-        config = load_config("summarization")
+        # Load configuration from schema with typed access
+        config = load_typed_config("summarization")
         
         # Create adapters
         logger.info("Creating message bus publisher...")
@@ -127,7 +127,7 @@ def main():
             store_type=config.vector_store_type,
             host=config.vector_store_host if config.vector_store_type != "inmemory" else None,
             port=config.vector_store_port if config.vector_store_type != "inmemory" else None,
-            collection_name="message_embeddings",
+            collection_name=config.vector_store_collection,
         )
         
         # Create summarizer
@@ -161,7 +161,7 @@ def main():
             subscriber=subscriber,
             summarizer=summarizer,
             top_k=config.top_k,
-            citation_count=12,
+            citation_count=config.citation_count,
             retry_max_attempts=config.max_retries,
             retry_backoff_seconds=config.retry_delay,
             metrics_collector=metrics_collector,
