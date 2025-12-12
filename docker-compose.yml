@@ -97,9 +97,20 @@ services:
   summarization:
     image: copilot-summarization:latest
     build:
-      context: ./summarization
+      context: .
+      dockerfile: ./summarization/Dockerfile
+    environment:
+      - MESSAGE_BUS_HOST=messagebus
+      - DOC_DB_HOST=documentdb
+      - VECTOR_DB_HOST=vectorstore
+      - LLM_BACKEND=${LLM_BACKEND:-mock}
+      - LLM_MODEL=${LLM_MODEL:-mistral}
+      - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
     depends_on:
       - orchestrator
+      - documentdb
+      - vectorstore
+      - messagebus
     restart: unless-stopped
 
   reporting:
