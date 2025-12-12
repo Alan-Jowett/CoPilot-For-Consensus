@@ -125,7 +125,7 @@ jobs:
     - name: Run flake8
       run: |
         cd ${{ inputs.service_path }}
-        flake8 ${{ inputs.app_module }}/*.py tests/*.py --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 ${{ inputs.app_module }} tests --count --select=E9,F63,F7,F82 --show-source --statistics
 
   build-docker:
     runs-on: ubuntu-latest
