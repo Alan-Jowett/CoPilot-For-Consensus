@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 SPDX_PATTERN = re.compile(r"SPDX-License-Identifier:\s*([A-Za-z0-9\-\.\+]+)")
-COPYRIGHT_PATTERN = re.compile(r"Copyright\s*\(c\)\s*\d{4}")
+COPYRIGHT_PATTERN = re.compile(r"Copyright\s*\(c\)\s*\d{4}(-\d{4})?")
 
 DEFAULT_EXTENSIONS = {
     ".py", ".sh", ".ps1", ".ts", ".tsx", ".js", ".jsx",
@@ -51,7 +51,8 @@ def file_head(path: Path, head_lines: int = 30) -> str:
                 if i + 1 >= head_lines:
                     break
             return "".join(lines)
-    except Exception:
+    except (OSError, UnicodeDecodeError) as e:
+        print(f"Error reading file {path}: {e}", file=sys.stderr)
         return ""
 
 
