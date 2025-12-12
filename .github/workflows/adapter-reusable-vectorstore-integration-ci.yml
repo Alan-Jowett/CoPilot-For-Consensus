@@ -42,11 +42,6 @@ jobs:
         image: qdrant/qdrant:${{ inputs.qdrant_version }}
         ports:
           - 6333:6333
-        options: >-
-          --health-cmd "curl -f http://localhost:6333/health || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - name: Checkout repository
@@ -68,7 +63,7 @@ jobs:
         run: |
           echo "Waiting for Qdrant to be ready..."
           for i in {1..30}; do
-            if curl -f http://localhost:6333/health; then
+            if curl -f http://localhost:6333/healthz; then
               echo "Qdrant is ready!"
               exit 0
             fi
