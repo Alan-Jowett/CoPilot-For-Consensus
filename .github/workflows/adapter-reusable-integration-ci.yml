@@ -23,16 +23,6 @@ on:
         required: false
         type: string
         default: '7.0'
-      enable_mongodb:
-        description: 'Enable MongoDB service'
-        required: false
-        type: boolean
-        default: true
-      enable_rabbitmq:
-        description: 'Enable RabbitMQ service'
-        required: false
-        type: boolean
-        default: false
       rabbitmq_version:
         description: 'RabbitMQ version to use (e.g., "3-management")'
         required: false
@@ -74,17 +64,20 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mongodb:
-        image: ${{ inputs.enable_mongodb && format('mongo:{0}', inputs.mongodb_version) || '' }}
+        image: mongo:${{ inputs.mongodb_version }}
         ports:
           - 27017:27017
         env:
           MONGO_INITDB_ROOT_USERNAME: testuser
           MONGO_INITDB_ROOT_PASSWORD: testpass
         options: >-
-          ${{ inputs.enable_mongodb && '--health-cmd "mongosh --eval ''db.runCommand({ ping: 1 }).ok'' --quiet || mongo --eval ''db.runCommand({ ping: 1 }).ok'' --quiet" --health-interval 10s --health-timeout 5s --health-retries 5' || '' }}
+          --health-cmd "mongosh --eval 'db.runCommand({ ping: 1 }).ok' --quiet || mongo --eval 'db.runCommand({ ping: 1 }).ok' --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
       rabbitmq:
-        image: ${{ inputs.enable_rabbitmq && format('rabbitmq:{0}', inputs.rabbitmq_version) || '' }}
+        image: rabbitmq:${{ inputs.rabbitmq_version }}
         ports:
           - 5672:5672
           - 15672:15672
@@ -92,7 +85,10 @@ jobs:
           RABBITMQ_DEFAULT_USER: guest
           RABBITMQ_DEFAULT_PASS: guest
         options: >-
-          ${{ inputs.enable_rabbitmq && '--health-cmd "rabbitmq-diagnostics -q ping" --health-interval 10s --health-timeout 5s --health-retries 5' || '' }}
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout repository
@@ -142,7 +138,6 @@ jobs:
           rsync --daemon --config=/tmp/rsyncd.conf --port=${{ inputs.rsync_port }}
 
       - name: Wait for MongoDB to be ready
-        if: ${{ inputs.enable_mongodb }}
         run: |
           echo "Waiting for MongoDB to be ready..."
           python -c "
@@ -171,7 +166,6 @@ jobs:
           "
 
       - name: Wait for RabbitMQ to be ready
-        if: ${{ inputs.enable_rabbitmq }}
         run: |
           echo "Waiting for RabbitMQ to be ready..."
           python -c "
