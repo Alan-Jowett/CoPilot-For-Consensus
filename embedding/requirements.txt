@@ -4,7 +4,7 @@
 # Core dependencies
 python-dotenv==1.2.1
 fastapi==0.115.12
-uvicorn==0.34.0
+uvicorn==0.38.0
 
 # Adapters (installed from local directories)
 # copilot_config
