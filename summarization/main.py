@@ -102,6 +102,12 @@ def main():
             username=config.message_bus_user,
             password=config.message_bus_password,
         )
+        if not publisher.connect():
+            if str(config.message_bus_type).lower() != "noop":
+                logger.error("Failed to connect publisher to message bus. Failing fast.")
+                sys.exit(1)
+            else:
+                logger.warning("Failed to connect publisher to message bus. Continuing with noop publisher.")
         
         logger.info("Creating message bus subscriber...")
         subscriber = create_subscriber(
@@ -111,6 +117,9 @@ def main():
             username=config.message_bus_user,
             password=config.message_bus_password,
         )
+        if not subscriber.connect():
+            logger.error("Failed to connect subscriber to message bus.")
+            sys.exit(1)
         
         logger.info("Creating document store...")
         document_store = create_document_store(
@@ -121,6 +130,9 @@ def main():
             username=config.doc_store_user if config.doc_store_user else None,
             password=config.doc_store_password if config.doc_store_password else None,
         )
+        if not document_store.connect():
+            logger.error("Failed to connect to document store.")
+            sys.exit(1)
         
         logger.info("Creating vector store...")
         vector_store = create_vector_store(
@@ -129,6 +141,15 @@ def main():
             port=config.vector_store_port if config.vector_store_type != "inmemory" else None,
             collection_name=config.vector_store_collection,
         )
+        # Connect vector store if required; in-memory typically doesn't need connect
+        try:
+            if hasattr(vector_store, "connect"):
+                if not vector_store.connect() and str(config.vector_store_type).lower() != "inmemory":
+                    logger.error("Failed to connect to vector store.")
+                    sys.exit(1)
+        except Exception:
+            # If vector store doesn't support connect, proceed
+            pass
         
         # Create summarizer
         logger.info(f"Creating summarizer with backend: {config.llm_backend}")

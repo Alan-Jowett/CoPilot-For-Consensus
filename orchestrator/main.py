@@ -103,6 +103,12 @@ def main():
             username=config.message_bus_user,
             password=config.message_bus_password,
         )
+        if not publisher.connect():
+            if str(config.message_bus_type).lower() != "noop":
+                logger.error("Failed to connect publisher to message bus. Failing fast.")
+                sys.exit(1)
+            else:
+                logger.warning("Failed to connect publisher to message bus. Continuing with noop publisher.")
 
         logger.info("Creating message bus subscriber...")
         subscriber = create_subscriber(
@@ -112,6 +118,9 @@ def main():
             username=config.message_bus_user,
             password=config.message_bus_password,
         )
+        if not subscriber.connect():
+            logger.error("Failed to connect subscriber to message bus.")
+            sys.exit(1)
 
         logger.info("Creating document store...")
         document_store = create_document_store(
@@ -122,6 +131,9 @@ def main():
             username=config.doc_store_user if config.doc_store_user else None,
             password=config.doc_store_password if config.doc_store_password else None,
         )
+        if not document_store.connect():
+            logger.error("Failed to connect to document store.")
+            sys.exit(1)
 
         # Create optional services
         metrics_collector = None

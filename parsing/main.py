@@ -108,7 +108,12 @@ def main():
         )
         
         if not base_publisher.connect():
-            logger.warning("Failed to connect publisher to message bus. Will continue with noop publisher.")
+            if str(config.message_bus_type).lower() != "noop":
+                logger.error(
+                    "Failed to connect publisher to message bus. Failing fast.")
+                sys.exit(1)
+            else:
+                logger.warning("Failed to connect publisher to message bus. Continuing with noop publisher.")
         
         # Wrap with schema validation
         schema_provider = FileSchemaProvider()

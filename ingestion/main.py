@@ -93,11 +93,21 @@ def main():
 
         # Connect publisher
         if not base_publisher.connect():
-            log.warning(
-                "Failed to connect to message bus. Will continue with noop publisher.",
-                host=config.message_bus_host,
-                port=config.message_bus_port,
-            )
+            if str(config.message_bus_type).lower() != "noop":
+                log.error(
+                    "Failed to connect to message bus. Failing fast as message_bus_type is not noop.",
+                    host=config.message_bus_host,
+                    port=config.message_bus_port,
+                    message_bus_type=config.message_bus_type,
+                )
+                # Exit with non-zero to signal container/startup failure
+                raise SystemExit(1)
+            else:
+                log.warning(
+                    "Failed to connect to message bus. Continuing with noop publisher.",
+                    host=config.message_bus_host,
+                    port=config.message_bus_port,
+                )
 
         # Wrap publisher with validation layer
         # This ensures all published events are validated against their schemas

@@ -23,8 +23,6 @@ services:
       - monitoring
       - pushgateway
     restart: "no"
-    profiles:
-      - manual
 
   parsing:
     image: copilot-parsing:latest
