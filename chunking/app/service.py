@@ -273,10 +273,10 @@ class ChunkingService:
                 "token_count": chunk.token_count,
                 "start_offset": chunk.start_offset,
                 "end_offset": chunk.end_offset,
-                "overlap_with_previous": chunk.chunk_index > 0,
-                "overlap_with_next": chunk.chunk_index < len(chunks) - 1,
+                "overlap_with_previous": chunk.chunk_index > 0 and hasattr(self.chunker, 'overlap') and self.chunker.overlap > 0,
+                "overlap_with_next": chunk.chunk_index < len(chunks) - 1 and hasattr(self.chunker, 'overlap') and self.chunker.overlap > 0,
                 "metadata": chunk.metadata,
-                "chunking_strategy": getattr(self.chunker, "__class__", type(self.chunker)).__name__,
+                "chunking_strategy": type(self.chunker).__name__,
                 "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
                 "embedding_generated": False,
             }
@@ -306,7 +306,7 @@ class ChunkingService:
                     "chunk_count": chunk_count,
                     "chunk_ids": chunk_ids,
                     "chunks_ready": True,
-                    "chunking_strategy": getattr(self.chunker, "__class__", type(self.chunker)).__name__,
+                    "chunking_strategy": type(self.chunker).__name__,
                     "avg_chunk_size_tokens": round(avg_chunk_size, 2),
                 }
             )

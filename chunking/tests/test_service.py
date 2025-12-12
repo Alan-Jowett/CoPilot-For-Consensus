@@ -7,10 +7,6 @@ import pytest
 from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime, timezone
 
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
 from app.service import ChunkingService
 from copilot_chunking import TokenWindowChunker
 
