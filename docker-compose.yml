@@ -224,6 +224,12 @@ services:
       start_period: 60s
     restart: unless-stopped
 
+  # WARNING: The Promtail service mounts the Docker socket (/var/run/docker.sock) with read-only access.
+  # This is required for Promtail to discover and label logs from Docker containers.
+  # However, even read-only access to the Docker socket can be a security risk, as it allows querying
+  # information about all containers on the host. This configuration is intended for development/local
+  # use only. For production deployments, REMOVE or restrict this mount and consider alternative log
+  # collection strategies. See: https://docs.docker.com/engine/security/#docker-daemon-attack-surface
   # WARNING: Promtail requires read-only access to the Docker socket for container discovery.
   # Even read-only access to the Docker socket can be a security risk as it allows querying
   # information about all containers on the host. This is intended for development/local use only.
@@ -243,12 +249,15 @@ services:
   # WARNING: The error-reporting service has NO authentication or authorization.
   # Do NOT expose this service to untrusted networks or in production environments.
   # This is intended for local development only. See error-reporting/README.md for details.
+  # WARNING: The error-reporting service has NO authentication or authorization.
+  # Do NOT expose this service to untrusted networks or in production environments.
+  # For local development only. See README for details.
   error-reporting:
     image: copilot-error-reporting:latest
     build:
       context: ./error-reporting
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"
     restart: unless-stopped
 
   pushgateway:

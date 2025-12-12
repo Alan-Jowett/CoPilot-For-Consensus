@@ -77,7 +77,6 @@
           "mode": "single"
         }
       },
-      "pluginVersion": "8.0.0",
       "targets": [
         {
           "expr": "up",
@@ -131,7 +130,6 @@
         "showThresholdMarkers": true,
         "text": {}
       },
-      "pluginVersion": "8.0.0",
       "targets": [
         {
           "expr": "count(up == 1)",
