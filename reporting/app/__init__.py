@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-python-dotenv==1.2.1
-fastapi==0.115.6
-uvicorn==0.34.0
-requests==2.32.3
+"""Reporting Service application module."""
 
+__version__ = "0.1.0"
