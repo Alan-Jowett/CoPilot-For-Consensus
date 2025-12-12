@@ -5,8 +5,6 @@
 
 import logging
 import time
-import uuid
-from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 
 from copilot_events import (
@@ -241,8 +239,11 @@ class SummarizationService:
                 )
                 
                 if retry_count < self.retry_max_attempts:
-                    # Exponential backoff
-                    backoff = self.retry_backoff_seconds * (2 ** (retry_count - 1))
+                    # Exponential backoff with maximum cap
+                    backoff = min(
+                        self.retry_backoff_seconds * (2 ** (retry_count - 1)),
+                        60  # Maximum 60 seconds
+                    )
                     logger.info(f"Retrying in {backoff} seconds...")
                     time.sleep(backoff)
                 else:
