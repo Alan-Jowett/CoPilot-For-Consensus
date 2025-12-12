@@ -3,7 +3,7 @@
 
 # Core dependencies
 beautifulsoup4==4.14.3
-fastapi==0.109.2
+fastapi==0.124.4
 uvicorn==0.38.0
 
 # Adapter dependencies (installed separately in CI/Dockerfile)
