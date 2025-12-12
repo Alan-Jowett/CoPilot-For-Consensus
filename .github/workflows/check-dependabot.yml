@@ -82,7 +82,7 @@ jobs:
             try {
               diffOutput = execSync('diff -u .github/dependabot.yml .github/dependabot.yml.generated', { encoding: 'utf-8' });
             } catch (error) {
-              diffOutput = error.stdout;
+              diffOutput = error.stdout || error.stderr || 'Unable to generate diff';
             }
             
             const issueBody = `## 🔄 Dependabot Configuration Out of Date
