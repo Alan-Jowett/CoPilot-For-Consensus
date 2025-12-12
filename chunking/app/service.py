@@ -314,7 +314,7 @@ class ChunkingService:
                     "chunk_ids": chunk_ids,
                     "chunks_ready": True,
                     "chunking_strategy": type(self.chunker).__name__,
-                    "avg_chunk_size_tokens": round(avg_chunk_size, 2),
+                    "avg_chunk_size_tokens": int(round(avg_chunk_size)),
                 }
             )
             
