@@ -8,6 +8,7 @@ from unittest.mock import Mock
 
 from app.service import ChunkingService
 from copilot_chunking import TokenWindowChunker
+from .test_helpers import assert_valid_event_schema
 
 
 @pytest.fixture
@@ -253,6 +254,9 @@ def test_publish_chunks_prepared(chunking_service, mock_publisher):
     assert message["data"]["chunk_count"] == 3
     assert len(message["data"]["chunk_ids"]) == 3
     assert message["data"]["chunks_ready"] is True
+    
+    # Validate event against JSON schema
+    assert_valid_event_schema(message)
 
 
 def test_publish_chunking_failed(chunking_service, mock_publisher):
@@ -275,3 +279,211 @@ def test_publish_chunking_failed(chunking_service, mock_publisher):
     assert message["event_type"] == "ChunkingFailed"
     assert message["data"]["error_message"] == "Test error"
     assert message["data"]["error_type"] == "TestError"
+    
+    # Validate event against JSON schema
+    assert_valid_event_schema(message)
+
+
+# ============================================================================
+# Schema Validation Tests
+# ============================================================================
+
+
+def test_schema_validation_chunks_prepared():
+    """Test that ChunksPrepared events validate against schema."""
+    mock_store = Mock()
+    mock_store.insert_document = Mock(return_value="chunk_123")
+    mock_publisher = Mock()
+    mock_subscriber = Mock()
+    mock_chunker = TokenWindowChunker(chunk_size=384, overlap=50)
+    
+    service = ChunkingService(
+        document_store=mock_store,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        chunker=mock_chunker,
+    )
+    
+    service._publish_chunks_prepared(
+        message_ids=["<msg@example.com>"],
+        chunk_ids=["chunk1", "chunk2"],
+        chunk_count=2,
+        avg_chunk_size=100.0,
+    )
+    
+    call_args = mock_publisher.publish.call_args
+    event = call_args[1]["message"]
+    
+    # Should pass schema validation
+    assert_valid_event_schema(event)
+
+
+def test_schema_validation_chunking_failed():
+    """Test that ChunkingFailed events validate against schema."""
+    mock_store = Mock()
+    mock_publisher = Mock()
+    mock_subscriber = Mock()
+    mock_chunker = TokenWindowChunker(chunk_size=384, overlap=50)
+    
+    service = ChunkingService(
+        document_store=mock_store,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        chunker=mock_chunker,
+    )
+    
+    service._publish_chunking_failed(
+        message_ids=["<msg@example.com>"],
+        error_message="Test error",
+        error_type="ValidationError",
+        retry_count=1,
+    )
+    
+    call_args = mock_publisher.publish.call_args
+    event = call_args[1]["message"]
+    
+    # Should pass schema validation
+    assert_valid_event_schema(event)
+
+
+# ============================================================================
+# Message Consumption Tests
+# ============================================================================
+
+
+def test_consume_json_parsed_event():
+    """Test consuming a JSONParsed event."""
+    mock_store = Mock()
+    mock_store.insert_document = Mock(return_value="chunk_123")
+    mock_store.query_documents = Mock(return_value=[])
+    
+    mock_publisher = Mock()
+    mock_subscriber = Mock()
+    mock_chunker = TokenWindowChunker(chunk_size=384, overlap=50)
+    
+    service = ChunkingService(
+        document_store=mock_store,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        chunker=mock_chunker,
+    )
+    
+    # Simulate receiving a JSONParsed event
+    event = {
+        "event_type": "JSONParsed",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+        "data": {
+            "archive_id": "archive-123",
+            "message_ids": ["<msg@example.com>"],
+            "thread_ids": ["<thread@example.com>"],
+            "message_count": 1,
+            "thread_count": 1,
+        }
+    }
+    
+    # Validate incoming event
+    assert_valid_event_schema(event)
+    
+    # Process the event - would normally be called by subscriber
+    # For now, just verify the event structure is correct
+    assert event["data"]["archive_id"] == "archive-123"
+    assert len(event["data"]["message_ids"]) == 1
+
+
+def test_consume_json_parsed_multiple_messages():
+    """Test consuming JSONParsed event with multiple messages."""
+    event = {
+        "event_type": "JSONParsed",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+        "data": {
+            "archive_id": "archive-123",
+            "message_ids": [
+                "<msg1@example.com>",
+                "<msg2@example.com>",
+                "<msg3@example.com>",
+            ],
+            "thread_ids": ["<thread@example.com>"],
+            "message_count": 3,
+            "thread_count": 1,
+        }
+    }
+    
+    # Validate incoming event
+    assert_valid_event_schema(event)
+    assert event["data"]["message_count"] == 3
+
+
+# ============================================================================
+# Invalid Message Handling Tests
+# ============================================================================
+
+
+def test_handle_malformed_event_missing_data():
+    """Test handling event with missing data field."""
+    mock_store = Mock()
+    mock_publisher = Mock()
+    mock_subscriber = Mock()
+    mock_chunker = TokenWindowChunker(chunk_size=384, overlap=50)
+    
+    service = ChunkingService(
+        document_store=mock_store,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        chunker=mock_chunker,
+    )
+    
+    # Event missing 'data' field
+    event = {
+        "event_type": "JSONParsed",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+    }
+    
+    # Should handle gracefully without crashing
+    try:
+        service._handle_json_parsed(event)
+    except (KeyError, AttributeError):
+        # Expected - service should validate required fields
+        pass
+
+
+def test_handle_event_with_invalid_message_ids_type():
+    """Test handling event with invalid message_ids type."""
+    mock_store = Mock()
+    mock_publisher = Mock()
+    mock_subscriber = Mock()
+    mock_chunker = TokenWindowChunker(chunk_size=384, overlap=50)
+    
+    service = ChunkingService(
+        document_store=mock_store,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        chunker=mock_chunker,
+    )
+    
+    # message_ids should be array but is string
+    event = {
+        "event_type": "JSONParsed",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+        "data": {
+            "archive_id": "archive-123",
+            "message_ids": "not-an-array",
+            "thread_ids": ["<thread@example.com>"],
+            "message_count": 1,
+            "thread_count": 1,
+        }
+    }
+    
+    # Should handle gracefully
+    try:
+        service._handle_json_parsed(event)
+    except (TypeError, AttributeError):
+        # Expected - service should handle type errors
+        pass

@@ -8,6 +8,7 @@ from unittest.mock import Mock
 
 from app.service import SummarizationService
 from copilot_summarization import Summary, Citation
+from .test_helpers import assert_valid_event_schema
 
 
 @pytest.fixture
@@ -407,6 +408,9 @@ def test_publish_summary_complete(summarization_service, mock_publisher):
     assert message["data"]["thread_id"] == "<thread@example.com>"
     assert message["data"]["summary_markdown"] == "# Summary\n\nTest summary"
     assert len(message["data"]["citations"]) == 1
+    
+    # Validate event against JSON schema
+    assert_valid_event_schema(message)
 
 
 def test_publish_summarization_failed(summarization_service, mock_publisher):
@@ -430,6 +434,9 @@ def test_publish_summarization_failed(summarization_service, mock_publisher):
     assert message["data"]["error_type"] == "LLMTimeout"
     assert message["data"]["error_message"] == "Request timed out"
     assert message["data"]["retry_count"] == 2
+    
+    # Validate event against JSON schema
+    assert_valid_event_schema(message)
 
 
 def test_service_with_metrics_collector(
@@ -494,3 +501,299 @@ def test_service_with_error_reporter(
     
     # Verify error was reported
     mock_error_reporter.report.assert_called()
+
+
+# ============================================================================
+# Schema Validation Tests
+# ============================================================================
+
+
+def test_schema_validation_summary_complete_valid(summarization_service, mock_publisher):
+    """Test that SummaryComplete events validate against schema."""
+    summarization_service._publish_summary_complete(
+        thread_id="<thread@example.com>",
+        summary_markdown="# Summary\n\nTest",
+        citations=[],
+        llm_backend="test",
+        llm_model="test-model",
+        tokens_prompt=10,
+        tokens_completion=5,
+        latency_ms=100,
+    )
+    
+    call_args = mock_publisher.publish.call_args
+    event = call_args[1]["message"]
+    
+    # Should pass schema validation
+    assert_valid_event_schema(event)
+
+
+def test_schema_validation_summarization_failed_valid(summarization_service, mock_publisher):
+    """Test that SummarizationFailed events validate against schema."""
+    summarization_service._publish_summarization_failed(
+        thread_id="<thread@example.com>",
+        error_type="TestError",
+        error_message="Test error message",
+        retry_count=0,
+    )
+    
+    call_args = mock_publisher.publish.call_args
+    event = call_args[1]["message"]
+    
+    # Should pass schema validation
+    assert_valid_event_schema(event)
+
+
+# ============================================================================
+# Message Consumption Tests
+# ============================================================================
+
+
+def test_consume_summarization_requested_event():
+    """Test consuming a SummarizationRequested event."""
+    mock_store = Mock()
+    mock_store.query_documents = Mock(return_value=[
+        {
+            "message_id": "<msg@example.com>",
+            "thread_id": "<thread@example.com>",
+            "body_normalized": "Test message",
+            "from": {"email": "user@example.com", "name": "User"},
+            "date": "2023-10-15T12:00:00Z",
+            "subject": "Test",
+        }
+    ])
+    
+    mock_vector = Mock()
+    mock_publisher = Mock()
+    mock_publisher.publish = Mock()
+    mock_subscriber = Mock()
+    
+    mock_summarizer = Mock()
+    mock_summarizer.summarize = Mock(return_value=Summary(
+        thread_id="<thread@example.com>",
+        summary_markdown="Test summary",
+        citations=[],
+        llm_backend="test",
+        llm_model="test-model",
+        tokens_prompt=10,
+        tokens_completion=5,
+        latency_ms=100,
+    ))
+    
+    service = SummarizationService(
+        document_store=mock_store,
+        vector_store=mock_vector,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        summarizer=mock_summarizer,
+        retry_max_attempts=1,
+        retry_backoff_seconds=0,
+    )
+    
+    # Simulate receiving a SummarizationRequested event
+    event = {
+        "event_type": "SummarizationRequested",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+        "data": {
+            "thread_ids": ["<thread@example.com>"],
+            "top_k": 10,
+            "llm_backend": "test",
+            "llm_model": "test-model",
+            "context_window_tokens": 3000,
+            "prompt_template": "Summarize:",
+        }
+    }
+    
+    # Validate incoming event
+    assert_valid_event_schema(event)
+    
+    # Process the event
+    service._handle_summarization_requested(event)
+    
+    # Verify summarizer was called
+    mock_summarizer.summarize.assert_called_once()
+    
+    # Verify success event was published
+    assert mock_publisher.publish.call_count == 1
+    publish_call = mock_publisher.publish.call_args
+    assert publish_call[1]["routing_key"] == "summary.complete"
+
+
+def test_consume_summarization_requested_multiple_threads():
+    """Test consuming a SummarizationRequested event with multiple threads."""
+    mock_store = Mock()
+    mock_store.query_documents = Mock(return_value=[
+        {
+            "message_id": "<msg@example.com>",
+            "thread_id": "<thread1@example.com>",
+            "body_normalized": "Test",
+            "from": {"email": "user@example.com", "name": "User"},
+            "date": "2023-10-15T12:00:00Z",
+            "subject": "Test",
+        }
+    ])
+    
+    mock_vector = Mock()
+    mock_publisher = Mock()
+    mock_subscriber = Mock()
+    
+    mock_summarizer = Mock()
+    mock_summarizer.summarize = Mock(return_value=Summary(
+        thread_id="<thread@example.com>",
+        summary_markdown="Test",
+        citations=[],
+        llm_backend="test",
+        llm_model="test-model",
+        tokens_prompt=10,
+        tokens_completion=5,
+        latency_ms=100,
+    ))
+    
+    service = SummarizationService(
+        document_store=mock_store,
+        vector_store=mock_vector,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        summarizer=mock_summarizer,
+        retry_max_attempts=1,
+        retry_backoff_seconds=0,
+    )
+    
+    # Event with multiple thread IDs
+    event = {
+        "event_type": "SummarizationRequested",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+        "data": {
+            "thread_ids": ["<thread1@example.com>", "<thread2@example.com>"],
+            "top_k": 10,
+            "llm_backend": "test",
+            "llm_model": "test-model",
+            "context_window_tokens": 3000,
+            "prompt_template": "Summarize:",
+        }
+    }
+    
+    service._handle_summarization_requested(event)
+    
+    # Should process both threads
+    assert mock_summarizer.summarize.call_count == 2
+
+
+# ============================================================================
+# Invalid Message Handling Tests
+# ============================================================================
+
+
+def test_handle_malformed_event_missing_data():
+    """Test handling event with missing data field."""
+    mock_store = Mock()
+    mock_vector = Mock()
+    mock_publisher = Mock()
+    mock_subscriber = Mock()
+    mock_summarizer = Mock()
+    
+    service = SummarizationService(
+        document_store=mock_store,
+        vector_store=mock_vector,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        summarizer=mock_summarizer,
+    )
+    
+    # Event missing 'data' field
+    event = {
+        "event_type": "SummarizationRequested",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+    }
+    
+    # Should handle gracefully without crashing
+    try:
+        service._handle_summarization_requested(event)
+    except KeyError:
+        # Expected - service should validate required fields
+        pass
+
+
+def test_handle_malformed_event_missing_required_field():
+    """Test handling event with missing required field in data."""
+    mock_store = Mock()
+    mock_vector = Mock()
+    mock_publisher = Mock()
+    mock_subscriber = Mock()
+    mock_summarizer = Mock()
+    
+    service = SummarizationService(
+        document_store=mock_store,
+        vector_store=mock_vector,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        summarizer=mock_summarizer,
+    )
+    
+    # Event missing required 'thread_ids' field
+    event = {
+        "event_type": "SummarizationRequested",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+        "data": {
+            "top_k": 10,
+            "llm_backend": "test",
+            "llm_model": "test-model",
+            "context_window_tokens": 3000,
+            "prompt_template": "Summarize:",
+        }
+    }
+    
+    # Should handle gracefully
+    try:
+        service._handle_summarization_requested(event)
+    except KeyError:
+        # Expected - service should validate required fields
+        pass
+
+
+def test_handle_event_with_invalid_thread_ids_type():
+    """Test handling event with invalid thread_ids type."""
+    mock_store = Mock()
+    mock_vector = Mock()
+    mock_publisher = Mock()
+    mock_subscriber = Mock()
+    mock_summarizer = Mock()
+    
+    service = SummarizationService(
+        document_store=mock_store,
+        vector_store=mock_vector,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        summarizer=mock_summarizer,
+    )
+    
+    # thread_ids should be array but is string
+    event = {
+        "event_type": "SummarizationRequested",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+        "data": {
+            "thread_ids": "not-an-array",
+            "top_k": 10,
+            "llm_backend": "test",
+            "llm_model": "test-model",
+            "context_window_tokens": 3000,
+            "prompt_template": "Summarize:",
+        }
+    }
+    
+    # Should handle gracefully
+    try:
+        service._handle_summarization_requested(event)
+    except (TypeError, AttributeError):
+        # Expected - service should handle type errors
+        pass

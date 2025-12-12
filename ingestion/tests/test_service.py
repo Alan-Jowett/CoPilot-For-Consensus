@@ -14,6 +14,7 @@ from copilot_metrics import NoOpMetricsCollector
 
 from app.config import IngestionConfig, SourceConfig
 from app.service import IngestionService
+from .test_helpers import assert_valid_event_schema
 
 
 class TestIngestionService:
@@ -254,6 +255,9 @@ class TestIngestionService:
 
             event = success_events[0]["event"]
             assert event["data"]["source_name"] == "test-source"
+            
+            # Validate event against JSON schema
+            assert_valid_event_schema(event)
 
     def test_error_reporter_integration(self, temp_storage):
         """Test error reporter integration."""
@@ -303,3 +307,76 @@ class TestIngestionService:
         # Verify error reporter was created from config
         from copilot_reporting import SilentErrorReporter
         assert isinstance(service.error_reporter, SilentErrorReporter)
+
+
+# ============================================================================
+# Schema Validation Tests
+# ============================================================================
+
+
+def test_archive_ingested_event_schema_validation():
+    """Test that ArchiveIngested events validate against schema."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config = IngestionConfig(storage_path=tmpdir)
+        publisher = NoopPublisher()
+        publisher.connect()
+        logger = create_logger(logger_type="silent", name="ingestion-test")
+        metrics = NoOpMetricsCollector()
+        service = IngestionService(config, publisher, logger=logger, metrics=metrics)
+        
+        with tempfile.TemporaryDirectory() as source_dir:
+            test_file = os.path.join(source_dir, "test.mbox")
+            with open(test_file, "w") as f:
+                f.write("From: test@example.com\n\nContent")
+            
+            source = SourceConfig(
+                name="test-source",
+                source_type="local",
+                url=test_file,
+            )
+            
+            service.ingest_archive(source, max_retries=1)
+            
+            # Get published events
+            success_events = [
+                e for e in publisher.published_events
+                if e["event"]["event_type"] == "ArchiveIngested"
+            ]
+            
+            assert len(success_events) >= 1
+            
+            # Validate each event
+            for event_record in success_events:
+                assert_valid_event_schema(event_record["event"])
+
+
+def test_archive_ingestion_failed_event_schema_validation():
+    """Test that ArchiveIngestionFailed events validate against schema."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config = IngestionConfig(storage_path=tmpdir)
+        publisher = NoopPublisher()
+        publisher.connect()
+        logger = create_logger(logger_type="silent", name="ingestion-test")
+        metrics = NoOpMetricsCollector()
+        service = IngestionService(config, publisher, logger=logger, metrics=metrics)
+        
+        # Try to ingest a non-existent file
+        source = SourceConfig(
+            name="test-source",
+            source_type="local",
+            url="/nonexistent/file.mbox",
+        )
+        
+        service.ingest_archive(source, max_retries=1)
+        
+        # Get published events
+        failure_events = [
+            e for e in publisher.published_events
+            if e["event"]["event_type"] == "ArchiveIngestionFailed"
+        ]
+        
+        assert len(failure_events) >= 1
+        
+        # Validate each event
+        for event_record in failure_events:
+            assert_valid_event_schema(event_record["event"])
