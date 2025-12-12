@@ -8,13 +8,12 @@ on:
     branches: [ main ]
     paths:
       - 'adapters/draft_diff/**'
-      - 'adapters/tests/test_draft_diff/**'
-      - '.github/workflows/draft-diff-ci.yml'
+      - '.github/workflows/test-draft-diff-adapter.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'adapters/draft_diff/**'
-      - 'adapters/tests/test_draft_diff/**'
+      - '.github/workflows/test-draft-diff-adapter.yml'
 
 permissions:
   contents: read
@@ -22,7 +21,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  test:
+  unit-tests:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -38,28 +37,28 @@ jobs:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
 
-    - name: Install SDK in development mode
+    - name: Install draft_diff in development mode
       run: |
         python -m pip install --upgrade pip
-        cd adapters
+        cd adapters/draft_diff
         pip install -e .
         pip install pytest pytest-cov
 
     - name: Run draft_diff tests
       run: |
-        cd adapters
-        pytest tests/test_draft_diff/ -v --tb=short --junit-xml=draft-diff-test-results.xml
+        cd adapters/draft_diff
+        pytest tests/ -v --tb=short --junit-xml=draft-diff-test-results.xml
 
     - name: Generate coverage report
       run: |
-        cd adapters
-        pytest tests/test_draft_diff/ --cov=draft_diff --cov-report=lcov --cov-report=html --cov-report=term
+        cd adapters/draft_diff
+        pytest tests/ --cov=draft_diff --cov-report=lcov --cov-report=html --cov-report=term
 
     - name: Upload coverage to Coveralls
       uses: coverallsapp/github-action@v2
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        path-to-lcov: ./adapters/coverage.lcov
+        path-to-lcov: ./adapters/draft_diff/coverage.lcov
         flag-name: draft-diff-python-${{ matrix.python-version }}
         parallel: true
 
@@ -68,21 +67,21 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: draft-diff-test-results-${{ matrix.python-version }}
-        path: adapters/draft-diff-test-results.xml
+        path: adapters/draft_diff/draft-diff-test-results.xml
 
     - name: Upload coverage reports
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: draft-diff-coverage-report-${{ matrix.python-version }}
-        path: adapters/htmlcov
+        path: adapters/draft_diff/htmlcov
 
     - name: Test Report
       if: always()
       uses: dorny/test-reporter@v1
       with:
         name: Draft Diff Test Results (Python ${{ matrix.python-version }})
-        path: adapters/draft-diff-test-results.xml
+        path: adapters/draft_diff/draft-diff-test-results.xml
         reporter: 'java-junit'
 
   lint:
@@ -99,20 +98,20 @@ jobs:
 
     - name: Install dependencies
       run: |
-        cd adapters
+        cd adapters/draft_diff
         python -m pip install --upgrade pip
         pip install -e .
         pip install pylint flake8
 
     - name: Run pylint on draft_diff
       run: |
-        cd adapters
+        cd adapters/draft_diff
         pylint draft_diff/*.py --disable=C0111,C0103,R0903 || echo "Pylint warnings found but continuing..."
 
     - name: Run flake8 on draft_diff
       run: |
-        cd adapters
-        flake8 draft_diff/*.py tests/test_draft_diff/**/*.py --count --select=E9,F63,F7,F82 --show-source --statistics
+        cd adapters/draft_diff
+        flake8 draft_diff/*.py tests/**/*.py --count --select=E9,F63,F7,F82 --show-source --statistics
 
   type-check:
     runs-on: ubuntu-latest
@@ -128,14 +127,14 @@ jobs:
 
     - name: Install dependencies
       run: |
-        cd adapters
+        cd adapters/draft_diff
         python -m pip install --upgrade pip
         pip install -e .
         pip install mypy types-pika
 
     - name: Run mypy on draft_diff
       run: |
-        cd adapters
+        cd adapters/draft_diff
         mypy draft_diff --ignore-missing-imports || echo "Type checking completed with warnings"
 
   test-imports:
@@ -150,10 +149,10 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Install SDK
+    - name: Install draft_diff
       run: |
         python -m pip install --upgrade pip
-        pip install ./adapters
+        pip install ./adapters/draft_diff
 
     - name: Test draft_diff imports
       run: |
@@ -189,13 +188,13 @@ jobs:
 
     - name: Test example scripts
       run: |
-        cd adapters
-        python draft_diff/example.py
-        python draft_diff/integration_example.py
+        cd adapters/draft_diff
+        python examples/example.py
+        python examples/integration_example.py
 
   coveralls-finish:
     runs-on: ubuntu-latest
-    needs: test
+    needs: unit-tests
     if: always()
     steps:
     - name: Finalize Coveralls
