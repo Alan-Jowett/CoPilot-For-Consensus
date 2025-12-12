@@ -4,11 +4,22 @@
 """Qdrant-based vector store implementation."""
 
 import logging
+import uuid
 from typing import List, Dict, Any, Optional
 
 from .interface import VectorStore, SearchResult
 
 logger = logging.getLogger(__name__)
+
+
+def _string_to_uuid(s: str) -> str:
+    """Convert a string ID to a deterministic UUID string.
+    
+    This ensures consistent UUID generation for the same string ID.
+    """
+    # Use UUID5 with a namespace for deterministic UUIDs
+    namespace = uuid.UUID('6ba7b810-9dad-11d1-80b4-00c04fd430c8')  # DNS namespace
+    return str(uuid.uuid5(namespace, s))
 
 
 class QdrantVectorStore(VectorStore):
@@ -155,9 +166,10 @@ class QdrantVectorStore(VectorStore):
         
         # Check if ID already exists
         try:
+            uuid_id = _string_to_uuid(id)
             existing = self._client.retrieve(
                 collection_name=self._collection_name,
-                ids=[id],
+                ids=[uuid_id],
             )
             if existing:
                 raise ValueError(f"ID '{id}' already exists in the vector store")
@@ -170,9 +182,9 @@ class QdrantVectorStore(VectorStore):
         
         # Add the point
         point = self._PointStruct(
-            id=id,
+            id=_string_to_uuid(id),
             vector=vector,
-            payload=metadata,
+            payload={**metadata, "_original_id": id},  # Store original ID in payload
         )
         
         self._client.upsert(
@@ -209,9 +221,10 @@ class QdrantVectorStore(VectorStore):
         
         # Check if any IDs already exist
         try:
+            uuid_ids = [_string_to_uuid(id_val) for id_val in ids]
             existing = self._client.retrieve(
                 collection_name=self._collection_name,
-                ids=ids,
+                ids=uuid_ids,
             )
             if existing:
                 existing_ids = [p.id for p in existing]
@@ -226,9 +239,9 @@ class QdrantVectorStore(VectorStore):
         # Create points
         points = [
             self._PointStruct(
-                id=id_val,
+                id=_string_to_uuid(id_val),
                 vector=vector,
-                payload=metadata,
+                payload={**metadata, "_original_id": id_val},  # Store original ID in payload
             )
             for id_val, vector, metadata in zip(ids, vectors, metadatas)
         ]
@@ -261,20 +274,26 @@ class QdrantVectorStore(VectorStore):
             )
         
         # Search in Qdrant
-        results = self._client.search(
+        results = self._client.query_points(
             collection_name=self._collection_name,
-            query_vector=query_vector,
+            query=query_vector,
             limit=top_k,
-        )
+            with_payload=True,
+            with_vectors=True,
+        ).points
         
         # Convert to SearchResult objects
         search_results = []
         for result in results:
+            # Extract original ID from payload
+            payload = result.payload if result.payload else {}
+            original_id = payload.pop("_original_id", str(result.id))
+            
             search_results.append(SearchResult(
-                id=str(result.id),
+                id=original_id,
                 score=float(result.score),
-                vector=result.vector if result.vector else query_vector,  # Qdrant may not return vectors
-                metadata=result.payload if result.payload else {},
+                vector=result.vector if result.vector else query_vector,
+                metadata=payload,
             ))
         
         return search_results
@@ -290,9 +309,10 @@ class QdrantVectorStore(VectorStore):
         """
         # Check if ID exists
         try:
+            uuid_id = _string_to_uuid(id)
             existing = self._client.retrieve(
                 collection_name=self._collection_name,
-                ids=[id],
+                ids=[uuid_id],
             )
             if not existing:
                 raise KeyError(f"ID '{id}' not found in vector store")
@@ -302,9 +322,10 @@ class QdrantVectorStore(VectorStore):
             raise
         
         # Delete the point
+        from qdrant_client.models import PointIdsList
         self._client.delete(
             collection_name=self._collection_name,
-            points_selector=[id],
+            points_selector=PointIdsList(points=[uuid_id]),
         )
     
     def clear(self) -> None:
@@ -341,7 +362,7 @@ class QdrantVectorStore(VectorStore):
         """
         points = self._client.retrieve(
             collection_name=self._collection_name,
-            ids=[id],
+            ids=[_string_to_uuid(id)],
             with_vectors=True,
         )
         
@@ -349,9 +370,13 @@ class QdrantVectorStore(VectorStore):
             raise KeyError(f"ID '{id}' not found in vector store")
         
         point = points[0]
+        payload = point.payload if point.payload else {}
+        # Remove internal _original_id field
+        payload.pop("_original_id", None)
+        
         return SearchResult(
-            id=str(point.id),
+            id=id,  # Return original ID
             score=1.0,  # Perfect match with itself
             vector=point.vector if point.vector else [],
-            metadata=point.payload if point.payload else {},
+            metadata=payload,
         )
