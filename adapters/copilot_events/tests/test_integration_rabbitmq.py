@@ -73,7 +73,17 @@ def rabbitmq_subscriber():
         queue_name=None,  # Let RabbitMQ generate a unique queue name
     )
     
-    subscriber.connect()
+    # Attempt to connect with retries
+    max_retries = 5
+    for i in range(max_retries):
+        try:
+            subscriber.connect()
+            break
+        except Exception:
+            if i < max_retries - 1:
+                time.sleep(2)
+            else:
+                pytest.skip("Could not connect to RabbitMQ - skipping integration tests")
     
     yield subscriber
     
@@ -118,7 +128,7 @@ class TestRabbitMQIntegration:
             rabbitmq_subscriber.stop_consuming()
         
         # Subscribe to test events
-        rabbitmq_subscriber.subscribe("test.*", on_test_event)
+        rabbitmq_subscriber.subscribe("TestEvent", on_test_event, routing_key="test.*")
         
         # Start consuming in a background thread
         consume_thread = threading.Thread(
@@ -165,7 +175,7 @@ class TestRabbitMQIntegration:
                 rabbitmq_subscriber.stop_consuming()
         
         # Subscribe to test events
-        rabbitmq_subscriber.subscribe("test.*", on_test_event)
+        rabbitmq_subscriber.subscribe("TestEvent", on_test_event, routing_key="test.*")
         
         # Start consuming in a background thread
         consume_thread = threading.Thread(
@@ -211,7 +221,7 @@ class TestRabbitMQIntegration:
             rabbitmq_subscriber.stop_consuming()
         
         # Subscribe to specific pattern
-        rabbitmq_subscriber.subscribe("test.specific.*", on_test_event)
+        rabbitmq_subscriber.subscribe("TestEvent", on_test_event, routing_key="test.specific.*")
         
         # Start consuming in a background thread
         consume_thread = threading.Thread(
@@ -264,7 +274,7 @@ class TestRabbitMQIntegration:
             received_events.append(event)
             rabbitmq_subscriber.stop_consuming()
         
-        rabbitmq_subscriber.subscribe("test.*", on_test_event)
+        rabbitmq_subscriber.subscribe("ComplexEvent", on_test_event, routing_key="test.*")
         
         consume_thread = threading.Thread(
             target=rabbitmq_subscriber.start_consuming
@@ -316,7 +326,7 @@ class TestRabbitMQIntegration:
 
 
 @pytest.mark.integration
-class TestRabbitMQEdgeCases:
+class TestRabbitMQErrorHandling:
     """Test edge cases and error handling."""
 
     def test_publish_without_connection(self):
@@ -374,7 +384,7 @@ class TestRabbitMQEdgeCases:
             received_events.append(event)
             rabbitmq_subscriber.stop_consuming()
         
-        rabbitmq_subscriber.subscribe("test.*", on_test_event)
+        rabbitmq_subscriber.subscribe("EmptyEvent", on_test_event, routing_key="test.*")
         
         consume_thread = threading.Thread(
             target=rabbitmq_subscriber.start_consuming

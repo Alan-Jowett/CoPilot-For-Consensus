@@ -192,7 +192,7 @@ jobs:
                   sys.exit(0)
               except Exception as e:
                   print(f'Waiting... ({i+1}/30): {e}')
-                  time.sleep(2)
+                  time.sleep(1)
           print('RabbitMQ failed to become ready')
           sys.exit(1)
           "
