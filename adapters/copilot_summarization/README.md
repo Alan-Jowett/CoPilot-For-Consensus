@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+    Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # copilot-summarization
 
 LLM summarization adapter library with support for multiple providers (OpenAI, Azure OpenAI, local models).
