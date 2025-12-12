@@ -284,7 +284,7 @@ class SummarizationService:
         # Query messages from document store
         messages = self.document_store.query_documents(
             collection="messages",
-            query={"thread_id": thread_id},
+            filter_dict={"thread_id": thread_id},
         )
         
         if not messages:

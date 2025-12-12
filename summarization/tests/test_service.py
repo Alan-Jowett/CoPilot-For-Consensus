@@ -139,7 +139,7 @@ def test_retrieve_context_success(summarization_service, mock_document_store):
     # Verify document store was queried
     mock_document_store.query_documents.assert_called_once_with(
         collection="messages",
-        query={"thread_id": "<thread@example.com>"},
+        filter_dict={"thread_id": "<thread@example.com>"},
     )
 
 
