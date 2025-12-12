@@ -10,8 +10,6 @@ import pytest
 import uuid
 
 from copilot_events import (
-    create_publisher,
-    create_subscriber,
     RabbitMQPublisher,
     RabbitMQSubscriber,
 )
@@ -32,8 +30,8 @@ def get_rabbitmq_config():
 def rabbitmq_publisher():
     """Create and connect to a RabbitMQ publisher for integration tests."""
     config = get_rabbitmq_config()
-    publisher = create_publisher(
-        message_bus_type="rabbitmq",
+    # Directly instantiate RabbitMQPublisher to use test exchange
+    publisher = RabbitMQPublisher(
         host=config["host"],
         port=config["port"],
         username=config["username"],
@@ -61,8 +59,8 @@ def rabbitmq_publisher():
 def rabbitmq_subscriber():
     """Create a RabbitMQ subscriber for integration tests."""
     config = get_rabbitmq_config()
-    subscriber = create_subscriber(
-        message_bus_type="rabbitmq",
+    # Directly instantiate RabbitMQSubscriber to use test exchange
+    subscriber = RabbitMQSubscriber(
         host=config["host"],
         port=config["port"],
         username=config["username"],
@@ -98,6 +96,7 @@ class TestRabbitMQIntegration:
         }
         
         success = rabbitmq_publisher.publish(
+            exchange=rabbitmq_publisher.exchange,
             routing_key="test.event",
             event=event,
         )
@@ -135,6 +134,7 @@ class TestRabbitMQIntegration:
         }
         
         success = rabbitmq_publisher.publish(
+            exchange=rabbitmq_publisher.exchange,
             routing_key="test.event",
             event=event,
         )
@@ -182,6 +182,7 @@ class TestRabbitMQIntegration:
             }
             
             success = rabbitmq_publisher.publish(
+                exchange=rabbitmq_publisher.exchange,
                 routing_key="test.event",
                 event=event,
             )
@@ -226,6 +227,7 @@ class TestRabbitMQIntegration:
             "data": {"message": "Should receive this"},
         }
         rabbitmq_publisher.publish(
+            exchange=rabbitmq_publisher.exchange,
             routing_key="test.specific.event",
             event=event1,
         )
@@ -237,6 +239,7 @@ class TestRabbitMQIntegration:
             "data": {"message": "Should NOT receive this"},
         }
         rabbitmq_publisher.publish(
+            exchange=rabbitmq_publisher.exchange,
             routing_key="test.other.event",
             event=event2,
         )
@@ -286,6 +289,7 @@ class TestRabbitMQIntegration:
         }
         
         success = rabbitmq_publisher.publish(
+            exchange=rabbitmq_publisher.exchange,
             routing_key="test.complex",
             event=complex_event,
         )
@@ -323,7 +327,11 @@ class TestRabbitMQEdgeCases:
         # Don't connect
         
         event = {"event_type": "Test", "data": {}}
-        success = publisher.publish(routing_key="test", event=event)
+        success = publisher.publish(
+            exchange=publisher.exchange,
+            routing_key="test",
+            event=event
+        )
         
         # Should fail gracefully
         assert success is False
@@ -331,8 +339,7 @@ class TestRabbitMQEdgeCases:
     def test_reconnect_publisher(self):
         """Test reconnecting a publisher."""
         config = get_rabbitmq_config()
-        publisher = create_publisher(
-            message_bus_type="rabbitmq",
+        publisher = RabbitMQPublisher(
             host=config["host"],
             port=config["port"],
             username=config["username"],
@@ -380,6 +387,7 @@ class TestRabbitMQEdgeCases:
         }
         
         success = rabbitmq_publisher.publish(
+            exchange=rabbitmq_publisher.exchange,
             routing_key="test.empty",
             event=event,
         )
