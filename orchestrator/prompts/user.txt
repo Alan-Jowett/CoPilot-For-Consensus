@@ -1,0 +1,16 @@
+Please summarize the following email thread discussion:
+
+Thread ID: {thread_id}
+Number of messages: {message_count}
+Date range: {date_range}
+
+Key participants:
+{participants}
+
+Referenced drafts/RFCs:
+{draft_mentions}
+
+Email excerpts (most relevant):
+{email_chunks}
+
+Generate a comprehensive summary following the guidelines provided in the system prompt.

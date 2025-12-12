@@ -1,10 +1,2 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
-
-# Web framework
-fastapi==0.115.12
-uvicorn==0.34.0
-
-# Type hints
-python-dotenv==1.2.1
-
