@@ -46,6 +46,7 @@ jobs:
       copilot_storage: ${{ steps.filter.outputs.copilot_storage }}
       copilot_summarization: ${{ steps.filter.outputs.copilot_summarization }}
       copilot_vectorstore: ${{ steps.filter.outputs.copilot_vectorstore }}
+      copilot_draft_diff: ${{ steps.filter.outputs.copilot_draft_diff }}
       ci_workflows: ${{ steps.filter.outputs.ci_workflows }}
     steps:
       - name: Checkout repository
@@ -89,6 +90,8 @@ jobs:
               - 'adapters/copilot_summarization/**'
             copilot_vectorstore:
               - 'adapters/copilot_vectorstore/**'
+            copilot_draft_diff:
+              - 'adapters/copilot_draft_diff/**'
 
   auth-ci:
     needs: detect-changes
@@ -237,3 +240,12 @@ jobs:
       adapter_id: copilot_storage
       adapter_path: adapters/copilot_storage
       package_name: copilot_storage
+
+  draft-diff:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_draft_diff == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
+    with:
+      adapter_id: copilot_draft_diff
+      adapter_path: adapters/copilot_draft_diff
+      package_name: copilot_draft_diff
