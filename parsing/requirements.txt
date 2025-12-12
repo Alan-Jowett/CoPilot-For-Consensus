@@ -2,7 +2,7 @@
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
 # Core dependencies
-beautifulsoup4==4.12.3
+beautifulsoup4==4.14.3
 fastapi==0.109.2
 uvicorn==0.38.0
 
