@@ -23,6 +23,11 @@ on:
         required: false
         type: string
         default: '7.0'
+      rabbitmq_version:
+        description: 'RabbitMQ version to use (e.g., "3-management")'
+        required: false
+        type: string
+        default: '3-management'
       python_version:
         description: 'Python version to use (e.g., "3.11")'
         required: false
@@ -71,6 +76,20 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      rabbitmq:
+        image: rabbitmq:${{ inputs.rabbitmq_version }}
+        ports:
+          - 5672:5672
+          - 15672:15672
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -84,7 +103,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-cov pymongo
+          pip install pytest pytest-cov pymongo pika
           python adapters/scripts/install_adapters.py
 
       - name: Start rsync daemon (fixtures)
@@ -146,6 +165,38 @@ jobs:
           sys.exit(1)
           "
 
+      - name: Wait for RabbitMQ to be ready
+        run: |
+          echo "Waiting for RabbitMQ to be ready..."
+          python -c "
+          import time
+          import sys
+          try:
+              import pika
+          except ImportError:
+              print('pika not installed')
+              sys.exit(1)
+          for i in range(30):
+              try:
+                  credentials = pika.PlainCredentials('guest', 'guest')
+                  parameters = pika.ConnectionParameters(
+                      host='localhost',
+                      port=5672,
+                      credentials=credentials,
+                      connection_attempts=1,
+                      retry_delay=1,
+                  )
+                  connection = pika.BlockingConnection(parameters)
+                  connection.close()
+                  print('RabbitMQ is ready!')
+                  sys.exit(0)
+              except Exception as e:
+                  print(f'Waiting... ({i+1}/30): {e}')
+                  time.sleep(1)
+          print('RabbitMQ failed to become ready')
+          sys.exit(1)
+          "
+
       - name: Run integration tests
         env:
           MONGODB_HOST: localhost
@@ -153,6 +204,10 @@ jobs:
           MONGODB_USERNAME: testuser
           MONGODB_PASSWORD: testpass
           MONGODB_DATABASE: test_copilot
+          RABBITMQ_HOST: localhost
+          RABBITMQ_PORT: 5672
+          RABBITMQ_USERNAME: guest
+          RABBITMQ_PASSWORD: guest
           RSYNC_HOST: localhost
           RSYNC_PORT: ${{ inputs.rsync_port }}
           RSYNC_MODULE: ${{ inputs.rsync_module }}

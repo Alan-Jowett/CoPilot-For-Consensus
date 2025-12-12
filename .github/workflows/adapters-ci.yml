@@ -241,6 +241,24 @@ jobs:
       adapter_path: adapters/copilot_storage
       package_name: copilot_storage
 
+  events-integration-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_events == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-integration-ci.yml
+    with:
+      adapter_id: copilot_events
+      adapter_path: adapters/copilot_events
+      package_name: copilot_events
+
+  schema-validation-integration-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_schema_validation == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-integration-ci.yml
+    with:
+      adapter_id: copilot_schema_validation
+      adapter_path: adapters/copilot_schema_validation
+      package_name: copilot_schema_validation
+
   draft-diff:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.copilot_draft_diff == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
