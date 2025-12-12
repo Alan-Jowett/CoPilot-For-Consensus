@@ -150,17 +150,16 @@ jobs:
       python_version: '3.11'
     secrets: inherit
 
-  # Commented out until reporting service is ready
-  # reporting:
-  #   needs: detect-changes
-  #   if: ${{ needs.detect-changes.outputs.reporting == 'true' || needs.detect-changes.outputs.ci-workflows == 'true' }}
-  #   uses: ./.github/workflows/service-reusable-unit-test-ci.yml
-  #   with:
-  #     service_id: 'reporting'
-  #     service_path: 'reporting'
-  #     app_module: 'app'
-  #     python_version: '3.11'
-  #   secrets: inherit
+  reporting:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.reporting == 'true' || needs.detect-changes.outputs.ci-workflows == 'true' }}
+    uses: ./.github/workflows/service-reusable-unit-test-ci.yml
+    with:
+      service_id: 'reporting'
+      service_path: 'reporting'
+      app_module: 'app'
+      python_version: '3.11'
+    secrets: inherit
 
   summarization:
     needs: detect-changes
