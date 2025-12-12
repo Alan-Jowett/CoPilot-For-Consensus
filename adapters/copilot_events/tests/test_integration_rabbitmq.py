@@ -137,30 +137,36 @@ class TestRabbitMQIntegration:
         consume_thread.daemon = True
         consume_thread.start()
         
-        # Give the subscriber time to start
-        time.sleep(SUBSCRIBER_STARTUP_WAIT)
-        
-        # Publish an event
-        event = {
-            "event_type": "TestEvent",
-            "event_id": str(uuid.uuid4()),
-            "data": {"message": "Integration test message"},
-        }
-        
-        success = rabbitmq_publisher.publish(
-            exchange=rabbitmq_publisher.exchange,
-            routing_key="test.event",
-            event=event,
-        )
-        assert success is True
-        
-        # Wait for the event to be received
-        consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
-        
-        # Verify the event was received
-        assert len(received_events) == 1
-        assert received_events[0]["event_type"] == "TestEvent"
-        assert received_events[0]["data"]["message"] == "Integration test message"
+        try:
+            # Give the subscriber time to start
+            time.sleep(SUBSCRIBER_STARTUP_WAIT)
+            
+            # Publish an event
+            event = {
+                "event_type": "TestEvent",
+                "event_id": str(uuid.uuid4()),
+                "data": {"message": "Integration test message"},
+            }
+            
+            success = rabbitmq_publisher.publish(
+                exchange=rabbitmq_publisher.exchange,
+                routing_key="test.event",
+                event=event,
+            )
+            assert success is True
+            
+            # Wait for the event to be received
+            consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
+            
+            # Verify the event was received
+            assert len(received_events) == 1
+            assert received_events[0]["event_type"] == "TestEvent"
+            assert received_events[0]["data"]["message"] == "Integration test message"
+        finally:
+            # Ensure consuming is stopped
+            if consume_thread.is_alive():
+                rabbitmq_subscriber.stop_consuming()
+                consume_thread.join(timeout=2)
 
     def test_publish_multiple_events(self, rabbitmq_publisher, rabbitmq_subscriber):
         """Test publishing and receiving multiple events."""
@@ -184,31 +190,37 @@ class TestRabbitMQIntegration:
         consume_thread.daemon = True
         consume_thread.start()
         
-        # Give the subscriber time to start
-        time.sleep(SUBSCRIBER_STARTUP_WAIT)
-        
-        # Publish multiple events
-        for i in range(num_events):
-            event = {
-                "event_type": "TestEvent",
-                "event_id": str(uuid.uuid4()),
-                "data": {"index": i, "message": f"Message {i}"},
-            }
+        try:
+            # Give the subscriber time to start
+            time.sleep(SUBSCRIBER_STARTUP_WAIT)
             
-            success = rabbitmq_publisher.publish(
-                exchange=rabbitmq_publisher.exchange,
-                routing_key="test.event",
-                event=event,
-            )
-            assert success is True
-        
-        # Wait for events to be received
-        consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
-        
-        # Verify all events were received
-        assert len(received_events) == num_events
-        for i in range(num_events):
-            assert received_events[i]["data"]["index"] == i
+            # Publish multiple events
+            for i in range(num_events):
+                event = {
+                    "event_type": "TestEvent",
+                    "event_id": str(uuid.uuid4()),
+                    "data": {"index": i, "message": f"Message {i}"},
+                }
+                
+                success = rabbitmq_publisher.publish(
+                    exchange=rabbitmq_publisher.exchange,
+                    routing_key="test.event",
+                    event=event,
+                )
+                assert success is True
+            
+            # Wait for events to be received
+            consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
+            
+            # Verify all events were received
+            assert len(received_events) == num_events
+            for i in range(num_events):
+                assert received_events[i]["data"]["index"] == i
+        finally:
+            # Ensure consuming is stopped
+            if consume_thread.is_alive():
+                rabbitmq_subscriber.stop_consuming()
+                consume_thread.join(timeout=2)
 
     def test_routing_key_pattern_matching(self, rabbitmq_publisher, rabbitmq_subscriber):
         """Test that routing key patterns work correctly."""
@@ -230,40 +242,49 @@ class TestRabbitMQIntegration:
         consume_thread.daemon = True
         consume_thread.start()
         
-        # Give the subscriber time to start
-        time.sleep(SUBSCRIBER_STARTUP_WAIT)
-        
-        # Publish events with different routing keys
-        # This should be received
-        event1 = {
-            "event_type": "TestEvent",
-            "event_id": str(uuid.uuid4()),
-            "data": {"message": "Should receive this"},
-        }
-        rabbitmq_publisher.publish(
-            exchange=rabbitmq_publisher.exchange,
-            routing_key="test.specific.event",
-            event=event1,
-        )
-        
-        # This should NOT be received (different pattern)
-        event2 = {
-            "event_type": "TestEvent",
-            "event_id": str(uuid.uuid4()),
-            "data": {"message": "Should NOT receive this"},
-        }
-        rabbitmq_publisher.publish(
-            exchange=rabbitmq_publisher.exchange,
-            routing_key="test.other.event",
-            event=event2,
-        )
-        
-        # Wait for events
-        consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
-        
-        # Verify only matching event was received
-        assert len(received_events) == 1
-        assert received_events[0]["data"]["message"] == "Should receive this"
+        try:
+            # Give the subscriber time to start
+            time.sleep(SUBSCRIBER_STARTUP_WAIT)
+            
+            # Publish events with different routing keys
+            # This should be received
+            event1 = {
+                "event_type": "TestEvent",
+                "event_id": str(uuid.uuid4()),
+                "data": {"message": "Should receive this"},
+            }
+            rabbitmq_publisher.publish(
+                exchange=rabbitmq_publisher.exchange,
+                routing_key="test.specific.event",
+                event=event1,
+            )
+            
+            # Wait a moment for the first message to be processed
+            time.sleep(0.5)
+            
+            # This should NOT be received (different pattern)
+            event2 = {
+                "event_type": "TestEvent",
+                "event_id": str(uuid.uuid4()),
+                "data": {"message": "Should NOT receive this"},
+            }
+            rabbitmq_publisher.publish(
+                exchange=rabbitmq_publisher.exchange,
+                routing_key="test.other.event",
+                event=event2,
+            )
+            
+            # Wait for events
+            consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
+            
+            # Verify only matching event was received
+            assert len(received_events) == 1
+            assert received_events[0]["data"]["message"] == "Should receive this"
+        finally:
+            # Ensure consuming is stopped
+            if consume_thread.is_alive():
+                rabbitmq_subscriber.stop_consuming()
+                consume_thread.join(timeout=2)
 
     def test_complex_event_data(self, rabbitmq_publisher, rabbitmq_subscriber):
         """Test publishing and receiving events with complex nested data."""
@@ -281,41 +302,48 @@ class TestRabbitMQIntegration:
         )
         consume_thread.daemon = True
         consume_thread.start()
-        time.sleep(SUBSCRIBER_STARTUP_WAIT)
         
-        # Create a complex event
-        complex_event = {
-            "event_type": "ComplexEvent",
-            "event_id": str(uuid.uuid4()),
-            "data": {
-                "nested": {
-                    "array": [1, 2, 3, 4, 5],
-                    "object": {
-                        "key1": "value1",
-                        "key2": "value2",
+        try:
+            time.sleep(SUBSCRIBER_STARTUP_WAIT)
+            
+            # Create a complex event
+            complex_event = {
+                "event_type": "ComplexEvent",
+                "event_id": str(uuid.uuid4()),
+                "data": {
+                    "nested": {
+                        "array": [1, 2, 3, 4, 5],
+                        "object": {
+                            "key1": "value1",
+                            "key2": "value2",
+                        },
+                    },
+                    "metadata": {
+                        "tags": ["integration", "test", "rabbitmq"],
+                        "count": 42,
                     },
                 },
-                "metadata": {
-                    "tags": ["integration", "test", "rabbitmq"],
-                    "count": 42,
-                },
-            },
-        }
-        
-        success = rabbitmq_publisher.publish(
-            exchange=rabbitmq_publisher.exchange,
-            routing_key="test.complex",
-            event=complex_event,
-        )
-        assert success is True
-        
-        consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
-        
-        assert len(received_events) == 1
-        received = received_events[0]
-        assert received["data"]["nested"]["array"] == [1, 2, 3, 4, 5]
-        assert received["data"]["nested"]["object"]["key1"] == "value1"
-        assert received["data"]["metadata"]["count"] == 42
+            }
+            
+            success = rabbitmq_publisher.publish(
+                exchange=rabbitmq_publisher.exchange,
+                routing_key="test.complex",
+                event=complex_event,
+            )
+            assert success is True
+            
+            consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
+            
+            assert len(received_events) == 1
+            received = received_events[0]
+            assert received["data"]["nested"]["array"] == [1, 2, 3, 4, 5]
+            assert received["data"]["nested"]["object"]["key1"] == "value1"
+            assert received["data"]["metadata"]["count"] == 42
+        finally:
+            # Ensure consuming is stopped
+            if consume_thread.is_alive():
+                rabbitmq_subscriber.stop_consuming()
+                consume_thread.join(timeout=2)
 
     def test_subscriber_connection(self, rabbitmq_subscriber):
         """Test that subscriber can connect to RabbitMQ."""
@@ -391,23 +419,30 @@ class TestRabbitMQErrorHandling:
         )
         consume_thread.daemon = True
         consume_thread.start()
-        time.sleep(SUBSCRIBER_STARTUP_WAIT)
         
-        # Publish event with empty data
-        event = {
-            "event_type": "EmptyEvent",
-            "event_id": str(uuid.uuid4()),
-            "data": {},
-        }
-        
-        success = rabbitmq_publisher.publish(
-            exchange=rabbitmq_publisher.exchange,
-            routing_key="test.empty",
-            event=event,
-        )
-        assert success is True
-        
-        consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
-        
-        assert len(received_events) == 1
-        assert received_events[0]["data"] == {}
+        try:
+            time.sleep(SUBSCRIBER_STARTUP_WAIT)
+            
+            # Publish event with empty data
+            event = {
+                "event_type": "EmptyEvent",
+                "event_id": str(uuid.uuid4()),
+                "data": {},
+            }
+            
+            success = rabbitmq_publisher.publish(
+                exchange=rabbitmq_publisher.exchange,
+                routing_key="test.empty",
+                event=event,
+            )
+            assert success is True
+            
+            consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
+            
+            assert len(received_events) == 1
+            assert received_events[0]["data"] == {}
+        finally:
+            # Ensure consuming is stopped
+            if consume_thread.is_alive():
+                rabbitmq_subscriber.stop_consuming()
+                consume_thread.join(timeout=2)
