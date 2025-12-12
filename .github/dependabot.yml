@@ -68,6 +68,84 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in copilot_archive_fetcher adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_archive_fetcher"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in copilot_auth adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_auth"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in copilot_chunking adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_chunking"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in copilot_config adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_config"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in copilot_consensus adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_consensus"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in copilot_embedding adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_embedding"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in copilot_logging adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_logging"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in copilot_metrics adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_metrics"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in copilot_reporting adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_reporting"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in copilot_schema_validation adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_schema_validation"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in copilot_vectorstore adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_vectorstore"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
   # Monitor GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
