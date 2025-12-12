@@ -30,7 +30,7 @@ This guide explains how to monitor and troubleshoot the services in this reposit
     - `histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{service="<service>"}[5m]))` — P95 latency
 
 ## 4) Dashboards & Logs (Grafana + Loki)
-- Access Grafana at http://localhost:3000
+- Access Grafana at http://localhost:3000 (default creds: `admin` / `admin`)
 - Dashboards: use or create service dashboards with Prometheus as the data source.
 - Logs via Grafana Explore (Loki):
   - Data source: Loki
