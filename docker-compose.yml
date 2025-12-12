@@ -13,6 +13,7 @@ services:
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
       - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY:-pushgateway:9091}
+      - SCHEMA_DIR=/app/documents/schemas/configs
     volumes:
       - raw_archives:/data/raw_archives
     ports:
@@ -32,6 +33,7 @@ services:
       dockerfile: ./parsing/Dockerfile
     environment:
       - STORAGE_PATH=/data/parsed_json
+      - SCHEMA_DIR=/app/documents/schemas/configs
     volumes:
       - parsed_json:/data/parsed_json
     restart: unless-stopped
@@ -41,6 +43,8 @@ services:
     build:
       context: .
       dockerfile: ./chunking/Dockerfile
+    environment:
+      - SCHEMA_DIR=/app/documents/schemas/configs
     depends_on:
       - parsing
     restart: unless-stopped
@@ -54,6 +58,7 @@ services:
       - VECTOR_DB_HOST=vectorstore
       - EMBEDDING_BACKEND=${EMBEDDING_BACKEND:-sentencetransformers}
       - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
+      - SCHEMA_DIR=/app/documents/schemas/configs
     depends_on:
       - chunking
     restart: unless-stopped
@@ -87,6 +92,7 @@ services:
       - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
       - AZURE_OPENAI_KEY=${AZURE_OPENAI_KEY:-}
       - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
+      - SCHEMA_DIR=/app/documents/schemas/configs
     depends_on:
       - embedding
       - vectorstore
@@ -106,6 +112,7 @@ services:
       - LLM_BACKEND=${LLM_BACKEND:-mock}
       - LLM_MODEL=${LLM_MODEL:-mistral}
       - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
+      - SCHEMA_DIR=/app/documents/schemas/configs
     depends_on:
       - orchestrator
       - documentdb
@@ -118,6 +125,8 @@ services:
     build:
       context: .
       dockerfile: ./reporting/Dockerfile
+    environment:
+      - SCHEMA_DIR=/app/documents/schemas/configs
     ports:
       - "8080:8080"
     depends_on:
@@ -272,6 +281,8 @@ services:
     build:
       context: .
       dockerfile: ./error-reporting/Dockerfile
+    environment:
+      - SCHEMA_DIR=/app/documents/schemas/configs
     ports:
       - "127.0.0.1:8081:8081"
     restart: unless-stopped

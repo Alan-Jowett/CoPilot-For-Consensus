@@ -7,6 +7,7 @@ fastapi==0.109.2
 uvicorn==0.27.1
 
 # Adapter dependencies (installed separately in CI/Dockerfile)
+# copilot_config
 # copilot_events
 # copilot_storage
 # copilot_metrics

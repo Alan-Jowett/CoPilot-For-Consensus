@@ -14,6 +14,9 @@ WORKDIR /app
 COPY adapters/ /app/adapters/
 RUN python /app/adapters/scripts/install_adapters.py --no-dev
 
+# Copy schema files for validation
+COPY documents/schemas /app/documents/schemas
+
 # Install service dependencies
 COPY embedding/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

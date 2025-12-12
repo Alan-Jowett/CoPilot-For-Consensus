@@ -137,6 +137,57 @@
       "env_var": "SENTRY_ENVIRONMENT",
       "default": "production",
       "description": "Sentry environment"
+    },
+    "sources": {
+      "type": "list",
+      "source": "file",
+      "file_path": "config.yaml",
+      "file_key": "sources",
+      "default": [],
+      "description": "List of mail archive sources to ingest",
+      "item_schema": {
+        "type": "object",
+        "required": ["name", "source_type", "url", "enabled"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Unique name for the source"
+          },
+          "source_type": {
+            "type": "string",
+            "enum": ["rsync", "imap", "http"],
+            "description": "Type of source (rsync, imap, http)"
+          },
+          "url": {
+            "type": "string",
+            "description": "URL or hostname of the source"
+          },
+          "enabled": {
+            "type": "bool",
+            "description": "Whether this source is enabled for ingestion"
+          },
+          "port": {
+            "type": "int",
+            "description": "Port number (for IMAP sources)",
+            "optional": true
+          },
+          "username": {
+            "type": "string",
+            "description": "Username (for IMAP sources)",
+            "optional": true
+          },
+          "password": {
+            "type": "string",
+            "description": "Password (for IMAP sources)",
+            "optional": true
+          },
+          "folder": {
+            "type": "string",
+            "description": "Folder name (for IMAP sources)",
+            "optional": true
+          }
+        }
+      }
     }
   }
 }

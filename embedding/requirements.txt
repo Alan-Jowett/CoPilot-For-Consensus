@@ -7,6 +7,7 @@ fastapi==0.115.12
 uvicorn==0.34.0
 
 # Adapters (installed from local directories)
+# copilot_config
 # copilot_events
 # copilot_storage
 # copilot_vectorstore

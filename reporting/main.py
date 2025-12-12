@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from fastapi import FastAPI, HTTPException, Query
 import uvicorn
 
+from copilot_config import load_typed_config
 from copilot_events import create_publisher, create_subscriber
 from copilot_storage import create_document_store
 from copilot_metrics import create_metrics_collector
@@ -171,52 +172,37 @@ def main():
     logger.info(f"Starting Reporting Service (version {__version__})")
     
     try:
-        # Load configuration from environment
-        message_bus_type = os.getenv("MESSAGE_BUS_TYPE", "rabbitmq")
-        message_bus_host = os.getenv("MESSAGE_BUS_HOST", "messagebus")
-        message_bus_port = int(os.getenv("MESSAGE_BUS_PORT", "5672"))
-        message_bus_user = os.getenv("MESSAGE_BUS_USER", "guest")
-        message_bus_password = os.getenv("MESSAGE_BUS_PASSWORD", "guest")
-        
-        doc_store_type = os.getenv("DOC_STORE_TYPE", "mongodb")
-        doc_store_host = os.getenv("DOC_DB_HOST", "documentdb")
-        doc_store_port = int(os.getenv("DOC_DB_PORT", "27017"))
-        doc_store_name = os.getenv("DOC_DB_NAME", "copilot")
-        doc_store_user = os.getenv("DOC_DB_USER", "")
-        doc_store_password = os.getenv("DOC_DB_PASSWORD", "")
-        
-        # Notification configuration
-        webhook_url = os.getenv("NOTIFY_WEBHOOK_URL", "")
-        notify_enabled = os.getenv("NOTIFY_ENABLED", "false").lower() in ("true", "1", "yes")
-        webhook_summary_max_length = int(os.getenv("WEBHOOK_SUMMARY_MAX_LENGTH", "500"))
+        # Load configuration using config adapter
+        config = load_typed_config("reporting")
+        logger.info("Configuration loaded successfully")
         
         # Create adapters
         logger.info("Creating message bus publisher...")
         publisher = create_publisher(
-            message_bus_type=message_bus_type,
-            host=message_bus_host,
-            port=message_bus_port,
-            username=message_bus_user,
-            password=message_bus_password,
+            message_bus_type=config.message_bus_type,
+            host=config.message_bus_host,
+            port=config.message_bus_port,
+            username=config.message_bus_user,
+            password=config.message_bus_password,
         )
         
         logger.info("Creating message bus subscriber...")
         subscriber = create_subscriber(
-            message_bus_type=message_bus_type,
-            host=message_bus_host,
-            port=message_bus_port,
-            username=message_bus_user,
-            password=message_bus_password,
+            message_bus_type=config.message_bus_type,
+            host=config.message_bus_host,
+            port=config.message_bus_port,
+            username=config.message_bus_user,
+            password=config.message_bus_password,
         )
         
         logger.info("Creating document store...")
         document_store = create_document_store(
-            store_type=doc_store_type,
-            host=doc_store_host,
-            port=doc_store_port,
-            database=doc_store_name,
-            username=doc_store_user if doc_store_user else None,
-            password=doc_store_password if doc_store_password else None,
+            store_type=config.doc_store_type,
+            host=config.doc_store_host,
+            port=config.doc_store_port,
+            database=config.doc_store_name,
+            username=config.doc_store_user if config.doc_store_user else None,
+            password=config.doc_store_password if config.doc_store_password else None,
         )
         
         # Create optional services
@@ -242,14 +228,14 @@ def main():
             subscriber=subscriber,
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
-            webhook_url=webhook_url if webhook_url else None,
-            notify_enabled=notify_enabled,
-            webhook_summary_max_length=webhook_summary_max_length,
+            webhook_url=config.notify_webhook_url if config.notify_webhook_url else None,
+            notify_enabled=config.notify_enabled,
+            webhook_summary_max_length=config.webhook_summary_max_length,
         )
         
-        logger.info(f"Webhook notifications: {'enabled' if notify_enabled else 'disabled'}")
-        if notify_enabled and webhook_url:
-            logger.info(f"Webhook URL: {webhook_url}")
+        logger.info(f"Webhook notifications: {'enabled' if config.notify_enabled else 'disabled'}")
+        if config.notify_enabled and config.notify_webhook_url:
+            logger.info(f"Webhook URL: {config.notify_webhook_url}")
         
         # Start subscriber in background thread
         subscriber_thread = threading.Thread(
@@ -261,9 +247,8 @@ def main():
         logger.info("Subscriber thread started")
         
         # Start FastAPI server
-        http_port = int(os.getenv("HTTP_PORT", "8080"))
-        logger.info(f"Starting HTTP server on port {http_port}...")
-        uvicorn.run(app, host="0.0.0.0", port=http_port)
+        logger.info(f"Starting HTTP server on port {config.http_port}...")
+        uvicorn.run(app, host="0.0.0.0", port=config.http_port)
         
     except Exception as e:
         logger.error(f"Failed to start reporting service: {e}", exc_info=True)
