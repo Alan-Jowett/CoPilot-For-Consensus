@@ -227,7 +227,7 @@ jobs:
       adapter_id: copilot_vectorstore
       adapter_path: adapters/copilot_vectorstore
       package_name: copilot_vectorstore
-      extra_pip_packages: '["faiss-cpu"]'
+      extra_pip_packages: '["faiss-cpu", "qdrant-client"]'
 
   vectorstore-integration-ci:
     needs: detect-changes
