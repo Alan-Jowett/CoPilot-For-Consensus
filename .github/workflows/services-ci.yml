@@ -32,6 +32,9 @@ on:
       - 'adapters/**'
       - '.github/workflows/services-ci.yml'
       - '.github/workflows/service-reusable-unit-test-ci.yml'
+  schedule:
+    - cron: '0 2 * * *'  # Run daily at 2 AM UTC
+  workflow_dispatch:  # Allow manual triggering
 
 permissions:
   contents: read
@@ -95,7 +98,7 @@ jobs:
 
   chunking:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.chunking == 'true' || needs.detect-changes.outputs.ci-workflows == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.chunking == 'true' || needs.detect-changes.outputs.ci-workflows == 'true' }}
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
     with:
       service_id: 'chunking'
@@ -106,7 +109,7 @@ jobs:
 
   embedding:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.embedding == 'true' || needs.detect-changes.outputs.ci-workflows == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.embedding == 'true' || needs.detect-changes.outputs.ci-workflows == 'true' }}
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
     with:
       service_id: 'embedding'
@@ -117,7 +120,7 @@ jobs:
 
   ingestion:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.ingestion == 'true' || needs.detect-changes.outputs.ci-workflows == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.ingestion == 'true' || needs.detect-changes.outputs.ci-workflows == 'true' }}
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
     with:
       service_id: 'ingestion'
@@ -128,7 +131,7 @@ jobs:
 
   orchestrator:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.orchestrator == 'true' || needs.detect-changes.outputs.ci-workflows == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.orchestrator == 'true' || needs.detect-changes.outputs.ci-workflows == 'true' }}
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
     with:
       service_id: 'orchestrator'
@@ -139,7 +142,7 @@ jobs:
 
   parsing:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.parsing == 'true' || needs.detect-changes.outputs.ci-workflows == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.parsing == 'true' || needs.detect-changes.outputs.ci-workflows == 'true' }}
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
     with:
       service_id: 'parsing'
@@ -150,7 +153,7 @@ jobs:
 
   reporting:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.reporting == 'true' || needs.detect-changes.outputs.ci-workflows == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.reporting == 'true' || needs.detect-changes.outputs.ci-workflows == 'true' }}
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
     with:
       service_id: 'reporting'
@@ -161,7 +164,7 @@ jobs:
 
   summarization:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.summarization == 'true' || needs.detect-changes.outputs.ci-workflows == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.summarization == 'true' || needs.detect-changes.outputs.ci-workflows == 'true' }}
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
     with:
       service_id: 'summarization'
@@ -172,7 +175,7 @@ jobs:
 
   error-reporting:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.error-reporting == 'true' || needs.detect-changes.outputs.ci-workflows == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.error-reporting == 'true' || needs.detect-changes.outputs.ci-workflows == 'true' }}
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
     with:
       service_id: 'error-reporting'
