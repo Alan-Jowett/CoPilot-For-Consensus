@@ -7,7 +7,6 @@ import logging
 import time
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
-from uuid import uuid4
 
 from copilot_events import (
     EventPublisher,
@@ -19,7 +18,7 @@ from copilot_events import (
 from copilot_storage import DocumentStore
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
-from copilot_chunking import Thread, create_chunker, ThreadChunker
+from copilot_chunking import Thread, ThreadChunker
 
 logger = logging.getLogger(__name__)
 
@@ -147,7 +146,7 @@ class ChunkingService:
             if all_chunks:
                 chunk_ids = []
                 for chunk in all_chunks:
-                    chunk_id = self.document_store.insert_document("chunks", chunk)
+                    self.document_store.insert_document("chunks", chunk)
                     chunk_ids.append(chunk["chunk_id"])
                 
                 logger.info(f"Created {len(all_chunks)} chunks")

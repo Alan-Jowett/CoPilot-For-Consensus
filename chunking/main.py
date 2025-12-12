@@ -55,7 +55,7 @@ def health():
 
 
 @app.get("/stats")
-def stats():
+def get_stats():
     """Get chunking statistics."""
     global chunking_service
     

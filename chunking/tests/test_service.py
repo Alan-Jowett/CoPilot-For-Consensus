@@ -4,8 +4,7 @@
 """Unit tests for the chunking service."""
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch
-from datetime import datetime, timezone
+from unittest.mock import Mock
 
 from app.service import ChunkingService
 from copilot_chunking import TokenWindowChunker
