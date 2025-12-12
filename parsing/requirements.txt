@@ -4,7 +4,7 @@
 # Core dependencies
 beautifulsoup4==4.12.3
 fastapi==0.109.2
-uvicorn==0.27.1
+uvicorn==0.38.0
 
 # Adapter dependencies (installed separately in CI/Dockerfile)
 # copilot_config
