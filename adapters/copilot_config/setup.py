@@ -32,9 +32,6 @@ setup(
         # No external dependencies - uses stdlib only
     ],
     extras_require={
-        "yaml": [
-            "pyyaml>=6.0.0",
-        ],
         "storage": [
             "copilot-storage>=0.1.0",
         ],
@@ -43,7 +40,6 @@ setup(
             "pytest-cov>=4.0.0",
             "pylint>=3.0.0",
             "mypy>=1.0.0",
-            "pyyaml>=6.0.0",
         ],
     },
 )

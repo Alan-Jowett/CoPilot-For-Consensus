@@ -26,7 +26,7 @@ def fetch_and_process_archive(config_dict: dict, output_dir: str) -> dict:
     """
     try:
         # Create source configuration from dictionary
-        # (e.g., loaded from YAML config file)
+        # (e.g., loaded from environment variables or config file)
         config = SourceConfig(
             name=config_dict.get("name"),
             source_type=config_dict.get("type"),

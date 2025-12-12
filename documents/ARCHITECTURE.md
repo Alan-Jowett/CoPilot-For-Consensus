@@ -136,7 +136,6 @@ All microservices use a unified **schema-driven configuration system** provided 
 - **Centralized Schema Definitions**: Each service has a JSON schema file in `documents/schemas/configs/<service>.json` defining all configuration fields
 - **Multi-Source Support**: Configuration can be loaded from:
   - Environment variables (default for production)
-  - YAML files (for local development)
   - Document stores (for centralized management)
   - Static values (for testing)
 - **Type Safety**: Automatic type conversion and validation
@@ -157,7 +156,7 @@ Each service schema defines:
   "fields": {
     "field_name": {
       "type": "string|int|bool|float|object|array",
-      "source": "env|yaml|document_store|static",
+      "source": "env|document_store|static",
       "env_var": "ENV_VAR_NAME",
       "default": "default_value",
       "required": true|false,
@@ -202,17 +201,12 @@ Service-specific configuration is defined in individual schemas.
    - Services read from `os.environ` via `EnvConfigProvider`
    - Supports Docker Compose, Kubernetes ConfigMaps, Azure App Configuration
 
-2. **YAML Files** (Local Development):
-   - Load from `config.yaml` via `YamlConfigProvider`
-   - Supports nested configuration with dot notation
-   - Useful for local development with multiple services
-
-3. **Document Store** (Centralized Management):
+2. **Document Store** (Centralized Management):
    - Load from MongoDB/Cosmos DB via `DocStoreConfigProvider`
    - Enables runtime configuration updates
    - Useful for multi-environment deployments
 
-4. **Static Configuration** (Testing):
+3. **Static Configuration** (Testing):
    - Hardcoded values via `StaticConfigProvider`
    - Isolated from environment variables
    - Perfect for unit testing

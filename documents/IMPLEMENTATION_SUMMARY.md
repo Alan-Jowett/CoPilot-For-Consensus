@@ -13,11 +13,6 @@ This implementation delivers a complete **schema-driven configuration system** f
 
 #### New Providers (`copilot_config/providers.py`)
 
-- **YamlConfigProvider**: Loads configuration from YAML files
-  - Supports nested keys with dot notation (e.g., `database.host`)
-  - Gracefully handles missing files
-  - Automatic type conversion for bool, int, float
-
 - **DocStoreConfigProvider**: Loads configuration from document stores
   - Works with MongoDB and other DocumentStore implementations
   - Caches configuration for performance
@@ -32,12 +27,12 @@ This implementation delivers a complete **schema-driven configuration system** f
 
 - **FieldSpec**: Defines individual configuration fields
   - Type specification (string, int, bool, float, object, array)
-  - Source specification (env, yaml, document_store, static)
+  - Source specification (env, document_store, static)
   - Default values and required flags
   - Nested object support
 
 - **SchemaConfigLoader**: Loads and validates configuration
-  - Multi-source support (environment, YAML, document store, static)
+  - Multi-source support (environment, document store, static)
   - Type conversion and validation
   - Fast-fail on errors
   - Clear error messages
@@ -80,12 +75,6 @@ Each schema includes:
 ### 3. Comprehensive Test Suite
 
 #### Provider Tests (`tests/test_providers.py`)
-
-- 13 tests for YamlConfigProvider
-  - YAML file loading
-  - Nested key access
-  - Type conversion
-  - Missing file handling
 
 - 7 tests for DocStoreConfigProvider
   - Document store loading
@@ -156,7 +145,7 @@ Each schema includes:
 JSON schemas define:
 - **Structure**: All configuration fields
 - **Types**: string, int, bool, float, object, array
-- **Sources**: env, yaml, document_store, static
+- **Sources**: env, document_store, static
 - **Defaults**: Sensible defaults for optional fields
 - **Validation**: Required fields marked explicitly
 - **Documentation**: Descriptions for all fields

@@ -15,7 +15,6 @@ from .static_provider import StaticConfigProvider
 from .factory import create_config_provider
 from .storage_provider import StorageConfigProvider
 from .providers import (
-    YamlConfigProvider,
     DocStoreConfigProvider,
 )
 from .schema_loader import (
@@ -39,7 +38,6 @@ __all__ = [
     "EnvConfigProvider",
     "StaticConfigProvider",
     "StorageConfigProvider",
-    "YamlConfigProvider",
     "DocStoreConfigProvider",
     "create_config_provider",
     # Schema-driven configuration

@@ -15,7 +15,7 @@ COPYRIGHT_PATTERN = re.compile(r"Copyright\s*\(c\)\s*\d{4}(-\d{4})?")
 DEFAULT_EXTENSIONS = {
     ".py", ".sh", ".ps1", ".ts", ".tsx", ".js", ".jsx",
     ".go", ".rs", ".java", ".kt", ".proto", ".graphql", ".sql",
-    ".css", ".scss", ".md", ".yml", ".yaml", ".toml", ".ini", ".cfg"
+    ".css", ".scss", ".md", ".toml", ".ini", ".cfg"
 }
 
 DEFAULT_FILENAMES = {"Dockerfile"}
