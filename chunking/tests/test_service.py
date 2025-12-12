@@ -361,13 +361,6 @@ def test_consume_json_parsed_event():
     mock_subscriber = Mock()
     mock_chunker = TokenWindowChunker(chunk_size=384, overlap=50)
     
-    service = ChunkingService(
-        document_store=mock_store,
-        publisher=mock_publisher,
-        subscriber=mock_subscriber,
-        chunker=mock_chunker,
-    )
-    
     # Simulate receiving a JSONParsed event
     event = {
         "event_type": "JSONParsed",
@@ -376,10 +369,11 @@ def test_consume_json_parsed_event():
         "version": "1.0",
         "data": {
             "archive_id": "archive-123",
-            "message_ids": ["<msg@example.com>"],
+            "parsed_message_ids": ["<msg@example.com>"],
             "thread_ids": ["<thread@example.com>"],
             "message_count": 1,
             "thread_count": 1,
+            "parsing_duration_seconds": 1.5,
         }
     }
     
@@ -389,7 +383,7 @@ def test_consume_json_parsed_event():
     # Process the event - would normally be called by subscriber
     # For now, just verify the event structure is correct
     assert event["data"]["archive_id"] == "archive-123"
-    assert len(event["data"]["message_ids"]) == 1
+    assert len(event["data"]["parsed_message_ids"]) == 1
 
 
 def test_consume_json_parsed_multiple_messages():
@@ -401,7 +395,7 @@ def test_consume_json_parsed_multiple_messages():
         "version": "1.0",
         "data": {
             "archive_id": "archive-123",
-            "message_ids": [
+            "parsed_message_ids": [
                 "<msg1@example.com>",
                 "<msg2@example.com>",
                 "<msg3@example.com>",
@@ -409,6 +403,7 @@ def test_consume_json_parsed_multiple_messages():
             "thread_ids": ["<thread@example.com>"],
             "message_count": 3,
             "thread_count": 1,
+            "parsing_duration_seconds": 2.5,
         }
     }
     
@@ -453,7 +448,7 @@ def test_handle_malformed_event_missing_data():
 
 
 def test_handle_event_with_invalid_message_ids_type():
-    """Test handling event with invalid message_ids type."""
+    """Test handling event with invalid parsed_message_ids type."""
     mock_store = Mock()
     mock_publisher = Mock()
     mock_subscriber = Mock()
@@ -466,7 +461,7 @@ def test_handle_event_with_invalid_message_ids_type():
         chunker=mock_chunker,
     )
     
-    # message_ids should be array but is string
+    # parsed_message_ids should be array but is string
     event = {
         "event_type": "JSONParsed",
         "event_id": "test-123",
@@ -474,10 +469,11 @@ def test_handle_event_with_invalid_message_ids_type():
         "version": "1.0",
         "data": {
             "archive_id": "archive-123",
-            "message_ids": "not-an-array",
+            "parsed_message_ids": "not-an-array",
             "thread_ids": ["<thread@example.com>"],
             "message_count": 1,
             "thread_count": 1,
+            "parsing_duration_seconds": 1.0,
         }
     }
     

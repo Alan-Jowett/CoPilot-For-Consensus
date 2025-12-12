@@ -15,7 +15,7 @@ into service tests.
 """
 
 import pytest
-from typing import List, Dict, Any
+from typing import Dict, Any
 
 from copilot_schema_validation import FileSchemaProvider, validate_json
 
@@ -36,6 +36,7 @@ def validate_event(event: Dict[str, Any]) -> None:
 class TestEventSchemaValidation:
     """Tests for validating events against JSON schemas."""
     
+    @pytest.mark.integration
     def test_all_event_schemas_available(self):
         """Test that all event types have schemas available.
         
@@ -69,6 +70,7 @@ class TestEventSchemaValidation:
             schema = schema_provider.get_schema(event_type)
             assert schema is not None, f"Failed to load schema for {event_type}"
     
+    @pytest.mark.integration
     def test_archive_ingested_event_validation(self):
         """Test validation of a well-formed ArchiveIngested event."""
         event = {
@@ -92,6 +94,7 @@ class TestEventSchemaValidation:
         # Should pass validation
         validate_event(event)
     
+    @pytest.mark.integration
     def test_json_parsed_event_validation(self):
         """Test validation of a well-formed JSONParsed event."""
         event = {
@@ -112,6 +115,7 @@ class TestEventSchemaValidation:
         # Should pass validation
         validate_event(event)
     
+    @pytest.mark.integration
     def test_chunks_prepared_event_validation(self):
         """Test validation of a well-formed ChunksPrepared event."""
         event = {
@@ -132,6 +136,7 @@ class TestEventSchemaValidation:
         # Should pass validation
         validate_event(event)
     
+    @pytest.mark.integration
     def test_summarization_requested_event_validation(self):
         """Test validation of a well-formed SummarizationRequested event."""
         event = {
@@ -152,6 +157,7 @@ class TestEventSchemaValidation:
         # Should pass validation
         validate_event(event)
     
+    @pytest.mark.integration
     def test_summary_complete_event_validation(self):
         """Test validation of a well-formed SummaryComplete event."""
         event = {
@@ -180,6 +186,7 @@ class TestEventSchemaValidation:
         # Should pass validation
         validate_event(event)
     
+    @pytest.mark.integration
     def test_invalid_event_missing_required_field(self):
         """Test that validation fails for events missing required fields."""
         event = {
@@ -199,6 +206,7 @@ class TestEventSchemaValidation:
         
         assert "validation failed" in str(exc_info.value).lower()
     
+    @pytest.mark.integration
     def test_invalid_event_wrong_type(self):
         """Test that validation fails for events with wrong field types."""
         event = {
@@ -230,6 +238,7 @@ class TestMessageFlowPatterns:
     without needing to instantiate actual services.
     """
     
+    @pytest.mark.integration
     def test_ingestion_produces_archive_ingested(self):
         """Document that ingestion service produces ArchiveIngested events."""
         # Example event that ingestion service would publish
@@ -256,6 +265,7 @@ class TestMessageFlowPatterns:
         # Parsing service consumes this and produces JSONParsed
         # (documented in next test)
     
+    @pytest.mark.integration
     def test_parsing_consumes_archive_ingested_produces_json_parsed(self):
         """Document that parsing service consumes ArchiveIngested and produces JSONParsed."""
         # Input: ArchiveIngested event
@@ -300,6 +310,7 @@ class TestMessageFlowPatterns:
         # Verify data flow: archive_id is preserved
         assert output_event["data"]["archive_id"] == input_event["data"]["archive_id"]
     
+    @pytest.mark.integration
     def test_chunking_consumes_json_parsed_produces_chunks_prepared(self):
         """Document that chunking service consumes JSONParsed and produces ChunksPrepared."""
         # Input: JSONParsed event
