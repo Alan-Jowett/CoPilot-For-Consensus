@@ -23,7 +23,9 @@ logger = logging.getLogger(__name__)
 config = load_typed_config("error-reporting")
 
 app = Flask(__name__, template_folder='templates')
-error_store = None
+
+# Initialize error store with config
+error_store = ErrorStore(max_errors=config.max_errors)
 
 
 @app.route("/", methods=["GET"])
@@ -207,11 +209,5 @@ def ui():
 
 
 if __name__ == "__main__":
-    # Load configuration from schema
-    config = load_typed_config("error-reporting")
-    
-    # Initialize error store with config
-    error_store = ErrorStore(max_errors=config.max_errors)
-    
     logger.info(f"Starting Error Reporting Service on port {config.http_port}")
     app.run(host="0.0.0.0", port=config.http_port, debug=False)

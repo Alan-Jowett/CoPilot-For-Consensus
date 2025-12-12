@@ -250,15 +250,14 @@ class SchemaConfigLoader:
         Returns:
             List of documents from collection
         """
-        if self.doc_store_provider is None or not hasattr(self.doc_store_provider, '_doc_store'):
+        if self.doc_store_provider is None:
             return field_spec.default or []
         
         try:
             collection_name = field_spec.doc_store_path or field_spec.name
-            documents = self.doc_store_provider._doc_store.query_documents(
-                collection=collection_name,
-                filter_dict={},
-                limit=10000  # Reasonable upper limit
+            # Use the public interface to query documents
+            documents = self.doc_store_provider.query_documents_from_collection(
+                collection_name=collection_name
             )
             return documents if documents else field_spec.default or []
         except Exception:
@@ -406,11 +405,23 @@ def load_config(
             if doc_store.connect():
                 doc_store_provider = DocStoreConfigProvider(doc_store)
             else:
-                # If connection fails, fall back to no doc_store_provider
+                # If connection fails, log warning and fall back to no doc_store_provider
+                logger = __import__('logging').getLogger(__name__)
+                logger.warning(
+                    "Document store connection failed for schema-based configuration. "
+                    "Storage-backed configuration fields will use defaults. "
+                    "Service: %s", service_name
+                )
                 # Required fields will fail validation if storage is needed
                 pass
-        except Exception:
-            # If document store is unavailable, continue without it
+        except Exception as e:
+            # If document store is unavailable, log warning and continue without it
+            logger = __import__('logging').getLogger(__name__)
+            logger.warning(
+                "Document store unavailable for schema-based configuration. "
+                "Storage-backed configuration fields will use defaults. "
+                "Service: %s, Error: %s", service_name, str(e)
+            )
             # Required fields will fail validation if storage is needed
             pass
     
