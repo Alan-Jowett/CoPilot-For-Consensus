@@ -122,6 +122,10 @@ def main():
             "Starting ingestion for enabled sources",
             enabled_source_count=len(_enabled_sources(getattr(config, "sources", []))),
         )
+        log.info(
+            "Starting ingestion for enabled sources",
+            enabled_source_count=len(_enabled_sources(getattr(config, "sources", []))),
+        )
 
         results = service.ingest_all_enabled_sources()
 

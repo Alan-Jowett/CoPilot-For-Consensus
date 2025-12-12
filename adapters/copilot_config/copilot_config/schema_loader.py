@@ -81,6 +81,11 @@ class ConfigSchema:
             for prop_name, prop_data in data["properties"].items():
                 nested_schema[prop_name] = cls._parse_field_spec(prop_name, prop_data)
         
+        # Handle storage_collection as doc_store_path for storage sources
+        doc_store_path = data.get("doc_store_path")
+        if data.get("source") == "storage" and not doc_store_path:
+            doc_store_path = data.get("storage_collection")
+        
         return FieldSpec(
             name=name,
             field_type=data.get("type", "string"),
@@ -89,7 +94,7 @@ class ConfigSchema:
             source=data.get("source", "env"),
             env_var=data.get("env_var"),
             yaml_path=data.get("yaml_path"),
-            doc_store_path=data.get("doc_store_path"),
+            doc_store_path=doc_store_path,
             description=data.get("description"),
             nested_schema=nested_schema,
         )
@@ -189,6 +194,10 @@ class SchemaConfigLoader:
         Raises:
             ConfigValidationError: If required field is missing
         """
+        # Special handling for storage source with list type
+        if field_spec.source == "storage" and field_spec.field_type == "list":
+            return self._load_storage_collection(field_spec)
+        
         # Get the appropriate provider
         provider = self._get_provider(field_spec.source)
         
@@ -231,6 +240,30 @@ class SchemaConfigLoader:
             )
 
         return value
+
+    def _load_storage_collection(self, field_spec: FieldSpec) -> list:
+        """Load all documents from a storage collection.
+        
+        Args:
+            field_spec: Field specification for storage source
+            
+        Returns:
+            List of documents from collection
+        """
+        if self.doc_store_provider is None or not hasattr(self.doc_store_provider, '_doc_store'):
+            return field_spec.default or []
+        
+        try:
+            collection_name = field_spec.doc_store_path or field_spec.name
+            documents = self.doc_store_provider._doc_store.query_documents(
+                collection=collection_name,
+                filter_dict={},
+                limit=10000  # Reasonable upper limit
+            )
+            return documents if documents else field_spec.default or []
+        except Exception:
+            # If query fails, return default
+            return field_spec.default or []
 
     def _load_nested_object(
         self, nested_schema: Dict[str, FieldSpec], provider: ConfigProvider, parent_key: str
@@ -283,7 +316,7 @@ class SchemaConfigLoader:
             return self.env_provider
         elif source == "yaml":
             return self.yaml_provider
-        elif source == "document_store":
+        elif source == "document_store" or source == "storage":
             return self.doc_store_provider
         elif source == "static":
             return self.static_provider
@@ -303,7 +336,7 @@ class SchemaConfigLoader:
             return field_spec.env_var or field_spec.name.upper()
         elif field_spec.source == "yaml":
             return field_spec.yaml_path or field_spec.name
-        elif field_spec.source == "document_store":
+        elif field_spec.source == "document_store" or field_spec.source == "storage":
             return field_spec.doc_store_path or field_spec.name
         else:
             return field_spec.name
@@ -364,6 +397,22 @@ def load_config(
     # Load schema
     schema_path = os.path.join(schema_dir, f"{service_name}.json")
     schema = ConfigSchema.from_json_file(schema_path)
+    
+    # If no doc_store_provider but schema needs storage, create one automatically
+    if doc_store_provider is None and any(f.source == "storage" for f in schema.fields.values()):
+        try:
+            from copilot_storage import create_document_store
+            doc_store = create_document_store()
+            if doc_store.connect():
+                doc_store_provider = DocStoreConfigProvider(doc_store)
+            else:
+                # If connection fails, fall back to no doc_store_provider
+                # Required fields will fail validation if storage is needed
+                pass
+        except Exception:
+            # If document store is unavailable, continue without it
+            # Required fields will fail validation if storage is needed
+            pass
     
     # Create loader
     loader = SchemaConfigLoader(
