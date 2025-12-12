@@ -1,5 +1,11 @@
 import tempfile
 import os
+import sys
+from pathlib import Path
+
+# Add parent directory to path so we can import app module
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from app.config import IngestionConfig, SourceConfig
 from copilot_events import create_publisher
 from app.service import IngestionService
