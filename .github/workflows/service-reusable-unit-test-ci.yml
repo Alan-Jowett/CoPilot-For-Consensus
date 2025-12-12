@@ -114,15 +114,15 @@ jobs:
         pip install -r requirements.txt
         pip install pylint flake8
 
-    - name: Run pylint
-      run: |
-        cd ${{ inputs.service_path }}
-        pylint ${{ inputs.app_module }}/*.py --disable=C0111,C0103,R0903 || echo "Pylint warnings found but continuing..."
-
     - name: Run flake8
       run: |
         cd ${{ inputs.service_path }}
         flake8 ${{ inputs.app_module }} tests --count --select=E9,F63,F7,F82 --show-source --statistics
+
+    - name: Run pylint
+      run: |
+        cd ${{ inputs.service_path }}
+        pylint ${{ inputs.app_module }}/*.py --disable=C0111,C0103,R0903 || echo "Pylint warnings found but continuing..."
 
   build-docker:
     runs-on: ubuntu-latest
@@ -194,8 +194,8 @@ jobs:
     - name: Run security check (bandit)
       run: |
         cd ${{ inputs.service_path }}
-        bandit -r ${{ inputs.app_module }}/ -f json -o bandit-report.json || true
-      continue-on-error: true
+        bandit -r ${{ inputs.app_module }}/ -f json -o bandit-report.json
+      continue-on-error: false
 
     - name: Check imports
       run: |

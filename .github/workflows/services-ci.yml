@@ -125,7 +125,7 @@ jobs:
       app_module: 'app'
       python_version: '3.11'
       run_local_test: true
-        local_test_script: "python tests/test_local_integration.py"
+      local_test_script: "python tests/test_local_integration.py"
     secrets: inherit
 
   orchestrator:
