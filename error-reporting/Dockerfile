@@ -9,11 +9,11 @@ WORKDIR /app
 # NOTE: If your environment uses SSL inspection or a custom CA, configure pip
 # to use the correct CA certificate bundle instead of disabling TLS verification.
 # See: https://pip.pypa.io/en/stable/topics/configuration/
-COPY requirements.txt .
+COPY error-reporting/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY . .
+COPY error-reporting/ .
 
 # Expose port
 EXPOSE 8081
