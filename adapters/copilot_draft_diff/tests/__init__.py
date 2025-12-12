@@ -1,9 +1,4 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-python-dotenv==1.2.1
-fastapi==0.115.6
-uvicorn==0.34.0
-requests==2.32.3
-httpx==0.28.1
-
+"""Tests for copilot_draft_diff module."""

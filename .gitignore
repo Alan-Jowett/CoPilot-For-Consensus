@@ -9,3 +9,9 @@
 **/.coverage
 **/htmlcov/**
 **/coverage.lcov
+**/dist/**
+**/.pytest_cache/**
+**/.coverage
+**/coverage.lcov
+**/htmlcov/**
+**/*.pyc

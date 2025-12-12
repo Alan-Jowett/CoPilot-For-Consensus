@@ -6,10 +6,10 @@ beautifulsoup4==4.12.3
 fastapi==0.109.2
 uvicorn==0.27.1
 
-# Adapter dependencies
-adapters/copilot_events
-adapters/copilot_storage
-adapters/copilot_metrics
-adapters/copilot_reporting
-adapters/copilot_logging
-adapters/copilot_schema_validation
+# Adapter dependencies (installed separately in CI/Dockerfile)
+# copilot_events
+# copilot_storage
+# copilot_metrics
+# copilot_reporting
+# copilot_logging
+# copilot_schema_validation
