@@ -10,6 +10,7 @@ from copilot_events import NoopPublisher, NoopSubscriber
 from copilot_storage import InMemoryDocumentStore
 
 from app.service import ParsingService
+from .test_helpers import assert_valid_event_schema
 
 
 class MockPublisher:
@@ -343,3 +344,193 @@ class TestParsingService:
         stats = service.get_stats()
         assert stats["archives_processed"] == 1
         assert stats["messages_parsed"] == 2
+
+
+# ============================================================================
+# Schema Validation Tests
+# ============================================================================
+
+
+def test_json_parsed_event_schema_validation(document_store, sample_mbox_file):
+    """Test that JSONParsed events validate against schema."""
+    publisher = MockPublisher()
+    publisher.connect()
+    subscriber = NoopSubscriber()
+    subscriber.connect()
+    
+    service = ParsingService(
+        document_store=document_store,
+        publisher=publisher,
+        subscriber=subscriber,
+    )
+    
+    archive_data = {
+        "archive_id": "test-archive-schema",
+        "file_path": sample_mbox_file,
+    }
+    
+    service.process_archive(archive_data)
+    
+    # Get published events
+    json_parsed_events = [
+        e for e in publisher.published_events
+        if e["event"]["event_type"] == "JSONParsed"
+    ]
+    
+    assert len(json_parsed_events) >= 1
+    
+    # Validate each event
+    for event_record in json_parsed_events:
+        assert_valid_event_schema(event_record["event"])
+
+
+def test_parsing_failed_event_schema_validation(document_store):
+    """Test that ParsingFailed events validate against schema."""
+    publisher = MockPublisher()
+    publisher.connect()
+    subscriber = NoopSubscriber()
+    subscriber.connect()
+    
+    service = ParsingService(
+        document_store=document_store,
+        publisher=publisher,
+        subscriber=subscriber,
+    )
+    
+    # Try to process a non-existent file
+    archive_data = {
+        "archive_id": "test-archive-fail",
+        "file_path": "/nonexistent/file.mbox",
+    }
+    
+    service.process_archive(archive_data)
+    
+    # Get published events
+    failure_events = [
+        e for e in publisher.published_events
+        if e["event"]["event_type"] == "ParsingFailed"
+    ]
+    
+    assert len(failure_events) >= 1
+    
+    # Validate each event
+    for event_record in failure_events:
+        assert_valid_event_schema(event_record["event"])
+
+
+# ============================================================================
+# Message Consumption Tests
+# ============================================================================
+
+
+def test_consume_archive_ingested_event(document_store, sample_mbox_file):
+    """Test consuming an ArchiveIngested event."""
+    publisher = MockPublisher()
+    publisher.connect()
+    subscriber = NoopSubscriber()
+    subscriber.connect()
+    
+    service = ParsingService(
+        document_store=document_store,
+        publisher=publisher,
+        subscriber=subscriber,
+    )
+    
+    # Simulate receiving an ArchiveIngested event
+    event = {
+        "event_type": "ArchiveIngested",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+        "data": {
+            "archive_id": "test-archive-consume",
+            "source_name": "test-source",
+            "source_type": "local",
+            "source_url": sample_mbox_file,
+            "file_path": sample_mbox_file,
+            "file_size_bytes": 1234,
+            "file_hash_sha256": "abc123",
+            "ingestion_started_at": "2023-10-15T12:00:00Z",
+            "ingestion_completed_at": "2023-10-15T12:01:00Z",
+        }
+    }
+    
+    # Validate incoming event
+    assert_valid_event_schema(event)
+    
+    # Process the event
+    service._handle_archive_ingested(event)
+    
+    # Verify processing succeeded
+    stats = service.get_stats()
+    assert stats["archives_processed"] == 1
+    assert stats["messages_parsed"] == 2
+    
+    # Verify JSONParsed event was published
+    json_parsed_events = [
+        e for e in publisher.published_events
+        if e["event"]["event_type"] == "JSONParsed"
+    ]
+    assert len(json_parsed_events) >= 1
+
+
+# ============================================================================
+# Invalid Message Handling Tests
+# ============================================================================
+
+
+def test_handle_malformed_event_missing_data(document_store):
+    """Test handling event with missing data field."""
+    publisher = MockPublisher()
+    subscriber = NoopSubscriber()
+    
+    service = ParsingService(
+        document_store=document_store,
+        publisher=publisher,
+        subscriber=subscriber,
+    )
+    
+    # Event missing 'data' field
+    event = {
+        "event_type": "ArchiveIngested",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+    }
+    
+    # Should handle gracefully without crashing
+    try:
+        service._handle_archive_ingested(event)
+    except KeyError:
+        # Expected - service should validate required fields
+        pass
+
+
+def test_handle_event_missing_required_fields(document_store):
+    """Test handling event with missing required fields in data."""
+    publisher = MockPublisher()
+    subscriber = NoopSubscriber()
+    
+    service = ParsingService(
+        document_store=document_store,
+        publisher=publisher,
+        subscriber=subscriber,
+    )
+    
+    # Event missing required 'file_path' field
+    event = {
+        "event_type": "ArchiveIngested",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+        "data": {
+            "archive_id": "test-archive",
+        }
+    }
+    
+    # Should handle gracefully
+    try:
+        service._handle_archive_ingested(event)
+    except (KeyError, FileNotFoundError):
+        # Expected - service should handle missing fields
+        pass

@@ -8,8 +8,18 @@ import sys
 import tempfile
 import pytest
 
+from copilot_storage import InMemoryDocumentStore
+
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+
+@pytest.fixture
+def document_store():
+    """Create in-memory document store."""
+    store = InMemoryDocumentStore()
+    store.connect()
+    return store
 
 
 @pytest.fixture
