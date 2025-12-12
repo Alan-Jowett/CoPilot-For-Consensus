@@ -95,7 +95,7 @@
       "type": "string",
       "source": "env",
       "env_var": "NOTIFY_WEBHOOK_URL",
-      "default": null,
+      "default": "",
       "description": "Webhook URL for notifications"
     },
     "metrics_backend": {

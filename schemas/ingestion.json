@@ -66,7 +66,7 @@
       "type": "string",
       "source": "env",
       "env_var": "BLOB_STORAGE_CONNECTION_STRING",
-      "default": null,
+      "default": "",
       "description": "Blob storage connection string"
     },
     "blob_storage_container": {
@@ -129,7 +129,7 @@
       "type": "string",
       "source": "env",
       "env_var": "SENTRY_DSN",
-      "default": null,
+      "default": "",
       "description": "Sentry DSN for error reporting"
     },
     "sentry_environment": {

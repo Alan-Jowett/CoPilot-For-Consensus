@@ -42,7 +42,7 @@ class TypedConfig:
             AttributeError: If configuration key does not exist
         """
         if name.startswith('_'):
-            # Allow access to private attributes
+            # Block access to private attributes
             raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
         
         if name not in self._config:

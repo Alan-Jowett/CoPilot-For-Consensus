@@ -32,7 +32,10 @@ class YamlConfigProvider(ConfigProvider):
         try:
             import yaml
         except ImportError:
-            raise ImportError("PyYAML required for YAML configuration. Install with: pip install pyyaml")
+            raise ImportError(
+                "PyYAML required for YAML configuration. "
+                "Install with: pip install copilot-config[yaml]"
+            )
         
         if not os.path.exists(self._filepath):
             self._config = {}

@@ -25,6 +25,20 @@ from copilot_config import (
     EnvConfigProvider,
 )
 
+# Find the schemas directory
+def get_schema_dir():
+    """Find the schemas directory."""
+    current = Path(__file__).parent
+    for _ in range(5):  # Search up to 5 levels up
+        schema_dir = current / "schemas"
+        if schema_dir.exists():
+            return str(schema_dir)
+        current = current.parent
+    # Fall back to environment variable or current directory
+    return os.environ.get("SCHEMA_DIR", "./schemas")
+
+SCHEMA_DIR = get_schema_dir()
+
 
 def example_basic_loading():
     """Example 1: Basic configuration loading."""
@@ -38,10 +52,7 @@ def example_basic_loading():
     
     try:
         # Load configuration from schema
-        config = load_config(
-            "chunking",
-            schema_dir=str(Path(__file__).parent.parent.parent.parent / "schemas")
-        )
+        config = load_config("chunking", schema_dir=SCHEMA_DIR)
         
         print(f"✓ Configuration loaded successfully!")
         print(f"  Message Bus Host: {config['message_bus_host']}")
@@ -70,7 +81,7 @@ def example_typed_config():
         # Load typed configuration
         config = load_typed_config(
             "chunking",
-            schema_dir=str(Path(__file__).parent.parent.parent.parent / "schemas")
+            schema_dir=SCHEMA_DIR
         )
         
         print(f"✓ Typed configuration loaded!")
@@ -113,7 +124,7 @@ def example_validation_errors():
     try:
         config = load_config(
             "chunking",
-            schema_dir=str(Path(__file__).parent.parent.parent.parent / "schemas"),
+            schema_dir=SCHEMA_DIR,
             env_provider=env_provider
         )
         print(f"✓ Configuration loaded successfully!")
@@ -143,7 +154,7 @@ def example_default_values():
     try:
         config = load_typed_config(
             "chunking",
-            schema_dir=str(Path(__file__).parent.parent.parent.parent / "schemas"),
+            schema_dir=SCHEMA_DIR,
             env_provider=env_provider
         )
         
@@ -178,7 +189,7 @@ def example_type_conversion():
     try:
         config = load_typed_config(
             "chunking",
-            schema_dir=str(Path(__file__).parent.parent.parent.parent / "schemas"),
+            schema_dir=SCHEMA_DIR,
             env_provider=env_provider
         )
         

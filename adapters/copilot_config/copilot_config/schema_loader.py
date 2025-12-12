@@ -343,20 +343,24 @@ def load_config(
     """
     # Determine schema directory
     if schema_dir is None:
-        # Try common locations
-        possible_dirs = [
-            os.path.join(os.getcwd(), "schemas"),
-            os.path.join(os.getcwd(), "..", "schemas"),
-            os.path.join(os.path.dirname(__file__), "..", "..", "..", "schemas"),
-        ]
-        
-        for d in possible_dirs:
-            if os.path.exists(d):
-                schema_dir = d
-                break
+        # First check environment variable
+        schema_dir = os.environ.get("SCHEMA_DIR")
         
         if schema_dir is None:
-            schema_dir = os.path.join(os.getcwd(), "schemas")
+            # Try common locations relative to current working directory
+            possible_dirs = [
+                os.path.join(os.getcwd(), "schemas"),
+                os.path.join(os.getcwd(), "..", "schemas"),
+            ]
+            
+            for d in possible_dirs:
+                if os.path.exists(d):
+                    schema_dir = d
+                    break
+            
+            # Default to ./schemas if nothing found
+            if schema_dir is None:
+                schema_dir = os.path.join(os.getcwd(), "schemas")
     
     # Load schema
     schema_path = os.path.join(schema_dir, f"{service_name}.json")
