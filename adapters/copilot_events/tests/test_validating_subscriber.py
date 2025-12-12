@@ -92,7 +92,7 @@ class TestValidatingEventSubscriber:
             schema_provider=mock_provider,
         )
         
-        with patch("copilot_events.validating_subscriber.validate_json") as mock_validate:
+        with patch("copilot_schema_validation.validate_json") as mock_validate:
             mock_validate.return_value = (True, [])
             event = {"event_type": "TestEvent", "data": {}}
             
@@ -116,7 +116,7 @@ class TestValidatingEventSubscriber:
             schema_provider=mock_provider,
         )
         
-        with patch("copilot_events.validating_subscriber.validate_json") as mock_validate:
+        with patch("copilot_schema_validation.validate_json") as mock_validate:
             mock_validate.return_value = (False, ["Missing required field: data"])
             event = {"event_type": "TestEvent"}
             
@@ -177,7 +177,7 @@ class TestValidatingEventSubscriber:
         mock_callback = Mock()
         event = {"event_type": "TestEvent", "data": {"id": 1}}
         
-        with patch("copilot_events.validating_subscriber.validate_json") as mock_validate:
+        with patch("copilot_schema_validation.validate_json") as mock_validate:
             mock_validate.return_value = (True, [])
             wrapper = subscriber._validating_callback_wrapper("TestEvent", mock_callback)
             wrapper(event)
@@ -200,7 +200,7 @@ class TestValidatingEventSubscriber:
         mock_callback = Mock()
         event = {"event_type": "TestEvent"}
         
-        with patch("copilot_events.validating_subscriber.validate_json") as mock_validate:
+        with patch("copilot_schema_validation.validate_json") as mock_validate:
             mock_validate.return_value = (False, ["Invalid field"])
             wrapper = subscriber._validating_callback_wrapper("TestEvent", mock_callback)
             
@@ -227,7 +227,7 @@ class TestValidatingEventSubscriber:
         mock_callback = Mock()
         event = {"event_type": "TestEvent"}
         
-        with patch("copilot_events.validating_subscriber.validate_json") as mock_validate:
+        with patch("copilot_schema_validation.validate_json") as mock_validate:
             mock_validate.return_value = (False, ["Invalid field"])
             wrapper = subscriber._validating_callback_wrapper("TestEvent", mock_callback)
             wrapper(event)
@@ -252,7 +252,7 @@ class TestValidatingEventSubscriber:
         mock_callback.side_effect = ValueError("Processing error")
         event = {"event_type": "TestEvent", "data": {}}
         
-        with patch("copilot_events.validating_subscriber.validate_json") as mock_validate:
+        with patch("copilot_schema_validation.validate_json") as mock_validate:
             mock_validate.return_value = (True, [])
             wrapper = subscriber._validating_callback_wrapper("TestEvent", mock_callback)
             
@@ -319,7 +319,7 @@ class TestValidatingEventSubscriber:
         
         mock_callback = Mock()
         
-        with patch("copilot_events.validating_subscriber.validate_json") as mock_validate:
+        with patch("copilot_schema_validation.validate_json") as mock_validate:
             mock_validate.return_value = (True, [])
             subscriber.subscribe(
                 event_type="TestEvent",
@@ -372,7 +372,7 @@ class TestValidatingEventSubscriber:
         event = {"event_type": "TestEvent", "data": {"id": 1}}
         
         # Subscribe to event
-        with patch("copilot_events.validating_subscriber.validate_json") as mock_validate:
+        with patch("copilot_schema_validation.validate_json") as mock_validate:
             mock_validate.return_value = (True, [])
             subscriber.subscribe(
                 event_type="TestEvent",
