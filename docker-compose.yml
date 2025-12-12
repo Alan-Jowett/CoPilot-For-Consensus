@@ -28,7 +28,8 @@ services:
   parsing:
     image: copilot-parsing:latest
     build:
-      context: ./parsing
+      context: .
+      dockerfile: ./parsing/Dockerfile
     environment:
       - STORAGE_PATH=/data/parsed_json
     volumes:
@@ -46,7 +47,8 @@ services:
   embedding:
     image: copilot-embedding:latest
     build:
-      context: ./embedding
+      context: .
+      dockerfile: ./embedding/Dockerfile
     environment:
       - VECTOR_DB_HOST=vectorstore
       - EMBEDDING_BACKEND=${EMBEDDING_BACKEND:-sentencetransformers}
@@ -75,7 +77,8 @@ services:
   orchestrator:
     image: copilot-orchestrator:latest
     build:
-      context: ./orchestrator
+      context: .
+      dockerfile: ./orchestrator/Dockerfile
     environment:
       - VECTOR_DB_HOST=vectorstore
       - DOC_DB_HOST=documentdb
@@ -187,6 +190,76 @@ services:
       - prometheus_data:/prometheus
     restart: unless-stopped
 
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./infra/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - monitoring
+      - loki
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./infra/loki/loki-config.yml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
+
+  # WARNING: The Promtail service mounts the Docker socket (/var/run/docker.sock) with read-only access.
+  # This is required for Promtail to discover and label logs from Docker containers.
+  # However, even read-only access to the Docker socket can be a security risk, as it allows querying
+  # information about all containers on the host. This configuration is intended for development/local
+  # use only. For production deployments, REMOVE or restrict this mount and consider alternative log
+  # collection strategies. See: https://docs.docker.com/engine/security/#docker-daemon-attack-surface
+  # WARNING: Promtail requires read-only access to the Docker socket for container discovery.
+  # Even read-only access to the Docker socket can be a security risk as it allows querying
+  # information about all containers on the host. This is intended for development/local use only.
+  # For production deployments, consider alternative log collection strategies.
+  # See: https://docs.docker.com/engine/security/#docker-daemon-attack-surface
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - ./infra/promtail/promtail-config.yml:/etc/promtail/config.yml
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  # WARNING: The error-reporting service has NO authentication or authorization.
+  # Do NOT expose this service to untrusted networks or in production environments.
+  # This is intended for local development only. See error-reporting/README.md for details.
+  # WARNING: The error-reporting service has NO authentication or authorization.
+  # Do NOT expose this service to untrusted networks or in production environments.
+  # For local development only. See README for details.
+  error-reporting:
+    image: copilot-error-reporting:latest
+    build:
+      context: ./error-reporting
+    ports:
+      - "127.0.0.1:8081:8081"
+    restart: unless-stopped
+
   pushgateway:
     image: prom/pushgateway:latest
     ports:
@@ -199,4 +272,6 @@ volumes:
   vector_data:
   mongo_data:
   prometheus_data:
+  grafana_data:
+  loki_data:
   ollama_data:

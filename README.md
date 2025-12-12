@@ -68,4 +68,116 @@ All contributions must include appropriate SPDX headers. See [CONTRIBUTING.md](d
 ***
 
 ## Architecture
-- **Microservices:**  
+
+### Microservices
+- **Ingestion Service:** Fetches mailing list archives from various sources
+- **Parsing Service:** Extracts and normalizes email messages
+- **Chunking Service:** Splits messages into manageable chunks
+- **Embedding Service:** Generates vector embeddings for semantic search
+- **Orchestrator Service:** Coordinates workflow across services
+- **Summarization Service:** Creates summaries using LLMs
+- **Reporting Service:** Provides API and UI for accessing results
+
+### Infrastructure Components
+- **MongoDB** (`documentdb`): Document storage for structured data
+- **Qdrant** (`vectorstore`): Vector database for semantic search
+- **Ollama**: Local LLM runtime for embeddings and generation
+- **RabbitMQ** (`messagebus`): Message broker for inter-service communication
+- **Prometheus** (`monitoring`): Metrics collection and storage
+- **Grafana**: Metrics visualization and dashboards
+- **Loki**: Centralized log aggregation
+- **Promtail**: Log collection agent
+- **Error Reporting Service**: Centralized error tracking and debugging
+
+### Observability Stack
+
+The system includes a comprehensive observability stack for monitoring, logging, and error tracking:
+
+#### Metrics (Prometheus + Grafana)
+- **Prometheus** scrapes metrics from all services on port 9090
+- **Grafana** provides visualization dashboards on port 3000
+- Pre-configured dashboards for:
+  - System health and service uptime
+  - Ingestion and parsing throughput
+  - Embedding latency percentiles
+  - Vector store size and performance
+
+Access Grafana at `http://localhost:3000` (default credentials: admin/admin)
+
+#### Logging (Loki + Promtail)
+- **Loki** aggregates logs from all services on port 3100
+- **Promtail** scrapes Docker container logs automatically
+- Logs are labeled by service, container, and level
+- Query logs through Grafana's Explore interface
+
+#### Error Tracking
+- **Error Reporting Service** provides centralized error aggregation on port 8081
+- Web UI at `http://localhost:8081/ui` for browsing errors
+- REST API at `/api/errors` for programmatic access
+- Filters by service, error level, and error type
+- Statistics dashboard showing error distribution
+
+***
+
+## Quick Start
+
+### Prerequisites
+- Docker and Docker Compose
+- 8GB+ RAM recommended
+- 20GB+ disk space for models and data
+
+### Running the Stack
+
+1. Clone the repository:
+```bash
+git clone https://github.com/Alan-Jowett/CoPilot-For-Consensus.git
+cd CoPilot-For-Consensus
+```
+
+2. Start all services:
+```bash
+docker compose up -d
+```
+
+3. Initialize the database:
+```bash
+# Database initialization runs automatically via db-init service
+docker compose logs db-init
+```
+
+4. Access the services:
+- **Reporting UI**: http://localhost:8080
+- **Grafana Dashboards**: http://localhost:3000 (admin/admin)
+- **Error Tracking**: http://localhost:8081/ui
+- **Prometheus**: http://localhost:9090
+- **RabbitMQ Management**: http://localhost:15672 (guest/guest)
+
+5. Pull an LLM model (first time only):
+```bash
+docker compose exec ollama ollama pull mistral
+```
+
+6. Run ingestion:
+```bash
+docker compose run --rm ingestion
+```
+
+### Viewing Logs
+
+View logs for all services:
+```bash
+docker compose logs -f
+```
+
+View logs for a specific service:
+```bash
+docker compose logs -f parsing
+```
+
+Query centralized logs in Grafana:
+1. Open http://localhost:3000
+2. Navigate to Explore
+3. Select "Loki" datasource
+4. Query: `{service="parsing"}` to see parsing service logs
+
+***  
