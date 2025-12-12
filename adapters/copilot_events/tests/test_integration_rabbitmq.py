@@ -14,6 +14,10 @@ from copilot_events import (
     RabbitMQSubscriber,
 )
 
+# Test timing constants
+SUBSCRIBER_STARTUP_WAIT = 1  # seconds to wait for subscriber to start
+TEST_TIMEOUT_SECONDS = 10  # seconds to wait for test completion
+
 
 def get_rabbitmq_config():
     """Get RabbitMQ configuration from environment variables."""
@@ -124,7 +128,7 @@ class TestRabbitMQIntegration:
         consume_thread.start()
         
         # Give the subscriber time to start
-        time.sleep(1)
+        time.sleep(SUBSCRIBER_STARTUP_WAIT)
         
         # Publish an event
         event = {
@@ -141,7 +145,7 @@ class TestRabbitMQIntegration:
         assert success is True
         
         # Wait for the event to be received
-        consume_thread.join(timeout=10)
+        consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
         
         # Verify the event was received
         assert len(received_events) == 1
@@ -171,7 +175,7 @@ class TestRabbitMQIntegration:
         consume_thread.start()
         
         # Give the subscriber time to start
-        time.sleep(1)
+        time.sleep(SUBSCRIBER_STARTUP_WAIT)
         
         # Publish multiple events
         for i in range(num_events):
@@ -189,7 +193,7 @@ class TestRabbitMQIntegration:
             assert success is True
         
         # Wait for events to be received
-        consume_thread.join(timeout=10)
+        consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
         
         # Verify all events were received
         assert len(received_events) == num_events
@@ -217,7 +221,7 @@ class TestRabbitMQIntegration:
         consume_thread.start()
         
         # Give the subscriber time to start
-        time.sleep(1)
+        time.sleep(SUBSCRIBER_STARTUP_WAIT)
         
         # Publish events with different routing keys
         # This should be received
@@ -245,7 +249,7 @@ class TestRabbitMQIntegration:
         )
         
         # Wait for events
-        consume_thread.join(timeout=10)
+        consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
         
         # Verify only matching event was received
         assert len(received_events) == 1
@@ -267,7 +271,7 @@ class TestRabbitMQIntegration:
         )
         consume_thread.daemon = True
         consume_thread.start()
-        time.sleep(1)
+        time.sleep(SUBSCRIBER_STARTUP_WAIT)
         
         # Create a complex event
         complex_event = {
@@ -295,7 +299,7 @@ class TestRabbitMQIntegration:
         )
         assert success is True
         
-        consume_thread.join(timeout=10)
+        consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
         
         assert len(received_events) == 1
         received = received_events[0]
@@ -377,7 +381,7 @@ class TestRabbitMQEdgeCases:
         )
         consume_thread.daemon = True
         consume_thread.start()
-        time.sleep(1)
+        time.sleep(SUBSCRIBER_STARTUP_WAIT)
         
         # Publish event with empty data
         event = {
@@ -393,7 +397,7 @@ class TestRabbitMQEdgeCases:
         )
         assert success is True
         
-        consume_thread.join(timeout=10)
+        consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
         
         assert len(received_events) == 1
         assert received_events[0]["data"] == {}
