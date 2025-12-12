@@ -208,7 +208,6 @@ if __name__ == "__main__":
     config = load_typed_config("error-reporting")
     
     # Initialize error store with config
-    global error_store
     error_store = ErrorStore(max_errors=config.max_errors)
     
     logger.info(f"Starting Error Reporting Service on port {config.http_port}")
