@@ -144,6 +144,18 @@ class IngestionConfig:
             # Apply overrides onto a new instance
             return cls(**overrides)
         
+        # Build sources from config adapter (preferred)
+        sources_list: List[SourceConfig] = []
+        if getattr(config_obj, "sources", None):
+            try:
+                sources_list = [
+                    SourceConfig.from_dict(s) if isinstance(s, dict) else s
+                    for s in config_obj.sources
+                ]
+            except Exception:
+                # Fallback: leave empty if structure unexpected
+                sources_list = []
+
         return cls(
             storage_path=config_obj.storage_path,
             message_bus_host=config_obj.message_bus_host,
@@ -164,6 +176,7 @@ class IngestionConfig:
             error_reporter_type=config_obj.error_reporter_type,
             sentry_dsn=config_obj.sentry_dsn,
             sentry_environment=config_obj.sentry_environment,
+            sources=sources_list,
         )
 
     @classmethod
@@ -182,19 +195,8 @@ class IngestionConfig:
         except ImportError:
             raise ImportError("PyYAML required for YAML configuration. Install with: pip install pyyaml")
         
-        config = cls.from_env(schema_path)
-        
-        if not os.path.exists(filepath):
-            return config
-        
-        with open(filepath, "r") as f:
-            yaml_config = yaml.safe_load(f) or {}
-        
-        # Load sources from YAML
-        if "sources" in yaml_config:
-            config.sources = [SourceConfig.from_dict(s) for s in yaml_config["sources"]]
-        
-        return config
+        # Prefer adapter-driven configuration; ignore file for sources.
+        return cls.from_env(schema_path)
 
     def get_enabled_sources(self) -> List[SourceConfig]:
         """Get list of enabled sources."""
