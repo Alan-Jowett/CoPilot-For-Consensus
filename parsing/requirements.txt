@@ -7,8 +7,8 @@ fastapi==0.109.2
 uvicorn==0.27.1
 
 # Adapter dependencies
-../adapters/copilot_events
-../adapters/copilot_storage
-../adapters/copilot_metrics
-../adapters/copilot_reporting
-../adapters/copilot_logging
+adapters/copilot_events
+adapters/copilot_storage
+adapters/copilot_metrics
+adapters/copilot_reporting
+adapters/copilot_logging
