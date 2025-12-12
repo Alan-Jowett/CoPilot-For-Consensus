@@ -39,7 +39,8 @@ services:
   chunking:
     image: copilot-chunking:latest
     build:
-      context: ./chunking
+      context: .
+      dockerfile: ./chunking/Dockerfile
     depends_on:
       - parsing
     restart: unless-stopped
