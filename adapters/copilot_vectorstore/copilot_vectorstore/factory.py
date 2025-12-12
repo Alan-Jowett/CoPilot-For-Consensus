@@ -10,6 +10,7 @@ from typing import Optional
 from .interface import VectorStore
 from .inmemory import InMemoryVectorStore
 from .faiss_store import FAISSVectorStore
+from .qdrant_store import QdrantVectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -69,10 +70,41 @@ def create_vector_store(
         )
     
     elif backend == "qdrant":
-        # Scaffold for future implementation
-        raise NotImplementedError(
-            "Qdrant backend is not yet implemented. "
-            "Contributions welcome! See the VectorStore interface for requirements."
+        # Get Qdrant configuration from environment or kwargs
+        host = kwargs.get("host", os.getenv("QDRANT_HOST", "localhost"))
+        
+        # Parse port with error handling
+        if "port" in kwargs:
+            port = kwargs["port"]
+        else:
+            port_str = os.getenv("QDRANT_PORT", "6333")
+            try:
+                port = int(port_str)
+            except ValueError:
+                raise ValueError(f"Invalid value for QDRANT_PORT: '{port_str}'. Must be an integer.")
+        
+        api_key = kwargs.get("api_key", os.getenv("QDRANT_API_KEY"))
+        collection_name = kwargs.get("collection_name", os.getenv("QDRANT_COLLECTION", "embeddings"))
+        distance = kwargs.get("distance", os.getenv("QDRANT_DISTANCE", "cosine"))
+        
+        # Parse batch size with error handling
+        if "upsert_batch_size" in kwargs:
+            upsert_batch_size = kwargs["upsert_batch_size"]
+        else:
+            batch_size_str = os.getenv("QDRANT_BATCH_SIZE", "100")
+            try:
+                upsert_batch_size = int(batch_size_str)
+            except ValueError:
+                raise ValueError(f"Invalid value for QDRANT_BATCH_SIZE: '{batch_size_str}'. Must be an integer.")
+        
+        return QdrantVectorStore(
+            host=host,
+            port=port,
+            api_key=api_key,
+            collection_name=collection_name,
+            vector_size=dimension,
+            distance=distance,
+            upsert_batch_size=upsert_batch_size,
         )
     
     elif backend == "azure":
