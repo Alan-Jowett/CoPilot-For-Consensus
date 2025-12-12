@@ -71,13 +71,78 @@ class IngestionConfig:
     sources: List[SourceConfig] = field(default_factory=list)
 
     @classmethod
-    def from_env(cls, schema_path: Optional[str] = None) -> "IngestionConfig":
+    def from_env(cls, schema_path: Optional[str] = None, config_provider: Optional[object] = None) -> "IngestionConfig":
         """Load configuration from environment variables using schema.
         
         Args:
             schema_path: Path to schema file (defaults to standard location)
+            config_provider: Backward-compatibility parameter, ignored. Tests may pass this.
         """
+        # Load from schema-based environment
         config_obj = load_typed_config("ingestion")
+
+        # Backward compatibility: if a legacy config_provider is supplied, use it to override
+        # values expected by older tests (StaticConfigProvider pattern).
+        if config_provider is not None:
+            # Helper functions guarded by hasattr to support different provider implementations
+            def _get(name, default=None):
+                if hasattr(config_provider, "get"):
+                    try:
+                        return config_provider.get(name, default)
+                    except Exception:
+                        return default
+                return default
+
+            def _get_int(name, default=0):
+                if hasattr(config_provider, "get_int"):
+                    try:
+                        return int(config_provider.get_int(name, default))
+                    except Exception:
+                        return default
+                val = _get(name, default)
+                try:
+                    return int(val)
+                except Exception:
+                    return default
+
+            def _get_bool(name, default=False):
+                if hasattr(config_provider, "get_bool"):
+                    try:
+                        return bool(config_provider.get_bool(name, default))
+                    except Exception:
+                        return default
+                val = _get(name, default)
+                if isinstance(val, bool):
+                    return val
+                if isinstance(val, str):
+                    return val.lower() in ("true", "1", "yes")
+                return bool(val)
+
+            # Build overrides from provider
+            overrides = {
+                "storage_path": _get("STORAGE_PATH", config_obj.storage_path),
+                "message_bus_host": _get("MESSAGE_BUS_HOST", config_obj.message_bus_host),
+                "message_bus_port": _get_int("MESSAGE_BUS_PORT", config_obj.message_bus_port),
+                "message_bus_user": _get("MESSAGE_BUS_USER", config_obj.message_bus_user),
+                "message_bus_password": _get("MESSAGE_BUS_PASSWORD", config_obj.message_bus_password),
+                "message_bus_type": _get("MESSAGE_BUS_TYPE", config_obj.message_bus_type),
+                "ingestion_schedule_cron": _get("INGESTION_SCHEDULE_CRON", config_obj.ingestion_schedule_cron),
+                "blob_storage_enabled": _get_bool("BLOB_STORAGE_ENABLED", config_obj.blob_storage_enabled),
+                "blob_storage_connection_string": _get("BLOB_STORAGE_CONNECTION_STRING", config_obj.blob_storage_connection_string),
+                "blob_storage_container": _get("BLOB_STORAGE_CONTAINER", config_obj.blob_storage_container),
+                "log_level": _get("LOG_LEVEL", config_obj.log_level),
+                "log_type": _get("LOG_TYPE", config_obj.log_type),
+                "logger_name": _get("LOG_NAME", config_obj.logger_name),
+                "metrics_backend": _get("METRICS_BACKEND", config_obj.metrics_backend),
+                "retry_max_attempts": _get_int("RETRY_MAX_ATTEMPTS", config_obj.retry_max_attempts),
+                "retry_backoff_seconds": _get_int("RETRY_BACKOFF_SECONDS", config_obj.retry_backoff_seconds),
+                "error_reporter_type": _get("ERROR_REPORTER_TYPE", config_obj.error_reporter_type),
+                "sentry_dsn": _get("SENTRY_DSN", config_obj.sentry_dsn),
+                "sentry_environment": _get("SENTRY_ENVIRONMENT", config_obj.sentry_environment),
+            }
+
+            # Apply overrides onto a new instance
+            return cls(**overrides)
         
         return cls(
             storage_path=config_obj.storage_path,
@@ -102,13 +167,16 @@ class IngestionConfig:
         )
 
     @classmethod
-    def from_yaml_file(cls, filepath: str, schema_path: Optional[str] = None) -> "IngestionConfig":
+    def from_yaml_file(cls, filepath: str, schema_path: Optional[str] = None, config_provider: Optional[object] = None) -> "IngestionConfig":
         """Load configuration from YAML file (config.yaml).
         
         Args:
             filepath: Path to YAML configuration file
             schema_path: Path to schema file (defaults to standard location)
+            config_provider: Backward-compatibility parameter, ignored. Tests may pass this.
         """
+        # Backward compatibility: accept and ignore legacy config_provider argument
+        _ = config_provider
         try:
             import yaml
         except ImportError:
