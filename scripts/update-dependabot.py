@@ -55,8 +55,11 @@ def find_python_packages(root_dir: Path) -> List[Tuple[str, str]]:
         
         if has_requirements or has_setup:
             rel_path = os.path.relpath(dirpath, root_dir)
-            # Convert Windows paths to Unix-style for dependabot
-            rel_path = '/' + rel_path.replace('\\', '/')
+            # Convert '.' (root) to '/', else prepend '/' and convert to Unix-style
+            if rel_path == '.':
+                rel_path = '/'
+            else:
+                rel_path = '/' + rel_path.replace('\\', '/')
             
             # Generate a description
             dir_name = os.path.basename(dirpath)
