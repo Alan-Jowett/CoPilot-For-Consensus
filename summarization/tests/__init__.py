@@ -1,7 +1,4 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-python-dotenv==1.2.1
-fastapi==0.115.6
-uvicorn==0.34.0
-pydantic==2.10.5
+"""Test init module."""
