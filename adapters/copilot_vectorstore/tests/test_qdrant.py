@@ -165,17 +165,21 @@ class TestQdrantVectorStore:
         
         # Mock search results
         mock_result = Mock()
-        mock_result.id = "doc1"
+        mock_result.id = "550e8400-e29b-41d4-a716-446655440000"
         mock_result.score = 0.95
         mock_result.vector = [1.0, 0.0, 0.0]
-        mock_result.payload = {"text": "hello"}
-        mock_client.search.return_value = [mock_result]
+        mock_result.payload = {"text": "hello", "_original_id": "doc1"}
+        
+        # Mock the query_points response
+        mock_response = Mock()
+        mock_response.points = [mock_result]
+        mock_client.query_points.return_value = mock_response
         
         store = QdrantVectorStore(vector_size=3)
         results = store.query([1.0, 0.0, 0.0], top_k=5)
         
         assert len(results) == 1
-        assert results[0].id == "doc1"
+        assert results[0].id == "doc1"  # Should extract original ID from payload
         assert results[0].score == 0.95
         assert results[0].metadata == {"text": "hello"}
     
