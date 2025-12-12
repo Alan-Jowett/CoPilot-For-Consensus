@@ -4,11 +4,6 @@
 """Tests for schema-driven configuration loader."""
 
 import json
-import os
-import tempfile
-from pathlib import Path
-
-import pytest
 
 from copilot_config import (
     ConfigSchema,

@@ -5,7 +5,6 @@
 
 import os
 from typing import Any, Dict, Optional
-from pathlib import Path
 
 from .config import ConfigProvider
 

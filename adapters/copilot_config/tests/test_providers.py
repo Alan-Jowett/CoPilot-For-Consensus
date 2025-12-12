@@ -3,12 +3,6 @@
 
 """Tests for additional configuration providers."""
 
-import os
-import tempfile
-from pathlib import Path
-
-import pytest
-
 from copilot_config.providers import YamlConfigProvider, DocStoreConfigProvider
 
 

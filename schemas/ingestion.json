@@ -17,7 +17,6 @@
       "source": "env",
       "env_var": "MESSAGE_BUS_HOST",
       "default": "messagebus",
-      "required": true,
       "description": "Message bus hostname"
     },
     "message_bus_port": {

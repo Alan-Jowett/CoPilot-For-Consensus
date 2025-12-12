@@ -95,7 +95,7 @@ Each schema includes:
 
 #### Schema Loader Tests (`tests/test_schema_loader.py`)
 
-- 29 tests covering:
+- 16 tests covering:
   - Schema parsing from JSON
   - Field specification
   - Configuration loading
@@ -113,7 +113,7 @@ Each schema includes:
   - Error handling
   - Type safety
 
-**Total: 75 tests, all passing**
+**Total: 39 tests, all passing**
 
 ### 4. Documentation
 
