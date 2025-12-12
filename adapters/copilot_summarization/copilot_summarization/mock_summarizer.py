@@ -42,7 +42,7 @@ class MockSummarizer(Summarizer):
         """
         start_time = time.time()
         
-        logger.info(f"Mock summarizing thread {thread.thread_id}")
+        logger.info("Mock summarizing thread %s", thread.thread_id)
         
         # Simulate processing delay
         if self.latency_ms > 0:

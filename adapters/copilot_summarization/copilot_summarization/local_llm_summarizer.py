@@ -39,7 +39,7 @@ class LocalLLMSummarizer(Summarizer):
         """
         self.model = model
         self.base_url = base_url
-        logger.info(f"Initialized LocalLLMSummarizer with model: {model}")
+        logger.info("Initialized LocalLLMSummarizer with model: %s", model)
         
     def summarize(self, thread: Thread) -> Summary:
         """Generate a summary using local LLM.
@@ -49,9 +49,6 @@ class LocalLLMSummarizer(Summarizer):
             
         Returns:
             Summary object with generated summary and metadata
-            
-        Raises:
-            NotImplementedError: This is a scaffold implementation
         """
         start_time = time.time()
         
@@ -62,7 +59,7 @@ class LocalLLMSummarizer(Summarizer):
         # - llama-cpp-python for llama.cpp
         # - transformers for HuggingFace models
         
-        logger.info(f"Summarizing thread {thread.thread_id} with local LLM")
+        logger.info("Summarizing thread %s with local LLM", thread.thread_id)
         
         # Construct prompt
         prompt = f"{thread.prompt_template}\n\n"

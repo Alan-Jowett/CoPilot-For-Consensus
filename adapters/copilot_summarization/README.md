@@ -16,7 +16,7 @@ LLM summarization adapter library with support for multiple providers (OpenAI, A
 ## Installation
 
 ```bash
-pip install ./sdk/copilot_summarization
+pip install ./adapters/copilot_summarization
 ```
 
 ## Usage
@@ -103,7 +103,7 @@ summarizer = SummarizerFactory.create_summarizer(provider="mock")
 ### Running Tests
 
 ```bash
-cd sdk/copilot_summarization
+cd adapters/copilot_summarization
 pytest tests/
 ```
 

@@ -44,7 +44,7 @@ class OpenAISummarizer(Summarizer):
         self.api_key = api_key
         self.model = model
         self.base_url = base_url
-        logger.info(f"Initialized OpenAISummarizer with model: {model}")
+        logger.info("Initialized OpenAISummarizer with model: %s", model)
         
     def summarize(self, thread: Thread) -> Summary:
         """Generate a summary using OpenAI API.
@@ -64,7 +64,7 @@ class OpenAISummarizer(Summarizer):
         # This is a placeholder implementation that should be replaced
         # with actual OpenAI API integration using the openai library
         
-        logger.info(f"Summarizing thread {thread.thread_id} with OpenAI")
+        logger.info("Summarizing thread %s with OpenAI", thread.thread_id)
         
         # Construct prompt
         prompt = f"{thread.prompt_template}\n\n"

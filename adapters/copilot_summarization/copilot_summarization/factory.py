@@ -55,7 +55,7 @@ class SummarizerFactory:
         
         provider = provider.lower()
         
-        logger.info(f"Creating summarizer with provider: {provider}")
+        logger.info("Creating summarizer with provider: %s", provider)
         
         if provider == "openai":
             if api_key is None:
