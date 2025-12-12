@@ -5,9 +5,12 @@
 
 import logging
 from datetime import datetime
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, render_template
 from app.error_store import ErrorStore, ErrorEvent
 import uuid
+
+# Valid error levels
+VALID_LEVELS = {"error", "warning", "critical", "info"}
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,7 +36,7 @@ def report_error():
     Expected JSON body:
     {
         "service": "service-name",
-        "level": "error|warning|critical",
+        "level": "error|warning|critical|info",
         "message": "Error message",
         "error_type": "ValueError",  # optional
         "stack_trace": "...",         # optional
@@ -51,6 +54,12 @@ def report_error():
         for field in required_fields:
             if field not in data:
                 return {"error": f"Missing required field: {field}"}, 400
+        
+        # Validate error level
+        if data["level"] not in VALID_LEVELS:
+            return {
+                "error": f"Invalid level. Must be one of: {', '.join(sorted(VALID_LEVELS))}"
+            }, 400
         
         # Create error event
         error_event = ErrorEvent(
@@ -95,8 +104,24 @@ def get_errors():
         service = request.args.get("service")
         level = request.args.get("level")
         error_type = request.args.get("error_type")
-        limit = min(int(request.args.get("limit", 100)), 1000)
-        offset = int(request.args.get("offset", 0))
+        
+        # Validate and parse limit parameter
+        limit_raw = request.args.get("limit", "100")
+        try:
+            limit = int(limit_raw)
+            if limit < 1 or limit > 1000:
+                return {"error": "'limit' must be between 1 and 1000"}, 400
+        except (TypeError, ValueError):
+            return {"error": "Invalid 'limit' parameter, must be an integer"}, 400
+        
+        # Validate and parse offset parameter
+        offset_raw = request.args.get("offset", "0")
+        try:
+            offset = int(offset_raw)
+            if offset < 0:
+                return {"error": "'offset' must be 0 or greater"}, 400
+        except (TypeError, ValueError):
+            return {"error": "Invalid 'offset' parameter, must be an integer"}, 400
         
         errors = error_store.get_errors(
             service=service,

@@ -10,8 +10,10 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-# Configure pip to trust PyPI (needed for environments with SSL inspection)
-RUN pip config set global.trusted-host "pypi.org files.pythonhosted.org pypi.python.org"
+# NOTE: If your environment uses SSL inspection or a custom CA, configure pip
+# to use the correct CA certificate bundle instead of disabling TLS verification.
+# Example: COPY your-ca-cert.crt /usr/local/share/ca-certificates/ && update-ca-certificates
+# See: https://pip.pypa.io/en/stable/topics/configuration/
 
 # Install shared adapters in dependency order using centralized script
 COPY adapters/ /app/adapters/

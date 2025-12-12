@@ -241,13 +241,13 @@ graph LR
     K -.->|collect| G
     K -->|forward| J
     
-    L["🚨 Error Reporting<br/>(Error Tracking)"] -.->|errors| A
-    L -.->|errors| B
-    L -.->|errors| C
-    L -.->|errors| D
-    L -.->|errors| E
-    L -.->|errors| F
-    L -.->|errors| G
+    A -.->|errors| L["🚨 Error Reporting<br/>(Error Tracking)"]
+    B -.->|errors| L
+    C -.->|errors| L
+    D -.->|errors| L
+    E -.->|errors| L
+    F -.->|errors| L
+    G -.->|errors| L
 ```
 
 ### Key Design Principles

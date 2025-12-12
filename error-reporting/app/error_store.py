@@ -3,10 +3,8 @@
 
 """Error store for managing error events."""
 
-from datetime import datetime
 from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
-import json
 
 
 @dataclass
@@ -39,7 +37,6 @@ class ErrorStore:
         """
         self.max_errors = max_errors
         self.errors: List[ErrorEvent] = []
-        self._error_id_counter = 0
     
     def add_error(self, error_event: ErrorEvent) -> str:
         """
@@ -144,4 +141,3 @@ class ErrorStore:
     def clear(self):
         """Clear all errors from the store."""
         self.errors = []
-        self._error_id_counter = 0
