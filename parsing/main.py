@@ -41,7 +41,7 @@ def health():
     """Health check endpoint."""
     global parsing_service
     
-    stats = parsing_service.get_stats() if parsing_service else {}
+    stats = parsing_service.get_stats() if parsing_service is not None else {}
     
     return {
         "status": "healthy",

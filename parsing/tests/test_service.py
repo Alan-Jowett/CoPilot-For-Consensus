@@ -4,7 +4,7 @@
 """Integration tests for parsing service."""
 
 import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 from copilot_events import NoopPublisher, NoopSubscriber
 from copilot_storage import InMemoryDocumentStore
