@@ -99,7 +99,7 @@ jobs:
 
   auth-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_auth == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_auth == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_auth
@@ -108,7 +108,7 @@ jobs:
 
   config-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_config == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_config == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_config
@@ -118,7 +118,7 @@ jobs:
 
   events-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_events == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_events == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_events
@@ -127,7 +127,7 @@ jobs:
 
   logging-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_logging == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_logging == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_logging
@@ -136,7 +136,7 @@ jobs:
 
   metrics-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_metrics == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_metrics == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_metrics
@@ -145,7 +145,7 @@ jobs:
 
   archive-fetcher-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_archive_fetcher == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_archive_fetcher == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_archive_fetcher
@@ -154,7 +154,7 @@ jobs:
 
   archive-fetcher-integration-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_archive_fetcher == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_archive_fetcher == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-integration-ci.yml
     with:
       adapter_id: copilot_archive_fetcher
@@ -166,7 +166,7 @@ jobs:
 
   reporting-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_reporting == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_reporting == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_reporting
@@ -175,7 +175,7 @@ jobs:
 
   storage-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_storage == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_storage == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_storage
@@ -184,7 +184,7 @@ jobs:
 
   embedding-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_embedding == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_embedding == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_embedding
@@ -193,7 +193,7 @@ jobs:
 
   chunking-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_chunking == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_chunking == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_chunking
@@ -202,7 +202,7 @@ jobs:
 
   consensus-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_consensus == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_consensus == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_consensus
@@ -211,7 +211,7 @@ jobs:
 
   schema-validation-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_schema_validation == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_schema_validation == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_schema_validation
@@ -220,7 +220,7 @@ jobs:
 
   summarization-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_summarization == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_summarization == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_summarization
@@ -229,7 +229,7 @@ jobs:
 
   vectorstore-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_vectorstore == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_vectorstore == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_vectorstore
@@ -248,7 +248,7 @@ jobs:
 
   storage-integration-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_storage == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_storage == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-integration-ci.yml
     with:
       adapter_id: copilot_storage
@@ -257,7 +257,7 @@ jobs:
 
   events-integration-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_events == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_events == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-integration-ci.yml
     with:
       adapter_id: copilot_events
@@ -266,7 +266,7 @@ jobs:
 
   schema-validation-integration-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_schema_validation == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_schema_validation == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-integration-ci.yml
     with:
       adapter_id: copilot_schema_validation
@@ -275,7 +275,7 @@ jobs:
 
   draft-diff:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_draft_diff == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_draft_diff == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
       adapter_id: copilot_draft_diff
