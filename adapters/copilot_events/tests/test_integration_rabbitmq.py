@@ -102,7 +102,20 @@ class TestRabbitMQIntegration:
         assert not rabbitmq_publisher.connection.is_closed
 
     def test_publish_event(self, rabbitmq_publisher):
-        """Test publishing a simple event."""
+        """Test publishing a simple event.
+        
+        Note: Creates a temporary queue to ensure the message has a route.
+        RabbitMQ returns NO_ROUTE if no queue is bound to the exchange.
+        """
+        # Declare a temporary queue and bind it to receive the message
+        result = rabbitmq_publisher.channel.queue_declare(queue='', exclusive=True)
+        queue_name = result.method.queue
+        rabbitmq_publisher.channel.queue_bind(
+            exchange=rabbitmq_publisher.exchange,
+            queue=queue_name,
+            routing_key="test.event"
+        )
+        
         event = {
             "event_type": "TestEvent",
             "event_id": str(uuid.uuid4()),
@@ -116,6 +129,9 @@ class TestRabbitMQIntegration:
         )
         
         assert success is True
+        
+        # Clean up the temporary queue
+        rabbitmq_publisher.channel.queue_delete(queue=queue_name)
 
     def test_publish_and_receive_event(self, rabbitmq_publisher, rabbitmq_subscriber):
         """Test publishing and receiving an event."""
