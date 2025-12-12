@@ -44,6 +44,7 @@ jobs:
       copilot_reporting: ${{ steps.filter.outputs.copilot_reporting }}
       copilot_schema_validation: ${{ steps.filter.outputs.copilot_schema_validation }}
       copilot_storage: ${{ steps.filter.outputs.copilot_storage }}
+      copilot_summarization: ${{ steps.filter.outputs.copilot_summarization }}
       copilot_vectorstore: ${{ steps.filter.outputs.copilot_vectorstore }}
       ci_workflows: ${{ steps.filter.outputs.ci_workflows }}
     steps:
@@ -84,6 +85,8 @@ jobs:
               - 'adapters/copilot_consensus/**'
             copilot_schema_validation:
               - 'adapters/copilot_schema_validation/**'
+            copilot_summarization:
+              - 'adapters/copilot_summarization/**'
             copilot_vectorstore:
               - 'adapters/copilot_vectorstore/**'
 
@@ -206,6 +209,15 @@ jobs:
       adapter_id: copilot_schema_validation
       adapter_path: adapters/copilot_schema_validation
       package_name: copilot_schema_validation
+
+  summarization-ci:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.copilot_summarization == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
+    with:
+      adapter_id: copilot_summarization
+      adapter_path: adapters/copilot_summarization
+      package_name: copilot_summarization
 
   vectorstore-ci:
     needs: detect-changes
