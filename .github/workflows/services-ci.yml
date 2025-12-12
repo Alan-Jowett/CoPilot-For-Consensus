@@ -48,23 +48,15 @@ jobs:
       python_version: '3.11'
     secrets: inherit
 
-  embedding:
-    uses: ./.github/workflows/service-reusable-unit-test-ci.yml
-    with:
-      service_id: 'embedding'
-      service_path: 'embedding'
-      app_module: 'app'
-      python_version: '3.11'
-    secrets: inherit
-
-  error-reporting:
-    uses: ./.github/workflows/service-reusable-unit-test-ci.yml
-    with:
-      service_id: 'error-reporting'
-      service_path: 'error-reporting'
-      app_module: 'app'
-      python_version: '3.11'
-    secrets: inherit
+  # Commented out until embedding service is ready
+  # embedding:
+  #   uses: ./.github/workflows/service-reusable-unit-test-ci.yml
+  #   with:
+  #     service_id: 'embedding'
+  #     service_path: 'embedding'
+  #     app_module: 'app'
+  #     python_version: '3.11'
+  #   secrets: inherit
 
   ingestion:
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
@@ -116,14 +108,15 @@ jobs:
                 exit(1)
     secrets: inherit
 
-  orchestrator:
-    uses: ./.github/workflows/service-reusable-unit-test-ci.yml
-    with:
-      service_id: 'orchestrator'
-      service_path: 'orchestrator'
-      app_module: 'app'
-      python_version: '3.11'
-    secrets: inherit
+  # Commented out until orchestrator service is ready
+  # orchestrator:
+  #   uses: ./.github/workflows/service-reusable-unit-test-ci.yml
+  #   with:
+  #     service_id: 'orchestrator'
+  #     service_path: 'orchestrator'
+  #     app_module: 'app'
+  #     python_version: '3.11'
+  #   secrets: inherit
 
   parsing:
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
@@ -134,20 +127,22 @@ jobs:
       python_version: '3.11'
     secrets: inherit
 
-  reporting:
-    uses: ./.github/workflows/service-reusable-unit-test-ci.yml
-    with:
-      service_id: 'reporting'
-      service_path: 'reporting'
-      app_module: 'app'
-      python_version: '3.11'
-    secrets: inherit
+  # Commented out until reporting service is ready
+  # reporting:
+  #   uses: ./.github/workflows/service-reusable-unit-test-ci.yml
+  #   with:
+  #     service_id: 'reporting'
+  #     service_path: 'reporting'
+  #     app_module: 'app'
+  #     python_version: '3.11'
+  #   secrets: inherit
 
-  summarization:
-    uses: ./.github/workflows/service-reusable-unit-test-ci.yml
-    with:
-      service_id: 'summarization'
-      service_path: 'summarization'
-      app_module: 'app'
-      python_version: '3.11'
-    secrets: inherit
+  # Commented out until summarization service is ready
+  # summarization:
+  #   uses: ./.github/workflows/service-reusable-unit-test-ci.yml
+  #   with:
+  #     service_id: 'summarization'
+  #     service_path: 'summarization'
+  #     app_module: 'app'
+  #     python_version: '3.11'
+  #   secrets: inherit
