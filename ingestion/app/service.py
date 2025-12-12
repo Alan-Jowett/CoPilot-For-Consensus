@@ -5,16 +5,107 @@ import json
 import os
 import time
 from datetime import datetime
-from typing import Optional, Dict, Any
+from pathlib import Path
+from typing import Optional, Dict, Any, Iterable, List
 from uuid import uuid4
 
 from copilot_events import EventPublisher, ArchiveIngestedEvent, ArchiveIngestionFailedEvent, ArchiveMetadata
 from copilot_logging import Logger, create_logger
 from copilot_metrics import MetricsCollector, create_metrics_collector
 from copilot_reporting import ErrorReporter, create_error_reporter
-from copilot_archive_fetcher import create_fetcher, calculate_file_hash
+from copilot_archive_fetcher import create_fetcher, calculate_file_hash, SourceConfig
 
-from .config import IngestionConfig, SourceConfig
+DEFAULT_CONFIG = {
+    "storage_path": "/data/raw_archives",
+    "message_bus_host": "messagebus",
+    "message_bus_port": 5672,
+    "message_bus_user": "guest",
+    "message_bus_password": "guest",
+    "message_bus_type": "rabbitmq",
+    "ingestion_schedule_cron": "0 */6 * * *",
+    "blob_storage_enabled": False,
+    "blob_storage_connection_string": None,
+    "blob_storage_container": "raw-archives",
+    "log_level": "INFO",
+    "log_type": "stdout",
+    "logger_name": "ingestion-service",
+    "metrics_backend": "noop",
+    "retry_max_attempts": 3,
+    "retry_backoff_seconds": 60,
+    "error_reporter_type": "console",
+    "sentry_dsn": None,
+    "sentry_environment": "production",
+    "sources": [],
+}
+
+
+def _apply_defaults(config: object) -> object:
+    """Ensure all expected config fields exist with defaults."""
+    for key, value in DEFAULT_CONFIG.items():
+        if not hasattr(config, key):
+            setattr(config, key, value)
+    return config
+
+
+def _expand(value: Optional[str]) -> Optional[str]:
+    return os.path.expandvars(value) if isinstance(value, str) else value
+
+
+def _source_from_mapping(source: Dict[str, Any]) -> Optional[SourceConfig]:
+    """Convert a raw mapping into a fetcher SourceConfig."""
+    if not source:
+        return None
+    required = {"name", "source_type", "url"}
+    if not required.issubset(source):
+        return None
+
+    return SourceConfig(
+        name=source["name"],
+        source_type=source["source_type"],
+        url=_expand(source.get("url")),
+        port=source.get("port"),
+        username=_expand(source.get("username")),
+        password=_expand(source.get("password")),
+        folder=source.get("folder"),
+    )
+
+
+def _enabled_sources(raw_sources: Iterable[Any]) -> List[SourceConfig]:
+    """Normalize and filter enabled sources."""
+    enabled_sources: List[SourceConfig] = []
+
+    for raw in raw_sources or []:
+        enabled = True
+        if isinstance(raw, dict):
+            enabled = raw.get("enabled", True)
+            source_cfg = _source_from_mapping(raw)
+        elif isinstance(raw, SourceConfig):
+            enabled = getattr(raw, "enabled", True)
+            source_cfg = SourceConfig(
+                name=raw.name,
+                source_type=raw.source_type,
+                url=_expand(raw.url),
+                port=getattr(raw, "port", None),
+                username=_expand(getattr(raw, "username", None)),
+                password=_expand(getattr(raw, "password", None)),
+                folder=getattr(raw, "folder", None),
+            )
+        else:
+            enabled = getattr(raw, "enabled", True)
+            source_cfg = SourceConfig(
+                name=getattr(raw, "name", None),
+                source_type=getattr(raw, "source_type", None),
+                url=_expand(getattr(raw, "url", None)),
+                port=getattr(raw, "port", None),
+                username=_expand(getattr(raw, "username", None)),
+                password=_expand(getattr(raw, "password", None)),
+                folder=getattr(raw, "folder", None),
+            )
+
+        if enabled and source_cfg is not None:
+            enabled_sources.append(source_cfg)
+
+    return enabled_sources
 
 
 class IngestionService:
@@ -22,7 +113,7 @@ class IngestionService:
 
     def __init__(
         self,
-        config: IngestionConfig,
+        config: object,
         publisher: EventPublisher,
         error_reporter: Optional[ErrorReporter] = None,
         logger: Optional[Logger] = None,
@@ -37,7 +128,7 @@ class IngestionService:
             logger: Structured logger for observability (optional)
             metrics: Metrics collector for observability (optional)
         """
-        self.config = config
+        self.config = _apply_defaults(config)
         self.publisher = publisher
         self.checksums: Dict[str, Dict[str, Any]] = {}
         self.logger = logger or create_logger(
@@ -46,7 +137,7 @@ class IngestionService:
             name=config.logger_name,
         )
         self.metrics = metrics or create_metrics_collector(backend=config.metrics_backend)
-        self.config.ensure_storage_path()
+        self._ensure_storage_path(self.config.storage_path)
         self._initial_storage_path = self.config.storage_path
         
         # Initialize error reporter
@@ -61,6 +152,12 @@ class IngestionService:
             self.error_reporter = error_reporter
         
         self.load_checksums()
+
+    @staticmethod
+    def _ensure_storage_path(storage_path: str) -> None:
+        storage_dir = Path(storage_path)
+        storage_dir.mkdir(parents=True, exist_ok=True)
+        (storage_dir / "metadata").mkdir(exist_ok=True)
 
     def load_checksums(self) -> None:
         """Load checksums from metadata file."""
@@ -149,7 +246,7 @@ class IngestionService:
 
     def ingest_archive(
         self,
-        source: SourceConfig,
+        source: object,
         max_retries: Optional[int] = None,
     ) -> bool:
         """Ingest archives from a source.
@@ -161,6 +258,15 @@ class IngestionService:
         Returns:
             True if ingestion succeeded, False otherwise
         """
+        # Normalize source into fetcher SourceConfig
+        if isinstance(source, dict):
+            source = _source_from_mapping(source)
+        elif not isinstance(source, SourceConfig):
+            source = _source_from_mapping(getattr(source, "__dict__", {}))
+
+        if source is None:
+            return False
+
         if max_retries is None:
             max_retries = self.config.retry_max_attempts
 
@@ -354,7 +460,7 @@ class IngestionService:
         """
         results = {}
 
-        for source in self.config.get_enabled_sources():
+        for source in _enabled_sources(getattr(self.config, "sources", [])):
             self.logger.info("Starting source ingestion", source_name=source.name)
             success = self.ingest_archive(source)
             results[source.name] = success
@@ -565,7 +671,9 @@ class IngestionService:
     @staticmethod
     def _metric_tags(source: SourceConfig) -> Dict[str, str]:
         """Build consistent metric tags for a source."""
+        name = getattr(source, "name", None) or (source.get("name") if isinstance(source, dict) else None)
+        src_type = getattr(source, "source_type", None) or (source.get("source_type") if isinstance(source, dict) else None)
         return {
-            "source_name": source.name,
-            "source_type": source.source_type,
+            "source_name": name or "unknown",
+            "source_type": src_type or "unknown",
         }

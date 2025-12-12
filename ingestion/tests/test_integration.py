@@ -10,8 +10,8 @@ import pytest
 
 from copilot_events import NoopPublisher
 
-from app.config import IngestionConfig, SourceConfig
 from app.service import IngestionService
+from .test_helpers import make_config, make_source
 
 
 class TestIngestionIntegration:
@@ -54,7 +54,7 @@ class TestIngestionIntegration:
                     f.write(f"\n")
 
             sources.append(
-                SourceConfig(
+                make_source(
                     name=source_name,
                     source_type="local",
                     url=source_file,
@@ -67,7 +67,7 @@ class TestIngestionIntegration:
     def test_end_to_end_ingestion(self, temp_environment, test_sources):
         """Test complete end-to-end ingestion workflow."""
         # Create configuration
-        config = IngestionConfig(
+        config = make_config(
             storage_path=temp_environment["storage_path"],
             sources=test_sources,
             retry_max_attempts=1,
@@ -116,7 +116,7 @@ class TestIngestionIntegration:
 
     def test_ingestion_with_duplicates(self, temp_environment, test_sources):
         """Test ingestion handling of duplicate archives."""
-        config = IngestionConfig(
+        config = make_config(
             storage_path=temp_environment["storage_path"],
             sources=test_sources,
         )
@@ -144,10 +144,10 @@ class TestIngestionIntegration:
     def test_ingestion_with_mixed_sources(self, temp_environment, test_sources):
         """Test ingestion with mix of enabled and disabled sources."""
         # Mix enabled and disabled
-        test_sources[1].enabled = False
-        test_sources[2].enabled = False
+        test_sources[1]["enabled"] = False
+        test_sources[2]["enabled"] = False
 
-        config = IngestionConfig(
+        config = make_config(
             storage_path=temp_environment["storage_path"],
             sources=test_sources,
         )
@@ -165,7 +165,7 @@ class TestIngestionIntegration:
 
     def test_checksums_persist_across_instances(self, temp_environment, test_sources):
         """Test that checksums persist across service instances."""
-        config = IngestionConfig(
+        config = make_config(
             storage_path=temp_environment["storage_path"],
             sources=test_sources[:1],  # Just first source
         )
@@ -188,7 +188,7 @@ class TestIngestionIntegration:
 
     def test_ingestion_log_format(self, temp_environment, test_sources):
         """Test that ingestion log has correct format."""
-        config = IngestionConfig(
+        config = make_config(
             storage_path=temp_environment["storage_path"],
             sources=test_sources[:1],
         )
@@ -221,7 +221,7 @@ class TestIngestionIntegration:
 
     def test_published_event_format(self, temp_environment, test_sources):
         """Test that published events have correct format."""
-        config = IngestionConfig(
+        config = make_config(
             storage_path=temp_environment["storage_path"],
             sources=test_sources[:1],
         )
@@ -260,7 +260,7 @@ class TestIngestionIntegration:
 
     def test_storage_directory_structure(self, temp_environment, test_sources):
         """Test that storage directory structure is correct."""
-        config = IngestionConfig(
+        config = make_config(
             storage_path=temp_environment["storage_path"],
             sources=test_sources[:2],
         )
@@ -279,7 +279,7 @@ class TestIngestionIntegration:
 
         # Verify source directories were created
         for source in test_sources[:2]:
-            source_dir = os.path.join(storage_path, source.name)
+            source_dir = os.path.join(storage_path, source["name"])
             assert os.path.exists(source_dir)
 
         # Verify metadata files
