@@ -4,6 +4,7 @@
 """Tests for configuration providers."""
 
 import os
+import pytest
 
 from copilot_config import (
     ConfigProvider,
@@ -240,34 +241,25 @@ class TestCreateConfigProvider:
         assert isinstance(provider, EnvConfigProvider)
 
     def test_create_with_none_defaults_to_env(self):
-        """Test that None defaults to env provider."""
-        # Ensure CONFIG_PROVIDER_TYPE is not set
-        old_value = os.environ.pop("CONFIG_PROVIDER_TYPE", None)
-        
-        try:
-            provider = create_config_provider(None)
-            assert isinstance(provider, EnvConfigProvider)
-        finally:
-            # Restore old value if it existed
-            if old_value is not None:
-                os.environ["CONFIG_PROVIDER_TYPE"] = old_value
+        """Test that None raises ValueError."""
+        with pytest.raises(ValueError, match="provider_type parameter is required"):
+            create_config_provider(None)
 
     def test_create_with_none_uses_env_var(self):
-        """Test that None uses CONFIG_PROVIDER_TYPE env var."""
+        """Test that None raises ValueError even with env var set."""
         os.environ["CONFIG_PROVIDER_TYPE"] = "static"
         
         try:
-            provider = create_config_provider(None)
-            assert isinstance(provider, StaticConfigProvider)
+            with pytest.raises(ValueError, match="provider_type parameter is required"):
+                create_config_provider(None)
         finally:
             # Clean up
             del os.environ["CONFIG_PROVIDER_TYPE"]
 
     def test_create_with_unknown_type_defaults_to_env(self):
-        """Test that unknown type defaults to env provider."""
-        provider = create_config_provider("unknown")
-        
-        assert isinstance(provider, EnvConfigProvider)
+        """Test that unknown type raises ValueError."""
+        with pytest.raises(ValueError, match="Unknown provider_type: unknown"):
+            create_config_provider("unknown")
 
 
 class TestConfigProviderInterface:
