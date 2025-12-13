@@ -91,10 +91,8 @@ class TestEventSchemaValidation:
             }
         }
         
-        # Should pass validation (validate_event raises AssertionError on failure)
+        # validate_event raises AssertionError on failure
         validate_event(event)
-        # If we get here without exception, validation passed
-        assert True
     
     @pytest.mark.integration
     def test_json_parsed_event_validation(self):
@@ -114,9 +112,8 @@ class TestEventSchemaValidation:
             }
         }
         
-        # Should pass validation (validate_event raises AssertionError on failure)
+        # validate_event raises AssertionError on failure
         validate_event(event)
-        assert True
     
     @pytest.mark.integration
     def test_chunks_prepared_event_validation(self):
@@ -136,9 +133,8 @@ class TestEventSchemaValidation:
             }
         }
         
-        # Should pass validation (validate_event raises AssertionError on failure)
+        # validate_event raises AssertionError on failure
         validate_event(event)
-        assert True
     
     @pytest.mark.integration
     def test_summarization_requested_event_validation(self):
@@ -158,9 +154,8 @@ class TestEventSchemaValidation:
             }
         }
         
-        # Should pass validation (validate_event raises AssertionError on failure)
+        # validate_event raises AssertionError on failure
         validate_event(event)
-        assert True
     
     @pytest.mark.integration
     def test_summary_complete_event_validation(self):
@@ -188,9 +183,8 @@ class TestEventSchemaValidation:
             }
         }
         
-        # Should pass validation (validate_event raises AssertionError on failure)
+        # validate_event raises AssertionError on failure
         validate_event(event)
-        assert True
     
     @pytest.mark.integration
     def test_invalid_event_missing_required_field(self):
@@ -266,9 +260,8 @@ class TestMessageFlowPatterns:
             }
         }
         
-        # Validate event structure
+        # Validate event structure (raises AssertionError on failure)
         validate_event(event)
-        assert True
         
         # Parsing service consumes this and produces JSONParsed
         # (documented in next test)
