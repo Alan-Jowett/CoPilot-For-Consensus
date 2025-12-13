@@ -37,7 +37,7 @@ PRIORITY_ADAPTERS = [
 
 # Dependency map - what each adapter depends on
 ADAPTER_DEPENDENCIES = {
-    "copilot_storage": [],
+    "copilot_storage": ["copilot_schema_validation"],
     "copilot_schema_validation": ["copilot_storage"],
     "copilot_events": ["copilot_schema_validation", "copilot_storage"],
     "copilot_config": ["copilot_schema_validation", "copilot_storage"],
