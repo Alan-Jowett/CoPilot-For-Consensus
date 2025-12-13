@@ -1,11 +1,19 @@
-"""
-SPDX-License-Identifier: MIT
-Copyright (c) 2025 Copilot-for-Consensus contributors
+#!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
 
-Tests for the mutable defaults checker script.
+"""
+Unit tests for check_mutable_defaults.py
+
+Tests the mutable defaults checker functionality.
 """
 import tempfile
 from pathlib import Path
+import sys
+import os
+
+# Add scripts directory to path
+sys.path.insert(0, os.path.dirname(__file__))
 
 from check_mutable_defaults import find_mutable_defaults, scan_directory
 
