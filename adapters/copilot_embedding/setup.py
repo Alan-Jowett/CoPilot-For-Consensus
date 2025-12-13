@@ -30,7 +30,7 @@ setup(
     ],
     python_requires=">=3.10",
     install_requires=[
-        "sentence-transformers>=2.0.0",  # Required for default SentenceTransformerEmbeddingProvider
+        # No heavyweight dependencies by default - use extras_require for specific backends
     ],
     extras_require={
         "dev": [

@@ -190,6 +190,8 @@ jobs:
       adapter_id: copilot_embedding
       adapter_path: adapters/copilot_embedding
       package_name: copilot_embedding
+    secrets: inherit
+    # Note: Uses mock backend by default, avoiding PyTorch installation in CI
 
   chunking-ci:
     needs: detect-changes
