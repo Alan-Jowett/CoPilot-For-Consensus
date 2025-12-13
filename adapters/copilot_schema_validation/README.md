@@ -12,7 +12,7 @@ This adapter provides schema validation functionality for event messages in the 
 - **File-based Schema Provider**: Load schemas from the filesystem
 - **JSON Schema Validation**: Full JSON Schema validation with support for schema references
 - **Caching**: Built-in schema caching for performance
-- **No external dependencies**: Eliminates circular dependencies with other adapters
+- **No dependency on other adapters**: Eliminates circular dependencies with other adapters
 
 ## Installation
 
