@@ -134,8 +134,8 @@ Example test structure:
 ```python
 def test_service_fails_when_publisher_connection_fails():
     """Test that service fails fast when publisher cannot connect."""
-    with patch("copilot_config.load_typed_config") as mock_config:
-        with patch("copilot_events.create_publisher") as mock_create_publisher:
+    with patch("service_name.main.load_typed_config") as mock_config:
+        with patch("service_name.main.create_publisher") as mock_create_publisher:
             # Setup mock config
             config = Mock()
             config.message_bus_type = "rabbitmq"
@@ -147,6 +147,9 @@ def test_service_fails_when_publisher_connection_fails():
             mock_publisher.connect = Mock(return_value=False)
             mock_create_publisher.return_value = mock_publisher
             
+            # Import main after setting up mocks
+            from service_name import main as service_main
+            
             # Service should raise ConnectionError and exit
             with pytest.raises(SystemExit) as exc_info:
                 service_main.main()
@@ -154,6 +157,8 @@ def test_service_fails_when_publisher_connection_fails():
             # Should exit with code 1 (error)
             assert exc_info.value.code == 1
 ```
+
+Note: When mocking imports, patch them where they are used (e.g., `service_name.main.create_publisher`) rather than where they are defined (e.g., `copilot_events.create_publisher`). This ensures the patches work correctly even if the module has already been imported.
 
 ## Checklist for Adding New Services
 
