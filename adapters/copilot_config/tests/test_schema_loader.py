@@ -421,3 +421,43 @@ class TestSchemaLoaderExceptionHandling:
         
         # Should return default value on attribute error
         assert result == ["default"]
+
+    def test_load_storage_collection_handles_type_error(self):
+        """Test that TypeError during storage load returns default."""
+        class FailingDocStoreProvider:
+            def query_documents_from_collection(self, collection_name):
+                raise TypeError("expected str, got int")
+        
+        from copilot_config.schema_loader import SchemaConfigLoader
+        
+        loader = SchemaConfigLoader(
+            schema={},
+            env_provider=EnvConfigProvider({}),
+            doc_store_provider=FailingDocStoreProvider()
+        )
+        
+        field_spec = FieldSpec(name="test_field", field_type="array", default=["default"])
+        result = loader._load_storage_collection(field_spec)
+        
+        # Should return default value on type error
+        assert result == ["default"]
+
+    def test_load_storage_collection_handles_key_error(self):
+        """Test that KeyError during storage load returns default."""
+        class FailingDocStoreProvider:
+            def query_documents_from_collection(self, collection_name):
+                raise KeyError("missing required key")
+        
+        from copilot_config.schema_loader import SchemaConfigLoader
+        
+        loader = SchemaConfigLoader(
+            schema={},
+            env_provider=EnvConfigProvider({}),
+            doc_store_provider=FailingDocStoreProvider()
+        )
+        
+        field_spec = FieldSpec(name="test_field", field_type="array", default=[])
+        result = loader._load_storage_collection(field_spec)
+        
+        # Should return default value on key error
+        assert result == []

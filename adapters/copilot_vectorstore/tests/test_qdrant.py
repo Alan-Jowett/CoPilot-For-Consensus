@@ -291,6 +291,23 @@ class TestQdrantVectorStore:
         mock_client.upsert.assert_called_once()
 
     @patch('qdrant_client.QdrantClient')
+    def test_add_embedding_handles_attribute_error_on_retrieve(self, mock_client_class):
+        """Test that AttributeError during ID check allows upsert to proceed."""
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+        mock_client.get_collections.return_value = Mock(collections=[])
+        # Simulate attribute error during retrieve (e.g., client not properly initialized)
+        mock_client.retrieve.side_effect = AttributeError("'NoneType' object has no attribute 'retrieve'")
+        
+        store = QdrantVectorStore(vector_size=3)
+        
+        # Should not raise, should proceed with upsert
+        store.add_embedding("doc1", [1.0, 0.0, 0.0], {"text": "hello"})
+        
+        # Verify upsert was still called
+        mock_client.upsert.assert_called_once()
+
+    @patch('qdrant_client.QdrantClient')
     def test_add_embeddings_handles_connection_error_on_retrieve(self, mock_client_class):
         """Test that ConnectionError during batch ID check allows upsert to proceed."""
         mock_client = Mock()
@@ -298,6 +315,27 @@ class TestQdrantVectorStore:
         mock_client.get_collections.return_value = Mock(collections=[])
         # Simulate connection error during retrieve
         mock_client.retrieve.side_effect = ConnectionError("Connection lost")
+        
+        store = QdrantVectorStore(vector_size=3)
+        
+        # Should not raise, should proceed with batch upsert
+        store.add_embeddings(
+            ids=["doc1", "doc2"],
+            vectors=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+            metadatas=[{"text": "hello"}, {"text": "world"}]
+        )
+        
+        # Verify upsert was still called
+        mock_client.upsert.assert_called()
+
+    @patch('qdrant_client.QdrantClient')
+    def test_add_embeddings_handles_attribute_error_on_retrieve(self, mock_client_class):
+        """Test that AttributeError during batch ID check allows upsert to proceed."""
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+        mock_client.get_collections.return_value = Mock(collections=[])
+        # Simulate attribute error during retrieve (e.g., client not properly initialized)
+        mock_client.retrieve.side_effect = AttributeError("'NoneType' object has no attribute 'retrieve'")
         
         store = QdrantVectorStore(vector_size=3)
         
