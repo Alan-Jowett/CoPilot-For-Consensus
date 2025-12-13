@@ -13,7 +13,7 @@ WORKDIR /app
 COPY adapters/ /app/adapters/
 RUN python /app/adapters/scripts/install_adapters.py \
     copilot_config \
-    copilot_storage
+    copilot_logging
 
 # Copy schema files for validation
 COPY documents/schemas /app/documents/schemas
