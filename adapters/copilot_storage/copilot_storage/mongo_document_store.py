@@ -255,7 +255,7 @@ class MongoDocumentStore(DocumentStore):
             
             logger.debug(f"MongoDocumentStore: updated document {doc_id} in {collection}")
             
-        except DocumentNotFoundError:
+        except (DocumentStoreNotConnectedError, DocumentNotFoundError):
             raise
         except Exception as e:
             logger.error(f"MongoDocumentStore: update_document failed - {e}")
@@ -295,7 +295,7 @@ class MongoDocumentStore(DocumentStore):
             
             logger.debug(f"MongoDocumentStore: deleted document {doc_id} from {collection}")
             
-        except DocumentNotFoundError:
+        except (DocumentStoreNotConnectedError, DocumentNotFoundError):
             raise
         except Exception as e:
             logger.error(f"MongoDocumentStore: delete_document failed - {e}")
