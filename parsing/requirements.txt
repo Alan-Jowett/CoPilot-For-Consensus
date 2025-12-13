@@ -6,11 +6,4 @@ beautifulsoup4==4.14.3
 fastapi==0.124.4
 uvicorn==0.38.0
 
-# Adapters (installed from local directories)
--e ../adapters/copilot_config
--e ../adapters/copilot_events
--e ../adapters/copilot_storage
--e ../adapters/copilot_metrics
--e ../adapters/copilot_reporting
--e ../adapters/copilot_logging
--e ../adapters/copilot_schema_validation
+# NOTE: Adapters are installed separately in CI and Docker builds

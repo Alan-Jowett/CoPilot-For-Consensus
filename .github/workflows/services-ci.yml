@@ -104,6 +104,7 @@ jobs:
     with:
       service_id: 'chunking'
       service_path: 'chunking'
+      adapter_names: 'copilot_chunking copilot_config copilot_events copilot_storage copilot_metrics copilot_reporting copilot_schema_validation copilot_logging'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
@@ -115,6 +116,7 @@ jobs:
     with:
       service_id: 'embedding'
       service_path: 'embedding'
+      adapter_names: 'copilot_config copilot_events copilot_storage copilot_vectorstore copilot_embedding copilot_metrics copilot_reporting copilot_schema_validation copilot_logging'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
@@ -126,6 +128,7 @@ jobs:
     with:
       service_id: 'ingestion'
       service_path: 'ingestion'
+      adapter_names: 'copilot_config copilot_archive_fetcher copilot_logging copilot_reporting copilot_metrics copilot_events copilot_storage copilot_schema_validation'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
@@ -137,6 +140,7 @@ jobs:
     with:
       service_id: 'orchestrator'
       service_path: 'orchestrator'
+      adapter_names: 'copilot_config copilot_events copilot_storage copilot_logging copilot_metrics copilot_reporting copilot_schema_validation'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
@@ -148,6 +152,7 @@ jobs:
     with:
       service_id: 'parsing'
       service_path: 'parsing'
+      adapter_names: 'copilot_config copilot_events copilot_storage copilot_metrics copilot_reporting copilot_logging copilot_schema_validation'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
@@ -159,6 +164,7 @@ jobs:
     with:
       service_id: 'reporting'
       service_path: 'reporting'
+      adapter_names: 'copilot_config copilot_logging copilot_metrics copilot_reporting'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
@@ -170,6 +176,7 @@ jobs:
     with:
       service_id: 'summarization'
       service_path: 'summarization'
+      adapter_names: 'copilot_config copilot_events copilot_storage copilot_vectorstore copilot_logging copilot_metrics copilot_reporting copilot_schema_validation'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
@@ -181,6 +188,7 @@ jobs:
     with:
       service_id: 'error-reporting'
       service_path: 'error-reporting'
+      adapter_names: 'copilot_config copilot_logging'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit

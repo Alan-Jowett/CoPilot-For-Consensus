@@ -1,6 +1,4 @@
 Flask==3.1.2
 Werkzeug==3.1.4
 
-# Adapters (installed from local directories)
--e ../adapters/copilot_config
--e ../adapters/copilot_logging
+# NOTE: Adapters are installed separately in CI and Docker builds

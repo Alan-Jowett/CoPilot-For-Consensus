@@ -6,13 +6,5 @@ python-dotenv==1.2.1
 fastapi==0.124.4
 uvicorn==0.38.0
 
-# Adapters (installed from local directories)
--e ../adapters/copilot_config
--e ../adapters/copilot_events
--e ../adapters/copilot_storage
--e ../adapters/copilot_metrics
--e ../adapters/copilot_reporting
--e ../adapters/copilot_chunking
--e ../adapters/copilot_schema_validation
--e ../adapters/copilot_logging
+# NOTE: Adapters are installed separately in CI and Docker builds
 

@@ -7,9 +7,5 @@ uvicorn==0.38.0
 requests==2.32.5
 httpx==0.28.1
 
-# Adapters (installed from local directories)
--e ../adapters/copilot_config
--e ../adapters/copilot_logging
--e ../adapters/copilot_metrics
--e ../adapters/copilot_reporting
+# NOTE: Adapters are installed separately in CI and Docker builds
 
