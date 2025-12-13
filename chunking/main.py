@@ -120,7 +120,9 @@ def main():
             host=config.message_bus_host,
             port=config.message_bus_port,
             username=config.message_bus_user,
-            password=config.message_bus_password,            queue_name="chunking-service",        )
+            password=config.message_bus_password,
+            queue_name="chunking-service",
+        )
         if not subscriber.connect():
             logger.error("Failed to connect subscriber to message bus.")
             raise ConnectionError("Subscriber failed to connect to message bus")
