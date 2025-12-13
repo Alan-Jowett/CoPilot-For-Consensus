@@ -178,6 +178,7 @@ class OrchestrationService:
             logger.error(f"Error resolving threads: {e}", exc_info=True)
             if self.error_reporter:
                 self.error_reporter.report(e, context={"chunk_ids": chunk_ids})
+            raise
 
         return list(thread_ids)
 
@@ -340,6 +341,7 @@ class OrchestrationService:
             logger.error(f"Error publishing OrchestrationFailed: {e}", exc_info=True)
             if self.error_reporter:
                 self.error_reporter.report(e, context={"thread_ids": thread_ids})
+            raise
 
     def get_stats(self) -> Dict[str, Any]:
         """Get service statistics.

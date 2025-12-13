@@ -329,6 +329,7 @@ class ChunkingService:
             
         except Exception as e:
             logger.error(f"Failed to publish ChunksPrepared event: {e}", exc_info=True)
+            raise
 
     def _publish_chunking_failed(
         self,
@@ -366,6 +367,7 @@ class ChunkingService:
             
         except Exception as e:
             logger.error(f"Failed to publish ChunkingFailed event: {e}", exc_info=True)
+            raise
 
     def get_stats(self) -> Dict[str, Any]:
         """Get service statistics.

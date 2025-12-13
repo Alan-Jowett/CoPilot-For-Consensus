@@ -190,7 +190,8 @@ class ReportingService:
                     self.metrics_collector.increment("reporting_delivery_total", tags={"channel": "webhook", "status": "success"})
                     
             except Exception as e:
-                logger.warning(f"Failed to send webhook notification: {e}")
+                # Webhook notifications are best-effort - log and publish failure event but continue
+                logger.warning(f"Failed to send webhook notification: {e}", exc_info=True)
                 self.notifications_failed += 1
                 
                 if self.metrics_collector:
