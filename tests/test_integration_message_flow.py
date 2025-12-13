@@ -91,7 +91,7 @@ class TestEventSchemaValidation:
             }
         }
         
-        # Should pass validation
+        # validate_event raises AssertionError on failure
         validate_event(event)
     
     @pytest.mark.integration
@@ -112,7 +112,7 @@ class TestEventSchemaValidation:
             }
         }
         
-        # Should pass validation
+        # validate_event raises AssertionError on failure
         validate_event(event)
     
     @pytest.mark.integration
@@ -133,7 +133,7 @@ class TestEventSchemaValidation:
             }
         }
         
-        # Should pass validation
+        # validate_event raises AssertionError on failure
         validate_event(event)
     
     @pytest.mark.integration
@@ -154,7 +154,7 @@ class TestEventSchemaValidation:
             }
         }
         
-        # Should pass validation
+        # validate_event raises AssertionError on failure
         validate_event(event)
     
     @pytest.mark.integration
@@ -183,7 +183,7 @@ class TestEventSchemaValidation:
             }
         }
         
-        # Should pass validation
+        # validate_event raises AssertionError on failure
         validate_event(event)
     
     @pytest.mark.integration
@@ -260,6 +260,7 @@ class TestMessageFlowPatterns:
             }
         }
         
+        # Validate event structure (raises AssertionError on failure)
         validate_event(event)
         
         # Parsing service consumes this and produces JSONParsed

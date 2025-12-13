@@ -713,11 +713,14 @@ def test_handle_malformed_event_missing_data():
     }
     
     # Should handle gracefully without crashing
+    exception_raised = False
     try:
         service._handle_summarization_requested(event)
     except KeyError:
         # Expected - service should validate required fields
-        pass
+        exception_raised = True
+    
+    assert exception_raised, "Expected KeyError for missing data field"
 
 
 def test_handle_malformed_event_missing_required_field():
@@ -752,11 +755,14 @@ def test_handle_malformed_event_missing_required_field():
     }
     
     # Should handle gracefully
+    exception_raised = False
     try:
         service._handle_summarization_requested(event)
     except KeyError:
         # Expected - service should validate required fields
-        pass
+        exception_raised = True
+    
+    assert exception_raised, "Expected KeyError for missing required field"
 
 
 def test_handle_event_with_invalid_thread_ids_type():
@@ -792,8 +798,11 @@ def test_handle_event_with_invalid_thread_ids_type():
     }
     
     # Should handle gracefully
+    exception_raised = False
     try:
         service._handle_summarization_requested(event)
     except (TypeError, AttributeError):
         # Expected - service should handle type errors
-        pass
+        exception_raised = True
+    
+    assert exception_raised, "Expected TypeError or AttributeError for invalid thread_ids type"
