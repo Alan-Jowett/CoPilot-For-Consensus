@@ -291,10 +291,9 @@ class TestValidatingEventSubscriber:
         
         subscriber = ValidatingEventSubscriber(subscriber=mock_subscriber)
         
-        with pytest.raises(RuntimeError) as exc_info:
-            subscriber.connect()
+        result = subscriber.connect()
         
-        assert "failed to connect" in str(exc_info.value)
+        assert result is False
 
     def test_disconnect(self):
         """Test disconnection."""
