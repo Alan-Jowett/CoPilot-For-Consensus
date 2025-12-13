@@ -230,7 +230,11 @@ class TestIngestionService:
         assert isinstance(service.error_reporter, SilentErrorReporter)
 
         service.config.storage_path = "/invalid/path/that/does/not/exist"
-        service.save_checksums()
+        try:
+            service.save_checksums()
+        except ValueError:
+            # Expected: save_checksums raises after reporting to error_reporter
+            pass
 
         assert error_reporter.has_errors()
         errors = error_reporter.get_errors()
@@ -317,6 +321,7 @@ def test_save_checksums_raises_on_write_error(tmp_path):
     from app.service import IngestionService
     from copilot_events import NoopPublisher
     from .test_helpers import make_config
+    from unittest.mock import patch
     
     config = make_config(storage_path=str(tmp_path))
     
@@ -326,18 +331,11 @@ def test_save_checksums_raises_on_write_error(tmp_path):
     # Add a checksum
     service.checksums["test"] = "abc123"
     
-    # Make the metadata directory read-only to trigger write error
-    import os
-    metadata_dir = tmp_path / "metadata"
-    metadata_dir.mkdir(exist_ok=True)
-    os.chmod(metadata_dir, 0o444)
-    
-    # Verify exception is raised, not swallowed
-    with pytest.raises(Exception):
-        service.save_checksums()
-    
-    # Restore permissions for cleanup
-    os.chmod(metadata_dir, 0o755)
+    # Mock open to raise PermissionError when writing checksums file
+    with patch("builtins.open", side_effect=PermissionError("Permission denied")):
+        # Verify exception is raised, not swallowed
+        with pytest.raises(PermissionError):
+            service.save_checksums()
 
 
 def test_load_checksums_recovers_on_read_error(tmp_path):
