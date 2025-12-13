@@ -29,7 +29,7 @@ class SummarizerFactory:
     
     @staticmethod
     def create_summarizer(
-        provider: str,
+        provider: Optional[str] = None,
         model: Optional[str] = None,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,

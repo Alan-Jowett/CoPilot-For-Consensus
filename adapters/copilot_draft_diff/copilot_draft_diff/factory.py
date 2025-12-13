@@ -25,7 +25,7 @@ class DiffProviderFactory:
     }
     
     @classmethod
-    def create(cls, provider_type: str, config: Optional[Dict[str, Any]] = None) -> DraftDiffProvider:
+    def create(cls, provider_type: Optional[str] = None, config: Optional[Dict[str, Any]] = None) -> DraftDiffProvider:
         """Create a draft diff provider instance.
         
         Args:
@@ -78,7 +78,7 @@ class DiffProviderFactory:
         cls._providers[name] = provider_class
 
 
-def create_diff_provider(provider_type: str, 
+def create_diff_provider(provider_type: Optional[str] = None, 
                         config: Optional[Dict[str, Any]] = None) -> DraftDiffProvider:
     """Convenience function to create a draft diff provider.
     

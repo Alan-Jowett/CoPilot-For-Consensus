@@ -12,8 +12,8 @@ from .silent_logger import SilentLogger
 
 
 def create_logger(
-    logger_type: str,
-    level: str,
+    logger_type: Optional[str] = None,
+    level: Optional[str] = None,
     name: Optional[str] = None,
 ) -> Logger:
     """Factory function to create a logger instance.

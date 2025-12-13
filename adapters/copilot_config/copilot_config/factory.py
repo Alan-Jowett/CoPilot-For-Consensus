@@ -12,7 +12,7 @@ from .static_provider import StaticConfigProvider
 from .storage_provider import StorageConfigProvider
 
 
-def create_config_provider(provider_type: str, **kwargs) -> ConfigProvider:
+def create_config_provider(provider_type: Optional[str] = None, **kwargs) -> ConfigProvider:
     """Create a configuration provider by type.
 
     Args:

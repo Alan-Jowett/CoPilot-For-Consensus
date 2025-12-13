@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_embedding_provider(
-    backend: str,
+    backend: Optional[str] = None,
     model: Optional[str] = None,
     **kwargs
 ) -> EmbeddingProvider:

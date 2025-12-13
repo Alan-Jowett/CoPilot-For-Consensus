@@ -18,7 +18,7 @@ from .datatracker_provider import DatatrackerIdentityProvider
 
 
 def create_identity_provider(
-    provider_type: str,
+    provider_type: Optional[str] = None,
     **kwargs
 ) -> IdentityProvider:
     """Create an identity provider based on type.

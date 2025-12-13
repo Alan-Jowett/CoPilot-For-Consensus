@@ -27,12 +27,14 @@ class TestCreateIdentityProvider:
         provider = create_identity_provider(
             "github",
             client_id="test-client-id",
-            client_secret="test-client-secret"
+            client_secret="test-client-secret",
+            api_base_url="https://api.github.com"
         )
         
         assert isinstance(provider, GitHubIdentityProvider)
         assert provider.client_id == "test-client-id"
         assert provider.client_secret == "test-client-secret"
+        assert provider.api_base_url == "https://api.github.com"
 
     def test_create_github_provider_with_custom_api_url(self):
         """Test creating a GitHub provider with custom API URL."""

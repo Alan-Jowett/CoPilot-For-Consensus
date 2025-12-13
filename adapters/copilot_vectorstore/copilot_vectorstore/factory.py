@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_vector_store(
-    backend: str,
+    backend: Optional[str] = None,
     dimension: Optional[int] = None,
     **kwargs
 ) -> VectorStore:
