@@ -113,3 +113,46 @@ class TestSafeEventHandler:
         # Check that event name appears in log
         assert "CustomEvent" in caplog.text
         assert "test error" in caplog.text
+    
+    def test_on_error_callback(self):
+        """Test that on_error callback is called when error occurs."""
+        error_callback = Mock()
+        
+        class TestService:
+            @safe_event_handler("TestEvent", on_error=error_callback)
+            def handle_event(self, event):
+                raise ValueError("test error")
+        
+        service = TestService()
+        service.handle_event({"data": "test"})
+        
+        # Check that callback was called
+        assert error_callback.call_count == 1
+        
+        # Check callback arguments (self, error, event)
+        call_args = error_callback.call_args[0]
+        assert call_args[0] is service
+        assert isinstance(call_args[1], ValueError)
+        assert call_args[2] == {"data": "test"}
+    
+    def test_on_error_with_state_modification(self):
+        """Test that on_error callback can modify service state."""
+        class TestService:
+            def __init__(self):
+                self.failure_count = 0
+            
+            @safe_event_handler(
+                "TestEvent",
+                on_error=lambda self, e, evt: setattr(self, 'failure_count', self.failure_count + 1)
+            )
+            def handle_event(self, event):
+                raise ValueError("test error")
+        
+        service = TestService()
+        assert service.failure_count == 0
+        
+        service.handle_event({"data": "test"})
+        assert service.failure_count == 1
+        
+        service.handle_event({"data": "test"})
+        assert service.failure_count == 2

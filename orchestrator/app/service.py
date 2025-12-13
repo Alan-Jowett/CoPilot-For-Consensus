@@ -88,7 +88,10 @@ class OrchestrationService:
         logger.info("Subscribed to embeddings.generated events")
         logger.info("Orchestration service is ready")
 
-    @safe_event_handler("EmbeddingsGenerated")
+    @safe_event_handler(
+        "EmbeddingsGenerated",
+        on_error=lambda self, e, evt: setattr(self, 'failures_count', self.failures_count + 1)
+    )
     def _handle_embeddings_generated(self, event: Dict[str, Any]):
         """Handle EmbeddingsGenerated event.
 

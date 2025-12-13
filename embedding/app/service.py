@@ -24,6 +24,9 @@ from copilot_service_base import retry_with_backoff, safe_event_handler
 
 logger = logging.getLogger(__name__)
 
+# Constant for cases where no retry has occurred
+NO_RETRY_ATTEMPT = 0
+
 
 class EmbeddingService:
     """Main embedding service for generating and storing vector embeddings."""
@@ -145,7 +148,7 @@ class EmbeddingService:
                     chunk_ids,
                     error_msg,
                     "ChunkNotFoundError",
-                    0,
+                    NO_RETRY_ATTEMPT,
                 )
                 return
             

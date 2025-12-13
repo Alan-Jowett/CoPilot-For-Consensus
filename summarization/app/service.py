@@ -23,6 +23,9 @@ from copilot_service_base import retry_with_backoff, safe_event_handler
 
 logger = logging.getLogger(__name__)
 
+# Constant for cases where no retry has occurred
+NO_RETRY_ATTEMPT = 0
+
 
 class SummarizationService:
     """Main summarization service for generating citation-rich summaries."""
@@ -152,7 +155,7 @@ class SummarizationService:
                     thread_id=thread_id,
                     error_type="NoContextError",
                     error_message="No context retrieved from vector/document stores",
-                    retry_count=0,
+                    retry_count=NO_RETRY_ATTEMPT,
                 )
                 return
             
