@@ -342,7 +342,7 @@ class TestLoadConfig:
 class TestSchemaLoaderExceptionHandling:
     """Tests for exception handling in SchemaConfigLoader."""
 
-    def test_load_from_storage_handles_connection_error(self):
+    def test_load_storage_collection_handles_connection_error(self):
         """Test that ConnectionError during storage load returns default."""
         class FailingDocStoreProvider:
             def query_documents_from_collection(self, collection_name):
@@ -357,12 +357,12 @@ class TestSchemaLoaderExceptionHandling:
         )
         
         field_spec = FieldSpec(name="test_field", field_type="array", default=["default_value"])
-        result = loader._load_from_storage(field_spec)
+        result = loader._load_storage_collection(field_spec)
         
         # Should return default value on connection error
         assert result == ["default_value"]
 
-    def test_load_from_storage_handles_timeout_error(self):
+    def test_load_storage_collection_handles_timeout_error(self):
         """Test that TimeoutError during storage load returns default."""
         class FailingDocStoreProvider:
             def query_documents_from_collection(self, collection_name):
@@ -377,12 +377,12 @@ class TestSchemaLoaderExceptionHandling:
         )
         
         field_spec = FieldSpec(name="test_field", field_type="array", default=[])
-        result = loader._load_from_storage(field_spec)
+        result = loader._load_storage_collection(field_spec)
         
         # Should return default value on timeout error
         assert result == []
 
-    def test_load_from_storage_handles_os_error(self):
+    def test_load_storage_collection_handles_os_error(self):
         """Test that OSError during storage load returns default."""
         class FailingDocStoreProvider:
             def query_documents_from_collection(self, collection_name):
@@ -397,12 +397,12 @@ class TestSchemaLoaderExceptionHandling:
         )
         
         field_spec = FieldSpec(name="test_field", field_type="array", default=[])
-        result = loader._load_from_storage(field_spec)
+        result = loader._load_storage_collection(field_spec)
         
         # Should return default value on OS error
         assert result == []
 
-    def test_load_from_storage_handles_attribute_error(self):
+    def test_load_storage_collection_handles_attribute_error(self):
         """Test that AttributeError during storage load returns default."""
         class FailingDocStoreProvider:
             def query_documents_from_collection(self, collection_name):
@@ -417,7 +417,7 @@ class TestSchemaLoaderExceptionHandling:
         )
         
         field_spec = FieldSpec(name="test_field", field_type="array", default=["default"])
-        result = loader._load_from_storage(field_spec)
+        result = loader._load_storage_collection(field_spec)
         
         # Should return default value on attribute error
         assert result == ["default"]
