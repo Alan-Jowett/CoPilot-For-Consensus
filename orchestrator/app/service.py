@@ -89,6 +89,10 @@ class OrchestrationService:
 
     def _handle_embeddings_generated(self, event: Dict[str, Any]):
         """Handle EmbeddingsGenerated event.
+        
+        This is an event handler for message queue consumption. Exceptions are
+        logged but not re-raised to prevent message requeue. Error state is
+        tracked in metrics and reported to error tracking service.
 
         Args:
             event: Event dictionary
@@ -178,6 +182,7 @@ class OrchestrationService:
             logger.error(f"Error resolving threads: {e}", exc_info=True)
             if self.error_reporter:
                 self.error_reporter.report(e, context={"chunk_ids": chunk_ids})
+            raise
 
         return list(thread_ids)
 
@@ -340,6 +345,7 @@ class OrchestrationService:
             logger.error(f"Error publishing OrchestrationFailed: {e}", exc_info=True)
             if self.error_reporter:
                 self.error_reporter.report(e, context={"thread_ids": thread_ids})
+            raise
 
     def get_stats(self) -> Dict[str, Any]:
         """Get service statistics.
