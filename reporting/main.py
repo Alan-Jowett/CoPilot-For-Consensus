@@ -198,6 +198,7 @@ def main():
             port=config.message_bus_port,
             username=config.message_bus_user,
             password=config.message_bus_password,
+            queue_name="reporting-service",
         )
         
         logger.info("Creating document store...")

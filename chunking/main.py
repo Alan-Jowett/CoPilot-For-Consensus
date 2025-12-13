@@ -114,8 +114,7 @@ def main():
             host=config.message_bus_host,
             port=config.message_bus_port,
             username=config.message_bus_user,
-            password=config.message_bus_password,
-        )
+            password=config.message_bus_password,            queue_name="chunking-service",        )
         
         logger.info("Creating document store...")
         document_store = create_document_store(

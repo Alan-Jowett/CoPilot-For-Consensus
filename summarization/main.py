@@ -121,6 +121,7 @@ def main():
             port=config.message_bus_port,
             username=config.message_bus_user,
             password=config.message_bus_password,
+            queue_name="summarization-service",
         )
         if not subscriber.connect():
             logger.error("Failed to connect subscriber to message bus.")

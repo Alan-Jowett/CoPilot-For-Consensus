@@ -40,6 +40,7 @@ services:
       - STORAGE_PATH=/data/parsed_json
       - SCHEMA_DIR=/app/documents/schemas/configs
     volumes:
+      - raw_archives:/data/raw_archives:ro
       - parsed_json:/data/parsed_json
     restart: unless-stopped
 
