@@ -264,8 +264,10 @@ class TestValidatingDocumentStore:
         
         # Update with valid patch
         patch = {"status": "updated"}
-        result = store.update_document("test_collection", doc_id, patch)
-        assert result is True
+        store.update_document("test_collection", doc_id, patch)
+        # Verify the update
+        updated = store.get_document("test_collection", doc_id)
+        assert updated["status"] == "updated"
     
     def test_update_invalid_document_strict_mode(self):
         """Test updating with an invalid patch in strict mode fails."""
@@ -322,8 +324,7 @@ class TestValidatingDocumentStore:
         doc_id = base.insert_document("test_collection", {"data": "test"})
         
         # Delete through validating store
-        result = store.delete_document("test_collection", doc_id)
-        assert result is True
+        store.delete_document("test_collection", doc_id)
         
         # Verify deletion
         retrieved = store.get_document("test_collection", doc_id)
@@ -335,8 +336,8 @@ class TestValidatingDocumentStore:
         provider = MockSchemaProvider()
         store = ValidatingDocumentStore(base, provider)
         
-        result = store.connect()
-        assert result is True
+        store.connect()
+        # InMemoryDocumentStore always succeeds, so if no exception was raised, it worked
     
     def test_disconnect_delegates_to_underlying_store(self):
         """Test that disconnect is delegated to underlying store."""

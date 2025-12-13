@@ -167,9 +167,11 @@ def main():
             password=config.doc_store_password,
         )
         
-        if not base_document_store.connect():
-            logger.error("Failed to connect to document store")
-            raise ConnectionError("Document store failed to connect")
+        try:
+            base_document_store.connect()
+        except Exception as e:
+            logger.error(f"Failed to connect to document store: {e}")
+            raise ConnectionError("Document store failed to connect") from e
         
         # Wrap with schema validation
         document_store = ValidatingDocumentStore(

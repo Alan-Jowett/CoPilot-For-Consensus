@@ -59,8 +59,10 @@ def main(config_path: Path):
         sys.exit(1)
 
     store = get_store()
-    if not store.connect():
-        logger.error("Failed to connect to document store.")
+    try:
+        store.connect()
+    except Exception as e:
+        logger.error("Failed to connect to document store: %s", e)
         sys.exit(1)
 
     inserted = 0
@@ -82,11 +84,12 @@ def main(config_path: Path):
         if existing:
             patch = dict(payload)
             patch.pop("_id", None)
-            if store.update_document("sources", doc_id, patch):
+            try:
+                store.update_document("sources", doc_id, patch)
                 updated += 1
                 logger.info("Updated existing source id=%s (name=%s)", doc_id, src.get("name"))
-            else:
-                logger.warning("Failed to update existing source id=%s", doc_id)
+            except Exception as e:
+                logger.warning("Failed to update existing source id=%s: %s", doc_id, e)
         else:
             store.insert_document("sources", payload)
             inserted += 1
