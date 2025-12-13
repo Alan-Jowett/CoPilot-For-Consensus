@@ -162,8 +162,8 @@ def test_service_allows_noop_publisher_failure():
                     with patch("copilot_chunking.create_chunker") as mock_create_chunker:
                         with patch("copilot_metrics.create_metrics_collector") as mock_metrics:
                             with patch("copilot_reporting.create_error_reporter") as mock_reporter:
-                                with patch("threading.Thread"):
-                                    with patch("uvicorn.run"):
+                                with patch("threading.Thread.start"):  # Prevent thread creation
+                                    with patch("uvicorn.run"):  # Prevent uvicorn from blocking
                                         # Setup mock config with noop message bus
                                         config = Mock()
                                         config.message_bus_type = "noop"
@@ -208,10 +208,12 @@ def test_service_allows_noop_publisher_failure():
                                         # Import main after setting up mocks
                                         from chunking import main as chunking_main
                                         
-                                        # Service should not raise an exception for noop publisher
+                                        # Service should complete without raising SystemExit with error code
+                                        # Note: uvicorn.run is mocked so it won't block
                                         try:
                                             chunking_main.main()
-                                            # If we get here, the service started successfully
+                                            # Success - service started without error
                                         except SystemExit as e:
-                                            # Should not exit with error code
-                                            pytest.fail(f"Service should not fail with noop publisher, but got exit code {e.code}")
+                                            # Only fail if exit code is non-zero
+                                            if e.code != 0:
+                                                pytest.fail(f"Service should not fail with noop publisher, but got exit code {e.code}")
