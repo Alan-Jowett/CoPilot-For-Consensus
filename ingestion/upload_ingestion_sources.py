@@ -20,7 +20,7 @@ from pathlib import Path
 # Prefer adapters package
 try:
     from copilot_config import load_config
-    from copilot_storage import create_document_store
+    from copilot_storage import create_document_store, DocumentNotFoundError
 except ImportError:
     print("Error: copilot_storage adapter not available. Ensure adapters are installed.")
     sys.exit(1)
@@ -62,7 +62,7 @@ def main(config_path: Path):
     try:
         store.connect()
     except Exception as e:
-        logger.error("Failed to connect to document store: %s", e)
+        logger.error("Failed to connect to document store: %s", e, exc_info=True)
         sys.exit(1)
 
     inserted = 0
@@ -88,8 +88,13 @@ def main(config_path: Path):
                 store.update_document("sources", doc_id, patch)
                 updated += 1
                 logger.info("Updated existing source id=%s (name=%s)", doc_id, src.get("name"))
+            except DocumentNotFoundError:
+                # Document was deleted between query and update - treat as new insert
+                logger.info("Source id=%s no longer exists, will insert as new", doc_id)
+                store.insert_document("sources", payload)
+                inserted += 1
             except Exception as e:
-                logger.warning("Failed to update existing source id=%s: %s", doc_id, e)
+                logger.warning("Failed to update existing source id=%s: %s", doc_id, e, exc_info=True)
         else:
             store.insert_document("sources", payload)
             inserted += 1

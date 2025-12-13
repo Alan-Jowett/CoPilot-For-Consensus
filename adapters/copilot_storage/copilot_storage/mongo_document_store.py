@@ -91,10 +91,10 @@ class MongoDocumentStore(DocumentStore):
             logger.info("MongoDocumentStore: connected to %s:%s/%s", self.host, self.port, self.database_name)
             
         except ConnectionFailure as e:
-            logger.error("MongoDocumentStore: connection failed - %s", e)
+            logger.error("MongoDocumentStore: connection failed - %s", e, exc_info=True)
             raise DocumentStoreConnectionError(f"Failed to connect to MongoDB at {self.host}:{self.port}") from e
         except Exception as e:
-            logger.error("MongoDocumentStore: unexpected error during connect - %s", e)
+            logger.error("MongoDocumentStore: unexpected error during connect - %s", e, exc_info=True)
             raise DocumentStoreConnectionError(f"Unexpected error connecting to MongoDB: {str(e)}") from e
 
     def disconnect(self) -> None:
@@ -173,7 +173,7 @@ class MongoDocumentStore(DocumentStore):
             return None
             
         except Exception as e:
-            logger.error(f"MongoDocumentStore: get_document failed - {e}")
+            logger.error(f"MongoDocumentStore: get_document failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to retrieve document {doc_id} from {collection}") from e
 
     def query_documents(
@@ -214,7 +214,7 @@ class MongoDocumentStore(DocumentStore):
             return results
             
         except Exception as e:
-            logger.error(f"MongoDocumentStore: query_documents failed - {e}")
+            logger.error(f"MongoDocumentStore: query_documents failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to query documents from {collection}") from e
 
     def update_document(
@@ -258,7 +258,7 @@ class MongoDocumentStore(DocumentStore):
         except (DocumentStoreNotConnectedError, DocumentNotFoundError):
             raise
         except Exception as e:
-            logger.error(f"MongoDocumentStore: update_document failed - {e}")
+            logger.error(f"MongoDocumentStore: update_document failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to update document {doc_id} in {collection}") from e
 
     def delete_document(self, collection: str, doc_id: str) -> None:
@@ -298,5 +298,5 @@ class MongoDocumentStore(DocumentStore):
         except (DocumentStoreNotConnectedError, DocumentNotFoundError):
             raise
         except Exception as e:
-            logger.error(f"MongoDocumentStore: delete_document failed - {e}")
+            logger.error(f"MongoDocumentStore: delete_document failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to delete document {doc_id} from {collection}") from e

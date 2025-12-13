@@ -170,7 +170,7 @@ def main():
         try:
             base_document_store.connect()
         except Exception as e:
-            logger.error(f"Failed to connect to document store: {e}")
+            logger.error(f"Failed to connect to document store: {e}", exc_info=True)
             raise  # Re-raise the original exception
         
         # Wrap with schema validation

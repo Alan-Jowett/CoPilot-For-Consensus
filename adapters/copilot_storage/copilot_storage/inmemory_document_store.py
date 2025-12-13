@@ -11,8 +11,7 @@ from collections import defaultdict
 
 from .document_store import (
     DocumentStore,
-    DocumentNotFoundError,
-    DocumentStoreError
+    DocumentNotFoundError
 )
 
 logger = logging.getLogger(__name__)
