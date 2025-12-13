@@ -63,7 +63,7 @@ Copyright (c) 2025 Copilot-for-Consensus contributors
 ```
 
 **Header formats by file type:**
-- **Python, Bash, YAML, Docker Compose:** Use `#` comments
+- **Python, Bash, Docker Compose:** Use `#` comments
   ```python
   # SPDX-License-Identifier: MIT
   # Copyright (c) 2025 Copilot-for-Consensus contributors

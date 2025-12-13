@@ -26,7 +26,7 @@ The Orchestration Service coordinates retrieval, prompt assembly, and summarizat
 
 ## Technology Stack
 
-- **Language:** Python 3.11+
+- **Language:** Python 3.10+
 - **Framework:** Semantic Kernel (Python SDK)
 - **Message Bus:** RabbitMQ (default) or Azure Service Bus
 - **Retrieval:** Qdrant (vector) + MongoDB (metadata)

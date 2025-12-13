@@ -60,7 +60,7 @@ except Exception as e:
 error_reporter.capture_message(
     "Configuration validation failed",
     level="warning",
-    context={"config_file": "app.yaml"}
+    context={"config_source": "environment"}
 )
 ```
 
@@ -192,7 +192,7 @@ pylint copilot_reporting/
 
 ## Requirements
 
-- Python 3.11+
+- Python 3.10+
 - sentry-sdk (optional, for Sentry integration)
 
 ## License

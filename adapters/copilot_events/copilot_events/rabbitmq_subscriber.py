@@ -61,8 +61,12 @@ class RabbitMQSubscriber(EventSubscriber):
         self.callbacks: Dict[str, Callable[[Dict[str, Any]], None]] = {}
         self._consuming = False
 
-    def connect(self) -> None:
-        """Connect to RabbitMQ server."""
+    def connect(self) -> bool:
+        """Connect to RabbitMQ server.
+        
+        Returns:
+            bool: True if connection successful, False otherwise
+        """
         try:
             import pika
             
@@ -104,9 +108,10 @@ class RabbitMQSubscriber(EventSubscriber):
                 f"Connected to RabbitMQ: {self.host}:{self.port}, "
                 f"exchange={self.exchange_name}, queue={self.queue_name}"
             )
+            return True
         except Exception as e:
             logger.error(f"Failed to connect to RabbitMQ: {e}")
-            raise
+            return False
 
     def disconnect(self) -> None:
         """Disconnect from RabbitMQ server."""
@@ -121,7 +126,8 @@ class RabbitMQSubscriber(EventSubscriber):
         self,
         event_type: str,
         callback: Callable[[Dict[str, Any]], None],
-        routing_key: str = None
+        routing_key: str = None,
+        exchange: str = None,
     ) -> None:
         """Subscribe to events of a specific type.
         
@@ -141,15 +147,19 @@ class RabbitMQSubscriber(EventSubscriber):
             # Convert event_type to routing key (e.g., "ArchiveIngested" -> "archive.ingested")
             routing_key = self._event_type_to_routing_key(event_type)
         
+        # Choose exchange (allow override for compatibility/testing)
+        target_exchange = exchange or self.exchange_name
+
         # Bind queue to exchange with routing key
         self.channel.queue_bind(
-            exchange=self.exchange_name,
+            exchange=target_exchange,
             queue=self.queue_name,
             routing_key=routing_key
         )
         
         logger.info(
-            f"Subscribed to {event_type} events with routing key: {routing_key}"
+            f"Subscribed to {event_type} events on exchange {target_exchange} "
+            f"with routing key: {routing_key}"
         )
 
     def start_consuming(self) -> None:

@@ -1,3 +1,4 @@
 Flask==3.1.2
 Werkzeug==3.1.4
-# copilot_config
+
+# NOTE: Adapters are installed separately in CI and Docker builds

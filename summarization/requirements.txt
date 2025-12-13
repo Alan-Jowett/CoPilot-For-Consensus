@@ -4,4 +4,5 @@
 python-dotenv==1.2.1
 fastapi==0.124.4
 uvicorn==0.38.0
-# copilot_config
+
+# NOTE: Adapters are installed separately in CI and Docker builds

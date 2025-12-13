@@ -10,7 +10,7 @@ This guide explains how to migrate microservices from direct environment variabl
 The schema-driven configuration system provides:
 
 - **Centralized Schema Definition**: All configuration fields defined in JSON schemas
-- **Multi-Source Support**: Load configuration from environment variables, YAML files, document stores, or static sources
+- **Multi-Source Support**: Load configuration from environment variables, document stores, or static sources
 - **Type Safety**: Automatic type conversion and validation
 - **Fast-Fail Validation**: Configuration errors detected at startup
 - **Provider Abstraction**: Services are agnostic about configuration source
@@ -207,7 +207,7 @@ chunking_strategy = config.chunking_strategy
 3. **Fast-Fail**: Configuration errors detected at startup
 4. **Testability**: Easy to mock configuration for testing
 5. **Documentation**: Schema serves as documentation
-6. **Flexibility**: Easy to add new sources (YAML, document store, etc.)
+6. **Flexibility**: Easy to add new sources (document store, etc.)
 7. **Consistency**: All services use the same configuration pattern
 
 ## Schema Field Types
@@ -222,7 +222,6 @@ chunking_strategy = config.chunking_strategy
 ## Configuration Sources
 
 - `env`: Environment variables (default)
-- `yaml`: YAML files
 - `document_store`: Document store (MongoDB, etc.)
 - `static`: Static/hardcoded values
 
@@ -271,5 +270,4 @@ ConfigValidationError: Invalid value for field 'port': expected int, got 'invali
 1. Migrate one service at a time
 2. Test thoroughly after each migration
 3. Update documentation as needed
-4. Consider adding YAML file support for local development
-5. Consider adding document store support for centralized configuration
+4. Consider adding document store support for centralized configuration

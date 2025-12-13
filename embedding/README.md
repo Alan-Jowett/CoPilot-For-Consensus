@@ -27,7 +27,7 @@ Generate vector embeddings for text chunks that:
 
 ## Technology Stack
 
-- **Language:** Python 3.11+
+- **Language:** Python 3.10+
 - **Core Libraries:**
   - `sentence-transformers` for local embedding models
   - `openai` SDK for Azure OpenAI integration

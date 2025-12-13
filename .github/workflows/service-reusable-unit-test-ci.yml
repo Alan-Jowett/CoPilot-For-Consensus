@@ -14,16 +14,21 @@ on:
         description: 'Path to service root folder'
         required: true
         type: string
+      adapter_names:
+        description: 'Space-separated list of adapter names to install'
+        required: false
+        type: string
+        default: ''
       app_module:
         description: 'Python app module name (default: app)'
         required: false
         type: string
         default: 'app'
       python_version:
-        description: 'Python version to use (e.g., "3.11")'
+        description: 'Python version to use (e.g., "3.10")'
         required: false
         type: string
-        default: '3.11'
+        default: '3.10'
       run_local_test:
         description: 'Whether to run local integration test'
         required: false
@@ -52,10 +57,17 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python adapters/scripts/install_adapters.py
+        
+        # Install service-specific adapters if provided
+        if [ -n "${{ inputs.adapter_names }}" ]; then
+          python adapters/scripts/install_adapters.py ${{ inputs.adapter_names }}
+        fi
+        
+        # Install service requirements
         cd ${{ inputs.service_path }}
         pip install -r requirements.txt
         pip install pytest pytest-cov
+
 
     - name: Run unit and integration tests
       run: |
@@ -109,8 +121,14 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python adapters/scripts/install_adapters.py
+        # Install service-specific adapters from requirements
         cd ${{ inputs.service_path }}
+        if grep -q "^-e.*adapters/" requirements.txt 2>/dev/null; then
+          ADAPTERS=$(grep "^-e.*adapters/" requirements.txt | sed 's|^-e.*/adapters/||' | tr '\n' ' ')
+          cd ..
+          python adapters/scripts/install_adapters.py $ADAPTERS
+          cd ${{ inputs.service_path }}
+        fi
         pip install -r requirements.txt
         pip install pylint flake8
 
@@ -161,8 +179,14 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python adapters/scripts/install_adapters.py
+        # Install service-specific adapters from requirements
         cd ${{ inputs.service_path }}
+        if grep -q "^-e.*adapters/" requirements.txt 2>/dev/null; then
+          ADAPTERS=$(grep "^-e.*adapters/" requirements.txt | sed 's|^-e.*/adapters/||' | tr '\n' ' ')
+          cd ..
+          python adapters/scripts/install_adapters.py $ADAPTERS
+          cd ${{ inputs.service_path }}
+        fi
         pip install -r requirements.txt pytest
 
     - name: Test local integration
@@ -186,8 +210,14 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python adapters/scripts/install_adapters.py
+        # Install service-specific adapters from requirements
         cd ${{ inputs.service_path }}
+        if grep -q "^-e.*adapters/" requirements.txt 2>/dev/null; then
+          ADAPTERS=$(grep "^-e.*adapters/" requirements.txt | sed 's|^-e.*/adapters/||' | tr '\n' ' ')
+          cd ..
+          python adapters/scripts/install_adapters.py $ADAPTERS
+          cd ${{ inputs.service_path }}
+        fi
         pip install -r requirements.txt
         pip install pylint bandit
 

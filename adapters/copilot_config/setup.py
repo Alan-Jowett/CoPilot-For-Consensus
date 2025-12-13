@@ -24,17 +24,14 @@ setup(
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.12",
     ],
-    python_requires=">=3.11",
+    python_requires=">=3.10",
     install_requires=[
         # No external dependencies - uses stdlib only
     ],
     extras_require={
-        "yaml": [
-            "pyyaml>=6.0.0",
-        ],
         "storage": [
             "copilot-storage>=0.1.0",
         ],
@@ -43,7 +40,6 @@ setup(
             "pytest-cov>=4.0.0",
             "pylint>=3.0.0",
             "mypy>=1.0.0",
-            "pyyaml>=6.0.0",
         ],
     },
 )

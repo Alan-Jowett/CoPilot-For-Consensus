@@ -3,7 +3,7 @@
 
 <#
 .SYNOPSIS
-    Test script to run ingestion service with config.test.yaml and verify it publishes events
+    Test script to run ingestion service using document store and verify it publishes events
 
 .DESCRIPTION
     This script:
@@ -69,26 +69,40 @@ Write-Host "  RabbitMQ Management: http://localhost:15672 (guest/guest)" -Foregr
 Write-Host "  Prometheus: http://localhost:9090" -ForegroundColor Cyan
 Write-Host "  Pushgateway: http://localhost:9091" -ForegroundColor Cyan
 
-$configPath = Join-Path (Get-Location) "ingestion/config.test.yaml"
-if (-not (Test-Path $configPath)) {
-    Write-Host "  ✗ Config file not found at $configPath" -ForegroundColor Red
+# Upload sources to document store from JSON
+$jsonPath = Join-Path (Get-Location) "ingestion/config.test.json"
+if (-not (Test-Path $jsonPath)) {
+    Write-Host "  ✗ JSON config not found at $jsonPath" -ForegroundColor Red
     exit 1
 }
-Write-Host "  Using config: $configPath" -ForegroundColor Cyan
+Write-Host "  Using JSON config: $jsonPath" -ForegroundColor Cyan
+Write-Host "  Uploading sources to document store..." -ForegroundColor Yellow
+
+# Prepare volume mount for JSON into container path
+# Mount to /app/config.test.json since upload script defaults to ingestion/config.test.json
+# but we pass the mounted path as argument
+$mountArg = "${jsonPath}:/app/config.test.json:ro"
+
+# Run the uploader inside the ingestion container so it uses adapters/env
+docker compose run --rm -v "$mountArg" ingestion python upload_ingestion_sources.py /app/config.test.json
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "  ✗ Failed to upload sources to document store" -ForegroundColor Red
+    exit 1
+}
+Write-Host "  ✓ Sources uploaded to document store" -ForegroundColor Green
 
 # Step 4: Run ingestion or monitor
 if ($Monitor) {
     Write-Host "`n[4/4] Starting event monitor..." -ForegroundColor Yellow
     Write-Host "  The monitor will listen for events for 60 seconds." -ForegroundColor Cyan
     Write-Host "  In another terminal, run:" -ForegroundColor Cyan
-    $mountArg = "${configPath}:/app/config.test.yaml:ro"
-    Write-Host "    docker compose run --rm -v `"$mountArg`" -e CONFIG_FILE=/app/config.test.yaml ingestion`n" -ForegroundColor White
+    Write-Host "    docker compose run --rm ingestion`n" -ForegroundColor White
     
     # Run the Python monitoring script
     python .\ingestion\test_integration.py
 } else {
     Write-Host "`n[4/4] Running ingestion service with test configuration..." -ForegroundColor Yellow
-    Write-Host "  Config file: ingestion/config.test.yaml" -ForegroundColor Cyan
+    Write-Host "  Config source: document store (collection 'sources')" -ForegroundColor Cyan
     Write-Host "  Environment variables:" -ForegroundColor Cyan
     Write-Host "    - RABBITMQ_HOST=messagebus" -ForegroundColor Cyan
     Write-Host "    - METRICS_BACKEND=prometheus_pushgateway" -ForegroundColor Cyan
@@ -96,10 +110,7 @@ if ($Monitor) {
     Write-Host ""
     
     # Run ingestion service with test config
-    $mountArg = "${configPath}:/app/config.test.yaml:ro"
     docker compose run --rm `
-        -v "$mountArg" `
-        -e CONFIG_FILE=/app/config.test.yaml `
         -e MESSAGE_BUS_HOST=messagebus `
         -e MESSAGE_BUS_PORT=5672 `
         -e METRICS_BACKEND=prometheus_pushgateway `

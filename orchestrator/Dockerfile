@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-FROM python:3.11-slim
+FROM python:3.11-slim@sha256:158caf0e080e2cd74ef2879ed3c4e697792ee65251c8208b7afb56683c32ea6c
 
 WORKDIR /app
 
@@ -12,7 +12,13 @@ WORKDIR /app
 
 # Install shared adapters in dependency order using centralized script
 COPY adapters/ /app/adapters/
-RUN python /app/adapters/scripts/install_adapters.py --no-dev
+RUN python /app/adapters/scripts/install_adapters.py \
+    copilot_config \
+    copilot_events \
+    copilot_storage \
+    copilot_metrics \
+    copilot_reporting \
+    copilot_schema_validation
 
 # Copy schema files for validation
 COPY documents/schemas /app/documents/schemas
@@ -22,6 +28,7 @@ COPY orchestrator/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy service code
-COPY orchestrator/*.py ./
+COPY orchestrator/app ./app
+COPY orchestrator/main.py .
 
 CMD ["python", "main.py"]

@@ -6,13 +6,5 @@ python-dotenv==1.2.1
 fastapi==0.124.4
 uvicorn==0.38.0
 
-# Adapters (installed from local directories)
-# copilot_config
-# copilot_events
-# copilot_storage
-# copilot_vectorstore
-# copilot_embedding
-# copilot_metrics
-# copilot_reporting
-# copilot_schema_validation
+# NOTE: Adapters are installed separately in CI and Docker builds
 

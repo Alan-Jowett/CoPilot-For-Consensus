@@ -108,7 +108,12 @@ def main():
         )
         
         if not base_publisher.connect():
-            logger.warning("Failed to connect publisher to message bus. Will continue with noop publisher.")
+            if str(config.message_bus_type).lower() != "noop":
+                logger.error(
+                    "Failed to connect publisher to message bus. Failing fast.")
+                raise ConnectionError("Publisher failed to connect to message bus")
+            else:
+                logger.warning("Failed to connect publisher to message bus. Continuing with noop publisher.")
         
         # Wrap with schema validation
         schema_provider = FileSchemaProvider()
@@ -129,7 +134,7 @@ def main():
         
         if not base_subscriber.connect():
             logger.error("Failed to connect subscriber to message bus")
-            sys.exit(1)
+            raise ConnectionError("Subscriber failed to connect to message bus")
         
         # Wrap with schema validation
         subscriber = ValidatingEventSubscriber(
@@ -150,7 +155,7 @@ def main():
         
         if not base_document_store.connect():
             logger.error("Failed to connect to document store")
-            sys.exit(1)
+            raise ConnectionError("Document store failed to connect")
         
         # Wrap with schema validation
         document_store = ValidatingDocumentStore(
@@ -158,10 +163,12 @@ def main():
             schema_provider=schema_provider,
         )
         
-        # Create metrics collector
+        # Create metrics collector - fail fast on errors
+        logger.info(f"Creating metrics collector ({config.metrics_backend})...")
         metrics_collector = create_metrics_collector(backend=config.metrics_backend)
         
-        # Create error reporter
+        # Create error reporter - fail fast on errors
+        logger.info(f"Creating error reporter ({config.error_reporter_type})...")
         error_reporter = create_error_reporter(reporter_type=config.error_reporter_type)
         
         # Create parsing service

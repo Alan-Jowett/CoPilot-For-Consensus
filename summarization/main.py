@@ -102,6 +102,12 @@ def main():
             username=config.message_bus_user,
             password=config.message_bus_password,
         )
+        if not publisher.connect():
+            if str(config.message_bus_type).lower() != "noop":
+                logger.error("Failed to connect publisher to message bus. Failing fast.")
+                raise ConnectionError("Publisher failed to connect to message bus")
+            else:
+                logger.warning("Failed to connect publisher to message bus. Continuing with noop publisher.")
         
         logger.info("Creating message bus subscriber...")
         subscriber = create_subscriber(
@@ -111,6 +117,9 @@ def main():
             username=config.message_bus_user,
             password=config.message_bus_password,
         )
+        if not subscriber.connect():
+            logger.error("Failed to connect subscriber to message bus.")
+            raise ConnectionError("Subscriber failed to connect to message bus")
         
         logger.info("Creating document store...")
         document_store = create_document_store(
@@ -121,14 +130,23 @@ def main():
             username=config.doc_store_user if config.doc_store_user else None,
             password=config.doc_store_password if config.doc_store_password else None,
         )
+        if not document_store.connect():
+            logger.error("Failed to connect to document store.")
+            raise ConnectionError("Document store failed to connect")
         
         logger.info("Creating vector store...")
         vector_store = create_vector_store(
-            store_type=config.vector_store_type,
+            backend=config.vector_store_type,
             host=config.vector_store_host if config.vector_store_type != "inmemory" else None,
             port=config.vector_store_port if config.vector_store_type != "inmemory" else None,
             collection_name=config.vector_store_collection,
         )
+
+        # Connect vector store if required; in-memory typically doesn't need connect
+        if hasattr(vector_store, "connect"):
+            if not vector_store.connect() and str(config.vector_store_type).lower() != "inmemory":
+                logger.error("Failed to connect to vector store.")
+                raise ConnectionError("Vector store failed to connect")
         
         # Create summarizer
         logger.info(f"Creating summarizer with backend: {config.llm_backend}")
@@ -137,21 +155,13 @@ def main():
             model=config.llm_model,
         )
         
-        # Create optional services
-        metrics_collector = None
-        error_reporter = None
+        # Create metrics collector - fail fast on errors
+        logger.info("Creating metrics collector...")
+        metrics_collector = create_metrics_collector()
         
-        try:
-            metrics_collector = create_metrics_collector()
-            logger.info("Metrics collector created")
-        except Exception as e:
-            logger.warning(f"Could not create metrics collector: {e}")
-        
-        try:
-            error_reporter = create_error_reporter()
-            logger.info("Error reporter created")
-        except Exception as e:
-            logger.warning(f"Could not create error reporter: {e}")
+        # Create error reporter - fail fast on errors
+        logger.info("Creating error reporter...")
+        error_reporter = create_error_reporter()
         
         # Create summarization service
         summarization_service = SummarizationService(

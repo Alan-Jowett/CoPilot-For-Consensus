@@ -8,6 +8,8 @@ uvicorn==0.38.0
 # Type hints
 python-dotenv==1.2.1
 
-# Adapters
-# copilot_config
+# Monitoring
+prometheus-client==0.21.0
+
+# NOTE: Adapters are installed separately in CI and Docker builds
 

@@ -26,7 +26,7 @@ Split long email bodies into smaller, semantically coherent chunks that:
 
 ## Technology Stack
 
-- **Language:** Python 3.11+
+- **Language:** Python 3.10+
 - **Core Libraries:**
   - `langchain` Text Splitters for intelligent chunking
   - `tiktoken` or `transformers` for token counting

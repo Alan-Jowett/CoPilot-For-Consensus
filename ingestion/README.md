@@ -13,14 +13,9 @@ pip install -r requirements.txt
 # Run tests (42+ tests)
 pytest tests/ -v
 
-# Configure sources
-cp config.yaml config.local.yaml
-# Edit config.local.yaml with your sources
-
 # Run service
 MESSAGE_BUS_TYPE=noop python main.py          # Testing mode
 MESSAGE_BUS_HOST=localhost python main.py      # With RabbitMQ
-CONFIG_FILE=config.local.yaml python main.py   # Custom config
 ```
 
 ## Features
@@ -31,12 +26,12 @@ CONFIG_FILE=config.local.yaml python main.py   # Custom config
 - **Deduplication:** SHA256-based duplicate detection with persistent checksums
 - **Retry Logic:** Exponential backoff for failed fetches
 - **Audit Logging:** JSONL format for all ingestion operations
-- **Flexible Configuration:** Environment variables and YAML file support
+- **Flexible Configuration:** Environment variables for configuration
 
 ## Technology Stack
 
-- **Python 3.11+**
-- **Dependencies:** pika (RabbitMQ), pyyaml, requests, imapclient, python-dotenv
+- **Python 3.10+**
+- **Dependencies:** pika (RabbitMQ), requests, imapclient, python-dotenv
 
 ## Architecture
 
@@ -52,7 +47,6 @@ ingestion/
 │   └── service.py             # Main ingestion orchestration
 ├── tests/                     # 42+ unit and integration tests
 ├── main.py                    # Service entry point
-├── config.yaml                # Example source configuration
 ├── requirements.txt           # Python dependencies
 └── Dockerfile                 # Container image
 ```
@@ -69,7 +63,6 @@ ingestion/
 | `MESSAGE_BUS_PORT` | `5672` | RabbitMQ port |
 | `MESSAGE_BUS_USER` | `guest` | RabbitMQ username |
 | `MESSAGE_BUS_PASSWORD` | `guest` | RabbitMQ password |
-| `CONFIG_FILE` | `config.yaml` | Path to YAML configuration |
 | `LOG_LEVEL` | `INFO` | Logging level |
 | `RETRY_MAX_ATTEMPTS` | `3` | Max retry attempts |
 | `RETRY_BACKOFF_SECONDS` | `60` | Retry backoff time |
@@ -164,8 +157,6 @@ docker build -t ingestion-service .
 # Run with RabbitMQ
 docker run -d \
   -e MESSAGE_BUS_HOST=rabbitmq \
-  -e CONFIG_FILE=/app/config.yaml \
-  -v ./config.yaml:/app/config.yaml:ro \
   -v raw_archives:/data/raw_archives \
   ingestion-service
 ```

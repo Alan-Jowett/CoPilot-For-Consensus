@@ -24,10 +24,10 @@ setup(
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.12",
     ],
-    python_requires=">=3.11",
+    python_requires=">=3.10",
     install_requires=[
         "numpy>=1.24.0",  # Required for InMemoryVectorStore
     ],
@@ -45,7 +45,7 @@ setup(
             "faiss-gpu>=1.7.0",  # FAISS GPU version for faster search
         ],
         "qdrant": [
-            "qdrant-client>=1.7.0",  # Qdrant for cloud/self-hosted vector search
+            "qdrant-client>=1.9.0",  # Qdrant for cloud/self-hosted vector search
         ],
     },
 )

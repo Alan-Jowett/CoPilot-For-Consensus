@@ -10,12 +10,11 @@ A shared Python library for configuration management across microservices in the
 - **Abstract ConfigProvider Interface**: Common interface for all configuration providers
 - **EnvConfigProvider**: Production-ready provider that reads from environment variables
 - **StaticConfigProvider**: Testing provider with hardcoded configuration values
-- **YamlConfigProvider**: Provider that reads configuration from YAML files
 - **DocStoreConfigProvider**: Provider that reads configuration from document stores
 - **StorageConfigProvider**: Dynamic configuration backed by copilot_storage document stores with TTL-based refresh
 - **Schema-Driven Configuration**: JSON schema-based configuration with validation
 - **Typed Configuration**: Type-safe configuration access with attribute-style syntax
-- **Multi-Source Support**: Load configuration from environment, YAML, document stores, or static sources
+- **Multi-Source Support**: Load configuration from environment, document stores, or static sources
 - **Fast-Fail Validation**: Validate configuration at startup and fail fast on errors
 - **Factory Pattern**: Simple factory function for creating configuration providers
 - **Type-Safe Access**: Smart type conversion for bool, int, float, and string types with proper defaults
@@ -28,13 +27,13 @@ From the adapters root directory:
 
 ```bash
 cd adapters/copilot_config
-pip install -e ".[dev]"  # Includes YAML support
+pip install -e ".[dev]"
 ```
 
 ### For Production
 
 ```bash
-pip install copilot-config[yaml]  # Includes YAML support
+pip install copilot-config
 ```
 
 ## Usage
@@ -76,12 +75,6 @@ Create a JSON schema file in `schemas/<service>.json`:
       "env_var": "DEBUG",
       "default": false,
       "description": "Enable debug mode"
-    },
-    "database_settings": {
-      "type": "object",
-      "source": "yaml",
-      "yaml_path": "database",
-      "description": "Database configuration from YAML"
     }
   }
 }
@@ -136,7 +129,6 @@ Supported field types:
 Each field can specify where its value comes from:
 
 - `env`: Environment variables (via `env_var` parameter)
-- `yaml`: YAML files (via `yaml_path` parameter)
 - `document_store`: Document store (via `doc_store_path` parameter)
 - `static`: Static/hardcoded values
 
@@ -203,19 +195,6 @@ enabled = config.get_bool("FEATURE_ENABLED")  # True
 config.set("NEW_KEY", "new_value")
 ```
 
-#### YAML Configuration
-
-```python
-from copilot_config import YamlConfigProvider
-
-# Load from YAML file
-config = YamlConfigProvider("config.yaml")
-
-# Supports nested keys with dot notation
-host = config.get("database.host")
-port = config.get_int("database.port")
-```
-
 #### Dynamic Configuration via copilot_storage
 
 ```python
@@ -272,14 +251,6 @@ Testing configuration provider implementation with:
 - Includes `set()` method for dynamic updates
 - Perfect for unit testing without environment variable side effects
 - Isolated from actual system environment
-
-#### YamlConfigProvider
-
-YAML file configuration provider with:
-- Loads configuration from YAML files
-- Supports nested keys with dot notation (e.g., "database.host")
-- Gracefully handles missing files
-- Requires PyYAML (install with `pip install copilot-config[yaml]`)
 
 #### DocStoreConfigProvider
 

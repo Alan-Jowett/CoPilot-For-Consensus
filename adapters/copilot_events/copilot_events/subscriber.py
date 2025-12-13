@@ -16,11 +16,11 @@ class EventSubscriber(ABC):
     """
 
     @abstractmethod
-    def connect(self) -> None:
+    def connect(self) -> bool:
         """Connect to the message bus.
         
-        Raises:
-            Exception: If connection fails
+        Returns:
+            bool: True if connection successful, False otherwise
         """
         pass
 
@@ -34,7 +34,8 @@ class EventSubscriber(ABC):
         self,
         event_type: str,
         callback: Callable[[Dict[str, Any]], None],
-        routing_key: str = None
+        routing_key: str = None,
+        exchange: str = None,
     ) -> None:
         """Subscribe to events of a specific type.
         
@@ -43,6 +44,7 @@ class EventSubscriber(ABC):
             callback: Function to call when an event is received
             routing_key: Optional routing key pattern for filtering events
                         (e.g., "archive.ingested", "archive.*")
+            exchange: Optional exchange name (for subscribers that support it)
         """
         pass
 

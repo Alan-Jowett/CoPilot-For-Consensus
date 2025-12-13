@@ -2,14 +2,5 @@
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
 python-dotenv==1.2.1
-pyyaml==6.0.3
-# Config adapter
-# copilot_config
-# Archive Fetcher Adapter
-copilot-archive-fetcher[http,imap]>=0.1.0
-# Observability
-copilot-logging>=0.1.0
-copilot-reporting>=0.1.0
-copilot-metrics[prometheus]>=0.1.0
-# Local shared Adapter - installed separately in Dockerfile
-# copilot-events>=0.1.0
+
+# NOTE: Adapters are installed separately in CI and Docker builds

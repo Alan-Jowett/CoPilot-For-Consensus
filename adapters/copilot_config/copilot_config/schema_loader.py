@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
 from .config import ConfigProvider, EnvConfigProvider, StaticConfigProvider
-from .providers import YamlConfigProvider, DocStoreConfigProvider
+from .providers import DocStoreConfigProvider
 
 
 class ConfigValidationError(Exception):
@@ -29,9 +29,8 @@ class FieldSpec:
     field_type: str  # "string", "int", "bool", "float", "object", "array"
     required: bool = False
     default: Any = None
-    source: str = "env"  # "env", "yaml", "document_store", "static"
+    source: str = "env"  # "env", "document_store", "static"
     env_var: Optional[str] = None
-    yaml_path: Optional[str] = None
     doc_store_path: Optional[str] = None
     description: Optional[str] = None
     nested_schema: Optional[Dict[str, 'FieldSpec']] = None
@@ -93,7 +92,6 @@ class ConfigSchema:
             default=data.get("default"),
             source=data.get("source", "env"),
             env_var=data.get("env_var"),
-            yaml_path=data.get("yaml_path"),
             doc_store_path=doc_store_path,
             description=data.get("description"),
             nested_schema=nested_schema,
@@ -132,7 +130,6 @@ class SchemaConfigLoader:
         self,
         schema: ConfigSchema,
         env_provider: Optional[ConfigProvider] = None,
-        yaml_provider: Optional[YamlConfigProvider] = None,
         doc_store_provider: Optional[DocStoreConfigProvider] = None,
         static_provider: Optional[StaticConfigProvider] = None,
     ):
@@ -141,13 +138,11 @@ class SchemaConfigLoader:
         Args:
             schema: Configuration schema
             env_provider: Environment variable provider
-            yaml_provider: YAML file provider
             doc_store_provider: Document store provider
             static_provider: Static/hardcoded provider
         """
         self.schema = schema
         self.env_provider = env_provider or EnvConfigProvider()
-        self.yaml_provider = yaml_provider
         self.doc_store_provider = doc_store_provider
         self.static_provider = static_provider
 
@@ -289,7 +284,6 @@ class SchemaConfigLoader:
                 default=field_spec.default,
                 source=field_spec.source,
                 env_var=f"{parent_key}_{field_name}".upper() if not field_spec.env_var else field_spec.env_var,
-                yaml_path=nested_key if not field_spec.yaml_path else field_spec.yaml_path,
                 doc_store_path=nested_key if not field_spec.doc_store_path else field_spec.doc_store_path,
             )
             
@@ -313,8 +307,6 @@ class SchemaConfigLoader:
         """
         if source == "env":
             return self.env_provider
-        elif source == "yaml":
-            return self.yaml_provider
         elif source == "document_store" or source == "storage":
             return self.doc_store_provider
         elif source == "static":
@@ -333,8 +325,6 @@ class SchemaConfigLoader:
         """
         if field_spec.source == "env":
             return field_spec.env_var or field_spec.name.upper()
-        elif field_spec.source == "yaml":
-            return field_spec.yaml_path or field_spec.name
         elif field_spec.source == "document_store" or field_spec.source == "storage":
             return field_spec.doc_store_path or field_spec.name
         else:
@@ -345,7 +335,6 @@ def load_config(
     service_name: str,
     schema_dir: Optional[str] = None,
     env_provider: Optional[ConfigProvider] = None,
-    yaml_provider: Optional[YamlConfigProvider] = None,
     doc_store_provider: Optional[DocStoreConfigProvider] = None,
     static_provider: Optional[StaticConfigProvider] = None,
 ) -> Dict[str, Any]:
@@ -357,7 +346,6 @@ def load_config(
         service_name: Name of the service (e.g., "ingestion", "parsing")
         schema_dir: Directory containing schema files (defaults to ./schemas)
         env_provider: Optional custom environment provider
-        yaml_provider: Optional YAML provider
         doc_store_provider: Optional document store provider
         static_provider: Optional static provider
         
@@ -427,7 +415,6 @@ def load_config(
     loader = SchemaConfigLoader(
         schema=schema,
         env_provider=env_provider,
-        yaml_provider=yaml_provider,
         doc_store_provider=doc_store_provider,
         static_provider=static_provider,
     )

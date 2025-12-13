@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-FROM python:3.11-slim
+FROM pytorch/pytorch@sha256:11691e035a3651d25a87116b4f6adc113a27a29d8f5a6a583f8569e0ee5ff897
 
 WORKDIR /app
 
@@ -12,7 +12,22 @@ WORKDIR /app
 
 # Install shared adapters in dependency order using centralized script
 COPY adapters/ /app/adapters/
-RUN python /app/adapters/scripts/install_adapters.py --no-dev
+RUN python /app/adapters/scripts/install_adapters.py \
+    copilot_embedding \
+    copilot_config \
+    copilot_events \
+    copilot_storage \
+    copilot_vectorstore \
+    copilot_metrics \
+    copilot_reporting \
+    copilot_schema_validation \
+    copilot_logging
+
+# Install optional vectorstore backend with Qdrant support
+RUN pip install -e /app/adapters/copilot_vectorstore[qdrant]
+
+# Install PyTorch-based embedding backend for production
+RUN pip install -e /app/adapters/copilot_embedding[sentencetransformers]
 
 # Copy schema files for validation
 COPY documents/schemas /app/documents/schemas

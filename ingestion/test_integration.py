@@ -193,7 +193,7 @@ def main():
         monitor_events(duration_seconds=60)
     else:
         print("\nTo manually test, run:")
-        print("  docker compose run --rm -e CONFIG_FILE=/app/config.test.yaml ingestion")
+        print("  docker compose run --rm ingestion")
         print("\nThen check RabbitMQ Management UI:")
         print("  http://localhost:15672 (guest/guest)")
 

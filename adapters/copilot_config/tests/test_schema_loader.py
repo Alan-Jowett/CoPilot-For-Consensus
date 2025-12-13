@@ -15,7 +15,6 @@ from copilot_config import (
     FieldSpec,
     SchemaConfigLoader,
     StaticConfigProvider,
-    YamlConfigProvider,
     load_config,
 )
 
@@ -242,40 +241,6 @@ class TestSchemaConfigLoader:
         assert config["debug"] is True
         assert config["temperature"] == 0.7
 
-    def test_load_from_yaml_provider(self, tmp_path):
-        """Test loading configuration from YAML provider."""
-        yaml_file = tmp_path / "config.yaml"
-        yaml_file.write_text("""
-        app_name: yaml-app
-        port: 9000
-        """)
-        
-        schema = ConfigSchema(
-            service_name="test",
-            fields={
-                "app_name": FieldSpec(
-                    name="app_name",
-                    field_type="string",
-                    source="yaml",
-                    yaml_path="app_name",
-                ),
-                "port": FieldSpec(
-                    name="port",
-                    field_type="int",
-                    source="yaml",
-                    yaml_path="port",
-                ),
-            },
-        )
-        
-        yaml_provider = YamlConfigProvider(str(yaml_file))
-        loader = SchemaConfigLoader(schema, yaml_provider=yaml_provider)
-        
-        config = loader.load()
-        
-        assert config["app_name"] == "yaml-app"
-        assert config["port"] == 9000
-
     def test_load_from_static_provider(self):
         """Test loading configuration from static provider."""
         schema = ConfigSchema(
@@ -295,53 +260,6 @@ class TestSchemaConfigLoader:
         config = loader.load()
         
         assert config["app_name"] == "static-app"
-
-    def test_load_mixed_sources(self, tmp_path):
-        """Test loading configuration from mixed sources."""
-        yaml_file = tmp_path / "config.yaml"
-        yaml_file.write_text("db_host: yaml-host")
-        
-        schema = ConfigSchema(
-            service_name="test",
-            fields={
-                "app_name": FieldSpec(
-                    name="app_name",
-                    field_type="string",
-                    source="env",
-                    env_var="APP_NAME",
-                    default="env-app",
-                ),
-                "db_host": FieldSpec(
-                    name="db_host",
-                    field_type="string",
-                    source="yaml",
-                    yaml_path="db_host",
-                ),
-                "version": FieldSpec(
-                    name="version",
-                    field_type="string",
-                    source="static",
-                    default="1.0.0",
-                ),
-            },
-        )
-        
-        env_provider = EnvConfigProvider(environ={"APP_NAME": "my-app"})
-        yaml_provider = YamlConfigProvider(str(yaml_file))
-        static_provider = StaticConfigProvider({"version": "2.0.0"})
-        
-        loader = SchemaConfigLoader(
-            schema,
-            env_provider=env_provider,
-            yaml_provider=yaml_provider,
-            static_provider=static_provider,
-        )
-        
-        config = loader.load()
-        
-        assert config["app_name"] == "my-app"
-        assert config["db_host"] == "yaml-host"
-        assert config["version"] == "2.0.0"
 
 
 class TestLoadConfig:
