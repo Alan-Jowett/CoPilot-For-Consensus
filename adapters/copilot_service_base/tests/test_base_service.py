@@ -3,7 +3,6 @@
 
 """Tests for base service class."""
 
-import pytest
 from unittest.mock import Mock
 
 from copilot_service_base.base_service import BaseService
@@ -112,14 +111,14 @@ class TestBaseService:
         service.record_metric(
             "test_counter",
             value=5,
-            labels={"status": "success"},
+            tags={"status": "success"},
             metric_type="increment"
         )
         
         metrics.increment.assert_called_once_with(
             "test_counter",
             5,
-            labels={"status": "success"}
+            tags={"status": "success"}
         )
     
     def test_record_metric_observe(self):

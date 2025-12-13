@@ -5,7 +5,7 @@
 
 import logging
 import time
-from typing import Callable, TypeVar, Optional, Any
+from typing import Callable, TypeVar, Optional
 
 logger = logging.getLogger(__name__)
 

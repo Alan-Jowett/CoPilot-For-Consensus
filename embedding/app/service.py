@@ -203,7 +203,7 @@ class EmbeddingService:
         def on_retry(error: Exception, attempt: int):
             """Callback for retry attempts."""
             error_type = type(error).__name__
-            logger.error(f"Embedding generation failed (attempt {attempt}/{self.max_retries}): {error}", exc_info=True)
+            logger.error(f"Embedding generation failed (attempt {attempt}/{self.max_retries}) [{error_type}]: {error}", exc_info=True)
         
         def on_failure(error: Exception, attempt: int):
             """Callback when all retries exhausted."""
@@ -224,7 +224,7 @@ class EmbeddingService:
             
             # Record failure metrics
             if self.metrics_collector:
-                self.metrics_collector.increment("embedding_failures_total", 1, labels={"error_type": error_type})
+                self.metrics_collector.increment("embedding_failures_total", 1, tags={"error_type": error_type})
         
         try:
             retry_with_backoff(

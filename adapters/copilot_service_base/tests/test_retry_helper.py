@@ -5,7 +5,7 @@
 
 import pytest
 import time
-from unittest.mock import Mock, call
+from unittest.mock import Mock
 
 from copilot_service_base.retry_helper import retry_with_backoff
 

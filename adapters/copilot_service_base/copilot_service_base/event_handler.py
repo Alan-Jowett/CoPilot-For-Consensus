@@ -58,6 +58,8 @@ def safe_event_handler(
                 # Call error callback if provided
                 if on_error:
                     on_error(self, e, event)
+                
+                return None
         
         return wrapper
     return decorator

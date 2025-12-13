@@ -96,7 +96,7 @@ class BaseService(ABC):
         self,
         metric_name: str,
         value: float = 1.0,
-        labels: Optional[Dict[str, str]] = None,
+        tags: Optional[Dict[str, str]] = None,
         metric_type: str = "increment",
     ):
         """Record a metric if metrics collector is available.
@@ -104,7 +104,7 @@ class BaseService(ABC):
         Args:
             metric_name: Name of the metric
             value: Metric value
-            labels: Optional labels/tags for the metric
+            tags: Optional tags/labels for the metric
             metric_type: Type of metric ('increment', 'observe', 'histogram')
         """
         if not self.metrics_collector:
@@ -112,7 +112,7 @@ class BaseService(ABC):
         
         try:
             if metric_type == "increment":
-                self.metrics_collector.increment(metric_name, value, labels=labels or {})
+                self.metrics_collector.increment(metric_name, value, tags=tags or {})
             elif metric_type == "observe":
                 self.metrics_collector.observe(metric_name, value)
             elif metric_type == "histogram":

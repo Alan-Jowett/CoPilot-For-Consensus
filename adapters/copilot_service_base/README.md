@@ -77,7 +77,7 @@ class MyService(BaseService):
     
     def process(self):
         self.increment_processed()
-        self.record_metric("my_metric", value=1.0, labels={"status": "success"})
+        self.record_metric("my_metric", value=1.0, tags={"status": "success"})
 ```
 
 Features:
