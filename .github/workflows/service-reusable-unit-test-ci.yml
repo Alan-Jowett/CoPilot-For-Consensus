@@ -52,16 +52,26 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        # Install service-specific adapters from requirements
+        
+        # Install service-specific adapters from requirements.txt
         cd ${{ inputs.service_path }}
         if grep -q "^-e.*adapters/" requirements.txt 2>/dev/null; then
+          # Extract adapter names from -e entries (e.g., -e ../adapters/copilot_config -> copilot_config)
           ADAPTERS=$(grep "^-e.*adapters/" requirements.txt | sed 's|^-e.*/adapters/||' | tr '\n' ' ')
           cd ..
           python adapters/scripts/install_adapters.py $ADAPTERS
           cd ${{ inputs.service_path }}
+          # Create a temporary requirements file without -e entries for pip install
+          grep -v "^-e.*adapters/" requirements.txt > requirements-temp.txt
+          pip install -r requirements-temp.txt
+          rm requirements-temp.txt
+        else
+          # No adapters, install requirements as-is
+          pip install -r requirements.txt
         fi
-        pip install -r requirements.txt
+        
         pip install pytest pytest-cov
+
 
     - name: Run unit and integration tests
       run: |

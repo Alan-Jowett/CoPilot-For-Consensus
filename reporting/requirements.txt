@@ -7,6 +7,9 @@ uvicorn==0.38.0
 requests==2.32.5
 httpx==0.28.1
 
-# Adapters
-# copilot_config
+# Adapters (installed from local directories)
+-e ../adapters/copilot_config
+-e ../adapters/copilot_logging
+-e ../adapters/copilot_metrics
+-e ../adapters/copilot_reporting
 

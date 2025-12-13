@@ -7,12 +7,13 @@ fastapi==0.124.4
 uvicorn==0.38.0
 
 # Adapters (installed from local directories)
-# copilot_config
-# copilot_events
-# copilot_storage
-# copilot_vectorstore
-# copilot_embedding
-# copilot_metrics
-# copilot_reporting
-# copilot_schema_validation
+-e ../adapters/copilot_config
+-e ../adapters/copilot_events
+-e ../adapters/copilot_storage
+-e ../adapters/copilot_vectorstore
+-e ../adapters/copilot_embedding
+-e ../adapters/copilot_metrics
+-e ../adapters/copilot_reporting
+-e ../adapters/copilot_schema_validation
+-e ../adapters/copilot_logging
 

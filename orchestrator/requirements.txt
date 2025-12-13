@@ -11,6 +11,12 @@ python-dotenv==1.2.1
 # Monitoring
 prometheus-client==0.21.0
 
-# Adapters
-# copilot_config
+# Adapters (installed from local directories)
+-e ../adapters/copilot_config
+-e ../adapters/copilot_events
+-e ../adapters/copilot_storage
+-e ../adapters/copilot_logging
+-e ../adapters/copilot_metrics
+-e ../adapters/copilot_reporting
+-e ../adapters/copilot_schema_validation
 

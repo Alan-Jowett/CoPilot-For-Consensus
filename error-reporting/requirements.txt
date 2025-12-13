@@ -1,3 +1,6 @@
 Flask==3.1.2
 Werkzeug==3.1.4
-# copilot_config
+
+# Adapters (installed from local directories)
+-e ../adapters/copilot_config
+-e ../adapters/copilot_logging
