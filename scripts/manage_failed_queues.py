@@ -20,7 +20,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 
 try:
@@ -200,7 +200,7 @@ class FailedQueueManager:
         # Write to file
         export_data = {
             "queue": queue_name,
-            "export_timestamp": datetime.utcnow().isoformat() + "Z",
+            "export_timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "total_messages_in_queue": total_count,
             "messages_exported": len(messages),
             "messages": messages,
