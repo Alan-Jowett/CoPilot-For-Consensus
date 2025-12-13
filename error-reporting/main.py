@@ -9,7 +9,6 @@ from flask import Flask, request, render_template
 from copilot_config import load_typed_config
 from app.error_store import ErrorStore, ErrorEvent
 import uuid
-from functools import lru_cache
 
 # Valid error levels
 VALID_LEVELS = {"error", "warning", "critical", "info"}
@@ -22,23 +21,30 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__, template_folder='templates')
 
-# Lazy-loaded configuration and error store
-config = None
-error_store = None
 
-
-@lru_cache(maxsize=1)
 def get_config():
-    """Load and cache service configuration lazily."""
-    return load_typed_config("error-reporting")
+    """Get or initialize service configuration lazily.
+    
+    Returns:
+        TypedConfig instance
+        
+    Note:
+        Config is loaded once and cached for performance.
+    """
+    if not hasattr(app, 'config_obj') or app.config_obj is None:
+        app.config_obj = load_typed_config("error-reporting")
+    return app.config_obj
 
 
 def get_error_store() -> ErrorStore:
-    """Get or initialize the ErrorStore with configured capacity."""
-    global error_store
-    if error_store is None:
-        error_store = ErrorStore(max_errors=get_config().max_errors)
-    return error_store
+    """Get or initialize the ErrorStore with configured capacity.
+    
+    Returns:
+        ErrorStore instance
+    """
+    if not hasattr(app, 'error_store') or app.error_store is None:
+        app.error_store = ErrorStore(max_errors=get_config().max_errors)
+    return app.error_store
 
 
 @app.route("/", methods=["GET"])
