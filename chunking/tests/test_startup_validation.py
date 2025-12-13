@@ -14,8 +14,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 def test_service_fails_when_publisher_connection_fails():
     """Test that service fails fast when publisher cannot connect."""
-    with patch("chunking.main.load_typed_config") as mock_config:
-        with patch("chunking.main.create_publisher") as mock_create_publisher:
+    with patch("main.load_typed_config") as mock_config:
+        with patch("main.create_publisher") as mock_create_publisher:
             # Setup mock config
             config = Mock()
             config.message_bus_type = "rabbitmq"
@@ -43,7 +43,7 @@ def test_service_fails_when_publisher_connection_fails():
             mock_create_publisher.return_value = mock_publisher
             
             # Import main after setting up mocks
-            from chunking import main as chunking_main
+            import main as chunking_main
             
             # Service should raise ConnectionError and exit
             with pytest.raises(SystemExit) as exc_info:
@@ -55,9 +55,9 @@ def test_service_fails_when_publisher_connection_fails():
 
 def test_service_fails_when_subscriber_connection_fails():
     """Test that service fails fast when subscriber cannot connect."""
-    with patch("chunking.main.load_typed_config") as mock_config:
-        with patch("chunking.main.create_publisher") as mock_create_publisher:
-            with patch("chunking.main.create_subscriber") as mock_create_subscriber:
+    with patch("main.load_typed_config") as mock_config:
+        with patch("main.create_publisher") as mock_create_publisher:
+            with patch("main.create_subscriber") as mock_create_subscriber:
                 # Setup mock config
                 config = Mock()
                 config.message_bus_type = "rabbitmq"
@@ -90,7 +90,7 @@ def test_service_fails_when_subscriber_connection_fails():
                 mock_create_subscriber.return_value = mock_subscriber
                 
                 # Import main after setting up mocks
-                from chunking import main as chunking_main
+                import main as chunking_main
                 
                 # Service should raise ConnectionError and exit
                 with pytest.raises(SystemExit) as exc_info:
@@ -102,10 +102,10 @@ def test_service_fails_when_subscriber_connection_fails():
 
 def test_service_fails_when_document_store_connection_fails():
     """Test that service fails fast when document store cannot connect."""
-    with patch("chunking.main.load_typed_config") as mock_config:
-        with patch("chunking.main.create_publisher") as mock_create_publisher:
-            with patch("chunking.main.create_subscriber") as mock_create_subscriber:
-                with patch("chunking.main.create_document_store") as mock_create_store:
+    with patch("main.load_typed_config") as mock_config:
+        with patch("main.create_publisher") as mock_create_publisher:
+            with patch("main.create_subscriber") as mock_create_subscriber:
+                with patch("main.create_document_store") as mock_create_store:
                     # Setup mock config
                     config = Mock()
                     config.message_bus_type = "rabbitmq"
@@ -143,7 +143,7 @@ def test_service_fails_when_document_store_connection_fails():
                     mock_create_store.return_value = mock_store
                     
                     # Import main after setting up mocks
-                    from chunking import main as chunking_main
+                    import main as chunking_main
                     
                     # Service should raise ConnectionError and exit
                     with pytest.raises(SystemExit) as exc_info:
@@ -155,14 +155,14 @@ def test_service_fails_when_document_store_connection_fails():
 
 def test_service_allows_noop_publisher_failure():
     """Test that service continues when noop publisher fails to connect."""
-    with patch("chunking.main.load_typed_config") as mock_config:
-        with patch("chunking.main.create_publisher") as mock_create_publisher:
-            with patch("chunking.main.create_subscriber") as mock_create_subscriber:
-                with patch("chunking.main.create_document_store") as mock_create_store:
-                    with patch("chunking.main.create_chunker") as mock_create_chunker:
-                        with patch("chunking.main.create_metrics_collector") as mock_metrics:
-                            with patch("chunking.main.create_error_reporter") as mock_reporter:
-                                with patch("chunking.main.FileSchemaProvider") as mock_schema_provider:
+    with patch("main.load_typed_config") as mock_config:
+        with patch("main.create_publisher") as mock_create_publisher:
+            with patch("main.create_subscriber") as mock_create_subscriber:
+                with patch("main.create_document_store") as mock_create_store:
+                    with patch("main.create_chunker") as mock_create_chunker:
+                        with patch("main.create_metrics_collector") as mock_metrics:
+                            with patch("main.create_error_reporter") as mock_reporter:
+                                with patch("main.FileSchemaProvider") as mock_schema_provider:
                                     with patch("threading.Thread.start"):  # Prevent thread creation
                                         with patch("uvicorn.run"):  # Prevent uvicorn from blocking
                                             # Setup mock config with noop message bus
@@ -212,7 +212,7 @@ def test_service_allows_noop_publisher_failure():
                                             mock_reporter.return_value = Mock()
                                             
                                             # Import main after setting up mocks
-                                            from chunking import main as chunking_main
+                                            import main as chunking_main
                                             
                                             # Service should complete without raising SystemExit with error code
                                             # Note: uvicorn.run is mocked so it won't block
@@ -227,11 +227,11 @@ def test_service_allows_noop_publisher_failure():
 
 def test_service_fails_when_schema_missing():
     """Test that service fails fast when required schemas cannot be loaded."""
-    with patch("chunking.main.load_typed_config") as mock_config:
-        with patch("chunking.main.create_publisher") as mock_create_publisher:
-            with patch("chunking.main.create_subscriber") as mock_create_subscriber:
-                with patch("chunking.main.create_document_store") as mock_create_store:
-                    with patch("chunking.main.FileSchemaProvider") as mock_schema_provider:
+    with patch("main.load_typed_config") as mock_config:
+        with patch("main.create_publisher") as mock_create_publisher:
+            with patch("main.create_subscriber") as mock_create_subscriber:
+                with patch("main.create_document_store") as mock_create_store:
+                    with patch("main.FileSchemaProvider") as mock_schema_provider:
                         # Setup mock config
                         config = Mock()
                         config.message_bus_type = "rabbitmq"
@@ -277,7 +277,7 @@ def test_service_fails_when_schema_missing():
                         mock_schema_provider.return_value = mock_provider_instance
                         
                         # Import main after setting up mocks
-                        from chunking import main as chunking_main
+                        import main as chunking_main
                         
                         # Service should raise RuntimeError and exit
                         with pytest.raises(SystemExit) as exc_info:
@@ -289,10 +289,10 @@ def test_service_fails_when_schema_missing():
 
 def test_service_fails_when_doc_store_lacks_write_permission():
     """Test that service fails fast when document store lacks write permission."""
-    with patch("chunking.main.load_typed_config") as mock_config:
-        with patch("chunking.main.create_publisher") as mock_create_publisher:
-            with patch("chunking.main.create_subscriber") as mock_create_subscriber:
-                with patch("chunking.main.create_document_store") as mock_create_store:
+    with patch("main.load_typed_config") as mock_config:
+        with patch("main.create_publisher") as mock_create_publisher:
+            with patch("main.create_subscriber") as mock_create_subscriber:
+                with patch("main.create_document_store") as mock_create_store:
                     # Setup mock config
                     config = Mock()
                     config.message_bus_type = "rabbitmq"
@@ -331,7 +331,7 @@ def test_service_fails_when_doc_store_lacks_write_permission():
                     mock_create_store.return_value = mock_store
                     
                     # Import main after setting up mocks
-                    from chunking import main as chunking_main
+                    import main as chunking_main
                     
                     # Service should raise PermissionError and exit
                     with pytest.raises(SystemExit) as exc_info:
