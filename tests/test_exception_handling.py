@@ -12,7 +12,6 @@ This test suite ensures that:
 """
 
 import ast
-import os
 import sys
 
 import pytest
