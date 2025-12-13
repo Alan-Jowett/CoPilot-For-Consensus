@@ -11,10 +11,11 @@ This test suite ensures that:
 4. GeneratorExit is not suppressed by broad exception handlers
 """
 
-import pytest
-import signal
-import sys
+import ast
 import os
+import sys
+
+import pytest
 
 
 def test_keyboard_interrupt_not_suppressed():
@@ -118,9 +119,6 @@ def test_specific_exception_handlers_preferred():
 
 def test_no_bare_except_in_code():
     """Verify that no bare 'except:' clauses exist in the codebase."""
-    import ast
-    import os
-    
     bare_except_found = []
     
     class BareExceptChecker(ast.NodeVisitor):
@@ -154,9 +152,6 @@ def test_no_bare_except_in_code():
 
 def test_no_base_exception_in_code():
     """Verify that no 'except BaseException' clauses exist in the codebase."""
-    import ast
-    import os
-    
     base_exception_found = []
     
     class BaseExceptionChecker(ast.NodeVisitor):
@@ -191,9 +186,6 @@ def test_no_base_exception_in_code():
 
 def test_keyboard_interrupt_before_exception_in_main_entries():
     """Verify that main entry points handle KeyboardInterrupt before broad Exception."""
-    import ast
-    import os
-    
     violations = []
     
     class ExceptionOrderChecker(ast.NodeVisitor):

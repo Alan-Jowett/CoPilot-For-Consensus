@@ -212,8 +212,7 @@ We have comprehensive tests to verify exception handling:
 Run these tests before committing changes:
 
 ```bash
-cd tests
-pytest test_exception_handling.py -v
+pytest tests/test_exception_handling.py -v
 ```
 
 ## Quick Reference
