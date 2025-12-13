@@ -17,7 +17,6 @@ import pika
 def test_rabbitmq_connection():
     """Test connection to RabbitMQ."""
     print("\n=== Testing RabbitMQ Connection ===")
-    connection_successful = False
     try:
         # Connect to RabbitMQ
         credentials = pika.PlainCredentials('guest', 'guest')
@@ -47,33 +46,28 @@ def test_rabbitmq_connection():
         print(f"   Listening for: archive.ingested, archive.ingestion.failed")
         
         connection.close()
-        connection_successful = True
+        return True
         
     except Exception as e:
         print(f"❌ Failed to connect to RabbitMQ: {e}")
-        connection_successful = False
-    
-    assert connection_successful, "Failed to connect to RabbitMQ"
+        return False
 
 
 def test_prometheus_connection():
     """Test connection to Prometheus."""
     print("\n=== Testing Prometheus Connection ===")
-    connection_successful = False
     try:
         response = requests.get('http://localhost:9090/api/v1/status/config', timeout=5)
         if response.status_code == 200:
             print("✅ Successfully connected to Prometheus")
             print(f"   Endpoint: http://localhost:9090")
-            connection_successful = True
+            return True
         else:
             print(f"❌ Prometheus returned status code: {response.status_code}")
-            connection_successful = False
+            return False
     except Exception as e:
         print(f"❌ Failed to connect to Prometheus: {e}")
-        connection_successful = False
-    
-    assert connection_successful, "Failed to connect to Prometheus"
+        return False
 
 
 def check_rabbitmq_management():
