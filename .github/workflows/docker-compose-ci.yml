@@ -13,20 +13,10 @@ env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ghcr.io/${{ github.repository }}/
 
-permissions:
-  packages: write
-
 jobs:
-  # Call the build-images workflow to build and cache images
-  build-images:
-    name: Build Images
-    uses: ./.github/workflows/build-images.yml
-    secrets: inherit
-
   # Test docker-compose with cached images
   test-docker-compose:
     name: Test Docker Compose
-    needs: build-images
     runs-on: ubuntu-latest
     
     steps:
