@@ -326,7 +326,7 @@ class ChunkingService:
             self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="chunks.prepared",
-                message=event.to_dict(),
+                event=event.to_dict(),
             )
             
             logger.info(f"Published ChunksPrepared event: {chunk_count} chunks")
@@ -364,7 +364,7 @@ class ChunkingService:
             self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="chunking.failed",
-                message=event.to_dict(),
+                event=event.to_dict(),
             )
             
             logger.info(f"Published ChunkingFailed event: {error_type}")
