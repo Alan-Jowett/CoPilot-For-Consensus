@@ -227,18 +227,15 @@ def main():
         logger.error(f"Fatal error in parsing service: {e}", exc_info=True)
         sys.exit(1)
     finally:
-        # Cleanup
-        try:
-            service = get_service()
+        # Cleanup - access app.state directly to avoid RuntimeError from get_service()
+        if hasattr(app.state, "parsing_service") and app.state.parsing_service:
+            service = app.state.parsing_service
             if service.subscriber:
                 service.subscriber.disconnect()
             if service.publisher:
                 service.publisher.disconnect()
             if service.document_store:
                 service.document_store.disconnect()
-        except RuntimeError:
-            # Service not initialized, nothing to clean up
-            pass
 
 
 if __name__ == "__main__":
