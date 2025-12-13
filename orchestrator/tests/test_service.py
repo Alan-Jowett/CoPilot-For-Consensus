@@ -279,3 +279,48 @@ def test_handle_embeddings_generated_event(orchestration_service, mock_document_
     
     # Verify SummarizationRequested was published
     assert mock_publisher.publish.called
+
+
+def test_resolve_threads_raises_on_database_error(orchestration_service, mock_document_store):
+    """Test that _resolve_threads raises exception on database errors."""
+    # Setup mock to raise an exception
+    mock_document_store.query_documents = Mock(side_effect=Exception("Database connection failed"))
+    
+    # Verify exception is raised, not swallowed
+    with pytest.raises(Exception, match="Database connection failed"):
+        orchestration_service._resolve_threads(["chunk-1", "chunk-2"])
+
+
+def test_publish_orchestration_failed_raises_on_publish_error(orchestration_service, mock_publisher):
+    """Test that _publish_orchestration_failed raises exception on publish errors."""
+    # Setup mock to raise an exception
+    mock_publisher.publish = Mock(side_effect=Exception("RabbitMQ connection lost"))
+    
+    # Verify exception is raised, not swallowed
+    with pytest.raises(Exception, match="RabbitMQ connection lost"):
+        orchestration_service._publish_orchestration_failed(
+            thread_ids=["<thread-1@example.com>"],
+            error_message="Test error",
+            error_type="TestError"
+        )
+
+
+def test_event_handler_raises_on_errors(orchestration_service, mock_document_store):
+    """Test that event handler re-raises exceptions to trigger message requeue."""
+    # Setup mock to raise an exception during processing
+    mock_document_store.query_documents = Mock(side_effect=Exception("Test error"))
+    
+    event = {
+        "data": {
+            "chunk_ids": ["chunk-1", "chunk-2"],
+            "embedding_count": 2,
+        }
+    }
+    
+    # Event handler should re-raise to trigger message requeue for transient failures
+    with pytest.raises(Exception, match="Test error"):
+        orchestration_service._handle_embeddings_generated(event)
+    
+    # Verify failure was tracked
+    assert orchestration_service.failures_count == 1
+    assert orchestration_service.events_processed == 0  # Event not counted as processed

@@ -89,6 +89,11 @@ class OrchestrationService:
 
     def _handle_embeddings_generated(self, event: Dict[str, Any]):
         """Handle EmbeddingsGenerated event.
+        
+        This is an event handler for message queue consumption. Exceptions are
+        logged and re-raised to allow message requeue for transient failures
+        (e.g., database unavailable). Only exceptions due to bad event data
+        should be caught and not re-raised.
 
         Args:
             event: Event dictionary
@@ -110,6 +115,7 @@ class OrchestrationService:
             if self.error_reporter:
                 self.error_reporter.report(e, context={"event": event})
             self.failures_count += 1
+            raise  # Re-raise to trigger message requeue for transient failures
 
     def process_embeddings(self, event_data: Dict[str, Any]):
         """Process embeddings and orchestrate summarization.
@@ -178,6 +184,7 @@ class OrchestrationService:
             logger.error(f"Error resolving threads: {e}", exc_info=True)
             if self.error_reporter:
                 self.error_reporter.report(e, context={"chunk_ids": chunk_ids})
+            raise
 
         return list(thread_ids)
 
@@ -340,6 +347,7 @@ class OrchestrationService:
             logger.error(f"Error publishing OrchestrationFailed: {e}", exc_info=True)
             if self.error_reporter:
                 self.error_reporter.report(e, context={"thread_ids": thread_ids})
+            raise
 
     def get_stats(self) -> Dict[str, Any]:
         """Get service statistics.

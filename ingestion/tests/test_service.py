@@ -230,7 +230,11 @@ class TestIngestionService:
         assert isinstance(service.error_reporter, SilentErrorReporter)
 
         service.config.storage_path = "/invalid/path/that/does/not/exist"
-        service.save_checksums()
+        try:
+            service.save_checksums()
+        except ValueError:
+            # Expected: save_checksums raises after reporting to error_reporter
+            pass
 
         assert error_reporter.has_errors()
         errors = error_reporter.get_errors()
@@ -310,3 +314,46 @@ def test_archive_ingestion_failed_event_schema_validation():
 
         for event_record in failure_events:
             assert_valid_event_schema(event_record["event"])
+
+
+def test_save_checksums_raises_on_write_error(tmp_path):
+    """Test that save_checksums raises exception on write errors."""
+    from app.service import IngestionService
+    from copilot_events import NoopPublisher
+    from .test_helpers import make_config
+    from unittest.mock import patch
+    
+    config = make_config(storage_path=str(tmp_path))
+    
+    publisher = NoopPublisher()
+    service = IngestionService(config=config, publisher=publisher)
+    
+    # Add a checksum
+    service.checksums["test"] = "abc123"
+    
+    # Mock open to raise PermissionError when writing checksums file
+    with patch("builtins.open", side_effect=PermissionError("Permission denied")):
+        # Verify exception is raised, not swallowed
+        with pytest.raises(PermissionError):
+            service.save_checksums()
+
+
+def test_load_checksums_recovers_on_read_error(tmp_path):
+    """Test that load_checksums recovers gracefully on read errors (intentional)."""
+    from app.service import IngestionService
+    from copilot_events import NoopPublisher
+    from .test_helpers import make_config
+    
+    # Create a corrupted checksums file
+    metadata_dir = tmp_path / "metadata"
+    metadata_dir.mkdir(exist_ok=True)
+    checksums_file = metadata_dir / "checksums.json"
+    checksums_file.write_text("{ invalid json }")
+    
+    config = make_config(storage_path=str(tmp_path))
+    
+    publisher = NoopPublisher()
+    
+    # Service should start with empty checksums (intentional recovery)
+    service = IngestionService(config=config, publisher=publisher)
+    assert service.checksums == {}

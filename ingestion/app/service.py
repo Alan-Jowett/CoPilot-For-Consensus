@@ -160,7 +160,12 @@ class IngestionService:
         (storage_dir / "metadata").mkdir(exist_ok=True)
 
     def load_checksums(self) -> None:
-        """Load checksums from metadata file."""
+        """Load checksums from metadata file.
+        
+        If loading fails, starts with empty checksums to allow service to continue.
+        This is intentional recovery - the service can start even if checksums
+        can't be loaded (though files may be reprocessed).
+        """
         checksums_path = os.path.join(self.config.storage_path, "metadata", "checksums.json")
 
         if os.path.exists(checksums_path):
@@ -173,7 +178,7 @@ class IngestionService:
                     checksums_path=checksums_path,
                 )
             except Exception as e:
-                self.logger.warning("Failed to load checksums", error=str(e))
+                self.logger.warning("Failed to load checksums", error=str(e), exc_info=True)
                 self.error_reporter.report(
                     e,
                     context={
@@ -186,7 +191,10 @@ class IngestionService:
             self.checksums = {}
 
     def save_checksums(self) -> None:
-        """Save checksums to metadata file."""
+        """Save checksums to metadata file.
+        
+        Raises on failure to ensure caller is aware that checksums weren't persisted.
+        """
         checksums_path = os.path.join(self.config.storage_path, "metadata", "checksums.json")
         try:
             if self.config.storage_path != self._initial_storage_path:
@@ -202,7 +210,7 @@ class IngestionService:
                 checksums_path=checksums_path,
             )
         except Exception as e:
-            self.logger.error("Failed to save checksums", error=str(e))
+            self.logger.error("Failed to save checksums", error=str(e), exc_info=True)
             self.error_reporter.report(
                 e,
                 context={
@@ -211,6 +219,7 @@ class IngestionService:
                     "checksum_count": len(self.checksums),
                 }
             )
+            raise
 
     def is_file_already_ingested(self, file_hash: str) -> bool:
         """Check if a file has already been ingested.
@@ -514,6 +523,9 @@ class IngestionService:
     def _save_ingestion_log(self, metadata: ArchiveMetadata) -> None:
         """Save ingestion metadata to log file.
         
+        This is best-effort audit logging. Failures are logged but not raised
+        since audit log failures should not block ingestion processing.
+        
         Args:
             metadata: Archive metadata to log
         """
@@ -529,7 +541,7 @@ class IngestionService:
                 archive_id=metadata.archive_id,
             )
         except Exception as e:
-            self.logger.error("Failed to save ingestion log", error=str(e))
+            self.logger.error("Failed to save ingestion log", error=str(e), exc_info=True)
             self.error_reporter.report(
                 e,
                 context={

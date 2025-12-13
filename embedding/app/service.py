@@ -101,6 +101,11 @@ class EmbeddingService:
     def _handle_chunks_prepared(self, event: Dict[str, Any]):
         """Handle ChunksPrepared event.
         
+        This is an event handler for message queue consumption. Exceptions are
+        logged and re-raised to allow message requeue for transient failures
+        (e.g., database unavailable). Only exceptions due to bad event data
+        should be caught and not re-raised.
+        
         Args:
             event: Event dictionary
         """
@@ -117,6 +122,7 @@ class EmbeddingService:
             logger.error(f"Error handling ChunksPrepared event: {e}", exc_info=True)
             if self.error_reporter:
                 self.error_reporter.report(e, context={"event": event})
+            raise  # Re-raise to trigger message requeue for transient failures
 
     def process_chunks(self, event_data: Dict[str, Any]):
         """Process chunks and generate embeddings.

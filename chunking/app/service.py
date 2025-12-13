@@ -75,6 +75,11 @@ class ChunkingService:
     def _handle_json_parsed(self, event: Dict[str, Any]):
         """Handle JSONParsed event.
         
+        This is an event handler for message queue consumption. Exceptions are
+        logged and re-raised to allow message requeue for transient failures
+        (e.g., database unavailable). Only exceptions due to bad event data
+        should be caught and not re-raised.
+        
         Args:
             event: Event dictionary
         """
@@ -91,6 +96,7 @@ class ChunkingService:
             logger.error(f"Error handling JSONParsed event: {e}", exc_info=True)
             if self.error_reporter:
                 self.error_reporter.report(e, context={"event": event})
+            raise  # Re-raise to trigger message requeue for transient failures
 
     def process_messages(self, event_data: Dict[str, Any]):
         """Process messages and create chunks.
@@ -322,13 +328,14 @@ class ChunkingService:
             self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="chunks.prepared",
-                message=event.to_dict(),
+                event=event.to_dict(),
             )
             
             logger.info(f"Published ChunksPrepared event: {chunk_count} chunks")
             
         except Exception as e:
             logger.error(f"Failed to publish ChunksPrepared event: {e}", exc_info=True)
+            raise
 
     def _publish_chunking_failed(
         self,
@@ -359,13 +366,14 @@ class ChunkingService:
             self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="chunking.failed",
-                message=event.to_dict(),
+                event=event.to_dict(),
             )
             
             logger.info(f"Published ChunkingFailed event: {error_type}")
             
         except Exception as e:
             logger.error(f"Failed to publish ChunkingFailed event: {e}", exc_info=True)
+            raise
 
     def get_stats(self) -> Dict[str, Any]:
         """Get service statistics.

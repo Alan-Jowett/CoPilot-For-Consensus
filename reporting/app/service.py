@@ -83,6 +83,11 @@ class ReportingService:
     def _handle_summary_complete(self, event: Dict[str, Any]):
         """Handle SummaryComplete event.
         
+        This is an event handler for message queue consumption. Exceptions are
+        logged and re-raised to allow message requeue for transient failures
+        (e.g., database unavailable). Only exceptions due to bad event data
+        should be caught and not re-raised.
+        
         Args:
             event: Event dictionary
         """
@@ -116,6 +121,7 @@ class ReportingService:
             # Report error
             if self.error_reporter:
                 self.error_reporter.report(e, context={"event": event})
+            raise  # Re-raise to trigger message requeue for transient failures
 
     def process_summary(self, event_data: Dict[str, Any], full_event: Dict[str, Any]) -> str:
         """Process and store a summary.
@@ -190,7 +196,8 @@ class ReportingService:
                     self.metrics_collector.increment("reporting_delivery_total", tags={"channel": "webhook", "status": "success"})
                     
             except Exception as e:
-                logger.warning(f"Failed to send webhook notification: {e}")
+                # Webhook notifications are best-effort - log and publish failure event but continue
+                logger.warning(f"Failed to send webhook notification: {e}", exc_info=True)
                 self.notifications_failed += 1
                 
                 if self.metrics_collector:

@@ -386,7 +386,9 @@ def test_handle_summary_complete_error_handling(
     # Make insert_document raise an exception
     mock_document_store.insert_document.side_effect = Exception("DB Error")
     
-    reporting_service_with_metrics._handle_summary_complete(sample_summary_complete_event)
+    # Should raise the exception for message requeue
+    with pytest.raises(Exception, match="DB Error"):
+        reporting_service_with_metrics._handle_summary_complete(sample_summary_complete_event)
     
     # Should increment error metric
     mock_metrics.increment.assert_any_call(
