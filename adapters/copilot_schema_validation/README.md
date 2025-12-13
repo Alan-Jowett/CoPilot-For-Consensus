@@ -5,14 +5,14 @@
 
 JSON schema validation library for Copilot-for-Consensus events.
 
-This adapter provides schema validation functionality for event messages in the Copilot-for-Consensus system. It supports multiple schema providers (filesystem, document store) and uses JSON Schema validation for event validation.
+This adapter provides schema validation functionality for event messages in the Copilot-for-Consensus system. It uses JSON Schema validation for event validation against schemas loaded from the filesystem.
 
 ## Features
 
-- **Multiple Schema Providers**: Load schemas from files or document stores
+- **File-based Schema Provider**: Load schemas from the filesystem
 - **JSON Schema Validation**: Full JSON Schema validation with support for schema references
-- **Flexible Storage**: Works with any DocumentStore backend (MongoDB, etc.)
 - **Caching**: Built-in schema caching for performance
+- **No external dependencies**: Eliminates circular dependencies with other adapters
 
 ## Installation
 
@@ -47,20 +47,6 @@ document = {
 is_valid, errors = validate_json(document, schema)
 ```
 
-### Document Store Schema Provider
-
-```python
-from copilot_schema_validation import DocumentStoreSchemaProvider, validate_json
-
-# Load schemas from MongoDB
-provider = DocumentStoreSchemaProvider(
-    mongo_uri="mongodb://localhost:27017"
-)
-
-schema = provider.get_schema("ArchiveIngested")
-is_valid, errors = validate_json(document, schema, schema_provider=provider)
-```
-
 ## Testing
 
 Run tests with pytest:
@@ -70,7 +56,7 @@ cd adapters/copilot_schema_validation
 pytest tests/ -v
 ```
 
-For unit tests only (skip integration tests):
+For unit tests only:
 
 ```bash
 pytest tests/ -v -m "not integration"
@@ -90,3 +76,7 @@ Run linting and type checking:
 pylint copilot_schema_validation/
 mypy copilot_schema_validation/
 ```
+
+## History of Changes
+
+- **Removed DocumentStoreSchemaProvider**: The `DocumentStoreSchemaProvider` class and its MongoDB integration have been removed to eliminate the circular dependency between `copilot_schema_validation` and `copilot_storage`. All applications now use `FileSchemaProvider` to load schemas from the filesystem.

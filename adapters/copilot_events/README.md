@@ -441,7 +441,7 @@ Testing subscriber implementation with:
 Schema validation wrapper that:
 - Validates events against JSON schemas before publishing
 - Supports both strict (raise error) and non-strict (log warning) modes
-- Works with any schema provider (FileSchemaProvider, DocumentStoreSchemaProvider)
+- Works with FileSchemaProvider for event schema validation
 - Composes cleanly with any EventPublisher implementation
 - Provides structured ValidationError with detailed error messages
 
