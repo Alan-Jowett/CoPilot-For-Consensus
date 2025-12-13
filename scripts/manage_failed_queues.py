@@ -200,7 +200,7 @@ class FailedQueueManager:
         # Write to file
         export_data = {
             "queue": queue_name,
-            "export_timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "export_timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
             "total_messages_in_queue": total_count,
             "messages_exported": len(messages),
             "messages": messages,
@@ -257,10 +257,14 @@ class FailedQueueManager:
                 break
             
             if not dry_run:
+                # Determine routing key from target queue name
+                # Most queues use the queue name as routing key (e.g., archive.ingested)
+                routing_key = target_queue
+                
                 # Publish to target queue
                 self.channel.basic_publish(
                     exchange="copilot.events",
-                    routing_key=target_queue.replace(".failed", ""),  # Use routing key matching queue
+                    routing_key=routing_key,
                     body=body,
                     properties=pika.BasicProperties(
                         content_type=properties.content_type,
