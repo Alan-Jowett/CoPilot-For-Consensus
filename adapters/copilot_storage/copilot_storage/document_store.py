@@ -144,11 +144,12 @@ def create_document_store(
                 "port": int(os.getenv("MONGO_PORT", "27017")),
                 "database": os.getenv("MONGO_DB", "copilot"),
             }
-            # Only add credentials if they're set
-            if os.getenv("MONGO_USER"):
-                kwargs["username"] = os.getenv("MONGO_USER")
-            if os.getenv("MONGO_PASSWORD"):
-                kwargs["password"] = os.getenv("MONGO_PASSWORD")
+            mongo_user = os.getenv("MONGO_USER")
+            mongo_password = os.getenv("MONGO_PASSWORD")
+            if mongo_user is not None:
+                kwargs["username"] = mongo_user
+            if mongo_password is not None:
+                kwargs["password"] = mongo_password
         
         return MongoDocumentStore(**kwargs)
     elif store_type == "inmemory":

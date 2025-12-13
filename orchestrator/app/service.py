@@ -81,6 +81,7 @@ class OrchestrationService:
             event_type="EmbeddingsGenerated",
             callback=self._handle_embeddings_generated,
             routing_key="embeddings.generated",
+            exchange="copilot.events",
         )
 
         logger.info("Subscribed to embeddings.generated events")

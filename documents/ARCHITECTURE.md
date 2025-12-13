@@ -177,7 +177,7 @@ try:
     config = load_typed_config("service-name")
 except ConfigValidationError as e:
     logger.error(f"Configuration validation failed: {e}")
-    sys.exit(1)
+    raise Exception("Configuration failed to load")
 
 # Access configuration via attributes
 message_bus_host = config.message_bus_host

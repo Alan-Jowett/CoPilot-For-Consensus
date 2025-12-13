@@ -111,7 +111,7 @@ def main():
             if str(config.message_bus_type).lower() != "noop":
                 logger.error(
                     "Failed to connect publisher to message bus. Failing fast.")
-                sys.exit(1)
+                raise Exception("Publisher connection failed")
             else:
                 logger.warning("Failed to connect publisher to message bus. Continuing with noop publisher.")
         
@@ -134,7 +134,7 @@ def main():
         
         if not base_subscriber.connect():
             logger.error("Failed to connect subscriber to message bus")
-            sys.exit(1)
+            raise Exception("Subscriber connection failed")
         
         # Wrap with schema validation
         subscriber = ValidatingEventSubscriber(
@@ -155,7 +155,7 @@ def main():
         
         if not base_document_store.connect():
             logger.error("Failed to connect to document store")
-            sys.exit(1)
+            raise Exception("Document store connection failed")
         
         # Wrap with schema validation
         document_store = ValidatingDocumentStore(

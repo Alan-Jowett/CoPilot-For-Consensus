@@ -14,6 +14,7 @@ import os
 import json
 import sys
 import logging
+import hashlib
 from pathlib import Path
 
 # Prefer adapters package
@@ -63,16 +64,35 @@ def main(config_path: Path):
         sys.exit(1)
 
     inserted = 0
+    updated = 0
     for src in sources:
         # Basic validation aligned with ingestion schema
         required = ["name", "source_type", "url", "enabled"]
         if not all(k in src for k in required):
             logger.warning("Skipping invalid source missing required fields: %s", src)
             continue
-        store.insert_document("sources", src)
-        inserted += 1
 
-    logger.info("Inserted %d sources into document store.", inserted)
+        # Deterministic ID based on full source payload to avoid duplicates
+        payload = dict(src)
+        payload_bytes = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        doc_id = hashlib.sha256(payload_bytes).hexdigest()
+        payload["_id"] = doc_id
+
+        existing = store.query_documents("sources", {"_id": doc_id}, limit=1)
+        if existing:
+            patch = dict(payload)
+            patch.pop("_id", None)
+            if store.update_document("sources", doc_id, patch):
+                updated += 1
+                logger.info("Updated existing source id=%s (name=%s)", doc_id, src.get("name"))
+            else:
+                logger.warning("Failed to update existing source id=%s", doc_id)
+        else:
+            store.insert_document("sources", payload)
+            inserted += 1
+            logger.info("Inserted new source id=%s (name=%s)", doc_id, src.get("name"))
+
+    logger.info("Upsert complete. Inserted=%d, Updated=%d", inserted, updated)
     store.disconnect()
 
 
