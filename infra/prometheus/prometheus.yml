@@ -5,6 +5,10 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+# Alert rules for failed queue monitoring
+rule_files:
+  - /etc/prometheus/alerts/*.yml
+
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:
