@@ -164,7 +164,7 @@ jobs:
     with:
       service_id: 'reporting'
       service_path: 'reporting'
-      adapter_names: 'copilot_config copilot_logging copilot_metrics copilot_reporting'
+      adapter_names: 'copilot_config copilot_events copilot_storage copilot_metrics copilot_reporting copilot_logging copilot_schema_validation'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
@@ -176,7 +176,7 @@ jobs:
     with:
       service_id: 'summarization'
       service_path: 'summarization'
-      adapter_names: 'copilot_config copilot_events copilot_storage copilot_vectorstore copilot_logging copilot_metrics copilot_reporting copilot_schema_validation'
+      adapter_names: 'copilot_config copilot_events copilot_storage copilot_vectorstore copilot_metrics copilot_reporting copilot_summarization copilot_logging copilot_schema_validation'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
