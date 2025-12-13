@@ -83,6 +83,10 @@ class ReportingService:
     def _handle_summary_complete(self, event: Dict[str, Any]):
         """Handle SummaryComplete event.
         
+        This is an event handler for message queue consumption. Exceptions are
+        logged but not re-raised to prevent message requeue. Error state is
+        tracked in metrics and reported to error tracking service.
+        
         Args:
             event: Event dictionary
         """

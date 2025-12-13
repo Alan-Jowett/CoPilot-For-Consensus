@@ -90,6 +90,10 @@ class SummarizationService:
     def _handle_summarization_requested(self, event: Dict[str, Any]):
         """Handle SummarizationRequested event.
         
+        This is an event handler for message queue consumption. Exceptions are
+        logged but not re-raised to prevent message requeue. Error state is
+        tracked in metrics and reported to error tracking service.
+        
         Args:
             event: Event dictionary
         """

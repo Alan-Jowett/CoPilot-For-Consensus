@@ -79,6 +79,10 @@ class ParsingService:
     def _handle_archive_ingested(self, event: Dict[str, Any]):
         """Handle ArchiveIngested event.
         
+        This is an event handler for message queue consumption. Exceptions are
+        logged but not re-raised to prevent message requeue. Error state is
+        tracked in metrics and reported to error tracking service.
+        
         Args:
             event: Event dictionary
         """
@@ -98,6 +102,10 @@ class ParsingService:
 
     def process_archive(self, archive_data: Dict[str, Any]):
         """Process an archive and parse messages.
+        
+        Errors are handled by publishing ParsingFailed events and collecting
+        metrics. Exceptions are not re-raised to allow graceful error handling
+        in the event processing pipeline.
         
         Args:
             archive_data: Archive metadata from ArchiveIngested event
