@@ -31,7 +31,7 @@ def get_config():
     Note:
         Config is loaded once and cached for performance.
     """
-    if not hasattr(app, 'config_obj') or app.config_obj is None:
+    if getattr(app, 'config_obj', None) is None:
         app.config_obj = load_typed_config("error-reporting")
     return app.config_obj
 
@@ -42,7 +42,7 @@ def get_error_store() -> ErrorStore:
     Returns:
         ErrorStore instance
     """
-    if not hasattr(app, 'error_store') or app.error_store is None:
+    if getattr(app, 'error_store', None) is None:
         app.error_store = ErrorStore(max_errors=get_config().max_errors)
     return app.error_store
 
