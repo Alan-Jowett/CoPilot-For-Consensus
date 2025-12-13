@@ -51,9 +51,8 @@ class TestInMemoryDocumentStore:
         """Test connecting to in-memory store."""
         store = InMemoryDocumentStore()
 
-        result = store.connect()
+        store.connect()
 
-        assert result is True
         assert store.connected is True
 
     def test_disconnect(self):
@@ -156,21 +155,21 @@ class TestInMemoryDocumentStore:
 
         doc_id = store.insert_document("users", {"name": "Alice", "age": 30})
 
-        result = store.update_document("users", doc_id, {"age": 31})
+        store.update_document("users", doc_id, {"age": 31})
 
-        assert result is True
         updated = store.get_document("users", doc_id)
         assert updated["age"] == 31
         assert updated["name"] == "Alice"  # Unchanged
 
     def test_update_nonexistent_document(self):
         """Test updating a non-existent document."""
+        from copilot_storage import DocumentNotFoundError
+        
         store = InMemoryDocumentStore()
         store.connect()
 
-        result = store.update_document("users", "nonexistent", {"age": 50})
-
-        assert result is False
+        with pytest.raises(DocumentNotFoundError):
+            store.update_document("users", "nonexistent", {"age": 50})
 
     def test_delete_document(self):
         """Test deleting a document."""
@@ -179,19 +178,19 @@ class TestInMemoryDocumentStore:
 
         doc_id = store.insert_document("users", {"name": "Alice"})
 
-        result = store.delete_document("users", doc_id)
+        store.delete_document("users", doc_id)
 
-        assert result is True
         assert store.get_document("users", doc_id) is None
 
     def test_delete_nonexistent_document(self):
         """Test deleting a non-existent document."""
+        from copilot_storage import DocumentNotFoundError
+        
         store = InMemoryDocumentStore()
         store.connect()
 
-        result = store.delete_document("users", "nonexistent")
-
-        assert result is False
+        with pytest.raises(DocumentNotFoundError):
+            store.delete_document("users", "nonexistent")
 
     def test_clear_collection(self):
         """Test clearing a collection."""
