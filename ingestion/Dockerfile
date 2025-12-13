@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-FROM pytorch/pytorch:latest
+FROM pytorch/pytorch@sha256:11691e035a3651d25a87116b4f6adc113a27a29d8f5a6a583f8569e0ee5ff897
 
 # Install rsync for archive fetching
 RUN apt-get update && \
@@ -29,6 +29,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy service code
 COPY ingestion/app/ ./app/
 COPY ingestion/*.py ./
-COPY ingestion/upload_ingestion_sources.py ./
 
 CMD ["python", "main.py"]

@@ -106,7 +106,7 @@ def main():
         if not publisher.connect():
             if str(config.message_bus_type).lower() != "noop":
                 logger.error("Failed to connect publisher to message bus. Failing fast.")
-                sys.exit(1)
+                raise Exception("Publisher connection failed")
             else:
                 logger.warning("Failed to connect publisher to message bus. Continuing with noop publisher.")
 
@@ -120,7 +120,7 @@ def main():
         )
         if not subscriber.connect():
             logger.error("Failed to connect subscriber to message bus.")
-            sys.exit(1)
+            raise Exception("Subscriber connection failed")
 
         logger.info("Creating document store...")
         document_store = create_document_store(
@@ -133,7 +133,7 @@ def main():
         )
         if not document_store.connect():
             logger.error("Failed to connect to document store.")
-            sys.exit(1)
+            raise Exception("Document store connection failed")
 
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")
