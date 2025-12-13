@@ -37,7 +37,9 @@ class DocStoreConfigProvider(ConfigProvider):
             # Try to ensure cache is loaded to verify connection
             self._ensure_cache()
             return self._cache is not None
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, AttributeError, TypeError):
+            # Network/connection errors, or document store not available
+            # AttributeError/TypeError can occur if document store is not properly initialized
             return False
 
     def query_documents_from_collection(self, collection_name: str, limit: int = 10000) -> list:
@@ -57,7 +59,10 @@ class DocStoreConfigProvider(ConfigProvider):
                 limit=limit
             )
             return documents if documents else []
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, AttributeError, TypeError, KeyError):
+            # Network/connection errors, or document store not available
+            # AttributeError/TypeError can occur if document store is not properly initialized
+            # KeyError can occur if required fields are missing
             return []
 
     def _ensure_cache(self) -> None:
@@ -73,7 +78,10 @@ class DocStoreConfigProvider(ConfigProvider):
                 # Assume documents have a 'key' and 'value' field
                 if 'key' in doc and 'value' in doc:
                     self._cache[doc['key']] = doc['value']
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, AttributeError, TypeError, KeyError):
+            # Network/connection errors, or document store not available
+            # AttributeError/TypeError can occur if document store is not properly initialized
+            # KeyError can occur if documents have unexpected structure
             # If query fails, use empty cache
             self._cache = {}
 
