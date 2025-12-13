@@ -499,11 +499,14 @@ def test_handle_malformed_event_missing_data(document_store):
     }
     
     # Should handle gracefully without crashing
+    exception_raised = False
     try:
         service._handle_archive_ingested(event)
     except KeyError:
         # Expected - service should validate required fields
-        pass
+        exception_raised = True
+    
+    assert exception_raised, "Expected KeyError for missing data field"
 
 
 def test_handle_event_missing_required_fields(document_store):
@@ -529,8 +532,11 @@ def test_handle_event_missing_required_fields(document_store):
     }
     
     # Should handle gracefully
+    exception_raised = False
     try:
         service._handle_archive_ingested(event)
     except (KeyError, FileNotFoundError):
         # Expected - service should handle missing fields
-        pass
+        exception_raised = True
+    
+    assert exception_raised, "Expected KeyError or FileNotFoundError for missing required fields"

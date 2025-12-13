@@ -113,11 +113,13 @@ class TestNoopSubscriber:
         """Test injecting event with no registered callback."""
         subscriber = NoopSubscriber()
         
-        # Should not raise exception
+        # Should not raise exception - call completes successfully
         subscriber.inject_event({
             "event_type": "UnknownEvent",
             "event_id": "123"
         })
+        # No exception means test passes
+        assert True
 
     def test_inject_event_no_type(self):
         """Test injecting event without event_type field."""

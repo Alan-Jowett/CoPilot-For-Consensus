@@ -440,11 +440,14 @@ def test_handle_malformed_event_missing_data():
     }
     
     # Should handle gracefully without crashing
+    exception_raised = False
     try:
         service._handle_json_parsed(event)
     except (KeyError, AttributeError):
         # Expected - service should validate required fields
-        pass
+        exception_raised = True
+    
+    assert exception_raised, "Expected KeyError or AttributeError for missing data field"
 
 
 def test_handle_event_with_invalid_message_ids_type():
@@ -478,11 +481,14 @@ def test_handle_event_with_invalid_message_ids_type():
     }
     
     # Should handle gracefully
+    exception_raised = False
     try:
         service._handle_json_parsed(event)
     except (TypeError, AttributeError):
         # Expected - service should handle type errors
-        pass
+        exception_raised = True
+
+    assert exception_raised, "Expected TypeError or AttributeError for invalid message_ids type"
 
 
 def test_publish_chunks_prepared_raises_on_publish_error(chunking_service, mock_publisher):

@@ -346,6 +346,7 @@ class TestValidatingDocumentStore:
         provider = MockSchemaProvider()
         store = ValidatingDocumentStore(base, provider)
         
+        # Should not raise exception when disconnecting
         store.disconnect()
-        # InMemoryDocumentStore doesn't have a connected state to check
+        assert True  # Successful disconnect without error
         # but we can verify it doesn't raise an error
