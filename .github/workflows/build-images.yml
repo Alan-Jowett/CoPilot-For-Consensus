@@ -5,11 +5,6 @@ name: Build and Push Docker Images
 
 # Trigger conditions
 on:
-  push:
-    branches:
-      - main
-      - develop
-      - 'feature/**'
   workflow_dispatch:
 
 # Environment variables
@@ -108,8 +103,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up QEMU (for multi-arch builds)
-        # Uncomment if using multiple architectures in BUILD_PLATFORMS
-        # uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v3
         if: contains(env.BUILD_PLATFORMS, ',')
 
       - name: Set up Docker Buildx
