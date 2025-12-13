@@ -26,10 +26,15 @@ class NoopSubscriber(EventSubscriber):
         self.callbacks: Dict[str, Callable[[Dict[str, Any]], None]] = {}
         self.routing_keys: Dict[str, str] = {}
 
-    def connect(self) -> None:
-        """Simulate connection to message bus."""
+    def connect(self) -> bool:
+        """Simulate connection to message bus.
+        
+        Returns:
+            bool: Always returns True
+        """
         self.connected = True
         logger.debug("NoopSubscriber connected")
+        return True
 
     def disconnect(self) -> None:
         """Simulate disconnection from message bus."""

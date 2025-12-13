@@ -79,10 +79,12 @@ Write-Host "  Using JSON config: $jsonPath" -ForegroundColor Cyan
 Write-Host "  Uploading sources to document store..." -ForegroundColor Yellow
 
 # Prepare volume mount for JSON into container path
-$mountArg = "${jsonPath}:/app/ingestion/config.test.json:ro"
+# Mount to /app/config.test.json since upload script defaults to ingestion/config.test.json
+# but we pass the mounted path as argument
+$mountArg = "${jsonPath}:/app/config.test.json:ro"
 
 # Run the uploader inside the ingestion container so it uses adapters/env
-docker compose run --rm -v "$mountArg" ingestion python upload_ingestion_sources.py /app/ingestion/config.test.json
+docker compose run --rm -v "$mountArg" ingestion python upload_ingestion_sources.py /app/config.test.json
 if ($LASTEXITCODE -ne 0) {
     Write-Host "  ✗ Failed to upload sources to document store" -ForegroundColor Red
     exit 1

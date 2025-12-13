@@ -61,8 +61,12 @@ class RabbitMQSubscriber(EventSubscriber):
         self.callbacks: Dict[str, Callable[[Dict[str, Any]], None]] = {}
         self._consuming = False
 
-    def connect(self) -> None:
-        """Connect to RabbitMQ server."""
+    def connect(self) -> bool:
+        """Connect to RabbitMQ server.
+        
+        Returns:
+            bool: True if connection successful, False otherwise
+        """
         try:
             import pika
             
@@ -104,9 +108,10 @@ class RabbitMQSubscriber(EventSubscriber):
                 f"Connected to RabbitMQ: {self.host}:{self.port}, "
                 f"exchange={self.exchange_name}, queue={self.queue_name}"
             )
+            return True
         except Exception as e:
             logger.error(f"Failed to connect to RabbitMQ: {e}")
-            raise
+            return False
 
     def disconnect(self) -> None:
         """Disconnect from RabbitMQ server."""

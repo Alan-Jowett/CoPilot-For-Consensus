@@ -111,14 +111,16 @@ class DocumentStore(ABC):
 
 
 def create_document_store(
-    store_type: str = "inmemory",
+    store_type: str = None,
     **kwargs
 ) -> DocumentStore:
     """Factory function to create a document store.
     
     Args:
-        store_type: Type of document store ("mongodb", "inmemory")
-        **kwargs: Additional store-specific arguments
+        store_type: Type of document store ("mongodb", "inmemory"). 
+                   If None, reads from DOCUMENT_STORE_TYPE environment variable (defaults to "inmemory")
+        **kwargs: Additional store-specific arguments. For MongoDB, if not provided, 
+                 will read from MONGO_* environment variables.
         
     Returns:
         DocumentStore instance
@@ -126,11 +128,29 @@ def create_document_store(
     Raises:
         ValueError: If store_type is not recognized
     """
+    import os
+    
+    # Auto-detect store type from environment if not provided
+    if store_type is None:
+        store_type = os.getenv("DOCUMENT_STORE_TYPE", "inmemory").lower()
+    
     if store_type == "mongodb":
         from .mongo_document_store import MongoDocumentStore
-        return MongoDocumentStore(
-            **kwargs
-        )
+        
+        # If no kwargs provided, read from environment
+        if not kwargs:
+            kwargs = {
+                "host": os.getenv("MONGO_HOST", "localhost"),
+                "port": int(os.getenv("MONGO_PORT", "27017")),
+                "database": os.getenv("MONGO_DB", "copilot"),
+            }
+            # Only add credentials if they're set
+            if os.getenv("MONGO_USER"):
+                kwargs["username"] = os.getenv("MONGO_USER")
+            if os.getenv("MONGO_PASSWORD"):
+                kwargs["password"] = os.getenv("MONGO_PASSWORD")
+        
+        return MongoDocumentStore(**kwargs)
     elif store_type == "inmemory":
         from .inmemory_document_store import InMemoryDocumentStore
         return InMemoryDocumentStore()
