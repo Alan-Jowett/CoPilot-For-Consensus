@@ -14,7 +14,7 @@ env:
   IMAGE_PREFIX: ghcr.io/${{ github.repository }}/
 
 permissions:
-  packages: read
+  packages: write
 
 jobs:
   # Call the build-images workflow to build and cache images
