@@ -201,7 +201,10 @@ def main():
             queue_name="reporting-service",
         )
         
-        logger.info("Creating document store...")
+        if not subscriber.connect():
+            logger.error("Failed to connect subscriber to message bus.")
+            raise ConnectionError("Subscriber failed to connect to message bus")
+        
         document_store = create_document_store(
             store_type=config.doc_store_type,
             host=config.doc_store_host,

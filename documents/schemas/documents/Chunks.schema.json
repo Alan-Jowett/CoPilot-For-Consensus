@@ -25,6 +25,5 @@
     "created_at": { "type": "string", "format": "date-time" },
     "embedding_generated": { "type": "boolean" }
   },
-  "required": ["chunk_id", "message_id", "thread_id", "chunk_index", "text", "created_at", "embedding_generated"],
-  "additionalProperties": false
+  "required": ["chunk_id", "message_id", "thread_id", "chunk_index", "text", "created_at", "embedding_generated"]
 }

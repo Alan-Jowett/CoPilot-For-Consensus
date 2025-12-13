@@ -7,18 +7,17 @@
     "message_id": { "type": "string", "minLength": 1 },
     "archive_id": { "type": "string", "format": "uuid" },
     "thread_id": { "type": "string", "minLength": 1 },
-    "in_reply_to": { "type": "string", "minLength": 1 },
+    "in_reply_to": { "type": ["string", "null"], "minLength": 1 },
     "references": {
       "type": "array",
       "items": { "type": "string", "minLength": 1 },
-      "minItems": 0,
-      "uniqueItems": true
+      "minItems": 0
     },
-    "subject": { "type": "string", "minLength": 1 },
+    "subject": { "type": "string" },
     "from": {
-      "type": "object",
+      "type": ["object", "null"],
       "properties": {
-        "name": { "type": "string", "minLength": 1 },
+        "name": { "type": ["string", "null"] },
         "email": { "type": "string", "format": "email" }
       },
       "required": ["email"],
@@ -50,9 +49,9 @@
       },
       "minItems": 0
     },
-    "date": { "type": "string", "format": "date-time" },
+    "date": { "type": ["string", "null"], "format": "date-time" },
     "body_raw": { "type": "string" },
-    "body_normalized": { "type": "string", "minLength": 1 },
+    "body_normalized": { "type": "string" },
     "body_html": { "type": "string" },
     "headers": { "type": "object" },
     "attachments": {
@@ -78,6 +77,5 @@
     },
     "created_at": { "type": "string", "format": "date-time" }
   },
-  "required": ["message_id", "archive_id", "thread_id", "date", "body_normalized", "created_at"],
-  "additionalProperties": false
+  "required": ["message_id", "archive_id", "thread_id", "date", "body_normalized", "created_at"]
 }

@@ -117,6 +117,8 @@ class EmbeddingService:
             logger.error(f"Error handling ChunksPrepared event: {e}", exc_info=True)
             if self.error_reporter:
                 self.error_reporter.report(e, context={"event": event})
+            # Re-raise so RabbitMQ can nack and requeue the message
+            raise
 
     def process_chunks(self, event_data: Dict[str, Any]):
         """Process chunks and generate embeddings.

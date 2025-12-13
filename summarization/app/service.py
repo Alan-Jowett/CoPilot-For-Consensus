@@ -105,8 +105,8 @@ class SummarizationService:
         except Exception as e:
             logger.error(f"Error handling SummarizationRequested event: {e}", exc_info=True)
             if self.error_reporter:
-                self.error_reporter.report(e, context={"event": event})
-
+                self.error_reporter.report(e, context={"event": event})            # Re-raise so RabbitMQ can nack and requeue the message
+            raise
     def process_summarization(self, event_data: Dict[str, Any]):
         """Process summarization request for threads.
         

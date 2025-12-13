@@ -113,6 +113,8 @@ class ReportingService:
                 self.metrics_collector.increment("reporting_events_total", tags={"event_type": "summary_complete", "outcome": "error"})
                 self.metrics_collector.increment("reporting_failures_total", tags={"error_type": type(e).__name__})
             
+            # Re-raise so RabbitMQ can nack and requeue the message
+            raise
             # Report error
             if self.error_reporter:
                 self.error_reporter.report(e, context={"event": event})

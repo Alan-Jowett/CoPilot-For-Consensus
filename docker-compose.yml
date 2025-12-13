@@ -25,10 +25,14 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - messagebus
-      - monitoring
-      - pushgateway
-      - documentdb
+      messagebus:
+        condition: service_healthy
+      monitoring:
+        condition: service_started
+      pushgateway:
+        condition: service_started
+      documentdb:
+        condition: service_started
     restart: "no"
 
   parsing:
@@ -39,9 +43,20 @@ services:
     environment:
       - STORAGE_PATH=/data/parsed_json
       - SCHEMA_DIR=/app/documents/schemas/configs
+      - DOCUMENT_STORE_TYPE=mongodb
+      - DOC_DB_HOST=documentdb
+      - DOC_DB_PORT=27017
+      - DOC_DB_NAME=copilot
+      - DOC_DB_USER=${MONGO_INITDB_ROOT_USERNAME:-root}
+      - DOC_DB_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD:-example}
     volumes:
       - raw_archives:/data/raw_archives:ro
       - parsed_json:/data/parsed_json
+    depends_on:
+      messagebus:
+        condition: service_healthy
+      documentdb:
+        condition: service_healthy
     restart: unless-stopped
 
   chunking:
@@ -51,8 +66,19 @@ services:
       dockerfile: ./chunking/Dockerfile
     environment:
       - SCHEMA_DIR=/app/documents/schemas/configs
+      - DOCUMENT_STORE_TYPE=mongodb
+      - DOC_DB_HOST=documentdb
+      - DOC_DB_PORT=27017
+      - DOC_DB_NAME=copilot
+      - DOC_DB_USER=${MONGO_INITDB_ROOT_USERNAME:-root}
+      - DOC_DB_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD:-example}
     depends_on:
-      - parsing
+      messagebus:
+        condition: service_healthy
+      documentdb:
+        condition: service_healthy
+      parsing:
+        condition: service_started
     restart: unless-stopped
 
   embedding:
@@ -66,8 +92,19 @@ services:
       - EMBEDDING_BACKEND=${EMBEDDING_BACKEND:-sentencetransformers}
       - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
       - SCHEMA_DIR=/app/documents/schemas/configs
+      - DOCUMENT_STORE_TYPE=mongodb
+      - DOC_DB_HOST=documentdb
+      - DOC_DB_PORT=27017
+      - DOC_DB_NAME=copilot
+      - DOC_DB_USER=${MONGO_INITDB_ROOT_USERNAME:-root}
+      - DOC_DB_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD:-example}
     depends_on:
-      - chunking
+      messagebus:
+        condition: service_healthy
+      documentdb:
+        condition: service_healthy
+      chunking:
+        condition: service_started
     restart: unless-stopped
 
   vectorstore:
@@ -100,11 +137,23 @@ services:
       - AZURE_OPENAI_KEY=${AZURE_OPENAI_KEY:-}
       - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
       - SCHEMA_DIR=/app/documents/schemas/configs
+      - DOCUMENT_STORE_TYPE=mongodb
+      - DOC_DB_HOST=documentdb
+      - DOC_DB_PORT=27017
+      - DOC_DB_NAME=copilot
+      - DOC_DB_USER=${MONGO_INITDB_ROOT_USERNAME:-root}
+      - DOC_DB_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD:-example}
     depends_on:
-      - embedding
-      - vectorstore
-      - documentdb
-      - ollama
+      messagebus:
+        condition: service_healthy
+      documentdb:
+        condition: service_healthy
+      vectorstore:
+        condition: service_started
+      ollama:
+        condition: service_started
+      embedding:
+        condition: service_started
     restart: unless-stopped
 
   summarization:
@@ -121,11 +170,21 @@ services:
       - LLM_MODEL=${LLM_MODEL:-mistral}
       - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
       - SCHEMA_DIR=/app/documents/schemas/configs
+      - DOCUMENT_STORE_TYPE=mongodb
+      - DOC_DB_HOST=documentdb
+      - DOC_DB_PORT=27017
+      - DOC_DB_NAME=copilot
+      - DOC_DB_USER=${MONGO_INITDB_ROOT_USERNAME:-root}
+      - DOC_DB_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD:-example}
     depends_on:
-      - orchestrator
-      - documentdb
-      - vectorstore
-      - messagebus
+      messagebus:
+        condition: service_healthy
+      documentdb:
+        condition: service_healthy
+      vectorstore:
+        condition: service_started
+      orchestrator:
+        condition: service_started
     restart: unless-stopped
 
   reporting:
@@ -135,10 +194,21 @@ services:
       dockerfile: ./reporting/Dockerfile
     environment:
       - SCHEMA_DIR=/app/documents/schemas/configs
+      - DOCUMENT_STORE_TYPE=mongodb
+      - DOC_DB_HOST=documentdb
+      - DOC_DB_PORT=27017
+      - DOC_DB_NAME=copilot
+      - DOC_DB_USER=${MONGO_INITDB_ROOT_USERNAME:-root}
+      - DOC_DB_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD:-example}
     ports:
       - "8080:8080"
     depends_on:
-      - summarization
+      messagebus:
+        condition: service_healthy
+      documentdb:
+        condition: service_healthy
+      summarization:
+        condition: service_started
     restart: unless-stopped
 
   documentdb:
@@ -211,6 +281,12 @@ services:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER:-guest}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS:-guest}
       - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbitmq_management load_definitions "/etc/rabbitmq/definitions.json"
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics ping && rabbitmq-diagnostics check_running && rabbitmqctl list_exchanges | grep -q copilot.events"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
 
   monitoring:

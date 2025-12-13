@@ -13,6 +13,5 @@
     "file_path": { "type": "string", "minLength": 1 },
     "status": { "type": "string", "enum": ["pending", "processed", "failed"] }
   },
-  "required": ["archive_id", "source", "ingestion_date", "status"],
-  "additionalProperties": false
+  "required": ["archive_id", "source", "ingestion_date", "status"]
 }

@@ -95,6 +95,8 @@ class ParsingService:
             logger.error(f"Error handling ArchiveIngested event: {e}", exc_info=True)
             if self.error_reporter:
                 self.error_reporter.report(e, context={"event": event})
+            # Re-raise so RabbitMQ can nack and requeue the message
+            raise
 
     def process_archive(self, archive_data: Dict[str, Any]):
         """Process an archive and parse messages.
