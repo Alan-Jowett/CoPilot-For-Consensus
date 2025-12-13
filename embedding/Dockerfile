@@ -25,7 +25,7 @@ RUN python /app/adapters/scripts/install_adapters.py \
 RUN pip install -e /app/adapters/copilot_vectorstore[qdrant]
 
 # Install PyTorch-based embedding backend for production
-RUN pip install /app/adapters/copilot_embedding[sentencetransformers]
+RUN pip install -e /app/adapters/copilot_embedding[sentencetransformers]
 
 # Copy schema files for validation
 COPY documents/schemas /app/documents/schemas
