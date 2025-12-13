@@ -30,7 +30,7 @@ setup(
     python_requires=">=3.10",
     install_requires=[
         "numpy>=1.24.0",  # Required for InMemoryVectorStore
-        "qdrant-client>=1.7.0",  # Required for QdrantVectorStore
+        "qdrant-client>=1.9.0",  # Required for QdrantVectorStore
     ],
     extras_require={
         "dev": [
