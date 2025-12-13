@@ -116,6 +116,10 @@ def main():
             username=config.message_bus_user,
             password=config.message_bus_password,            queue_name="chunking-service",        )
         
+        if not subscriber.connect():
+            logger.error("Failed to connect subscriber to message bus. Failing fast.")
+            raise ConnectionError("Subscriber failed to connect to message bus")
+        
         logger.info("Creating document store...")
         document_store = create_document_store(
             store_type=config.doc_store_type,

@@ -2,7 +2,7 @@
   "collections": [
     {
       "name": "archives",
-      "schema": "/schemas/documents/archives.schema.json",
+      "schema": "/schemas/documents/Archives.schema.json",
       "indexes": [
         { "keys": { "archive_id": 1 }, "options": { "unique": true, "name": "archive_id_unique" } },
         { "keys": { "source": 1 }, "options": { "name": "source_idx" } },
@@ -12,7 +12,7 @@
     },
     {
       "name": "messages",
-      "schema": "/schemas/documents/messages.schema.json",
+      "schema": "/schemas/documents/Messages.schema.json",
       "indexes": [
         { "keys": { "message_id": 1 }, "options": { "unique": true, "name": "message_id_unique" } },
         { "keys": { "archive_id": 1 }, "options": { "name": "archive_id_idx" } },
@@ -25,7 +25,7 @@
     },
     {
       "name": "chunks",
-      "schema": "/schemas/documents/chunks.schema.json",
+      "schema": "/schemas/documents/Chunks.schema.json",
       "indexes": [
         { "keys": { "chunk_id": 1 }, "options": { "unique": true, "name": "chunk_id_unique" } },
         { "keys": { "message_id": 1 }, "options": { "name": "message_id_idx" } },
@@ -36,7 +36,7 @@
     },
     {
       "name": "threads",
-      "schema": "/schemas/documents/threads.schema.json",
+      "schema": "/schemas/documents/Threads.schema.json",
       "indexes": [
         { "keys": { "thread_id": 1 }, "options": { "unique": true, "name": "thread_id_unique" } },
         { "keys": { "archive_id": 1 }, "options": { "name": "archive_id_idx" } },
@@ -50,7 +50,7 @@
     },
     {
       "name": "summaries",
-      "schema": "/schemas/documents/summaries.schema.json",
+      "schema": "/schemas/documents/Summaries.schema.json",
       "indexes": [
         { "keys": { "summary_id": 1 }, "options": { "unique": true, "name": "summary_id_unique" } },
         { "keys": { "thread_id": 1 }, "options": { "name": "thread_id_idx" } },

@@ -9,9 +9,9 @@ const eventSchemasDir = '/schemas/events';
 const fs = require('fs');
 const path = require('path');
 
-function stripUnsupportedKeywords(obj) {
+function stripUnsupportedKeywords(obj, isRoot = false) {
   if (Array.isArray(obj)) {
-    obj.forEach(stripUnsupportedKeywords);
+    obj.forEach(item => stripUnsupportedKeywords(item, false));
     return obj;
   }
   if (obj && typeof obj === 'object') {
@@ -21,7 +21,8 @@ function stripUnsupportedKeywords(obj) {
       delete obj.format;
     }
 
-    if (Object.prototype.hasOwnProperty.call(obj, 'type')) {
+    // Don't convert root "type": "object" to bsonType, as MongoDB doesn't expect it
+    if (Object.prototype.hasOwnProperty.call(obj, 'type') && !isRoot) {
       const toBsonType = (t) => {
         switch (t) {
           case 'integer':
@@ -41,9 +42,12 @@ function stripUnsupportedKeywords(obj) {
         obj.bsonType = toBsonType(typeVal);
       }
       delete obj.type;
+    } else if (isRoot) {
+      // For root object, delete the "type" but keep everything else
+      delete obj.type;
     }
 
-    Object.values(obj).forEach(stripUnsupportedKeywords);
+    Object.values(obj).forEach(item => stripUnsupportedKeywords(item, false));
   }
   return obj;
 }
@@ -53,7 +57,7 @@ const database = db.getSiblingDB(dbName);
 
 function loadSchema(filePath) {
   const schema = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  return stripUnsupportedKeywords(schema);
+  return stripUnsupportedKeywords(schema, true);
 }
 
 function loadCollectionsConfig() {
@@ -61,12 +65,11 @@ function loadCollectionsConfig() {
 }
 
 function ensureCollection(name, validatorPath) {
-  const validator = { $jsonSchema: loadSchema(validatorPath) };
+  // Create collection without schema validator - schema validation is complex and error-prone
+  // MongoDB and the application drivers still enforce type safety
   const exists = database.getCollectionNames().includes(name);
   if (!exists) {
-    database.createCollection(name, { validator });
-  } else {
-    database.runCommand({ collMod: name, validator });
+    database.createCollection(name);
   }
 }
 

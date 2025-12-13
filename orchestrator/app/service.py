@@ -110,6 +110,8 @@ class OrchestrationService:
             if self.error_reporter:
                 self.error_reporter.report(e, context={"event": event})
             self.failures_count += 1
+            # Re-raise so RabbitMQ can nack and requeue the message
+            raise
 
     def process_embeddings(self, event_data: Dict[str, Any]):
         """Process embeddings and orchestrate summarization.

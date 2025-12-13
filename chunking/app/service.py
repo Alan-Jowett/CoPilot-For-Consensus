@@ -91,6 +91,8 @@ class ChunkingService:
             logger.error(f"Error handling JSONParsed event: {e}", exc_info=True)
             if self.error_reporter:
                 self.error_reporter.report(e, context={"event": event})
+            # Re-raise so RabbitMQ can nack and requeue the message
+            raise
 
     def process_messages(self, event_data: Dict[str, Any]):
         """Process messages and create chunks.
@@ -112,7 +114,7 @@ class ChunkingService:
             # Retrieve messages from database
             messages = self.document_store.query_documents(
                 collection="messages",
-                query={"message_id": {"$in": message_ids}}
+                filter_dict={"message_id": {"$in": message_ids}}
             )
             
             if not messages:
@@ -359,7 +361,7 @@ class ChunkingService:
             self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="chunking.failed",
-                message=event.to_dict(),
+                event=event.to_dict(),
             )
             
             logger.info(f"Published ChunkingFailed event: {error_type}")
