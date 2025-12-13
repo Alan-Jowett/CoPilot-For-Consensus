@@ -11,7 +11,7 @@ on:
 # Environment variables
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/${{ github.repository }}/
+  IMAGE_PREFIX: ghcr.io/${{ github.repository | lower }}/
   BUILD_PLATFORMS: linux/amd64
   # To use Azure Container Registry instead of GHCR:
   # REGISTRY: myregistry.azurecr.io
