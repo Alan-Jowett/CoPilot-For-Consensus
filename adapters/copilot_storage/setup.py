@@ -29,7 +29,7 @@ setup(
     ],
     python_requires=">=3.10",
     install_requires=[
-        "pymongo>=4.0.0",  # MongoDB client
+        "pymongo>=4.6.3",  # MongoDB client
     ],
     extras_require={
         "dev": [

@@ -104,7 +104,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pytest pytest-cov pymongo pika
-          python adapters/scripts/install_adapters.py
+          python adapters/scripts/install_adapters.py ${{ inputs.adapter_id }}
 
       - name: Start rsync daemon (fixtures)
         if: ${{ inputs.enable_rsync_daemon }}

@@ -11,7 +11,9 @@ WORKDIR /app
 
 # Install shared adapters in dependency order using centralized script
 COPY adapters/ /app/adapters/
-RUN python /app/adapters/scripts/install_adapters.py --no-dev
+RUN python /app/adapters/scripts/install_adapters.py \
+    copilot_config \
+    copilot_storage
 
 # Copy schema files for validation
 COPY documents/schemas /app/documents/schemas
