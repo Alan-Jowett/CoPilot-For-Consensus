@@ -47,6 +47,7 @@ jobs:
       copilot_archive_fetcher: ${{ steps.filter.outputs.copilot_archive_fetcher }}
       copilot_reporting: ${{ steps.filter.outputs.copilot_reporting }}
       copilot_schema_validation: ${{ steps.filter.outputs.copilot_schema_validation }}
+      copilot_service_base: ${{ steps.filter.outputs.copilot_service_base }}
       copilot_storage: ${{ steps.filter.outputs.copilot_storage }}
       copilot_summarization: ${{ steps.filter.outputs.copilot_summarization }}
       copilot_vectorstore: ${{ steps.filter.outputs.copilot_vectorstore }}
@@ -80,6 +81,8 @@ jobs:
               - 'adapters/copilot_metrics/**'
             copilot_reporting:
               - 'adapters/copilot_reporting/**'
+            copilot_service_base:
+              - 'adapters/copilot_service_base/**'
             copilot_storage:
               - 'adapters/copilot_storage/**'
             copilot_embedding:
@@ -181,6 +184,15 @@ jobs:
       adapter_id: copilot_storage
       adapter_path: adapters/copilot_storage
       package_name: copilot_storage
+
+  service-base-ci:
+    needs: detect-changes
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.copilot_service_base == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
+    uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
+    with:
+      adapter_id: copilot_service_base
+      adapter_path: adapters/copilot_service_base
+      package_name: copilot_service_base
 
   embedding-ci:
     needs: detect-changes

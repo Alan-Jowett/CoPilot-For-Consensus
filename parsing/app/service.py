@@ -18,6 +18,7 @@ from copilot_events import (
 from copilot_storage import DocumentStore
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
+from copilot_service_base import safe_event_handler
 
 from .parser import MessageParser
 from .thread_builder import ThreadBuilder
@@ -76,25 +77,20 @@ class ParsingService:
         logger.info("Subscribed to archive.ingested events")
         logger.info("Parsing service is ready")
 
+    @safe_event_handler("ArchiveIngested")
     def _handle_archive_ingested(self, event: Dict[str, Any]):
         """Handle ArchiveIngested event.
         
         Args:
             event: Event dictionary
         """
-        try:
-            # Parse event
-            archive_ingested = ArchiveIngestedEvent(data=event.get("data", {}))
-            
-            logger.info(f"Received ArchiveIngested event: {archive_ingested.data.get('archive_id')}")
-            
-            # Process the archive
-            self.process_archive(archive_ingested.data)
-            
-        except Exception as e:
-            logger.error(f"Error handling ArchiveIngested event: {e}", exc_info=True)
-            if self.error_reporter:
-                self.error_reporter.report(e, context={"event": event})
+        # Parse event
+        archive_ingested = ArchiveIngestedEvent(data=event.get("data", {}))
+        
+        logger.info(f"Received ArchiveIngested event: {archive_ingested.data.get('archive_id')}")
+        
+        # Process the archive
+        self.process_archive(archive_ingested.data)
 
     def process_archive(self, archive_data: Dict[str, Any]):
         """Process an archive and parse messages.

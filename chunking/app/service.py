@@ -19,6 +19,7 @@ from copilot_storage import DocumentStore
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
 from copilot_chunking import Thread, ThreadChunker
+from copilot_service_base import safe_event_handler
 
 logger = logging.getLogger(__name__)
 
@@ -72,25 +73,20 @@ class ChunkingService:
         logger.info("Subscribed to json.parsed events")
         logger.info("Chunking service is ready")
 
+    @safe_event_handler("JSONParsed")
     def _handle_json_parsed(self, event: Dict[str, Any]):
         """Handle JSONParsed event.
         
         Args:
             event: Event dictionary
         """
-        try:
-            # Parse event
-            json_parsed = JSONParsedEvent(data=event.get("data", {}))
-            
-            logger.info(f"Received JSONParsed event: {json_parsed.data.get('archive_id')}")
-            
-            # Process the messages
-            self.process_messages(json_parsed.data)
-            
-        except Exception as e:
-            logger.error(f"Error handling JSONParsed event: {e}", exc_info=True)
-            if self.error_reporter:
-                self.error_reporter.report(e, context={"event": event})
+        # Parse event
+        json_parsed = JSONParsedEvent(data=event.get("data", {}))
+        
+        logger.info(f"Received JSONParsed event: {json_parsed.data.get('archive_id')}")
+        
+        # Process the messages
+        self.process_messages(json_parsed.data)
 
     def process_messages(self, event_data: Dict[str, Any]):
         """Process messages and create chunks.
