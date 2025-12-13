@@ -32,6 +32,7 @@ See [GOVERNANCE.md](./GOVERNANCE.md) for details.
 *   Follow coding standards:
     *   Python: PEP 8 compliance
     *   Include docstrings and type hints
+    *   Follow [exception handling best practices](./EXCEPTION_HANDLING.md)
 *   Add tests for new functionality.
 *   Submit a PR with:
     *   A descriptive title
