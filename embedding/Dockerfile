@@ -19,7 +19,9 @@ RUN python /app/adapters/scripts/install_adapters.py \
     copilot_storage \
     copilot_vectorstore \
     copilot_metrics \
-    copilot_reporting
+    copilot_reporting \
+    copilot_schema_validation \
+    copilot_logging
 
 # Install optional vectorstore backend with Qdrant support
 RUN pip install -e /app/adapters/copilot_vectorstore[qdrant]
