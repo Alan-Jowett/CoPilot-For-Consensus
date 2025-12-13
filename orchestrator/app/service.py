@@ -88,10 +88,7 @@ class OrchestrationService:
         logger.info("Subscribed to embeddings.generated events")
         logger.info("Orchestration service is ready")
 
-    @safe_event_handler(
-        "EmbeddingsGenerated",
-        on_error=lambda self, e, evt: setattr(self, 'failures_count', self.failures_count + 1)
-    )
+    @safe_event_handler("EmbeddingsGenerated", on_error=lambda self, e, evt: self._increment_failures())
     def _handle_embeddings_generated(self, event: Dict[str, Any]):
         """Handle EmbeddingsGenerated event.
 
@@ -108,6 +105,10 @@ class OrchestrationService:
         self.process_embeddings(embeddings_event.data)
 
         self.events_processed += 1
+    
+    def _increment_failures(self):
+        """Increment failure counter."""
+        self.failures_count += 1
 
     def process_embeddings(self, event_data: Dict[str, Any]):
         """Process embeddings and orchestrate summarization.
