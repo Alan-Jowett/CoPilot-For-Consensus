@@ -19,6 +19,7 @@ from copilot_vectorstore import VectorStore
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
 from copilot_summarization import Summarizer, Thread, Citation
+from copilot_service_base import retry_with_backoff, safe_event_handler
 
 logger = logging.getLogger(__name__)
 
@@ -87,25 +88,20 @@ class SummarizationService:
         logger.info("Subscribed to summarization.requested events")
         logger.info("Summarization service is ready")
 
+    @safe_event_handler("SummarizationRequested")
     def _handle_summarization_requested(self, event: Dict[str, Any]):
         """Handle SummarizationRequested event.
         
         Args:
             event: Event dictionary
         """
-        try:
-            # Parse event
-            summarization_requested = SummarizationRequestedEvent(data=event.get("data", {}))
-            
-            logger.info(f"Received SummarizationRequested event for {len(summarization_requested.data.get('thread_ids', []))} threads")
-            
-            # Process each thread
-            self.process_summarization(summarization_requested.data)
-            
-        except Exception as e:
-            logger.error(f"Error handling SummarizationRequested event: {e}", exc_info=True)
-            if self.error_reporter:
-                self.error_reporter.report(e, context={"event": event})
+        # Parse event
+        summarization_requested = SummarizationRequestedEvent(data=event.get("data", {}))
+        
+        logger.info(f"Received SummarizationRequested event for {len(summarization_requested.data.get('thread_ids', []))} threads")
+        
+        # Process each thread
+        self.process_summarization(summarization_requested.data)
 
     def process_summarization(self, event_data: Dict[str, Any]):
         """Process summarization request for threads.
@@ -142,136 +138,139 @@ class SummarizationService:
             prompt_template: Prompt template to use
         """
         start_time = time.time()
-        retry_count = 0
         
-        while retry_count < self.retry_max_attempts:
-            try:
-                logger.info(f"Processing thread {thread_id} (attempt {retry_count + 1})")
-                
-                # Retrieve context
-                context = self._retrieve_context(thread_id, top_k)
-                
-                if not context or not context.get("messages"):
-                    logger.warning(f"No context retrieved for thread {thread_id}")
-                    self._publish_summarization_failed(
-                        thread_id=thread_id,
-                        error_type="NoContextError",
-                        error_message="No context retrieved from vector/document stores",
-                        retry_count=retry_count,
-                    )
-                    return
-                
-                # Build thread object
-                thread = Thread(
+        def process_with_retry():
+            """Inner function for retry logic."""
+            logger.info(f"Processing thread {thread_id}")
+            
+            # Retrieve context
+            context = self._retrieve_context(thread_id, top_k)
+            
+            if not context or not context.get("messages"):
+                logger.warning(f"No context retrieved for thread {thread_id}")
+                self._publish_summarization_failed(
                     thread_id=thread_id,
-                    messages=context["messages"],
-                    top_k=top_k,
-                    context_window_tokens=context_window_tokens,
-                    prompt_template=prompt_template,
+                    error_type="NoContextError",
+                    error_message="No context retrieved from vector/document stores",
+                    retry_count=0,
                 )
-                
-                # Generate summary
-                summary = self.summarizer.summarize(thread)
-                
-                # Format citations
-                formatted_citations = self._format_citations(
-                    summary.citations,
-                    context.get("chunks", []),
-                )
-                
-                # Calculate duration
-                duration = time.time() - start_time
-                self.last_processing_time = duration
-                
-                # Update stats
-                self.summaries_generated += 1
-                
-                # Publish success event
-                self._publish_summary_complete(
-                    thread_id=thread_id,
-                    summary_markdown=summary.summary_markdown,
-                    citations=formatted_citations,
-                    llm_backend=summary.llm_backend,
-                    llm_model=summary.llm_model,
-                    tokens_prompt=summary.tokens_prompt,
-                    tokens_completion=summary.tokens_completion,
-                    latency_ms=summary.latency_ms,
-                )
-                
-                logger.info(
-                    f"Successfully summarized thread {thread_id} "
-                    f"(tokens: {summary.tokens_prompt}+{summary.tokens_completion}, "
-                    f"latency: {summary.latency_ms}ms)"
-                )
-                
-                # Collect metrics
-                if self.metrics_collector:
-                    self.metrics_collector.increment(
-                        "summarization_events_total",
-                        tags={"event_type": "requested", "outcome": "success"},
-                    )
-                    self.metrics_collector.observe(
-                        "summarization_latency_seconds",
-                        duration,
-                    )
-                    self.metrics_collector.increment(
-                        "summarization_llm_calls_total",
-                        tags={"backend": summary.llm_backend, "model": summary.llm_model},
-                    )
-                    self.metrics_collector.increment(
-                        "summarization_tokens_total",
-                        summary.tokens_prompt,
-                        tags={"type": "prompt"},
-                    )
-                    self.metrics_collector.increment(
-                        "summarization_tokens_total",
-                        summary.tokens_completion,
-                        tags={"type": "completion"},
-                    )
-                
                 return
-                
-            except Exception as e:
-                retry_count += 1
-                logger.error(
-                    f"Error summarizing thread {thread_id} "
-                    f"(attempt {retry_count}/{self.retry_max_attempts}): {e}",
-                    exc_info=True,
+            
+            # Build thread object
+            thread = Thread(
+                thread_id=thread_id,
+                messages=context["messages"],
+                top_k=top_k,
+                context_window_tokens=context_window_tokens,
+                prompt_template=prompt_template,
+            )
+            
+            # Generate summary
+            summary = self.summarizer.summarize(thread)
+            
+            # Format citations
+            formatted_citations = self._format_citations(
+                summary.citations,
+                context.get("chunks", []),
+            )
+            
+            # Calculate duration
+            duration = time.time() - start_time
+            self.last_processing_time = duration
+            
+            # Update stats
+            self.summaries_generated += 1
+            
+            # Publish success event
+            self._publish_summary_complete(
+                thread_id=thread_id,
+                summary_markdown=summary.summary_markdown,
+                citations=formatted_citations,
+                llm_backend=summary.llm_backend,
+                llm_model=summary.llm_model,
+                tokens_prompt=summary.tokens_prompt,
+                tokens_completion=summary.tokens_completion,
+                latency_ms=summary.latency_ms,
+            )
+            
+            logger.info(
+                f"Successfully summarized thread {thread_id} "
+                f"(tokens: {summary.tokens_prompt}+{summary.tokens_completion}, "
+                f"latency: {summary.latency_ms}ms)"
+            )
+            
+            # Collect metrics
+            if self.metrics_collector:
+                self.metrics_collector.increment(
+                    "summarization_events_total",
+                    tags={"event_type": "requested", "outcome": "success"},
                 )
-                
-                if retry_count < self.retry_max_attempts:
-                    # Exponential backoff with maximum cap
-                    backoff = min(
-                        self.retry_backoff_seconds * (2 ** (retry_count - 1)),
-                        60  # Maximum 60 seconds
-                    )
-                    logger.info(f"Retrying in {backoff} seconds...")
-                    time.sleep(backoff)
-                else:
-                    # Max retries exceeded
-                    self.summarization_failures += 1
-                    
-                    error_type = type(e).__name__
-                    error_message = str(e)
-                    
-                    self._publish_summarization_failed(
-                        thread_id=thread_id,
-                        error_type=error_type,
-                        error_message=error_message,
-                        retry_count=retry_count,
-                    )
-                    
-                    if self.error_reporter:
-                        self.error_reporter.report(
-                            e,
-                            context={"thread_id": thread_id, "retry_count": retry_count},
-                        )
-                    
-                    if self.metrics_collector:
-                        self.metrics_collector.increment(
-                            "summarization_failures_total",
-                            tags={"error_type": error_type},
-                        )
+                self.metrics_collector.observe(
+                    "summarization_latency_seconds",
+                    duration,
+                )
+                self.metrics_collector.increment(
+                    "summarization_llm_calls_total",
+                    tags={"backend": summary.llm_backend, "model": summary.llm_model},
+                )
+                self.metrics_collector.increment(
+                    "summarization_tokens_total",
+                    summary.tokens_prompt,
+                    tags={"type": "prompt"},
+                )
+                self.metrics_collector.increment(
+                    "summarization_tokens_total",
+                    summary.tokens_completion,
+                    tags={"type": "completion"},
+                )
+        
+        def on_retry(error: Exception, attempt: int):
+            """Callback for retry attempts."""
+            logger.error(
+                f"Error summarizing thread {thread_id} "
+                f"(attempt {attempt}/{self.retry_max_attempts}): {error}",
+                exc_info=True,
+            )
+        
+        def on_failure(error: Exception, attempt: int):
+            """Callback when all retries exhausted."""
+            # Max retries exceeded
+            self.summarization_failures += 1
+            
+            error_type = type(error).__name__
+            error_message = str(error)
+            
+            self._publish_summarization_failed(
+                thread_id=thread_id,
+                error_type=error_type,
+                error_message=error_message,
+                retry_count=attempt,
+            )
+            
+            if self.error_reporter:
+                self.error_reporter.report(
+                    error,
+                    context={"thread_id": thread_id, "retry_count": attempt},
+                )
+            
+            if self.metrics_collector:
+                self.metrics_collector.increment(
+                    "summarization_failures_total",
+                    tags={"error_type": error_type},
+                )
+        
+        try:
+            retry_with_backoff(
+                process_with_retry,
+                max_attempts=self.retry_max_attempts,
+                backoff_seconds=self.retry_backoff_seconds,
+                max_backoff_seconds=60,
+                on_retry=on_retry,
+                on_failure=on_failure,
+            )
+        except Exception:
+            # Error already handled by on_failure callback
+            pass
 
     def _retrieve_context(self, thread_id: str, top_k: int) -> Dict[str, Any]:
         """Retrieve context for a thread from vector and document stores.

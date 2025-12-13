@@ -20,6 +20,7 @@ from copilot_vectorstore import VectorStore
 from copilot_embedding import EmbeddingProvider
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
+from copilot_service_base import retry_with_backoff, safe_event_handler
 
 logger = logging.getLogger(__name__)
 
@@ -98,25 +99,20 @@ class EmbeddingService:
         logger.info("Subscribed to chunks.prepared events")
         logger.info("Embedding service is ready")
 
+    @safe_event_handler("ChunksPrepared")
     def _handle_chunks_prepared(self, event: Dict[str, Any]):
         """Handle ChunksPrepared event.
         
         Args:
             event: Event dictionary
         """
-        try:
-            # Parse event
-            chunks_prepared = ChunksPreparedEvent(data=event.get("data", {}))
-            
-            logger.info(f"Received ChunksPrepared event with {len(chunks_prepared.data.get('chunk_ids', []))} chunks")
-            
-            # Process the chunks
-            self.process_chunks(chunks_prepared.data)
-            
-        except Exception as e:
-            logger.error(f"Error handling ChunksPrepared event: {e}", exc_info=True)
-            if self.error_reporter:
-                self.error_reporter.report(e, context={"event": event})
+        # Parse event
+        chunks_prepared = ChunksPreparedEvent(data=event.get("data", {}))
+        
+        logger.info(f"Received ChunksPrepared event with {len(chunks_prepared.data.get('chunk_ids', []))} chunks")
+        
+        # Process the chunks
+        self.process_chunks(chunks_prepared.data)
 
     def process_chunks(self, event_data: Dict[str, Any]):
         """Process chunks and generate embeddings.
@@ -131,107 +127,114 @@ class EmbeddingService:
             return
         
         start_time = time.time()
-        retry_count = 0
         
-        while retry_count < self.max_retries:
-            try:
-                logger.info(f"Processing {len(chunk_ids)} chunks (attempt {retry_count + 1}/{self.max_retries})")
-                
-                # Retrieve chunks from database
-                chunks = list(self.document_store.query_documents(
-                    collection="chunks",
-                    filter_dict={"chunk_id": {"$in": chunk_ids}}
-                ))
-                
-                if not chunks:
-                    error_msg = f"No chunks found in database for IDs: {chunk_ids}"
-                    logger.warning(error_msg)
-                    self._publish_embedding_failed(
-                        chunk_ids,
-                        error_msg,
-                        "ChunkNotFoundError",
-                        retry_count,
-                    )
-                    return
-                
-                # Process chunks in batches
-                all_generated_count = 0
-                processed_chunk_ids = []
-                
-                for i in range(0, len(chunks), self.batch_size):
-                    batch = chunks[i:i + self.batch_size]
-                    batch_start = time.time()
-                    
-                    # Generate embeddings for batch
-                    embeddings = self._generate_batch_embeddings(batch)
-                    
-                    # Store embeddings in vector store
-                    self._store_embeddings(embeddings)
-                    
-                    # Update chunk status in document database
-                    batch_chunk_ids = [chunk["chunk_id"] for chunk in batch]
-                    self._update_chunk_status(batch_chunk_ids)
-                    
-                    all_generated_count += len(embeddings)
-                    processed_chunk_ids.extend(batch_chunk_ids)
-                    
-                    batch_time = time.time() - batch_start
-                    logger.info(f"Processed batch of {len(batch)} chunks in {batch_time:.2f}s")
-                
-                # Calculate metrics
-                processing_time = time.time() - start_time
-                avg_time_ms = (processing_time / all_generated_count * 1000) if all_generated_count > 0 else 0
-                
-                # Update stats
-                self.chunks_processed += len(processed_chunk_ids)
-                self.embeddings_generated_total += all_generated_count
-                self.last_processing_time = processing_time
-                
-                # Publish success event
-                self._publish_embeddings_generated(
-                    processed_chunk_ids,
-                    all_generated_count,
-                    avg_time_ms,
+        def process_with_retry():
+            """Inner function for retry logic."""
+            logger.info(f"Processing {len(chunk_ids)} chunks")
+            
+            # Retrieve chunks from database
+            chunks = list(self.document_store.query_documents(
+                collection="chunks",
+                filter_dict={"chunk_id": {"$in": chunk_ids}}
+            ))
+            
+            if not chunks:
+                error_msg = f"No chunks found in database for IDs: {chunk_ids}"
+                logger.warning(error_msg)
+                self._publish_embedding_failed(
+                    chunk_ids,
+                    error_msg,
+                    "ChunkNotFoundError",
+                    0,
                 )
-                
-                logger.info(f"Successfully generated {all_generated_count} embeddings in {processing_time:.2f}s")
-                
-                # Record metrics
-                if self.metrics_collector:
-                    self.metrics_collector.increment("embedding_chunks_processed_total", all_generated_count)
-                    self.metrics_collector.observe("embedding_generation_duration_seconds", processing_time)
-                
                 return
+            
+            # Process chunks in batches
+            all_generated_count = 0
+            processed_chunk_ids = []
+            
+            for i in range(0, len(chunks), self.batch_size):
+                batch = chunks[i:i + self.batch_size]
+                batch_start = time.time()
                 
-            except Exception as e:
-                retry_count += 1
-                error_msg = str(e)
-                error_type = type(e).__name__
+                # Generate embeddings for batch
+                embeddings = self._generate_batch_embeddings(batch)
                 
-                logger.error(f"Embedding generation failed (attempt {retry_count}/{self.max_retries}): {error_msg}", exc_info=True)
+                # Store embeddings in vector store
+                self._store_embeddings(embeddings)
                 
-                if retry_count >= self.max_retries:
-                    # Max retries exceeded, publish failure event
-                    self._publish_embedding_failed(
-                        chunk_ids,
-                        error_msg,
-                        error_type,
-                        retry_count,
-                    )
-                    
-                    if self.error_reporter:
-                        self.error_reporter.report(e, context={"chunk_ids": chunk_ids, "retry_count": retry_count})
-                    
-                    if self.metrics_collector:
-                        self.metrics_collector.increment("embedding_failures_total", 1, labels={"error_type": error_type})
-                    
-                    return
-                else:
-                    # Wait before retry with exponential backoff (capped at 60 seconds)
-                    backoff_time = self.retry_backoff_seconds * (2 ** (retry_count - 1))
-                    capped_backoff_time = min(backoff_time, 60)
-                    logger.info(f"Retrying in {capped_backoff_time} seconds...")
-                    time.sleep(capped_backoff_time)
+                # Update chunk status in document database
+                batch_chunk_ids = [chunk["chunk_id"] for chunk in batch]
+                self._update_chunk_status(batch_chunk_ids)
+                
+                all_generated_count += len(embeddings)
+                processed_chunk_ids.extend(batch_chunk_ids)
+                
+                batch_time = time.time() - batch_start
+                logger.info(f"Processed batch of {len(batch)} chunks in {batch_time:.2f}s")
+            
+            # Calculate metrics
+            processing_time = time.time() - start_time
+            avg_time_ms = (processing_time / all_generated_count * 1000) if all_generated_count > 0 else 0
+            
+            # Update stats
+            self.chunks_processed += len(processed_chunk_ids)
+            self.embeddings_generated_total += all_generated_count
+            self.last_processing_time = processing_time
+            
+            # Publish success event
+            self._publish_embeddings_generated(
+                processed_chunk_ids,
+                all_generated_count,
+                avg_time_ms,
+            )
+            
+            logger.info(f"Successfully generated {all_generated_count} embeddings in {processing_time:.2f}s")
+            
+            # Record metrics
+            if self.metrics_collector:
+                self.metrics_collector.increment("embedding_chunks_processed_total", all_generated_count)
+                self.metrics_collector.observe("embedding_generation_duration_seconds", processing_time)
+        
+        # Retry logic with callbacks
+        def on_retry(error: Exception, attempt: int):
+            """Callback for retry attempts."""
+            error_type = type(error).__name__
+            logger.error(f"Embedding generation failed (attempt {attempt}/{self.max_retries}): {error}", exc_info=True)
+        
+        def on_failure(error: Exception, attempt: int):
+            """Callback when all retries exhausted."""
+            error_msg = str(error)
+            error_type = type(error).__name__
+            
+            # Publish failure event
+            self._publish_embedding_failed(
+                chunk_ids,
+                error_msg,
+                error_type,
+                attempt,
+            )
+            
+            # Report error
+            if self.error_reporter:
+                self.error_reporter.report(error, context={"chunk_ids": chunk_ids, "retry_count": attempt})
+            
+            # Record failure metrics
+            if self.metrics_collector:
+                self.metrics_collector.increment("embedding_failures_total", 1, labels={"error_type": error_type})
+        
+        try:
+            retry_with_backoff(
+                process_with_retry,
+                max_attempts=self.max_retries,
+                backoff_seconds=self.retry_backoff_seconds,
+                max_backoff_seconds=60,
+                on_retry=on_retry,
+                on_failure=on_failure,
+            )
+        except Exception:
+            # Error already handled by on_failure callback
+            pass
 
     def _generate_batch_embeddings(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Generate embeddings for a batch of chunks.

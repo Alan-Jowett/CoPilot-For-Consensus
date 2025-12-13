@@ -18,6 +18,7 @@ from copilot_events import (
 from copilot_storage import DocumentStore
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
+from copilot_service_base import safe_event_handler
 
 logger = logging.getLogger(__name__)
 
@@ -87,29 +88,23 @@ class OrchestrationService:
         logger.info("Subscribed to embeddings.generated events")
         logger.info("Orchestration service is ready")
 
+    @safe_event_handler("EmbeddingsGenerated")
     def _handle_embeddings_generated(self, event: Dict[str, Any]):
         """Handle EmbeddingsGenerated event.
 
         Args:
             event: Event dictionary
         """
-        try:
-            # Parse event
-            embeddings_event = EmbeddingsGeneratedEvent(data=event.get("data", {}))
+        # Parse event
+        embeddings_event = EmbeddingsGeneratedEvent(data=event.get("data", {}))
 
-            chunk_count = len(embeddings_event.data.get('chunk_ids', []))
-            logger.info(f"Received EmbeddingsGenerated event with {chunk_count} chunks")
+        chunk_count = len(embeddings_event.data.get('chunk_ids', []))
+        logger.info(f"Received EmbeddingsGenerated event with {chunk_count} chunks")
 
-            # Process the embeddings
-            self.process_embeddings(embeddings_event.data)
+        # Process the embeddings
+        self.process_embeddings(embeddings_event.data)
 
-            self.events_processed += 1
-
-        except Exception as e:
-            logger.error(f"Error handling EmbeddingsGenerated event: {e}", exc_info=True)
-            if self.error_reporter:
-                self.error_reporter.report(e, context={"event": event})
-            self.failures_count += 1
+        self.events_processed += 1
 
     def process_embeddings(self, event_data: Dict[str, Any]):
         """Process embeddings and orchestrate summarization.
