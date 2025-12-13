@@ -27,12 +27,16 @@ class TestCreateEmbeddingProvider:
         assert provider.dimension == 128
 
     def test_create_mock_provider_with_env(self):
-        """Test creating mock provider with environment variables."""
+        """Test that factory requires explicit backend parameter."""
         with patch.dict(os.environ, {"EMBEDDING_BACKEND": "mock", "EMBEDDING_DIMENSION": "256"}):
-            provider = create_embedding_provider()
-            
-            assert isinstance(provider, MockEmbeddingProvider)
-            assert provider.dimension == 256
+            # Factory should not read from environment automatically
+            with pytest.raises(ValueError, match="backend parameter is required"):
+                create_embedding_provider()
+
+    def test_create_mock_provider_missing_dimension(self):
+        """Test that creating mock provider without dimension raises error."""
+        with pytest.raises(ValueError, match="dimension parameter is required"):
+            create_embedding_provider(backend="mock")
 
     def test_create_sentencetransformer_provider(self):
         """Test creating SentenceTransformer provider."""
@@ -45,14 +49,25 @@ class TestCreateEmbeddingProvider:
         with patch.dict('sys.modules', {'sentence_transformers': mock_st_module}):
             provider = create_embedding_provider(
                 backend="sentencetransformers",
-                model="custom-model"
+                model="custom-model",
+                device="cpu"
             )
             
             assert isinstance(provider, SentenceTransformerEmbeddingProvider)
             assert provider.model_name == "custom-model"
 
+    def test_create_sentencetransformer_missing_model(self):
+        """Test that creating SentenceTransformer provider without model raises error."""
+        with pytest.raises(ValueError, match="model parameter is required"):
+            create_embedding_provider(backend="sentencetransformers", device="cpu")
+
+    def test_create_sentencetransformer_missing_device(self):
+        """Test that creating SentenceTransformer provider without device raises error."""
+        with pytest.raises(ValueError, match="device parameter is required"):
+            create_embedding_provider(backend="sentencetransformers", model="all-MiniLM-L6-v2")
+
     def test_create_sentencetransformer_with_env(self):
-        """Test creating SentenceTransformer provider with env vars."""
+        """Test that factory doesn't read from environment automatically."""
         # Mock sentence_transformers module
         mock_st_module = Mock()
         mock_st_class = Mock()
@@ -65,11 +80,9 @@ class TestCreateEmbeddingProvider:
                 "EMBEDDING_MODEL": "env-model",
                 "DEVICE": "cuda"
             }):
-                provider = create_embedding_provider()
-                
-                assert isinstance(provider, SentenceTransformerEmbeddingProvider)
-                assert provider.model_name == "env-model"
-                assert provider.device == "cuda"
+                # Should raise error because backend is not explicitly provided
+                with pytest.raises(ValueError, match="backend parameter is required"):
+                    create_embedding_provider()
 
     def test_create_openai_provider(self):
         """Test creating OpenAI provider."""
@@ -91,8 +104,13 @@ class TestCreateEmbeddingProvider:
             assert provider.model == "custom-model"
             assert provider.is_azure is False
 
+    def test_create_openai_missing_model(self):
+        """Test that creating OpenAI provider without model raises error."""
+        with pytest.raises(ValueError, match="model parameter is required"):
+            create_embedding_provider(backend="openai", api_key="test-key")
+
     def test_create_openai_with_env(self):
-        """Test creating OpenAI provider with env vars."""
+        """Test that factory doesn't read from environment automatically."""
         # Mock openai module
         mock_openai_module = Mock()
         mock_openai_class = Mock()
@@ -106,17 +124,14 @@ class TestCreateEmbeddingProvider:
                 "OPENAI_API_KEY": "env-key",
                 "EMBEDDING_MODEL": "env-model"
             }):
-                provider = create_embedding_provider()
-                
-                assert isinstance(provider, OpenAIEmbeddingProvider)
-                assert provider.model == "env-model"
+                # Should raise error because backend is not explicitly provided
+                with pytest.raises(ValueError, match="backend parameter is required"):
+                    create_embedding_provider()
 
     def test_create_openai_without_key_raises(self):
         """Test that creating OpenAI provider without key raises error."""
-        with pytest.raises(ValueError) as exc_info:
-            create_embedding_provider(backend="openai")
-        
-        assert "api_key parameter or OPENAI_API_KEY environment variable is required" in str(exc_info.value)
+        with pytest.raises(ValueError, match="api_key parameter is required"):
+            create_embedding_provider(backend="openai", model="text-embedding-ada-002")
 
     def test_create_azure_provider(self):
         """Test creating Azure OpenAI provider."""

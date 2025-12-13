@@ -19,16 +19,16 @@ logger = logging.getLogger(__name__)
 
 
 def create_embedding_provider(
-    backend: Optional[str] = None,
+    backend: str,
     model: Optional[str] = None,
     **kwargs
 ) -> EmbeddingProvider:
     """Create an embedding provider based on configuration.
     
     Args:
-        backend: Embedding backend type. If None, reads from EMBEDDING_BACKEND env var.
+        backend: Embedding backend type (required).
                 Options: 'mock', 'sentencetransformers', 'openai', 'azure', 'huggingface'
-        model: Model name or identifier. If None, uses backend-specific defaults.
+        model: Model name or identifier. Required for most backends except 'mock'.
         **kwargs: Additional provider-specific parameters
         
     Returns:
@@ -37,21 +37,37 @@ def create_embedding_provider(
     Raises:
         ValueError: If backend is unknown or required configuration is missing
     """
-    # Get backend from parameter or environment
-    if backend is None:
-        backend = os.getenv("EMBEDDING_BACKEND", "sentencetransformers")
+    if not backend:
+        raise ValueError(
+            "backend parameter is required. "
+            "Must be one of: mock, sentencetransformers, openai, azure, huggingface"
+        )
     
     backend = backend.lower()
     logger.info(f"Creating embedding provider with backend: {backend}")
     
     if backend == "mock":
-        dimension = kwargs.get("dimension") or int(os.getenv("EMBEDDING_DIMENSION", "384"))
+        dimension = kwargs.get("dimension")
+        if dimension is None:
+            raise ValueError(
+                "dimension parameter is required for mock backend. "
+                "Specify the embedding dimension (e.g., 384 for all-MiniLM-L6-v2)"
+            )
         return MockEmbeddingProvider(dimension=dimension)
     
     elif backend == "sentencetransformers":
-        model = model or os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-        device = kwargs.get("device") or os.getenv("DEVICE", "cpu")
-        cache_dir = kwargs.get("cache_dir") or os.getenv("MODEL_CACHE_DIR")
+        if not model:
+            raise ValueError(
+                "model parameter is required for sentencetransformers backend. "
+                "Specify a model name (e.g., 'all-MiniLM-L6-v2')"
+            )
+        device = kwargs.get("device")
+        if device is None:
+            raise ValueError(
+                "device parameter is required for sentencetransformers backend. "
+                "Specify 'cpu' or 'cuda'"
+            )
+        cache_dir = kwargs.get("cache_dir")
         
         return SentenceTransformerEmbeddingProvider(
             model_name=model,
@@ -60,11 +76,18 @@ def create_embedding_provider(
         )
     
     elif backend == "openai":
-        api_key = kwargs.get("api_key") or os.getenv("OPENAI_API_KEY")
+        api_key = kwargs.get("api_key")
         if not api_key:
-            raise ValueError("api_key parameter or OPENAI_API_KEY environment variable is required for OpenAI backend")
+            raise ValueError(
+                "api_key parameter is required for OpenAI backend. "
+                "Provide the API key explicitly"
+            )
         
-        model = model or os.getenv("EMBEDDING_MODEL", "text-embedding-ada-002")
+        if not model:
+            raise ValueError(
+                "model parameter is required for OpenAI backend. "
+                "Specify a model name (e.g., 'text-embedding-ada-002')"
+            )
         
         return OpenAIEmbeddingProvider(
             api_key=api_key,
@@ -72,17 +95,31 @@ def create_embedding_provider(
         )
     
     elif backend == "azure":
-        api_key = kwargs.get("api_key") or os.getenv("AZURE_OPENAI_KEY")
-        api_base = kwargs.get("api_base") or os.getenv("AZURE_OPENAI_ENDPOINT")
-        api_version = kwargs.get("api_version") or os.getenv("AZURE_OPENAI_API_VERSION")
-        deployment_name = kwargs.get("deployment_name") or os.getenv("AZURE_OPENAI_DEPLOYMENT")
-        
+        api_key = kwargs.get("api_key")
         if not api_key:
-            raise ValueError("api_key parameter or AZURE_OPENAI_KEY environment variable is required for Azure backend")
-        if not api_base:
-            raise ValueError("api_base parameter or AZURE_OPENAI_ENDPOINT environment variable is required for Azure backend")
+            raise ValueError(
+                "api_key parameter is required for Azure backend. "
+                "Provide the Azure OpenAI API key explicitly"
+            )
         
-        model = model or deployment_name or "text-embedding-ada-002"
+        api_base = kwargs.get("api_base")
+        if not api_base:
+            raise ValueError(
+                "api_base parameter is required for Azure backend. "
+                "Provide the Azure OpenAI endpoint explicitly"
+            )
+        
+        api_version = kwargs.get("api_version")
+        deployment_name = kwargs.get("deployment_name")
+        
+        if not model and not deployment_name:
+            raise ValueError(
+                "Either model or deployment_name parameter is required for Azure backend. "
+                "Specify the model or deployment name"
+            )
+        
+        # Use deployment_name as model if model not provided
+        model = model or deployment_name
         
         return OpenAIEmbeddingProvider(
             api_key=api_key,
@@ -93,9 +130,18 @@ def create_embedding_provider(
         )
     
     elif backend == "huggingface":
-        model = model or os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-        device = kwargs.get("device") or os.getenv("DEVICE", "cpu")
-        cache_dir = kwargs.get("cache_dir") or os.getenv("MODEL_CACHE_DIR")
+        if not model:
+            raise ValueError(
+                "model parameter is required for huggingface backend. "
+                "Specify a model name (e.g., 'sentence-transformers/all-MiniLM-L6-v2')"
+            )
+        device = kwargs.get("device")
+        if device is None:
+            raise ValueError(
+                "device parameter is required for huggingface backend. "
+                "Specify 'cpu' or 'cuda'"
+            )
+        cache_dir = kwargs.get("cache_dir")
         max_length = kwargs.get("max_length")
         
         return HuggingFaceEmbeddingProvider(

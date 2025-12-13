@@ -18,13 +18,13 @@ from .datatracker_provider import DatatrackerIdentityProvider
 
 
 def create_identity_provider(
-    provider_type: Optional[str] = None,
+    provider_type: str,
     **kwargs
 ) -> IdentityProvider:
     """Create an identity provider based on type.
     
     This factory method creates the appropriate identity provider based on
-    the provider_type parameter or the IDENTITY_PROVIDER environment variable.
+    the provider_type parameter.
     
     Supported provider types:
     - "mock": MockIdentityProvider for testing/local dev
@@ -32,11 +32,11 @@ def create_identity_provider(
     - "datatracker": DatatrackerIdentityProvider for IETF Datatracker
     
     Args:
-        provider_type: Type of provider to create. If None, reads from
-                      IDENTITY_PROVIDER environment variable (default: "mock")
+        provider_type: Type of provider to create (required).
+                      Options: "mock", "github", "datatracker"
         **kwargs: Provider-specific configuration parameters:
-            - For GitHub: client_id, client_secret, api_base_url
-            - For Datatracker: api_base_url
+            - For GitHub: client_id (required), client_secret (required), api_base_url (required)
+            - For Datatracker: api_base_url (required)
             
     Returns:
         IdentityProvider instance
@@ -52,15 +52,21 @@ def create_identity_provider(
         >>> provider = create_identity_provider(
         ...     "github",
         ...     client_id="your_client_id",
-        ...     client_secret="your_client_secret"
+        ...     client_secret="your_client_secret",
+        ...     api_base_url="https://api.github.com"
         ... )
         
-        >>> # Create provider from environment variable
-        >>> os.environ["IDENTITY_PROVIDER"] = "mock"
-        >>> provider = create_identity_provider()
+        >>> # Create Datatracker provider
+        >>> provider = create_identity_provider(
+        ...     "datatracker",
+        ...     api_base_url="https://datatracker.ietf.org/api"
+        ... )
     """
-    if provider_type is None:
-        provider_type = os.environ.get("IDENTITY_PROVIDER", "mock")
+    if not provider_type:
+        raise ValueError(
+            "provider_type parameter is required. "
+            "Must be one of: mock, github, datatracker"
+        )
     
     provider_type = provider_type.lower()
     
@@ -68,20 +74,27 @@ def create_identity_provider(
         return MockIdentityProvider()
     
     elif provider_type == "github":
-        client_id = kwargs.get("client_id") or os.environ.get("GITHUB_CLIENT_ID")
-        client_secret = kwargs.get("client_secret") or os.environ.get("GITHUB_CLIENT_SECRET")
+        client_id = kwargs.get("client_id")
+        client_secret = kwargs.get("client_secret")
         
-        if not client_id or not client_secret:
+        if not client_id:
             raise ValueError(
-                "GitHub provider requires 'client_id' and 'client_secret' "
-                "parameters or GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET "
-                "environment variables"
+                "client_id parameter is required for GitHub provider. "
+                "Provide the GitHub OAuth client ID explicitly"
             )
         
-        api_base_url = kwargs.get("api_base_url") or os.environ.get(
-            "GITHUB_API_BASE_URL",
-            "https://api.github.com"
-        )
+        if not client_secret:
+            raise ValueError(
+                "client_secret parameter is required for GitHub provider. "
+                "Provide the GitHub OAuth client secret explicitly"
+            )
+        
+        api_base_url = kwargs.get("api_base_url")
+        if not api_base_url:
+            raise ValueError(
+                "api_base_url parameter is required for GitHub provider. "
+                "Specify the GitHub API base URL (e.g., 'https://api.github.com')"
+            )
         
         return GitHubIdentityProvider(
             client_id=client_id,
@@ -90,10 +103,12 @@ def create_identity_provider(
         )
     
     elif provider_type == "datatracker":
-        api_base_url = kwargs.get("api_base_url") or os.environ.get(
-            "DATATRACKER_API_BASE_URL",
-            "https://datatracker.ietf.org/api"
-        )
+        api_base_url = kwargs.get("api_base_url")
+        if not api_base_url:
+            raise ValueError(
+                "api_base_url parameter is required for Datatracker provider. "
+                "Specify the Datatracker API base URL (e.g., 'https://datatracker.ietf.org/api')"
+            )
         
         return DatatrackerIdentityProvider(api_base_url=api_base_url)
     
