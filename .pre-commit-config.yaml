@@ -11,3 +11,10 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [commit, push]
+      - id: mutable-defaults-check
+        name: Mutable defaults check
+        entry: python scripts/check_mutable_defaults.py --root .
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit, push]
