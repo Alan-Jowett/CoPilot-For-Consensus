@@ -60,6 +60,7 @@ services:
       context: .
       dockerfile: ./embedding/Dockerfile
     environment:
+      - VECTOR_STORE_TYPE=qdrant
       - VECTOR_DB_HOST=vectorstore
       - EMBEDDING_BACKEND=${EMBEDDING_BACKEND:-sentencetransformers}
       - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
@@ -111,6 +112,7 @@ services:
       context: .
       dockerfile: ./summarization/Dockerfile
     environment:
+      - VECTOR_STORE_TYPE=qdrant
       - MESSAGE_BUS_HOST=messagebus
       - DOC_DB_HOST=documentdb
       - VECTOR_DB_HOST=vectorstore

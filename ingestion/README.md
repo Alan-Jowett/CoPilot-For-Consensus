@@ -30,7 +30,7 @@ MESSAGE_BUS_HOST=localhost python main.py      # With RabbitMQ
 
 ## Technology Stack
 
-- **Python 3.11+**
+- **Python 3.10+**
 - **Dependencies:** pika (RabbitMQ), requests, imapclient, python-dotenv
 
 ## Architecture

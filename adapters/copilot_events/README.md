@@ -526,7 +526,7 @@ pylint copilot_events/
 
 ## Requirements
 
-- Python 3.11+
+- Python 3.10+
 - pika (for RabbitMQ)
 - copilot-schema-validation (for ValidatingEventPublisher)
 

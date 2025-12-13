@@ -1,0 +1,203 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Build and Push Docker Images
+
+# Trigger conditions
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+  workflow_dispatch:
+
+# Environment variables
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository }}/
+  BUILD_PLATFORMS: linux/amd64
+  # To use Azure Container Registry instead of GHCR:
+  # REGISTRY: myregistry.azurecr.io
+  # IMAGE_PREFIX: myregistry.azurecr.io/copilot-for-consensus/
+  # And update the login-action step accordingly.
+
+# Permissions
+permissions:
+  packages: write
+
+# Concurrency control: only one build per branch at a time
+concurrency:
+  group: build-images-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Parse docker-compose.yml to extract buildable services
+  parse-compose:
+    name: Parse docker-compose.yml
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Parse docker-compose.yml and generate matrix
+        id: set-matrix
+        run: |
+          python3 << 'EOF'
+          import json
+          import yaml
+          
+          # Read docker-compose.yml
+          with open('docker-compose.yml', 'r') as f:
+              compose = yaml.safe_load(f)
+          
+          # Extract services that have a build section
+          services = []
+          for service_name, service_config in compose.get('services', {}).items():
+              if 'build' in service_config:
+                  build_config = service_config['build']
+                  if isinstance(build_config, dict):
+                      context = build_config.get('context', '.')
+                      dockerfile = build_config.get('dockerfile', 'Dockerfile')
+                      build_args = build_config.get('args', {})
+                      platform = build_config.get('platforms', 'linux/amd64')
+                  else:
+                      # If build is a string, treat it as context
+                      context = build_config
+                      dockerfile = 'Dockerfile'
+                      build_args = {}
+                      platform = 'linux/amd64'
+                  
+                  services.append({
+                      'service': service_name,
+                      'context': context,
+                      'dockerfile': dockerfile,
+                      'build_args': json.dumps(build_args) if build_args else '{}',
+                      'platform': platform
+                  })
+          
+          # Generate matrix JSON
+          matrix = {
+              'include': services
+          }
+          
+          print(json.dumps(matrix, indent=2))
+          
+          # Set as output
+          with open('matrix.json', 'w') as f:
+              json.dump(matrix, f)
+          EOF
+          
+          # Read matrix.json and set as output
+          MATRIX=$(cat matrix.json)
+          echo "matrix=$(echo "$MATRIX" | jq -c .)" >> $GITHUB_OUTPUT
+
+  # Build and push images
+  build-images:
+    name: Build ${{ matrix.service }}
+    needs: parse-compose
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.parse-compose.outputs.matrix) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU (for multi-arch builds)
+        # Uncomment if using multiple architectures in BUILD_PLATFORMS
+        # uses: docker/setup-qemu-action@v3
+        if: contains(env.BUILD_PLATFORMS, ',')
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        # To use Azure Container Registry instead:
+        # with:
+        #   registry: myregistry.azurecr.io
+        #   username: ${{ secrets.ACR_USERNAME }}
+        #   password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Generate image tags and metadata
+        id: meta
+        run: |
+          # Get short SHA
+          SHORT_SHA="${{ github.sha }}"
+          SHORT_SHA="${SHORT_SHA:0:7}"
+          
+          # Get current date in YYYYMMDD format
+          DATE=$(date +%Y%m%d)
+          
+          # Determine branch name and sanitize it
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            SAFE_BRANCH="main"
+          else
+            SAFE_BRANCH=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9-]/-/g')
+          fi
+          
+          # Build tag list
+          TAGS="${{ env.IMAGE_PREFIX }}${{ matrix.service }}:${SHORT_SHA}"
+          
+          if [[ "$SAFE_BRANCH" == "main" ]]; then
+            TAGS="${TAGS},${{ env.IMAGE_PREFIX }}${{ matrix.service }}:latest"
+            TAGS="${TAGS},${{ env.IMAGE_PREFIX }}${{ matrix.service }}:main-${DATE}"
+          else
+            TAGS="${TAGS},${{ env.IMAGE_PREFIX }}${{ matrix.service }}:branch-${SAFE_BRANCH}"
+          fi
+          
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+          echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
+          echo "date=${DATE}" >> $GITHUB_OUTPUT
+          echo "safe_branch=${SAFE_BRANCH}" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: ${{ matrix.platform || env.BUILD_PLATFORMS }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          
+          # Build arguments from docker-compose.yml
+          build-args: ${{ matrix.build_args }}
+          
+          # Registry-based BuildKit caching
+          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}${{ matrix.service }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}${{ matrix.service }}:buildcache,mode=max
+
+      - name: Image build summary
+        if: always()
+        run: |
+          echo "## Build Summary"
+          echo "- **Service**: ${{ matrix.service }}"
+          echo "- **Context**: ${{ matrix.context }}"
+          echo "- **Dockerfile**: ${{ matrix.dockerfile }}"
+          echo "- **Platform**: ${{ matrix.platform || env.BUILD_PLATFORMS }}"
+          echo "- **Tags**: ${{ steps.meta.outputs.tags }}"
+          echo "- **Branch**: ${{ steps.meta.outputs.safe_branch }}"
+
+  # Notification (optional)
+  build-complete:
+    name: Build Complete
+    needs: [parse-compose, build-images]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check build status
+        run: |
+          if [[ "${{ needs.build-images.result }}" == "failure" ]]; then
+            echo "❌ Some builds failed"
+            exit 1
+          else
+            echo "✅ All builds completed"
+          fi

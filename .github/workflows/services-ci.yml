@@ -105,7 +105,7 @@ jobs:
       service_id: 'chunking'
       service_path: 'chunking'
       app_module: 'app'
-      python_version: '3.11'
+      python_version: '3.10'
     secrets: inherit
 
   embedding:
@@ -116,7 +116,7 @@ jobs:
       service_id: 'embedding'
       service_path: 'embedding'
       app_module: 'app'
-      python_version: '3.11'
+      python_version: '3.10'
     secrets: inherit
 
   ingestion:
@@ -127,7 +127,7 @@ jobs:
       service_id: 'ingestion'
       service_path: 'ingestion'
       app_module: 'app'
-      python_version: '3.11'
+      python_version: '3.10'
     secrets: inherit
 
   orchestrator:
@@ -138,7 +138,7 @@ jobs:
       service_id: 'orchestrator'
       service_path: 'orchestrator'
       app_module: 'app'
-      python_version: '3.11'
+      python_version: '3.10'
     secrets: inherit
 
   parsing:
@@ -149,7 +149,7 @@ jobs:
       service_id: 'parsing'
       service_path: 'parsing'
       app_module: 'app'
-      python_version: '3.11'
+      python_version: '3.10'
     secrets: inherit
 
   reporting:
@@ -160,7 +160,7 @@ jobs:
       service_id: 'reporting'
       service_path: 'reporting'
       app_module: 'app'
-      python_version: '3.11'
+      python_version: '3.10'
     secrets: inherit
 
   summarization:
@@ -171,7 +171,7 @@ jobs:
       service_id: 'summarization'
       service_path: 'summarization'
       app_module: 'app'
-      python_version: '3.11'
+      python_version: '3.10'
     secrets: inherit
 
   error-reporting:
@@ -182,5 +182,5 @@ jobs:
       service_id: 'error-reporting'
       service_path: 'error-reporting'
       app_module: 'app'
-      python_version: '3.11'
+      python_version: '3.10'
     secrets: inherit

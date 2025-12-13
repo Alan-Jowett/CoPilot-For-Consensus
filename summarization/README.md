@@ -24,7 +24,7 @@ The Summarization Service turns retrieved context into concise, citation-rich su
 
 ## Technology Stack
 
-- **Language:** Python 3.11+
+- **Language:** Python 3.10+
 - **Orchestration:** Event-driven via message bus
 - **Retrieval:** Qdrant (vector) + MongoDB (metadata)
 - **LLM Backends:** Ollama (local), Azure OpenAI, OpenAI API

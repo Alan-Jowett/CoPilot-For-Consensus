@@ -241,7 +241,7 @@ pylint copilot_storage/
 
 ## Requirements
 
-- Python 3.11+
+- Python 3.10+
 - pymongo (for MongoDB)
 - copilot-schema-validation (optional: for ValidatingDocumentStore - install with `pip install copilot-storage[validation]`)
 

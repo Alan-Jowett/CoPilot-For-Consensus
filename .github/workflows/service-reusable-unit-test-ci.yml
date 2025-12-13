@@ -20,10 +20,10 @@ on:
         type: string
         default: 'app'
       python_version:
-        description: 'Python version to use (e.g., "3.11")'
+        description: 'Python version to use (e.g., "3.10")'
         required: false
         type: string
-        default: '3.11'
+        default: '3.10'
       run_local_test:
         description: 'Whether to run local integration test'
         required: false

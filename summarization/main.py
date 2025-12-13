@@ -136,7 +136,7 @@ def main():
         
         logger.info("Creating vector store...")
         vector_store = create_vector_store(
-            store_type=config.vector_store_type,
+            backend=config.vector_store_type,
             host=config.vector_store_host if config.vector_store_type != "inmemory" else None,
             port=config.vector_store_port if config.vector_store_type != "inmemory" else None,
             collection_name=config.vector_store_collection,

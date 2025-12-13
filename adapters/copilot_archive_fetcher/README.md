@@ -183,7 +183,7 @@ success, files, error = fetcher.fetch(output_dir)
 ## Dependencies
 
 ### Required
-- Python >= 3.11
+- Python >= 3.10
 
 ### Optional
 - `requests` >= 2.28.0 (for HTTP sources)

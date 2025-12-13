@@ -24,7 +24,7 @@ The Reporting Service delivers summaries and insights to users via REST endpoint
 
 ## Technology Stack
 
-- **Language:** Python 3.11+
+- **Language:** Python 3.10+
 - **Framework:** Flask (REST)
 - **Message Bus:** RabbitMQ (default) or Azure Service Bus
 - **Storage:** MongoDB for summaries and metadata; Vector store for semantic search (optional)

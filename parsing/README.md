@@ -31,7 +31,7 @@ Transform raw `.mbox` archive files into structured, normalized message document
 
 ## Technology Stack
 
-- **Language:** Python 3.11+
+- **Language:** Python 3.10+
 - **Core Libraries:**
   - `mailbox` for `.mbox` file parsing
   - `email` (standard library) for MIME parsing

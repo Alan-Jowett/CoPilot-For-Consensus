@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-FROM python:3.11-slim
+FROM pytorch/pytorch:latest
 
 # Install rsync for archive fetching
 RUN apt-get update && \
