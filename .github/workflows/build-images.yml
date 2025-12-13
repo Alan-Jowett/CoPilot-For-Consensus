@@ -6,6 +6,7 @@ name: Build and Push Docker Images
 # Trigger conditions
 on:
   workflow_dispatch:
+  workflow_call:
 
 # Environment variables
 env:
