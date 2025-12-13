@@ -11,7 +11,6 @@ on:
 # Environment variables
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/${{ lower(github.repository) }}/
   BUILD_PLATFORMS: linux/amd64
   # To use Azure Container Registry instead of GHCR:
   # REGISTRY: myregistry.azurecr.io
@@ -139,20 +138,24 @@ jobs:
             SAFE_BRANCH=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9-]/-/g')
           fi
           
+          # Construct IMAGE_PREFIX with lowercase repository
+          IMAGE_PREFIX="${{ env.REGISTRY }}/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')/"
+          
           # Build tag list
-          TAGS="${{ env.IMAGE_PREFIX }}${{ matrix.service }}:${SHORT_SHA}"
+          TAGS="${IMAGE_PREFIX}${{ matrix.service }}:${SHORT_SHA}"
           
           if [[ "$SAFE_BRANCH" == "main" ]]; then
-            TAGS="${TAGS},${{ env.IMAGE_PREFIX }}${{ matrix.service }}:latest"
-            TAGS="${TAGS},${{ env.IMAGE_PREFIX }}${{ matrix.service }}:main-${DATE}"
+            TAGS="${TAGS},${IMAGE_PREFIX}${{ matrix.service }}:latest"
+            TAGS="${TAGS},${IMAGE_PREFIX}${{ matrix.service }}:main-${DATE}"
           else
-            TAGS="${TAGS},${{ env.IMAGE_PREFIX }}${{ matrix.service }}:branch-${SAFE_BRANCH}"
+            TAGS="${TAGS},${IMAGE_PREFIX}${{ matrix.service }}:branch-${SAFE_BRANCH}"
           fi
           
           echo "tags=${TAGS}" >> $GITHUB_OUTPUT
           echo "short_sha=${SHORT_SHA}" >> $GITHUB_OUTPUT
           echo "date=${DATE}" >> $GITHUB_OUTPUT
           echo "safe_branch=${SAFE_BRANCH}" >> $GITHUB_OUTPUT
+          echo "image_prefix=${IMAGE_PREFIX}" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -167,8 +170,8 @@ jobs:
           build-args: ${{ matrix.build_args }}
           
           # Registry-based BuildKit caching
-          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}${{ matrix.service }}:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}${{ matrix.service }}:buildcache,mode=max
+          cache-from: type=registry,ref=${{ steps.meta.outputs.image_prefix }}${{ matrix.service }}:buildcache
+          cache-to: type=registry,ref=${{ steps.meta.outputs.image_prefix }}${{ matrix.service }}:buildcache,mode=max
 
       - name: Image build summary
         if: always()
