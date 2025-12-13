@@ -78,6 +78,7 @@ class SummarizationService:
         
         # Subscribe to SummarizationRequested events
         self.subscriber.subscribe(
+            event_type="SummarizationRequested",
             exchange="copilot.events",
             routing_key="summarization.requested",
             callback=self._handle_summarization_requested,

@@ -74,6 +74,9 @@ def start_subscriber_thread(service: EmbeddingService):
     
     Args:
         service: Embedding service instance
+        
+    Raises:
+        Exception: Re-raises any exception to fail fast
     """
     try:
         service.start()
@@ -83,6 +86,8 @@ def start_subscriber_thread(service: EmbeddingService):
         logger.info("Subscriber interrupted")
     except Exception as e:
         logger.error(f"Subscriber error: {e}", exc_info=True)
+        # Fail fast - re-raise to terminate the service
+        raise
 
 
 def main():
@@ -118,8 +123,7 @@ def main():
             host=config.message_bus_host,
             port=config.message_bus_port,
             username=config.message_bus_user,
-            password=config.message_bus_password,
-        )
+            password=config.message_bus_password,            queue_name="embedding-service",        )
         if not subscriber.connect():
             logger.error("Failed to connect subscriber to message bus.")
             raise ConnectionError("Subscriber failed to connect to message bus")
@@ -182,11 +186,11 @@ def main():
             retry_backoff_seconds=config.retry_backoff,
         )
         
-        # Start subscriber in background thread
+        # Start subscriber in a separate thread (non-daemon to fail fast)
         subscriber_thread = threading.Thread(
             target=start_subscriber_thread,
             args=(embedding_service,),
-            daemon=True,
+            daemon=False,
         )
         subscriber_thread.start()
         logger.info("Subscriber thread started")

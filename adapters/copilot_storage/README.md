@@ -214,7 +214,7 @@ Schema validation wrapper that:
 - Validates documents against JSON schemas on insert and update operations
 - Supports both strict (raise error) and non-strict (log warning) modes
 - Optional validation on read operations (debug mode)
-- Works with any schema provider (FileSchemaProvider, DocumentStoreSchemaProvider)
+- Works with FileSchemaProvider for event schema validation
 - Composes cleanly with any DocumentStore implementation
 - Provides structured DocumentValidationError with detailed error messages
 - Automatically maps collection names to schema names (snake_case → PascalCase)

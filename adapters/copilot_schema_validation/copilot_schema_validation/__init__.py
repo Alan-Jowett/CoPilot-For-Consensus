@@ -11,9 +11,6 @@ __version__ = "0.1.0"
 
 from .schema_provider import SchemaProvider
 from .file_schema_provider import FileSchemaProvider
-from .document_store_schema_provider import DocumentStoreSchemaProvider
-# Backward compatibility alias for previous MongoSchemaProvider name
-MongoSchemaProvider = DocumentStoreSchemaProvider
 from .schema_validator import validate_json
 from .models import (
     BaseEvent,
@@ -46,8 +43,6 @@ __all__ = [
     # Schema validation
     "SchemaProvider",
     "FileSchemaProvider",
-    "DocumentStoreSchemaProvider",
-    "MongoSchemaProvider",
     "validate_json",
     # Event models
     "BaseEvent",

@@ -154,6 +154,9 @@ def start_subscriber_thread(service: ReportingService):
     
     Args:
         service: Reporting service instance
+        
+    Raises:
+        Exception: Re-raises any exception to fail fast
     """
     try:
         service.start()
@@ -163,6 +166,8 @@ def start_subscriber_thread(service: ReportingService):
         logger.info("Subscriber interrupted")
     except Exception as e:
         logger.error(f"Subscriber error: {e}", exc_info=True)
+        # Fail fast - re-raise to terminate the service
+        raise
 
 
 def main():
@@ -193,6 +198,7 @@ def main():
             port=config.message_bus_port,
             username=config.message_bus_user,
             password=config.message_bus_password,
+            queue_name="reporting-service",
         )
         
         logger.info("Creating document store...")
@@ -229,11 +235,11 @@ def main():
         if config.notify_enabled and config.notify_webhook_url:
             logger.info(f"Webhook URL: {config.notify_webhook_url}")
         
-        # Start subscriber in background thread
+        # Start subscriber in a separate thread (non-daemon to fail fast)
         subscriber_thread = threading.Thread(
             target=start_subscriber_thread,
             args=(reporting_service,),
-            daemon=True,
+            daemon=False,
         )
         subscriber_thread.start()
         logger.info("Subscriber thread started")

@@ -63,6 +63,7 @@ class ChunkingService:
         
         # Subscribe to JSONParsed events
         self.subscriber.subscribe(
+            event_type="JSONParsed",
             exchange="copilot.events",
             routing_key="json.parsed",
             callback=self._handle_json_parsed,

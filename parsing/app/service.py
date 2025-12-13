@@ -67,6 +67,7 @@ class ParsingService:
         
         # Subscribe to ArchiveIngested events
         self.subscriber.subscribe(
+            event_type="ArchiveIngested",
             exchange="copilot.events",
             routing_key="archive.ingested",
             callback=self._handle_archive_ingested,

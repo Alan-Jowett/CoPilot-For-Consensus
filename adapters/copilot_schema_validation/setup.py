@@ -30,7 +30,6 @@ setup(
     ],
     python_requires=">=3.10",
     install_requires=[
-        "copilot-storage>=0.1.0",  # Document store abstraction
         "jsonschema>=4.18.0",  # JSON Schema validation
         "referencing>=0.30.0",  # Modern JSON reference resolution
     ],

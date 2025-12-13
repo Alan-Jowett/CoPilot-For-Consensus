@@ -6,6 +6,7 @@
 import logging
 import os
 import sys
+from pathlib import Path
 import threading
 
 # Add app directory to path
@@ -72,6 +73,9 @@ def start_subscriber_thread(service: ParsingService):
     
     Args:
         service: Parsing service instance
+        
+    Raises:
+        Exception: Re-raises any exception to fail fast
     """
     try:
         service.start()
@@ -81,6 +85,8 @@ def start_subscriber_thread(service: ParsingService):
         logger.info("Subscriber interrupted")
     except Exception as e:
         logger.error(f"Subscriber error: {e}", exc_info=True)
+        # Fail fast - re-raise to terminate the service
+        raise
 
 
 def main():
@@ -116,10 +122,17 @@ def main():
                 logger.warning("Failed to connect publisher to message bus. Continuing with noop publisher.")
         
         # Wrap with schema validation
-        schema_provider = FileSchemaProvider()
+        # Create schema providers for event and document validation
+        # Events use schemas from documents/schemas/events/
+        # Documents use schemas from documents/schemas/documents/
+        event_schema_provider = FileSchemaProvider()
+        document_schema_provider = FileSchemaProvider(
+            schema_dir=Path(__file__).parent / "documents" / "schemas" / "documents"
+        )
+        
         publisher = ValidatingEventPublisher(
             publisher=base_publisher,
-            schema_provider=schema_provider,
+            schema_provider=event_schema_provider,
         )
         
         # Create event subscriber with schema validation
@@ -130,6 +143,7 @@ def main():
             port=config.message_bus_port,
             username=config.message_bus_user,
             password=config.message_bus_password,
+            queue_name="parsing-service",
         )
         
         if not base_subscriber.connect():
@@ -139,7 +153,7 @@ def main():
         # Wrap with schema validation
         subscriber = ValidatingEventSubscriber(
             subscriber=base_subscriber,
-            schema_provider=schema_provider,
+            schema_provider=event_schema_provider,
         )
         
         # Create document store with schema validation
@@ -160,7 +174,7 @@ def main():
         # Wrap with schema validation
         document_store = ValidatingDocumentStore(
             store=base_document_store,
-            schema_provider=schema_provider,
+            schema_provider=document_schema_provider,
         )
         
         # Create metrics collector - fail fast on errors
@@ -180,11 +194,11 @@ def main():
             error_reporter=error_reporter,
         )
         
-        # Start subscriber in a separate thread
+        # Start subscriber in a separate thread (non-daemon to fail fast)
         subscriber_thread = threading.Thread(
             target=start_subscriber_thread,
             args=(parsing_service,),
-            daemon=True,
+            daemon=False,
         )
         subscriber_thread.start()
         

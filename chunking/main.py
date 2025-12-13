@@ -71,6 +71,9 @@ def start_subscriber_thread(service: ChunkingService):
     
     Args:
         service: Chunking service instance
+        
+    Raises:
+        Exception: Re-raises any exception to fail fast
     """
     try:
         service.start()
@@ -80,6 +83,8 @@ def start_subscriber_thread(service: ChunkingService):
         logger.info("Subscriber interrupted")
     except Exception as e:
         logger.error(f"Subscriber error: {e}", exc_info=True)
+        # Fail fast - re-raise to terminate the service
+        raise
 
 
 def main():
@@ -109,8 +114,7 @@ def main():
             host=config.message_bus_host,
             port=config.message_bus_port,
             username=config.message_bus_user,
-            password=config.message_bus_password,
-        )
+            password=config.message_bus_password,            queue_name="chunking-service",        )
         
         logger.info("Creating document store...")
         document_store = create_document_store(
@@ -150,11 +154,11 @@ def main():
             error_reporter=error_reporter,
         )
         
-        # Start subscriber in background thread
+        # Start subscriber in a separate thread (non-daemon to fail fast)
         subscriber_thread = threading.Thread(
             target=start_subscriber_thread,
             args=(chunking_service,),
-            daemon=True,
+            daemon=False,
         )
         subscriber_thread.start()
         logger.info("Subscriber thread started")
