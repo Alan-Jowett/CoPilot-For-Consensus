@@ -249,14 +249,14 @@ def test_publish_chunks_prepared(chunking_service, mock_publisher):
     assert call_args[1]["exchange"] == "copilot.events"
     assert call_args[1]["routing_key"] == "chunks.prepared"
     
-    message = call_args[1]["message"]
-    assert message["event_type"] == "ChunksPrepared"
-    assert message["data"]["chunk_count"] == 3
-    assert len(message["data"]["chunk_ids"]) == 3
-    assert message["data"]["chunks_ready"] is True
+    event = call_args[1]["event"]
+    assert event["event_type"] == "ChunksPrepared"
+    assert event["data"]["chunk_count"] == 3
+    assert len(event["data"]["chunk_ids"]) == 3
+    assert event["data"]["chunks_ready"] is True
     
     # Validate event against JSON schema
-    assert_valid_event_schema(message)
+    assert_valid_event_schema(event)
 
 
 def test_publish_chunking_failed(chunking_service, mock_publisher):
@@ -275,13 +275,13 @@ def test_publish_chunking_failed(chunking_service, mock_publisher):
     assert call_args[1]["exchange"] == "copilot.events"
     assert call_args[1]["routing_key"] == "chunking.failed"
     
-    message = call_args[1]["message"]
-    assert message["event_type"] == "ChunkingFailed"
-    assert message["data"]["error_message"] == "Test error"
-    assert message["data"]["error_type"] == "TestError"
+    event = call_args[1]["event"]
+    assert event["event_type"] == "ChunkingFailed"
+    assert event["data"]["error_message"] == "Test error"
+    assert event["data"]["error_type"] == "TestError"
     
     # Validate event against JSON schema
-    assert_valid_event_schema(message)
+    assert_valid_event_schema(event)
 
 
 # ============================================================================
@@ -312,7 +312,7 @@ def test_schema_validation_chunks_prepared():
     )
     
     call_args = mock_publisher.publish.call_args
-    event = call_args[1]["message"]
+    event = call_args[1]["event"]
     
     # Should pass schema validation
     assert_valid_event_schema(event)
@@ -340,7 +340,7 @@ def test_schema_validation_chunking_failed():
     )
     
     call_args = mock_publisher.publish.call_args
-    event = call_args[1]["message"]
+    event = call_args[1]["event"]
     
     # Should pass schema validation
     assert_valid_event_schema(event)
