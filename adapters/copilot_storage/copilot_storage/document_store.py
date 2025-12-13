@@ -137,21 +137,50 @@ def create_document_store(
     if store_type == "mongodb":
         from .mongo_document_store import MongoDocumentStore
         
-        # If no kwargs provided, read from environment
-        if not kwargs:
-            kwargs = {
-                "host": os.getenv("MONGO_HOST", "localhost"),
-                "port": int(os.getenv("MONGO_PORT", "27017")),
-                "database": os.getenv("MONGO_DB", "copilot"),
-            }
-            mongo_user = os.getenv("MONGO_USER")
-            mongo_password = os.getenv("MONGO_PASSWORD")
-            if mongo_user is not None:
-                kwargs["username"] = mongo_user
-            if mongo_password is not None:
-                kwargs["password"] = mongo_password
+        # Build kwargs with environment variable fallback for individual parameters
+        # Explicit parameters take precedence over environment variables
+        mongo_kwargs = {}
         
-        return MongoDocumentStore(**kwargs)
+        # Host - use provided value or environment variable
+        if "host" in kwargs:
+            mongo_kwargs["host"] = kwargs["host"]
+        else:
+            mongo_kwargs["host"] = os.getenv("MONGO_HOST", "localhost")
+        
+        # Port - use provided value or environment variable
+        if "port" in kwargs:
+            mongo_kwargs["port"] = kwargs["port"]
+        else:
+            mongo_kwargs["port"] = int(os.getenv("MONGO_PORT", "27017"))
+        
+        # Database - use provided value or environment variable
+        if "database" in kwargs:
+            mongo_kwargs["database"] = kwargs["database"]
+        else:
+            mongo_kwargs["database"] = os.getenv("MONGO_DB", "copilot")
+        
+        # Username - use provided value or environment variable (only if set)
+        if "username" in kwargs:
+            mongo_kwargs["username"] = kwargs["username"]
+        else:
+            mongo_user = os.getenv("MONGO_USER")
+            if mongo_user is not None:
+                mongo_kwargs["username"] = mongo_user
+        
+        # Password - use provided value or environment variable (only if set)
+        if "password" in kwargs:
+            mongo_kwargs["password"] = kwargs["password"]
+        else:
+            mongo_password = os.getenv("MONGO_PASSWORD")
+            if mongo_password is not None:
+                mongo_kwargs["password"] = mongo_password
+        
+        # Pass any other kwargs that aren't MongoDB-specific
+        for key, value in kwargs.items():
+            if key not in ("host", "port", "database", "username", "password"):
+                mongo_kwargs[key] = value
+        
+        return MongoDocumentStore(**mongo_kwargs)
     elif store_type == "inmemory":
         from .inmemory_document_store import InMemoryDocumentStore
         return InMemoryDocumentStore()
