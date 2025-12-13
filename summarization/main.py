@@ -148,20 +148,33 @@ def main():
         }
         
         if config.vector_store_type.lower() == "faiss":
+            # Validate required config attributes
+            if not hasattr(config, "embedding_dimension"):
+                raise ValueError("embedding_dimension configuration is required for FAISS backend")
+            if not hasattr(config, "vector_store_index_type"):
+                raise ValueError("vector_store_index_type configuration is required for FAISS backend")
+            
             vector_store_kwargs.update({
-                "dimension": getattr(config, "embedding_dimension", 384),
-                "index_type": getattr(config, "vector_store_index_type", "flat"),
-                "persist_path": getattr(config, "vector_store_persist_path", None),
+                "dimension": config.embedding_dimension,
+                "index_type": config.vector_store_index_type,
+                "persist_path": config.vector_store_persist_path if hasattr(config, "vector_store_persist_path") else None,
             })
         elif config.vector_store_type.lower() == "qdrant":
+            # Validate required config attributes
+            required_attrs = ["embedding_dimension", "vector_store_host", "vector_store_port", 
+                            "vector_store_collection", "vector_store_distance", "vector_store_batch_size"]
+            missing = [attr for attr in required_attrs if not hasattr(config, attr)]
+            if missing:
+                raise ValueError(f"Missing required Qdrant configuration: {', '.join(missing)}")
+            
             vector_store_kwargs.update({
-                "dimension": getattr(config, "embedding_dimension", 384),
+                "dimension": config.embedding_dimension,
                 "host": config.vector_store_host,
                 "port": config.vector_store_port,
                 "collection_name": config.vector_store_collection,
-                "distance": getattr(config, "vector_store_distance", "cosine"),
-                "upsert_batch_size": getattr(config, "vector_store_batch_size", 100),
-                "api_key": getattr(config, "vector_store_api_key", None),
+                "distance": config.vector_store_distance,
+                "upsert_batch_size": config.vector_store_batch_size,
+                "api_key": config.vector_store_api_key if hasattr(config, "vector_store_api_key") else None,
             })
         
         vector_store = create_vector_store(**vector_store_kwargs)
@@ -183,20 +196,30 @@ def main():
         
         if config.llm_backend.lower() in ("openai", "azure", "local"):
             if config.llm_backend.lower() == "openai":
-                summarizer_kwargs["api_key"] = getattr(config, "openai_api_key", None)
-                if not summarizer_kwargs["api_key"]:
+                if not hasattr(config, "openai_api_key"):
                     raise ValueError("openai_api_key configuration is required for OpenAI summarizer")
-            elif config.llm_backend.lower() == "azure":
-                summarizer_kwargs["api_key"] = getattr(config, "azure_openai_api_key", None)
-                summarizer_kwargs["base_url"] = getattr(config, "azure_openai_endpoint", None)
+                summarizer_kwargs["api_key"] = config.openai_api_key
                 if not summarizer_kwargs["api_key"]:
-                    raise ValueError("azure_openai_api_key configuration is required for Azure summarizer")
+                    raise ValueError("openai_api_key configuration is required for OpenAI summarizer and cannot be empty")
+            elif config.llm_backend.lower() == "azure":
+                # Validate required Azure config attributes
+                required_attrs = ["azure_openai_api_key", "azure_openai_endpoint"]
+                missing = [attr for attr in required_attrs if not hasattr(config, attr)]
+                if missing:
+                    raise ValueError(f"Missing required Azure summarizer configuration: {', '.join(missing)}")
+                
+                summarizer_kwargs["api_key"] = config.azure_openai_api_key
+                summarizer_kwargs["base_url"] = config.azure_openai_endpoint
+                if not summarizer_kwargs["api_key"]:
+                    raise ValueError("azure_openai_api_key configuration is required for Azure summarizer and cannot be empty")
                 if not summarizer_kwargs["base_url"]:
-                    raise ValueError("azure_openai_endpoint configuration is required for Azure summarizer")
+                    raise ValueError("azure_openai_endpoint configuration is required for Azure summarizer and cannot be empty")
             elif config.llm_backend.lower() == "local":
-                summarizer_kwargs["base_url"] = getattr(config, "local_llm_endpoint", None)
-                if not summarizer_kwargs["base_url"]:
+                if not hasattr(config, "local_llm_endpoint"):
                     raise ValueError("local_llm_endpoint configuration is required for local LLM summarizer")
+                summarizer_kwargs["base_url"] = config.local_llm_endpoint
+                if not summarizer_kwargs["base_url"]:
+                    raise ValueError("local_llm_endpoint configuration is required for local LLM summarizer and cannot be empty")
         
         summarizer = SummarizerFactory.create_summarizer(**summarizer_kwargs)
         

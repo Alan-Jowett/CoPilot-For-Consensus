@@ -122,8 +122,12 @@ class SummarizerFactory:
             )
             
         elif provider == "mock":
-            latency_ms = kwargs.get("latency_ms", 100)
-            return MockSummarizer(latency_ms=latency_ms)
+            # MockSummarizer has its own default for latency_ms in the class
+            # Pass it only if explicitly provided
+            if "latency_ms" in kwargs:
+                return MockSummarizer(latency_ms=kwargs["latency_ms"])
+            else:
+                return MockSummarizer()
             
         else:
             raise ValueError(
