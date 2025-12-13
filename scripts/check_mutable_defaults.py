@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 SPDX-License-Identifier: MIT
 Copyright (c) 2025 Copilot-for-Consensus contributors
@@ -12,7 +13,6 @@ import argparse
 import ast
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 
 DEFAULT_EXCLUDES = {
@@ -39,21 +39,21 @@ def is_mutable_default(node: ast.AST) -> tuple[bool, str]:
     
     Returns (is_mutable, type_name) where type_name is 'list', 'dict', or 'set'.
     """
-    # Direct literals: [], {}, or {} for set
+    # Direct literals: [] (list), {} (dict), or {1, 2} (set with elements)
     if isinstance(node, ast.List):
         return True, "list"
     elif isinstance(node, ast.Dict):
         return True, "dict"
     elif isinstance(node, ast.Set):
         return True, "set"
-    # Constructor calls: list(), dict(), set()
+    # Constructor calls: list(), dict(), set() with any arguments
     elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-        if node.func.id in ('list', 'dict', 'set') and not node.args and not node.keywords:
+        if node.func.id in ('list', 'dict', 'set'):
             return True, node.func.id
     return False, ""
 
 
-def find_mutable_defaults(filepath: Path) -> List[Tuple[int, str, str, str]]:
+def find_mutable_defaults(filepath: Path) -> list[tuple[int, str, str, str]]:
     """
     Find mutable default arguments in a Python file.
     
@@ -89,7 +89,7 @@ def find_mutable_defaults(filepath: Path) -> List[Tuple[int, str, str, str]]:
     return issues
 
 
-def scan_directory(root: Path, excludes: set[str]) -> List[Tuple[Path, int, str, str, str]]:
+def scan_directory(root: Path, excludes: set[str]) -> list[tuple[Path, int, str, str, str]]:
     """
     Scan a directory for Python files with mutable default arguments.
     
@@ -118,7 +118,7 @@ def load_ignore_file(root: Path, ignore_file: str | None) -> set[str]:
         return set()
     
     excludes = set()
-    with ignore_path.open('r') as f:
+    with ignore_path.open('r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
             if line and not line.startswith('#'):

@@ -244,19 +244,83 @@ def test_exclude_patterns():
         assert issues[0][0].name == 'normal.py'
 
 
+def test_detect_class_methods():
+    """Test detection in class methods with mutable default arguments."""
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        f.write('''
+class MyClass:
+    def method(self, items=[]):
+        pass
+''')
+        f.flush()
+        filepath = Path(f.name)
+    
+    try:
+        issues = find_mutable_defaults(filepath)
+        assert len(issues) == 1
+        assert issues[0][1] == 'method'
+        assert issues[0][2] == 'items'
+    finally:
+        filepath.unlink()
+
+
+def test_detect_nested_functions():
+    """Test detection in nested functions with mutable default arguments."""
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        f.write('''
+def outer():
+    def inner(items=[]):
+        pass
+''')
+        f.flush()
+        filepath = Path(f.name)
+    
+    try:
+        issues = find_mutable_defaults(filepath)
+        assert len(issues) == 1
+        assert issues[0][1] == 'inner'
+        assert issues[0][2] == 'items'
+    finally:
+        filepath.unlink()
+
+
+def test_detect_constructor_with_args():
+    """Test detection of constructor calls with arguments."""
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        f.write('def bad_func(items=list([1, 2, 3])):\n    pass\n')
+        f.flush()
+        filepath = Path(f.name)
+    
+    try:
+        issues = find_mutable_defaults(filepath)
+        assert len(issues) == 1
+        assert issues[0][2] == 'items'
+        assert issues[0][3] == 'list'
+    finally:
+        filepath.unlink()
+
+
 if __name__ == '__main__':
-    # Run all tests
-    test_detect_list_literal()
-    test_detect_dict_literal()
-    test_detect_set_literal()
-    test_detect_list_call()
-    test_detect_dict_call()
-    test_detect_set_call()
-    test_ignore_none_defaults()
-    test_ignore_immutable_defaults()
-    test_detect_async_functions()
-    test_detect_keyword_only_args()
-    test_multiple_issues()
-    test_scan_directory()
-    test_exclude_patterns()
-    print("All tests passed!")
+    # Try to use pytest if available, otherwise run tests manually
+    try:
+        import pytest
+        pytest.main([__file__, "-v"])
+    except ImportError:
+        # Fallback to manual execution if pytest is not available
+        test_detect_list_literal()
+        test_detect_dict_literal()
+        test_detect_set_literal()
+        test_detect_list_call()
+        test_detect_dict_call()
+        test_detect_set_call()
+        test_ignore_none_defaults()
+        test_ignore_immutable_defaults()
+        test_detect_async_functions()
+        test_detect_keyword_only_args()
+        test_multiple_issues()
+        test_scan_directory()
+        test_exclude_patterns()
+        test_detect_class_methods()
+        test_detect_nested_functions()
+        test_detect_constructor_with_args()
+        print("All tests passed!")
