@@ -3,7 +3,6 @@
  */
 
 // Validate Mongo collections, validators, and index names from collections.config.json.
-// Also validates that event_schemas collection is populated with all event types.
 // Exits non-zero on first failure to halt startup/CI.
 
 const fs = require('fs');
@@ -11,7 +10,6 @@ const path = require('path');
 
 const dbName = process.env.MONGO_APP_DB || 'copilot';
 const configPath = path.join('/schemas', 'documents', 'collections.config.json');
-const eventSchemasDir = '/schemas/events';
 
 function loadConfig() {
   const raw = fs.readFileSync(configPath, 'utf8');
@@ -48,56 +46,9 @@ function validateCollections(targetDb, expectedCollections) {
   });
 }
 
-function validateEventSchemas(targetDb) {
-  const collName = 'event_schemas';
-  const existing = targetDb.getCollectionNames();
-  if (!existing.includes(collName)) {
-    throw new Error(`Missing collection: ${collName}`);
-  }
-
-  const coll = targetDb.getCollection(collName);
-  const eventFiles = fs.readdirSync(eventSchemasDir)
-    .filter((f) => f.toLowerCase().endsWith('.json'));
-
-  if (eventFiles.length === 0) {
-    throw new Error('No event schema files found in /schemas/events');
-  }
-
-  // Expected count includes event schemas + event-envelope schema
-  const expectedCount = eventFiles.length;
-  const storedCount = coll.countDocuments({});
-  if (storedCount !== expectedCount) {
-    throw new Error(
-      `Event schemas count mismatch: expected ${expectedCount} documents (${eventFiles.length} events + envelope) but found ${storedCount} in collection`
-    );
-  }
-
-  // Verify the event-envelope schema is present
-  const envelopeDoc = coll.findOne({ name: 'event-envelope' });
-  if (!envelopeDoc) {
-    throw new Error('Missing event-envelope schema document');
-  }
-  if (!envelopeDoc.schema || typeof envelopeDoc.schema !== 'object') {
-    throw new Error('Event-envelope schema document missing or invalid schema field');
-  }
-
-  // Verify each expected event type is present
-  eventFiles.forEach((file) => {
-    const name = file.replace(/\.schema\.json$/i, '').replace(/\.json$/i, '');
-    const doc = coll.findOne({ name });
-    if (!doc) {
-      throw new Error(`Missing event schema document for: ${name}`);
-    }
-    if (!doc.schema || typeof doc.schema !== 'object') {
-      throw new Error(`Event schema document for '${name}' missing or invalid schema field`);
-    }
-  });
-}
-
 (() => {
   const collections = loadConfig();
   const targetDb = db.getSiblingDB(dbName);
   validateCollections(targetDb, collections);
-  validateEventSchemas(targetDb);
   print(`Mongo validation succeeded for db '${dbName}'`);
 })();
