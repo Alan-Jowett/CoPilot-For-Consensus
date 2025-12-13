@@ -126,7 +126,8 @@ class RabbitMQSubscriber(EventSubscriber):
         self,
         event_type: str,
         callback: Callable[[Dict[str, Any]], None],
-        routing_key: str = None
+        routing_key: str = None,
+        exchange: str = None,
     ) -> None:
         """Subscribe to events of a specific type.
         
@@ -146,15 +147,19 @@ class RabbitMQSubscriber(EventSubscriber):
             # Convert event_type to routing key (e.g., "ArchiveIngested" -> "archive.ingested")
             routing_key = self._event_type_to_routing_key(event_type)
         
+        # Choose exchange (allow override for compatibility/testing)
+        target_exchange = exchange or self.exchange_name
+
         # Bind queue to exchange with routing key
         self.channel.queue_bind(
-            exchange=self.exchange_name,
+            exchange=target_exchange,
             queue=self.queue_name,
             routing_key=routing_key
         )
         
         logger.info(
-            f"Subscribed to {event_type} events with routing key: {routing_key}"
+            f"Subscribed to {event_type} events on exchange {target_exchange} "
+            f"with routing key: {routing_key}"
         )
 
     def start_consuming(self) -> None:

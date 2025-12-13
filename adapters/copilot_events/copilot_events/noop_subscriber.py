@@ -46,7 +46,8 @@ class NoopSubscriber(EventSubscriber):
         self,
         event_type: str,
         callback: Callable[[Dict[str, Any]], None],
-        routing_key: str = None
+        routing_key: str = None,
+        exchange: str = None,
     ) -> None:
         """Register a callback for an event type.
         
@@ -57,6 +58,7 @@ class NoopSubscriber(EventSubscriber):
         """
         self.callbacks[event_type] = callback
         self.routing_keys[event_type] = routing_key
+        # exchange is accepted for interface compatibility; noop ignores it
         logger.debug(f"NoopSubscriber subscribed to {event_type}")
 
     def start_consuming(self) -> None:
