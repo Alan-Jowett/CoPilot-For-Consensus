@@ -107,6 +107,19 @@ jobs:
         echo "Waiting for services to start..."
         sleep 30
 
+    - name: Check all services are healthy
+      run: |
+        echo "Checking service health..."
+        unhealthy=$(docker compose ps --filter "status=unhealthy" --format "{{.Name}}")
+        if [ -n "$unhealthy" ]; then
+          echo "The following services are unhealthy:"
+          echo "$unhealthy"
+          docker compose logs "$unhealthy"
+          exit 1
+        else
+          echo "✓ All services are healthy"
+        fi
+
     - name: Check service status
       run: docker compose ps
 

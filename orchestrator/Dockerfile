@@ -22,6 +22,7 @@ COPY orchestrator/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy service code
-COPY orchestrator/*.py ./
+COPY orchestrator/app ./app
+COPY orchestrator/main.py .
 
 CMD ["python", "main.py"]

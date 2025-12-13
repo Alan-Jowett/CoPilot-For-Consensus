@@ -8,6 +8,9 @@ uvicorn==0.38.0
 # Type hints
 python-dotenv==1.2.1
 
+# Monitoring
+prometheus-client==0.21.0
+
 # Adapters
 # copilot_config
 
