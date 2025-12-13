@@ -483,3 +483,52 @@ def test_handle_event_with_invalid_message_ids_type():
     except (TypeError, AttributeError):
         # Expected - service should handle type errors
         pass
+
+
+def test_publish_chunks_prepared_raises_on_publish_error(chunking_service, mock_publisher):
+    """Test that _publish_chunks_prepared raises exception on publish errors."""
+    # Setup mock to raise an exception
+    mock_publisher.publish = Mock(side_effect=Exception("RabbitMQ connection lost"))
+    
+    # Verify exception is raised, not swallowed
+    with pytest.raises(Exception, match="RabbitMQ connection lost"):
+        chunking_service._publish_chunks_prepared(
+            message_ids=["<msg-1@example.com>"],
+            chunk_ids=["chunk-1"],
+            chunk_count=1,
+            avg_chunk_size_tokens=100
+        )
+
+
+def test_publish_chunking_failed_raises_on_publish_error(chunking_service, mock_publisher):
+    """Test that _publish_chunking_failed raises exception on publish errors."""
+    # Setup mock to raise an exception
+    mock_publisher.publish = Mock(side_effect=Exception("RabbitMQ connection lost"))
+    
+    # Verify exception is raised, not swallowed
+    with pytest.raises(Exception, match="RabbitMQ connection lost"):
+        chunking_service._publish_chunking_failed(
+            message_ids=["<msg-1@example.com>"],
+            error_message="Test error",
+            error_type="TestError",
+            retry_count=0
+        )
+
+
+def test_event_handler_logs_but_does_not_raise(chunking_service, mock_document_store):
+    """Test that event handler logs errors but doesn't re-raise (intentional pattern)."""
+    # Setup mock to raise an exception during processing
+    mock_document_store.query_documents = Mock(side_effect=Exception("Database error"))
+    
+    event = {
+        "data": {
+            "archive_id": "test-archive",
+            "message_count": 1,
+            "parsed_message_ids": ["<msg-1@example.com>"],
+        }
+    }
+    
+    # Event handler should NOT raise - it logs errors
+    chunking_service._handle_json_parsed(event)
+    
+    # Service continues running (no exception propagated)
