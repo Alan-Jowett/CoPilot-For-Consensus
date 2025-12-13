@@ -115,6 +115,54 @@ Use these signals to see whether a mail archive was ingested and where it is in 
   - Trigger or requeue work via orchestrator endpoints/CLI (if exposed); confirm acceptance in logs.
   - If orchestration fails, check credentials and downstream availability (RabbitMQ, doc store, vector store).
 
+## 8.3) Managing Failed Queues
+Failed message queues (`*.failed`) accumulate messages when services encounter unrecoverable errors after exhausting retries. Proper handling is critical to prevent data loss and pipeline degradation.
+
+### Quick Checks
+- **RabbitMQ UI**: http://localhost:15672 → **Queues** → filter by `.failed`
+- **Grafana Dashboard**: http://localhost:3000 → **Failed Queues Overview**
+- **CLI Tool**: `python scripts/manage_failed_queues.py list`
+
+### Common Operations
+```bash
+# List all failed queues and message counts
+python scripts/manage_failed_queues.py list
+
+# Inspect failed messages
+python scripts/manage_failed_queues.py inspect parsing.failed --limit 10
+
+# Export for backup/analysis
+python scripts/manage_failed_queues.py export parsing.failed --output backup.json
+
+# Requeue after fixing root cause (test with --dry-run first)
+python scripts/manage_failed_queues.py requeue parsing.failed --dry-run
+python scripts/manage_failed_queues.py requeue parsing.failed
+
+# Purge old/obsolete messages (always export first!)
+python scripts/manage_failed_queues.py export parsing.failed --output archive.json
+python scripts/manage_failed_queues.py purge parsing.failed --limit 100 --confirm
+```
+
+### Alerting Thresholds
+- **Warning**: >50 messages for 15 minutes → Investigate root cause
+- **Critical**: >200 messages for 5 minutes → Escalate to on-call
+- **Emergency**: >1000 messages → Declare incident, all-hands
+
+### When to Requeue vs. Purge
+**Requeue** when:
+- Transient errors resolved (network, resource constraints)
+- Service bug fixed and deployed
+- Configuration corrected
+
+**Purge** when:
+- Messages beyond retention policy (>30 days)
+- Source data corrupted/obsolete
+- Permanent errors unfixable
+
+**⚠️ Always export messages before purging!**
+
+For complete operational runbook, see **[FAILED_QUEUE_OPERATIONS.md](./FAILED_QUEUE_OPERATIONS.md)**
+
 ## 9) Scaling & Load Debugging
 - Horizontal scale in compose: `docker compose up -d --scale <service>=N` (if the service is stateless and supports scaling).
 - Watch effects:

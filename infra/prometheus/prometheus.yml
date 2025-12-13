@@ -5,6 +5,12 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+# Alert rules for failed queue monitoring
+# NOTE: Ensure /etc/prometheus/alerts/ directory is mounted in the container.
+# In Docker Compose, mount with: ./infra/prometheus/alerts:/etc/prometheus/alerts:ro
+rule_files:
+  - /etc/prometheus/alerts/*.yml
+
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:

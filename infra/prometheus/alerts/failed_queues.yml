@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+# Prometheus Alert Rules for Failed Message Queues
+#
+# These alerts monitor RabbitMQ failed queues and notify when thresholds are exceeded.
+# See documents/FAILED_QUEUE_OPERATIONS.md for operational runbook.
+
+groups:
+  - name: failed_queues
+    interval: 60s
+    rules:
+      # Alert when failed queue has >50 messages for 15 minutes
+      - alert: FailedQueueWarning
+        expr: rabbitmq_queue_messages_ready{queue=~".*\\.failed"} > 50
+        for: 15m
+        labels:
+          severity: warning
+          component: message_bus
+        annotations:
+          summary: "Failed queue {{ $labels.queue }} has {{ $value }} messages"
+          description: |
+            Queue {{ $labels.queue }} has accumulated {{ $value }} failed messages.
+            This indicates processing errors that require investigation.
+            
+            Action: Review failed messages and investigate root cause.
+            Runbook: documents/FAILED_QUEUE_OPERATIONS.md
+            
+            Commands:
+              - Inspect: python scripts/manage_failed_queues.py inspect {{ $labels.queue }} --limit 10
+              - Export: python scripts/manage_failed_queues.py export {{ $labels.queue }} --output backup.json
+      
+      # Alert when failed queue has >200 messages for 5 minutes
+      - alert: FailedQueueCritical
+        expr: rabbitmq_queue_messages_ready{queue=~".*\\.failed"} > 200
+        for: 5m
+        labels:
+          severity: critical
+          component: message_bus
+        annotations:
+          summary: "Failed queue {{ $labels.queue }} has {{ $value }} messages (CRITICAL)"
+          description: |
+            Queue {{ $labels.queue }} has {{ $value }} failed messages exceeding critical threshold.
+            Processing pipeline may be degraded. Immediate investigation required.
+            
+            Action: 
+              1. Check service health: docker compose logs {{ $labels.service }}
+              2. Inspect errors: python scripts/manage_failed_queues.py inspect {{ $labels.queue }}
+              3. Review recent deployments
+              4. Escalate to on-call if unresolved in 1 hour
+            
+            Runbook: documents/FAILED_QUEUE_OPERATIONS.md
+      
+      # Alert when failed queue has >1000 messages (emergency)
+      - alert: FailedQueueEmergency
+        expr: rabbitmq_queue_messages_ready{queue=~".*\\.failed"} > 1000
+        for: 1m
+        labels:
+          severity: emergency
+          component: message_bus
+        annotations:
+          summary: "Failed queue {{ $labels.queue }} has {{ $value }} messages (EMERGENCY)"
+          description: |
+            Queue {{ $labels.queue }} has {{ $value }} failed messages - EMERGENCY THRESHOLD EXCEEDED.
+            Severe processing pipeline degradation. Potential data loss risk.
+            
+            Action:
+              1. Declare incident
+              2. All-hands investigation
+              3. Consider disabling affected service to prevent further failures
+              4. Review error patterns: python scripts/manage_failed_queues.py export {{ $labels.queue }} --output emergency_backup.json
+            
+            Runbook: documents/FAILED_QUEUE_OPERATIONS.md
+      
+      # Alert when failed queue message count hasn't changed in 24 hours (stagnant)
+      - alert: FailedQueueStagnant
+        expr: |
+          (rabbitmq_queue_messages_ready{queue=~".*\\.failed"} > 10)
+          and
+          (delta(rabbitmq_queue_messages_ready{queue=~".*\\.failed"}[24h]) == 0)
+        for: 1h
+        labels:
+          severity: warning
+          component: message_bus
+        annotations:
+          summary: "Failed queue {{ $labels.queue }} is stagnant with {{ $value }} messages"
+          description: |
+            Queue {{ $labels.queue }} has {{ $value }} messages that haven't changed in 24 hours.
+            This indicates either:
+              - No new failures (good, but old messages still need handling)
+              - Monitoring/alerting failure (investigate)
+            
+            Action: Review and decide whether to requeue or purge old messages.
+            Runbook: documents/FAILED_QUEUE_OPERATIONS.md
+      
+      # Alert when failed message ingestion rate is high
+      - alert: FailedQueueHighIngestionRate
+        expr: rate(rabbitmq_queue_messages_ready{queue=~".*\\.failed"}[5m]) > 5
+        for: 10m
+        labels:
+          severity: warning
+          component: message_bus
+        annotations:
+          summary: "High failure rate for queue {{ $labels.queue }}"
+          description: |
+            Queue {{ $labels.queue }} is receiving failed messages at {{ $value | humanize }} messages/second.
+            This indicates an ongoing issue with the upstream service.
+            
+            Action:
+              1. Check service logs for recurring errors
+              2. Verify dependencies are healthy (MongoDB, Qdrant, Ollama)
+              3. Review recent deployments
+              4. Consider rollback if caused by new release
+            
+            Runbook: documents/FAILED_QUEUE_OPERATIONS.md

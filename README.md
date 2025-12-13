@@ -133,6 +133,13 @@ Access Grafana at `http://localhost:3000` (default credentials: admin/admin)
 - Filters by service, error level, and error type
 - Statistics dashboard showing error distribution
 
+#### Failed Queue Management
+- **Failed queues** capture messages that fail after retry exhaustion
+- Automated alerts for queue buildup (Warning >50, Critical >200, Emergency >1000)
+- CLI tool for inspection, requeue, and purge operations: `scripts/manage_failed_queues.py`
+- Dedicated Grafana dashboard: **Failed Queues Overview**
+- See [FAILED_QUEUE_OPERATIONS.md](documents/FAILED_QUEUE_OPERATIONS.md) for operational runbook
+
 ***
 
 ## Quick Start
