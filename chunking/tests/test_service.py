@@ -515,20 +515,16 @@ def test_publish_chunking_failed_raises_on_publish_error(chunking_service, mock_
         )
 
 
-def test_event_handler_logs_but_does_not_raise(chunking_service, mock_document_store):
-    """Test that event handler logs errors but doesn't re-raise (intentional pattern)."""
-    # Setup mock to raise an exception during processing
-    mock_document_store.query_documents = Mock(side_effect=Exception("Database error"))
+def test_event_handler_raises_on_errors(chunking_service):
+    """Test that event handler re-raises exceptions to trigger message requeue."""
+    # Create a mock that raises during event parsing (before process_messages)
+    from copilot_events import JSONParsedEvent
     
+    # This will cause the event handler to fail during event parsing
     event = {
-        "data": {
-            "archive_id": "test-archive",
-            "message_count": 1,
-            "parsed_message_ids": ["<msg-1@example.com>"],
-        }
+        "data": None  # This will cause an error when accessing event data
     }
     
-    # Event handler should NOT raise - it logs errors
-    chunking_service._handle_json_parsed(event)
-    
-    # Service continues running (no exception propagated)
+    # Event handler should re-raise to trigger message requeue for failures
+    with pytest.raises(Exception):
+        chunking_service._handle_json_parsed(event)

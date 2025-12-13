@@ -333,12 +333,11 @@ def test_save_checksums_raises_on_write_error(tmp_path):
     os.chmod(metadata_dir, 0o444)
     
     # Verify exception is raised, not swallowed
-    try:
-        with pytest.raises(Exception):
-            service.save_checksums()
-    finally:
-        # Restore permissions for cleanup
-        os.chmod(metadata_dir, 0o755)
+    with pytest.raises(Exception):
+        service.save_checksums()
+    
+    # Restore permissions for cleanup
+    os.chmod(metadata_dir, 0o755)
 
 
 def test_load_checksums_recovers_on_read_error(tmp_path):

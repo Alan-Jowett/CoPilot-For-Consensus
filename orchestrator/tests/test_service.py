@@ -305,8 +305,8 @@ def test_publish_orchestration_failed_raises_on_publish_error(orchestration_serv
         )
 
 
-def test_event_handler_logs_but_does_not_raise(orchestration_service, mock_document_store):
-    """Test that event handler logs errors but doesn't re-raise (intentional pattern)."""
+def test_event_handler_raises_on_errors(orchestration_service, mock_document_store):
+    """Test that event handler re-raises exceptions to trigger message requeue."""
     # Setup mock to raise an exception during processing
     mock_document_store.query_documents = Mock(side_effect=Exception("Test error"))
     
@@ -317,8 +317,9 @@ def test_event_handler_logs_but_does_not_raise(orchestration_service, mock_docum
         }
     }
     
-    # Event handler should NOT raise - it logs and tracks failures
-    orchestration_service._handle_embeddings_generated(event)
+    # Event handler should re-raise to trigger message requeue for transient failures
+    with pytest.raises(Exception, match="Test error"):
+        orchestration_service._handle_embeddings_generated(event)
     
     # Verify failure was tracked
     assert orchestration_service.failures_count == 1
