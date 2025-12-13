@@ -33,16 +33,29 @@ logger = logging.getLogger(__name__)
 # Create FastAPI app
 app = FastAPI(title="Orchestration Service", version=__version__)
 
-# Global service instance
-orchestration_service = None
+
+def get_service() -> OrchestrationService:
+    """Get the orchestration service instance from app state.
+    
+    Returns:
+        OrchestrationService instance
+        
+    Raises:
+        RuntimeError: If service is not initialized in app state
+    """
+    if not hasattr(app.state, "orchestration_service") or app.state.orchestration_service is None:
+        raise RuntimeError("Service not initialized")
+    return app.state.orchestration_service
 
 
 @app.get("/health")
 def health():
     """Health check endpoint."""
-    global orchestration_service
-
-    stats = orchestration_service.get_stats() if orchestration_service is not None else {}
+    try:
+        service = get_service()
+        stats = service.get_stats()
+    except RuntimeError:
+        stats = {}
 
     return {
         "status": "healthy",
@@ -59,12 +72,11 @@ def health():
 @app.get("/stats")
 def get_stats():
     """Get orchestration statistics."""
-    global orchestration_service
-
-    if not orchestration_service:
+    try:
+        service = get_service()
+        return service.get_stats()
+    except RuntimeError:
         return {"error": "Service not initialized"}
-
-    return orchestration_service.get_stats()
 
 
 def start_subscriber_thread(service: OrchestrationService):
@@ -90,8 +102,6 @@ def start_subscriber_thread(service: OrchestrationService):
 
 def main():
     """Main entry point for the orchestration service."""
-    global orchestration_service
-
     logger.info(f"Starting Orchestration Service (version {__version__})")
 
     try:
@@ -150,7 +160,7 @@ def main():
         error_reporter = create_error_reporter()
 
         # Create orchestration service
-        orchestration_service = OrchestrationService(
+        service = OrchestrationService(
             document_store=document_store,
             publisher=publisher,
             subscriber=subscriber,
@@ -163,11 +173,14 @@ def main():
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
         )
+        
+        # Store service in FastAPI app state for dependency injection
+        app.state.orchestration_service = service
 
         # Start subscriber in a separate thread (non-daemon to fail fast)
         subscriber_thread = threading.Thread(
             target=start_subscriber_thread,
-            args=(orchestration_service,),
+            args=(service,),
             daemon=False,
         )
         subscriber_thread.start()

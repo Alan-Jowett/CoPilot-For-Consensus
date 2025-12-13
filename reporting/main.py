@@ -34,8 +34,19 @@ logger = logging.getLogger(__name__)
 # Create FastAPI app
 app = FastAPI(title="Reporting Service", version=__version__)
 
-# Global service instance
-reporting_service = None
+
+def get_service() -> ReportingService:
+    """Get the reporting service instance from app state.
+    
+    Returns:
+        ReportingService instance
+        
+    Raises:
+        RuntimeError: If service is not initialized in app state
+    """
+    if not hasattr(app.state, "reporting_service") or app.state.reporting_service is None:
+        raise RuntimeError("Service not initialized")
+    return app.state.reporting_service
 
 
 @app.get("/")
@@ -47,9 +58,11 @@ def root():
 @app.get("/health")
 def health():
     """Health check endpoint."""
-    global reporting_service
-    
-    stats = reporting_service.get_stats() if reporting_service is not None else {}
+    try:
+        service = get_service()
+        stats = service.get_stats()
+    except RuntimeError:
+        stats = {}
     
     return {
         "status": "healthy",
@@ -65,12 +78,11 @@ def health():
 @app.get("/stats")
 def get_stats():
     """Get reporting statistics."""
-    global reporting_service
-    
-    if not reporting_service:
+    try:
+        service = get_service()
+        return service.get_stats()
+    except RuntimeError:
         return {"error": "Service not initialized"}
-    
-    return reporting_service.get_stats()
 
 
 @app.get("/api/reports")
@@ -80,13 +92,13 @@ def get_reports(
     skip: int = Query(0, ge=0, description="Number of results to skip"),
 ):
     """Get list of reports with optional filters."""
-    global reporting_service
-    
-    if not reporting_service:
+    try:
+        service = get_service()
+    except RuntimeError:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        reports = reporting_service.get_reports(
+        reports = service.get_reports(
             thread_id=thread_id,
             limit=limit,
             skip=skip,
@@ -107,13 +119,13 @@ def get_reports(
 @app.get("/api/reports/{report_id}")
 def get_report(report_id: str):
     """Get a specific report by ID."""
-    global reporting_service
-    
-    if not reporting_service:
+    try:
+        service = get_service()
+    except RuntimeError:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        report = reporting_service.get_report_by_id(report_id)
+        report = service.get_report_by_id(report_id)
         
         if not report:
             raise HTTPException(status_code=404, detail="Report not found")
@@ -130,13 +142,13 @@ def get_report(report_id: str):
 @app.get("/api/threads/{thread_id}/summary")
 def get_thread_summary(thread_id: str):
     """Get the latest summary for a thread."""
-    global reporting_service
-    
-    if not reporting_service:
+    try:
+        service = get_service()
+    except RuntimeError:
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        summary = reporting_service.get_thread_summary(thread_id)
+        summary = service.get_thread_summary(thread_id)
         
         if not summary:
             raise HTTPException(status_code=404, detail="Summary not found for thread")
@@ -173,8 +185,6 @@ def start_subscriber_thread(service: ReportingService):
 
 def main():
     """Main entry point for the reporting service."""
-    global reporting_service
-    
     logger.info(f"Starting Reporting Service (version {__version__})")
     
     try:
@@ -262,7 +272,7 @@ def main():
         error_reporter = create_error_reporter()
         
         # Create reporting service
-        reporting_service = ReportingService(
+        service = ReportingService(
             document_store=document_store,
             publisher=publisher,
             subscriber=subscriber,
@@ -273,6 +283,9 @@ def main():
             webhook_summary_max_length=config.webhook_summary_max_length,
         )
         
+        # Store service in FastAPI app state for dependency injection
+        app.state.reporting_service = service
+        
         logger.info(f"Webhook notifications: {'enabled' if config.notify_enabled else 'disabled'}")
         if config.notify_enabled and config.notify_webhook_url:
             logger.info(f"Webhook URL: {config.notify_webhook_url}")
@@ -280,7 +293,7 @@ def main():
         # Start subscriber in a separate thread (non-daemon to fail fast)
         subscriber_thread = threading.Thread(
             target=start_subscriber_thread,
-            args=(reporting_service,),
+            args=(service,),
             daemon=False,
         )
         subscriber_thread.start()

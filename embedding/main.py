@@ -35,16 +35,29 @@ logger = logging.getLogger(__name__)
 # Create FastAPI app
 app = FastAPI(title="Embedding Service", version=__version__)
 
-# Global service instance (consistent with other services in the codebase)
-embedding_service = None
+
+def get_service() -> EmbeddingService:
+    """Get the embedding service instance from app state.
+    
+    Returns:
+        EmbeddingService instance
+        
+    Raises:
+        RuntimeError: If service is not initialized in app state
+    """
+    if not hasattr(app.state, "embedding_service") or app.state.embedding_service is None:
+        raise RuntimeError("Service not initialized")
+    return app.state.embedding_service
 
 
 @app.get("/health")
 def health():
     """Health check endpoint."""
-    global embedding_service
-    
-    stats = embedding_service.get_stats() if embedding_service is not None else {}
+    try:
+        service = get_service()
+        stats = service.get_stats()
+    except RuntimeError:
+        stats = {}
     
     return {
         "status": "healthy",
@@ -61,12 +74,11 @@ def health():
 @app.get("/stats")
 def get_stats():
     """Get embedding statistics."""
-    global embedding_service
-    
-    if not embedding_service:
+    try:
+        service = get_service()
+        return service.get_stats()
+    except RuntimeError:
         return {"error": "Service not initialized"}
-    
-    return embedding_service.get_stats()
 
 
 def start_subscriber_thread(service: EmbeddingService):
@@ -92,8 +104,6 @@ def start_subscriber_thread(service: EmbeddingService):
 
 def main():
     """Main entry point for the embedding service."""
-    global embedding_service
-    
     logger.info(f"Starting Embedding Service (version {__version__})")
     
     try:
@@ -233,7 +243,7 @@ def main():
         error_reporter = create_error_reporter()
         
         # Create embedding service
-        embedding_service = EmbeddingService(
+        service = EmbeddingService(
             document_store=document_store,
             vector_store=vector_store,
             embedding_provider=embedding_provider,
@@ -249,10 +259,13 @@ def main():
             retry_backoff_seconds=config.retry_backoff,
         )
         
+        # Store service in FastAPI app state for dependency injection
+        app.state.embedding_service = service
+        
         # Start subscriber in a separate thread (non-daemon to fail fast)
         subscriber_thread = threading.Thread(
             target=start_subscriber_thread,
-            args=(embedding_service,),
+            args=(service,),
             daemon=False,
         )
         subscriber_thread.start()

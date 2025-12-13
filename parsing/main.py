@@ -35,16 +35,29 @@ logger = logging.getLogger(__name__)
 # Create FastAPI app
 app = FastAPI(title="Parsing Service", version=__version__)
 
-# Global service instance
-parsing_service = None
+
+def get_service() -> ParsingService:
+    """Get the parsing service instance from app state.
+    
+    Returns:
+        ParsingService instance
+        
+    Raises:
+        RuntimeError: If service is not initialized in app state
+    """
+    if not hasattr(app.state, "parsing_service") or app.state.parsing_service is None:
+        raise RuntimeError("Service not initialized")
+    return app.state.parsing_service
 
 
 @app.get("/health")
 def health():
     """Health check endpoint."""
-    global parsing_service
-    
-    stats = parsing_service.get_stats() if parsing_service is not None else {}
+    try:
+        service = get_service()
+        stats = service.get_stats()
+    except RuntimeError:
+        stats = {}
     
     return {
         "status": "healthy",
@@ -60,12 +73,11 @@ def health():
 @app.get("/stats")
 def stats():
     """Get parsing statistics."""
-    global parsing_service
-    
-    if not parsing_service:
+    try:
+        service = get_service()
+        return service.get_stats()
+    except RuntimeError:
         return {"error": "Service not initialized"}
-    
-    return parsing_service.get_stats()
 
 
 def start_subscriber_thread(service: ParsingService):
@@ -91,8 +103,6 @@ def start_subscriber_thread(service: ParsingService):
 
 def main():
     """Main entry point for the parsing service."""
-    global parsing_service
-    
     logger.info(f"Starting Parsing Service (version {__version__})")
     
     try:
@@ -188,7 +198,7 @@ def main():
         error_reporter = create_error_reporter(reporter_type=config.error_reporter_type)
         
         # Create parsing service
-        parsing_service = ParsingService(
+        service = ParsingService(
             document_store=document_store,
             publisher=publisher,
             subscriber=subscriber,
@@ -196,10 +206,13 @@ def main():
             error_reporter=error_reporter,
         )
         
+        # Store service in FastAPI app state for dependency injection
+        app.state.parsing_service = service
+        
         # Start subscriber in a separate thread (non-daemon to fail fast)
         subscriber_thread = threading.Thread(
             target=start_subscriber_thread,
-            args=(parsing_service,),
+            args=(service,),
             daemon=False,
         )
         subscriber_thread.start()
@@ -215,13 +228,17 @@ def main():
         sys.exit(1)
     finally:
         # Cleanup
-        if parsing_service:
-            if parsing_service.subscriber:
-                parsing_service.subscriber.disconnect()
-            if parsing_service.publisher:
-                parsing_service.publisher.disconnect()
-            if parsing_service.document_store:
-                parsing_service.document_store.disconnect()
+        try:
+            service = get_service()
+            if service.subscriber:
+                service.subscriber.disconnect()
+            if service.publisher:
+                service.publisher.disconnect()
+            if service.document_store:
+                service.document_store.disconnect()
+        except RuntimeError:
+            # Service not initialized, nothing to clean up
+            pass
 
 
 if __name__ == "__main__":
