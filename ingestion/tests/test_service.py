@@ -314,16 +314,13 @@ def test_archive_ingestion_failed_event_schema_validation():
 
 def test_save_checksums_raises_on_write_error(tmp_path):
     """Test that save_checksums raises exception on write errors."""
-    from ingestion.app.service import IngestionService
-    from ingestion.app.config import IngestionServiceConfig
-    from copilot_events import InMemoryEventPublisher
+    from app.service import IngestionService
+    from copilot_events import NoopPublisher
+    from .test_helpers import make_config
     
-    config = IngestionServiceConfig(
-        storage_path=str(tmp_path),
-        logger_name="test",
-    )
+    config = make_config(storage_path=str(tmp_path))
     
-    publisher = InMemoryEventPublisher()
+    publisher = NoopPublisher()
     service = IngestionService(config=config, publisher=publisher)
     
     # Add a checksum
@@ -346,9 +343,9 @@ def test_save_checksums_raises_on_write_error(tmp_path):
 
 def test_load_checksums_recovers_on_read_error(tmp_path):
     """Test that load_checksums recovers gracefully on read errors (intentional)."""
-    from ingestion.app.service import IngestionService
-    from ingestion.app.config import IngestionServiceConfig
-    from copilot_events import InMemoryEventPublisher
+    from app.service import IngestionService
+    from copilot_events import NoopPublisher
+    from .test_helpers import make_config
     
     # Create a corrupted checksums file
     metadata_dir = tmp_path / "metadata"
@@ -356,12 +353,9 @@ def test_load_checksums_recovers_on_read_error(tmp_path):
     checksums_file = metadata_dir / "checksums.json"
     checksums_file.write_text("{ invalid json }")
     
-    config = IngestionServiceConfig(
-        storage_path=str(tmp_path),
-        logger_name="test",
-    )
+    config = make_config(storage_path=str(tmp_path))
     
-    publisher = InMemoryEventPublisher()
+    publisher = NoopPublisher()
     
     # Service should start with empty checksums (intentional recovery)
     service = IngestionService(config=config, publisher=publisher)

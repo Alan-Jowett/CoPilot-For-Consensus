@@ -496,7 +496,7 @@ def test_publish_chunks_prepared_raises_on_publish_error(chunking_service, mock_
             message_ids=["<msg-1@example.com>"],
             chunk_ids=["chunk-1"],
             chunk_count=1,
-            avg_chunk_size_tokens=100
+            avg_chunk_size=100.0
         )
 
 
