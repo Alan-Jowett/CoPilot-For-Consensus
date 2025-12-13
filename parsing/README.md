@@ -47,7 +47,6 @@ Transform raw `.mbox` archive files into structured, normalized message document
 
 | Variable | Type | Required | Default | Description |
 |----------|------|----------|---------|-------------|
-| `STORAGE_PATH` | String | Yes | `/data/parsed_json` | Path for temporary parsed data |
 | `MESSAGE_BUS_HOST` | String | Yes | `messagebus` | Message bus hostname |
 | `MESSAGE_BUS_PORT` | Integer | No | `5672` | Message bus port |
 | `MESSAGE_BUS_USER` | String | No | `guest` | Message bus username |
@@ -619,7 +618,6 @@ pip install -r requirements.txt
 # Set environment variables
 export MESSAGE_BUS_HOST=localhost
 export DOC_DB_HOST=localhost
-export STORAGE_PATH=/tmp/parsed_json
 
 # Run the service
 python main.py

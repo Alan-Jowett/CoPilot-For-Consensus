@@ -37,11 +37,9 @@ services:
       context: .
       dockerfile: ./parsing/Dockerfile
     environment:
-      - STORAGE_PATH=/data/parsed_json
       - SCHEMA_DIR=/app/documents/schemas/configs
     volumes:
       - raw_archives:/data/raw_archives:ro
-      - parsed_json:/data/parsed_json
     restart: unless-stopped
 
   chunking:
@@ -303,7 +301,6 @@ services:
 
 volumes:
   raw_archives:
-  parsed_json:
   vector_data:
   mongo_data:
   prometheus_data:
