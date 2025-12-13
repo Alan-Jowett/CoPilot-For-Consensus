@@ -89,6 +89,7 @@ class EmbeddingService:
         
         # Subscribe to ChunksPrepared events
         self.subscriber.subscribe(
+            event_type="ChunksPrepared",
             exchange="copilot.events",
             routing_key="chunks.prepared",
             callback=self._handle_chunks_prepared,

@@ -71,6 +71,7 @@ class ReportingService:
         
         # Subscribe to SummaryComplete events
         self.subscriber.subscribe(
+            event_type="SummaryComplete",
             exchange="copilot.events",
             routing_key="summary.complete",
             callback=self._handle_summary_complete,

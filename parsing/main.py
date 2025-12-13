@@ -72,6 +72,9 @@ def start_subscriber_thread(service: ParsingService):
     
     Args:
         service: Parsing service instance
+        
+    Raises:
+        Exception: Re-raises any exception to fail fast
     """
     try:
         service.start()
@@ -81,6 +84,8 @@ def start_subscriber_thread(service: ParsingService):
         logger.info("Subscriber interrupted")
     except Exception as e:
         logger.error(f"Subscriber error: {e}", exc_info=True)
+        # Fail fast - re-raise to terminate the service
+        raise
 
 
 def main():
@@ -180,11 +185,11 @@ def main():
             error_reporter=error_reporter,
         )
         
-        # Start subscriber in a separate thread
+        # Start subscriber in a separate thread (non-daemon to fail fast)
         subscriber_thread = threading.Thread(
             target=start_subscriber_thread,
             args=(parsing_service,),
-            daemon=True,
+            daemon=False,
         )
         subscriber_thread.start()
         
