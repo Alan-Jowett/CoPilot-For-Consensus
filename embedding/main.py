@@ -108,7 +108,7 @@ def main():
         if not publisher.connect():
             if str(config.message_bus_type).lower() != "noop":
                 logger.error("Failed to connect publisher to message bus. Failing fast.")
-                raise Exception("Publisher connection failed")
+                raise ConnectionError("Publisher failed to connect to message bus")
             else:
                 logger.warning("Failed to connect publisher to message bus. Continuing with noop publisher.")
         
@@ -122,7 +122,7 @@ def main():
         )
         if not subscriber.connect():
             logger.error("Failed to connect subscriber to message bus.")
-            raise Exception("Subscriber connection failed")
+            raise ConnectionError("Subscriber failed to connect to message bus")
         
         logger.info("Creating document store...")
         document_store = create_document_store(
@@ -135,7 +135,7 @@ def main():
         )
         if not document_store.connect():
             logger.error("Failed to connect to document store.")
-            raise Exception("Document store connection failed")
+            raise ConnectionError("Document store failed to connect")
         
         logger.info(f"Creating vector store ({config.vector_store_type})...")
         vector_store = create_vector_store(
@@ -147,7 +147,7 @@ def main():
         if hasattr(vector_store, "connect"):
             if not vector_store.connect() and str(config.vector_store_type).lower() != "inmemory":
                 logger.error("Failed to connect to vector store.")
-                raise Exception("Vector store connection failed")
+                raise ConnectionError("Vector store failed to connect")
         
         logger.info(f"Creating embedding provider ({config.embedding_backend})...")
         embedding_provider = create_embedding_provider(
