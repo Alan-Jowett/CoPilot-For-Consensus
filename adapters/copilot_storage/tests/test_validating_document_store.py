@@ -342,11 +342,13 @@ class TestValidatingDocumentStore:
         """Test that disconnect is delegated to underlying store."""
         base = InMemoryDocumentStore()
         base.connect()
+        assert base.connected is True
         
         provider = MockSchemaProvider()
         store = ValidatingDocumentStore(base, provider)
         
-        # Should not raise exception when disconnecting
+        # Disconnect through validating store
         store.disconnect()
-        assert True  # Successful disconnect without error
-        # but we can verify it doesn't raise an error
+        
+        # Verify underlying store was disconnected
+        assert base.connected is False
