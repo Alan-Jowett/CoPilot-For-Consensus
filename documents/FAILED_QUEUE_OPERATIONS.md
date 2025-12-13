@@ -93,9 +93,6 @@ rate(rabbitmq_queue_messages_ready{queue=~".*\\.failed"}[5m])
 # Inspect first 10 messages in parsing.failed queue
 python scripts/manage_failed_queues.py inspect parsing.failed --limit 10
 
-# Inspect specific message by ID
-python scripts/manage_failed_queues.py inspect parsing.failed --message-id <event_id>
-
 # Export messages to JSON for analysis
 python scripts/manage_failed_queues.py export parsing.failed --output failed_messages.json
 ```
@@ -140,14 +137,11 @@ python scripts/manage_failed_queues.py export parsing.failed --output failed_mes
 # Requeue all messages in parsing.failed
 python scripts/manage_failed_queues.py requeue parsing.failed
 
-# Requeue specific messages (dry-run first)
-python scripts/manage_failed_queues.py requeue parsing.failed \
-  --filter error_type=NetworkTimeout \
-  --dry-run
+# Requeue with dry-run first (recommended)
+python scripts/manage_failed_queues.py requeue parsing.failed --dry-run
 
 # Requeue after confirmation
-python scripts/manage_failed_queues.py requeue parsing.failed \
-  --filter error_type=NetworkTimeout
+python scripts/manage_failed_queues.py requeue parsing.failed
 ```
 
 **Manual Requeue (RabbitMQ Shovel):**
@@ -183,19 +177,18 @@ python scripts/manage_failed_queues.py requeue parsing.failed \
 python scripts/manage_failed_queues.py export parsing.failed \
   --output parsing_failed_backup_$(date +%Y%m%d).json
 
-# Purge with filters (safer)
+# Purge with dry-run first (safer)
 python scripts/manage_failed_queues.py purge parsing.failed \
-  --filter failed_at_before=2025-11-01 \
+  --limit 100 \
   --dry-run
 
 # Purge after confirmation
 python scripts/manage_failed_queues.py purge parsing.failed \
-  --filter failed_at_before=2025-11-01 \
+  --limit 100 \
   --confirm
 
-# Purge entire queue (dangerous)
-python scripts/manage_failed_queues.py purge parsing.failed \
-  --all --confirm
+# Purge entire queue (omit --limit to purge all messages)
+python scripts/manage_failed_queues.py purge parsing.failed --confirm
 ```
 
 **Via RabbitMQ Management UI:**
@@ -311,16 +304,16 @@ python scripts/manage_failed_queues.py --help
 python scripts/manage_failed_queues.py list
 
 # Inspect messages
-python scripts/manage_failed_queues.py inspect <queue> [--limit N] [--filter key=value]
+python scripts/manage_failed_queues.py inspect <queue> [--limit N]
 
 # Export messages
 python scripts/manage_failed_queues.py export <queue> --output <file.json>
 
 # Requeue messages
-python scripts/manage_failed_queues.py requeue <queue> [--filter key=value] [--dry-run]
+python scripts/manage_failed_queues.py requeue <queue> [--dry-run]
 
 # Purge messages
-python scripts/manage_failed_queues.py purge <queue> [--filter key=value] [--confirm]
+python scripts/manage_failed_queues.py purge <queue> [--limit N] [--confirm]
 ```
 
 **Configuration:**

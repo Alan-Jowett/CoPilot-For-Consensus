@@ -87,7 +87,7 @@
       },
       "targets": [
         {
-          "expr": "rabbitmq_queue_messages_ready{queue=~\".*\\\\.failed\"}",
+          "expr": "rabbitmq_queue_messages_ready{queue=~\".*\\.failed\"}",
           "legendFormat": "{{ queue }}",
           "refId": "A"
         }
@@ -145,7 +145,7 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "expr": "rabbitmq_queue_messages_ready{queue=~\".*\\\\.failed\"}",
+          "expr": "rabbitmq_queue_messages_ready{queue=~\".*\\.failed\"}",
           "legendFormat": "{{ queue }}",
           "refId": "A"
         }
@@ -218,7 +218,7 @@
       },
       "targets": [
         {
-          "expr": "rate(rabbitmq_queue_messages_ready{queue=~\".*\\\\.failed\"}[5m])",
+          "expr": "rate(rabbitmq_queue_messages_ready{queue=~\".*\\.failed\"}[5m])",
           "legendFormat": "{{ queue }}",
           "refId": "A"
         }
@@ -271,7 +271,7 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "expr": "sum(rabbitmq_queue_messages_ready{queue=~\".*\\\\.failed\"})",
+          "expr": "sum(rabbitmq_queue_messages_ready{queue=~\".*\\.failed\"})",
           "refId": "A"
         }
       ],
@@ -342,7 +342,7 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "expr": "rabbitmq_queue_messages_ready{queue=~\".*\\\\.failed\"}",
+          "expr": "rabbitmq_queue_messages_ready{queue=~\".*\\.failed\"}",
           "format": "table",
           "instant": true,
           "refId": "A"

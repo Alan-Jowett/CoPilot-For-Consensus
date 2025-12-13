@@ -10,7 +10,7 @@ Tests the FailedQueueManager class functionality.
 
 import json
 import pytest
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 import sys
 import os
 
@@ -209,6 +209,10 @@ class TestFailedQueueManager:
         assert count == 2
         # Verify messages were published
         assert manager.channel.basic_publish.call_count == 2
+        # Verify correct routing key was used
+        call_args = manager.channel.basic_publish.call_args_list[0]
+        assert call_args[1]['routing_key'] == 'archive.ingested'
+        assert call_args[1]['exchange'] == 'copilot.events'
         # Verify messages were acknowledged
         assert manager.channel.basic_ack.call_count == 2
     
@@ -247,6 +251,7 @@ class TestFailedQueueManager:
         count = manager.purge_messages("parsing.failed", limit=None, dry_run=False)
         
         assert count == 100
+        # Verify queue_purge was called with correct queue name
         manager.channel.queue_purge.assert_called_once_with("parsing.failed")
     
     def test_purge_messages_limited(self, manager):
@@ -294,6 +299,61 @@ class TestFailedQueueManager:
         for queue in expected_queues:
             assert queue in FailedQueueManager.QUEUE_MAPPINGS
             assert FailedQueueManager.QUEUE_MAPPINGS[queue] is not None
+    
+    def test_inspect_messages_invalid_json(self, manager):
+        """Test inspecting messages with invalid JSON."""
+        # Mock basic_get with invalid JSON
+        method_mock = MagicMock()
+        method_mock.delivery_tag = 1
+        method_mock.exchange = "copilot.events"
+        method_mock.routing_key = "parsing.failed"
+        method_mock.redelivered = False
+        
+        properties_mock = MagicMock()
+        properties_mock.content_type = "application/json"
+        properties_mock.delivery_mode = 2
+        properties_mock.timestamp = 1234567890
+        
+        # Invalid JSON body
+        invalid_body = b'{"invalid": json}'
+        
+        manager.channel.basic_get.side_effect = [
+            (method_mock, properties_mock, invalid_body),
+            (None, None, None),
+        ]
+        
+        messages = manager.inspect_messages("parsing.failed", limit=1, requeue=True)
+        
+        assert len(messages) == 1
+        # Should have raw_body instead of parsed JSON
+        assert "raw_body" in messages[0]["message"]
+        # Verify message was requeued (nacked)
+        assert manager.channel.basic_nack.call_count == 1
+    
+    def test_requeue_messages_unknown_queue(self, manager):
+        """Test requeuing from unknown queue raises error."""
+        with pytest.raises(ValueError, match="Unknown failed queue"):
+            manager.requeue_messages("unknown.failed", target_queue=None)
+    
+    def test_purge_messages_limited_actual_deletion(self, manager):
+        """Test that purge with limit actually deletes messages (not dry-run)."""
+        # Mock basic_get
+        method_mock = MagicMock()
+        method_mock.delivery_tag = 1
+        
+        manager.channel.basic_get.side_effect = [
+            (method_mock, None, b'data'),
+            (method_mock, None, b'data'),
+            (None, None, None),
+        ]
+        
+        count = manager.purge_messages("parsing.failed", limit=5, dry_run=False)
+        
+        assert count == 2
+        # Verify messages were acknowledged (actually deleted)
+        assert manager.channel.basic_ack.call_count == 2
+        # Verify no nacks (would indicate dry-run behavior)
+        assert manager.channel.basic_nack.call_count == 0
 
 
 if __name__ == "__main__":

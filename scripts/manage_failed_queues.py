@@ -123,14 +123,17 @@ class FailedQueueManager:
         self,
         queue_name: str,
         limit: int = 10,
-        requeue: bool = False,
+        requeue: bool = True,
     ) -> List[Dict[str, Any]]:
         """Retrieve messages from a queue for inspection.
+        
+        Inspection is non-destructive by default - messages are always requeued
+        after inspection to preserve queue state.
         
         Args:
             queue_name: Name of the queue
             limit: Maximum number of messages to retrieve
-            requeue: Whether to requeue messages after inspection
+            requeue: Whether to requeue messages after inspection (default: True)
             
         Returns:
             List of message dictionaries
@@ -138,7 +141,8 @@ class FailedQueueManager:
         messages = []
         
         for _ in range(limit):
-            method, properties, body = self.channel.basic_get(queue_name, auto_ack=not requeue)
+            # Always use auto_ack=False to ensure messages can be requeued
+            method, properties, body = self.channel.basic_get(queue_name, auto_ack=False)
             
             if method is None:
                 # No more messages
@@ -161,6 +165,12 @@ class FailedQueueManager:
                     "timestamp": properties.timestamp,
                 },
             })
+            
+            # Requeue message to preserve queue state (inspection is non-destructive)
+            if requeue:
+                self.channel.basic_nack(method.delivery_tag, requeue=True)
+            else:
+                self.channel.basic_ack(method.delivery_tag)
         
         logger.info(f"Retrieved {len(messages)} messages from {queue_name}")
         return messages
@@ -319,14 +329,18 @@ class FailedQueueManager:
             purged_count = 0
             
             for _ in range(limit):
-                method, _, _ = self.channel.basic_get(queue_name, auto_ack=not dry_run)
+                # Always use auto_ack=False to prevent accidental deletion in dry-run
+                method, _, _ = self.channel.basic_get(queue_name, auto_ack=False)
                 
                 if method is None:
                     break
                 
                 if dry_run:
-                    # Requeue in dry-run
+                    # Requeue in dry-run (don't actually purge)
                     self.channel.basic_nack(method.delivery_tag, requeue=True)
+                else:
+                    # Actually delete the message
+                    self.channel.basic_ack(method.delivery_tag)
                 
                 purged_count += 1
             
