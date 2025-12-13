@@ -33,8 +33,20 @@ class TestCreateVectorStore:
     @pytest.mark.skipif(not FAISS_AVAILABLE, reason="FAISS not installed")
     def test_create_faiss_store(self):
         """Test creating a FAISS store."""
-        store = create_vector_store(backend="faiss", dimension=128)
+        store = create_vector_store(backend="faiss", dimension=128, index_type="flat")
         assert isinstance(store, FAISSVectorStore)
+    
+    @pytest.mark.skipif(not FAISS_AVAILABLE, reason="FAISS not installed")
+    def test_create_faiss_store_missing_dimension(self):
+        """Test that creating FAISS store without dimension raises error."""
+        with pytest.raises(ValueError, match="dimension parameter is required"):
+            create_vector_store(backend="faiss", index_type="flat")
+
+    @pytest.mark.skipif(not FAISS_AVAILABLE, reason="FAISS not installed")
+    def test_create_faiss_store_missing_index_type(self):
+        """Test that creating FAISS store without index_type raises error."""
+        with pytest.raises(ValueError, match="index_type parameter is required"):
+            create_vector_store(backend="faiss", dimension=256)
     
     @pytest.mark.skipif(not FAISS_AVAILABLE, reason="FAISS not installed")
     def test_create_faiss_store_with_options(self):
@@ -46,45 +58,37 @@ class TestCreateVectorStore:
         )
         assert isinstance(store, FAISSVectorStore)
     
-    @pytest.mark.skipif(not FAISS_AVAILABLE, reason="FAISS not installed")
-    def test_default_backend_is_faiss(self):
-        """Test that default backend is FAISS."""
-        # Clear environment variable if set
-        old_value = os.environ.get("VECTOR_STORE_BACKEND")
-        if "VECTOR_STORE_BACKEND" in os.environ:
-            del os.environ["VECTOR_STORE_BACKEND"]
-        
-        try:
-            store = create_vector_store(dimension=128)
-            assert isinstance(store, FAISSVectorStore)
-        finally:
-            # Restore environment variable
-            if old_value:
-                os.environ["VECTOR_STORE_BACKEND"] = old_value
-    
+    def test_backend_parameter_is_required(self):
+        """Test that backend parameter is required."""
+        with pytest.raises(ValueError, match="backend parameter is required"):
+            create_vector_store()
+
     def test_backend_from_env_variable(self):
-        """Test reading backend from environment variable."""
+        """Test that factory doesn't read from environment automatically."""
         old_value = os.environ.get("VECTOR_STORE_BACKEND")
         os.environ["VECTOR_STORE_BACKEND"] = "inmemory"
         
         try:
-            store = create_vector_store()
-            assert isinstance(store, InMemoryVectorStore)
+            # Should still raise error because backend parameter is required
+            with pytest.raises(ValueError, match="backend parameter is required"):
+                create_vector_store()
         finally:
             # Restore environment variable
             if old_value:
                 os.environ["VECTOR_STORE_BACKEND"] = old_value
             else:
-                del os.environ["VECTOR_STORE_BACKEND"]
+                if "VECTOR_STORE_BACKEND" in os.environ:
+                    del os.environ["VECTOR_STORE_BACKEND"]
     
-    def test_explicit_backend_overrides_env(self):
-        """Test that explicit backend parameter overrides environment variable."""
+    def test_explicit_backend_always_required(self):
+        """Test that explicit backend parameter is always required."""
         old_value = os.environ.get("VECTOR_STORE_BACKEND")
         os.environ["VECTOR_STORE_BACKEND"] = "faiss"
         
         try:
-            store = create_vector_store(backend="inmemory")
-            assert isinstance(store, InMemoryVectorStore)
+            # Should raise error even though env var is set
+            with pytest.raises(ValueError, match="backend parameter is required"):
+                create_vector_store()
         finally:
             # Restore environment variable
             if old_value:
@@ -94,17 +98,10 @@ class TestCreateVectorStore:
                     del os.environ["VECTOR_STORE_BACKEND"]
     
     def test_qdrant_backend_requires_connection(self):
-        """Test that Qdrant backend requires a valid connection."""
-        if not QDRANT_AVAILABLE:
-            # If client not installed, should raise ImportError
-            with pytest.raises(ImportError, match="qdrant-client"):
-                create_vector_store(backend="qdrant", dimension=384)
-        else:
-            # If client is installed, should raise ConnectionError (can't connect)
-            # We expect this in a test environment where Qdrant is not running
-            from qdrant_client.http.exceptions import ResponseHandlingException
-            with pytest.raises((ConnectionError, ResponseHandlingException)):
-                create_vector_store(backend="qdrant", dimension=384)
+        """Test that Qdrant backend requires all parameters."""
+        # Should raise error about missing required parameters
+        with pytest.raises(ValueError, match="host parameter is required"):
+            create_vector_store(backend="qdrant", dimension=384)
     
     def test_azure_backend_not_implemented(self):
         """Test that Azure backend raises NotImplementedError."""

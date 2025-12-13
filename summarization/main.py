@@ -141,12 +141,30 @@ def main():
             raise ConnectionError("Document store failed to connect")
         
         logger.info("Creating vector store...")
-        vector_store = create_vector_store(
-            backend=config.vector_store_type,
-            host=config.vector_store_host if config.vector_store_type != "inmemory" else None,
-            port=config.vector_store_port if config.vector_store_type != "inmemory" else None,
-            collection_name=config.vector_store_collection,
-        )
+        
+        # Build vector store kwargs based on backend type
+        vector_store_kwargs = {
+            "backend": config.vector_store_type,
+        }
+        
+        if config.vector_store_type.lower() == "faiss":
+            vector_store_kwargs.update({
+                "dimension": getattr(config, "embedding_dimension", 384),
+                "index_type": getattr(config, "vector_store_index_type", "flat"),
+                "persist_path": getattr(config, "vector_store_persist_path", None),
+            })
+        elif config.vector_store_type.lower() == "qdrant":
+            vector_store_kwargs.update({
+                "dimension": getattr(config, "embedding_dimension", 384),
+                "host": config.vector_store_host,
+                "port": config.vector_store_port,
+                "collection_name": config.vector_store_collection,
+                "distance": getattr(config, "vector_store_distance", "cosine"),
+                "upsert_batch_size": getattr(config, "vector_store_batch_size", 100),
+                "api_key": getattr(config, "vector_store_api_key", None),
+            })
+        
+        vector_store = create_vector_store(**vector_store_kwargs)
 
         # Connect vector store if required; in-memory typically doesn't need connect
         if hasattr(vector_store, "connect"):
@@ -156,10 +174,31 @@ def main():
         
         # Create summarizer
         logger.info(f"Creating summarizer with backend: {config.llm_backend}")
-        summarizer = SummarizerFactory.create_summarizer(
-            provider=config.llm_backend,
-            model=config.llm_model,
-        )
+        
+        # Build summarizer kwargs based on backend type
+        summarizer_kwargs = {
+            "provider": config.llm_backend,
+            "model": config.llm_model,
+        }
+        
+        if config.llm_backend.lower() in ("openai", "azure", "local"):
+            if config.llm_backend.lower() == "openai":
+                summarizer_kwargs["api_key"] = getattr(config, "openai_api_key", None)
+                if not summarizer_kwargs["api_key"]:
+                    raise ValueError("openai_api_key configuration is required for OpenAI summarizer")
+            elif config.llm_backend.lower() == "azure":
+                summarizer_kwargs["api_key"] = getattr(config, "azure_openai_api_key", None)
+                summarizer_kwargs["base_url"] = getattr(config, "azure_openai_endpoint", None)
+                if not summarizer_kwargs["api_key"]:
+                    raise ValueError("azure_openai_api_key configuration is required for Azure summarizer")
+                if not summarizer_kwargs["base_url"]:
+                    raise ValueError("azure_openai_endpoint configuration is required for Azure summarizer")
+            elif config.llm_backend.lower() == "local":
+                summarizer_kwargs["base_url"] = getattr(config, "local_llm_endpoint", None)
+                if not summarizer_kwargs["base_url"]:
+                    raise ValueError("local_llm_endpoint configuration is required for local LLM summarizer")
+        
+        summarizer = SummarizerFactory.create_summarizer(**summarizer_kwargs)
         
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")

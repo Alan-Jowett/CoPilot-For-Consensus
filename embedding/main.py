@@ -142,24 +142,66 @@ def main():
             raise ConnectionError("Document store failed to connect")
         
         logger.info(f"Creating vector store ({config.vector_store_type})...")
-        vector_store = create_vector_store(
-            backend=config.vector_store_type,
-            dimension=config.embedding_dimension,
-            host=config.vector_store_host if config.vector_store_type == "qdrant" else None,
-            port=config.vector_store_port if config.vector_store_type == "qdrant" else None,
-        )
+        
+        # Build vector store kwargs based on backend type
+        vector_store_kwargs = {
+            "backend": config.vector_store_type,
+        }
+        
+        if config.vector_store_type.lower() == "faiss":
+            vector_store_kwargs.update({
+                "dimension": config.embedding_dimension,
+                "index_type": getattr(config, "vector_store_index_type", "flat"),
+                "persist_path": getattr(config, "vector_store_persist_path", None),
+            })
+        elif config.vector_store_type.lower() == "qdrant":
+            vector_store_kwargs.update({
+                "dimension": config.embedding_dimension,
+                "host": config.vector_store_host,
+                "port": config.vector_store_port,
+                "collection_name": getattr(config, "vector_store_collection", "embeddings"),
+                "distance": getattr(config, "vector_store_distance", "cosine"),
+                "upsert_batch_size": getattr(config, "vector_store_batch_size", 100),
+                "api_key": getattr(config, "vector_store_api_key", None),
+            })
+        
+        vector_store = create_vector_store(**vector_store_kwargs)
+        
         if hasattr(vector_store, "connect"):
             if not vector_store.connect() and str(config.vector_store_type).lower() != "inmemory":
                 logger.error("Failed to connect to vector store.")
                 raise ConnectionError("Vector store failed to connect")
         
         logger.info(f"Creating embedding provider ({config.embedding_backend})...")
-        embedding_provider = create_embedding_provider(
-            backend=config.embedding_backend,
-            model=config.embedding_model,
-            dimension=config.embedding_dimension,
-            device=config.device,
-        )
+        
+        # Build embedding provider kwargs based on backend type
+        embedding_kwargs = {
+            "backend": config.embedding_backend,
+            "model": config.embedding_model,
+        }
+        
+        if config.embedding_backend.lower() == "mock":
+            embedding_kwargs["dimension"] = config.embedding_dimension
+        elif config.embedding_backend.lower() in ("sentencetransformers", "huggingface"):
+            embedding_kwargs["device"] = config.device
+            if hasattr(config, "model_cache_dir"):
+                embedding_kwargs["cache_dir"] = config.model_cache_dir
+        elif config.embedding_backend.lower() == "openai":
+            embedding_kwargs["api_key"] = getattr(config, "openai_api_key", None)
+            if not embedding_kwargs["api_key"]:
+                raise ValueError("openai_api_key configuration is required for OpenAI embedding backend")
+        elif config.embedding_backend.lower() == "azure":
+            embedding_kwargs["api_key"] = getattr(config, "azure_openai_key", None)
+            embedding_kwargs["api_base"] = getattr(config, "azure_openai_endpoint", None)
+            embedding_kwargs["api_version"] = getattr(config, "azure_openai_api_version", None)
+            embedding_kwargs["deployment_name"] = getattr(config, "azure_openai_deployment", None)
+            
+            if not embedding_kwargs["api_key"]:
+                raise ValueError("azure_openai_key configuration is required for Azure embedding backend")
+            if not embedding_kwargs["api_base"]:
+                raise ValueError("azure_openai_endpoint configuration is required for Azure embedding backend")
+        
+        embedding_provider = create_embedding_provider(**embedding_kwargs)
         
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")

@@ -44,7 +44,7 @@ def main():
     # Example 3: Silent logger for testing
     print("Example 3: SilentLogger for testing")
     print("-" * 60)
-    test_logger = create_logger(logger_type="silent", name="test-service")
+    test_logger = create_logger(logger_type="silent", level="INFO", name="test-service")
     
     test_logger.info("Test message 1")
     test_logger.warning("Test warning")
@@ -60,20 +60,17 @@ def main():
         print(f"  [{log['level']}] {log['message']}{extra}")
     print()
     
-    # Example 4: Environment-based configuration
-    print("Example 4: Logger from environment variables")
+    # Example 4: Explicit configuration (no environment variables)
+    print("Example 4: Explicitly configured logger")
     print("-" * 60)
-    os.environ["LOG_TYPE"] = "stdout"
-    os.environ["LOG_LEVEL"] = "WARNING"
-    os.environ["LOG_NAME"] = "env-configured-service"
     
-    env_logger = create_logger()
-    print(f"Logger configured from environment: type={type(env_logger).__name__}, "
-          f"level={env_logger.level}, name={env_logger.name}")
+    explicit_logger = create_logger(logger_type="stdout", level="WARNING", name="explicit-service")
+    print(f"Logger configured explicitly: type={type(explicit_logger).__name__}, "
+          f"level={explicit_logger.level}, name={explicit_logger.name}")
     
-    env_logger.info("This INFO message won't appear (below WARNING)")
-    env_logger.warning("This WARNING appears", reason="configured for WARNING level")
-    env_logger.error("This ERROR also appears")
+    explicit_logger.info("This INFO message won't appear (below WARNING)")
+    explicit_logger.warning("This WARNING appears", reason="configured for WARNING level")
+    explicit_logger.error("This ERROR also appears")
     print()
     
     # Example 5: Structured logging with rich context
