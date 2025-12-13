@@ -100,8 +100,8 @@ def main():
                     port=config.message_bus_port,
                     message_bus_type=config.message_bus_type,
                 )
-                # Exit with non-zero to signal container/startup failure
-                raise SystemExit(1)
+                # Raise ConnectionError to signal publisher connection failure
+                raise ConnectionError("Publisher failed to connect to message bus")
             else:
                 log.warning(
                     "Failed to connect to message bus. Continuing with noop publisher.",
