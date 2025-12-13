@@ -17,15 +17,25 @@ class DocumentStoreNotConnectedError(DocumentStoreError):
     pass
 
 
+class DocumentStoreConnectionError(DocumentStoreError):
+    """Exception raised when connection to the document store fails."""
+    pass
+
+
+class DocumentNotFoundError(DocumentStoreError):
+    """Exception raised when a document is not found."""
+    pass
+
+
 class DocumentStore(ABC):
     """Abstract base class for document storage backends."""
 
     @abstractmethod
-    def connect(self) -> bool:
+    def connect(self) -> None:
         """Connect to the document store.
         
-        Returns:
-            True if connection succeeded, False otherwise
+        Raises:
+            DocumentStoreConnectionError: If connection fails
         """
         pass
 
@@ -82,7 +92,7 @@ class DocumentStore(ABC):
     @abstractmethod
     def update_document(
         self, collection: str, doc_id: str, patch: Dict[str, Any]
-    ) -> bool:
+    ) -> None:
         """Update a document with the provided patch.
         
         Args:
@@ -90,22 +100,23 @@ class DocumentStore(ABC):
             doc_id: Document ID
             patch: Update data as dictionary
             
-        Returns:
-            True if document exists and update succeeded, False if document not found
-            (Note: Returns True even if no fields were actually modified)
+        Raises:
+            DocumentNotFoundError: If document does not exist
+            DocumentStoreError: If update operation fails
         """
         pass
 
     @abstractmethod
-    def delete_document(self, collection: str, doc_id: str) -> bool:
+    def delete_document(self, collection: str, doc_id: str) -> None:
         """Delete a document by its ID.
         
         Args:
             collection: Name of the collection/table
             doc_id: Document ID
             
-        Returns:
-            True if deletion succeeded, False otherwise
+        Raises:
+            DocumentNotFoundError: If document does not exist
+            DocumentStoreError: If delete operation fails
         """
         pass
 

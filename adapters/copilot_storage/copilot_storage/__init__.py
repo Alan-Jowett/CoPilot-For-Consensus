@@ -13,6 +13,8 @@ from .document_store import (
     DocumentStore,
     DocumentStoreError,
     DocumentStoreNotConnectedError,
+    DocumentStoreConnectionError,
+    DocumentNotFoundError,
     create_document_store,
 )
 from .mongo_document_store import MongoDocumentStore
@@ -31,5 +33,7 @@ __all__ = [
     # Exceptions
     "DocumentStoreError",
     "DocumentStoreNotConnectedError",
+    "DocumentStoreConnectionError",
+    "DocumentNotFoundError",
     "DocumentValidationError",
 ]
