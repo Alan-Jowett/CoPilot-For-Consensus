@@ -220,9 +220,9 @@ def main():
             username=config.doc_store_user if config.doc_store_user else None,
             password=config.doc_store_password if config.doc_store_password else None,
         )
-        if not document_store.connect():
-            logger.error("Failed to connect to document store.")
-            raise ConnectionError("Document store failed to connect")
+        logger.info("Connecting to document store...")
+        document_store.connect()
+        logger.info("Document store connected successfully")
         
         # Validate document store permissions (read/write access)
         logger.info("Validating document store permissions...")

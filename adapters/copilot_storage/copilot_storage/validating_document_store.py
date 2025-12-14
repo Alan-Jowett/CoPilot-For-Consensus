@@ -159,13 +159,13 @@ class ValidatingDocumentStore(DocumentStore):
             collection, errors
         )
 
-    def connect(self) -> bool:
+    def connect(self) -> None:
         """Connect to the document store.
-
-        Returns:
-            True if connection succeeded, False otherwise
+        
+        Raises:
+            DocumentStoreConnectionError: If connection fails
         """
-        return self._store.connect()
+        self._store.connect()
 
     def disconnect(self) -> None:
         """Disconnect from the document store."""
@@ -238,7 +238,7 @@ class ValidatingDocumentStore(DocumentStore):
 
     def update_document(
         self, collection: str, doc_id: str, patch: Dict[str, Any]
-    ) -> bool:
+    ) -> None:
         """Update a document with the provided patch.
 
         Validates the patch against the schema before updating.
@@ -250,11 +250,9 @@ class ValidatingDocumentStore(DocumentStore):
             doc_id: Document ID
             patch: Update data as dictionary
 
-        Returns:
-            True if document exists and update succeeded, False if document not found
-
         Raises:
             DocumentValidationError: If strict=True and validation fails
+            DocumentNotFoundError: If document does not exist
         """
         # Validate patch
         # Note: Ideally we'd validate the merged document, but that requires
@@ -265,17 +263,17 @@ class ValidatingDocumentStore(DocumentStore):
             self._handle_validation_failure(collection, errors)
 
         # Delegate to underlying store
-        return self._store.update_document(collection, doc_id, patch)
+        self._store.update_document(collection, doc_id, patch)
 
-    def delete_document(self, collection: str, doc_id: str) -> bool:
+    def delete_document(self, collection: str, doc_id: str) -> None:
         """Delete a document by its ID.
 
         Args:
             collection: Name of the collection/table
             doc_id: Document ID
 
-        Returns:
-            True if deletion succeeded, False otherwise
+        Raises:
+            DocumentNotFoundError: If document does not exist
         """
         # No validation needed for deletion
-        return self._store.delete_document(collection, doc_id)
+        self._store.delete_document(collection, doc_id)

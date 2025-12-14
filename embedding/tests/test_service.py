@@ -14,7 +14,7 @@ def mock_document_store():
     """Create a mock document store."""
     store = Mock()
     store.query_documents = Mock(return_value=[])
-    store.update_document = Mock(return_value=True)
+    store.update_document = Mock()  # No return value - raises exception on error
     return store
 
 

@@ -393,9 +393,10 @@ def load_config(
         try:
             from copilot_storage import create_document_store
             doc_store = create_document_store()
-            if doc_store.connect():
+            try:
+                doc_store.connect()
                 doc_store_provider = DocStoreConfigProvider(doc_store)
-            else:
+            except Exception:
                 # If connection fails, log warning and fall back to no doc_store_provider
                 logger = __import__('logging').getLogger(__name__)
                 logger.warning(

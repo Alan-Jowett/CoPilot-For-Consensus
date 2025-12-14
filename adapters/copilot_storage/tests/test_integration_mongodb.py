@@ -11,6 +11,7 @@ from copilot_storage import (
     create_document_store,
     MongoDocumentStore,
     DocumentStoreNotConnectedError,
+    DocumentNotFoundError,
 )
 
 
@@ -34,12 +35,14 @@ def mongodb_store():
     # Attempt to connect with retries
     max_retries = 5
     for i in range(max_retries):
-        if store.connect():
+        try:
+            store.connect()
             break
-        if i < max_retries - 1:
-            time.sleep(2)
-    else:
-        pytest.skip("Could not connect to MongoDB - skipping integration tests")
+        except Exception:
+            if i < max_retries - 1:
+                time.sleep(2)
+            else:
+                pytest.skip("Could not connect to MongoDB - skipping integration tests")
     
     yield store
     
@@ -148,10 +151,9 @@ class TestMongoDBIntegration:
         )
         
         # Update the document
-        success = mongodb_store.update_document(
+        mongodb_store.update_document(
             clean_collection, doc_id, {"age": 26, "city": "LA"}
         )
-        assert success is True
         
         # Verify the update
         updated = mongodb_store.get_document(clean_collection, doc_id)
@@ -161,10 +163,11 @@ class TestMongoDBIntegration:
 
     def test_update_nonexistent_document(self, mongodb_store, clean_collection):
         """Test updating a document that doesn't exist."""
-        success = mongodb_store.update_document(
-            clean_collection, "nonexistent_id", {"age": 50}
-        )
-        assert success is False
+        
+        with pytest.raises(DocumentNotFoundError):
+            mongodb_store.update_document(
+                clean_collection, "nonexistent_id", {"age": 50}
+            )
 
     def test_delete_document(self, mongodb_store, clean_collection):
         """Test deleting a document."""
@@ -178,8 +181,7 @@ class TestMongoDBIntegration:
         assert doc is not None
         
         # Delete the document
-        success = mongodb_store.delete_document(clean_collection, doc_id)
-        assert success is True
+        mongodb_store.delete_document(clean_collection, doc_id)
         
         # Verify it's gone
         doc = mongodb_store.get_document(clean_collection, doc_id)
@@ -187,8 +189,9 @@ class TestMongoDBIntegration:
 
     def test_delete_nonexistent_document(self, mongodb_store, clean_collection):
         """Test deleting a document that doesn't exist."""
-        success = mongodb_store.delete_document(clean_collection, "nonexistent_id")
-        assert success is False
+        
+        with pytest.raises(DocumentNotFoundError):
+            mongodb_store.delete_document(clean_collection, "nonexistent_id")
 
     def test_complex_document(self, mongodb_store, clean_collection):
         """Test storing and retrieving a complex document with nested structures."""
