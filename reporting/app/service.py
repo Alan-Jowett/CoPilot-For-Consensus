@@ -267,7 +267,7 @@ class ReportingService:
         self.publisher.publish(
             exchange="copilot.events",
             routing_key="report.published",
-            message=event.to_dict(),
+            event=event.to_dict(),
         )
         
         logger.info(f"Published ReportPublished event for {report_id}")
@@ -303,7 +303,7 @@ class ReportingService:
         self.publisher.publish(
             exchange="copilot.events",
             routing_key="report.delivery.failed",
-            message=event.to_dict(),
+            event=event.to_dict(),
         )
         
         logger.warning(f"Published ReportDeliveryFailed event for {report_id}")
