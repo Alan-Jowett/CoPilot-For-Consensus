@@ -11,6 +11,7 @@ from copilot_storage import (
     create_document_store,
     MongoDocumentStore,
     DocumentStoreNotConnectedError,
+    DocumentNotFoundError,
 )
 
 
@@ -162,7 +163,6 @@ class TestMongoDBIntegration:
 
     def test_update_nonexistent_document(self, mongodb_store, clean_collection):
         """Test updating a document that doesn't exist."""
-        from copilot_storage import DocumentNotFoundError
         
         with pytest.raises(DocumentNotFoundError):
             mongodb_store.update_document(
@@ -189,7 +189,6 @@ class TestMongoDBIntegration:
 
     def test_delete_nonexistent_document(self, mongodb_store, clean_collection):
         """Test deleting a document that doesn't exist."""
-        from copilot_storage import DocumentNotFoundError
         
         with pytest.raises(DocumentNotFoundError):
             mongodb_store.delete_document(clean_collection, "nonexistent_id")
