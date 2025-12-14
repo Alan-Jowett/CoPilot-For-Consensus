@@ -463,3 +463,220 @@ class TestRabbitMQErrorHandling:
             if consume_thread.is_alive():
                 rabbitmq_subscriber.stop_consuming()
                 consume_thread.join(timeout=2)
+
+
+@pytest.mark.integration
+class TestRabbitMQPersistence:
+    """Test message persistence when consumers are down."""
+
+    def test_message_persistence_with_consumer_down(self, rabbitmq_publisher):
+        """Test that messages persist when consumer is offline and are delivered when it comes back.
+        
+        This test verifies:
+        1. Messages published to a durable queue with persistent delivery mode survive
+        2. Messages are delivered after consumer restart
+        3. Queue and messages survive consumer downtime
+        """
+        config = get_rabbitmq_config()
+        
+        # Use a unique queue name for this test to avoid interference
+        test_queue_name = f"test.persistence.{uuid.uuid4().hex[:8]}"
+        routing_key = f"test.persistence.{uuid.uuid4().hex[:8]}"
+        
+        # Step 1: Declare a durable queue through publisher
+        success = rabbitmq_publisher.declare_queue(
+            queue_name=test_queue_name,
+            routing_key=routing_key,
+        )
+        assert success is True
+        
+        # Step 2: Publish messages BEFORE starting any consumer
+        test_event_ids = []
+        num_messages = 3
+        
+        for i in range(num_messages):
+            event_id = str(uuid.uuid4())
+            test_event_ids.append(event_id)
+            event = {
+                "event_type": "PersistenceTest",
+                "event_id": event_id,
+                "data": {"index": i, "message": f"Persistence test {i}"},
+            }
+            
+            success = rabbitmq_publisher.publish(
+                exchange=rabbitmq_publisher.exchange,
+                routing_key=routing_key,
+                event=event,
+            )
+            assert success is True
+        
+        # Step 3: Wait a moment to ensure messages are persisted
+        time.sleep(1)
+        
+        # Step 4: NOW start a consumer and verify it receives all messages
+        subscriber = RabbitMQSubscriber(
+            host=config["host"],
+            port=config["port"],
+            username=config["username"],
+            password=config["password"],
+            exchange_name=config["exchange"],
+            queue_name=test_queue_name,
+            queue_durable=True,
+            auto_ack=False,  # Manual ack to ensure proper message handling
+        )
+        
+        try:
+            # Connect subscriber
+            connected = subscriber.connect()
+            assert connected is True
+            
+            received_events = []
+            
+            def on_persistence_event(event):
+                """Callback to capture received events."""
+                received_events.append(event)
+                # Stop after receiving all messages
+                if len(received_events) >= num_messages:
+                    subscriber.stop_consuming()
+            
+            # Subscribe to persistence test events
+            subscriber.subscribe("PersistenceTest", on_persistence_event, routing_key=routing_key)
+            
+            # Start consuming in a background thread
+            consume_thread = threading.Thread(
+                target=subscriber.start_consuming
+            )
+            consume_thread.daemon = True
+            consume_thread.start()
+            
+            # Wait for messages to be received
+            consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
+            
+            # Verify all messages were received
+            assert len(received_events) == num_messages, \
+                f"Expected {num_messages} messages, got {len(received_events)}"
+            
+            # Verify all event IDs were received
+            received_ids = [e["event_id"] for e in received_events]
+            for expected_id in test_event_ids:
+                assert expected_id in received_ids, \
+                    f"Expected event ID {expected_id} not found in received messages"
+            
+            # Verify messages are in order
+            for i in range(num_messages):
+                assert received_events[i]["data"]["index"] == i, \
+                    f"Message {i} has wrong index: {received_events[i]['data']['index']}"
+                
+        finally:
+            # Cleanup
+            if consume_thread.is_alive():
+                subscriber.stop_consuming()
+                consume_thread.join(timeout=2)
+            subscriber.disconnect()
+            
+            # Clean up the test queue
+            try:
+                rabbitmq_publisher.channel.queue_delete(queue=test_queue_name)
+            except Exception as e:
+                # Best effort cleanup
+                pass
+
+    def test_queue_durability_survives_disconnect(self, rabbitmq_publisher):
+        """Test that durable queues persist across subscriber disconnects."""
+        config = get_rabbitmq_config()
+        
+        # Use a unique queue name for this test
+        test_queue_name = f"test.durable.{uuid.uuid4().hex[:8]}"
+        routing_key = f"test.durable.{uuid.uuid4().hex[:8]}"
+        
+        # Step 1: Create first subscriber and declare queue
+        subscriber1 = RabbitMQSubscriber(
+            host=config["host"],
+            port=config["port"],
+            username=config["username"],
+            password=config["password"],
+            exchange_name=config["exchange"],
+            queue_name=test_queue_name,
+            queue_durable=True,
+        )
+        
+        try:
+            connected = subscriber1.connect()
+            assert connected is True
+            
+            # Bind the queue
+            subscriber1.channel.queue_bind(
+                exchange=config["exchange"],
+                queue=test_queue_name,
+                routing_key=routing_key,
+            )
+            
+            # Step 2: Disconnect first subscriber
+            subscriber1.disconnect()
+            
+            # Step 3: Publish a message to the queue
+            event_id = str(uuid.uuid4())
+            event = {
+                "event_type": "DurabilityTest",
+                "event_id": event_id,
+                "data": {"message": "Queue should persist"},
+            }
+            
+            success = rabbitmq_publisher.publish(
+                exchange=rabbitmq_publisher.exchange,
+                routing_key=routing_key,
+                event=event,
+            )
+            assert success is True
+            
+            # Step 4: Create a new subscriber with the same queue name
+            subscriber2 = RabbitMQSubscriber(
+                host=config["host"],
+                port=config["port"],
+                username=config["username"],
+                password=config["password"],
+                exchange_name=config["exchange"],
+                queue_name=test_queue_name,
+                queue_durable=True,
+                auto_ack=False,
+            )
+            
+            connected = subscriber2.connect()
+            assert connected is True
+            
+            received_events = []
+            
+            def on_durability_event(event):
+                """Callback to capture received events."""
+                received_events.append(event)
+                subscriber2.stop_consuming()
+            
+            # Subscribe and consume
+            subscriber2.subscribe("DurabilityTest", on_durability_event, routing_key=routing_key)
+            
+            consume_thread = threading.Thread(
+                target=subscriber2.start_consuming
+            )
+            consume_thread.daemon = True
+            consume_thread.start()
+            
+            # Wait for message
+            consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
+            
+            # Verify the message was received
+            assert len(received_events) == 1
+            assert received_events[0]["event_id"] == event_id
+            
+        finally:
+            # Cleanup
+            if consume_thread.is_alive():
+                subscriber2.stop_consuming()
+                consume_thread.join(timeout=2)
+            subscriber2.disconnect()
+            
+            # Clean up the test queue
+            try:
+                rabbitmq_publisher.channel.queue_delete(queue=test_queue_name)
+            except Exception as e:
+                # Best effort cleanup
+                pass
