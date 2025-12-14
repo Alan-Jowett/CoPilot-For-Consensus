@@ -34,16 +34,13 @@ class NoopPublisher(EventPublisher):
         self.connected = False
         logger.debug("NoopPublisher: disconnected")
 
-    def publish(self, exchange: str, routing_key: str, event: Dict[str, Any]) -> bool:
+    def publish(self, exchange: str, routing_key: str, event: Dict[str, Any]) -> None:
         """Store event without publishing to a real message bus.
         
         Args:
             exchange: Exchange name
             routing_key: Routing key
             event: Event data as dictionary
-            
-        Returns:
-            Always returns True
         """
         self.published_events.append(
             {
@@ -55,7 +52,6 @@ class NoopPublisher(EventPublisher):
         logger.debug(
             f"NoopPublisher: published {event.get('event_type')} to {exchange}/{routing_key}"
         )
-        return True
 
     def clear_events(self) -> None:
         """Clear all stored events (useful for testing)."""

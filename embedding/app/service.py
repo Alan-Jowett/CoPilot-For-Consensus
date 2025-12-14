@@ -369,15 +369,11 @@ class EmbeddingService:
                 }
             )
             
-            success = self.publisher.publish(
+            self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="embeddings.generated",
                 event=event.to_dict(),
             )
-
-            if not success:
-                logger.error("Failed to publish EmbeddingsGenerated event")
-                raise Exception("Failed to publish EmbeddingsGenerated event")
 
             logger.info(f"Published EmbeddingsGenerated event for {len(chunk_ids)} chunks")
         except Exception as e:
@@ -414,15 +410,11 @@ class EmbeddingService:
                 }
             )
             
-            success = self.publisher.publish(
+            self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="embedding.generation.failed",
                 event=event.to_dict(),
             )
-
-            if not success:
-                logger.error("Failed to publish EmbeddingGenerationFailed event")
-                raise Exception("Failed to publish EmbeddingGenerationFailed event")
 
             logger.error(f"Published EmbeddingGenerationFailed event for {len(chunk_ids)} chunks")
         except Exception as e:

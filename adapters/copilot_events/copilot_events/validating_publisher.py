@@ -118,7 +118,7 @@ class ValidatingEventPublisher(EventPublisher):
             logger.error("Validation failed with exception: %s", exc)
             return False, [f"Validation exception: {exc}"]
 
-    def publish(self, exchange: str, routing_key: str, event: Dict[str, Any]) -> bool:
+    def publish(self, exchange: str, routing_key: str, event: Dict[str, Any]) -> None:
         """Publish an event after validating it against its schema.
 
         Args:
@@ -126,11 +126,9 @@ class ValidatingEventPublisher(EventPublisher):
             routing_key: Routing key (e.g., "archive.ingested")
             event: Event data as dictionary
 
-        Returns:
-            True if validation passed and publish succeeded, False otherwise
-
         Raises:
             ValidationError: If strict=True and validation fails
+            Exception: If publishing fails (propagated from underlying publisher)
         """
         # Validate event
         is_valid, errors = self._validate_event(event)
@@ -149,7 +147,7 @@ class ValidatingEventPublisher(EventPublisher):
             )
 
         # Delegate to underlying publisher
-        return self._publisher.publish(exchange, routing_key, event)
+        self._publisher.publish(exchange, routing_key, event)
 
     def connect(self) -> bool:
         """Connect to the message bus.

@@ -276,21 +276,11 @@ class ReportingService:
         )
         
         try:
-            success = self.publisher.publish(
+            self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="report.published",
                 event=event.to_dict(),
             )
-            
-            if not success:
-                logger.error(f"Failed to publish ReportPublished event for {report_id}")
-                if self.error_reporter:
-                    self.error_reporter.capture_message(
-                        "Failed to publish ReportPublished event",
-                        level="error",
-                        context={"report_id": report_id},
-                    )
-                raise Exception(f"Failed to publish ReportPublished event for {report_id}")
         except Exception:
             logger.exception(f"Exception while publishing ReportPublished event for {report_id}")
             if self.error_reporter:
@@ -328,21 +318,11 @@ class ReportingService:
         )
         
         try:
-            success = self.publisher.publish(
+            self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="report.delivery.failed",
                 event=event.to_dict(),
             )
-            
-            if not success:
-                logger.error(f"Failed to publish ReportDeliveryFailed event for {report_id}")
-                if self.error_reporter:
-                    self.error_reporter.capture_message(
-                        "Failed to publish ReportDeliveryFailed event",
-                        level="error",
-                        context={"report_id": report_id},
-                    )
-                raise Exception(f"Failed to publish ReportDeliveryFailed event for {report_id}")
         except Exception:
             logger.exception(f"Exception while publishing ReportDeliveryFailed event for {report_id}")
             if self.error_reporter:
