@@ -37,7 +37,10 @@ class DocStoreConfigProvider(ConfigProvider):
             # Try to ensure cache is loaded to verify connection
             self._ensure_cache()
             return self._cache is not None
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, AttributeError, TypeError, KeyError):
+            # Network/connection errors, or document store not available
+            # AttributeError/TypeError can occur if document store is not properly initialized
+            # KeyError can occur if documents have unexpected structure
             return False
 
     def query_documents_from_collection(self, collection_name: str, limit: int = 10000) -> list:
@@ -57,25 +60,30 @@ class DocStoreConfigProvider(ConfigProvider):
                 limit=limit
             )
             return documents if documents else []
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, AttributeError, TypeError, KeyError):
+            # Network/connection errors, or document store not available
+            # AttributeError/TypeError can occur if document store is not properly initialized
+            # KeyError can occur if required fields are missing
             return []
 
     def _ensure_cache(self) -> None:
-        """Ensure configuration cache is loaded."""
+        """Ensure configuration cache is loaded.
+        
+        Raises:
+            ConnectionError, OSError, TimeoutError, AttributeError, TypeError, KeyError:
+                If document store is unavailable or fails to load
+        """
         if self._cache is not None:
             return
         
         # Try to load all config documents
-        try:
-            docs = self._doc_store.query_documents(self._collection, {}, limit=1000)
-            self._cache = {}
-            for doc in docs:
-                # Assume documents have a 'key' and 'value' field
-                if 'key' in doc and 'value' in doc:
-                    self._cache[doc['key']] = doc['value']
-        except Exception:
-            # If query fails, use empty cache
-            self._cache = {}
+        # Let exceptions propagate to caller (typically is_connected or get)
+        docs = self._doc_store.query_documents(self._collection, {}, limit=1000)
+        self._cache = {}
+        for doc in docs:
+            # Assume documents have a 'key' and 'value' field
+            if 'key' in doc and 'value' in doc:
+                self._cache[doc['key']] = doc['value']
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get a configuration value from the document store.
@@ -89,7 +97,11 @@ class DocStoreConfigProvider(ConfigProvider):
         Returns:
             Configuration value or default
         """
-        self._ensure_cache()
+        try:
+            self._ensure_cache()
+        except (ConnectionError, OSError, TimeoutError, AttributeError, TypeError, KeyError):
+            # If cache loading fails, return default
+            return default
         
         # Try direct key lookup first
         if key in self._cache:
