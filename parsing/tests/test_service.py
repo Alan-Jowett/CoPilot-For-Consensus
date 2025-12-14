@@ -498,12 +498,9 @@ def test_handle_malformed_event_missing_data(document_store):
         "version": "1.0",
     }
     
-    # Should handle gracefully without crashing
-    try:
+    # Service should raise an exception for missing data field
+    with pytest.raises(KeyError):
         service._handle_archive_ingested(event)
-    except KeyError:
-        # Expected - service should validate required fields
-        pass
 
 
 def test_handle_event_missing_required_fields(document_store):
@@ -528,9 +525,137 @@ def test_handle_event_missing_required_fields(document_store):
         }
     }
     
-    # Should handle gracefully
-    try:
+    # Service should raise an exception for missing required fields
+    with pytest.raises((KeyError, FileNotFoundError)):
         service._handle_archive_ingested(event)
-    except (KeyError, FileNotFoundError):
-        # Expected - service should handle missing fields
-        pass
+
+
+def test_publish_json_parsed_with_publisher_failure(document_store):
+    """Test that _publish_json_parsed raises exception when publisher fails."""
+    class FailingPublisher(MockPublisher):
+        """Publisher that returns False to indicate failure."""
+        def publish(self, exchange, routing_key, event):
+            return False
+    
+    publisher = FailingPublisher()
+    subscriber = NoopSubscriber()
+    
+    service = ParsingService(
+        document_store=document_store,
+        publisher=publisher,
+        subscriber=subscriber,
+    )
+    
+    # Should raise exception when publisher returns False
+    with pytest.raises(Exception) as exc_info:
+        service._publish_json_parsed(
+            archive_id="test-archive",
+            message_count=10,
+            parsed_message_ids=["msg-1", "msg-2"],
+            thread_count=5,
+            thread_ids=["thread-1"],
+            duration=1.5
+        )
+    
+    assert "Failed to publish JSONParsed event" in str(exc_info.value)
+
+
+def test_publish_parsing_failed_with_publisher_failure(document_store):
+    """Test that _publish_parsing_failed raises exception when publisher fails."""
+    class FailingPublisher(MockPublisher):
+        """Publisher that returns False to indicate failure."""
+        def publish(self, exchange, routing_key, event):
+            return False
+    
+    publisher = FailingPublisher()
+    subscriber = NoopSubscriber()
+    
+    service = ParsingService(
+        document_store=document_store,
+        publisher=publisher,
+        subscriber=subscriber,
+    )
+    
+    # Should raise exception when publisher returns False
+    with pytest.raises(Exception) as exc_info:
+        service._publish_parsing_failed(
+            archive_id="test-archive",
+            file_path="/path/to/file.mbox",
+            error_message="Test error",
+            error_type="ValueError",
+            messages_parsed_before_failure=5
+        )
+    
+    assert "Failed to publish ParsingFailed event" in str(exc_info.value)
+
+
+def test_handle_archive_ingested_with_publish_json_parsed_failure(document_store, sample_mbox_file):
+    """Test that _handle_archive_ingested handles publisher failure for success event."""
+    class FailingPublisher(MockPublisher):
+        """Publisher that fails on json.parsed routing key."""
+        def publish(self, exchange, routing_key, event):
+            if routing_key == "json.parsed":
+                return False
+            return True
+    
+    publisher = FailingPublisher()
+    subscriber = NoopSubscriber()
+    
+    service = ParsingService(
+        document_store=document_store,
+        publisher=publisher,
+        subscriber=subscriber,
+    )
+    
+    event = {
+        "event_type": "ArchiveIngested",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+        "data": {
+            "archive_id": "test-archive",
+            "file_path": sample_mbox_file,
+        }
+    }
+    
+    # Should raise exception when publisher fails on json.parsed event
+    with pytest.raises(Exception) as exc_info:
+        service._handle_archive_ingested(event)
+    
+    assert "Failed to publish JSONParsed event" in str(exc_info.value)
+
+
+def test_handle_archive_ingested_with_publish_parsing_failed_failure(document_store):
+    """Test that _handle_archive_ingested handles publisher failure for failure event."""
+    class FailingPublisher(MockPublisher):
+        """Publisher that fails on parsing.failed routing key."""
+        def publish(self, exchange, routing_key, event):
+            if routing_key == "parsing.failed":
+                return False
+            return True
+    
+    publisher = FailingPublisher()
+    subscriber = NoopSubscriber()
+    
+    service = ParsingService(
+        document_store=document_store,
+        publisher=publisher,
+        subscriber=subscriber,
+    )
+    
+    event = {
+        "event_type": "ArchiveIngested",
+        "event_id": "test-124",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+        "data": {
+            "archive_id": "test-archive-fail",
+            "file_path": "/nonexistent/path.mbox",  # This will cause processing to fail
+        }
+    }
+    
+    # Should raise exception when publisher fails on parsing.failed event
+    with pytest.raises(Exception) as exc_info:
+        service._handle_archive_ingested(event)
+    
+    assert "Failed to publish ParsingFailed event" in str(exc_info.value)

@@ -204,7 +204,18 @@ class ReportingService:
                     self.metrics_collector.increment("reporting_delivery_total", tags={"channel": "webhook", "status": "failed"})
                 
                 # Publish ReportDeliveryFailed event
-                self._publish_delivery_failed(report_id, thread_id, "webhook", str(e), type(e).__name__)
+                try:
+                    self._publish_delivery_failed(report_id, thread_id, "webhook", str(e), type(e).__name__)
+                except Exception as publish_error:
+                    logger.error(
+                        f"Failed to publish ReportDeliveryFailed event for {report_id}",
+                        exc_info=True,
+                        extra={"original_error": str(e), "publish_error": str(publish_error)},
+                    )
+                    if self.error_reporter:
+                        self.error_reporter.capture_exception()
+                    # Re-raise original error to trigger requeue
+                    raise e from publish_error
         
         # Publish ReportPublished event
         self._publish_report_published(report_id, thread_id, notified, delivery_channels)
@@ -264,11 +275,27 @@ class ReportingService:
             }
         )
         
-        self.publisher.publish(
-            exchange="copilot.events",
-            routing_key="report.published",
-            message=event.to_dict(),
-        )
+        try:
+            success = self.publisher.publish(
+                exchange="copilot.events",
+                routing_key="report.published",
+                message=event.to_dict(),
+            )
+            
+            if not success:
+                logger.error(f"Failed to publish ReportPublished event for {report_id}")
+                if self.error_reporter:
+                    self.error_reporter.capture_message(
+                        "Failed to publish ReportPublished event",
+                        level="error",
+                        context={"report_id": report_id},
+                    )
+                raise Exception(f"Failed to publish ReportPublished event for {report_id}")
+        except Exception:
+            logger.exception(f"Exception while publishing ReportPublished event for {report_id}")
+            if self.error_reporter:
+                self.error_reporter.capture_exception()
+            raise
         
         logger.info(f"Published ReportPublished event for {report_id}")
 
@@ -300,11 +327,27 @@ class ReportingService:
             }
         )
         
-        self.publisher.publish(
-            exchange="copilot.events",
-            routing_key="report.delivery.failed",
-            message=event.to_dict(),
-        )
+        try:
+            success = self.publisher.publish(
+                exchange="copilot.events",
+                routing_key="report.delivery.failed",
+                message=event.to_dict(),
+            )
+            
+            if not success:
+                logger.error(f"Failed to publish ReportDeliveryFailed event for {report_id}")
+                if self.error_reporter:
+                    self.error_reporter.capture_message(
+                        "Failed to publish ReportDeliveryFailed event",
+                        level="error",
+                        context={"report_id": report_id},
+                    )
+                raise Exception(f"Failed to publish ReportDeliveryFailed event for {report_id}")
+        except Exception:
+            logger.exception(f"Exception while publishing ReportDeliveryFailed event for {report_id}")
+            if self.error_reporter:
+                self.error_reporter.capture_exception()
+            raise
         
         logger.warning(f"Published ReportDeliveryFailed event for {report_id}")
 

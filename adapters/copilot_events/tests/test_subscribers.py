@@ -113,11 +113,17 @@ class TestNoopSubscriber:
         """Test injecting event with no registered callback."""
         subscriber = NoopSubscriber()
         
-        # Should not raise exception
+        # When no callback is registered, inject_event should complete without error
+        # and not modify subscriber state
+        initial_callbacks = dict(subscriber.callbacks)
+        
         subscriber.inject_event({
             "event_type": "UnknownEvent",
             "event_id": "123"
         })
+        
+        # Verify no callbacks were added and state unchanged
+        assert subscriber.callbacks == initial_callbacks
 
     def test_inject_event_no_type(self):
         """Test injecting event without event_type field."""
