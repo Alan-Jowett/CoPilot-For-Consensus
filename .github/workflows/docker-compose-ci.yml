@@ -63,16 +63,21 @@ jobs:
     - name: Start all services
       run: |
         # Start infrastructure and app services
+        # Services are loosely coupled via the message bus and start independently
         docker compose up -d
-        # Wait for critical services to be healthy (those with healthchecks)
-        # Note: Services have start_period of 60-90s with sequential dependencies,
-        # so we need a generous timeout to account for all services starting up
-        timeout=300
-        echo "Waiting up to ${timeout}s for services to be healthy..."
+        # Wait for infrastructure services to be healthy
+        # App services depend only on infrastructure, not on each other
+        timeout=180
+        echo "Waiting up to ${timeout}s for infrastructure services to be healthy..."
         end=$((SECONDS + timeout))
         
+        # Critical infrastructure services that must be healthy before apps can run
+        infrastructure_services=("messagebus" "documentdb" "vectorstore" "ollama" "monitoring" "pushgateway")
+
+        while [ $SECONDS -lt $end ]; do
+          all_healthy=true
           
-          for svc in "${critical_services[@]}"; do
+          for svc in "${infrastructure_services[@]}"; do
             # Get the status of this service
             status=$(docker compose ps "$svc" --format "{{.Status}}" 2>/dev/null || echo "")
             if [ -z "$status" ]; then
@@ -113,7 +118,7 @@ jobs:
           done
 
           if [ "$all_healthy" = true ]; then
-            echo "✓ All critical services are healthy or running"
+            echo "✓ All infrastructure services are healthy"
             exit 0
           fi
 
@@ -123,7 +128,7 @@ jobs:
             unhealthy_count=$(docker compose ps --filter "status=unhealthy" -q | wc -l)
             if [ "$unhealthy_count" -gt 0 ]; then
               echo ""
-              echo "❌ Services are unhealthy, failing with diagnostics above"
+              echo "❌ Infrastructure services are unhealthy, failing with diagnostics above"
               echo ""
               echo "=== Full Service Status ==="
               docker compose ps
@@ -135,7 +140,7 @@ jobs:
         done
 
         echo ""
-        echo "❌ Timeout waiting for services to be healthy"
+        echo "❌ Timeout waiting for infrastructure services to be healthy"
         echo ""
         echo "=== Service Status ==="
         docker compose ps

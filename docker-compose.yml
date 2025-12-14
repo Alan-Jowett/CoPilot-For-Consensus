@@ -251,8 +251,6 @@ services:
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
     depends_on:
-      parsing:
-        condition: service_healthy
       messagebus:
         condition: service_healthy
       documentdb:
@@ -291,8 +289,6 @@ services:
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
     depends_on:
-      chunking:
-        condition: service_healthy
       messagebus:
         condition: service_healthy
       documentdb:
@@ -304,7 +300,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 60s
+      start_period: 90s
     restart: unless-stopped
 
   # WARNING: The error-reporting service has NO authentication or authorization.
@@ -400,14 +396,14 @@ services:
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
     depends_on:
-      embedding:
+      messagebus:
+        condition: service_healthy
+      documentdb:
+        condition: service_healthy
+      vectorstore:
         condition: service_healthy
       vectorstore-validate:
         condition: service_completed_successfully
-      documentdb:
-        condition: service_healthy
-      messagebus:
-        condition: service_healthy
       ollama-validate:
         condition: service_completed_successfully
     healthcheck:
@@ -415,7 +411,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 60s
+      start_period: 90s
     restart: unless-stopped
 
   parsing:
@@ -477,8 +473,6 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      summarization:
-        condition: service_healthy
       messagebus:
         condition: service_healthy
       documentdb:
@@ -518,14 +512,14 @@ services:
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
     depends_on:
-      orchestrator:
+      messagebus:
         condition: service_healthy
       documentdb:
         condition: service_healthy
+      vectorstore:
+        condition: service_healthy
       vectorstore-validate:
         condition: service_completed_successfully
-      messagebus:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
