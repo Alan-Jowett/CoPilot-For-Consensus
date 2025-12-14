@@ -255,7 +255,10 @@ class SchemaConfigLoader:
                 collection_name=collection_name
             )
             return documents if documents else field_spec.default or []
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, AttributeError, TypeError, KeyError):
+            # Network/connection errors, or document store not available
+            # AttributeError/TypeError can occur if provider is not properly initialized
+            # KeyError can occur if documents have unexpected structure
             # If query fails, return default
             return field_spec.default or []
 
