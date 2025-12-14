@@ -40,7 +40,12 @@
       "uniqueItems": true
     },
     "has_consensus": { "type": "boolean" },
-    "consensus_type": { "type": ["string", "null"], "enum": ["agreement", "dissent", "mixed", null] },
+    "consensus_type": { 
+      "anyOf": [
+        { "type": "string", "enum": ["agreement", "dissent", "mixed"] },
+        { "type": "null" }
+      ]
+    },
     "summary_id": { 
       "anyOf": [
         { "type": "string", "format": "uuid" },
