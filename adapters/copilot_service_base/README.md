@@ -52,12 +52,22 @@ class MyService:
     @safe_event_handler("JSONParsed")
     def _handle_json_parsed(self, event):
         # Process event
-        # Errors are automatically caught, logged, and reported
+        # Errors are automatically logged, reported, and re-raised (for message requeue)
+        pass
+    
+    # To swallow errors instead of re-raising:
+    @safe_event_handler("MyEvent", reraise=False)
+    def _handle_my_event(self, event):
+        # Errors logged but not re-raised
         pass
 ```
 
 Features:
 - Automatic error logging with event name
+- Error reporter integration
+- Event context in error reports
+- Re-raises exceptions by default (for message requeue in event-driven systems)
+- Optional `reraise=False` to swallow exceptions
 - Error reporter integration
 - Event context in error reports
 

@@ -3,6 +3,7 @@
 
 """Tests for event handler decorator."""
 
+import pytest
 from unittest.mock import Mock
 
 from copilot_service_base.event_handler import safe_event_handler
@@ -33,7 +34,8 @@ class TestSafeEventHandler:
         assert error_reporter.report.call_count == 0
     
     def test_error_handling_with_reporter(self):
-        """Test that errors are caught and reported."""
+        """Test that errors are caught, reported, and re-raised by default."""
+        import pytest
         error_reporter = Mock()
         
         class TestService:
@@ -45,10 +47,10 @@ class TestSafeEventHandler:
                 raise ValueError("test error")
         
         service = TestService()
-        # Should not raise, error should be caught
-        result = service.handle_event({"data": "test"})
         
-        assert result is None
+        with pytest.raises(ValueError, match="test error"):
+            service.handle_event({"data": "test"})
+        
         assert error_reporter.report.call_count == 1
         
         # Check error was reported with correct context
@@ -59,6 +61,7 @@ class TestSafeEventHandler:
     
     def test_error_handling_with_explicit_reporter(self):
         """Test that explicit error reporter parameter works."""
+        import pytest
         error_reporter = Mock()
         
         class TestService:
@@ -67,21 +70,25 @@ class TestSafeEventHandler:
                 raise ValueError("test error")
         
         service = TestService()
-        service.handle_event({"data": "test"})
+        
+        with pytest.raises(ValueError):
+            service.handle_event({"data": "test"})
         
         assert error_reporter.report.call_count == 1
     
     def test_error_handling_without_reporter(self):
-        """Test that errors are caught even without error reporter."""
+        """Test that errors are caught and re-raised even without error reporter."""
+        import pytest
+        
         class TestService:
             @safe_event_handler("TestEvent")
             def handle_event(self, event):
                 raise ValueError("test error")
         
         service = TestService()
-        # Should not raise, even without error reporter
-        result = service.handle_event({"data": "test"})
-        assert result is None
+        
+        with pytest.raises(ValueError, match="test error"):
+            service.handle_event({"data": "test"})
     
     def test_decorator_preserves_function_metadata(self):
         """Test that decorator preserves original function metadata."""
@@ -98,6 +105,7 @@ class TestSafeEventHandler:
     def test_custom_event_name_in_logs(self, caplog):
         """Test that custom event name appears in error logs."""
         import logging
+        import pytest
         
         class TestService:
             @safe_event_handler("CustomEvent")
@@ -107,14 +115,43 @@ class TestSafeEventHandler:
         service = TestService()
         
         with caplog.at_level(logging.ERROR):
-            service.handle_event({"data": "test"})
+            with pytest.raises(ValueError):  # Default behavior is to re-raise
+                service.handle_event({"data": "test"})
         
         # Check that event name appears in log
         assert "CustomEvent" in caplog.text
         assert "test error" in caplog.text
     
+    def test_reraise_default_behavior(self):
+        """Test that exceptions are re-raised by default."""
+        import pytest
+        
+        class TestService:
+            @safe_event_handler("TestEvent")
+            def handle_event(self, event):
+                raise ValueError("test error")
+        
+        service = TestService()
+        
+        with pytest.raises(ValueError, match="test error"):
+            service.handle_event({"data": "test"})
+    
+    def test_reraise_disabled(self):
+        """Test that exceptions can be swallowed with reraise=False."""
+        class TestService:
+            @safe_event_handler("TestEvent", reraise=False)
+            def handle_event(self, event):
+                raise ValueError("test error")
+        
+        service = TestService()
+        
+        # Should not raise
+        result = service.handle_event({"data": "test"})
+        assert result is None
+    
     def test_on_error_callback(self):
         """Test that on_error callback is called when error occurs."""
+        import pytest
         error_callback = Mock()
         
         class TestService:
@@ -123,7 +160,9 @@ class TestSafeEventHandler:
                 raise ValueError("test error")
         
         service = TestService()
-        service.handle_event({"data": "test"})
+        
+        with pytest.raises(ValueError):  # Still re-raises by default
+            service.handle_event({"data": "test"})
         
         # Check that callback was called
         assert error_callback.call_count == 1
@@ -136,6 +175,8 @@ class TestSafeEventHandler:
     
     def test_on_error_with_state_modification(self):
         """Test that on_error callback can modify service state."""
+        import pytest
+        
         class TestService:
             def __init__(self):
                 self.failure_count = 0
@@ -150,8 +191,10 @@ class TestSafeEventHandler:
         service = TestService()
         assert service.failure_count == 0
         
-        service.handle_event({"data": "test"})
+        with pytest.raises(ValueError):
+            service.handle_event({"data": "test"})
         assert service.failure_count == 1
         
-        service.handle_event({"data": "test"})
+        with pytest.raises(ValueError):
+            service.handle_event({"data": "test"})
         assert service.failure_count == 2

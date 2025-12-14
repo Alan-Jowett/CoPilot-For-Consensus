@@ -14,6 +14,7 @@ def safe_event_handler(
     event_name: str = "event",
     error_reporter: Optional[Any] = None,
     on_error: Optional[Callable] = None,
+    reraise: bool = True,
 ):
     """Decorator for safe event handling with consistent error logging and reporting.
     
@@ -21,6 +22,8 @@ def safe_event_handler(
         event_name: Name of the event being handled (for logging)
         error_reporter: Optional error reporter instance
         on_error: Optional callback function called when error occurs (receives self, error, event)
+        reraise: Whether to re-raise exceptions after logging/reporting (default: True)
+                 Set to True to allow message requeue for transient failures
         
     Returns:
         Decorated function with error handling
@@ -35,6 +38,12 @@ def safe_event_handler(
         @safe_event_handler("MyEvent", on_error=lambda self, e, evt: self.failures += 1)
         def _handle_my_event(self, event: Dict[str, Any]):
             # Process event
+            pass
+            
+        # Swallow exceptions instead of re-raising:
+        @safe_event_handler("MyEvent", reraise=False)
+        def _handle_my_event(self, event: Dict[str, Any]):
+            # Process event - errors logged but not re-raised
             pass
     """
     def decorator(func: Callable) -> Callable:
@@ -58,6 +67,10 @@ def safe_event_handler(
                 # Call error callback if provided
                 if on_error:
                     on_error(self, e, event)
+                
+                # Re-raise if requested (default behavior for message requeue)
+                if reraise:
+                    raise
                 
                 return None
         
