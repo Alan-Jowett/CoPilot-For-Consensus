@@ -145,6 +145,13 @@
       "default": "mistral",
       "description": "LLM model name"
     },
+    "local_llm_endpoint": {
+      "type": "string",
+      "source": "env",
+      "env_var": "OLLAMA_HOST",
+      "default": "http://ollama:11434",
+      "description": "Local LLM endpoint URL (for local/ollama backend)"
+    },
     "llm_temperature": {
       "type": "float",
       "source": "env",
