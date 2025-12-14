@@ -158,7 +158,9 @@ base_document_store = create_document_store(
 base_document_store.connect()
 
 # Wrap with schema validation
-document_schema_provider = FileSchemaProvider(schema_type="documents")
+document_schema_provider = FileSchemaProvider(
+    schema_dir=Path(__file__).parent.parent / "documents" / "schemas" / "documents"
+)
 document_store = ValidatingDocumentStore(
     store=base_document_store,
     schema_provider=document_schema_provider,
