@@ -104,6 +104,11 @@
           "expr": "rabbitmq_queue_messages_ready{queue=\"report.published\"}",
           "refId": "F",
           "legendFormat": "Report Output (report.published)"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"archive.ingested\"}",
+          "refId": "G",
+          "legendFormat": "Ingestion Output (archive.ingested)"
         }
       ],
       "title": "Service Input Queue Depth",
@@ -287,6 +292,11 @@
           "expr": "rabbitmq_queue_messages_ready{queue=\"report.published\"}",
           "refId": "F",
           "legendFormat": "Report Output"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"archive.ingested\"}",
+          "refId": "G",
+          "legendFormat": "Ingestion Output"
         }
       ],
       "title": "Current Service Queue Depth (Gauges)",
@@ -503,7 +513,7 @@
       },
       "targets": [
         {
-          "expr": "rabbitmq_queue_messages{queue=~\".*-service$\"}",
+          "expr": "rabbitmq_queue_messages{queue=~\"json\\.parsed|chunks\\.prepared|embeddings\\.generated|summarization\\.requested|summary\\.complete|report\\.published|archive\\.ingested\"}",
           "refId": "A",
           "legendFormat": "{{ queue }}"
         }
