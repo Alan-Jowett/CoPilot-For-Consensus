@@ -49,16 +49,46 @@ jobs:
     - name: Validate docker-compose configuration
       run: docker compose config
 
-    - name: Build services sequentially to avoid disk space issues
+    # Build services one at a time (allows parallel execution in future and clear progress tracking)
+    - name: Build ingestion
       run: |
-        # Build services one at a time and prune between builds
-        SERVICES="ingestion parsing chunking embedding orchestrator summarization reporting error-reporting"
-        for service in $SERVICES; do
-          echo "Building $service..."
-          docker compose build $service
-          # Prune dangling images to free space
-          docker image prune -f
-        done
+        docker compose build ingestion
+        docker image prune -f
+
+    - name: Build parsing
+      run: |
+        docker compose build parsing
+        docker image prune -f
+
+    - name: Build chunking
+      run: |
+        docker compose build chunking
+        docker image prune -f
+
+    - name: Build embedding
+      run: |
+        docker compose build embedding
+        docker image prune -f
+
+    - name: Build orchestrator
+      run: |
+        docker compose build orchestrator
+        docker image prune -f
+
+    - name: Build summarization
+      run: |
+        docker compose build summarization
+        docker image prune -f
+
+    - name: Build reporting
+      run: |
+        docker compose build reporting
+        docker image prune -f
+
+    - name: Build error-reporting
+      run: |
+        docker compose build error-reporting
+        docker image prune -f
 
     # Infrastructure Services
     - name: Start documentdb
@@ -94,7 +124,8 @@ jobs:
     - name: Start loki
       run: |
         docker compose up -d loki
-        timeout 30s bash -c 'until docker compose ps loki --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for loki..."; sleep 3; done' || (docker compose logs loki --tail=50 && exit 1)
+        # Loki image is distroless and has no healthcheck, so wait for it to be running
+        timeout 60s bash -c 'until docker compose ps loki --format "{{.Status}}" | grep -q "Up"; do echo "Waiting for loki..."; sleep 3; done' || (docker compose logs loki --tail=50 && exit 1)
 
     - name: Start grafana
       run: |
