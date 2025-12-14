@@ -39,6 +39,13 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
+    - name: Clean up any existing containers and volumes
+      run: |
+        # Stop and remove any existing containers and volumes from previous runs
+        docker compose down -v || true
+        # Also remove any dangling containers
+        docker container prune -f || true
+
     - name: Validate docker-compose configuration
       run: docker compose config
 
@@ -57,21 +64,76 @@ jobs:
       run: |
         # Start infrastructure and app services
         docker compose up -d
-        # Wait for services with healthchecks to be healthy (excludes one-shot and non-healthcheck containers)
-        timeout=180
+        # Wait for critical services to be healthy (those with healthchecks)
+        # Note: Services have start_period of 60-90s with sequential dependencies,
+        # so we need a generous timeout to account for all services starting up
+        timeout=300
         echo "Waiting up to ${timeout}s for services to be healthy..."
         end=$((SECONDS + timeout))
-        while [ $SECONDS -lt $end ]; do
-          # Get services that are running with healthchecks but not healthy yet
-          not_healthy=$(docker compose ps --format "{{.Service}} {{.Status}}" | grep "Up" | grep "(health:" | grep -v "(healthy)" || true)
-          if [ -z "$not_healthy" ]; then
-            echo "✓ All services with healthchecks are healthy"
+        
+          
+          for svc in "${critical_services[@]}"; do
+            # Get the status of this service
+            status=$(docker compose ps "$svc" --format "{{.Status}}" 2>/dev/null || echo "")
+            if [ -z "$status" ]; then
+              echo "Service $svc not found"
+              all_healthy=false
+              break
+            fi
+
+            # Check for unhealthy status immediately
+            if echo "$status" | grep -q "(unhealthy)"; then
+              echo "❌ Service $svc is unhealthy: $status"
+              echo ""
+              echo "=== IMMEDIATE DIAGNOSTICS FOR $svc ==="
+              docker compose logs "$svc" --tail=100
+              echo ""
+              all_healthy=false
+              break
+            fi
+
+            # Check if it has a healthcheck and if so, is it healthy?
+            if echo "$status" | grep -q "(health:"; then
+              if ! echo "$status" | grep -q "(healthy)"; then
+                echo "Service $svc not healthy yet: $status"
+                all_healthy=false
+              fi
+            elif echo "$status" | grep -q "Error"; then
+              echo "❌ Service $svc has error status: $status"
+              echo ""
+              echo "=== IMMEDIATE DIAGNOSTICS FOR $svc ==="
+              docker compose logs "$svc" --tail=100
+              echo ""
+              all_healthy=false
+              break
+            elif ! echo "$status" | grep -q "Up"; then
+              echo "Service $svc not running: $status"
+              all_healthy=false
+            fi
+          done
+
+          if [ "$all_healthy" = true ]; then
+            echo "✓ All critical services are healthy or running"
             exit 0
           fi
-          echo "Waiting for services to become healthy:"
-          echo "$not_healthy"
+
+          # Don't loop forever on unhealthy services - show diagnostics and fail
+          if [ "$all_healthy" = false ]; then
+            # Check if we have persistent unhealthy services (not just waiting)
+            unhealthy_count=$(docker compose ps --filter "status=unhealthy" -q | wc -l)
+            if [ "$unhealthy_count" -gt 0 ]; then
+              echo ""
+              echo "❌ Services are unhealthy, failing with diagnostics above"
+              echo ""
+              echo "=== Full Service Status ==="
+              docker compose ps
+              exit 1
+            fi
+          fi
+
           sleep 5
         done
+
         echo ""
         echo "❌ Timeout waiting for services to be healthy"
         echo ""
@@ -83,26 +145,30 @@ jobs:
         if [ -n "$unhealthy" ]; then
           for svc in $unhealthy; do
             echo "--- Logs for $svc ---"
-            docker compose logs --tail=50 "$svc"
+            docker compose logs "$svc" --tail=100
             echo ""
           done
         fi
-        echo "=== All Service Logs (last 30 lines) ==="
-        docker compose logs --tail=30
-        exit 1
-
-    - name: Check all services are healthy
-      run: |
-        echo "Checking service health..."
-        unhealthy=$(docker compose ps --filter "status=unhealthy" --format "{{.Name}}")
-        if [ -n "$unhealthy" ]; then
-          echo "The following services are unhealthy:"
-          echo "$unhealthy"
-          docker compose logs "$unhealthy"
+        echo "=== All Service Logs (last 50 lines) ==="
+        docker compose logs --tail=50
+            echo "=== Logs for unhealthy service $svc ==="
+            docker compose logs "$svc" --tail=50
+          done
           exit 1
-        else
-          echo "✓ All services are healthy"
         fi
+        
+        if [ -n "$exited" ]; then
+          echo "❌ The following services exited unexpectedly:"
+          echo "$exited"
+          for svc in $exited; do
+            echo ""
+            echo "=== Logs for exited service $svc ==="
+            docker compose logs "$svc" --tail=50
+          done
+          exit 1
+        fi
+        
+        echo "✓ All services are healthy"
 
     - name: Check service status
       run: docker compose ps
@@ -142,27 +208,53 @@ jobs:
     - name: Test reporting service health endpoint
       run: |
         echo "Testing reporting service..."
-        curl -f http://localhost:8080/ || exit 1
+        max_attempts=10
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+          if curl -f http://localhost:8080/ 2>/dev/null; then
+            echo "✓ Reporting service is healthy"
+            exit 0
+          fi
+          echo "Attempt $attempt/$max_attempts: Reporting service not responding yet..."
+          sleep 3
+          attempt=$((attempt + 1))
+        done
+        echo "❌ Reporting service failed to respond after $max_attempts attempts"
+        docker compose logs reporting --tail=50
+        exit 1
 
     - name: Test reporting API endpoint
       run: |
         echo "Testing reports API..."
-        curl -f http://localhost:8080/api/reports || exit 1
+        curl -f http://localhost:8080/api/reports || (docker compose logs reporting --tail=50 && exit 1)
 
     - name: Test error-reporting service health endpoint
       run: |
         echo "Testing error-reporting service..."
-        curl -f http://localhost:8081/ || exit 1
+        max_attempts=10
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+          if curl -f http://localhost:8081/ 2>/dev/null; then
+            echo "✓ Error-reporting service is healthy"
+            exit 0
+          fi
+          echo "Attempt $attempt/$max_attempts: Error-reporting service not responding yet..."
+          sleep 3
+          attempt=$((attempt + 1))
+        done
+        echo "❌ Error-reporting service failed to respond after $max_attempts attempts"
+        docker compose logs error-reporting --tail=50
+        exit 1
 
     - name: Test error-reporting UI endpoint
       run: |
         echo "Testing error-reporting UI..."
-        curl -f http://localhost:8081/ui || exit 1
+        curl -f http://localhost:8081/ui || (docker compose logs error-reporting --tail=50 && exit 1)
 
     - name: Test error-reporting API
       run: |
         echo "Testing error-reporting stats API..."
-        curl -f http://localhost:8081/api/stats || exit 1
+        curl -f http://localhost:8081/api/stats || (docker compose logs error-reporting --tail=50 && exit 1)
 
     - name: Test Grafana health endpoint
       run: |
