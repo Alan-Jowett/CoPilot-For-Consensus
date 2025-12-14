@@ -228,13 +228,30 @@ class ParsingService:
                 )
             
             # Publish ParsingFailed event
-            self._publish_parsing_failed(
-                archive_id,
-                file_path,
-                str(e),
-                type(e).__name__,
-                0,
-            )
+            try:
+                self._publish_parsing_failed(
+                    archive_id,
+                    file_path,
+                    str(e),
+                    type(e).__name__,
+                    0,
+                )
+            except Exception as publish_error:
+                # Event publishing failed but parsing definitely failed too
+                # Log both errors to ensure visibility
+                logger.error(
+                    f"Failed to publish ParsingFailed event for {archive_id}",
+                    exc_info=True,
+                    extra={"original_error": str(e), "publish_error": str(publish_error)}
+                )
+                if self.error_reporter:
+                    self.error_reporter.capture_exception()
+                # Re-raise the original exception to trigger message requeue
+                raise e from publish_error
+            
+            # Even if failure event published successfully, re-raise the original error
+            # to ensure the message is requeued for transient failures
+            raise e
 
     def _store_messages(self, messages: list):
         """Store messages in document store.
@@ -304,20 +321,27 @@ class ParsingService:
             }
         )
         
-        success = self.publisher.publish(
-            exchange="copilot.events",
-            routing_key="json.parsed",
-            event=event.to_dict(),
-        )
-        
-        if not success:
-            logger.error(f"Failed to publish JSONParsed event for {archive_id}")
+        try:
+            success = self.publisher.publish(
+                exchange="copilot.events",
+                routing_key="json.parsed",
+                event=event.to_dict(),
+            )
+            
+            if not success:
+                logger.error(f"Failed to publish JSONParsed event for {archive_id}")
+                if self.error_reporter:
+                    self.error_reporter.capture_message(
+                        "Failed to publish JSONParsed event",
+                        level="error",
+                        context={"archive_id": archive_id},
+                    )
+                raise Exception(f"Failed to publish JSONParsed event for {archive_id}")
+        except Exception:
+            logger.exception(f"Exception while publishing JSONParsed event for {archive_id}")
             if self.error_reporter:
-                self.error_reporter.capture_message(
-                    "Failed to publish JSONParsed event",
-                    level="error",
-                    context={"archive_id": archive_id},
-                )
+                self.error_reporter.capture_exception()
+            raise
 
     def _publish_parsing_failed(
         self,
@@ -348,20 +372,27 @@ class ParsingService:
             }
         )
         
-        success = self.publisher.publish(
-            exchange="copilot.events",
-            routing_key="parsing.failed",
-            event=event.to_dict(),
-        )
-        
-        if not success:
-            logger.error(f"Failed to publish ParsingFailed event for {archive_id}")
+        try:
+            success = self.publisher.publish(
+                exchange="copilot.events",
+                routing_key="parsing.failed",
+                event=event.to_dict(),
+            )
+            
+            if not success:
+                logger.error(f"Failed to publish ParsingFailed event for {archive_id}")
+                if self.error_reporter:
+                    self.error_reporter.capture_message(
+                        "Failed to publish ParsingFailed event",
+                        level="error",
+                        context={"archive_id": archive_id},
+                    )
+                raise Exception(f"Failed to publish ParsingFailed event for {archive_id}")
+        except Exception:
+            logger.exception(f"Exception while publishing ParsingFailed event for {archive_id}")
             if self.error_reporter:
-                self.error_reporter.capture_message(
-                    "Failed to publish ParsingFailed event",
-                    level="error",
-                    context={"archive_id": archive_id},
-                )
+                self.error_reporter.capture_exception()
+            raise
 
     def get_stats(self) -> Dict[str, Any]:
         """Get parsing statistics.
