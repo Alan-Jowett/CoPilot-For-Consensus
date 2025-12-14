@@ -131,7 +131,7 @@ def create_document_store(
         store_type: Type of document store ("mongodb", "inmemory"). 
                    If None, reads from DOCUMENT_STORE_TYPE environment variable (defaults to "inmemory")
         **kwargs: Additional store-specific arguments. For MongoDB, if not provided, 
-                 will read from MONGO_* environment variables.
+                 will read from DOC_DB_* environment variables (with fallback to MONGO_* for backward compatibility).
         
     Returns:
         DocumentStore instance
@@ -140,6 +140,7 @@ def create_document_store(
         ValueError: If store_type is not recognized
     """
     import os
+    import warnings
     
     # Auto-detect store type from environment if not provided
     if store_type is None:
@@ -150,41 +151,116 @@ def create_document_store(
         
         # Build kwargs with environment variable fallback for individual parameters
         # Explicit parameters take precedence over environment variables
+        # DOC_DB_* variables take precedence over MONGO_* (deprecated)
         mongo_kwargs = {}
         
-        # Host - use provided value or environment variable
+        # Host - use provided value or DOC_DB_HOST or MONGO_HOST (deprecated)
         if "host" in kwargs:
             mongo_kwargs["host"] = kwargs["host"]
         else:
+<<<<<<< HEAD
             mongo_kwargs["host"] = os.getenv("DOC_DB_HOST", "localhost")
+=======
+            doc_db_host = os.getenv("DOC_DB_HOST")
+            mongo_host = os.getenv("MONGO_HOST")
+            if doc_db_host:
+                mongo_kwargs["host"] = doc_db_host
+            elif mongo_host:
+                warnings.warn(
+                    "MONGO_HOST is deprecated. Please use DOC_DB_HOST instead.",
+                    DeprecationWarning,
+                    stacklevel=2
+                )
+                mongo_kwargs["host"] = mongo_host
+            else:
+                mongo_kwargs["host"] = "localhost"
+>>>>>>> 7faf98c (Standardize env vars on DOC_DB_* in docker-compose and add backward compatibility)
         
-        # Port - use provided value or environment variable
+        # Port - use provided value or DOC_DB_PORT or MONGO_PORT (deprecated)
         if "port" in kwargs:
             mongo_kwargs["port"] = kwargs["port"]
         else:
+<<<<<<< HEAD
             mongo_kwargs["port"] = int(os.getenv("DOC_DB_PORT", "27017"))
+=======
+            doc_db_port = os.getenv("DOC_DB_PORT")
+            mongo_port = os.getenv("MONGO_PORT")
+            if doc_db_port:
+                mongo_kwargs["port"] = int(doc_db_port)
+            elif mongo_port:
+                warnings.warn(
+                    "MONGO_PORT is deprecated. Please use DOC_DB_PORT instead.",
+                    DeprecationWarning,
+                    stacklevel=2
+                )
+                mongo_kwargs["port"] = int(mongo_port)
+            else:
+                mongo_kwargs["port"] = 27017
+>>>>>>> 7faf98c (Standardize env vars on DOC_DB_* in docker-compose and add backward compatibility)
         
-        # Database - use provided value or environment variable
+        # Database - use provided value or DOC_DB_NAME or MONGO_DB (deprecated)
         if "database" in kwargs:
             mongo_kwargs["database"] = kwargs["database"]
         else:
+<<<<<<< HEAD
             mongo_kwargs["database"] = os.getenv("DOC_DB_NAME", "copilot")
+=======
+            doc_db_name = os.getenv("DOC_DB_NAME")
+            mongo_db = os.getenv("MONGO_DB")
+            if doc_db_name:
+                mongo_kwargs["database"] = doc_db_name
+            elif mongo_db:
+                warnings.warn(
+                    "MONGO_DB is deprecated. Please use DOC_DB_NAME instead.",
+                    DeprecationWarning,
+                    stacklevel=2
+                )
+                mongo_kwargs["database"] = mongo_db
+            else:
+                mongo_kwargs["database"] = "copilot"
+>>>>>>> 7faf98c (Standardize env vars on DOC_DB_* in docker-compose and add backward compatibility)
         
-        # Username - use provided value or environment variable (only if set)
+        # Username - use provided value or DOC_DB_USER or MONGO_USER (deprecated)
         if "username" in kwargs:
             mongo_kwargs["username"] = kwargs["username"]
         else:
             doc_db_user = os.getenv("DOC_DB_USER")
+<<<<<<< HEAD
             if doc_db_user is not None:
                 mongo_kwargs["username"] = doc_db_user
+=======
+            mongo_user = os.getenv("MONGO_USER")
+            if doc_db_user is not None:
+                mongo_kwargs["username"] = doc_db_user
+            elif mongo_user is not None:
+                warnings.warn(
+                    "MONGO_USER is deprecated. Please use DOC_DB_USER instead.",
+                    DeprecationWarning,
+                    stacklevel=2
+                )
+                mongo_kwargs["username"] = mongo_user
+>>>>>>> 7faf98c (Standardize env vars on DOC_DB_* in docker-compose and add backward compatibility)
         
-        # Password - use provided value or environment variable (only if set)
+        # Password - use provided value or DOC_DB_PASSWORD or MONGO_PASSWORD (deprecated)
         if "password" in kwargs:
             mongo_kwargs["password"] = kwargs["password"]
         else:
             doc_db_password = os.getenv("DOC_DB_PASSWORD")
+<<<<<<< HEAD
             if doc_db_password is not None:
                 mongo_kwargs["password"] = doc_db_password
+=======
+            mongo_password = os.getenv("MONGO_PASSWORD")
+            if doc_db_password is not None:
+                mongo_kwargs["password"] = doc_db_password
+            elif mongo_password is not None:
+                warnings.warn(
+                    "MONGO_PASSWORD is deprecated. Please use DOC_DB_PASSWORD instead.",
+                    DeprecationWarning,
+                    stacklevel=2
+                )
+                mongo_kwargs["password"] = mongo_password
+>>>>>>> 7faf98c (Standardize env vars on DOC_DB_* in docker-compose and add backward compatibility)
         
         # Pass any other kwargs that aren't MongoDB-specific
         for key, value in kwargs.items():
