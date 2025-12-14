@@ -15,7 +15,7 @@ const testMessage = {
   message_id: 'smoke-test-message-001',
   archive_id: '00000000-0000-0000-0000-000000000001',
   thread_id: 'smoke-test-thread-001',
-  date: new Date().toISOString(),
+  date: '2025-01-01T12:00:00.000Z',
   body_normalized: 'This is a smoke test message to verify MongoDB schema acceptance.',
   created_at: new Date().toISOString()
 };
