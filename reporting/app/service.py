@@ -279,7 +279,7 @@ class ReportingService:
             success = self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="report.published",
-                message=event.to_dict(),
+                event=event.to_dict(),
             )
             
             if not success:
@@ -331,7 +331,7 @@ class ReportingService:
             success = self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="report.delivery.failed",
-                message=event.to_dict(),
+                event=event.to_dict(),
             )
             
             if not success:
