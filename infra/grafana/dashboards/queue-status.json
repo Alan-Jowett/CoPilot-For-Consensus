@@ -525,6 +525,47 @@
       "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisLabel": "Documents",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": { "tooltip": false, "viz": false, "legend": false },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 40 },
+      "id": 8,
+      "options": {
+        "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        { "expr": "copilot_collection_document_count{database=\"copilot\",collection=\"archives\"}",   "refId": "A", "legendFormat": "archives" },
+        { "expr": "copilot_collection_document_count{database=\"copilot\",collection=\"messages\"}",   "refId": "B", "legendFormat": "messages" },
+        { "expr": "copilot_collection_document_count{database=\"copilot\",collection=\"chunks\"}",     "refId": "C", "legendFormat": "chunks" },
+        { "expr": "copilot_collection_document_count{database=\"copilot\",collection=\"threads\"}",    "refId": "D", "legendFormat": "threads" },
+        { "expr": "copilot_collection_document_count{database=\"copilot\",collection=\"summaries\"}",  "refId": "E", "legendFormat": "summaries" }
+      ],
+      "title": "MongoDB Document Counts (Time Series)",
+      "type": "timeseries"
+    }
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
           "color": {
             "mode": "thresholds"
           },
