@@ -15,7 +15,7 @@ function loadCollectionsConfig() {
   return JSON.parse(fs.readFileSync(collectionsConfigPath, 'utf8'));
 }
 
-function ensureCollection(name, validatorPath) {
+function ensureCollection(name) {
   const exists = database.getCollectionNames().includes(name);
   if (!exists) {
     database.createCollection(name);
@@ -42,7 +42,7 @@ function ensureFromConfig(definition) {
     return;
   }
 
-  ensureCollection(definition.name, definition.schema);
+  ensureCollection(definition.name);
 
   if (Array.isArray(definition.indexes) && definition.indexes.length > 0) {
     ensureIndexes(definition.name, definition.indexes);
