@@ -111,13 +111,17 @@ class ParsingService:
         
         Args:
             archive_data: Archive metadata from ArchiveIngested event
+            
+        Raises:
+            KeyError: If required fields are missing from archive_data
         """
         archive_id = archive_data.get("archive_id")
         file_path = archive_data.get("file_path")
         
         if not archive_id or not file_path:
-            logger.error("Missing required fields in archive data")
-            return
+            error_msg = "Missing required fields in archive data"
+            logger.error(error_msg)
+            raise KeyError(error_msg)
         
         start_time = time.time()
         

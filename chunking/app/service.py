@@ -103,11 +103,27 @@ class ChunkingService:
         
         Args:
             event_data: Data from JSONParsed event
+            
+        Raises:
+            ValueError: If event_data is missing required fields
+            TypeError: If message_ids is not iterable
         """
-        message_ids = event_data.get("parsed_message_ids", [])
+        # Check for required field
+        if "parsed_message_ids" not in event_data:
+            error_msg = "parsed_message_ids field missing from event data"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+            
+        message_ids = event_data["parsed_message_ids"]
+        
+        # Validate message_ids is iterable (list/array)
+        if not isinstance(message_ids, list):
+            error_msg = f"parsed_message_ids must be a list, got {type(message_ids).__name__}"
+            logger.error(error_msg)
+            raise TypeError(error_msg)
         
         if not message_ids:
-            logger.warning("No message IDs in JSONParsed event")
+            logger.info("Empty message list in JSONParsed event, nothing to process")
             return
         
         start_time = time.time()

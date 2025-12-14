@@ -440,7 +440,7 @@ def test_handle_malformed_event_missing_data():
     }
     
     # Service should raise an exception for missing data field
-    with pytest.raises((KeyError, AttributeError)):
+    with pytest.raises((KeyError, AttributeError, ValueError)):
         service._handle_json_parsed(event)
 
 

@@ -118,8 +118,25 @@ class SummarizationService:
         
         Args:
             event_data: Data from SummarizationRequested event
+            
+        Raises:
+            KeyError: If required fields are missing from event_data
+            TypeError: If thread_ids is not a list
         """
-        thread_ids = event_data.get("thread_ids", [])
+        # Check for required field
+        if "thread_ids" not in event_data:
+            error_msg = "thread_ids field missing from event data"
+            logger.error(error_msg)
+            raise KeyError(error_msg)
+            
+        thread_ids = event_data["thread_ids"]
+        
+        # Validate thread_ids is iterable (list/array)
+        if not isinstance(thread_ids, list):
+            error_msg = f"thread_ids must be a list, got {type(thread_ids).__name__}"
+            logger.error(error_msg)
+            raise TypeError(error_msg)
+            
         top_k = event_data.get("top_k", self.top_k)
         context_window_tokens = event_data.get("context_window_tokens", 3000)
         prompt_template = event_data.get("prompt_template", "Summarize the following discussion thread:")
