@@ -177,6 +177,13 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
 
+  # Monitor Docker image updates in docker-compose
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
   # Monitor GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
