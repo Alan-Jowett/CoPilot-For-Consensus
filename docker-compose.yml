@@ -4,7 +4,7 @@
 services:
   # Infrastructure services
   db-init:
-    image: mongo:7.0
+    image: mongo:7.0@sha256:8c3ce64d1a433bf57ea79035b48a38ea3e532997a1328fe3266e2e2e8bfb41b6
     depends_on:
       documentdb:
         condition: service_healthy
@@ -24,7 +24,7 @@ services:
     restart: "no"
 
   db-validate:
-    image: mongo:7.0
+    image: mongo:7.0@sha256:8c3ce64d1a433bf57ea79035b48a38ea3e532997a1328fe3266e2e2e8bfb41b6
     depends_on:
       documentdb:
         condition: service_healthy
@@ -46,7 +46,7 @@ services:
     restart: "no"
 
   documentdb:
-    image: mongo:7.0
+    image: mongo:7.0@sha256:8c3ce64d1a433bf57ea79035b48a38ea3e532997a1328fe3266e2e2e8bfb41b6
     ports:
       - "27017:27017"
     volumes:
@@ -63,7 +63,7 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:latest@sha256:70d9599b186ce287be0d2c5ba9a78acb2e86c1a68c9c41449454d0fc3eeb84e8
     ports:
       - "3000:3000"
     environment:
@@ -89,7 +89,7 @@ services:
     restart: unless-stopped
 
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:latest@sha256:cd6e176883a90c21755f0315688668991634143423f75bdedfef41441b0fdc3c
     ports:
       - "3100:3100"
     volumes:
@@ -101,11 +101,10 @@ services:
     restart: unless-stopped
 
   messagebus:
-    image: rabbitmq:3-management
+    image: rabbitmq:3-management@sha256:e582c0bc7766f3342496d8485efb5a1df782b5ce3886ad017e2eaae442311f69
     ports:
       - "5672:5672"
       - "15672:15672"
-      - "15692:15692"
     volumes:
       - ./infra/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
       - ./infra/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
@@ -123,15 +122,13 @@ services:
     restart: unless-stopped
 
   rabbitmq-exporter:
-    image: kbudde/rabbitmq-exporter:latest
-    ports:
-      - "9419:9419"
+    image: kbudde/rabbitmq-exporter:1.0.0-RC19@sha256:81d8a4124bc262433e054e9df03a7abb750be31c40d13c2344b2161eebf2a20e
     environment:
       - RABBIT_URL=http://messagebus:15672
       - RABBIT_USER=${RABBITMQ_DEFAULT_USER:-guest}
       - RABBIT_PASSWORD=${RABBITMQ_DEFAULT_PASS:-guest}
       - PUBLISH_PORT=9419
-      - OUTPUT_FORMAT=TTY
+      - OUTPUT_FORMAT=JSON
       - LOG_LEVEL=info
     depends_on:
       messagebus:
@@ -139,7 +136,7 @@ services:
     restart: unless-stopped
 
   mongodb-exporter:
-    image: percona/mongodb_exporter:0.40
+    image: percona/mongodb_exporter:0.40@sha256:d66daa6aff0513860d1577cee3b55ab82fde43394f8319d7b4674411b9153cce
     ports:
       - "9216:9216"
     environment:
@@ -153,7 +150,7 @@ services:
     restart: unless-stopped
 
   monitoring:
-    image: prom/prometheus:latest
+    image: prom/prometheus:latest@sha256:d936808bdea528155c0154a922cd42fd75716b8bb7ba302641350f9f3eaeba09
     ports:
       - "9090:9090"
     volumes:
@@ -168,7 +165,7 @@ services:
     restart: unless-stopped
 
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:latest@sha256:6c76395793f40a5e78f120e880ca82c67e39eb908ad90eee8ce755535529d0ec
     ports:
       - "11434:11434"
     volumes:
@@ -182,7 +179,7 @@ services:
     restart: unless-stopped
 
   ollama-validate:
-    image: curlimages/curl:8.10.1
+    image: curlimages/curl:8.10.1@sha256:d9b4541e214bcd85196d6e92e2753ac6d0ea699f0af5741f8c6cccbfcf00ef4b
     depends_on:
       ollama:
         condition: service_healthy
@@ -203,7 +200,7 @@ services:
   # use only. For production deployments, REMOVE or restrict this mount and consider alternative log
   # collection strategies. See: https://docs.docker.com/engine/security/#docker-daemon-attack-surface
   promtail:
-    image: grafana/promtail:latest
+    image: grafana/promtail:latest@sha256:130b6dd63277d99ce87560c0266c0c30d07bc15ba0a8a590d42215465d4f5363
     volumes:
       - ./infra/promtail/promtail-config.yml:/etc/promtail/config.yml
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -221,7 +218,7 @@ services:
     restart: unless-stopped
 
   pushgateway:
-    image: prom/pushgateway:latest
+    image: prom/pushgateway:latest@sha256:c835998819105d84d484918908df132807c78c05f3e0e649df0c0479c6780d98
     ports:
       - "9091:9091"
     healthcheck:
@@ -233,7 +230,7 @@ services:
     restart: unless-stopped
 
   vectorstore:
-    image: qdrant/qdrant:latest
+    image: qdrant/qdrant:latest@sha256:dab6de32f7b2cc599985a7c764db3e8b062f70508fb85ca074aa856f829bf335
     ports:
       - "6333:6333"
     volumes:
@@ -247,7 +244,7 @@ services:
     restart: unless-stopped
 
   vectorstore-validate:
-    image: curlimages/curl:8.10.1
+    image: curlimages/curl:8.10.1@sha256:d9b4541e214bcd85196d6e92e2753ac6d0ea699f0af5741f8c6cccbfcf00ef4b
     depends_on:
       vectorstore:
         condition: service_healthy
