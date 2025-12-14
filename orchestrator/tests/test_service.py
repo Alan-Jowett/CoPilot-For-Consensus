@@ -21,7 +21,7 @@ def mock_document_store():
 def mock_publisher():
     """Create a mock event publisher."""
     publisher = Mock()
-    publisher.publish = Mock()
+    publisher.publish = Mock(return_value=True)
     return publisher
 
 
@@ -202,6 +202,34 @@ def test_publish_orchestration_failed(orchestration_service, mock_publisher):
     assert event["data"]["error_type"] == error_type
 
 
+def test_publish_summarization_requested_publish_failure(orchestration_service, mock_publisher):
+    """Publishing SummarizationRequested should raise when publisher returns False."""
+    mock_publisher.publish.return_value = False
+
+    with pytest.raises(Exception):
+        orchestration_service._publish_summarization_requested([
+            "<thread-1@example.com>"
+        ], {
+            "thread_id": "<thread-1@example.com>",
+            "chunk_count": 1,
+            "messages": []
+        })
+
+    mock_publisher.publish.assert_called_once()
+
+
+def test_publish_orchestration_failed_publish_failure(orchestration_service, mock_publisher):
+    """Publishing OrchestrationFailed should raise when publisher returns False."""
+    mock_publisher.publish.return_value = False
+
+    with pytest.raises(Exception):
+        orchestration_service._publish_orchestration_failed([
+            "<thread-1@example.com>"
+        ], "boom", "TestError")
+
+    mock_publisher.publish.assert_called_once()
+
+
 def test_get_stats(orchestration_service):
     """Test getting service statistics."""
     orchestration_service.events_processed = 10
@@ -324,3 +352,54 @@ def test_event_handler_raises_on_errors(orchestration_service, mock_document_sto
     # Verify failure was tracked
     assert orchestration_service.failures_count == 1
     assert orchestration_service.events_processed == 0  # Event not counted as processed
+
+
+def test_handle_embeddings_generated_raises_on_missing_chunk_ids(orchestration_service):
+    """Test that event handler raises exception when chunk_ids field is missing."""
+    event = {
+        "event_type": "EmbeddingsGenerated",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+        "data": {
+            "embedding_count": 3,
+            # Missing chunk_ids field - should trigger re-raise
+        }
+    }
+    
+    # Service should raise an exception for missing chunk_ids field
+    with pytest.raises(ValueError):
+        orchestration_service._handle_embeddings_generated(event)
+
+
+def test_handle_embeddings_generated_raises_on_invalid_chunk_ids_type(orchestration_service):
+    """Test that event handler raises exception when chunk_ids is not a list."""
+    event = {
+        "event_type": "EmbeddingsGenerated",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+        "data": {
+            "chunk_ids": "not-an-array",  # Should be list, not string
+            "embedding_count": 1,
+        }
+    }
+    
+    # Service should raise an exception for invalid type
+    with pytest.raises(TypeError):
+        orchestration_service._handle_embeddings_generated(event)
+
+
+def test_handle_embeddings_generated_raises_on_missing_data_field(orchestration_service):
+    """Test that event handler raises when data field is missing."""
+    event = {
+        "event_type": "EmbeddingsGenerated",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+        # Missing data field
+    }
+    
+    # Event handler should re-raise to trigger message requeue
+    with pytest.raises(Exception):
+        orchestration_service._handle_embeddings_generated(event)

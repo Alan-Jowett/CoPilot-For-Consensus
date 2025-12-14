@@ -322,13 +322,24 @@ class IngestionService:
                         continue
                     else:
                         # All retries exhausted
-                        self._publish_failure_event(
-                            source,
-                            last_error,
-                            "FetchError",
-                            retry_count,
-                            ingestion_started_at,
-                        )
+                        try:
+                            self._publish_failure_event(
+                                source,
+                                last_error,
+                                "FetchError",
+                                retry_count,
+                                ingestion_started_at,
+                            )
+                        except Exception as publish_error:
+                            # Event publishing failed but fetch definitely failed too
+                            # Log both errors to ensure visibility
+                            self.logger.error(
+                                "Failed to publish ingestion failure event",
+                                source_name=source.name,
+                                original_error=last_error,
+                                publish_error=str(publish_error),
+                            )
+                            # Don't re-raise - we still want to return False to indicate failure
                         self._record_failure_metrics(metric_tags, started_monotonic)
                         return False
 
@@ -449,13 +460,24 @@ class IngestionService:
                     continue
                 else:
                     # All retries exhausted
-                    self._publish_failure_event(
-                        source,
-                        last_error,
-                        "UnexpectedError",
-                        retry_count,
-                        ingestion_started_at,
-                    )
+                    try:
+                        self._publish_failure_event(
+                            source,
+                            last_error,
+                            "UnexpectedError",
+                            retry_count,
+                            ingestion_started_at,
+                        )
+                    except Exception as publish_error:
+                        # Event publishing failed but ingestion definitely failed too
+                        # Log both errors to ensure visibility
+                        self.logger.error(
+                            "Failed to publish ingestion failure event",
+                            source_name=source.name,
+                            original_error=last_error,
+                            publish_error=str(publish_error),
+                        )
+                        # Don't re-raise - we still want to return False to indicate failure
                     self._record_failure_metrics(metric_tags, started_monotonic)
                     return False
 
@@ -556,34 +578,47 @@ class IngestionService:
         
         Args:
             metadata: Archive metadata
+            
+        Raises:
+            Exception: Re-raises any exception from publisher to ensure visibility
         """
         # Convert metadata to dict and remove status field (not part of event schema)
         event_data = metadata.to_dict()
         event_data.pop('status', None)  # Remove status field if present
         
-        event = ArchiveIngestedEvent(data=event_data)
+        try:
+            event = ArchiveIngestedEvent(data=event_data)
 
-        success = self.publisher.publish(
-            exchange="copilot.events",
-            routing_key="archive.ingested",
-            event=event.to_dict(),
-        )
+            success = self.publisher.publish(
+                exchange="copilot.events",
+                routing_key="archive.ingested",
+                event=event.to_dict(),
+            )
 
-        if not success:
+            if not success:
+                error_msg = "Publisher returned failure status for ArchiveIngested event"
+                self.logger.error(
+                    error_msg,
+                    archive_id=metadata.archive_id,
+                    source_name=metadata.source_name,
+                )
+                raise Exception(error_msg)
+        except Exception as e:
             self.logger.error(
                 "Failed to publish success event",
                 archive_id=metadata.archive_id,
                 source_name=metadata.source_name,
+                error=str(e),
             )
-            self.error_reporter.capture_message(
-                f"Failed to publish ArchiveIngested event",
-                level="error",
+            self.error_reporter.report(
+                e,
                 context={
                     "operation": "publish_success_event",
                     "archive_id": metadata.archive_id,
                     "source_name": metadata.source_name,
                 }
             )
+            raise  # Re-raise to ensure operator visibility
 
     def _publish_failure_event(
         self,
@@ -601,43 +636,56 @@ class IngestionService:
             error_type: Type of error
             retry_count: Number of retries attempted
             ingestion_started_at: When ingestion started
+            
+        Raises:
+            Exception: Re-raises any exception from publisher to ensure visibility
         """
         failed_at = datetime.utcnow().isoformat() + "Z"
 
-        event = ArchiveIngestionFailedEvent(
-            data={
-                "source_name": source.name,
-                "source_type": source.source_type,
-                "source_url": source.url,
-                "error_message": error_message,
-                "error_type": error_type,
-                "retry_count": retry_count,
-                "ingestion_started_at": ingestion_started_at,
-                "failed_at": failed_at,
-            }
-        )
+        try:
+            event = ArchiveIngestionFailedEvent(
+                data={
+                    "source_name": source.name,
+                    "source_type": source.source_type,
+                    "source_url": source.url,
+                    "error_message": error_message,
+                    "error_type": error_type,
+                    "retry_count": retry_count,
+                    "ingestion_started_at": ingestion_started_at,
+                    "failed_at": failed_at,
+                }
+            )
 
-        success = self.publisher.publish(
-            exchange="copilot.events",
-            routing_key="archive.ingestion.failed",
-            event=event.to_dict(),
-        )
+            success = self.publisher.publish(
+                exchange="copilot.events",
+                routing_key="archive.ingestion.failed",
+                event=event.to_dict(),
+            )
 
-        if not success:
+            if not success:
+                error_msg = "Publisher returned failure status for ArchiveIngestionFailed event"
+                self.logger.error(
+                    error_msg,
+                    source_name=source.name,
+                    error_type=error_type,
+                )
+                raise Exception(error_msg)
+        except Exception as e:
             self.logger.error(
                 "Failed to publish failure event",
                 source_name=source.name,
                 error_type=error_type,
+                error=str(e),
             )
-            self.error_reporter.capture_message(
-                f"Failed to publish ArchiveIngestionFailed event",
-                level="error",
+            self.error_reporter.report(
+                e,
                 context={
                     "operation": "publish_failure_event",
                     "source_name": source.name,
                     "error_type": error_type,
                 }
             )
+            raise  # Re-raise to ensure operator visibility
 
     def _record_success_metrics(
         self,

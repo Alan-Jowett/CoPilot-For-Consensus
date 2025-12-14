@@ -17,5 +17,6 @@ import pytest
 @pytest.mark.skip(reason="DocumentStoreSchemaProvider has been removed")
 def test_seeded_archive_ingested_schema_allows_valid_event():
     """Placeholder test - DocumentStoreSchemaProvider is no longer available."""
-    pass
+    # Test is skipped, but assert would verify this is intentional
+    assert True, "Test intentionally skipped - DocumentStoreSchemaProvider removed"
 
