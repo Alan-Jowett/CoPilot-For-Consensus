@@ -585,11 +585,12 @@ class TestRabbitMQPersistence:
             subscriber.disconnect()
             
             # Clean up the test queue
-            try:
-                rabbitmq_publisher.channel.queue_delete(queue=test_queue_name)
-            except (pika.exceptions.ChannelError, pika.exceptions.ConnectionError) as e:
-                # Best effort cleanup - queue may not exist or connection may be closed
-                logger.warning(f"Failed to delete test queue during cleanup: {e}")
+            if pika:
+                try:
+                    rabbitmq_publisher.channel.queue_delete(queue=test_queue_name)
+                except (pika.exceptions.ChannelError, pika.exceptions.ConnectionError) as e:
+                    # Best effort cleanup - queue may not exist or connection may be closed
+                    logger.warning(f"Failed to delete test queue during cleanup: {e}")
 
     def test_queue_durability_survives_disconnect(self, rabbitmq_publisher):
         """Test that durable queues persist across subscriber disconnects."""
@@ -686,8 +687,9 @@ class TestRabbitMQPersistence:
             subscriber2.disconnect()
             
             # Clean up the test queue
-            try:
-                rabbitmq_publisher.channel.queue_delete(queue=test_queue_name)
-            except (pika.exceptions.ChannelError, pika.exceptions.ConnectionError) as e:
-                # Best effort cleanup - queue may not exist or connection may be closed
-                logger.warning(f"Failed to delete test queue during cleanup: {e}")
+            if pika:
+                try:
+                    rabbitmq_publisher.channel.queue_delete(queue=test_queue_name)
+                except (pika.exceptions.ChannelError, pika.exceptions.ConnectionError) as e:
+                    # Best effort cleanup - queue may not exist or connection may be closed
+                    logger.warning(f"Failed to delete test queue during cleanup: {e}")
