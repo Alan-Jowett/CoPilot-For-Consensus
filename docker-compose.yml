@@ -229,8 +229,12 @@ services:
     restart: unless-stopped
 
   mongo-doc-count-exporter:
-    image: python:3.11-slim@sha256:8c4433ecfe7e2d9f2f3e581f5f3a056826e6a78a7e2f4d66e1f65b0c67f6e2f2
-    command: ["python", "/app/scripts/mongo_doc_count_exporter.py"]
+    image: python:3.11-slim
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        pip install -q -r /app/scripts/requirements.txt &&
+        python /app/scripts/mongo_doc_count_exporter.py
     environment:
       - MONGO_URI=mongodb://${DOC_DB_ADMIN_USERNAME:-root}:${DOC_DB_ADMIN_PASSWORD:-example}@documentdb:27017/admin
       - MONGO_DB=copilot
