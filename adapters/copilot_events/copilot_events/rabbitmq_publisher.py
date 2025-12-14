@@ -230,17 +230,17 @@ class RabbitMQPublisher(EventPublisher):
             logger.info(
                 f"Published event to {exchange}/{routing_key}: {event.get('event_type')}"
             )
-        except pika.exceptions.UnroutableError as e:
+        except pika.exceptions.UnroutableError:
             error_msg = (
                 f"Message unroutable - no queue bound for {exchange}/{routing_key}. "
                 "Ensure queues are declared before publishing."
             )
             logger.error(error_msg)
-            raise pika.exceptions.UnroutableError([]) from e
-        except pika.exceptions.NackError as e:
+            raise
+        except pika.exceptions.NackError:
             error_msg = f"Message rejected (NACK) by broker for {exchange}/{routing_key}"
             logger.error(error_msg)
-            raise pika.exceptions.NackError([]) from e
+            raise
         except Exception as e:
             logger.error(f"Failed to publish event: {e}")
             raise
