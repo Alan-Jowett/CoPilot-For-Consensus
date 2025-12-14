@@ -150,13 +150,14 @@ class MongoDocumentStore(DocumentStore):
         
         try:
             from bson import ObjectId
+            from bson.errors import InvalidId
             
             coll = self.database[collection]
             
             # Try to convert to ObjectId if possible
             try:
                 query = {"_id": ObjectId(doc_id)}
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, InvalidId):
                 # Use as string if not a valid ObjectId
                 query = {"_id": doc_id}
             
@@ -237,13 +238,14 @@ class MongoDocumentStore(DocumentStore):
         
         try:
             from bson import ObjectId
+            from bson.errors import InvalidId
             
             coll = self.database[collection]
             
             # Try to convert to ObjectId if possible
             try:
                 query = {"_id": ObjectId(doc_id)}
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, InvalidId):
                 query = {"_id": doc_id}
             
             # Use $set operator for patch updates
@@ -278,13 +280,14 @@ class MongoDocumentStore(DocumentStore):
         
         try:
             from bson import ObjectId
+            from bson.errors import InvalidId
             
             coll = self.database[collection]
             
             # Try to convert to ObjectId if possible
             try:
                 query = {"_id": ObjectId(doc_id)}
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, InvalidId):
                 query = {"_id": doc_id}
             
             result = coll.delete_one(query)
