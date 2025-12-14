@@ -39,70 +39,134 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
+    - name: Clean up any existing containers and volumes
+      run: |
+        # Stop and remove any existing containers and volumes from previous runs
+        docker compose down -v || true
+        # Also remove any dangling containers
+        docker container prune -f || true
+
     - name: Validate docker-compose configuration
       run: docker compose config
 
-    - name: Build services sequentially to avoid disk space issues
-      run: |
-        # Build services one at a time and prune between builds
-        SERVICES="ingestion parsing chunking embedding orchestrator summarization reporting error-reporting"
-        for service in $SERVICES; do
-          echo "Building $service..."
-          docker compose build $service
-          # Prune dangling images to free space
-          docker image prune -f
-        done
+    # Build all services in parallel for faster CI times
+    - name: Build all services in parallel
+      env:
+        DOCKER_BUILDKIT: 1
+        COMPOSE_DOCKER_CLI_BUILD: 1
+      run: docker compose build --parallel
 
-    - name: Start all services
-      run: docker compose up -d
-
-    - name: Wait for services to be healthy
+    # Infrastructure Services
+    - name: Start documentdb
       run: |
-        echo "Waiting for services to start..."
-        sleep 30
+        docker compose up -d documentdb
+        timeout 60s bash -c 'until docker compose ps documentdb --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for documentdb..."; sleep 3; done' || (docker compose logs documentdb --tail=50 && exit 1)
 
-    - name: Check all services are healthy
+    - name: Start messagebus
       run: |
-        echo "Checking service health..."
-        unhealthy=$(docker compose ps --filter "status=unhealthy" --format "{{.Name}}")
-        if [ -n "$unhealthy" ]; then
-          echo "The following services are unhealthy:"
-          echo "$unhealthy"
-          docker compose logs "$unhealthy"
-          exit 1
-        else
-          echo "✓ All services are healthy"
-        fi
+        docker compose up -d messagebus
+        timeout 60s bash -c 'until docker compose ps messagebus --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for messagebus..."; sleep 3; done' || (docker compose logs messagebus --tail=50 && exit 1)
+
+    - name: Start vectorstore
+      run: |
+        docker compose up -d vectorstore
+        timeout 60s bash -c 'until docker compose ps vectorstore --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for vectorstore..."; sleep 3; done' || (docker compose logs vectorstore --tail=50 && exit 1)
+
+    - name: Start ollama
+      run: |
+        docker compose up -d ollama
+        timeout 60s bash -c 'until docker compose ps ollama --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for ollama..."; sleep 3; done' || (docker compose logs ollama --tail=50 && exit 1)
+
+    - name: Start monitoring (Prometheus)
+      run: |
+        docker compose up -d monitoring
+        timeout 60s bash -c 'until docker compose ps monitoring --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for monitoring..."; sleep 3; done' || (docker compose logs monitoring --tail=50 && exit 1)
+
+    - name: Start pushgateway
+      run: |
+        docker compose up -d pushgateway
+        timeout 60s bash -c 'until docker compose ps pushgateway --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for pushgateway..."; sleep 3; done' || (docker compose logs pushgateway --tail=50 && exit 1)
+
+    - name: Start loki
+      run: |
+        docker compose up -d loki
+        # Loki image is distroless and has no healthcheck, so wait for it to be running
+        timeout 60s bash -c 'until docker compose ps loki --format "{{.Status}}" | grep -q "Up"; do echo "Waiting for loki..."; sleep 3; done' || (docker compose logs loki --tail=50 && exit 1)
+
+    - name: Start grafana
+      run: |
+        docker compose up -d grafana
+        timeout 90s bash -c 'until docker compose ps grafana --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for grafana..."; sleep 3; done' || (docker compose logs grafana --tail=50 && exit 1)
+
+    - name: Start promtail
+      run: |
+        docker compose up -d promtail
+        timeout 60s bash -c 'until docker compose ps promtail --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for promtail..."; sleep 3; done' || (docker compose logs promtail --tail=50 && exit 1)
+
+    # Validator Services (one-shot containers)
+    - name: Run db-init
+      run: |
+        docker compose run --rm db-init
+        docker compose logs db-init --tail=20 || true
+
+    - name: Run db-validate
+      run: |
+        docker compose run --rm db-validate
+        docker compose logs db-validate --tail=20 || true
+
+    - name: Run vectorstore-validate
+      run: |
+        docker compose run --rm vectorstore-validate
+        docker compose logs vectorstore-validate --tail=20 || true
+
+    - name: Run ollama-validate
+      run: |
+        docker compose run --rm ollama-validate
+        docker compose logs ollama-validate --tail=20 || true
+
+    # Application Services
+    - name: Start parsing
+      run: |
+        docker compose up -d parsing
+        timeout 120s bash -c 'until docker compose ps parsing --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for parsing..."; sleep 3; done' || (docker compose logs parsing --tail=50 && exit 1)
+
+    - name: Start chunking
+      run: |
+        docker compose up -d chunking
+        timeout 120s bash -c 'until docker compose ps chunking --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for chunking..."; sleep 3; done' || (docker compose logs chunking --tail=50 && exit 1)
+
+    - name: Start embedding
+      run: |
+        docker compose up -d embedding
+        timeout 120s bash -c 'until docker compose ps embedding --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for embedding..."; sleep 3; done' || (docker compose logs embedding --tail=50 && exit 1)
+
+    - name: Start orchestrator
+      run: |
+        docker compose up -d orchestrator
+        timeout 120s bash -c 'until docker compose ps orchestrator --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for orchestrator..."; sleep 3; done' || (docker compose logs orchestrator --tail=50 && exit 1)
+
+    - name: Start summarization
+      run: |
+        docker compose up -d summarization
+        timeout 120s bash -c 'until docker compose ps summarization --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for summarization..."; sleep 3; done' || (docker compose logs summarization --tail=50 && exit 1)
+
+    - name: Start reporting
+      run: |
+        docker compose up -d reporting
+        timeout 120s bash -c 'until docker compose ps reporting --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for reporting..."; sleep 3; done' || (docker compose logs reporting --tail=50 && exit 1)
+
+    - name: Start error-reporting
+      run: |
+        docker compose up -d error-reporting
+        timeout 120s bash -c 'until docker compose ps error-reporting --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for error-reporting..."; sleep 3; done' || (docker compose logs error-reporting --tail=50 && exit 1)
 
     - name: Check service status
       run: docker compose ps
 
-    - name: Check db-init and db-validate exit codes
+    - name: Run ingestion service (batch job)
       run: |
-        set -euo pipefail
-        for svc in db-init db-validate; do
-          cid=$(docker compose ps -aq "$svc")
-          if [ -z "$cid" ]; then
-            echo "Container for $svc not found" >&2
-            exit 1
-          fi
-          code=$(docker inspect "$cid" --format '{{.State.ExitCode}}')
-          if [ "$code" != "0" ]; then
-            echo "$svc failed with exit code $code" >&2
-            docker compose logs "$svc"
-            exit 1
-          fi
-        done
-
-    - name: Run ingestion service
-      run: |
-        echo "Starting ingestion service..."
+        echo "Running ingestion service (batch job - runs once and exits)..."
         docker compose run --rm ingestion
-
-    - name: Check ingestion service exit code
-      run: |
-        echo "Verifying ingestion completed successfully..."
-        # The previous step will fail if exit code is non-zero
         echo "✓ Ingestion service completed successfully"
 
     - name: View ingestion logs
@@ -112,27 +176,53 @@ jobs:
     - name: Test reporting service health endpoint
       run: |
         echo "Testing reporting service..."
-        curl -f http://localhost:8080/ || exit 1
+        max_attempts=10
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+          if curl -f http://localhost:8080/ 2>/dev/null; then
+            echo "✓ Reporting service is healthy"
+            exit 0
+          fi
+          echo "Attempt $attempt/$max_attempts: Reporting service not responding yet..."
+          sleep 3
+          attempt=$((attempt + 1))
+        done
+        echo "❌ Reporting service failed to respond after $max_attempts attempts"
+        docker compose logs reporting --tail=50
+        exit 1
 
     - name: Test reporting API endpoint
       run: |
         echo "Testing reports API..."
-        curl -f http://localhost:8080/api/reports || exit 1
+        curl -f http://localhost:8080/api/reports || (docker compose logs reporting --tail=50 && exit 1)
 
     - name: Test error-reporting service health endpoint
       run: |
         echo "Testing error-reporting service..."
-        curl -f http://localhost:8081/ || exit 1
+        max_attempts=10
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+          if curl -f http://localhost:8081/ 2>/dev/null; then
+            echo "✓ Error-reporting service is healthy"
+            exit 0
+          fi
+          echo "Attempt $attempt/$max_attempts: Error-reporting service not responding yet..."
+          sleep 3
+          attempt=$((attempt + 1))
+        done
+        echo "❌ Error-reporting service failed to respond after $max_attempts attempts"
+        docker compose logs error-reporting --tail=50
+        exit 1
 
     - name: Test error-reporting UI endpoint
       run: |
         echo "Testing error-reporting UI..."
-        curl -f http://localhost:8081/ui || exit 1
+        curl -f http://localhost:8081/ui || (docker compose logs error-reporting --tail=50 && exit 1)
 
     - name: Test error-reporting API
       run: |
         echo "Testing error-reporting stats API..."
-        curl -f http://localhost:8081/api/stats || exit 1
+        curl -f http://localhost:8081/api/stats || (docker compose logs error-reporting --tail=50 && exit 1)
 
     - name: Test Grafana health endpoint
       run: |

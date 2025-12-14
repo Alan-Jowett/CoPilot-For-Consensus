@@ -17,15 +17,25 @@ class DocumentStoreNotConnectedError(DocumentStoreError):
     pass
 
 
+class DocumentStoreConnectionError(DocumentStoreError):
+    """Exception raised when connection to the document store fails."""
+    pass
+
+
+class DocumentNotFoundError(DocumentStoreError):
+    """Exception raised when a document is not found."""
+    pass
+
+
 class DocumentStore(ABC):
     """Abstract base class for document storage backends."""
 
     @abstractmethod
-    def connect(self) -> bool:
+    def connect(self) -> None:
         """Connect to the document store.
         
-        Returns:
-            True if connection succeeded, False otherwise
+        Raises:
+            DocumentStoreConnectionError: If connection fails
         """
         pass
 
@@ -82,7 +92,7 @@ class DocumentStore(ABC):
     @abstractmethod
     def update_document(
         self, collection: str, doc_id: str, patch: Dict[str, Any]
-    ) -> bool:
+    ) -> None:
         """Update a document with the provided patch.
         
         Args:
@@ -90,22 +100,23 @@ class DocumentStore(ABC):
             doc_id: Document ID
             patch: Update data as dictionary
             
-        Returns:
-            True if document exists and update succeeded, False if document not found
-            (Note: Returns True even if no fields were actually modified)
+        Raises:
+            DocumentNotFoundError: If document does not exist
+            DocumentStoreError: If update operation fails
         """
         pass
 
     @abstractmethod
-    def delete_document(self, collection: str, doc_id: str) -> bool:
+    def delete_document(self, collection: str, doc_id: str) -> None:
         """Delete a document by its ID.
         
         Args:
             collection: Name of the collection/table
             doc_id: Document ID
             
-        Returns:
-            True if deletion succeeded, False otherwise
+        Raises:
+            DocumentNotFoundError: If document does not exist
+            DocumentStoreError: If delete operation fails
         """
         pass
 
@@ -145,35 +156,35 @@ def create_document_store(
         if "host" in kwargs:
             mongo_kwargs["host"] = kwargs["host"]
         else:
-            mongo_kwargs["host"] = os.getenv("MONGO_HOST", "localhost")
+            mongo_kwargs["host"] = os.getenv("DOC_DB_HOST", "localhost")
         
         # Port - use provided value or environment variable
         if "port" in kwargs:
             mongo_kwargs["port"] = kwargs["port"]
         else:
-            mongo_kwargs["port"] = int(os.getenv("MONGO_PORT", "27017"))
+            mongo_kwargs["port"] = int(os.getenv("DOC_DB_PORT", "27017"))
         
         # Database - use provided value or environment variable
         if "database" in kwargs:
             mongo_kwargs["database"] = kwargs["database"]
         else:
-            mongo_kwargs["database"] = os.getenv("MONGO_DB", "copilot")
+            mongo_kwargs["database"] = os.getenv("DOC_DB_NAME", "copilot")
         
         # Username - use provided value or environment variable (only if set)
         if "username" in kwargs:
             mongo_kwargs["username"] = kwargs["username"]
         else:
-            mongo_user = os.getenv("MONGO_USER")
-            if mongo_user is not None:
-                mongo_kwargs["username"] = mongo_user
+            doc_db_user = os.getenv("DOC_DB_USER")
+            if doc_db_user is not None:
+                mongo_kwargs["username"] = doc_db_user
         
         # Password - use provided value or environment variable (only if set)
         if "password" in kwargs:
             mongo_kwargs["password"] = kwargs["password"]
         else:
-            mongo_password = os.getenv("MONGO_PASSWORD")
-            if mongo_password is not None:
-                mongo_kwargs["password"] = mongo_password
+            doc_db_password = os.getenv("DOC_DB_PASSWORD")
+            if doc_db_password is not None:
+                mongo_kwargs["password"] = doc_db_password
         
         # Pass any other kwargs that aren't MongoDB-specific
         for key, value in kwargs.items():

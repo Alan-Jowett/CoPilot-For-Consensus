@@ -173,9 +173,10 @@ class QdrantVectorStore(VectorStore):
         except ValueError:
             # Re-raise our ValueError
             raise
-        except Exception:
-            # If retrieve fails for other reasons (e.g., collection doesn't exist),
-            # we can proceed with upsert
+        except (ConnectionError, OSError, TimeoutError, AttributeError):
+            # Network/connection errors or collection doesn't exist - proceed with upsert
+            # AttributeError can occur if client is not properly initialized
+            logger.warning(f"Could not verify ID existence, proceeding with upsert: {id}")
             pass
         
         # Add the point
@@ -232,8 +233,10 @@ class QdrantVectorStore(VectorStore):
         except ValueError:
             # Re-raise our ValueError
             raise
-        except Exception:
-            # If retrieve fails for other reasons, we can proceed with upsert
+        except (ConnectionError, OSError, TimeoutError, AttributeError):
+            # Network/connection errors or collection doesn't exist - proceed with upsert
+            # AttributeError can occur if client is not properly initialized
+            logger.warning("Could not verify ID existence, proceeding with batch upsert")
             pass
         
         # Create points

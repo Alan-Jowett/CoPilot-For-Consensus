@@ -11,7 +11,7 @@ class EventPublisher(ABC):
     """Abstract base class for event publishers."""
 
     @abstractmethod
-    def publish(self, exchange: str, routing_key: str, event: Dict[str, Any]) -> bool:
+    def publish(self, exchange: str, routing_key: str, event: Dict[str, Any]) -> None:
         """Publish an event to the message bus.
         
         Args:
@@ -19,8 +19,8 @@ class EventPublisher(ABC):
             routing_key: Routing key (e.g., "archive.ingested")
             event: Event data as dictionary
             
-        Returns:
-            True if published successfully, False otherwise
+        Raises:
+            Exception: If publishing fails for any reason
         """
         pass
 

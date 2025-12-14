@@ -357,3 +357,117 @@ def test_load_checksums_recovers_on_read_error(tmp_path):
     # Service should start with empty checksums (intentional recovery)
     service = IngestionService(config=config, publisher=publisher)
     assert service.checksums == {}
+
+
+def test_publish_success_event_raises_on_publisher_failure(tmp_path):
+    """Test that _publish_success_event raises exception when publisher fails."""
+    from unittest.mock import Mock
+    from copilot_events import ArchiveMetadata
+    
+    config = make_config(storage_path=str(tmp_path))
+    publisher = Mock()
+    publisher.publish = Mock(side_effect=Exception("Publisher failure"))  # Simulate publisher failure
+    
+    service = IngestionService(config=config, publisher=publisher)
+    
+    metadata = ArchiveMetadata(
+        archive_id="archive-123",
+        source_name="test-source",
+        source_type="mbox",
+        source_url="http://example.com/list.mbox",
+        file_path="/path/to/file.mbox",
+        file_size_bytes=1024,
+        file_hash_sha256="abc123def456",
+        ingestion_started_at="2023-10-15T12:00:00Z",
+        ingestion_completed_at="2023-10-15T12:00:10Z",
+        status="success",
+    )
+    
+    # Service should propagate exception when publisher.publish raises
+    with pytest.raises(Exception, match="Publisher failure"):
+        service._publish_success_event(metadata)
+
+
+def test_publish_failure_event_raises_on_publisher_failure(tmp_path):
+    """Test that _publish_failure_event raises exception when publisher fails."""
+    from unittest.mock import Mock
+    from copilot_archive_fetcher import SourceConfig
+    
+    config = make_config(storage_path=str(tmp_path))
+    publisher = Mock()
+    publisher.publish = Mock(side_effect=Exception("Publisher failure"))  # Simulate publisher failure
+    
+    service = IngestionService(config=config, publisher=publisher)
+    
+    source = SourceConfig(
+        name="test-source",
+        source_type="mbox",
+        url="http://example.com/list.mbox",
+    )
+    
+    # Service should propagate exception when publisher.publish raises
+    with pytest.raises(Exception, match="Publisher failure"):
+        service._publish_failure_event(
+            source=source,
+            error_message="Test error",
+            error_type="TestError",
+            retry_count=3,
+            ingestion_started_at="2023-10-15T12:00:00Z",
+        )
+
+
+def test_publish_success_event_raises_on_publisher_exception(tmp_path):
+    """Test that _publish_success_event raises exception when publisher raises."""
+    from unittest.mock import Mock
+    from copilot_events import ArchiveMetadata
+    
+    config = make_config(storage_path=str(tmp_path))
+    publisher = Mock()
+    publisher.publish = Mock(side_effect=Exception("RabbitMQ connection lost"))
+    
+    service = IngestionService(config=config, publisher=publisher)
+    
+    metadata = ArchiveMetadata(
+        archive_id="archive-123",
+        source_name="test-source",
+        source_type="mbox",
+        source_url="http://example.com/list.mbox",
+        file_path="/path/to/file.mbox",
+        file_size_bytes=1024,
+        file_hash_sha256="abc123def456",
+        ingestion_started_at="2023-10-15T12:00:00Z",
+        ingestion_completed_at="2023-10-15T12:00:10Z",
+        status="success",
+    )
+    
+    # Service should raise exception from publisher
+    with pytest.raises(Exception, match="RabbitMQ connection lost"):
+        service._publish_success_event(metadata)
+
+
+def test_publish_failure_event_raises_on_publisher_exception(tmp_path):
+    """Test that _publish_failure_event raises exception when publisher raises."""
+    from unittest.mock import Mock
+    from copilot_archive_fetcher import SourceConfig
+    
+    config = make_config(storage_path=str(tmp_path))
+    publisher = Mock()
+    publisher.publish = Mock(side_effect=Exception("RabbitMQ connection lost"))
+    
+    service = IngestionService(config=config, publisher=publisher)
+    
+    source = SourceConfig(
+        name="test-source",
+        source_type="mbox",
+        url="http://example.com/list.mbox",
+    )
+    
+    # Service should raise exception from publisher
+    with pytest.raises(Exception, match="RabbitMQ connection lost"):
+        service._publish_failure_event(
+            source=source,
+            error_message="Test error",
+            error_type="TestError",
+            retry_count=3,
+            ingestion_started_at="2023-10-15T12:00:00Z",
+        )

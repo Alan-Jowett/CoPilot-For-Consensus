@@ -255,7 +255,10 @@ class SchemaConfigLoader:
                 collection_name=collection_name
             )
             return documents if documents else field_spec.default or []
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError, AttributeError, TypeError, KeyError):
+            # Network/connection errors, or document store not available
+            # AttributeError/TypeError can occur if provider is not properly initialized
+            # KeyError can occur if documents have unexpected structure
             # If query fails, return default
             return field_spec.default or []
 
@@ -390,9 +393,10 @@ def load_config(
         try:
             from copilot_storage import create_document_store
             doc_store = create_document_store()
-            if doc_store.connect():
+            try:
+                doc_store.connect()
                 doc_store_provider = DocStoreConfigProvider(doc_store)
-            else:
+            except Exception:
                 # If connection fails, log warning and fall back to no doc_store_provider
                 logger = __import__('logging').getLogger(__name__)
                 logger.warning(

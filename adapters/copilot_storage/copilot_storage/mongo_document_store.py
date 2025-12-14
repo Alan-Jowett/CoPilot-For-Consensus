@@ -6,7 +6,13 @@
 import logging
 from typing import Dict, Any, List, Optional
 
-from .document_store import DocumentStore, DocumentStoreNotConnectedError
+from .document_store import (
+    DocumentStore, 
+    DocumentStoreNotConnectedError,
+    DocumentStoreConnectionError,
+    DocumentNotFoundError,
+    DocumentStoreError
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,18 +48,18 @@ class MongoDocumentStore(DocumentStore):
         self.client = None
         self.database = None
 
-    def connect(self) -> bool:
+    def connect(self) -> None:
         """Connect to MongoDB.
         
-        Returns:
-            True if connection succeeded, False otherwise
+        Raises:
+            DocumentStoreConnectionError: If connection fails
         """
         try:
             from pymongo import MongoClient
             from pymongo.errors import ConnectionFailure
-        except ImportError:
+        except ImportError as e:
             logger.error("MongoDocumentStore: pymongo not installed")
-            return False
+            raise DocumentStoreConnectionError("pymongo not installed") from e
         
         try:
             # Build connection using separate auth parameters (more secure than URI)
@@ -83,14 +89,13 @@ class MongoDocumentStore(DocumentStore):
             self.database = self.client[self.database_name]
             
             logger.info("MongoDocumentStore: connected to %s:%s/%s", self.host, self.port, self.database_name)
-            return True
             
         except ConnectionFailure as e:
-            logger.error("MongoDocumentStore: connection failed - %s", e)
-            return False
+            logger.error("MongoDocumentStore: connection failed - %s", e, exc_info=True)
+            raise DocumentStoreConnectionError(f"Failed to connect to MongoDB at {self.host}:{self.port}") from e
         except Exception as e:
-            logger.error("MongoDocumentStore: unexpected error during connect - %s", e)
-            return False
+            logger.error("MongoDocumentStore: unexpected error during connect - %s", e, exc_info=True)
+            raise DocumentStoreConnectionError(f"Unexpected error connecting to MongoDB: {str(e)}") from e
 
     def disconnect(self) -> None:
         """Disconnect from MongoDB."""
@@ -135,20 +140,24 @@ class MongoDocumentStore(DocumentStore):
             
         Returns:
             Document data as dictionary, or None if not found
+            
+        Raises:
+            DocumentStoreNotConnectedError: If not connected to MongoDB
+            DocumentStoreError: If query operation fails
         """
         if self.database is None:
-            logger.error("MongoDocumentStore: not connected")
-            return None
+            raise DocumentStoreNotConnectedError("Not connected to MongoDB")
         
         try:
             from bson import ObjectId
+            from bson.errors import InvalidId
             
             coll = self.database[collection]
             
             # Try to convert to ObjectId if possible
             try:
                 query = {"_id": ObjectId(doc_id)}
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, InvalidId):
                 # Use as string if not a valid ObjectId
                 query = {"_id": doc_id}
             
@@ -165,8 +174,8 @@ class MongoDocumentStore(DocumentStore):
             return None
             
         except Exception as e:
-            logger.error(f"MongoDocumentStore: get_document failed - {e}")
-            return None
+            logger.error(f"MongoDocumentStore: get_document failed - {e}", exc_info=True)
+            raise DocumentStoreError(f"Failed to retrieve document {doc_id} from {collection}") from e
 
     def query_documents(
         self, collection: str, filter_dict: Dict[str, Any], limit: int = 100
@@ -179,11 +188,14 @@ class MongoDocumentStore(DocumentStore):
             limit: Maximum number of documents to return
             
         Returns:
-            List of matching documents
+            List of matching documents (empty list if no matches)
+            
+        Raises:
+            DocumentStoreNotConnectedError: If not connected to MongoDB
+            DocumentStoreError: If query operation fails
         """
         if self.database is None:
-            logger.error("MongoDocumentStore: not connected")
-            return []
+            raise DocumentStoreNotConnectedError("Not connected to MongoDB")
         
         try:
             coll = self.database[collection]
@@ -203,12 +215,12 @@ class MongoDocumentStore(DocumentStore):
             return results
             
         except Exception as e:
-            logger.error(f"MongoDocumentStore: query_documents failed - {e}")
-            return []
+            logger.error(f"MongoDocumentStore: query_documents failed - {e}", exc_info=True)
+            raise DocumentStoreError(f"Failed to query documents from {collection}") from e
 
     def update_document(
         self, collection: str, doc_id: str, patch: Dict[str, Any]
-    ) -> bool:
+    ) -> None:
         """Update a document with the provided patch.
         
         Args:
@@ -216,74 +228,78 @@ class MongoDocumentStore(DocumentStore):
             doc_id: Document ID
             patch: Update data as dictionary
             
-        Returns:
-            True if document exists and update succeeded, False if document not found
+        Raises:
+            DocumentStoreNotConnectedError: If not connected to MongoDB
+            DocumentNotFoundError: If document does not exist
+            DocumentStoreError: If update operation fails
         """
         if self.database is None:
-            logger.error("MongoDocumentStore: not connected")
-            return False
+            raise DocumentStoreNotConnectedError("Not connected to MongoDB")
         
         try:
             from bson import ObjectId
+            from bson.errors import InvalidId
             
             coll = self.database[collection]
             
             # Try to convert to ObjectId if possible
             try:
                 query = {"_id": ObjectId(doc_id)}
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, InvalidId):
                 query = {"_id": doc_id}
             
             # Use $set operator for patch updates
             result = coll.update_one(query, {"$set": patch})
             
-            success = result.modified_count > 0 or result.matched_count > 0
-            if success:
-                logger.debug(f"MongoDocumentStore: updated document {doc_id} in {collection}")
-            else:
+            if result.matched_count == 0:
                 logger.debug(f"MongoDocumentStore: document {doc_id} not found in {collection}")
+                raise DocumentNotFoundError(f"Document {doc_id} not found in collection {collection}")
             
-            return success
+            logger.debug(f"MongoDocumentStore: updated document {doc_id} in {collection}")
             
+        except (DocumentStoreNotConnectedError, DocumentNotFoundError):
+            raise
         except Exception as e:
-            logger.error(f"MongoDocumentStore: update_document failed - {e}")
-            return False
+            logger.error(f"MongoDocumentStore: update_document failed - {e}", exc_info=True)
+            raise DocumentStoreError(f"Failed to update document {doc_id} in {collection}") from e
 
-    def delete_document(self, collection: str, doc_id: str) -> bool:
+    def delete_document(self, collection: str, doc_id: str) -> None:
         """Delete a document by its ID.
         
         Args:
             collection: Name of the collection
             doc_id: Document ID
             
-        Returns:
-            True if deletion succeeded, False otherwise
+        Raises:
+            DocumentStoreNotConnectedError: If not connected to MongoDB
+            DocumentNotFoundError: If document does not exist
+            DocumentStoreError: If delete operation fails
         """
         if self.database is None:
-            logger.error("MongoDocumentStore: not connected")
-            return False
+            raise DocumentStoreNotConnectedError("Not connected to MongoDB")
         
         try:
             from bson import ObjectId
+            from bson.errors import InvalidId
             
             coll = self.database[collection]
             
             # Try to convert to ObjectId if possible
             try:
                 query = {"_id": ObjectId(doc_id)}
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, InvalidId):
                 query = {"_id": doc_id}
             
             result = coll.delete_one(query)
             
-            success = result.deleted_count > 0
-            if success:
-                logger.debug(f"MongoDocumentStore: deleted document {doc_id} from {collection}")
-            else:
+            if result.deleted_count == 0:
                 logger.debug(f"MongoDocumentStore: document {doc_id} not found in {collection}")
+                raise DocumentNotFoundError(f"Document {doc_id} not found in collection {collection}")
             
-            return success
+            logger.debug(f"MongoDocumentStore: deleted document {doc_id} from {collection}")
             
+        except (DocumentStoreNotConnectedError, DocumentNotFoundError):
+            raise
         except Exception as e:
-            logger.error(f"MongoDocumentStore: delete_document failed - {e}")
-            return False
+            logger.error(f"MongoDocumentStore: delete_document failed - {e}", exc_info=True)
+            raise DocumentStoreError(f"Failed to delete document {doc_id} from {collection}") from e

@@ -2,8 +2,9 @@
  * Copyright (c) 2025 Copilot-for-Consensus contributors
  */
 
-// Validate Mongo collections, validators, and index names from collections.config.json.
+// Validate Mongo collections and index names from collections.config.json.
 // Exits non-zero on first failure to halt startup/CI.
+// Note: Schema validation is now handled at the application layer, not at MongoDB level.
 
 const fs = require('fs');
 const path = require('path');
@@ -26,11 +27,6 @@ function validateCollections(targetDb, expectedCollections) {
   expectedCollections.forEach((coll) => {
     if (!existing.includes(coll.name)) {
       throw new Error(`Missing collection: ${coll.name}`);
-    }
-
-    const info = targetDb.getCollectionInfos({ name: coll.name })[0] || {};
-    if (!info.options || !info.options.validator) {
-      throw new Error(`Missing validator on collection: ${coll.name}`);
     }
 
     const presentIndexes = targetDb.getCollection(coll.name).getIndexes().map((i) => i.name);

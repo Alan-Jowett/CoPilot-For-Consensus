@@ -439,12 +439,9 @@ def test_handle_malformed_event_missing_data():
         "version": "1.0",
     }
     
-    # Should handle gracefully without crashing
-    try:
+    # Service should raise an exception for missing data field
+    with pytest.raises((KeyError, AttributeError, ValueError)):
         service._handle_json_parsed(event)
-    except (KeyError, AttributeError):
-        # Expected - service should validate required fields
-        pass
 
 
 def test_handle_event_with_invalid_message_ids_type():
@@ -477,12 +474,9 @@ def test_handle_event_with_invalid_message_ids_type():
         }
     }
     
-    # Should handle gracefully
-    try:
+    # Service should raise an exception for invalid type
+    with pytest.raises((TypeError, AttributeError)):
         service._handle_json_parsed(event)
-    except (TypeError, AttributeError):
-        # Expected - service should handle type errors
-        pass
 
 
 def test_publish_chunks_prepared_raises_on_publish_error(chunking_service, mock_publisher):
@@ -528,3 +522,44 @@ def test_event_handler_raises_on_errors(chunking_service):
     # Event handler should re-raise to trigger message requeue for failures
     with pytest.raises(Exception):
         chunking_service._handle_json_parsed(event)
+
+
+def test_query_documents_uses_filter_dict_parameter(chunking_service, mock_document_store):
+    """Test that query_documents is called with filter_dict parameter, not query."""
+    # Setup mock
+    mock_document_store.query_documents.return_value = []
+    
+    event_data = {
+        "archive_id": "archive-123",
+        "parsed_message_ids": ["<test@example.com>"],
+    }
+    
+    # Process messages
+    chunking_service.process_messages(event_data)
+    
+    # Verify query_documents was called with filter_dict parameter
+    mock_document_store.query_documents.assert_called_once()
+    call_args = mock_document_store.query_documents.call_args
+    
+    # Check that filter_dict is in kwargs (positional args would be in [0])
+    assert "filter_dict" in call_args[1], "query_documents must use 'filter_dict' parameter"
+    assert "query" not in call_args[1], "query_documents should not use deprecated 'query' parameter"
+
+
+def test_publisher_uses_event_parameter(chunking_service, mock_publisher):
+    """Test that publisher.publish is called with event parameter, not message."""
+    # Trigger a chunks prepared event
+    chunking_service._publish_chunks_prepared(
+        message_ids=["<test@example.com>"],
+        chunk_ids=["chunk-1"],
+        chunk_count=1,
+        avg_chunk_size=100.0
+    )
+    
+    # Verify publish was called with event parameter
+    mock_publisher.publish.assert_called_once()
+    call_args = mock_publisher.publish.call_args
+    
+    # Check that event is in kwargs
+    assert "event" in call_args[1], "publisher.publish must use 'event' parameter"
+    assert "message" not in call_args[1], "publisher.publish should not use deprecated 'message' parameter"

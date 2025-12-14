@@ -118,6 +118,92 @@ def test_service_initialization(reporting_service):
     assert reporting_service.notify_enabled is False
 
 
+def test_publish_report_published_with_publisher_failure(mock_document_store, mock_subscriber):
+    class FailingPublisher(Mock):
+        def publish(self, exchange, routing_key, event):
+            raise Exception("Publish failed")
+
+    publisher = FailingPublisher()
+    service = ReportingService(
+        document_store=mock_document_store,
+        publisher=publisher,
+        subscriber=mock_subscriber,
+    )
+
+    with pytest.raises(Exception) as exc_info:
+        service._publish_report_published(
+            report_id="rep-1",
+            thread_id="thread-1",
+            notified=False,
+            delivery_channels=[],
+        )
+
+    assert "Publish failed" in str(exc_info.value)
+
+
+def test_publish_delivery_failed_with_publisher_failure(mock_document_store, mock_subscriber):
+    class FailingPublisher(Mock):
+        def publish(self, exchange, routing_key, event):
+            raise Exception("Publish failed")
+
+    publisher = FailingPublisher()
+    service = ReportingService(
+        document_store=mock_document_store,
+        publisher=publisher,
+        subscriber=mock_subscriber,
+    )
+
+    with pytest.raises(Exception) as exc_info:
+        service._publish_delivery_failed(
+            report_id="rep-1",
+            thread_id="thread-1",
+            channel="webhook",
+            error_message="boom",
+            error_type="ValueError",
+        )
+
+    assert "Publish failed" in str(exc_info.value)
+
+
+def test_process_summary_raises_when_publish_delivery_failed_fails(
+    mock_document_store,
+    mock_subscriber,
+    mock_metrics,
+    mock_error_reporter,
+):
+    class SelectiveFailPublisher(Mock):
+        def publish(self, exchange, routing_key, event):
+            if routing_key == "report.delivery.failed":
+                raise Exception("Publish failed")
+            return True
+
+    publisher = SelectiveFailPublisher()
+    service = ReportingService(
+        document_store=mock_document_store,
+        publisher=publisher,
+        subscriber=mock_subscriber,
+        metrics_collector=mock_metrics,
+        error_reporter=mock_error_reporter,
+        webhook_url="http://example.com",
+        notify_enabled=True,
+    )
+
+    event_data = {
+        "thread_id": "thread-1",
+        "summary_markdown": "# Summary",
+        "citations": [],
+        "llm_backend": "test",
+        "llm_model": "test-model",
+        "tokens_prompt": 10,
+        "tokens_completion": 5,
+        "latency_ms": 1,
+    }
+
+    with patch.object(service, "_send_webhook_notification", side_effect=Exception("webhook fail")):
+        with pytest.raises(Exception):
+            service.process_summary(event_data, {"timestamp": "2025-01-01T00:00:00Z"})
+
+
 def test_service_start_subscribes_to_events(reporting_service, mock_subscriber):
     """Test that service subscribes to summary.complete events on start."""
     reporting_service.start()
@@ -176,13 +262,13 @@ def test_process_summary_publishes_report_published_event(
     assert call_args[1]["exchange"] == "copilot.events"
     assert call_args[1]["routing_key"] == "report.published"
     
-    message = call_args[1]["message"]
-    assert message["event_type"] == "ReportPublished"
-    assert message["data"]["report_id"] == report_id
-    assert message["data"]["thread_id"] == "<thread_123@example.com>"
-    assert message["data"]["format"] == "markdown"
-    assert message["data"]["notified"] is False
-    assert message["data"]["delivery_channels"] == []
+    event = call_args[1]["event"]
+    assert event["event_type"] == "ReportPublished"
+    assert event["data"]["report_id"] == report_id
+    assert event["data"]["thread_id"] == "<thread_123@example.com>"
+    assert event["data"]["format"] == "markdown"
+    assert event["data"]["notified"] is False
+    assert event["data"]["delivery_channels"] == []
 
 
 def test_process_summary_with_webhook_enabled(
@@ -219,9 +305,9 @@ def test_process_summary_with_webhook_enabled(
         
         # Verify ReportPublished event shows notified=True
         publish_call = mock_publisher.publish.call_args
-        message = publish_call[1]["message"]
-        assert message["data"]["notified"] is True
-        assert "webhook" in message["data"]["delivery_channels"]
+        event = publish_call[1]["event"]
+        assert event["data"]["notified"] is True
+        assert "webhook" in event["data"]["delivery_channels"]
 
 
 def test_process_summary_webhook_failure_publishes_delivery_failed(
@@ -259,11 +345,11 @@ def test_process_summary_webhook_failure_publishes_delivery_failed(
                 break
         
         assert delivery_failed_call is not None
-        message = delivery_failed_call[1]["message"]
-        assert message["event_type"] == "ReportDeliveryFailed"
-        assert message["data"]["report_id"] == report_id
-        assert message["data"]["delivery_channel"] == "webhook"
-        assert "Connection timeout" in message["data"]["error_message"]
+        event = delivery_failed_call[1]["event"]
+        assert event["event_type"] == "ReportDeliveryFailed"
+        assert event["data"]["report_id"] == report_id
+        assert event["data"]["delivery_channel"] == "webhook"
+        assert "Connection timeout" in event["data"]["error_message"]
 
 
 def test_get_reports_queries_document_store(reporting_service, mock_document_store):
@@ -404,3 +490,57 @@ def test_handle_summary_complete_error_handling(
     
     # Should report error
     mock_error_reporter.report.assert_called_once()
+
+
+def test_publisher_uses_event_parameter_for_published(reporting_service, mock_publisher, sample_summary_complete_event):
+    """Test that publisher.publish is called with event parameter, not message."""
+    # Process a summary to trigger ReportPublished event
+    reporting_service.process_summary(
+        sample_summary_complete_event["data"],
+        sample_summary_complete_event
+    )
+    
+    # Verify publish was called with event parameter
+    assert mock_publisher.publish.call_count == 1
+    call_args = mock_publisher.publish.call_args
+    
+    # Check that event is in kwargs
+    assert "event" in call_args[1], "publisher.publish must use 'event' parameter"
+    assert "message" not in call_args[1], "publisher.publish should not use deprecated 'message' parameter"
+
+
+def test_publisher_uses_event_parameter_for_delivery_failed(reporting_service, mock_publisher):
+    """Test that _publish_delivery_failed uses event parameter, not message."""
+    # Trigger a delivery failed event
+    reporting_service._publish_delivery_failed(
+        report_id="report-123",
+        thread_id="<thread@example.com>",
+        channel="webhook",
+        error_message="Connection timeout",
+        error_type="TimeoutError"
+    )
+    
+    # Verify publish was called with event parameter
+    mock_publisher.publish.assert_called_once()
+    call_args = mock_publisher.publish.call_args
+    
+    # Check that event is in kwargs
+    assert "event" in call_args[1], "publisher.publish must use 'event' parameter"
+    assert "message" not in call_args[1], "publisher.publish should not use deprecated 'message' parameter"
+
+
+def test_query_documents_uses_filter_dict_parameter(reporting_service, mock_document_store):
+    """Test that query_documents is called with filter_dict parameter, not query."""
+    # Setup mock
+    mock_document_store.query_documents.return_value = []
+    
+    # Call get_reports which uses query_documents
+    reporting_service.get_reports(thread_id="<thread@example.com>")
+    
+    # Verify query_documents was called with filter_dict parameter
+    mock_document_store.query_documents.assert_called_once()
+    call_args = mock_document_store.query_documents.call_args
+    
+    # Check that filter_dict is in kwargs
+    assert "filter_dict" in call_args[1], "query_documents must use 'filter_dict' parameter"
+    assert "query" not in call_args[1], "query_documents should not use deprecated 'query' parameter"

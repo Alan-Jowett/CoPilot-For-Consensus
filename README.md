@@ -203,6 +203,39 @@ Query centralized logs in Grafana:
 3. Select "Loki" datasource
 4. Query: `{service="parsing"}` to see parsing service logs
 
+***
+
+## Database Smoke Testing
+
+A simple smoke test script is available to verify MongoDB connectivity and schema acceptance:
+
+```bash
+# Run from within a MongoDB container (after stack is up)
+docker compose exec documentdb mongosh \
+  "mongodb://${DOC_DB_ADMIN_USERNAME:-admin}:${DOC_DB_ADMIN_PASSWORD:-PLEASE_CHANGE_ME}@localhost:27017/admin" \
+  /test/test_insert.js
+
+# Or from the host (if mongosh is installed locally)
+mongosh "mongodb://${DOC_DB_ADMIN_USERNAME:-admin}:${DOC_DB_ADMIN_PASSWORD:-PLEASE_CHANGE_ME}@localhost:27017/admin" \
+  ./infra/test/test_insert.js
+```
+
+This script:
+- Inserts a minimal `messages` document with required fields
+- Verifies the insert was acknowledged by MongoDB
+- Prints success confirmation with the inserted message_id
+- Helps isolate connection vs. schema issues during troubleshooting
+
+**Note:** The test inserts a document with `message_id: "smoke-test-message-001"`. You may want to clean it up after testing:
+```bash
+docker compose exec documentdb mongosh \
+  -u ${DOC_DB_ADMIN_USERNAME:-admin} \
+  -p ${DOC_DB_ADMIN_PASSWORD:-PLEASE_CHANGE_ME} \
+  --authenticationDatabase admin \
+  copilot \
+  --eval 'db.messages.deleteOne({message_id: "smoke-test-message-001"})'
+```
+
 ***  
 
 ## License Header Check

@@ -9,7 +9,10 @@ import uuid
 from typing import Dict, Any, List, Optional
 from collections import defaultdict
 
-from .document_store import DocumentStore
+from .document_store import (
+    DocumentStore,
+    DocumentNotFoundError
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,15 +25,13 @@ class InMemoryDocumentStore(DocumentStore):
         self.collections: Dict[str, Dict[str, Dict[str, Any]]] = defaultdict(dict)
         self.connected = False
 
-    def connect(self) -> bool:
+    def connect(self) -> None:
         """Pretend to connect.
         
-        Returns:
-            Always returns True
+        Note: Always succeeds for in-memory store
         """
         self.connected = True
         logger.debug("InMemoryDocumentStore: connected")
-        return True
 
     def disconnect(self) -> None:
         """Pretend to disconnect."""
@@ -113,7 +114,7 @@ class InMemoryDocumentStore(DocumentStore):
 
     def update_document(
         self, collection: str, doc_id: str, patch: Dict[str, Any]
-    ) -> bool:
+    ) -> None:
         """Update a document with the provided patch.
         
         Args:
@@ -121,37 +122,35 @@ class InMemoryDocumentStore(DocumentStore):
             doc_id: Document ID
             patch: Update data as dictionary
             
-        Returns:
-            True if document exists and update succeeded, False if document not found
+        Raises:
+            DocumentNotFoundError: If document does not exist
         """
         if doc_id not in self.collections[collection]:
             logger.debug(
                 f"InMemoryDocumentStore: document {doc_id} not found in {collection}"
             )
-            return False
+            raise DocumentNotFoundError(f"Document {doc_id} not found in collection {collection}")
         
         # Apply patch to document
         self.collections[collection][doc_id].update(patch)
         logger.debug(f"InMemoryDocumentStore: updated document {doc_id} in {collection}")
-        return True
 
-    def delete_document(self, collection: str, doc_id: str) -> bool:
+    def delete_document(self, collection: str, doc_id: str) -> None:
         """Delete a document by its ID.
         
         Args:
             collection: Name of the collection
             doc_id: Document ID
             
-        Returns:
-            True if deletion succeeded, False otherwise
+        Raises:
+            DocumentNotFoundError: If document does not exist
         """
         if doc_id in self.collections[collection]:
             del self.collections[collection][doc_id]
             logger.debug(f"InMemoryDocumentStore: deleted document {doc_id} from {collection}")
-            return True
-        
-        logger.debug(f"InMemoryDocumentStore: document {doc_id} not found in {collection}")
-        return False
+        else:
+            logger.debug(f"InMemoryDocumentStore: document {doc_id} not found in {collection}")
+            raise DocumentNotFoundError(f"Document {doc_id} not found in collection {collection}")
 
     def clear_collection(self, collection: str) -> None:
         """Clear all documents in a collection (useful for testing).

@@ -14,7 +14,7 @@ def mock_document_store():
     """Create a mock document store."""
     store = Mock()
     store.query_documents = Mock(return_value=[])
-    store.update_document = Mock(return_value=True)
+    store.update_document = Mock()  # No return value - raises exception on error
     return store
 
 
@@ -39,7 +39,7 @@ def mock_embedding_provider():
 def mock_publisher():
     """Create a mock event publisher."""
     publisher = Mock()
-    publisher.publish = Mock()
+    publisher.publish = Mock(return_value=True)
     return publisher
 
 
@@ -301,7 +301,7 @@ def test_process_chunks_retry_on_failure(embedding_service, mock_document_store,
 
 
 def test_process_chunks_max_retries_exceeded(embedding_service, mock_document_store, mock_vector_store, mock_publisher):
-    """Test that failure event is published after max retries."""
+    """Test that failure event is published and exception raised after max retries."""
     chunk_ids = ["chunk-1"]
     chunks = [
         {
@@ -333,12 +333,14 @@ def test_process_chunks_max_retries_exceeded(embedding_service, mock_document_st
     embedding_service.max_retries = 2
     embedding_service.retry_backoff_seconds = 0.1
     
-    embedding_service.process_chunks(event_data)
+    # Should raise exception after max retries to trigger message requeue
+    with pytest.raises(Exception, match="Persistent error"):
+        embedding_service.process_chunks(event_data)
     
     # Verify vector store was called max_retries times
     assert mock_vector_store.add_embeddings.call_count == 2
     
-    # Verify failure event was published
+    # Verify failure event was published before re-raising
     mock_publisher.publish.assert_called()
     publish_call = mock_publisher.publish.call_args
     assert publish_call[1]["routing_key"] == "embedding.generation.failed"
@@ -406,3 +408,132 @@ def test_batch_processing(embedding_service, mock_document_store, mock_vector_st
     # Verify vector store was called multiple times (once per batch)
     # 100 chunks / 32 batch_size = 4 batches (32, 32, 32, 4)
     assert mock_vector_store.add_embeddings.call_count == 4
+
+
+def test_handle_chunks_prepared_raises_on_missing_chunk_ids(embedding_service):
+    """Test that event handler raises exception when chunk_ids field is missing."""
+    event = {
+        "event_type": "ChunksPrepared",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+        "data": {
+            "chunk_count": 3,
+            # Missing chunk_ids field - should trigger re-raise
+        }
+    }
+    
+    # Service should raise an exception for missing chunk_ids field
+    with pytest.raises(ValueError):
+        embedding_service._handle_chunks_prepared(event)
+
+
+def test_handle_chunks_prepared_raises_on_invalid_chunk_ids_type(embedding_service):
+    """Test that event handler raises exception when chunk_ids is not a list."""
+    event = {
+        "event_type": "ChunksPrepared",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+        "data": {
+            "chunk_ids": "not-an-array",  # Should be list, not string
+            "chunk_count": 1,
+        }
+    }
+    
+    # Service should raise an exception for invalid type
+    with pytest.raises(TypeError):
+        embedding_service._handle_chunks_prepared(event)
+
+
+def test_event_handler_raises_on_missing_data_field(embedding_service):
+    """Test that event handler raises when data field is missing."""
+    event = {
+        "event_type": "ChunksPrepared",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+        # Missing data field
+    }
+    
+    # Event handler should re-raise to trigger message requeue
+    with pytest.raises(Exception):
+        embedding_service._handle_chunks_prepared(event)
+
+
+def test_event_handler_raises_on_process_chunks_error(embedding_service, mock_document_store, mock_publisher):
+    """Test that event handler re-raises exceptions from process_chunks."""
+    # Mock document store to raise an error
+    mock_document_store.query_documents.side_effect = Exception("Database connection lost")
+    
+    event = {
+        "event_type": "ChunksPrepared",
+        "event_id": "test-123",
+        "timestamp": "2023-10-15T12:00:00Z",
+        "version": "1.0",
+        "data": {
+            "chunk_ids": ["chunk-1"],
+            "chunk_count": 1,
+        }
+    }
+    
+    # Set lower retry count for faster test
+    embedding_service.max_retries = 1
+    embedding_service.retry_backoff_seconds = 0.01
+    
+    # Event handler should re-raise the exception after max retries
+    with pytest.raises(Exception, match="Database connection lost"):
+        embedding_service._handle_chunks_prepared(event)
+
+
+def test_publish_embeddings_generated_raises_on_publish_error(embedding_service, mock_publisher):
+    """Test that _publish_embeddings_generated raises exception on publish errors."""
+    # Setup mock to raise an exception
+    mock_publisher.publish = Mock(side_effect=Exception("RabbitMQ connection lost"))
+    
+    # Verify exception is raised, not swallowed
+    with pytest.raises(Exception, match="RabbitMQ connection lost"):
+        embedding_service._publish_embeddings_generated(
+            chunk_ids=["chunk-1"],
+            embedding_count=1,
+            avg_generation_time_ms=100.0
+        )
+
+
+def test_publish_embedding_failed_raises_on_publish_error(embedding_service, mock_publisher):
+    """Test that _publish_embedding_failed raises exception on publish errors."""
+    # Setup mock to raise an exception
+    mock_publisher.publish = Mock(side_effect=Exception("RabbitMQ connection lost"))
+    
+    # Verify exception is raised, not swallowed
+    with pytest.raises(Exception, match="RabbitMQ connection lost"):
+        embedding_service._publish_embedding_failed(
+            chunk_ids=["chunk-1"],
+            error_message="Test error",
+            error_type="TestError",
+            retry_count=0
+        )
+
+
+def test_publish_embeddings_generated_false_return(embedding_service, mock_publisher):
+    """Publisher raising exception should propagate for EmbeddingsGenerated."""
+    mock_publisher.publish.side_effect = Exception("Publish failed")
+
+    with pytest.raises(Exception):
+        embedding_service._publish_embeddings_generated([
+            "chunk-1"
+        ], 1, 10.0)
+
+    mock_publisher.publish.assert_called_once()
+
+
+def test_publish_embedding_failed_false_return(embedding_service, mock_publisher):
+    """Publisher raising exception should propagate for EmbeddingGenerationFailed."""
+    mock_publisher.publish.side_effect = Exception("Publish failed")
+
+    with pytest.raises(Exception):
+        embedding_service._publish_embedding_failed([
+            "chunk-1"
+        ], "boom", "TestError", 0)
+
+    mock_publisher.publish.assert_called_once()

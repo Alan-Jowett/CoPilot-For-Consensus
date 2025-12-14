@@ -11,6 +11,7 @@ from copilot_storage import (
     create_document_store,
     MongoDocumentStore,
     DocumentStoreNotConnectedError,
+    DocumentNotFoundError,
 )
 
 
@@ -34,12 +35,14 @@ def mongodb_store():
     # Attempt to connect with retries
     max_retries = 5
     for i in range(max_retries):
-        if store.connect():
+        try:
+            store.connect()
             break
-        if i < max_retries - 1:
-            time.sleep(2)
-    else:
-        pytest.skip("Could not connect to MongoDB - skipping integration tests")
+        except Exception:
+            if i < max_retries - 1:
+                time.sleep(2)
+            else:
+                pytest.skip("Could not connect to MongoDB - skipping integration tests")
     
     yield store
     
@@ -148,10 +151,9 @@ class TestMongoDBIntegration:
         )
         
         # Update the document
-        success = mongodb_store.update_document(
+        mongodb_store.update_document(
             clean_collection, doc_id, {"age": 26, "city": "LA"}
         )
-        assert success is True
         
         # Verify the update
         updated = mongodb_store.get_document(clean_collection, doc_id)
@@ -161,10 +163,11 @@ class TestMongoDBIntegration:
 
     def test_update_nonexistent_document(self, mongodb_store, clean_collection):
         """Test updating a document that doesn't exist."""
-        success = mongodb_store.update_document(
-            clean_collection, "nonexistent_id", {"age": 50}
-        )
-        assert success is False
+        
+        with pytest.raises(DocumentNotFoundError):
+            mongodb_store.update_document(
+                clean_collection, "nonexistent_id", {"age": 50}
+            )
 
     def test_delete_document(self, mongodb_store, clean_collection):
         """Test deleting a document."""
@@ -178,8 +181,7 @@ class TestMongoDBIntegration:
         assert doc is not None
         
         # Delete the document
-        success = mongodb_store.delete_document(clean_collection, doc_id)
-        assert success is True
+        mongodb_store.delete_document(clean_collection, doc_id)
         
         # Verify it's gone
         doc = mongodb_store.get_document(clean_collection, doc_id)
@@ -187,8 +189,9 @@ class TestMongoDBIntegration:
 
     def test_delete_nonexistent_document(self, mongodb_store, clean_collection):
         """Test deleting a document that doesn't exist."""
-        success = mongodb_store.delete_document(clean_collection, "nonexistent_id")
-        assert success is False
+        
+        with pytest.raises(DocumentNotFoundError):
+            mongodb_store.delete_document(clean_collection, "nonexistent_id")
 
     def test_complex_document(self, mongodb_store, clean_collection):
         """Test storing and retrieving a complex document with nested structures."""
@@ -310,3 +313,56 @@ class TestMongoDBEdgeCases:
         retrieved = mongodb_store.get_document(clean_collection, doc_id)
         assert retrieved is not None
         assert "_id" in retrieved
+
+
+@pytest.mark.integration
+class TestValidationAtAdapterLayer:
+    """Test that validation is handled at the adapter layer, not MongoDB."""
+    
+    def test_mongodb_has_no_collection_validators(self, mongodb_store, clean_collection):
+        """Verify that MongoDB collections do not have validators.
+        
+        This test ensures that schema validation is handled at the application
+        layer (via ValidatingDocumentStore) and not at the MongoDB level.
+        Any document should be accepted by the raw MongoDB store, regardless
+        of schema compliance.
+        """
+        # Insert a test document to ensure collection exists
+        mongodb_store.insert_document(clean_collection, {"test": "data"})
+        
+        # Get the collection info
+        collection_infos = list(mongodb_store.database.list_collections(
+            filter={"name": clean_collection}
+        ))
+        
+        # If collection exists, check it has no validator
+        if collection_infos:
+            collection_info = collection_infos[0]
+            # Verify no validator is present
+            assert "options" not in collection_info or "validator" not in collection_info.get("options", {}), \
+                "MongoDB collection should NOT have a validator - validation should be at adapter layer"
+        
+    def test_invalid_document_accepted_by_raw_store(self, mongodb_store, clean_collection):
+        """Verify that invalid documents are accepted by the raw MongoDB store.
+        
+        This proves that validation is NOT happening at the MongoDB level.
+        The raw store should accept any document structure.
+        """
+        # Insert a document that would fail most schemas
+        # (missing fields, wrong types, etc.)
+        invalid_doc = {
+            "completely": "invalid",
+            "random": 12345,
+            "nested": {"structure": True},
+            "array": [1, "two", 3.0, None],
+        }
+        
+        # This should succeed because there's no MongoDB-level validation
+        doc_id = mongodb_store.insert_document(clean_collection, invalid_doc)
+        assert doc_id is not None
+        
+        # Verify we can retrieve it
+        retrieved = mongodb_store.get_document(clean_collection, doc_id)
+        assert retrieved is not None
+        assert retrieved["completely"] == "invalid"
+        assert retrieved["random"] == 12345

@@ -129,11 +129,28 @@ class EmbeddingService:
         
         Args:
             event_data: Data from ChunksPrepared event
+            
+        Raises:
+            ValueError: If required fields are missing
+            TypeError: If fields have invalid types
         """
-        chunk_ids = event_data.get("chunk_ids", [])
+        # Validate chunk_ids field exists
+        if "chunk_ids" not in event_data:
+            error_msg = "chunk_ids field missing from event data"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
         
+        chunk_ids = event_data["chunk_ids"]
+        
+        # Validate chunk_ids is a list
+        if not isinstance(chunk_ids, list):
+            error_msg = f"chunk_ids must be a list, got {type(chunk_ids).__name__}"
+            logger.error(error_msg)
+            raise TypeError(error_msg)
+        
+        # Empty list is valid - nothing to process
         if not chunk_ids:
-            logger.warning("No chunk IDs in ChunksPrepared event")
+            logger.info("Empty chunk list in ChunksPrepared event, nothing to process")
             return
         
         start_time = time.time()
@@ -217,7 +234,7 @@ class EmbeddingService:
                 logger.error(f"Embedding generation failed (attempt {retry_count}/{self.max_retries}): {error_msg}", exc_info=True)
                 
                 if retry_count >= self.max_retries:
-                    # Max retries exceeded, publish failure event
+                    # Max retries exceeded, publish failure event and re-raise
                     self._publish_embedding_failed(
                         chunk_ids,
                         error_msg,
@@ -231,7 +248,8 @@ class EmbeddingService:
                     if self.metrics_collector:
                         self.metrics_collector.increment("embedding_failures_total", 1, labels={"error_type": error_type})
                     
-                    return
+                    # Re-raise to trigger message requeue for guaranteed forward progress
+                    raise
                 else:
                     # Wait before retry with exponential backoff (capped at 60 seconds)
                     backoff_time = self.retry_backoff_seconds * (2 ** (retry_count - 1))
@@ -333,6 +351,9 @@ class EmbeddingService:
             chunk_ids: List of chunk IDs that were embedded
             embedding_count: Number of embeddings generated
             avg_generation_time_ms: Average generation time per embedding
+            
+        Raises:
+            Exception: If publishing fails
         """
         event = EmbeddingsGeneratedEvent(
             data={
@@ -352,7 +373,7 @@ class EmbeddingService:
             routing_key="embeddings.generated",
             event=event.to_dict(),
         )
-        
+
         logger.info(f"Published EmbeddingsGenerated event for {len(chunk_ids)} chunks")
 
     def _publish_embedding_failed(
@@ -369,6 +390,9 @@ class EmbeddingService:
             error_message: Error description
             error_type: Error classification
             retry_count: Number of retry attempts made
+            
+        Raises:
+            Exception: If publishing fails
         """
         event = EmbeddingGenerationFailedEvent(
             data={
@@ -386,7 +410,7 @@ class EmbeddingService:
             routing_key="embedding.generation.failed",
             event=event.to_dict(),
         )
-        
+
         logger.error(f"Published EmbeddingGenerationFailed event for {len(chunk_ids)} chunks")
 
     def get_stats(self) -> Dict[str, Any]:
