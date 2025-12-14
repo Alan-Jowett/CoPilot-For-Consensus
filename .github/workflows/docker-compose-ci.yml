@@ -81,13 +81,23 @@ jobs:
           has_healthcheck=$(docker compose ps "$service" --format "{{.Status}}" 2>/dev/null | grep -o "(health:" || echo "")
           
           if [ -z "$has_healthcheck" ]; then
-            # Service has no healthcheck, just check if it's running
+            # Service has no healthcheck - it might be a one-shot validator
+            # Wait a moment for it to start/complete
+            sleep 5
+            
+            # Check exit code from container
+            exit_code=$(docker compose ps "$service" --format "{{.ExitCode}}" 2>/dev/null || echo "")
             status=$(docker compose ps "$service" --format "{{.Status}}" 2>/dev/null || echo "")
-            if echo "$status" | grep -q "Up"; then
+            
+            if [ "$exit_code" = "0" ]; then
+              echo "✓ Service $service completed successfully (exit code 0)"
+              docker compose logs "$service" --tail=20
+              return 0
+            elif echo "$status" | grep -q "Up"; then
               echo "✓ Service $service is running (no healthcheck)"
               return 0
             else
-              echo "❌ Service $service failed to start: $status"
+              echo "❌ Service $service failed (exit code: $exit_code, status: $status)"
               docker compose logs "$service" --tail=100
               exit 1
             fi
