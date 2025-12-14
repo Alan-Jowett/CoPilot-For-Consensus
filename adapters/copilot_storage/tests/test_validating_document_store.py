@@ -8,6 +8,19 @@ import pytest
 from copilot_storage import InMemoryDocumentStore
 from copilot_storage.validating_document_store import ValidatingDocumentStore, DocumentValidationError
 
+# Check if copilot_schema_validation is available
+try:
+    import copilot_schema_validation
+    HAS_SCHEMA_VALIDATION = True
+except ImportError:
+    HAS_SCHEMA_VALIDATION = False
+
+# Skip marker for tests that require schema validation
+requires_schema_validation = pytest.mark.skipif(
+    not HAS_SCHEMA_VALIDATION,
+    reason="copilot_schema_validation not installed (install with: pip install copilot-storage[validation])"
+)
+
 
 class MockSchemaProvider:
     """Mock schema provider for testing."""
@@ -51,6 +64,7 @@ class TestValidatingDocumentStore:
         assert store._collection_to_schema_name("thread_summaries") == "ThreadSummaries"
         assert store._collection_to_schema_name("simple") == "Simple"
     
+    @requires_schema_validation
     def test_insert_valid_document_strict_mode(self):
         """Test inserting a valid document in strict mode."""
         base = InMemoryDocumentStore()
@@ -74,6 +88,7 @@ class TestValidatingDocumentStore:
         assert doc_id is not None
         assert len(doc_id) > 0
     
+    @requires_schema_validation
     def test_insert_invalid_document_strict_mode(self):
         """Test inserting an invalid document in strict mode raises DocumentValidationError."""
         base = InMemoryDocumentStore()
@@ -184,6 +199,7 @@ class TestValidatingDocumentStore:
         assert retrieved is not None
         assert retrieved["data"] == "test"
     
+    @requires_schema_validation
     def test_get_document_with_validation_valid(self):
         """Test getting a valid document with read validation."""
         base = InMemoryDocumentStore()
@@ -244,6 +260,7 @@ class TestValidatingDocumentStore:
         retrieved = store.get_document("test_collection", "nonexistent")
         assert retrieved is None
     
+    @requires_schema_validation
     def test_update_valid_document_strict_mode(self):
         """Test updating with a valid patch in strict mode."""
         base = InMemoryDocumentStore()
@@ -269,6 +286,7 @@ class TestValidatingDocumentStore:
         updated = store.get_document("test_collection", doc_id)
         assert updated["status"] == "updated"
     
+    @requires_schema_validation
     def test_update_invalid_document_strict_mode(self):
         """Test updating with an invalid patch in strict mode fails."""
         base = InMemoryDocumentStore()
