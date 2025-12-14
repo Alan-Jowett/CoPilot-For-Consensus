@@ -513,7 +513,7 @@
       },
       "targets": [
         {
-          "expr": "rabbitmq_queue_messages{queue=~\"json\\.parsed|chunks\\.prepared|embeddings\\.generated|summarization\\.requested|summary\\.complete|report\\.published|archive\\.ingested\"}",
+          "expr": "rabbitmq_queue_messages{queue=~\"json.parsed|chunks.prepared|embeddings.generated|summarization.requested|summary.complete|report.published|archive.ingested\"}",
           "refId": "A",
           "legendFormat": "{{ queue }}"
         }
