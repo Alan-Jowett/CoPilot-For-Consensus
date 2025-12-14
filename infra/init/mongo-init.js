@@ -53,7 +53,12 @@ const database = db.getSiblingDB(dbName);
 
 function loadSchema(filePath) {
   const schema = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  return stripUnsupportedKeywords(schema);
+  const cleaned = stripUnsupportedKeywords(schema);
+  // Remove additionalProperties from root to allow MongoDB's _id field
+  if (cleaned.additionalProperties === false) {
+    delete cleaned.additionalProperties;
+  }
+  return cleaned;
 }
 
 function loadCollectionsConfig() {
