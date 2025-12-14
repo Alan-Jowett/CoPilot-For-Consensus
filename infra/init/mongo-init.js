@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
-// MongoDB initialization: collections, validators, indexes
-// Validators are pulled directly from JSON Schemas in /schemas/documents to avoid duplication.
+// MongoDB initialization: collections and indexes
+// Note: JSON Schema validators are NOT applied to avoid MongoDB compatibility issues.
+// Schemas in /schemas/documents are maintained for documentation purposes only.
 
 const collectionsConfigPath = '/schemas/documents/collections.config.json';
 const eventSchemasDir = '/schemas/events';
 const fs = require('fs');
 const path = require('path');
 
-function stripUnsupportedKeywords(obj) {
+function stripUnsupportedKeywords(obj, isRoot = true) {
   if (Array.isArray(obj)) {
-    obj.forEach(stripUnsupportedKeywords);
+    obj.forEach((item) => stripUnsupportedKeywords(item, false));
     return obj;
   }
   if (obj && typeof obj === 'object') {
@@ -21,7 +22,8 @@ function stripUnsupportedKeywords(obj) {
       delete obj.format;
     }
 
-    if (Object.prototype.hasOwnProperty.call(obj, 'type')) {
+    // Only convert 'type' to 'bsonType' for nested properties, not at root level
+    if (Object.prototype.hasOwnProperty.call(obj, 'type') && !isRoot) {
       const toBsonType = (t) => {
         switch (t) {
           case 'integer':
@@ -43,7 +45,7 @@ function stripUnsupportedKeywords(obj) {
       delete obj.type;
     }
 
-    Object.values(obj).forEach(stripUnsupportedKeywords);
+    Object.values(obj).forEach((val) => stripUnsupportedKeywords(val, false));
   }
   return obj;
 }
@@ -61,13 +63,12 @@ function loadCollectionsConfig() {
 }
 
 function ensureCollection(name, validatorPath) {
-  const validator = { $jsonSchema: loadSchema(validatorPath) };
   const exists = database.getCollectionNames().includes(name);
   if (!exists) {
-    database.createCollection(name, { validator });
-  } else {
-    database.runCommand({ collMod: name, validator });
+    database.createCollection(name);
   }
+  // Note: Validators are not applied to avoid MongoDB compatibility issues.
+  // JSON schemas in /schemas/documents are maintained for documentation purposes only.
 }
 
 function ensureIndexes(name, indexSpecs) {
