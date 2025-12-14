@@ -21,8 +21,18 @@
       "minItems": 0
     },
     "message_count": { "type": "integer", "minimum": 0 },
-    "first_message_date": { "type": "string", "format": "date-time" },
-    "last_message_date": { "type": "string", "format": "date-time" },
+    "first_message_date": { 
+      "anyOf": [
+        { "type": "string", "format": "date-time" },
+        { "type": "null" }
+      ]
+    },
+    "last_message_date": { 
+      "anyOf": [
+        { "type": "string", "format": "date-time" },
+        { "type": "null" }
+      ]
+    },
     "draft_mentions": {
       "type": "array",
       "items": { "type": "string", "minLength": 1 },
@@ -30,10 +40,19 @@
       "uniqueItems": true
     },
     "has_consensus": { "type": "boolean" },
-    "consensus_type": { "type": "string", "enum": ["agreement", "dissent", "mixed"] },
-    "summary_id": { "type": "string", "format": "uuid" },
+    "consensus_type": { 
+      "anyOf": [
+        { "type": "string", "enum": ["agreement", "dissent", "mixed"] },
+        { "type": "null" }
+      ]
+    },
+    "summary_id": { 
+      "anyOf": [
+        { "type": "string", "format": "uuid" },
+        { "type": "null" }
+      ]
+    },
     "created_at": { "type": "string", "format": "date-time" }
   },
-  "required": ["thread_id", "archive_id", "first_message_date", "last_message_date", "has_consensus", "created_at"],
-  "additionalProperties": false
+  "required": ["thread_id", "archive_id", "has_consensus", "created_at"]
 }

@@ -29,6 +29,5 @@
     "generated_at": { "type": "string", "format": "date-time" },
     "metadata": { "type": "object" }
   },
-  "required": ["summary_id", "summary_type", "generated_at", "content_markdown"],
-  "additionalProperties": false
+  "required": ["summary_id", "summary_type", "generated_at", "content_markdown"]
 }
