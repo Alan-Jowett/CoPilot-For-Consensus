@@ -110,6 +110,27 @@
       "default": "message_embeddings",
       "description": "Vector store collection name"
     },
+    "embedding_dimension": {
+      "type": "int",
+      "source": "env",
+      "env_var": "EMBEDDING_DIMENSION",
+      "default": 384,
+      "description": "Embedding vector dimension size"
+    },
+    "vector_store_distance": {
+      "type": "string",
+      "source": "env",
+      "env_var": "VECTOR_STORE_DISTANCE",
+      "default": "cosine",
+      "description": "Distance metric for vector store (cosine, euclidean, dot)"
+    },
+    "vector_store_batch_size": {
+      "type": "int",
+      "source": "env",
+      "env_var": "VECTOR_STORE_BATCH_SIZE",
+      "default": 100,
+      "description": "Batch size for vector store operations"
+    },
     "llm_backend": {
       "type": "string",
       "source": "env",
