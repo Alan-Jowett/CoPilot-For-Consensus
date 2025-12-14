@@ -353,32 +353,28 @@ class EmbeddingService:
             avg_generation_time_ms: Average generation time per embedding
             
         Raises:
-            Exception: Re-raises any exception from publisher
+            Exception: If publishing fails
         """
-        try:
-            event = EmbeddingsGeneratedEvent(
-                data={
-                    "chunk_ids": chunk_ids,
-                    "embedding_count": embedding_count,
-                    "embedding_model": self.embedding_model,
-                    "embedding_backend": self.embedding_backend,
-                    "embedding_dimension": self.embedding_dimension,
-                    "vector_store_collection": self.vector_store_collection,
-                    "vector_store_updated": True,
-                    "avg_generation_time_ms": avg_generation_time_ms,
-                }
-            )
-            
-            self.publisher.publish(
-                exchange="copilot.events",
-                routing_key="embeddings.generated",
-                event=event.to_dict(),
-            )
+        event = EmbeddingsGeneratedEvent(
+            data={
+                "chunk_ids": chunk_ids,
+                "embedding_count": embedding_count,
+                "embedding_model": self.embedding_model,
+                "embedding_backend": self.embedding_backend,
+                "embedding_dimension": self.embedding_dimension,
+                "vector_store_collection": self.vector_store_collection,
+                "vector_store_updated": True,
+                "avg_generation_time_ms": avg_generation_time_ms,
+            }
+        )
+        
+        self.publisher.publish(
+            exchange="copilot.events",
+            routing_key="embeddings.generated",
+            event=event.to_dict(),
+        )
 
-            logger.info(f"Published EmbeddingsGenerated event for {len(chunk_ids)} chunks")
-        except Exception as e:
-            logger.error(f"Failed to publish EmbeddingsGenerated event: {e}", exc_info=True)
-            raise
+        logger.info(f"Published EmbeddingsGenerated event for {len(chunk_ids)} chunks")
 
     def _publish_embedding_failed(
         self,
@@ -396,30 +392,26 @@ class EmbeddingService:
             retry_count: Number of retry attempts made
             
         Raises:
-            Exception: Re-raises any exception from publisher
+            Exception: If publishing fails
         """
-        try:
-            event = EmbeddingGenerationFailedEvent(
-                data={
-                    "chunk_ids": chunk_ids,
-                    "error_message": error_message,
-                    "error_type": error_type,
-                    "embedding_backend": self.embedding_backend,
-                    "retry_count": retry_count,
-                    "failed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-                }
-            )
-            
-            self.publisher.publish(
-                exchange="copilot.events",
-                routing_key="embedding.generation.failed",
-                event=event.to_dict(),
-            )
+        event = EmbeddingGenerationFailedEvent(
+            data={
+                "chunk_ids": chunk_ids,
+                "error_message": error_message,
+                "error_type": error_type,
+                "embedding_backend": self.embedding_backend,
+                "retry_count": retry_count,
+                "failed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            }
+        )
+        
+        self.publisher.publish(
+            exchange="copilot.events",
+            routing_key="embedding.generation.failed",
+            event=event.to_dict(),
+        )
 
-            logger.error(f"Published EmbeddingGenerationFailed event for {len(chunk_ids)} chunks")
-        except Exception as e:
-            logger.error(f"Failed to publish EmbeddingGenerationFailed event: {e}", exc_info=True)
-            raise
+        logger.error(f"Published EmbeddingGenerationFailed event for {len(chunk_ids)} chunks")
 
     def get_stats(self) -> Dict[str, Any]:
         """Get service statistics.
