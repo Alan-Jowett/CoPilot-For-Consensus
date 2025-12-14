@@ -79,7 +79,8 @@ def rabbitmq_subscriber():
         try:
             subscriber.connect()
             break
-        except Exception:
+        except (ConnectionError, OSError, TimeoutError):
+            # Network/connection errors - retry
             if i < max_retries - 1:
                 time.sleep(2)
             else:

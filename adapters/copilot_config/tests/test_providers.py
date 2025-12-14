@@ -106,3 +106,87 @@ class TestDocStoreConfigProvider:
         assert provider.get("key", "default") == "default"
         assert provider.get_bool("bool_key", True) is True
         assert provider.get_int("int_key", 42) == 42
+
+    def test_connection_error_returns_empty(self):
+        """Test that ConnectionError during query returns empty result."""
+        class FailingDocStore:
+            def query_documents(self, collection, filter_dict, limit=100):
+                raise ConnectionError("Connection refused")
+        
+        provider = DocStoreConfigProvider(FailingDocStore())
+        
+        # is_connected should return False
+        assert provider.is_connected() is False
+        
+        # query_documents_from_collection should return empty list
+        assert provider.query_documents_from_collection("test_collection") == []
+
+    def test_os_error_returns_empty(self):
+        """Test that OSError during query returns empty result."""
+        class FailingDocStore:
+            def query_documents(self, collection, filter_dict, limit=100):
+                raise OSError("I/O error")
+        
+        provider = DocStoreConfigProvider(FailingDocStore())
+        
+        # is_connected should return False
+        assert provider.is_connected() is False
+        
+        # query_documents_from_collection should return empty list
+        assert provider.query_documents_from_collection("test_collection") == []
+
+    def test_timeout_error_returns_empty(self):
+        """Test that TimeoutError during query returns empty result."""
+        class FailingDocStore:
+            def query_documents(self, collection, filter_dict, limit=100):
+                raise TimeoutError("Operation timed out")
+        
+        provider = DocStoreConfigProvider(FailingDocStore())
+        
+        # is_connected should return False
+        assert provider.is_connected() is False
+        
+        # query_documents_from_collection should return empty list
+        assert provider.query_documents_from_collection("test_collection") == []
+
+    def test_attribute_error_returns_empty(self):
+        """Test that AttributeError during query returns empty result."""
+        class FailingDocStore:
+            def query_documents(self, collection, filter_dict, limit=100):
+                raise AttributeError("'NoneType' object has no attribute 'query'")
+        
+        provider = DocStoreConfigProvider(FailingDocStore())
+        
+        # is_connected should return False
+        assert provider.is_connected() is False
+        
+        # query_documents_from_collection should return empty list
+        assert provider.query_documents_from_collection("test_collection") == []
+
+    def test_type_error_returns_empty(self):
+        """Test that TypeError during query returns empty result."""
+        class FailingDocStore:
+            def query_documents(self, collection, filter_dict, limit=100):
+                raise TypeError("expected str, got int")
+        
+        provider = DocStoreConfigProvider(FailingDocStore())
+        
+        # is_connected should return False
+        assert provider.is_connected() is False
+        
+        # query_documents_from_collection should return empty list
+        assert provider.query_documents_from_collection("test_collection") == []
+
+    def test_key_error_returns_empty(self):
+        """Test that KeyError during query returns empty result."""
+        class FailingDocStore:
+            def query_documents(self, collection, filter_dict, limit=100):
+                raise KeyError("missing required key")
+        
+        provider = DocStoreConfigProvider(FailingDocStore())
+        
+        # is_connected should return False
+        assert provider.is_connected() is False
+        
+        # query_documents_from_collection should return empty list
+        assert provider.query_documents_from_collection("test_collection") == []
