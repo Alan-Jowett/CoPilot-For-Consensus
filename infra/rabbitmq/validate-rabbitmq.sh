@@ -8,7 +8,8 @@
 set -e
 
 # Wait for RabbitMQ to be ready
-rabbitmqctl wait --timeout 60 /var/lib/rabbitmq/mnesia/rabbitmq.pid >/dev/null 2>&1
+# Timeout set to 4s to fit within Docker healthcheck timeout of 5s
+rabbitmqctl wait --timeout 4 /var/lib/rabbitmq/mnesia/rabbitmq.pid >/dev/null
 
 # List exchanges and check for copilot.events
 # Use -x flag to match exact line (exchange name only)

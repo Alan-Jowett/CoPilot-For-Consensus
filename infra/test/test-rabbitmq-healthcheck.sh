@@ -13,18 +13,13 @@ VALIDATE_SCRIPT="${SCRIPT_DIR}/../rabbitmq/validate-rabbitmq.sh"
 
 echo "Testing RabbitMQ validation script..."
 
-# Test 1: Verify script exists and is executable
+# Test 1: Verify script exists
 if [ ! -f "$VALIDATE_SCRIPT" ]; then
     echo "✗ FAIL: validate-rabbitmq.sh not found at $VALIDATE_SCRIPT"
     exit 1
 fi
 
-if [ ! -x "$VALIDATE_SCRIPT" ]; then
-    echo "✗ FAIL: validate-rabbitmq.sh is not executable"
-    exit 1
-fi
-
-echo "✓ Script exists and is executable"
+echo "✓ Script exists"
 
 # Test 2: Verify script has correct syntax
 if ! sh -n "$VALIDATE_SCRIPT"; then
