@@ -90,8 +90,9 @@ class TestMockIdentityProvider:
         """Test removing nonexistent user does not raise error."""
         provider = MockIdentityProvider()
         
-        # Should not raise exception
+        # Should not raise exception and state should remain valid
         provider.remove_user("nonexistent-token")
+        assert len(provider.users) == 0
 
     def test_clear_removes_all_users(self):
         """Test clear removes all users."""

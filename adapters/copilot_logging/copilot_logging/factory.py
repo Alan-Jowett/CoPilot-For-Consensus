@@ -19,46 +19,40 @@ def create_logger(
     """Factory function to create a logger instance.
     
     Args:
-        logger_type: Type of logger to create ("stdout", "silent").
-                    If None, reads from LOG_TYPE environment variable.
-                    Defaults to "stdout" if not specified.
-        level: Logging level (DEBUG, INFO, WARNING, ERROR).
-              If None, reads from LOG_LEVEL environment variable.
-              Defaults to "INFO" if not specified.
+        logger_type: Type of logger to create (required). Options: "stdout", "silent"
+        level: Logging level (required). Options: DEBUG, INFO, WARNING, ERROR
         name: Optional logger name for identification.
-              If None, reads from LOG_NAME environment variable.
         
     Returns:
         Logger instance
         
     Raises:
-        ValueError: If logger_type is not recognized
+        ValueError: If logger_type is not recognized or required parameters are missing
         
     Example:
-        >>> # Create logger from environment variables
-        >>> logger = create_logger()
+        >>> # Create stdout logger with INFO level
+        >>> logger = create_logger(logger_type="stdout", level="INFO")
         >>> 
-        >>> # Create specific logger type
-        >>> logger = create_logger(logger_type="stdout", level="DEBUG")
+        >>> # Create debug logger with name
+        >>> logger = create_logger(logger_type="stdout", level="DEBUG", name="my-service")
         >>> 
         >>> # Create silent logger for testing
-        >>> logger = create_logger(logger_type="silent")
+        >>> logger = create_logger(logger_type="silent", level="INFO")
     """
-    # Determine logger type from environment or parameter
-    if logger_type is None:
-        logger_type = os.getenv("LOG_TYPE", "stdout").lower()
-    else:
-        logger_type = logger_type.lower()
+    if not logger_type:
+        raise ValueError(
+            "logger_type parameter is required. "
+            "Must be one of: stdout, silent"
+        )
     
-    # Determine log level from environment or parameter
-    if level is None:
-        level = os.getenv("LOG_LEVEL", "INFO").upper()
-    else:
-        level = level.upper()
+    if not level:
+        raise ValueError(
+            "level parameter is required. "
+            "Must be one of: DEBUG, INFO, WARNING, ERROR"
+        )
     
-    # Determine logger name from environment or parameter
-    if name is None:
-        name = os.getenv("LOG_NAME")
+    logger_type = logger_type.lower()
+    level = level.upper()
     
     # Create appropriate logger
     if logger_type == "stdout":

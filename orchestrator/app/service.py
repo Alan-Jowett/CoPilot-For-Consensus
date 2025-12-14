@@ -91,6 +91,11 @@ class OrchestrationService:
     @safe_event_handler("EmbeddingsGenerated", on_error=lambda self, e, evt: self._increment_failures())
     def _handle_embeddings_generated(self, event: Dict[str, Any]):
         """Handle EmbeddingsGenerated event.
+        
+        This is an event handler for message queue consumption. Exceptions are
+        logged and re-raised to allow message requeue for transient failures
+        (e.g., database unavailable). Only exceptions due to bad event data
+        should be caught and not re-raised.
 
         Args:
             event: Event dictionary
@@ -115,15 +120,33 @@ class OrchestrationService:
 
         Args:
             event_data: Data from EmbeddingsGenerated event
+            
+        Raises:
+            ValueError: If required fields are missing
+            TypeError: If fields have invalid types
         """
+        # Validate chunk_ids field exists
+        if "chunk_ids" not in event_data:
+            error_msg = "chunk_ids field missing from event data"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        chunk_ids = event_data["chunk_ids"]
+        
+        # Validate chunk_ids is a list
+        if not isinstance(chunk_ids, list):
+            error_msg = f"chunk_ids must be a list, got {type(chunk_ids).__name__}"
+            logger.error(error_msg)
+            raise TypeError(error_msg)
+        
+        # Empty list is valid - nothing to process
+        if not chunk_ids:
+            logger.info("Empty chunk list in EmbeddingsGenerated event, nothing to process")
+            return
+        
         start_time = time.time()
 
         try:
-            chunk_ids = event_data.get("chunk_ids", [])
-            if not chunk_ids:
-                logger.warning("No chunk_ids in EmbeddingsGenerated event")
-                return
-
             # Resolve affected threads
             logger.info(f"Resolving threads for {len(chunk_ids)} chunks...")
             thread_ids = self._resolve_threads(chunk_ids)
@@ -177,6 +200,7 @@ class OrchestrationService:
             logger.error(f"Error resolving threads: {e}", exc_info=True)
             if self.error_reporter:
                 self.error_reporter.report(e, context={"chunk_ids": chunk_ids})
+            raise
 
         return list(thread_ids)
 
@@ -279,11 +303,15 @@ class OrchestrationService:
 
             event = SummarizationRequestedEvent(data=event_data)
 
-            self.publisher.publish(
+            success = self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="summarization.requested",
                 event=event.to_dict()
             )
+
+            if not success:
+                logger.error("Failed to publish SummarizationRequested")
+                raise Exception("Failed to publish SummarizationRequested")
 
             logger.info(f"Published SummarizationRequested for threads: {thread_ids}")
 
@@ -317,11 +345,15 @@ class OrchestrationService:
 
             event = OrchestrationFailedEvent(data=event_data)
 
-            self.publisher.publish(
+            success = self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="orchestration.failed",
                 event=event.to_dict()
             )
+
+            if not success:
+                logger.error("Failed to publish OrchestrationFailed")
+                raise Exception("Failed to publish OrchestrationFailed")
 
             logger.info(f"Published OrchestrationFailed for threads: {thread_ids}")
 
@@ -339,6 +371,7 @@ class OrchestrationService:
             logger.error(f"Error publishing OrchestrationFailed: {e}", exc_info=True)
             if self.error_reporter:
                 self.error_reporter.report(e, context={"thread_ids": thread_ids})
+            raise
 
     def get_stats(self) -> Dict[str, Any]:
         """Get service statistics.

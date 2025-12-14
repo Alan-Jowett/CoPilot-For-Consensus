@@ -35,7 +35,7 @@ class TestIngestionService:
         """Create test ingestion service."""
         publisher = NoopPublisher()
         publisher.connect()
-        logger = create_logger(logger_type="silent", name="ingestion-test")
+        logger = create_logger(logger_type="silent", level="INFO", name="ingestion-test")
         metrics = NoOpMetricsCollector()
         return IngestionService(config, publisher, logger=logger, metrics=metrics)
 
@@ -215,7 +215,7 @@ class TestIngestionService:
         publisher = NoopPublisher()
         publisher.connect()
         error_reporter = SilentErrorReporter()
-        logger = create_logger(logger_type="silent", name="ingestion-test")
+        logger = create_logger(logger_type="silent", level="INFO", name="ingestion-test")
         metrics = NoOpMetricsCollector()
 
         service = IngestionService(
@@ -230,7 +230,11 @@ class TestIngestionService:
         assert isinstance(service.error_reporter, SilentErrorReporter)
 
         service.config.storage_path = "/invalid/path/that/does/not/exist"
-        service.save_checksums()
+        try:
+            service.save_checksums()
+        except ValueError:
+            # Expected: save_checksums raises after reporting to error_reporter
+            pass
 
         assert error_reporter.has_errors()
         errors = error_reporter.get_errors()
@@ -243,7 +247,7 @@ class TestIngestionService:
         config.log_type = "silent"
         publisher = NoopPublisher()
         publisher.connect()
-        logger = create_logger(logger_type="silent", name="ingestion-test")
+        logger = create_logger(logger_type="silent", level="INFO", name="ingestion-test")
         metrics = NoOpMetricsCollector()
 
         service = IngestionService(config, publisher, logger=logger, metrics=metrics)
@@ -263,7 +267,7 @@ def test_archive_ingested_event_schema_validation():
         config = make_config(storage_path=tmpdir)
         publisher = NoopPublisher()
         publisher.connect()
-        logger = create_logger(logger_type="silent", name="ingestion-test")
+        logger = create_logger(logger_type="silent", level="INFO", name="ingestion-test")
         metrics = NoOpMetricsCollector()
         service = IngestionService(config, publisher, logger=logger, metrics=metrics)
 
@@ -293,7 +297,7 @@ def test_archive_ingestion_failed_event_schema_validation():
         config = make_config(storage_path=tmpdir)
         publisher = NoopPublisher()
         publisher.connect()
-        logger = create_logger(logger_type="silent", name="ingestion-test")
+        logger = create_logger(logger_type="silent", level="INFO", name="ingestion-test")
         metrics = NoOpMetricsCollector()
         service = IngestionService(config, publisher, logger=logger, metrics=metrics)
 
@@ -310,3 +314,160 @@ def test_archive_ingestion_failed_event_schema_validation():
 
         for event_record in failure_events:
             assert_valid_event_schema(event_record["event"])
+
+
+def test_save_checksums_raises_on_write_error(tmp_path):
+    """Test that save_checksums raises exception on write errors."""
+    from app.service import IngestionService
+    from copilot_events import NoopPublisher
+    from .test_helpers import make_config
+    from unittest.mock import patch
+    
+    config = make_config(storage_path=str(tmp_path))
+    
+    publisher = NoopPublisher()
+    service = IngestionService(config=config, publisher=publisher)
+    
+    # Add a checksum
+    service.checksums["test"] = "abc123"
+    
+    # Mock open to raise PermissionError when writing checksums file
+    with patch("builtins.open", side_effect=PermissionError("Permission denied")):
+        # Verify exception is raised, not swallowed
+        with pytest.raises(PermissionError):
+            service.save_checksums()
+
+
+def test_load_checksums_recovers_on_read_error(tmp_path):
+    """Test that load_checksums recovers gracefully on read errors (intentional)."""
+    from app.service import IngestionService
+    from copilot_events import NoopPublisher
+    from .test_helpers import make_config
+    
+    # Create a corrupted checksums file
+    metadata_dir = tmp_path / "metadata"
+    metadata_dir.mkdir(exist_ok=True)
+    checksums_file = metadata_dir / "checksums.json"
+    checksums_file.write_text("{ invalid json }")
+    
+    config = make_config(storage_path=str(tmp_path))
+    
+    publisher = NoopPublisher()
+    
+    # Service should start with empty checksums (intentional recovery)
+    service = IngestionService(config=config, publisher=publisher)
+    assert service.checksums == {}
+
+
+def test_publish_success_event_raises_on_publisher_failure(tmp_path):
+    """Test that _publish_success_event raises exception when publisher fails."""
+    from unittest.mock import Mock
+    from copilot_events import ArchiveMetadata
+    
+    config = make_config(storage_path=str(tmp_path))
+    publisher = Mock()
+    publisher.publish = Mock(return_value=False)  # Simulate publisher failure
+    
+    service = IngestionService(config=config, publisher=publisher)
+    
+    metadata = ArchiveMetadata(
+        archive_id="archive-123",
+        source_name="test-source",
+        source_type="mbox",
+        source_url="http://example.com/list.mbox",
+        file_path="/path/to/file.mbox",
+        file_size_bytes=1024,
+        file_hash_sha256="abc123def456",
+        ingestion_started_at="2023-10-15T12:00:00Z",
+        ingestion_completed_at="2023-10-15T12:00:10Z",
+        status="success",
+    )
+    
+    # Service should raise exception when publisher.publish returns False
+    with pytest.raises(Exception):
+        service._publish_success_event(metadata)
+
+
+def test_publish_failure_event_raises_on_publisher_failure(tmp_path):
+    """Test that _publish_failure_event raises exception when publisher fails."""
+    from unittest.mock import Mock
+    from copilot_archive_fetcher import SourceConfig
+    
+    config = make_config(storage_path=str(tmp_path))
+    publisher = Mock()
+    publisher.publish = Mock(return_value=False)  # Simulate publisher failure
+    
+    service = IngestionService(config=config, publisher=publisher)
+    
+    source = SourceConfig(
+        name="test-source",
+        source_type="mbox",
+        url="http://example.com/list.mbox",
+    )
+    
+    # Service should raise exception when publisher.publish returns False
+    with pytest.raises(Exception):
+        service._publish_failure_event(
+            source=source,
+            error_message="Test error",
+            error_type="TestError",
+            retry_count=3,
+            ingestion_started_at="2023-10-15T12:00:00Z",
+        )
+
+
+def test_publish_success_event_raises_on_publisher_exception(tmp_path):
+    """Test that _publish_success_event raises exception when publisher raises."""
+    from unittest.mock import Mock
+    from copilot_events import ArchiveMetadata
+    
+    config = make_config(storage_path=str(tmp_path))
+    publisher = Mock()
+    publisher.publish = Mock(side_effect=Exception("RabbitMQ connection lost"))
+    
+    service = IngestionService(config=config, publisher=publisher)
+    
+    metadata = ArchiveMetadata(
+        archive_id="archive-123",
+        source_name="test-source",
+        source_type="mbox",
+        source_url="http://example.com/list.mbox",
+        file_path="/path/to/file.mbox",
+        file_size_bytes=1024,
+        file_hash_sha256="abc123def456",
+        ingestion_started_at="2023-10-15T12:00:00Z",
+        ingestion_completed_at="2023-10-15T12:00:10Z",
+        status="success",
+    )
+    
+    # Service should raise exception from publisher
+    with pytest.raises(Exception, match="RabbitMQ connection lost"):
+        service._publish_success_event(metadata)
+
+
+def test_publish_failure_event_raises_on_publisher_exception(tmp_path):
+    """Test that _publish_failure_event raises exception when publisher raises."""
+    from unittest.mock import Mock
+    from copilot_archive_fetcher import SourceConfig
+    
+    config = make_config(storage_path=str(tmp_path))
+    publisher = Mock()
+    publisher.publish = Mock(side_effect=Exception("RabbitMQ connection lost"))
+    
+    service = IngestionService(config=config, publisher=publisher)
+    
+    source = SourceConfig(
+        name="test-source",
+        source_type="mbox",
+        url="http://example.com/list.mbox",
+    )
+    
+    # Service should raise exception from publisher
+    with pytest.raises(Exception, match="RabbitMQ connection lost"):
+        service._publish_failure_event(
+            source=source,
+            error_message="Test error",
+            error_type="TestError",
+            retry_count=3,
+            ingestion_started_at="2023-10-15T12:00:00Z",
+        )

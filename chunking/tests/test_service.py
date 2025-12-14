@@ -249,14 +249,14 @@ def test_publish_chunks_prepared(chunking_service, mock_publisher):
     assert call_args[1]["exchange"] == "copilot.events"
     assert call_args[1]["routing_key"] == "chunks.prepared"
     
-    message = call_args[1]["message"]
-    assert message["event_type"] == "ChunksPrepared"
-    assert message["data"]["chunk_count"] == 3
-    assert len(message["data"]["chunk_ids"]) == 3
-    assert message["data"]["chunks_ready"] is True
+    event = call_args[1]["event"]
+    assert event["event_type"] == "ChunksPrepared"
+    assert event["data"]["chunk_count"] == 3
+    assert len(event["data"]["chunk_ids"]) == 3
+    assert event["data"]["chunks_ready"] is True
     
     # Validate event against JSON schema
-    assert_valid_event_schema(message)
+    assert_valid_event_schema(event)
 
 
 def test_publish_chunking_failed(chunking_service, mock_publisher):
@@ -275,13 +275,13 @@ def test_publish_chunking_failed(chunking_service, mock_publisher):
     assert call_args[1]["exchange"] == "copilot.events"
     assert call_args[1]["routing_key"] == "chunking.failed"
     
-    message = call_args[1]["message"]
-    assert message["event_type"] == "ChunkingFailed"
-    assert message["data"]["error_message"] == "Test error"
-    assert message["data"]["error_type"] == "TestError"
+    event = call_args[1]["event"]
+    assert event["event_type"] == "ChunkingFailed"
+    assert event["data"]["error_message"] == "Test error"
+    assert event["data"]["error_type"] == "TestError"
     
     # Validate event against JSON schema
-    assert_valid_event_schema(message)
+    assert_valid_event_schema(event)
 
 
 # ============================================================================
@@ -312,7 +312,7 @@ def test_schema_validation_chunks_prepared():
     )
     
     call_args = mock_publisher.publish.call_args
-    event = call_args[1]["message"]
+    event = call_args[1]["event"]
     
     # Should pass schema validation
     assert_valid_event_schema(event)
@@ -340,7 +340,7 @@ def test_schema_validation_chunking_failed():
     )
     
     call_args = mock_publisher.publish.call_args
-    event = call_args[1]["message"]
+    event = call_args[1]["event"]
     
     # Should pass schema validation
     assert_valid_event_schema(event)
@@ -439,12 +439,9 @@ def test_handle_malformed_event_missing_data():
         "version": "1.0",
     }
     
-    # Should handle gracefully without crashing
-    try:
+    # Service should raise an exception for missing data field
+    with pytest.raises((KeyError, AttributeError, ValueError)):
         service._handle_json_parsed(event)
-    except (KeyError, AttributeError):
-        # Expected - service should validate required fields
-        pass
 
 
 def test_handle_event_with_invalid_message_ids_type():
@@ -477,9 +474,77 @@ def test_handle_event_with_invalid_message_ids_type():
         }
     }
     
-    # Should handle gracefully
-    try:
+    # Service should raise an exception for invalid type
+    with pytest.raises((TypeError, AttributeError)):
         service._handle_json_parsed(event)
-    except (TypeError, AttributeError):
-        # Expected - service should handle type errors
-        pass
+
+
+def test_publish_chunks_prepared_raises_on_publish_error(chunking_service, mock_publisher):
+    """Test that _publish_chunks_prepared raises exception on publish errors."""
+    # Setup mock to raise an exception
+    mock_publisher.publish = Mock(side_effect=Exception("RabbitMQ connection lost"))
+    
+    # Verify exception is raised, not swallowed
+    with pytest.raises(Exception, match="RabbitMQ connection lost"):
+        chunking_service._publish_chunks_prepared(
+            message_ids=["<msg-1@example.com>"],
+            chunk_ids=["chunk-1"],
+            chunk_count=1,
+            avg_chunk_size=100.0
+        )
+
+
+def test_publish_chunks_prepared_raises_on_publish_false(chunking_service, mock_publisher):
+    """Test that _publish_chunks_prepared raises when publish returns False."""
+    mock_publisher.publish = Mock(return_value=False)
+
+    with pytest.raises(Exception):
+        chunking_service._publish_chunks_prepared(
+            message_ids=["<msg-1@example.com>"],
+            chunk_ids=["chunk-1"],
+            chunk_count=1,
+            avg_chunk_size=100.0,
+        )
+
+
+def test_publish_chunking_failed_raises_on_publish_error(chunking_service, mock_publisher):
+    """Test that _publish_chunking_failed raises exception on publish errors."""
+    # Setup mock to raise an exception
+    mock_publisher.publish = Mock(side_effect=Exception("RabbitMQ connection lost"))
+    
+    # Verify exception is raised, not swallowed
+    with pytest.raises(Exception, match="RabbitMQ connection lost"):
+        chunking_service._publish_chunking_failed(
+            message_ids=["<msg-1@example.com>"],
+            error_message="Test error",
+            error_type="TestError",
+            retry_count=0
+        )
+
+
+def test_publish_chunking_failed_raises_on_publish_false(chunking_service, mock_publisher):
+    """Test that _publish_chunking_failed raises when publish returns False."""
+    mock_publisher.publish = Mock(return_value=False)
+
+    with pytest.raises(Exception):
+        chunking_service._publish_chunking_failed(
+            message_ids=["<msg-1@example.com>"],
+            error_message="Test error",
+            error_type="TestError",
+            retry_count=0,
+        )
+
+
+def test_event_handler_raises_on_errors(chunking_service):
+    """Test that event handler re-raises exceptions to trigger message requeue."""
+    # Create a mock that raises during event parsing (before process_messages)
+    from copilot_events import JSONParsedEvent
+    
+    # This will cause the event handler to fail during event parsing
+    event = {
+        "data": None  # This will cause an error when accessing event data
+    }
+    
+    # Event handler should re-raise to trigger message requeue for failures
+    with pytest.raises(Exception):
+        chunking_service._handle_json_parsed(event)

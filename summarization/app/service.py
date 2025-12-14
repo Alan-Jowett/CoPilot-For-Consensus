@@ -95,6 +95,11 @@ class SummarizationService:
     def _handle_summarization_requested(self, event: Dict[str, Any]):
         """Handle SummarizationRequested event.
         
+        This is an event handler for message queue consumption. Exceptions are
+        logged and re-raised to allow message requeue for transient failures
+        (e.g., database unavailable). Only exceptions due to bad event data
+        should be caught and not re-raised.
+        
         Args:
             event: Event dictionary
         """
@@ -105,14 +110,35 @@ class SummarizationService:
         
         # Process each thread
         self.process_summarization(summarization_requested.data)
+            if self.error_reporter:
+                self.error_reporter.report(e, context={"event": event})
+            raise  # Re-raise to trigger message requeue for transient failures
+>>>>>>> origin/main
 
     def process_summarization(self, event_data: Dict[str, Any]):
         """Process summarization request for threads.
         
         Args:
             event_data: Data from SummarizationRequested event
+            
+        Raises:
+            KeyError: If required fields are missing from event_data
+            TypeError: If thread_ids is not a list
         """
-        thread_ids = event_data.get("thread_ids", [])
+        # Check for required field
+        if "thread_ids" not in event_data:
+            error_msg = "thread_ids field missing from event data"
+            logger.error(error_msg)
+            raise KeyError(error_msg)
+            
+        thread_ids = event_data["thread_ids"]
+        
+        # Validate thread_ids is iterable (list/array)
+        if not isinstance(thread_ids, list):
+            error_msg = f"thread_ids must be a list, got {type(thread_ids).__name__}"
+            logger.error(error_msg)
+            raise TypeError(error_msg)
+            
         top_k = event_data.get("top_k", self.top_k)
         context_window_tokens = event_data.get("context_window_tokens", 3000)
         prompt_template = event_data.get("prompt_template", "Summarize the following discussion thread:")
@@ -214,7 +240,7 @@ class SummarizationService:
                 )
                 self.metrics_collector.increment(
                     "summarization_llm_calls_total",
-                    tags={"backend": summary.llm_backend, "model": summary.llm_model},
+                    tags={"backend": summary.llm_backend, "model": summary.llm_backend},
                 )
                 self.metrics_collector.increment(
                     "summarization_tokens_total",
@@ -381,11 +407,27 @@ class SummarizationService:
             }
         )
         
-        self.publisher.publish(
-            exchange="copilot.events",
-            routing_key="summary.complete",
-            message=event.to_dict(),
-        )
+        try:
+            success = self.publisher.publish(
+                exchange="copilot.events",
+                routing_key="summary.complete",
+                message=event.to_dict(),
+            )
+            
+            if not success:
+                logger.error(f"Failed to publish SummaryComplete event for {thread_id}")
+                if self.error_reporter:
+                    self.error_reporter.capture_message(
+                        "Failed to publish SummaryComplete event",
+                        level="error",
+                        context={"thread_id": thread_id},
+                    )
+                raise Exception(f"Failed to publish SummaryComplete event for {thread_id}")
+        except Exception:
+            logger.exception(f"Exception while publishing SummaryComplete event for {thread_id}")
+            if self.error_reporter:
+                self.error_reporter.capture_exception()
+            raise
         
         logger.info(f"Published SummaryComplete event for thread {thread_id}")
 
@@ -413,11 +455,27 @@ class SummarizationService:
             }
         )
         
-        self.publisher.publish(
-            exchange="copilot.events",
-            routing_key="summarization.failed",
-            message=event.to_dict(),
-        )
+        try:
+            success = self.publisher.publish(
+                exchange="copilot.events",
+                routing_key="summarization.failed",
+                message=event.to_dict(),
+            )
+            
+            if not success:
+                logger.error(f"Failed to publish SummarizationFailed event for {thread_id}")
+                if self.error_reporter:
+                    self.error_reporter.capture_message(
+                        "Failed to publish SummarizationFailed event",
+                        level="error",
+                        context={"thread_id": thread_id},
+                    )
+                raise Exception(f"Failed to publish SummarizationFailed event for {thread_id}")
+        except Exception:
+            logger.exception(f"Exception while publishing SummarizationFailed event for {thread_id}")
+            if self.error_reporter:
+                self.error_reporter.capture_exception()
+            raise
         
         logger.warning(
             f"Published SummarizationFailed event for thread {thread_id}: "

@@ -118,6 +118,94 @@ def test_service_initialization(reporting_service):
     assert reporting_service.notify_enabled is False
 
 
+def test_publish_report_published_with_publisher_failure(mock_document_store, mock_subscriber):
+    class FailingPublisher(Mock):
+        def publish(self, exchange, routing_key, message):
+            return False
+
+    publisher = FailingPublisher()
+    service = ReportingService(
+        document_store=mock_document_store,
+        publisher=publisher,
+        subscriber=mock_subscriber,
+    )
+
+    with pytest.raises(Exception) as exc_info:
+        service._publish_report_published(
+            report_id="rep-1",
+            thread_id="thread-1",
+            notified=False,
+            delivery_channels=[],
+        )
+
+    assert "Failed to publish ReportPublished event" in str(exc_info.value)
+
+
+def test_publish_delivery_failed_with_publisher_failure(mock_document_store, mock_subscriber):
+    class FailingPublisher(Mock):
+        def publish(self, exchange, routing_key, message):
+            return False
+
+    publisher = FailingPublisher()
+    service = ReportingService(
+        document_store=mock_document_store,
+        publisher=publisher,
+        subscriber=mock_subscriber,
+    )
+
+    with pytest.raises(Exception) as exc_info:
+        service._publish_delivery_failed(
+            report_id="rep-1",
+            thread_id="thread-1",
+            channel="webhook",
+            error_message="boom",
+            error_type="ValueError",
+        )
+
+    assert "Failed to publish ReportDeliveryFailed event" in str(exc_info.value)
+
+
+def test_process_summary_raises_when_publish_delivery_failed_fails(
+    mock_document_store,
+    mock_subscriber,
+    mock_metrics,
+    mock_error_reporter,
+):
+    class SelectiveFailPublisher(Mock):
+        def publish(self, exchange, routing_key, message):
+            if routing_key == "report.delivery.failed":
+                return False
+            return True
+
+    publisher = SelectiveFailPublisher()
+    service = ReportingService(
+        document_store=mock_document_store,
+        publisher=publisher,
+        subscriber=mock_subscriber,
+        metrics_collector=mock_metrics,
+        error_reporter=mock_error_reporter,
+        webhook_url="http://example.com",
+        notify_enabled=True,
+    )
+
+    event_data = {
+        "thread_id": "thread-1",
+        "summary_markdown": "# Summary",
+        "citations": [],
+        "llm_backend": "test",
+        "llm_model": "test-model",
+        "tokens_prompt": 10,
+        "tokens_completion": 5,
+        "latency_ms": 1,
+    }
+
+    with patch.object(service, "_send_webhook_notification", side_effect=Exception("webhook fail")):
+        with pytest.raises(Exception) as exc_info:
+            service.process_summary(event_data, {"timestamp": "2025-01-01T00:00:00Z"})
+
+    assert "webhook fail" in str(exc_info.value)
+
+
 def test_service_start_subscribes_to_events(reporting_service, mock_subscriber):
     """Test that service subscribes to summary.complete events on start."""
     reporting_service.start()
@@ -386,7 +474,9 @@ def test_handle_summary_complete_error_handling(
     # Make insert_document raise an exception
     mock_document_store.insert_document.side_effect = Exception("DB Error")
     
-    reporting_service_with_metrics._handle_summary_complete(sample_summary_complete_event)
+    # Should raise the exception for message requeue
+    with pytest.raises(Exception, match="DB Error"):
+        reporting_service_with_metrics._handle_summary_complete(sample_summary_complete_event)
     
     # Should increment error metric
     mock_metrics.increment.assert_any_call(

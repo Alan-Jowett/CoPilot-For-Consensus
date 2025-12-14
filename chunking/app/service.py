@@ -77,6 +77,11 @@ class ChunkingService:
     def _handle_json_parsed(self, event: Dict[str, Any]):
         """Handle JSONParsed event.
         
+        This is an event handler for message queue consumption. Exceptions are
+        logged and re-raised to allow message requeue for transient failures
+        (e.g., database unavailable). Only exceptions due to bad event data
+        should be caught and not re-raised.
+        
         Args:
             event: Event dictionary
         """
@@ -93,11 +98,27 @@ class ChunkingService:
         
         Args:
             event_data: Data from JSONParsed event
+            
+        Raises:
+            ValueError: If event_data is missing required fields
+            TypeError: If message_ids is not iterable
         """
-        message_ids = event_data.get("parsed_message_ids", [])
+        # Check for required field
+        if "parsed_message_ids" not in event_data:
+            error_msg = "parsed_message_ids field missing from event data"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+            
+        message_ids = event_data["parsed_message_ids"]
+        
+        # Validate message_ids is iterable (list/array)
+        if not isinstance(message_ids, list):
+            error_msg = f"parsed_message_ids must be a list, got {type(message_ids).__name__}"
+            logger.error(error_msg)
+            raise TypeError(error_msg)
         
         if not message_ids:
-            logger.warning("No message IDs in JSONParsed event")
+            logger.info("Empty message list in JSONParsed event, nothing to process")
             return
         
         start_time = time.time()
@@ -315,16 +336,21 @@ class ChunkingService:
                 }
             )
             
-            self.publisher.publish(
+            success = self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="chunks.prepared",
-                message=event.to_dict(),
+                event=event.to_dict(),
             )
+            
+            if not success:
+                logger.error("Failed to publish ChunksPrepared event")
+                raise Exception("Failed to publish ChunksPrepared event")
             
             logger.info(f"Published ChunksPrepared event: {chunk_count} chunks")
             
         except Exception as e:
             logger.error(f"Failed to publish ChunksPrepared event: {e}", exc_info=True)
+            raise
 
     def _publish_chunking_failed(
         self,
@@ -352,16 +378,21 @@ class ChunkingService:
                 }
             )
             
-            self.publisher.publish(
+            success = self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="chunking.failed",
-                message=event.to_dict(),
+                event=event.to_dict(),
             )
+            
+            if not success:
+                logger.error("Failed to publish ChunkingFailed event")
+                raise Exception("Failed to publish ChunkingFailed event")
             
             logger.info(f"Published ChunkingFailed event: {error_type}")
             
         except Exception as e:
             logger.error(f"Failed to publish ChunkingFailed event: {e}", exc_info=True)
+            raise
 
     def get_stats(self) -> Dict[str, Any]:
         """Get service statistics.

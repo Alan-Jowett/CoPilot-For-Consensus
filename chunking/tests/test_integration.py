@@ -64,7 +64,7 @@ def test_end_to_end_chunking():
     publish_call = mock_publisher.publish.call_args
     assert publish_call[1]["routing_key"] == "chunks.prepared"
     
-    event_data = publish_call[1]["message"]["data"]
+    event_data = publish_call[1]["event"]["data"]
     assert event_data["chunk_count"] > 1
     assert len(event_data["chunk_ids"]) > 1
     assert event_data["chunks_ready"] is True
@@ -176,6 +176,6 @@ def test_oversize_message_handling():
     
     # Verify event includes all chunks
     publish_call = mock_publisher.publish.call_args
-    event_data = publish_call[1]["message"]["data"]
+    event_data = publish_call[1]["event"]["data"]
     assert event_data["chunk_count"] > 10
     assert len(event_data["chunk_ids"]) == event_data["chunk_count"]
