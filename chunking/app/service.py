@@ -134,7 +134,7 @@ class ChunkingService:
             # Retrieve messages from database
             messages = self.document_store.query_documents(
                 collection="messages",
-                query={"message_id": {"$in": message_ids}}
+                filter_dict={"message_id": {"$in": message_ids}}
             )
             
             if not messages:
