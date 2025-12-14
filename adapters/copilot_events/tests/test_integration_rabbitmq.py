@@ -534,6 +534,7 @@ class TestRabbitMQPersistence:
             auto_ack=False,  # Manual ack to ensure proper message handling
         )
         
+        consume_thread = None
         try:
             # Connect subscriber
             connected = subscriber.connect()
@@ -578,7 +579,7 @@ class TestRabbitMQPersistence:
                 
         finally:
             # Cleanup
-            if consume_thread.is_alive():
+            if consume_thread and consume_thread.is_alive():
                 subscriber.stop_consuming()
                 consume_thread.join(timeout=2)
             subscriber.disconnect()
@@ -650,6 +651,7 @@ class TestRabbitMQPersistence:
                 auto_ack=False,
             )
             
+            consume_thread = None
             connected = subscriber2.connect()
             assert connected is True
             
@@ -678,7 +680,7 @@ class TestRabbitMQPersistence:
             
         finally:
             # Cleanup
-            if consume_thread.is_alive():
+            if consume_thread and consume_thread.is_alive():
                 subscriber2.stop_consuming()
                 consume_thread.join(timeout=2)
             subscriber2.disconnect()

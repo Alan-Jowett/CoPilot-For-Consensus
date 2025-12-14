@@ -129,7 +129,11 @@ class TestVerifyRabbitMQPersistence(unittest.TestCase):
 
     def test_verify_queue_durability_not_exist(self):
         """Test queue durability verification when queue does not exist."""
-        import pika
+        try:
+            import pika
+        except ImportError:
+            self.skipTest("pika library not available")
+            
         mock_channel = MagicMock()
         mock_channel.queue_declare.side_effect = pika.exceptions.ChannelClosedByBroker(
             404, "NOT_FOUND - no queue 'test.queue'"

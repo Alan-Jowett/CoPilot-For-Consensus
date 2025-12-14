@@ -24,7 +24,9 @@ from pathlib import Path
 try:
     import pika
 except ImportError:
-    print("Error: pika library is not installed. Install it with: pip install pika")
+    print("Error: pika library is not installed.")
+    print("Install it with: pip install -r requirements.txt")
+    print("Or in the project environment: pip install pika")
     sys.exit(1)
 
 # Configure logging
