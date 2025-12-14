@@ -194,23 +194,13 @@ jobs:
         docker compose up -d error-reporting
         timeout 120s bash -c 'until docker compose ps error-reporting --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for error-reporting..."; sleep 3; done' || (docker compose logs error-reporting --tail=50 && exit 1)
 
-    - name: Start ingestion
-      run: |
-        docker compose up -d ingestion
-        timeout 120s bash -c 'until docker compose ps ingestion --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for ingestion..."; sleep 3; done' || (docker compose logs ingestion --tail=50 && exit 1)
-
     - name: Check service status
       run: docker compose ps
 
-    - name: Run ingestion service
+    - name: Run ingestion service (batch job)
       run: |
-        echo "Starting ingestion service..."
+        echo "Running ingestion service (batch job - runs once and exits)..."
         docker compose run --rm ingestion
-
-    - name: Check ingestion service exit code
-      run: |
-        echo "Verifying ingestion completed successfully..."
-        # The previous step will fail if exit code is non-zero
         echo "✓ Ingestion service completed successfully"
 
     - name: View ingestion logs
