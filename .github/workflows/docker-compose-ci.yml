@@ -81,26 +81,40 @@ jobs:
           has_healthcheck=$(docker compose ps "$service" --format "{{.Status}}" 2>/dev/null | grep -o "(health:" || echo "")
           
           if [ -z "$has_healthcheck" ]; then
-            # Service has no healthcheck - it might be a one-shot validator
-            # Wait a moment for it to start/complete
-            sleep 5
+            # Service has no healthcheck - it might be a one-shot validator or persistent service
+            # Wait for it to either complete or start running
+            end=$((SECONDS + timeout))
+            while [ $SECONDS -lt $end ]; do
+              status=$(docker compose ps "$service" --format "{{.Status}}" 2>/dev/null || echo "")
+              
+              # Check if it's running (persistent service without healthcheck)
+              if echo "$status" | grep -q "Up"; then
+                echo "✓ Service $service is running (no healthcheck)"
+                return 0
+              fi
+              
+              # Check if it exited (one-shot container)
+              if echo "$status" | grep -q "Exited"; then
+                exit_code=$(docker compose ps "$service" --format "{{.ExitCode}}" 2>/dev/null || echo "")
+                if [ "$exit_code" = "0" ]; then
+                  echo "✓ Service $service completed successfully (exit code 0)"
+                  docker compose logs "$service" --tail=20
+                  return 0
+                else
+                  echo "❌ Service $service failed (exit code: $exit_code)"
+                  docker compose logs "$service" --tail=100
+                  exit 1
+                fi
+              fi
+              
+              echo "Waiting for $service to start or complete (status: $status)"
+              sleep 3
+            done
             
-            # Check exit code from container
-            exit_code=$(docker compose ps "$service" --format "{{.ExitCode}}" 2>/dev/null || echo "")
-            status=$(docker compose ps "$service" --format "{{.Status}}" 2>/dev/null || echo "")
-            
-            if [ "$exit_code" = "0" ]; then
-              echo "✓ Service $service completed successfully (exit code 0)"
-              docker compose logs "$service" --tail=20
-              return 0
-            elif echo "$status" | grep -q "Up"; then
-              echo "✓ Service $service is running (no healthcheck)"
-              return 0
-            else
-              echo "❌ Service $service failed (exit code: $exit_code, status: $status)"
-              docker compose logs "$service" --tail=100
-              exit 1
-            fi
+            # Timeout - show current status and fail
+            echo "❌ Service $service did not start or complete within ${timeout}s"
+            docker compose logs "$service" --tail=100
+            exit 1
           fi
           
           # Service has a healthcheck, wait for it
