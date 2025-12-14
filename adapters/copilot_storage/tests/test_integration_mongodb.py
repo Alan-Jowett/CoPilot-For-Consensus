@@ -327,15 +327,10 @@ class TestValidationAtAdapterLayer:
         Any document should be accepted by the raw MongoDB store, regardless
         of schema compliance.
         """
-        # Get collection info from MongoDB
-        collection_infos = mongodb_store.database.list_collections(
-            filter={"name": clean_collection}
-        )
-        
         # Insert a test document to ensure collection exists
         mongodb_store.insert_document(clean_collection, {"test": "data"})
         
-        # Now get the collection info
+        # Get the collection info
         collection_infos = list(mongodb_store.database.list_collections(
             filter={"name": clean_collection}
         ))
