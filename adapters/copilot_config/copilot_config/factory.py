@@ -15,13 +15,27 @@ from .storage_provider import StorageConfigProvider
 def create_config_provider(provider_type: Optional[str] = None, **kwargs) -> ConfigProvider:
     """Create a configuration provider by type.
 
+    Args:
+        provider_type: Type of config provider (required).
+                      Options: "env", "static", "storage"/"document_store"/"doc_store"
+        **kwargs: Additional configuration for the provider (e.g., for storage provider)
+
+    Returns:
+        ConfigProvider instance
+
+    Raises:
+        ValueError: If provider_type is unknown or required parameters are missing
+
     Supported types:
-    - "env" (default)
-    - "static"
-    - "storage" / "document_store"
+    - "env": Environment variable configuration provider
+    - "static": Static configuration provider
+    - "storage"/"document_store"/"doc_store": Storage-backed configuration provider
     """
-    if provider_type is None:
-        provider_type = os.environ.get("CONFIG_PROVIDER_TYPE", "env")
+    if not provider_type:
+        raise ValueError(
+            "provider_type parameter is required. "
+            "Must be one of: env, static, storage"
+        )
 
     provider_type = provider_type.lower()
 
@@ -31,4 +45,8 @@ def create_config_provider(provider_type: Optional[str] = None, **kwargs) -> Con
         return StaticConfigProvider()
     if provider_type in ("storage", "document_store", "doc_store"):
         return StorageConfigProvider(**kwargs)
-    return EnvConfigProvider()
+    
+    raise ValueError(
+        f"Unknown provider_type: {provider_type}. "
+        f"Must be one of: env, static, storage"
+    )

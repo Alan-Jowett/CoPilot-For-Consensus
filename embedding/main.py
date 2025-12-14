@@ -142,24 +142,85 @@ def main():
             raise ConnectionError("Document store failed to connect")
         
         logger.info(f"Creating vector store ({config.vector_store_type})...")
-        vector_store = create_vector_store(
-            backend=config.vector_store_type,
-            dimension=config.embedding_dimension,
-            host=config.vector_store_host if config.vector_store_type == "qdrant" else None,
-            port=config.vector_store_port if config.vector_store_type == "qdrant" else None,
-        )
+        
+        # Build vector store kwargs based on backend type
+        vector_store_kwargs = {
+            "backend": config.vector_store_type,
+        }
+        
+        if config.vector_store_type.lower() == "faiss":
+            # Validate required config attributes
+            if not hasattr(config, "vector_store_index_type"):
+                raise ValueError("vector_store_index_type configuration is required for FAISS backend")
+            
+            vector_store_kwargs.update({
+                "dimension": config.embedding_dimension,
+                "index_type": config.vector_store_index_type,
+                "persist_path": config.vector_store_persist_path if hasattr(config, "vector_store_persist_path") else None,
+            })
+        elif config.vector_store_type.lower() == "qdrant":
+            # Validate required config attributes
+            required_attrs = ["vector_store_host", "vector_store_port", "vector_store_collection", 
+                            "vector_store_distance", "vector_store_batch_size"]
+            missing = [attr for attr in required_attrs if not hasattr(config, attr)]
+            if missing:
+                raise ValueError(f"Missing required Qdrant configuration: {', '.join(missing)}")
+            
+            vector_store_kwargs.update({
+                "dimension": config.embedding_dimension,
+                "host": config.vector_store_host,
+                "port": config.vector_store_port,
+                "collection_name": config.vector_store_collection,
+                "distance": config.vector_store_distance,
+                "upsert_batch_size": config.vector_store_batch_size,
+                "api_key": config.vector_store_api_key if hasattr(config, "vector_store_api_key") else None,
+            })
+        
+        vector_store = create_vector_store(**vector_store_kwargs)
+        
         if hasattr(vector_store, "connect"):
             if not vector_store.connect() and str(config.vector_store_type).lower() != "inmemory":
                 logger.error("Failed to connect to vector store.")
                 raise ConnectionError("Vector store failed to connect")
         
         logger.info(f"Creating embedding provider ({config.embedding_backend})...")
-        embedding_provider = create_embedding_provider(
-            backend=config.embedding_backend,
-            model=config.embedding_model,
-            dimension=config.embedding_dimension,
-            device=config.device,
-        )
+        
+        # Build embedding provider kwargs based on backend type
+        embedding_kwargs = {
+            "backend": config.embedding_backend,
+            "model": config.embedding_model,
+        }
+        
+        if config.embedding_backend.lower() == "mock":
+            embedding_kwargs["dimension"] = config.embedding_dimension
+        elif config.embedding_backend.lower() in ("sentencetransformers", "huggingface"):
+            embedding_kwargs["device"] = config.device
+            if hasattr(config, "model_cache_dir"):
+                embedding_kwargs["cache_dir"] = config.model_cache_dir
+        elif config.embedding_backend.lower() == "openai":
+            if not hasattr(config, "openai_api_key"):
+                raise ValueError("openai_api_key configuration is required for OpenAI embedding backend")
+            embedding_kwargs["api_key"] = config.openai_api_key
+            if not embedding_kwargs["api_key"]:
+                raise ValueError("openai_api_key configuration is required for OpenAI embedding backend and cannot be empty")
+        elif config.embedding_backend.lower() == "azure":
+            # Validate required Azure config attributes
+            required_attrs = ["azure_openai_key", "azure_openai_endpoint"]
+            missing = [attr for attr in required_attrs if not hasattr(config, attr)]
+            if missing:
+                raise ValueError(f"Missing required Azure embedding configuration: {', '.join(missing)}")
+            
+            embedding_kwargs["api_key"] = config.azure_openai_key
+            embedding_kwargs["api_base"] = config.azure_openai_endpoint
+            embedding_kwargs["api_version"] = config.azure_openai_api_version if hasattr(config, "azure_openai_api_version") else None
+            embedding_kwargs["deployment_name"] = config.azure_openai_deployment if hasattr(config, "azure_openai_deployment") else None
+            
+            if not embedding_kwargs["api_key"]:
+                raise ValueError("azure_openai_key configuration is required for Azure embedding backend and cannot be empty")
+            if not embedding_kwargs["api_base"]:
+                raise ValueError("azure_openai_endpoint configuration is required for Azure embedding backend and cannot be empty")
+        
+        embedding_provider = create_embedding_provider(**embedding_kwargs)
         
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")

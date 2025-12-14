@@ -30,14 +30,14 @@ class TestLoggerFactory:
 
     def test_create_silent_logger(self):
         """Test creating a silent logger."""
-        logger = create_logger(logger_type="silent")
+        logger = create_logger(logger_type="silent", level="INFO")
         
         assert isinstance(logger, SilentLogger)
         assert isinstance(logger, Logger)
 
     def test_create_logger_with_name(self):
         """Test creating a logger with a custom name."""
-        logger = create_logger(logger_type="stdout", name="test-service")
+        logger = create_logger(logger_type="stdout", level="INFO", name="test-service")
         
         assert isinstance(logger, StdoutLogger)
         assert logger.name == "test-service"
@@ -52,27 +52,17 @@ class TestLoggerFactory:
     def test_create_unknown_logger_type(self):
         """Test that unknown logger type raises ValueError."""
         with pytest.raises(ValueError, match="Unknown logger_type"):
-            create_logger(logger_type="invalid")
+            create_logger(logger_type="invalid", level="INFO")
 
     def test_create_logger_from_env(self):
-        """Test creating logger from environment variables."""
-        with patch.dict(os.environ, {
-            "LOG_TYPE": "stdout",
-            "LOG_LEVEL": "WARNING",
-            "LOG_NAME": "env-service"
-        }):
-            logger = create_logger()
-            
-            assert isinstance(logger, StdoutLogger)
-            assert logger.level == "WARNING"
-            assert logger.name == "env-service"
+        """Test that logger_type parameter is required."""
+        with pytest.raises(ValueError, match="logger_type parameter is required"):
+            create_logger()
 
     def test_create_logger_defaults_to_stdout(self):
-        """Test that logger defaults to stdout when not specified."""
-        with patch.dict(os.environ, {}, clear=True):
-            logger = create_logger()
-            
-            assert isinstance(logger, StdoutLogger)
+        """Test that level parameter is required."""
+        with pytest.raises(ValueError, match="level parameter is required"):
+            create_logger(logger_type="stdout")
 
 
 class TestSilentLogger:

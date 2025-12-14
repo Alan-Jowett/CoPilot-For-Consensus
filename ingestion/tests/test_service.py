@@ -35,7 +35,7 @@ class TestIngestionService:
         """Create test ingestion service."""
         publisher = NoopPublisher()
         publisher.connect()
-        logger = create_logger(logger_type="silent", name="ingestion-test")
+        logger = create_logger(logger_type="silent", level="INFO", name="ingestion-test")
         metrics = NoOpMetricsCollector()
         return IngestionService(config, publisher, logger=logger, metrics=metrics)
 
@@ -215,7 +215,7 @@ class TestIngestionService:
         publisher = NoopPublisher()
         publisher.connect()
         error_reporter = SilentErrorReporter()
-        logger = create_logger(logger_type="silent", name="ingestion-test")
+        logger = create_logger(logger_type="silent", level="INFO", name="ingestion-test")
         metrics = NoOpMetricsCollector()
 
         service = IngestionService(
@@ -247,7 +247,7 @@ class TestIngestionService:
         config.log_type = "silent"
         publisher = NoopPublisher()
         publisher.connect()
-        logger = create_logger(logger_type="silent", name="ingestion-test")
+        logger = create_logger(logger_type="silent", level="INFO", name="ingestion-test")
         metrics = NoOpMetricsCollector()
 
         service = IngestionService(config, publisher, logger=logger, metrics=metrics)
@@ -267,7 +267,7 @@ def test_archive_ingested_event_schema_validation():
         config = make_config(storage_path=tmpdir)
         publisher = NoopPublisher()
         publisher.connect()
-        logger = create_logger(logger_type="silent", name="ingestion-test")
+        logger = create_logger(logger_type="silent", level="INFO", name="ingestion-test")
         metrics = NoOpMetricsCollector()
         service = IngestionService(config, publisher, logger=logger, metrics=metrics)
 
@@ -297,7 +297,7 @@ def test_archive_ingestion_failed_event_schema_validation():
         config = make_config(storage_path=tmpdir)
         publisher = NoopPublisher()
         publisher.connect()
-        logger = create_logger(logger_type="silent", name="ingestion-test")
+        logger = create_logger(logger_type="silent", level="INFO", name="ingestion-test")
         metrics = NoOpMetricsCollector()
         service = IngestionService(config, publisher, logger=logger, metrics=metrics)
 

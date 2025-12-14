@@ -19,9 +19,8 @@ from copilot_auth import create_identity_provider, User, AuthenticationError
 # Create Flask app
 app = Flask(__name__)
 
-# Create identity provider (defaults to mock for this example)
-# In production, set IDENTITY_PROVIDER environment variable
-provider = create_identity_provider()
+# Create identity provider (using mock for this example)
+provider = create_identity_provider(provider_type="mock")
 
 # For demo purposes, add some test users if using mock provider
 if hasattr(provider, 'add_user'):

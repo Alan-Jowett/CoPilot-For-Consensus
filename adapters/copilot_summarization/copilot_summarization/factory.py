@@ -32,16 +32,16 @@ class SummarizerFactory:
         provider: Optional[str] = None,
         model: Optional[str] = None,
         api_key: Optional[str] = None,
-        base_url: Optional[str] = None
+        base_url: Optional[str] = None,
+        **kwargs
     ) -> Summarizer:
         """Create a summarizer instance based on provider type.
         
         Args:
-            provider: Provider type ("openai", "azure", "local", "mock")
-                     If None, reads from SUMMARIZER_PROVIDER env var
-            model: Model name to use. If None, uses provider default
-            api_key: API key for cloud providers. If None, reads from env
-            base_url: Base URL for Azure or local endpoints
+            provider: Provider type (required). Options: "openai", "azure", "local", "mock"
+            model: Model name to use. Required for openai, azure, and local backends.
+            api_key: API key for cloud providers. Required for openai and azure.
+            base_url: Base URL for Azure or local endpoints. Required for azure and local.
             
         Returns:
             Summarizer instance
@@ -49,22 +49,28 @@ class SummarizerFactory:
         Raises:
             ValueError: If provider is unknown or required config is missing
         """
-        # Read from environment if not provided
-        if provider is None:
-            provider = os.getenv("SUMMARIZER_PROVIDER", "mock")
+        if not provider:
+            raise ValueError(
+                "provider parameter is required. "
+                "Must be one of: openai, azure, local, mock"
+            )
         
         provider = provider.lower()
         
         logger.info("Creating summarizer with provider: %s", provider)
         
         if provider == "openai":
-            if api_key is None:
-                api_key = os.getenv("OPENAI_API_KEY")
             if not api_key:
-                raise ValueError("OpenAI API key required. Set OPENAI_API_KEY environment variable.")
+                raise ValueError(
+                    "api_key parameter is required for OpenAI provider. "
+                    "Provide the API key explicitly"
+                )
             
-            if model is None:
-                model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+            if not model:
+                raise ValueError(
+                    "model parameter is required for OpenAI provider. "
+                    "Specify a model name (e.g., 'gpt-3.5-turbo', 'gpt-4')"
+                )
             
             return OpenAISummarizer(
                 api_key=api_key,
@@ -73,18 +79,23 @@ class SummarizerFactory:
             )
             
         elif provider == "azure":
-            if api_key is None:
-                api_key = os.getenv("AZURE_OPENAI_API_KEY")
             if not api_key:
-                raise ValueError("Azure OpenAI API key required. Set AZURE_OPENAI_API_KEY environment variable.")
+                raise ValueError(
+                    "api_key parameter is required for Azure provider. "
+                    "Provide the Azure OpenAI API key explicitly"
+                )
             
-            if base_url is None:
-                base_url = os.getenv("AZURE_OPENAI_ENDPOINT")
             if not base_url:
-                raise ValueError("Azure OpenAI endpoint required. Set AZURE_OPENAI_ENDPOINT environment variable.")
+                raise ValueError(
+                    "base_url parameter is required for Azure provider. "
+                    "Provide the Azure OpenAI endpoint explicitly"
+                )
             
-            if model is None:
-                model = os.getenv("AZURE_OPENAI_MODEL", "gpt-3.5-turbo")
+            if not model:
+                raise ValueError(
+                    "model parameter is required for Azure provider. "
+                    "Specify a model name (e.g., 'gpt-3.5-turbo', 'gpt-4')"
+                )
             
             return OpenAISummarizer(
                 api_key=api_key,
@@ -93,11 +104,17 @@ class SummarizerFactory:
             )
             
         elif provider == "local":
-            if model is None:
-                model = os.getenv("LOCAL_LLM_MODEL", "mistral")
+            if not model:
+                raise ValueError(
+                    "model parameter is required for local LLM provider. "
+                    "Specify a model name (e.g., 'mistral', 'llama2')"
+                )
             
-            if base_url is None:
-                base_url = os.getenv("LOCAL_LLM_ENDPOINT", "http://localhost:11434")
+            if not base_url:
+                raise ValueError(
+                    "base_url parameter is required for local LLM provider. "
+                    "Specify the local LLM endpoint (e.g., 'http://localhost:11434')"
+                )
             
             return LocalLLMSummarizer(
                 model=model,
@@ -105,8 +122,12 @@ class SummarizerFactory:
             )
             
         elif provider == "mock":
-            latency_ms = int(os.getenv("MOCK_LATENCY_MS", "100"))
-            return MockSummarizer(latency_ms=latency_ms)
+            # MockSummarizer has its own default for latency_ms in the class
+            # Pass it only if explicitly provided
+            if "latency_ms" in kwargs:
+                return MockSummarizer(latency_ms=kwargs["latency_ms"])
+            else:
+                return MockSummarizer()
             
         else:
             raise ValueError(

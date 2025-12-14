@@ -20,7 +20,7 @@ from app import __version__
 from app.service import IngestionService, _enabled_sources
 
 # Bootstrap logger before configuration is loaded
-bootstrap_logger = create_logger(name="ingestion-bootstrap")
+bootstrap_logger = create_logger(logger_type="stdout", level="INFO", name="ingestion-bootstrap")
 
 
 def main():

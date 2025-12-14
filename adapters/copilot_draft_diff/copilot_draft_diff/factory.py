@@ -25,19 +25,25 @@ class DiffProviderFactory:
     }
     
     @classmethod
-    def create(cls, provider_type: str, config: Optional[Dict[str, Any]] = None) -> DraftDiffProvider:
+    def create(cls, provider_type: Optional[str] = None, config: Optional[Dict[str, Any]] = None) -> DraftDiffProvider:
         """Create a draft diff provider instance.
         
         Args:
-            provider_type: Type of provider to create (e.g., "datatracker", "mock")
+            provider_type: Type of provider to create (required). Options: "datatracker", "mock"
             config: Optional configuration dictionary for the provider
             
         Returns:
             Instance of the requested DraftDiffProvider
             
         Raises:
-            ValueError: If provider_type is not supported
+            ValueError: If provider_type is not supported or required parameters are missing
         """
+        if not provider_type:
+            raise ValueError(
+                "provider_type parameter is required. "
+                f"Available providers: {', '.join(cls._providers.keys())}"
+            )
+        
         if provider_type not in cls._providers:
             raise ValueError(
                 f"Unknown provider type: {provider_type}. "
@@ -49,39 +55,6 @@ class DiffProviderFactory:
         
         # Create provider with config
         return provider_class(**config)
-    
-    @classmethod
-    def create_from_env(cls) -> DraftDiffProvider:
-        """Create a draft diff provider from environment variables.
-        
-        Reads configuration from environment variables:
-        - DRAFT_DIFF_PROVIDER: Provider type (default: "datatracker")
-        - DRAFT_DIFF_BASE_URL: Base URL for datatracker provider
-        - DRAFT_DIFF_FORMAT: Default format for diffs
-        
-        Returns:
-            Configured DraftDiffProvider instance
-        """
-        provider_type = os.getenv("DRAFT_DIFF_PROVIDER", "datatracker")
-        
-        # Build config from environment
-        config = {}
-        
-        if provider_type == "datatracker":
-            base_url = os.getenv("DRAFT_DIFF_BASE_URL")
-            if base_url:
-                config["base_url"] = base_url
-            
-            diff_format = os.getenv("DRAFT_DIFF_FORMAT")
-            if diff_format:
-                config["diff_format"] = diff_format
-        
-        elif provider_type == "mock":
-            diff_format = os.getenv("DRAFT_DIFF_FORMAT")
-            if diff_format:
-                config["default_format"] = diff_format
-        
-        return cls.create(provider_type, config)
     
     @classmethod
     def register_provider(cls, name: str, provider_class: type) -> None:
@@ -110,13 +83,13 @@ def create_diff_provider(provider_type: Optional[str] = None,
     """Convenience function to create a draft diff provider.
     
     Args:
-        provider_type: Optional provider type. If None, reads from environment
+        provider_type: Provider type (required). Options: "datatracker", "mock"
         config: Optional configuration dictionary
         
     Returns:
         Configured DraftDiffProvider instance
+        
+    Raises:
+        ValueError: If provider_type is not supported or required parameters are missing
     """
-    if provider_type is None:
-        return DiffProviderFactory.create_from_env()
-    
     return DiffProviderFactory.create(provider_type, config)

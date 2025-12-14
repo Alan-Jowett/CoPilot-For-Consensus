@@ -17,42 +17,47 @@ logger = logging.getLogger(__name__)
 
 def create_vector_store(
     backend: Optional[str] = None,
-    dimension: int = 384,
+    dimension: Optional[int] = None,
     **kwargs
 ) -> VectorStore:
     """Factory method to create a vector store based on configuration.
     
-    The backend can be specified explicitly or via environment variable.
-    Priority: function argument > env var > default (faiss)
+    All parameters must be provided explicitly - no defaults are applied.
     
     Args:
-        backend: Backend type ("inmemory", "faiss", "qdrant", "azure").
-                If None, reads from VECTOR_STORE_BACKEND env var.
-        dimension: Dimension of embedding vectors (default: 384 for all-MiniLM-L6-v2)
+        backend: Backend type (required). Options: "inmemory", "faiss", "qdrant", "azure"
+        dimension: Dimension of embedding vectors. Required for faiss and qdrant backends.
         **kwargs: Additional backend-specific configuration options
         
     Returns:
         VectorStore instance
         
     Raises:
-        ValueError: If backend is not supported
+        ValueError: If backend is not supported or required parameters are missing
         
     Examples:
-        >>> # Use default FAISS backend
-        >>> store = create_vector_store(dimension=768)
-        
         >>> # Use in-memory for testing
         >>> store = create_vector_store(backend="inmemory")
         
-        >>> # Use environment variable
-        >>> os.environ["VECTOR_STORE_BACKEND"] = "faiss"
-        >>> store = create_vector_store(dimension=384)
+        >>> # Use FAISS with explicit parameters
+        >>> store = create_vector_store(backend="faiss", dimension=768, index_type="flat")
+        
+        >>> # Use Qdrant with explicit parameters
+        >>> store = create_vector_store(
+        ...     backend="qdrant",
+        ...     dimension=384,
+        ...     host="localhost",
+        ...     port=6333,
+        ...     collection_name="embeddings"
+        ... )
     """
-    # Determine backend
-    if backend is None:
-        backend = os.getenv("VECTOR_STORE_BACKEND", "faiss").lower()
-    else:
-        backend = backend.lower()
+    if not backend:
+        raise ValueError(
+            "backend parameter is required. "
+            "Must be one of: inmemory, faiss, qdrant, azure"
+        )
+    
+    backend = backend.lower()
     
     logger.info(f"Creating vector store with backend='{backend}', dimension={dimension}")
     
@@ -61,7 +66,19 @@ def create_vector_store(
         return InMemoryVectorStore()
     
     elif backend == "faiss":
-        index_type = kwargs.get("index_type", "flat")
+        if dimension is None:
+            raise ValueError(
+                "dimension parameter is required for FAISS backend. "
+                "Specify the embedding dimension (e.g., 384, 768)"
+            )
+        
+        index_type = kwargs.get("index_type")
+        if index_type is None:
+            raise ValueError(
+                "index_type parameter is required for FAISS backend. "
+                "Specify the index type (e.g., 'flat', 'ivf')"
+            )
+        
         persist_path = kwargs.get("persist_path")
         return FAISSVectorStore(
             dimension=dimension,
@@ -70,32 +87,63 @@ def create_vector_store(
         )
     
     elif backend == "qdrant":
-        # Get Qdrant configuration from environment or kwargs
-        host = kwargs.get("host", os.getenv("QDRANT_HOST", "localhost"))
+        if dimension is None:
+            raise ValueError(
+                "dimension parameter is required for Qdrant backend. "
+                "Specify the embedding dimension (e.g., 384, 768)"
+            )
         
-        # Parse port with error handling
-        if "port" in kwargs:
-            port = kwargs["port"]
-        else:
-            port_str = os.getenv("QDRANT_PORT", "6333")
+        # Get Qdrant configuration - all required
+        host = kwargs.get("host")
+        if not host:
+            raise ValueError(
+                "host parameter is required for Qdrant backend. "
+                "Specify the Qdrant host (e.g., 'localhost')"
+            )
+        
+        port = kwargs.get("port")
+        if port is None:
+            raise ValueError(
+                "port parameter is required for Qdrant backend. "
+                "Specify the Qdrant port (e.g., 6333)"
+            )
+        
+        # Validate port is an integer
+        if not isinstance(port, int):
             try:
-                port = int(port_str)
-            except ValueError:
-                raise ValueError(f"Invalid value for QDRANT_PORT: '{port_str}'. Must be an integer.")
+                port = int(port)
+            except (ValueError, TypeError):
+                raise ValueError(f"Invalid value for port: '{port}'. Must be an integer.")
         
-        api_key = kwargs.get("api_key", os.getenv("QDRANT_API_KEY"))
-        collection_name = kwargs.get("collection_name", os.getenv("QDRANT_COLLECTION", "embeddings"))
-        distance = kwargs.get("distance", os.getenv("QDRANT_DISTANCE", "cosine"))
+        collection_name = kwargs.get("collection_name")
+        if not collection_name:
+            raise ValueError(
+                "collection_name parameter is required for Qdrant backend. "
+                "Specify the collection name (e.g., 'embeddings')"
+            )
         
-        # Parse batch size with error handling
-        if "upsert_batch_size" in kwargs:
-            upsert_batch_size = kwargs["upsert_batch_size"]
-        else:
-            batch_size_str = os.getenv("QDRANT_BATCH_SIZE", "100")
+        distance = kwargs.get("distance")
+        if not distance:
+            raise ValueError(
+                "distance parameter is required for Qdrant backend. "
+                "Specify the distance metric (e.g., 'cosine', 'euclidean')"
+            )
+        
+        upsert_batch_size = kwargs.get("upsert_batch_size")
+        if upsert_batch_size is None:
+            raise ValueError(
+                "upsert_batch_size parameter is required for Qdrant backend. "
+                "Specify the batch size for upserts (e.g., 100)"
+            )
+        
+        # Validate batch size is an integer
+        if not isinstance(upsert_batch_size, int):
             try:
-                upsert_batch_size = int(batch_size_str)
-            except ValueError:
-                raise ValueError(f"Invalid value for QDRANT_BATCH_SIZE: '{batch_size_str}'. Must be an integer.")
+                upsert_batch_size = int(upsert_batch_size)
+            except (ValueError, TypeError):
+                raise ValueError(f"Invalid value for upsert_batch_size: '{upsert_batch_size}'. Must be an integer.")
+        
+        api_key = kwargs.get("api_key")  # Optional for Qdrant
         
         return QdrantVectorStore(
             host=host,

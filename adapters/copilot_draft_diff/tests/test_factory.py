@@ -52,58 +52,16 @@ class TestDiffProviderFactory:
         """Test that creating unknown provider raises ValueError."""
         with pytest.raises(ValueError, match="Unknown provider type: unknown"):
             DiffProviderFactory.create("unknown")
-    
-    def test_create_from_env_default(self):
-        """Test creating provider from environment with defaults."""
-        # Clear any existing env vars
-        for key in ["DRAFT_DIFF_PROVIDER", "DRAFT_DIFF_BASE_URL", "DRAFT_DIFF_FORMAT"]:
-            os.environ.pop(key, None)
-        
-        provider = DiffProviderFactory.create_from_env()
-        
-        assert isinstance(provider, DatatrackerDiffProvider)
-        assert provider.base_url == "https://datatracker.ietf.org"
-    
-    def test_create_from_env_mock_provider(self):
-        """Test creating mock provider from environment."""
-        os.environ["DRAFT_DIFF_PROVIDER"] = "mock"
-        
-        try:
-            provider = DiffProviderFactory.create_from_env()
-            
-            assert isinstance(provider, MockDiffProvider)
-        finally:
-            os.environ.pop("DRAFT_DIFF_PROVIDER", None)
-    
-    def test_create_from_env_with_config(self):
-        """Test creating provider from environment with custom config."""
-        os.environ["DRAFT_DIFF_PROVIDER"] = "datatracker"
-        os.environ["DRAFT_DIFF_BASE_URL"] = "https://test.example.com"
-        os.environ["DRAFT_DIFF_FORMAT"] = "text"
-        
-        try:
-            provider = DiffProviderFactory.create_from_env()
-            
-            assert isinstance(provider, DatatrackerDiffProvider)
-            assert provider.base_url == "https://test.example.com"
-            assert provider.diff_format == "text"
-        finally:
-            for key in ["DRAFT_DIFF_PROVIDER", "DRAFT_DIFF_BASE_URL", "DRAFT_DIFF_FORMAT"]:
-                os.environ.pop(key, None)
-    
-    def test_create_from_env_mock_with_format(self):
-        """Test creating mock provider from environment with format."""
-        os.environ["DRAFT_DIFF_PROVIDER"] = "mock"
-        os.environ["DRAFT_DIFF_FORMAT"] = "markdown"
-        
-        try:
-            provider = DiffProviderFactory.create_from_env()
-            
-            assert isinstance(provider, MockDiffProvider)
-            assert provider.default_format == "markdown"
-        finally:
-            for key in ["DRAFT_DIFF_PROVIDER", "DRAFT_DIFF_FORMAT"]:
-                os.environ.pop(key, None)
+
+    def test_create_requires_provider_type(self):
+        """Test that creating provider requires provider_type parameter."""
+        with pytest.raises(ValueError, match="provider_type parameter is required"):
+            DiffProviderFactory.create(None)
+
+    def test_create_empty_provider_type(self):
+        """Test that empty provider_type raises error."""
+        with pytest.raises(ValueError, match="provider_type parameter is required"):
+            DiffProviderFactory.create("")
     
     def test_register_custom_provider(self):
         """Test registering a custom provider."""
@@ -147,13 +105,7 @@ class TestCreateDiffProvider:
         assert isinstance(provider, MockDiffProvider)
         assert provider.default_format == "html"
     
-    def test_create_from_env(self):
-        """Test creating provider from environment."""
-        os.environ["DRAFT_DIFF_PROVIDER"] = "mock"
-        
-        try:
-            provider = create_diff_provider()
-            
-            assert isinstance(provider, MockDiffProvider)
-        finally:
-            os.environ.pop("DRAFT_DIFF_PROVIDER", None)
+    def test_create_requires_provider_type(self):
+        """Test that creating provider requires provider_type parameter."""
+        with pytest.raises(ValueError, match="provider_type parameter is required"):
+            create_diff_provider(None)
