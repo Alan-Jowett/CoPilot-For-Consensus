@@ -276,16 +276,22 @@ class TestRabbitMQIntegration:
             time.sleep(0.5)
             
             # This should NOT be received (different pattern)
+            # Publishing to a routing key with no queue bound will raise an exception
             event2 = {
                 "event_type": "TestEvent",
                 "event_id": str(uuid.uuid4()),
                 "data": {"message": "Should NOT receive this"},
             }
-            rabbitmq_publisher.publish(
-                exchange=rabbitmq_publisher.exchange,
-                routing_key="test.other.event",
-                event=event2,
-            )
+            try:
+                rabbitmq_publisher.publish(
+                    exchange=rabbitmq_publisher.exchange,
+                    routing_key="test.other.event",
+                    event=event2,
+                )
+                # If no exception is raised, that's also acceptable for this test
+            except Exception:
+                # Expected: publishing to unbound routing key raises exception
+                pass
             
             # Wait for events
             consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
