@@ -305,11 +305,15 @@ class OrchestrationService:
 
             event = SummarizationRequestedEvent(data=event_data)
 
-            self.publisher.publish(
+            success = self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="summarization.requested",
                 event=event.to_dict()
             )
+
+            if not success:
+                logger.error("Failed to publish SummarizationRequested")
+                raise Exception("Failed to publish SummarizationRequested")
 
             logger.info(f"Published SummarizationRequested for threads: {thread_ids}")
 
@@ -343,11 +347,15 @@ class OrchestrationService:
 
             event = OrchestrationFailedEvent(data=event_data)
 
-            self.publisher.publish(
+            success = self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="orchestration.failed",
                 event=event.to_dict()
             )
+
+            if not success:
+                logger.error("Failed to publish OrchestrationFailed")
+                raise Exception("Failed to publish OrchestrationFailed")
 
             logger.info(f"Published OrchestrationFailed for threads: {thread_ids}")
 

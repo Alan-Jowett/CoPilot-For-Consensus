@@ -341,11 +341,15 @@ class ChunkingService:
                 }
             )
             
-            self.publisher.publish(
+            success = self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="chunks.prepared",
                 event=event.to_dict(),
             )
+            
+            if not success:
+                logger.error("Failed to publish ChunksPrepared event")
+                raise Exception("Failed to publish ChunksPrepared event")
             
             logger.info(f"Published ChunksPrepared event: {chunk_count} chunks")
             
@@ -379,11 +383,15 @@ class ChunkingService:
                 }
             )
             
-            self.publisher.publish(
+            success = self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="chunking.failed",
                 event=event.to_dict(),
             )
+            
+            if not success:
+                logger.error("Failed to publish ChunkingFailed event")
+                raise Exception("Failed to publish ChunkingFailed event")
             
             logger.info(f"Published ChunkingFailed event: {error_type}")
             

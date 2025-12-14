@@ -39,7 +39,7 @@ def mock_embedding_provider():
 def mock_publisher():
     """Create a mock event publisher."""
     publisher = Mock()
-    publisher.publish = Mock()
+    publisher.publish = Mock(return_value=True)
     return publisher
 
 
@@ -513,3 +513,27 @@ def test_publish_embedding_failed_raises_on_publish_error(embedding_service, moc
             error_type="TestError",
             retry_count=0
         )
+
+
+def test_publish_embeddings_generated_false_return(embedding_service, mock_publisher):
+    """Publisher returning False should raise for EmbeddingsGenerated."""
+    mock_publisher.publish.return_value = False
+
+    with pytest.raises(Exception):
+        embedding_service._publish_embeddings_generated([
+            "chunk-1"
+        ], 1, 10.0)
+
+    mock_publisher.publish.assert_called_once()
+
+
+def test_publish_embedding_failed_false_return(embedding_service, mock_publisher):
+    """Publisher returning False should raise for EmbeddingGenerationFailed."""
+    mock_publisher.publish.return_value = False
+
+    with pytest.raises(Exception):
+        embedding_service._publish_embedding_failed([
+            "chunk-1"
+        ], "boom", "TestError", 0)
+
+    mock_publisher.publish.assert_called_once()

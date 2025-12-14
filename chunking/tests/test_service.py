@@ -494,6 +494,19 @@ def test_publish_chunks_prepared_raises_on_publish_error(chunking_service, mock_
         )
 
 
+def test_publish_chunks_prepared_raises_on_publish_false(chunking_service, mock_publisher):
+    """Test that _publish_chunks_prepared raises when publish returns False."""
+    mock_publisher.publish = Mock(return_value=False)
+
+    with pytest.raises(Exception):
+        chunking_service._publish_chunks_prepared(
+            message_ids=["<msg-1@example.com>"],
+            chunk_ids=["chunk-1"],
+            chunk_count=1,
+            avg_chunk_size=100.0,
+        )
+
+
 def test_publish_chunking_failed_raises_on_publish_error(chunking_service, mock_publisher):
     """Test that _publish_chunking_failed raises exception on publish errors."""
     # Setup mock to raise an exception
@@ -506,6 +519,19 @@ def test_publish_chunking_failed_raises_on_publish_error(chunking_service, mock_
             error_message="Test error",
             error_type="TestError",
             retry_count=0
+        )
+
+
+def test_publish_chunking_failed_raises_on_publish_false(chunking_service, mock_publisher):
+    """Test that _publish_chunking_failed raises when publish returns False."""
+    mock_publisher.publish = Mock(return_value=False)
+
+    with pytest.raises(Exception):
+        chunking_service._publish_chunking_failed(
+            message_ids=["<msg-1@example.com>"],
+            error_message="Test error",
+            error_type="TestError",
+            retry_count=0,
         )
 
 

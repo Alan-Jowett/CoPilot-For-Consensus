@@ -21,7 +21,7 @@ def mock_document_store():
 def mock_publisher():
     """Create a mock event publisher."""
     publisher = Mock()
-    publisher.publish = Mock()
+    publisher.publish = Mock(return_value=True)
     return publisher
 
 
@@ -200,6 +200,34 @@ def test_publish_orchestration_failed(orchestration_service, mock_publisher):
     assert event["data"]["thread_ids"] == thread_ids
     assert event["data"]["error_message"] == error_message
     assert event["data"]["error_type"] == error_type
+
+
+def test_publish_summarization_requested_publish_failure(orchestration_service, mock_publisher):
+    """Publishing SummarizationRequested should raise when publisher returns False."""
+    mock_publisher.publish.return_value = False
+
+    with pytest.raises(Exception):
+        orchestration_service._publish_summarization_requested([
+            "<thread-1@example.com>"
+        ], {
+            "thread_id": "<thread-1@example.com>",
+            "chunk_count": 1,
+            "messages": []
+        })
+
+    mock_publisher.publish.assert_called_once()
+
+
+def test_publish_orchestration_failed_publish_failure(orchestration_service, mock_publisher):
+    """Publishing OrchestrationFailed should raise when publisher returns False."""
+    mock_publisher.publish.return_value = False
+
+    with pytest.raises(Exception):
+        orchestration_service._publish_orchestration_failed([
+            "<thread-1@example.com>"
+        ], "boom", "TestError")
+
+    mock_publisher.publish.assert_called_once()
 
 
 def test_get_stats(orchestration_service):
