@@ -142,16 +142,24 @@ jobs:
       run: |
         docker compose up -d db-init
         docker compose wait db-init || (docker compose logs db-init && exit 1)
-        exit_code=$(docker compose ps db-init --format "{{.ExitCode}}" 2>/dev/null | tr -d '\r')
+        cid=$(docker compose ps -aq db-init | tr -d '\r')
+        if [ -z "$cid" ]; then
+          echo "db-init container id not found"
+          docker compose ps -a db-init || true
+          docker compose logs db-init --tail=100 || true
+          exit 1
+        fi
+        exit_code=$(docker inspect "$cid" --format '{{.State.ExitCode}}' 2>/dev/null | tr -d '\r')
         if [ -z "$exit_code" ]; then
           echo "db-init exit code not available"
-          docker compose logs db-init --tail=100
+          docker compose ps -a db-init || true
+          docker compose logs db-init --tail=100 || true
           exit 1
         fi
         if [ "$exit_code" = "0" ]; then
-          docker compose logs db-init --tail=20
+          docker compose logs db-init --tail=20 || true
         else
-          docker compose logs db-init --tail=100
+          docker compose logs db-init --tail=100 || true
           exit 1
         fi
 
@@ -159,16 +167,24 @@ jobs:
       run: |
         docker compose up -d db-validate
         docker compose wait db-validate || (docker compose logs db-validate && exit 1)
-        exit_code=$(docker compose ps db-validate --format "{{.ExitCode}}" 2>/dev/null | tr -d '\r')
+        cid=$(docker compose ps -aq db-validate | tr -d '\r')
+        if [ -z "$cid" ]; then
+          echo "db-validate container id not found"
+          docker compose ps -a db-validate || true
+          docker compose logs db-validate --tail=100 || true
+          exit 1
+        fi
+        exit_code=$(docker inspect "$cid" --format '{{.State.ExitCode}}' 2>/dev/null | tr -d '\r')
         if [ -z "$exit_code" ]; then
           echo "db-validate exit code not available"
-          docker compose logs db-validate --tail=100
+          docker compose ps -a db-validate || true
+          docker compose logs db-validate --tail=100 || true
           exit 1
         fi
         if [ "$exit_code" = "0" ]; then
-          docker compose logs db-validate --tail=20
+          docker compose logs db-validate --tail=20 || true
         else
-          docker compose logs db-validate --tail=100
+          docker compose logs db-validate --tail=100 || true
           exit 1
         fi
 
@@ -176,16 +192,24 @@ jobs:
       run: |
         docker compose up -d vectorstore-validate
         docker compose wait vectorstore-validate || (docker compose logs vectorstore-validate && exit 1)
-        exit_code=$(docker compose ps vectorstore-validate --format "{{.ExitCode}}" 2>/dev/null | tr -d '\r')
+        cid=$(docker compose ps -aq vectorstore-validate | tr -d '\r')
+        if [ -z "$cid" ]; then
+          echo "vectorstore-validate container id not found"
+          docker compose ps -a vectorstore-validate || true
+          docker compose logs vectorstore-validate --tail=100 || true
+          exit 1
+        fi
+        exit_code=$(docker inspect "$cid" --format '{{.State.ExitCode}}' 2>/dev/null | tr -d '\r')
         if [ -z "$exit_code" ]; then
           echo "vectorstore-validate exit code not available"
-          docker compose logs vectorstore-validate --tail=100
+          docker compose ps -a vectorstore-validate || true
+          docker compose logs vectorstore-validate --tail=100 || true
           exit 1
         fi
         if [ "$exit_code" = "0" ]; then
-          docker compose logs vectorstore-validate --tail=20
+          docker compose logs vectorstore-validate --tail=20 || true
         else
-          docker compose logs vectorstore-validate --tail=100
+          docker compose logs vectorstore-validate --tail=100 || true
           exit 1
         fi
 
@@ -193,16 +217,24 @@ jobs:
       run: |
         docker compose up -d ollama-validate
         docker compose wait ollama-validate || (docker compose logs ollama-validate && exit 1)
-        exit_code=$(docker compose ps ollama-validate --format "{{.ExitCode}}" 2>/dev/null | tr -d '\r')
+        cid=$(docker compose ps -aq ollama-validate | tr -d '\r')
+        if [ -z "$cid" ]; then
+          echo "ollama-validate container id not found"
+          docker compose ps -a ollama-validate || true
+          docker compose logs ollama-validate --tail=100 || true
+          exit 1
+        fi
+        exit_code=$(docker inspect "$cid" --format '{{.State.ExitCode}}' 2>/dev/null | tr -d '\r')
         if [ -z "$exit_code" ]; then
           echo "ollama-validate exit code not available"
-          docker compose logs ollama-validate --tail=100
+          docker compose ps -a ollama-validate || true
+          docker compose logs ollama-validate --tail=100 || true
           exit 1
         fi
         if [ "$exit_code" = "0" ]; then
-          docker compose logs ollama-validate --tail=20
+          docker compose logs ollama-validate --tail=20 || true
         else
-          docker compose logs ollama-validate --tail=100
+          docker compose logs ollama-validate --tail=100 || true
           exit 1
         fi
 
