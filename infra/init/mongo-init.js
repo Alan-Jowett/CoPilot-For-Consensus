@@ -6,57 +6,10 @@
 // Schemas in /schemas/documents are maintained for documentation purposes only.
 
 const collectionsConfigPath = '/schemas/documents/collections.config.json';
-const eventSchemasDir = '/schemas/events';
 const fs = require('fs');
-const path = require('path');
-
-function stripUnsupportedKeywords(obj, isRoot = true) {
-  if (Array.isArray(obj)) {
-    obj.forEach((item) => stripUnsupportedKeywords(item, false));
-    return obj;
-  }
-  if (obj && typeof obj === 'object') {
-    delete obj.$schema;
-    delete obj.$id;
-    if (Object.prototype.hasOwnProperty.call(obj, 'format')) {
-      delete obj.format;
-    }
-
-    // Only convert 'type' to 'bsonType' for nested properties, not at root level
-    if (Object.prototype.hasOwnProperty.call(obj, 'type') && !isRoot) {
-      const toBsonType = (t) => {
-        switch (t) {
-          case 'integer':
-            return 'int';
-          case 'number':
-            return 'double';
-          case 'boolean':
-            return 'bool';
-          default:
-            return t;
-        }
-      };
-      const typeVal = obj.type;
-      if (Array.isArray(typeVal)) {
-        obj.bsonType = typeVal.map(toBsonType);
-      } else {
-        obj.bsonType = toBsonType(typeVal);
-      }
-      delete obj.type;
-    }
-
-    Object.values(obj).forEach((val) => stripUnsupportedKeywords(val, false));
-  }
-  return obj;
-}
 
 const dbName = process.env.MONGO_APP_DB || 'copilot';
 const database = db.getSiblingDB(dbName);
-
-function loadSchema(filePath) {
-  const schema = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  return stripUnsupportedKeywords(schema);
-}
 
 function loadCollectionsConfig() {
   return JSON.parse(fs.readFileSync(collectionsConfigPath, 'utf8'));
