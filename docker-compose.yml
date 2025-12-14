@@ -235,6 +235,8 @@ services:
     build:
       context: .
       dockerfile: ./chunking/Dockerfile
+      cache_from:
+        - copilot-chunking:latest
     environment:
       - SCHEMA_DIR=/app/documents/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
@@ -268,6 +270,8 @@ services:
     build:
       context: .
       dockerfile: ./embedding/Dockerfile
+      cache_from:
+        - copilot-embedding:latest
     environment:
       - SCHEMA_DIR=/app/documents/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
@@ -314,6 +318,8 @@ services:
     build:
       context: .
       dockerfile: ./error-reporting/Dockerfile
+      cache_from:
+        - copilot-error-reporting:latest
     environment:
       - SCHEMA_DIR=/app/documents/schemas/configs
     ports:
@@ -331,6 +337,8 @@ services:
     build:
       context: .
       dockerfile: ./ingestion/Dockerfile
+      cache_from:
+        - copilot-ingestion:latest
     environment:
       - SCHEMA_DIR=/app/documents/schemas/configs
       - STORAGE_PATH=/data/raw_archives
@@ -374,6 +382,8 @@ services:
     build:
       context: .
       dockerfile: ./orchestrator/Dockerfile
+      cache_from:
+        - copilot-orchestrator:latest
     environment:
       - SCHEMA_DIR=/app/documents/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
@@ -419,6 +429,8 @@ services:
     build:
       context: .
       dockerfile: ./parsing/Dockerfile
+      cache_from:
+        - copilot-parsing:latest
     environment:
       - SCHEMA_DIR=/app/documents/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
@@ -454,6 +466,8 @@ services:
     build:
       context: .
       dockerfile: ./reporting/Dockerfile
+      cache_from:
+        - copilot-reporting:latest
     environment:
       - SCHEMA_DIR=/app/documents/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
@@ -490,6 +504,8 @@ services:
     build:
       context: .
       dockerfile: ./summarization/Dockerfile
+      cache_from:
+        - copilot-summarization:latest
     environment:
       - SCHEMA_DIR=/app/documents/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
