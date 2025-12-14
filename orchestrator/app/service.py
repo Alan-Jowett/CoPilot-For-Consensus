@@ -122,15 +122,33 @@ class OrchestrationService:
 
         Args:
             event_data: Data from EmbeddingsGenerated event
+            
+        Raises:
+            ValueError: If required fields are missing
+            TypeError: If fields have invalid types
         """
+        # Validate chunk_ids field exists
+        if "chunk_ids" not in event_data:
+            error_msg = "chunk_ids field missing from event data"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        chunk_ids = event_data["chunk_ids"]
+        
+        # Validate chunk_ids is a list
+        if not isinstance(chunk_ids, list):
+            error_msg = f"chunk_ids must be a list, got {type(chunk_ids).__name__}"
+            logger.error(error_msg)
+            raise TypeError(error_msg)
+        
+        # Empty list is valid - nothing to process
+        if not chunk_ids:
+            logger.info("Empty chunk list in EmbeddingsGenerated event, nothing to process")
+            return
+        
         start_time = time.time()
 
         try:
-            chunk_ids = event_data.get("chunk_ids", [])
-            if not chunk_ids:
-                logger.warning("No chunk_ids in EmbeddingsGenerated event")
-                return
-
             # Resolve affected threads
             logger.info(f"Resolving threads for {len(chunk_ids)} chunks...")
             thread_ids = self._resolve_threads(chunk_ids)
