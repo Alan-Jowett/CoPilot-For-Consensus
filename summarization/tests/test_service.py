@@ -712,15 +712,9 @@ def test_handle_malformed_event_missing_data():
         "version": "1.0",
     }
     
-    # Should handle gracefully without crashing
-    exception_raised = False
-    try:
+    # Service should raise an exception for missing data field
+    with pytest.raises(KeyError):
         service._handle_summarization_requested(event)
-    except KeyError:
-        # Expected - service should validate required fields
-        exception_raised = True
-    
-    assert exception_raised, "Expected KeyError for missing data field"
 
 
 def test_handle_malformed_event_missing_required_field():
@@ -754,15 +748,9 @@ def test_handle_malformed_event_missing_required_field():
         }
     }
     
-    # Should handle gracefully
-    exception_raised = False
-    try:
+    # Service should raise an exception for missing required field
+    with pytest.raises(KeyError):
         service._handle_summarization_requested(event)
-    except KeyError:
-        # Expected - service should validate required fields
-        exception_raised = True
-    
-    assert exception_raised, "Expected KeyError for missing required field"
 
 
 def test_handle_event_with_invalid_thread_ids_type():
@@ -797,12 +785,6 @@ def test_handle_event_with_invalid_thread_ids_type():
         }
     }
     
-    # Should handle gracefully
-    exception_raised = False
-    try:
+    # Service should raise an exception for invalid type
+    with pytest.raises((TypeError, AttributeError)):
         service._handle_summarization_requested(event)
-    except (TypeError, AttributeError):
-        # Expected - service should handle type errors
-        exception_raised = True
-    
-    assert exception_raised, "Expected TypeError or AttributeError for invalid thread_ids type"
