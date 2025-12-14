@@ -6,7 +6,7 @@ fastapi==0.124.4
 uvicorn==0.38.0
 requests==2.32.5
 httpx==0.28.1
-prometheus-client==0.21.0
+prometheus-client==0.23.1
 
 # NOTE: Adapters are installed separately in CI and Docker builds
 
