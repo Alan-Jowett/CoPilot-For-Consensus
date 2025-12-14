@@ -37,11 +37,6 @@ function ensureFromConfig(definition) {
     return;
   }
 
-  if (!definition.schema) {
-    print(`Skipping collection '${definition.name}' because schema path is missing`);
-    return;
-  }
-
   ensureCollection(definition.name);
 
   if (Array.isArray(definition.indexes) && definition.indexes.length > 0) {
