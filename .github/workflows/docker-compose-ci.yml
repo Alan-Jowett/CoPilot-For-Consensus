@@ -49,46 +49,12 @@ jobs:
     - name: Validate docker-compose configuration
       run: docker compose config
 
-    # Build services one at a time (allows parallel execution in future and clear progress tracking)
-    - name: Build ingestion
-      run: |
-        docker compose build ingestion
-        docker image prune -f
-
-    - name: Build parsing
-      run: |
-        docker compose build parsing
-        docker image prune -f
-
-    - name: Build chunking
-      run: |
-        docker compose build chunking
-        docker image prune -f
-
-    - name: Build embedding
-      run: |
-        docker compose build embedding
-        docker image prune -f
-
-    - name: Build orchestrator
-      run: |
-        docker compose build orchestrator
-        docker image prune -f
-
-    - name: Build summarization
-      run: |
-        docker compose build summarization
-        docker image prune -f
-
-    - name: Build reporting
-      run: |
-        docker compose build reporting
-        docker image prune -f
-
-    - name: Build error-reporting
-      run: |
-        docker compose build error-reporting
-        docker image prune -f
+    # Build all services in parallel for faster CI times
+    - name: Build all services in parallel
+      env:
+        DOCKER_BUILDKIT: 1
+        COMPOSE_DOCKER_CLI_BUILD: 1
+      run: docker compose build --parallel
 
     # Infrastructure Services
     - name: Start documentdb
