@@ -8,10 +8,11 @@
 set -e
 
 # Wait for RabbitMQ to be ready
-rabbitmqctl wait --timeout 60 /var/lib/rabbitmq/mnesia/rabbitmq.pid 2>/dev/null || true
+rabbitmqctl wait --timeout 60 /var/lib/rabbitmq/mnesia/rabbitmq.pid >/dev/null 2>&1
 
 # List exchanges and check for copilot.events
-if rabbitmqctl list_exchanges name --formatter json | grep -q '"copilot.events"'; then
+# Use -x flag to match exact line (exchange name only)
+if rabbitmqctl list_exchanges name | grep -qx "copilot.events"; then
     echo "✓ RabbitMQ validation succeeded: copilot.events exchange exists"
     exit 0
 else
