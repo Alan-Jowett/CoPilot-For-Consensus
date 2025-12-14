@@ -40,7 +40,7 @@ jobs:
       uses: docker/setup-buildx-action@v3
 
     - name: Validate docker-compose configuration
-      run: docker compose --profile infra --profile app config
+      run: docker compose config
 
     - name: Build services sequentially to avoid disk space issues
       run: |
@@ -48,7 +48,7 @@ jobs:
         SERVICES="ingestion parsing chunking embedding orchestrator summarization reporting error-reporting"
         for service in $SERVICES; do
           echo "Building $service..."
-          docker compose --profile infra --profile app build $service
+          docker compose build $service
           # Prune dangling images to free space
           docker image prune -f
         done
@@ -56,7 +56,7 @@ jobs:
     - name: Start all services
       run: |
         # Start infrastructure and app services
-        docker compose --profile infra --profile app up -d
+        docker compose up -d
         # Wait for services with healthchecks to be healthy (excludes one-shot and non-healthcheck containers)
         timeout=180
         echo "Waiting up to ${timeout}s for services to be healthy..."

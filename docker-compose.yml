@@ -4,8 +4,6 @@
 services:
   # Infrastructure services
   db-init:
-    profiles:
-      - infra
     image: mongo:7.0
     depends_on:
       documentdb:
@@ -26,8 +24,6 @@ services:
     restart: "no"
 
   db-validate:
-    profiles:
-      - infra
     image: mongo:7.0
     depends_on:
       documentdb:
@@ -50,8 +46,6 @@ services:
     restart: "no"
 
   documentdb:
-    profiles:
-      - infra
     image: mongo:7.0
     ports:
       - "27017:27017"
@@ -69,8 +63,6 @@ services:
     restart: unless-stopped
 
   grafana:
-    profiles:
-      - infra
     image: grafana/grafana:latest
     ports:
       - "3000:3000"
@@ -97,8 +89,6 @@ services:
     restart: unless-stopped
 
   loki:
-    profiles:
-      - infra
     image: grafana/loki:latest
     ports:
       - "3100:3100"
@@ -111,8 +101,6 @@ services:
     restart: unless-stopped
 
   messagebus:
-    profiles:
-      - infra
     image: rabbitmq:3-management
     ports:
       - "5672:5672"
@@ -132,8 +120,6 @@ services:
     restart: unless-stopped
 
   monitoring:
-    profiles:
-      - infra
     image: prom/prometheus:latest
     ports:
       - "9090:9090"
@@ -149,8 +135,6 @@ services:
     restart: unless-stopped
 
   ollama:
-    profiles:
-      - infra
     image: ollama/ollama:latest
     ports:
       - "11434:11434"
@@ -165,8 +149,6 @@ services:
     restart: unless-stopped
 
   ollama-validate:
-    profiles:
-      - infra
     image: curlimages/curl:8.10.1
     depends_on:
       ollama:
@@ -188,8 +170,6 @@ services:
   # use only. For production deployments, REMOVE or restrict this mount and consider alternative log
   # collection strategies. See: https://docs.docker.com/engine/security/#docker-daemon-attack-surface
   promtail:
-    profiles:
-      - infra
     image: grafana/promtail:latest
     volumes:
       - ./infra/promtail/promtail-config.yml:/etc/promtail/config.yml
@@ -208,8 +188,6 @@ services:
     restart: unless-stopped
 
   pushgateway:
-    profiles:
-      - infra
     image: prom/pushgateway:latest
     ports:
       - "9091:9091"
@@ -222,8 +200,6 @@ services:
     restart: unless-stopped
 
   vectorstore:
-    profiles:
-      - infra
     image: qdrant/qdrant:latest
     ports:
       - "6333:6333"
@@ -238,8 +214,6 @@ services:
     restart: unless-stopped
 
   vectorstore-validate:
-    profiles:
-      - infra
     image: curlimages/curl:8.10.1
     depends_on:
       vectorstore:
@@ -256,8 +230,6 @@ services:
 
   # Application services
   chunking:
-    profiles:
-      - app
     image: copilot-chunking:latest
     build:
       context: .
@@ -293,8 +265,6 @@ services:
     restart: unless-stopped
 
   embedding:
-    profiles:
-      - app
     image: copilot-embedding:latest
     build:
       context: .
@@ -343,8 +313,6 @@ services:
   # Do NOT expose this service to untrusted networks or in production environments.
   # For local development only. See README for details.
   error-reporting:
-    profiles:
-      - app
     image: copilot-error-reporting:latest
     build:
       context: .
@@ -362,8 +330,6 @@ services:
     restart: unless-stopped
 
   ingestion:
-    profiles:
-      - app
     image: copilot-ingestion:latest
     build:
       context: .
@@ -407,8 +373,6 @@ services:
     restart: "no"
 
   orchestrator:
-    profiles:
-      - app
     image: copilot-orchestrator:latest
     build:
       context: .
@@ -454,8 +418,6 @@ services:
     restart: unless-stopped
 
   parsing:
-    profiles:
-      - app
     image: copilot-parsing:latest
     build:
       context: .
@@ -491,8 +453,6 @@ services:
     restart: unless-stopped
 
   reporting:
-    profiles:
-      - app
     image: copilot-reporting:latest
     build:
       context: .
@@ -531,8 +491,6 @@ services:
     restart: unless-stopped
 
   summarization:
-    profiles:
-      - app
     image: copilot-summarization:latest
     build:
       context: .
