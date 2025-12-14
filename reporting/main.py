@@ -220,9 +220,9 @@ def main():
             username=config.doc_store_user if config.doc_store_user else None,
             password=config.doc_store_password if config.doc_store_password else None,
         )
-        if not document_store.connect():
-            logger.error("Failed to connect to document store.")
-            raise ConnectionError("Document store failed to connect")
+        logger.info("Connecting to document store...")
+        document_store.connect()
+        logger.info("Document store connected successfully")
         
         # Validate document store permissions (read/write access)
         logger.info("Validating document store permissions...")
@@ -252,10 +252,6 @@ def main():
                 logger.error(f"Failed to load required schema: {schema_name}")
                 raise RuntimeError(f"Required event schema '{schema_name}' could not be loaded")
         logger.info(f"Successfully validated {len(required_schemas)} required event schemas")
-        
-        logger.info("Connecting to document store...")
-        document_store.connect()
-        logger.info("Document store connected successfully")
         
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")
