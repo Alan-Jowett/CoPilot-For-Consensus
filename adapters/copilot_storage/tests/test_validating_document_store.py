@@ -10,7 +10,7 @@ from copilot_storage.validating_document_store import ValidatingDocumentStore, D
 
 # Check if copilot_schema_validation is available
 try:
-    import copilot_schema_validation
+    import copilot_schema_validation  # noqa: F401
     HAS_SCHEMA_VALIDATION = True
 except ImportError:
     HAS_SCHEMA_VALIDATION = False
