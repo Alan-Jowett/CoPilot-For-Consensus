@@ -23,18 +23,18 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v6
 
-    - name: Free up disk space
-      run: |
-        echo "Disk space before cleanup:"
-        df -h
-        # Remove unnecessary software to free up ~10GB
-        sudo rm -rf /usr/share/dotnet
-        sudo rm -rf /usr/local/lib/android
-        sudo rm -rf /opt/ghc
-        sudo rm -rf /opt/hostedtoolcache/CodeQL
-        sudo docker system prune -af --volumes
-        echo "Disk space after cleanup:"
-        df -h
+    # - name: Free up disk space
+    #   run: |
+    #     echo "Disk space before cleanup:"
+    #     df -h
+    #     # Remove unnecessary software to free up ~10GB
+    #     sudo rm -rf /usr/share/dotnet
+    #     sudo rm -rf /usr/local/lib/android
+    #     sudo rm -rf /opt/ghc
+    #     sudo rm -rf /opt/hostedtoolcache/CodeQL
+    #     sudo docker system prune -af --volumes
+    #     echo "Disk space after cleanup:"
+    #     df -h
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -42,24 +42,42 @@ jobs:
     - name: Validate docker-compose configuration
       run: docker compose config
 
-    - name: Build services sequentially to avoid disk space issues
-      run: |
-        # Build services one at a time and prune between builds
-        SERVICES="ingestion parsing chunking embedding orchestrator summarization reporting error-reporting"
-        for service in $SERVICES; do
-          echo "Building $service..."
-          docker compose build $service
-          # Prune dangling images to free space
-          docker image prune -f
-        done
+    # - name: Build services sequentially to avoid disk space issues
+    #   run: |
+    #     # Build services one at a time and prune between builds
+    #     SERVICES="ingestion parsing chunking embedding orchestrator summarization reporting error-reporting"
+    #     for service in $SERVICES; do
+    #       echo "Building $service..."
+    #       docker compose build $service
+    #       # Prune dangling images to free space
+    #       docker image prune -f
+    #     done
+
+    - name: Build the Docker images
+      run: docker compose build
 
     - name: Start all services
-      run: docker compose up -d
-
-    - name: Wait for services to be healthy
       run: |
-        echo "Waiting for services to start..."
-        sleep 30
+        # Start infrastructure and app services
+        docker compose --profile infra --profile app up -d
+        # Wait for services with healthchecks to be healthy (excludes one-shot and non-healthcheck containers)
+        timeout=180
+        echo "Waiting up to ${timeout}s for services to be healthy..."
+        end=$((SECONDS + timeout))
+        while [ $SECONDS -lt $end ]; do
+          # Get services that are running with healthchecks but not healthy yet
+          not_healthy=$(docker compose ps --format "{{.Service}} {{.Status}}" | grep "Up" | grep "(health:" | grep -v "(healthy)" || true)
+          if [ -z "$not_healthy" ]; then
+            echo "✓ All services with healthchecks are healthy"
+            exit 0
+          fi
+          echo "Waiting for services to become healthy:"
+          echo "$not_healthy"
+          sleep 5
+        done
+        echo "Timeout waiting for services to be healthy"
+        docker compose ps
+        exit 1
 
     - name: Check all services are healthy
       run: |
