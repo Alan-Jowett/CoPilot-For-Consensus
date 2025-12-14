@@ -7,6 +7,7 @@ import logging
 import os
 import sys
 import threading
+from pathlib import Path
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -144,7 +145,9 @@ def main():
         
         # Wrap with schema validation
         logger.info("Wrapping document store with schema validation...")
-        document_schema_provider = FileSchemaProvider(schema_type="documents")
+        document_schema_provider = FileSchemaProvider(
+            schema_dir=Path(__file__).parent / "documents" / "schemas" / "documents"
+        )
         document_store = ValidatingDocumentStore(
             store=base_document_store,
             schema_provider=document_schema_provider,
