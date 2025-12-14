@@ -86,7 +86,7 @@ def find_python_packages(root_dir: Path) -> List[Tuple[str, str]]:
 def generate_dependabot_config(packages: List[Tuple[str, str]]) -> str:
     """Generate the dependabot.yml content."""
     content = HEADER
-    
+
     for directory, description in packages:
         content += f"  # Monitor Python dependencies in {description}\n"
         content += f"  - package-ecosystem: \"pip\"\n"
@@ -94,7 +94,15 @@ def generate_dependabot_config(packages: List[Tuple[str, str]]) -> str:
         content += f"    schedule:\n"
         content += f"      interval: \"weekly\"\n"
         content += f"    open-pull-requests-limit: 5\n\n"
-    
+
+    # Add Docker image monitoring for docker-compose
+    content += "  # Monitor Docker image updates in docker-compose\n"
+    content += "  - package-ecosystem: \"docker\"\n"
+    content += "    directory: \"/\"\n"
+    content += "    schedule:\n"
+    content += "      interval: \"weekly\"\n"
+    content += "    open-pull-requests-limit: 5\n\n"
+
     # Add GitHub Actions monitoring
     content += "  # Monitor GitHub Actions\n"
     content += "  - package-ecosystem: \"github-actions\"\n"
@@ -140,7 +148,7 @@ def main(output_path_arg=None):
         f.write(config_content)
     
     print(f"\n✅ Successfully generated {output_path}")
-    print(f"   Total entries: {len(packages)} Python + 1 GitHub Actions")
+    print(f"   Total entries: {len(packages)} Python + 1 Docker + 1 GitHub Actions")
 
 
 if __name__ == '__main__':
