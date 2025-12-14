@@ -228,6 +228,23 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  mongo-doc-count-exporter:
+    image: python:3.11-slim@sha256:8c4433ecfe7e2d9f2f3e581f5f3a056826e6a78a7e2f4d66e1f65b0c67f6e2f2
+    command: ["python", "/app/scripts/mongo_doc_count_exporter.py"]
+    environment:
+      - MONGO_URI=mongodb://${DOC_DB_ADMIN_USERNAME:-root}:${DOC_DB_ADMIN_PASSWORD:-example}@documentdb:27017/admin
+      - MONGO_DB=copilot
+      - PORT=9500
+      - SCRAPE_INTERVAL_SEC=5
+    volumes:
+      - ./:/app:ro
+    depends_on:
+      documentdb:
+        condition: service_healthy
+    ports:
+      - "9500:9500"
+    restart: unless-stopped
+
   vectorstore:
     image: qdrant/qdrant:latest@sha256:dab6de32f7b2cc599985a7c764db3e8b062f70508fb85ca074aa856f829bf335
     ports:

@@ -3,3 +3,5 @@
 
 # Requirements for scripts/manage_failed_queues.py
 pika>=1.3.0
+prometheus_client>=0.20.0
+pymongo>=4.8.0
