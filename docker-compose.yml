@@ -25,10 +25,14 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - messagebus
-      - monitoring
-      - pushgateway
-      - documentdb
+      messagebus:
+        condition: service_healthy
+      monitoring:
+        condition: service_started
+      pushgateway:
+        condition: service_started
+      documentdb:
+        condition: service_started
     restart: "no"
 
   parsing:
@@ -120,10 +124,14 @@ services:
       - OLLAMA_HOST=${OLLAMA_HOST:-http://ollama:11434}
       - SCHEMA_DIR=/app/documents/schemas/configs
     depends_on:
-      - orchestrator
-      - documentdb
-      - vectorstore
-      - messagebus
+      orchestrator:
+        condition: service_started
+      documentdb:
+        condition: service_started
+      vectorstore:
+        condition: service_started
+      messagebus:
+        condition: service_healthy
     restart: unless-stopped
 
   reporting:
@@ -205,10 +213,17 @@ services:
       - "15672:15672"
     volumes:
       - ./infra/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./infra/rabbitmq/validate-rabbitmq.sh:/validate-rabbitmq.sh:ro
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER:-guest}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS:-guest}
       - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbitmq_management load_definitions "/etc/rabbitmq/definitions.json"
+    healthcheck:
+      test: ["CMD", "sh", "/validate-rabbitmq.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
 
   monitoring:
