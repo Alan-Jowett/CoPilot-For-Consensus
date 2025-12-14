@@ -23,18 +23,18 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v6
 
-    # - name: Free up disk space
-    #   run: |
-    #     echo "Disk space before cleanup:"
-    #     df -h
-    #     # Remove unnecessary software to free up ~10GB
-    #     sudo rm -rf /usr/share/dotnet
-    #     sudo rm -rf /usr/local/lib/android
-    #     sudo rm -rf /opt/ghc
-    #     sudo rm -rf /opt/hostedtoolcache/CodeQL
-    #     sudo docker system prune -af --volumes
-    #     echo "Disk space after cleanup:"
-    #     df -h
+    - name: Free up disk space
+      run: |
+        echo "Disk space before cleanup:"
+        df -h
+        # Remove unnecessary software to free up ~10GB
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo docker system prune -af --volumes
+        echo "Disk space after cleanup:"
+        df -h
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -42,19 +42,16 @@ jobs:
     - name: Validate docker-compose configuration
       run: docker compose config
 
-    # - name: Build services sequentially to avoid disk space issues
-    #   run: |
-    #     # Build services one at a time and prune between builds
-    #     SERVICES="ingestion parsing chunking embedding orchestrator summarization reporting error-reporting"
-    #     for service in $SERVICES; do
-    #       echo "Building $service..."
-    #       docker compose build $service
-    #       # Prune dangling images to free space
-    #       docker image prune -f
-    #     done
-
-    - name: Build the Docker images
-      run: docker compose build
+    - name: Build services sequentially to avoid disk space issues
+      run: |
+        # Build services one at a time and prune between builds
+        SERVICES="ingestion parsing chunking embedding orchestrator summarization reporting error-reporting"
+        for service in $SERVICES; do
+          echo "Building $service..."
+          docker compose build $service
+          # Prune dangling images to free space
+          docker image prune -f
+        done
 
     - name: Start all services
       run: |
