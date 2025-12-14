@@ -5,6 +5,10 @@
 
 This guide explains how to migrate microservices from direct environment variable access to the schema-driven configuration system.
 
+## Related Guides
+
+- **[MongoDB Environment Variable Migration](./MONGODB_ENV_VAR_MIGRATION.md)**: Guide for migrating from `MONGO_*` to `DOC_DB_*` environment variables
+
 ## Overview
 
 The schema-driven configuration system provides:
