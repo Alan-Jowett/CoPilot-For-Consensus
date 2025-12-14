@@ -18,12 +18,14 @@ Event messages flowing through the message bus are validated using `ValidatingEv
 ```python
 from copilot_events import create_publisher, ValidatingEventPublisher
 from copilot_schema_validation import FileSchemaProvider
+from pathlib import Path
 
 # Create base publisher
 base_publisher = create_publisher(message_bus_type="rabbitmq", host="localhost")
 
 # Wrap with validation
-schema_provider = FileSchemaProvider(schema_type="events")
+# Default schema_dir points to events schemas, or specify explicitly
+schema_provider = FileSchemaProvider()  # Defaults to documents/schemas/events
 publisher = ValidatingEventPublisher(
     publisher=base_publisher,
     schema_provider=schema_provider,
@@ -43,13 +45,17 @@ Documents stored in MongoDB are validated using `ValidatingDocumentStore`:
 ```python
 from copilot_storage import create_document_store, ValidatingDocumentStore
 from copilot_schema_validation import FileSchemaProvider
+from pathlib import Path
 
 # Create base document store
 base_store = create_document_store(store_type="mongodb", host="localhost")
 base_store.connect()
 
 # Wrap with validation
-document_schema_provider = FileSchemaProvider(schema_type="documents")
+# Point to documents schema directory
+document_schema_provider = FileSchemaProvider(
+    schema_dir=Path(__file__).parent.parent / "documents" / "schemas" / "documents"
+)
 document_store = ValidatingDocumentStore(
     store=base_store,
     schema_provider=document_schema_provider,
@@ -68,13 +74,16 @@ Both event and document validation use `FileSchemaProvider` to load JSON schemas
 
 ```python
 from copilot_schema_validation import FileSchemaProvider
+from pathlib import Path
 
-# For event schemas
-event_provider = FileSchemaProvider(schema_type="events")
+# For event schemas (default)
+event_provider = FileSchemaProvider()  # Defaults to documents/schemas/events
 schema = event_provider.get_schema("ArchiveIngested")
 
-# For document schemas
-doc_provider = FileSchemaProvider(schema_type="documents")
+# For document schemas (specify directory)
+doc_provider = FileSchemaProvider(
+    schema_dir=Path(__file__).parent.parent / "documents" / "schemas" / "documents"
+)
 schema = doc_provider.get_schema("Messages")  # Collection name converted to PascalCase
 ```
 

@@ -58,13 +58,17 @@ For document storage, use `ValidatingDocumentStore` from `copilot_storage` to wr
 ```python
 from copilot_storage import create_document_store, ValidatingDocumentStore
 from copilot_schema_validation import FileSchemaProvider
+from pathlib import Path
 
 # Create base document store
 base_store = create_document_store(store_type="mongodb", host="localhost")
 base_store.connect()
 
 # Wrap with schema validation
-schema_provider = FileSchemaProvider(schema_type="documents")
+# Point to documents schema directory (relative to service root)
+schema_provider = FileSchemaProvider(
+    schema_dir=Path(__file__).parent.parent / "documents" / "schemas" / "documents"
+)
 validating_store = ValidatingDocumentStore(
     store=base_store,
     schema_provider=schema_provider,
