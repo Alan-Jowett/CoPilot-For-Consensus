@@ -2,8 +2,10 @@
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
 // Simple smoke test: insert a minimal messages document to verify Mongo accepts it.
-// Usage: mongosh "mongodb://root:example@documentdb:27017/admin" /test/test_insert.js
-// Or from host: mongosh "mongodb://root:example@localhost:27017/admin" /path/to/test_insert.js
+// Usage from container:
+//   mongosh "mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@documentdb:27017/admin" /test/test_insert.js
+// Usage from host (default credentials):
+//   mongosh "mongodb://admin:PLEASE_CHANGE_ME@localhost:27017/admin" /path/to/test_insert.js
 
 const dbName = process.env.MONGO_APP_DB || 'copilot';
 const database = db.getSiblingDB(dbName);

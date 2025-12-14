@@ -215,7 +215,7 @@ docker compose exec documentdb mongosh \
   "mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-PLEASE_CHANGE_ME}@localhost:27017/admin" \
   /test/test_insert.js
 
-# Or from the host (if mongosh is installed locally)  
+# Or from the host (if mongosh is installed locally)
 mongosh "mongodb://admin:PLEASE_CHANGE_ME@localhost:27017/admin" \
   ./infra/test/test_insert.js
 ```
