@@ -71,17 +71,37 @@ class IMAPFetcher(ArchiveFetcher):
             mbox = mbox_module.mbox(file_path)
 
             # Fetch all messages
+            failed_msg_ids = []
             for msg_id in msg_ids:
                 try:
                     msg_data = client.fetch([msg_id], ["RFC822"])
                     if msg_id in msg_data:
                         msg_bytes = msg_data[msg_id][b"RFC822"]
                         mbox.add(msg_bytes)
+                    else:
+                        failed_msg_ids.append(msg_id)
                 except Exception as e:
                     logger.warning(f"Failed to fetch message {msg_id}: {e}")
+                    failed_msg_ids.append(msg_id)
 
             mbox.close()
             client.logout()
+
+            if failed_msg_ids:
+                error_msg = (
+                    f"Failed to fetch {len(failed_msg_ids)} messages from {folder}: "
+                    f"{failed_msg_ids}"
+                )
+                logger.error(error_msg)
+                try:
+                    os.remove(file_path)
+                except Exception as cleanup_error:
+                    logger.warning(
+                        "Failed to clean up partial mbox after fetch errors",
+                        error=str(cleanup_error),
+                        file_path=file_path,
+                    )
+                return False, None, error_msg
 
             logger.info(f"Saved {len(msg_ids)} messages to {file_path}")
             return True, [file_path], None
