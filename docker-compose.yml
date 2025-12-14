@@ -143,7 +143,6 @@ services:
       - MONGODB_URI=mongodb://${DOC_DB_ADMIN_USERNAME:-root}:${DOC_DB_ADMIN_PASSWORD:-example}@documentdb:27017/admin
     command:
       - '--collect-all'
-      - '--compatible-mode'
     depends_on:
       documentdb:
         condition: service_healthy
