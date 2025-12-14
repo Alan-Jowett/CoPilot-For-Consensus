@@ -7,6 +7,7 @@ import logging
 import os
 import sys
 import threading
+from pathlib import Path
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -16,7 +17,8 @@ import uvicorn
 
 from copilot_config import load_typed_config
 from copilot_events import create_publisher, create_subscriber
-from copilot_storage import create_document_store, DocumentStoreConnectionError
+from copilot_storage import create_document_store, ValidatingDocumentStore, DocumentStoreConnectionError
+from copilot_schema_validation import FileSchemaProvider
 from copilot_vectorstore import create_vector_store
 from copilot_metrics import create_metrics_collector
 from copilot_reporting import create_error_reporter
@@ -128,7 +130,7 @@ def main():
             raise ConnectionError("Subscriber failed to connect to message bus")
         
         logger.info("Creating document store...")
-        document_store = create_document_store(
+        base_document_store = create_document_store(
             store_type=config.doc_store_type,
             host=config.doc_store_host,
             port=config.doc_store_port,
@@ -137,10 +139,21 @@ def main():
             password=config.doc_store_password if config.doc_store_password else None,
         )
         try:
-            document_store.connect()
+            base_document_store.connect()
         except DocumentStoreConnectionError as e:
             logger.error(f"Failed to connect to document store: {e}")
             raise
+        
+        # Wrap with schema validation
+        logger.info("Wrapping document store with schema validation...")
+        document_schema_provider = FileSchemaProvider(
+            schema_dir=Path(__file__).parent.parent / "documents" / "schemas" / "documents"
+        )
+        document_store = ValidatingDocumentStore(
+            store=base_document_store,
+            schema_provider=document_schema_provider,
+            strict=True,
+        )
         
         logger.info("Creating vector store...")
         

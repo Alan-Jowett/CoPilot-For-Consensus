@@ -7,6 +7,7 @@ import logging
 import os
 import sys
 import threading
+from pathlib import Path
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -16,7 +17,8 @@ import uvicorn
 
 from copilot_config import load_typed_config
 from copilot_events import create_publisher, create_subscriber
-from copilot_storage import create_document_store
+from copilot_storage import create_document_store, ValidatingDocumentStore
+from copilot_schema_validation import FileSchemaProvider
 from copilot_metrics import create_metrics_collector
 from copilot_reporting import create_error_reporter
 from copilot_schema_validation import FileSchemaProvider
@@ -212,7 +214,7 @@ def main():
             raise ConnectionError("Subscriber failed to connect to message bus")
         
         logger.info("Creating document store...")
-        document_store = create_document_store(
+        base_document_store = create_document_store(
             store_type=config.doc_store_type,
             host=config.doc_store_host,
             port=config.doc_store_port,
@@ -221,37 +223,19 @@ def main():
             password=config.doc_store_password if config.doc_store_password else None,
         )
         logger.info("Connecting to document store...")
-        document_store.connect()
+        base_document_store.connect()
         logger.info("Document store connected successfully")
         
-        # Validate document store permissions (read/write access)
-        logger.info("Validating document store permissions...")
-        if str(config.doc_store_type).lower() != "inmemory":
-            try:
-                # Test write permission
-                test_doc_id = document_store.insert_document("_startup_validation", {"test": True})
-                # Test read permission
-                retrieved = document_store.get_document("_startup_validation", test_doc_id)
-                if retrieved is None:
-                    logger.error("Failed to read test document from document store.")
-                    raise PermissionError("Document store read permission validation failed")
-                # Clean up test document
-                document_store.delete_document("_startup_validation", test_doc_id)
-                logger.info("Document store permissions validated successfully")
-            except Exception as e:
-                logger.error(f"Document store permission validation failed: {e}")
-                raise PermissionError(f"Document store does not have required read/write permissions: {e}")
-        
-        # Validate required event schemas can be loaded
-        logger.info("Validating event schemas...")
-        schema_provider = FileSchemaProvider()
-        required_schemas = ["SummaryComplete", "ReportPublished", "ReportDeliveryFailed"]
-        for schema_name in required_schemas:
-            schema = schema_provider.get_schema(schema_name)
-            if schema is None:
-                logger.error(f"Failed to load required schema: {schema_name}")
-                raise RuntimeError(f"Required event schema '{schema_name}' could not be loaded")
-        logger.info(f"Successfully validated {len(required_schemas)} required event schemas")
+        # Wrap with schema validation
+        logger.info("Wrapping document store with schema validation...")
+        document_schema_provider = FileSchemaProvider(
+            schema_dir=Path(__file__).parent.parent / "documents" / "schemas" / "documents"
+        )
+        document_store = ValidatingDocumentStore(
+            store=base_document_store,
+            schema_provider=document_schema_provider,
+            strict=True,
+        )
         
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")
