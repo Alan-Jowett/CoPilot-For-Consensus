@@ -788,3 +788,71 @@ def test_handle_event_with_invalid_thread_ids_type():
     # Service should raise an exception for invalid type
     with pytest.raises((TypeError, AttributeError)):
         service._handle_summarization_requested(event)
+
+
+def test_publish_summary_complete_with_publisher_failure(
+    mock_document_store,
+    mock_vector_store,
+    mock_summarizer,
+):
+    """Test that _publish_summary_complete raises exception when publisher fails."""
+    # Create a publisher that returns False
+    mock_publisher = Mock()
+    mock_publisher.publish = Mock(return_value=False)
+    
+    mock_subscriber = Mock()
+    
+    service = SummarizationService(
+        document_store=mock_document_store,
+        vector_store=mock_vector_store,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        summarizer=mock_summarizer,
+    )
+    
+    # Should raise exception when publisher returns False
+    with pytest.raises(Exception) as exc_info:
+        service._publish_summary_complete(
+            thread_id="test-thread",
+            summary_markdown="# Test Summary",
+            citations=[],
+            llm_backend="test",
+            llm_model="test-model",
+            tokens_prompt=100,
+            tokens_completion=50,
+            latency_ms=1000,
+        )
+    
+    assert "Failed to publish SummaryComplete event" in str(exc_info.value)
+
+
+def test_publish_summarization_failed_with_publisher_failure(
+    mock_document_store,
+    mock_vector_store,
+    mock_summarizer,
+):
+    """Test that _publish_summarization_failed raises exception when publisher fails."""
+    # Create a publisher that returns False
+    mock_publisher = Mock()
+    mock_publisher.publish = Mock(return_value=False)
+    
+    mock_subscriber = Mock()
+    
+    service = SummarizationService(
+        document_store=mock_document_store,
+        vector_store=mock_vector_store,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        summarizer=mock_summarizer,
+    )
+    
+    # Should raise exception when publisher returns False
+    with pytest.raises(Exception) as exc_info:
+        service._publish_summarization_failed(
+            thread_id="test-thread",
+            error_type="TestError",
+            error_message="Test error message",
+            retry_count=3,
+        )
+    
+    assert "Failed to publish SummarizationFailed event" in str(exc_info.value)

@@ -277,12 +277,25 @@ class SummarizationService:
                     error_type = type(e).__name__
                     error_message = str(e)
                     
-                    self._publish_summarization_failed(
-                        thread_id=thread_id,
-                        error_type=error_type,
-                        error_message=error_message,
-                        retry_count=retry_count,
-                    )
+                    try:
+                        self._publish_summarization_failed(
+                            thread_id=thread_id,
+                            error_type=error_type,
+                            error_message=error_message,
+                            retry_count=retry_count,
+                        )
+                    except Exception as publish_error:
+                        # Event publishing failed but summarization definitely failed too
+                        # Log both errors to ensure visibility
+                        logger.error(
+                            f"Failed to publish SummarizationFailed event for {thread_id}",
+                            exc_info=True,
+                            extra={"original_error": str(e), "publish_error": str(publish_error)}
+                        )
+                        if self.error_reporter:
+                            self.error_reporter.capture_exception()
+                        # Re-raise the original exception to trigger message requeue
+                        raise e from publish_error
                     
                     if self.error_reporter:
                         self.error_reporter.report(
@@ -402,11 +415,27 @@ class SummarizationService:
             }
         )
         
-        self.publisher.publish(
-            exchange="copilot.events",
-            routing_key="summary.complete",
-            message=event.to_dict(),
-        )
+        try:
+            success = self.publisher.publish(
+                exchange="copilot.events",
+                routing_key="summary.complete",
+                message=event.to_dict(),
+            )
+            
+            if not success:
+                logger.error(f"Failed to publish SummaryComplete event for {thread_id}")
+                if self.error_reporter:
+                    self.error_reporter.capture_message(
+                        "Failed to publish SummaryComplete event",
+                        level="error",
+                        context={"thread_id": thread_id},
+                    )
+                raise Exception(f"Failed to publish SummaryComplete event for {thread_id}")
+        except Exception:
+            logger.exception(f"Exception while publishing SummaryComplete event for {thread_id}")
+            if self.error_reporter:
+                self.error_reporter.capture_exception()
+            raise
         
         logger.info(f"Published SummaryComplete event for thread {thread_id}")
 
@@ -434,11 +463,27 @@ class SummarizationService:
             }
         )
         
-        self.publisher.publish(
-            exchange="copilot.events",
-            routing_key="summarization.failed",
-            message=event.to_dict(),
-        )
+        try:
+            success = self.publisher.publish(
+                exchange="copilot.events",
+                routing_key="summarization.failed",
+                message=event.to_dict(),
+            )
+            
+            if not success:
+                logger.error(f"Failed to publish SummarizationFailed event for {thread_id}")
+                if self.error_reporter:
+                    self.error_reporter.capture_message(
+                        "Failed to publish SummarizationFailed event",
+                        level="error",
+                        context={"thread_id": thread_id},
+                    )
+                raise Exception(f"Failed to publish SummarizationFailed event for {thread_id}")
+        except Exception:
+            logger.exception(f"Exception while publishing SummarizationFailed event for {thread_id}")
+            if self.error_reporter:
+                self.error_reporter.capture_exception()
+            raise
         
         logger.warning(
             f"Published SummarizationFailed event for thread {thread_id}: "
