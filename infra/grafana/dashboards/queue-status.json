@@ -510,11 +510,91 @@
       ],
       "title": "All Service Queues - Total Messages (Ready + Unacked)",
       "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1000
+              },
+              {
+                "color": "yellow",
+                "value": 10000
+              },
+              {
+                "color": "red",
+                "value": 100000
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "id": 7,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"]
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "text": {}
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "mongodb_top_commands_count{database=\"copilot\",collection=\"archives\"}",
+          "refId": "A",
+          "legendFormat": "archives"
+        },
+        {
+          "expr": "mongodb_top_commands_count{database=\"copilot\",collection=\"messages\"}",
+          "refId": "B",
+          "legendFormat": "messages"
+        },
+        {
+          "expr": "mongodb_top_commands_count{database=\"copilot\",collection=\"chunks\"}",
+          "refId": "C",
+          "legendFormat": "chunks"
+        },
+        {
+          "expr": "mongodb_top_commands_count{database=\"copilot\",collection=\"threads\"}",
+          "refId": "D",
+          "legendFormat": "threads"
+        },
+        {
+          "expr": "mongodb_top_commands_count{database=\"copilot\",collection=\"summaries\"}",
+          "refId": "E",
+          "legendFormat": "summaries"
+        }
+      ],
+      "title": "MongoDB Collection Activity (Command Count)",
+      "type": "gauge"
     }
   ],
   "schemaVersion": 27,
   "style": "dark",
-  "tags": ["rabbitmq", "queues", "services"],
+  "tags": ["rabbitmq", "queues", "services", "mongodb"],
   "templating": {
     "list": []
   },

@@ -138,6 +138,20 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  mongodb-exporter:
+    image: percona/mongodb_exporter:0.40
+    ports:
+      - "9216:9216"
+    environment:
+      - MONGODB_URI=mongodb://${DOC_DB_ADMIN_USERNAME:-root}:${DOC_DB_ADMIN_PASSWORD:-example}@documentdb:27017/admin
+    command:
+      - '--collect-all'
+      - '--compatible-mode'
+    depends_on:
+      documentdb:
+        condition: service_healthy
+    restart: unless-stopped
+
   monitoring:
     image: prom/prometheus:latest
     ports:
