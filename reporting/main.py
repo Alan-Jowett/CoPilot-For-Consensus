@@ -19,6 +19,7 @@ from copilot_events import create_publisher, create_subscriber
 from copilot_storage import create_document_store
 from copilot_metrics import create_metrics_collector
 from copilot_reporting import create_error_reporter
+from copilot_schema_validation import FileSchemaProvider
 
 from app import __version__
 from app.service import ReportingService
@@ -190,6 +191,12 @@ def main():
             username=config.message_bus_user,
             password=config.message_bus_password,
         )
+        if not publisher.connect():
+            if str(config.message_bus_type).lower() != "noop":
+                logger.error("Failed to connect publisher to message bus. Failing fast.")
+                raise ConnectionError("Publisher failed to connect to message bus")
+            else:
+                logger.warning("Failed to connect publisher to message bus. Continuing with noop publisher.")
         
         logger.info("Creating message bus subscriber...")
         subscriber = create_subscriber(
@@ -200,6 +207,9 @@ def main():
             password=config.message_bus_password,
             queue_name="reporting-service",
         )
+        if not subscriber.connect():
+            logger.error("Failed to connect subscriber to message bus.")
+            raise ConnectionError("Subscriber failed to connect to message bus")
         
         logger.info("Creating document store...")
         document_store = create_document_store(
@@ -210,6 +220,38 @@ def main():
             username=config.doc_store_user if config.doc_store_user else None,
             password=config.doc_store_password if config.doc_store_password else None,
         )
+        if not document_store.connect():
+            logger.error("Failed to connect to document store.")
+            raise ConnectionError("Document store failed to connect")
+        
+        # Validate document store permissions (read/write access)
+        logger.info("Validating document store permissions...")
+        if str(config.doc_store_type).lower() != "inmemory":
+            try:
+                # Test write permission
+                test_doc_id = document_store.insert_document("_startup_validation", {"test": True})
+                # Test read permission
+                retrieved = document_store.get_document("_startup_validation", test_doc_id)
+                if retrieved is None:
+                    logger.error("Failed to read test document from document store.")
+                    raise PermissionError("Document store read permission validation failed")
+                # Clean up test document
+                document_store.delete_document("_startup_validation", test_doc_id)
+                logger.info("Document store permissions validated successfully")
+            except Exception as e:
+                logger.error(f"Document store permission validation failed: {e}")
+                raise PermissionError(f"Document store does not have required read/write permissions: {e}")
+        
+        # Validate required event schemas can be loaded
+        logger.info("Validating event schemas...")
+        schema_provider = FileSchemaProvider()
+        required_schemas = ["SummaryComplete", "ReportPublished", "ReportDeliveryFailed"]
+        for schema_name in required_schemas:
+            schema = schema_provider.get_schema(schema_name)
+            if schema is None:
+                logger.error(f"Failed to load required schema: {schema_name}")
+                raise RuntimeError(f"Required event schema '{schema_name}' could not be loaded")
+        logger.info(f"Successfully validated {len(required_schemas)} required event schemas")
         
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")

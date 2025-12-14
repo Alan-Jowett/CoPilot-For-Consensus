@@ -77,6 +77,3 @@ pylint copilot_schema_validation/
 mypy copilot_schema_validation/
 ```
 
-## History of Changes
-
-- **Removed DocumentStoreSchemaProvider**: The `DocumentStoreSchemaProvider` class and its MongoDB integration have been removed to eliminate the circular dependency between `copilot_schema_validation` and `copilot_storage`. All applications now use `FileSchemaProvider` to load schemas from the filesystem.

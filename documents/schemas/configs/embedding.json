@@ -172,6 +172,27 @@
       "env_var": "ERROR_REPORTER_TYPE",
       "default": "console",
       "description": "Error reporter type"
+    },
+    "vector_store_collection": {
+      "type": "string",
+      "source": "env",
+      "env_var": "VECTOR_STORE_COLLECTION",
+      "default": "embeddings",
+      "description": "Qdrant vector store collection name"
+    },
+    "vector_store_distance": {
+      "type": "string",
+      "source": "env",
+      "env_var": "VECTOR_STORE_DISTANCE",
+      "default": "cosine",
+      "description": "Qdrant vector store distance metric"
+    },
+    "vector_store_batch_size": {
+      "type": "int",
+      "source": "env",
+      "env_var": "VECTOR_STORE_BATCH_SIZE",
+      "default": 100,
+      "description": "Qdrant vector store upsert batch size"
     }
   }
 }
