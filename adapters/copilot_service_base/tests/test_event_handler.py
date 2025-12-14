@@ -3,7 +3,6 @@
 
 """Tests for event handler decorator."""
 
-import pytest
 from unittest.mock import Mock
 
 from copilot_service_base.event_handler import safe_event_handler
