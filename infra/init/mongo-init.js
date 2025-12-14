@@ -2,8 +2,8 @@
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
 // MongoDB initialization: collections and indexes
-// Note: JSON Schema validators are NOT applied to avoid MongoDB compatibility issues.
-// Schemas in /schemas/documents are maintained for documentation purposes only.
+// Note: Schema validation is handled at the application layer via copilot_schema_validation adapter.
+// MongoDB-level validators have been removed to avoid duplication and keep validation centralized.
 
 const collectionsConfigPath = '/schemas/documents/collections.config.json';
 const fs = require('fs');

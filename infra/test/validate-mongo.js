@@ -4,7 +4,7 @@
 
 // Validate Mongo collections and index names from collections.config.json.
 // Exits non-zero on first failure to halt startup/CI.
-// Note: Validators are not checked as they are not applied during init.
+// Note: Schema validation is now handled at the application layer, not at MongoDB level.
 
 const fs = require('fs');
 const path = require('path');
@@ -28,9 +28,6 @@ function validateCollections(targetDb, expectedCollections) {
     if (!existing.includes(coll.name)) {
       throw new Error(`Missing collection: ${coll.name}`);
     }
-
-    // Note: Validators are not checked because they are not applied during init.
-    // This avoids MongoDB compatibility issues with JSON Schema keywords.
 
     const presentIndexes = targetDb.getCollection(coll.name).getIndexes().map((i) => i.name);
     (coll.indexes || []).forEach((idx) => {
