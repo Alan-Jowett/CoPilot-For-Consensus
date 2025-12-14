@@ -13,7 +13,12 @@
       "items": { "type": "string", "minLength": 1 },
       "minItems": 0
     },
-    "subject": { "type": ["string", "null"] },
+    "subject": { 
+      "anyOf": [
+        { "type": "string", "minLength": 1 },
+        { "type": "null" }
+      ]
+    },
     "from": {
       "type": ["object", "null"],
       "properties": {
@@ -49,7 +54,12 @@
       },
       "minItems": 0
     },
-    "date": { "type": ["string", "null"], "format": "date-time" },
+    "date": { 
+      "anyOf": [
+        { "type": "string", "format": "date-time" },
+        { "type": "null" }
+      ]
+    },
     "body_raw": { "type": "string" },
     "body_normalized": { "type": "string", "minLength": 1 },
     "body_html": { "type": "string" },

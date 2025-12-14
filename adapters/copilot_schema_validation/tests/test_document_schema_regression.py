@@ -97,6 +97,34 @@ class TestMessageSchemaRegression:
         is_valid, errors = validate_json(message, messages_schema, schema_provider=schema_provider)
         assert is_valid, f"Validation failed with errors: {errors}"
 
+    def test_message_with_valid_non_empty_subject(self, messages_schema, schema_provider):
+        """Test that a message with valid non-empty subject is valid."""
+        message = {
+            "message_id": "msg-123",
+            "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+            "thread_id": "thread-1",
+            "subject": "Valid Subject",
+            "body_normalized": "Test message body",
+            "created_at": "2025-01-01T00:00:00Z"
+        }
+        
+        is_valid, errors = validate_json(message, messages_schema, schema_provider=schema_provider)
+        assert is_valid, f"Validation failed with errors: {errors}"
+
+    def test_message_with_empty_subject_should_fail(self, messages_schema, schema_provider):
+        """Test that a message with empty string subject is invalid (minLength=1)."""
+        message = {
+            "message_id": "msg-123",
+            "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+            "thread_id": "thread-1",
+            "subject": "",  # Empty string should fail minLength validation
+            "body_normalized": "Test message body",
+            "created_at": "2025-01-01T00:00:00Z"
+        }
+        
+        is_valid, errors = validate_json(message, messages_schema, schema_provider=schema_provider)
+        assert not is_valid, "Empty subject should fail validation"
+
 
 class TestThreadSchemaRegression:
     """Regression tests for threads schema."""
