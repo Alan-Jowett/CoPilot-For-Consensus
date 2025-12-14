@@ -120,7 +120,7 @@ def test_service_initialization(reporting_service):
 
 def test_publish_report_published_with_publisher_failure(mock_document_store, mock_subscriber):
     class FailingPublisher(Mock):
-        def publish(self, exchange, routing_key, message):
+        def publish(self, exchange, routing_key, event):
             return False
 
     publisher = FailingPublisher()
@@ -143,7 +143,7 @@ def test_publish_report_published_with_publisher_failure(mock_document_store, mo
 
 def test_publish_delivery_failed_with_publisher_failure(mock_document_store, mock_subscriber):
     class FailingPublisher(Mock):
-        def publish(self, exchange, routing_key, message):
+        def publish(self, exchange, routing_key, event):
             return False
 
     publisher = FailingPublisher()
@@ -172,7 +172,7 @@ def test_process_summary_raises_when_publish_delivery_failed_fails(
     mock_error_reporter,
 ):
     class SelectiveFailPublisher(Mock):
-        def publish(self, exchange, routing_key, message):
+        def publish(self, exchange, routing_key, event):
             if routing_key == "report.delivery.failed":
                 return False
             return True
