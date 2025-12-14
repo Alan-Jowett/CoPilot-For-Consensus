@@ -211,6 +211,10 @@ def main():
             password=config.doc_store_password if config.doc_store_password else None,
         )
         
+        logger.info("Connecting to document store...")
+        document_store.connect()
+        logger.info("Document store connected successfully")
+        
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")
         metrics_collector = create_metrics_collector()
