@@ -73,6 +73,6 @@ def safe_event_handler(
                     raise
                 
                 return None
-        
+                return None
         return wrapper
     return decorator
