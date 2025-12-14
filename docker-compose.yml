@@ -43,7 +43,7 @@ services:
       - SCHEMA_DIR=/app/documents/schemas/configs
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
-      - DOC_STORE_TYPE=mongodb
+      - DOCUMENT_STORE_TYPE=mongodb
       - DOC_DB_HOST=documentdb
       - DOC_DB_PORT=27017
       - DOC_DB_NAME=copilot
@@ -65,7 +65,7 @@ services:
       - SCHEMA_DIR=/app/documents/schemas/configs
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
-      - DOC_STORE_TYPE=mongodb
+      - DOCUMENT_STORE_TYPE=mongodb
       - DOC_DB_HOST=documentdb
       - DOC_DB_PORT=27017
       - DOC_DB_NAME=copilot
@@ -90,7 +90,7 @@ services:
       - SCHEMA_DIR=/app/documents/schemas/configs
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
-      - DOC_STORE_TYPE=mongodb
+      - DOCUMENT_STORE_TYPE=mongodb
       - DOC_DB_HOST=documentdb
       - DOC_DB_PORT=27017
       - DOC_DB_NAME=copilot
@@ -127,7 +127,7 @@ services:
       dockerfile: ./orchestrator/Dockerfile
     environment:
       - VECTOR_DB_HOST=vectorstore
-      - DOC_STORE_TYPE=mongodb
+      - DOCUMENT_STORE_TYPE=mongodb
       - DOC_DB_HOST=documentdb
       - DOC_DB_PORT=27017
       - DOC_DB_NAME=copilot
@@ -154,7 +154,7 @@ services:
       - VECTOR_STORE_TYPE=qdrant
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
-      - DOC_STORE_TYPE=mongodb
+      - DOCUMENT_STORE_TYPE=mongodb
       - DOC_DB_HOST=documentdb
       - DOC_DB_PORT=27017
       - DOC_DB_NAME=copilot
@@ -181,7 +181,7 @@ services:
       - SCHEMA_DIR=/app/documents/schemas/configs
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
-      - DOC_STORE_TYPE=mongodb
+      - DOCUMENT_STORE_TYPE=mongodb
       - DOC_DB_HOST=documentdb
       - DOC_DB_PORT=27017
       - DOC_DB_NAME=copilot

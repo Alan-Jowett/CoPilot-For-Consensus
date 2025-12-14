@@ -23,7 +23,7 @@ All services now use the following environment variables for document store (Mon
 
 | New Variable | Old Variable | Description | Default |
 |-------------|--------------|-------------|---------|
-| `DOC_DB_HOST` | `MONGO_HOST` | MongoDB hostname | `documentdb` |
+| `DOC_DB_HOST` | `MONGO_HOST` | MongoDB hostname | `localhost` |
 | `DOC_DB_PORT` | `MONGO_PORT` | MongoDB port | `27017` |
 | `DOC_DB_NAME` | `MONGO_DB` | Database name | `copilot` |
 | `DOC_DB_USER` | `MONGO_USER` | MongoDB username | (empty) |
@@ -33,7 +33,7 @@ All services now use the following environment variables for document store (Mon
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DOC_STORE_TYPE` | Document store type | `mongodb` |
+| `DOCUMENT_STORE_TYPE` | Document store type | `inmemory` |
 
 ## Migration Instructions
 
@@ -53,7 +53,7 @@ services:
       # - MONGO_PASSWORD=example
       
       # New (recommended)
-      - DOC_STORE_TYPE=mongodb
+      - DOCUMENT_STORE_TYPE=mongodb
       - DOC_DB_HOST=documentdb
       - DOC_DB_PORT=27017
       - DOC_DB_NAME=copilot
@@ -74,7 +74,7 @@ If you use a `.env` file:
 # MONGO_PASSWORD=example
 
 # New (recommended)
-DOC_STORE_TYPE=mongodb
+DOCUMENT_STORE_TYPE=mongodb
 DOC_DB_HOST=documentdb
 DOC_DB_PORT=27017
 DOC_DB_NAME=copilot
@@ -102,9 +102,8 @@ These warnings are informational and don't prevent the system from working.
 
 ## Migration Timeline
 
-1. **Current**: Both `MONGO_*` and `DOC_DB_*` are supported
-2. **Next Release**: Deprecation warnings for `MONGO_*` variables
-3. **Future Release**: `MONGO_*` support may be removed
+1. **Current**: Both `MONGO_*` and `DOC_DB_*` are supported. Deprecation warnings are shown when using `MONGO_*` variables.
+2. **Future Release**: `MONGO_*` support may be removed
 
 ## Services Affected
 
@@ -187,7 +186,7 @@ services:
       - SCHEMA_DIR=/app/documents/schemas/configs
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
-      - DOC_STORE_TYPE=mongodb
+      - DOCUMENT_STORE_TYPE=mongodb
       - DOC_DB_HOST=documentdb
       - DOC_DB_PORT=27017
       - DOC_DB_NAME=copilot
@@ -203,7 +202,7 @@ kind: ConfigMap
 metadata:
   name: mongodb-config
 data:
-  DOC_STORE_TYPE: "mongodb"
+  DOCUMENT_STORE_TYPE: "mongodb"
   DOC_DB_HOST: "mongodb-service"
   DOC_DB_PORT: "27017"
   DOC_DB_NAME: "copilot"
@@ -213,7 +212,7 @@ data:
 
 ```bash
 docker run -d \
-  -e DOC_STORE_TYPE=mongodb \
+  -e DOCUMENT_STORE_TYPE=mongodb \
   -e DOC_DB_HOST=documentdb \
   -e DOC_DB_PORT=27017 \
   -e DOC_DB_NAME=copilot \

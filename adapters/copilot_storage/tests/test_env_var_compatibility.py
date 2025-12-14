@@ -3,11 +3,9 @@
 
 """Tests for environment variable backward compatibility."""
 
-import os
-import pytest
 import warnings
 
-from copilot_storage import create_document_store, MongoDocumentStore
+from copilot_storage import create_document_store
 
 
 class TestEnvVarBackwardCompatibility:
