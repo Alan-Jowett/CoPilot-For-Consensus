@@ -121,7 +121,7 @@ def test_service_initialization(reporting_service):
 def test_publish_report_published_with_publisher_failure(mock_document_store, mock_subscriber):
     class FailingPublisher(Mock):
         def publish(self, exchange, routing_key, event):
-            return False
+            raise Exception("Publish failed")
 
     publisher = FailingPublisher()
     service = ReportingService(
@@ -138,13 +138,13 @@ def test_publish_report_published_with_publisher_failure(mock_document_store, mo
             delivery_channels=[],
         )
 
-    assert "Failed to publish ReportPublished event" in str(exc_info.value)
+    assert "Publish failed" in str(exc_info.value)
 
 
 def test_publish_delivery_failed_with_publisher_failure(mock_document_store, mock_subscriber):
     class FailingPublisher(Mock):
         def publish(self, exchange, routing_key, event):
-            return False
+            raise Exception("Publish failed")
 
     publisher = FailingPublisher()
     service = ReportingService(
@@ -162,7 +162,7 @@ def test_publish_delivery_failed_with_publisher_failure(mock_document_store, moc
             error_type="ValueError",
         )
 
-    assert "Failed to publish ReportDeliveryFailed event" in str(exc_info.value)
+    assert "Publish failed" in str(exc_info.value)
 
 
 def test_process_summary_raises_when_publish_delivery_failed_fails(
@@ -174,7 +174,7 @@ def test_process_summary_raises_when_publish_delivery_failed_fails(
     class SelectiveFailPublisher(Mock):
         def publish(self, exchange, routing_key, event):
             if routing_key == "report.delivery.failed":
-                return False
+                raise Exception("Publish failed")
             return True
 
     publisher = SelectiveFailPublisher()
@@ -200,10 +200,8 @@ def test_process_summary_raises_when_publish_delivery_failed_fails(
     }
 
     with patch.object(service, "_send_webhook_notification", side_effect=Exception("webhook fail")):
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Exception):
             service.process_summary(event_data, {"timestamp": "2025-01-01T00:00:00Z"})
-
-    assert "webhook fail" in str(exc_info.value)
 
 
 def test_service_start_subscribes_to_events(reporting_service, mock_subscriber):

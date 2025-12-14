@@ -203,8 +203,8 @@ def test_publish_orchestration_failed(orchestration_service, mock_publisher):
 
 
 def test_publish_summarization_requested_publish_failure(orchestration_service, mock_publisher):
-    """Publishing SummarizationRequested should raise when publisher returns False."""
-    mock_publisher.publish.return_value = False
+    """Publishing SummarizationRequested should raise when publisher raises exception."""
+    mock_publisher.publish.side_effect = Exception("Publish failed")
 
     with pytest.raises(Exception):
         orchestration_service._publish_summarization_requested([
@@ -219,8 +219,8 @@ def test_publish_summarization_requested_publish_failure(orchestration_service, 
 
 
 def test_publish_orchestration_failed_publish_failure(orchestration_service, mock_publisher):
-    """Publishing OrchestrationFailed should raise when publisher returns False."""
-    mock_publisher.publish.return_value = False
+    """Publishing OrchestrationFailed should raise when publisher raises exception."""
+    mock_publisher.publish.side_effect = Exception("Publish failed")
 
     with pytest.raises(Exception):
         orchestration_service._publish_orchestration_failed([

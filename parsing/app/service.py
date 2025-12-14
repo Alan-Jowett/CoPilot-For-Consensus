@@ -322,21 +322,11 @@ class ParsingService:
         )
         
         try:
-            success = self.publisher.publish(
+            self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="json.parsed",
                 event=event.to_dict(),
             )
-            
-            if not success:
-                logger.error(f"Failed to publish JSONParsed event for {archive_id}")
-                if self.error_reporter:
-                    self.error_reporter.capture_message(
-                        "Failed to publish JSONParsed event",
-                        level="error",
-                        context={"archive_id": archive_id},
-                    )
-                raise Exception(f"Failed to publish JSONParsed event for {archive_id}")
         except Exception:
             logger.exception(f"Exception while publishing JSONParsed event for {archive_id}")
             if self.error_reporter:
@@ -373,21 +363,11 @@ class ParsingService:
         )
         
         try:
-            success = self.publisher.publish(
+            self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="parsing.failed",
                 event=event.to_dict(),
             )
-            
-            if not success:
-                logger.error(f"Failed to publish ParsingFailed event for {archive_id}")
-                if self.error_reporter:
-                    self.error_reporter.capture_message(
-                        "Failed to publish ParsingFailed event",
-                        level="error",
-                        context={"archive_id": archive_id},
-                    )
-                raise Exception(f"Failed to publish ParsingFailed event for {archive_id}")
         except Exception:
             logger.exception(f"Exception while publishing ParsingFailed event for {archive_id}")
             if self.error_reporter:

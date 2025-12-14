@@ -589,20 +589,11 @@ class IngestionService:
         try:
             event = ArchiveIngestedEvent(data=event_data)
 
-            success = self.publisher.publish(
+            self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="archive.ingested",
                 event=event.to_dict(),
             )
-
-            if not success:
-                error_msg = "Publisher returned failure status for ArchiveIngested event"
-                self.logger.error(
-                    error_msg,
-                    archive_id=metadata.archive_id,
-                    source_name=metadata.source_name,
-                )
-                raise Exception(error_msg)
         except Exception as e:
             self.logger.error(
                 "Failed to publish success event",
@@ -656,20 +647,11 @@ class IngestionService:
                 }
             )
 
-            success = self.publisher.publish(
+            self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="archive.ingestion.failed",
                 event=event.to_dict(),
             )
-
-            if not success:
-                error_msg = "Publisher returned failure status for ArchiveIngestionFailed event"
-                self.logger.error(
-                    error_msg,
-                    source_name=source.name,
-                    error_type=error_type,
-                )
-                raise Exception(error_msg)
         except Exception as e:
             self.logger.error(
                 "Failed to publish failure event",

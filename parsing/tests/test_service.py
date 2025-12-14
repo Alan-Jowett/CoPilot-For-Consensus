@@ -533,9 +533,9 @@ def test_handle_event_missing_required_fields(document_store):
 def test_publish_json_parsed_with_publisher_failure(document_store):
     """Test that _publish_json_parsed raises exception when publisher fails."""
     class FailingPublisher(MockPublisher):
-        """Publisher that returns False to indicate failure."""
+        """Publisher that raises exception to indicate failure."""
         def publish(self, exchange, routing_key, event):
-            return False
+            raise Exception("Publish failed")
     
     publisher = FailingPublisher()
     subscriber = NoopSubscriber()
@@ -546,7 +546,7 @@ def test_publish_json_parsed_with_publisher_failure(document_store):
         subscriber=subscriber,
     )
     
-    # Should raise exception when publisher returns False
+    # Should raise exception when publisher fails
     with pytest.raises(Exception) as exc_info:
         service._publish_json_parsed(
             archive_id="test-archive",
@@ -557,15 +557,15 @@ def test_publish_json_parsed_with_publisher_failure(document_store):
             duration=1.5
         )
     
-    assert "Failed to publish JSONParsed event" in str(exc_info.value)
+    assert "Publish failed" in str(exc_info.value)
 
 
 def test_publish_parsing_failed_with_publisher_failure(document_store):
     """Test that _publish_parsing_failed raises exception when publisher fails."""
     class FailingPublisher(MockPublisher):
-        """Publisher that returns False to indicate failure."""
+        """Publisher that raises exception to indicate failure."""
         def publish(self, exchange, routing_key, event):
-            return False
+            raise Exception("Publish failed")
     
     publisher = FailingPublisher()
     subscriber = NoopSubscriber()
@@ -576,7 +576,7 @@ def test_publish_parsing_failed_with_publisher_failure(document_store):
         subscriber=subscriber,
     )
     
-    # Should raise exception when publisher returns False
+    # Should raise exception when publisher fails
     with pytest.raises(Exception) as exc_info:
         service._publish_parsing_failed(
             archive_id="test-archive",
@@ -586,7 +586,7 @@ def test_publish_parsing_failed_with_publisher_failure(document_store):
             messages_parsed_before_failure=5
         )
     
-    assert "Failed to publish ParsingFailed event" in str(exc_info.value)
+    assert "Publish failed" in str(exc_info.value)
 
 
 def test_handle_archive_ingested_with_publish_json_parsed_failure(document_store, sample_mbox_file):
@@ -595,7 +595,7 @@ def test_handle_archive_ingested_with_publish_json_parsed_failure(document_store
         """Publisher that fails on json.parsed routing key."""
         def publish(self, exchange, routing_key, event):
             if routing_key == "json.parsed":
-                return False
+                raise Exception("Publish failed")
             return True
     
     publisher = FailingPublisher()
@@ -619,10 +619,8 @@ def test_handle_archive_ingested_with_publish_json_parsed_failure(document_store
     }
     
     # Should raise exception when publisher fails on json.parsed event
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(Exception):
         service._handle_archive_ingested(event)
-    
-    assert "Failed to publish JSONParsed event" in str(exc_info.value)
 
 
 def test_handle_archive_ingested_with_publish_parsing_failed_failure(document_store):
@@ -631,7 +629,7 @@ def test_handle_archive_ingested_with_publish_parsing_failed_failure(document_st
         """Publisher that fails on parsing.failed routing key."""
         def publish(self, exchange, routing_key, event):
             if routing_key == "parsing.failed":
-                return False
+                raise Exception("Publish failed")
             return True
     
     publisher = FailingPublisher()
@@ -655,7 +653,5 @@ def test_handle_archive_ingested_with_publish_parsing_failed_failure(document_st
     }
     
     # Should raise exception when publisher fails on parsing.failed event
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(Exception):
         service._handle_archive_ingested(event)
-    
-    assert "Failed to publish ParsingFailed event" in str(exc_info.value)

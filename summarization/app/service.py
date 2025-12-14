@@ -416,21 +416,11 @@ class SummarizationService:
         )
         
         try:
-            success = self.publisher.publish(
+            self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="summary.complete",
                 message=event.to_dict(),
             )
-            
-            if not success:
-                logger.error(f"Failed to publish SummaryComplete event for {thread_id}")
-                if self.error_reporter:
-                    self.error_reporter.capture_message(
-                        "Failed to publish SummaryComplete event",
-                        level="error",
-                        context={"thread_id": thread_id},
-                    )
-                raise Exception(f"Failed to publish SummaryComplete event for {thread_id}")
         except Exception:
             logger.exception(f"Exception while publishing SummaryComplete event for {thread_id}")
             if self.error_reporter:
@@ -464,21 +454,11 @@ class SummarizationService:
         )
         
         try:
-            success = self.publisher.publish(
+            self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="summarization.failed",
                 message=event.to_dict(),
             )
-            
-            if not success:
-                logger.error(f"Failed to publish SummarizationFailed event for {thread_id}")
-                if self.error_reporter:
-                    self.error_reporter.capture_message(
-                        "Failed to publish SummarizationFailed event",
-                        level="error",
-                        context={"thread_id": thread_id},
-                    )
-                raise Exception(f"Failed to publish SummarizationFailed event for {thread_id}")
         except Exception:
             logger.exception(f"Exception while publishing SummarizationFailed event for {thread_id}")
             if self.error_reporter:

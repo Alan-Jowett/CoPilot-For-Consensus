@@ -796,9 +796,9 @@ def test_publish_summary_complete_with_publisher_failure(
     mock_summarizer,
 ):
     """Test that _publish_summary_complete raises exception when publisher fails."""
-    # Create a publisher that returns False
+    # Create a publisher that raises an exception
     mock_publisher = Mock()
-    mock_publisher.publish = Mock(return_value=False)
+    mock_publisher.publish = Mock(side_effect=Exception("Failed to publish SummaryComplete event for test-thread"))
     
     mock_subscriber = Mock()
     
@@ -810,7 +810,7 @@ def test_publish_summary_complete_with_publisher_failure(
         summarizer=mock_summarizer,
     )
     
-    # Should raise exception when publisher returns False
+    # Should propagate exception when publisher raises
     with pytest.raises(Exception) as exc_info:
         service._publish_summary_complete(
             thread_id="test-thread",
@@ -832,9 +832,9 @@ def test_publish_summarization_failed_with_publisher_failure(
     mock_summarizer,
 ):
     """Test that _publish_summarization_failed raises exception when publisher fails."""
-    # Create a publisher that returns False
+    # Create a publisher that raises an exception
     mock_publisher = Mock()
-    mock_publisher.publish = Mock(return_value=False)
+    mock_publisher.publish = Mock(side_effect=Exception("Failed to publish SummarizationFailed event for test-thread"))
     
     mock_subscriber = Mock()
     
@@ -846,7 +846,7 @@ def test_publish_summarization_failed_with_publisher_failure(
         summarizer=mock_summarizer,
     )
     
-    # Should raise exception when publisher returns False
+    # Should propagate exception when publisher raises
     with pytest.raises(Exception) as exc_info:
         service._publish_summarization_failed(
             thread_id="test-thread",

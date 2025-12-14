@@ -14,7 +14,7 @@ def mock_document_store():
     """Create a mock document store."""
     store = Mock()
     store.query_documents = Mock(return_value=[])
-    store.update_document = Mock(return_value=True)
+    store.update_document = Mock()  # No return value - raises exception on error
     return store
 
 
@@ -516,8 +516,8 @@ def test_publish_embedding_failed_raises_on_publish_error(embedding_service, moc
 
 
 def test_publish_embeddings_generated_false_return(embedding_service, mock_publisher):
-    """Publisher returning False should raise for EmbeddingsGenerated."""
-    mock_publisher.publish.return_value = False
+    """Publisher raising exception should propagate for EmbeddingsGenerated."""
+    mock_publisher.publish.side_effect = Exception("Publish failed")
 
     with pytest.raises(Exception):
         embedding_service._publish_embeddings_generated([
@@ -528,8 +528,8 @@ def test_publish_embeddings_generated_false_return(embedding_service, mock_publi
 
 
 def test_publish_embedding_failed_false_return(embedding_service, mock_publisher):
-    """Publisher returning False should raise for EmbeddingGenerationFailed."""
-    mock_publisher.publish.return_value = False
+    """Publisher raising exception should propagate for EmbeddingGenerationFailed."""
+    mock_publisher.publish.side_effect = Exception("Publish failed")
 
     with pytest.raises(Exception):
         embedding_service._publish_embedding_failed([

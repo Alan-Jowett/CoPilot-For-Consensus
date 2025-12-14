@@ -10,6 +10,8 @@ from copilot_storage import (
     DocumentStore,
     MongoDocumentStore,
     InMemoryDocumentStore,
+    DocumentStoreConnectionError,
+    DocumentNotFoundError,
 )
 
 
@@ -51,9 +53,8 @@ class TestInMemoryDocumentStore:
         """Test connecting to in-memory store."""
         store = InMemoryDocumentStore()
 
-        result = store.connect()
+        store.connect()
 
-        assert result is True
         assert store.connected is True
 
     def test_disconnect(self):
@@ -156,21 +157,20 @@ class TestInMemoryDocumentStore:
 
         doc_id = store.insert_document("users", {"name": "Alice", "age": 30})
 
-        result = store.update_document("users", doc_id, {"age": 31})
+        store.update_document("users", doc_id, {"age": 31})
 
-        assert result is True
         updated = store.get_document("users", doc_id)
         assert updated["age"] == 31
         assert updated["name"] == "Alice"  # Unchanged
 
     def test_update_nonexistent_document(self):
         """Test updating a non-existent document."""
+        
         store = InMemoryDocumentStore()
         store.connect()
 
-        result = store.update_document("users", "nonexistent", {"age": 50})
-
-        assert result is False
+        with pytest.raises(DocumentNotFoundError):
+            store.update_document("users", "nonexistent", {"age": 50})
 
     def test_delete_document(self):
         """Test deleting a document."""
@@ -179,19 +179,18 @@ class TestInMemoryDocumentStore:
 
         doc_id = store.insert_document("users", {"name": "Alice"})
 
-        result = store.delete_document("users", doc_id)
+        store.delete_document("users", doc_id)
 
-        assert result is True
         assert store.get_document("users", doc_id) is None
 
     def test_delete_nonexistent_document(self):
         """Test deleting a non-existent document."""
+        
         store = InMemoryDocumentStore()
         store.connect()
 
-        result = store.delete_document("users", "nonexistent")
-
-        assert result is False
+        with pytest.raises(DocumentNotFoundError):
+            store.delete_document("users", "nonexistent")
 
     def test_clear_collection(self):
         """Test clearing a collection."""
@@ -335,6 +334,53 @@ class TestMongoDocumentStore:
         assert store.username is None
         assert store.password is None
         assert store.database_name == "copilot"
+
+    def test_connect_pymongo_not_installed(self, monkeypatch):
+        """Test that connect() raises DocumentStoreConnectionError when pymongo is not installed."""
+        store = MongoDocumentStore()
+        
+        # Mock the pymongo import to raise ImportError
+        import builtins
+        original_import = builtins.__import__
+        
+        def mock_import(name, *args, **kwargs):
+            if name == "pymongo":
+                raise ImportError("No module named 'pymongo'")
+            return original_import(name, *args, **kwargs)
+        
+        monkeypatch.setattr(builtins, "__import__", mock_import)
+        
+        with pytest.raises(DocumentStoreConnectionError, match="pymongo not installed"):
+            store.connect()
+
+    def test_connect_connection_failure(self, monkeypatch):
+        """Test that connect() raises DocumentStoreConnectionError on connection failure."""
+        store = MongoDocumentStore(host="nonexistent.host.invalid", port=27017)
+        
+        # Mock pymongo to raise ConnectionFailure
+        from unittest.mock import MagicMock, patch
+        from pymongo.errors import ConnectionFailure
+        
+        mock_client = MagicMock()
+        mock_client.admin.command.side_effect = ConnectionFailure("Connection refused")
+        
+        with patch("pymongo.MongoClient", return_value=mock_client):
+            with pytest.raises(DocumentStoreConnectionError, match="Failed to connect to MongoDB"):
+                store.connect()
+
+    def test_connect_unexpected_error(self, monkeypatch):
+        """Test that connect() raises DocumentStoreConnectionError on unexpected errors."""
+        store = MongoDocumentStore()
+        
+        # Mock pymongo to raise an unexpected exception
+        from unittest.mock import MagicMock, patch
+        
+        mock_client = MagicMock()
+        mock_client.admin.command.side_effect = RuntimeError("Unexpected error")
+        
+        with patch("pymongo.MongoClient", return_value=mock_client):
+            with pytest.raises(DocumentStoreConnectionError, match="Unexpected error connecting to MongoDB"):
+                store.connect()
 
     # Note: Actual connection and operation tests would require a running MongoDB instance
     # or mocking the pymongo library. These are integration tests better suited for

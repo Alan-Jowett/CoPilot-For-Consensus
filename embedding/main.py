@@ -16,7 +16,7 @@ import uvicorn
 
 from copilot_config import load_typed_config
 from copilot_events import create_publisher, create_subscriber
-from copilot_storage import create_document_store
+from copilot_storage import create_document_store, DocumentStoreConnectionError
 from copilot_vectorstore import create_vector_store
 from copilot_embedding import create_embedding_provider
 from copilot_metrics import create_metrics_collector
@@ -137,9 +137,11 @@ def main():
             username=config.doc_store_user if config.doc_store_user else None,
             password=config.doc_store_password if config.doc_store_password else None,
         )
-        if not document_store.connect():
-            logger.error("Failed to connect to document store.")
-            raise ConnectionError("Document store failed to connect")
+        try:
+            document_store.connect()
+        except DocumentStoreConnectionError as e:
+            logger.error(f"Failed to connect to document store: {e}")
+            raise
         
         logger.info(f"Creating vector store ({config.vector_store_type})...")
         
