@@ -3,20 +3,29 @@
 
 """Integration tests for RabbitMQ publisher and subscriber against a real RabbitMQ instance."""
 
+import logging
 import os
 import time
 import threading
 import pytest
 import uuid
 
+try:
+    import pika
+except ImportError:
+    pika = None  # type: ignore
+
 from copilot_events import (
     RabbitMQPublisher,
     RabbitMQSubscriber,
 )
 
-# Test timing constants
+    # Test timing constants
 SUBSCRIBER_STARTUP_WAIT = 1  # seconds to wait for subscriber to start
 TEST_TIMEOUT_SECONDS = 10  # seconds to wait for test completion
+
+# Add logger for test debugging
+logger = logging.getLogger(__name__)
 
 
 def get_rabbitmq_config():
@@ -577,9 +586,9 @@ class TestRabbitMQPersistence:
             # Clean up the test queue
             try:
                 rabbitmq_publisher.channel.queue_delete(queue=test_queue_name)
-            except Exception as e:
-                # Best effort cleanup
-                pass
+            except (pika.exceptions.ChannelError, pika.exceptions.ConnectionError) as e:
+                # Best effort cleanup - queue may not exist or connection may be closed
+                logger.warning(f"Failed to delete test queue during cleanup: {e}")
 
     def test_queue_durability_survives_disconnect(self, rabbitmq_publisher):
         """Test that durable queues persist across subscriber disconnects."""
@@ -677,6 +686,6 @@ class TestRabbitMQPersistence:
             # Clean up the test queue
             try:
                 rabbitmq_publisher.channel.queue_delete(queue=test_queue_name)
-            except Exception as e:
-                # Best effort cleanup
-                pass
+            except (pika.exceptions.ChannelError, pika.exceptions.ConnectionError) as e:
+                # Best effort cleanup - queue may not exist or connection may be closed
+                logger.warning(f"Failed to delete test queue during cleanup: {e}")

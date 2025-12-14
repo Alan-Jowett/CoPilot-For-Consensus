@@ -62,37 +62,40 @@ def connect_to_rabbitmq(host: str, port: int, username: str, password: str):
 
 
 def verify_queue_durability(channel, queue_name: str) -> bool:
-    """Verify that a queue is durable by declaring it passively."""
+    """Verify that a queue is durable by declaring it passively.
+    
+    Note: RabbitMQ's passive queue declare only confirms existence.
+    We rely on definitions.json being the source of truth for durability.
+    This function simply checks that the queue exists in RabbitMQ.
+    """
     try:
         # Use passive=True to check if queue exists without creating it
-        result = channel.queue_declare(queue=queue_name, passive=True)
-        is_durable = result.method.durable if hasattr(result.method, 'durable') else False
-        
-        if is_durable:
-            logger.info(f"✓ Queue '{queue_name}' is durable")
-            return True
-        else:
-            logger.error(f"✗ Queue '{queue_name}' is NOT durable")
-            return False
+        channel.queue_declare(queue=queue_name, passive=True)
+        logger.info(f"✓ Queue '{queue_name}' exists (durability verified via definitions.json)")
+        return True
     except pika.exceptions.ChannelClosedByBroker as e:
         logger.error(f"✗ Queue '{queue_name}' does not exist: {e}")
         return False
 
 
 def verify_exchange_durability(channel, exchange_name: str, exchange_type: str) -> bool:
-    """Verify that an exchange is durable."""
+    """Verify that an exchange exists.
+    
+    Note: RabbitMQ's passive exchange declare only confirms existence.
+    We rely on definitions.json being the source of truth for durability.
+    This function simply checks that the exchange exists in RabbitMQ.
+    """
     try:
         # Use passive=True to check if exchange exists without creating it
         channel.exchange_declare(
             exchange=exchange_name,
             exchange_type=exchange_type,
-            passive=True,
-            durable=True  # This is a requirement, not a check
+            passive=True
         )
-        logger.info(f"✓ Exchange '{exchange_name}' is durable")
+        logger.info(f"✓ Exchange '{exchange_name}' exists (durability verified via definitions.json)")
         return True
     except pika.exceptions.ChannelClosedByBroker as e:
-        logger.error(f"✗ Exchange '{exchange_name}' is NOT durable or does not exist: {e}")
+        logger.error(f"✗ Exchange '{exchange_name}' does not exist or has wrong type: {e}")
         return False
 
 
@@ -217,8 +220,13 @@ def main():
                 logger.error("✗ Live RabbitMQ server has configuration issues")
             return 1
             
+    except (pika.exceptions.AMQPConnectionError, 
+            pika.exceptions.AuthenticationError,
+            pika.exceptions.ConnectionClosed) as e:
+        logger.error(f"Failed to connect to RabbitMQ: {e}")
+        return 1
     except Exception as e:
-        logger.error(f"Failed to verify RabbitMQ: {e}", exc_info=True)
+        logger.error(f"Unexpected error during verification: {e}", exc_info=True)
         return 1
 
 

@@ -116,7 +116,6 @@ class TestVerifyRabbitMQPersistence(unittest.TestCase):
         """Test successful queue durability verification."""
         mock_channel = MagicMock()
         mock_result = MagicMock()
-        mock_result.method.durable = True
         mock_channel.queue_declare.return_value = mock_result
         
         result = verify_rabbitmq_persistence.verify_queue_durability(
@@ -128,12 +127,13 @@ class TestVerifyRabbitMQPersistence(unittest.TestCase):
             queue="test.queue", passive=True
         )
 
-    def test_verify_queue_durability_not_durable(self):
-        """Test queue durability verification when queue is not durable."""
+    def test_verify_queue_durability_not_exist(self):
+        """Test queue durability verification when queue does not exist."""
+        import pika
         mock_channel = MagicMock()
-        mock_result = MagicMock()
-        mock_result.method.durable = False
-        mock_channel.queue_declare.return_value = mock_result
+        mock_channel.queue_declare.side_effect = pika.exceptions.ChannelClosedByBroker(
+            404, "NOT_FOUND - no queue 'test.queue'"
+        )
         
         result = verify_rabbitmq_persistence.verify_queue_durability(
             mock_channel, "test.queue"
@@ -153,8 +153,7 @@ class TestVerifyRabbitMQPersistence(unittest.TestCase):
         mock_channel.exchange_declare.assert_called_once_with(
             exchange="test.exchange",
             exchange_type="topic",
-            passive=True,
-            durable=True
+            passive=True
         )
 
 
