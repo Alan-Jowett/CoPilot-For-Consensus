@@ -64,9 +64,8 @@ class TestNoopPublisher:
         publisher.connect()
         
         event = {"event_type": "TestEvent", "data": {"foo": "bar"}}
-        result = publisher.publish("test.exchange", "test.key", event)
+        publisher.publish("test.exchange", "test.key", event)
         
-        assert result is True
         assert len(publisher.published_events) == 1
         assert publisher.published_events[0]["exchange"] == "test.exchange"
         assert publisher.published_events[0]["routing_key"] == "test.key"

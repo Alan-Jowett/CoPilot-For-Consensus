@@ -184,7 +184,7 @@ class RabbitMQPublisher(EventPublisher):
 
         return success
 
-    def publish(self, exchange: str, routing_key: str, event: Dict[str, Any]) -> bool:
+    def publish(self, exchange: str, routing_key: str, event: Dict[str, Any]) -> None:
         """Publish an event to RabbitMQ with message persistence.
         
         Messages are published with:
@@ -197,16 +197,22 @@ class RabbitMQPublisher(EventPublisher):
             routing_key: Routing key
             event: Event data as dictionary
             
-        Returns:
-            True if published successfully, False otherwise
+        Raises:
+            ConnectionError: If not connected to RabbitMQ
+            RuntimeError: If pika library is not installed
+            pika.exceptions.UnroutableError: If message is unroutable
+            pika.exceptions.NackError: If message is rejected by broker
+            Exception: For other publishing failures
         """
         if not self.channel:
-            logger.error("Not connected to RabbitMQ")
-            return False
+            error_msg = "Not connected to RabbitMQ"
+            logger.error(error_msg)
+            raise ConnectionError(error_msg)
 
         if pika is None:
-            logger.error("pika library is not installed")
-            return False
+            error_msg = "pika library is not installed"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
 
         try:
             # Publish with persistence and mandatory flag
@@ -224,18 +230,17 @@ class RabbitMQPublisher(EventPublisher):
             logger.info(
                 f"Published event to {exchange}/{routing_key}: {event.get('event_type')}"
             )
-            return True
         except pika.exceptions.UnroutableError:
-            logger.error(
+            error_msg = (
                 f"Message unroutable - no queue bound for {exchange}/{routing_key}. "
                 "Ensure queues are declared before publishing."
             )
-            return False
+            logger.error(error_msg)
+            raise
         except pika.exceptions.NackError:
-            logger.error(
-                f"Message rejected (NACK) by broker for {exchange}/{routing_key}"
-            )
-            return False
+            error_msg = f"Message rejected (NACK) by broker for {exchange}/{routing_key}"
+            logger.error(error_msg)
+            raise
         except Exception as e:
             logger.error(f"Failed to publish event: {e}")
-            return False
+            raise

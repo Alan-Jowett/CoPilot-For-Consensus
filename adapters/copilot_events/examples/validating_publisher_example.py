@@ -89,12 +89,12 @@ def main():
     }
     
     try:
-        result = validating_publisher.publish(
+        validating_publisher.publish(
             "copilot.events",
             "archive.ingested",
             valid_event
         )
-        print(f"✓ Event published successfully: {result}")
+        print("✓ Event published successfully")
     except ValidationError as e:
         print(f"✗ Validation failed: {e}")
     print()
@@ -115,12 +115,12 @@ def main():
     }
     
     try:
-        result = validating_publisher.publish(
+        validating_publisher.publish(
             "copilot.events",
             "archive.ingested",
             invalid_event
         )
-        print(f"✓ Event published successfully: {result}")
+        print("✓ Event published successfully")
     except ValidationError as e:
         print(f"✗ Validation failed (as expected):")
         print(f"   Event Type: {e.event_type}")
@@ -140,12 +140,12 @@ def main():
     )
     
     try:
-        result = permissive_publisher.publish(
+        permissive_publisher.publish(
             "copilot.events",
             "archive.ingested",
             invalid_event
         )
-        print(f"✓ Event published despite validation errors: {result}")
+        print("✓ Event published despite validation errors")
         print("   (Warnings logged, but publish proceeded)")
     except ValidationError as e:
         print(f"✗ Unexpected validation error: {e}")
@@ -168,12 +168,12 @@ def main():
     }
     
     try:
-        result = no_validation_publisher.publish(
+        no_validation_publisher.publish(
             "copilot.events",
             "unknown.event",
             arbitrary_event
         )
-        print(f"✓ Event published without validation: {result}")
+        print("✓ Event published without validation")
     except ValidationError as e:
         print(f"✗ Unexpected validation error: {e}")
     print()
@@ -193,12 +193,12 @@ def main():
     )
     
     try:
-        result = validating_publisher.publish(
+        validating_publisher.publish(
             "copilot.events",
             "archive.ingested",
             event_obj.to_dict()
         )
-        print(f"✓ Event from model published successfully: {result}")
+        print("✓ Event from model published successfully")
     except ValidationError as e:
         print(f"✗ Validation failed: {e}")
     print()

@@ -366,7 +366,7 @@ def test_publish_success_event_raises_on_publisher_failure(tmp_path):
     
     config = make_config(storage_path=str(tmp_path))
     publisher = Mock()
-    publisher.publish = Mock(return_value=False)  # Simulate publisher failure
+    publisher.publish = Mock(side_effect=Exception("Publisher failure"))  # Simulate publisher failure
     
     service = IngestionService(config=config, publisher=publisher)
     
@@ -383,8 +383,8 @@ def test_publish_success_event_raises_on_publisher_failure(tmp_path):
         status="success",
     )
     
-    # Service should raise exception when publisher.publish returns False
-    with pytest.raises(Exception):
+    # Service should propagate exception when publisher.publish raises
+    with pytest.raises(Exception, match="Publisher failure"):
         service._publish_success_event(metadata)
 
 
@@ -395,7 +395,7 @@ def test_publish_failure_event_raises_on_publisher_failure(tmp_path):
     
     config = make_config(storage_path=str(tmp_path))
     publisher = Mock()
-    publisher.publish = Mock(return_value=False)  # Simulate publisher failure
+    publisher.publish = Mock(side_effect=Exception("Publisher failure"))  # Simulate publisher failure
     
     service = IngestionService(config=config, publisher=publisher)
     
@@ -405,8 +405,8 @@ def test_publish_failure_event_raises_on_publisher_failure(tmp_path):
         url="http://example.com/list.mbox",
     )
     
-    # Service should raise exception when publisher.publish returns False
-    with pytest.raises(Exception):
+    # Service should propagate exception when publisher.publish raises
+    with pytest.raises(Exception, match="Publisher failure"):
         service._publish_failure_event(
             source=source,
             error_message="Test error",

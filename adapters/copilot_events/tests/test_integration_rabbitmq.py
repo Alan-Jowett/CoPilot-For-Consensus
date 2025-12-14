@@ -123,13 +123,11 @@ class TestRabbitMQIntegration:
             "data": {"message": "Hello RabbitMQ"},
         }
         
-        success = rabbitmq_publisher.publish(
+        rabbitmq_publisher.publish(
             exchange=rabbitmq_publisher.exchange,
             routing_key="test.event",
             event=event,
         )
-        
-        assert success is True
         
         # Clean up the temporary queue
         rabbitmq_publisher.channel.queue_delete(queue=queue_name)
@@ -165,12 +163,11 @@ class TestRabbitMQIntegration:
                 "data": {"message": "Integration test message"},
             }
             
-            success = rabbitmq_publisher.publish(
+            rabbitmq_publisher.publish(
                 exchange=rabbitmq_publisher.exchange,
                 routing_key="test.event",
                 event=event,
             )
-            assert success is True
             
             # Wait for the event to be received
             consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
@@ -219,12 +216,11 @@ class TestRabbitMQIntegration:
                     "data": {"index": i, "message": f"Message {i}"},
                 }
                 
-                success = rabbitmq_publisher.publish(
+                rabbitmq_publisher.publish(
                     exchange=rabbitmq_publisher.exchange,
                     routing_key="test.event",
                     event=event,
                 )
-                assert success is True
             
             # Wait for events to be received
             consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
@@ -280,16 +276,22 @@ class TestRabbitMQIntegration:
             time.sleep(0.5)
             
             # This should NOT be received (different pattern)
+            # Publishing to a routing key with no queue bound will raise an exception
             event2 = {
                 "event_type": "TestEvent",
                 "event_id": str(uuid.uuid4()),
                 "data": {"message": "Should NOT receive this"},
             }
-            rabbitmq_publisher.publish(
-                exchange=rabbitmq_publisher.exchange,
-                routing_key="test.other.event",
-                event=event2,
-            )
+            try:
+                rabbitmq_publisher.publish(
+                    exchange=rabbitmq_publisher.exchange,
+                    routing_key="test.other.event",
+                    event=event2,
+                )
+                # If no exception is raised, that's also acceptable for this test
+            except Exception:
+                # Expected: publishing to unbound routing key raises exception
+                pass
             
             # Wait for events
             consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
@@ -342,12 +344,11 @@ class TestRabbitMQIntegration:
                 },
             }
             
-            success = rabbitmq_publisher.publish(
+            rabbitmq_publisher.publish(
                 exchange=rabbitmq_publisher.exchange,
                 routing_key="test.complex",
                 event=complex_event,
             )
-            assert success is True
             
             consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
             
@@ -386,14 +387,14 @@ class TestRabbitMQErrorHandling:
         # Don't connect
         
         event = {"event_type": "Test", "data": {}}
-        success = publisher.publish(
-            exchange=publisher.exchange,
-            routing_key="test",
-            event=event
-        )
         
-        # Should fail gracefully
-        assert success is False
+        # Should raise ConnectionError
+        with pytest.raises(ConnectionError):
+            publisher.publish(
+                exchange=publisher.exchange,
+                routing_key="test",
+                event=event
+            )
 
     def test_reconnect_publisher(self):
         """Test reconnecting a publisher."""
@@ -447,12 +448,11 @@ class TestRabbitMQErrorHandling:
                 "data": {},
             }
             
-            success = rabbitmq_publisher.publish(
+            rabbitmq_publisher.publish(
                 exchange=rabbitmq_publisher.exchange,
                 routing_key="test.empty",
                 event=event,
             )
-            assert success is True
             
             consume_thread.join(timeout=TEST_TIMEOUT_SECONDS)
             

@@ -73,8 +73,8 @@ class TestValidatingEventPublisher:
             "data": {"archive_id": "abc"}
         }
         
-        result = publisher.publish("copilot.events", "test.event", event)
-        assert result is True
+        # Should not raise any exception
+        publisher.publish("copilot.events", "test.event", event)
     
     def test_publish_invalid_event_strict_mode(self):
         """Test publishing an invalid event in strict mode raises ValidationError."""
@@ -148,8 +148,7 @@ class TestValidatingEventPublisher:
         }
         
         # Should succeed despite validation failure
-        result = publisher.publish("copilot.events", "test.event", event)
-        assert result is True
+        publisher.publish("copilot.events", "test.event", event)
     
     def test_publish_without_schema_provider(self):
         """Test publishing without schema provider skips validation."""
@@ -161,8 +160,7 @@ class TestValidatingEventPublisher:
         # Even invalid event should pass without schema provider
         event = {"anything": "goes"}
         
-        result = publisher.publish("copilot.events", "test.event", event)
-        assert result is True
+        publisher.publish("copilot.events", "test.event", event)
     
     def test_publish_event_missing_event_type(self):
         """Test publishing event without event_type field fails."""
@@ -205,8 +203,7 @@ class TestValidatingEventPublisher:
         event = {"event_type": "UnknownEvent", "data": {}}
         
         # Should succeed in non-strict mode
-        result = publisher.publish("copilot.events", "test.event", event)
-        assert result is True
+        publisher.publish("copilot.events", "test.event", event)
     
     def test_connect_delegates_to_underlying_publisher(self):
         """Test that connect is delegated to underlying publisher."""
