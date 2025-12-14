@@ -1,0 +1,530 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "Queue Depth (Messages)",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 100
+              },
+              {
+                "color": "red",
+                "value": 500
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "calcs": ["last", "max"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"json.parsed\"}",
+          "refId": "A",
+          "legendFormat": "Parsing Output (json.parsed)"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"chunks.prepared\"}",
+          "refId": "B",
+          "legendFormat": "Chunking Output (chunks.prepared)"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"embeddings.generated\"}",
+          "refId": "C",
+          "legendFormat": "Embedding Output (embeddings.generated)"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"summarization.requested\"}",
+          "refId": "D",
+          "legendFormat": "Summarization Input (summarization.requested)"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"summary.complete\"}",
+          "refId": "E",
+          "legendFormat": "Summary Output (summary.complete)"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"report.published\"}",
+          "refId": "F",
+          "legendFormat": "Report Output (report.published)"
+        }
+      ],
+      "title": "Service Input Queue Depth",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "Failed Messages",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": ["last", "max"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"parsing.failed\"}",
+          "refId": "A",
+          "legendFormat": "Parsing Failed"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"chunking.failed\"}",
+          "refId": "B",
+          "legendFormat": "Chunking Failed"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"embedding.generation.failed\"}",
+          "refId": "C",
+          "legendFormat": "Embedding Failed"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"summarization.failed\"}",
+          "refId": "D",
+          "legendFormat": "Summarization Failed"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"orchestration.failed\"}",
+          "refId": "E",
+          "legendFormat": "Orchestrator Failed"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"report.delivery.failed\"}",
+          "refId": "F",
+          "legendFormat": "Reporting Failed"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"archive.ingestion.failed\"}",
+          "refId": "G",
+          "legendFormat": "Ingestion Failed"
+        }
+      ],
+      "title": "Service Failed Queue Depth",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 200
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"json.parsed\"}",
+          "refId": "A",
+          "legendFormat": "Parsing Output"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"chunks.prepared\"}",
+          "refId": "B",
+          "legendFormat": "Chunking Output"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"embeddings.generated\"}",
+          "refId": "C",
+          "legendFormat": "Embedding Output"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"summarization.requested\"}",
+          "refId": "D",
+          "legendFormat": "Summarization Input"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"summary.complete\"}",
+          "refId": "E",
+          "legendFormat": "Summary Output"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"report.published\"}",
+          "refId": "F",
+          "legendFormat": "Report Output"
+        }
+      ],
+      "title": "Current Service Queue Depth (Gauges)",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "id": 4,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "text": {}
+      },
+      "pluginVersion": "8.0.0",
+      "targets": [
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"parsing.failed\"}",
+          "refId": "A",
+          "legendFormat": "Parsing Failed"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"chunking.failed\"}",
+          "refId": "B",
+          "legendFormat": "Chunking Failed"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"embedding.generation.failed\"}",
+          "refId": "C",
+          "legendFormat": "Embedding Failed"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"summarization.failed\"}",
+          "refId": "D",
+          "legendFormat": "Summarization Failed"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"orchestration.failed\"}",
+          "refId": "E",
+          "legendFormat": "Orchestrator Failed"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"report.delivery.failed\"}",
+          "refId": "F",
+          "legendFormat": "Reporting Failed"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"archive.ingestion.failed\"}",
+          "refId": "G",
+          "legendFormat": "Ingestion Failed"
+        }
+      ],
+      "title": "Current Failed Queue Depth (Gauges)",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "Messages/sec",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "lastNotNull"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(rabbitmq_queue_messages_delivered_total{queue=~\"json.parsed|chunks.prepared|embeddings.generated\"}[5m])",
+          "refId": "A",
+          "legendFormat": "{{ queue }} - Delivery Rate"
+        }
+      ],
+      "title": "Service Processing Rate (5m avg)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "Total Messages",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": ["last"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rabbitmq_queue_messages{queue=~\".*-service$\"}",
+          "refId": "A",
+          "legendFormat": "{{ queue }}"
+        }
+      ],
+      "title": "All Service Queues - Total Messages (Ready + Unacked)",
+      "type": "timeseries"
+    }
+  ],
+  "schemaVersion": 27,
+  "style": "dark",
+  "tags": ["rabbitmq", "queues", "services"],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Service Queue Status",
+  "uid": "queue-status",
+  "version": 2
+}
