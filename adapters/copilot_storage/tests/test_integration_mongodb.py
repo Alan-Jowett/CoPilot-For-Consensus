@@ -313,3 +313,61 @@ class TestMongoDBEdgeCases:
         retrieved = mongodb_store.get_document(clean_collection, doc_id)
         assert retrieved is not None
         assert "_id" in retrieved
+
+
+@pytest.mark.integration
+class TestValidationAtAdapterLayer:
+    """Test that validation is handled at the adapter layer, not MongoDB."""
+    
+    def test_mongodb_has_no_collection_validators(self, mongodb_store, clean_collection):
+        """Verify that MongoDB collections do not have validators.
+        
+        This test ensures that schema validation is handled at the application
+        layer (via ValidatingDocumentStore) and not at the MongoDB level.
+        Any document should be accepted by the raw MongoDB store, regardless
+        of schema compliance.
+        """
+        # Get collection info from MongoDB
+        collection_infos = mongodb_store.database.list_collections(
+            filter={"name": clean_collection}
+        )
+        
+        # Insert a test document to ensure collection exists
+        mongodb_store.insert_document(clean_collection, {"test": "data"})
+        
+        # Now get the collection info
+        collection_infos = list(mongodb_store.database.list_collections(
+            filter={"name": clean_collection}
+        ))
+        
+        # If collection exists, check it has no validator
+        if collection_infos:
+            collection_info = collection_infos[0]
+            # Verify no validator is present
+            assert "options" not in collection_info or "validator" not in collection_info.get("options", {}), \
+                "MongoDB collection should NOT have a validator - validation should be at adapter layer"
+        
+    def test_invalid_document_accepted_by_raw_store(self, mongodb_store, clean_collection):
+        """Verify that invalid documents are accepted by the raw MongoDB store.
+        
+        This proves that validation is NOT happening at the MongoDB level.
+        The raw store should accept any document structure.
+        """
+        # Insert a document that would fail most schemas
+        # (missing fields, wrong types, etc.)
+        invalid_doc = {
+            "completely": "invalid",
+            "random": 12345,
+            "nested": {"structure": True},
+            "array": [1, "two", 3.0, None],
+        }
+        
+        # This should succeed because there's no MongoDB-level validation
+        doc_id = mongodb_store.insert_document(clean_collection, invalid_doc)
+        assert doc_id is not None
+        
+        # Verify we can retrieve it
+        retrieved = mongodb_store.get_document(clean_collection, doc_id)
+        assert retrieved is not None
+        assert retrieved["completely"] == "invalid"
+        assert retrieved["random"] == 12345
