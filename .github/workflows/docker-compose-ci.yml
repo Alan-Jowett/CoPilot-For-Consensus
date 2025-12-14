@@ -60,25 +60,36 @@ jobs:
           docker image prune -f
         done
 
-    - name: Start all services
+    - name: Start infrastructure services
       run: |
-        # Start infrastructure and app services
-        # Services are loosely coupled via the message bus and start independently
-        docker compose up -d
-        # Wait for infrastructure services to be healthy
-        # App services depend only on infrastructure, not on each other
+        # Start infrastructure services first
+        docker compose up -d \
+          documentdb \
+          messagebus \
+          vectorstore \
+          ollama \
+          monitoring \
+          pushgateway \
+          grafana \
+          loki \
+          promtail \
+          db-init \
+          db-validate \
+          vectorstore-validate \
+          ollama-validate
+        
+        # Wait for critical infrastructure services to be healthy
         timeout=180
         echo "Waiting up to ${timeout}s for infrastructure services to be healthy..."
         end=$((SECONDS + timeout))
         
-        # Critical infrastructure services that must be healthy before apps can run
+        # Infrastructure services that must be healthy before app services start
         infrastructure_services=("messagebus" "documentdb" "vectorstore" "ollama" "monitoring" "pushgateway")
 
         while [ $SECONDS -lt $end ]; do
           all_healthy=true
           
           for svc in "${infrastructure_services[@]}"; do
-            # Get the status of this service
             status=$(docker compose ps "$svc" --format "{{.Status}}" 2>/dev/null || echo "")
             if [ -z "$status" ]; then
               echo "Service $svc not found"
@@ -86,18 +97,13 @@ jobs:
               break
             fi
 
-            # Check for unhealthy status immediately
             if echo "$status" | grep -q "(unhealthy)"; then
               echo "❌ Service $svc is unhealthy: $status"
-              echo ""
-              echo "=== IMMEDIATE DIAGNOSTICS FOR $svc ==="
-              docker compose logs "$svc" --tail=100
-              echo ""
+              docker compose logs "$svc" --tail=50
               all_healthy=false
               break
             fi
 
-            # Check if it has a healthcheck and if so, is it healthy?
             if echo "$status" | grep -q "(health:"; then
               if ! echo "$status" | grep -q "(healthy)"; then
                 echo "Service $svc not healthy yet: $status"
@@ -105,10 +111,7 @@ jobs:
               fi
             elif echo "$status" | grep -q "Error"; then
               echo "❌ Service $svc has error status: $status"
-              echo ""
-              echo "=== IMMEDIATE DIAGNOSTICS FOR $svc ==="
-              docker compose logs "$svc" --tail=100
-              echo ""
+              docker compose logs "$svc" --tail=50
               all_healthy=false
               break
             elif ! echo "$status" | grep -q "Up"; then
@@ -122,58 +125,93 @@ jobs:
             exit 0
           fi
 
-          # Don't loop forever on unhealthy services - show diagnostics and fail
-          if [ "$all_healthy" = false ]; then
-            # Check if we have persistent unhealthy services (not just waiting)
-            unhealthy_count=$(docker compose ps --filter "status=unhealthy" -q | wc -l)
-            if [ "$unhealthy_count" -gt 0 ]; then
-              echo ""
-              echo "❌ Infrastructure services are unhealthy, failing with diagnostics above"
-              echo ""
-              echo "=== Full Service Status ==="
-              docker compose ps
-              exit 1
-            fi
+          unhealthy_count=$(docker compose ps --filter "status=unhealthy" -q | wc -l)
+          if [ "$unhealthy_count" -gt 0 ]; then
+            echo "❌ Infrastructure services are unhealthy"
+            docker compose ps
+            exit 1
           fi
 
           sleep 5
         done
 
-        echo ""
         echo "❌ Timeout waiting for infrastructure services to be healthy"
-        echo ""
-        echo "=== Service Status ==="
         docker compose ps
-        echo ""
-        echo "=== Unhealthy Services Details ==="
-        unhealthy=$(docker compose ps --filter "status=unhealthy" --format "{{.Service}}")
-        if [ -n "$unhealthy" ]; then
-          for svc in $unhealthy; do
-            echo "--- Logs for $svc ---"
-            docker compose logs "$svc" --tail=100
-            echo ""
-          done
-        fi
-        echo "=== All Service Logs (last 50 lines) ==="
-        docker compose logs --tail=50
-            echo "=== Logs for unhealthy service $svc ==="
-            docker compose logs "$svc" --tail=50
-          done
-          exit 1
-        fi
+        exit 1
+
+    - name: Start application services
+      run: |
+        # Start application services now that infrastructure is ready
+        docker compose up -d \
+          parsing \
+          chunking \
+          embedding \
+          orchestrator \
+          summarization \
+          reporting \
+          error-reporting \
+          ingestion
         
-        if [ -n "$exited" ]; then
-          echo "❌ The following services exited unexpectedly:"
-          echo "$exited"
-          for svc in $exited; do
-            echo ""
-            echo "=== Logs for exited service $svc ==="
-            docker compose logs "$svc" --tail=50
-          done
-          exit 1
-        fi
+        # Wait for application services to be healthy
+        timeout=300
+        echo "Waiting up to ${timeout}s for application services to be healthy..."
+        end=$((SECONDS + timeout))
         
-        echo "✓ All services are healthy"
+        # Application services that must become healthy
+        app_services=("parsing" "chunking" "embedding" "orchestrator" "summarization" "reporting" "error-reporting")
+
+        while [ $SECONDS -lt $end ]; do
+          all_healthy=true
+          
+          for svc in "${app_services[@]}"; do
+            status=$(docker compose ps "$svc" --format "{{.Status}}" 2>/dev/null || echo "")
+            if [ -z "$status" ]; then
+              echo "Service $svc not found"
+              all_healthy=false
+              break
+            fi
+
+            if echo "$status" | grep -q "(unhealthy)"; then
+              echo "❌ Service $svc is unhealthy: $status"
+              docker compose logs "$svc" --tail=50
+              all_healthy=false
+              break
+            fi
+
+            if echo "$status" | grep -q "(health:"; then
+              if ! echo "$status" | grep -q "(healthy)"; then
+                echo "Service $svc not healthy yet: $status"
+                all_healthy=false
+              fi
+            elif echo "$status" | grep -q "Error"; then
+              echo "❌ Service $svc has error status: $status"
+              docker compose logs "$svc" --tail=50
+              all_healthy=false
+              break
+            elif ! echo "$status" | grep -q "Up"; then
+              echo "Service $svc not running: $status"
+              all_healthy=false
+            fi
+          done
+
+          if [ "$all_healthy" = true ]; then
+            echo "✓ All application services are healthy"
+            exit 0
+          fi
+
+          unhealthy_count=$(docker compose ps --filter "status=unhealthy" -q | wc -l)
+          if [ "$unhealthy_count" -gt 0 ]; then
+            echo "❌ Application services are unhealthy"
+            docker compose ps
+            exit 1
+          fi
+
+          sleep 5
+        done
+
+        echo "❌ Timeout waiting for application services to be healthy"
+        docker compose ps
+        exit 1
 
     - name: Check service status
       run: docker compose ps
