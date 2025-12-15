@@ -59,10 +59,11 @@ class TestValidatingDocumentStore:
         base = InMemoryDocumentStore()
         store = ValidatingDocumentStore(base)
         
-        assert store._collection_to_schema_name("archive_metadata") == "ArchiveMetadata"
-        assert store._collection_to_schema_name("messages") == "Messages"
-        assert store._collection_to_schema_name("thread_summaries") == "ThreadSummaries"
-        assert store._collection_to_schema_name("simple") == "Simple"
+        # Schema names match collection names (lowercase)
+        assert store._collection_to_schema_name("archives") == "archives"
+        assert store._collection_to_schema_name("messages") == "messages"
+        assert store._collection_to_schema_name("chunks") == "chunks"
+        assert store._collection_to_schema_name("summaries") == "summaries"
     
     @requires_schema_validation
     def test_insert_valid_document_strict_mode(self):
@@ -79,11 +80,11 @@ class TestValidatingDocumentStore:
             "required": ["archive_id", "status"]
         }
         
-        provider = MockSchemaProvider({"ArchiveMetadata": schema})
+        provider = MockSchemaProvider({"archives": schema})
         store = ValidatingDocumentStore(base, provider, strict=True)
         
         doc = {"archive_id": "abc", "status": "success"}
-        doc_id = store.insert_document("archive_metadata", doc)
+        doc_id = store.insert_document("archives", doc)
         
         assert doc_id is not None
         assert len(doc_id) > 0
@@ -103,16 +104,16 @@ class TestValidatingDocumentStore:
             "required": ["archive_id", "status"]
         }
         
-        provider = MockSchemaProvider({"ArchiveMetadata": schema})
+        provider = MockSchemaProvider({"archives": schema})
         store = ValidatingDocumentStore(base, provider, strict=True)
         
         # Missing required status field
         doc = {"archive_id": "abc"}
         
         with pytest.raises(DocumentValidationError) as exc_info:
-            store.insert_document("archive_metadata", doc)
+            store.insert_document("archives", doc)
         
-        assert exc_info.value.collection == "archive_metadata"
+        assert exc_info.value.collection == "archives"
         assert len(exc_info.value.errors) > 0
         assert any("status" in err for err in exc_info.value.errors)
     
@@ -130,14 +131,14 @@ class TestValidatingDocumentStore:
             "required": ["archive_id", "status"]
         }
         
-        provider = MockSchemaProvider({"ArchiveMetadata": schema})
+        provider = MockSchemaProvider({"archives": schema})
         store = ValidatingDocumentStore(base, provider, strict=False)
         
         # Missing required status field
         doc = {"archive_id": "abc"}
         
         # Should succeed despite validation failure
-        doc_id = store.insert_document("archive_metadata", doc)
+        doc_id = store.insert_document("archives", doc)
         assert doc_id is not None
     
     def test_insert_without_schema_provider(self):
@@ -213,7 +214,7 @@ class TestValidatingDocumentStore:
             "required": ["data"]
         }
         
-        provider = MockSchemaProvider({"TestCollection": schema})
+        provider = MockSchemaProvider({"test_collection": schema})
         store = ValidatingDocumentStore(base, provider, validate_reads=True, strict=True)
         
         # Insert valid document
@@ -238,7 +239,7 @@ class TestValidatingDocumentStore:
             "required": ["data"]
         }
         
-        provider = MockSchemaProvider({"TestCollection": schema})
+        provider = MockSchemaProvider({"test_collection": schema})
         store = ValidatingDocumentStore(base, provider, validate_reads=True, strict=True)
         
         # Insert invalid document directly to base store
@@ -273,7 +274,7 @@ class TestValidatingDocumentStore:
             }
         }
         
-        provider = MockSchemaProvider({"TestCollection": schema})
+        provider = MockSchemaProvider({"test_collection": schema})
         store = ValidatingDocumentStore(base, provider, strict=True)
         
         # Insert document
@@ -299,7 +300,7 @@ class TestValidatingDocumentStore:
             }
         }
         
-        provider = MockSchemaProvider({"TestCollection": schema})
+        provider = MockSchemaProvider({"test_collection": schema})
         store = ValidatingDocumentStore(base, provider, strict=True)
         
         # Insert document

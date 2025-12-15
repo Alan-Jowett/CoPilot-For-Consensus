@@ -6,9 +6,11 @@
 import pytest
 from unittest.mock import Mock
 from typing import Dict, Any
+from pathlib import Path
 
 from app.service import EmbeddingService
-from copilot_storage import InMemoryDocumentStore
+from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
+from copilot_schema_validation import FileSchemaProvider
 from copilot_vectorstore import InMemoryVectorStore
 from copilot_embedding import MockEmbeddingProvider
 
@@ -18,10 +20,11 @@ def in_memory_document_store():
     """Create an in-memory document store with MongoDB-like query support."""
     import copy
     
-    store = InMemoryDocumentStore()
+    base_store = InMemoryDocumentStore()
+    base_store.connect()
     
     # Wrap query_documents to support $in operator
-    original_query = store.query_documents
+    original_query = base_store.query_documents
     
     def query_with_in_support(collection: str, filter_dict: Dict[str, Any], limit: int = 100):
         # Check if filter uses $in operator
@@ -30,7 +33,7 @@ def in_memory_document_store():
                 # Handle $in operator
                 target_values = value["$in"]
                 results = []
-                for doc in store.collections.get(collection, {}).values():
+                for doc in base_store.collections.get(collection, {}).values():
                     if doc.get(key) in target_values:
                         results.append(copy.deepcopy(doc))
                         if len(results) >= limit:
@@ -39,7 +42,14 @@ def in_memory_document_store():
         # Fallback to original implementation for simple queries
         return original_query(collection, filter_dict, limit)
     
-    store.query_documents = query_with_in_support
+    base_store.query_documents = query_with_in_support
+    
+    # Wrap with validation
+    schema_provider = FileSchemaProvider(
+        schema_dir=Path(__file__).parent.parent.parent / "documents" / "schemas" / "documents"
+    )
+    store = ValidatingDocumentStore(store=base_store, schema_provider=schema_provider)
+    
     return store
 
 
@@ -119,6 +129,7 @@ def test_end_to_end_embedding_generation(
                 "subject": "Test Message",
                 "draft_mentions": ["draft-ietf-quic-transport-34"],
             },
+            "created_at": "2023-10-15T12:00:00Z",
             "embedding_generated": False,
         },
         {
@@ -137,6 +148,7 @@ def test_end_to_end_embedding_generation(
                 "subject": "Test Message",
                 "draft_mentions": ["draft-ietf-quic-transport-34"],
             },
+            "created_at": "2023-10-15T12:00:00Z",
             "embedding_generated": False,
         },
         {
@@ -155,6 +167,7 @@ def test_end_to_end_embedding_generation(
                 "subject": "Re: Test Message",
                 "draft_mentions": [],
             },
+            "created_at": "2023-10-15T13:00:00Z",
             "embedding_generated": False,
         },
     ]
@@ -229,6 +242,7 @@ def test_batch_processing_integration(
                 "subject": "Test",
                 "draft_mentions": [],
             },
+            "created_at": "2023-10-15T12:00:00Z",
             "embedding_generated": False,
         }
         for i in range(5)
@@ -280,6 +294,7 @@ def test_metadata_preservation(
             "subject": "QUIC connection migration",
             "draft_mentions": ["draft-ietf-quic-transport-34", "draft-ietf-quic-recovery-34"],
         },
+        "created_at": "2023-10-15T14:30:00Z",
         "embedding_generated": False,
     }
     

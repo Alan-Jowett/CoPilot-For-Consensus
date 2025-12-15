@@ -4,43 +4,63 @@
 """Integration tests for the summarization service."""
 
 import pytest
+from pathlib import Path
 from unittest.mock import Mock
 
 from app.service import SummarizationService
 from copilot_summarization import MockSummarizer
-from copilot_storage import InMemoryDocumentStore
+from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
+from copilot_schema_validation import FileSchemaProvider
 
 
 @pytest.fixture
 def in_memory_document_store():
-    """Create an in-memory document store for testing."""
-    store = InMemoryDocumentStore()
+    """Create an in-memory document store with schema validation for testing."""
+    from datetime import datetime, timezone
+    import uuid
+    
+    # Create base in-memory store
+    base_store = InMemoryDocumentStore()
+    
+    # Wrap with validation using document schemas
+    schema_dir = Path(__file__).parent.parent.parent / "documents" / "schemas" / "documents"
+    schema_provider = FileSchemaProvider(schema_dir=schema_dir)
+    validating_store = ValidatingDocumentStore(
+        store=base_store,
+        schema_provider=schema_provider
+    )
+    
+    now = datetime.now(timezone.utc).isoformat()
     
     # Seed with test data
-    store.insert_document(
+    validating_store.insert_document(
         collection="messages",
         doc={
             "message_id": "<msg1@example.com>",
+            "archive_id": str(uuid.uuid4()),
             "thread_id": "<thread@example.com>",
             "body_normalized": "This is a test message discussing important topics.",
             "from": {"email": "alice@example.com", "name": "Alice"},
             "date": "2023-10-15T12:00:00Z",
             "subject": "Important Discussion",
+            "created_at": now,
         },
     )
-    store.insert_document(
+    validating_store.insert_document(
         collection="messages",
         doc={
             "message_id": "<msg2@example.com>",
+            "archive_id": str(uuid.uuid4()),
             "thread_id": "<thread@example.com>",
             "body_normalized": "I agree with the points raised in the previous message.",
             "from": {"email": "bob@example.com", "name": "Bob"},
             "date": "2023-10-15T13:00:00Z",
             "subject": "Re: Important Discussion",
+            "created_at": now,
         },
     )
     
-    return store
+    return validating_store
 
 
 @pytest.fixture

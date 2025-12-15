@@ -8,7 +8,8 @@ import os
 import tempfile
 import pytest
 
-from copilot_events import NoopPublisher
+from copilot_events import NoopPublisher, ValidatingEventPublisher
+from copilot_schema_validation import FileSchemaProvider
 
 from app.service import IngestionService
 from .test_helpers import make_config, make_source
@@ -74,8 +75,17 @@ class TestIngestionIntegration:
         )
 
         # Create publisher and service
-        publisher = NoopPublisher()
-        publisher.connect()
+        from pathlib import Path
+        base_publisher = NoopPublisher()
+        base_publisher.connect()
+        # Wrap with schema validation for events
+        schema_dir = Path(__file__).parent.parent.parent / "documents" / "schemas" / "events"
+        schema_provider = FileSchemaProvider(schema_dir=schema_dir)
+        publisher = ValidatingEventPublisher(
+            publisher=base_publisher,
+            schema_provider=schema_provider,
+            strict=True,
+        )
 
         service = IngestionService(config, publisher)
 
@@ -108,10 +118,11 @@ class TestIngestionIntegration:
             assert len(lines) == 3
 
         # Verify events were published
-        assert len(publisher.published_events) == 3
+        # Validate events published on underlying NoopPublisher
+        assert len(base_publisher.published_events) == 3
 
         # All should be success events
-        for event_wrapper in publisher.published_events:
+        for event_wrapper in base_publisher.published_events:
             assert event_wrapper["event"]["event_type"] == "ArchiveIngested"
 
     def test_ingestion_with_duplicates(self, temp_environment, test_sources):

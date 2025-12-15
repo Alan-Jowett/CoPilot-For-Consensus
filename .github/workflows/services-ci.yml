@@ -48,7 +48,7 @@ concurrency:
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
+    if: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && github.event_name == 'pull_request' }}
     outputs:
       chunking: ${{ steps.filter.outputs.chunking }}
       embedding: ${{ steps.filter.outputs.embedding }}
@@ -99,7 +99,7 @@ jobs:
 
   chunking:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.chunking == 'true' || needs.detect-changes.outputs.ci-workflows == 'true') }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.detect-changes.outputs.chunking == 'true' || needs.detect-changes.outputs.ci-workflows == 'true') }}
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
     with:
       service_id: 'chunking'
@@ -111,7 +111,7 @@ jobs:
 
   embedding:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.embedding == 'true' || needs.detect-changes.outputs.ci-workflows == 'true') }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.detect-changes.outputs.embedding == 'true' || needs.detect-changes.outputs.ci-workflows == 'true') }}
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
     with:
       service_id: 'embedding'
@@ -123,7 +123,7 @@ jobs:
 
   ingestion:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.ingestion == 'true' || needs.detect-changes.outputs.ci-workflows == 'true') }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.detect-changes.outputs.ingestion == 'true' || needs.detect-changes.outputs.ci-workflows == 'true') }}
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
     with:
       service_id: 'ingestion'
@@ -135,7 +135,7 @@ jobs:
 
   orchestrator:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.orchestrator == 'true' || needs.detect-changes.outputs.ci-workflows == 'true') }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.detect-changes.outputs.orchestrator == 'true' || needs.detect-changes.outputs.ci-workflows == 'true') }}
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
     with:
       service_id: 'orchestrator'
@@ -147,7 +147,7 @@ jobs:
 
   parsing:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.parsing == 'true' || needs.detect-changes.outputs.ci-workflows == 'true') }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.detect-changes.outputs.parsing == 'true' || needs.detect-changes.outputs.ci-workflows == 'true') }}
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
     with:
       service_id: 'parsing'
@@ -159,7 +159,7 @@ jobs:
 
   reporting:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.reporting == 'true' || needs.detect-changes.outputs.ci-workflows == 'true') }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.detect-changes.outputs.reporting == 'true' || needs.detect-changes.outputs.ci-workflows == 'true') }}
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
     with:
       service_id: 'reporting'
@@ -171,7 +171,7 @@ jobs:
 
   summarization:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.summarization == 'true' || needs.detect-changes.outputs.ci-workflows == 'true') }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.detect-changes.outputs.summarization == 'true' || needs.detect-changes.outputs.ci-workflows == 'true') }}
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
     with:
       service_id: 'summarization'
@@ -183,7 +183,7 @@ jobs:
 
   error-reporting:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.error-reporting == 'true' || needs.detect-changes.outputs.ci-workflows == 'true') }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.detect-changes.outputs.error-reporting == 'true' || needs.detect-changes.outputs.ci-workflows == 'true') }}
     uses: ./.github/workflows/service-reusable-unit-test-ci.yml
     with:
       service_id: 'error-reporting'
@@ -192,3 +192,19 @@ jobs:
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
+
+  # Aggregate coverage from all services on main branch
+  coverage-summary:
+    needs: [chunking, embedding, ingestion, orchestrator, parsing, reporting, summarization, error-reporting]
+    runs-on: ubuntu-latest
+    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      
+      - name: Finalize coverage upload
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ github.token }}
+          parallel-finished: true
+          carryforward: "chunking,embedding,ingestion,orchestrator,parsing,reporting,summarization,error-reporting"
