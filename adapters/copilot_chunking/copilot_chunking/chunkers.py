@@ -33,7 +33,7 @@ class Chunk:
     chunk_index: int
     token_count: int
     metadata: Dict[str, Any]
-    message_key: str = ""
+    message_key: Optional[str] = None
     start_offset: Optional[int] = None
     end_offset: Optional[int] = None
 
@@ -52,7 +52,7 @@ class Thread:
     thread_id: str
     text: str
     metadata: Dict[str, Any]
-    message_key: str = ""
+    message_key: Optional[str] = None
     messages: Optional[List[Dict[str, Any]]] = None
 
 
@@ -123,10 +123,12 @@ class TokenWindowChunker(ThreadChunker):
             List of chunks with metadata
             
         Raises:
-            ValueError: If thread text is empty
+            ValueError: If thread text is empty or message_key is not provided
         """
         if not thread.text or not thread.text.strip():
             raise ValueError("Thread text cannot be empty")
+        if thread.message_key is None:
+            raise ValueError("Thread message_key must be provided before chunking")
         
         # Simple word-based approximation for token counting
         # In a real implementation, use tiktoken or similar
@@ -203,8 +205,11 @@ class FixedSizeChunker(ThreadChunker):
             List of chunks with metadata
             
         Raises:
-            ValueError: If thread has no messages or text is empty
+            ValueError: If thread has no messages or text is empty, or message_key is not provided
         """
+        if thread.message_key is None:
+            raise ValueError("Thread message_key must be provided before chunking")
+        
         # If thread has explicit messages, use those
         if thread.messages:
             return self._chunk_messages(thread)
@@ -320,10 +325,12 @@ class SemanticChunker(ThreadChunker):
             List of chunks with metadata
             
         Raises:
-            ValueError: If thread text is empty
+            ValueError: If thread text is empty or message_key is not provided
         """
         if not thread.text or not thread.text.strip():
             raise ValueError("Thread text cannot be empty")
+        if thread.message_key is None:
+            raise ValueError("Thread message_key must be provided before chunking")
         
         # Simple sentence splitting on common terminators
         # A more robust implementation would use NLTK or spaCy
