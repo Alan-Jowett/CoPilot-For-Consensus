@@ -146,6 +146,7 @@ def main():
         
         # Wrap with schema validation
         logger.info("Wrapping document store with schema validation...")
+        # The schema path is resolved relative to the container's filesystem layout.
         document_schema_provider = FileSchemaProvider(
             schema_dir=Path(__file__).parent / "documents" / "schemas" / "documents"
         )
