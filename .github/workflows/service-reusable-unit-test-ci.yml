@@ -69,7 +69,7 @@ jobs:
         # Install service requirements
         cd ${{ inputs.service_path }}
         pip install -r requirements.txt
-        pip install pytest pytest-cov pytest-timeout
+        pip install pytest pytest-cov pytest-timeout==2.4.0
 
 
     - name: Run unit and integration tests
