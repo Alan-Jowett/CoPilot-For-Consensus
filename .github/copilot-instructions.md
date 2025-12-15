@@ -34,16 +34,18 @@ For more information, see [CONTRIBUTING.md](documents/CONTRIBUTING.md) and [CODE
 ## CI & Testing Overview
 
 - **PRs Required**: Direct pushes to `main` are blocked. Open a PR; required check includes the `Test Docker Compose` job.
-- **Adapters CI**: [adapters-ci.yml](.github/workflows/adapters-ci.yml) orchestrates unit and integration tests per adapter using reusable workflows.
-  - **Unit**: [adapter-reusable-unit-test-ci.yml](.github/workflows/adapter-reusable-unit-test-ci.yml) runs `pytest` with `-m "not integration"`, uploads JUnit and coverage (`lcov`, `html`), and reports via `dorny/test-reporter`.
-  - **Integrations**: [adapter-reusable-integration-ci.yml](.github/workflows/adapter-reusable-integration-ci.yml) spins services (MongoDB, RabbitMQ) and optional rsync fixtures; runs `pytest -m integration` with coverage and artifacts.
-  - **Vectorstore**: [adapter-reusable-vectorstore-integration-ci.yml](.github/workflows/adapter-reusable-vectorstore-integration-ci.yml) provisions Qdrant and runs `pytest -m integration` for vectorstore adapters.
-  - **Coverage**: Coveralls uploads per job; a carryforward summary finalizes on `main`.
-- **Services CI**: [services-ci.yml](.github/workflows/services-ci.yml) triggers service tests via [service-reusable-unit-test-ci.yml](.github/workflows/service-reusable-unit-test-ci.yml).
-  - **Tests**: Runs `pytest` for unit and integration together, generates coverage and JUnit, and reports via `dorny/test-reporter`.
-  - **Lint/Security**: `flake8`, `pylint`, and `bandit` checks run per service.
-  - **Docker Build**: Builds each service Dockerfile using Buildx (no push); summarized with a gated `summary` job.
-  - **Coverage**: Coveralls uploads per service with a parallel-finished step on `main`.
+- **Unified CI**: [unified-ci.yml](.github/workflows/unified-ci.yml) orchestrates unit and integration tests for **all services and adapters** using reusable workflows.
+  - **Service Tests**: Via [service-reusable-unit-test-ci.yml](.github/workflows/service-reusable-unit-test-ci.yml)
+    - Runs `pytest` for unit and integration together, generates coverage and JUnit, and reports via `dorny/test-reporter`.
+    - `flake8`, `pylint`, and `bandit` checks run per service.
+    - Builds each service Dockerfile using Buildx (no push); summarized with a gated `summary` job.
+  - **Adapter Unit Tests**: Via [adapter-reusable-unit-test-ci.yml](.github/workflows/adapter-reusable-unit-test-ci.yml)
+    - Runs `pytest` with `-m "not integration"`, uploads JUnit and coverage (`lcov`, `html`), and reports via `dorny/test-reporter`.
+  - **Adapter Integration Tests**: Via [adapter-reusable-integration-ci.yml](.github/workflows/adapter-reusable-integration-ci.yml)
+    - Spins services (MongoDB, RabbitMQ) and optional rsync fixtures; runs `pytest -m integration` with coverage and artifacts.
+  - **Vectorstore Integration**: Via [adapter-reusable-vectorstore-integration-ci.yml](.github/workflows/adapter-reusable-vectorstore-integration-ci.yml)
+    - Provisions Qdrant and runs `pytest -m integration` for vectorstore adapters.
+  - **Coverage**: Coveralls uploads per job with `parallel: true`; a **single** `coverage-summary` job finalizes all coverage on `main` with `parallel-finished: true`.
 - **System Integration**: [docker-compose-ci.yml](.github/workflows/docker-compose-ci.yml) builds all images, brings up infra (MongoDB, RabbitMQ, Qdrant, Prometheus, Pushgateway, Loki, Grafana, Promtail), starts services, runs ingestion, and health-checks HTTP endpoints. This job is the required status check.
 - **Policy Checks**:
   - **License Headers**: [license-header-check.yml](.github/workflows/license-header-check.yml) runs `scripts/check_license_headers.py`.
