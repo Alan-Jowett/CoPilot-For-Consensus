@@ -26,8 +26,8 @@ doc_count_gauge = Gauge(
 def get_counts(client: MongoClient) -> Dict[str, int]:
     db = client[DB_NAME]
     counts = {}
-    # target collections
-    for coll in ["archives", "messages", "chunks", "threads", "summaries"]:
+    # target collections - all collections used by the system
+    for coll in ["archives", "messages", "chunks", "threads", "summaries", "reports", "sources"]:
         try:
             counts[coll] = db[coll].count_documents({})
         except Exception:
