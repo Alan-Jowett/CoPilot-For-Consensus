@@ -85,19 +85,11 @@ def example_typed_config():
         
         print(f"✓ Typed configuration loaded!")
         
-        # Access via attributes
-        print(f"  Message Bus Host (attr): {config.message_bus_host}")
-        print(f"  Message Bus Port (attr): {config.message_bus_port}")
-        
-        # Access via dict-style
-        print(f"  Document Store Host (dict): {config['doc_store_host']}")
-        
-        # Use get() with default
-        print(f"  Custom Setting (with default): {config.get('custom_setting', 'N/A')}")
-        
-        # Check if key exists
-        print(f"  Has 'message_bus_host': {'message_bus_host' in config}")
-        print(f"  Has 'missing_key': {'missing_key' in config}")
+        # Access via attributes only (dict-style not supported for verification)
+        print(f"  Message Bus Host: {config.message_bus_host}")
+        print(f"  Message Bus Port: {config.message_bus_port}")
+        print(f"  Document Store Host: {config.doc_store_host}")
+        print(f"  Document Store Type: {config.doc_store_type}")
         print()
         
     except Exception as e:
@@ -121,15 +113,15 @@ def example_validation_errors():
     })
     
     try:
-        config = load_config(
+        config = load_typed_config(
             "chunking",
             schema_dir=SCHEMA_DIR,
             env_provider=env_provider
         )
         print(f"✓ Configuration loaded successfully!")
         print(f"  Note: Required fields with defaults don't cause validation errors")
-        print(f"  Message Bus Host (from default): {config['message_bus_host']}")
-        print(f"  Message Bus Port (from env): {config['message_bus_port']}")
+        print(f"  Message Bus Host (from default): {config.message_bus_host}")
+        print(f"  Message Bus Port (from env): {config.message_bus_port}")
         print()
         
     except ConfigValidationError as e:

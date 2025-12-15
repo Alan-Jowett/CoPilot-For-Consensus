@@ -86,17 +86,17 @@ Create a JSON schema file in `schemas/<service>.json`:
 from copilot_config import load_typed_config
 
 # Load configuration with schema validation
-# Returns TypedConfig with attribute-style access
+# Returns TypedConfig with attribute-ONLY access (enables static verification)
 config = load_typed_config("my-service")
 
-# Access via attributes
+# Access via attributes (verifiable by static analysis tools)
 print(config.message_bus_host)  # "messagebus"
 print(config.message_bus_port)  # 5672
 print(config.debug)             # False
 
-# Or dict-style if preferred
-print(config["message_bus_host"])  # "messagebus"
-print(config.get("missing_key", "default"))  # "default"
+# Dictionary-style access intentionally NOT supported
+# config["message_bus_host"]  # ✗ Raises AttributeError
+# This ensures all accessed keys can be verified against the schema
 ```
 
 #### 3. Error Handling
