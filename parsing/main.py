@@ -143,7 +143,7 @@ def main():
             port=config.message_bus_port,
             username=config.message_bus_user,
             password=config.message_bus_password,
-            queue_name="parsing-service",
+            queue_name="archive.ingested",
         )
         
         if not base_subscriber.connect():
