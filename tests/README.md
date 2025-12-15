@@ -1,0 +1,93 @@
+# Tests Directory
+
+This directory contains end-to-end integration tests for the Copilot-for-Consensus system.
+
+## Test Files
+
+### test_integration_message_flow.py
+Schema validation tests for event types. These tests validate that all event types have proper schemas and that events can be validated against them.
+
+**Markers:** `integration`
+
+### validate_e2e_flow.py
+End-to-end validation script that verifies the complete message flow pipeline from ingestion to embedding generation. This is **not** a pytest test - it's a standalone validation script designed to run in CI after Docker Compose services are up.
+
+**Usage:**
+```bash
+python tests/validate_e2e_flow.py
+```
+
+**Environment Variables:**
+- `MONGODB_HOST` - MongoDB host (default: localhost)
+- `MONGODB_PORT` - MongoDB port (default: 27017)
+- `MONGODB_USERNAME` - MongoDB username (default: root)
+- `MONGODB_PASSWORD` - MongoDB password (default: example)
+- `MONGODB_DATABASE` - MongoDB database name (default: copilot)
+- `QDRANT_HOST` - Qdrant host (default: localhost)
+- `QDRANT_PORT` - Qdrant port (default: 6333)
+- `QDRANT_COLLECTION` - Qdrant collection name (default: embeddings)
+
+**What it validates:**
+1. Archives are ingested and stored
+2. Messages are parsed and persisted
+3. Threads are correctly inferred
+4. Chunks are created from messages
+5. Embeddings are generated and stored in Qdrant
+6. Data consistency across collections
+
+**Exit codes:**
+- `0` - All validations passed
+- `1` - One or more validations failed
+
+## Fixtures
+
+### fixtures/mailbox_sample/
+Test mailbox fixture for end-to-end validation. Contains:
+- `test-archive.mbox` - Sample mbox file with 10 representative messages
+- `ingestion-config.json` - Ingestion configuration pointing to the test mailbox
+- `README.md` - Documentation for the fixture
+
+See the [fixture README](fixtures/mailbox_sample/README.md) for details on how to use the test mailbox.
+
+## Running Tests
+
+### Run schema validation tests
+```bash
+pytest tests/test_integration_message_flow.py -v -m integration
+```
+
+### Run end-to-end validation (requires Docker Compose stack)
+```bash
+# 1. Start all services
+docker compose up -d
+
+# 2. Upload test configuration
+docker compose run --rm \
+  -v $PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro \
+  ingestion \
+  python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
+
+# 3. Run ingestion
+docker compose run --rm \
+  -v $PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro \
+  ingestion
+
+# 4. Validate results
+docker compose run --rm \
+  -v $PWD/tests:/app/tests:ro \
+  -e MONGODB_HOST=documentdb \
+  -e MONGODB_PORT=27017 \
+  -e MONGODB_USERNAME=root \
+  -e MONGODB_PASSWORD=example \
+  -e MONGODB_DATABASE=copilot \
+  -e QDRANT_HOST=vectorstore \
+  -e QDRANT_PORT=6333 \
+  -e QDRANT_COLLECTION=embeddings \
+  --entrypoint "" \
+  ingestion \
+  bash -c "pip install -q pymongo qdrant-client && python /app/tests/validate_e2e_flow.py"
+```
+
+## CI Integration
+
+The end-to-end validation is automatically run in the Docker Compose CI workflow (`.github/workflows/docker-compose-ci.yml`) after the ingestion service completes. This ensures that the complete pipeline works correctly on every PR and merge to main.
