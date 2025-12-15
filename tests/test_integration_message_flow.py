@@ -79,7 +79,7 @@ class TestEventSchemaValidation:
             "timestamp": "2023-10-15T12:00:00Z",
             "version": "1.0",
             "data": {
-                "archive_id": "a1b2c3d4e5f6789",
+                "archive_id": "a1b2c3d4e5f67890",
                 "source_name": "test-source",
                 "source_type": "local",
                 "source_url": "/path/to/file",
