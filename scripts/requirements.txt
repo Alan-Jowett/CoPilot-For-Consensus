@@ -5,3 +5,5 @@
 pika>=1.3.0
 prometheus_client>=0.20.0
 pymongo>=4.8.0
+# Requirements for scripts/qdrant_exporter.py
+requests>=2.31.0
