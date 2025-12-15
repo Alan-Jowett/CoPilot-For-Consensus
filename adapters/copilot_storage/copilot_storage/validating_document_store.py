@@ -76,20 +76,17 @@ class ValidatingDocumentStore(DocumentStore):
     def _collection_to_schema_name(self, collection: str) -> str:
         """Convert collection name to schema name.
 
-        Converts snake_case collection names to PascalCase schema names.
-        Examples:
-            - "archive_metadata" -> "ArchiveMetadata"
-            - "messages" -> "Messages"
+        Returns the collection name as-is for document schemas, which use
+        lowercase naming (e.g., "messages" -> "messages", "chunks" -> "chunks").
 
         Args:
             collection: Collection name
 
         Returns:
-            Schema name in PascalCase
+            Schema name (same as collection name for documents)
         """
-        # Split on underscores and capitalize each part
-        parts = collection.split("_")
-        return "".join(part.capitalize() for part in parts)
+        # Document schemas use lowercase naming matching collection names
+        return collection
 
     def _validate_document(self, collection: str, doc: Dict[str, Any]) -> Tuple[bool, List[str]]:
         """Validate a document against its schema.
