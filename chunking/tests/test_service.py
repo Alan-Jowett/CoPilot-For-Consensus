@@ -565,3 +565,105 @@ def test_publisher_uses_event_parameter(chunking_service, mock_publisher):
     # Check that event is in kwargs
     assert "event" in call_args[1], "publisher.publish must use 'event' parameter"
     assert "message" not in call_args[1], "publisher.publish should not use deprecated 'message' parameter"
+
+
+def test_idempotent_chunk_insertion(chunking_service, mock_document_store, mock_publisher):
+    """Test that duplicate chunk insertions are handled gracefully (idempotency)."""
+    from pymongo.errors import DuplicateKeyError
+    
+    # Setup mock to simulate duplicate on second insert
+    messages = [
+        {
+            "message_id": "<test@example.com>",
+            "thread_id": "<thread@example.com>",
+            "archive_id": "archive-123",
+            "body_normalized": "This is a test message. " * 50,
+            "from": {"email": "user@example.com", "name": "Test User"},
+            "date": "2023-10-15T12:00:00Z",
+            "subject": "Test Subject",
+            "draft_mentions": [],
+        }
+    ]
+    
+    mock_document_store.query_documents.return_value = messages
+    
+    # First insert succeeds, second raises DuplicateKeyError
+    insert_count = [0]
+    
+    def insert_side_effect(collection, document):
+        insert_count[0] += 1
+        if insert_count[0] == 2:
+            raise DuplicateKeyError("E11000 duplicate key error")
+        return f"chunk_{insert_count[0]}"
+    
+    mock_document_store.insert_document.side_effect = insert_side_effect
+    
+    event_data = {
+        "archive_id": "archive-123",
+        "parsed_message_ids": ["<test@example.com>"],
+    }
+    
+    # Process should succeed despite duplicate
+    chunking_service.process_messages(event_data)
+    
+    # Verify ChunksPrepared event was still published
+    mock_publisher.publish.assert_called_once()
+    call_args = mock_publisher.publish.call_args
+    assert call_args[1]["routing_key"] == "chunks.prepared"
+    
+    # Stats should be updated
+    assert chunking_service.messages_processed == 1
+    assert chunking_service.chunks_created_total > 0
+
+
+def test_metrics_collector_uses_observe_for_histograms():
+    """Test that metrics collector uses observe() method for duration and size metrics."""
+    mock_store = Mock()
+    mock_store.insert_document = Mock(return_value="chunk_123")
+    mock_store.query_documents = Mock(return_value=[
+        {
+            "message_id": "<test@example.com>",
+            "thread_id": "<thread@example.com>",
+            "archive_id": "archive-123",
+            "body_normalized": "This is a test message. " * 50,
+            "from": {"email": "user@example.com", "name": "Test User"},
+            "date": "2023-10-15T12:00:00Z",
+            "subject": "Test Subject",
+            "draft_mentions": [],
+        }
+    ])
+    
+    mock_publisher = Mock()
+    mock_subscriber = Mock()
+    mock_chunker = TokenWindowChunker(chunk_size=384, overlap=50)
+    mock_metrics = Mock()
+    
+    service = ChunkingService(
+        document_store=mock_store,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        chunker=mock_chunker,
+        metrics_collector=mock_metrics,
+    )
+    
+    event_data = {
+        "archive_id": "archive-123",
+        "parsed_message_ids": ["<test@example.com>"],
+    }
+    
+    service.process_messages(event_data)
+    
+    # Verify observe was called for duration (not histogram)
+    observe_calls = [call for call in mock_metrics.observe.call_args_list]
+    assert len(observe_calls) >= 1, "observe() should be called for metrics"
+    
+    # Check that duration metric was recorded
+    duration_calls = [call for call in observe_calls 
+                     if call[0][0] == "chunking_duration_seconds"]
+    assert len(duration_calls) == 1, "chunking_duration_seconds should be recorded once"
+    
+    # Verify histogram method was NOT called (it doesn't exist in the API)
+    method_names = [call[0] for call in mock_metrics.method_calls]
+    assert 'histogram' not in method_names, \
+        "histogram() method should not be used (use observe() instead)"
+

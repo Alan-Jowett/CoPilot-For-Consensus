@@ -8,6 +8,8 @@ import time
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 
+from pymongo.errors import DuplicateKeyError
+
 from copilot_events import (
     EventPublisher,
     EventSubscriber,
@@ -170,14 +172,32 @@ class ChunkingService:
                     )
                     # Continue processing other messages
             
-            # Store chunks in database
+            # Store chunks in database with idempotency (skip duplicates)
             if all_chunks:
                 chunk_ids = []
-                for chunk in all_chunks:
-                    self.document_store.insert_document("chunks", chunk)
-                    chunk_ids.append(chunk["chunk_id"])
+                skipped_duplicates = 0
                 
-                logger.info(f"Created {len(all_chunks)} chunks")
+                for chunk in all_chunks:
+                    try:
+                        self.document_store.insert_document("chunks", chunk)
+                        chunk_ids.append(chunk["chunk_id"])
+                    except DuplicateKeyError:
+                        # Chunk already exists (idempotent retry)
+                        logger.debug(f"Chunk {chunk.get('chunk_id', 'unknown')} already exists, skipping")
+                        chunk_ids.append(chunk.get("chunk_id", "unknown"))  # Still include in output
+                        skipped_duplicates += 1
+                    except Exception as e:
+                        # Other errors (transient) should fail the processing
+                        logger.error(f"Error storing chunk {chunk.get('chunk_id')}: {e}")
+                        raise
+                
+                if skipped_duplicates > 0:
+                    logger.info(
+                        f"Created {len(all_chunks) - skipped_duplicates} chunks, "
+                        f"skipped {skipped_duplicates} duplicates"
+                    )
+                else:
+                    logger.info(f"Created {len(all_chunks)} chunks")
                 
                 # Calculate average chunk size
                 avg_chunk_size = (
@@ -208,12 +228,12 @@ class ChunkingService:
                     "chunking_chunks_created_total",
                     len(all_chunks)
                 )
-                self.metrics_collector.histogram(
+                self.metrics_collector.observe(
                     "chunking_duration_seconds",
                     duration
                 )
                 if avg_chunk_size > 0:
-                    self.metrics_collector.histogram(
+                    self.metrics_collector.observe(
                         "chunking_chunk_size_tokens",
                         avg_chunk_size
                     )

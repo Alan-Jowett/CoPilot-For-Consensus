@@ -272,7 +272,9 @@ Services communicate via these domain events:
    - Payload: `{archive_id, source, timestamp, file_path}`
 
 2. **JSONParsed** (Parsing → Message Bus)
-   - Payload: `{archive_id, message_count, parsed_json_document_ids, timestamp}`
+   - Payload: `{archive_id, message_count, parsed_message_ids, thread_count, thread_ids, parsing_duration_seconds}`
+   - **Note:** One event published per message (fine-grained retry granularity)
+   - Each event contains a single message ID in `parsed_message_ids` array
 
 3. **ChunksPrepared** (Chunking → Message Bus)
   - Payload: `{message_keys, chunk_count, chunks_ready, timestamp}`
