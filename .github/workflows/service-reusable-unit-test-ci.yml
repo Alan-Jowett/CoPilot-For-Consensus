@@ -3,6 +3,9 @@
 
 name: Reusable Service Unit Test CI
 
+permissions:
+  contents: read
+
 on:
   workflow_call:
     inputs:
