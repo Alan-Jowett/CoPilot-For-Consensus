@@ -342,7 +342,7 @@ class TestParsingService:
             service._store_threads([{"thread_id": "t1"}])
 
     def test_event_publishing_on_success(self, document_store, subscriber, sample_mbox_file):
-        """Test that JSONParsed event is published on successful parsing."""
+        """Test that JSONParsed events are published (one per message) on successful parsing."""
         mock_publisher = MockPublisher()
         mock_publisher.connect()
         
@@ -359,15 +359,30 @@ class TestParsingService:
         
         service.process_archive(archive_data)
         
-        # Verify JSONParsed event was published
-        assert len(mock_publisher.published_events) == 1
-        event = mock_publisher.published_events[0]
-        assert event["exchange"] == "copilot.events"
-        assert event["routing_key"] == "json.parsed"
-        assert event["event"]["event_type"] == "JSONParsed"
-        assert event["event"]["data"]["archive_id"] == "test-archive-9"
-        assert event["event"]["data"]["message_count"] == 2
-        assert event["event"]["data"]["thread_count"] == 1
+        # Verify JSONParsed events were published (one per message)
+        # sample_mbox_file contains 2 messages
+        assert len(mock_publisher.published_events) == 2
+        
+        # Check first event
+        event1 = mock_publisher.published_events[0]
+        assert event1["exchange"] == "copilot.events"
+        assert event1["routing_key"] == "json.parsed"
+        assert event1["event"]["event_type"] == "JSONParsed"
+        assert event1["event"]["data"]["archive_id"] == "test-archive-9"
+        assert event1["event"]["data"]["message_count"] == 1  # Single message per event
+        assert len(event1["event"]["data"]["parsed_message_ids"]) == 1
+        
+        # Check second event
+        event2 = mock_publisher.published_events[1]
+        assert event2["exchange"] == "copilot.events"
+        assert event2["routing_key"] == "json.parsed"
+        assert event2["event"]["event_type"] == "JSONParsed"
+        assert event2["event"]["data"]["archive_id"] == "test-archive-9"
+        assert event2["event"]["data"]["message_count"] == 1  # Single message per event
+        assert len(event2["event"]["data"]["parsed_message_ids"]) == 1
+        
+        # Verify messages are different
+        assert event1["event"]["data"]["parsed_message_ids"][0] != event2["event"]["data"]["parsed_message_ids"][0]
 
     def test_event_publishing_on_failure(self, document_store, subscriber):
         """Test that ParsingFailed event is published on parsing failure."""

@@ -196,13 +196,11 @@ class ParsingService:
                     duration,
                 )
             
-            # Publish JSONParsed event
-            self._publish_json_parsed(
+            # Publish JSONParsed events (one per message for fine-grained retry)
+            self._publish_json_parsed_per_message(
                 archive_id,
-                len(parsed_messages),
-                [msg["message_id"] for msg in parsed_messages],
-                len(threads),
-                [thread["thread_id"] for thread in threads],
+                parsed_messages,
+                threads,
                 duration,
             )
             
@@ -381,47 +379,83 @@ class ParsingService:
                     }
                 )
 
-    def _publish_json_parsed(
+    def _publish_json_parsed_per_message(
         self,
         archive_id: str,
-        message_count: int,
-        parsed_message_ids: list,
-        thread_count: int,
-        thread_ids: list,
+        parsed_messages: list,
+        threads: list,
         duration: float,
     ):
-        """Publish JSONParsed event.
+        """Publish JSONParsed events (one per message for fine-grained retry).
+        
+        This implements per-message event publishing to enable fine-grained
+        retry granularity. If chunking fails on a single message, only that
+        message is retried, not the entire archive batch.
         
         Args:
             archive_id: Archive identifier
-            message_count: Number of messages parsed
-            parsed_message_ids: List of message IDs
-            thread_count: Number of threads created
-            thread_ids: List of thread IDs
-            duration: Parsing duration in seconds
+            parsed_messages: List of parsed message dictionaries
+            threads: List of thread dictionaries
+            duration: Total parsing duration in seconds
+            
+        Raises:
+            Exception: If event publishing fails for any message
         """
-        event = JSONParsedEvent(
-            data={
-                "archive_id": archive_id,
-                "message_count": message_count,
-                "parsed_message_ids": parsed_message_ids,
-                "thread_count": thread_count,
-                "thread_ids": thread_ids,
-                "parsing_duration_seconds": duration,
-            }
-        )
+        # Build thread_id lookup for quick access
+        thread_lookup = {thread["thread_id"]: thread for thread in threads}
         
-        try:
-            self.publisher.publish(
-                exchange="copilot.events",
-                routing_key="json.parsed",
-                event=event.to_dict(),
+        # Track failed publications for error reporting
+        failed_publishes = []
+        
+        for message in parsed_messages:
+            message_id = message.get("message_id")
+            thread_id = message.get("thread_id")
+            
+            # Get thread info if this message is part of a thread
+            thread_ids = [thread_id] if thread_id and thread_id in thread_lookup else []
+            
+            event = JSONParsedEvent(
+                data={
+                    "archive_id": archive_id,
+                    "message_count": 1,  # Single message per event
+                    "parsed_message_ids": [message_id],  # Single-item array
+                    "thread_count": len(thread_ids),
+                    "thread_ids": thread_ids,
+                    "parsing_duration_seconds": duration,
+                }
             )
-        except Exception:
-            logger.exception(f"Exception while publishing JSONParsed event for {archive_id}")
-            if self.error_reporter:
-                self.error_reporter.capture_exception()
-            raise
+            
+            try:
+                self.publisher.publish(
+                    exchange="copilot.events",
+                    routing_key="json.parsed",
+                    event=event.to_dict(),
+                )
+                logger.debug(f"Published JSONParsed event for message {message_id}")
+            except Exception as e:
+                logger.error(
+                    f"Failed to publish JSONParsed event for message {message_id}: {e}",
+                    exc_info=True
+                )
+                failed_publishes.append((message_id, e))
+                if self.error_reporter:
+                    self.error_reporter.report(
+                        e,
+                        context={
+                            "operation": "publish_json_parsed",
+                            "archive_id": archive_id,
+                            "message_id": message_id,
+                        }
+                    )
+        
+        # If any publishes failed, raise an exception to fail the archive processing
+        if failed_publishes:
+            error_msg = f"Failed to publish {len(failed_publishes)} JSONParsed events for archive {archive_id}"
+            logger.error(error_msg)
+            # Raise the first exception to trigger archive processing failure
+            raise failed_publishes[0][1]
+        
+        logger.info(f"Published {len(parsed_messages)} JSONParsed events for archive {archive_id}")
 
     def _publish_parsing_failed(
         self,
