@@ -1,6 +1,28 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
+<#
+.SYNOPSIS
+    Build, launch, and health-check the full docker compose stack, then tear it down.
+
+.DESCRIPTION
+    This script cleans existing copilot docker resources (containers, volumes, networks),
+    builds all compose images, starts infrastructure and application services, waits for
+    them to become healthy, and finally tears everything down with volumes removed.
+
+.PARAMETER TimeoutSeconds
+    Maximum time in seconds to wait for all services to report healthy status.
+
+.PARAMETER PollIntervalSeconds
+    Delay in seconds between health check polls while waiting for services to become healthy.
+
+.EXAMPLE
+    .\scripts\docker_compose_sanity.ps1
+
+.EXAMPLE
+    .\scripts\docker_compose_sanity.ps1 -TimeoutSeconds 900 -PollIntervalSeconds 10
+#>
+
 Param(
     [int]$TimeoutSeconds = 600,
     [int]$PollIntervalSeconds = 5
