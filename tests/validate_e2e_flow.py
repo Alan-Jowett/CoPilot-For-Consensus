@@ -84,6 +84,10 @@ class E2EMessageFlowValidator:
     def wait_for_processing(self, max_wait_seconds: int = 90, poll_interval: int = 3):
         """Wait for message processing to complete.
         
+        Waits up to 90 seconds (default) for the pipeline to process messages through
+        parsing → chunking → embedding stages. This duration accommodates slower CI
+        environments and the time needed to process 10 test messages through all services.
+        
         Polls the database to check if messages, chunks, and embeddings have been created.
         """
         print(f"\nWaiting up to {max_wait_seconds}s for pipeline processing...")
@@ -333,7 +337,7 @@ class E2EMessageFlowValidator:
         print("=" * 60)
         
         # Wait for processing to complete
-        processing_complete = self.wait_for_processing(max_wait_seconds=60)
+        processing_complete = self.wait_for_processing(max_wait_seconds=90)
         if not processing_complete:
             print("\n⚠ Warning: Processing may not be complete")
         
