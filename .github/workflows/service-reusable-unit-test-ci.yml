@@ -4,6 +4,8 @@
 name: Reusable Service Unit Test CI
 permissions:
   contents: read
+  checks: write
+  pull-requests: write
 
 on:
   workflow_call:
