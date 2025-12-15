@@ -49,12 +49,6 @@ This system uses a **push model** for service metrics:
 While services don't expose `/metrics`, they do provide:
 - `/health` — Health check with basic statistics
 - `/stats` — Detailed service statistics (where applicable)
-- Container resource queries (via cAdvisor, requires `--profile monitoring-extra`):
-  - `sum by (container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_project=~"copilot-for-consensus.*"}[5m])) * 100` — CPU usage percentage
-  - `sum by (container_label_com_docker_compose_service) (container_memory_usage_bytes{container_label_com_docker_compose_project=~"copilot-for-consensus.*"}) / 1024 / 1024` — Memory usage in MB
-  - `(sum by (container_label_com_docker_compose_service) (container_memory_usage_bytes{container_label_com_docker_compose_project=~"copilot-for-consensus.*"}) / clamp_min(sum by (container_label_com_docker_compose_service) (container_spec_memory_limit_bytes{container_label_com_docker_compose_project=~"copilot-for-consensus.*"}), 1)) * 100` — Memory usage as % of limit
-  - `changes(container_start_time_seconds{container_label_com_docker_compose_project=~"copilot-for-consensus.*"}[1h])` — Container restarts
-  - `sum by (container_label_com_docker_compose_service) (rate(container_network_receive_bytes_total{container_label_com_docker_compose_project=~"copilot-for-consensus.*", interface!~"lo"}[5m]))` — Network receive rate (excludes loopback)
 
 ## 4) Dashboards & Logs (Grafana + Loki)
 - Access Grafana at http://localhost:3000 (default creds: `admin` / `admin`)
