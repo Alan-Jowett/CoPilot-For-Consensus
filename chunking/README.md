@@ -112,7 +112,7 @@ See [ChunksPrepared schema](../documents/SCHEMA.md#5-chunksprepared) in SCHEMA.m
 **Key Fields:**
 - `message_ids`: List of source message IDs that were chunked
 - `chunk_count`: Total number of chunks created
-- `chunk_ids`: List of all chunk UUIDs (for embedding service)
+- `chunk_keys`: List of all chunk hash identifiers (for embedding service)
 - `chunks_ready`: Boolean indicating chunks are stored and ready
 - `chunking_strategy`: Strategy used for chunking
 - `avg_chunk_size_tokens`: Average chunk size for monitoring
@@ -162,7 +162,7 @@ Each chunk is stored in the `chunks` collection:
     "chunk_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
     "message_id": "<20231015123456.ABC123@example.com>",
     "thread_id": "<20231015120000.XYZ789@example.com>",
-    "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "archive_id": "b9c8d7e6f5a4b3c",
     "chunk_index": 0,
     "text": "I agree with the proposed approach for connection migration...",
     "token_count": 350,
@@ -187,10 +187,10 @@ Each chunk is stored in the `chunks` collection:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `chunk_id` | String (UUID) | Unique identifier for chunk |
+| `chunk_id` | String (SHA256 hash, 16 chars) | Unique identifier for chunk |
 | `message_id` | String | Source message Message-ID |
 | `thread_id` | String | Thread identifier |
-| `archive_id` | String (UUID) | Source archive identifier |
+| `archive_id` | String (SHA256 hash, 16 chars) | Source archive identifier |
 | `chunk_index` | Integer | Sequential position within message (0-based) |
 | `text` | String | Actual chunk text content |
 | `token_count` | Integer | Number of tokens in chunk |

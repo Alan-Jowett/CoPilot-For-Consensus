@@ -25,7 +25,7 @@ class TestMessageSchemaRegression:
         """Test that a message with null date is valid."""
         message = {
             "message_id": "msg-123",
-            "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+            "archive_id": "a1b2c3d4e5f6789",
             "thread_id": "thread-1",
             "date": None,
             "body_normalized": "Test message body",
@@ -39,7 +39,7 @@ class TestMessageSchemaRegression:
         """Test that a message with null subject is valid."""
         message = {
             "message_id": "msg-123",
-            "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+            "archive_id": "a1b2c3d4e5f6789",
             "thread_id": "thread-1",
             "subject": None,
             "body_normalized": "Test message body",
@@ -53,7 +53,7 @@ class TestMessageSchemaRegression:
         """Test that a message with null from field is valid."""
         message = {
             "message_id": "msg-123",
-            "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+            "archive_id": "a1b2c3d4e5f6789",
             "thread_id": "thread-1",
             "from": None,
             "body_normalized": "Test message body",
@@ -67,7 +67,7 @@ class TestMessageSchemaRegression:
         """Test that a message with duplicate references is valid."""
         message = {
             "message_id": "msg-123",
-            "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+            "archive_id": "a1b2c3d4e5f6789",
             "thread_id": "thread-1",
             "references": ["ref-1", "ref-2", "ref-1"],  # Duplicate ref-1
             "body_normalized": "Test message body",
@@ -81,7 +81,7 @@ class TestMessageSchemaRegression:
         """Test that a message without date field is valid (date not required)."""
         message = {
             "message_id": "msg-123",
-            "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+            "archive_id": "a1b2c3d4e5f6789",
             "thread_id": "thread-1",
             "body_normalized": "Test message body",
             "created_at": "2025-01-01T00:00:00Z"
@@ -94,7 +94,7 @@ class TestMessageSchemaRegression:
         """Test that a message with valid non-empty subject is valid."""
         message = {
             "message_id": "msg-123",
-            "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+            "archive_id": "a1b2c3d4e5f6789",
             "thread_id": "thread-1",
             "subject": "Valid Subject",
             "body_normalized": "Test message body",
@@ -108,7 +108,7 @@ class TestMessageSchemaRegression:
         """Test that a message with empty string subject remains valid (subject optional)."""
         message = {
             "message_id": "msg-123",
-            "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+            "archive_id": "a1b2c3d4e5f6789",
             "thread_id": "thread-1",
             "subject": "",  # Empty string is allowed
             "body_normalized": "Test message body",
@@ -122,7 +122,7 @@ class TestMessageSchemaRegression:
         """Test that a message allowing empty from.name remains valid (no minLength constraint)."""
         message = {
             "message_id": "msg-123",
-            "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+            "archive_id": "a1b2c3d4e5f6789",
             "thread_id": "thread-1",
             "from": {
                 "name": "",  # Empty string now allowed
@@ -148,7 +148,7 @@ class TestThreadSchemaRegression:
         """Test that a thread with null first_message_date is valid."""
         thread = {
             "thread_id": "thread-1",
-            "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+            "archive_id": "a1b2c3d4e5f6789",
             "first_message_date": None,
             "last_message_date": "2025-01-02T00:00:00Z",
             "has_consensus": False,
@@ -162,7 +162,7 @@ class TestThreadSchemaRegression:
         """Test that a thread with null last_message_date is valid."""
         thread = {
             "thread_id": "thread-1",
-            "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+            "archive_id": "a1b2c3d4e5f6789",
             "first_message_date": "2025-01-01T00:00:00Z",
             "last_message_date": None,
             "has_consensus": False,
@@ -176,7 +176,7 @@ class TestThreadSchemaRegression:
         """Test that a thread with null consensus_type is valid."""
         thread = {
             "thread_id": "thread-1",
-            "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+            "archive_id": "a1b2c3d4e5f6789",
             "consensus_type": None,
             "has_consensus": False,
             "created_at": "2025-01-01T00:00:00Z"
@@ -189,7 +189,7 @@ class TestThreadSchemaRegression:
         """Test that a thread with null summary_id is valid."""
         thread = {
             "thread_id": "thread-1",
-            "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+            "archive_id": "a1b2c3d4e5f6789",
             "summary_id": None,
             "has_consensus": False,
             "created_at": "2025-01-01T00:00:00Z"
@@ -202,7 +202,7 @@ class TestThreadSchemaRegression:
         """Test that a thread without first/last_message_date fields is valid."""
         thread = {
             "thread_id": "thread-1",
-            "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+            "archive_id": "a1b2c3d4e5f6789",
             "has_consensus": False,
             "created_at": "2025-01-01T00:00:00Z"
         }
@@ -222,7 +222,7 @@ class TestArchiveSchemaRegression:
     def test_archive_with_additional_properties(self, archives_schema, document_schema_provider):
         """Test that an archive with additional properties is valid."""
         archive = {
-            "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+            "archive_id": "a1b2c3d4e5f6789",
             "source": "test-source",
             "ingestion_date": "2025-01-01T00:00:00Z",
             "status": "processed",
@@ -244,7 +244,7 @@ class TestChunkSchemaRegression:
     def test_chunk_with_additional_properties(self, chunks_schema, document_schema_provider):
         """Test that a chunk with additional properties is valid."""
         chunk = {
-            "chunk_id": "550e8400-e29b-41d4-a716-446655440000",
+            "chunk_id": "a1b2c3d4e5f6789",
             "message_id": "msg-123",
             "thread_id": "thread-1",
             "chunk_index": 0,
@@ -269,7 +269,7 @@ class TestSummarySchemaRegression:
     def test_summary_with_additional_properties(self, summaries_schema, document_schema_provider):
         """Test that a summary with additional properties is valid."""
         summary = {
-            "summary_id": "550e8400-e29b-41d4-a716-446655440000",
+            "summary_id": "a1b2c3d4e5f6789",
             "summary_type": "thread",
             "generated_at": "2025-01-01T00:00:00Z",
             "content_markdown": "# Test Summary\n\nThis is a test.",

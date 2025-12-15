@@ -7,7 +7,6 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any, Iterable, List
-from uuid import uuid4
 
 from copilot_events import EventPublisher, ArchiveIngestedEvent, ArchiveIngestionFailedEvent, ArchiveMetadata
 from copilot_logging import Logger, create_logger
@@ -367,8 +366,9 @@ class IngestionService:
                         )
                         continue
 
-                    # Generate archive ID for this file
-                    archive_id = str(uuid4())
+                    # Generate deterministic archive ID from file hash (first 16 chars)
+                    # This ensures same file always produces same archive_id for idempotent ingestion
+                    archive_id = file_hash[:16]
 
                     # Create metadata
                     ingestion_completed_at = datetime.utcnow().isoformat() + "Z"

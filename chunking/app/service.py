@@ -259,6 +259,7 @@ class ChunkingService:
             List of chunk documents
         """
         message_id = message.get("message_id")
+        message_key = message.get("message_key", "")
         text = message.get("body_normalized", "")
         
         # Skip empty messages
@@ -269,6 +270,7 @@ class ChunkingService:
         # Create thread object for chunking
         thread = Thread(
             thread_id=message_id,
+            message_key=message_key,
             text=text,
             metadata={
                 "sender": message.get("from", {}).get("email", ""),
@@ -287,6 +289,8 @@ class ChunkingService:
         for chunk in chunks:
             chunk_doc = {
                 "chunk_id": chunk.chunk_id,
+                "chunk_key": chunk.chunk_id,  # chunk_id IS the chunk_key (SHA256 hash)
+                "message_key": chunk.message_key,
                 "message_id": message_id,
                 "thread_id": message.get("thread_id"),
                 "archive_id": message.get("archive_id"),

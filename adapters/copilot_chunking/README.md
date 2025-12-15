@@ -240,7 +240,7 @@ Represents a single chunk produced by a chunker.
 ```python
 @dataclass
 class Chunk:
-    chunk_id: str                   # Unique identifier (UUID)
+    chunk_id: str                   # Unique identifier (SHA256 hash)
     text: str                       # Chunk text content
     chunk_index: int                # Sequential position (0-based)
     token_count: int                # Number of tokens
@@ -250,7 +250,7 @@ class Chunk:
 ```
 
 **Fields**:
-- `chunk_id`: Unique identifier (auto-generated UUID)
+- `chunk_id`: Unique identifier (deterministic SHA256 hash of message_key|chunk_index)
 - `text`: The actual chunk text content
 - `chunk_index`: Sequential position within the source (0-based)
 - `token_count`: Number of tokens (word-based approximation)

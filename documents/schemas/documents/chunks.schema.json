@@ -4,7 +4,14 @@
   "title": "chunks collection",
   "type": "object",
   "properties": {
-    "chunk_id": { "type": "string", "format": "uuid" },
+    "chunk_key": { 
+      "type": "string", 
+      "minLength": 16,
+      "maxLength": 64,
+      "description": "Deterministic SHA256 hash of (message_key|chunk_index) for guaranteed uniqueness per message"
+    },
+    "chunk_id": { "type": "string", "minLength": 16, "description": "Deprecated: use chunk_key for uniqueness" },
+    "message_key": { "type": "string", "minLength": 16, "description": "Reference to parent message's message_key" },
     "message_id": { "type": "string", "minLength": 1 },
     "thread_id": { "type": "string", "minLength": 1 },
     "chunk_index": { "type": "integer", "minimum": 0 },
@@ -35,5 +42,5 @@
     "created_at": { "type": "string", "format": "date-time" },
     "embedding_generated": { "type": "boolean" }
   },
-  "required": ["chunk_id", "message_id", "thread_id", "chunk_index", "text", "created_at", "embedding_generated"]
+  "required": ["chunk_key", "message_key", "message_id", "thread_id", "chunk_index", "text", "created_at", "embedding_generated"]
 }

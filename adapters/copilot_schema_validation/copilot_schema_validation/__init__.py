@@ -12,6 +12,7 @@ __version__ = "0.1.0"
 from .schema_provider import SchemaProvider
 from .file_schema_provider import FileSchemaProvider
 from .schema_validator import validate_json
+from .message_key_generator import generate_message_key, generate_chunk_key
 from .models import (
     BaseEvent,
     # Ingestion Service Events
@@ -44,6 +45,9 @@ __all__ = [
     "SchemaProvider",
     "FileSchemaProvider",
     "validate_json",
+    # Key generation
+    "generate_message_key",
+    "generate_chunk_key",
     # Event models
     "BaseEvent",
     "ArchiveIngestedEvent",

@@ -21,6 +21,7 @@ from copilot_events import (
 from copilot_storage import DocumentStore
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
+from copilot_schema_validation import generate_message_key
 
 from .parser import MessageParser
 from .thread_builder import ThreadBuilder
@@ -262,6 +263,7 @@ class ParsingService:
             messages: List of message dictionaries
             
         Note:
+            - Computes message_key for each message before storing
             - Inserts documents one at a time
             - Skips duplicate and validation errors and logs them
             - Re-raises other errors (transient failures)
@@ -271,6 +273,16 @@ class ParsingService:
         
         for message in messages:
             try:
+                # Compute message_key if not already present
+                if "message_key" not in message:
+                    message["message_key"] = generate_message_key(
+                        archive_id=message.get("archive_id", ""),
+                        message_id=message.get("message_id", ""),
+                        date=message.get("date"),
+                        sender_email=message.get("from", {}).get("email"),
+                        subject=message.get("subject"),
+                    )
+                
                 self.document_store.insert_document("messages", message)
                 stored_count += 1
             except (DuplicateKeyError, DocumentValidationError) as e:

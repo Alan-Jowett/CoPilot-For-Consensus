@@ -29,7 +29,7 @@ def test_end_to_end_chunking(document_store):
         {
             "message_id": "<test@example.com>",
             "thread_id": "<thread@example.com>",
-            "archive_id": str(uuid.uuid4()),
+            "archive_id": "a1b2c3d4e5f6789",
             "body_normalized": (
                 "This is a test message that contains enough text to be split "
                 "into multiple chunks. " * 20
@@ -98,7 +98,7 @@ def test_different_chunking_strategies(document_store):
             {
                 "message_id": f"<test-{strategy_name}@example.com>",
                 "thread_id": "<thread@example.com>",
-                "archive_id": str(uuid.uuid4()),
+                "archive_id": "a1b2c3d4e5f6789",
                 "body_normalized": (
                     "This is a test sentence. Another sentence follows. "
                     "Yet another sentence here. And one more for good measure. " * 10
@@ -153,7 +153,7 @@ def test_oversize_message_handling(document_store):
         {
             "message_id": "<large@example.com>",
             "thread_id": "<thread@example.com>",
-            "archive_id": str(uuid.uuid4()),
+            "archive_id": "a1b2c3d4e5f6789",
             "body_normalized": large_text,
             "from": {"email": "user@example.com", "name": "Test User"},
             "date": "2023-10-15T12:00:00Z",

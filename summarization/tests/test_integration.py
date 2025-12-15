@@ -37,7 +37,7 @@ def in_memory_document_store():
         collection="messages",
         doc={
             "message_id": "<msg1@example.com>",
-            "archive_id": str(uuid.uuid4()),
+            "archive_id": "a1b2c3d4e5f6789",
             "thread_id": "<thread@example.com>",
             "body_normalized": "This is a test message discussing important topics.",
             "from": {"email": "alice@example.com", "name": "Alice"},
@@ -50,7 +50,7 @@ def in_memory_document_store():
         collection="messages",
         doc={
             "message_id": "<msg2@example.com>",
-            "archive_id": str(uuid.uuid4()),
+            "archive_id": "a1b2c3d4e5f6789",
             "thread_id": "<thread@example.com>",
             "body_normalized": "I agree with the points raised in the previous message.",
             "from": {"email": "bob@example.com", "name": "Bob"},

@@ -103,7 +103,7 @@ def test_end_to_end_orchestration(service, document_store):
     chunk_ids = []
     chunks = [
         {
-            "chunk_id": str(uuid.uuid4()),
+            "chunk_id": "a1b2c3d4e5f6789",
             "message_id": "<msg-1@example.com>",
             "thread_id": thread_id,
             "text": "This is a test chunk about QUIC protocol.",
@@ -113,7 +113,7 @@ def test_end_to_end_orchestration(service, document_store):
             "created_at": now,
         },
         {
-            "chunk_id": str(uuid.uuid4()),
+            "chunk_id": "a1b2c3d4e5f6789",
             "message_id": "<msg-2@example.com>",
             "thread_id": thread_id,
             "text": "Discussion about connection migration in QUIC.",
@@ -132,7 +132,7 @@ def test_end_to_end_orchestration(service, document_store):
     messages = [
         {
             "message_id": "<msg-1@example.com>",
-            "archive_id": str(uuid.uuid4()),
+            "archive_id": "a1b2c3d4e5f6789",
             "thread_id": thread_id,
             "body_normalized": "This is a test message about QUIC protocol.",
             "subject": "QUIC Protocol Discussion",
@@ -143,7 +143,7 @@ def test_end_to_end_orchestration(service, document_store):
         },
         {
             "message_id": "<msg-2@example.com>",
-            "archive_id": str(uuid.uuid4()),
+            "archive_id": "a1b2c3d4e5f6789",
             "thread_id": thread_id,
             "body_normalized": "Discussion about connection migration in QUIC.",
             "subject": "Re: QUIC Protocol Discussion",
@@ -199,7 +199,7 @@ def test_orchestration_with_multiple_threads(service, document_store):
     chunk_ids = []
     chunks = [
         {
-            "chunk_id": str(uuid.uuid4()),
+            "chunk_id": "a1b2c3d4e5f6789",
             "message_id": "<msg-1@example.com>",
             "thread_id": "<thread-1@example.com>",
             "chunk_index": 0,
@@ -208,7 +208,7 @@ def test_orchestration_with_multiple_threads(service, document_store):
             "created_at": now,
         },
         {
-            "chunk_id": str(uuid.uuid4()),
+            "chunk_id": "a1b2c3d4e5f6789",
             "message_id": "<msg-2@example.com>",
             "thread_id": "<thread-2@example.com>",
             "chunk_index": 0,
@@ -217,7 +217,7 @@ def test_orchestration_with_multiple_threads(service, document_store):
             "created_at": now,
         },
         {
-            "chunk_id": str(uuid.uuid4()),
+            "chunk_id": "a1b2c3d4e5f6789",
             "message_id": "<msg-3@example.com>",
             "thread_id": "<thread-1@example.com>",
             "chunk_index": 0,
@@ -235,7 +235,7 @@ def test_orchestration_with_multiple_threads(service, document_store):
     for i in range(1, 4):
         document_store.insert_document("messages", {
             "message_id": f"<msg-{i}@example.com>",
-            "archive_id": str(uuid.uuid4()),
+            "archive_id": "a1b2c3d4e5f6789",
             "thread_id": f"<thread-{1 if i != 2 else 2}@example.com>",
             "body_normalized": f"Test message content {i}",
             "subject": f"Test Subject {i}",
