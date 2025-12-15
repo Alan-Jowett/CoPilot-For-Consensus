@@ -5,7 +5,7 @@
 
 ## Overview
 
-As of commit `c42a7a1`, the parsing service now publishes **per-message events** instead of per-archive batch events. This change enables fine-grained retry granularity and prevents full archive reprocessing when a single message fails in downstream services.
+The parsing service now publishes **per-message events** instead of per-archive batch events. This change enables fine-grained retry granularity and prevents full archive reprocessing when a single message fails in downstream services.
 
 ## What Changed
 

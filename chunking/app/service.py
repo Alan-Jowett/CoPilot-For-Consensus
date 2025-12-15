@@ -178,8 +178,8 @@ class ChunkingService:
                         chunk_ids.append(chunk["chunk_id"])
                     except DuplicateKeyError:
                         # Chunk already exists (idempotent retry)
-                        logger.debug(f"Chunk {chunk['chunk_id']} already exists, skipping")
-                        chunk_ids.append(chunk["chunk_id"])  # Still include in output
+                        logger.debug(f"Chunk {chunk.get('chunk_id', 'unknown')} already exists, skipping")
+                        chunk_ids.append(chunk.get("chunk_id", "unknown"))  # Still include in output
                         skipped_duplicates += 1
                     except Exception as e:
                         # Other errors (transient) should fail the processing

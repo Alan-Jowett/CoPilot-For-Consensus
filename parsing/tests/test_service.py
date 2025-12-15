@@ -776,8 +776,8 @@ def test_handle_archive_ingested_with_publish_parsing_failed_failure(document_st
         service._handle_archive_ingested(event)
 
 
-def test_publish_json_parsed_skips_messages_without_id(document_store):
-    """Test that _publish_json_parsed_per_message handles messages without message_id."""
+def test_publish_json_parsed_raises_on_missing_message_id(document_store):
+    """Test that _publish_json_parsed_per_message raises on messages without message_id."""
     mock_publisher = MockPublisher()
     mock_publisher.connect()
     
