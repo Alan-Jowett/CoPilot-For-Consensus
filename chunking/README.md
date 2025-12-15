@@ -44,11 +44,11 @@ Split long email bodies into smaller, semantically coherent chunks that:
 | `MESSAGE_BUS_PORT` | Integer | No | `5672` | Message bus port |
 | `MESSAGE_BUS_USER` | String | No | `guest` | Message bus username |
 | `MESSAGE_BUS_PASSWORD` | String | No | `guest` | Message bus password |
-| `DOC_DB_HOST` | String | Yes | `documentdb` | Document database hostname |
-| `DOC_DB_PORT` | Integer | No | `27017` | Document database port |
-| `DOC_DB_NAME` | String | No | `copilot` | Database name |
-| `DOC_DB_USER` | String | No | - | Database username (if auth enabled) |
-| `DOC_DB_PASSWORD` | String | No | - | Database password (if auth enabled) |
+| `DOCUMENT_DATABASE_HOST` | String | Yes | `documentdb` | Document database hostname |
+| `DOCUMENT_DATABASE_PORT` | Integer | No | `27017` | Document database port |
+| `DOCUMENT_DATABASE_NAME` | String | No | `copilot` | Database name |
+| `DOCUMENT_DATABASE_USER` | String | No | - | Database username (if auth enabled) |
+| `DOCUMENT_DATABASE_PASSWORD` | String | No | - | Database password (if auth enabled) |
 | `CHUNK_SIZE_TOKENS` | Integer | No | `384` | Target chunk size in tokens |
 | `CHUNK_OVERLAP_TOKENS` | Integer | No | `50` | Overlap between chunks in tokens |
 | `MIN_CHUNK_SIZE_TOKENS` | Integer | No | `100` | Minimum chunk size (discard smaller) |
@@ -464,7 +464,7 @@ pip install -r requirements.txt
 
 # Set environment variables
 export MESSAGE_BUS_HOST=localhost
-export DOC_DB_HOST=localhost
+export DOCUMENT_DATABASE_HOST=localhost
 
 # Run the service
 python main.py
@@ -479,7 +479,7 @@ docker build -t copilot-chunking .
 # Run container
 docker run -d \
   -e MESSAGE_BUS_HOST=messagebus \
-  -e DOC_DB_HOST=documentdb \
+  -e DOCUMENT_DATABASE_HOST=documentdb \
   copilot-chunking
 ```
 

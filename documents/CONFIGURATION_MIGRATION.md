@@ -63,10 +63,10 @@ message_bus_port = int(os.getenv("MESSAGE_BUS_PORT", "5672"))
 message_bus_user = os.getenv("MESSAGE_BUS_USER", "guest")
 message_bus_password = os.getenv("MESSAGE_BUS_PASSWORD", "guest")
 
-doc_store_type = os.getenv("DOC_STORE_TYPE", "mongodb")
-doc_store_host = os.getenv("DOC_DB_HOST", "documentdb")
-doc_store_port = int(os.getenv("DOC_DB_PORT", "27017"))
-doc_store_name = os.getenv("DOC_DB_NAME", "copilot")
+doc_store_type = os.getenv("DOCUMENT_STORE_TYPE", "mongodb")
+doc_store_host = os.getenv("DOCUMENT_DATABASE_HOST", "documentdb")
+doc_store_port = int(os.getenv("DOCUMENT_DATABASE_PORT", "27017"))
+doc_store_name = os.getenv("DOCUMENT_DATABASE_NAME", "copilot")
 ```
 
 #### After (Schema-Driven Configuration):
@@ -158,12 +158,12 @@ message_bus_port = int(os.getenv("MESSAGE_BUS_PORT", "5672"))
 message_bus_user = os.getenv("MESSAGE_BUS_USER", "guest")
 message_bus_password = os.getenv("MESSAGE_BUS_PASSWORD", "guest")
 
-doc_store_type = os.getenv("DOC_STORE_TYPE", "mongodb")
-doc_store_host = os.getenv("DOC_DB_HOST", "documentdb")
-doc_store_port = int(os.getenv("DOC_DB_PORT", "27017"))
-doc_store_name = os.getenv("DOC_DB_NAME", "copilot")
-doc_store_user = os.getenv("DOC_DB_USER", "")
-doc_store_password = os.getenv("DOC_DB_PASSWORD", "")
+doc_store_type = os.getenv("DOCUMENT_STORE_TYPE", "mongodb")
+doc_store_host = os.getenv("DOCUMENT_DATABASE_HOST", "documentdb")
+doc_store_port = int(os.getenv("DOCUMENT_DATABASE_PORT", "27017"))
+doc_store_name = os.getenv("DOCUMENT_DATABASE_NAME", "copilot")
+doc_store_user = os.getenv("DOCUMENT_DATABASE_USER", "")
+doc_store_password = os.getenv("DOCUMENT_DATABASE_PASSWORD", "")
 
 chunk_size = int(os.getenv("CHUNK_SIZE", "512"))
 chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "50"))
