@@ -205,6 +205,21 @@ jobs:
           bash -c "pip install -q pymongo qdrant-client && python /app/tests/validate_e2e_flow.py"
         echo "✓ End-to-end validation completed"
 
+    - name: View service logs on validation failure
+      if: failure()
+      run: |
+        echo "=== Parsing Service Logs ==="
+        docker compose logs parsing --tail=100
+        echo ""
+        echo "=== Chunking Service Logs ==="
+        docker compose logs chunking --tail=100
+        echo ""
+        echo "=== Embedding Service Logs ==="
+        docker compose logs embedding --tail=100
+        echo ""
+        echo "=== Orchestrator Service Logs ==="
+        docker compose logs orchestrator --tail=100
+
     - name: Test reporting service health endpoint
       run: |
         echo "Testing reporting service..."
