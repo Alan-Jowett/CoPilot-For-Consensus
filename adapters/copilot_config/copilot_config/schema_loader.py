@@ -9,7 +9,6 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
 from .config import ConfigProvider, EnvConfigProvider, StaticConfigProvider
-from .providers import DocStoreConfigProvider
 
 
 class ConfigValidationError(Exception):
@@ -130,7 +129,6 @@ class SchemaConfigLoader:
         self,
         schema: ConfigSchema,
         env_provider: Optional[ConfigProvider] = None,
-        doc_store_provider: Optional[DocStoreConfigProvider] = None,
         static_provider: Optional[StaticConfigProvider] = None,
     ):
         """Initialize the schema config loader.
@@ -138,12 +136,10 @@ class SchemaConfigLoader:
         Args:
             schema: Configuration schema
             env_provider: Environment variable provider
-            doc_store_provider: Document store provider
             static_provider: Static/hardcoded provider
         """
         self.schema = schema
         self.env_provider = env_provider or EnvConfigProvider()
-        self.doc_store_provider = doc_store_provider
         self.static_provider = static_provider
 
     def load(self) -> Dict[str, Any]:
@@ -189,10 +185,6 @@ class SchemaConfigLoader:
         Raises:
             ConfigValidationError: If required field is missing
         """
-        # Special handling for storage source with list type
-        if field_spec.source == "storage" and field_spec.field_type == "list":
-            return self._load_storage_collection(field_spec)
-        
         # Get the appropriate provider
         provider = self._get_provider(field_spec.source)
         
@@ -235,32 +227,6 @@ class SchemaConfigLoader:
             )
 
         return value
-
-    def _load_storage_collection(self, field_spec: FieldSpec) -> list:
-        """Load all documents from a storage collection.
-        
-        Args:
-            field_spec: Field specification for storage source
-            
-        Returns:
-            List of documents from collection
-        """
-        if self.doc_store_provider is None:
-            return field_spec.default or []
-        
-        try:
-            collection_name = field_spec.doc_store_path or field_spec.name
-            # Use the public interface to query documents
-            documents = self.doc_store_provider.query_documents_from_collection(
-                collection_name=collection_name
-            )
-            return documents if documents else field_spec.default or []
-        except (ConnectionError, OSError, TimeoutError, AttributeError, TypeError, KeyError):
-            # Network/connection errors, or document store not available
-            # AttributeError/TypeError can occur if provider is not properly initialized
-            # KeyError can occur if documents have unexpected structure
-            # If query fails, return default
-            return field_spec.default or []
 
     def _load_nested_object(
         self, nested_schema: Dict[str, FieldSpec], provider: ConfigProvider, parent_key: str
@@ -310,8 +276,6 @@ class SchemaConfigLoader:
         """
         if source == "env":
             return self.env_provider
-        elif source == "document_store" or source == "storage":
-            return self.doc_store_provider
         elif source == "static":
             return self.static_provider
         else:
@@ -328,28 +292,29 @@ class SchemaConfigLoader:
         """
         if field_spec.source == "env":
             return field_spec.env_var or field_spec.name.upper()
-        elif field_spec.source == "document_store" or field_spec.source == "storage":
-            return field_spec.doc_store_path or field_spec.name
         else:
             return field_spec.name
 
 
-def load_config(
+def _load_config(
     service_name: str,
     schema_dir: Optional[str] = None,
     env_provider: Optional[ConfigProvider] = None,
-    doc_store_provider: Optional[DocStoreConfigProvider] = None,
     static_provider: Optional[StaticConfigProvider] = None,
 ) -> Dict[str, Any]:
-    """Load and validate configuration for a service.
+    """Load and validate configuration for a service (internal function).
     
-    This is the main entry point for schema-driven configuration loading.
+    INTERNAL API: Use load_typed_config() instead for type-safe, validated config loading.
+    This function is internal and should not be called directly by services.
+    
+    This is the internal entry point for schema-driven configuration loading.
+    Schemas are loaded from local disk only. Storage-backed configuration
+    values must be loaded and merged separately by the caller.
     
     Args:
         service_name: Name of the service (e.g., "ingestion", "parsing")
         schema_dir: Directory containing schema files (defaults to ./schemas)
         env_provider: Optional custom environment provider
-        doc_store_provider: Optional document store provider
         static_provider: Optional static provider
         
     Returns:
@@ -358,10 +323,6 @@ def load_config(
     Raises:
         ConfigSchemaError: If schema is missing or invalid
         ConfigValidationError: If configuration validation fails
-        
-    Example:
-        >>> config = load_config("ingestion")
-        >>> rabbitmq_url = config["rabbitmq_url"]
     """
     # Determine schema directory
     if schema_dir is None:
@@ -384,42 +345,14 @@ def load_config(
             if schema_dir is None:
                 schema_dir = os.path.join(os.getcwd(), "documents", "schemas", "configs")
     
-    # Load schema
+    # Load schema from disk
     schema_path = os.path.join(schema_dir, f"{service_name}.json")
     schema = ConfigSchema.from_json_file(schema_path)
     
-    # If no doc_store_provider but schema needs storage, create one automatically
-    if doc_store_provider is None and any(f.source == "storage" for f in schema.fields.values()):
-        try:
-            from copilot_storage import create_document_store
-            doc_store = create_document_store()
-            try:
-                doc_store.connect()
-                doc_store_provider = DocStoreConfigProvider(doc_store)
-            except Exception:
-                # If connection fails, log warning and fall back to no doc_store_provider
-                logger = __import__('logging').getLogger(__name__)
-                logger.warning(
-                    "Document store connection failed for schema-based configuration. "
-                    "Storage-backed configuration fields will use defaults. "
-                    "Service: %s", service_name
-                )
-                # Required fields will fail validation if storage is needed
-        except Exception as e:
-            # If document store is unavailable, log warning and continue without it
-            logger = __import__('logging').getLogger(__name__)
-            logger.warning(
-                "Document store unavailable for schema-based configuration. "
-                "Storage-backed configuration fields will use defaults. "
-                "Service: %s, Error: %s", service_name, str(e)
-            )
-            # Required fields will fail validation if storage is needed
-    
-    # Create loader
+    # Create loader (no document store coupling)
     loader = SchemaConfigLoader(
         schema=schema,
         env_provider=env_provider,
-        doc_store_provider=doc_store_provider,
         static_provider=static_provider,
     )
     

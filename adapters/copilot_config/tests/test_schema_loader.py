@@ -15,8 +15,8 @@ from copilot_config import (
     FieldSpec,
     SchemaConfigLoader,
     StaticConfigProvider,
-    load_config,
 )
+from copilot_config.schema_loader import _load_config
 
 
 class TestFieldSpec:
@@ -293,7 +293,7 @@ class TestLoadConfig:
         
         # Load config
         env_provider = EnvConfigProvider(environ={"APP_NAME": "my-app", "PORT": "9000"})
-        config = load_config(
+        config = _load_config(
             "test-service",
             schema_dir=str(schema_dir),
             env_provider=env_provider,
@@ -308,7 +308,7 @@ class TestLoadConfig:
         schema_dir.mkdir()
         
         with pytest.raises(ConfigSchemaError, match="Schema file not found"):
-            load_config("nonexistent-service", schema_dir=str(schema_dir))
+            _load_config("nonexistent-service", schema_dir=str(schema_dir))
 
     def test_load_config_validation_error(self, tmp_path):
         """Test that validation errors are raised."""
@@ -332,132 +332,16 @@ class TestLoadConfig:
         env_provider = EnvConfigProvider(environ={})
         
         with pytest.raises(ConfigValidationError, match="database_host"):
-            load_config(
+            _load_config(
                 "test-service",
                 schema_dir=str(schema_dir),
                 env_provider=env_provider,
             )
-
-
 class TestSchemaLoaderExceptionHandling:
-    """Tests for exception handling in SchemaConfigLoader."""
-
-    def test_load_storage_collection_handles_connection_error(self):
-        """Test that ConnectionError during storage load returns default."""
-        class FailingDocStoreProvider:
-            def query_documents_from_collection(self, collection_name):
-                raise ConnectionError("Connection refused")
-        
-        from copilot_config.schema_loader import SchemaConfigLoader
-        
-        loader = SchemaConfigLoader(
-            schema={},
-            env_provider=EnvConfigProvider({}),
-            doc_store_provider=FailingDocStoreProvider()
-        )
-        
-        field_spec = FieldSpec(name="test_field", field_type="array", default=["default_value"])
-        result = loader._load_storage_collection(field_spec)
-        
-        # Should return default value on connection error
-        assert result == ["default_value"]
-
-    def test_load_storage_collection_handles_timeout_error(self):
-        """Test that TimeoutError during storage load returns default."""
-        class FailingDocStoreProvider:
-            def query_documents_from_collection(self, collection_name):
-                raise TimeoutError("Operation timed out")
-        
-        from copilot_config.schema_loader import SchemaConfigLoader
-        
-        loader = SchemaConfigLoader(
-            schema={},
-            env_provider=EnvConfigProvider({}),
-            doc_store_provider=FailingDocStoreProvider()
-        )
-        
-        field_spec = FieldSpec(name="test_field", field_type="array", default=[])
-        result = loader._load_storage_collection(field_spec)
-        
-        # Should return default value on timeout error
-        assert result == []
-
-    def test_load_storage_collection_handles_os_error(self):
-        """Test that OSError during storage load returns default."""
-        class FailingDocStoreProvider:
-            def query_documents_from_collection(self, collection_name):
-                raise OSError("I/O error")
-        
-        from copilot_config.schema_loader import SchemaConfigLoader
-        
-        loader = SchemaConfigLoader(
-            schema={},
-            env_provider=EnvConfigProvider({}),
-            doc_store_provider=FailingDocStoreProvider()
-        )
-        
-        field_spec = FieldSpec(name="test_field", field_type="array", default=[])
-        result = loader._load_storage_collection(field_spec)
-        
-        # Should return default value on OS error
-        assert result == []
-
-    def test_load_storage_collection_handles_attribute_error(self):
-        """Test that AttributeError during storage load returns default."""
-        class FailingDocStoreProvider:
-            def query_documents_from_collection(self, collection_name):
-                raise AttributeError("'NoneType' object has no attribute 'query'")
-        
-        from copilot_config.schema_loader import SchemaConfigLoader
-        
-        loader = SchemaConfigLoader(
-            schema={},
-            env_provider=EnvConfigProvider({}),
-            doc_store_provider=FailingDocStoreProvider()
-        )
-        
-        field_spec = FieldSpec(name="test_field", field_type="array", default=["default"])
-        result = loader._load_storage_collection(field_spec)
-        
-        # Should return default value on attribute error
-        assert result == ["default"]
-
-    def test_load_storage_collection_handles_type_error(self):
-        """Test that TypeError during storage load returns default."""
-        class FailingDocStoreProvider:
-            def query_documents_from_collection(self, collection_name):
-                raise TypeError("expected str, got int")
-        
-        from copilot_config.schema_loader import SchemaConfigLoader
-        
-        loader = SchemaConfigLoader(
-            schema={},
-            env_provider=EnvConfigProvider({}),
-            doc_store_provider=FailingDocStoreProvider()
-        )
-        
-        field_spec = FieldSpec(name="test_field", field_type="array", default=["default"])
-        result = loader._load_storage_collection(field_spec)
-        
-        # Should return default value on type error
-        assert result == ["default"]
-
-    def test_load_storage_collection_handles_key_error(self):
-        """Test that KeyError during storage load returns default."""
-        class FailingDocStoreProvider:
-            def query_documents_from_collection(self, collection_name):
-                raise KeyError("missing required key")
-        
-        from copilot_config.schema_loader import SchemaConfigLoader
-        
-        loader = SchemaConfigLoader(
-            schema={},
-            env_provider=EnvConfigProvider({}),
-            doc_store_provider=FailingDocStoreProvider()
-        )
-        
-        field_spec = FieldSpec(name="test_field", field_type="array", default=[])
-        result = loader._load_storage_collection(field_spec)
-        
-        # Should return default value on key error
-        assert result == []
+    """Tests for exception handling in SchemaConfigLoader.
+    
+    NOTE: Storage-backed configuration is no longer supported in SchemaConfigLoader.
+    Schemas are purely file-based using environment and static sources.
+    Storage-backed config must be loaded and merged separately by the caller.
+    """
+    pass

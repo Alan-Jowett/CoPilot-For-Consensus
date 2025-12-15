@@ -20,6 +20,7 @@ from copilot_storage import (
     ValidatingDocumentStore,
     DocumentStoreConnectionError,
 )
+from copilot_config.providers import DocStoreConfigProvider
 
 from app import __version__
 from app.service import IngestionService, _enabled_sources
@@ -36,6 +37,37 @@ def main():
     try:
         # Load configuration using adapter (env + defaults validated by schema)
         config = load_typed_config("ingestion")
+        
+        # Load sources from document store (storage-backed config)
+        # Note: SchemaConfigLoader no longer supports storage-backed sources,
+        # so we load them explicitly here.
+        try:
+            # Create a temporary document store to load sources
+            temp_store = create_document_store(
+                store_type=config.doc_store_type,
+                host=config.doc_store_host,
+                port=config.doc_store_port,
+                database=config.doc_store_name,
+                username=config.doc_store_user,
+                password=config.doc_store_password,
+            )
+            temp_store.connect()
+            
+            doc_store_provider = DocStoreConfigProvider(temp_store)
+            sources = doc_store_provider.query_documents_from_collection("sources")
+            config.sources = sources if sources else []
+            
+            temp_store.disconnect()
+            log.info(
+                "Sources loaded from document store",
+                source_count=len(config.sources),
+            )
+        except Exception as e:
+            log.warning(
+                "Failed to load sources from document store; using empty list",
+                error=str(e),
+            )
+            config.sources = []
 
         # Recreate logger with configured settings
         service_logger = create_logger(

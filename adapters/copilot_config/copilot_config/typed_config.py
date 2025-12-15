@@ -107,16 +107,17 @@ def load_typed_config(
 ) -> TypedConfig:
     """Load and validate configuration, returning a typed config object.
     
-    This is a convenience wrapper around load_config() that returns
-    a TypedConfig object for attribute-style access.
+    This is the ONLY recommended way to load configuration in services.
+    It ensures all configuration is validated against the service schema,
+    providing type safety and compile-time guarantees.
     
     Args:
         service_name: Name of the service
         schema_dir: Directory containing schema files
-        **kwargs: Additional arguments to pass to load_config()
+        **kwargs: Additional arguments to pass to internal loader
         
     Returns:
-        TypedConfig instance
+        TypedConfig instance with validated configuration
         
     Raises:
         ConfigSchemaError: If schema is missing or invalid
@@ -127,7 +128,7 @@ def load_typed_config(
         >>> print(config.message_bus_host)
         'messagebus'
     """
-    from .schema_loader import load_config
+    from .schema_loader import _load_config
     
-    config_dict = load_config(service_name, schema_dir=schema_dir, **kwargs)
+    config_dict = _load_config(service_name, schema_dir=schema_dir, **kwargs)
     return TypedConfig(config_dict)

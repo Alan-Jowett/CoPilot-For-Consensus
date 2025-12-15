@@ -23,11 +23,10 @@ from .schema_loader import (
     ConfigValidationError,
     FieldSpec,
     SchemaConfigLoader,
-    load_config,
 )
 from .typed_config import (
     TypedConfig,
-    load_typed_config,
+    load_typed_config,  # The ONLY recommended way to load config
 )
 
 __all__ = [
@@ -46,8 +45,7 @@ __all__ = [
     "ConfigValidationError",
     "FieldSpec",
     "SchemaConfigLoader",
-    "load_config",
-    # Typed configuration
+    # Typed configuration (RECOMMENDED WAY)
     "TypedConfig",
-    "load_typed_config",
+    "load_typed_config",  # Only public config loading function
 ]
