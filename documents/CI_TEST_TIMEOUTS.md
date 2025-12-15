@@ -40,7 +40,9 @@ This timeout applies to all tests unless overridden with explicit markers.
 Each test job has a maximum execution time of **30 minutes**.
 
 **Configuration:**
-- File: `.github/workflows/service-reusable-unit-test-ci.yml`
+- Files: 
+  - `.github/workflows/service-reusable-unit-test-ci.yml` (for services)
+  - `.github/workflows/adapter-reusable-unit-test-ci.yml` (for adapters)
 - Setting: `timeout-minutes: 30`
 
 **Example:**
@@ -78,7 +80,7 @@ def test_no_timeout():
     pass
 ```
 
-## Affected Services
+## Affected Services and Adapters
 
 All services have timeout configuration:
 - chunking
@@ -89,6 +91,23 @@ All services have timeout configuration:
 - parsing
 - reporting
 - summarization
+
+All adapters have timeout configuration:
+- copilot_archive_fetcher
+- copilot_auth
+- copilot_chunking
+- copilot_config
+- copilot_consensus
+- copilot_draft_diff
+- copilot_embedding
+- copilot_events
+- copilot_logging
+- copilot_metrics
+- copilot_reporting
+- copilot_schema_validation
+- copilot_storage
+- copilot_summarization
+- copilot_vectorstore
 
 ## Testing
 
