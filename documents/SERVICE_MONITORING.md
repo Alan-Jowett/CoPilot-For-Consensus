@@ -23,19 +23,32 @@ This guide explains how to monitor and troubleshoot the services in this reposit
 - Service container logs: via `docker compose logs -f <service>`
 
 ## 3) Metrics (Prometheus)
-- Scrape targets: services expose metrics endpoints (typically `/metrics`) discovered via the compose network.
-- Quick checks:
-  - Open Prometheus UI → **Status > Targets** to verify all endpoints are `UP`.
-  - Run ad-hoc queries (Examples):
-    - `up{job="<service>"}` — liveness of scrape targets
-    - `rate(http_requests_total{service="<service>"}[5m])` — request rate
-    - `histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{service="<service>"}[5m]))` — P95 latency
+
+### Metrics Collection Strategy
+This system uses a **push model** for service metrics:
+- Services use `PrometheusPushGatewayMetricsCollector` to push metrics to the Pushgateway at `pushgateway:9091`
+- Prometheus scrapes metrics from Pushgateway, NOT from service endpoints
+- Services do NOT expose `/metrics` endpoints (only `/health` and `/stats` endpoints)
+- Infrastructure exporters (MongoDB, RabbitMQ, Qdrant, cAdvisor) use the traditional pull model with `/metrics` endpoints
+
+### Quick Checks
+- Open Prometheus UI → **Status > Targets** to verify all scrape targets are `UP`
+- Check Pushgateway UI at http://localhost:9091 to see pushed metrics from services
+- Run ad-hoc queries (Examples):
+  - `up{job="pushgateway"}` — verify Pushgateway is being scraped
+  - `copilot_messages_parsed_total` — service metrics pushed to Pushgateway
+  - `up{job="mongodb"}` — infrastructure exporter health
 - Container resource queries (via cAdvisor, requires `--profile monitoring-extra`):
   - `sum by (container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_project=~"copilot-for-consensus.*"}[5m])) * 100` — CPU usage percentage
   - `sum by (container_label_com_docker_compose_service) (container_memory_usage_bytes{container_label_com_docker_compose_project=~"copilot-for-consensus.*"}) / 1024 / 1024` — Memory usage in MB
   - `(sum by (container_label_com_docker_compose_service) (container_memory_usage_bytes{container_label_com_docker_compose_project=~"copilot-for-consensus.*"}) / clamp_min(sum by (container_label_com_docker_compose_service) (container_spec_memory_limit_bytes{container_label_com_docker_compose_project=~"copilot-for-consensus.*"}), 1)) * 100` — Memory usage as % of limit
   - `changes(container_start_time_seconds{container_label_com_docker_compose_project=~"copilot-for-consensus.*"}[1h])` — Container restarts
   - `sum by (container_label_com_docker_compose_service) (rate(container_network_receive_bytes_total{container_label_com_docker_compose_project=~"copilot-for-consensus.*", interface!~"lo"}[5m]))` — Network receive rate (excludes loopback)
+
+### Service Health Endpoints
+While services don't expose `/metrics`, they do provide:
+- `/health` — Health check with basic statistics
+- `/stats` — Detailed service statistics (where applicable)
 
 ## 4) Dashboards & Logs (Grafana + Loki)
 - Access Grafana at http://localhost:3000 (default creds: `admin` / `admin`)
