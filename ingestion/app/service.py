@@ -45,12 +45,40 @@ DEFAULT_CONFIG = {
 }
 
 
+class _ConfigWithDefaults:
+    """Wrapper that combines a loaded config with defaults, without modifying the original."""
+    
+    def __init__(self, config: object):
+        # Store base config and allow per-instance overrides without mutating base
+        self._config = config
+        self._overrides: Dict[str, Any] = {}
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Allow overrides while keeping base config immutable."""
+        if name in {"_config", "_overrides"}:
+            object.__setattr__(self, name, value)
+            return
+        # Record overrides instead of mutating the base config
+        overrides = object.__getattribute__(self, "_overrides")
+        overrides[name] = value
+    
+    def __getattr__(self, name: str) -> Any:
+        overrides = object.__getattribute__(self, "_overrides")
+        if name in overrides:
+            return overrides[name]
+        # Try to get from loaded config first
+        if hasattr(self._config, name):
+            return getattr(self._config, name)
+        # Fall back to defaults
+        if name in DEFAULT_CONFIG:
+            return DEFAULT_CONFIG[name]
+        # Raise AttributeError if not found
+        raise AttributeError(f"Configuration key '{name}' not found")
+
+
 def _apply_defaults(config: object) -> object:
-    """Ensure all expected config fields exist with defaults."""
-    for key, value in DEFAULT_CONFIG.items():
-        if not hasattr(config, key):
-            setattr(config, key, value)
-    return config
+    """Ensure all expected config fields exist with defaults, without modifying the original config."""
+    return _ConfigWithDefaults(config)
 
 
 def _expand(value: Optional[str]) -> Optional[str]:

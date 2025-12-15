@@ -19,11 +19,11 @@ from pymongo import MongoClient
 def verify_archives_collection():
     """Verify archives collection contents."""
     # Get MongoDB connection details from environment
-    mongo_host = os.getenv("DOC_DB_HOST", "localhost")
-    mongo_port = int(os.getenv("DOC_DB_PORT", "27017"))
-    mongo_user = os.getenv("DOC_DB_USER", "root")
-    mongo_password = os.getenv("DOC_DB_PASSWORD", "example")
-    mongo_db = os.getenv("DOC_DB_NAME", "copilot")
+    mongo_host = os.getenv("DOCUMENT_DATABASE_HOST", "localhost")
+    mongo_port = int(os.getenv("DOCUMENT_DATABASE_PORT", "27017"))
+    mongo_user = os.getenv("DOCUMENT_DATABASE_USER", "root")
+    mongo_password = os.getenv("DOCUMENT_DATABASE_PASSWORD", "example")
+    mongo_db = os.getenv("DOCUMENT_DATABASE_NAME", "copilot")
     
     connection_string = f"mongodb://{mongo_user}:{mongo_password}@{mongo_host}:{mongo_port}/{mongo_db}?authSource=admin"
     

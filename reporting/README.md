@@ -40,9 +40,9 @@ The Reporting Service delivers summaries and insights to users via REST endpoint
 | `MESSAGE_BUS_PORT` | Integer | No | `5672` | Message bus port |
 | `MESSAGE_BUS_USER` | String | No | `guest` | Message bus username |
 | `MESSAGE_BUS_PASSWORD` | String | No | `guest` | Message bus password |
-| `DOC_DB_HOST` | String | Yes | `documentdb` | Document DB host |
-| `DOC_DB_PORT` | Integer | No | `27017` | Document DB port |
-| `DOC_DB_NAME` | String | No | `copilot` | Database name |
+| `DOCUMENT_DATABASE_HOST` | String | Yes | `documentdb` | Document DB host |
+| `DOCUMENT_DATABASE_PORT` | Integer | No | `27017` | Document DB port |
+| `DOCUMENT_DATABASE_NAME` | String | No | `copilot` | Database name |
 | `REPORTS_COLLECTION` | String | No | `summaries` | Collection for summaries/reports |
 | `VECTOR_DB_HOST` | String | No | `vectorstore` | Vector store host (for search) |
 | `VECTOR_DB_PORT` | Integer | No | `6333` | Vector store port (Qdrant) |
@@ -153,14 +153,14 @@ pip install -r requirements.txt
 
 # Run locally
 export MESSAGE_BUS_HOST=localhost
-export DOC_DB_HOST=localhost
+export DOCUMENT_DATABASE_HOST=localhost
 python main.py
 
 # Docker
 docker build -t copilot-reporting .
 docker run -d \
   -e MESSAGE_BUS_HOST=messagebus \
-  -e DOC_DB_HOST=documentdb \
+  -e DOCUMENT_DATABASE_HOST=documentdb \
   -p 8080:8080 \
   copilot-reporting
 ```

@@ -47,9 +47,9 @@ Generate vector embeddings for text chunks that:
 | `MESSAGE_BUS_PORT` | Integer | No | `5672` | Message bus port |
 | `MESSAGE_BUS_USER` | String | No | `guest` | Message bus username |
 | `MESSAGE_BUS_PASSWORD` | String | No | `guest` | Message bus password |
-| `DOC_DB_HOST` | String | Yes | `documentdb` | Document database hostname |
-| `DOC_DB_PORT` | Integer | No | `27017` | Document database port |
-| `DOC_DB_NAME` | String | No | `copilot` | Database name |
+| `DOCUMENT_DATABASE_HOST` | String | Yes | `documentdb` | Document database hostname |
+| `DOCUMENT_DATABASE_PORT` | Integer | No | `27017` | Document database port |
+| `DOCUMENT_DATABASE_NAME` | String | No | `copilot` | Database name |
 | `VECTOR_DB_HOST` | String | Yes | `vectorstore` | Vector store hostname |
 | `VECTOR_DB_PORT` | Integer | No | `6333` | Vector store port (Qdrant) |
 | `VECTOR_DB_COLLECTION` | String | No | `message_embeddings` | Collection name |
@@ -567,7 +567,7 @@ python -c "from sentence_transformers import SentenceTransformer; SentenceTransf
 
 # Set environment variables
 export MESSAGE_BUS_HOST=localhost
-export DOC_DB_HOST=localhost
+export DOCUMENT_DATABASE_HOST=localhost
 export VECTOR_DB_HOST=localhost
 export EMBEDDING_BACKEND=sentencetransformers
 
@@ -584,7 +584,7 @@ docker build -t copilot-embedding .
 # Run container
 docker run -d \
   -e MESSAGE_BUS_HOST=messagebus \
-  -e DOC_DB_HOST=documentdb \
+  -e DOCUMENT_DATABASE_HOST=documentdb \
   -e VECTOR_DB_HOST=vectorstore \
   -e EMBEDDING_BACKEND=sentencetransformers \
   copilot-embedding

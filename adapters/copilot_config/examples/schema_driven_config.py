@@ -18,7 +18,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from copilot_config import (
-    load_config,
     load_typed_config,
     ConfigValidationError,
     ConfigSchemaError,
@@ -51,14 +50,14 @@ def example_basic_loading():
     os.environ["MESSAGE_BUS_PORT"] = "5672"
     
     try:
-        # Load configuration from schema
-        config = load_config("chunking", schema_dir=SCHEMA_DIR)
+        # Load configuration from schema (type-safe)
+        config = load_typed_config("chunking", schema_dir=SCHEMA_DIR)
         
         print(f"✓ Configuration loaded successfully!")
-        print(f"  Message Bus Host: {config['message_bus_host']}")
-        print(f"  Message Bus Port: {config['message_bus_port']}")
-        print(f"  Document Store Type: {config['doc_store_type']}")
-        print(f"  Chunk Size: {config['chunk_size']}")
+        print(f"  Message Bus Host: {config.message_bus_host}")
+        print(f"  Message Bus Port: {config.message_bus_port}")
+        print(f"  Document Store Type: {config.doc_store_type}")
+        print(f"  Chunk Size: {config.chunk_size}")
         print()
         
     except ConfigSchemaError as e:
@@ -75,7 +74,7 @@ def example_typed_config():
     
     # Set up environment
     os.environ["MESSAGE_BUS_HOST"] = "messagebus"
-    os.environ["DOC_DB_HOST"] = "mongodb.example.com"
+    os.environ["DOCUMENT_DATABASE_HOST"] = "mongodb.example.com"
     
     try:
         # Load typed configuration
@@ -86,19 +85,11 @@ def example_typed_config():
         
         print(f"✓ Typed configuration loaded!")
         
-        # Access via attributes
-        print(f"  Message Bus Host (attr): {config.message_bus_host}")
-        print(f"  Message Bus Port (attr): {config.message_bus_port}")
-        
-        # Access via dict-style
-        print(f"  Document Store Host (dict): {config['doc_store_host']}")
-        
-        # Use get() with default
-        print(f"  Custom Setting (with default): {config.get('custom_setting', 'N/A')}")
-        
-        # Check if key exists
-        print(f"  Has 'message_bus_host': {'message_bus_host' in config}")
-        print(f"  Has 'missing_key': {'missing_key' in config}")
+        # Access via attributes only (dict-style not supported for verification)
+        print(f"  Message Bus Host: {config.message_bus_host}")
+        print(f"  Message Bus Port: {config.message_bus_port}")
+        print(f"  Document Store Host: {config.doc_store_host}")
+        print(f"  Document Store Type: {config.doc_store_type}")
         print()
         
     except Exception as e:
@@ -122,15 +113,15 @@ def example_validation_errors():
     })
     
     try:
-        config = load_config(
+        config = load_typed_config(
             "chunking",
             schema_dir=SCHEMA_DIR,
             env_provider=env_provider
         )
         print(f"✓ Configuration loaded successfully!")
         print(f"  Note: Required fields with defaults don't cause validation errors")
-        print(f"  Message Bus Host (from default): {config['message_bus_host']}")
-        print(f"  Message Bus Port (from env): {config['message_bus_port']}")
+        print(f"  Message Bus Host (from default): {config.message_bus_host}")
+        print(f"  Message Bus Port (from env): {config.message_bus_port}")
         print()
         
     except ConfigValidationError as e:
@@ -148,7 +139,7 @@ def example_default_values():
     # Provide only required fields
     env_provider = EnvConfigProvider(environ={
         "MESSAGE_BUS_HOST": "messagebus",
-        "DOC_DB_HOST": "documentdb",
+        "DOCUMENT_DATABASE_HOST": "documentdb",
     })
     
     try:
@@ -180,8 +171,8 @@ def example_type_conversion():
     env_provider = EnvConfigProvider(environ={
         "MESSAGE_BUS_HOST": "messagebus",
         "MESSAGE_BUS_PORT": "9999",  # String will be converted to int
-        "DOC_DB_HOST": "documentdb",
-        "DOC_DB_PORT": "27017",
+        "DOCUMENT_DATABASE_HOST": "documentdb",
+        "DOCUMENT_DATABASE_PORT": "27017",
         "CHUNK_SIZE": "1024",
         "CHUNK_OVERLAP": "100",
     })

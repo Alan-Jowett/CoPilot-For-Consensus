@@ -83,35 +83,36 @@ Create a JSON schema file in `schemas/<service>.json`:
 #### 2. Load Configuration
 
 ```python
-from copilot_config import load_config
-
-# Load configuration based on schema
-config = load_config("my-service")
-
-# Access configuration values
-print(config["message_bus_host"])  # "messagebus"
-print(config["message_bus_port"])  # 5672
-print(config["debug"])             # False
-```
-
-#### 3. Use Typed Configuration (Optional)
-
-For attribute-style access:
-
-```python
 from copilot_config import load_typed_config
 
-# Load typed configuration
+# Load configuration with schema validation
+# Returns TypedConfig with attribute-ONLY access (enables static verification)
 config = load_typed_config("my-service")
 
-# Access via attributes
+# Access via attributes (verifiable by static analysis tools)
 print(config.message_bus_host)  # "messagebus"
 print(config.message_bus_port)  # 5672
 print(config.debug)             # False
 
-# Still supports dict-style access
-print(config["message_bus_host"])  # "messagebus"
-print(config.get("missing_key", "default"))  # "default"
+# Dictionary-style access intentionally NOT supported
+# config["message_bus_host"]  # ✗ Raises AttributeError
+# This ensures all accessed keys can be verified against the schema
+```
+
+#### 3. Error Handling
+
+For compile-time safety, all services must use `load_typed_config()`.
+Trying to import `load_config()` directly will fail:
+
+```python
+from copilot_config import load_typed_config, ConfigValidationError, ConfigSchemaError
+
+try:
+    config = load_typed_config("my-service")
+except ConfigSchemaError as e:
+    print(f"Schema error: {e}")
+except ConfigValidationError as e:
+    print(f"Validation error: {e}")
 ```
 
 ### Schema Field Types
@@ -138,14 +139,15 @@ The schema loader validates:
 - **Required fields**: Fields marked as `required: true` must have values
 - **Type validation**: Values are converted to the correct type
 - **Fast-fail**: Configuration errors are detected at startup
+- **Compile-time safety**: Only `load_typed_config()` is exported; unvalidated config loading is impossible
 
 Example error:
 
 ```python
-from copilot_config import load_config, ConfigValidationError
+from copilot_config import load_typed_config, ConfigValidationError
 
 try:
-    config = load_config("my-service")
+    config = load_typed_config("my-service")
 except ConfigValidationError as e:
     print(f"Configuration error: {e}")
     # Configuration validation failed for my-service:

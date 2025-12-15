@@ -19,7 +19,7 @@ from pathlib import Path
 
 # Prefer adapters package
 try:
-    from copilot_config import load_config
+    from copilot_config import load_typed_config
     from copilot_storage import create_document_store, DocumentNotFoundError
 except ImportError:
     print("Error: copilot_storage adapter not available. Ensure adapters are installed.")
@@ -37,7 +37,7 @@ def get_store():
     """
     # Load ingestion config to ensure schema/validation and any adapter side-effects
     try:
-        _ = load_config("ingestion")
+        _ = load_typed_config("ingestion")
     except Exception as e:
         logger.warning("Proceeding without loaded config; using storage defaults. Error: %s", e)
 

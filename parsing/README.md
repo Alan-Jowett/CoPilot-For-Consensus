@@ -51,11 +51,11 @@ Transform raw `.mbox` archive files into structured, normalized message document
 | `MESSAGE_BUS_PORT` | Integer | No | `5672` | Message bus port |
 | `MESSAGE_BUS_USER` | String | No | `guest` | Message bus username |
 | `MESSAGE_BUS_PASSWORD` | String | No | `guest` | Message bus password |
-| `DOC_DB_HOST` | String | Yes | `documentdb` | Document database hostname |
-| `DOC_DB_PORT` | Integer | No | `27017` | Document database port |
-| `DOC_DB_NAME` | String | No | `copilot` | Database name |
-| `DOC_DB_USER` | String | No | - | Database username (if auth enabled) |
-| `DOC_DB_PASSWORD` | String | No | - | Database password (if auth enabled) |
+| `DOCUMENT_DATABASE_HOST` | String | Yes | `documentdb` | Document database hostname |
+| `DOCUMENT_DATABASE_PORT` | Integer | No | `27017` | Document database port |
+| `DOCUMENT_DATABASE_NAME` | String | No | `copilot` | Database name |
+| `DOCUMENT_DATABASE_USER` | String | No | - | Database username (if auth enabled) |
+| `DOCUMENT_DATABASE_PASSWORD` | String | No | - | Database password (if auth enabled) |
 | `LOG_LEVEL` | String | No | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
 | `BATCH_SIZE` | Integer | No | `100` | Number of messages to process in batch |
 | `STRIP_SIGNATURES` | Boolean | No | `true` | Remove email signatures |
@@ -617,7 +617,7 @@ pip install -r requirements.txt
 
 # Set environment variables
 export MESSAGE_BUS_HOST=localhost
-export DOC_DB_HOST=localhost
+export DOCUMENT_DATABASE_HOST=localhost
 
 # Run the service
 python main.py
@@ -632,7 +632,7 @@ docker build -t copilot-parsing .
 # Run container
 docker run -d \
   -e MESSAGE_BUS_HOST=messagebus \
-  -e DOC_DB_HOST=documentdb \
+  -e DOCUMENT_DATABASE_HOST=documentdb \
   -v /host/archives:/data/raw_archives:ro \
   copilot-parsing
 ```

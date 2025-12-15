@@ -143,7 +143,7 @@ def create_document_store(
     
     # Auto-detect store type from environment if not provided
     if store_type is None:
-        store_type = os.getenv("DOCUMENT_STORE_TYPE", "inmemory").lower()
+        store_type = os.getenv("DOCUMENT_STORE_TYPE", "inmemory")
     
     if store_type == "mongodb":
         from .mongo_document_store import MongoDocumentStore
@@ -156,25 +156,25 @@ def create_document_store(
         if "host" in kwargs:
             mongo_kwargs["host"] = kwargs["host"]
         else:
-            mongo_kwargs["host"] = os.getenv("DOC_DB_HOST", "localhost")
+            mongo_kwargs["host"] = os.getenv("DOCUMENT_DATABASE_HOST", "localhost")
         
         # Port - use provided value or environment variable
         if "port" in kwargs:
             mongo_kwargs["port"] = kwargs["port"]
         else:
-            mongo_kwargs["port"] = int(os.getenv("DOC_DB_PORT", "27017"))
+            mongo_kwargs["port"] = int(os.getenv("DOCUMENT_DATABASE_PORT", "27017"))
         
         # Database - use provided value or environment variable
         if "database" in kwargs:
             mongo_kwargs["database"] = kwargs["database"]
         else:
-            mongo_kwargs["database"] = os.getenv("DOC_DB_NAME", "copilot")
+            mongo_kwargs["database"] = os.getenv("DOCUMENT_DATABASE_NAME", "copilot")
         
         # Username - use provided value or environment variable (only if set)
         if "username" in kwargs:
             mongo_kwargs["username"] = kwargs["username"]
         else:
-            doc_db_user = os.getenv("DOC_DB_USER")
+            doc_db_user = os.getenv("DOCUMENT_DATABASE_USER")
             if doc_db_user is not None:
                 mongo_kwargs["username"] = doc_db_user
         
@@ -182,7 +182,7 @@ def create_document_store(
         if "password" in kwargs:
             mongo_kwargs["password"] = kwargs["password"]
         else:
-            doc_db_password = os.getenv("DOC_DB_PASSWORD")
+            doc_db_password = os.getenv("DOCUMENT_DATABASE_PASSWORD")
             if doc_db_password is not None:
                 mongo_kwargs["password"] = doc_db_password
         
