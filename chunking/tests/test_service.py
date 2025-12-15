@@ -612,5 +612,6 @@ def test_metrics_collector_uses_observe_for_histograms():
     assert len(duration_calls) == 1, "chunking_duration_seconds should be recorded once"
     
     # Verify histogram method was NOT called (it doesn't exist in the API)
-    assert not hasattr(mock_metrics, 'histogram') or not mock_metrics.histogram.called, \
+    method_names = [call[0] for call in mock_metrics.method_calls]
+    assert 'histogram' not in method_names, \
         "histogram() method should not be used (use observe() instead)"
