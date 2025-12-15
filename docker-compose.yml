@@ -419,7 +419,7 @@ services:
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - PROMETHEUS_PUSHGATEWAY=pushgateway:9091
       - ERROR_REPORTER_TYPE=console
-      - DOCUMENT_STORE_TYPE=mongodb
+      - DOC_STORE_TYPE=mongodb
       - DOC_DB_HOST=documentdb
       - DOC_DB_PORT=27017
       - DOC_DB_NAME=copilot

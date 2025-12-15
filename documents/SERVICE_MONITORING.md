@@ -43,6 +43,11 @@ This guide explains how to monitor and troubleshoot the services in this reposit
   - **Service Metrics**: Application-level metrics (throughput, latency)
   - **Queue Status**: RabbitMQ queue depths and message flow
   - **Failed Queues**: Dead letter queue monitoring and alerts
+  - **Logs Overview**: Error and warning tracking across all services (Loki)
+    - Error/warning counts per service (last 1h)
+    - Live error and warning log streams
+    - Error rate trends over time
+    - Top services by error count
   - **Container Resource Usage**: CPU, memory, network, and disk I/O per container (see section 4.1)
 - Logs via Grafana Explore (Loki):
   - Data source: Loki

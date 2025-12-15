@@ -67,6 +67,9 @@ class TestIngestionIntegration:
 
     def test_end_to_end_ingestion(self, temp_environment, test_sources):
         """Test complete end-to-end ingestion workflow."""
+        from pathlib import Path
+        from copilot_storage import InMemoryDocumentStore
+        
         # Create configuration
         config = make_config(
             storage_path=temp_environment["storage_path"],
@@ -75,7 +78,6 @@ class TestIngestionIntegration:
         )
 
         # Create publisher and service
-        from pathlib import Path
         base_publisher = NoopPublisher()
         base_publisher.connect()
         # Wrap with schema validation for events
@@ -86,8 +88,12 @@ class TestIngestionIntegration:
             schema_provider=schema_provider,
             strict=True,
         )
+        
+        # Create in-memory document store for testing
+        document_store = InMemoryDocumentStore()
+        document_store.connect()
 
-        service = IngestionService(config, publisher)
+        service = IngestionService(config, publisher, document_store=document_store)
 
         # Ingest all sources
         results = service.ingest_all_enabled_sources()
@@ -96,6 +102,19 @@ class TestIngestionIntegration:
         assert len(results) == 3
         for source_name, success in results.items():
             assert success is True
+
+        # Verify archives collection was populated
+        archives = document_store.query_documents("archives", {})
+        assert len(archives) == 3
+        
+        # Verify each archive has correct structure
+        for archive in archives:
+            assert "archive_id" in archive
+            assert archive["status"] == "pending"
+            assert archive["message_count"] == 0
+            assert "ingestion_date" in archive
+            assert "file_path" in archive
+            assert "source" in archive
 
         # Verify checksums were saved
         checksums_path = os.path.join(

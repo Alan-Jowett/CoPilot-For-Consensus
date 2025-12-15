@@ -14,6 +14,7 @@ from copilot_logging import Logger, create_logger
 from copilot_metrics import MetricsCollector, create_metrics_collector
 from copilot_reporting import ErrorReporter, create_error_reporter
 from copilot_archive_fetcher import create_fetcher, calculate_file_hash, SourceConfig
+from copilot_storage import DocumentStore
 
 DEFAULT_CONFIG = {
     "storage_path": "/data/raw_archives",
@@ -35,6 +36,12 @@ DEFAULT_CONFIG = {
     "error_reporter_type": "console",
     "sentry_dsn": None,
     "sentry_environment": "production",
+    "doc_store_type": "mongodb",
+    "doc_store_host": "documentdb",
+    "doc_store_port": 27017,
+    "doc_store_name": "copilot",
+    "doc_store_user": "root",
+    "doc_store_password": "example",
     "sources": [],
 }
 
@@ -115,6 +122,7 @@ class IngestionService:
         self,
         config: object,
         publisher: EventPublisher,
+        document_store: Optional[DocumentStore] = None,
         error_reporter: Optional[ErrorReporter] = None,
         logger: Optional[Logger] = None,
         metrics: Optional[MetricsCollector] = None,
@@ -124,12 +132,14 @@ class IngestionService:
         Args:
             config: Ingestion configuration
             publisher: Event publisher for publishing ingestion events
+            document_store: Document store for persisting archive metadata (optional)
             error_reporter: Error reporter for structured error reporting (optional)
             logger: Structured logger for observability (optional)
             metrics: Metrics collector for observability (optional)
         """
         self.config = _apply_defaults(config)
         self.publisher = publisher
+        self.document_store = document_store
         self.checksums: Dict[str, Dict[str, Any]] = {}
         self.logger = logger or create_logger(
             logger_type=config.log_type,
@@ -392,6 +402,9 @@ class IngestionService:
                     # Save metadata to log
                     self._save_ingestion_log(metadata)
 
+                    # Write to archives collection in document store
+                    self._write_archive_record(archive_id, source, file_path, ingestion_completed_at)
+
                     # Publish success event
                     self._publish_success_event(metadata)
 
@@ -572,6 +585,76 @@ class IngestionService:
                     "archive_id": metadata.archive_id,
                 }
             )
+
+    def _write_archive_record(
+        self,
+        archive_id: str,
+        source: SourceConfig,
+        file_path: str,
+        ingestion_date: str,
+    ) -> None:
+        """Write archive record to document store.
+        
+        Creates a document in the archives collection with metadata about the
+        ingested archive. The status is set to 'pending' initially, and will
+        be updated to 'processed' by the parsing service after parsing completes.
+        
+        Args:
+            archive_id: Unique identifier for the archive
+            source: Source configuration
+            file_path: Path where the archive is stored
+            ingestion_date: ISO 8601 timestamp when ingestion completed
+        """
+        if self.document_store is None:
+            self.logger.debug(
+                "Document store not configured; skipping archive record write",
+                archive_id=archive_id,
+            )
+            return
+
+        try:
+            # Determine archive format from file extension
+            file_ext = os.path.splitext(file_path)[1].lstrip('.')
+            archive_format = file_ext if file_ext else "mbox"  # default to mbox
+
+            archive_doc = {
+                "archive_id": archive_id,
+                "source": source.name,
+                "source_url": source.url,
+                "format": archive_format,
+                "ingestion_date": ingestion_date,
+                "message_count": 0,  # Will be updated by parsing service
+                "file_path": file_path,
+                "status": "pending",  # Will be updated to 'processed' or 'failed' by parsing
+            }
+
+            self.document_store.insert_document("archives", archive_doc)
+            self.logger.info(
+                "Wrote archive record to document store",
+                archive_id=archive_id,
+                source=source.name,
+                file_path=file_path,
+            )
+        except Exception as e:
+            # Log but don't raise - archive record write is not critical to ingestion
+            # The parsing service can still process based on the event
+            self.logger.warning(
+                "Failed to write archive record to document store",
+                error=str(e),
+                archive_id=archive_id,
+                source=source.name,
+                exc_info=True,
+            )
+            if self.error_reporter:
+                self.error_reporter.report(
+                    e,
+                    context={
+                        "operation": "write_archive_record",
+                        "archive_id": archive_id,
+                        "source": source.name,
+                        "file_path": file_path,
+                    }
+                )
 
     def _publish_success_event(self, metadata: ArchiveMetadata) -> None:
         """Publish ArchiveIngested event.

@@ -138,6 +138,48 @@
       "default": "production",
       "description": "Sentry environment"
     },
+    "doc_store_type": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOC_STORE_TYPE",
+      "default": "mongodb",
+      "description": "Document store type (mongodb, inmemory)"
+    },
+    "doc_store_host": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOC_DB_HOST",
+      "default": "documentdb",
+      "description": "Document store hostname"
+    },
+    "doc_store_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "DOC_DB_PORT",
+      "default": 27017,
+      "description": "Document store port"
+    },
+    "doc_store_name": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOC_DB_NAME",
+      "default": "copilot",
+      "description": "Document store database name"
+    },
+    "doc_store_user": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOC_DB_USER",
+      "default": "root",
+      "description": "Document store username"
+    },
+    "doc_store_password": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOC_DB_PASSWORD",
+      "default": "example",
+      "description": "Document store password"
+    },
     "sources": {
       "type": "list",
       "source": "storage",
