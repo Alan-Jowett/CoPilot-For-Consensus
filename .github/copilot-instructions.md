@@ -55,6 +55,36 @@ For more information, see [CONTRIBUTING.md](documents/CONTRIBUTING.md) and [CODE
 - Include tests and coverage for changes in adapters/services; use `-m integration` marks appropriately.
 - Respect lint (`flake8`, `pylint`) and security (`bandit`) standards.
 - Update or add Dockerfiles and compose services cautiously; CI will validate health endpoints.
+- Always include the repository license header on new files: add the SPDX line `SPDX-License-Identifier: MIT` at the top and maintain existing header format used across this repo.
+
+### License Header Examples
+
+- Python:
+
+```python
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+"""Module description."""
+```
+
+- YAML (GitHub Actions, Compose):
+
+```yaml
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Example Workflow
+```
+
+- Markdown:
+
+```markdown
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
+# Document Title
+```
 
 ## How To Run Tests Locally
 
