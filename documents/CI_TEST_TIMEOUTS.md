@@ -83,7 +83,7 @@ def test_no_timeout():
 All services have timeout configuration:
 - chunking
 - embedding
-- error-reporting (via workflow default)
+- error-reporting
 - ingestion
 - orchestrator
 - parsing
