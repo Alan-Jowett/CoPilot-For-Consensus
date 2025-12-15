@@ -38,11 +38,17 @@ This guide explains how to monitor and troubleshoot the services in this reposit
 
 ## 4) Dashboards & Logs (Grafana + Loki)
 - Access Grafana at http://localhost:3000 (default creds: `admin` / `admin`)
-- **Available Dashboards:**
-  - **System Health**: Overall service health and uptime
-  - **Service Metrics**: Application-level metrics (throughput, latency)
-  - **Queue Status**: RabbitMQ queue depths and message flow
-  - **Failed Queues**: Dead letter queue monitoring and alerts
+- Available dashboards:
+  - **Copilot System Health** - Overall service health and uptime
+  - **Service Metrics** - Service-level performance metrics
+  - **Queue Status** - RabbitMQ queue depths and throughput
+  - **Failed Queues** - Failed message monitoring and alerting
+  - **MongoDB Document Store Status** - Document counts, storage, and MongoDB performance
+- Pre-configured Dashboards:
+  - **System Health**: Service uptime and basic health metrics (Prometheus)
+  - **Service Metrics**: Detailed service performance metrics (Prometheus)
+  - **Queue Status**: RabbitMQ queue depths and message flow (Prometheus)
+  - **Failed Queues**: Failed message queue monitoring (Prometheus)
   - **Logs Overview**: Error and warning tracking across all services (Loki)
     - Error/warning counts per service (last 1h)
     - Live error and warning log streams
@@ -129,18 +135,18 @@ docker compose --profile monitoring-extra up -d cadvisor
   - **Connections/Channels** to ensure consumers are live.
   - **Overview** to watch publish/ack rates.
 
-## 6) Log Collection (Loki / Promtail)
+## 7) Log Collection (Loki / Promtail)
 - Container logs are forwarded by Promtail into Loki.
 - If logs are missing in Loki:
   - `docker compose logs -f promtail`
   - Verify promtail config paths match container log locations.
 
-## 7) Health & Readiness
+## 8) Health & Readiness
 - If services expose `/health` or `/ready`, curl from host or from within the compose network:
   - Host: `curl http://localhost:<mapped-port>/health`
   - In-network: `docker compose exec <service> curl http://<service>:<port>/health`
 
-## 8) Common Diagnostics (Playbook)
+## 9) Common Diagnostics (Playbook)
 - Service looks down in Prometheus `up`:
   - Check container: `docker compose ps` and `docker compose logs <service>`
   - Confirm port mapping and metrics endpoint availability (`curl http://<service>:<port>/metrics` inside network).
@@ -156,7 +162,7 @@ docker compose --profile monitoring-extra up -d cadvisor
 - Unexpected restarts:
   - `docker compose ps` for restart count; `docker compose logs <service>` for crash reason.
 
-## 8.1) End-to-End Pipeline Status (Mail Archive)
+## 9.1) End-to-End Pipeline Status (Mail Archive)
 Use these signals to see whether a mail archive was ingested and where it is in the pipeline.
 
 - Ingestion → Parsing → Chunking → Embedding → Summarization → Reporting
@@ -188,7 +194,7 @@ Use these signals to see whether a mail archive was ingested and where it is in 
   - Inspect that stage’s container logs for errors (auth, schema, upstream/downstream unavailable).
   - Validate config/credentials for dependent services (doc store, vector store, message bus).
 
-## 8.2) Using the Orchestrator
+## 9.2) Using the Orchestrator
 - Purpose: coordinates cross-service workflows and may dispatch work to the pipeline.
 - Observability:
   - Metrics: `up{job="orchestrator"}` plus any orchestrator-specific counters (dispatch counts, failures).
@@ -198,7 +204,7 @@ Use these signals to see whether a mail archive was ingested and where it is in 
   - Trigger or requeue work via orchestrator endpoints/CLI (if exposed); confirm acceptance in logs.
   - If orchestration fails, check credentials and downstream availability (RabbitMQ, doc store, vector store).
 
-## 8.3) Managing Failed Queues
+## 9.3) Managing Failed Queues
 Failed message queues (`*.failed`) accumulate messages when services encounter unrecoverable errors after exhausting retries. Proper handling is critical to prevent data loss and pipeline degradation.
 
 ### Quick Checks
@@ -246,19 +252,19 @@ python scripts/manage_failed_queues.py purge parsing.failed --limit 100 --confir
 
 For complete operational runbook, see **[FAILED_QUEUE_OPERATIONS.md](./FAILED_QUEUE_OPERATIONS.md)**
 
-## 9) Scaling & Load Debugging
+## 10) Scaling & Load Debugging
 - Horizontal scale in compose: `docker compose up -d --scale <service>=N` (if the service is stateless and supports scaling).
 - Watch effects:
   - Prometheus: `rate(http_requests_total...)` per instance.
   - RabbitMQ: queue depth and consumer count.
   - Grafana/Loki: error rates per instance.
 
-## 10) Cleanup & Reset
+## 11) Cleanup & Reset
 - Stop stack: `docker compose down`
 - Remove volumes (destructive): `docker compose down -v`
 - Clear Loki data (if stored in a volume) before re-running tests to start fresh.
 
-## 11) Tips for Faster Troubleshooting
+## 12) Tips for Faster Troubleshooting
 - Always correlate metrics (Prometheus) with logs (Loki) and queue state (RabbitMQ) on the same time window.
 - Keep one Grafana tab on dashboards and one on Explore for logs.
 - When adding new services, ensure they expose `/metrics` and log to stdout for Promtail to ingest.
