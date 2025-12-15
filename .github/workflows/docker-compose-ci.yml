@@ -182,6 +182,8 @@ jobs:
           -v $PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro \
           ingestion
         echo "✓ Ingestion service completed successfully"
+        echo "Waiting 20 seconds for message processing pipeline to complete..."
+        sleep 20
 
     - name: View ingestion logs
       if: always()
