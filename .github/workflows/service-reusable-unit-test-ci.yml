@@ -4,6 +4,8 @@
 name: Reusable Service Unit Test CI
 permissions:
   contents: read
+  checks: write
+  pull-requests: write
 
 on:
   workflow_call:
@@ -45,6 +47,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     
     steps:
     - name: Checkout repository
@@ -68,7 +71,7 @@ jobs:
         # Install service requirements
         cd ${{ inputs.service_path }}
         pip install -r requirements.txt
-        pip install pytest pytest-cov
+        pip install pytest pytest-cov pytest-timeout==2.4.0
 
 
     - name: Run unit and integration tests
@@ -85,6 +88,7 @@ jobs:
         github-token: ${{ github.token }}
         path-to-lcov: ./${{ inputs.service_path }}/coverage.lcov
         flag-name: ${{ inputs.service_id }}
+        parallel: true
 
     - name: Upload test results
       if: always()

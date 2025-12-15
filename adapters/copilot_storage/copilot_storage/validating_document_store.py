@@ -76,20 +76,17 @@ class ValidatingDocumentStore(DocumentStore):
     def _collection_to_schema_name(self, collection: str) -> str:
         """Convert collection name to schema name.
 
-        Converts snake_case collection names to PascalCase schema names.
-        Examples:
-            - "archive_metadata" -> "ArchiveMetadata"
-            - "messages" -> "Messages"
+        Returns the collection name as-is for document schemas, which use
+        lowercase naming (e.g., "messages" -> "messages", "chunks" -> "chunks").
 
         Args:
             collection: Collection name
 
         Returns:
-            Schema name in PascalCase
+            Schema name (same as collection name for documents)
         """
-        # Split on underscores and capitalize each part
-        parts = collection.split("_")
-        return "".join(part.capitalize() for part in parts)
+        # Document schemas use lowercase naming matching collection names
+        return collection
 
     def _validate_document(self, collection: str, doc: Dict[str, Any]) -> Tuple[bool, List[str]]:
         """Validate a document against its schema.
@@ -241,9 +238,7 @@ class ValidatingDocumentStore(DocumentStore):
     ) -> None:
         """Update a document with the provided patch.
 
-        Validates the patch against the schema before updating.
-        Note: This validates the patch itself, not the merged result.
-        For full validation, set validate_reads=True to validate on subsequent reads.
+        Validates the merged document (current document + patch) against the schema before updating.
 
         Args:
             collection: Name of the collection/table
@@ -254,10 +249,12 @@ class ValidatingDocumentStore(DocumentStore):
             DocumentValidationError: If strict=True and validation fails
             DocumentNotFoundError: If document does not exist
         """
-        # Validate patch
-        # Note: Ideally we'd validate the merged document, but that requires
-        # fetching the current document first. For now, we validate the patch.
-        is_valid, errors = self._validate_document(collection, patch)
+        # Fetch current document and merge with patch to validate the result
+        current_doc = self._store.get_document(collection, doc_id)
+        merged_doc = {**current_doc, **patch}
+        
+        # Validate the merged document
+        is_valid, errors = self._validate_document(collection, merged_doc)
 
         if not is_valid:
             self._handle_validation_failure(collection, errors)

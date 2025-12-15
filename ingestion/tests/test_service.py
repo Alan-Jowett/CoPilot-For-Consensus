@@ -8,7 +8,8 @@ import os
 import tempfile
 import pytest
 
-from copilot_events import NoopPublisher
+from copilot_events import NoopPublisher, ValidatingEventPublisher
+from copilot_schema_validation import FileSchemaProvider
 from copilot_logging import create_logger
 from copilot_metrics import NoOpMetricsCollector
 
@@ -33,8 +34,18 @@ class TestIngestionService:
     @pytest.fixture
     def service(self, config):
         """Create test ingestion service."""
-        publisher = NoopPublisher()
-        publisher.connect()
+        from pathlib import Path
+        
+        base_publisher = NoopPublisher()
+        base_publisher.connect()
+        # Wrap with schema validation for events
+        schema_dir = Path(__file__).parent.parent.parent / "documents" / "schemas" / "events"
+        schema_provider = FileSchemaProvider(schema_dir=schema_dir)
+        publisher = ValidatingEventPublisher(
+            publisher=base_publisher,
+            schema_provider=schema_provider,
+            strict=True,
+        )
         logger = create_logger(logger_type="silent", level="INFO", name="ingestion-test")
         metrics = NoOpMetricsCollector()
         return IngestionService(config, publisher, logger=logger, metrics=metrics)
@@ -192,7 +203,8 @@ class TestIngestionService:
             service.ingest_archive(source, max_retries=1)
 
             publisher = service.publisher
-            assert isinstance(publisher, NoopPublisher)
+            # Publisher is a validating wrapper around NoopPublisher
+            assert isinstance(publisher, ValidatingEventPublisher)
             assert len(publisher.published_events) >= 1
 
             success_events = [

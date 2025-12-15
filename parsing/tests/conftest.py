@@ -6,9 +6,11 @@
 import os
 import sys
 import tempfile
+from pathlib import Path
 import pytest
 
-from copilot_storage import InMemoryDocumentStore
+from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
+from copilot_schema_validation import FileSchemaProvider
 
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -16,10 +18,20 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 @pytest.fixture
 def document_store():
-    """Create in-memory document store."""
-    store = InMemoryDocumentStore()
-    store.connect()
-    return store
+    """Create in-memory document store with schema validation."""
+    # Create base in-memory store
+    base_store = InMemoryDocumentStore()
+    base_store.connect()
+    
+    # Wrap with validation using document schemas
+    schema_dir = Path(__file__).parent.parent.parent / "documents" / "schemas" / "documents"
+    schema_provider = FileSchemaProvider(schema_dir=schema_dir)
+    validating_store = ValidatingDocumentStore(
+        store=base_store,
+        schema_provider=schema_provider
+    )
+    
+    return validating_store
 
 
 @pytest.fixture

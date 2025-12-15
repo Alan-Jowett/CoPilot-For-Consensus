@@ -4,6 +4,7 @@
 """No-op event subscriber for testing."""
 
 import logging
+import threading
 from typing import Callable, Dict, Any, List
 
 from .subscriber import EventSubscriber
@@ -25,6 +26,7 @@ class NoopSubscriber(EventSubscriber):
         self.consuming = False
         self.callbacks: Dict[str, Callable[[Dict[str, Any]], None]] = {}
         self.routing_keys: Dict[str, str] = {}
+        self._stop_event = threading.Event()
 
     def connect(self) -> bool:
         """Simulate connection to message bus.
@@ -62,19 +64,27 @@ class NoopSubscriber(EventSubscriber):
         logger.debug(f"NoopSubscriber subscribed to {event_type}")
 
     def start_consuming(self) -> None:
-        """Mark subscriber as consuming.
+        """Mark subscriber as consuming and block until stop_consuming() is called.
         
-        Note: NoopSubscriber doesn't actually consume. Use inject_event()
+        This mimics the blocking behavior of RabbitMQ subscriber. The thread will
+        block here until stop_consuming() is called from another thread.
+        
+        Note: NoopSubscriber doesn't actually consume from a queue. Use inject_event()
         to manually trigger callbacks for testing.
         """
         if not self.connected:
             raise RuntimeError("Not connected. Call connect() first.")
         self.consuming = True
-        logger.debug("NoopSubscriber started consuming")
+        self._stop_event.clear()
+        logger.debug("NoopSubscriber started consuming (blocking)")
+        # Block until stop_consuming() is called
+        self._stop_event.wait()
+        logger.debug("NoopSubscriber stopped blocking")
 
     def stop_consuming(self) -> None:
-        """Stop consuming events."""
+        """Stop consuming events and unblock start_consuming()."""
         self.consuming = False
+        self._stop_event.set()
         logger.debug("NoopSubscriber stopped consuming")
 
     def inject_event(self, event: Dict[str, Any]) -> None:

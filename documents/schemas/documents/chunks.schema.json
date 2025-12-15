@@ -10,8 +10,18 @@
     "chunk_index": { "type": "integer", "minimum": 0 },
     "text": { "type": "string", "minLength": 1 },
     "token_count": { "type": "integer", "minimum": 0 },
-    "start_offset": { "type": "integer", "minimum": 0 },
-    "end_offset": { "type": "integer", "minimum": 0 },
+    "start_offset": { 
+      "anyOf": [
+        { "type": "integer", "minimum": 0 },
+        { "type": "null" }
+      ]
+    },
+    "end_offset": { 
+      "anyOf": [
+        { "type": "integer", "minimum": 0 },
+        { "type": "null" }
+      ]
+    },
     "overlap_with_previous": { "type": "boolean" },
     "metadata": {
       "type": "object",

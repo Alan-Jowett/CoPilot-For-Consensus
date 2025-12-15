@@ -207,7 +207,7 @@ def main():
             port=config.message_bus_port,
             username=config.message_bus_user,
             password=config.message_bus_password,
-            queue_name="reporting-service",
+            queue_name="summary.complete",
         )
         if not subscriber.connect():
             logger.error("Failed to connect subscriber to message bus.")
@@ -223,6 +223,7 @@ def main():
             password=config.doc_store_password if config.doc_store_password else None,
         )
         logger.info("Connecting to document store...")
+        # connect() raises on failure; None return indicates success
         base_document_store.connect()
         logger.info("Document store connected successfully")
         
