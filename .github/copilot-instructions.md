@@ -23,6 +23,28 @@ This repository uses GitHub Copilot to assist with code suggestions, documentati
 - When committing changes, use `git commit -sm "<message>"` to include the sign-off.
 - Report issues or unexpected behavior in the issues section.
 
+### Platform-Aware Command Suggestions
+
+**IMPORTANT**: When suggesting shell commands, **always consider the user's operating system**. The following guidelines apply:
+
+- **On Windows**: Suggest PowerShell commands or `cmd.exe` equivalents, NOT Linux-only utilities like `head`, `tail`, `sed`, `awk`, `grep`, `cut`, etc.
+  - Use PowerShell cmdlets (e.g., `Get-Content`, `Select-Object`, `Where-Object`, `ConvertTo-Json`) instead of Linux utilities.
+  - Use Windows path separators (`\`) or generic patterns that work cross-platform (`/` also works in PowerShell).
+  - Examples: `type filename.txt` instead of `cat`, `findstr` instead of `grep`, `Invoke-WebRequest` instead of `curl` (though curl may be available on newer Windows).
+
+- **On Linux/macOS**: You may use standard Unix utilities.
+
+- **For cross-platform scripts**: Prefer Python scripts or Node.js over shell scripts. When shell is necessary, use POSIX-compatible syntax that works on both platforms, and provide platform-specific variants (bash/PowerShell) as shown in the testing examples below.
+
+- **Docker & Docker Compose**: These are typically cross-platform; however, always test commands on both Windows PowerShell and bash shells if contributors use either.
+
+**Examples of what NOT to suggest on Windows**:
+- ❌ `head -n 5 file.txt` → Use `Get-Content file.txt -Head 5` instead
+- ❌ `tail -f log.txt` → Use `Get-Content log.txt -Wait` instead
+- ❌ `grep "pattern" file.txt` → Use `Select-String -Pattern "pattern" file.txt` instead
+- ❌ `sed 's/old/new/g' file.txt` → Use PowerShell string replacement or a Python script instead
+- ❌ `awk '{print $1}' file.txt` → Use `Select-String` with regex and `ForEach-Object` instead
+
 ### Maintainers
 
 Repository maintainers are responsible for reviewing Copilot-generated code and ensuring compliance with project standards.
