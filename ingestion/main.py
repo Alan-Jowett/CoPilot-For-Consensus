@@ -35,6 +35,15 @@ class _ConfigWithSources:
     def __init__(self, base_config: object, sources: list):
         self._base_config = base_config
         self.sources = sources
+
+    def __setattr__(self, name: str, value: object) -> None:
+        """Prevent runtime mutation to keep config immutable."""
+        if name in ("_base_config", "sources"):
+            object.__setattr__(self, name, value)
+        else:
+            raise AttributeError(
+                f"Cannot modify configuration. '{name}' is read-only."
+            )
     
     def __getattr__(self, name: str) -> object:
         if name in ("_base_config", "sources"):

@@ -50,6 +50,15 @@ class _ConfigWithDefaults:
     
     def __init__(self, config: object):
         self._config = config
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Prevent runtime mutation to keep config immutable."""
+        if name == "_config":
+            object.__setattr__(self, name, value)
+        else:
+            raise AttributeError(
+                f"Cannot modify configuration. '{name}' is read-only."
+            )
     
     def __getattr__(self, name: str) -> Any:
         # Try to get from loaded config first
