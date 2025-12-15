@@ -1,6 +1,33 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
+<#
+.SYNOPSIS
+    Runs all unit and integration tests for services and adapters in the repository.
+
+.DESCRIPTION
+    This script installs all adapter packages in editable mode and then runs the test suites
+    for all services and adapters. The tests are run using pytest, and the set of tests to run
+    can be filtered using the Marker parameter. By default, only unit tests (not marked as integration)
+    are run. This script is intended for use in CI pipelines or for local validation of all code.
+
+.PARAMETER Marker
+    A pytest marker expression to filter which tests are run. By default, "not integration" is used,
+    which runs only unit tests. To run integration tests, set Marker to "integration". You can use
+    any valid pytest -m expression.
+
+.EXAMPLE
+    # Run all unit tests (default)
+    ./run_all_ci_tests.ps1
+
+.EXAMPLE
+    # Run only integration tests
+    ./run_all_ci_tests.ps1 -Marker integration
+
+.EXAMPLE
+    # Run tests marked as "slow"
+    ./run_all_ci_tests.ps1 -Marker slow
+#>
 Param(
     [string]$Marker = "not integration"
 )
@@ -54,11 +81,13 @@ foreach ($adapter in $adapters) {
         if ($adapterDeps.ContainsKey($adapter.Name)) {
             $deps = $adapterDeps[$adapter.Name]
             Write-Host "Installing extra deps for $($adapter.Name): $($deps -join ', ')" -ForegroundColor DarkCyan
-            & python -m pip install @deps
+            & python -m pip install $deps
             if ($LASTEXITCODE -ne 0) { throw "Dependency install failed for $($adapter.Name)" }
         }
 
         & python -m pip install -e .
+        & python -m pip install pytest pytest-cov
+        & python -m pip install pytest-timeout
         $installExit = $LASTEXITCODE
     } catch {
         Write-Host "Error installing $($adapter.Name): $_" -ForegroundColor Red
@@ -74,7 +103,9 @@ foreach ($adapter in $adapters) {
     }
 
     if ($installExit -ne 0) {
-        Write-Host "Install failed for $($adapter.Name)" -ForegroundColor Red
+        Write-Host ("Install failed for {0} with exit code {1}." -f $adapter.Name, $installExit) -ForegroundColor Red
+        Write-Host "Check pip output above for details or try installing manually with:" -ForegroundColor Yellow
+        Write-Host ("    pip install -e ./{0}" -f $adapter.Path) -ForegroundColor Yellow
         Write-Host 'Aborting test run because adapter installation failed.' -ForegroundColor Red
         exit 1
     }

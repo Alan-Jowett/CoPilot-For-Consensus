@@ -51,7 +51,7 @@ function Wait-ForHealthy {
             $state = $svc.State
             if ($health -and $health -ne 'healthy') {
                 $unhealthy += $svc
-            } elseif (-not $health -and $state -ne 'running') {
+            } elseif (-not $health -and -not ($state -match '^(?i:up|running)')) {
                 $unhealthy += $svc
             }
         }
@@ -79,12 +79,20 @@ try {
     Remove-CopilotVolumes
     Remove-CopilotNetworks
 
-    Write-Host '--- Building images (no cache) ---' -ForegroundColor Cyan
-    docker compose build --no-cache
+    Write-Host '--- Building images ---' -ForegroundColor Cyan
+    docker compose build
 
-    Write-Host '--- Starting stack ---' -ForegroundColor Cyan
-    docker compose up -d
+    Write-Host '--- Starting infrastructure services ---' -ForegroundColor Cyan
+    docker compose up -d documentdb messagebus vectorstore ollama monitoring pushgateway loki grafana promtail
 
+    Write-Host '--- Running infrastructure validators ---' -ForegroundColor Cyan
+    docker compose run --rm db-init
+    docker compose run --rm db-validate
+    docker compose run --rm vectorstore-validate
+    docker compose run --rm ollama-validate
+
+    Write-Host '--- Starting application services ---' -ForegroundColor Cyan
+    docker compose up -d parsing chunking embedding orchestrator summarization reporting error-reporting
     Write-Host '--- Checking service health ---' -ForegroundColor Cyan
     Wait-ForHealthy
 
