@@ -256,14 +256,14 @@ class OrchestrationService:
                 return {}
 
             # Get message metadata
-            message_ids = list(set(chunk.get("message_id") for chunk in chunks if chunk.get("message_id")))
+            message_keys = list(set(chunk.get("message_key") for chunk in chunks if chunk.get("message_key")))
             messages = []
 
-            if message_ids:
+            if message_keys:
                 messages = self.document_store.query_documents(
                     "messages",
-                    {"message_id": {"$in": message_ids}},
-                    limit=len(message_ids)
+                    {"message_key": {"$in": message_keys}},
+                    limit=len(message_keys)
                 )
 
             context = {

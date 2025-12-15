@@ -275,7 +275,7 @@ Services communicate via these domain events:
    - Payload: `{archive_id, message_count, parsed_json_document_ids, timestamp}`
 
 3. **ChunksPrepared** (Chunking → Message Bus)
-   - Payload: `{message_ids, chunk_count, chunks_ready, timestamp}`
+  - Payload: `{message_keys, chunk_count, chunks_ready, timestamp}`
 
 4. **EmbeddingsGenerated** (Embedding → Message Bus)
    - Payload: `{chunk_ids, embedding_model, vector_store_updated, timestamp}`

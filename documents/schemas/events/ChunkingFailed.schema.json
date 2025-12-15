@@ -11,7 +11,7 @@
         "data": {
           "type": "object",
           "properties": {
-            "message_ids": {
+            "message_keys": {
               "type": "array",
               "items": { "type": "string", "minLength": 1 },
               "minItems": 1,
@@ -23,7 +23,7 @@
             "failed_at": { "type": "string", "format": "date-time" }
           },
           "required": [
-            "message_ids",
+            "message_keys",
             "error_message",
             "error_type",
             "retry_count",

@@ -90,7 +90,7 @@ Consumes events from the Parsing & Normalization Service when messages are parse
 See [JSONParsed schema](../documents/SCHEMA.md#3-jsonparsed) in SCHEMA.md for the complete payload definition.
 
 **Processing:**
-1. Retrieve messages by `message_id` from document database
+1. Retrieve messages by `message_key` from document database
 2. Extract `body_normalized` field for chunking
 3. Create chunks with metadata
 4. Store chunks in document database
@@ -110,7 +110,7 @@ Published when messages have been successfully chunked and stored.
 See [ChunksPrepared schema](../documents/SCHEMA.md#5-chunksprepared) in SCHEMA.md for the complete payload definition.
 
 **Key Fields:**
-- `message_ids`: List of source message IDs that were chunked
+- `message_keys`: List of source message keys that were chunked
 - `chunk_count`: Total number of chunks created
 - `chunk_keys`: List of all chunk hash identifiers (for embedding service)
 - `chunks_ready`: Boolean indicating chunks are stored and ready
@@ -127,7 +127,7 @@ Published when chunking fails for a batch of messages.
 See [ChunkingFailed schema](../documents/SCHEMA.md#6-chunkingfailed) in SCHEMA.md for the complete payload definition.
 
 **Key Fields:**
-- `message_ids`: List of message IDs that failed
+- `message_keys`: List of message keys that failed
 - `error_message`, `error_type`: Error details
 - `retry_count`: Number of retry attempts
 
@@ -281,7 +281,7 @@ async def process_json_parsed_event(event: JSONParsedEvent):
     try:
         # 1. Retrieve messages from database
         messages = db.messages.find({
-            "message_id": {"$in": event.data.parsed_message_ids}
+            "message_key": {"$in": event.data.message_keys}
         })
         
         # 2. Process each message
@@ -323,7 +323,7 @@ async def process_json_parsed_event(event: JSONParsedEvent):
         
         # 4. Publish ChunksPrepared event
         await publish_chunks_prepared_event(
-            message_ids=event.data.parsed_message_ids,
+            message_keys=event.data.message_keys,
             chunk_ids=[c["chunk_id"] for c in all_chunks],
             chunk_count=len(all_chunks)
         )
@@ -331,7 +331,7 @@ async def process_json_parsed_event(event: JSONParsedEvent):
     except Exception as e:
         logger.error(f"Chunking failed: {e}")
         await publish_chunking_failed_event(
-            message_ids=event.data.parsed_message_ids,
+            message_keys=event.data.message_keys,
             error=str(e)
         )
         raise

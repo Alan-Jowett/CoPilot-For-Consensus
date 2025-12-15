@@ -263,11 +263,14 @@ class FixedSizeChunker(ThreadChunker):
                 for msg in chunk_messages
             )
             
+            # Require message_key on each message; fail fast if missing to avoid ambiguous IDs
+            missing_keys = [msg for msg in chunk_messages if not msg.get("message_key")]
+            if missing_keys:
+                raise ValueError("message_key is required for each message when chunking explicit messages")
+
             # Combine metadata from all messages
             combined_metadata = thread.metadata.copy()
-            combined_metadata["message_ids"] = [
-                msg.get("message_id") for msg in chunk_messages if msg.get("message_id")
-            ]
+            combined_metadata["message_keys"] = [msg["message_key"] for msg in chunk_messages]
             combined_metadata["message_count"] = len(chunk_messages)
             
             token_count = len(chunk_text.split())

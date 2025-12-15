@@ -11,7 +11,7 @@
         "data": {
           "type": "object",
           "properties": {
-            "message_ids": {
+            "message_keys": {
               "type": "array",
               "items": { "type": "string", "minLength": 1 },
               "minItems": 1,
@@ -29,7 +29,7 @@
             "avg_chunk_size_tokens": { "type": "integer", "minimum": 0 }
           },
           "required": [
-            "message_ids",
+            "message_keys",
             "chunk_count",
             "chunk_ids",
             "chunks_ready",

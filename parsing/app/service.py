@@ -197,10 +197,26 @@ class ParsingService:
                 )
             
             # Publish JSONParsed event
+            # Build deduplicated message_keys for event payload
+            seen_keys = set()
+            message_keys = []
+            for msg in parsed_messages:
+                from_field = msg.get("from") or {}
+                key = msg.get("message_key") or generate_message_key(
+                    archive_id=msg.get("archive_id", archive_id),
+                    message_id=msg.get("message_id", ""),
+                    date=msg.get("date"),
+                    sender_email=from_field.get("email"),
+                    subject=msg.get("subject"),
+                )
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    message_keys.append(key)
+
             self._publish_json_parsed(
                 archive_id,
                 len(parsed_messages),
-                [msg["message_id"] for msg in parsed_messages],
+                message_keys,
                 len(threads),
                 [thread["thread_id"] for thread in threads],
                 duration,
@@ -285,11 +301,12 @@ class ParsingService:
             try:
                 # Compute message_key if not already present
                 if "message_key" not in message:
+                    from_field = message.get("from") or {}
                     message["message_key"] = generate_message_key(
                         archive_id=message.get("archive_id", ""),
                         message_id=message.get("message_id", ""),
                         date=message.get("date"),
-                        sender_email=message.get("from", {}).get("email"),
+                        sender_email=from_field.get("email"),
                         subject=message.get("subject"),
                     )
                 
@@ -385,7 +402,7 @@ class ParsingService:
         self,
         archive_id: str,
         message_count: int,
-        parsed_message_ids: list,
+        message_keys: list,
         thread_count: int,
         thread_ids: list,
         duration: float,
@@ -395,7 +412,7 @@ class ParsingService:
         Args:
             archive_id: Archive identifier
             message_count: Number of messages parsed
-            parsed_message_ids: List of message IDs
+            message_keys: List of message_keys (deduplicated)
             thread_count: Number of threads created
             thread_ids: List of thread IDs
             duration: Parsing duration in seconds
@@ -404,7 +421,7 @@ class ParsingService:
             data={
                 "archive_id": archive_id,
                 "message_count": message_count,
-                "parsed_message_ids": parsed_message_ids,
+                "message_keys": message_keys,
                 "thread_count": thread_count,
                 "thread_ids": thread_ids,
                 "parsing_duration_seconds": duration,

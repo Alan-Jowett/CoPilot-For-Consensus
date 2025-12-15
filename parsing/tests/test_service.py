@@ -649,7 +649,7 @@ def test_publish_json_parsed_with_publisher_failure(document_store):
         service._publish_json_parsed(
             archive_id="test-archive",
             message_count=10,
-            parsed_message_ids=["msg-1", "msg-2"],
+            message_keys=["msg-1", "msg-2"],
             thread_count=5,
             thread_ids=["thread-1"],
             duration=1.5

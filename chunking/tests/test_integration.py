@@ -56,7 +56,7 @@ def test_end_to_end_chunking(document_store):
     # Process messages
     event_data = {
         "archive_id": messages[0]["archive_id"],
-        "parsed_message_ids": ["<test@example.com>"],
+            "message_keys": ["msgkey-0000000001"],
     }
     
     service.process_messages(event_data)
@@ -126,7 +126,7 @@ def test_different_chunking_strategies(document_store):
         # Process messages
         event_data = {
             "archive_id": messages[0]["archive_id"],
-            "parsed_message_ids": [f"<test-{strategy_name}@example.com>"],
+            "message_keys": ["msgkey-0000000002"],
         }
         
         service.process_messages(event_data)
@@ -179,7 +179,7 @@ def test_oversize_message_handling(document_store):
     # Process messages
     event_data = {
         "archive_id": messages[0]["archive_id"],
-        "parsed_message_ids": ["<large@example.com>"],
+        "message_keys": ["msgkey-0000000003"],
     }
     
     service.process_messages(event_data)

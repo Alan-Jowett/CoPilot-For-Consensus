@@ -125,7 +125,7 @@ class JSONParsedEvent(BaseEvent):
     Data fields:
         archive_id: Archive that was parsed
         message_count: Number of messages parsed
-        parsed_message_ids: List of message IDs
+        message_keys: List of message_keys (deterministic IDs)
         thread_count: Number of threads identified
         thread_ids: List of thread IDs (root message IDs)
         parsing_duration_seconds: Time taken to parse
@@ -169,7 +169,7 @@ class ChunksPreparedEvent(BaseEvent):
     Routing Key: chunks.prepared
     
     Data fields:
-        message_ids: List of source message IDs that were chunked
+        message_keys: List of source message keys that were chunked
         chunk_count: Total number of chunks created
         chunk_ids: List of chunk hash identifiers
         chunks_ready: Whether chunks are ready for embedding
@@ -189,7 +189,7 @@ class ChunkingFailedEvent(BaseEvent):
     Routing Key: chunks.failed
     
     Data fields:
-        message_ids: Messages that failed to be chunked
+        message_keys: Messages that failed to be chunked
         error_message: Human-readable error description
         error_type: Error classification
         retry_count: Number of retry attempts made
