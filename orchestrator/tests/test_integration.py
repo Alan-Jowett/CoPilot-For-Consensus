@@ -246,7 +246,7 @@ def test_orchestration_with_multiple_threads(service, document_store):
     # Insert corresponding messages
     for i in range(1, 4):
         document_store.insert_document("messages", {
-            "message_key": f"m2a2b3c4d5e6f7{i:02d}",
+            "message_key": f"m2a2b3c4d5e6f7{i:02x}",
             "message_id": f"<msg-{i}@example.com>",
             "archive_id": "a1b2c3d4e5f67890",
             "thread_id": f"<thread-{1 if i != 2 else 2}@example.com>",
