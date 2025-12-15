@@ -78,7 +78,10 @@
       "id": 1,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom"
         },
@@ -88,7 +91,7 @@
       },
       "targets": [
         {
-          "expr": "rate(container_cpu_usage_seconds_total{name=~\"copilot-.*\"}[5m]) * 100",
+          "expr": "rate(container_cpu_usage_seconds_total{name=~\"copilot-for-consensus-.*\"}[5m]) * 100",
           "refId": "A",
           "legendFormat": "{{name}}"
         }
@@ -156,7 +159,10 @@
       "id": 2,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom"
         },
@@ -166,7 +172,7 @@
       },
       "targets": [
         {
-          "expr": "container_memory_usage_bytes{name=~\"copilot-.*\"} / 1024 / 1024",
+          "expr": "container_memory_usage_bytes{name=~\"copilot-for-consensus-.*\"} / 1024 / 1024",
           "refId": "A",
           "legendFormat": "{{name}}"
         }
@@ -217,7 +223,9 @@
         "orientation": "horizontal",
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "showThresholdLabels": false,
@@ -226,7 +234,7 @@
       },
       "targets": [
         {
-          "expr": "(container_memory_usage_bytes{name=~\"copilot-.*\"} / container_spec_memory_limit_bytes{name=~\"copilot-.*\"}) * 100",
+          "expr": "(container_memory_usage_bytes{name=~\"copilot-for-consensus-.*\"} / container_spec_memory_limit_bytes{name=~\"copilot-for-consensus-.*\"}) * 100",
           "refId": "A",
           "legendFormat": "{{name}}"
         }
@@ -299,7 +307,7 @@
       },
       "targets": [
         {
-          "expr": "changes(container_start_time_seconds{name=~\"copilot-.*\"}[1h])",
+          "expr": "changes(container_start_time_seconds{name=~\"copilot-for-consensus-.*\"}[1h])",
           "refId": "A",
           "format": "table",
           "instant": true
@@ -379,7 +387,10 @@
       "id": 5,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom"
         },
@@ -389,12 +400,12 @@
       },
       "targets": [
         {
-          "expr": "rate(container_network_receive_bytes_total{name=~\"copilot-.*\"}[5m])",
+          "expr": "rate(container_network_receive_bytes_total{name=~\"copilot-for-consensus-.*\"}[5m])",
           "refId": "A",
           "legendFormat": "{{name}} RX"
         },
         {
-          "expr": "rate(container_network_transmit_bytes_total{name=~\"copilot-.*\"}[5m])",
+          "expr": "rate(container_network_transmit_bytes_total{name=~\"copilot-for-consensus-.*\"}[5m])",
           "refId": "B",
           "legendFormat": "{{name}} TX"
         }
@@ -510,31 +521,31 @@
       },
       "targets": [
         {
-          "expr": "rate(container_cpu_usage_seconds_total{name=~\"copilot-.*\"}[5m]) * 100",
+          "expr": "rate(container_cpu_usage_seconds_total{name=~\"copilot-for-consensus-.*\"}[5m]) * 100",
           "refId": "A",
           "format": "table",
           "instant": true
         },
         {
-          "expr": "container_memory_usage_bytes{name=~\"copilot-.*\"} / 1024 / 1024",
+          "expr": "container_memory_usage_bytes{name=~\"copilot-for-consensus-.*\"} / 1024 / 1024",
           "refId": "B",
           "format": "table",
           "instant": true
         },
         {
-          "expr": "rate(container_network_receive_bytes_total{name=~\"copilot-.*\"}[5m])",
+          "expr": "rate(container_network_receive_bytes_total{name=~\"copilot-for-consensus-.*\"}[5m])",
           "refId": "C",
           "format": "table",
           "instant": true
         },
         {
-          "expr": "rate(container_network_transmit_bytes_total{name=~\"copilot-.*\"}[5m])",
+          "expr": "rate(container_network_transmit_bytes_total{name=~\"copilot-for-consensus-.*\"}[5m])",
           "refId": "D",
           "format": "table",
           "instant": true
         },
         {
-          "expr": "changes(container_start_time_seconds{name=~\"copilot-.*\"}[1h])",
+          "expr": "changes(container_start_time_seconds{name=~\"copilot-for-consensus-.*\"}[1h])",
           "refId": "E",
           "format": "table",
           "instant": true
@@ -637,7 +648,10 @@
       "id": 7,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom"
         },
@@ -647,7 +661,7 @@
       },
       "targets": [
         {
-          "expr": "deriv(container_memory_usage_bytes{name=~\"copilot-.*\"}[5m])",
+          "expr": "deriv(container_memory_usage_bytes{name=~\"copilot-for-consensus-.*\"}[5m])",
           "refId": "A",
           "legendFormat": "{{name}}"
         }
@@ -707,7 +721,10 @@
       "id": 8,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom"
         },
@@ -717,12 +734,12 @@
       },
       "targets": [
         {
-          "expr": "rate(container_fs_reads_bytes_total{name=~\"copilot-.*\"}[5m])",
+          "expr": "rate(container_fs_reads_bytes_total{name=~\"copilot-for-consensus-.*\"}[5m])",
           "refId": "A",
           "legendFormat": "{{name}} Read"
         },
         {
-          "expr": "rate(container_fs_writes_bytes_total{name=~\"copilot-.*\"}[5m])",
+          "expr": "rate(container_fs_writes_bytes_total{name=~\"copilot-for-consensus-.*\"}[5m])",
           "refId": "B",
           "legendFormat": "{{name}} Write"
         }
@@ -783,7 +800,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "showThresholdLabels": false,
@@ -792,7 +811,7 @@
       },
       "targets": [
         {
-          "expr": "up{job=~\"copilot-.*\"}",
+          "expr": "up{job=\"copilot-services\"}",
           "refId": "A",
           "legendFormat": "{{job}}"
         }
