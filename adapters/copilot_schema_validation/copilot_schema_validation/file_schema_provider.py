@@ -34,11 +34,16 @@ class FileSchemaProvider(SchemaProvider):
 
         self.schema_dir = Path(schema_dir)
         if not self.schema_dir.exists():
-            logger.warning(f"Schema directory does not exist: {self.schema_dir}")
-            self.schema_dir = None
-        else:
-            logger.info(f"Loading schemas from: {self.schema_dir}")
-
+            error_msg = f"Schema directory does not exist: {self.schema_dir}"
+            logger.error(error_msg)
+            raise FileNotFoundError(error_msg)
+        
+        if not self.schema_dir.is_dir():
+            error_msg = f"Schema path is not a directory: {self.schema_dir}"
+            logger.error(error_msg)
+            raise NotADirectoryError(error_msg)
+        
+        logger.info(f"Loading schemas from: {self.schema_dir}")
         self._schema_cache: Dict[str, Dict] = {}
 
     def get_schema(self, event_type: str) -> Optional[Dict]:
@@ -50,10 +55,6 @@ class FileSchemaProvider(SchemaProvider):
         Returns:
             The JSON schema as a dictionary, or None if not found
         """
-        if self.schema_dir is None:
-            logger.error("Schema directory is not available")
-            return None
-
         # Check cache first
         if event_type in self._schema_cache:
             return self._schema_cache[event_type]
@@ -83,9 +84,6 @@ class FileSchemaProvider(SchemaProvider):
         Returns:
             List of event type names
         """
-        if self.schema_dir is None:
-            return []
-
         event_types = []
         try:
             for schema_file in self.schema_dir.glob("*.schema.json"):
