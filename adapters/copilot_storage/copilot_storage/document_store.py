@@ -143,7 +143,7 @@ def create_document_store(
     
     # Auto-detect store type from environment if not provided
     if store_type is None:
-        raise ValueError("store_type must be provided")
+        store_type = os.getenv("DOCUMENT_STORE_TYPE", "inmemory")
     
     if store_type == "mongodb":
         from .mongo_document_store import MongoDocumentStore
