@@ -20,6 +20,7 @@ This repository uses GitHub Copilot to assist with code suggestions, documentati
 
 - Use Copilot for code completion, documentation, and refactoring.
 - Review Copilot suggestions before committing.
+- When committing changes, use `git commit -sm "<message>"` to include the sign-off.
 - Report issues or unexpected behavior in the issues section.
 
 ### Maintainers
@@ -52,6 +53,7 @@ For more information, see [CONTRIBUTING.md](documents/CONTRIBUTING.md) and [CODE
 ### What Copilot Should Do
 
 - Prefer PRs over direct pushes and ensure CI passes, especially `Test Docker Compose`.
+- When changing an adapter or service, run the corresponding CI-equivalent test suite locally; if uncertain which one applies, run all adapter and service CI test suites locally.
 - Include tests and coverage for changes in adapters/services; use `-m integration` marks appropriately.
 - Respect lint (`flake8`, `pylint`) and security (`bandit`) standards.
 - Update or add Dockerfiles and compose services cautiously; CI will validate health endpoints.
