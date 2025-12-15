@@ -288,8 +288,8 @@ class ChunkingService:
         chunk_docs = []
         for chunk in chunks:
             chunk_doc = {
+                "chunk_key": chunk.chunk_id,
                 "chunk_id": chunk.chunk_id,
-                # "chunk_key" removed: chunk_id IS the chunk_key (SHA256 hash)
                 "message_key": chunk.message_key,
                 "message_id": message_id,
                 "thread_id": message.get("thread_id"),
