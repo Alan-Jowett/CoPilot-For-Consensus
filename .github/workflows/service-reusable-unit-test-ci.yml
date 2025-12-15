@@ -7,6 +7,9 @@ permissions:
   checks: write
   pull-requests: write
 
+permissions:
+  contents: read
+
 on:
   workflow_call:
     inputs:
