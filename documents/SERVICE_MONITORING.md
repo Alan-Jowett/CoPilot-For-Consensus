@@ -186,7 +186,7 @@ docker compose --profile monitoring-extra up -d cadvisor
 
 ### Monitoring Queries (Prometheus)
 - Vector count: `qdrant_collection_vectors_count{collection="embeddings"}`
-- Growth rate: `rate(qdrant_collection_vectors_count{collection="embeddings"}[5m])`
+- Growth rate: `deriv(qdrant_collection_vectors_count{collection="embeddings"}[5m])`
 - Storage size: `qdrant_collection_size_bytes{collection="embeddings"}`
 - Memory usage: `qdrant_memory_usage_bytes`
 - Scrape errors: `rate(qdrant_scrape_errors_total[5m])`
@@ -264,7 +264,7 @@ Use these signals to see whether a mail archive was ingested and where it is in 
   - Chunking: logs indicating chunks emitted; chunking queue drains while embedding queue fills.
   - Embedding: logs for vector creation; embedding queue drains; vector store writes succeed (check logs/metrics if emitted).
     - **Verify vectors stored**: Check `qdrant_collection_vectors_count{collection="embeddings"}` in Grafana or Prometheus
-    - **Growth rate**: Monitor `rate(qdrant_collection_vectors_count[5m])` to confirm active ingestion
+    - **Growth rate**: Monitor `deriv(qdrant_collection_vectors_count{collection="embeddings"}[5m])` to confirm active ingestion
   - Summarization: logs for summary generation per thread/batch; queue drains accordingly.
   - Reporting: logs for report generation or delivery; reporting queue drains; final outputs written/stored.
 
