@@ -37,6 +37,16 @@ This guide explains how to monitor and troubleshoot the services in this reposit
   - **Queue Status** - RabbitMQ queue depths and throughput
   - **Failed Queues** - Failed message monitoring and alerting
   - **MongoDB Document Store Status** - Document counts, storage, and MongoDB performance
+- Pre-configured Dashboards:
+  - **System Health**: Service uptime and basic health metrics (Prometheus)
+  - **Service Metrics**: Detailed service performance metrics (Prometheus)
+  - **Queue Status**: RabbitMQ queue depths and message flow (Prometheus)
+  - **Failed Queues**: Failed message queue monitoring (Prometheus)
+  - **Logs Overview**: Error and warning tracking across all services (Loki)
+    - Error/warning counts per service (last 1h)
+    - Live error and warning log streams
+    - Error rate trends over time
+    - Top services by error count
 - Logs via Grafana Explore (Loki):
   - Data source: Loki
   - Basic query: `{container="<service>"}`

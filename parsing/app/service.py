@@ -138,6 +138,10 @@ class ParsingService:
                 # No messages parsed
                 error_msg = f"No messages parsed from archive. Errors: {errors}"
                 logger.warning(error_msg)
+                
+                # Update archive status to 'failed'
+                self._update_archive_status(archive_id, "failed", 0)
+                
                 self._publish_parsing_failed(
                     archive_id,
                     file_path,
@@ -159,6 +163,9 @@ class ParsingService:
             if threads:
                 self._store_threads(threads)
                 logger.info(f"Created {len(threads)} threads")
+            
+            # Update archive status to 'processed'
+            self._update_archive_status(archive_id, "processed", len(parsed_messages))
             
             # Calculate duration
             duration = time.time() - start_time
@@ -207,6 +214,9 @@ class ParsingService:
         except Exception as e:
             duration = time.time() - start_time
             logger.error(f"Failed to parse archive {archive_id} after {duration:.2f}s: {e}", exc_info=True)
+            
+            # Update archive status to 'failed'
+            self._update_archive_status(archive_id, "failed", 0)
             
             # Collect metrics
             if self.metrics_collector:
@@ -318,6 +328,46 @@ class ParsingService:
         
         if skipped_count > 0:
             logger.info(f"Stored {stored_count} threads, skipped {skipped_count} (duplicates/validation)")
+
+    def _update_archive_status(self, archive_id: str, status: str, message_count: int):
+        """Update archive status in document store.
+        
+        Args:
+            archive_id: Archive identifier
+            status: New status (e.g., 'processed', 'failed')
+            message_count: Number of messages parsed from archive
+            
+        Note:
+            - Best-effort update - logs warnings but doesn't raise on failure
+            - This allows parsing to continue even if archive record doesn't exist
+        """
+        try:
+            self.document_store.update_document(
+                "archives",
+                archive_id,
+                {
+                    "status": status,
+                    "message_count": message_count,
+                }
+            )
+            logger.info(f"Updated archive {archive_id} status to '{status}' with {message_count} messages")
+        except Exception as e:
+            # Log but don't raise - archive status update is not critical
+            # The parsing can succeed even if the archive record doesn't exist
+            logger.warning(
+                f"Failed to update archive {archive_id} status: {e}",
+                exc_info=True,
+            )
+            if self.error_reporter:
+                self.error_reporter.report(
+                    e,
+                    context={
+                        "operation": "update_archive_status",
+                        "archive_id": archive_id,
+                        "status": status,
+                        "message_count": message_count,
+                    }
+                )
 
     def _publish_json_parsed(
         self,
