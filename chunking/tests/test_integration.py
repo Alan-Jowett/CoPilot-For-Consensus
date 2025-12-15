@@ -5,14 +5,11 @@
 
 import pytest
 from datetime import datetime, timezone
-from pathlib import Path
 from unittest.mock import Mock
 import uuid
 
 from app.service import ChunkingService
 from copilot_chunking import TokenWindowChunker, create_chunker
-from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
-from copilot_schema_validation import FileSchemaProvider
 
 
 @pytest.mark.integration

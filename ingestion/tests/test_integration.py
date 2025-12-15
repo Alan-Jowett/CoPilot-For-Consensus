@@ -75,10 +75,12 @@ class TestIngestionIntegration:
         )
 
         # Create publisher and service
+        from pathlib import Path
         base_publisher = NoopPublisher()
         base_publisher.connect()
         # Wrap with schema validation for events
-        schema_provider = FileSchemaProvider()
+        schema_dir = Path(__file__).parent.parent.parent / "documents" / "schemas" / "events"
+        schema_provider = FileSchemaProvider(schema_dir=schema_dir)
         publisher = ValidatingEventPublisher(
             publisher=base_publisher,
             schema_provider=schema_provider,
