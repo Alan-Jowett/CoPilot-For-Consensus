@@ -10,7 +10,7 @@
       "maxLength": 64,
       "description": "Deterministic SHA256 hash of (message_key|chunk_index) for guaranteed uniqueness per message"
     },
-    "chunk_id": { "type": "string", "minLength": 16, "description": "Deprecated: use chunk_key for uniqueness" },
+    "chunk_id": { "type": "string", "minLength": 16, "description": "Transitional field: use chunk_key as the unique identifier. chunk_id is kept for backward compatibility but chunk_key should be preferred for new code." },
     "message_key": { "type": "string", "minLength": 16, "description": "Reference to parent message's message_key" },
     "message_id": { "type": "string", "minLength": 1 },
     "thread_id": { "type": "string", "minLength": 1 },

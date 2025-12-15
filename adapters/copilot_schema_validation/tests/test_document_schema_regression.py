@@ -155,7 +155,6 @@ class TestThreadSchemaRegression:
     def test_thread_with_null_first_message_date(self, threads_schema, document_schema_provider):
         """Test that a thread with null first_message_date is valid."""
         thread = {
-            "message_key": "a1b2c3d4e5f6789a",
             "thread_id": "thread-1",
             "archive_id": "a1b2c3d4e5f67890",
             "first_message_date": None,
@@ -170,7 +169,6 @@ class TestThreadSchemaRegression:
     def test_thread_with_null_last_message_date(self, threads_schema, document_schema_provider):
         """Test that a thread with null last_message_date is valid."""
         thread = {
-            "message_key": "a1b2c3d4e5f6789a",
             "thread_id": "thread-1",
             "archive_id": "a1b2c3d4e5f67890",
             "first_message_date": "2025-01-01T00:00:00Z",
@@ -185,7 +183,6 @@ class TestThreadSchemaRegression:
     def test_thread_with_null_consensus_type(self, threads_schema, document_schema_provider):
         """Test that a thread with null consensus_type is valid."""
         thread = {
-            "message_key": "a1b2c3d4e5f6789a",
             "thread_id": "thread-1",
             "archive_id": "a1b2c3d4e5f67890",
             "consensus_type": None,
@@ -199,7 +196,6 @@ class TestThreadSchemaRegression:
     def test_thread_with_null_summary_id(self, threads_schema, document_schema_provider):
         """Test that a thread with null summary_id is valid."""
         thread = {
-            "message_key": "a1b2c3d4e5f6789a",
             "thread_id": "thread-1",
             "archive_id": "a1b2c3d4e5f67890",
             "summary_id": None,
@@ -213,7 +209,6 @@ class TestThreadSchemaRegression:
     def test_thread_without_optional_date_fields(self, threads_schema, document_schema_provider):
         """Test that a thread without first/last_message_date fields is valid."""
         thread = {
-            "message_key": "a1b2c3d4e5f6789a",
             "thread_id": "thread-1",
             "archive_id": "a1b2c3d4e5f67890",
             "has_consensus": False,
