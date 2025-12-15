@@ -62,7 +62,7 @@ class FileSchemaProvider(SchemaProvider):
         # Try to load from file
         schema_file = self.schema_dir / f"{event_type}.schema.json"
         if not schema_file.exists():
-            logger.warning(f"Schema file not found: {schema_file}")
+            logger.debug(f"Schema file not found: {schema_file}")
             return None
 
         try:
