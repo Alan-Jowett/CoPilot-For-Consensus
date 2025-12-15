@@ -20,20 +20,20 @@ class Chunk:
     
     Attributes:
         chunk_id: Unique identifier for the chunk (SHA256 hash)
-        message_key: Parent message's message_key (SHA256 hash)
         text: The actual text content of the chunk
         chunk_index: Sequential position within the source (0-based)
         token_count: Number of tokens in the chunk
         metadata: Additional context information (sender, date, subject, etc.)
+        message_key: Parent message's message_key (SHA256 hash), optional
         start_offset: Character offset in original text (optional)
         end_offset: End character offset in original text (optional)
     """
     chunk_id: str
-    message_key: str
     text: str
     chunk_index: int
     token_count: int
     metadata: Dict[str, Any]
+    message_key: str = ""
     start_offset: Optional[int] = None
     end_offset: Optional[int] = None
 
@@ -44,15 +44,15 @@ class Thread:
     
     Attributes:
         thread_id: Unique identifier for the thread
-        message_key: Message key (SHA256 hash) for tracking
         text: The text content to chunk (can be a single message or thread)
         metadata: Context information (sender, date, subject, etc.)
+        message_key: Message key (SHA256 hash) for tracking, optional
         messages: Optional list of individual messages in the thread
     """
     thread_id: str
-    message_key: str
     text: str
     metadata: Dict[str, Any]
+    message_key: str = ""
     messages: Optional[List[Dict[str, Any]]] = None
 
 
