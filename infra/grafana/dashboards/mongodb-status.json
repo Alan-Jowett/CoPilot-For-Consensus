@@ -58,7 +58,10 @@
       "id": 1,
       "options": {
         "legend": {
-          "calcs": ["last", "max"],
+          "calcs": [
+            "last",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom"
         },
@@ -114,7 +117,7 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "axisLabel": "Documents/sec",
+            "axisLabel": "Documents/sec (slope)",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
@@ -156,7 +159,10 @@
       "id": 2,
       "options": {
         "legend": {
-          "calcs": ["last", "max"],
+          "calcs": [
+            "last",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom"
         },
@@ -166,27 +172,27 @@
       },
       "targets": [
         {
-          "expr": "rate(copilot_collection_document_count{collection=\"archives\"}[5m])",
+          "expr": "deriv(copilot_collection_document_count{collection=\"archives\"}[5m])",
           "refId": "A",
           "legendFormat": "Archives"
         },
         {
-          "expr": "rate(copilot_collection_document_count{collection=\"messages\"}[5m])",
+          "expr": "deriv(copilot_collection_document_count{collection=\"messages\"}[5m])",
           "refId": "B",
           "legendFormat": "Messages"
         },
         {
-          "expr": "rate(copilot_collection_document_count{collection=\"chunks\"}[5m])",
+          "expr": "deriv(copilot_collection_document_count{collection=\"chunks\"}[5m])",
           "refId": "C",
           "legendFormat": "Chunks"
         },
         {
-          "expr": "rate(copilot_collection_document_count{collection=\"summaries\"}[5m])",
+          "expr": "deriv(copilot_collection_document_count{collection=\"summaries\"}[5m])",
           "refId": "D",
           "legendFormat": "Summaries"
         },
         {
-          "expr": "rate(copilot_collection_document_count{collection=\"reports\"}[5m])",
+          "expr": "deriv(copilot_collection_document_count{collection=\"reports\"}[5m])",
           "refId": "E",
           "legendFormat": "Reports"
         }
@@ -237,7 +243,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "showThresholdLabels": false,
@@ -304,7 +312,9 @@
       "id": 4,
       "options": {
         "legend": {
-          "calcs": ["last"],
+          "calcs": [
+            "last"
+          ],
           "displayMode": "table",
           "placement": "bottom"
         },
@@ -314,7 +324,7 @@
       },
       "targets": [
         {
-          "expr": "mongodb_dbstats_storageSize{database=\"copilot\"}",
+          "expr": "mongodb_collstats_storageSize{db=\"copilot\"}",
           "refId": "A",
           "legendFormat": "{{collection}}"
         }
@@ -361,7 +371,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "showThresholdLabels": false,
@@ -428,7 +440,10 @@
       "id": 6,
       "options": {
         "legend": {
-          "calcs": ["last", "max"],
+          "calcs": [
+            "last",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom"
         },
@@ -524,7 +539,10 @@
       "id": 7,
       "options": {
         "legend": {
-          "calcs": ["last", "max"],
+          "calcs": [
+            "last",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom"
         },
@@ -534,17 +552,17 @@
       },
       "targets": [
         {
-          "expr": "rate(mongodb_ss_opLatencies_latency{op_type=\"reads\"}[5m]) / 1000",
+          "expr": "rate(mongodb_ss_opLatencies_latency{op_type=\"reads\"}[5m]) / rate(mongodb_ss_opLatencies_ops{op_type=\"reads\"}[5m]) / 1000",
           "refId": "A",
           "legendFormat": "Read Latency"
         },
         {
-          "expr": "rate(mongodb_ss_opLatencies_latency{op_type=\"writes\"}[5m]) / 1000",
+          "expr": "rate(mongodb_ss_opLatencies_latency{op_type=\"writes\"}[5m]) / rate(mongodb_ss_opLatencies_ops{op_type=\"writes\"}[5m]) / 1000",
           "refId": "B",
           "legendFormat": "Write Latency"
         },
         {
-          "expr": "rate(mongodb_ss_opLatencies_latency{op_type=\"commands\"}[5m]) / 1000",
+          "expr": "rate(mongodb_ss_opLatencies_latency{op_type=\"commands\"}[5m]) / rate(mongodb_ss_opLatencies_ops{op_type=\"commands\"}[5m]) / 1000",
           "refId": "C",
           "legendFormat": "Command Latency"
         }
@@ -727,7 +745,11 @@
   ],
   "schemaVersion": 27,
   "style": "dark",
-  "tags": ["copilot", "mongodb", "document-store"],
+  "tags": [
+    "copilot",
+    "mongodb",
+    "document-store"
+  ],
   "templating": {
     "list": []
   },
