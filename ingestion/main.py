@@ -162,7 +162,7 @@ def main():
 
         # Wrap document store with validation layer
         document_store = ValidatingDocumentStore(
-            document_store=base_document_store,
+            store=base_document_store,
             schema_provider=schema_provider,
             strict=False,  # Log validation warnings but don't raise
         )
