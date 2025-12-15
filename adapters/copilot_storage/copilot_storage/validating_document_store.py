@@ -238,9 +238,7 @@ class ValidatingDocumentStore(DocumentStore):
     ) -> None:
         """Update a document with the provided patch.
 
-        Validates the patch against the schema before updating.
-        Note: This validates the patch itself, not the merged result.
-        For full validation, set validate_reads=True to validate on subsequent reads.
+        Validates the merged document (current document + patch) against the schema before updating.
 
         Args:
             collection: Name of the collection/table
@@ -251,10 +249,12 @@ class ValidatingDocumentStore(DocumentStore):
             DocumentValidationError: If strict=True and validation fails
             DocumentNotFoundError: If document does not exist
         """
-        # Validate patch
-        # Note: Ideally we'd validate the merged document, but that requires
-        # fetching the current document first. For now, we validate the patch.
-        is_valid, errors = self._validate_document(collection, patch)
+        # Fetch current document and merge with patch to validate the result
+        current_doc = self._store.get_document(collection, doc_id)
+        merged_doc = {**current_doc, **patch}
+        
+        # Validate the merged document
+        is_valid, errors = self._validate_document(collection, merged_doc)
 
         if not is_valid:
             self._handle_validation_failure(collection, errors)
