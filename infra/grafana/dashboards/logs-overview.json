@@ -391,7 +391,7 @@
           "instant": true
         }
       ],
-      "title": "Top Error Messages by Service (last 1h)",
+      "title": "Top Services by Error Count (last 1h)",
       "type": "table",
       "transformations": [
         {
