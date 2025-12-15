@@ -20,11 +20,35 @@ from copilot_events import (
 )
 from copilot_storage import DocumentStore
 from copilot_metrics import MetricsCollector
+from copilot_logging import Logger
 from copilot_reporting import ErrorReporter
 from copilot_schema_validation import generate_message_key
 
 from .parser import MessageParser
 from .thread_builder import ThreadBuilder
+
+
+def _ensure_message_key(message: Dict[str, Any], archive_id: str = "") -> str:
+    """Ensure message has a message_key, generating it if needed.
+    
+    Args:
+        message: Message dict that may or may not have message_key
+        archive_id: Archive ID to use if message doesn't have one
+        
+    Returns:
+        The message_key (either existing or newly generated)
+    """
+    if "message_key" in message:
+        return message["message_key"]
+    
+    from_field = message.get("from") or {}
+    return generate_message_key(
+        archive_id=message.get("archive_id", archive_id),
+        message_id=message.get("message_id", ""),
+        date=message.get("date"),
+        sender_email=from_field.get("email"),
+        subject=message.get("subject"),
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -201,14 +225,7 @@ class ParsingService:
             seen_keys = set()
             message_keys = []
             for msg in parsed_messages:
-                from_field = msg.get("from") or {}
-                key = msg.get("message_key") or generate_message_key(
-                    archive_id=msg.get("archive_id", archive_id),
-                    message_id=msg.get("message_id", ""),
-                    date=msg.get("date"),
-                    sender_email=from_field.get("email"),
-                    subject=msg.get("subject"),
-                )
+                key = _ensure_message_key(msg, archive_id)
                 if key not in seen_keys:
                     seen_keys.add(key)
                     message_keys.append(key)
@@ -301,14 +318,7 @@ class ParsingService:
             try:
                 # Compute message_key if not already present
                 if "message_key" not in message:
-                    from_field = message.get("from") or {}
-                    message["message_key"] = generate_message_key(
-                        archive_id=message.get("archive_id", ""),
-                        message_id=message.get("message_id", ""),
-                        date=message.get("date"),
-                        sender_email=from_field.get("email"),
-                        subject=message.get("subject"),
-                    )
+                    message["message_key"] = _ensure_message_key(message)
                 
                 self.document_store.insert_document("messages", message)
                 stored_count += 1
