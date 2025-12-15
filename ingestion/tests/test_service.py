@@ -35,6 +35,7 @@ class TestIngestionService:
     def service(self, config):
         """Create test ingestion service."""
         from pathlib import Path
+        from copilot_storage import InMemoryDocumentStore
         
         base_publisher = NoopPublisher()
         base_publisher.connect()
@@ -48,7 +49,18 @@ class TestIngestionService:
         )
         logger = create_logger(logger_type="silent", level="INFO", name="ingestion-test")
         metrics = NoOpMetricsCollector()
-        return IngestionService(config, publisher, logger=logger, metrics=metrics)
+        
+        # Create in-memory document store for testing
+        document_store = InMemoryDocumentStore()
+        document_store.connect()
+        
+        return IngestionService(
+            config,
+            publisher,
+            document_store=document_store,
+            logger=logger,
+            metrics=metrics,
+        )
 
     def test_service_initialization(self, service):
         """Test service initialization."""
@@ -97,6 +109,32 @@ class TestIngestionService:
 
             assert success is True
             assert len(service.checksums) == 1
+
+    def test_archives_collection_populated(self, service, temp_storage):
+        """Test that archives collection is populated after ingestion."""
+        with tempfile.TemporaryDirectory() as source_dir:
+            test_file = os.path.join(source_dir, "test.mbox")
+            with open(test_file, "w") as f:
+                f.write("From: test@example.com\nTo: dev@example.com\nSubject: Test\n\nContent")
+
+            source = make_source(name="test-source", url=test_file)
+
+            success = service.ingest_archive(source, max_retries=1)
+
+            assert success is True
+            
+            # Check that archives collection has one entry
+            archives = service.document_store.query_documents("archives", {})
+            assert len(archives) == 1
+            
+            # Verify archive document structure
+            archive = archives[0]
+            assert "archive_id" in archive
+            assert archive["source"] == "test-source"
+            assert archive["status"] == "pending"
+            assert archive["message_count"] == 0
+            assert "ingestion_date" in archive
+            assert "file_path" in archive
 
     def test_metrics_emitted_on_success(self, service, temp_storage):
         """Ensure metrics are emitted for successful ingestion."""

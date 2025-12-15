@@ -118,6 +118,14 @@ try {
     Write-Host '--- Checking service health ---' -ForegroundColor Cyan
     Wait-ForHealthy
 
+    Write-Host '--- Running ingestion batch job ---' -ForegroundColor Cyan
+    docker compose run --rm ingestion
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host 'Ingestion batch job failed.' -ForegroundColor Red
+        throw 'Ingestion service failed with exit code $LASTEXITCODE'
+    }
+    Write-Host 'Ingestion batch job completed successfully.' -ForegroundColor Green
+
     Write-Host '--- Sanity pass complete; tearing down ---' -ForegroundColor Cyan
     docker compose down -v
     Write-Host 'Cleanup complete.' -ForegroundColor Green
