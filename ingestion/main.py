@@ -15,7 +15,11 @@ from copilot_events import create_publisher, ValidatingEventPublisher
 from copilot_logging import create_logger
 from copilot_schema_validation import FileSchemaProvider
 from copilot_metrics import create_metrics_collector
-from copilot_storage import create_document_store, ValidatingDocumentStore
+from copilot_storage import (
+    create_document_store,
+    ValidatingDocumentStore,
+    DocumentStoreConnectionError,
+)
 
 from app import __version__
 from app.service import IngestionService, _enabled_sources
@@ -137,21 +141,24 @@ def main():
         )
 
         # Connect to document store
-        if not base_document_store.connect():
+        try:
+            base_document_store.connect()
+        except DocumentStoreConnectionError as e:
             if str(config.doc_store_type).lower() != "inmemory":
                 log.error(
                     "Failed to connect to document store. Failing fast as doc_store_type is not inmemory.",
                     host=config.doc_store_host,
                     port=config.doc_store_port,
                     doc_store_type=config.doc_store_type,
+                    error=str(e),
                 )
-                raise ConnectionError("Document store failed to connect")
-            else:
-                log.warning(
-                    "Failed to connect to document store. Continuing with inmemory store.",
-                    host=config.doc_store_host,
-                    port=config.doc_store_port,
-                )
+                raise
+            log.warning(
+                "Failed to connect to document store. Continuing with inmemory store.",
+                host=config.doc_store_host,
+                port=config.doc_store_port,
+                error=str(e),
+            )
 
         # Wrap document store with validation layer
         document_store = ValidatingDocumentStore(
