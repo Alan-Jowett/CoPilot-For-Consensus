@@ -225,7 +225,7 @@ class ParsingService:
             seen_keys = set()
             message_keys = []
             for msg in parsed_messages:
-                key = _ensure_message_key(msg, archive_id)
+                key = msg.get("message_key") or _ensure_message_key(msg, archive_id)
                 if key not in seen_keys:
                     seen_keys.add(key)
                     message_keys.append(key)
