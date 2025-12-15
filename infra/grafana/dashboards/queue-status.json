@@ -561,7 +561,7 @@
       ],
       "title": "MongoDB Document Counts (Time Series)",
       "type": "timeseries"
-    }
+    },
     {
       "datasource": "Prometheus",
       "fieldConfig": {
