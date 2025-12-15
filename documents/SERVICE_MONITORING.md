@@ -170,7 +170,7 @@ The **Pipeline Flow Visualization** dashboard provides a unified view for troubl
 
 **Scenario 2: High failure rate in embedding stage**
 1. Open the Pipeline Flow dashboard
-2. Check the "Success/Failure Ratio by Stage" table at the bottom
+2. Check the "Success/Failure Counts by Stage" table at the bottom
 3. If `embedding.generation.failed` queue has a high message count, this indicates systematic failures
 4. Look at the "Queue Depth by Stage" stacked area chart - you may see embedding queue draining but failed queue growing
 5. **Action**: Inspect embedding service logs for errors, check vector store (Qdrant) connectivity and health

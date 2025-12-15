@@ -491,7 +491,7 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "expr": "rate(rabbitmq_queue_messages_ready{queue=\"report.published\"}[5m])",
+          "expr": "rate(rabbitmq_queue_messages_delivered_total{queue=\"report.published\"}[5m])",
           "refId": "A"
         }
       ],
@@ -507,7 +507,7 @@
           },
           "custom": {
             "align": "auto",
-            "displayMode": "auto"
+            "displayMode": "color-background"
           },
           "mappings": [],
           "thresholds": {
@@ -516,6 +516,10 @@
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
               },
               {
                 "color": "red",
@@ -631,32 +635,32 @@
       },
       "targets": [
         {
-          "expr": "rate(rabbitmq_queue_messages_ready{queue=\"archive.ingested\"}[5m])",
+          "expr": "rate(rabbitmq_queue_messages_delivered_total{queue=\"archive.ingested\"}[5m])",
           "refId": "A",
           "legendFormat": "Ingestion → Parsing"
         },
         {
-          "expr": "rate(rabbitmq_queue_messages_ready{queue=\"json.parsed\"}[5m])",
+          "expr": "rate(rabbitmq_queue_messages_delivered_total{queue=\"json.parsed\"}[5m])",
           "refId": "B",
           "legendFormat": "Parsing → Chunking"
         },
         {
-          "expr": "rate(rabbitmq_queue_messages_ready{queue=\"chunks.prepared\"}[5m])",
+          "expr": "rate(rabbitmq_queue_messages_delivered_total{queue=\"chunks.prepared\"}[5m])",
           "refId": "C",
           "legendFormat": "Chunking → Embedding"
         },
         {
-          "expr": "rate(rabbitmq_queue_messages_ready{queue=\"embeddings.generated\"}[5m])",
+          "expr": "rate(rabbitmq_queue_messages_delivered_total{queue=\"embeddings.generated\"}[5m])",
           "refId": "D",
           "legendFormat": "Embedding → Summarization"
         },
         {
-          "expr": "rate(rabbitmq_queue_messages_ready{queue=\"summary.complete\"}[5m])",
+          "expr": "rate(rabbitmq_queue_messages_delivered_total{queue=\"summary.complete\"}[5m])",
           "refId": "E",
           "legendFormat": "Summarization → Reporting"
         },
         {
-          "expr": "rate(rabbitmq_queue_messages_ready{queue=\"report.published\"}[5m])",
+          "expr": "rate(rabbitmq_queue_messages_delivered_total{queue=\"report.published\"}[5m])",
           "refId": "F",
           "legendFormat": "Reporting Output"
         }
@@ -770,7 +774,7 @@
           },
           "custom": {
             "align": "auto",
-            "displayMode": "color-background"
+            "displayMode": "auto"
           },
           "mappings": [],
           "thresholds": {
@@ -781,17 +785,12 @@
                 "value": null
               },
               {
-                "color": "yellow",
-                "value": 0.01
-              },
-              {
                 "color": "red",
-                "value": 0.05
+                "value": 1
               }
             ]
           },
-          "unit": "percentunit",
-          "decimals": 2
+          "unit": "short"
         }
       },
       "gridPos": {
@@ -879,7 +878,7 @@
           "refId": "L"
         }
       ],
-      "title": "Success/Failure Ratio by Stage",
+      "title": "Success/Failure Counts by Stage",
       "transformations": [
         {
           "id": "merge",
