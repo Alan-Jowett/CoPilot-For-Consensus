@@ -314,7 +314,7 @@
       },
       "targets": [
         {
-          "expr": "mongodb_mongod_storage_size_bytes{database=\"copilot\"}",
+          "expr": "mongodb_dbstats_storageSize{database=\"copilot\"}",
           "refId": "A",
           "legendFormat": "{{collection}}"
         }
@@ -370,7 +370,7 @@
       },
       "targets": [
         {
-          "expr": "mongodb_connections{state=\"current\"}",
+          "expr": "mongodb_ss_connections{conn_type=\"current\"}",
           "refId": "A",
           "legendFormat": "Current Connections"
         }
@@ -438,27 +438,27 @@
       },
       "targets": [
         {
-          "expr": "rate(mongodb_mongod_op_counters_total{type=\"query\"}[5m])",
+          "expr": "rate(mongodb_ss_opcounters{legacy_op_type=\"query\"}[5m])",
           "refId": "A",
           "legendFormat": "Query"
         },
         {
-          "expr": "rate(mongodb_mongod_op_counters_total{type=\"insert\"}[5m])",
+          "expr": "rate(mongodb_ss_opcounters{legacy_op_type=\"insert\"}[5m])",
           "refId": "B",
           "legendFormat": "Insert"
         },
         {
-          "expr": "rate(mongodb_mongod_op_counters_total{type=\"update\"}[5m])",
+          "expr": "rate(mongodb_ss_opcounters{legacy_op_type=\"update\"}[5m])",
           "refId": "C",
           "legendFormat": "Update"
         },
         {
-          "expr": "rate(mongodb_mongod_op_counters_total{type=\"delete\"}[5m])",
+          "expr": "rate(mongodb_ss_opcounters{legacy_op_type=\"delete\"}[5m])",
           "refId": "D",
           "legendFormat": "Delete"
         },
         {
-          "expr": "rate(mongodb_mongod_op_counters_total{type=\"command\"}[5m])",
+          "expr": "rate(mongodb_ss_opcounters{legacy_op_type=\"command\"}[5m])",
           "refId": "E",
           "legendFormat": "Command"
         }
@@ -534,17 +534,17 @@
       },
       "targets": [
         {
-          "expr": "rate(mongodb_mongod_op_latencies_latency_total{type=\"reads\"}[5m]) / rate(mongodb_mongod_op_latencies_ops_total{type=\"reads\"}[5m]) / 1000",
+          "expr": "rate(mongodb_ss_opLatencies_latency{op_type=\"reads\"}[5m]) / 1000",
           "refId": "A",
           "legendFormat": "Read Latency"
         },
         {
-          "expr": "rate(mongodb_mongod_op_latencies_latency_total{type=\"writes\"}[5m]) / rate(mongodb_mongod_op_latencies_ops_total{type=\"writes\"}[5m]) / 1000",
+          "expr": "rate(mongodb_ss_opLatencies_latency{op_type=\"writes\"}[5m]) / 1000",
           "refId": "B",
           "legendFormat": "Write Latency"
         },
         {
-          "expr": "rate(mongodb_mongod_op_latencies_latency_total{type=\"commands\"}[5m]) / rate(mongodb_mongod_op_latencies_ops_total{type=\"commands\"}[5m]) / 1000",
+          "expr": "rate(mongodb_ss_opLatencies_latency{op_type=\"commands\"}[5m]) / 1000",
           "refId": "C",
           "legendFormat": "Command Latency"
         }
