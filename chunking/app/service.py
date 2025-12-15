@@ -177,7 +177,7 @@ class ChunkingService:
                         self.document_store.insert_document("chunks", chunk)
                         chunk_ids.append(chunk["chunk_id"])
                     except DuplicateKeyError:
-                        # Chunk already exists (idempotent retry) - skip silently
+                        # Chunk already exists (idempotent retry)
                         logger.debug(f"Chunk {chunk['chunk_id']} already exists, skipping")
                         chunk_ids.append(chunk["chunk_id"])  # Still include in output
                         skipped_duplicates += 1

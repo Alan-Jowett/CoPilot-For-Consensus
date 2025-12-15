@@ -408,7 +408,16 @@ class ParsingService:
         failed_publishes = []
         
         for message in parsed_messages:
+            # Validate required fields exist
             message_id = message.get("message_id")
+            if not message_id:
+                logger.error(f"Message missing 'message_id' field, skipping event publication")
+                failed_publishes.append((
+                    "unknown",
+                    ValueError("Message missing required 'message_id' field")
+                ))
+                continue
+            
             thread_id = message.get("thread_id")
             
             # Get thread info if this message is part of a thread
@@ -421,6 +430,7 @@ class ParsingService:
                     "parsed_message_ids": [message_id],  # Single-item array
                     "thread_count": len(thread_ids),
                     "thread_ids": thread_ids,
+                    # Note: This is the total archive parsing duration, not per-message
                     "parsing_duration_seconds": duration,
                 }
             )

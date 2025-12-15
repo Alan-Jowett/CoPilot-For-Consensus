@@ -116,7 +116,7 @@ The parsing service now publishes **one** `JSONParsed` event per message:
 
 If rollback is needed:
 
-1. Revert commits `766bdb3` and `c42a7a1`
+1. Revert to the commit before this change (see PR for specific commit hash)
 2. Redeploy parsing and chunking services
 3. No data cleanup required (idempotency ensures no duplicates)
 

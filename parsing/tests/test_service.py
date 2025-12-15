@@ -774,3 +774,39 @@ def test_handle_archive_ingested_with_publish_parsing_failed_failure(document_st
     # Should raise exception when publisher fails on parsing.failed event
     with pytest.raises(Exception):
         service._handle_archive_ingested(event)
+
+
+def test_publish_json_parsed_skips_messages_without_id(document_store):
+    """Test that _publish_json_parsed_per_message handles messages without message_id."""
+    mock_publisher = MockPublisher()
+    mock_publisher.connect()
+    
+    subscriber = NoopSubscriber()
+    subscriber.connect()
+    
+    service = ParsingService(
+        document_store=document_store,
+        publisher=mock_publisher,
+        subscriber=subscriber,
+    )
+    
+    # Create messages with one missing message_id
+    parsed_messages = [
+        {"message_id": "msg-1", "thread_id": "thread-1"},
+        {"thread_id": "thread-1"},  # Missing message_id
+        {"message_id": "msg-3", "thread_id": "thread-1"},
+    ]
+    threads = [{"thread_id": "thread-1"}]
+    
+    # Should raise exception due to invalid message
+    with pytest.raises(ValueError) as exc_info:
+        service._publish_json_parsed_per_message(
+            archive_id="test-archive",
+            parsed_messages=parsed_messages,
+            threads=threads,
+            duration=1.5
+        )
+    
+    assert "message_id" in str(exc_info.value)
+    # Should have attempted to publish for the valid messages before the error
+    assert len(mock_publisher.published_events) >= 1
