@@ -659,14 +659,20 @@ def test_publish_json_parsed_with_publisher_failure(document_store):
         subscriber=subscriber,
     )
     
-    # Should raise exception when publisher fails
+    # Should raise exception when publisher fails on any message
+    parsed_messages = [
+        {"message_id": "msg-1", "thread_id": "thread-1"},
+        {"message_id": "msg-2", "thread_id": "thread-1"},
+    ]
+    threads = [
+        {"thread_id": "thread-1"},
+    ]
+    
     with pytest.raises(Exception) as exc_info:
-        service._publish_json_parsed(
+        service._publish_json_parsed_per_message(
             archive_id="test-archive",
-            message_count=10,
-            parsed_message_ids=["msg-1", "msg-2"],
-            thread_count=5,
-            thread_ids=["thread-1"],
+            parsed_messages=parsed_messages,
+            threads=threads,
             duration=1.5
         )
     
