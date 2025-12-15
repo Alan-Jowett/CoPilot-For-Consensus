@@ -278,6 +278,7 @@ services:
     restart: unless-stopped
 
   qdrant-exporter:
+    profiles: ["monitoring-extra"]
     image: python:3.11-slim
     entrypoint: ["/bin/sh", "-c"]
     command:

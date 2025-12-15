@@ -59,7 +59,7 @@
         "reduceOptions": {
           "values": false,
           "calcs": [
-            "lastNotNull"
+            "last"
           ],
           "fields": ""
         },
@@ -69,9 +69,10 @@
       },
       "targets": [
         {
-          "expr": "qdrant_collection_vectors_count{collection=\"embeddings\"}",
+          "expr": "qdrant_collection_vectors_count{collection=\"$collection\"}",
           "refId": "A",
-          "legendFormat": "Embeddings"
+          "legendFormat": "Embeddings",
+          "instant": true
         }
       ],
       "title": "Embeddings Collection - Vector Count",
@@ -118,7 +119,7 @@
         "reduceOptions": {
           "values": false,
           "calcs": [
-            "lastNotNull"
+            "last"
           ],
           "fields": ""
         },
@@ -130,7 +131,8 @@
         {
           "expr": "qdrant_scrape_success",
           "refId": "A",
-          "legendFormat": "Scrape Status"
+          "legendFormat": "Scrape Status",
+          "instant": true
         }
       ],
       "title": "Qdrant Scrape Health",
@@ -173,7 +175,7 @@
         "reduceOptions": {
           "values": false,
           "calcs": [
-            "lastNotNull"
+            "last"
           ],
           "fields": ""
         },
@@ -183,9 +185,10 @@
       },
       "targets": [
         {
-          "expr": "qdrant_collection_indexed_vectors_count{collection=\"embeddings\"}",
+          "expr": "qdrant_collection_indexed_vectors_count{collection=\"$collection\"}",
           "refId": "A",
-          "legendFormat": "Indexed Vectors"
+          "legendFormat": "Indexed Vectors",
+          "instant": true
         }
       ],
       "title": "Embeddings - Indexed Vectors",
@@ -232,7 +235,7 @@
         "reduceOptions": {
           "values": false,
           "calcs": [
-            "lastNotNull"
+            "last"
           ],
           "fields": ""
         },
@@ -242,9 +245,10 @@
       },
       "targets": [
         {
-          "expr": "qdrant_collection_segments_count{collection=\"embeddings\"}",
+          "expr": "qdrant_collection_segments_count{collection=\"$collection\"}",
           "refId": "A",
-          "legendFormat": "Segments"
+          "legendFormat": "Segments",
+          "instant": true
         }
       ],
       "title": "Embeddings - Segments",
@@ -315,7 +319,7 @@
       },
       "targets": [
         {
-          "expr": "deriv(qdrant_collection_vectors_count{collection=\"embeddings\"}[5m])",
+          "expr": "deriv(qdrant_collection_vectors_count{collection=\"$collection\"}[5m])",
           "refId": "A",
           "legendFormat": "Embeddings Growth Rate"
         }
@@ -568,7 +572,7 @@
           "legendFormat": "Scrape Errors"
         }
       ],
-      "title": "Failed Operations",
+      "title": "Exporter Scrape Errors",
       "type": "timeseries"
     },
     {
@@ -612,7 +616,7 @@
         "reduceOptions": {
           "values": false,
           "calcs": [
-            "lastNotNull"
+            "last"
           ],
           "fields": ""
         },
@@ -624,7 +628,8 @@
         {
           "expr": "qdrant_memory_usage_bytes",
           "refId": "A",
-          "legendFormat": "Memory Usage"
+          "legendFormat": "Memory Usage",
+          "instant": true
         }
       ],
       "title": "Qdrant Memory Usage",
@@ -760,7 +765,33 @@
     "qdrant"
   ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "allValue": null,
+        "current": {
+          "selected": false,
+          "text": "embeddings",
+          "value": "embeddings"
+        },
+        "datasource": "Prometheus",
+        "definition": "label_values(qdrant_collection_vectors_count, collection)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Collection",
+        "multi": false,
+        "name": "collection",
+        "options": [],
+        "query": {
+          "query": "label_values(qdrant_collection_vectors_count, collection)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
   },
   "time": {
     "from": "now-1h",

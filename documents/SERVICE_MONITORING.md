@@ -171,9 +171,22 @@ docker compose --profile monitoring-extra up -d cadvisor
   - **Overview** to watch publish/ack rates.
 
 ## 5.1) Qdrant Vectorstore Monitoring
-- **Grafana Dashboard**: http://localhost:3000 → **Qdrant Vectorstore Status**
+- **Grafana Dashboard**: http://localhost:3000 → **Qdrant Vectorstore Status** (UID: `copilot-vectorstore-status`)
 - **Qdrant Web UI**: http://localhost:6333/dashboard (native Qdrant interface)
 - **Direct API**: http://localhost:6333 (REST API for collections, points, metrics)
+
+### Enabling the Exporter
+The Qdrant exporter is optional and uses the `monitoring-extra` compose profile to avoid CI dependencies:
+
+```bash
+# Start vectorstore monitoring (requires vectorstore to be running)
+docker compose --profile monitoring-extra up -d qdrant-exporter
+
+# Or start all services including monitoring
+docker compose --profile monitoring-extra up -d
+```
+
+**Note**: The exporter is not required for core functionality and won't impact CI builds.
 
 ### Key Metrics
 - **Vector Counts**: Total vectors stored per collection (primarily `embeddings` collection)
@@ -181,7 +194,7 @@ docker compose --profile monitoring-extra up -d cadvisor
 - **Storage Size**: Disk space consumed by vector collections
 - **Indexed Vectors**: Number of vectors with completed indexing
 - **Segments**: Internal storage segments per collection (indicates compaction status)
-- **Memory Usage**: Qdrant process memory consumption
+- **Memory Usage**: Qdrant process memory consumption (thresholds at ~800MB and 1GB are examples; tune to your deployment)
 - **Scrape Health**: Exporter connectivity and data freshness
 
 ### Monitoring Queries (Prometheus)
@@ -191,11 +204,13 @@ docker compose --profile monitoring-extra up -d cadvisor
 - Memory usage: `qdrant_memory_usage_bytes`
 - Scrape errors: `rate(qdrant_scrape_errors_total[5m])`
 
+**Dashboard Tip**: Use the `Collection` dropdown to switch between collections (default: `embeddings`).
+
 ### Troubleshooting
 - **No vectors appearing**: Check embedding service logs; verify Qdrant connectivity
-- **High memory usage**: Consider collection optimization or increasing resources
+- **High memory usage**: Consider collection optimization or increasing resources (adjust dashboard thresholds to match your limits)
 - **Many segments**: May indicate need for manual compaction
-- **Scrape failures**: Check qdrant-exporter logs (`docker compose logs qdrant-exporter`)
+- **Scrape failures**: Check qdrant-exporter logs (`docker compose --profile monitoring-extra logs qdrant-exporter`)
 - **Slow queries**: Review indexed vectors count; indexing may be lagging
 
 ### Direct Collection Inspection

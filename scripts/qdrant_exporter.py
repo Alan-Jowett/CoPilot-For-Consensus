@@ -33,6 +33,10 @@ PORT = int(os.environ.get("PORT", "9501"))
 INTERVAL = float(os.environ.get("SCRAPE_INTERVAL_SEC", "5"))
 QDRANT_BASE_URL = f"http://{QDRANT_HOST}:{QDRANT_PORT}"
 
+# Create a session with proper timeout configuration
+session = requests.Session()
+session.timeout = (3, 10)  # (connect timeout, read timeout)
+
 # Prometheus metrics
 vector_count_gauge = Gauge(
     "qdrant_collection_vectors_count",
@@ -86,7 +90,7 @@ qdrant_scrape_duration_seconds = Histogram(
 def get_collections() -> List[str]:
     """Get list of collection names from Qdrant."""
     try:
-        resp = requests.get(f"{QDRANT_BASE_URL}/collections", timeout=5)
+        resp = session.get(f"{QDRANT_BASE_URL}/collections")
         resp.raise_for_status()
         data = resp.json()
         
@@ -102,9 +106,8 @@ def get_collections() -> List[str]:
 def get_collection_info(collection_name: str) -> Dict[str, Any]:
     """Get detailed information about a specific collection."""
     try:
-        resp = requests.get(
-            f"{QDRANT_BASE_URL}/collections/{collection_name}",
-            timeout=5
+        resp = session.get(
+            f"{QDRANT_BASE_URL}/collections/{collection_name}"
         )
         resp.raise_for_status()
         data = resp.json()
@@ -144,22 +147,21 @@ def extract_metrics_from_collection_info(info: Dict[str, Any]) -> Dict[str, Any]
     if "segments_count" in info:
         metrics["segments_count"] = info["segments_count"]
     
-    # Storage size
-    # Check different possible locations for size info
-    if "config" in info and "optimizer_config" in info["config"]:
-        optimizer = info["config"]["optimizer_config"]
-        if "deleted_threshold" in optimizer:
-            pass  # Size not directly available in config
-    
-    # Try to get size from status
+    # Storage size - check for Qdrant 1.8+ location first
+    size_found = False
     if "status" in info:
         status = info["status"]
         if isinstance(status, dict):
-            # Size might be in different locations depending on Qdrant version
+            # Qdrant 1.8+ often provides disk_data_size in status
             for key in ["disk_data_size", "disk_size", "vectors_size"]:
                 if key in status:
                     metrics["disk_data_size"] = status[key]
+                    size_found = True
                     break
+    
+    if not size_found and metrics["vectors_count"] > 0:
+        # Log when size is missing for non-empty collections
+        print(f"Warning: disk_data_size not available for collection (Qdrant version may not expose this)")
     
     return metrics
 
@@ -167,7 +169,8 @@ def extract_metrics_from_collection_info(info: Dict[str, Any]) -> Dict[str, Any]
 def scrape_qdrant_metrics():
     """Scrape all Qdrant metrics and update Prometheus gauges."""
     start_time = time.time()
-    success = True
+    success = False
+    collections_scraped = 0
     
     try:
         # Get all collections
@@ -175,57 +178,74 @@ def scrape_qdrant_metrics():
         
         if not collections:
             print("No collections found or unable to fetch collections list")
-            # Don't treat empty collections as an error
-            # Could be a fresh install
-        
-        # Collect metrics for each collection
-        for collection_name in collections:
-            info = get_collection_info(collection_name)
-            metrics = extract_metrics_from_collection_info(info)
+            # Empty collections is acceptable but not a success
+            qdrant_scrape_success.set(0)
+        else:
+            # Collect metrics for each collection
+            for collection_name in collections:
+                info = get_collection_info(collection_name)
+                if info:  # Only count if we got valid info
+                    metrics = extract_metrics_from_collection_info(info)
+                    
+                    # Update Prometheus metrics
+                    vector_count_gauge.labels(collection=collection_name).set(
+                        metrics["vectors_count"]
+                    )
+                    collection_indexed_vectors.labels(collection=collection_name).set(
+                        metrics["indexed_vectors_count"]
+                    )
+                    collection_segments.labels(collection=collection_name).set(
+                        metrics["segments_count"]
+                    )
+                    collection_size_bytes.labels(collection=collection_name).set(
+                        metrics["disk_data_size"]
+                    )
+                    
+                    print(
+                        f"Collection '{collection_name}': "
+                        f"{metrics['vectors_count']} vectors, "
+                        f"{metrics['indexed_vectors_count']} indexed, "
+                        f"{metrics['segments_count']} segments, "
+                        f"{metrics['disk_data_size']} bytes"
+                    )
+                    collections_scraped += 1
             
-            # Update Prometheus metrics
-            vector_count_gauge.labels(collection=collection_name).set(
-                metrics["vectors_count"]
-            )
-            collection_indexed_vectors.labels(collection=collection_name).set(
-                metrics["indexed_vectors_count"]
-            )
-            collection_segments.labels(collection=collection_name).set(
-                metrics["segments_count"]
-            )
-            collection_size_bytes.labels(collection=collection_name).set(
-                metrics["disk_data_size"]
-            )
-            
-            print(
-                f"Collection '{collection_name}': "
-                f"{metrics['vectors_count']} vectors, "
-                f"{metrics['indexed_vectors_count']} indexed, "
-                f"{metrics['segments_count']} segments, "
-                f"{metrics['disk_data_size']} bytes"
-            )
+            # Only mark as success if we scraped at least one collection
+            if collections_scraped > 0:
+                success = True
+                qdrant_scrape_success.set(1)
+            else:
+                qdrant_scrape_success.set(0)
         
         # Try to get cluster/node telemetry if available
         try:
-            telemetry_resp = requests.get(
-                f"{QDRANT_BASE_URL}/telemetry",
-                timeout=5
-            )
+            telemetry_resp = session.get(f"{QDRANT_BASE_URL}/telemetry")
             if telemetry_resp.status_code == 200:
                 telemetry = telemetry_resp.json()
                 # Extract memory usage if available
                 # Telemetry structure varies by version
-                # Example path: result.app.mem_rss
                 if "result" in telemetry:
                     result = telemetry["result"]
+                    mem_bytes = None
+                    
+                    # Try primary location: result.app.mem_rss
                     if "app" in result and "mem_rss" in result["app"]:
                         mem_bytes = result["app"]["mem_rss"]
+                    # Fallback: try result.system.mem fields
+                    elif "system" in result:
+                        system = result["system"]
+                        if "mem_rss" in system:
+                            mem_bytes = system["mem_rss"]
+                        elif "memory_used_bytes" in system:
+                            mem_bytes = system["memory_used_bytes"]
+                    
+                    if mem_bytes is not None:
                         qdrant_memory_usage_bytes.set(mem_bytes)
+                    else:
+                        print("Warning: Memory metrics not available in telemetry")
         except Exception as e:
             # Telemetry endpoint might not be available in all versions
             print(f"Telemetry not available: {e}")
-        
-        qdrant_scrape_success.set(1)
         
     except Exception as e:
         print(f"Error during scrape: {e}")
@@ -236,7 +256,7 @@ def scrape_qdrant_metrics():
     finally:
         duration = time.time() - start_time
         qdrant_scrape_duration_seconds.observe(duration)
-        print(f"Scrape completed in {duration:.2f}s, success={success}")
+        print(f"Scrape completed in {duration:.2f}s, success={success}, collections_scraped={collections_scraped}")
 
 
 def main():
