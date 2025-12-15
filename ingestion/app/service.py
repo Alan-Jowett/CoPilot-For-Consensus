@@ -645,15 +645,16 @@ class IngestionService:
                 source=source.name,
                 exc_info=True,
             )
-            self.error_reporter.report(
-                e,
-                context={
-                    "operation": "write_archive_record",
-                    "archive_id": archive_id,
-                    "source": source.name,
-                    "file_path": file_path,
-                }
-            )
+            if self.error_reporter:
+                self.error_reporter.report(
+                    e,
+                    context={
+                        "operation": "write_archive_record",
+                        "archive_id": archive_id,
+                        "source": source.name,
+                        "file_path": file_path,
+                    }
+                )
 
     def _publish_success_event(self, metadata: ArchiveMetadata) -> None:
         """Publish ArchiveIngested event.
