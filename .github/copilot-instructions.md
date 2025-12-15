@@ -20,6 +20,7 @@ This repository uses GitHub Copilot to assist with code suggestions, documentati
 
 - Use Copilot for code completion, documentation, and refactoring.
 - Review Copilot suggestions before committing.
+- When committing changes, use `git commit -sm "<message>"` to include the sign-off.
 - Report issues or unexpected behavior in the issues section.
 
 ### Maintainers
