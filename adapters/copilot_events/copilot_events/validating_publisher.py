@@ -160,3 +160,11 @@ class ValidatingEventPublisher(EventPublisher):
     def disconnect(self) -> None:
         """Disconnect from the message bus."""
         self._publisher.disconnect()
+
+    def __getattr__(self, name: str):
+        """Delegate attribute access to underlying publisher for test utilities.
+
+        This allows tests to access attributes like 'published_events' on
+        the wrapped NoopPublisher while using the validating wrapper.
+        """
+        return getattr(self._publisher, name)
