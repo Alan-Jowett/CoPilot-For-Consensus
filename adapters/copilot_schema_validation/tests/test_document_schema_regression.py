@@ -104,19 +104,36 @@ class TestMessageSchemaRegression:
         is_valid, errors = validate_json(message, messages_schema, schema_provider=document_schema_provider)
         assert is_valid, f"Validation failed with errors: {errors}"
 
-    def test_message_with_empty_subject_should_fail(self, messages_schema, document_schema_provider):
-        """Test that a message with empty string subject is invalid (minLength=1)."""
+    def test_message_with_empty_subject_is_valid(self, messages_schema, document_schema_provider):
+        """Test that a message with empty string subject remains valid (subject optional)."""
         message = {
             "message_id": "msg-123",
             "archive_id": "550e8400-e29b-41d4-a716-446655440000",
             "thread_id": "thread-1",
-            "subject": "",  # Empty string should fail minLength validation
+            "subject": "",  # Empty string is allowed
             "body_normalized": "Test message body",
             "created_at": "2025-01-01T00:00:00Z"
         }
         
         is_valid, errors = validate_json(message, messages_schema, schema_provider=document_schema_provider)
-        assert not is_valid, "Empty subject should fail validation"
+        assert is_valid, f"Validation failed with errors: {errors}"
+
+    def test_message_with_empty_from_name_is_valid(self, messages_schema, document_schema_provider):
+        """Test that a message allowing empty from.name remains valid (no minLength constraint)."""
+        message = {
+            "message_id": "msg-123",
+            "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+            "thread_id": "thread-1",
+            "from": {
+                "name": "",  # Empty string now allowed
+                "email": "sender@example.com"
+            },
+            "body_normalized": "Test message body",
+            "created_at": "2025-01-01T00:00:00Z"
+        }
+
+        is_valid, errors = validate_json(message, messages_schema, schema_provider=document_schema_provider)
+        assert is_valid, f"Validation failed with errors: {errors}"
 
 
 class TestThreadSchemaRegression:

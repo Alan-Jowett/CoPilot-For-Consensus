@@ -148,7 +148,8 @@ def main():
         # Wrap with schema validation
         logger.info("Wrapping document store with schema validation...")
         document_schema_provider = FileSchemaProvider(
-            schema_dir=Path(__file__).parent.parent / "documents" / "schemas" / "documents"
+            # In container, this file is at /app/main.py. Use parent (/app).
+            schema_dir=Path(__file__).parent / "documents" / "schemas" / "documents"
         )
         document_store = ValidatingDocumentStore(
             store=base_document_store,

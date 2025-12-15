@@ -28,10 +28,18 @@ class TestFileSchemaProvider:
         assert provider.schema_dir == schema_dir
 
     def test_nonexistent_schema_dir(self, tmp_path):
-        """Test initialization with nonexistent directory."""
+        """Test initialization with nonexistent directory raises FileNotFoundError."""
         schema_dir = tmp_path / "nonexistent"
-        provider = FileSchemaProvider(schema_dir)
-        assert provider.schema_dir is None
+        with pytest.raises(FileNotFoundError, match="Schema directory does not exist"):
+            FileSchemaProvider(schema_dir)
+
+    def test_schema_dir_path_is_file(self, tmp_path):
+        """Test initialization with file path raises NotADirectoryError."""
+        schema_file = tmp_path / "schemas"
+        schema_file.write_text("not a directory", encoding="utf-8")
+
+        with pytest.raises(NotADirectoryError, match="Schema path is not a directory"):
+            FileSchemaProvider(schema_file)
 
     def test_get_schema_success(self, tmp_path):
         """Test successfully loading a schema."""
@@ -128,12 +136,10 @@ class TestFileSchemaProvider:
         assert event_types == []
 
     def test_list_event_types_no_schema_dir(self, tmp_path):
-        """Test listing event types when schema directory doesn't exist."""
+        """Test that initialization fails when schema directory doesn't exist."""
         schema_dir = tmp_path / "nonexistent"
-        provider = FileSchemaProvider(schema_dir)
-        event_types = provider.list_event_types()
-
-        assert event_types == []
+        with pytest.raises(FileNotFoundError, match="Schema directory does not exist"):
+            FileSchemaProvider(schema_dir)
 
 
 class TestDocumentStoreSchemaProvider:

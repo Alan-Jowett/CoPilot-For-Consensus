@@ -3,11 +3,15 @@
 
 """Integration tests for parsing service."""
 
-import pytest
+import logging
 from unittest.mock import Mock
 
-from copilot_events import NoopPublisher, NoopSubscriber
-from copilot_storage import InMemoryDocumentStore
+import pytest
+from pymongo.errors import DuplicateKeyError
+
+from copilot_events import EventPublisher, EventSubscriber, NoopPublisher, NoopSubscriber
+from copilot_storage import DocumentStore, InMemoryDocumentStore
+from copilot_storage.validating_document_store import DocumentValidationError
 
 from app.service import ParsingService
 from .test_helpers import assert_valid_event_schema
@@ -68,6 +72,18 @@ class TestParsingService:
             publisher=publisher,
             subscriber=subscriber,
         )
+
+    @pytest.fixture
+    def mock_service(self):
+        """Create a parsing service with mocked dependencies."""
+        store = Mock(spec=DocumentStore)
+        publisher = Mock(spec=EventPublisher)
+        subscriber = Mock(spec=EventSubscriber)
+        return ParsingService(
+            document_store=store,
+            publisher=publisher,
+            subscriber=subscriber,
+        ), store
 
     def test_service_initialization(self, service):
         """Test service initialization."""
@@ -242,6 +258,88 @@ class TestParsingService:
         assert stats["messages_parsed"] == 2
         assert stats["threads_created"] == 1
         assert stats["last_processing_time_seconds"] > 0
+
+    def test_store_messages_skips_duplicates_and_continues(self, mock_service, caplog):
+        """Duplicate messages are skipped, logged, and processing continues."""
+        service, store = mock_service
+        messages = [
+            {"message_id": "m1"},
+            {"message_id": "m2"},
+        ]
+        store.insert_document = Mock(side_effect=[DuplicateKeyError("dup"), None])
+
+        with caplog.at_level(logging.DEBUG):
+            service._store_messages(messages)
+
+        assert store.insert_document.call_count == 2
+        assert "Skipping message m1 (DuplicateKeyError)" in caplog.text
+        assert "Stored 1 messages, skipped 1 (duplicates/validation)" in caplog.text
+
+    def test_store_messages_skips_validation_errors_and_continues(self, mock_service, caplog):
+        """Validation errors are skipped, logged, and processing continues."""
+        service, store = mock_service
+        messages = [
+            {"message_id": "m1"},
+            {"message_id": "m2"},
+        ]
+        validation_error = DocumentValidationError("messages", ["bad doc"])
+        store.insert_document = Mock(side_effect=[validation_error, None])
+
+        with caplog.at_level(logging.DEBUG):
+            service._store_messages(messages)
+
+        assert store.insert_document.call_count == 2
+        assert "Skipping message m1 (DocumentValidationError)" in caplog.text
+        assert "Stored 1 messages, skipped 1 (duplicates/validation)" in caplog.text
+
+    def test_store_messages_raises_on_transient_errors(self, mock_service):
+        """Non-permanent errors are re-raised for retry handling."""
+        service, store = mock_service
+        store.insert_document = Mock(side_effect=Exception("boom"))
+
+        with pytest.raises(Exception, match="boom"):
+            service._store_messages([{"message_id": "m1"}])
+
+    def test_store_threads_skips_duplicates_and_continues(self, mock_service, caplog):
+        """Duplicate threads are skipped, logged, and processing continues."""
+        service, store = mock_service
+        threads = [
+            {"thread_id": "t1"},
+            {"thread_id": "t2"},
+        ]
+        store.insert_document = Mock(side_effect=[DuplicateKeyError("dup"), None])
+
+        with caplog.at_level(logging.DEBUG):
+            service._store_threads(threads)
+
+        assert store.insert_document.call_count == 2
+        assert "Skipping thread t1 (DuplicateKeyError)" in caplog.text
+        assert "Stored 1 threads, skipped 1 (duplicates/validation)" in caplog.text
+
+    def test_store_threads_skips_validation_errors_and_continues(self, mock_service, caplog):
+        """Validation errors for threads are skipped and logged."""
+        service, store = mock_service
+        threads = [
+            {"thread_id": "t1"},
+            {"thread_id": "t2"},
+        ]
+        validation_error = DocumentValidationError("threads", ["bad thread"])
+        store.insert_document = Mock(side_effect=[validation_error, None])
+
+        with caplog.at_level(logging.DEBUG):
+            service._store_threads(threads)
+
+        assert store.insert_document.call_count == 2
+        assert "Skipping thread t1 (DocumentValidationError)" in caplog.text
+        assert "Stored 1 threads, skipped 1 (duplicates/validation)" in caplog.text
+
+    def test_store_threads_raises_on_transient_errors(self, mock_service):
+        """Non-permanent thread errors are re-raised for retries."""
+        service, store = mock_service
+        store.insert_document = Mock(side_effect=Exception("boom"))
+
+        with pytest.raises(Exception, match="boom"):
+            service._store_threads([{"thread_id": "t1"}])
 
     def test_event_publishing_on_success(self, document_store, subscriber, sample_mbox_file):
         """Test that JSONParsed event is published on successful parsing."""
