@@ -50,39 +50,28 @@ After all tests complete on `main` branch pushes, a final aggregation step:
 
 ## Workflow Structure
 
-### Services CI (`services-ci.yml`)
+### Unified CI (`unified-ci.yml`)
 
 **Jobs:**
-- `detect-changes`: Runs only on pull requests to determine changed services
+- `detect-changes`: Runs only on pull requests to determine changed services and adapters
 - Service jobs (`chunking`, `embedding`, `ingestion`, `orchestrator`, `parsing`, `reporting`, `summarization`, `error-reporting`):
   - On PR: Run only if the service or its dependencies changed
   - On main push: Always run
   - On schedule/manual: Always run
-- `coverage-summary`: Runs only on main pushes to finalize coverage aggregation
-
-**Coverage Flags:**
-- `chunking`
-- `embedding`
-- `ingestion`
-- `orchestrator`
-- `parsing`
-- `reporting`
-- `summarization`
-- `error-reporting`
-
-### Adapters CI (`adapters-ci.yml`)
-
-**Jobs:**
-- `detect-changes`: Runs only on pull requests to determine changed adapters
 - Adapter jobs (15 adapters with unit tests, 5 with integration tests):
   - On PR: Run only if the adapter changed
   - On main push: Always run
   - On schedule/manual: Always run
-- `coverage-summary`: Runs only on main pushes to finalize coverage aggregation
+- `coverage-summary`: Runs only on main pushes to finalize coverage aggregation for **all** services and adapters
 
 **Coverage Flags:**
-- Unit tests: `copilot_auth`, `copilot_config`, `copilot_events`, `copilot_logging`, `copilot_metrics`, `copilot_archive_fetcher`, `copilot_reporting`, `copilot_storage`, `copilot_embedding`, `copilot_chunking`, `copilot_consensus`, `copilot_schema_validation`, `copilot_summarization`, `copilot_vectorstore`, `copilot_draft_diff`
-- Integration tests: `copilot_archive_fetcher_integration`, `copilot_storage_integration`, `copilot_events_integration`, `copilot_schema_validation_integration`, `copilot_vectorstore_integration`
+- Services: `chunking`, `embedding`, `ingestion`, `orchestrator`, `parsing`, `reporting`, `summarization`, `error-reporting`
+- Adapter unit tests: `copilot_auth`, `copilot_config`, `copilot_events`, `copilot_logging`, `copilot_metrics`, `copilot_archive_fetcher`, `copilot_reporting`, `copilot_storage`, `copilot_embedding`, `copilot_chunking`, `copilot_consensus`, `copilot_schema_validation`, `copilot_summarization`, `copilot_vectorstore`, `copilot_draft_diff`
+- Adapter integration tests: `copilot_archive_fetcher_integration`, `copilot_storage_integration`, `copilot_events_integration`, `copilot_schema_validation_integration`, `copilot_vectorstore_integration`
+
+**Why a Unified Workflow?**
+
+Coveralls parallel coverage requires a single `parallel-finished: true` call to aggregate all coverage uploads. Previously, separate `services-ci.yml` and `adapters-ci.yml` workflows each called `parallel-finished`, causing incomplete coverage (one would overwrite the other). The unified workflow ensures all coverage data is properly aggregated in one finalization step.
 
 ## Implementation Details
 
