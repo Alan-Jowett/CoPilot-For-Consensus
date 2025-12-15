@@ -20,7 +20,7 @@
     },
     "subject": { 
       "anyOf": [
-        { "type": "string", "minLength": 1 },
+        { "type": "string" },
         { "type": "null" }
       ]
     },
@@ -29,7 +29,7 @@
         {
           "type": "object",
           "properties": {
-            "name": { "type": "string", "minLength": 1 },
+            "name": { "type": "string" },
             "email": { "type": "string", "format": "email" }
           },
           "required": ["email"],

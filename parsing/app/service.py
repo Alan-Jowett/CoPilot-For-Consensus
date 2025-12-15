@@ -7,6 +7,9 @@ import logging
 import time
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
+from pymongo.errors import DuplicateKeyError
+
+from copilot_storage.validating_document_store import DocumentValidationError
 
 from copilot_events import (
     EventPublisher,
@@ -249,8 +252,7 @@ class ParsingService:
                 # Re-raise the original exception to trigger message requeue
                 raise e from publish_error
             
-            # Even if failure event published successfully, re-raise the original error
-            # to ensure the message is requeued for transient failures
+            # Re-raise to trigger message requeue for transient failures
             raise e
 
     def _store_messages(self, messages: list):
@@ -260,17 +262,30 @@ class ParsingService:
             messages: List of message dictionaries
             
         Note:
-            Currently inserts documents one at a time. For large archives,
-            consider implementing bulk insert operations if the DocumentStore
-            interface is extended to support it.
+            - Inserts documents one at a time
+            - Skips duplicate and validation errors and logs them
+            - Re-raises other errors (transient failures)
         """
-        try:
-            # Store in 'messages' collection
-            for message in messages:
+        skipped_count = 0
+        stored_count = 0
+        
+        for message in messages:
+            try:
                 self.document_store.insert_document("messages", message)
-        except Exception as e:
-            logger.error(f"Failed to store messages: {e}")
-            raise
+                stored_count += 1
+            except (DuplicateKeyError, DocumentValidationError) as e:
+                # Permanent errors - skip but log it
+                message_id = message.get("message_id", "unknown")
+                error_type = type(e).__name__
+                logger.debug(f"Skipping message {message_id} ({error_type}): {e}")
+                skipped_count += 1
+            except Exception as e:
+                # Other errors are transient failures - re-raise
+                logger.error(f"Error storing message: {e}")
+                raise
+        
+        if skipped_count > 0:
+            logger.info(f"Stored {stored_count} messages, skipped {skipped_count} (duplicates/validation)")
 
     def _store_threads(self, threads: list):
         """Store threads in document store.
@@ -279,17 +294,30 @@ class ParsingService:
             threads: List of thread dictionaries
             
         Note:
-            Currently inserts documents one at a time. For large archives,
-            consider implementing bulk insert operations if the DocumentStore
-            interface is extended to support it.
+            - Inserts documents one at a time
+            - Skips duplicate and validation errors and logs them
+            - Re-raises other errors (transient failures)
         """
-        try:
-            # Store in 'threads' collection
-            for thread in threads:
+        skipped_count = 0
+        stored_count = 0
+        
+        for thread in threads:
+            try:
                 self.document_store.insert_document("threads", thread)
-        except Exception as e:
-            logger.error(f"Failed to store threads: {e}")
-            raise
+                stored_count += 1
+            except (DuplicateKeyError, DocumentValidationError) as e:
+                # Permanent errors - skip but log it
+                thread_id = thread.get("thread_id", "unknown")
+                error_type = type(e).__name__
+                logger.debug(f"Skipping thread {thread_id} ({error_type}): {e}")
+                skipped_count += 1
+            except Exception as e:
+                # Other errors are transient failures - re-raise
+                logger.error(f"Error storing thread: {e}")
+                raise
+        
+        if skipped_count > 0:
+            logger.info(f"Stored {stored_count} threads, skipped {skipped_count} (duplicates/validation)")
 
     def _publish_json_parsed(
         self,
