@@ -135,7 +135,7 @@ def test_service_fails_when_document_store_connection_fails():
                             
                             # Setup mock document store that fails to connect
                             mock_store = Mock()
-                            mock_store.connect = Mock(return_value=False)
+                            mock_store.connect = Mock(side_effect=ConnectionError("Connection failed"))
                             mock_create_store.return_value = mock_store
                             
                             # Import main after setting up mocks
