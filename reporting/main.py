@@ -223,6 +223,7 @@ def main():
             password=config.doc_store_password if config.doc_store_password else None,
         )
         logger.info("Connecting to document store...")
+        # connect() raises on failure; None return indicates success
         base_document_store.connect()
         logger.info("Document store connected successfully")
         

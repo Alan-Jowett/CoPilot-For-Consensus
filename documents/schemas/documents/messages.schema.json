@@ -7,7 +7,12 @@
     "message_id": { "type": "string", "minLength": 1 },
     "archive_id": { "type": "string", "format": "uuid" },
     "thread_id": { "type": "string", "minLength": 1 },
-    "in_reply_to": { "type": "string", "minLength": 1 },
+    "in_reply_to": { 
+      "anyOf": [
+        { "type": "string", "minLength": 1 },
+        { "type": "null" }
+      ]
+    },
     "references": {
       "type": "array",
       "items": { "type": "string", "minLength": 1 },
