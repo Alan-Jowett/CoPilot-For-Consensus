@@ -31,7 +31,16 @@ This guide explains how to monitor and troubleshoot the services in this reposit
 
 ## 4) Dashboards & Logs (Grafana + Loki)
 - Access Grafana at http://localhost:3000 (default creds: `admin` / `admin`)
-- Dashboards: use or create service dashboards with Prometheus as the data source.
+- Pre-configured Dashboards:
+  - **System Health**: Service uptime and basic health metrics (Prometheus)
+  - **Service Metrics**: Detailed service performance metrics (Prometheus)
+  - **Queue Status**: RabbitMQ queue depths and message flow (Prometheus)
+  - **Failed Queues**: Failed message queue monitoring (Prometheus)
+  - **Logs Overview**: Error and warning tracking across all services (Loki)
+    - Error/warning counts per service (last 1h)
+    - Live error and warning log streams
+    - Error rate trends over time
+    - Top error messages by service
 - Logs via Grafana Explore (Loki):
   - Data source: Loki
   - Basic query: `{container="<service>"}`
