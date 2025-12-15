@@ -18,6 +18,7 @@ This guide explains how to monitor and troubleshoot the services in this reposit
 - Loki HTTP API: http://localhost:3100 (log store)
 - Promtail (shipper): publishes container logs into Loki
 - RabbitMQ Management UI: http://localhost:15672 (default creds: `guest` / `guest` unless overridden)
+- cAdvisor: http://localhost:8082 (container resource metrics)
 - Service container logs: via `docker compose logs -f <service>`
 
 ## 3) Metrics (Prometheus)
@@ -28,15 +29,84 @@ This guide explains how to monitor and troubleshoot the services in this reposit
     - `up{job="<service>"}` — liveness of scrape targets
     - `rate(http_requests_total{service="<service>"}[5m])` — request rate
     - `histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{service="<service>"}[5m]))` — P95 latency
+- Container resource queries (via cAdvisor):
+  - `rate(container_cpu_usage_seconds_total{name=~"copilot-.*"}[5m]) * 100` — CPU usage percentage
+  - `container_memory_usage_bytes{name=~"copilot-.*"} / 1024 / 1024` — Memory usage in MB
+  - `(container_memory_usage_bytes / container_spec_memory_limit_bytes) * 100` — Memory usage as % of limit
+  - `changes(container_start_time_seconds{name=~"copilot-.*"}[1h])` — Container restarts
+  - `rate(container_network_receive_bytes_total{name=~"copilot-.*"}[5m])` — Network receive rate
 
 ## 4) Dashboards & Logs (Grafana + Loki)
 - Access Grafana at http://localhost:3000 (default creds: `admin` / `admin`)
-- Dashboards: use or create service dashboards with Prometheus as the data source.
+- **Available Dashboards:**
+  - **System Health**: Overall service health and uptime
+  - **Service Metrics**: Application-level metrics (throughput, latency)
+  - **Queue Status**: RabbitMQ queue depths and message flow
+  - **Failed Queues**: Dead letter queue monitoring and alerts
+  - **Container Resource Usage**: CPU, memory, network, and disk I/O per container (see section 4.1)
 - Logs via Grafana Explore (Loki):
   - Data source: Loki
   - Basic query: `{container="<service>"}`
   - Filter by severity (if structured): `{container="<service>", level="error"}`
   - Time-align with metrics by selecting the same time window.
+
+## 4.1) Container Resource Monitoring
+The **Container Resource Usage** dashboard provides comprehensive visibility into resource consumption:
+
+### Panels and Purpose
+1. **CPU Usage by Service**: Time series showing CPU percentage per container
+   - Threshold alerts: Yellow at 50%, Red at 80%
+   - Use to identify CPU-intensive services or bottlenecks
+
+2. **Memory Usage by Service**: Time series showing memory consumption in MB
+   - Track memory growth patterns over time
+   - Correlate with application performance issues
+
+3. **Memory Usage (% of Limit)**: Gauge showing memory as percentage of container limits
+   - **Warning at 80%**, **Critical at 90%**
+   - Proactive monitoring to prevent OOM kills
+
+4. **Container Restart Count**: Table showing restarts in the last hour
+   - Color-coded: Green (0), Yellow (1+), Red (3+)
+   - Indicates service instability or crash loops
+
+5. **Network I/O by Service**: Time series of receive/transmit rates
+   - Identify network-intensive services
+   - Detect unusual traffic patterns
+
+6. **Top Resource Consumers**: Sortable table with all metrics
+   - Quick identification of resource hogs
+   - Columns: Service, CPU %, Memory MB, Network RX/TX, Restarts
+
+7. **Memory Growth Rate**: Derivative of memory usage to detect leaks
+   - Steadily increasing values indicate potential memory leaks
+   - Negative values indicate memory being freed properly
+
+8. **Disk I/O by Service**: Read/write rates per container
+   - Identify services with heavy disk usage
+   - Correlate with storage performance issues
+
+9. **Service Health Status**: Color-coded stat panels showing service uptime
+   - Correlate resource pressure with service outages
+   - Green = UP, Red = DOWN
+
+### Using the Dashboard
+- **Memory Leak Detection**: Watch the "Memory Growth Rate" panel for services with consistently positive derivatives
+- **Capacity Planning**: Use historical data to identify trends and plan resource allocation
+- **Incident Response**: Correlate resource spikes with errors in logs (Loki) and failed queues
+- **Performance Optimization**: Identify services consuming disproportionate resources
+
+### Metrics Source
+- **Data Source**: cAdvisor (Container Advisor)
+- **Endpoint**: http://localhost:8082 (mapped from container port 8080)
+- **Prometheus Job**: `cadvisor`
+- **Query Patterns**: Filters containers with `name=~"copilot-.*"` to show only application services
+
+### Troubleshooting
+- **No data in dashboard**: Verify cAdvisor is running (`docker compose ps cadvisor`)
+- **Missing metrics**: Check Prometheus targets (http://localhost:9090/targets) - cadvisor should be UP
+- **High memory %**: Investigate service logs, check for memory leaks, consider increasing container limits
+- **Frequent restarts**: Check container logs (`docker compose logs <service>`) for crash reasons
 
 ## 5) RabbitMQ Management UI
 - URL: http://localhost:15672
