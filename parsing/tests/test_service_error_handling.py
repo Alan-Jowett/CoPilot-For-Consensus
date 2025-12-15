@@ -1,0 +1,184 @@
+# SPDX-License-Identifier: MIT
+
+import logging
+import pytest
+
+from pymongo.errors import DuplicateKeyError
+
+from copilot_storage.validating_document_store import DocumentValidationError
+
+from app.service import ParsingService
+
+
+class DummyPublisher:
+    def publish(self, *args, **kwargs):
+        pass
+
+
+class DummySubscriber:
+    def subscribe(self, *args, **kwargs):
+        pass
+
+
+class DummyMetrics:
+    def increment(self, *args, **kwargs):
+        pass
+
+    def observe(self, *args, **kwargs):
+        pass
+
+
+class DummyErrorReporter:
+    def report(self, *args, **kwargs):
+        pass
+
+    def capture_exception(self, *args, **kwargs):
+        pass
+
+
+class FakeDocumentStore:
+    """A controllable fake for `DocumentStore` insert behavior."""
+
+    def __init__(self, behavior_map):
+        # behavior_map: {collection_name: [None | Exception, ...]}
+        self.behavior_map = behavior_map
+        self.calls = {"messages": 0, "threads": 0}
+
+    def insert_document(self, collection, doc):
+        idx = self.calls[collection]
+        self.calls[collection] += 1
+        behavior_list = self.behavior_map.get(collection, [])
+        if idx < len(behavior_list):
+            outcome = behavior_list[idx]
+            if outcome is None:
+                return
+            raise outcome
+        # default: succeed
+        return
+
+
+def make_service_with_store(store):
+    return ParsingService(
+        document_store=store,
+        publisher=DummyPublisher(),
+        subscriber=DummySubscriber(),
+        metrics_collector=DummyMetrics(),
+        error_reporter=DummyErrorReporter(),
+    )
+
+
+def test_store_messages_skips_duplicate_and_continues(caplog):
+    caplog.set_level(logging.DEBUG)
+    msgs = [
+        {"message_id": "m1"},
+        {"message_id": "m2"},
+        {"message_id": "m3"},
+    ]
+    store = FakeDocumentStore({
+        "messages": [
+            None,  # m1 -> success
+            DuplicateKeyError("duplicate key error"),  # m2 -> skip
+            None,  # m3 -> success continues
+        ]
+    })
+    service = make_service_with_store(store)
+
+    service._store_messages(msgs)
+
+    # Verify calls progressed through all messages
+    assert store.calls["messages"] == 3
+
+    # Verify skip was logged
+    duplicate_logs = [r for r in caplog.records if "Skipping message m2" in r.message]
+    assert duplicate_logs, "Expected a log indicating message m2 was skipped"
+
+    # Verify summary info log includes skipped count
+    info_summaries = [r for r in caplog.records if r.levelno == logging.INFO and "skipped" in r.message]
+    assert any("skipped 1" in r.message for r in info_summaries)
+
+
+def test_store_messages_skips_validation_and_continues(caplog):
+    caplog.set_level(logging.DEBUG)
+    msgs = [
+        {"message_id": "m1"},
+        {"message_id": "m2"},
+    ]
+    store = FakeDocumentStore({
+        "messages": [
+            DocumentValidationError("messages", ["schema validation failed"]),  # m1 -> skip
+            None,  # m2 -> success continues
+        ]
+    })
+    service = make_service_with_store(store)
+
+    service._store_messages(msgs)
+
+    assert store.calls["messages"] == 2
+    validation_logs = [r for r in caplog.records if "Skipping message m1" in r.message]
+    assert validation_logs, "Expected a log indicating message m1 was skipped"
+    info_summaries = [r for r in caplog.records if r.levelno == logging.INFO and "skipped" in r.message]
+    assert any("skipped 1" in r.message for r in info_summaries)
+
+
+def test_store_messages_transient_errors_are_reraised(caplog):
+    caplog.set_level(logging.ERROR)
+    msgs = [{"message_id": "m1"}]
+    class TransientError(Exception):
+        pass
+
+    store = FakeDocumentStore({
+        "messages": [TransientError("database temporarily unavailable")]
+    })
+    service = make_service_with_store(store)
+
+    with pytest.raises(TransientError):
+        service._store_messages(msgs)
+
+    # Ensure an error log occurred
+    error_logs = [r for r in caplog.records if "Error storing message" in r.message]
+    assert error_logs
+
+
+def test_store_threads_skips_duplicate_and_validation_and_continues(caplog):
+    caplog.set_level(logging.DEBUG)
+    threads = [
+        {"thread_id": "t1"},
+        {"thread_id": "t2"},
+        {"thread_id": "t3"},
+    ]
+    store = FakeDocumentStore({
+        "threads": [
+            None,  # t1 -> success
+            DuplicateKeyError("duplicate thread"),  # t2 -> skip
+            DocumentValidationError("threads", ["bad thread schema"]),  # t3 -> skip
+        ]
+    })
+    service = make_service_with_store(store)
+
+    service._store_threads(threads)
+
+    assert store.calls["threads"] == 3
+    dup_logs = [r for r in caplog.records if "Skipping thread t2" in r.message]
+    val_logs = [r for r in caplog.records if "Skipping thread t3" in r.message]
+    assert dup_logs and val_logs
+    info_summaries = [r for r in caplog.records if r.levelno == logging.INFO and "skipped" in r.message]
+    # 2 skips in total
+    assert any("skipped 2" in r.message for r in info_summaries)
+
+
+def test_store_threads_transient_errors_are_reraised(caplog):
+    caplog.set_level(logging.ERROR)
+    threads = [{"thread_id": "t1"}]
+    class TransientError(Exception):
+        pass
+
+    store = FakeDocumentStore({
+        "threads": [TransientError("db down")] 
+    })
+    service = make_service_with_store(store)
+
+    with pytest.raises(TransientError):
+        service._store_threads(threads)
+
+    error_logs = [r for r in caplog.records if "Error storing thread" in r.message]
+    assert error_logs
