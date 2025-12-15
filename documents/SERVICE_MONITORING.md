@@ -40,7 +40,7 @@ This guide explains how to monitor and troubleshoot the services in this reposit
     - Error/warning counts per service (last 1h)
     - Live error and warning log streams
     - Error rate trends over time
-    - Top error messages by service
+    - Top services by error count
 - Logs via Grafana Explore (Loki):
   - Data source: Loki
   - Basic query: `{container="<service>"}`
