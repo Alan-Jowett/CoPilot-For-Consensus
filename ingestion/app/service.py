@@ -49,18 +49,23 @@ class _ConfigWithDefaults:
     """Wrapper that combines a loaded config with defaults, without modifying the original."""
     
     def __init__(self, config: object):
+        # Store base config and allow per-instance overrides without mutating base
         self._config = config
+        self._overrides: Dict[str, Any] = {}
 
     def __setattr__(self, name: str, value: Any) -> None:
-        """Prevent runtime mutation to keep config immutable."""
-        if name == "_config":
+        """Allow overrides while keeping base config immutable."""
+        if name in {"_config", "_overrides"}:
             object.__setattr__(self, name, value)
-        else:
-            raise AttributeError(
-                f"Cannot modify configuration. '{name}' is read-only."
-            )
+            return
+        # Record overrides instead of mutating the base config
+        overrides = object.__getattribute__(self, "_overrides")
+        overrides[name] = value
     
     def __getattr__(self, name: str) -> Any:
+        overrides = object.__getattribute__(self, "_overrides")
+        if name in overrides:
+            return overrides[name]
         # Try to get from loaded config first
         if hasattr(self._config, name):
             return getattr(self._config, name)
