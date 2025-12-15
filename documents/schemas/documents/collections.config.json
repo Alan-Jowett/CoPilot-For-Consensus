@@ -14,7 +14,8 @@
       "name": "messages",
       "schema": "/schemas/documents/messages.schema.json",
       "indexes": [
-        { "keys": { "message_id": 1 }, "options": { "unique": true, "name": "message_id_unique" } },
+        { "keys": { "message_key": 1 }, "options": { "unique": true, "name": "message_key_unique" } },
+        { "keys": { "message_id": 1 }, "options": { "name": "message_id_idx" } },
         { "keys": { "archive_id": 1 }, "options": { "name": "archive_id_idx" } },
         { "keys": { "thread_id": 1 }, "options": { "name": "thread_id_idx" } },
         { "keys": { "date": 1 }, "options": { "name": "date_idx" } },
@@ -27,7 +28,8 @@
       "name": "chunks",
       "schema": "/schemas/documents/chunks.schema.json",
       "indexes": [
-        { "keys": { "chunk_id": 1 }, "options": { "unique": true, "name": "chunk_id_unique" } },
+        { "keys": { "chunk_key": 1 }, "options": { "unique": true, "name": "chunk_key_unique" } },
+        { "keys": { "message_key": 1 }, "options": { "name": "message_key_idx" } },
         { "keys": { "message_id": 1 }, "options": { "name": "message_id_idx" } },
         { "keys": { "thread_id": 1 }, "options": { "name": "thread_id_idx" } },
         { "keys": { "created_at": 1 }, "options": { "name": "created_at_idx" } },

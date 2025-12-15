@@ -78,7 +78,7 @@ def main():
     
     valid_event = {
         "event_type": "ArchiveIngested",
-        "event_id": "550e8400-e29b-41d4-a716-446655440000",
+        "event_id": "a1b2c3d4e5f67890",
         "timestamp": "2025-12-11T00:00:00Z",
         "version": "1.0",
         "data": {

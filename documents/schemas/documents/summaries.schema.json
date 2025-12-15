@@ -15,7 +15,7 @@
       "items": {
         "type": "object",
         "properties": {
-          "chunk_id": { "type": "string", "format": "uuid" },
+          "chunk_id": { "type": "string", "minLength": 16, "maxLength": 64, "description": "SHA256 hash chunk identifier" },
           "message_id": { "type": "string", "minLength": 1 },
           "quote": { "type": "string" },
           "relevance_score": { "type": "number", "minimum": 0, "maximum": 1 }

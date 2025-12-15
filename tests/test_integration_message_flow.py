@@ -79,7 +79,7 @@ class TestEventSchemaValidation:
             "timestamp": "2023-10-15T12:00:00Z",
             "version": "1.0",
             "data": {
-                "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+                "archive_id": "a1b2c3d4e5f67890",
                 "source_name": "test-source",
                 "source_type": "local",
                 "source_url": "/path/to/file",
@@ -103,7 +103,7 @@ class TestEventSchemaValidation:
             "timestamp": "2023-10-15T12:02:00Z",
             "version": "1.0",
             "data": {
-                "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+                "archive_id": "a1b2c3d4e5f6789",
                 "parsed_message_ids": ["<msg1@example.com>", "<msg2@example.com>"],
                 "thread_ids": ["<thread@example.com>"],
                 "message_count": 2,
@@ -196,7 +196,7 @@ class TestEventSchemaValidation:
             "version": "1.0",
             "data": {
                 # Missing required fields
-                "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+                "archive_id": "a1b2c3d4e5f6789",
             }
         }
         
@@ -215,7 +215,7 @@ class TestEventSchemaValidation:
             "timestamp": "2023-10-15T12:00:00Z",
             "version": "1.0",
             "data": {
-                "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+                "archive_id": "a1b2c3d4e5f6789",
                 "parsed_message_ids": "not-an-array",  # Should be array
                 "thread_ids": ["<thread@example.com>"],
                 "message_count": 1,
@@ -248,7 +248,7 @@ class TestMessageFlowPatterns:
             "timestamp": "2023-10-15T12:00:00Z",
             "version": "1.0",
             "data": {
-                "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+                "archive_id": "a1b2c3d4e5f6789",
                 "source_name": "test-source",
                 "source_type": "local",
                 "source_url": "/path/to/source",
@@ -276,7 +276,7 @@ class TestMessageFlowPatterns:
             "timestamp": "2023-10-15T12:00:00Z",
             "version": "1.0",
             "data": {
-                "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+                "archive_id": "a1b2c3d4e5f6789",
                 "source_name": "test-source",
                 "source_type": "local",
                 "source_url": "/path/to/source",
@@ -321,7 +321,7 @@ class TestMessageFlowPatterns:
             "timestamp": "2023-10-15T12:01:00Z",
             "version": "1.0",
             "data": {
-                "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+                "archive_id": "a1b2c3d4e5f6789",
                 "parsed_message_ids": ["<msg1@example.com>", "<msg2@example.com>"],
                 "thread_ids": ["<thread@example.com>"],
                 "message_count": 2,

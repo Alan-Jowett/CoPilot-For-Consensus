@@ -368,7 +368,7 @@ def test_consume_json_parsed_event():
         "timestamp": "2023-10-15T12:00:00Z",
         "version": "1.0",
         "data": {
-            "archive_id": "archive-123",
+            "archive_id": "a1b2c3d4e5f67890",
             "parsed_message_ids": ["<msg@example.com>"],
             "thread_ids": ["<thread@example.com>"],
             "message_count": 1,
@@ -382,7 +382,7 @@ def test_consume_json_parsed_event():
     
     # Process the event - would normally be called by subscriber
     # For now, just verify the event structure is correct
-    assert event["data"]["archive_id"] == "archive-123"
+    assert event["data"]["archive_id"] == "a1b2c3d4e5f67890"
     assert len(event["data"]["parsed_message_ids"]) == 1
 
 
@@ -394,7 +394,7 @@ def test_consume_json_parsed_multiple_messages():
         "timestamp": "2023-10-15T12:00:00Z",
         "version": "1.0",
         "data": {
-            "archive_id": "archive-123",
+            "archive_id": "a1b2c3d4e5f67890",
             "parsed_message_ids": [
                 "<msg1@example.com>",
                 "<msg2@example.com>",

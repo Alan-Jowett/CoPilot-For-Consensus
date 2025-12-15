@@ -4,7 +4,23 @@
   "title": "archives collection",
   "type": "object",
   "properties": {
-    "archive_id": { "type": "string", "format": "uuid" },
+    "archive_id": { 
+      "type": "string", 
+      "minLength": 16,
+      "maxLength": 64,
+      "description": "Deterministic SHA256 hash of mbox file contents (first 16 chars) for reproducible archive identification"
+    },
+    "file_hash": { 
+      "type": "string", 
+      "minLength": 64,
+      "maxLength": 64,
+      "description": "Full SHA256 hash of the mbox file for complete audit trail and integrity verification"
+    },
+    "file_size_bytes": { 
+      "type": "integer", 
+      "minimum": 0,
+      "description": "Size of the original mbox file in bytes"
+    },
     "source": { "type": "string", "minLength": 1 },
     "source_url": { "type": "string", "minLength": 1 },
     "format": { "type": "string", "minLength": 1 },
@@ -13,5 +29,5 @@
     "file_path": { "type": "string", "minLength": 1 },
     "status": { "type": "string", "enum": ["pending", "processed", "failed"] }
   },
-  "required": ["archive_id", "source", "ingestion_date", "status"]
+  "required": ["archive_id", "file_hash", "file_size_bytes", "source", "ingestion_date", "status"]
 }

@@ -165,7 +165,7 @@ class TestQdrantVectorStore:
         
         # Mock search results
         mock_result = Mock()
-        mock_result.id = "550e8400-e29b-41d4-a716-446655440000"
+        mock_result.id = "a1b2c3d4e5f67890"
         mock_result.score = 0.95
         mock_result.vector = [1.0, 0.0, 0.0]
         mock_result.payload = {"text": "hello", "_original_id": "doc1"}

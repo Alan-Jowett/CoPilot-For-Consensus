@@ -4,8 +4,19 @@
   "title": "messages collection",
   "type": "object",
   "properties": {
+    "message_key": { 
+      "type": "string", 
+      "minLength": 16,
+      "maxLength": 64,
+      "description": "Deterministic SHA256 hash of (archive_id|message_id|date|sender_email|subject) for guaranteed global uniqueness and audit trail"
+    },
     "message_id": { "type": "string", "minLength": 1 },
-    "archive_id": { "type": "string", "format": "uuid" },
+    "archive_id": { 
+      "type": "string", 
+      "minLength": 16,
+      "maxLength": 64,
+      "description": "SHA256 hash of the mbox file this message came from (first 16 chars)"
+    },
     "thread_id": { "type": "string", "minLength": 1 },
     "in_reply_to": { 
       "anyOf": [
@@ -97,5 +108,5 @@
     },
     "created_at": { "type": "string", "format": "date-time" }
   },
-  "required": ["message_id", "archive_id", "thread_id", "body_normalized", "created_at"]
+  "required": ["message_key", "message_id", "archive_id", "thread_id", "body_normalized", "created_at"]
 }

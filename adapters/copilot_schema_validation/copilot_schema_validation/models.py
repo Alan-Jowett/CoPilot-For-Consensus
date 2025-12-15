@@ -171,7 +171,7 @@ class ChunksPreparedEvent(BaseEvent):
     Data fields:
         message_ids: List of source message IDs that were chunked
         chunk_count: Total number of chunks created
-        chunk_ids: List of chunk UUIDs
+        chunk_ids: List of chunk hash identifiers
         chunks_ready: Whether chunks are ready for embedding
         chunking_strategy: Strategy used (e.g., "recursive")
         avg_chunk_size_tokens: Average chunk size in tokens

@@ -17,7 +17,9 @@ Stores metadata about ingested mailing list archives.
 
 | Field | Type | Description | Indexed |
 |-------|------|-------------|---------|
-| `archive_id` | String (UUID) | Unique identifier for the archive | Primary Key |
+| `archive_id` | String (SHA256 hash, 16 chars) | Deterministic hash of mbox file for reproducible archive ID | Primary Key |
+| `file_hash` | String (SHA256 hash, 64 chars) | Full SHA256 hash of the mbox file for integrity verification | Yes |
+| `file_size_bytes` | Integer | Size of the original mbox file in bytes | No |
 | `source` | String | Source identifier (e.g., "ietf-quic") | Yes |
 | `source_url` | String | URL or path to original archive | No |
 | `format` | String | Archive format (e.g., "mbox") | No |
@@ -28,7 +30,7 @@ Stores metadata about ingested mailing list archives.
 
 **Indexes:**
 - Primary: `archive_id`
-- Secondary: `source`, `ingestion_date`, `status`
+- Secondary: `source`, `file_hash`, `ingestion_date`, `status`
 
 ---
 
@@ -37,8 +39,9 @@ Stores parsed and normalized email messages.
 
 | Field | Type | Description | Indexed |
 |-------|------|-------------|---------|
-| `message_id` | String | RFC 5322 Message-ID (globally unique) | Primary Key |
-| `archive_id` | String (UUID) | Reference to parent archive | Yes |
+| `message_key` | String (SHA256 hash, 16 chars) | Deterministic hash of (archive_id\|message_id\|date\|sender\|subject) for global uniqueness | Primary Key |
+| `message_id` | String | RFC 5322 Message-ID from email header | Yes |
+| `archive_id` | String (SHA256 hash, 16 chars) | Hash of the mbox file this message came from | Yes |
 | `thread_id` | String | Thread identifier (root message_id) | Yes |
 | `in_reply_to` | String | Message-ID of parent message | Yes |
 | `references` | Array[String] | List of referenced Message-IDs | No |
@@ -56,14 +59,15 @@ Stores parsed and normalized email messages.
 | `created_at` | DateTime | Record creation timestamp | Yes |
 
 **Indexes:**
-- Primary: `message_id`
+- Primary: `message_key`
 - Secondary: `archive_id`, `thread_id`, `date`, `in_reply_to`, `draft_mentions`, `created_at`
 
 **Example Document:**
 ```json
 {
+  "message_key": "a1b2c3d4e5f6789",
   "message_id": "<20231015123456.ABC123@example.com>",
-  "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+  "archive_id": "c3d4e5f6789a1b2",
   "thread_id": "<20231015120000.XYZ789@example.com>",
   "in_reply_to": "<20231015120000.XYZ789@example.com>",
   "references": ["<20231015120000.XYZ789@example.com>"],
@@ -83,7 +87,8 @@ Stores text chunks derived from messages for embedding generation.
 
 | Field | Type | Description | Indexed |
 |-------|------|-------------|---------|
-| `chunk_id` | String (UUID) | Unique identifier for chunk | Primary Key |
+| `chunk_key` | String (SHA256 hash, 16 chars) | Deterministic hash of (message_key\|chunk_index) | Primary Key |
+| `message_key` | String (SHA256 hash, 16 chars) | Reference to parent message | Yes |
 | `message_id` | String | Source message Message-ID | Yes |
 | `thread_id` | String | Thread identifier | Yes |
 | `chunk_index` | Integer | Sequential index within message (0-based) | No |
@@ -97,13 +102,14 @@ Stores text chunks derived from messages for embedding generation.
 | `embedding_generated` | Boolean | Whether embedding exists in vector store | Yes |
 
 **Indexes:**
-- Primary: `chunk_id`
-- Secondary: `message_id`, `thread_id`, `created_at`, `embedding_generated`
+- Primary: `chunk_key`
+- Secondary: `message_key`, `message_id`, `thread_id`, `created_at`, `embedding_generated`
 
 **Example Document:**
 ```json
 {
-  "chunk_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "chunk_key": "b9c8d7e6f5a4b3c",
+  "message_key": "a1b2c3d4e5f6789",
   "message_id": "<20231015123456.ABC123@example.com>",
   "thread_id": "<20231015120000.XYZ789@example.com>",
   "chunk_index": 0,
@@ -130,7 +136,7 @@ Stores aggregated thread metadata for quick retrieval.
 | Field | Type | Description | Indexed |
 |-------|------|-------------|---------|
 | `thread_id` | String | Thread identifier (root message_id) | Primary Key |
-| `archive_id` | String (UUID) | Reference to parent archive | Yes |
+| `archive_id` | String (SHA256 hash, 16 chars) | Hash of the mbox file this thread came from | Yes |
 | `subject` | String | Thread subject (from root message) | No |
 | `participants` | Array[Object] | List of participants (name, email) | No |
 | `message_count` | Integer | Number of messages in thread | No |
@@ -171,7 +177,7 @@ Stores generated summaries and reports.
 **Citation Object Structure:**
 ```json
 {
-  "chunk_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "chunk_id": "b9c8d7e6f5a4b3c",
   "message_id": "<20231015123456.ABC123@example.com>",
   "quote": "I agree with the proposed approach...",
   "relevance_score": 0.92
@@ -199,10 +205,10 @@ The payload contains metadata that links the embedding back to the source messag
 
 ```json
 {
-  "chunk_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "chunk_id": "b9c8d7e6f5a4b3c",
   "message_id": "<20231015123456.ABC123@example.com>",
   "thread_id": "<20231015120000.XYZ789@example.com>",
-  "archive_id": "550e8400-e29b-41d4-a716-446655440000",
+  "archive_id": "a1b2c3d4e5f6789",
   "chunk_index": 0,
   "text": "I agree with the proposed approach for connection migration...",
   "sender": "alice@example.com",
@@ -642,11 +648,11 @@ Signals that a new archive has been successfully fetched and stored.
 ```json
 {
   "event_type": "ArchiveIngested",
-  "event_id": "550e8400-e29b-41d4-a716-446655440000",
+  "event_id": "a1b2c3d4e5f6789",
   "timestamp": "2023-10-15T14:30:00Z",
   "version": "1.0",
   "data": {
-    "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "archive_id": "b9c8d7e6f5a4b3c",
     "source_name": "ietf-quic",
     "source_type": "rsync",
     "source_url": "rsync.ietf.org::mailman-archive/quic/",
@@ -700,7 +706,7 @@ Signals that an archive has been parsed and messages are stored.
   "timestamp": "2023-10-15T14:35:00Z",
   "version": "1.0",
   "data": {
-    "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "archive_id": "b9c8d7e6f5a4b3c",
     "message_count": 150,
     "parsed_message_ids": [
       "<20231015123456.ABC123@example.com>",
@@ -729,7 +735,7 @@ Signals that archive parsing failed.
   "timestamp": "2023-10-15T14:37:00Z",
   "version": "1.0",
   "data": {
-    "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "archive_id": "b9c8d7e6f5a4b3c",
     "file_path": "/data/raw_archives/ietf-quic/2023-10.mbox",
     "error_message": "Corrupted mbox file",
     "error_type": "MboxParseError",

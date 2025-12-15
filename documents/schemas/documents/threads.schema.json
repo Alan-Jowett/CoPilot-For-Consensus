@@ -5,7 +5,12 @@
   "type": "object",
   "properties": {
     "thread_id": { "type": "string", "minLength": 1 },
-    "archive_id": { "type": "string", "format": "uuid" },
+    "archive_id": { 
+      "type": "string", 
+      "minLength": 16,
+      "maxLength": 64,
+      "description": "SHA256 hash of the mbox file this thread came from (first 16 chars)"
+    },
     "subject": { "type": "string" },
     "participants": {
       "type": "array",

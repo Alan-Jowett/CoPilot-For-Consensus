@@ -147,7 +147,7 @@ Published when embeddings are successfully generated and stored.
 See [EmbeddingsGenerated schema](../documents/SCHEMA.md#7-embeddingsgenerated) in SCHEMA.md for the complete payload definition.
 
 **Key Fields:**
-- `chunk_ids`: List of chunk UUIDs that were embedded
+- `chunk_keys`: List of chunk hash identifiers that were embedded
 - `embedding_count`: Total number of embeddings generated
 - `embedding_model`: Model identifier used for generation
 - `embedding_backend`: Backend used (sentencetransformers, azure, etc.)
@@ -166,7 +166,7 @@ Published when embedding generation fails.
 See [EmbeddingGenerationFailed schema](../documents/SCHEMA.md#8-embeddinggenerationfailed) in SCHEMA.md for the complete payload definition.
 
 **Key Fields:**
-- `chunk_ids`: List of chunk UUIDs that failed
+- `chunk_keys`: List of chunk hash identifiers that failed
 - `error_message`, `error_type`: Error details
 - `embedding_backend`: Backend that was attempted
 - `retry_count`: Number of retry attempts
@@ -230,7 +230,7 @@ Each embedding is stored with rich metadata:
         "chunk_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
         "message_id": "<20231015123456.ABC123@example.com>",
         "thread_id": "<20231015120000.XYZ789@example.com>",
-        "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+        "archive_id": "b9c8d7e6f5a4b3c",
         "chunk_index": 0,
         "text": "I agree with the proposed approach...",
         "sender": "alice@example.com",

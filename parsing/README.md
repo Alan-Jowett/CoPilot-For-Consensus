@@ -114,7 +114,7 @@ Published when an archive has been successfully parsed and messages are stored.
 See [JSONParsed schema](../documents/SCHEMA.md#3-jsonparsed) in SCHEMA.md for the complete payload definition.
 
 **Key Fields:**
-- `archive_id`: Source archive UUID
+- `archive_id`: Source archive hash (SHA256, first 16 chars)
 - `message_count`: Number of messages parsed
 - `parsed_message_ids`: List of all Message-IDs (for chunking service)
 - `thread_count`: Number of distinct threads identified
@@ -131,7 +131,7 @@ Published when archive parsing fails.
 See [ParsingFailed schema](../documents/SCHEMA.md#4-parsingfailed) in SCHEMA.md for the complete payload definition.
 
 **Key Fields:**
-- `archive_id`: Source archive UUID
+- `archive_id`: Source archive hash (SHA256, first 16 chars)
 - `file_path`: Path to the mbox file
 - `error_message`, `error_type`: Error details
     "messages_parsed_before_failure": 75,
@@ -168,7 +168,7 @@ Each parsed message is stored in the `messages` collection:
 ```python
 {
     "message_id": "<20231015123456.ABC123@example.com>",
-    "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "archive_id": "b9c8d7e6f5a4b3c",
     "thread_id": "<20231015120000.XYZ789@example.com>",
     "in_reply_to": "<20231015120000.XYZ789@example.com>",
     "references": [
@@ -217,7 +217,7 @@ Threads are aggregated in the `threads` collection:
 ```python
 {
     "thread_id": "<20231015120000.XYZ789@example.com>",
-    "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "archive_id": "b9c8d7e6f5a4b3c",
     "subject": "QUIC connection migration concerns",
     "participants": [
         {
@@ -518,13 +518,13 @@ Health check endpoint.
 Manually trigger parsing for a specific archive.
 
 **Parameters:**
-- `archive_id`: Archive UUID to parse
+- `archive_id`: Archive hash (SHA256, first 16 chars) to parse
 
 **Response:**
 ```json
 {
   "status": "success",
-  "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "archive_id": "b9c8d7e6f5a4b3c",
   "message_count": 150,
   "thread_count": 45
 }
@@ -586,7 +586,7 @@ Structured JSON logging:
   "service": "parsing",
   "message": "Archive parsed successfully",
   "context": {
-    "archive_id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "archive_id": "b9c8d7e6f5a4b3c",
     "message_count": 150,
     "thread_count": 45,
     "duration_seconds": 12.5

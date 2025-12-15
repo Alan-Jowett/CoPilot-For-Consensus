@@ -11,7 +11,7 @@
         "data": {
           "type": "object",
           "properties": {
-            "archive_id": { "type": "string", "format": "uuid" },
+            "archive_id": { "type": "string", "minLength": 16, "maxLength": 64, "description": "SHA256 hash of mbox file (first 16 chars)" },
             "message_count": { "type": "integer", "minimum": 0 },
             "parsed_message_ids": {
               "type": "array",

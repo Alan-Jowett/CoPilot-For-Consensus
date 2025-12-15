@@ -11,7 +11,7 @@
         "data": {
           "type": "object",
           "properties": {
-            "archive_id": { "type": "string", "format": "uuid" },
+            "archive_id": { "type": "string", "minLength": 16, "maxLength": 64, "description": "SHA256 hash of mbox file (first 16 chars)" },
             "source_name": { "type": "string", "minLength": 1 },
             "source_type": { "type": "string", "enum": ["rsync", "imap", "http", "local"] },
             "source_url": { "type": "string", "minLength": 1 },
