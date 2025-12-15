@@ -31,7 +31,7 @@ This guide explains how to monitor and troubleshoot the services in this reposit
 
 ## 4) Dashboards & Logs (Grafana + Loki)
 - Access Grafana at http://localhost:3000 (default creds: `admin` / `admin`)
- - Dashboards: use or create service dashboards with Prometheus as the data source.
+- Dashboards: use or create service dashboards with Prometheus as the data source.
 
 ### Available Dashboards
 - **Copilot System Health**: Overall service health and uptime
