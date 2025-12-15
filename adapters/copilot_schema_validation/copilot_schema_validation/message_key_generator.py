@@ -49,7 +49,7 @@ def generate_message_key(
     hash_obj = hashlib.sha256(composite.encode("utf-8"))
     hash_hex = hash_obj.hexdigest()
     
-    # Return first 16 characters (64-bit identifier, sufficient for collision avoidance)
+    # Return first 16 hex characters (64-bit identifier, sufficient for collision avoidance)
     return hash_hex[:16]
 
 
