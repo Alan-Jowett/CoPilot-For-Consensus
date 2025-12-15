@@ -133,12 +133,24 @@ class TestNoopSubscriber:
             subscriber.inject_event({"event_id": "123"})
 
     def test_start_consuming(self):
-        """Test starting consumption."""
+        """Test starting consumption (now blocks, so run in thread)."""
+        import threading
+        import time
+        
         subscriber = NoopSubscriber()
         subscriber.connect()
         
-        subscriber.start_consuming()
+        # Start consuming in a separate thread since it now blocks
+        consume_thread = threading.Thread(target=subscriber.start_consuming, daemon=True)
+        consume_thread.start()
+        
+        # Give it time to start
+        time.sleep(0.1)
         assert subscriber.consuming
+        
+        # Clean up
+        subscriber.stop_consuming()
+        consume_thread.join(timeout=1.0)
 
     def test_start_consuming_not_connected(self):
         """Test error when starting consumption without connection."""
@@ -149,12 +161,26 @@ class TestNoopSubscriber:
 
     def test_stop_consuming(self):
         """Test stopping consumption."""
+        import threading
+        import time
+        
         subscriber = NoopSubscriber()
         subscriber.connect()
-        subscriber.start_consuming()
+        
+        # Start consuming in a separate thread since it now blocks
+        consume_thread = threading.Thread(target=subscriber.start_consuming, daemon=True)
+        consume_thread.start()
+        
+        # Give it time to start
+        time.sleep(0.1)
+        assert subscriber.consuming
         
         subscriber.stop_consuming()
+        
+        # Wait for thread to finish
+        consume_thread.join(timeout=1.0)
         assert not subscriber.consuming
+        assert not consume_thread.is_alive()
 
     def test_get_subscriptions(self):
         """Test getting list of subscriptions."""
