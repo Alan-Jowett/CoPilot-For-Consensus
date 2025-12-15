@@ -575,6 +575,7 @@ def test_idempotent_chunk_insertion(chunking_service, mock_document_store, mock_
     messages = [
         {
             "message_id": "<test@example.com>",
+            "message_key": "mk-test",
             "thread_id": "<thread@example.com>",
             "archive_id": "archive-123",
             "body_normalized": "This is a test message. " * 50,
@@ -600,7 +601,7 @@ def test_idempotent_chunk_insertion(chunking_service, mock_document_store, mock_
     
     event_data = {
         "archive_id": "archive-123",
-        "parsed_message_ids": ["<test@example.com>"],
+        "message_keys": ["mk-test"],
     }
     
     # Process should succeed despite duplicate
@@ -623,6 +624,7 @@ def test_metrics_collector_uses_observe_for_histograms():
     mock_store.query_documents = Mock(return_value=[
         {
             "message_id": "<test@example.com>",
+            "message_key": "mk-test-metrics",
             "thread_id": "<thread@example.com>",
             "archive_id": "archive-123",
             "body_normalized": "This is a test message. " * 50,
@@ -648,7 +650,7 @@ def test_metrics_collector_uses_observe_for_histograms():
     
     event_data = {
         "archive_id": "archive-123",
-        "parsed_message_ids": ["<test@example.com>"],
+        "message_keys": ["mk-test-metrics"],
     }
     
     service.process_messages(event_data)
