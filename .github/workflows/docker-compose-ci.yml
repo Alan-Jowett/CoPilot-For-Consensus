@@ -171,8 +171,8 @@ jobs:
         echo "Uploading test ingestion configuration..."
         docker compose run --rm \
           -v $PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro \
-          -e CONFIG_FILE=/app/tests/fixtures/mailbox_sample/ingestion-config.json \
-          ingestion python /app/upload_ingestion_sources.py
+          ingestion \
+          python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
         echo "✓ Test configuration uploaded"
 
     - name: Run ingestion service (batch job)
@@ -180,7 +180,6 @@ jobs:
         echo "Running ingestion service (batch job - runs once and exits)..."
         docker compose run --rm \
           -v $PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro \
-          -e CONFIG_FILE=/app/tests/fixtures/mailbox_sample/ingestion-config.json \
           ingestion
         echo "✓ Ingestion service completed successfully"
 
