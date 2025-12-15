@@ -15,6 +15,7 @@ from copilot_events import create_publisher, ValidatingEventPublisher
 from copilot_logging import create_logger
 from copilot_schema_validation import FileSchemaProvider
 from copilot_metrics import create_metrics_collector
+from copilot_storage import create_document_store, ValidatingDocumentStore
 
 from app import __version__
 from app.service import IngestionService, _enabled_sources
@@ -119,10 +120,52 @@ def main():
         )
         log.info("Event publisher configured with schema validation")
 
+        # Create document store
+        log.info(
+            "Creating document store",
+            doc_store_type=config.doc_store_type,
+            doc_store_host=config.doc_store_host,
+            doc_store_port=config.doc_store_port,
+        )
+        base_document_store = create_document_store(
+            store_type=config.doc_store_type,
+            host=config.doc_store_host,
+            port=config.doc_store_port,
+            database=config.doc_store_name,
+            username=config.doc_store_user,
+            password=config.doc_store_password,
+        )
+
+        # Connect to document store
+        if not base_document_store.connect():
+            if str(config.doc_store_type).lower() != "inmemory":
+                log.error(
+                    "Failed to connect to document store. Failing fast as doc_store_type is not inmemory.",
+                    host=config.doc_store_host,
+                    port=config.doc_store_port,
+                    doc_store_type=config.doc_store_type,
+                )
+                raise ConnectionError("Document store failed to connect")
+            else:
+                log.warning(
+                    "Failed to connect to document store. Continuing with inmemory store.",
+                    host=config.doc_store_host,
+                    port=config.doc_store_port,
+                )
+
+        # Wrap document store with validation layer
+        document_store = ValidatingDocumentStore(
+            document_store=base_document_store,
+            schema_provider=schema_provider,
+            strict=False,  # Log validation warnings but don't raise
+        )
+        log.info("Document store configured with schema validation")
+
         # Create ingestion service
         service = IngestionService(
             config,
             publisher,
+            document_store=document_store,
             logger=log,
             metrics=metrics,
         )
@@ -150,6 +193,7 @@ def main():
 
         # Cleanup
         base_publisher.disconnect()
+        base_document_store.disconnect()
 
         # Push metrics to Pushgateway for short-lived jobs
         is_pushgateway_backend = metrics_backend in ("prometheus_pushgateway", "pushgateway")
