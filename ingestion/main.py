@@ -29,6 +29,19 @@ from app.service import IngestionService, _enabled_sources
 bootstrap_logger = create_logger(logger_type="stdout", level="INFO", name="ingestion-bootstrap")
 
 
+class _ConfigWithSources:
+    """Wrapper that adds sources to the loaded config without modifying it."""
+    
+    def __init__(self, base_config: object, sources: list):
+        self._base_config = base_config
+        self.sources = sources
+    
+    def __getattr__(self, name: str) -> object:
+        if name in ("_base_config", "sources"):
+            return object.__getattribute__(self, name)
+        return getattr(self._base_config, name)
+
+
 def main():
     """Main entry point for the ingestion service."""
     log = bootstrap_logger
@@ -40,7 +53,8 @@ def main():
         
         # Load sources from document store (storage-backed config)
         # Note: SchemaConfigLoader no longer supports storage-backed sources,
-        # so we load them explicitly here.
+        # so we load them explicitly here and pass separately to IngestionService.
+        sources = []
         try:
             # Create a temporary document store to load sources
             temp_store = create_document_store(
@@ -54,20 +68,18 @@ def main():
             temp_store.connect()
             
             doc_store_provider = DocStoreConfigProvider(temp_store)
-            sources = doc_store_provider.query_documents_from_collection("sources")
-            config.sources = sources if sources else []
+            sources = doc_store_provider.query_documents_from_collection("sources") or []
             
             temp_store.disconnect()
             log.info(
                 "Sources loaded from document store",
-                source_count=len(config.sources),
+                source_count=len(sources),
             )
         except Exception as e:
             log.warning(
                 "Failed to load sources from document store; using empty list",
                 error=str(e),
             )
-            config.sources = []
 
         # Recreate logger with configured settings
         service_logger = create_logger(
@@ -200,9 +212,12 @@ def main():
         )
         log.info("Document store configured with schema validation")
 
+        # Create config wrapper that includes sources
+        config_with_sources = _ConfigWithSources(config, sources)
+
         # Create ingestion service
         service = IngestionService(
-            config,
+            config_with_sources,
             publisher,
             document_store=document_store,
             logger=log,
@@ -212,7 +227,7 @@ def main():
         # Ingest from all enabled sources
         log.info(
             "Starting ingestion for enabled sources",
-            enabled_source_count=len(_enabled_sources(getattr(config, "sources", []))),
+            enabled_source_count=len(_enabled_sources(sources)),
         )
 
         results = service.ingest_all_enabled_sources()

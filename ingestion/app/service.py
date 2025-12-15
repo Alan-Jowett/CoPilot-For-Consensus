@@ -45,12 +45,26 @@ DEFAULT_CONFIG = {
 }
 
 
+class _ConfigWithDefaults:
+    """Wrapper that combines a loaded config with defaults, without modifying the original."""
+    
+    def __init__(self, config: object):
+        self._config = config
+    
+    def __getattr__(self, name: str) -> Any:
+        # Try to get from loaded config first
+        if hasattr(self._config, name):
+            return getattr(self._config, name)
+        # Fall back to defaults
+        if name in DEFAULT_CONFIG:
+            return DEFAULT_CONFIG[name]
+        # Raise AttributeError if not found
+        raise AttributeError(f"Configuration key '{name}' not found")
+
+
 def _apply_defaults(config: object) -> object:
-    """Ensure all expected config fields exist with defaults."""
-    for key, value in DEFAULT_CONFIG.items():
-        if not hasattr(config, key):
-            setattr(config, key, value)
-    return config
+    """Ensure all expected config fields exist with defaults, without modifying the original config."""
+    return _ConfigWithDefaults(config)
 
 
 def _expand(value: Optional[str]) -> Optional[str]:
