@@ -31,27 +31,31 @@ This guide explains how to monitor and troubleshoot the services in this reposit
 
 ## 4) Dashboards & Logs (Grafana + Loki)
 - Access Grafana at http://localhost:3000 (default creds: `admin` / `admin`)
-- Available dashboards:
-  - **Copilot System Health** - Overall service health and uptime
-  - **Service Metrics** - Service-level performance metrics
-  - **Queue Status** - RabbitMQ queue depths and throughput
-  - **Failed Queues** - Failed message monitoring and alerting
-  - **MongoDB Document Store Status** - Document counts, storage, and MongoDB performance
-- Pre-configured Dashboards:
-  - **System Health**: Service uptime and basic health metrics (Prometheus)
-  - **Service Metrics**: Detailed service performance metrics (Prometheus)
-  - **Queue Status**: RabbitMQ queue depths and message flow (Prometheus)
-  - **Failed Queues**: Failed message queue monitoring (Prometheus)
-  - **Logs Overview**: Error and warning tracking across all services (Loki)
-    - Error/warning counts per service (last 1h)
-    - Live error and warning log streams
-    - Error rate trends over time
-    - Top services by error count
-- Logs via Grafana Explore (Loki):
-  - Data source: Loki
-  - Basic query: `{container="<service>"}`
-  - Filter by severity (if structured): `{container="<service>", level="error"}`
-  - Time-align with metrics by selecting the same time window.
+- Dashboards: use or create service dashboards with Prometheus as the data source.
+
+### Available Dashboards
+- **Copilot System Health**: Overall service health and uptime
+- **Service Metrics**: Service-level performance metrics
+- **Queue Status**: RabbitMQ queue depths and message flow
+- **Failed Queues Overview**: Failed message monitoring and alerting
+- **Logs Overview**: Error and warning tracking across all services (Loki)
+  - Error/warning counts per service (last 1h)
+  - Live error and warning log streams
+  - Error rate trends over time
+  - Top services by error count
+- **MongoDB Document Store Status**: Document counts, growth rate, totals, storage by collection, connections, op counters, query latency, recent changes
+- **Pipeline Flow Visualization**: End-to-end pipeline monitoring showing message flow from ingestion through reporting
+  - Identify bottlenecks quickly
+  - Monitor message rates per stage using counter-based rates
+  - Track success and failure counts by stage
+  - View processing latency per stage (P95)
+  - Default time range: Last 15 minutes
+
+### Logs via Grafana Explore (Loki)
+- Data source: Loki
+- Basic query: `{container="<service>"}`
+- Filter by severity (if structured): `{container="<service>", level="error"}`
+- Time-align with metrics by selecting the same time window.
 
 ## 5) MongoDB Document Store Monitoring
 - MongoDB metrics are collected by two exporters:
@@ -152,7 +156,50 @@ Use these signals to see whether a mail archive was ingested and where it is in 
   - Inspect that stage’s container logs for errors (auth, schema, upstream/downstream unavailable).
   - Validate config/credentials for dependent services (doc store, vector store, message bus).
 
-## 9.2) Using the Orchestrator
+### Using the Pipeline Flow Dashboard
+
+The **Pipeline Flow Visualization** dashboard provides a unified view for troubleshooting pipeline issues. Here are common scenarios:
+
+**Scenario 1: Chunking queue is growing (bottleneck detected)**
+1. Open the Pipeline Flow dashboard at http://localhost:3000
+2. Look at the visual flow diagram (top row) - the "Chunking" box will be yellow (50-200 messages) or red (>200 messages)
+3. Check the "Message Rate by Stage" panel - if the "Chunking → Embedding" line is flat or declining while "Parsing → Chunking" is increasing, chunking is the bottleneck
+4. In the "Pipeline Bottleneck Alert" table, chunking will appear at the top with the highest queue depth
+5. **Action**: Check chunking service logs: `docker compose logs -f chunking` or use Grafana Loki: `{container="chunking", level="error"}`
+6. Common causes: service crashes, resource exhaustion, downstream dependency (doc store) unavailable
+
+**Scenario 2: High failure rate in embedding stage**
+1. Open the Pipeline Flow dashboard
+2. Check the "Success/Failure Counts by Stage" table at the bottom
+3. If `embedding.generation.failed` queue has a high message count, this indicates systematic failures
+4. Look at the "Queue Depth by Stage" stacked area chart - you may see embedding queue draining but failed queue growing
+5. **Action**: Inspect embedding service logs for errors, check vector store (Qdrant) connectivity and health
+6. Switch to the "Failed Queues Overview" dashboard for detailed failure analysis
+
+**Scenario 3: End-to-end throughput is low but no obvious bottleneck**
+1. Check the "End-to-End Throughput" stat panel - if it's near zero or very low, the pipeline is stalled
+2. Look at the "Stage Processing Latency (P95)" panel - if any stage shows abnormally high latency (>10s), that's the culprit
+3. Even if queues are empty, high latency indicates slow processing
+4. **Action**: 
+   - For high parsing latency: check if documents are unusually large or complex
+   - For high embedding latency: check Ollama service health and model loading times
+   - For high summarization latency: check LLM service availability and response times
+
+**Scenario 4: Pipeline is processing but reports aren't being generated**
+1. Visual flow shows messages flowing through all stages but "Reporting" box stays red
+2. Check "Message Rate by Stage" - if "Reporting Output" line is flat at zero, reports aren't completing
+3. **Action**: Check reporting service logs and verify report delivery configuration (S3, filesystem, etc.)
+
+**Scenario 5: Sudden spike in all queues (upstream overload)**
+1. All boxes in visual flow turn yellow/red simultaneously
+2. "Queue Depth by Stage" stacked chart shows all layers growing together
+3. "Message Rate by Stage" shows all rates increasing
+4. **Action**: This indicates ingestion is overwhelming the pipeline. Either:
+   - Rate-limit ingestion at the source
+   - Scale up consumer services: `docker compose up -d --scale parsing=2 --scale chunking=2`
+   - Check if this is expected (e.g., large batch import) or anomalous
+
+## 8.2) Using the Orchestrator
 - Purpose: coordinates cross-service workflows and may dispatch work to the pipeline.
 - Observability:
   - Metrics: `up{job="orchestrator"}` plus any orchestrator-specific counters (dispatch counts, failures).
