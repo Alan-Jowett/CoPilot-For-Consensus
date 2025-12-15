@@ -35,9 +35,15 @@ python tests/validate_e2e_flow.py
 5. Embeddings are generated and stored in Qdrant
 6. Data consistency across collections
 
+**Timing considerations:**
+- The script waits up to 90 seconds for message processing to complete
+- In CI, a 20-second delay is added after ingestion before validation starts
+- Message processing through the pipeline (parsing → chunking → embedding) can take 30-60 seconds for 10 messages
+- Embeddings are treated as warnings rather than failures since they depend on Ollama availability
+
 **Exit codes:**
-- `0` - All validations passed
-- `1` - One or more validations failed
+- `0` - All validations passed (or only warnings)
+- `1` - One or more critical validations failed
 
 ## Fixtures
 
