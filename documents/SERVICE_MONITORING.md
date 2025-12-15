@@ -19,6 +19,7 @@ This guide explains how to monitor and troubleshoot the services in this reposit
 - Promtail (shipper): publishes container logs into Loki
 - RabbitMQ Management UI: http://localhost:15672 (default creds: `guest` / `guest` unless overridden)
 - cAdvisor: http://localhost:8082 (container resource metrics, **opt-in**: `docker compose --profile monitoring-extra up -d cadvisor`)
+- Qdrant Dashboard: http://localhost:6333/dashboard (vectorstore web UI)
 - Service container logs: via `docker compose logs -f <service>`
 
 ## 3) Metrics (Prometheus)
@@ -44,6 +45,7 @@ This guide explains how to monitor and troubleshoot the services in this reposit
   - **Queue Status** - RabbitMQ queue depths and throughput
   - **Failed Queues** - Failed message monitoring and alerting
   - **MongoDB Document Store Status** - Document counts, storage, and MongoDB performance
+  - **Qdrant Vectorstore Status** - Vector counts, storage, and Qdrant performance
 - Pre-configured Dashboards:
   - **System Health**: Service uptime and basic health metrics (Prometheus)
   - **Service Metrics**: Detailed service performance metrics (Prometheus)
@@ -55,6 +57,14 @@ This guide explains how to monitor and troubleshoot the services in this reposit
     - Error rate trends over time
     - Top services by error count
   - **Container Resource Usage**: CPU, memory, network, and disk I/O per container (see section 4.1)
+=======
+- Dashboards: use or create service dashboards with Prometheus as the data source.
+  - **System Health**: Overview of all services and their health status
+  - **Service Metrics**: Processing throughput and latency for core services
+  - **Queue Status**: RabbitMQ queue depths and consumer metrics
+  - **Failed Queues**: Monitoring for messages in failed queues
+  - **Vectorstore Status**: Qdrant vector counts, storage, memory, and query performance
+>>>>>>> 2c0afb6 (Add Qdrant vectorstore monitoring with exporter and Grafana dashboard)
 - Logs via Grafana Explore (Loki):
   - Data source: Loki
   - Basic query: `{container="<service>"}`
@@ -160,7 +170,49 @@ docker compose --profile monitoring-extra up -d cadvisor
   - **Connections/Channels** to ensure consumers are live.
   - **Overview** to watch publish/ack rates.
 
-## 7) Log Collection (Loki / Promtail)
+## 5.1) Qdrant Vectorstore Monitoring
+- **Grafana Dashboard**: http://localhost:3000 → **Qdrant Vectorstore Status**
+- **Qdrant Web UI**: http://localhost:6333/dashboard (native Qdrant interface)
+- **Direct API**: http://localhost:6333 (REST API for collections, points, metrics)
+
+### Key Metrics
+- **Vector Counts**: Total vectors stored per collection (primarily `embeddings` collection)
+- **Growth Rate**: Vectors added per second to track embedding ingestion
+- **Storage Size**: Disk space consumed by vector collections
+- **Indexed Vectors**: Number of vectors with completed indexing
+- **Segments**: Internal storage segments per collection (indicates compaction status)
+- **Memory Usage**: Qdrant process memory consumption
+- **Scrape Health**: Exporter connectivity and data freshness
+
+### Monitoring Queries (Prometheus)
+- Vector count: `qdrant_collection_vectors_count{collection="embeddings"}`
+- Growth rate: `rate(qdrant_collection_vectors_count{collection="embeddings"}[5m])`
+- Storage size: `qdrant_collection_size_bytes{collection="embeddings"}`
+- Memory usage: `qdrant_memory_usage_bytes`
+- Scrape errors: `rate(qdrant_scrape_errors_total[5m])`
+
+### Troubleshooting
+- **No vectors appearing**: Check embedding service logs; verify Qdrant connectivity
+- **High memory usage**: Consider collection optimization or increasing resources
+- **Many segments**: May indicate need for manual compaction
+- **Scrape failures**: Check qdrant-exporter logs (`docker compose logs qdrant-exporter`)
+- **Slow queries**: Review indexed vectors count; indexing may be lagging
+
+### Direct Collection Inspection
+```bash
+# List all collections
+curl http://localhost:6333/collections
+
+# Get embeddings collection info
+curl http://localhost:6333/collections/embeddings
+
+# Count points/vectors
+curl -X POST http://localhost:6333/collections/embeddings/points/count \
+  -H 'Content-Type: application/json' \
+  -d '{"exact": true}'
+```
+
+## 6) Log Collection (Loki / Promtail)
 - Container logs are forwarded by Promtail into Loki.
 - If logs are missing in Loki:
   - `docker compose logs -f promtail`
@@ -211,6 +263,8 @@ Use these signals to see whether a mail archive was ingested and where it is in 
   - Parsing: look for successful parse logs and messages moving from parsing queue to chunking queue.
   - Chunking: logs indicating chunks emitted; chunking queue drains while embedding queue fills.
   - Embedding: logs for vector creation; embedding queue drains; vector store writes succeed (check logs/metrics if emitted).
+    - **Verify vectors stored**: Check `qdrant_collection_vectors_count{collection="embeddings"}` in Grafana or Prometheus
+    - **Growth rate**: Monitor `rate(qdrant_collection_vectors_count[5m])` to confirm active ingestion
   - Summarization: logs for summary generation per thread/batch; queue drains accordingly.
   - Reporting: logs for report generation or delivery; reporting queue drains; final outputs written/stored.
 
@@ -218,6 +272,7 @@ Use these signals to see whether a mail archive was ingested and where it is in 
   - Check the stage’s queue depth and consumer count in RabbitMQ UI.
   - Inspect that stage’s container logs for errors (auth, schema, upstream/downstream unavailable).
   - Validate config/credentials for dependent services (doc store, vector store, message bus).
+  - **For embedding issues**: Check Qdrant Vectorstore Status dashboard; verify qdrant-exporter is running and healthy.
 
 ### Using the Pipeline Flow Dashboard
 

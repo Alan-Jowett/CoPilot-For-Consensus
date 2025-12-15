@@ -62,3 +62,8 @@ scrape_configs:
         target_label: instance
         replacement: 'cadvisor'
 
+  - job_name: 'qdrant'
+    static_configs:
+      - targets:
+          - 'qdrant-exporter:9501'
+
