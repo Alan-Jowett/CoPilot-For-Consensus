@@ -363,8 +363,8 @@
       "gridPos": {
         "h": 4,
         "w": 6,
-        "x": 18,
-        "y": 8
+        "x": 6,
+        "y": 12
       },
       "id": 5,
       "options": {
@@ -435,7 +435,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 16
+        "y": 20
       },
       "id": 6,
       "options": {
@@ -534,7 +534,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 16
+        "y": 20
       },
       "id": 7,
       "options": {
@@ -673,7 +673,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 24
+        "y": 28
       },
       "id": 8,
       "options": {
@@ -741,6 +741,64 @@
         }
       ],
       "type": "table"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 100
+              },
+              {
+                "color": "green",
+                "value": 1000
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 12
+      },
+      "id": 9,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "text": {}
+      },
+      "targets": [
+        {
+          "expr": "mongodb_ss_connections{conn_type=\"available\"}",
+          "refId": "A",
+          "legendFormat": "Available Connections"
+        }
+      ],
+      "title": "Available Connections",
+      "type": "gauge"
     }
   ],
   "schemaVersion": 27,
