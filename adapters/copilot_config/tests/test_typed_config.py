@@ -27,7 +27,7 @@ class TestTypedConfig:
         assert config.debug is True
 
     def test_dict_style_access(self):
-        """Test dict-style access to config values."""
+        """Test that dict-style access raises TypeError."""
         config_dict = {
             "app_name": "test-app",
             "port": 8080,
@@ -35,17 +35,19 @@ class TestTypedConfig:
         
         config = TypedConfig(config_dict)
         
-        assert config["app_name"] == "test-app"
-        assert config["port"] == 8080
+        with pytest.raises(TypeError, match="does not support dict-style"):
+            _ = config["app_name"]
+        with pytest.raises(TypeError, match="does not support dict-style"):
+            _ = config["port"]
 
     def test_get_with_default(self):
-        """Test get method with default value."""
+        """Test that get method raises AttributeError."""
         config_dict = {"app_name": "test-app"}
         
         config = TypedConfig(config_dict)
         
-        assert config.get("app_name") == "test-app"
-        assert config.get("missing_key", "default") == "default"
+        with pytest.raises(AttributeError, match="Configuration key 'get' not found"):
+            config.get("app_name")
 
     def test_missing_attribute_raises_error(self):
         """Test that missing attribute raises AttributeError."""
@@ -57,16 +59,16 @@ class TestTypedConfig:
             _ = config.missing_key
 
     def test_missing_key_raises_error(self):
-        """Test that missing key raises KeyError."""
+        """Test that dict-style access raises TypeError."""
         config_dict = {"app_name": "test-app"}
         
         config = TypedConfig(config_dict)
         
-        with pytest.raises(KeyError):
+        with pytest.raises(TypeError, match="does not support dict-style"):
             _ = config["missing_key"]
 
     def test_to_dict(self):
-        """Test converting config to dictionary."""
+        """Test that to_dict method raises AttributeError."""
         config_dict = {
             "app_name": "test-app",
             "port": 8080,
@@ -74,19 +76,17 @@ class TestTypedConfig:
         
         config = TypedConfig(config_dict)
         
-        result = config.to_dict()
-        assert result == config_dict
-        # Ensure it's a copy
-        assert result is not config._config
+        with pytest.raises(AttributeError, match="Configuration key 'to_dict' not found"):
+            config.to_dict()
 
     def test_contains(self):
-        """Test checking if key exists."""
+        """Test that 'in' operator raises TypeError."""
         config_dict = {"app_name": "test-app"}
         
         config = TypedConfig(config_dict)
         
-        assert "app_name" in config
-        assert "missing_key" not in config
+        with pytest.raises(TypeError, match="does not support dict-style"):
+            "app_name" in config
 
     def test_repr(self):
         """Test string representation."""
@@ -96,6 +96,23 @@ class TestTypedConfig:
         
         assert "TypedConfig" in repr(config)
         assert "test-app" in repr(config)
+
+    def test_immutability(self):
+        """Test that config is immutable after loading."""
+        config_dict = {"app_name": "test-app"}
+        
+        config = TypedConfig(config_dict)
+        
+        # Attempting to set an attribute should raise AttributeError
+        with pytest.raises(AttributeError, match="Cannot modify configuration"):
+            config.app_name = "new-value"
+        
+        # Attempting to set a new attribute should also raise
+        with pytest.raises(AttributeError, match="Cannot modify configuration"):
+            config.new_key = "value"
+        
+        # Original value should be unchanged
+        assert config.app_name == "test-app"
 
 
 class TestLoadTypedConfig:
