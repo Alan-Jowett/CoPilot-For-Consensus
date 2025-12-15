@@ -65,7 +65,8 @@ jobs:
         with:
           github-token: ${{ github.token }}
           path-to-lcov: ./${{ inputs.adapter_path }}/coverage.lcov
-          flag-name: python-${{ inputs.python_version }}
+          flag-name: ${{ inputs.adapter_id }}
+          parallel: true
 
       - name: Upload test results
         if: always()

@@ -83,6 +83,7 @@ jobs:
         github-token: ${{ github.token }}
         path-to-lcov: ./${{ inputs.service_path }}/coverage.lcov
         flag-name: ${{ inputs.service_id }}
+        parallel: true
 
     - name: Upload test results
       if: always()
