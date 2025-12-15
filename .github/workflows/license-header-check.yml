@@ -2,14 +2,15 @@
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
 name: License Header Check
-permissions:
-  contents: read
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
   push:
     branches: [ main ]
+
+permissions:
+  contents: read
 
 jobs:
   check-headers:
