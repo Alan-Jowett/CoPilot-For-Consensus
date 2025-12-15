@@ -16,22 +16,9 @@ scrape_configs:
     static_configs:
       - targets: ['monitoring:9090']
 
-  - job_name: 'copilot-services'
-    static_configs:
-      - targets: 
-        - 'ingestion:8000'
-        - 'parsing:8000'
-        - 'chunking:8000'
-        - 'embedding:8000'
-        - 'orchestrator:8000'
-        - 'summarization:8000'
-        - 'reporting:8080'
-        - 'error-reporting:8081'
-    relabel_configs:
-      - source_labels: [__address__]
-        regex: '([^:]+):.*'
-        target_label: service
-        replacement: '$1'
+  # Note: Services use push model (PrometheusPushGatewayMetricsCollector) and push metrics to Pushgateway.
+  # They do NOT expose /metrics endpoints. Prometheus scrapes metrics from Pushgateway instead.
+  # For service health endpoints, see /health on each service.
 
   - job_name: 'pushgateway'
     static_configs:

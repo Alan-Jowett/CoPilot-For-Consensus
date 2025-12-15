@@ -223,12 +223,12 @@ class ChunkingService:
                     "chunking_chunks_created_total",
                     len(all_chunks)
                 )
-                self.metrics_collector.histogram(
+                self.metrics_collector.observe(
                     "chunking_duration_seconds",
                     duration
                 )
                 if avg_chunk_size > 0:
-                    self.metrics_collector.histogram(
+                    self.metrics_collector.observe(
                         "chunking_chunk_size_tokens",
                         avg_chunk_size
                     )
