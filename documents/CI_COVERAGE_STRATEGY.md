@@ -74,28 +74,15 @@ After all tests complete on `main` branch pushes, a final aggregation step:
 
 **Jobs:**
 - `detect-changes`: Runs only on pull requests to determine changed adapters
-- Adapter jobs (15 adapters including unit and integration tests):
+- Adapter jobs (15 adapters with unit tests, 5 with integration tests):
   - On PR: Run only if the adapter changed
   - On main push: Always run
   - On schedule/manual: Always run
 - `coverage-summary`: Runs only on main pushes to finalize coverage aggregation
 
 **Coverage Flags:**
-- `copilot_auth`
-- `copilot_config`
-- `copilot_events`
-- `copilot_logging`
-- `copilot_metrics`
-- `copilot_archive_fetcher`
-- `copilot_reporting`
-- `copilot_storage`
-- `copilot_embedding`
-- `copilot_chunking`
-- `copilot_consensus`
-- `copilot_schema_validation`
-- `copilot_summarization`
-- `copilot_vectorstore`
-- `copilot_draft_diff`
+- Unit tests: `copilot_auth`, `copilot_config`, `copilot_events`, `copilot_logging`, `copilot_metrics`, `copilot_archive_fetcher`, `copilot_reporting`, `copilot_storage`, `copilot_embedding`, `copilot_chunking`, `copilot_consensus`, `copilot_schema_validation`, `copilot_summarization`, `copilot_vectorstore`, `copilot_draft_diff`
+- Integration tests: `copilot_archive_fetcher_integration`, `copilot_storage_integration`, `copilot_events_integration`, `copilot_schema_validation_integration`, `copilot_vectorstore_integration`
 
 ## Implementation Details
 

@@ -241,7 +241,7 @@ jobs:
 
   vectorstore-integration-ci:
     needs: detect-changes
-    if: ${{ github.event_name == 'push' || needs.detect-changes.outputs.copilot_vectorstore == 'true' || needs.detect-changes.outputs.ci_workflows == 'true' }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.detect-changes.outputs.copilot_vectorstore == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-vectorstore-integration-ci.yml
     with:
       adapter_id: copilot_vectorstore
@@ -286,7 +286,7 @@ jobs:
 
   # Aggregate coverage from all adapters on main branch
   coverage-summary:
-    needs: [auth-ci, config-ci, events-ci, logging-ci, metrics-ci, archive-fetcher-ci, reporting-ci, storage-ci, embedding-ci, chunking-ci, consensus-ci, schema-validation-ci, summarization-ci, vectorstore-ci, draft-diff]
+    needs: [auth-ci, config-ci, events-ci, logging-ci, metrics-ci, archive-fetcher-ci, archive-fetcher-integration-ci, reporting-ci, storage-ci, storage-integration-ci, embedding-ci, chunking-ci, consensus-ci, schema-validation-ci, schema-validation-integration-ci, summarization-ci, vectorstore-ci, vectorstore-integration-ci, events-integration-ci, draft-diff]
     runs-on: ubuntu-latest
     if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     steps:
@@ -298,4 +298,4 @@ jobs:
         with:
           github-token: ${{ github.token }}
           parallel-finished: true
-          carryforward: "copilot_auth,copilot_config,copilot_events,copilot_logging,copilot_metrics,copilot_archive_fetcher,copilot_reporting,copilot_storage,copilot_embedding,copilot_chunking,copilot_consensus,copilot_schema_validation,copilot_summarization,copilot_vectorstore,copilot_draft_diff"
+          carryforward: "copilot_auth,copilot_config,copilot_events,copilot_logging,copilot_metrics,copilot_archive_fetcher,copilot_reporting,copilot_storage,copilot_embedding,copilot_chunking,copilot_consensus,copilot_schema_validation,copilot_summarization,copilot_vectorstore,copilot_draft_diff,copilot_archive_fetcher_integration,copilot_storage_integration,copilot_events_integration,copilot_schema_validation_integration,copilot_vectorstore_integration"
