@@ -5,7 +5,7 @@ This directory contains end-to-end integration tests for the Copilot-for-Consens
 ## Test Files
 
 ### test_integration_message_flow.py
-Schema validation tests for event types. These tests validate that all event types have proper schemas and that events can be validated against them.
+Event schema validation tests. These tests validate that all event types have proper JSON schemas and that events can be correctly validated against them. They demonstrate the schema validation infrastructure without requiring actual service instances.
 
 **Markers:** `integration`
 

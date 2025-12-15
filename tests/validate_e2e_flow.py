@@ -64,6 +64,23 @@ class E2EMessageFlowValidator:
         print(f"✓ Connected to MongoDB at {self.mongo_host}:{self.mongo_port}")
         print(f"✓ Connected to Qdrant at {self.qdrant_host}:{self.qdrant_port}")
     
+    def _get_qdrant_collection_point_count(self) -> int:
+        """Get the number of points in the Qdrant collection.
+        
+        Returns:
+            Number of points in the collection, or 0 if collection doesn't exist.
+        """
+        try:
+            collections = self.qdrant_client.get_collections().collections
+            collection_names = [c.name for c in collections]
+            if self.qdrant_collection in collection_names:
+                collection_info = self.qdrant_client.get_collection(self.qdrant_collection)
+                return collection_info.points_count
+        except Exception as e:
+            # Log the error but don't fail - collection might not exist yet
+            print(f"  Note: Could not query Qdrant collection: {e}")
+        return 0
+    
     def wait_for_processing(self, max_wait_seconds: int = 60, poll_interval: int = 3):
         """Wait for message processing to complete.
         
@@ -79,17 +96,7 @@ class E2EMessageFlowValidator:
         while time.time() - start_time < max_wait_seconds:
             messages_count = self.db.messages.count_documents({})
             chunks_count = self.db.chunks.count_documents({})
-            
-            # Check if embeddings exist in Qdrant
-            try:
-                collections = self.qdrant_client.get_collections().collections
-                collection_names = [c.name for c in collections]
-                if self.qdrant_collection in collection_names:
-                    collection_info = self.qdrant_client.get_collection(self.qdrant_collection)
-                    embeddings_count = collection_info.points_count
-            except Exception:
-                # Qdrant collection might not exist yet
-                embeddings_count = 0
+            embeddings_count = self._get_qdrant_collection_point_count()
             
             print(f"  Polling... messages={messages_count}, chunks={chunks_count}, embeddings={embeddings_count}")
             
@@ -101,16 +108,9 @@ class E2EMessageFlowValidator:
                 if embeddings_count == 0:
                     print("⚠ No embeddings yet, waiting a bit more...")
                     time.sleep(5)
-                    try:
-                        collections = self.qdrant_client.get_collections().collections
-                        collection_names = [c.name for c in collections]
-                        if self.qdrant_collection in collection_names:
-                            collection_info = self.qdrant_client.get_collection(self.qdrant_collection)
-                            embeddings_count = collection_info.points_count
-                            if embeddings_count > 0:
-                                print(f"✓ Embeddings appeared: {embeddings_count}")
-                    except Exception:
-                        pass
+                    embeddings_count = self._get_qdrant_collection_point_count()
+                    if embeddings_count > 0:
+                        print(f"✓ Embeddings appeared: {embeddings_count}")
                 return True
             
             time.sleep(poll_interval)
@@ -261,22 +261,20 @@ class E2EMessageFlowValidator:
                 print(f"⚠ Warning: Expected at least {expected_min_count} embeddings, got {points_count}")
             
             # Sample a few points to validate structure
-            if points_count > 0:
-                # Scroll through first few points
-                scroll_result = self.qdrant_client.scroll(
-                    collection_name=self.qdrant_collection,
-                    limit=3,
-                    with_payload=True,
-                    with_vectors=False
-                )
-                
-                points = scroll_result[0]
-                for point in points:
-                    print(f"  - Point ID: {point.id}")
-                    if point.payload:
-                        print(f"    Chunk key: {point.payload.get('chunk_key', 'N/A')}")
-                        print(f"    Message ID: {point.payload.get('message_id', 'N/A')}")
-                        print(f"    Thread ID: {point.payload.get('thread_id', 'N/A')}")
+            scroll_result = self.qdrant_client.scroll(
+                collection_name=self.qdrant_collection,
+                limit=3,
+                with_payload=True,
+                with_vectors=False
+            )
+            
+            points = scroll_result[0]
+            for point in points:
+                print(f"  - Point ID: {point.id}")
+                if point.payload:
+                    print(f"    Chunk key: {point.payload.get('chunk_key', 'N/A')}")
+                    print(f"    Message ID: {point.payload.get('message_id', 'N/A')}")
+                    print(f"    Thread ID: {point.payload.get('thread_id', 'N/A')}")
             
             return {
                 "status": "PASS",
@@ -287,6 +285,8 @@ class E2EMessageFlowValidator:
         except Exception as e:
             print(f"⚠ WARNING: Error querying Qdrant: {e}")
             print(f"   Embedding validation will be marked as warning, not failure")
+            import traceback
+            print(f"   Details: {traceback.format_exc()}")
             return {"status": "WARN", "count": 0, "details": str(e)}
     
     def validate_data_consistency(self, results: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
