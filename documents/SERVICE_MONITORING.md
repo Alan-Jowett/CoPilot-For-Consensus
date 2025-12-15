@@ -31,14 +31,51 @@ This guide explains how to monitor and troubleshoot the services in this reposit
 
 ## 4) Dashboards & Logs (Grafana + Loki)
 - Access Grafana at http://localhost:3000 (default creds: `admin` / `admin`)
-- Dashboards: use or create service dashboards with Prometheus as the data source.
+- Available dashboards:
+  - **Copilot System Health** - Overall service health and uptime
+  - **Service Metrics** - Service-level performance metrics
+  - **Queue Status** - RabbitMQ queue depths and throughput
+  - **Failed Queues** - Failed message monitoring and alerting
+  - **MongoDB Document Store Status** - Document counts, storage, and MongoDB performance
 - Logs via Grafana Explore (Loki):
   - Data source: Loki
   - Basic query: `{container="<service>"}`
   - Filter by severity (if structured): `{container="<service>", level="error"}`
   - Time-align with metrics by selecting the same time window.
 
-## 5) RabbitMQ Management UI
+## 5) MongoDB Document Store Monitoring
+- MongoDB metrics are collected by two exporters:
+  - **mongodb-exporter** (Percona) - General MongoDB metrics (connections, operations, latency)
+  - **mongo-doc-count-exporter** - Custom exporter for collection document counts
+- Both exporters are scraped by Prometheus automatically
+- **MongoDB Document Store Status Dashboard** provides visibility into:
+  - **Document Counts by Collection** - Track data flow through the pipeline (archives → messages → chunks → summaries → reports)
+  - **Document Count Growth Rate** - See write throughput per collection
+  - **Total Documents** - Overall system data volume
+  - **Storage Size by Collection** - Identify collections consuming storage
+  - **MongoDB Connections** - Monitor connection pool usage (warns at 80/200 connections)
+  - **MongoDB Operation Counters** - Track query, insert, update, delete rates
+  - **Query Execution Time** - Monitor read/write/command latency
+  - **Recent Collection Changes** - Quick view of which collections are actively changing
+
+### MongoDB Monitoring Quick Checks
+- **Verify data is flowing**: Watch "Document Counts by Collection" panel - all collections should grow after ingestion
+- **Check pipeline health**: Compare queue depths (RabbitMQ dashboard) with document counts (MongoDB dashboard)
+  - Messages in `json.parsed` queue → should result in increased `messages` collection count
+  - Messages in `chunks.prepared` queue → should result in increased `chunks` collection count
+  - Messages in `embeddings.generated` queue → should result in increased embeddings in vector store
+  - Messages in `summary.complete` queue → should result in increased `summaries` collection count
+- **Connection pool health**: MongoDB Connections gauge should stay below 160 (80% of default max)
+- **Storage growth**: Monitor "Storage Size by Collection" to identify collections needing cleanup or optimization
+- **Performance issues**: If services are slow, check "Query Execution Time" for latency spikes
+
+### Troubleshooting with MongoDB Metrics
+- **Documents not increasing**: Check service logs for MongoDB connection errors; verify `db-init` and `db-validate` services completed successfully
+- **High connection count**: Check for connection leaks; review service logs for repeated connection errors
+- **Storage issues**: Run `docker compose exec documentdb mongosh` and use `db.stats()` to inspect database size
+- **Slow queries**: Enable profiling in MongoDB if latency is consistently high: `db.setProfilingLevel(1, { slowms: 100 })`
+
+## 6) RabbitMQ Management UI
 - URL: http://localhost:15672
 - Check queues, consumers, message rates, and dead-letter queues.
 - Useful views:
@@ -46,18 +83,18 @@ This guide explains how to monitor and troubleshoot the services in this reposit
   - **Connections/Channels** to ensure consumers are live.
   - **Overview** to watch publish/ack rates.
 
-## 6) Log Collection (Loki / Promtail)
+## 7) Log Collection (Loki / Promtail)
 - Container logs are forwarded by Promtail into Loki.
 - If logs are missing in Loki:
   - `docker compose logs -f promtail`
   - Verify promtail config paths match container log locations.
 
-## 7) Health & Readiness
+## 8) Health & Readiness
 - If services expose `/health` or `/ready`, curl from host or from within the compose network:
   - Host: `curl http://localhost:<mapped-port>/health`
   - In-network: `docker compose exec <service> curl http://<service>:<port>/health`
 
-## 8) Common Diagnostics (Playbook)
+## 9) Common Diagnostics (Playbook)
 - Service looks down in Prometheus `up`:
   - Check container: `docker compose ps` and `docker compose logs <service>`
   - Confirm port mapping and metrics endpoint availability (`curl http://<service>:<port>/metrics` inside network).
@@ -73,7 +110,7 @@ This guide explains how to monitor and troubleshoot the services in this reposit
 - Unexpected restarts:
   - `docker compose ps` for restart count; `docker compose logs <service>` for crash reason.
 
-## 8.1) End-to-End Pipeline Status (Mail Archive)
+## 9.1) End-to-End Pipeline Status (Mail Archive)
 Use these signals to see whether a mail archive was ingested and where it is in the pipeline.
 
 - Ingestion → Parsing → Chunking → Embedding → Summarization → Reporting
@@ -105,7 +142,7 @@ Use these signals to see whether a mail archive was ingested and where it is in 
   - Inspect that stage’s container logs for errors (auth, schema, upstream/downstream unavailable).
   - Validate config/credentials for dependent services (doc store, vector store, message bus).
 
-## 8.2) Using the Orchestrator
+## 9.2) Using the Orchestrator
 - Purpose: coordinates cross-service workflows and may dispatch work to the pipeline.
 - Observability:
   - Metrics: `up{job="orchestrator"}` plus any orchestrator-specific counters (dispatch counts, failures).
@@ -115,7 +152,7 @@ Use these signals to see whether a mail archive was ingested and where it is in 
   - Trigger or requeue work via orchestrator endpoints/CLI (if exposed); confirm acceptance in logs.
   - If orchestration fails, check credentials and downstream availability (RabbitMQ, doc store, vector store).
 
-## 8.3) Managing Failed Queues
+## 9.3) Managing Failed Queues
 Failed message queues (`*.failed`) accumulate messages when services encounter unrecoverable errors after exhausting retries. Proper handling is critical to prevent data loss and pipeline degradation.
 
 ### Quick Checks
@@ -163,19 +200,19 @@ python scripts/manage_failed_queues.py purge parsing.failed --limit 100 --confir
 
 For complete operational runbook, see **[FAILED_QUEUE_OPERATIONS.md](./FAILED_QUEUE_OPERATIONS.md)**
 
-## 9) Scaling & Load Debugging
+## 10) Scaling & Load Debugging
 - Horizontal scale in compose: `docker compose up -d --scale <service>=N` (if the service is stateless and supports scaling).
 - Watch effects:
   - Prometheus: `rate(http_requests_total...)` per instance.
   - RabbitMQ: queue depth and consumer count.
   - Grafana/Loki: error rates per instance.
 
-## 10) Cleanup & Reset
+## 11) Cleanup & Reset
 - Stop stack: `docker compose down`
 - Remove volumes (destructive): `docker compose down -v`
 - Clear Loki data (if stored in a volume) before re-running tests to start fresh.
 
-## 11) Tips for Faster Troubleshooting
+## 12) Tips for Faster Troubleshooting
 - Always correlate metrics (Prometheus) with logs (Loki) and queue state (RabbitMQ) on the same time window.
 - Keep one Grafana tab on dashboards and one on Explore for logs.
 - When adding new services, ensure they expose `/metrics` and log to stdout for Promtail to ingest.
