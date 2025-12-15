@@ -33,9 +33,9 @@ PORT = int(os.environ.get("PORT", "9501"))
 INTERVAL = float(os.environ.get("SCRAPE_INTERVAL_SEC", "5"))
 QDRANT_BASE_URL = f"http://{QDRANT_HOST}:{QDRANT_PORT}"
 
-# Create a session with proper timeout configuration
+# Create a session for connection reuse
 session = requests.Session()
-session.timeout = (3, 10)  # (connect timeout, read timeout)
+# Note: timeout is passed to individual requests, not set on session
 
 # Prometheus metrics
 vector_count_gauge = Gauge(
@@ -90,7 +90,7 @@ qdrant_scrape_duration_seconds = Histogram(
 def get_collections() -> List[str]:
     """Get list of collection names from Qdrant."""
     try:
-        resp = session.get(f"{QDRANT_BASE_URL}/collections")
+        resp = session.get(f"{QDRANT_BASE_URL}/collections", timeout=(3, 10))
         resp.raise_for_status()
         data = resp.json()
         
@@ -107,7 +107,8 @@ def get_collection_info(collection_name: str) -> Dict[str, Any]:
     """Get detailed information about a specific collection."""
     try:
         resp = session.get(
-            f"{QDRANT_BASE_URL}/collections/{collection_name}"
+            f"{QDRANT_BASE_URL}/collections/{collection_name}",
+            timeout=(3, 10)
         )
         resp.raise_for_status()
         data = resp.json()
@@ -121,7 +122,7 @@ def get_collection_info(collection_name: str) -> Dict[str, Any]:
         return {}
 
 
-def extract_metrics_from_collection_info(info: Dict[str, Any]) -> Dict[str, Any]:
+def extract_metrics_from_collection_info(info: Dict[str, Any], collection_name: str = "") -> Dict[str, Any]:
     """Extract relevant metrics from collection info response."""
     metrics = {
         "vectors_count": 0,
@@ -161,7 +162,8 @@ def extract_metrics_from_collection_info(info: Dict[str, Any]) -> Dict[str, Any]
     
     if not size_found and metrics["vectors_count"] > 0:
         # Log when size is missing for non-empty collections
-        print(f"Warning: disk_data_size not available for collection (Qdrant version may not expose this)")
+        collection_info = f" for collection '{collection_name}'" if collection_name else ""
+        print(f"Warning: disk_data_size not available{collection_info} (Qdrant version may not expose this)")
     
     return metrics
 
@@ -176,16 +178,29 @@ def scrape_qdrant_metrics():
         # Get all collections
         collections = get_collections()
         
+        # Distinguish between no collections (valid) vs fetch failure
+        # If we got an empty list, check if it's because of an error or truly empty
         if not collections:
-            print("No collections found or unable to fetch collections list")
-            # Empty collections is acceptable but not a success
-            qdrant_scrape_success.set(0)
+            # Try a simple health check to see if Qdrant is responsive
+            try:
+                resp = session.get(f"{QDRANT_BASE_URL}/", timeout=(3, 10))
+                if resp.status_code == 200:
+                    # Qdrant is up, just no collections yet (fresh install)
+                    print("No collections found - fresh Qdrant installation")
+                    qdrant_scrape_success.set(1)  # Valid state
+                    success = True
+                else:
+                    print(f"Qdrant returned status {resp.status_code}")
+                    qdrant_scrape_success.set(0)
+            except Exception as e:
+                print(f"Failed to connect to Qdrant: {e}")
+                qdrant_scrape_success.set(0)
         else:
             # Collect metrics for each collection
             for collection_name in collections:
                 info = get_collection_info(collection_name)
                 if info:  # Only count if we got valid info
-                    metrics = extract_metrics_from_collection_info(info)
+                    metrics = extract_metrics_from_collection_info(info, collection_name)
                     
                     # Update Prometheus metrics
                     vector_count_gauge.labels(collection=collection_name).set(
@@ -219,7 +234,7 @@ def scrape_qdrant_metrics():
         
         # Try to get cluster/node telemetry if available
         try:
-            telemetry_resp = session.get(f"{QDRANT_BASE_URL}/telemetry")
+            telemetry_resp = session.get(f"{QDRANT_BASE_URL}/telemetry", timeout=(3, 10))
             if telemetry_resp.status_code == 200:
                 telemetry = telemetry_resp.json()
                 # Extract memory usage if available
