@@ -92,10 +92,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
       - name: Set up Python ${{ inputs.python_version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6
         with:
           python-version: ${{ inputs.python_version }}
           cache: 'pip'
@@ -219,21 +219,21 @@ jobs:
 
       - name: Upload integration test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: ${{ inputs.adapter_id }}-integration-test-results
           path: ${{ inputs.adapter_path }}/integration-test-results.xml
 
       - name: Upload integration coverage reports
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: ${{ inputs.adapter_id }}-integration-coverage-report
           path: ${{ inputs.adapter_path }}/integration-htmlcov
 
       - name: Upload coverage to Coveralls
         continue-on-error: true
-        uses: coverallsapp/github-action@v2
+        uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e # v2
         with:
           github-token: ${{ github.token }}
           path-to-lcov: ./${{ inputs.adapter_path }}/integration-coverage.lcov
@@ -242,7 +242,7 @@ jobs:
 
       - name: Integration Test Report
         if: always()
-        uses: dorny/test-reporter@v2
+        uses: dorny/test-reporter@43cde22af577b469ce7aabe9acddd813dcd380bb # v2
         with:
           name: ${{ inputs.adapter_id }} Integration Tests
           path: ${{ inputs.adapter_path }}/integration-test-results.xml

@@ -43,6 +43,12 @@ See [GOVERNANCE.md](./GOVERNANCE.md) for details.
 *   All contributors must adhere to the [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 *   Be respectful, inclusive, and constructive in all interactions.
 
+### Security
+
+*   Follow the security guidelines in [SECURITY.md](../SECURITY.md).
+*   Never commit secrets, credentials, or sensitive data.
+*   Report security vulnerabilities privately (see [SECURITY.md](../SECURITY.md)).
+
 ***
 
 ## Development Guidelines
