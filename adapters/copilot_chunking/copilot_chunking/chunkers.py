@@ -269,9 +269,13 @@ class FixedSizeChunker(ThreadChunker):
                 for idx, msg in enumerate(chunk_messages) if not msg.get("message_key")
             ]
             if missing_info:
+                max_display = 5
+                display_info = missing_info[:max_display]
+                more_count = len(missing_info) - max_display
+                extra_msg = f", ... and {more_count} more" if more_count > 0 else ""
                 raise ValueError(
                     f"message_key is required for each message when chunking explicit messages "
-                    f"({len(missing_info)} message(s) missing keys): {missing_info}"
+                    f"({len(missing_info)} message(s) missing keys): {display_info}{extra_msg}"
                 )
 
             # Combine metadata from all messages
