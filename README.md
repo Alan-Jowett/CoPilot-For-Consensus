@@ -161,6 +161,8 @@ See [adapters/README.md](./adapters/README.md) for detailed adapter documentatio
 
 ## Quick Start
 
+**For detailed local development setup, see [docs/LOCAL_DEVELOPMENT.md](./docs/LOCAL_DEVELOPMENT.md).**
+
 ### Prerequisites
 - Docker and Docker Compose
 - 8GB+ RAM recommended
@@ -271,6 +273,10 @@ Comprehensive documentation is available throughout the repository:
 - **[documents/SERVICE_MONITORING.md](./documents/SERVICE_MONITORING.md)**: Observability, metrics, and logging best practices
 - **[documents/FAILED_QUEUE_OPERATIONS.md](./documents/FAILED_QUEUE_OPERATIONS.md)**: Failed queue management and troubleshooting
 
+### Development Guides
+- **[docs/LOCAL_DEVELOPMENT.md](./docs/LOCAL_DEVELOPMENT.md)**: Complete local development setup, debugging, and testing guide
+- **[docs/CONVENTIONS.md](./docs/CONVENTIONS.md)**: Documentation conventions, style guide, and contribution standards
+
 ### Service Documentation
 Each microservice has a comprehensive README:
 - [Ingestion Service](./ingestion/README.md)
@@ -284,9 +290,6 @@ Each microservice has a comprehensive README:
 
 ### Adapter Documentation
 - **[adapters/README.md](./adapters/README.md)**: Overview of the adapter layer and available adapters
-
-### Documentation Standards
-- **[docs/CONVENTIONS.md](./docs/CONVENTIONS.md)**: Documentation conventions, style guide, and contribution standards
 
 ***
 
