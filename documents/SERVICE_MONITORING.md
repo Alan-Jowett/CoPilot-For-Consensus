@@ -18,7 +18,7 @@ This guide explains how to monitor and troubleshoot the services in this reposit
 - Loki HTTP API: http://localhost:3100 (log store)
 - Promtail (shipper): publishes container logs into Loki
 - RabbitMQ Management UI: http://localhost:15672 (default creds: `guest` / `guest` unless overridden)
-- cAdvisor: http://localhost:8082 (container resource metrics, **opt-in**: `docker compose --profile monitoring-extra up -d cadvisor`)
+- cAdvisor: http://localhost:8082 (container resource metrics)
 - Qdrant Dashboard: http://localhost:6333/dashboard (vectorstore web UI)
 - Service container logs: via `docker compose logs -f <service>`
 
@@ -38,7 +38,7 @@ This system uses a **push model** for service metrics:
   - `up{job="pushgateway"}` — verify Pushgateway is being scraped
   - `copilot_messages_parsed_total` — service metrics pushed to Pushgateway
   - `up{job="mongodb"}` — infrastructure exporter health
-- Container resource queries (via cAdvisor, requires `--profile monitoring-extra`):
+- Container resource queries (via cAdvisor):
   - `sum by (container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_project=~"copilot-for-consensus.*"}[5m])) * 100` — CPU usage percentage
   - `sum by (container_label_com_docker_compose_service) (container_memory_usage_bytes{container_label_com_docker_compose_project=~"copilot-for-consensus.*"}) / 1024 / 1024` — Memory usage in MB
   - `(sum by (container_label_com_docker_compose_service) (container_memory_usage_bytes{container_label_com_docker_compose_project=~"copilot-for-consensus.*"}) / clamp_min(sum by (container_label_com_docker_compose_service) (container_spec_memory_limit_bytes{container_label_com_docker_compose_project=~"copilot-for-consensus.*"}), 1)) * 100` — Memory usage as % of limit
@@ -112,10 +112,7 @@ While services don't expose `/metrics`, they do provide:
 ## 4.1) Container Resource Monitoring
 The **Container Resource Usage** dashboard provides comprehensive visibility into resource consumption.
 
-**Prerequisites**: cAdvisor must be enabled with the `monitoring-extra` profile:
-```bash
-docker compose --profile monitoring-extra up -d cadvisor
-```
+**Note**: cAdvisor is enabled by default and starts automatically with the monitoring stack.
 
 ### Panels and Purpose
 1. **CPU Usage by Service**: Time series showing CPU percentage per container
@@ -164,13 +161,13 @@ docker compose --profile monitoring-extra up -d cadvisor
 - **Data Source**: cAdvisor (Container Advisor)
 - **Endpoint**: http://localhost:8082 (mapped from container port 8080)
 - **Prometheus Job**: `cadvisor`
-- **Opt-in**: Disabled by default; enable with `docker compose --profile monitoring-extra up -d cadvisor`
+- **Availability**: Starts automatically with the monitoring stack
 - **Query Patterns**: Uses Docker Compose labels (`container_label_com_docker_compose_project` and `container_label_com_docker_compose_service`) for robust filtering across environments
 
 ### Troubleshooting
 - **No data in dashboard**: 
-  1. Verify cAdvisor is enabled and running: `docker compose --profile monitoring-extra ps cadvisor`
-  2. If not running, start it: `docker compose --profile monitoring-extra up -d cadvisor`
+  1. Verify cAdvisor is running: `docker compose ps cadvisor`
+  2. If not running, start it: `docker compose up -d cadvisor`
 - **Missing metrics**: Check Prometheus targets (http://localhost:9090/targets) - cadvisor should be UP
 - **High memory %**: Investigate service logs, check for memory leaks, consider increasing container limits
 - **Frequent restarts**: Check container logs (`docker compose logs <service>`) for crash reasons
@@ -188,18 +185,10 @@ docker compose --profile monitoring-extra up -d cadvisor
 - **Qdrant Web UI**: http://localhost:6333/dashboard (native Qdrant interface)
 - **Direct API**: http://localhost:6333 (REST API for collections, points, metrics)
 
-### Enabling the Exporter
-The Qdrant exporter is optional and uses the `monitoring-extra` compose profile to avoid CI dependencies:
+### Qdrant Exporter
+The Qdrant exporter starts automatically with the monitoring stack and provides metrics to Prometheus.
 
-```bash
-# Start vectorstore monitoring (requires vectorstore to be running)
-docker compose --profile monitoring-extra up -d qdrant-exporter
-
-# Or start all services including monitoring
-docker compose --profile monitoring-extra up -d
-```
-
-**Note**: The exporter is not required for core functionality and won't impact CI builds.
+**Note**: The exporter requires the vectorstore service to be running and healthy.
 
 ### Key Metrics
 - **Vector Counts**: Total vectors stored per collection (primarily `embeddings` collection)
@@ -223,7 +212,7 @@ docker compose --profile monitoring-extra up -d
 - **No vectors appearing**: Check embedding service logs; verify Qdrant connectivity
 - **High memory usage**: Consider collection optimization or increasing resources (adjust dashboard thresholds to match your limits)
 - **Many segments**: May indicate need for manual compaction
-- **Scrape failures**: Check qdrant-exporter logs (`docker compose --profile monitoring-extra logs qdrant-exporter`)
+- **Scrape failures**: Check qdrant-exporter logs (`docker compose logs qdrant-exporter`)
 - **Slow queries**: Review indexed vectors count; indexing may be lagging
 
 ### Direct Collection Inspection

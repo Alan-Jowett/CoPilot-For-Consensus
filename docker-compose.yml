@@ -253,9 +253,7 @@ services:
   # This is necessary for collecting container resource metrics but introduces security risks.
   # Only use in development/local environments. For production, use platform-native monitoring.
   # See: https://github.com/google/cadvisor/blob/master/docs/security.md
-  # USAGE: Enable with `docker compose --profile monitoring-extra up -d cadvisor`
   cadvisor:
-    profiles: ["monitoring-extra"]
     image: gcr.io/cadvisor/cadvisor:v0.49.1@sha256:3cde6faf0791ebf7b41d6f8ae7145466fed712ea6f252c935294d2608b1af388
     container_name: cadvisor
     ports:
@@ -278,7 +276,6 @@ services:
     restart: unless-stopped
 
   qdrant-exporter:
-    profiles: ["monitoring-extra"]
     image: python:3.11-slim
     entrypoint: ["/bin/sh", "-c"]
     command:
