@@ -196,8 +196,8 @@ jobs:
           -e QDRANT_PORT=6333 \
           -e QDRANT_COLLECTION=embeddings \
           --entrypoint "" \
-          ingestion \
-          bash -c "pip install -q pymongo qdrant-client && python /app/tests/validate_e2e_flow.py"
+          embedding \
+          bash -c "python /app/tests/validate_e2e_flow.py"
         echo "✓ End-to-end validation completed"
 
     - name: View service logs on validation failure
