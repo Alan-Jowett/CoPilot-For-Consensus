@@ -93,11 +93,20 @@ docker compose run --rm ingestion
 
 ### 8. Access Dashboards
 
-- **Reporting UI**: http://localhost:8080
-- **Error Tracking**: http://localhost:8081/ui
+#### User-Facing Services (Public Access)
+- **Reporting API**: http://localhost:8080
+- **Reporting UI**: http://localhost:8083
 - **Grafana**: http://localhost:3000 (admin/admin)
-- **RabbitMQ Management**: http://localhost:15672 (guest/guest)
+
+#### Development & Debugging Services (Localhost-Only)
 - **Prometheus**: http://localhost:9090
+- **RabbitMQ Management**: http://localhost:15672 (guest/guest)
+- **MongoDB**: mongodb://root:example@localhost:27017/admin
+- **Qdrant**: http://localhost:6333
+- **Ollama**: http://localhost:11434
+- **Loki**: http://localhost:3100
+
+For complete port documentation and security considerations, see [EXPOSED_PORTS.md](EXPOSED_PORTS.md).
 
 ***
 

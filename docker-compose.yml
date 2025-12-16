@@ -1,6 +1,12 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
+# Port Exposure Policy (see docs/EXPOSED_PORTS.md for details):
+# - Public (0.0.0.0): Only Grafana (3000) and Reporting API (8080)
+# - Localhost (127.0.0.1): Infrastructure, monitoring, and development services
+# - No port mapping: Internal-only services (exporters, processors)
+# This minimizes the attack surface while maintaining local development accessibility.
+
 services:
   # Infrastructure services
   db-init:
@@ -48,7 +54,7 @@ services:
   documentdb:
     image: mongo:7.0@sha256:8c3ce64d1a433bf57ea79035b48a38ea3e532997a1328fe3266e2e2e8bfb41b6
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongo_data:/data/db
     environment:
@@ -65,7 +71,7 @@ services:
   grafana:
     image: grafana/grafana:latest@sha256:70d9599b186ce287be0d2c5ba9a78acb2e86c1a68c9c41449454d0fc3eeb84e8
     ports:
-      - "3000:3000"
+      - "0.0.0.0:3000:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
@@ -91,7 +97,7 @@ services:
   loki:
     image: grafana/loki:latest@sha256:cd6e176883a90c21755f0315688668991634143423f75bdedfef41441b0fdc3c
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
     volumes:
       - ./infra/loki/loki-config.yml:/etc/loki/local-config.yaml
       - loki_data:/loki
@@ -103,8 +109,8 @@ services:
   messagebus:
     image: rabbitmq:3-management@sha256:e582c0bc7766f3342496d8485efb5a1df782b5ce3886ad017e2eaae442311f69
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
     volumes:
       - ./infra/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
       - ./infra/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
@@ -137,8 +143,6 @@ services:
 
   mongodb-exporter:
     image: percona/mongodb_exporter:0.40@sha256:d66daa6aff0513860d1577cee3b55ab82fde43394f8319d7b4674411b9153cce
-    ports:
-      - "9216:9216"
     environment:
       - MONGODB_URI=mongodb://${DOC_DB_ADMIN_USERNAME:-root}:${DOC_DB_ADMIN_PASSWORD:-example}@documentdb:27017/admin
     command:
@@ -151,7 +155,7 @@ services:
   monitoring:
     image: prom/prometheus:latest@sha256:d936808bdea528155c0154a922cd42fd75716b8bb7ba302641350f9f3eaeba09
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
@@ -166,7 +170,7 @@ services:
   ollama:
     image: ollama/ollama:latest@sha256:6c76395793f40a5e78f120e880ca82c67e39eb908ad90eee8ce755535529d0ec
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     volumes:
       - ./ollama_models:/root/.ollama
     # Uncomment the deploy section below to enable GPU support (requires NVIDIA GPU + nvidia-container-toolkit)
@@ -247,8 +251,6 @@ services:
 
   pushgateway:
     image: prom/pushgateway:latest@sha256:c835998819105d84d484918908df132807c78c05f3e0e649df0c0479c6780d98
-    ports:
-      - "9091:9091"
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9091/-/ready || exit 1"]
       interval: 10s
@@ -274,8 +276,6 @@ services:
     depends_on:
       documentdb:
         condition: service_healthy
-    ports:
-      - "9500:9500"
     restart: unless-stopped
 
   document-processing-exporter:
@@ -296,8 +296,6 @@ services:
     depends_on:
       documentdb:
         condition: service_healthy
-    ports:
-      - "9502:9502"
     restart: unless-stopped
 
   # WARNING: The cAdvisor service requires access to Docker socket and system directories.
@@ -307,8 +305,6 @@ services:
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1@sha256:3cde6faf0791ebf7b41d6f8ae7145466fed712ea6f252c935294d2608b1af388
     container_name: cadvisor
-    ports:
-      - "8082:8080"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -343,14 +339,12 @@ services:
     depends_on:
       vectorstore:
         condition: service_healthy
-    ports:
-      - "9501:9501"
     restart: unless-stopped
 
   vectorstore:
     image: qdrant/qdrant:latest@sha256:dab6de32f7b2cc599985a7c764db3e8b062f70508fb85ca074aa856f829bf335
     ports:
-      - "6333:6333"
+      - "127.0.0.1:6333:6333"
     volumes:
       - vector_data:/qdrant/storage
     healthcheck:
@@ -475,7 +469,7 @@ services:
     volumes:
       - raw_archives:/data/raw_archives
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       messagebus:
         condition: service_healthy
@@ -597,7 +591,7 @@ services:
       - ERROR_REPORTER_TYPE=console
       - HTTP_PORT=8080
     ports:
-      - "8080:8080"
+      - "0.0.0.0:8080:8080"
     depends_on:
       messagebus:
         condition: service_healthy
