@@ -27,7 +27,7 @@
     "ingestion_date": { "type": "string", "format": "date-time" },
     "message_count": { "type": "integer", "minimum": 0 },
     "file_path": { "type": "string", "minLength": 1 },
-    "status": { "type": "string", "enum": ["pending", "processed", "failed"] },
+    "status": { "type": "string", "enum": ["pending", "processing", "processed", "failed", "failed_max_retries"] },
     "attemptCount": { 
       "type": "integer", 
       "minimum": 0,

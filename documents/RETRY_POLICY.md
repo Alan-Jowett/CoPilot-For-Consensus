@@ -49,7 +49,7 @@ Documents are considered "stuck" if:
 - `lastAttemptTime` is older than **24 hours**
 - `attemptCount` < max attempts
 
-Stuck documents are eligible for retry on the next retry job run.
+Stuck documents are eligible for **consideration** on the next retry job run; however, actual retry will only occur if the exponential backoff delay (see below) has also elapsed. In other words, both the "stuck" threshold and the backoff policy must be satisfied before a retry is attempted.
 
 ## Exponential Backoff Strategy
 
@@ -329,7 +329,7 @@ For documents with `attemptCount >= MAX_ATTEMPTS`:
 
 1. **Export for Analysis**:
    ```bash
-   python scripts/export_failed_documents.py --collection archives --output archives_failed.json
+   python scripts/manage_failed_queues.py export archives.failed --output archives_failed.json
    ```
 
 2. **Review and Decide**:

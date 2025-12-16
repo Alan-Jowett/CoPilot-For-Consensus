@@ -54,7 +54,7 @@ groups:
 
       # Warning: Retry job execution failed
       - alert: RetryJobFailed
-        expr: retry_job_runs_total{status="failure"} > 0
+        expr: increase(retry_job_runs_total{status="failure"}[5m]) > 0
         for: 5m
         labels:
           severity: warning
@@ -113,7 +113,7 @@ groups:
             These documents require manual investigation and decision (requeue or purge).
             
             Investigation steps:
-            1. Export failed documents: python scripts/export_failed_documents.py --collection {{ $labels.collection }}
+            1. Export failed documents: python scripts/manage_failed_queues.py export {{ $labels.collection }}.failed --output failed_docs.json
             2. Analyze failure patterns
             3. Determine if reprocessing is viable (bug fixed) or data should be purged
             4. Document decision in incident log

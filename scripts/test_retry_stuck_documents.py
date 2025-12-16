@@ -14,7 +14,7 @@ These tests verify the retry job logic including:
 """
 
 import unittest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone, timedelta
 import sys
 import os
@@ -165,7 +165,6 @@ class TestRetryStuckDocumentsJob(unittest.TestCase):
         
         # Mock stuck documents
         now = datetime.now(timezone.utc)
-        stuck_threshold = now - timedelta(hours=24)
         
         mock_stuck_docs = [
             {"archive_id": "abc1", "attemptCount": 0, "lastAttemptTime": None},

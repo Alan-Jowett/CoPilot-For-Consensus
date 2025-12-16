@@ -40,24 +40,31 @@ import time
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional
 
+# Import dependencies - these will fail gracefully in main() if not installed
 try:
-    import pymongo
     from pymongo import MongoClient
+    PYMONGO_AVAILABLE = True
 except ImportError:
-    print("Error: pymongo library not installed. Run: pip install pymongo", file=sys.stderr)
-    sys.exit(1)
+    PYMONGO_AVAILABLE = False
+    MongoClient = None  # type: ignore
 
 try:
     import pika
+    PIKA_AVAILABLE = True
 except ImportError:
-    print("Error: pika library not installed. Run: pip install pika", file=sys.stderr)
-    sys.exit(1)
+    PIKA_AVAILABLE = False
+    pika = None  # type: ignore
 
 try:
     from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, push_to_gateway
+    PROMETHEUS_AVAILABLE = True
 except ImportError:
-    print("Error: prometheus_client not installed. Run: pip install prometheus_client", file=sys.stderr)
-    sys.exit(1)
+    PROMETHEUS_AVAILABLE = False
+    CollectorRegistry = None  # type: ignore
+    Counter = None  # type: ignore
+    Gauge = None  # type: ignore
+    Histogram = None  # type: ignore
+    push_to_gateway = None  # type: ignore
 
 logging.basicConfig(
     level=logging.INFO,
@@ -415,7 +422,7 @@ class RetryStuckDocumentsJob:
         event = {
             "event_type": event_type,
             "event_id": f"retry-{document.get('_id', 'unknown')}",
-            "timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "version": "1.0",
             "data": event_data
         }
@@ -604,6 +611,19 @@ class RetryStuckDocumentsJob:
 
 def main():
     """Main CLI entry point."""
+    # Check for required dependencies
+    if not PYMONGO_AVAILABLE:
+        print("Error: pymongo library not installed. Run: pip install pymongo", file=sys.stderr)
+        sys.exit(1)
+    
+    if not PIKA_AVAILABLE:
+        print("Error: pika library not installed. Run: pip install pika", file=sys.stderr)
+        sys.exit(1)
+    
+    if not PROMETHEUS_AVAILABLE:
+        print("Error: prometheus_client not installed. Run: pip install prometheus_client", file=sys.stderr)
+        sys.exit(1)
+    
     parser = argparse.ArgumentParser(
         description="Retry stuck documents in Copilot-for-Consensus pipeline",
         formatter_class=argparse.RawDescriptionHelpFormatter,
