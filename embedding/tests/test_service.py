@@ -609,6 +609,7 @@ def test_idempotent_embedding_generation(
     # Setup: chunks exist in database
     chunks = [
         {
+            "_id": f"chunk-{i}",  # MongoDB _id field required by service
             "chunk_id": f"chunk-{i}",
             "text": f"This is test chunk {i}",
             "message_id": "<test@example.com>",
