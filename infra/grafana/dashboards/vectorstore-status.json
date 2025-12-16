@@ -769,7 +769,7 @@
       {
         "allValue": null,
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "embeddings",
           "value": "embeddings"
         },
