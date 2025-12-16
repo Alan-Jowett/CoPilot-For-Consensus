@@ -238,6 +238,20 @@ jobs:
         echo "Testing reports API..."
         curl -f http://localhost:8080/api/reports || (docker compose logs reporting --tail=50 && exit 1)
 
+    - name: Validate reports are generated (end-to-end)
+      run: |
+        echo "Validating reports exist after end-to-end run..."
+        # Fetch reports JSON and assert count > 0 (black-box via reporting API)
+        json=$(curl -s http://localhost:8080/api/reports)
+        python - << 'PY'
+        import json,sys
+        data=json.loads(sys.stdin.read())
+        cnt=data.get('count',0)
+        print(f"Reports count: {cnt}")
+        sys.exit(0 if cnt>0 else 1)
+PY
+        echo "✓ Reports validation passed"
+
     - name: Test error-reporting service health endpoint
       run: |
         echo "Testing error-reporting service..."
