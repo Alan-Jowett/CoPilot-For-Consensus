@@ -9,6 +9,7 @@ from copilot_summarization.factory import SummarizerFactory
 from copilot_summarization.openai_summarizer import OpenAISummarizer
 from copilot_summarization.mock_summarizer import MockSummarizer
 from copilot_summarization.local_llm_summarizer import LocalLLMSummarizer
+from copilot_summarization.llamacpp_summarizer import LlamaCppSummarizer
 
 
 class TestSummarizerFactory:
@@ -106,6 +107,27 @@ class TestSummarizerFactory:
         """Test that local LLM summarizer requires base_url."""
         with pytest.raises(ValueError, match="base_url parameter is required"):
             SummarizerFactory.create_summarizer(provider="local", model="mistral")
+    
+    def test_create_llamacpp_summarizer(self):
+        """Test creating a llama.cpp summarizer."""
+        summarizer = SummarizerFactory.create_summarizer(
+            provider="llamacpp",
+            model="mistral-7b-instruct-v0.2.Q4_K_M",
+            base_url="http://llama-cpp:8080"
+        )
+        assert isinstance(summarizer, LlamaCppSummarizer)
+        assert summarizer.model == "mistral-7b-instruct-v0.2.Q4_K_M"
+        assert summarizer.base_url == "http://llama-cpp:8080"
+    
+    def test_create_llamacpp_summarizer_missing_model(self):
+        """Test that llama.cpp summarizer requires model."""
+        with pytest.raises(ValueError, match="model parameter is required"):
+            SummarizerFactory.create_summarizer(provider="llamacpp", base_url="http://llama-cpp:8080")
+    
+    def test_create_llamacpp_summarizer_missing_base_url(self):
+        """Test that llama.cpp summarizer requires base_url."""
+        with pytest.raises(ValueError, match="base_url parameter is required"):
+            SummarizerFactory.create_summarizer(provider="llamacpp", model="mistral-7b-instruct-v0.2.Q4_K_M")
     
     def test_unknown_provider(self):
         """Test that unknown provider raises error."""

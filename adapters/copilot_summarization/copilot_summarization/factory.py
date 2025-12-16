@@ -11,11 +11,13 @@ try:
     from openai_summarizer import OpenAISummarizer
     from mock_summarizer import MockSummarizer
     from local_llm_summarizer import LocalLLMSummarizer
+    from llamacpp_summarizer import LlamaCppSummarizer
 except ImportError:
     from .summarizer import Summarizer
     from .openai_summarizer import OpenAISummarizer
     from .mock_summarizer import MockSummarizer
     from .local_llm_summarizer import LocalLLMSummarizer
+    from .llamacpp_summarizer import LlamaCppSummarizer
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +40,10 @@ class SummarizerFactory:
         """Create a summarizer instance based on provider type.
         
         Args:
-            provider: Provider type (required). Options: "openai", "azure", "local", "mock"
-            model: Model name to use. Required for openai, azure, and local backends.
+            provider: Provider type (required). Options: "openai", "azure", "local", "llamacpp", "mock"
+            model: Model name to use. Required for openai, azure, local, and llamacpp backends.
             api_key: API key for cloud providers. Required for openai and azure.
-            base_url: Base URL for Azure or local endpoints. Required for azure and local.
+            base_url: Base URL for Azure, local, or llamacpp endpoints. Required for azure, local, and llamacpp.
             
         Returns:
             Summarizer instance
@@ -52,7 +54,7 @@ class SummarizerFactory:
         if not provider:
             raise ValueError(
                 "provider parameter is required. "
-                "Must be one of: openai, azure, local, mock"
+                "Must be one of: openai, azure, local, llamacpp, mock"
             )
         
         provider = provider.lower()
@@ -121,6 +123,24 @@ class SummarizerFactory:
                 base_url=base_url
             )
             
+        elif provider == "llamacpp":
+            if not model:
+                raise ValueError(
+                    "model parameter is required for llamacpp provider. "
+                    "Specify a model name (e.g., 'mistral-7b-instruct-v0.2.Q4_K_M')"
+                )
+            
+            if not base_url:
+                raise ValueError(
+                    "base_url parameter is required for llamacpp provider. "
+                    "Specify the llama.cpp server endpoint (e.g., 'http://localhost:8080')"
+                )
+            
+            return LlamaCppSummarizer(
+                model=model,
+                base_url=base_url
+            )
+            
         elif provider == "mock":
             # MockSummarizer has its own default for latency_ms in the class
             # Pass it only if explicitly provided
@@ -132,5 +152,5 @@ class SummarizerFactory:
         else:
             raise ValueError(
                 f"Unknown provider: {provider}. "
-                f"Supported providers: openai, azure, local, mock"
+                f"Supported providers: openai, azure, local, llamacpp, mock"
             )

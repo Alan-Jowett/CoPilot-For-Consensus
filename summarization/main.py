@@ -209,7 +209,7 @@ def main():
             "model": config.llm_model,
         }
         
-        if config.llm_backend.lower() in ("openai", "azure", "local"):
+        if config.llm_backend.lower() in ("openai", "azure", "local", "llamacpp"):
             if config.llm_backend.lower() == "openai":
                 if not hasattr(config, "openai_api_key"):
                     raise ValueError("openai_api_key configuration is required for OpenAI summarizer")
@@ -235,6 +235,12 @@ def main():
                 summarizer_kwargs["base_url"] = config.local_llm_endpoint
                 if not summarizer_kwargs["base_url"]:
                     raise ValueError("local_llm_endpoint configuration is required for local LLM summarizer and cannot be empty")
+            elif config.llm_backend.lower() == "llamacpp":
+                if not hasattr(config, "llamacpp_endpoint"):
+                    raise ValueError("llamacpp_endpoint configuration is required for llama.cpp summarizer")
+                summarizer_kwargs["base_url"] = config.llamacpp_endpoint
+                if not summarizer_kwargs["base_url"]:
+                    raise ValueError("llamacpp_endpoint configuration is required for llama.cpp summarizer and cannot be empty")
         
         summarizer = SummarizerFactory.create_summarizer(**summarizer_kwargs)
         
