@@ -33,8 +33,6 @@ class LocalVolumeArchiveStore(ArchiveStore):
             base_path: Base directory for archive storage.
                       Defaults to ARCHIVE_STORE_PATH env var or "/data/raw_archives"
         """
-        import os
-        
         if base_path is None:
             base_path = os.getenv("ARCHIVE_STORE_PATH", "/data/raw_archives")
         

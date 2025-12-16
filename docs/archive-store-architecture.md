@@ -268,8 +268,10 @@ services:
 ## Testing Strategy
 
 ### Unit Tests
-- ✅ Interface contract tests
-- ✅ LocalVolumeArchiveStore implementation tests
+- ✅ Interface contract tests (10 tests)
+- ✅ LocalVolumeArchiveStore implementation tests (13 tests)
+- ✅ ArchiveAccessor helper tests (12 tests)
+- ✅ **Total: 35 tests, all passing**
 - ⏳ MongoDBArchiveStore implementation tests (planned)
 
 ### Integration Tests

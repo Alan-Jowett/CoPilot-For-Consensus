@@ -47,17 +47,17 @@ store = create_archive_store()
 store = create_archive_store("local", base_path="/data/raw_archives")
 
 # Store an archive
-archive_id = await store.store_archive(
+archive_id = store.store_archive(
     source_name="ietf-wg-example",
     file_path="/path/to/archive.mbox",
     content=archive_bytes
 )
 
 # Retrieve an archive
-content = await store.get_archive(archive_id)
+content = store.get_archive(archive_id)
 
 # List archives for a source
-archives = await store.list_archives("ietf-wg-example")
+archives = store.list_archives("ietf-wg-example")
 ```
 
 ### MongoDB GridFS Storage (Planned)
@@ -76,7 +76,7 @@ store = create_archive_store(
 )
 
 # Use the same API as local storage
-archive_id = await store.store_archive(...)
+archive_id = store.store_archive(...)
 ```
 
 ### Environment-Based Configuration
