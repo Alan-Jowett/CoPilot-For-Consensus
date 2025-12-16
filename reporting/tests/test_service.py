@@ -91,11 +91,13 @@ def sample_summary_complete_event():
                     "message_id": "<msg_1@example.com>",
                     "chunk_id": "chunk_1",
                     "offset": 0,
+                    "text": "This is the text from the first citation.",
                 },
                 {
                     "message_id": "<msg_2@example.com>",
                     "chunk_id": "chunk_2",
                     "offset": 100,
+                    "text": "This is the text from the second citation.",
                 },
             ],
             "llm_backend": "ollama",
@@ -241,6 +243,8 @@ def test_process_summary_stores_document(
     assert doc["content_markdown"] == "# Summary\n\nThis is a test summary."
     assert doc["generated_by"] == "ollama"
     assert len(doc["citations"]) == 2
+    assert doc["citations"][0]["quote"] == "This is the text from the first citation."
+    assert doc["citations"][1]["quote"] == "This is the text from the second citation."
     assert doc["metadata"]["llm_model"] == "mistral"
     assert doc["metadata"]["tokens_prompt"] == 1000
 
