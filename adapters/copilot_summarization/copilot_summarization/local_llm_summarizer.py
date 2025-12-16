@@ -81,6 +81,7 @@ class LocalLLMSummarizer(Summarizer):
                     "prompt": prompt,
                     "stream": False,  # Get complete response at once
                 },
+                headers={"Content-Type": "application/json"},
                 timeout=self.timeout
             )
             response.raise_for_status()

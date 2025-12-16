@@ -4,6 +4,7 @@
 """Tests for LocalLLMSummarizer."""
 
 import pytest
+import requests
 from unittest.mock import patch, Mock
 from copilot_summarization.local_llm_summarizer import LocalLLMSummarizer
 from copilot_summarization.models import Thread
@@ -95,7 +96,6 @@ class TestLocalLLMSummarizer:
     @patch('copilot_summarization.local_llm_summarizer.requests.post')
     def test_local_llm_summarize_timeout(self, mock_post):
         """Test local LLM handles timeout errors."""
-        import requests
         mock_post.side_effect = requests.Timeout("Request timed out")
         
         summarizer = LocalLLMSummarizer(model="mistral")
@@ -111,7 +111,6 @@ class TestLocalLLMSummarizer:
     @patch('copilot_summarization.local_llm_summarizer.requests.post')
     def test_local_llm_summarize_connection_error(self, mock_post):
         """Test local LLM handles connection errors."""
-        import requests
         mock_post.side_effect = requests.ConnectionError("Failed to connect")
         
         summarizer = LocalLLMSummarizer(model="mistral")
