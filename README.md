@@ -79,30 +79,39 @@ Copyright (c) 2025 Copilot-for-Consensus contributors
   // Copyright (c) 2025 Copilot-for-Consensus contributors
   ```
 
-All contributions must include appropriate SPDX headers. See [CONTRIBUTING.md](documents/CONTRIBUTING.md) for details.
+All contributions must include appropriate SPDX headers. See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
 
 ***
 
 ## Architecture
 
+The system follows a **microservice-based, event-driven architecture** where services communicate asynchronously through a message bus (RabbitMQ) and store data in MongoDB and Qdrant. This design ensures loose coupling, scalability, and resilience.
+
+For detailed architecture documentation, design patterns, and service interactions, see [documents/ARCHITECTURE.md](./documents/ARCHITECTURE.md).
+
 ### Microservices
-- **Ingestion Service:** Fetches mailing list archives from various sources
-- **Parsing Service:** Extracts and normalizes email messages
-- **Chunking Service:** Splits messages into manageable chunks
-- **Embedding Service:** Generates vector embeddings for semantic search
-- **Orchestrator Service:** Coordinates workflow across services
-- **Summarization Service:** Creates summaries using LLMs
-- **Reporting Service:** Provides API and UI for accessing results
+
+#### Processing Pipeline
+- **Ingestion Service**: Fetches mailing list archives from various sources (rsync, IMAP, HTTP)
+- **Parsing Service**: Extracts and normalizes email messages from `.mbox` files, identifies threads, detects RFC/draft mentions
+- **Chunking Service**: Splits messages into token-aware, semantically coherent chunks suitable for embedding
+- **Embedding Service**: Generates vector embeddings using local (SentenceTransformers, Ollama) or cloud (Azure OpenAI) models
+- **Orchestrator Service**: Coordinates workflow across services, manages retrieval-augmented generation (RAG)
+- **Summarization Service**: Creates summaries using LLMs with configurable backends
+
+#### User-Facing Services
+- **Reporting Service**: Provides HTTP API and web UI for accessing summaries and insights (port 8080)
+- **Error Reporting Service**: Centralized error tracking and debugging interface (port 8081)
 
 ### Infrastructure Components
-- **MongoDB** (`documentdb`): Document storage for structured data
-- **Qdrant** (`vectorstore`): Vector database for semantic search
-- **Ollama**: Local LLM runtime for embeddings and generation
-- **RabbitMQ** (`messagebus`): Message broker for inter-service communication
-- **Prometheus** (`monitoring`): Metrics collection and storage
-- **Grafana**: Metrics visualization and dashboards
-- **Loki**: Centralized log aggregation
-- **Promtail**: Log collection agent
+
+#### Storage Layer
+- **MongoDB** (`documentdb`): Document storage for messages, chunks, threads, and summaries
+- **Qdrant** (`vectorstore`): Vector database for semantic search and similarity queries
+
+#### Integration Layer
+- **RabbitMQ** (`messagebus`): Message broker enabling asynchronous, event-driven communication between services
+- **Ollama**: Local LLM runtime for embeddings and text generation (fully offline capable)
 
 ### Observability Stack
 
@@ -116,6 +125,7 @@ The system includes a comprehensive observability stack for monitoring, logging,
   - Ingestion and parsing throughput
   - Embedding latency percentiles
   - Vector store size and performance
+  - Failed queue monitoring
 
 Access Grafana at `http://localhost:3000` (default credentials: admin/admin)
 
@@ -130,7 +140,22 @@ Access Grafana at `http://localhost:3000` (default credentials: admin/admin)
 - Automated alerts for queue buildup (Warning >50, Critical >200, Emergency >1000)
 - CLI tool for inspection, requeue, and purge operations: `scripts/manage_failed_queues.py`
 - Dedicated Grafana dashboard: **Failed Queues Overview**
-- See [FAILED_QUEUE_OPERATIONS.md](documents/FAILED_QUEUE_OPERATIONS.md) for operational runbook
+- See [documents/FAILED_QUEUE_OPERATIONS.md](./documents/FAILED_QUEUE_OPERATIONS.md) for operational runbook
+
+### Adapters
+
+The system uses adapter modules to decouple core business logic from external dependencies:
+
+- **copilot_storage**: Document store abstraction (MongoDB, in-memory)
+- **copilot_events**: Event publishing, subscription, and schema validation
+- **copilot_config**: Unified configuration management with schema validation
+- **copilot_schema_validation**: JSON schema validation for messages and events
+- **copilot_vectorstore**: Vector store abstraction (Qdrant, FAISS)
+- **copilot_metrics**: Metrics collection (Prometheus)
+- **copilot_logging**: Structured logging
+- **copilot_reporting**: Error reporting
+
+See [adapters/README.md](./adapters/README.md) for detailed adapter documentation.
 
 ***
 
@@ -228,6 +253,42 @@ docker compose exec documentdb mongosh \
 ```
 
 ***  
+
+## Documentation
+
+Comprehensive documentation is available throughout the repository:
+
+### Core Documentation
+- **[CONTRIBUTING.md](./CONTRIBUTING.md)**: Contribution guidelines, development setup, coding standards
+- **[CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)**: Community standards and behavior expectations
+- **[GOVERNANCE.md](./GOVERNANCE.md)**: Project governance, decision-making, and maintainer roles
+- **[SECURITY.md](./SECURITY.md)**: Security policy and vulnerability reporting
+
+### Technical Documentation
+- **[documents/ARCHITECTURE.md](./documents/ARCHITECTURE.md)**: Detailed system architecture, design patterns, and service interactions
+- **[documents/SCHEMA.md](./documents/SCHEMA.md)**: Database schemas and message bus event definitions
+- **[documents/FORWARD_PROGRESS.md](./documents/FORWARD_PROGRESS.md)**: Idempotency, retry logic, and error handling patterns
+- **[documents/SERVICE_MONITORING.md](./documents/SERVICE_MONITORING.md)**: Observability, metrics, and logging best practices
+- **[documents/FAILED_QUEUE_OPERATIONS.md](./documents/FAILED_QUEUE_OPERATIONS.md)**: Failed queue management and troubleshooting
+
+### Service Documentation
+Each microservice has a comprehensive README:
+- [Ingestion Service](./ingestion/README.md)
+- [Parsing Service](./parsing/README.md)
+- [Chunking Service](./chunking/README.md)
+- [Embedding Service](./embedding/README.md)
+- [Orchestrator Service](./orchestrator/README.md)
+- [Summarization Service](./summarization/README.md)
+- [Reporting Service](./reporting/README.md)
+- [Error Reporting Service](./error-reporting/README.md)
+
+### Adapter Documentation
+- **[adapters/README.md](./adapters/README.md)**: Overview of the adapter layer and available adapters
+
+### Documentation Standards
+- **[docs/CONVENTIONS.md](./docs/CONVENTIONS.md)**: Documentation conventions, style guide, and contribution standards
+
+***
 
 ## License Header Check
 
