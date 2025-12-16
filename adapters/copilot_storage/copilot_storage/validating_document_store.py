@@ -158,7 +158,7 @@ class ValidatingDocumentStore(DocumentStore):
 
     def connect(self) -> None:
         """Connect to the document store.
-        
+
         Raises:
             DocumentStoreConnectionError: If connection fails
         """
@@ -251,13 +251,13 @@ class ValidatingDocumentStore(DocumentStore):
         """
         # Fetch current document and merge with patch to validate the result
         current_doc = self._store.get_document(collection, doc_id)
-        
+
         # Raise DocumentNotFoundError if document doesn't exist
         if current_doc is None:
             raise DocumentNotFoundError(f"Document {doc_id} not found in collection {collection}")
-        
+
         merged_doc = {**current_doc, **patch}
-        
+
         # Validate the merged document
         is_valid, errors = self._validate_document(collection, merged_doc)
 
