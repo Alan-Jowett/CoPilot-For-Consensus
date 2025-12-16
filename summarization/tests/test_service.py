@@ -404,7 +404,7 @@ def test_publish_summary_complete(summarization_service, mock_publisher):
     assert call_args[1]["exchange"] == "copilot.events"
     assert call_args[1]["routing_key"] == "summary.complete"
     
-    message = call_args[1]["message"]
+    message = call_args[1]["event"]
     assert message["data"]["thread_id"] == "<thread@example.com>"
     assert message["data"]["summary_markdown"] == "# Summary\n\nTest summary"
     assert len(message["data"]["citations"]) == 1
@@ -429,7 +429,7 @@ def test_publish_summarization_failed(summarization_service, mock_publisher):
     assert call_args[1]["exchange"] == "copilot.events"
     assert call_args[1]["routing_key"] == "summarization.failed"
     
-    message = call_args[1]["message"]
+    message = call_args[1]["event"]
     assert message["data"]["thread_id"] == "<thread@example.com>"
     assert message["data"]["error_type"] == "LLMTimeout"
     assert message["data"]["error_message"] == "Request timed out"
@@ -522,7 +522,7 @@ def test_schema_validation_summary_complete_valid(summarization_service, mock_pu
     )
     
     call_args = mock_publisher.publish.call_args
-    event = call_args[1]["message"]
+    event = call_args[1]["event"]
     
     # Should pass schema validation
     assert_valid_event_schema(event)
@@ -538,7 +538,7 @@ def test_schema_validation_summarization_failed_valid(summarization_service, moc
     )
     
     call_args = mock_publisher.publish.call_args
-    event = call_args[1]["message"]
+    event = call_args[1]["event"]
     
     # Should pass schema validation
     assert_valid_event_schema(event)

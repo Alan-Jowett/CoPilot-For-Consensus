@@ -132,7 +132,7 @@ def test_end_to_end_summarization(integration_service, mock_publisher):
     assert publish_call[1]["routing_key"] == "summary.complete"
     
     # Verify event data
-    message = publish_call[1]["message"]
+    message = publish_call[1]["event"]
     assert message["data"]["thread_id"] == "<thread@example.com>"
     assert "summary_markdown" in message["data"]
     assert message["data"]["llm_backend"] == "mock"
@@ -159,7 +159,7 @@ def test_summarization_with_missing_thread(integration_service, mock_publisher):
     assert publish_call[1]["routing_key"] == "summarization.failed"
     
     # Verify error details
-    message = publish_call[1]["message"]
+    message = publish_call[1]["event"]
     assert message["data"]["thread_id"] == "<nonexistent@example.com>"
     assert message["data"]["error_type"] == "NoContextError"
     
