@@ -31,6 +31,17 @@ class TestLocalLLMSummarizer:
         assert summarizer.base_url == "http://custom:8080"
         assert summarizer.timeout == 60
     
+    def test_local_llm_summarizer_invalid_timeout(self):
+        """Test creating a local LLM summarizer with invalid timeout raises ValueError."""
+        with pytest.raises(ValueError, match="timeout must be a positive integer"):
+            LocalLLMSummarizer(timeout=0)
+        
+        with pytest.raises(ValueError, match="timeout must be a positive integer"):
+            LocalLLMSummarizer(timeout=-1)
+        
+        with pytest.raises(ValueError, match="timeout must be a positive integer"):
+            LocalLLMSummarizer(timeout="120")  # type: ignore
+    
     @patch('copilot_summarization.local_llm_summarizer.requests.post')
     def test_local_llm_summarize_success(self, mock_post):
         """Test local LLM summarize returns real content from API."""
@@ -57,8 +68,14 @@ class TestLocalLLMSummarizer:
         assert call_args[0][0] == "http://localhost:11434/api/generate"
         assert call_args[1]["json"]["model"] == "mistral"
         assert call_args[1]["json"]["stream"] is False
-        assert "Message 1" in call_args[1]["json"]["prompt"]
-        assert "Message 2" in call_args[1]["json"]["prompt"]
+        
+        # Verify prompt template structure
+        prompt = call_args[1]["json"]["prompt"]
+        assert "Summarize the following discussion thread:" in prompt
+        assert "Message 1:" in prompt
+        assert "Message 2:" in prompt
+        assert "Message 1" in prompt
+        assert "Message 2" in prompt
         
         # Verify summary contains real content (not placeholder)
         assert summary.thread_id == "test-thread-123"

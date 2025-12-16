@@ -136,7 +136,7 @@
       "source": "env",
       "env_var": "LLM_BACKEND",
       "default": "local",
-      "description": "LLM backend (local for Ollama, openai, azure, or mock)"
+      "description": "LLM backend. Valid values: 'local' (Ollama, the default), 'openai' (OpenAI API), 'azure' (Azure OpenAI), 'mock' (testing). Note: 'ollama' is deprecated—use 'local' for Ollama."
     },
     "llm_model": {
       "type": "string",

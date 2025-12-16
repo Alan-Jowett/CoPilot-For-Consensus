@@ -40,7 +40,13 @@ class LocalLLMSummarizer(Summarizer):
             model: Local model name
             base_url: Base URL for local inference endpoint (e.g., Ollama)
             timeout: Request timeout in seconds (default: 120)
+            
+        Raises:
+            ValueError: If timeout is not a positive integer
         """
+        if not isinstance(timeout, int) or timeout <= 0:
+            raise ValueError(f"timeout must be a positive integer, got {timeout!r}")
+        
         self.model = model
         self.base_url = base_url
         self.timeout = timeout
@@ -56,8 +62,21 @@ class LocalLLMSummarizer(Summarizer):
             Summary object with generated summary and metadata
             
         Raises:
-            requests.RequestException: If API call fails
-            ValueError: If response is invalid
+            requests.Timeout: If API call exceeds timeout (infrastructure failure)
+            requests.ConnectionError: If connection to Ollama fails (infrastructure failure)
+            requests.HTTPError: If API returns HTTP error (4xx, 5xx)
+            requests.RequestException: If API call fails for other reasons
+            ValueError: If response JSON is malformed
+            
+        Note:
+            Error handling behavior:
+            - Empty responses: Returns fallback summary (graceful degradation)
+            - Timeouts/Network errors: Raises exception (infrastructure failure - should retry)
+            - HTTP errors: Raises exception (server error - should alert)
+            
+            Token estimation uses simple word count (len(text.split())), which may
+            undercount actual tokens due to subword tokenization. This provides
+            order-of-magnitude estimates suitable for monitoring but not billing.
         """
         start_time = time.time()
         
@@ -93,9 +112,11 @@ class LocalLLMSummarizer(Summarizer):
             if not summary_text:
                 logger.warning("Empty response from Ollama for thread %s", thread.thread_id)
                 summary_text = f"Unable to generate summary for thread {thread.thread_id}"
-            
-            # Estimate completion tokens
-            tokens_completion = len(summary_text.split())
+                # Signal failure in metrics with zero completion tokens
+                tokens_completion = 0
+            else:
+                # Estimate completion tokens (word count approximation)
+                tokens_completion = len(summary_text.split())
             
             # Calculate latency
             latency_ms = int((time.time() - start_time) * 1000)
