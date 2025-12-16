@@ -176,11 +176,13 @@ class ChunkingService:
             if all_chunks:
                 chunk_ids = []
                 skipped_duplicates = 0
+                new_chunks_created = 0
                 
                 for chunk in all_chunks:
                     try:
                         self.document_store.insert_document("chunks", chunk)
                         chunk_ids.append(chunk["chunk_id"])
+                        new_chunks_created += 1
                     except DuplicateKeyError:
                         # Chunk already exists (idempotent retry)
                         logger.debug(f"Chunk {chunk.get('chunk_id', 'unknown')} already exists, skipping")
@@ -198,6 +200,14 @@ class ChunkingService:
                     )
                 else:
                     logger.info(f"Created {len(all_chunks)} chunks")
+                
+                # Emit metric for new chunks created with embedding_generated=False
+                if self.metrics_collector and new_chunks_created > 0:
+                    self.metrics_collector.increment(
+                        "chunking_chunk_status_transitions_total",
+                        value=new_chunks_created,
+                        tags={"embedding_generated": "false", "collection": "chunks"}
+                    )
                 
                 # Calculate average chunk size
                 avg_chunk_size = (

@@ -654,6 +654,7 @@ class IngestionService:
                 "message_count": 0,  # Will be updated by parsing service
                 "file_path": file_path,
                 "status": "pending",  # Will be updated to 'processed' or 'failed' by parsing
+                "created_at": ingestion_date,
             }
 
             self.document_store.insert_document("archives", archive_doc)
@@ -663,6 +664,13 @@ class IngestionService:
                 source=source.name,
                 file_path=file_path,
             )
+            
+            # Emit metric for archive creation with pending status
+            if self.metrics_collector:
+                self.metrics_collector.increment(
+                    "ingestion_archive_status_transitions_total",
+                    tags={"status": "pending", "collection": "archives"}
+                )
         except Exception as e:
             # Log but don't raise - archive record write is not critical to ingestion
             # The parsing service can still process based on the event

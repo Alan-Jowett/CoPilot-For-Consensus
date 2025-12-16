@@ -358,9 +358,17 @@ class ParsingService:
                 {
                     "status": status,
                     "message_count": message_count,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
                 }
             )
             logger.info(f"Updated archive {archive_id} status to '{status}' with {message_count} messages")
+            
+            # Emit metric for status transition
+            if self.metrics_collector:
+                self.metrics_collector.increment(
+                    "parsing_archive_status_transitions_total",
+                    tags={"status": status, "collection": "archives"}
+                )
         except Exception as e:
             # Log but don't raise - archive status update is not critical
             # The parsing can succeed even if the archive record doesn't exist

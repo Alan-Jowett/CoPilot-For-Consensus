@@ -345,7 +345,10 @@ class EmbeddingService:
                 self.document_store.update_document(
                     collection="chunks",
                     doc_id=doc_id,
-                    patch={"embedding_generated": True},
+                    patch={
+                        "embedding_generated": True,
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    },
                 )
             except (ConnectionError, OSError, TimeoutError) as e:
                 # Database connectivity issues - log but don't fail
@@ -359,6 +362,14 @@ class EmbeddingService:
                 )
         
         logger.debug(f"Updated {len(doc_ids)} chunks with embedding_generated=True")
+        
+        # Emit metric for embedding status transitions
+        if self.metrics_collector:
+            self.metrics_collector.increment(
+                "embedding_chunk_status_transitions_total",
+                value=len(doc_ids),
+                tags={"embedding_generated": "true", "collection": "chunks"}
+            )
 
     def _publish_embeddings_generated(
         self, 
