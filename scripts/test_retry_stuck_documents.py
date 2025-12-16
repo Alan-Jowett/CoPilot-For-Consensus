@@ -348,5 +348,339 @@ class TestMetricsEmission(unittest.TestCase):
         self.assertIsNotNone(metrics.duration_seconds)
 
 
+class TestProcessCollection(unittest.TestCase):
+    """Test process_collection method."""
+    
+    def setUp(self):
+        """Set up test fixtures."""
+        self.job = RetryStuckDocumentsJob(
+            mongodb_host="localhost",
+            mongodb_port=27017,
+            mongodb_database="test_copilot",
+        )
+    
+    @patch('retry_stuck_documents.MongoClient')
+    def test_process_collection_success(self, mock_mongo_client):
+        """Test successful processing of a collection."""
+        # Mock MongoDB
+        mock_collection = MagicMock()
+        mock_db = MagicMock()
+        mock_db.__getitem__ = MagicMock(return_value=mock_collection)
+        self.job.db = mock_db
+        
+        # Mock RabbitMQ
+        self.job.rabbitmq_channel = MagicMock()
+        
+        # Setup stuck documents
+        now = datetime.now(timezone.utc)
+        stuck_docs = [
+            {
+                "archive_id": "abc1",
+                "attemptCount": 0,
+                "lastAttemptTime": None,
+                "status": "pending",
+                "file_path": "/data/test1.mbox",
+                "source": "ietf-quic",
+                "message_count": 10,
+            },
+            {
+                "archive_id": "abc2",
+                "attemptCount": 1,
+                "lastAttemptTime": now - timedelta(hours=25),
+                "status": "processing",
+                "file_path": "/data/test2.mbox",
+                "source": "ietf-quic",
+                "message_count": 20,
+            },
+        ]
+        mock_collection.find.return_value = stuck_docs
+        mock_collection.count_documents.return_value = 0
+        mock_collection.update_one.return_value = MagicMock()
+        
+        # Config for archives collection
+        config = {
+            "max_attempts": 3,
+            "event_type": "ArchiveIngested",
+            "routing_key": "archive.ingested",
+            "id_field": "archive_id",
+        }
+        
+        # Process collection
+        self.job.process_collection("archives", config)
+        
+        # Verify documents were processed
+        self.assertEqual(mock_collection.find.call_count, 1)
+        # Should requeue 2 documents (both eligible)
+        self.assertEqual(self.job.rabbitmq_channel.basic_publish.call_count, 2)
+        # Should update attempt count 2 times
+        self.assertEqual(mock_collection.update_one.call_count, 2)
+    
+    @patch('retry_stuck_documents.MongoClient')
+    def test_process_collection_with_backoff_skip(self, mock_mongo_client):
+        """Test processing skips documents not ready due to backoff."""
+        # Mock MongoDB
+        mock_collection = MagicMock()
+        mock_db = MagicMock()
+        mock_db.__getitem__ = MagicMock(return_value=mock_collection)
+        self.job.db = mock_db
+        
+        # Mock RabbitMQ
+        self.job.rabbitmq_channel = MagicMock()
+        
+        # Document with recent attempt (backoff not elapsed)
+        now = datetime.now(timezone.utc)
+        stuck_docs = [
+            {
+                "archive_id": "abc1",
+                "attemptCount": 2,
+                "lastAttemptTime": now - timedelta(seconds=500),  # Need 1200s for attempt 3
+                "status": "pending",
+                "file_path": "/data/test.mbox",
+                "source": "ietf-quic",
+                "message_count": 10,
+            },
+        ]
+        mock_collection.find.return_value = stuck_docs
+        mock_collection.count_documents.return_value = 0
+        
+        config = {
+            "max_attempts": 3,
+            "event_type": "ArchiveIngested",
+            "routing_key": "archive.ingested",
+            "id_field": "archive_id",
+        }
+        
+        # Process collection
+        self.job.process_collection("archives", config)
+        
+        # Verify document was skipped (backoff not elapsed)
+        self.assertEqual(self.job.rabbitmq_channel.basic_publish.call_count, 0)
+    
+    @patch('retry_stuck_documents.MongoClient')
+    def test_process_collection_max_retries_exceeded(self, mock_mongo_client):
+        """Test processing marks documents exceeding max retries."""
+        # Mock MongoDB
+        mock_collection = MagicMock()
+        mock_db = MagicMock()
+        mock_db.__getitem__ = MagicMock(return_value=mock_collection)
+        self.job.db = mock_db
+        
+        # Document at max retries
+        now = datetime.now(timezone.utc)
+        stuck_docs = [
+            {
+                "archive_id": "abc1",
+                "attemptCount": 3,  # Max for archives
+                "lastAttemptTime": now - timedelta(hours=25),
+                "status": "pending",
+                "file_path": "/data/test.mbox",
+                "source": "ietf-quic",
+                "message_count": 10,
+            },
+        ]
+        mock_collection.find.return_value = stuck_docs
+        mock_collection.count_documents.return_value = 1
+        mock_result = MagicMock()
+        mock_result.modified_count = 1
+        mock_collection.update_one.return_value = mock_result
+        
+        config = {
+            "max_attempts": 3,
+            "event_type": "ArchiveIngested",
+            "routing_key": "archive.ingested",
+            "id_field": "archive_id",
+        }
+        
+        # Process collection
+        self.job.process_collection("archives", config)
+        
+        # Verify document was marked as failed_max_retries
+        self.assertEqual(mock_collection.update_one.call_count, 1)
+        call_args = mock_collection.update_one.call_args[0][1]
+        self.assertEqual(call_args["$set"]["status"], "failed_max_retries")
+    
+    @patch('retry_stuck_documents.MongoClient')
+    def test_process_collection_publish_error_handling(self, mock_mongo_client):
+        """Test error handling when publishing fails."""
+        # Mock MongoDB
+        mock_collection = MagicMock()
+        mock_db = MagicMock()
+        mock_db.__getitem__ = MagicMock(return_value=mock_collection)
+        self.job.db = mock_db
+        
+        # Mock RabbitMQ to raise exception
+        mock_channel = MagicMock()
+        mock_channel.basic_publish.side_effect = Exception("RabbitMQ connection failed")
+        self.job.rabbitmq_channel = mock_channel
+        
+        stuck_docs = [
+            {
+                "archive_id": "abc1",
+                "attemptCount": 0,
+                "lastAttemptTime": None,
+                "status": "pending",
+                "file_path": "/data/test.mbox",
+                "source": "ietf-quic",
+                "message_count": 10,
+            },
+        ]
+        mock_collection.find.return_value = stuck_docs
+        mock_collection.count_documents.return_value = 0
+        mock_collection.update_one.return_value = MagicMock()
+        
+        config = {
+            "max_attempts": 3,
+            "event_type": "ArchiveIngested",
+            "routing_key": "archive.ingested",
+            "id_field": "archive_id",
+        }
+        
+        # Process collection - should handle error gracefully
+        self.job.process_collection("archives", config)
+        
+        # Verify attempt count was updated despite publish failure
+        self.assertEqual(mock_collection.update_one.call_count, 1)
+
+
+class TestRunOnce(unittest.TestCase):
+    """Test run_once method."""
+    
+    def setUp(self):
+        """Set up test fixtures."""
+        self.job = RetryStuckDocumentsJob(
+            mongodb_host="localhost",
+            mongodb_port=27017,
+            mongodb_database="test_copilot",
+        )
+    
+    @patch('retry_stuck_documents.push_to_gateway')
+    @patch('retry_stuck_documents.MongoClient')
+    @patch('retry_stuck_documents.pika.BlockingConnection')
+    def test_run_once_success(self, mock_rabbitmq, mock_mongo, mock_push):
+        """Test successful run_once execution."""
+        # Mock MongoDB connection
+        mock_mongo_instance = MagicMock()
+        mock_mongo_instance.admin.command.return_value = True
+        mock_db = MagicMock()
+        mock_collection = MagicMock()
+        mock_collection.find.return_value = []  # No stuck documents
+        mock_collection.count_documents.return_value = 0
+        mock_db.__getitem__ = MagicMock(return_value=mock_collection)
+        mock_mongo_instance.__getitem__ = MagicMock(return_value=mock_db)
+        mock_mongo.return_value = mock_mongo_instance
+        
+        # Mock RabbitMQ connection
+        mock_rabbitmq_instance = MagicMock()
+        mock_channel = MagicMock()
+        mock_rabbitmq_instance.channel.return_value = mock_channel
+        mock_rabbitmq_instance.is_closed = False
+        mock_rabbitmq.return_value = mock_rabbitmq_instance
+        
+        # Run job
+        self.job.run_once()
+        
+        # Verify connections were established
+        mock_mongo.assert_called_once()
+        mock_rabbitmq.assert_called_once()
+        
+        # Verify all collections were processed
+        self.assertEqual(mock_collection.find.call_count, 4)  # archives, messages, chunks, threads
+        
+        # Verify metrics were pushed
+        mock_push.assert_called_once()
+        
+        # Verify success metric was incremented
+        # Note: Can't directly verify counter increment without access to registry
+    
+    @patch('retry_stuck_documents.push_to_gateway')
+    @patch('retry_stuck_documents.MongoClient')
+    @patch('retry_stuck_documents.pika.BlockingConnection')
+    def test_run_once_mongodb_connection_failure(self, mock_rabbitmq, mock_mongo, mock_push):
+        """Test run_once handles MongoDB connection failure."""
+        # Mock MongoDB connection failure
+        mock_mongo.side_effect = Exception("MongoDB connection failed")
+        
+        # Run job - should raise exception
+        with self.assertRaises(Exception) as context:
+            self.job.run_once()
+        
+        self.assertIn("MongoDB connection failed", str(context.exception))
+        
+        # Verify metrics were still pushed (in finally block)
+        mock_push.assert_called_once()
+    
+    @patch('retry_stuck_documents.push_to_gateway')
+    @patch('retry_stuck_documents.MongoClient')
+    @patch('retry_stuck_documents.pika.BlockingConnection')
+    def test_run_once_collection_error_continues(self, mock_rabbitmq, mock_mongo, mock_push):
+        """Test run_once continues processing if one collection fails."""
+        # Mock MongoDB connection
+        mock_mongo_instance = MagicMock()
+        mock_mongo_instance.admin.command.return_value = True
+        mock_db = MagicMock()
+        
+        # First collection raises error, subsequent should still process
+        call_count = [0]
+        def find_side_effect(*args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                raise Exception("Collection processing error")
+            return []
+        
+        mock_collection = MagicMock()
+        mock_collection.find.side_effect = find_side_effect
+        mock_collection.count_documents.return_value = 0
+        mock_db.__getitem__ = MagicMock(return_value=mock_collection)
+        mock_mongo_instance.__getitem__ = MagicMock(return_value=mock_db)
+        mock_mongo.return_value = mock_mongo_instance
+        
+        # Mock RabbitMQ connection
+        mock_rabbitmq_instance = MagicMock()
+        mock_channel = MagicMock()
+        mock_rabbitmq_instance.channel.return_value = mock_channel
+        mock_rabbitmq_instance.is_closed = False
+        mock_rabbitmq.return_value = mock_rabbitmq_instance
+        
+        # Run job - should complete despite error in first collection
+        self.job.run_once()
+        
+        # Verify all collections were attempted (4 total)
+        self.assertEqual(mock_collection.find.call_count, 4)
+        
+        # Verify metrics were pushed
+        mock_push.assert_called_once()
+    
+    @patch('retry_stuck_documents.push_to_gateway')
+    @patch('retry_stuck_documents.MongoClient')
+    @patch('retry_stuck_documents.pika.BlockingConnection')
+    def test_run_once_metrics_push_failure(self, mock_rabbitmq, mock_mongo, mock_push):
+        """Test run_once handles metrics push failure gracefully."""
+        # Mock MongoDB and RabbitMQ connections
+        mock_mongo_instance = MagicMock()
+        mock_mongo_instance.admin.command.return_value = True
+        mock_db = MagicMock()
+        mock_collection = MagicMock()
+        mock_collection.find.return_value = []
+        mock_collection.count_documents.return_value = 0
+        mock_db.__getitem__ = MagicMock(return_value=mock_collection)
+        mock_mongo_instance.__getitem__ = MagicMock(return_value=mock_db)
+        mock_mongo.return_value = mock_mongo_instance
+        
+        mock_rabbitmq_instance = MagicMock()
+        mock_channel = MagicMock()
+        mock_rabbitmq_instance.channel.return_value = mock_channel
+        mock_rabbitmq_instance.is_closed = False
+        mock_rabbitmq.return_value = mock_rabbitmq_instance
+        
+        # Mock push_to_gateway to fail
+        mock_push.side_effect = Exception("Pushgateway unavailable")
+        
+        # Run job - should complete despite metrics push failure
+        self.job.run_once()
+        
+        # Verify job completed (no exception raised)
+        mock_push.assert_called_once()
+
+
 if __name__ == '__main__':
     unittest.main()
