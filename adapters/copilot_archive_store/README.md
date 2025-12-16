@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Copilot Archive Store Adapter
 
 A shared archive storage library for the Copilot-for-Consensus microservices ecosystem.
