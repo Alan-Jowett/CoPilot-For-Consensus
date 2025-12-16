@@ -50,19 +50,84 @@ def reports_list():
     try:
         # Get query parameters
         thread_id = request.args.get("thread_id")
+        topic = request.args.get("topic")
+        start_date = request.args.get("start_date")
+        end_date = request.args.get("end_date")
+        source = request.args.get("source")
+        min_participants = request.args.get("min_participants")
+        max_participants = request.args.get("max_participants")
+        min_messages = request.args.get("min_messages")
+        max_messages = request.args.get("max_messages")
         limit = int(request.args.get("limit", 20))
         skip = int(request.args.get("skip", 0))
         
         # Build API request
         api_url = get_reporting_api_url()
+        
+        # If topic search is requested, use the search endpoint
+        if topic and topic.strip():
+            params = {
+                "topic": topic,
+                "limit": limit,
+                "min_score": 0.5,
+            }
+            response = requests.get(f"{api_url}/api/reports/search", params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            reports = data.get("reports", [])
+            
+            # Get available sources for filter dropdown
+            sources_response = requests.get(f"{api_url}/api/sources", timeout=10)
+            sources_response.raise_for_status()
+            available_sources = sources_response.json().get("sources", [])
+            
+            return render_template(
+                "reports_list.html",
+                reports=reports,
+                count=len(reports),
+                limit=limit,
+                skip=skip,
+                thread_id=thread_id or "",
+                topic=topic,
+                start_date=start_date or "",
+                end_date=end_date or "",
+                source=source or "",
+                min_participants=min_participants or "",
+                max_participants=max_participants or "",
+                min_messages=min_messages or "",
+                max_messages=max_messages or "",
+                available_sources=available_sources,
+                is_topic_search=True,
+            )
+        
+        # Otherwise use the regular reports endpoint with filters
         params = {"limit": limit, "skip": skip}
         if thread_id:
             params["thread_id"] = thread_id
+        if start_date:
+            params["start_date"] = start_date
+        if end_date:
+            params["end_date"] = end_date
+        if source:
+            params["source"] = source
+        if min_participants:
+            params["min_participants"] = min_participants
+        if max_participants:
+            params["max_participants"] = max_participants
+        if min_messages:
+            params["min_messages"] = min_messages
+        if max_messages:
+            params["max_messages"] = max_messages
         
         # Fetch reports from API
         response = requests.get(f"{api_url}/api/reports", params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
+        
+        # Get available sources for filter dropdown
+        sources_response = requests.get(f"{api_url}/api/sources", timeout=10)
+        sources_response.raise_for_status()
+        available_sources = sources_response.json().get("sources", [])
         
         return render_template(
             "reports_list.html",
@@ -71,6 +136,16 @@ def reports_list():
             limit=limit,
             skip=skip,
             thread_id=thread_id or "",
+            topic=topic or "",
+            start_date=start_date or "",
+            end_date=end_date or "",
+            source=source or "",
+            min_participants=min_participants or "",
+            max_participants=max_participants or "",
+            min_messages=min_messages or "",
+            max_messages=max_messages or "",
+            available_sources=available_sources,
+            is_topic_search=False,
         )
         
     except requests.RequestException as e:

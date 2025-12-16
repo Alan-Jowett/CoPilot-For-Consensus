@@ -32,7 +32,30 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             margin-bottom: 20px;
         }
-        .filters form {
+        .filters h2 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 18px;
+            color: #333;
+        }
+        .filter-section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .filter-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .filter-section h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #666;
+            font-weight: 600;
+        }
+        .filter-row {
             display: flex;
             gap: 15px;
             align-items: end;
@@ -40,13 +63,16 @@
         }
         .filter-group {
             flex: 1;
-            min-width: 200px;
+            min-width: 180px;
+        }
+        .filter-group.small {
+            flex: 0 0 140px;
         }
         .filter-group label {
             display: block;
             margin-bottom: 5px;
             color: #666;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
         }
         .filter-group input,
@@ -56,8 +82,35 @@
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 14px;
+            box-sizing: border-box;
         }
-        .filter-group button {
+        .filter-group input[type="date"] {
+            font-family: inherit;
+        }
+        .quick-dates {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 5px;
+        }
+        .quick-date-btn {
+            padding: 4px 10px;
+            background-color: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .quick-date-btn:hover {
+            background-color: #e0e0e0;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        .filter-group button,
+        .clear-btn {
             padding: 8px 20px;
             background-color: #007bff;
             color: white;
@@ -68,6 +121,43 @@
         }
         .filter-group button:hover {
             background-color: #0056b3;
+        }
+        .clear-btn {
+            background-color: #6c757d;
+        }
+        .clear-btn:hover {
+            background-color: #5a6268;
+        }
+        .active-filters {
+            background: #e7f3ff;
+            padding: 12px 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #007bff;
+        }
+        .active-filters h3 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            color: #333;
+        }
+        .filter-tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .filter-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .filter-tag .remove {
+            margin-left: 6px;
+            cursor: pointer;
+            font-weight: bold;
         }
         .reports-table {
             background: white;
@@ -172,6 +262,24 @@
             font-weight: 600;
             background-color: #17a2b8;
             color: white;
+            margin-right: 5px;
+        }
+        .badge.source {
+            background-color: #28a745;
+        }
+        .badge.score {
+            background-color: #ffc107;
+            color: #333;
+        }
+        .metadata {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        .help-text {
+            font-size: 12px;
+            color: #999;
+            margin-top: 3px;
         }
     </style>
 </head>
@@ -181,25 +289,149 @@
         <p class="subtitle">Browse and search summarization reports</p>
         
         <div class="filters">
+            <h2>Filters & Search</h2>
             <form method="get" action="/reports">
-                <div class="filter-group">
-                    <label for="thread_id">Thread ID</label>
-                    <input type="text" name="thread_id" id="thread_id" value="{{ thread_id }}" placeholder="Filter by thread ID">
+                
+                <!-- Topic Search Section -->
+                <div class="filter-section">
+                    <h3>🔍 Topic-Based Search</h3>
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label for="topic">Search by Topic or Keywords</label>
+                            <input type="text" name="topic" id="topic" value="{{ topic }}" 
+                                   placeholder="e.g., consensus mechanisms, network performance">
+                            <div class="help-text">Uses AI to find semantically related reports</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="filter-group">
-                    <label for="limit">Results per page</label>
-                    <select name="limit" id="limit">
-                        <option value="10" {% if limit == 10 %}selected{% endif %}>10</option>
-                        <option value="20" {% if limit == 20 %}selected{% endif %}>20</option>
-                        <option value="50" {% if limit == 50 %}selected{% endif %}>50</option>
-                        <option value="100" {% if limit == 100 %}selected{% endif %}>100</option>
-                    </select>
+                
+                <!-- Date Range Section -->
+                <div class="filter-section">
+                    <h3>📅 Date Range</h3>
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label for="start_date">Start Date</label>
+                            <input type="date" name="start_date" id="start_date" value="{{ start_date }}">
+                        </div>
+                        <div class="filter-group">
+                            <label for="end_date">End Date</label>
+                            <input type="date" name="end_date" id="end_date" value="{{ end_date }}">
+                        </div>
+                    </div>
+                    <div class="quick-dates">
+                        <button type="button" class="quick-date-btn" onclick="setDateRange(7)">Last 7 days</button>
+                        <button type="button" class="quick-date-btn" onclick="setDateRange(30)">Last 30 days</button>
+                        <button type="button" class="quick-date-btn" onclick="setDateRange(90)">Last 90 days</button>
+                        <button type="button" class="quick-date-btn" onclick="setThisMonth()">This month</button>
+                    </div>
                 </div>
-                <div class="filter-group">
-                    <button type="submit">Filter</button>
+                
+                <!-- Source & Thread Filters Section -->
+                <div class="filter-section">
+                    <h3>📦 Source & Thread</h3>
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label for="source">Archive Source</label>
+                            <select name="source" id="source">
+                                <option value="">All Sources</option>
+                                {% for src in available_sources %}
+                                <option value="{{ src }}" {% if source == src %}selected{% endif %}>{{ src }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label for="thread_id">Thread ID</label>
+                            <input type="text" name="thread_id" id="thread_id" value="{{ thread_id }}" 
+                                   placeholder="Specific thread ID">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Metadata Filters Section -->
+                <div class="filter-section">
+                    <h3>📊 Thread Metadata</h3>
+                    <div class="filter-row">
+                        <div class="filter-group small">
+                            <label for="min_participants">Min Participants</label>
+                            <input type="number" name="min_participants" id="min_participants" 
+                                   value="{{ min_participants }}" min="0" placeholder="0">
+                        </div>
+                        <div class="filter-group small">
+                            <label for="max_participants">Max Participants</label>
+                            <input type="number" name="max_participants" id="max_participants" 
+                                   value="{{ max_participants }}" min="0" placeholder="∞">
+                        </div>
+                        <div class="filter-group small">
+                            <label for="min_messages">Min Messages</label>
+                            <input type="number" name="min_messages" id="min_messages" 
+                                   value="{{ min_messages }}" min="0" placeholder="0">
+                        </div>
+                        <div class="filter-group small">
+                            <label for="max_messages">Max Messages</label>
+                            <input type="number" name="max_messages" id="max_messages" 
+                                   value="{{ max_messages }}" min="0" placeholder="∞">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Display Options -->
+                <div class="filter-section">
+                    <h3>⚙️ Display Options</h3>
+                    <div class="filter-row">
+                        <div class="filter-group small">
+                            <label for="limit">Results per page</label>
+                            <select name="limit" id="limit">
+                                <option value="10" {% if limit == 10 %}selected{% endif %}>10</option>
+                                <option value="20" {% if limit == 20 %}selected{% endif %}>20</option>
+                                <option value="50" {% if limit == 50 %}selected{% endif %}>50</option>
+                                <option value="100" {% if limit == 100 %}selected{% endif %}>100</option>
+                            </select>
+                        </div>
+                        <div class="filter-group" style="flex: 2;">
+                            <div class="button-group">
+                                <button type="submit">Apply Filters</button>
+                                <button type="button" class="clear-btn" onclick="clearFilters()">Clear All</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>
+        
+        {% if topic or start_date or end_date or source or thread_id or min_participants or max_participants or min_messages or max_messages %}
+        <div class="active-filters">
+            <h3>Active Filters:</h3>
+            <div class="filter-tags">
+                {% if topic %}
+                <span class="filter-tag">Topic: {{ topic }} <span class="remove" onclick="removeFilter('topic')">×</span></span>
+                {% endif %}
+                {% if start_date %}
+                <span class="filter-tag">After: {{ start_date }} <span class="remove" onclick="removeFilter('start_date')">×</span></span>
+                {% endif %}
+                {% if end_date %}
+                <span class="filter-tag">Before: {{ end_date }} <span class="remove" onclick="removeFilter('end_date')">×</span></span>
+                {% endif %}
+                {% if source %}
+                <span class="filter-tag">Source: {{ source }} <span class="remove" onclick="removeFilter('source')">×</span></span>
+                {% endif %}
+                {% if thread_id %}
+                <span class="filter-tag">Thread: {{ thread_id[:16] }}... <span class="remove" onclick="removeFilter('thread_id')">×</span></span>
+                {% endif %}
+                {% if min_participants %}
+                <span class="filter-tag">Min Participants: {{ min_participants }} <span class="remove" onclick="removeFilter('min_participants')">×</span></span>
+                {% endif %}
+                {% if max_participants %}
+                <span class="filter-tag">Max Participants: {{ max_participants }} <span class="remove" onclick="removeFilter('max_participants')">×</span></span>
+                {% endif %}
+                {% if min_messages %}
+                <span class="filter-tag">Min Messages: {{ min_messages }} <span class="remove" onclick="removeFilter('min_messages')">×</span></span>
+                {% endif %}
+                {% if max_messages %}
+                <span class="filter-tag">Max Messages: {{ max_messages }} <span class="remove" onclick="removeFilter('max_messages')">×</span></span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
         
         <div class="reports-table">
             {% if reports %}
@@ -208,7 +440,11 @@
                     <tr>
                         <th>Report ID</th>
                         <th>Thread ID</th>
+                        {% if is_topic_search %}
+                        <th>Relevance</th>
+                        {% endif %}
                         <th>Generated</th>
+                        <th>Source & Metadata</th>
                         <th>Summary Preview</th>
                         <th>Citations</th>
                     </tr>
@@ -228,7 +464,31 @@
                             </div>
                             <button class="copy-btn" onclick="copyToClipboard('{{ report.thread_id }}')">Copy</button>
                         </td>
-                        <td class="timestamp">{{ report.generated_at }}</td>
+                        {% if is_topic_search %}
+                        <td>
+                            {% if report.relevance_score %}
+                            <span class="badge score">{{ "%.2f"|format(report.relevance_score * 100) }}%</span>
+                            <div class="metadata">{{ report.matching_chunks }} chunks</div>
+                            {% endif %}
+                        </td>
+                        {% endif %}
+                        <td class="timestamp">{{ report.generated_at[:10] }}</td>
+                        <td>
+                            {% if report.archive_metadata %}
+                            <span class="badge source">{{ report.archive_metadata.source }}</span>
+                            {% endif %}
+                            {% if report.thread_metadata %}
+                            <div class="metadata">
+                                👥 {{ report.thread_metadata.participant_count }} participants
+                                • 💬 {{ report.thread_metadata.message_count }} messages
+                            </div>
+                            {% if report.thread_metadata.subject %}
+                            <div class="metadata" style="margin-top: 4px;">
+                                <strong>Subject:</strong> {{ report.thread_metadata.subject[:50] }}{% if report.thread_metadata.subject|length > 50 %}...{% endif %}
+                            </div>
+                            {% endif %}
+                            {% endif %}
+                        </td>
                         <td class="summary-preview" title="{{ report.content_markdown }}">
                             {{ report.content_markdown[:100] }}...
                         </td>
@@ -242,18 +502,21 @@
             {% else %}
             <div class="no-reports">
                 <p>No reports match the selected filters.</p>
+                {% if topic or start_date or end_date or source or thread_id %}
+                <p><button class="clear-btn" onclick="clearFilters()">Clear Filters</button></p>
+                {% endif %}
             </div>
             {% endif %}
         </div>
         
-        {% if reports %}
+        {% if reports and not is_topic_search %}
         <div class="pagination">
-            <a href="?thread_id={{ thread_id }}&limit={{ limit }}&skip={{ skip - limit if skip >= limit else 0 }}" 
+            <a href="?thread_id={{ thread_id }}&topic={{ topic }}&start_date={{ start_date }}&end_date={{ end_date }}&source={{ source }}&min_participants={{ min_participants }}&max_participants={{ max_participants }}&min_messages={{ min_messages }}&max_messages={{ max_messages }}&limit={{ limit }}&skip={{ skip - limit if skip >= limit else 0 }}" 
                class="{% if skip == 0 %}disabled{% endif %}">
                 ← Previous
             </a>
             <span>Showing {{ skip + 1 }} - {{ skip + count }} ({{ count }} reports)</span>
-            <a href="?thread_id={{ thread_id }}&limit={{ limit }}&skip={{ skip + limit }}"
+            <a href="?thread_id={{ thread_id }}&topic={{ topic }}&start_date={{ start_date }}&end_date={{ end_date }}&source={{ source }}&min_participants={{ min_participants }}&max_participants={{ max_participants }}&min_messages={{ min_messages }}&max_messages={{ max_messages }}&limit={{ limit }}&skip={{ skip + limit }}"
                class="{% if count < limit %}disabled{% endif %}">
                 Next →
             </a>
@@ -264,7 +527,6 @@
     <script>
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(function() {
-                // Show a brief success indication
                 const btn = event.target;
                 const originalText = btn.textContent;
                 btn.textContent = 'Copied!';
@@ -275,6 +537,35 @@
                 console.error('Failed to copy text: ', err);
                 alert('Failed to copy to clipboard');
             });
+        }
+        
+        function setDateRange(days) {
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(endDate.getDate() - days);
+            
+            document.getElementById('start_date').value = startDate.toISOString().split('T')[0];
+            document.getElementById('end_date').value = endDate.toISOString().split('T')[0];
+        }
+        
+        function setThisMonth() {
+            const now = new Date();
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+            const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            
+            document.getElementById('start_date').value = firstDay.toISOString().split('T')[0];
+            document.getElementById('end_date').value = lastDay.toISOString().split('T')[0];
+        }
+        
+        function clearFilters() {
+            window.location.href = '/reports';
+        }
+        
+        function removeFilter(filterName) {
+            const url = new URL(window.location);
+            url.searchParams.delete(filterName);
+            url.searchParams.set('skip', '0'); // Reset pagination
+            window.location.href = url.toString();
         }
     </script>
 </body>
