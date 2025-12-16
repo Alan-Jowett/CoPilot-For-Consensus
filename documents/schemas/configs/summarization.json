@@ -156,7 +156,7 @@
       "type": "string",
       "source": "env",
       "env_var": "LLAMACPP_HOST",
-      "default": "http://llama-cpp:8080",
+      "default": "http://llama-cpp:8081",
       "description": "llama.cpp server endpoint URL (for llamacpp backend)"
     },
     "llm_temperature": {

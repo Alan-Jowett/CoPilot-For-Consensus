@@ -94,11 +94,20 @@ services:
 
 Set environment variables to use llama.cpp:
 
+**Linux/macOS (bash):**
 ```bash
 # In .env file or export
 export LLM_BACKEND=llamacpp
 export LLM_MODEL=mistral-7b-instruct-v0.2.Q4_K_M
-export LLAMACPP_HOST=http://llama-cpp:8080
+export LLAMACPP_HOST=http://llama-cpp:8081
+```
+
+**Windows (PowerShell):**
+```powershell
+# Set environment variables
+$env:LLM_BACKEND = "llamacpp"
+$env:LLM_MODEL = "mistral-7b-instruct-v0.2.Q4_K_M"
+$env:LLAMACPP_HOST = "http://llama-cpp:8081"
 ```
 
 Or in `docker-compose.override.yml`:
@@ -109,13 +118,27 @@ services:
     environment:
       - LLM_BACKEND=llamacpp
       - LLM_MODEL=mistral-7b-instruct-v0.2.Q4_K_M
-      - LLAMACPP_HOST=http://llama-cpp:8080
+      - LLAMACPP_HOST=http://llama-cpp:8081
 ```
 
 ### 3. Download a GGUF model
 
-Download a quantized GGUF model and place it in the `llama_models` volume:
+The llama.cpp service uses a Docker named volume (`llama_models`) for model storage. You have two options:
 
+**Option A: Use a bind mount (recommended for easier management)**
+
+Create a `docker-compose.override.yml` to replace the named volume with a local directory:
+
+```yaml
+services:
+  llama-cpp:
+    volumes:
+      - ./llama_models:/models  # Bind mount to local directory
+```
+
+Then download models to the local directory:
+
+**Linux/macOS:**
 ```bash
 # Create models directory
 mkdir -p llama_models
@@ -123,14 +146,49 @@ mkdir -p llama_models
 # Download a model (example: Mistral 7B Q4_K_M)
 wget https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf \
   -O llama_models/mistral-7b-instruct-v0.2.Q4_K_M.gguf
+
+# Or using curl
+curl -L https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf \
+  -o llama_models/mistral-7b-instruct-v0.2.Q4_K_M.gguf
+```
+
+**Windows (PowerShell):**
+```powershell
+# Create models directory
+New-Item -ItemType Directory -Path "llama_models" -Force
+
+# Download a model using Invoke-WebRequest
+Invoke-WebRequest -Uri "https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf" `
+  -OutFile "llama_models\mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+```
+
+**Option B: Use the named volume (default)**
+
+If you keep the default named volume, download models into the container:
+
+```bash
+# Start a temporary container with the volume mounted
+docker run --rm -v llama_models:/models -v $(pwd):/download alpine sh -c \
+  "wget https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF/resolve/main/mistral-7b-instruct-v0.2.Q4_K_M.gguf \
+   -O /models/mistral-7b-instruct-v0.2.Q4_K_M.gguf"
+
+# Or copy a local file into the volume
+docker cp mistral-7b-instruct-v0.2.Q4_K_M.gguf \
+  $(docker create -v llama_models:/models alpine):/models/
 ```
 
 ### 4. Configure model path
 
 Set the model path in environment variables:
 
+**Linux/macOS (bash):**
 ```bash
 export LLAMA_MODEL=/models/mistral-7b-instruct-v0.2.Q4_K_M.gguf
+```
+
+**Windows (PowerShell):**
+```powershell
+$env:LLAMA_MODEL = "/models/mistral-7b-instruct-v0.2.Q4_K_M.gguf"
 ```
 
 ### 5. Start the services
@@ -393,7 +451,7 @@ export OLLAMA_HOST=http://ollama:11434
 ```bash
 export LLM_BACKEND=llamacpp
 export LLM_MODEL=mistral-7b-instruct-v0.2.Q4_K_M
-export LLAMACPP_HOST=http://llama-cpp:8080
+export LLAMACPP_HOST=http://llama-cpp:8081
 ```
 
 ## Performance Benchmarks
