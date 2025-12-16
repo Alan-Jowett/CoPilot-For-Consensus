@@ -293,7 +293,7 @@ class SummarizationService:
                             extra={"original_error": str(e), "publish_error": str(publish_error)}
                         )
                         if self.error_reporter:
-                            self.error_reporter.capture_exception()
+                            self.error_reporter.report(publish_error, context={"thread_id": thread_id, "publish_failed": True})
                         # Re-raise the original exception to trigger message requeue
                         raise e from publish_error
                     
@@ -419,12 +419,12 @@ class SummarizationService:
             self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="summary.complete",
-                message=event.to_dict(),
+                event=event.to_dict(),
             )
-        except Exception:
+        except Exception as e:
             logger.exception(f"Exception while publishing SummaryComplete event for {thread_id}")
             if self.error_reporter:
-                self.error_reporter.capture_exception()
+                self.error_reporter.report(e, context={"thread_id": thread_id})
             raise
         
         logger.info(f"Published SummaryComplete event for thread {thread_id}")
@@ -457,12 +457,12 @@ class SummarizationService:
             self.publisher.publish(
                 exchange="copilot.events",
                 routing_key="summarization.failed",
-                message=event.to_dict(),
+                event=event.to_dict(),
             )
-        except Exception:
+        except Exception as e:
             logger.exception(f"Exception while publishing SummarizationFailed event for {thread_id}")
             if self.error_reporter:
-                self.error_reporter.capture_exception()
+                self.error_reporter.report(e, context={"thread_id": thread_id, "error_type": error_type})
             raise
         
         logger.warning(
