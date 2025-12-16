@@ -387,7 +387,7 @@ class SummarizationService:
             text = chunk.get("text", "")
             
             # Truncate text to configured snippet length
-            snippet = text[:self.citation_text_max_length] if len(text) > self.citation_text_max_length else text
+            snippet = text[:min(len(text), self.citation_text_max_length)]
             
             formatted.append({
                 "message_id": citation.message_id,
