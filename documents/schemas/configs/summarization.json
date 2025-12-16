@@ -135,8 +135,8 @@
       "type": "string",
       "source": "env",
       "env_var": "LLM_BACKEND",
-      "default": "ollama",
-      "description": "LLM backend"
+      "default": "local",
+      "description": "LLM backend (local for Ollama, openai, azure, or mock)"
     },
     "llm_model": {
       "type": "string",
