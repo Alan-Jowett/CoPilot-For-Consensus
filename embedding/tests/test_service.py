@@ -104,6 +104,7 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
     chunk_ids = ["chunk-1", "chunk-2", "chunk-3"]
     chunks = [
         {
+            "_id": "chunk-1",
             "chunk_id": "chunk-1",
             "message_id": "<msg1@example.com>",
             "thread_id": "<thread@example.com>",
@@ -120,6 +121,7 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
             }
         },
         {
+            "_id": "chunk-2",
             "chunk_id": "chunk-2",
             "message_id": "<msg1@example.com>",
             "thread_id": "<thread@example.com>",
@@ -136,6 +138,7 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
             }
         },
         {
+            "_id": "chunk-3",
             "chunk_id": "chunk-3",
             "message_id": "<msg2@example.com>",
             "thread_id": "<thread@example.com>",
@@ -166,7 +169,10 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
     # Verify document store was queried
     mock_document_store.query_documents.assert_called_once_with(
         collection="chunks",
-        filter_dict={"chunk_id": {"$in": chunk_ids}}
+        filter_dict={
+            "chunk_id": {"$in": chunk_ids},
+            "embedding_generated": False,
+        }
     )
     
     # Verify embeddings were generated for each chunk
@@ -219,25 +225,18 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
 
 
 def test_process_chunks_no_chunks_found(embedding_service, mock_document_store, mock_publisher):
-    """Test handling when no chunks are found in database."""
+    """When no chunks are found, service should skip without publishing failure."""
     chunk_ids = ["chunk-1", "chunk-2"]
     mock_document_store.query_documents.return_value = []
-    
+
     event_data = {
         "chunk_ids": chunk_ids,
     }
-    
+
     embedding_service.process_chunks(event_data)
-    
-    # Verify failure event was published
-    mock_publisher.publish.assert_called_once()
-    publish_call = mock_publisher.publish.call_args
-    assert publish_call[1]["routing_key"] == "embedding.generation.failed"
-    
-    event = publish_call[1]["event"]
-    assert event["event_type"] == "EmbeddingGenerationFailed"
-    assert event["data"]["chunk_ids"] == chunk_ids
-    assert event["data"]["error_type"] == "ChunkNotFoundError"
+
+    # No failure event should be published for already-embedded or missing chunks
+    mock_publisher.publish.assert_not_called()
 
 
 def test_process_chunks_empty_chunk_ids(embedding_service, mock_document_store):
