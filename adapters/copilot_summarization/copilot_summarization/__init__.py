@@ -8,6 +8,7 @@ from .summarizer import Summarizer
 from .openai_summarizer import OpenAISummarizer
 from .mock_summarizer import MockSummarizer
 from .local_llm_summarizer import LocalLLMSummarizer
+from .llamacpp_summarizer import LlamaCppSummarizer
 from .factory import SummarizerFactory
 
 __all__ = [
@@ -18,5 +19,6 @@ __all__ = [
     "OpenAISummarizer",
     "MockSummarizer",
     "LocalLLMSummarizer",
+    "LlamaCppSummarizer",
     "SummarizerFactory",
 ]

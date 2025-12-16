@@ -225,6 +225,49 @@ services:
         echo "Failed to pull model after 5 attempts"; exit 1
     restart: "no"
 
+  llama-cpp:
+    image: ghcr.io/ggerganov/llama.cpp:server
+    ports:
+      - "8081:8080"
+    volumes:
+      - llama_models:/models
+    environment:
+      # Model configuration - can be overridden
+      - LLAMA_ARG_MODEL=${LLAMA_MODEL:-/models/mistral-7b-instruct-v0.2.Q4_K_M.gguf}
+      - LLAMA_ARG_CTX_SIZE=${LLAMA_CTX_SIZE:-4096}
+      - LLAMA_ARG_N_GPU_LAYERS=${LLAMA_GPU_LAYERS:-35}
+      - LLAMA_ARG_HOST=0.0.0.0
+      - LLAMA_ARG_PORT=8080
+    # AMD GPU Configuration:
+    # To enable AMD GPU acceleration, uncomment ONE of the following options based on your setup:
+    #
+    # Option 1: Vulkan backend (RECOMMENDED for integrated GPUs and Windows)
+    # Uncomment these lines for AMD Radeon 780M, 680M, or any AMD GPU on Windows/Linux:
+    # devices:
+    #   - /dev/dri:/dev/dri
+    #
+    # Option 2: ROCm backend (for discrete AMD GPUs on Linux only)
+    # Uncomment these lines for RX 6000/7000 series on Linux:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: amdgpu
+    #           capabilities: [gpu]
+    #
+    # After uncommenting, also remove the 'llamacpp' profile below to enable the service.
+    # See documents/LLAMA_CPP_AMD_SETUP.md for detailed setup instructions.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
+    # Note: This service is optional. Only needed when using LLM_BACKEND=llamacpp
+    profiles:
+      - llamacpp
+
   # WARNING: The Promtail service mounts the Docker socket (/var/run/docker.sock) with read-only access.
   # This is required for Promtail to discover and label logs from Docker containers.
   # However, even read-only access to the Docker socket can be a security risk, as it allows querying
@@ -654,6 +697,7 @@ services:
       - LLM_BACKEND=${LLM_BACKEND:-mock}
       - LLM_MODEL=${LLM_MODEL:-mistral}
       - OLLAMA_HOST=http://ollama:11434
+      - LLAMACPP_HOST=${LLAMACPP_HOST:-http://llama-cpp:8081}
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
     depends_on:
@@ -711,3 +755,4 @@ volumes:
   prometheus_data:
   grafana_data:
   loki_data:
+  llama_models:

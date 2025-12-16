@@ -136,7 +136,7 @@
       "source": "env",
       "env_var": "LLM_BACKEND",
       "default": "local",
-      "description": "LLM backend. Valid values: 'local' (Ollama, the default), 'openai' (OpenAI API), 'azure' (Azure OpenAI), 'mock' (testing). Note: 'ollama' is deprecated—use 'local' for Ollama."
+      "description": "LLM backend. Valid values: 'local' (Ollama - default, good for NVIDIA GPUs or CPU), 'llamacpp' (llama.cpp - recommended for AMD GPUs), 'openai' (OpenAI API), 'azure' (Azure OpenAI), 'mock' (testing). Choose 'llamacpp' for AMD GPU acceleration with Vulkan/ROCm."
     },
     "llm_model": {
       "type": "string",
@@ -151,6 +151,13 @@
       "env_var": "OLLAMA_HOST",
       "default": "http://ollama:11434",
       "description": "Local LLM endpoint URL (for local/ollama backend)"
+    },
+    "llamacpp_endpoint": {
+      "type": "string",
+      "source": "env",
+      "env_var": "LLAMACPP_HOST",
+      "default": "http://llama-cpp:8081",
+      "description": "llama.cpp server endpoint URL (for llamacpp backend)"
     },
     "llm_temperature": {
       "type": "float",
