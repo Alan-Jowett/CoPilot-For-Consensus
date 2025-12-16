@@ -8,7 +8,7 @@ This test verifies that messages flow through the entire system:
 1. Ingestion -> archives collection
 2. Parsing -> messages and threads collections
 3. Chunking -> chunks collection
-4. Embedding -> vectorstore (Qdrant)
+4. Embedding -> vectorstore
 
 The test runs against a live Docker Compose stack and validates actual
 data persistence in MongoDB and Qdrant.
@@ -20,19 +20,18 @@ import time
 from typing import Dict, Any, List, Optional
 import json
 
-# MongoDB client
+# Storage adapter
 try:
-    from pymongo import MongoClient
+    from copilot_storage import create_document_store
 except ImportError:
-    print("ERROR: pymongo not installed. Install with: pip install pymongo")
+    print("ERROR: copilot_storage adapter not installed. Install with: pip install copilot-storage")
     sys.exit(1)
 
-# Qdrant client
+# Vector store adapter
 try:
-    from qdrant_client import QdrantClient
-    from qdrant_client.models import Filter, FieldCondition, MatchValue
+    from copilot_vectorstore import create_vector_store
 except ImportError:
-    print("ERROR: qdrant-client not installed. Install with: pip install qdrant-client")
+    print("ERROR: copilot_vectorstore adapter not installed. Install with: pip install copilot-vectorstore")
     sys.exit(1)
 
 
@@ -41,33 +40,39 @@ class E2EMessageFlowValidator:
     
     def __init__(self):
         """Initialize validators with connections to MongoDB and Qdrant."""
-        # MongoDB configuration (no authentication in docker-compose)
-        self.mongo_host = os.getenv("MONGODB_HOST", "localhost")
-        self.mongo_port = int(os.getenv("MONGODB_PORT", "27017"))
-        self.mongo_db = os.getenv("MONGODB_DATABASE", "copilot")
-        
         # Qdrant configuration
         self.qdrant_host = os.getenv("QDRANT_HOST", "localhost")
         self.qdrant_port = int(os.getenv("QDRANT_PORT", "6333"))
         self.qdrant_collection = os.getenv("QDRANT_COLLECTION", "embeddings")
         
-        # Connect to MongoDB (no authentication in docker-compose)
-        # Set aggressive timeouts to prevent hanging queries in CI
-        mongo_uri = f"mongodb://{self.mongo_host}:{self.mongo_port}/"
-        self.mongo_client = MongoClient(
-            mongo_uri,
-            serverSelectionTimeoutMS=10000,  # 10s to select a server
-            socketTimeoutMS=30000,            # 30s for socket operations
-            connectTimeoutMS=10000,           # 10s to establish connection
-            maxIdleTimeMS=45000               # 45s max idle time
+        # Create MongoDB document store using adapter
+        # This properly handles authentication with authSource=admin
+        self.doc_store = create_document_store()
+        
+        # Connect to MongoDB
+        try:
+            self.doc_store.connect()
+            print(f"✓ Connected to MongoDB")
+        except Exception as e:
+            print(f"❌ Failed to connect to MongoDB: {e}")
+            raise
+        
+        # Create vector store via adapter (defaults target Qdrant in CI)
+        backend = os.getenv("VECTORSTORE_BACKEND", "qdrant")
+        dimension = int(os.getenv("EMBEDDING_DIMENSION", "384"))
+        distance = os.getenv("VECTOR_DISTANCE", "cosine")
+        upsert_batch_size = int(os.getenv("UPSERT_BATCH_SIZE", "100"))
+        
+        self.vector_store = create_vector_store(
+            backend=backend,
+            dimension=dimension,
+            host=self.qdrant_host,
+            port=self.qdrant_port,
+            collection_name=self.qdrant_collection,
+            distance=distance,
+            upsert_batch_size=upsert_batch_size,
         )
-        self.db = self.mongo_client[self.mongo_db]
-        
-        # Connect to Qdrant
-        self.qdrant_client = QdrantClient(host=self.qdrant_host, port=self.qdrant_port)
-        
-        print(f"✓ Connected to MongoDB at {self.mongo_host}:{self.mongo_port}")
-        print(f"✓ Connected to Qdrant at {self.qdrant_host}:{self.qdrant_port}")
+        print(f"✓ Vector store ready (backend={backend}) at {self.qdrant_host}:{self.qdrant_port}")
     
     def _safe_mongo_count(self, collection_name: str, max_retries: int = 3) -> int:
         """Safely count documents in a MongoDB collection with retry logic.
@@ -81,9 +86,9 @@ class E2EMessageFlowValidator:
         """
         for attempt in range(max_retries):
             try:
-                collection = self.db[collection_name]
-                count = collection.count_documents({})
-                return count
+                # Query all documents with a high limit to count them
+                documents = self.doc_store.query_documents(collection_name, {}, limit=10000)
+                return len(documents)
             except Exception as e:
                 if attempt < max_retries - 1:
                     print(f"  MongoDB query failed (attempt {attempt + 1}/{max_retries}): {e}")
@@ -109,10 +114,7 @@ class E2EMessageFlowValidator:
         
         for attempt in range(max_retries):
             try:
-                collection = self.db[collection_name]
-                # Use timeout on the cursor to prevent hanging
-                cursor = collection.find(query).max_time_ms(30000)  # 30 second timeout
-                documents = list(cursor)
+                documents = self.doc_store.query_documents(collection_name, query, limit=1000)
                 return documents
             except Exception as e:
                 if attempt < max_retries - 1:
@@ -123,22 +125,13 @@ class E2EMessageFlowValidator:
                     return []
         return []
     
-    def _get_qdrant_collection_point_count(self) -> int:
-        """Get the number of points in the Qdrant collection.
-        
-        Returns:
-            Number of points in the collection, or 0 if collection doesn't exist.
-        """
+    def _get_vectorstore_count(self) -> int:
+        """Get the number of embeddings in the vector store."""
         try:
-            collections = self.qdrant_client.get_collections().collections
-            collection_names = [c.name for c in collections]
-            if self.qdrant_collection in collection_names:
-                collection_info = self.qdrant_client.get_collection(self.qdrant_collection)
-                return collection_info.points_count
+            return self.vector_store.count()
         except Exception as e:
-            # Log the error but don't fail - collection might not exist yet
-            print(f"  Note: Could not query Qdrant collection: {e}")
-        return 0
+            print(f"  Note: Could not query vector store count: {e}")
+            return 0
     
     def wait_for_processing(self, max_wait_seconds: int = 90, poll_interval: int = 3):
         """Wait for message processing to complete.
@@ -159,7 +152,7 @@ class E2EMessageFlowValidator:
         while time.time() - start_time < max_wait_seconds:
             messages_count = self._safe_mongo_count("messages")
             chunks_count = self._safe_mongo_count("chunks")
-            embeddings_count = self._get_qdrant_collection_point_count()
+            embeddings_count = self._get_vectorstore_count()
             
             print(f"  Polling... messages={messages_count}, chunks={chunks_count}, embeddings={embeddings_count}")
             
@@ -171,7 +164,7 @@ class E2EMessageFlowValidator:
                 if embeddings_count == 0:
                     print("⚠ No embeddings yet, waiting a bit more...")
                     time.sleep(5)
-                    embeddings_count = self._get_qdrant_collection_point_count()
+                    embeddings_count = self._get_vectorstore_count()
                     if embeddings_count > 0:
                         print(f"✓ Embeddings appeared: {embeddings_count}")
                 return True
@@ -296,24 +289,10 @@ class E2EMessageFlowValidator:
         }
     
     def validate_embeddings(self, expected_min_count: int = 10) -> Dict[str, Any]:
-        """Validate that embeddings were generated and stored in Qdrant."""
+        """Validate that embeddings were generated and stored in the vector store."""
         print("\n=== Validating Embeddings ===")
-        
         try:
-            # Check if collection exists
-            collections = self.qdrant_client.get_collections().collections
-            collection_names = [c.name for c in collections]
-            
-            if self.qdrant_collection not in collection_names:
-                print(f"⚠ WARNING: Collection '{self.qdrant_collection}' not found in Qdrant")
-                print(f"   Available collections: {collection_names}")
-                print(f"   This may indicate embedding generation hasn't completed or failed")
-                return {"status": "WARN", "count": 0, "details": "Collection not created"}
-            
-            # Get collection info
-            collection_info = self.qdrant_client.get_collection(self.qdrant_collection)
-            points_count = collection_info.points_count
-            
+            points_count = self.vector_store.count()
             print(f"✓ Found {points_count} embedding(s) in collection '{self.qdrant_collection}'")
             
             if points_count == 0:
@@ -324,21 +303,21 @@ class E2EMessageFlowValidator:
             if points_count < expected_min_count:
                 print(f"⚠ Warning: Expected at least {expected_min_count} embeddings, got {points_count}")
             
-            # Sample a few points to validate structure
-            scroll_result = self.qdrant_client.scroll(
-                collection_name=self.qdrant_collection,
-                limit=3,
-                with_payload=True,
-                with_vectors=False
-            )
-            
-            points = scroll_result[0]
-            for point in points:
-                print(f"  - Point ID: {point.id}")
-                if point.payload:
-                    print(f"    Chunk key: {point.payload.get('chunk_key', 'N/A')}")
-                    print(f"    Message ID: {point.payload.get('message_id', 'N/A')}")
-                    print(f"    Thread ID: {point.payload.get('thread_id', 'N/A')}")
+            # Sample a few embeddings using known chunk IDs from document store
+            sample_chunks = self._safe_mongo_find("chunks")[:3]
+            for ch in sample_chunks:
+                cid = ch.get("chunk_id") or ch.get("chunk_key")
+                if not cid:
+                    continue
+                try:
+                    res = self.vector_store.get(cid)
+                    print(f"  - Point ID: {res.id}")
+                    md = res.metadata or {}
+                    print(f"    Chunk key: {md.get('chunk_key', cid)}")
+                    print(f"    Message ID: {md.get('message_id', 'N/A')}")
+                    print(f"    Thread ID: {md.get('thread_id', 'N/A')}")
+                except Exception as ge:
+                    print(f"  Note: could not fetch embedding for chunk {cid}: {ge}")
             
             return {
                 "status": "PASS",
@@ -439,7 +418,8 @@ class E2EMessageFlowValidator:
     
     def close(self):
         """Close connections."""
-        self.mongo_client.close()
+        if self.doc_store:
+            self.doc_store.disconnect()
 
 
 def main():

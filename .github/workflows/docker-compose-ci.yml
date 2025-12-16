@@ -194,11 +194,6 @@ jobs:
         echo "Validating end-to-end message flow..."
         docker compose run --rm \
           -v $PWD/tests:/app/tests:ro \
-          -e MONGODB_HOST=documentdb \
-          -e MONGODB_PORT=27017 \
-          -e MONGODB_USERNAME=root \
-          -e MONGODB_PASSWORD=example \
-          -e MONGODB_DATABASE=copilot \
           -e QDRANT_HOST=vectorstore \
           -e QDRANT_PORT=6333 \
           -e QDRANT_COLLECTION=embeddings \
