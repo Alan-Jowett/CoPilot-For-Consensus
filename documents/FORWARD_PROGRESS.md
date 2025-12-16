@@ -165,33 +165,49 @@ for chunk in all_chunks:
 
 **Testing Idempotency:** Verify by processing the same event twice and ensuring no errors or duplicate data. See the implementation at `chunking/tests/test_service.py::test_idempotent_chunk_insertion` as an example.
 
-#### Embedding Service: Upsert Semantics
+#### Embedding Service: Status Field Updates
 
-**Pattern:** Use vectorstore upsert operations; adding existing embeddings updates them
+**Pattern:** Update chunk status fields to track embedding generation; vectorstore prevents duplicates
 
 **Implementation:**
 ```python
 # embedding/app/service.py
-# Vector stores use upsert semantics - add_embedding updates if exists
-self.vector_store.add_embeddings(embeddings)
+# After generating embeddings, update chunk status
+def _update_chunk_status_by_doc_ids(self, doc_ids: List[str]):
+    """Update chunk embedding status after successful generation."""
+    for doc_id in doc_ids:
+        self.document_store.update_document(
+            collection="chunks",
+            doc_id=doc_id,
+            patch={"embedding_generated": True},
+        )
 ```
 
 **Vectorstore Interface:**
 ```python
 # adapters/copilot_vectorstore/copilot_vectorstore/interface.py
-def add_embedding(self, chunk_id: str, embedding: List[float], metadata: Dict[str, Any]):
-    """Add or update a single embedding (upsert semantics)."""
+def add_embedding(self, id: str, vector: List[float], metadata: Dict[str, Any]):
+    """Add a single embedding to the vector store.
     
-def add_embeddings(self, embeddings: List[Dict[str, Any]]):
-    """Add or update multiple embeddings in batch (upsert semantics)."""
+    Raises:
+        ValueError: If id already exists or vector is invalid
+    """
+    
+def add_embeddings(self, ids: List[str], vectors: List[List[float]], metadatas: List[Dict[str, Any]]):
+    """Add multiple embeddings in batch.
+    
+    Raises:
+        ValueError: If lengths don't match or any id already exists
+    """
 ```
 
 **Key Points:**
-- Vectorstore implementations (Qdrant) use **upsert**: creates if missing, updates if exists
-- No duplicate key errors on retry
-- Idempotent at the storage layer
+- Vectorstore implementations (Qdrant) **raise ValueError** if ID already exists
+- Embedding service relies on **`embedding_generated` status field** to prevent reprocessing
+- Chunks with `embedding_generated: true` are skipped in queries
+- Idempotency achieved through status field, not vectorstore upsert
 
-**Testing Idempotency:** The embedding service's upsert semantics ensure idempotent operations. Verify by calling add_embeddings multiple times with the same data.
+**Testing Idempotency:** The embedding service queries only chunks with `embedding_generated: false`, preventing duplicate embedding generation attempts.
 
 #### Parsing Service: Message Key Uniqueness
 
@@ -216,13 +232,14 @@ self.document_store.insert_document("messages", message_doc)
 - MongoDB unique index ensures duplicates are rejected
 - Parsing service **does not catch** DuplicateKeyError (intentional - indicates data issue)
 
-#### Summarization/Orchestration Services: Check Before Processing
+### Recommended Pattern: Check Before Processing
 
-**Pattern:** Query for existing summary before generating a new one
+**Note:** This pattern is recommended but not yet implemented in all services. It's useful for expensive operations like LLM calls.
 
-**Implementation:**
+**Pattern:** Query for existing result before generating a new one (read-before-write)
+
+**Example Implementation:**
 ```python
-# summarization/app/service.py
 def _generate_thread_summary(self, thread_id: str, chunks: List[Dict[str, Any]]):
     # Check if summary already exists
     existing = self.document_store.query_documents(
@@ -242,10 +259,9 @@ def _generate_thread_summary(self, thread_id: str, chunks: List[Dict[str, Any]])
 
 **Key Points:**
 - **Read-before-write** pattern prevents duplicate work
-- Returns existing summary if found (idempotent result)
+- Returns existing result if found (idempotent result)
 - Useful for expensive operations (LLM calls)
-
-**Testing Idempotency:** Verify by calling the summary generation twice for the same thread and ensuring the existing summary is returned without regeneration.
+- **Recommended** for future implementations of summarization and orchestration services
 
 ### Testing Idempotency
 
@@ -453,7 +469,7 @@ while retry_count < self.max_retries:
 - Attempt 4: 20 seconds (5 × 2²)
 - Capped at 60 seconds
 
-**Example from Embedding Service:** See `embedding/app/service.py::_process_chunks_with_retry`
+**Example from Embedding Service:** See `embedding/app/service.py::process_chunks`
 
 ### Failed Event Publishing
 
@@ -892,9 +908,9 @@ class MyService:
 
 ### Tests
 - `chunking/tests/test_service.py::test_idempotent_chunk_insertion` - Verifies DuplicateKeyError handling
-- `embedding/tests/test_service.py` - Verify upsert behavior in vectorstore tests
-- `summarization/tests/test_service.py` - Verify read-before-write checks
-- `orchestrator/tests/test_service.py` - Verify existing summary checks
+- `embedding/tests/test_service.py` - Tests embedding generation with status field updates
+- `summarization/tests/test_service.py` - Tests summarization workflow
+- `orchestrator/tests/test_service.py` - Tests orchestration workflow
 
 ### Utilities
 - `scripts/manage_failed_queues.py` - Failed queue CLI tool
