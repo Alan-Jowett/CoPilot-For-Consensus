@@ -234,17 +234,25 @@ services:
       - LLAMA_ARG_N_GPU_LAYERS=${LLAMA_GPU_LAYERS:-35}
       - LLAMA_ARG_HOST=0.0.0.0
       - LLAMA_ARG_PORT=8080
-    # For AMD GPU support (Vulkan backend)
-    # Uncomment the following lines to enable AMD GPU acceleration:
+    # AMD GPU Configuration:
+    # To enable AMD GPU acceleration, uncomment ONE of the following options based on your setup:
+    #
+    # Option 1: Vulkan backend (RECOMMENDED for integrated GPUs and Windows)
+    # Uncomment these lines for AMD Radeon 780M, 680M, or any AMD GPU on Windows/Linux:
     # devices:
     #   - /dev/dri:/dev/dri
-    # Alternatively, for ROCm support (discrete AMD GPUs on Linux):
+    #
+    # Option 2: ROCm backend (for discrete AMD GPUs on Linux only)
+    # Uncomment these lines for RX 6000/7000 series on Linux:
     # deploy:
     #   resources:
     #     reservations:
     #       devices:
     #         - driver: amdgpu
     #           capabilities: [gpu]
+    #
+    # After uncommenting, also remove the 'llamacpp' profile below to enable the service.
+    # See documents/LLAMA_CPP_AMD_SETUP.md for detailed setup instructions.
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
       interval: 10s
