@@ -240,132 +240,20 @@ class TestQdrantVectorStore:
         mock_client.delete_collection.assert_called_with(collection_name="test_collection")
 
     @patch('qdrant_client.QdrantClient')
-    def test_add_embedding_handles_connection_error_on_retrieve(self, mock_client_class):
-        """Test that ConnectionError during ID check allows upsert to proceed."""
+    def test_add_embedding_is_idempotent(self, mock_client_class):
+        """Test that adding duplicate ID uses upsert semantics (idempotent)."""
         mock_client = Mock()
         mock_client_class.return_value = mock_client
         mock_client.get_collections.return_value = Mock(collections=[])
-        # Simulate connection error during retrieve
-        mock_client.retrieve.side_effect = ConnectionError("Connection lost")
         
         store = QdrantVectorStore(vector_size=3)
         
-        # Should not raise, should proceed with upsert
+        # Add same ID twice - should not raise an error (upsert semantics)
         store.add_embedding("doc1", [1.0, 0.0, 0.0], {"text": "hello"})
+        store.add_embedding("doc1", [0.0, 1.0, 0.0], {"text": "world"})
         
-        # Verify upsert was still called
-        mock_client.upsert.assert_called_once()
-
-    @patch('qdrant_client.QdrantClient')
-    def test_add_embedding_handles_timeout_error_on_retrieve(self, mock_client_class):
-        """Test that TimeoutError during ID check allows upsert to proceed."""
-        mock_client = Mock()
-        mock_client_class.return_value = mock_client
-        mock_client.get_collections.return_value = Mock(collections=[])
-        # Simulate timeout error during retrieve
-        mock_client.retrieve.side_effect = TimeoutError("Operation timed out")
-        
-        store = QdrantVectorStore(vector_size=3)
-        
-        # Should not raise, should proceed with upsert
-        store.add_embedding("doc1", [1.0, 0.0, 0.0], {"text": "hello"})
-        
-        # Verify upsert was still called
-        mock_client.upsert.assert_called_once()
-
-    @patch('qdrant_client.QdrantClient')
-    def test_add_embedding_handles_os_error_on_retrieve(self, mock_client_class):
-        """Test that OSError during ID check allows upsert to proceed."""
-        mock_client = Mock()
-        mock_client_class.return_value = mock_client
-        mock_client.get_collections.return_value = Mock(collections=[])
-        # Simulate OS error during retrieve
-        mock_client.retrieve.side_effect = OSError("Network unreachable")
-        
-        store = QdrantVectorStore(vector_size=3)
-        
-        # Should not raise, should proceed with upsert
-        store.add_embedding("doc1", [1.0, 0.0, 0.0], {"text": "hello"})
-        
-        # Verify upsert was still called
-        mock_client.upsert.assert_called_once()
-
-    @patch('qdrant_client.QdrantClient')
-    def test_add_embedding_handles_attribute_error_on_retrieve(self, mock_client_class):
-        """Test that AttributeError during ID check allows upsert to proceed."""
-        mock_client = Mock()
-        mock_client_class.return_value = mock_client
-        mock_client.get_collections.return_value = Mock(collections=[])
-        # Simulate attribute error during retrieve (e.g., client not properly initialized)
-        mock_client.retrieve.side_effect = AttributeError("'NoneType' object has no attribute 'retrieve'")
-        
-        store = QdrantVectorStore(vector_size=3)
-        
-        # Should not raise, should proceed with upsert
-        store.add_embedding("doc1", [1.0, 0.0, 0.0], {"text": "hello"})
-        
-        # Verify upsert was still called
-        mock_client.upsert.assert_called_once()
-
-    @patch('qdrant_client.QdrantClient')
-    def test_add_embeddings_handles_connection_error_on_retrieve(self, mock_client_class):
-        """Test that ConnectionError during batch ID check allows upsert to proceed."""
-        mock_client = Mock()
-        mock_client_class.return_value = mock_client
-        mock_client.get_collections.return_value = Mock(collections=[])
-        # Simulate connection error during retrieve
-        mock_client.retrieve.side_effect = ConnectionError("Connection lost")
-        
-        store = QdrantVectorStore(vector_size=3)
-        
-        # Should not raise, should proceed with batch upsert
-        store.add_embeddings(
-            ids=["doc1", "doc2"],
-            vectors=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
-            metadatas=[{"text": "hello"}, {"text": "world"}]
-        )
-        
-        # Verify upsert was still called
-        mock_client.upsert.assert_called()
-
-    @patch('qdrant_client.QdrantClient')
-    def test_add_embeddings_handles_attribute_error_on_retrieve(self, mock_client_class):
-        """Test that AttributeError during batch ID check allows upsert to proceed."""
-        mock_client = Mock()
-        mock_client_class.return_value = mock_client
-        mock_client.get_collections.return_value = Mock(collections=[])
-        # Simulate attribute error during retrieve (e.g., client not properly initialized)
-        mock_client.retrieve.side_effect = AttributeError("'NoneType' object has no attribute 'retrieve'")
-        
-        store = QdrantVectorStore(vector_size=3)
-        
-        # Should not raise, should proceed with batch upsert
-        store.add_embeddings(
-            ids=["doc1", "doc2"],
-            vectors=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
-            metadatas=[{"text": "hello"}, {"text": "world"}]
-        )
-        
-        # Verify upsert was still called
-        mock_client.upsert.assert_called()
-
-    @patch('qdrant_client.QdrantClient')
-    def test_add_embedding_reraises_value_error(self, mock_client_class):
-        """Test that ValueError from duplicate ID is still raised."""
-        mock_client = Mock()
-        mock_client_class.return_value = mock_client
-        mock_client.get_collections.return_value = Mock(collections=[])
-        
-        # Mock existing ID
-        mock_point = Mock()
-        mock_point.id = "existing-uuid"
-        mock_client.retrieve.return_value = [mock_point]
-        
-        store = QdrantVectorStore(vector_size=3)
-        
-        # Should raise ValueError for duplicate
-        with pytest.raises(ValueError, match="already exists"):
-            store.add_embedding("doc1", [1.0, 0.0, 0.0], {"text": "hello"})
+        # Verify upsert was called twice
+        assert mock_client.upsert.call_count == 2
 
 
 @pytest.mark.skipif(QDRANT_AVAILABLE, reason="Test only runs when qdrant-client is not installed")
