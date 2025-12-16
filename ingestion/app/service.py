@@ -666,8 +666,8 @@ class IngestionService:
             )
             
             # Emit metric for archive creation with pending status
-            if self.metrics_collector:
-                self.metrics_collector.increment(
+            if self.metrics:
+                self.metrics.increment(
                     "ingestion_archive_status_transitions_total",
                     tags={"status": "pending", "collection": "archives"}
                 )
