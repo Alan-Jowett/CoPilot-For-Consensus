@@ -105,14 +105,7 @@ docker compose run --rm ingestion
 
 ### Environment Configuration
 
-The system uses environment variables for configuration. Create a `.env` file in the repository root:
-
-```bash
-# Copy example environment file
-cp .env.example .env
-```
-
-**Key Variables:**
+The system uses environment variables for configuration. The repository includes a `.env` file that you can modify for your local setup. Key variables to configure:
 
 ```bash
 # Database
@@ -261,9 +254,33 @@ pytest tests/ -v
 
 #### System Integration Tests
 
+To run a full end-to-end system integration test with Docker Compose, follow the steps below. This will build all images, start infrastructure and services, run ingestion, and validate health endpoints.
+
 ```bash
-# Full end-to-end test with Docker Compose
-./scripts/test_system_integration.sh
+# From repository root
+docker compose build --parallel
+docker compose up -d documentdb messagebus vectorstore ollama monitoring pushgateway loki grafana promtail
+docker compose run --rm db-init
+docker compose run --rm db-validate
+docker compose run --rm vectorstore-validate
+docker compose run --rm ollama-validate
+docker compose up -d parsing chunking embedding orchestrator summarization reporting error-reporting
+docker compose run --rm ingestion
+
+# Validate health endpoints
+curl -f http://localhost:8080/      # reporting
+curl -f http://localhost:8081/      # error-reporting
+curl -f http://localhost:3000/api/health  # grafana
+curl -f http://localhost:9090/-/healthy   # prometheus
+
+# On Windows (PowerShell), use:
+# Invoke-WebRequest -UseBasicParsing http://localhost:8080/ | Out-Null
+# Invoke-WebRequest -UseBasicParsing http://localhost:8081/ | Out-Null
+# Invoke-WebRequest -UseBasicParsing http://localhost:3000/api/health | Out-Null
+# Invoke-WebRequest -UseBasicParsing http://localhost:9090/-/healthy | Out-Null
+
+# Cleanup
+docker compose down
 ```
 
 ### Viewing Logs
@@ -388,6 +405,11 @@ docker compose exec ollama ollama show mistral
 1. Check Docker resources (8GB+ RAM):
    ```bash
    docker system info | grep -i memory
+   ```
+   
+   **Windows (PowerShell):**
+   ```powershell
+   docker system info | Select-String -Pattern "memory" -CaseSensitive:$false
    ```
 
 2. Clean up old containers/volumes:

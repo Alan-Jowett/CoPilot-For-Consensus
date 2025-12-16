@@ -209,6 +209,12 @@ curl -f http://localhost:8081/      # error-reporting
 curl -f http://localhost:3000/api/health  # grafana
 curl -f http://localhost:9090/-/healthy   # prometheus
 
+# On Windows (PowerShell), use:
+# Invoke-WebRequest -UseBasicParsing http://localhost:8080/ | Out-Null
+# Invoke-WebRequest -UseBasicParsing http://localhost:8081/ | Out-Null
+# Invoke-WebRequest -UseBasicParsing http://localhost:3000/api/health | Out-Null
+# Invoke-WebRequest -UseBasicParsing http://localhost:9090/-/healthy | Out-Null
+
 # Cleanup
 docker compose down
 ```
@@ -261,6 +267,7 @@ docker compose down
   run: |
     curl -f http://localhost:8080/ || exit 1
     curl -f http://localhost:8081/ || exit 1
+    # On Windows runners, use: Invoke-WebRequest -UseBasicParsing http://localhost:8080/ | Out-Null
 ```
 
 ***
@@ -453,6 +460,10 @@ curl -u guest:guest http://localhost:15672/api/queues
 
 # Check Qdrant
 curl http://localhost:6333/collections
+
+# On Windows (PowerShell), use:
+# Invoke-WebRequest -UseBasicParsing -Headers @{Authorization=("Basic " + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("guest:guest")))} http://localhost:15672/api/queues
+# Invoke-WebRequest -UseBasicParsing http://localhost:6333/collections
 ```
 
 ### Debug Specific Test

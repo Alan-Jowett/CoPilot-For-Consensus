@@ -45,7 +45,7 @@ This Code of Conduct applies within all project spaces and in public spaces when
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the maintainers at **conduct@copilot-for-consensus.org**. All complaints will be reviewed and investigated promptly and fairly.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by opening a confidential issue in the repository's issue tracker or by contacting a project maintainer directly via their GitHub profile. All complaints will be reviewed and investigated promptly and fairly.
 
 ***
 
