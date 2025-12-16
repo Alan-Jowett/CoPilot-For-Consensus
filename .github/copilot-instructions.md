@@ -550,6 +550,40 @@ Write-Host "✅ Docker Compose Workflow completed successfully" -ForegroundColor
 Example usage:
 - `"run the docker compose workflow"` → executes full end-to-end workflow locally, stops on first error
 
+#### "review PR <number>"
+
+Meaning: Review an open pull request without changing code. Summarize what the PR does, list any issues found, and highlight actionable suggestions. Do not push commits.
+
+Process:
+- Fetch PR details and diffs using GitHub MCP.
+- Read review comments and CI status.
+- Provide a concise review summary: scope, risk, correctness, style, docs/tests.
+- Add non-blocking/blocking comments as needed via PR review comment, but avoid code changes.
+
+Example usage:
+- "review PR 310" → returns a summary of changes, potential issues, and suggestions, but makes no commits.
+
+#### "review and respond to PR <number>"
+
+Meaning: Actively address review feedback on the specified PR. Apply straightforward documentation or configuration updates, push changes to the PR branch, and reply inline to review comments explaining the fixes. Ask for clarification if a comment is ambiguous.
+
+Process:
+1) Retrieve PR review comments and files using GitHub MCP.
+2) For each actionable comment:
+  - Update the relevant files (docs/config/scripts), keeping changes minimal and scoped.
+  - Commit with a descriptive message referencing the change.
+  - Push to the PR branch.
+  - Reply to the specific review thread describing what changed.
+3) If a comment is unclear or requires design input, reply asking for clarification rather than guessing.
+
+Notes:
+- Prefer not to modify application logic unless explicitly requested.
+- Keep edits surgical and reference exact lines/sections fixed.
+- Do not mark threads resolved unless requested by a maintainer.
+
+Example usage:
+- "review and respond to PR 310" → fetches comments, applies agreed doc fixes, pushes, and posts replies.
+
 #### "file an issue for this"
 
 Meaning: Create a GitHub issue for a problem or task discussed in the current conversation. Examine the recent conversation context to determine what the user is referring to. If the issue is ambiguous or unclear, ask the user for clarification before filing.
