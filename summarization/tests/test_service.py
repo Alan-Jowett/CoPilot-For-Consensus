@@ -871,8 +871,33 @@ def test_idempotent_summarization(
     """
     thread_id = "<thread@example.com>"
     
-    # First call: no existing summary
-    mock_document_store.query_documents.return_value = []
+    # Setup messages for context retrieval
+    messages_data = [
+        {
+            "message_id": "<msg1@example.com>",
+            "thread_id": thread_id,
+            "body_normalized": "Test message 1",
+        },
+        {
+            "message_id": "<msg2@example.com>",
+            "thread_id": thread_id,
+            "body_normalized": "Test message 2",
+        },
+    ]
+    
+    # First call: no existing summary, but has messages
+    call_count = [0]
+    def query_side_effect(collection, filter_dict, **kwargs):
+        call_count[0] += 1
+        if collection == "summaries":
+            # First check: no existing summary
+            return []
+        elif collection == "messages":
+            # Return messages for context
+            return messages_data
+        return []
+    
+    mock_document_store.query_documents.side_effect = query_side_effect
     
     event_data = {
         "thread_ids": [thread_id],
@@ -894,6 +919,7 @@ def test_idempotent_summarization(
     # Reset mocks
     mock_summarizer.summarize.reset_mock()
     mock_publisher.publish.reset_mock()
+    call_count[0] = 0
     
     # Second call: summary now exists (simulating retry)
     existing_summary = {
@@ -904,18 +930,18 @@ def test_idempotent_summarization(
     }
     
     # Configure mock to return existing summary on first query_documents call
-    # (for idempotency check) and messages on second call (for context retrieval)
-    call_count = [0]
-    def query_side_effect(collection, filter_dict, **kwargs):
+    # (for idempotency check) and messages on subsequent calls (for context retrieval)
+    def query_side_effect_with_summary(collection, filter_dict, **kwargs):
         call_count[0] += 1
         if call_count[0] == 1 and collection == "summaries":
             # First call checks for existing summary
             return [existing_summary]
-        else:
+        elif collection == "messages":
             # Subsequent calls return messages for context
-            return mock_document_store.query_documents.return_value
+            return messages_data
+        return []
     
-    mock_document_store.query_documents.side_effect = query_side_effect
+    mock_document_store.query_documents.side_effect = query_side_effect_with_summary
     
     # Second processing (retry scenario) - should skip generation
     summarization_service.process_summarization(event_data)
