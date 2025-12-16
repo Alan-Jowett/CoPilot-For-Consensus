@@ -104,6 +104,7 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
     chunk_ids = ["chunk-1", "chunk-2", "chunk-3"]
     chunks = [
         {
+            "_id": "chunk-1",
             "chunk_id": "chunk-1",
             "message_id": "<msg1@example.com>",
             "thread_id": "<thread@example.com>",
@@ -120,6 +121,7 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
             }
         },
         {
+            "_id": "chunk-2",
             "chunk_id": "chunk-2",
             "message_id": "<msg1@example.com>",
             "thread_id": "<thread@example.com>",
@@ -136,6 +138,7 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
             }
         },
         {
+            "_id": "chunk-3",
             "chunk_id": "chunk-3",
             "message_id": "<msg2@example.com>",
             "thread_id": "<thread@example.com>",
@@ -166,7 +169,10 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
     # Verify document store was queried
     mock_document_store.query_documents.assert_called_once_with(
         collection="chunks",
-        filter_dict={"chunk_id": {"$in": chunk_ids}}
+        filter_dict={
+            "chunk_id": {"$in": chunk_ids},
+            "embedding_generated": False,
+        }
     )
     
     # Verify embeddings were generated for each chunk
@@ -191,12 +197,14 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
     assert stored_metadata[0]["embedding_model"] == "all-MiniLM-L6-v2"
     assert stored_metadata[0]["embedding_backend"] == "sentencetransformers"
     
-    # Verify chunk status was updated
+    # Verify chunk status was updated using MongoDB _id (not chunk_id)
     assert mock_document_store.update_document.call_count == 3
-    # Verify the update calls were made for each chunk
+    # Verify the update calls were made using MongoDB _id for each chunk
     update_calls = mock_document_store.update_document.call_args_list
-    updated_chunk_ids = [call[1]["doc_id"] for call in update_calls]
-    assert set(updated_chunk_ids) == set(chunk_ids)
+    updated_doc_ids = [call[1]["doc_id"] for call in update_calls]
+    # Expected _id values from test chunks
+    expected_mongo_ids = ["chunk-1", "chunk-2", "chunk-3"]
+    assert set(updated_doc_ids) == set(expected_mongo_ids)
     
     # Verify success event was published
     mock_publisher.publish.assert_called_once()
@@ -219,25 +227,18 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
 
 
 def test_process_chunks_no_chunks_found(embedding_service, mock_document_store, mock_publisher):
-    """Test handling when no chunks are found in database."""
+    """When no chunks are found, service should skip without publishing failure."""
     chunk_ids = ["chunk-1", "chunk-2"]
     mock_document_store.query_documents.return_value = []
-    
+
     event_data = {
         "chunk_ids": chunk_ids,
     }
-    
+
     embedding_service.process_chunks(event_data)
-    
-    # Verify failure event was published
-    mock_publisher.publish.assert_called_once()
-    publish_call = mock_publisher.publish.call_args
-    assert publish_call[1]["routing_key"] == "embedding.generation.failed"
-    
-    event = publish_call[1]["event"]
-    assert event["event_type"] == "EmbeddingGenerationFailed"
-    assert event["data"]["chunk_ids"] == chunk_ids
-    assert event["data"]["error_type"] == "ChunkNotFoundError"
+
+    # No failure event should be published for already-embedded or missing chunks
+    mock_publisher.publish.assert_not_called()
 
 
 def test_process_chunks_empty_chunk_ids(embedding_service, mock_document_store):
@@ -252,11 +253,63 @@ def test_process_chunks_empty_chunk_ids(embedding_service, mock_document_store):
     mock_document_store.query_documents.assert_not_called()
 
 
+def test_process_chunks_missing_mongo_id_raises_error(embedding_service, mock_document_store, mock_publisher):
+    """Test that chunks without MongoDB _id raise ValueError to prevent inconsistent state."""
+    chunk_ids = ["chunk-1", "chunk-2"]
+    chunks = [
+        {
+            "chunk_id": "chunk-1",
+            "_id": "mongo-id-1",
+            "text": "Has ID",
+            "message_id": "<msg@example.com>",
+            "thread_id": "<thread@example.com>",
+            "archive_id": "archive-123",
+            "chunk_index": 0,
+            "token_count": 5,
+            "metadata": {
+                "sender": "user@example.com",
+                "sender_name": "User",
+                "date": "2023-10-15T12:00:00Z",
+                "subject": "Test",
+                "draft_mentions": [],
+            }
+        },
+        {
+            "chunk_id": "chunk-2",
+            # Missing _id field
+            "text": "No ID",
+            "message_id": "<msg@example.com>",
+            "thread_id": "<thread@example.com>",
+            "archive_id": "archive-123",
+            "chunk_index": 1,
+            "token_count": 5,
+            "metadata": {
+                "sender": "user@example.com",
+                "sender_name": "User",
+                "date": "2023-10-15T12:00:00Z",
+                "subject": "Test",
+                "draft_mentions": [],
+            }
+        }
+    ]
+    
+    mock_document_store.query_documents.return_value = chunks
+    
+    event_data = {
+        "chunk_ids": chunk_ids,
+    }
+    
+    # Should raise ValueError immediately to prevent embeddings without status update
+    with pytest.raises(ValueError, match="missing MongoDB _id field"):
+        embedding_service.process_chunks(event_data)
+
+
 def test_process_chunks_retry_on_failure(embedding_service, mock_document_store, mock_vector_store, mock_publisher):
     """Test retry logic on failure."""
     chunk_ids = ["chunk-1"]
     chunks = [
         {
+            "_id": "chunk-1",
             "chunk_id": "chunk-1",
             "text": "Test text",
             "message_id": "<msg@example.com>",
@@ -305,6 +358,7 @@ def test_process_chunks_max_retries_exceeded(embedding_service, mock_document_st
     chunk_ids = ["chunk-1"]
     chunks = [
         {
+            "_id": "chunk-1",
             "chunk_id": "chunk-1",
             "text": "Test text",
             "message_id": "<msg@example.com>",
@@ -375,6 +429,7 @@ def test_batch_processing(embedding_service, mock_document_store, mock_vector_st
     chunk_ids = [f"chunk-{i}" for i in range(100)]
     chunks = [
         {
+            "_id": f"chunk-{i}",
             "chunk_id": f"chunk-{i}",
             "text": f"Text for chunk {i}",
             "message_id": f"<msg{i}@example.com>",

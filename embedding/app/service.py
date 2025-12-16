@@ -160,22 +160,25 @@ class EmbeddingService:
             try:
                 logger.info(f"Processing {len(chunk_ids)} chunks (attempt {retry_count + 1}/{self.max_retries})")
                 
-                # Retrieve chunks from database
+                # Retrieve chunks from database that don't have embeddings yet
                 chunks = list(self.document_store.query_documents(
                     collection="chunks",
-                    filter_dict={"chunk_id": {"$in": chunk_ids}}
+                    filter_dict={
+                        "chunk_id": {"$in": chunk_ids},
+                        "embedding_generated": False
+                    }
                 ))
                 
                 if not chunks:
-                    error_msg = f"No chunks found in database for IDs: {chunk_ids}"
-                    logger.warning(error_msg)
-                    self._publish_embedding_failed(
-                        chunk_ids,
-                        error_msg,
-                        "ChunkNotFoundError",
-                        retry_count,
-                    )
+                    logger.info(f"All {len(chunk_ids)} chunks already have embeddings, skipping")
                     return
+                
+                # Validate all chunks have MongoDB _id (fail fast to prevent inconsistent state)
+                chunks_without_id = [c.get("chunk_id", "unknown") for c in chunks if not c.get("_id")]
+                if chunks_without_id:
+                    error_msg = f"Chunks missing MongoDB _id field: {chunks_without_id}. Cannot update status."
+                    logger.error(error_msg)
+                    raise ValueError(error_msg)
                 
                 # Process chunks in batches
                 all_generated_count = 0
@@ -191,9 +194,12 @@ class EmbeddingService:
                     # Store embeddings in vector store
                     self._store_embeddings(embeddings)
                     
-                    # Update chunk status in document database
+                    # Update chunk status in document database by Mongo _id
+                    # All chunks validated to have _id above
+                    batch_doc_ids = [chunk["_id"] for chunk in batch]
+                    self._update_chunk_status_by_doc_ids(batch_doc_ids)
+                    # Keep original chunk_ids for events/metrics
                     batch_chunk_ids = [chunk["chunk_id"] for chunk in batch]
-                    self._update_chunk_status(batch_chunk_ids)
                     
                     all_generated_count += len(embeddings)
                     processed_chunk_ids.extend(batch_chunk_ids)
@@ -324,20 +330,19 @@ class EmbeddingService:
         
         logger.info(f"Stored {len(embeddings)} embeddings in vector store")
 
-    def _update_chunk_status(self, chunk_ids: List[str]):
-        """Update chunk embedding status in document database.
+    def _update_chunk_status_by_doc_ids(self, doc_ids: List[str]):
+        """Update chunk embedding status in document database using Mongo _id values.
         
         Args:
-            chunk_ids: List of chunk IDs to update
+            doc_ids: List of Mongo document IDs to update
         """
-        for chunk_id in chunk_ids:
+        for doc_id in doc_ids:
             self.document_store.update_document(
                 collection="chunks",
-                doc_id=chunk_id,
+                doc_id=doc_id,
                 patch={"embedding_generated": True},
             )
-        
-        logger.debug(f"Updated {len(chunk_ids)} chunks with embedding_generated=True")
+        logger.debug(f"Updated {len(doc_ids)} chunks with embedding_generated=True")
 
     def _publish_embeddings_generated(
         self, 

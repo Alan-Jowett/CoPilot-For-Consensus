@@ -359,6 +359,7 @@ class TestQdrantVectorStore:
         # Mock existing ID
         mock_point = Mock()
         mock_point.id = "existing-uuid"
+        mock_point.payload = {"_original_id": "doc1"}
         mock_client.retrieve.return_value = [mock_point]
         
         store = QdrantVectorStore(vector_size=3)
@@ -366,6 +367,34 @@ class TestQdrantVectorStore:
         # Should raise ValueError for duplicate
         with pytest.raises(ValueError, match="already exists"):
             store.add_embedding("doc1", [1.0, 0.0, 0.0], {"text": "hello"})
+
+    @patch('qdrant_client.QdrantClient')
+    def test_query_extracts_original_id_from_payload(self, mock_client_class):
+        """Query results should map UUID back to original ID via payload."""
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+        mock_client.get_collections.return_value = Mock(collections=[])
+        
+        # Mock search result with UUID id and original in payload
+        mock_result = Mock()
+        mock_result.id = "550e8400-e29b-41d4-a716-446655440000"  # UUID format
+        mock_result.score = 0.95
+        mock_result.vector = [1.0, 0.0, 0.0]
+        mock_result.payload = {"text": "hello", "_original_id": "chunk-abc123"}
+        
+        mock_response = Mock()
+        mock_response.points = [mock_result]
+        mock_client.query_points.return_value = mock_response
+        
+        store = QdrantVectorStore(vector_size=3)
+        results = store.query([1.0, 0.0, 0.0], top_k=5)
+        
+        # Verify result uses original ID extracted from payload, not UUID
+        assert len(results) == 1
+        assert results[0].id == "chunk-abc123"
+        assert results[0].metadata["text"] == "hello"
+        # _original_id should be removed from metadata
+        assert "_original_id" not in results[0].metadata
 
 
 @pytest.mark.skipif(QDRANT_AVAILABLE, reason="Test only runs when qdrant-client is not installed")

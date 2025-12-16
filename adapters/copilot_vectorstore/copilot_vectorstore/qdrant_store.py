@@ -218,11 +218,14 @@ class QdrantVectorStore(VectorStore):
         if len(set(ids)) != len(ids):
             raise ValueError("Duplicate IDs found in the batch")
         
-        # Check if any IDs already exist (use sha256 chunk keys directly)
+        # Convert IDs to UUIDs for Qdrant compatibility
+        uuid_ids = [_string_to_uuid(id_val) for id_val in ids]
+        
+        # Check if any IDs already exist
         try:
             existing = self._client.retrieve(
                 collection_name=self._collection_name,
-                ids=ids,
+                ids=uuid_ids,
             )
             if existing:
                 existing_ids = [p.payload.get("_original_id", p.id) for p in existing]
@@ -238,14 +241,14 @@ class QdrantVectorStore(VectorStore):
             logger.warning("Could not verify ID existence, proceeding with batch upsert")
             pass
         
-        # Create points
+        # Create points with UUID IDs
         points = [
             self._PointStruct(
-                id=id_val,  # Use sha256-derived chunk key directly for auditability
+                id=uuid_id,  # Use deterministic UUID for Qdrant compatibility
                 vector=vector,
-                payload={**metadata, "_original_id": id_val},
+                payload={**metadata, "_original_id": id_val},  # Keep original ID in payload
             )
-            for id_val, vector, metadata in zip(ids, vectors, metadatas)
+            for uuid_id, id_val, vector, metadata in zip(uuid_ids, ids, vectors, metadatas)
         ]
         
         # Batch upsert
