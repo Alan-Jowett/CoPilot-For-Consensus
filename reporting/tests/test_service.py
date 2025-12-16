@@ -362,11 +362,11 @@ def test_get_reports_queries_document_store(reporting_service, mock_document_sto
     reports = reporting_service.get_reports()
     
     assert len(reports) == 2
-    # New implementation fetches limit + skip + 100 for filtering buffer
+    # Service fetches limit + skip + METADATA_FILTER_BUFFER_SIZE (100)
     mock_document_store.query_documents.assert_called_once_with(
         "summaries",
         filter_dict={},
-        limit=110,  # 10 (limit) + 0 (skip) + 100 (buffer)
+        limit=110,
     )
 
 
@@ -379,11 +379,11 @@ def test_get_reports_with_thread_filter(reporting_service, mock_document_store):
     reports = reporting_service.get_reports(thread_id="thread1")
     
     assert len(reports) == 1
-    # New implementation fetches limit + skip + 100 for filtering buffer
+    # Service fetches limit + skip + METADATA_FILTER_BUFFER_SIZE (100)
     mock_document_store.query_documents.assert_called_once_with(
         "summaries",
         filter_dict={"thread_id": "thread1"},
-        limit=110,  # 10 (limit) + 0 (skip) + 100 (buffer)
+        limit=110,
     )
 
 

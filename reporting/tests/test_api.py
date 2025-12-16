@@ -173,10 +173,10 @@ def test_get_reports_with_pagination(client, test_service, mock_document_store):
     assert data["limit"] == 5
     assert data["skip"] == 10
     
-    # New implementation fetches limit + skip + 100 for filtering buffer
+    # Service fetches limit + skip + METADATA_FILTER_BUFFER_SIZE (100)
     mock_document_store.query_documents.assert_called_once()
     call_args = mock_document_store.query_documents.call_args
-    assert call_args[1]["limit"] == 115  # 5 (limit) + 10 (skip) + 100 (buffer)
+    assert call_args[1]["limit"] == 115
 
 
 @pytest.mark.integration

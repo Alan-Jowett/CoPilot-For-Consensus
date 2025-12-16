@@ -25,6 +25,12 @@ from copilot_embedding import EmbeddingProvider
 
 logger = logging.getLogger(__name__)
 
+# Buffer size for fetching additional documents when metadata filtering is applied.
+# This ensures we have enough documents to filter and still return the requested limit.
+# The value is chosen to balance between over-fetching and ensuring adequate results
+# after filtering by thread/archive metadata.
+METADATA_FILTER_BUFFER_SIZE = 100
+
 
 class ReportingService:
     """Main reporting service for storing and serving summaries."""
@@ -388,7 +394,7 @@ class ReportingService:
         summaries = self.document_store.query_documents(
             "summaries",
             filter_dict=filter_dict,
-            limit=limit + skip + 100,  # Buffer for filtering
+            limit=limit + skip + METADATA_FILTER_BUFFER_SIZE,
         )
         
         # If we have filters that require thread/archive data, enrich the results
