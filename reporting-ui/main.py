@@ -4,11 +4,9 @@
 """Reporting UI Service: Web interface for viewing reports and summaries."""
 
 import logging
-import os
 from functools import lru_cache
-from datetime import datetime
 
-from flask import Flask, request, render_template, jsonify
+from flask import Flask, request, render_template
 import requests
 
 from copilot_config import load_typed_config
@@ -19,10 +17,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__, template_folder='templates', static_folder='static')
-
-# Lazy-loaded configuration
-config = None
+app = Flask(__name__, template_folder='templates')
 
 
 @lru_cache(maxsize=1)
