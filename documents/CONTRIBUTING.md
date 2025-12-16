@@ -54,6 +54,111 @@ See [GOVERNANCE.md](./GOVERNANCE.md) for details.
 
 ***
 
+## Idempotency Requirements
+
+All processing stages in the pipeline **must be idempotent** to support safe retries and message redelivery. This ensures system resilience and prevents data corruption or duplicate side effects.
+
+### What is Idempotency?
+
+An operation is idempotent if performing it multiple times with the same input produces the same result as performing it once, without unintended side effects.
+
+### Why Idempotency Matters
+
+*   **Message Queue Retries:** RabbitMQ may redeliver messages on failures or restarts.
+*   **Service Restarts:** Services requeue unacknowledged messages on startup.
+*   **Network Failures:** Transient errors can cause duplicate processing attempts.
+*   **Data Integrity:** Prevents duplicate records, redundant API calls, or inconsistent state.
+
+### Idempotency Patterns
+
+#### 1. Database Operations
+
+**Use Unique Constraints and Handle Duplicates:**
+
+```python
+from pymongo.errors import DuplicateKeyError
+
+try:
+    document_store.insert_document("messages", message)
+except DuplicateKeyError:
+    # Already exists - skip gracefully (idempotent retry)
+    logger.debug(f"Message {message['message_id']} already exists, skipping")
+```
+
+**Use Upsert Semantics:**
+
+```python
+# Vector stores should use upsert (create or update)
+vector_store.add_embeddings(ids, vectors, metadatas)  # Safe to call multiple times
+```
+
+#### 2. State Checks Before Side Effects
+
+**Check for Existing Results:**
+
+```python
+# Check if summary already exists before regenerating
+existing = document_store.query_documents(
+    collection="summaries",
+    filter_dict={"thread_id": thread_id, "summary_type": "thread"},
+    limit=1
+)
+if existing:
+    logger.info(f"Summary exists for {thread_id}, skipping (idempotent retry)")
+    return
+```
+
+#### 3. Event Publishing
+
+**Design Events to be Replayable:**
+
+*   Include deterministic IDs derived from input data (e.g., SHA256 hashes).
+*   Events should carry all necessary context to be processed independently.
+*   Downstream consumers should also be idempotent.
+
+#### 4. Status Updates
+
+**Make Status Transitions Safe:**
+
+```python
+# Only update if not already in target state
+document_store.update_document(
+    collection="chunks",
+    doc_id=chunk_id,
+    patch={"embedding_generated": True},
+)
+# Safe to call multiple times - no harm if already True
+```
+
+### Testing for Idempotency
+
+**Always add tests that verify duplicate message delivery:**
+
+```python
+def test_idempotent_processing(service, mock_store):
+    """Verify service handles duplicate messages gracefully."""
+    event_data = {"message_id": "test-123", ...}
+    
+    # Process once
+    service.process(event_data)
+    assert mock_store.insert.call_count == 1
+    
+    # Process again (simulating retry)
+    service.process(event_data)
+    # Should not insert duplicate or fail
+    assert mock_store.insert.call_count == 1  # Still 1 (duplicate skipped)
+```
+
+### Service-Specific Guidelines
+
+*   **Parsing:** Uses `message_key` (deterministic hash) as primary key. DuplicateKeyError is caught and logged.
+*   **Chunking:** Uses `chunk_id` (SHA256 hash). Duplicate chunks are skipped gracefully.
+*   **Embedding:** Vectorstore uses upsert semantics. Chunk status updates are safe to retry.
+*   **Summarization:** Checks for existing summaries before LLM calls to avoid redundant generation.
+*   **Orchestration:** Checks for existing summaries before publishing SummarizationRequested events.
+
+***
+
 ## Review Process
 
 *   PRs reviewed by at least two maintainers.

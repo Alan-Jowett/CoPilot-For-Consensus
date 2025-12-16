@@ -208,6 +208,9 @@ class OrchestrationService:
 
     def _orchestrate_thread(self, thread_id: str):
         """Orchestrate summarization for a single thread.
+        
+        Idempotent operation: checks if a summary already exists for this thread
+        and skips orchestration if found, ensuring safe retry behavior.
 
         Args:
             thread_id: Thread ID to orchestrate
@@ -215,6 +218,19 @@ class OrchestrationService:
         logger.info(f"Orchestrating thread: {thread_id}")
 
         try:
+            # Check if summary already exists (idempotency check)
+            existing_summaries = list(self.document_store.query_documents(
+                collection="summaries",
+                filter_dict={"thread_id": thread_id, "summary_type": "thread"},
+                limit=1
+            ))
+            if existing_summaries:
+                logger.info(
+                    f"Summary already exists for thread {thread_id}, skipping orchestration "
+                    "(idempotent retry)"
+                )
+                return
+            
             # Retrieve top-k chunks for this thread
             context = self._retrieve_context(thread_id)
 

@@ -158,6 +158,9 @@ class SummarizationService:
     ):
         """Process a single thread for summarization.
         
+        Idempotent operation: checks if a summary already exists for this thread
+        and skips regeneration if found, ensuring safe retry behavior.
+        
         Args:
             thread_id: Thread identifier
             top_k: Number of chunks to retrieve
@@ -166,6 +169,26 @@ class SummarizationService:
         """
         start_time = time.time()
         retry_count = 0
+        
+        # Check if summary already exists (idempotency check)
+        try:
+            existing_summaries = list(self.document_store.query_documents(
+                collection="summaries",
+                filter_dict={"thread_id": thread_id, "summary_type": "thread"},
+                limit=1
+            ))
+            if existing_summaries:
+                logger.info(
+                    f"Summary already exists for thread {thread_id}, skipping regeneration "
+                    "(idempotent retry)"
+                )
+                # Update stats to reflect we "processed" it
+                self.summaries_generated += 1
+                return
+        except Exception as e:
+            # If we can't check for existing summaries, log but continue
+            # (better to regenerate than fail)
+            logger.warning(f"Could not check for existing summary for {thread_id}: {e}")
         
         while retry_count < self.retry_max_attempts:
             try:

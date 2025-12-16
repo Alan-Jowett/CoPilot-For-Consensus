@@ -856,3 +856,75 @@ def test_publish_summarization_failed_with_publisher_failure(
         )
     
     assert "Failed to publish SummarizationFailed event" in str(exc_info.value)
+
+
+def test_idempotent_summarization(
+    summarization_service,
+    mock_document_store,
+    mock_summarizer,
+    mock_publisher,
+):
+    """Test that duplicate summarization requests are idempotent (safe retry).
+    
+    If a summary already exists for a thread, the service should skip regeneration
+    to avoid unnecessary LLM calls and ensure idempotent behavior.
+    """
+    thread_id = "<thread@example.com>"
+    
+    # First call: no existing summary
+    mock_document_store.query_documents.return_value = []
+    
+    event_data = {
+        "thread_ids": [thread_id],
+        "top_k": 12,
+        "context_window_tokens": 3000,
+        "prompt_template": "Summarize this:",
+    }
+    
+    # First processing - should generate summary
+    summarization_service.process_summarization(event_data)
+    
+    # Verify summarizer was called
+    assert mock_summarizer.summarize.call_count == 1
+    
+    # Verify summary complete event was published
+    assert mock_publisher.publish.call_count == 1
+    assert summarization_service.summaries_generated == 1
+    
+    # Reset mocks
+    mock_summarizer.summarize.reset_mock()
+    mock_publisher.publish.reset_mock()
+    
+    # Second call: summary now exists (simulating retry)
+    existing_summary = {
+        "summary_id": "summary-123",
+        "thread_id": thread_id,
+        "summary_type": "thread",
+        "summary_markdown": "Existing summary",
+    }
+    
+    # Configure mock to return existing summary on first query_documents call
+    # (for idempotency check) and messages on second call (for context retrieval)
+    call_count = [0]
+    def query_side_effect(collection, filter_dict, **kwargs):
+        call_count[0] += 1
+        if call_count[0] == 1 and collection == "summaries":
+            # First call checks for existing summary
+            return [existing_summary]
+        else:
+            # Subsequent calls return messages for context
+            return mock_document_store.query_documents.return_value
+    
+    mock_document_store.query_documents.side_effect = query_side_effect
+    
+    # Second processing (retry scenario) - should skip generation
+    summarization_service.process_summarization(event_data)
+    
+    # Verify summarizer was NOT called (skipped due to existing summary)
+    assert mock_summarizer.summarize.call_count == 0
+    
+    # No new event should be published
+    assert mock_publisher.publish.call_count == 0
+    
+    # Stats still reflect that we "processed" it (for metrics consistency)
+    assert summarization_service.summaries_generated == 2  # 1 + 1 (skipped counts as processed)
