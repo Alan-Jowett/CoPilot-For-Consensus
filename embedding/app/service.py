@@ -173,6 +173,13 @@ class EmbeddingService:
                     logger.info(f"All {len(chunk_ids)} chunks already have embeddings, skipping")
                     return
                 
+                # Validate all chunks have MongoDB _id (fail fast to prevent inconsistent state)
+                chunks_without_id = [c.get("chunk_id", "unknown") for c in chunks if not c.get("_id")]
+                if chunks_without_id:
+                    error_msg = f"Chunks missing MongoDB _id field: {chunks_without_id}. Cannot update status."
+                    logger.error(error_msg)
+                    raise ValueError(error_msg)
+                
                 # Process chunks in batches
                 all_generated_count = 0
                 processed_chunk_ids = []
@@ -188,8 +195,8 @@ class EmbeddingService:
                     self._store_embeddings(embeddings)
                     
                     # Update chunk status in document database by Mongo _id
-                    # Use _id for updates; chunk documents are stored with Mongo-assigned _id
-                    batch_doc_ids = [chunk.get("_id") for chunk in batch if chunk.get("_id")]
+                    # All chunks validated to have _id at query time
+                    batch_doc_ids = [chunk["_id"] for chunk in batch]
                     self._update_chunk_status_by_doc_ids(batch_doc_ids)
                     # Keep original chunk_ids for events/metrics
                     batch_chunk_ids = [chunk["chunk_id"] for chunk in batch]

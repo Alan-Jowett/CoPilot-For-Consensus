@@ -251,11 +251,63 @@ def test_process_chunks_empty_chunk_ids(embedding_service, mock_document_store):
     mock_document_store.query_documents.assert_not_called()
 
 
+def test_process_chunks_missing_mongo_id_raises_error(embedding_service, mock_document_store, mock_publisher):
+    """Test that chunks without MongoDB _id raise ValueError to prevent inconsistent state."""
+    chunk_ids = ["chunk-1", "chunk-2"]
+    chunks = [
+        {
+            "chunk_id": "chunk-1",
+            "_id": "mongo-id-1",
+            "text": "Has ID",
+            "message_id": "<msg@example.com>",
+            "thread_id": "<thread@example.com>",
+            "archive_id": "archive-123",
+            "chunk_index": 0,
+            "token_count": 5,
+            "metadata": {
+                "sender": "user@example.com",
+                "sender_name": "User",
+                "date": "2023-10-15T12:00:00Z",
+                "subject": "Test",
+                "draft_mentions": [],
+            }
+        },
+        {
+            "chunk_id": "chunk-2",
+            # Missing _id field
+            "text": "No ID",
+            "message_id": "<msg@example.com>",
+            "thread_id": "<thread@example.com>",
+            "archive_id": "archive-123",
+            "chunk_index": 1,
+            "token_count": 5,
+            "metadata": {
+                "sender": "user@example.com",
+                "sender_name": "User",
+                "date": "2023-10-15T12:00:00Z",
+                "subject": "Test",
+                "draft_mentions": [],
+            }
+        }
+    ]
+    
+    mock_document_store.query_documents.return_value = chunks
+    
+    event_data = {
+        "chunk_ids": chunk_ids,
+    }
+    
+    # Should raise ValueError immediately to prevent embeddings without status update
+    with pytest.raises(ValueError, match="missing MongoDB _id field"):
+        embedding_service.process_chunks(event_data)
+
+
 def test_process_chunks_retry_on_failure(embedding_service, mock_document_store, mock_vector_store, mock_publisher):
     """Test retry logic on failure."""
     chunk_ids = ["chunk-1"]
     chunks = [
         {
+            "_id": "chunk-1",
             "chunk_id": "chunk-1",
             "text": "Test text",
             "message_id": "<msg@example.com>",
@@ -304,6 +356,7 @@ def test_process_chunks_max_retries_exceeded(embedding_service, mock_document_st
     chunk_ids = ["chunk-1"]
     chunks = [
         {
+            "_id": "chunk-1",
             "chunk_id": "chunk-1",
             "text": "Test text",
             "message_id": "<msg@example.com>",
@@ -374,6 +427,7 @@ def test_batch_processing(embedding_service, mock_document_store, mock_vector_st
     chunk_ids = [f"chunk-{i}" for i in range(100)]
     chunks = [
         {
+            "_id": f"chunk-{i}",
             "chunk_id": f"chunk-{i}",
             "text": f"Text for chunk {i}",
             "message_id": f"<msg{i}@example.com>",
