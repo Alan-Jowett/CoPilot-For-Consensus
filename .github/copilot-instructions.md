@@ -550,6 +550,41 @@ Write-Host "✅ Docker Compose Workflow completed successfully" -ForegroundColor
 Example usage:
 - `"run the docker compose workflow"` → executes full end-to-end workflow locally, stops on first error
 
+#### "file an issue for this"
+
+Meaning: Create a GitHub issue for a problem or task discussed in the current conversation. Examine the recent conversation context to determine what the user is referring to. If the issue is ambiguous or unclear, ask the user for clarification before filing.
+
+**Process:**
+
+1. **Analyze recent conversation** to identify:
+   - What problem or task the user is describing
+   - Key details: error messages, reproduction steps, affected components
+   - Suggested labels or assignees (if mentioned)
+
+2. **Ask for clarification if needed**:
+   - If multiple issues are discussed, ask which one to file
+   - If details are missing (title, description), ask the user to provide them
+   - If the problem is vague, ask for more specifics
+
+3. **Create the issue using GitHub MCP** with:
+   - Clear, descriptive title
+   - Detailed description including context from the conversation
+   - Relevant labels (e.g., `bug`, `enhancement`, `documentation`, `testing`)
+   - Optional: assign to specific team members if applicable
+
+**Examples:**
+
+- User: "file an issue for this" (after discussing a failing test)
+  → Ask: "Should I file this as a bug for the failing test in the orchestrator service?"
+  → Create issue titled: "orchestrator: test_message_handling fails intermittently"
+
+- User: "file an issue for the summarization API mismatch"
+  → Recognized from context: `EventPublisher.publish(..., message=...)` vs expected `event=...`
+  → Create issue titled: "summarization: Fix API mismatch in publish() method call"
+
+- User: "file an issue for this" (without clear context)
+  → Ask: "What issue would you like me to file? Please provide a title and description."
+
 ## CI & Testing Overview
 
 - **PRs Required**: Direct pushes to `main` are blocked. Open a PR; required check includes the `Test Docker Compose` job.
