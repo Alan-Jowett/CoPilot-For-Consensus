@@ -97,7 +97,7 @@ For detailed architecture documentation, design patterns, and service interactio
 - **Chunking Service**: Splits messages into token-aware, semantically coherent chunks suitable for embedding
 - **Embedding Service**: Generates vector embeddings using local (SentenceTransformers, Ollama) or cloud (Azure OpenAI) models
 - **Orchestrator Service**: Coordinates workflow across services, manages retrieval-augmented generation (RAG)
-- **Summarization Service**: Creates summaries using LLMs with configurable backends
+- **Summarization Service**: Creates summaries using LLMs with configurable backends (OpenAI, Azure OpenAI, Ollama, llama.cpp)
 
 #### User-Facing Services
 - **Reporting Service**: Provides HTTP API and web UI for accessing summaries and insights (port 8080)
@@ -113,6 +113,8 @@ For detailed architecture documentation, design patterns, and service interactio
 - **RabbitMQ** (`messagebus`): Message broker enabling asynchronous, event-driven communication between services
 - **Ollama**: Local LLM runtime for embeddings and text generation (fully offline capable)
   - Supports optional GPU acceleration (10-100x speedup) - see [documents/OLLAMA_GPU_SETUP.md](./documents/OLLAMA_GPU_SETUP.md)
+  - NVIDIA GPU support (recommended for performance)
+- **llama.cpp** (optional): Alternative local LLM runtime with AMD GPU support (Vulkan/ROCm) - see [AMD GPU Setup Guide](./documents/LLAMA_CPP_AMD_SETUP.md)
 
 ### Observability Stack
 
@@ -200,14 +202,16 @@ docker compose exec ollama ollama pull mistral
 ```
 
 6. **(Optional) Enable GPU acceleration** for 10-100x faster inference:
-   - See [documents/OLLAMA_GPU_SETUP.md](./documents/OLLAMA_GPU_SETUP.md) for setup instructions
-   - Requires NVIDIA GPU with drivers and nvidia-container-toolkit
-   - Verify GPU support:
-     - Linux/macOS/WSL2: `./scripts/check_ollama_gpu.sh`
-     - Windows PowerShell: `.\scripts\check_ollama_gpu.ps1`
-     - Or directly: `docker exec ollama nvidia-smi`
+   - **NVIDIA GPU** (recommended): See [documents/OLLAMA_GPU_SETUP.md](./documents/OLLAMA_GPU_SETUP.md)
+     - Requires NVIDIA GPU with drivers and nvidia-container-toolkit
+     - Verify GPU support:
+       - Linux/macOS/WSL2: `./scripts/check_ollama_gpu.sh`
+       - Windows PowerShell: `.\scripts\check_ollama_gpu.ps1`
+       - Or directly: `docker exec ollama nvidia-smi`
+   - **AMD GPU** (experimental): See [AMD GPU Setup Guide](./documents/LLAMA_CPP_AMD_SETUP.md) to enable llama.cpp with Vulkan/ROCm
 
 7. Run ingestion:
+>>>>>>> 2423c83 (Add AMD GPU setup documentation and README updates)
 ```bash
 docker compose run --rm ingestion
 ```
