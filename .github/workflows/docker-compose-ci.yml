@@ -166,15 +166,54 @@ jobs:
     - name: Check service status
       run: docker compose ps
 
+    - name: Upload test ingestion configuration
+      run: |
+        echo "Uploading test ingestion configuration..."
+        docker compose run --rm \
+          -v $PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro \
+          ingestion \
+          python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
+        echo "✓ Test configuration uploaded"
+
     - name: Run ingestion service (batch job)
       run: |
         echo "Running ingestion service (batch job - runs once and exits)..."
-        docker compose run --rm ingestion
+        docker compose run --rm \
+          -v $PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro \
+          ingestion
         echo "✓ Ingestion service completed successfully"
 
     - name: View ingestion logs
       if: always()
       run: docker compose logs ingestion
+
+    - name: Validate end-to-end message flow
+      run: |
+        echo "Validating end-to-end message flow..."
+        docker compose run --rm \
+          -v $PWD/tests:/app/tests:ro \
+          -e QDRANT_HOST=vectorstore \
+          -e QDRANT_PORT=6333 \
+          -e QDRANT_COLLECTION=embeddings \
+          --entrypoint "" \
+          embedding \
+          bash -c "python /app/tests/validate_e2e_flow.py"
+        echo "✓ End-to-end validation completed"
+
+    - name: View service logs on validation failure
+      if: failure()
+      run: |
+        echo "=== Parsing Service Logs ==="
+        docker compose logs parsing --tail=100
+        echo ""
+        echo "=== Chunking Service Logs ==="
+        docker compose logs chunking --tail=100
+        echo ""
+        echo "=== Embedding Service Logs ==="
+        docker compose logs embedding --tail=100
+        echo ""
+        echo "=== Orchestrator Service Logs ==="
+        docker compose logs orchestrator --tail=100
 
     - name: Test reporting service health endpoint
       run: |

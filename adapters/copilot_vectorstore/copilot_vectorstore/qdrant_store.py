@@ -218,12 +218,11 @@ class QdrantVectorStore(VectorStore):
         if len(set(ids)) != len(ids):
             raise ValueError("Duplicate IDs found in the batch")
         
-        # Check if any IDs already exist
+        # Check if any IDs already exist (use sha256 chunk keys directly)
         try:
-            uuid_ids = [_string_to_uuid(id_val) for id_val in ids]
             existing = self._client.retrieve(
                 collection_name=self._collection_name,
-                ids=uuid_ids,
+                ids=ids,
             )
             if existing:
                 existing_ids = [p.payload.get("_original_id", p.id) for p in existing]
@@ -242,9 +241,9 @@ class QdrantVectorStore(VectorStore):
         # Create points
         points = [
             self._PointStruct(
-                id=_string_to_uuid(id_val),
+                id=id_val,  # Use sha256-derived chunk key directly for auditability
                 vector=vector,
-                payload={**metadata, "_original_id": id_val},  # Store original ID in payload
+                payload={**metadata, "_original_id": id_val},
             )
             for id_val, vector, metadata in zip(ids, vectors, metadatas)
         ]

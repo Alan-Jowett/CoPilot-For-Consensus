@@ -1,0 +1,10 @@
+{
+  "sources": [
+    {
+      "name": "test-mailbox",
+      "source_type": "local",
+      "url": "/app/tests/fixtures/mailbox_sample/test-archive.mbox",
+      "enabled": true
+    }
+  ]
+}

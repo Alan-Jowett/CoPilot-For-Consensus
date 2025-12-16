@@ -1,0 +1,188 @@
+From alice@example.com Mon Jan 01 00:00:00 2024
+From: Alice Developer <alice@example.com>
+To: quic@ietf.org
+Subject: QUIC connection migration strategy
+Message-ID: <msg001@example.com>
+Date: Mon, 01 Jan 2024 10:00:00 +0000
+
+Hi everyone,
+
+I've been reviewing draft-ietf-quic-transport-34 and think we should
+discuss the connection migration approach. The current design has some
+interesting implications for mobile clients.
+
+What are your thoughts?
+
+-- 
+Alice Developer
+Example Corp
+
+From bob@example.com Mon Jan 01 00:15:00 2024
+From: Bob Engineer <bob@example.com>
+To: quic@ietf.org
+Subject: Re: QUIC connection migration strategy
+Message-ID: <msg002@example.com>
+In-Reply-To: <msg001@example.com>
+References: <msg001@example.com>
+Date: Mon, 01 Jan 2024 10:15:00 +0000
+
+> I've been reviewing draft-ietf-quic-transport-34 and think we should
+> discuss the connection migration approach.
+
+Good point Alice. I agree this needs more discussion. Also, RFC 9000
+provides some relevant context on path validation.
+
+--
+Bob Engineer
+Tech Solutions Inc.
+
+From charlie@example.com Mon Jan 01 00:30:00 2024
+From: Charlie Researcher <charlie@example.com>
+To: quic@ietf.org
+Subject: Re: QUIC connection migration strategy
+Message-ID: <msg003@example.com>
+In-Reply-To: <msg002@example.com>
+References: <msg001@example.com> <msg002@example.com>
+Date: Mon, 01 Jan 2024 10:30:00 +0000
+
+I've implemented this in our test environment. The performance results
+are promising. See draft-ietf-quic-recovery-34 for related work on
+loss detection.
+
+We should coordinate with the HTTP/3 working group on this.
+
+--
+Charlie Researcher
+University Lab
+
+From alice@example.com Mon Jan 01 01:00:00 2024
+From: Alice Developer <alice@example.com>
+To: quic@ietf.org
+Subject: TLS 1.3 integration concerns
+Message-ID: <msg004@example.com>
+Date: Mon, 01 Jan 2024 11:00:00 +0000
+
+Starting a new thread on TLS integration.
+
+I noticed some edge cases in draft-ietf-tls-esni-13 that might
+affect our implementation. Has anyone else run into issues with
+encrypted client hello?
+
+Best regards,
+Alice
+
+From david@example.com Mon Jan 01 01:15:00 2024
+From: David Security <david@example.com>
+To: quic@ietf.org
+Subject: Re: TLS 1.3 integration concerns
+Message-ID: <msg005@example.com>
+In-Reply-To: <msg004@example.com>
+References: <msg004@example.com>
+Date: Mon, 01 Jan 2024 11:15:00 +0000
+
+> I noticed some edge cases in draft-ietf-tls-esni-13
+
+Yes, we've seen this too. The spec in RFC 8446 is clear but
+implementation is tricky. I recommend reviewing the test vectors
+in the appendix.
+
+--
+David Security
+CryptoSafe Ltd.
+
+From emma@example.com Mon Jan 01 02:00:00 2024
+From: Emma Protocol <emma@example.com>
+To: quic@ietf.org
+Subject: HTTP/3 prioritization proposal
+Message-ID: <msg006@example.com>
+Date: Mon, 01 Jan 2024 12:00:00 +0000
+
+Hello all,
+
+I'd like to propose some changes to HTTP/3 prioritization based on
+our production experience. This builds on draft-ietf-httpbis-priority-12.
+
+Key points:
+1. Urgency parameter handling
+2. Incremental updates
+3. Priority tree maintenance
+
+Looking forward to your feedback.
+
+--
+Emma Protocol
+FastWeb Inc.
+
+From frank@example.com Mon Jan 01 02:15:00 2024
+From: Frank Implementer <frank@example.com>
+To: quic@ietf.org
+Subject: Re: HTTP/3 prioritization proposal
+Message-ID: <msg007@example.com>
+In-Reply-To: <msg006@example.com>
+References: <msg006@example.com>
+Date: Mon, 01 Jan 2024 12:15:00 +0000
+
+Emma, this looks great!
+
+We've been working on similar issues. Have you considered the
+interaction with QPACK (RFC 9204)? The header compression might
+affect priority signals.
+
+Best,
+Frank
+
+From grace@example.com Mon Jan 01 02:30:00 2024
+From: Grace Tester <grace@example.com>
+To: quic@ietf.org
+Subject: Re: HTTP/3 prioritization proposal
+Message-ID: <msg008@example.com>
+In-Reply-To: <msg007@example.com>
+References: <msg006@example.com> <msg007@example.com>
+Date: Mon, 01 Jan 2024 12:30:00 +0000
+
+> Have you considered the interaction with QPACK (RFC 9204)?
+
+Good catch, Frank. We should also look at draft-ietf-quic-qpack-21
+for the latest updates. Our test suite covers these interactions.
+
+--
+Grace Tester
+QA Systems
+
+From bob@example.com Mon Jan 01 03:00:00 2024
+From: Bob Engineer <bob@example.com>
+To: quic@ietf.org
+Subject: Re: QUIC connection migration strategy
+Message-ID: <msg009@example.com>
+In-Reply-To: <msg003@example.com>
+References: <msg001@example.com> <msg002@example.com> <msg003@example.com>
+Date: Mon, 01 Jan 2024 13:00:00 +0000
+
+Charlie, thanks for sharing the performance results.
+
+I've been doing some analysis and think we need to update our
+implementation based on the latest draft-ietf-quic-transport-34.
+The NAT rebinding behavior is particularly important.
+
+Should we schedule a call to discuss?
+
+--
+Bob
+
+From ivan@example.com Mon Jan 01 03:30:00 2024
+From: Ivan Developer <ivan@example.com>
+To: quic@ietf.org
+Subject: Version negotiation clarification
+Message-ID: <msg010@example.com>
+Date: Mon, 01 Jan 2024 13:30:00 +0000
+
+Quick question for the group:
+
+In draft-ietf-quic-version-negotiation-13, section 5.2 discusses
+compatible version negotiation. I'm unclear on the retry behavior
+when incompatible versions are detected.
+
+Can someone clarify the expected behavior per RFC 9000?
+
+Thanks,
+Ivan

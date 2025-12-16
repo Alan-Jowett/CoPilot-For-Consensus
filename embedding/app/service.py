@@ -246,7 +246,7 @@ class EmbeddingService:
                         self.error_reporter.report(e, context={"chunk_ids": chunk_ids, "retry_count": retry_count})
                     
                     if self.metrics_collector:
-                        self.metrics_collector.increment("embedding_failures_total", 1, labels={"error_type": error_type})
+                        self.metrics_collector.increment("embedding_failures_total", 1, tags={"error_type": error_type})
                     
                     # Re-raise to trigger message requeue for guaranteed forward progress
                     raise
