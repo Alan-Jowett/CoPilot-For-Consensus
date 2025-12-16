@@ -415,10 +415,12 @@ def test_idempotent_orchestration(
     mock_document_store,
     mock_publisher,
 ):
-    """Test that duplicate orchestration requests are idempotent (safe retry).
+    """Test that orchestration allows summary regeneration.
     
-    If a summary already exists for a thread, the orchestrator should skip
-    publishing SummarizationRequested to avoid redundant processing.
+    The orchestrator no longer performs idempotency checks, allowing summaries
+    to be regenerated when new content arrives or when explicitly requested.
+    This test verifies that the orchestrator processes requests even when a
+    summary already exists.
     """
     thread_id = "<thread@example.com>"
     chunk_ids = ["chunk-1", "chunk-2"]
@@ -433,10 +435,7 @@ def test_idempotent_orchestration(
     call_count = [0]
     def query_side_effect(collection, filter_dict, **kwargs):
         call_count[0] += 1
-        if collection == "summaries":
-            # First time: no existing summary
-            return []
-        elif collection == "chunks":
+        if collection == "chunks":
             return chunks
         return []
     
@@ -459,7 +458,7 @@ def test_idempotent_orchestration(
     mock_publisher.publish.reset_mock()
     call_count[0] = 0
     
-    # Second call: summary now exists (simulating retry)
+    # Second call: even if summary exists, should still process (allowing regeneration)
     existing_summary = {
         "summary_id": "summary-123",
         "thread_id": thread_id,
@@ -468,20 +467,19 @@ def test_idempotent_orchestration(
     
     def query_side_effect_with_summary(collection, filter_dict, **kwargs):
         call_count[0] += 1
-        if collection == "summaries":
-            # Second time: summary exists
-            return [existing_summary]
-        elif collection == "chunks":
+        if collection == "chunks":
             return chunks
         return []
     
     mock_document_store.query_documents.side_effect = query_side_effect_with_summary
     
-    # Second processing (retry scenario) - should skip orchestration
+    # Second processing - should still orchestrate (regeneration allowed)
     orchestration_service.process_embeddings(event_data)
     
-    # Verify NO new SummarizationRequested was published
-    assert mock_publisher.publish.call_count == 0
+    # Verify SummarizationRequested WAS published again (regeneration allowed)
+    assert mock_publisher.publish.call_count == 1
+    call_args = mock_publisher.publish.call_args
+    assert call_args[1]["routing_key"] == "summarization.requested"
 
 def test_metrics_collector_uses_tags_parameter(mock_document_store, mock_publisher, mock_subscriber):
     """Test that metrics collector calls use tags= parameter, not labels=."""

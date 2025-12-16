@@ -902,8 +902,6 @@ class MyService:
 ### Code Examples
 - `chunking/app/service.py` - DuplicateKeyError handling
 - `embedding/app/service.py` - Upsert semantics, retry logic, status updates
-- `orchestrator/app/service.py` - Read-before-write idempotency
-- `summarization/app/service.py` - Existing summary checks
 - `adapters/copilot_events/copilot_events/rabbitmq_subscriber.py` - Requeue implementation
 
 ### Tests
