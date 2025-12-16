@@ -327,30 +327,30 @@ class EmbeddingService:
     def _update_chunk_status(self, chunk_ids: List[str]):
         """Update chunk embedding status in document database.
         
-        Idempotent operation: only updates chunks that don't already have 
-        embedding_generated=True to avoid unnecessary writes.
+        Idempotent operation: updates chunks with embedding_generated=True.
+        Safe to call multiple times - setting a field to the same value is idempotent.
         
         Args:
             chunk_ids: List of chunk IDs to update
         """
-        # Only update chunks that don't already have embedding_generated=True
-        # This makes the operation idempotent for retry scenarios
         for chunk_id in chunk_ids:
             try:
-                # Use update with filter to only update if not already marked
-                # This is more efficient than checking first
-                result = self.document_store.update_document(
+                # Update is idempotent - setting embedding_generated=True multiple times is safe
+                self.document_store.update_document(
                     collection="chunks",
                     doc_id=chunk_id,
                     patch={"embedding_generated": True},
-                    # Only update if embedding_generated is not already True
-                    # Note: update_document may not support filter, so we do it unconditionally
-                    # The upsert semantics make this safe
                 )
+            except (ConnectionError, OSError, TimeoutError) as e:
+                # Database connectivity issues - log but don't fail
+                # The embedding itself has already been stored in vectorstore
+                logger.warning(f"Failed to update status for chunk {chunk_id} (connectivity): {e}")
             except Exception as e:
-                # Log but don't fail - status update is a metadata operation
-                # The embedding itself has already been stored
-                logger.warning(f"Failed to update status for chunk {chunk_id}: {e}")
+                # Other errors (e.g., chunk not found, validation errors) - log with full context
+                logger.error(
+                    f"Unexpected error updating status for chunk {chunk_id}: {e}",
+                    exc_info=True
+                )
         
         logger.debug(f"Updated {len(chunk_ids)} chunks with embedding_generated=True")
 

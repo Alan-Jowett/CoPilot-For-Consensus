@@ -185,10 +185,17 @@ class SummarizationService:
                 # Update stats to reflect we "processed" it
                 self.summaries_generated += 1
                 return
-        except Exception as e:
-            # If we can't check for existing summaries, log but continue
-            # (better to regenerate than fail)
+        except (ConnectionError, OSError, TimeoutError) as e:
+            # Database connectivity issues - log but continue with regeneration
+            # (better to regenerate than fail on transient database errors during idempotency check)
             logger.warning(f"Could not check for existing summary for {thread_id}: {e}")
+        except Exception as e:
+            # Unexpected errors (e.g., programming errors) should be logged with full context
+            logger.error(
+                f"Unexpected error checking for existing summary for {thread_id}: {e}",
+                exc_info=True
+            )
+            # Continue with regeneration - idempotency check is an optimization, not critical path
         
         while retry_count < self.retry_max_attempts:
             try:
