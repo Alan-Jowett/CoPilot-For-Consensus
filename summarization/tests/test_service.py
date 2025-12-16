@@ -901,10 +901,11 @@ def test_idempotent_summarization(
     mock_summarizer,
     mock_publisher,
 ):
-    """Test that duplicate summarization requests are idempotent (safe retry).
+    """Test that summarization service regenerates summaries when requested.
     
-    If a summary already exists for a thread, the service should skip regeneration
-    to avoid unnecessary LLM calls and ensure idempotent behavior.
+    The orchestrator is responsible for idempotency checks. The summarization service
+    should always execute summarization requests, allowing the orchestrator to control
+    regeneration policy (e.g., when new chunks arrive for a thread).
     """
     thread_id = "<thread@example.com>"
     
@@ -922,13 +923,19 @@ def test_idempotent_summarization(
         },
     ]
     
-    # First call: no existing summary, but has messages
-    call_count = [0]
+    # Setup summary that already exists in database
+    existing_summary = {
+        "summary_id": "summary-123",
+        "thread_id": thread_id,
+        "summary_type": "thread",
+        "summary_markdown": "Existing summary",
+    }
+    
+    # Configure mock to return messages for context retrieval
     def query_side_effect(collection, filter_dict, **kwargs):
-        call_count[0] += 1
         if collection == "summaries":
-            # First check: no existing summary
-            return []
+            # Existing summary in database (orchestrator should have checked this)
+            return [existing_summary]
         elif collection == "messages":
             # Return messages for context
             return messages_data
@@ -943,10 +950,10 @@ def test_idempotent_summarization(
         "prompt_template": "Summarize this:",
     }
     
-    # First processing - should generate summary
+    # Process summarization - should generate new summary even though one exists
     summarization_service.process_summarization(event_data)
     
-    # Verify summarizer was called
+    # Verify summarizer was called (regenerated despite existing summary)
     assert mock_summarizer.summarize.call_count == 1
     
     # Verify summary complete event was published
@@ -956,38 +963,16 @@ def test_idempotent_summarization(
     # Reset mocks
     mock_summarizer.summarize.reset_mock()
     mock_publisher.publish.reset_mock()
-    call_count[0] = 0
     
-    # Second call: summary now exists (simulating retry)
-    existing_summary = {
-        "summary_id": "summary-123",
-        "thread_id": thread_id,
-        "summary_type": "thread",
-        "summary_markdown": "Existing summary",
-    }
-    
-    # Configure mock to return existing summary on first query_documents call
-    # (for idempotency check) and messages on subsequent calls (for context retrieval)
-    def query_side_effect_with_summary(collection, filter_dict, **kwargs):
-        call_count[0] += 1
-        if call_count[0] == 1 and collection == "summaries":
-            # First call checks for existing summary
-            return [existing_summary]
-        elif collection == "messages":
-            # Subsequent calls return messages for context
-            return messages_data
-        return []
-    
-    mock_document_store.query_documents.side_effect = query_side_effect_with_summary
-    
-    # Second processing (retry scenario) - should skip generation
+    # Second request - should also generate (orchestrator controls idempotency)
     summarization_service.process_summarization(event_data)
     
-    # Verify summarizer was NOT called (skipped due to existing summary)
-    assert mock_summarizer.summarize.call_count == 0
+    # Verify summarizer was called again
+    assert mock_summarizer.summarize.call_count == 1
     
-    # No new event should be published
-    assert mock_publisher.publish.call_count == 0
+    # New event should be published
+    assert mock_publisher.publish.call_count == 1
     
-    # Stats still reflect that we "processed" it (for metrics consistency)
-    assert summarization_service.summaries_generated == 2  # 1 + 1 (skipped counts as processed)
+    # Stats reflect both summaries were generated
+    assert summarization_service.summaries_generated == 2
+
