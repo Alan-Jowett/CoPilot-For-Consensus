@@ -316,7 +316,7 @@ class OrchestrationService:
             if self.metrics_collector:
                 self.metrics_collector.increment(
                     "orchestration_events_total",
-                    labels={"event_type": "summarization_requested", "outcome": "success"}
+                    tags={"event_type": "summarization_requested", "outcome": "success"}
                 )
 
         except Exception as e:
@@ -354,11 +354,11 @@ class OrchestrationService:
             if self.metrics_collector:
                 self.metrics_collector.increment(
                     "orchestration_events_total",
-                    labels={"event_type": "orchestration_failed", "outcome": "failure"}
+                    tags={"event_type": "orchestration_failed", "outcome": "failure"}
                 )
                 self.metrics_collector.increment(
                     "orchestration_failures_total",
-                    labels={"error_type": error_type}
+                    tags={"error_type": error_type}
                 )
 
         except Exception as e:
