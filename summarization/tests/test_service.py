@@ -194,6 +194,8 @@ def test_format_citations(summarization_service):
     assert formatted[0]["message_id"] == "<msg1@example.com>"
     assert formatted[0]["chunk_id"] == "chunk_1"
     assert formatted[0]["offset"] == 0
+    assert formatted[0]["text"] == "Text 1"
+    assert formatted[1]["text"] == "Text 2"
 
 
 def test_format_citations_limit(summarization_service):
@@ -212,6 +214,29 @@ def test_format_citations_limit(summarization_service):
     
     # Should be limited to citation_count (10)
     assert len(formatted) == 10
+
+
+def test_format_citations_text_truncation(summarization_service):
+    """Test that citation text is truncated to 500 characters."""
+    long_text = "x" * 1000  # 1000 character text
+    
+    citations = [
+        Citation(
+            message_id="<msg1@example.com>",
+            chunk_id="chunk_1",
+            offset=0,
+        ),
+    ]
+    
+    chunks = [
+        {"chunk_id": "chunk_1", "message_id": "<msg1@example.com>", "text": long_text},
+    ]
+    
+    formatted = summarization_service._format_citations(citations, chunks)
+    
+    assert len(formatted) == 1
+    assert len(formatted[0]["text"]) == 500
+    assert formatted[0]["text"] == "x" * 500
 
 
 def test_process_thread_success(summarization_service, mock_summarizer, mock_publisher):

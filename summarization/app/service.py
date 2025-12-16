@@ -372,14 +372,25 @@ class SummarizationService:
         Returns:
             List of formatted citation dictionaries
         """
+        # Create a lookup map for chunks by chunk_id
+        chunk_map = {chunk.get("chunk_id"): chunk for chunk in chunks}
+        
         formatted = []
         
         # Limit to citation_count
         for citation in citations[:self.citation_count]:
+            # Find the corresponding chunk to get the text
+            chunk = chunk_map.get(citation.chunk_id, {})
+            text = chunk.get("text", "")
+            
+            # Truncate text to a reasonable snippet length (500 chars)
+            snippet = text[:500] if len(text) > 500 else text
+            
             formatted.append({
                 "message_id": citation.message_id,
                 "chunk_id": citation.chunk_id,
                 "offset": citation.offset,
+                "text": snippet,
             })
         
         return formatted

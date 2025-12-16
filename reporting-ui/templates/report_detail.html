@@ -134,27 +134,88 @@
             border-bottom: 2px solid #007bff;
             padding-bottom: 10px;
         }
-        .citations-table {
-            overflow-x: auto;
+        .citations-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
+        .citation-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            background-color: #fafafa;
+            transition: box-shadow 0.2s;
         }
-        th {
-            background-color: #f8f9fa;
-            padding: 12px;
-            text-align: left;
+        .citation-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .citation-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .citation-number {
             font-weight: 600;
-            color: #333;
-            border-bottom: 2px solid #dee2e6;
+            color: #007bff;
+            font-size: 14px;
         }
-        td {
+        .citation-id-badge {
+            font-family: monospace;
+            font-size: 11px;
+            background-color: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: #495057;
+        }
+        .citation-text {
+            background-color: white;
             padding: 12px;
-            border-bottom: 1px solid #eee;
+            border-left: 3px solid #007bff;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            line-height: 1.6;
+            color: #333;
+            font-style: italic;
         }
-        tr:hover {
-            background-color: #f8f9fa;
+        .citation-text.no-quote {
+            font-style: normal;
+            color: #999;
+            border-left-color: #ccc;
+        }
+        .citation-metadata {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 13px;
+        }
+        .metadata-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .metadata-row .metadata-label {
+            font-weight: 600;
+            color: #666;
+            min-width: 90px;
+        }
+        .metadata-row .metadata-value {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .copy-btn-small {
+            padding: 2px 6px;
+            font-size: 10px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .copy-btn-small:hover {
+            background-color: #5a6268;
         }
         .citation-id {
             font-family: monospace;
@@ -259,31 +320,36 @@
         <div class="citations-section">
             <h2>Citations ({{ report.citations|length }})</h2>
             {% if report.citations %}
-            <div class="citations-table">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Chunk ID</th>
-                            <th>Message ID</th>
-                            <th>Relevance Score</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for citation in report.citations %}
-                        <tr>
-                            <td class="citation-id">
-                                {{ citation.chunk_id }}
-                                <button class="copy-btn" onclick="copyToClipboard('{{ citation.chunk_id }}')">Copy</button>
-                            </td>
-                            <td class="citation-id">
-                                {{ citation.message_id }}
-                                <button class="copy-btn" onclick="copyToClipboard('{{ citation.message_id }}')">Copy</button>
-                            </td>
-                            <td>{{ citation.relevance_score }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="citations-list">
+                {% for citation in report.citations %}
+                <div class="citation-card">
+                    <div class="citation-header">
+                        <span class="citation-number">#{{ loop.index }}</span>
+                        <span class="citation-id-badge">{{ citation.message_id[:16] }}...</span>
+                    </div>
+                    {% if citation.quote %}
+                    <div class="citation-text">
+                        "{{ citation.quote }}"
+                    </div>
+                    {% else %}
+                    <div class="citation-text no-quote">
+                        <em>No text snippet available</em>
+                    </div>
+                    {% endif %}
+                    <div class="citation-metadata">
+                        <div class="metadata-row">
+                            <span class="metadata-label">Message ID:</span>
+                            <span class="metadata-value citation-id">{{ citation.message_id }}</span>
+                            <button class="copy-btn-small" onclick="copyToClipboard('{{ citation.message_id }}')">Copy</button>
+                        </div>
+                        <div class="metadata-row">
+                            <span class="metadata-label">Chunk ID:</span>
+                            <span class="metadata-value citation-id">{{ citation.chunk_id }}</span>
+                            <button class="copy-btn-small" onclick="copyToClipboard('{{ citation.chunk_id }}')">Copy</button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
             {% else %}
             <p style="color: #666;">No citations available.</p>

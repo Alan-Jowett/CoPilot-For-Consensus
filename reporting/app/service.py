@@ -175,8 +175,8 @@ class ReportingService:
                 {
                     "chunk_id": c.get("chunk_id", ""),
                     "message_id": c.get("message_id", ""),
-                    "quote": "",  # Not provided in SummaryComplete event
-                    "relevance_score": 1.0,  # Default score; not provided in event
+                    "quote": c.get("text", ""),  # Source text snippet from citation
+                    "relevance_score": c.get("relevance_score", 1.0),  # Use provided score or default
                 }
                 for c in citations
             ],
