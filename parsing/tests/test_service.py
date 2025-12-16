@@ -370,7 +370,7 @@ class TestParsingService:
         assert event1["event"]["event_type"] == "JSONParsed"
         assert event1["event"]["data"]["archive_id"] == "test-archive-9"
         assert event1["event"]["data"]["message_count"] == 1  # Single message per event
-        assert len(event1["event"]["data"]["parsed_message_ids"]) == 1
+        assert len(event1["event"]["data"]["message_keys"]) == 1
         
         # Check second event
         event2 = mock_publisher.published_events[1]
@@ -379,10 +379,10 @@ class TestParsingService:
         assert event2["event"]["event_type"] == "JSONParsed"
         assert event2["event"]["data"]["archive_id"] == "test-archive-9"
         assert event2["event"]["data"]["message_count"] == 1  # Single message per event
-        assert len(event2["event"]["data"]["parsed_message_ids"]) == 1
+        assert len(event2["event"]["data"]["message_keys"]) == 1
         
         # Verify messages are different
-        assert event1["event"]["data"]["parsed_message_ids"][0] != event2["event"]["data"]["parsed_message_ids"][0]
+        assert event1["event"]["data"]["message_keys"][0] != event2["event"]["data"]["message_keys"][0]
 
     def test_event_publishing_on_failure(self, document_store, subscriber):
         """Test that ParsingFailed event is published on parsing failure."""
@@ -661,8 +661,8 @@ def test_publish_json_parsed_with_publisher_failure(document_store):
     
     # Should raise exception when publisher fails on any message
     parsed_messages = [
-        {"message_id": "msg-1", "thread_id": "thread-1"},
-        {"message_id": "msg-2", "thread_id": "thread-1"},
+        {"message_id": "msg-1", "message_key": "mk-1", "thread_id": "thread-1"},
+        {"message_id": "msg-2", "message_key": "mk-2", "thread_id": "thread-1"},
     ]
     threads = [
         {"thread_id": "thread-1"},
@@ -671,10 +671,8 @@ def test_publish_json_parsed_with_publisher_failure(document_store):
     with pytest.raises(Exception) as exc_info:
         service._publish_json_parsed_per_message(
             archive_id="test-archive",
-            message_count=10,
-            message_keys=["msg-1", "msg-2"],
-            thread_count=5,
-            thread_ids=["thread-1"],
+            parsed_messages=parsed_messages,
+            threads=threads,
             duration=1.5
         )
     
@@ -792,11 +790,11 @@ def test_publish_json_parsed_raises_on_missing_message_id(document_store):
         subscriber=subscriber,
     )
     
-    # Create messages with one missing message_id
+    # Create messages with one missing message_key
     parsed_messages = [
-        {"message_id": "msg-1", "thread_id": "thread-1"},
-        {"thread_id": "thread-1"},  # Missing message_id
-        {"message_id": "msg-3", "thread_id": "thread-1"},
+        {"message_id": "msg-1", "message_key": "mk-1", "thread_id": "thread-1"},
+        {"message_id": "msg-2", "thread_id": "thread-1"},  # Missing message_key
+        {"message_id": "msg-3", "message_key": "mk-3", "thread_id": "thread-1"},
     ]
     threads = [{"thread_id": "thread-1"}]
     
@@ -809,6 +807,6 @@ def test_publish_json_parsed_raises_on_missing_message_id(document_store):
             duration=1.5
         )
     
-    assert "message_id" in str(exc_info.value)
+    assert "message_key" in str(exc_info.value)
     # Should have attempted to publish for the valid messages before the error
     assert len(mock_publisher.published_events) >= 1
