@@ -71,7 +71,7 @@ services:
   grafana:
     image: grafana/grafana:latest@sha256:70d9599b186ce287be0d2c5ba9a78acb2e86c1a68c9c41449454d0fc3eeb84e8
     ports:
-      - "3000:3000"
+      - "0.0.0.0:3000:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
@@ -582,7 +582,7 @@ services:
       - ERROR_REPORTER_TYPE=console
       - HTTP_PORT=8080
     ports:
-      - "8080:8080"
+      - "0.0.0.0:8080:8080"
     depends_on:
       messagebus:
         condition: service_healthy
