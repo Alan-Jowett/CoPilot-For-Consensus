@@ -239,6 +239,27 @@ def test_format_citations_text_truncation(summarization_service):
     assert formatted[0]["text"] == "x" * 500
 
 
+def test_format_citations_missing_chunk_id(summarization_service):
+    """Test that citations with non-existent chunk_ids result in empty text."""
+    citations = [
+        Citation(
+            message_id="<msg1@example.com>",
+            chunk_id="chunk_nonexistent",
+            offset=0,
+        ),
+    ]
+    
+    chunks = [
+        {"chunk_id": "chunk_1", "message_id": "<msg1@example.com>", "text": "Text 1"},
+    ]
+    
+    formatted = summarization_service._format_citations(citations, chunks)
+    
+    assert len(formatted) == 1
+    assert formatted[0]["chunk_id"] == "chunk_nonexistent"
+    assert formatted[0]["text"] == ""  # Empty text for non-existent chunk
+
+
 def test_process_thread_success(summarization_service, mock_summarizer, mock_publisher):
     """Test processing a thread successfully."""
     summarization_service._process_thread(

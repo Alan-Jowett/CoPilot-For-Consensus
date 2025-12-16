@@ -177,6 +177,8 @@
             line-height: 1.6;
             color: #333;
             font-style: italic;
+            overflow-wrap: break-word;
+            word-break: break-word;
         }
         .citation-text.no-quote {
             font-style: normal;
@@ -341,12 +343,12 @@
                         <div class="metadata-row">
                             <span class="metadata-label">Message ID:</span>
                             <span class="metadata-value citation-id">{{ citation.message_id }}</span>
-                            <button class="copy-btn-small" onclick="copyToClipboard('{{ citation.message_id }}')">Copy</button>
+                            <button class="copy-btn-small citation-copy-btn" data-copy-text="{{ citation.message_id }}" aria-label="Copy message ID" title="Copy message ID">Copy</button>
                         </div>
                         <div class="metadata-row">
                             <span class="metadata-label">Chunk ID:</span>
                             <span class="metadata-value citation-id">{{ citation.chunk_id }}</span>
-                            <button class="copy-btn-small" onclick="copyToClipboard('{{ citation.chunk_id }}')">Copy</button>
+                            <button class="copy-btn-small citation-copy-btn" data-copy-text="{{ citation.chunk_id }}" aria-label="Copy chunk ID" title="Copy chunk ID">Copy</button>
                         </div>
                     </div>
                 </div>
@@ -363,6 +365,23 @@
         const markdownContent = {{ report.content_markdown|tojson }};
         const summaryElement = document.getElementById('summary-content');
         summaryElement.innerHTML = marked.parse(markdownContent);
+        
+        // Add event listeners for citation copy buttons
+        document.querySelectorAll('.citation-copy-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const text = this.getAttribute('data-copy-text');
+                navigator.clipboard.writeText(text).then(function() {
+                    const originalText = btn.textContent;
+                    btn.textContent = 'Copied!';
+                    setTimeout(function() {
+                        btn.textContent = originalText;
+                    }, 1500);
+                }, function(err) {
+                    console.error('Failed to copy text: ', err);
+                    alert('Failed to copy to clipboard');
+                });
+            });
+        });
         
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(function() {
