@@ -53,6 +53,178 @@ Repository maintainers are responsible for reviewing Copilot-generated code and 
 
 For more information, see [CONTRIBUTING.md](documents/CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](documents/CODE_OF_CONDUCT.md).
 
+### Natural Language Intents (Copilot Shortcuts)
+
+The following phrases map to concrete, platform-aware actions. Copilot should run the appropriate commands for the user's OS (PowerShell on Windows; bash on Linux/macOS).
+
+#### "startup the project"
+
+Meaning: build fresh images, start all services in the background, and verify health.
+
+Linux/macOS (bash):
+
+```bash
+docker compose build --no-cache --parallel
+docker compose up -d
+# Quick status summary
+docker compose ps
+
+# Optional: wait for key services to be healthy (mirrors CI strategy)
+for s in documentdb messagebus vectorstore ollama monitoring pushgateway grafana promtail parsing chunking embedding orchestrator summarization reporting reporting-ui error-reporting; do
+  echo "Waiting for $s ..."
+  # Loki has no healthcheck; treat any "Up" as ready
+  if [ "$s" = "loki" ]; then
+    until docker compose ps loki --format '{{.Status}}' | grep -q "Up"; do sleep 3; done
+  else
+    until docker compose ps "$s" --format '{{.Status}}' | grep -q "(healthy)"; do sleep 3; done
+  fi
+done
+```
+
+Windows (PowerShell):
+
+```powershell
+docker compose build --no-cache --parallel
+docker compose up -d
+# Quick status summary
+docker compose ps
+
+# Optional: wait for key services to be healthy (mirrors CI strategy)
+$services = @('documentdb','messagebus','vectorstore','ollama','monitoring','pushgateway','grafana','promtail','parsing','chunking','embedding','orchestrator','summarization','reporting','reporting-ui','error-reporting')
+foreach ($s in $services) {
+  Write-Host "Waiting for $s ..."
+  if ($s -eq 'loki') {
+    while (-not ((docker compose ps loki --format '{{.Status}}') -match 'Up')) { Start-Sleep -Seconds 3 }
+  } else {
+    while (-not ((docker compose ps $s --format '{{.Status}}') -match '\(healthy\)')) { Start-Sleep -Seconds 3 }
+  }
+}
+```
+
+#### "ingest test data"
+
+Meaning: (1) upload ONLY the test ingestion configuration at `tests/fixtures/mailbox_sample/ingestion-config.json` into DocumentDB via the ingestion utility, and (2) run the ingestion batch job. Do not use the generic PowerShell helper script here because it targets `ingestion/config.test.json`.
+
+Linux/macOS (bash):
+
+```bash
+# 1) Upload test ingestion configuration (mailbox_sample)
+docker compose run --rm \
+  -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
+  ingestion \
+  python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
+
+# 2) Run the ingestion batch job (runs once and exits)
+docker compose run --rm \
+  -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
+  ingestion
+```
+
+Windows (PowerShell):
+
+```powershell
+# NOTE: Do NOT use upload_ingestion_config.ps1 for this intent; it uploads ingestion/config.test.json.
+
+# 1) Upload test ingestion configuration (mailbox_sample)
+$mount = (Get-Location).Path + "/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro"
+docker compose run --rm -v $mount ingestion `
+  python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
+
+# 2) Run the ingestion batch job (runs once and exits)
+docker compose run --rm -v $mount ingestion
+```
+
+Quick verification (optional):
+
+```powershell
+# Reporting API should return a non-zero count
+($r = Invoke-WebRequest -UseBasicParsing http://localhost:8080/api/reports).Content | ConvertFrom-Json | Select-Object -ExpandProperty count
+```
+
+#### "cleanup the project"
+
+Meaning: stop all Docker Compose services and remove associated volumes (data loss for services using named volumes).
+
+Linux/macOS (bash):
+
+```bash
+docker compose down -v
+```
+
+Windows (PowerShell):
+
+```powershell
+docker compose down -v
+```
+
+#### "ingest live data from ietf-<topic>"
+
+Meaning: (1) create an ingestion source for a real IETF mailing list archive at `rsync.ietf.org::mailman-archive/<topic>/`, upload it into DocumentDB via the ingestion utility, and (2) run the ingestion batch job. Example: "ingest live data from ietf-ipsec" creates a source named "ietf-ipsec" with URL "rsync.ietf.org::mailman-archive/ipsec/".
+
+Linux/macOS (bash):
+
+```bash
+# 1) Create temporary ingestion config for the IETF source
+TOPIC="${1:-ipsec}"  # default to ipsec if not provided
+CONFIG_FILE="/tmp/ietf-${TOPIC}-config.json"
+cat > "$CONFIG_FILE" <<EOF
+{
+  "sources": [
+    {
+      "name": "ietf-${TOPIC}",
+      "source_type": "rsync",
+      "url": "rsync.ietf.org::mailman-archive/${TOPIC}/",
+      "enabled": true
+    }
+  ]
+}
+EOF
+
+# 2) Upload the ingestion source to DocumentDB
+docker compose run --rm ingestion \
+  python /app/upload_ingestion_sources.py "$CONFIG_FILE"
+
+# 3) Run the ingestion batch job (runs once and exits)
+docker compose run --rm ingestion
+
+# 4) Clean up temporary config
+rm "$CONFIG_FILE"
+```
+
+Windows (PowerShell):
+
+```powershell
+# 1) Create temporary ingestion config for the IETF source
+$topic = if ($args.Count -gt 0) { $args[0] } else { "ipsec" }  # default to ipsec
+$configFile = $env:TEMP + "\ietf-${topic}-config.json"
+$configContent = @{
+  sources = @(
+    @{
+      name = "ietf-${topic}"
+      source_type = "rsync"
+      url = "rsync.ietf.org::mailman-archive/${topic}/"
+      enabled = $true
+    }
+  )
+} | ConvertTo-Json
+Set-Content -Path $configFile -Value $configContent -Encoding UTF8
+
+# 2) Upload the ingestion source to DocumentDB
+docker compose run --rm ingestion `
+  python /app/upload_ingestion_sources.py $configFile
+
+# 3) Run the ingestion batch job (runs once and exits)
+docker compose run --rm ingestion
+
+# 4) Clean up temporary config
+Remove-Item -Path $configFile -Force
+```
+
+Example usage:
+- `"ingest live data from ietf-ipsec"` → ingests from `rsync.ietf.org::mailman-archive/ipsec/`
+- `"ingest live data from ietf-quic"` → ingests from `rsync.ietf.org::mailman-archive/quic/`
+- `"ingest live data from ietf-http"` → ingests from `rsync.ietf.org::mailman-archive/http/`
+
 ## CI & Testing Overview
 
 - **PRs Required**: Direct pushes to `main` are blocked. Open a PR; required check includes the `Test Docker Compose` job.
