@@ -106,7 +106,7 @@ jobs:
 
     - name: Test Report
       if: always()
-      uses: dorny/test-reporter@43cde22af577b469ce7aabe9acddd813dcd380bb # v2
+      uses: dorny/test-reporter@fe45e9537387dac839af0d33ba56eed8e24189e8 # v2
       with:
         name: ${{ inputs.service_id }} Test Results
         path: ${{ inputs.service_path }}/test-results.xml
