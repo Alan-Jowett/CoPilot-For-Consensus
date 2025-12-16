@@ -225,6 +225,98 @@ Example usage:
 - `"ingest live data from ietf-quic"` → ingests from `rsync.ietf.org::mailman-archive/quic/`
 - `"ingest live data from ietf-http"` → ingests from `rsync.ietf.org::mailman-archive/http/`
 
+#### "test the current change"
+
+Meaning: examine the current branch relative to main, identify which adapter or microservice was modified, and run the appropriate test suite. For adapters (e.g., `adapters/copilot_events`), run unit tests excluding integration. For services (e.g., `orchestrator`, `chunking`), run both unit and integration tests. Coverage and JUnit artifacts are generated.
+
+Linux/macOS (bash):
+
+```bash
+# 1) Find changed files relative to main
+CHANGED_FILES=$(git diff origin/main --name-only)
+
+# 2) Determine if it's an adapter or service change
+if echo "$CHANGED_FILES" | grep -q "^adapters/"; then
+  # Adapter change: extract adapter name and run unit tests (excluding integration)
+  ADAPTER=$(echo "$CHANGED_FILES" | grep "^adapters/" | head -1 | cut -d/ -f2)
+  ADAPTER_PATH="adapters/$ADAPTER"
+  
+  echo "Running unit tests for adapter: $ADAPTER"
+  cd "$ADAPTER_PATH"
+  python -m pip install --upgrade pip
+  pip install -r requirements.txt 2>/dev/null || true
+  pip install pytest pytest-cov
+  pytest tests/ -v --tb=short -m "not integration" \
+    --junit-xml=test-results.xml \
+    --cov=$(basename "$ADAPTER_PATH") --cov-report=lcov --cov-report=html --cov-report=term
+  
+elif echo "$CHANGED_FILES" | grep -qE "^(chunking|embedding|parsing|orchestrator|summarization|reporting|reporting-ui|error-reporting|ingestion)/"; then
+  # Service change: extract service name and run all tests (unit + integration)
+  SERVICE=$(echo "$CHANGED_FILES" | grep -oE "^(chunking|embedding|parsing|orchestrator|summarization|reporting|reporting-ui|error-reporting|ingestion)" | head -1)
+  
+  echo "Running tests for service: $SERVICE"
+  cd "$SERVICE"
+  python -m pip install --upgrade pip
+  pip install -r requirements.txt 2>/dev/null || true
+  pip install pytest pytest-cov
+  pytest tests/ -v --tb=short \
+    --junit-xml=test-results.xml \
+    --cov=app --cov-report=lcov --cov-report=html --cov-report=term
+else
+  echo "No adapter or service changes detected."
+  exit 1
+fi
+```
+
+Windows (PowerShell):
+
+```powershell
+# 1) Find changed files relative to main
+$changedFiles = git diff origin/main --name-only
+
+# 2) Determine if it's an adapter or service change
+$adapterMatch = $changedFiles | Where-Object { $_ -match "^adapters/" } | Select-Object -First 1
+$serviceMatch = $changedFiles | Where-Object { $_ -match "^(chunking|embedding|parsing|orchestrator|summarization|reporting|reporting-ui|error-reporting|ingestion)/" } | Select-Object -First 1
+
+if ($adapterMatch) {
+  # Adapter change: extract adapter name and run unit tests (excluding integration)
+  $adapter = $adapterMatch -replace "^adapters/", "" -replace "/.*", ""
+  $adapterPath = "adapters/$adapter"
+  
+  Write-Host "Running unit tests for adapter: $adapter"
+  Push-Location $adapterPath
+  python -m pip install --upgrade pip
+  if (Test-Path requirements.txt) { pip install -r requirements.txt } else { Write-Host "No requirements.txt" }
+  pip install pytest pytest-cov
+  pytest tests/ -v --tb=short -m "not integration" `
+    --junit-xml=test-results.xml `
+    --cov=$adapter --cov-report=lcov --cov-report=html --cov-report=term
+  Pop-Location
+  
+} elseif ($serviceMatch) {
+  # Service change: extract service name and run all tests (unit + integration)
+  $service = $serviceMatch -replace "/.*", ""
+  
+  Write-Host "Running tests for service: $service"
+  Push-Location $service
+  python -m pip install --upgrade pip
+  if (Test-Path requirements.txt) { pip install -r requirements.txt } else { Write-Host "No requirements.txt" }
+  pip install pytest pytest-cov
+  pytest tests/ -v --tb=short `
+    --junit-xml=test-results.xml `
+    --cov=app --cov-report=lcov --cov-report=html --cov-report=term
+  Pop-Location
+  
+} else {
+  Write-Host "No adapter or service changes detected."
+  exit 1
+}
+```
+
+Example usage:
+- `"test the current change"` (on a branch modifying `adapters/copilot_events`) → runs `adapters/copilot_events/tests/` unit tests
+- `"test the current change"` (on a branch modifying `chunking`) → runs `chunking/tests/` all tests (unit + integration)
+
 ## CI & Testing Overview
 
 - **PRs Required**: Direct pushes to `main` are blocked. Open a PR; required check includes the `Test Docker Compose` job.
