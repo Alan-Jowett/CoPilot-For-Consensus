@@ -188,10 +188,11 @@ docker compose logs db-init
 ```
 
 4. Access the services:
-- **Reporting UI**: http://localhost:8080
+- **Reporting API**: http://localhost:8080
+- **Reporting UI**: http://localhost:8083
 - **Grafana Dashboards**: http://localhost:3000 (admin/admin)
-- **Prometheus**: http://localhost:9090
-- **RabbitMQ Management**: http://localhost:15672 (guest/guest)
+
+For the full list of exposed ports and security considerations, see [docs/EXPOSED_PORTS.md](docs/EXPOSED_PORTS.md).
 
 5. Pull an LLM model (first time only):
 ```bash
@@ -277,6 +278,7 @@ Comprehensive documentation is available throughout the repository:
 - **[docs/LOCAL_DEVELOPMENT.md](./docs/LOCAL_DEVELOPMENT.md)**: Complete local development setup, debugging, and testing guide
 - **[docs/TESTING_STRATEGY.md](./docs/TESTING_STRATEGY.md)**: Integration testing strategy, test organization, and CI/CD integration
 - **[docs/CONVENTIONS.md](./docs/CONVENTIONS.md)**: Documentation conventions, style guide, and contribution standards
+- **[docs/EXPOSED_PORTS.md](./docs/EXPOSED_PORTS.md)**: Network ports reference, security considerations, and access control
 
 ### Service Documentation
 Each microservice has a comprehensive README:
