@@ -317,6 +317,239 @@ Example usage:
 - `"test the current change"` (on a branch modifying `adapters/copilot_events`) → runs `adapters/copilot_events/tests/` unit tests
 - `"test the current change"` (on a branch modifying `chunking`) → runs `chunking/tests/` all tests (unit + integration)
 
+#### "run the docker compose workflow"
+
+Meaning: execute the Docker Compose end-to-end validation workflow locally, mirroring the steps in [docker-compose-ci.yml](.github/workflows/docker-compose-ci.yml). The workflow builds all services, starts infrastructure and application services with health checks, runs test ingestion, validates end-to-end message flow, tests all service endpoints, and stops services cleanly. Stops immediately on first error for quick feedback.
+
+Linux/macOS (bash):
+
+```bash
+set -e  # Stop on first error
+trap 'echo "Workflow failed at step $LINENO"; exit 1' ERR
+
+echo "=== Docker Compose Workflow (Local) ==="
+
+# Clean up
+echo "Cleaning up existing containers and volumes..."
+docker compose down -v || true
+docker container prune -f || true
+
+# Validate config
+echo "Validating docker-compose configuration..."
+docker compose config > /dev/null
+
+# Build
+echo "Building all services in parallel..."
+docker compose build --parallel
+
+# Infrastructure Services
+echo "Starting infrastructure services..."
+for svc in documentdb messagebus vectorstore ollama monitoring pushgateway loki grafana promtail; do
+  echo "  Starting $svc..."
+  docker compose up -d $svc
+  if [ "$svc" = "loki" ]; then
+    timeout 60s bash -c "until docker compose ps loki --format '{{.Status}}' | grep -q 'Up'; do sleep 3; done" || { echo "❌ $svc failed"; docker compose logs $svc --tail=50; exit 1; }
+  else
+    timeout 60s bash -c "until docker compose ps $svc --format '{{.Status}}' | grep -q '(healthy)'; do sleep 3; done" || { echo "❌ $svc failed"; docker compose logs $svc --tail=50; exit 1; }
+  fi
+done
+echo "✓ Infrastructure services healthy"
+
+# Validators
+echo "Running validators..."
+for validator in db-init db-validate vectorstore-validate ollama-validate; do
+  echo "  Running $validator..."
+  docker compose run --rm $validator || { echo "❌ $validator failed"; exit 1; }
+done
+echo "✓ Validators passed"
+
+# Application Services
+echo "Starting application services..."
+for svc in parsing chunking embedding orchestrator summarization reporting reporting-ui error-reporting; do
+  echo "  Starting $svc..."
+  docker compose up -d $svc
+  timeout 120s bash -c "until docker compose ps $svc --format '{{.Status}}' | grep -q '(healthy)'; do sleep 3; done" || { echo "❌ $svc failed"; docker compose logs $svc --tail=50; exit 1; }
+done
+echo "✓ Application services healthy"
+
+# Ingestion
+echo "Uploading test ingestion configuration..."
+docker compose run --rm \
+  -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
+  ingestion \
+  python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json || { echo "❌ Upload failed"; exit 1; }
+
+echo "Running ingestion batch job..."
+docker compose run --rm \
+  -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
+  ingestion || { echo "❌ Ingestion failed"; exit 1; }
+echo "✓ Ingestion completed"
+
+# End-to-end validation
+echo "Validating end-to-end message flow..."
+docker compose run --rm \
+  -v "$PWD/tests:/app/tests:ro" \
+  -e QDRANT_HOST=vectorstore \
+  -e QDRANT_PORT=6333 \
+  -e QDRANT_COLLECTION=embeddings \
+  --entrypoint "" \
+  embedding \
+  bash -c "python /app/tests/validate_e2e_flow.py" || { echo "❌ E2E validation failed"; exit 1; }
+echo "✓ End-to-end validation passed"
+
+# Health checks
+echo "Testing service endpoints..."
+for endpoint in "http://localhost:8080/" "http://localhost:8080/api/reports" "http://localhost:8081/" "http://localhost:8083/health" "http://localhost:8083/reports" "http://localhost:3000/api/health" "http://localhost:9090/-/healthy"; do
+  echo "  Testing $endpoint..."
+  curl -f "$endpoint" > /dev/null 2>&1 || { echo "❌ $endpoint failed"; exit 1; }
+done
+echo "✓ All endpoints healthy"
+
+# Cleanup
+echo "Cleaning up services..."
+docker compose down || true
+
+echo "✅ Docker Compose Workflow completed successfully"
+```
+
+Windows (PowerShell):
+
+```powershell
+$ErrorActionPreference = "Stop"
+$WarningPreference = "SilentlyContinue"
+
+trap {
+  Write-Host "❌ Workflow failed at line $($_.InvocationInfo.ScriptLineNumber)"
+  exit 1
+}
+
+Write-Host "=== Docker Compose Workflow (Local) ===" -ForegroundColor Cyan
+
+# Clean up
+Write-Host "Cleaning up existing containers and volumes..."
+docker compose down -v 2>$null || $true
+docker container prune -f 2>$null || $true
+
+# Validate config
+Write-Host "Validating docker-compose configuration..."
+docker compose config > $null
+
+# Build
+Write-Host "Building all services in parallel..."
+docker compose build --parallel
+
+# Infrastructure Services
+Write-Host "Starting infrastructure services..."
+$infra = @('documentdb','messagebus','vectorstore','ollama','monitoring','pushgateway','loki','grafana','promtail')
+foreach ($svc in $infra) {
+  Write-Host "  Starting $svc..."
+  docker compose up -d $svc
+  $maxWait = 60
+  $elapsed = 0
+  while ($elapsed -lt $maxWait) {
+    if ($svc -eq 'loki') {
+      $status = docker compose ps loki --format '{{.Status}}'
+      if ($status -match 'Up') { break }
+    } else {
+      $status = docker compose ps $svc --format '{{.Status}}'
+      if ($status -match '\(healthy\)') { break }
+    }
+    Start-Sleep -Seconds 3
+    $elapsed += 3
+  }
+  if ($elapsed -ge $maxWait) {
+    Write-Host "❌ $svc failed to become healthy" -ForegroundColor Red
+    docker compose logs $svc --tail=50
+    exit 1
+  }
+}
+Write-Host "✓ Infrastructure services healthy" -ForegroundColor Green
+
+# Validators
+Write-Host "Running validators..."
+$validators = @('db-init','db-validate','vectorstore-validate','ollama-validate')
+foreach ($validator in $validators) {
+  Write-Host "  Running $validator..."
+  docker compose run --rm $validator
+}
+Write-Host "✓ Validators passed" -ForegroundColor Green
+
+# Application Services
+Write-Host "Starting application services..."
+$services = @('parsing','chunking','embedding','orchestrator','summarization','reporting','reporting-ui','error-reporting')
+foreach ($svc in $services) {
+  Write-Host "  Starting $svc..."
+  docker compose up -d $svc
+  $maxWait = 120
+  $elapsed = 0
+  while ($elapsed -lt $maxWait) {
+    $status = docker compose ps $svc --format '{{.Status}}'
+    if ($status -match '\(healthy\)') { break }
+    Start-Sleep -Seconds 3
+    $elapsed += 3
+  }
+  if ($elapsed -ge $maxWait) {
+    Write-Host "❌ $svc failed to become healthy" -ForegroundColor Red
+    docker compose logs $svc --tail=50
+    exit 1
+  }
+}
+Write-Host "✓ Application services healthy" -ForegroundColor Green
+
+# Ingestion
+Write-Host "Uploading test ingestion configuration..."
+$mount = (Get-Location).Path + "/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro"
+docker compose run --rm -v $mount ingestion `
+  python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
+
+Write-Host "Running ingestion batch job..."
+docker compose run --rm -v $mount ingestion
+Write-Host "✓ Ingestion completed" -ForegroundColor Green
+
+# End-to-end validation
+Write-Host "Validating end-to-end message flow..."
+$mount = (Get-Location).Path + "/tests:/app/tests:ro"
+docker compose run --rm -v $mount `
+  -e QDRANT_HOST=vectorstore `
+  -e QDRANT_PORT=6333 `
+  -e QDRANT_COLLECTION=embeddings `
+  --entrypoint "" `
+  embedding `
+  bash -c "python /app/tests/validate_e2e_flow.py"
+Write-Host "✓ End-to-end validation passed" -ForegroundColor Green
+
+# Health checks
+Write-Host "Testing service endpoints..."
+$endpoints = @(
+  "http://localhost:8080/",
+  "http://localhost:8080/api/reports",
+  "http://localhost:8081/",
+  "http://localhost:8083/health",
+  "http://localhost:8083/reports",
+  "http://localhost:3000/api/health",
+  "http://localhost:9090/-/healthy"
+)
+foreach ($endpoint in $endpoints) {
+  Write-Host "  Testing $endpoint..."
+  try {
+    Invoke-WebRequest -UseBasicParsing -Uri $endpoint > $null
+  } catch {
+    Write-Host "❌ $endpoint failed" -ForegroundColor Red
+    exit 1
+  }
+}
+Write-Host "✓ All endpoints healthy" -ForegroundColor Green
+
+# Cleanup
+Write-Host "Cleaning up services..."
+docker compose down 2>$null || $true
+
+Write-Host "✅ Docker Compose Workflow completed successfully" -ForegroundColor Green
+```
+
+Example usage:
+- `"run the docker compose workflow"` → executes full end-to-end workflow locally, stops on first error
+
 ## CI & Testing Overview
 
 - **PRs Required**: Direct pushes to `main` are blocked. Open a PR; required check includes the `Test Docker Compose` job.
