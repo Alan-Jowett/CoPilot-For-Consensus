@@ -207,14 +207,17 @@ class QdrantVectorStore(VectorStore):
         if len(set(ids)) != len(ids):
             raise ValueError("Duplicate IDs found in the batch")
         
+        # Convert IDs to UUIDs for Qdrant compatibility
+        uuid_ids = [_string_to_uuid(id_val) for id_val in ids]
+        
         # Create points (upsert: create if new, update if exists)
         points = [
             self._PointStruct(
-                id=id_val,  # Use sha256-derived chunk key directly for auditability
+                id=uuid_id,  # Use deterministic UUID for Qdrant compatibility
                 vector=vector,
-                payload={**metadata, "_original_id": id_val},
+                payload={**metadata, "_original_id": id_val},  # Keep original ID in payload
             )
-            for id_val, vector, metadata in zip(ids, vectors, metadatas)
+            for uuid_id, id_val, vector, metadata in zip(uuid_ids, ids, vectors, metadatas)
         ]
         
         # Batch upsert
