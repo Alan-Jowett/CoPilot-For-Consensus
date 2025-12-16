@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Tests Directory
 
 This directory contains end-to-end integration tests for the Copilot-for-Consensus system.

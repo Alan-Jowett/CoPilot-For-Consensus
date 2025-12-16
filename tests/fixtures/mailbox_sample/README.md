@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Test Mailbox Fixture
 
 This directory contains a test mailbox used for end-to-end validation of the message flow pipeline.
