@@ -210,8 +210,8 @@ $configContent = @{
 Set-Content -Path $configFile -Value $configContent -Encoding UTF8
 
 # 2) Upload the ingestion source to DocumentDB (mount the config file into the container)
-docker compose run --rm -v $configFile:$configFile:ro ingestion `
-  python /app/upload_ingestion_sources.py $configFile
+docker compose run --rm -v "$configFile`:/app/config.json:ro" ingestion `
+  python /app/upload_ingestion_sources.py /app/config.json
 
 # 3) Run the ingestion batch job (runs once and exits)
 docker compose run --rm ingestion

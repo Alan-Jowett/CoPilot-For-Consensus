@@ -257,7 +257,7 @@ class ParsingService:
                     extra={"original_error": str(e), "publish_error": str(publish_error)}
                 )
                 if self.error_reporter:
-                    self.error_reporter.capture_exception()
+                    self.error_reporter.report(publish_error, context={"archive_id": archive_id})
                 # Re-raise the original exception to trigger message requeue
                 raise e from publish_error
             
@@ -511,10 +511,10 @@ class ParsingService:
                 routing_key="parsing.failed",
                 event=event.to_dict(),
             )
-        except Exception:
+        except Exception as e:
             logger.exception(f"Exception while publishing ParsingFailed event for {archive_id}")
             if self.error_reporter:
-                self.error_reporter.capture_exception()
+                self.error_reporter.report(e, context={"archive_id": archive_id})
             raise
 
     def get_stats(self) -> Dict[str, Any]:
