@@ -324,3 +324,33 @@ Common flags:
 
 You can create `.headercheckignore` at the repo root to exclude additional folders or patterns, one per line. Lines starting with `#` are comments.
 
+
+***
+
+## Port Exposure Validation
+
+The repository includes tests to validate that network ports are properly configured according to security best practices.
+
+### Run Port Exposure Test
+
+Validate that services expose only the necessary ports:
+
+```bash
+python tests/test_port_exposure.py
+```
+
+This test verifies:
+- Public services (Grafana, Reporting API) are accessible on all interfaces (0.0.0.0)
+- Development services (Prometheus, MongoDB, etc.) are bound to localhost only (127.0.0.1)
+- Internal services (exporters, processors) have no port mappings
+
+### Validate Running Services
+
+After starting the stack, verify that services can communicate correctly:
+
+```bash
+# Requires: pip install requests
+python tests/validate_port_changes.py
+```
+
+For detailed port documentation and security considerations, see [docs/EXPOSED_PORTS.md](docs/EXPOSED_PORTS.md).
