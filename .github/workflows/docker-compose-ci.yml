@@ -15,6 +15,9 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ghcr.io/${{ github.repository }}/
+  # Use mock LLM backend in CI for fast, reliable tests
+  # Real LLM (LocalLLMSummarizer) is tested in unit/integration tests
+  LLM_BACKEND: mock
 
 jobs:
   # Test docker-compose with cached images
