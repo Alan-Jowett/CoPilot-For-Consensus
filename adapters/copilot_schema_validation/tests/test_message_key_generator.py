@@ -103,7 +103,11 @@ class TestGenerateMessageKey:
         assert key1 == key2
 
     def test_empty_string_treated_as_none(self):
-        """Test that empty string is treated the same as None."""
+        """Test that empty string is treated the same as None.
+        
+        Empty strings are falsy in Python, so the 'if date:' check
+        excludes them from the composite key, just like None.
+        """
         archive_id = "abc123def4567890"
         message_id = "<test@example.com>"
         
