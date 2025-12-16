@@ -158,7 +158,7 @@ class ChunkingService:
                 try:
                     if not message.get("message_key"):
                         raise ValueError(
-                            f"message_key is required on message documents for chunking (message_id: {message.get('message_id')})"
+                            f"message_key is required on message documents for chunking (message_id: {message.get('message_id')}, archive_id: {message.get('archive_id')})"
                         )
 
                     chunks = self._chunk_message(message)
