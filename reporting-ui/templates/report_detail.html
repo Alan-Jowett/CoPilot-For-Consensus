@@ -325,6 +325,7 @@
                 <div class="citation-card">
                     <div class="citation-header">
                         <span class="citation-number">#{{ loop.index }}</span>
+                        {# Show first 16 chars of message ID in badge for compact display #}
                         <span class="citation-id-badge">{{ citation.message_id[:16] }}...</span>
                     </div>
                     {% if citation.quote %}
