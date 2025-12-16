@@ -21,6 +21,7 @@ from .archive_store import (
     create_archive_store,
 )
 from .local_volume_archive_store import LocalVolumeArchiveStore
+from .accessor import ArchiveAccessor, create_archive_accessor
 
 __all__ = [
     # Version
@@ -29,6 +30,9 @@ __all__ = [
     "ArchiveStore",
     "LocalVolumeArchiveStore",
     "create_archive_store",
+    # Accessor Helper
+    "ArchiveAccessor",
+    "create_archive_accessor",
     # Exceptions
     "ArchiveStoreError",
     "ArchiveStoreNotConnectedError",
