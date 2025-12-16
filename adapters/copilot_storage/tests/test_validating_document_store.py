@@ -314,6 +314,20 @@ class TestValidatingDocumentStore:
         
         assert "status" in str(exc_info.value).lower()
     
+    def test_update_nonexistent_document(self):
+        """Test updating a non-existent document raises DocumentNotFoundError."""
+        from copilot_storage import DocumentNotFoundError
+        
+        base = InMemoryDocumentStore()
+        base.connect()
+        
+        provider = MockSchemaProvider()
+        store = ValidatingDocumentStore(base, provider)
+        
+        # Try to update a document that doesn't exist
+        with pytest.raises(DocumentNotFoundError):
+            store.update_document("test_collection", "nonexistent", {"status": "updated"})
+    
     def test_query_documents(self):
         """Test querying documents."""
         base = InMemoryDocumentStore()
