@@ -52,8 +52,15 @@ class E2EMessageFlowValidator:
         self.qdrant_collection = os.getenv("QDRANT_COLLECTION", "embeddings")
         
         # Connect to MongoDB (no authentication in docker-compose)
+        # Set aggressive timeouts to prevent hanging queries in CI
         mongo_uri = f"mongodb://{self.mongo_host}:{self.mongo_port}/"
-        self.mongo_client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
+        self.mongo_client = MongoClient(
+            mongo_uri,
+            serverSelectionTimeoutMS=10000,  # 10s to select a server
+            socketTimeoutMS=30000,            # 30s for socket operations
+            connectTimeoutMS=10000,           # 10s to establish connection
+            maxIdleTimeMS=45000               # 45s max idle time
+        )
         self.db = self.mongo_client[self.mongo_db]
         
         # Connect to Qdrant
@@ -61,6 +68,60 @@ class E2EMessageFlowValidator:
         
         print(f"✓ Connected to MongoDB at {self.mongo_host}:{self.mongo_port}")
         print(f"✓ Connected to Qdrant at {self.qdrant_host}:{self.qdrant_port}")
+    
+    def _safe_mongo_count(self, collection_name: str, max_retries: int = 3) -> int:
+        """Safely count documents in a MongoDB collection with retry logic.
+        
+        Args:
+            collection_name: Name of the collection to count
+            max_retries: Maximum number of retry attempts
+            
+        Returns:
+            Number of documents in the collection, or 0 if query fails
+        """
+        for attempt in range(max_retries):
+            try:
+                collection = self.db[collection_name]
+                count = collection.count_documents({})
+                return count
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    print(f"  MongoDB query failed (attempt {attempt + 1}/{max_retries}): {e}")
+                    time.sleep(1)
+                else:
+                    print(f"  ERROR: MongoDB query failed after {max_retries} attempts: {e}")
+                    return 0
+        return 0
+    
+    def _safe_mongo_find(self, collection_name: str, query: dict = None, max_retries: int = 3) -> List[Dict]:
+        """Safely query documents from a MongoDB collection with retry logic.
+        
+        Args:
+            collection_name: Name of the collection to query
+            query: MongoDB query filter (default: {})
+            max_retries: Maximum number of retry attempts
+            
+        Returns:
+            List of documents, or empty list if query fails
+        """
+        if query is None:
+            query = {}
+        
+        for attempt in range(max_retries):
+            try:
+                collection = self.db[collection_name]
+                # Use timeout on the cursor to prevent hanging
+                cursor = collection.find(query).max_time_ms(30000)  # 30 second timeout
+                documents = list(cursor)
+                return documents
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    print(f"  MongoDB query failed (attempt {attempt + 1}/{max_retries}): {e}")
+                    time.sleep(1)
+                else:
+                    print(f"  ERROR: MongoDB query failed after {max_retries} attempts: {e}")
+                    return []
+        return []
     
     def _get_qdrant_collection_point_count(self) -> int:
         """Get the number of points in the Qdrant collection.
@@ -96,8 +157,8 @@ class E2EMessageFlowValidator:
         embeddings_count = 0
         
         while time.time() - start_time < max_wait_seconds:
-            messages_count = self.db.messages.count_documents({})
-            chunks_count = self.db.chunks.count_documents({})
+            messages_count = self._safe_mongo_count("messages")
+            chunks_count = self._safe_mongo_count("chunks")
             embeddings_count = self._get_qdrant_collection_point_count()
             
             print(f"  Polling... messages={messages_count}, chunks={chunks_count}, embeddings={embeddings_count}")
@@ -125,7 +186,7 @@ class E2EMessageFlowValidator:
     def validate_archives(self) -> Dict[str, Any]:
         """Validate that archives were ingested correctly."""
         print("\n=== Validating Archives ===")
-        archives = list(self.db.archives.find({}))
+        archives = self._safe_mongo_find("archives")
         
         if not archives:
             print("❌ FAIL: No archives found in database")
@@ -151,7 +212,7 @@ class E2EMessageFlowValidator:
     def validate_messages(self, expected_min_count: int = 10) -> Dict[str, Any]:
         """Validate that messages were parsed and stored correctly."""
         print("\n=== Validating Messages ===")
-        messages = list(self.db.messages.find({}))
+        messages = self._safe_mongo_find("messages")
         
         if not messages:
             print("❌ FAIL: No messages found in database")
@@ -182,7 +243,7 @@ class E2EMessageFlowValidator:
     def validate_threads(self) -> Dict[str, Any]:
         """Validate that threads were inferred correctly."""
         print("\n=== Validating Threads ===")
-        threads = list(self.db.threads.find({}))
+        threads = self._safe_mongo_find("threads")
         
         if not threads:
             print("⚠ Warning: No threads found in database")
@@ -204,7 +265,7 @@ class E2EMessageFlowValidator:
     def validate_chunks(self, expected_min_count: int = 10) -> Dict[str, Any]:
         """Validate that chunks were created correctly."""
         print("\n=== Validating Chunks ===")
-        chunks = list(self.db.chunks.find({}))
+        chunks = self._safe_mongo_find("chunks")
         
         if not chunks:
             print("⚠ WARNING: No chunks found in database")
