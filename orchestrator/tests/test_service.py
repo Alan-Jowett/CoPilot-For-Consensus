@@ -408,3 +408,61 @@ def test_handle_embeddings_generated_raises_on_missing_data_field(orchestration_
     # Event handler should re-raise to trigger message requeue
     with pytest.raises(Exception):
         orchestration_service._handle_embeddings_generated(event)
+
+
+def test_metrics_collector_uses_tags_parameter(mock_document_store, mock_publisher, mock_subscriber):
+    """Test that metrics collector calls use tags= parameter, not labels=."""
+    mock_metrics = Mock()
+    
+    service = OrchestrationService(
+        document_store=mock_document_store,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        top_k=12,
+        context_window_tokens=3000,
+        llm_backend="ollama",
+        llm_model="mistral",
+        metrics_collector=mock_metrics,
+    )
+    
+    # Test _publish_summarization_requested metrics call
+    thread_ids = ["<thread-1@example.com>"]
+    context = {
+        "thread_id": "<thread-1@example.com>",
+        "chunk_count": 5,
+        "messages": [{"message_id": "<msg-1@example.com>"}],
+    }
+    
+    service._publish_summarization_requested(thread_ids, context)
+    
+    # Verify increment was called with tags parameter
+    assert mock_metrics.increment.called
+    increment_calls = mock_metrics.increment.call_args_list
+    
+    # Check that first call uses tags= (not labels=)
+    first_call_kwargs = increment_calls[0][1] if increment_calls[0][1] else {}
+    assert 'tags' in first_call_kwargs, "metrics_collector.increment should use 'tags=' parameter"
+    assert 'labels' not in first_call_kwargs, "metrics_collector.increment should NOT use 'labels=' parameter"
+    assert first_call_kwargs['tags'] == {"event_type": "summarization_requested", "outcome": "success"}
+    
+    # Reset mock for next test
+    mock_metrics.reset_mock()
+    
+    # Test _publish_orchestration_failed metrics calls
+    service._publish_orchestration_failed(thread_ids, "Test error", "TestError")
+    
+    # Verify both increment calls use tags parameter
+    assert mock_metrics.increment.call_count == 2
+    increment_calls = mock_metrics.increment.call_args_list
+    
+    # First call: orchestration_events_total
+    first_call_kwargs = increment_calls[0][1] if increment_calls[0][1] else {}
+    assert 'tags' in first_call_kwargs, "First increment call should use 'tags=' parameter"
+    assert 'labels' not in first_call_kwargs, "First increment call should NOT use 'labels=' parameter"
+    assert first_call_kwargs['tags'] == {"event_type": "orchestration_failed", "outcome": "failure"}
+    
+    # Second call: orchestration_failures_total
+    second_call_kwargs = increment_calls[1][1] if increment_calls[1][1] else {}
+    assert 'tags' in second_call_kwargs, "Second increment call should use 'tags=' parameter"
+    assert 'labels' not in second_call_kwargs, "Second increment call should NOT use 'labels=' parameter"
+    assert second_call_kwargs['tags'] == {"error_type": "TestError"}
