@@ -415,7 +415,15 @@
                 <span class="filter-tag">Source: {{ source }} <span class="remove" onclick="removeFilter('source')">×</span></span>
                 {% endif %}
                 {% if thread_id %}
-                <span class="filter-tag">Thread: {{ thread_id[:16] }}... <span class="remove" onclick="removeFilter('thread_id')">×</span></span>
+                <span class="filter-tag">
+                    Thread:
+                    {% if thread_id|length > 16 %}
+                        {{ thread_id[:16] }}...
+                    {% else %}
+                        {{ thread_id }}
+                    {% endif %}
+                    <span class="remove" onclick="removeFilter('thread_id')">×</span>
+                </span>
                 {% endif %}
                 {% if min_participants %}
                 <span class="filter-tag">Min Participants: {{ min_participants }} <span class="remove" onclick="removeFilter('min_participants')">×</span></span>
@@ -456,13 +464,13 @@
                             <a href="/reports/{{ report.summary_id }}" class="report-link">
                                 {{ report.summary_id[:8] }}...
                             </a>
-                            <button class="copy-btn" onclick="copyToClipboard('{{ report.summary_id }}')">Copy</button>
+                            <button class="copy-btn" onclick="copyToClipboard('{{ report.summary_id }}', event)">Copy</button>
                         </td>
                         <td>
                             <div class="thread-id" title="{{ report.thread_id }}">
                                 {{ report.thread_id }}
                             </div>
-                            <button class="copy-btn" onclick="copyToClipboard('{{ report.thread_id }}')">Copy</button>
+                            <button class="copy-btn" onclick="copyToClipboard('{{ report.thread_id }}', event)">Copy</button>
                         </td>
                         {% if is_topic_search %}
                         <td>
@@ -511,12 +519,12 @@
         
         {% if reports and not is_topic_search %}
         <div class="pagination">
-            <a href="?thread_id={{ thread_id }}&topic={{ topic }}&start_date={{ start_date }}&end_date={{ end_date }}&source={{ source }}&min_participants={{ min_participants }}&max_participants={{ max_participants }}&min_messages={{ min_messages }}&max_messages={{ max_messages }}&limit={{ limit }}&skip={{ skip - limit if skip >= limit else 0 }}" 
+            <a href="?thread_id={{ thread_id }}&start_date={{ start_date }}&end_date={{ end_date }}&source={{ source }}&min_participants={{ min_participants }}&max_participants={{ max_participants }}&min_messages={{ min_messages }}&max_messages={{ max_messages }}&limit={{ limit }}&skip={{ skip - limit if skip >= limit else 0 }}" 
                class="{% if skip == 0 %}disabled{% endif %}">
                 ← Previous
             </a>
             <span>Showing {{ skip + 1 }} - {{ skip + count }} ({{ count }} reports)</span>
-            <a href="?thread_id={{ thread_id }}&topic={{ topic }}&start_date={{ start_date }}&end_date={{ end_date }}&source={{ source }}&min_participants={{ min_participants }}&max_participants={{ max_participants }}&min_messages={{ min_messages }}&max_messages={{ max_messages }}&limit={{ limit }}&skip={{ skip + limit }}"
+            <a href="?thread_id={{ thread_id }}&start_date={{ start_date }}&end_date={{ end_date }}&source={{ source }}&min_participants={{ min_participants }}&max_participants={{ max_participants }}&min_messages={{ min_messages }}&max_messages={{ max_messages }}&limit={{ limit }}&skip={{ skip + limit }}"
                class="{% if count < limit %}disabled{% endif %}">
                 Next →
             </a>
@@ -525,7 +533,7 @@
     </div>
     
     <script>
-        function copyToClipboard(text) {
+        function copyToClipboard(text, event) {
             navigator.clipboard.writeText(text).then(function() {
                 const btn = event.target;
                 const originalText = btn.textContent;

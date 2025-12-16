@@ -405,56 +405,87 @@ class ReportingService:
            min_messages is not None or max_messages is not None:
             enriched_summaries = []
             
+            # Batch fetch all threads to avoid N+1 query problem
+            # Collect unique thread IDs from summaries
+            thread_ids = []
+            for summary in summaries:
+                thread_id_val = summary.get("thread_id")
+                if thread_id_val:
+                    thread_ids.append(thread_id_val)
+            
+            # Batch query all threads
+            threads_map = {}
+            if thread_ids:
+                threads = self.document_store.query_documents(
+                    "threads",
+                    filter_dict={"thread_id": {"$in": thread_ids}},
+                    limit=len(thread_ids),
+                )
+                threads_map = {t.get("thread_id"): t for t in threads if t.get("thread_id")}
+            
+            # Collect unique archive IDs for batch fetching
+            archive_ids = set()
+            for thread in threads_map.values():
+                archive_id = thread.get("archive_id")
+                if archive_id:
+                    archive_ids.add(archive_id)
+            
+            # Batch query all archives
+            archives_map = {}
+            if archive_ids:
+                archives = self.document_store.query_documents(
+                    "archives",
+                    filter_dict={"archive_id": {"$in": list(archive_ids)}},
+                    limit=len(archive_ids),
+                )
+                archives_map = {a.get("archive_id"): a for a in archives if a.get("archive_id")}
+            
+            # Now process summaries with pre-fetched data
             for summary in summaries:
                 thread_id_val = summary.get("thread_id")
                 if not thread_id_val:
                     continue
                 
-                # Get thread metadata
-                thread = self._get_thread_by_id(thread_id_val)
+                # Get thread metadata from pre-fetched map
+                thread = threads_map.get(thread_id_val)
                 if not thread:
                     continue
                 
+                # Calculate counts once for reuse
+                participants = thread.get("participants", [])
+                participant_count = len(participants)
+                message_count = thread.get("message_count", 0)
+                archive_id = thread.get("archive_id")
+                
                 # Apply thread-based filters
                 if min_participants is not None:
-                    participant_count = len(thread.get("participants", []))
                     if participant_count < min_participants:
                         continue
                 
                 if max_participants is not None:
-                    participant_count = len(thread.get("participants", []))
                     if participant_count > max_participants:
                         continue
                 
                 if min_messages is not None:
-                    message_count = thread.get("message_count", 0)
                     if message_count < min_messages:
                         continue
                 
                 if max_messages is not None:
-                    message_count = thread.get("message_count", 0)
                     if message_count > max_messages:
                         continue
                 
-                # Apply source filter
+                # Apply source filter using pre-fetched archive
+                archive = archives_map.get(archive_id) if archive_id else None
                 if source:
-                    archive_id = thread.get("archive_id")
-                    if archive_id:
-                        archive = self._get_archive_by_id(archive_id)
-                        if not archive or archive.get("source") != source:
-                            continue
-                    else:
+                    if not archive or archive.get("source") != source:
                         continue
                 
                 # Enrich summary with thread and archive metadata
-                archive_id = thread.get("archive_id")
-                archive = self._get_archive_by_id(archive_id) if archive_id else None
-                
                 summary["thread_metadata"] = {
                     "subject": thread.get("subject", ""),
-                    "participants": thread.get("participants", []),
-                    "participant_count": len(thread.get("participants", [])),
-                    "message_count": thread.get("message_count", 0),
+                    "participants": participants,
+                    "participant_count": participant_count,
+                    "message_count": message_count,
                     "first_message_date": thread.get("first_message_date"),
                     "last_message_date": thread.get("last_message_date"),
                 }
@@ -627,10 +658,13 @@ class ReportingService:
             List of unique source names
         """
         try:
+            # Query all archives to extract unique source names
+            # Using a high limit (10000) to ensure we capture all archives in most deployments.
+            # TODO: Replace with a distinct query or aggregation pipeline for better scalability
             archives = self.document_store.query_documents(
                 "archives",
                 filter_dict={},
-                limit=1000,  # Should be enough for most use cases
+                limit=10000,
             )
             
             # Extract unique sources
