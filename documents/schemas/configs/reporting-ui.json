@@ -1,0 +1,23 @@
+{
+  "service_name": "reporting-ui",
+  "metadata": {
+    "description": "Reporting UI service configuration schema",
+    "version": "1.0.0"
+  },
+  "fields": {
+    "http_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "HTTP_PORT",
+      "default": 8083,
+      "description": "HTTP server port"
+    },
+    "reporting_api_url": {
+      "type": "str",
+      "source": "env",
+      "env_var": "REPORTING_API_URL",
+      "default": "http://reporting:8080",
+      "description": "Base URL for reporting API"
+    }
+  }
+}

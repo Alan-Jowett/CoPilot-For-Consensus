@@ -1,0 +1,315 @@
+<!-- SPDX-License-Identifier: MIT
+     Copyright (c) 2025 Copilot-for-Consensus contributors -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report {{ report.summary_id[:8] }} - Copilot for Consensus</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .back-link {
+            color: #007bff;
+            text-decoration: none;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .header-info {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        .info-item {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .info-value {
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+            word-break: break-all;
+        }
+        .copy-btn {
+            margin-left: 8px;
+            padding: 3px 8px;
+            font-size: 11px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .copy-btn:hover {
+            background-color: #5a6268;
+        }
+        .summary-section {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .summary-section h2 {
+            color: #333;
+            margin-top: 0;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        #summary-content {
+            line-height: 1.6;
+            color: #333;
+        }
+        #summary-content h1,
+        #summary-content h2,
+        #summary-content h3,
+        #summary-content h4 {
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+        }
+        #summary-content ul,
+        #summary-content ol {
+            margin: 0.5em 0;
+            padding-left: 2em;
+        }
+        #summary-content code {
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        #summary-content pre {
+            background-color: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        #summary-content pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+        .citations-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .citations-section h2 {
+            color: #333;
+            margin-top: 0;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .citations-table {
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            background-color: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #dee2e6;
+        }
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        .citation-id {
+            font-family: monospace;
+            font-size: 12px;
+            color: #666;
+        }
+        .metadata-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .metadata-section h2 {
+            color: #333;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .metadata-item {
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .metadata-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .metadata-value {
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/reports" class="back-link">← Back to Reports</a>
+        
+        <h1>Report Details</h1>
+        
+        <div class="header-info">
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Report ID</div>
+                    <div class="info-value">
+                        {{ report.summary_id }}
+                        <button class="copy-btn" onclick="copyToClipboard('{{ report.summary_id }}')">Copy</button>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Thread ID</div>
+                    <div class="info-value">
+                        {{ report.thread_id }}
+                        <button class="copy-btn" onclick="copyToClipboard('{{ report.thread_id }}')">Copy</button>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Generated At</div>
+                    <div class="info-value">{{ report.generated_at }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Generated By</div>
+                    <div class="info-value">{{ report.generated_by }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="metadata-section">
+            <h2>Performance Metrics</h2>
+            <div class="metadata-grid">
+                <div class="metadata-item">
+                    <div class="metadata-label">LLM Model</div>
+                    <div class="metadata-value">{{ report.metadata.llm_model or 'N/A' }}</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-label">Prompt Tokens</div>
+                    <div class="metadata-value">{{ report.metadata.tokens_prompt or 0 }}</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-label">Completion Tokens</div>
+                    <div class="metadata-value">{{ report.metadata.tokens_completion or 0 }}</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-label">Latency</div>
+                    <div class="metadata-value">{{ report.metadata.latency_ms or 0 }} ms</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="summary-section">
+            <h2>Summary</h2>
+            <div id="summary-content"></div>
+        </div>
+        
+        <div class="citations-section">
+            <h2>Citations ({{ report.citations|length }})</h2>
+            {% if report.citations %}
+            <div class="citations-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Chunk ID</th>
+                            <th>Message ID</th>
+                            <th>Relevance Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for citation in report.citations %}
+                        <tr>
+                            <td class="citation-id">
+                                {{ citation.chunk_id }}
+                                <button class="copy-btn" onclick="copyToClipboard('{{ citation.chunk_id }}')">Copy</button>
+                            </td>
+                            <td class="citation-id">
+                                {{ citation.message_id }}
+                                <button class="copy-btn" onclick="copyToClipboard('{{ citation.message_id }}')">Copy</button>
+                            </td>
+                            <td>{{ citation.relevance_score }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p style="color: #666;">No citations available.</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <script>
+        // Render markdown content
+        const markdownContent = {{ report.content_markdown|tojson }};
+        const summaryElement = document.getElementById('summary-content');
+        summaryElement.innerHTML = marked.parse(markdownContent);
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(function() {
+                    btn.textContent = originalText;
+                }, 1500);
+            }, function(err) {
+                console.error('Failed to copy text: ', err);
+                alert('Failed to copy to clipboard');
+            });
+        }
+    </script>
+</body>
+</html>
