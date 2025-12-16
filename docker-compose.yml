@@ -168,7 +168,7 @@ services:
     ports:
       - "11434:11434"
     volumes:
-      - ollama_data:/root/.ollama
+      - ./ollama_models:/root/.ollama
     healthcheck:
       test: ["CMD-SHELL", "bash -lc 'echo > /dev/tcp/127.0.0.1/11434' "]
       interval: 10s
@@ -190,6 +190,26 @@ services:
           if [ "$$code" -ge 200 ] && [ "$$code" -lt 500 ]; then echo "Ollama OK ($$code)"; exit 0; fi;
           echo "Waiting for Ollama ($$code)"; sleep 3;
         done; echo "Ollama validation failed"; exit 1
+    restart: "no"
+
+  ollama-model-loader:
+    image: ollama/ollama:latest@sha256:6c76395793f40a5e78f120e880ca82c67e39eb908ad90eee8ce755535529d0ec
+    depends_on:
+      ollama-validate:
+        condition: service_completed_successfully
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    volumes:
+      - ./ollama_models:/root/.ollama
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        echo "Pulling mistral model...";
+        for i in $$(seq 1 5); do
+          ollama pull mistral && echo "✓ Model loaded successfully" && exit 0;
+          echo "Attempt $$i failed, retrying..."; sleep 5;
+        done;
+        echo "Failed to pull model after 5 attempts"; exit 1
     restart: "no"
 
   # WARNING: The Promtail service mounts the Docker socket (/var/run/docker.sock) with read-only access.
@@ -501,6 +521,8 @@ services:
         condition: service_completed_successfully
       ollama-validate:
         condition: service_completed_successfully
+      ollama-model-loader:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -640,6 +662,8 @@ services:
         condition: service_healthy
       vectorstore-validate:
         condition: service_completed_successfully
+      ollama-model-loader:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -684,4 +708,3 @@ volumes:
   prometheus_data:
   grafana_data:
   loki_data:
-  ollama_data:
