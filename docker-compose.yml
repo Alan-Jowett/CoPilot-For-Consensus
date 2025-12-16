@@ -627,6 +627,35 @@ services:
       start_period: 90s
     restart: unless-stopped
 
+  retry-job:
+    image: copilot-retry-job:latest
+    build:
+      context: .
+      dockerfile: ./scripts/Dockerfile.retry-job
+    environment:
+      - MONGODB_HOST=documentdb
+      - MONGODB_PORT=27017
+      - MONGODB_DATABASE=${MONGO_APP_DB:-copilot}
+      - MONGODB_USERNAME=${DOC_DB_ADMIN_USERNAME:-root}
+      - MONGODB_PASSWORD=${DOC_DB_ADMIN_PASSWORD:-example}
+      - RABBITMQ_HOST=messagebus
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USERNAME=${RABBITMQ_DEFAULT_USER:-guest}
+      - RABBITMQ_PASSWORD=${RABBITMQ_DEFAULT_PASS:-guest}
+      - PUSHGATEWAY_URL=http://pushgateway:9091
+      - RETRY_JOB_INTERVAL_SECONDS=${RETRY_JOB_INTERVAL_SECONDS:-900}
+      - RETRY_JOB_BASE_DELAY_SECONDS=${RETRY_JOB_BASE_DELAY_SECONDS:-300}
+      - RETRY_JOB_MAX_DELAY_SECONDS=${RETRY_JOB_MAX_DELAY_SECONDS:-3600}
+      - RETRY_JOB_STUCK_THRESHOLD_HOURS=${RETRY_JOB_STUCK_THRESHOLD_HOURS:-24}
+    depends_on:
+      documentdb:
+        condition: service_healthy
+      messagebus:
+        condition: service_healthy
+      pushgateway:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   raw_archives:
   vector_data:

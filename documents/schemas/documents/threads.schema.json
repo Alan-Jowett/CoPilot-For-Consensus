@@ -57,7 +57,19 @@
         { "type": "null" }
       ]
     },
-    "created_at": { "type": "string", "format": "date-time" }
+    "created_at": { "type": "string", "format": "date-time" },
+    "attemptCount": { 
+      "type": "integer", 
+      "minimum": 0,
+      "description": "Number of summarization attempts for retry tracking"
+    },
+    "lastAttemptTime": { 
+      "anyOf": [
+        { "type": "string", "format": "date-time" },
+        { "type": "null" }
+      ],
+      "description": "Timestamp of the last summarization attempt"
+    }
   },
   "required": ["thread_id", "archive_id", "has_consensus", "created_at"]
 }
