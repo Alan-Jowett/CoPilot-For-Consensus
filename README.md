@@ -103,7 +103,6 @@ All contributions must include appropriate SPDX headers. See [CONTRIBUTING.md](d
 - **Grafana**: Metrics visualization and dashboards
 - **Loki**: Centralized log aggregation
 - **Promtail**: Log collection agent
-- **Error Reporting Service**: Centralized error tracking and debugging
 
 ### Observability Stack
 
@@ -125,13 +124,6 @@ Access Grafana at `http://localhost:3000` (default credentials: admin/admin)
 - **Promtail** scrapes Docker container logs automatically
 - Logs are labeled by service, container, and level
 - Query logs through Grafana's Explore interface
-
-#### Error Tracking
-- **Error Reporting Service** provides centralized error aggregation on port 8081
-- Web UI at `http://localhost:8081/ui` for browsing errors
-- REST API at `/api/errors` for programmatic access
-- Filters by service, error level, and error type
-- Statistics dashboard showing error distribution
 
 #### Failed Queue Management
 - **Failed queues** capture messages that fail after retry exhaustion
@@ -171,7 +163,6 @@ docker compose logs db-init
 4. Access the services:
 - **Reporting UI**: http://localhost:8080
 - **Grafana Dashboards**: http://localhost:3000 (admin/admin)
-- **Error Tracking**: http://localhost:8081/ui
 - **Prometheus**: http://localhost:9090
 - **RabbitMQ Management**: http://localhost:15672 (guest/guest)
 

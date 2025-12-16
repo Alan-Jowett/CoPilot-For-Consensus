@@ -23,13 +23,6 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
 
-  # Monitor Python dependencies in error-reporting service
-  - package-ecosystem: "pip"
-    directory: "/error-reporting"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-
   # Monitor Python dependencies in ingestion service
   - package-ecosystem: "pip"
     directory: "/ingestion"

@@ -598,15 +598,9 @@ except Exception as e:
 ```
 
 **Error Reporter Types:**
-- `http`: Posts to error reporting service (default)
+- `console`: Logs errors to console (default for development)
 - `noop`: No-op for testing
 - Configured via `ERROR_REPORTER_TYPE` environment variable
-
-**Error Tracking Service:**
-- HTTP endpoint: `http://localhost:8081/api/errors`
-- Web UI: `http://localhost:8081/ui`
-- Stores up to 10,000 recent errors in memory
-- See `error-reporting/README.md`
 
 ### Logging Guidelines
 

@@ -163,11 +163,6 @@ jobs:
         docker compose up -d reporting-ui
         timeout 120s bash -c 'until docker compose ps reporting-ui --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for reporting-ui..."; sleep 3; done' || (docker compose logs reporting-ui --tail=50 && exit 1)
 
-    - name: Start error-reporting
-      run: |
-        docker compose up -d error-reporting
-        timeout 120s bash -c 'until docker compose ps error-reporting --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for error-reporting..."; sleep 3; done' || (docker compose logs error-reporting --tail=50 && exit 1)
-
     - name: Check service status
       run: docker compose ps
 
@@ -273,34 +268,6 @@ jobs:
       run: |
         echo "Testing reporting-ui reports page..."
         curl -f http://localhost:8083/reports || (docker compose logs reporting-ui --tail=50 && exit 1)
-
-    - name: Test error-reporting service health endpoint
-      run: |
-        echo "Testing error-reporting service..."
-        max_attempts=10
-        attempt=1
-        while [ $attempt -le $max_attempts ]; do
-          if curl -f http://localhost:8081/ 2>/dev/null; then
-            echo "✓ Error-reporting service is healthy"
-            exit 0
-          fi
-          echo "Attempt $attempt/$max_attempts: Error-reporting service not responding yet..."
-          sleep 3
-          attempt=$((attempt + 1))
-        done
-        echo "❌ Error-reporting service failed to respond after $max_attempts attempts"
-        docker compose logs error-reporting --tail=50
-        exit 1
-
-    - name: Test error-reporting UI endpoint
-      run: |
-        echo "Testing error-reporting UI..."
-        curl -f http://localhost:8081/ui || (docker compose logs error-reporting --tail=50 && exit 1)
-
-    - name: Test error-reporting API
-      run: |
-        echo "Testing error-reporting stats API..."
-        curl -f http://localhost:8081/api/stats || (docker compose logs error-reporting --tail=50 && exit 1)
 
     - name: Test Grafana health endpoint
       run: |

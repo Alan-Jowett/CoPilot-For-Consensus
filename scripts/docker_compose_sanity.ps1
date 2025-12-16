@@ -114,7 +114,7 @@ try {
     docker compose run --rm ollama-validate
 
     Write-Host '--- Starting application services ---' -ForegroundColor Cyan
-    docker compose up -d parsing chunking embedding orchestrator summarization reporting error-reporting
+    docker compose up -d parsing chunking embedding orchestrator summarization reporting
     Write-Host '--- Checking service health ---' -ForegroundColor Cyan
     Wait-ForHealthy
 
