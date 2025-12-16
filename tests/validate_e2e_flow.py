@@ -41,11 +41,9 @@ class E2EMessageFlowValidator:
     
     def __init__(self):
         """Initialize validators with connections to MongoDB and Qdrant."""
-        # MongoDB configuration
+        # MongoDB configuration (no authentication in docker-compose)
         self.mongo_host = os.getenv("MONGODB_HOST", "localhost")
         self.mongo_port = int(os.getenv("MONGODB_PORT", "27017"))
-        self.mongo_user = os.getenv("MONGODB_USERNAME", "root")
-        self.mongo_pass = os.getenv("MONGODB_PASSWORD", "example")
         self.mongo_db = os.getenv("MONGODB_DATABASE", "copilot")
         
         # Qdrant configuration
@@ -53,8 +51,8 @@ class E2EMessageFlowValidator:
         self.qdrant_port = int(os.getenv("QDRANT_PORT", "6333"))
         self.qdrant_collection = os.getenv("QDRANT_COLLECTION", "embeddings")
         
-        # Connect to MongoDB
-        mongo_uri = f"mongodb://{self.mongo_user}:{self.mongo_pass}@{self.mongo_host}:{self.mongo_port}/admin"
+        # Connect to MongoDB (no authentication in docker-compose)
+        mongo_uri = f"mongodb://{self.mongo_host}:{self.mongo_port}/"
         self.mongo_client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
         self.db = self.mongo_client[self.mongo_db]
         
