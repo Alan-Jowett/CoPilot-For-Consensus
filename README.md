@@ -112,6 +112,7 @@ For detailed architecture documentation, design patterns, and service interactio
 #### Integration Layer
 - **RabbitMQ** (`messagebus`): Message broker enabling asynchronous, event-driven communication between services
 - **Ollama**: Local LLM runtime for embeddings and text generation (fully offline capable)
+  - Supports optional GPU acceleration (10-100x speedup) - see [documents/OLLAMA_GPU_SETUP.md](./documents/OLLAMA_GPU_SETUP.md)
 
 ### Observability Stack
 
@@ -198,7 +199,15 @@ docker compose logs db-init
 docker compose exec ollama ollama pull mistral
 ```
 
-6. Run ingestion:
+6. **(Optional) Enable GPU acceleration** for 10-100x faster inference:
+   - See [documents/OLLAMA_GPU_SETUP.md](./documents/OLLAMA_GPU_SETUP.md) for setup instructions
+   - Requires NVIDIA GPU with drivers and nvidia-container-toolkit
+   - Verify GPU support:
+     - Linux/macOS/WSL2: `./scripts/check_ollama_gpu.sh`
+     - Windows PowerShell: `.\scripts\check_ollama_gpu.ps1`
+     - Or directly: `docker exec ollama nvidia-smi`
+
+7. Run ingestion:
 ```bash
 docker compose run --rm ingestion
 ```
