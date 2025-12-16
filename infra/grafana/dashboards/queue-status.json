@@ -552,7 +552,8 @@
         { "expr": "copilot_collection_document_count{database=\"copilot\",collection=\"messages\"}",   "refId": "B", "legendFormat": "messages" },
         { "expr": "copilot_collection_document_count{database=\"copilot\",collection=\"chunks\"}",     "refId": "C", "legendFormat": "chunks" },
         { "expr": "copilot_collection_document_count{database=\"copilot\",collection=\"threads\"}",    "refId": "D", "legendFormat": "threads" },
-        { "expr": "copilot_collection_document_count{database=\"copilot\",collection=\"summaries\"}",  "refId": "E", "legendFormat": "summaries" }
+        { "expr": "copilot_collection_document_count{database=\"copilot\",collection=\"summaries\"}",  "refId": "E", "legendFormat": "summaries" },
+        { "expr": "copilot_collection_document_count{database=\"copilot\",collection=\"sources\"}",    "refId": "F", "legendFormat": "sources" }
       ],
       "title": "MongoDB Document Counts (Time Series)",
       "type": "timeseries"
@@ -632,6 +633,11 @@
           "expr": "copilot_collection_document_count{database=\"copilot\",collection=\"summaries\"}",
           "refId": "E",
           "legendFormat": "summaries"
+        },
+        {
+          "expr": "copilot_collection_document_count{database=\"copilot\",collection=\"sources\"}",
+          "refId": "F",
+          "legendFormat": "sources"
         }
       ],
       "title": "MongoDB Document Counts",
