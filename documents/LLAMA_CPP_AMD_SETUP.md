@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # AMD GPU Support with llama.cpp
 
 This guide explains how to enable AMD GPU acceleration for local LLM inference using llama.cpp with Vulkan, OpenCL, or ROCm backends.
