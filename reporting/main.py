@@ -80,6 +80,13 @@ def get_reports(
     thread_id: str = Query(None, description="Filter by thread ID"),
     limit: int = Query(10, ge=1, le=100, description="Maximum number of results"),
     skip: int = Query(0, ge=0, description="Number of results to skip"),
+    start_date: str = Query(None, description="Filter reports generated after this date (ISO 8601)"),
+    end_date: str = Query(None, description="Filter reports generated before this date (ISO 8601)"),
+    source: str = Query(None, description="Filter by archive source"),
+    min_participants: int = Query(None, ge=0, description="Minimum number of participants"),
+    max_participants: int = Query(None, ge=0, description="Maximum number of participants"),
+    min_messages: int = Query(None, ge=0, description="Minimum number of messages in thread"),
+    max_messages: int = Query(None, ge=0, description="Maximum number of messages in thread"),
 ):
     """Get list of reports with optional filters."""
     global reporting_service
@@ -92,6 +99,13 @@ def get_reports(
             thread_id=thread_id,
             limit=limit,
             skip=skip,
+            start_date=start_date,
+            end_date=end_date,
+            source=source,
+            min_participants=min_participants,
+            max_participants=max_participants,
+            min_messages=min_messages,
+            max_messages=max_messages,
         )
         
         return {
@@ -103,6 +117,40 @@ def get_reports(
         
     except Exception as e:
         logger.error(f"Error fetching reports: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/reports/search")
+def search_reports_by_topic(
+    topic: str = Query(..., description="Topic or query text to search for"),
+    limit: int = Query(10, ge=1, le=50, description="Maximum number of results"),
+    min_score: float = Query(0.5, ge=0.0, le=1.0, description="Minimum similarity score"),
+):
+    """Search reports by topic using embedding-based similarity."""
+    global reporting_service
+    
+    if not reporting_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    try:
+        reports = reporting_service.search_reports_by_topic(
+            topic=topic,
+            limit=limit,
+            min_score=min_score,
+        )
+        
+        return {
+            "reports": reports,
+            "count": len(reports),
+            "topic": topic,
+            "min_score": min_score,
+        }
+        
+    except ValueError as e:
+        # Topic search may not be configured
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error searching reports by topic: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -149,6 +197,27 @@ def get_thread_summary(thread_id: str):
         raise
     except Exception as e:
         logger.error(f"Error fetching thread summary {thread_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/sources")
+def get_available_sources():
+    """Get list of available archive sources."""
+    global reporting_service
+    
+    if not reporting_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    try:
+        sources = reporting_service.get_available_sources()
+        
+        return {
+            "sources": sources,
+            "count": len(sources),
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching available sources: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -246,6 +315,39 @@ def main():
         logger.info("Creating error reporter...")
         error_reporter = create_error_reporter()
         
+        # Create optional vector store and embedding provider for topic search
+        vector_store = None
+        embedding_provider = None
+        
+        # Check if we have vector store configuration
+        if hasattr(config, 'vector_store_type') and config.vector_store_type:
+            try:
+                logger.info("Creating vector store for topic search...")
+                from copilot_vectorstore import create_vector_store
+                vector_store = create_vector_store(
+                    store_type=config.vector_store_type,
+                    host=getattr(config, 'vector_store_host', 'localhost'),
+                    port=getattr(config, 'vector_store_port', 6333),
+                    collection_name=getattr(config, 'vector_store_collection', 'embeddings'),
+                )
+                logger.info("Vector store created successfully")
+                
+                logger.info("Creating embedding provider for topic search...")
+                from copilot_embedding import create_embedding_provider
+                embedding_provider = create_embedding_provider(
+                    provider_type=getattr(config, 'embedding_provider', 'sentence-transformer'),
+                    model_name=getattr(config, 'embedding_model', 'all-MiniLM-L6-v2'),
+                )
+                logger.info("Embedding provider created successfully")
+                logger.info("Topic-based search is enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize topic search components: {e}")
+                logger.warning("Topic-based search will not be available")
+                vector_store = None
+                embedding_provider = None
+        else:
+            logger.info("Vector store not configured - topic search will not be available")
+        
         # Create reporting service
         reporting_service = ReportingService(
             document_store=document_store,
@@ -256,6 +358,8 @@ def main():
             webhook_url=config.notify_webhook_url if config.notify_webhook_url else None,
             notify_enabled=config.notify_enabled,
             webhook_summary_max_length=config.webhook_summary_max_length,
+            vector_store=vector_store,
+            embedding_provider=embedding_provider,
         )
         
         logger.info(f"Webhook notifications: {'enabled' if config.notify_enabled else 'disabled'}")

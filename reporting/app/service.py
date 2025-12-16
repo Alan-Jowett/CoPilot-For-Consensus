@@ -8,7 +8,7 @@ import time
 import uuid
 import requests
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, TYPE_CHECKING
 
 from copilot_events import (
     EventPublisher,
@@ -21,7 +21,18 @@ from copilot_storage import DocumentStore
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
 
+# Optional dependencies for search/filtering features
+if TYPE_CHECKING:
+    from copilot_vectorstore import VectorStore
+    from copilot_embedding import EmbeddingProvider
+
 logger = logging.getLogger(__name__)
+
+# Buffer size for fetching additional documents when metadata filtering is applied.
+# This ensures we have enough documents to filter and still return the requested limit.
+# The value is chosen to balance between over-fetching and ensuring adequate results
+# after filtering by thread/archive metadata.
+METADATA_FILTER_BUFFER_SIZE = 100
 
 
 class ReportingService:
@@ -37,6 +48,8 @@ class ReportingService:
         webhook_url: Optional[str] = None,
         notify_enabled: bool = False,
         webhook_summary_max_length: int = 500,
+        vector_store: Optional["VectorStore"] = None,
+        embedding_provider: Optional["EmbeddingProvider"] = None,
     ):
         """Initialize reporting service.
         
@@ -49,6 +62,8 @@ class ReportingService:
             webhook_url: Webhook URL for notifications (optional)
             notify_enabled: Enable webhook notifications
             webhook_summary_max_length: Max length for summary in webhook payload
+            vector_store: Vector store for topic-based search (optional)
+            embedding_provider: Embedding provider for topic search (optional)
         """
         self.document_store = document_store
         self.publisher = publisher
@@ -58,6 +73,8 @@ class ReportingService:
         self.webhook_url = webhook_url
         self.notify_enabled = notify_enabled
         self.webhook_summary_max_length = webhook_summary_max_length
+        self.vector_store = vector_store
+        self.embedding_provider = embedding_provider
         
         # Stats
         self.reports_stored = 0
@@ -336,6 +353,13 @@ class ReportingService:
         thread_id: Optional[str] = None,
         limit: int = 10,
         skip: int = 0,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        source: Optional[str] = None,
+        min_participants: Optional[int] = None,
+        max_participants: Optional[int] = None,
+        min_messages: Optional[int] = None,
+        max_messages: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """Get list of reports with optional filters.
         
@@ -343,23 +367,317 @@ class ReportingService:
             thread_id: Filter by thread ID (optional)
             limit: Maximum number of results
             skip: Number of results to skip
+            start_date: Filter reports generated after this date (ISO 8601)
+            end_date: Filter reports generated before this date (ISO 8601)
+            source: Filter by archive source (optional)
+            min_participants: Filter by minimum participant count (optional)
+            max_participants: Filter by maximum participant count (optional)
+            min_messages: Filter by minimum message count (optional)
+            max_messages: Filter by maximum message count (optional)
             
         Returns:
-            List of report documents
+            List of report documents with enriched metadata
         """
+        # Build filter for summaries
         filter_dict = {}
         if thread_id:
             filter_dict["thread_id"] = thread_id
         
-        # DocumentStore doesn't support skip, so we fetch more and slice
-        results = self.document_store.query_documents(
+        # Add date filters
+        if start_date or end_date:
+            date_filter = {}
+            if start_date:
+                date_filter["$gte"] = start_date
+            if end_date:
+                date_filter["$lte"] = end_date
+            if date_filter:
+                filter_dict["generated_at"] = date_filter
+        
+        # Fetch summaries (fetch more for skip and filtering)
+        summaries = self.document_store.query_documents(
             "summaries",
             filter_dict=filter_dict,
-            limit=limit + skip,
+            limit=limit + skip + METADATA_FILTER_BUFFER_SIZE,
         )
         
-        # Apply skip by slicing the results
-        return results[skip:skip + limit]
+        # If we have filters that require thread/archive data, enrich the results
+        if source or min_participants is not None or max_participants is not None or \
+           min_messages is not None or max_messages is not None:
+            enriched_summaries = []
+            
+            # Batch fetch all threads to avoid N+1 query problem
+            # Collect unique thread IDs from summaries
+            thread_ids = []
+            for summary in summaries:
+                thread_id_val = summary.get("thread_id")
+                if thread_id_val:
+                    thread_ids.append(thread_id_val)
+            
+            # Batch query all threads
+            threads_map = {}
+            if thread_ids:
+                threads = self.document_store.query_documents(
+                    "threads",
+                    filter_dict={"thread_id": {"$in": thread_ids}},
+                    limit=len(thread_ids),
+                )
+                threads_map = {t.get("thread_id"): t for t in threads if t.get("thread_id")}
+            
+            # Collect unique archive IDs for batch fetching
+            archive_ids = set()
+            for thread in threads_map.values():
+                archive_id = thread.get("archive_id")
+                if archive_id:
+                    archive_ids.add(archive_id)
+            
+            # Batch query all archives
+            archives_map = {}
+            if archive_ids:
+                archives = self.document_store.query_documents(
+                    "archives",
+                    filter_dict={"archive_id": {"$in": list(archive_ids)}},
+                    limit=len(archive_ids),
+                )
+                archives_map = {a.get("archive_id"): a for a in archives if a.get("archive_id")}
+            
+            # Now process summaries with pre-fetched data
+            for summary in summaries:
+                thread_id_val = summary.get("thread_id")
+                if not thread_id_val:
+                    continue
+                
+                # Get thread metadata from pre-fetched map
+                thread = threads_map.get(thread_id_val)
+                if not thread:
+                    continue
+                
+                # Calculate counts once for reuse
+                participants = thread.get("participants", [])
+                participant_count = len(participants)
+                message_count = thread.get("message_count", 0)
+                archive_id = thread.get("archive_id")
+                
+                # Apply thread-based filters
+                if min_participants is not None:
+                    if participant_count < min_participants:
+                        continue
+                
+                if max_participants is not None:
+                    if participant_count > max_participants:
+                        continue
+                
+                if min_messages is not None:
+                    if message_count < min_messages:
+                        continue
+                
+                if max_messages is not None:
+                    if message_count > max_messages:
+                        continue
+                
+                # Apply source filter using pre-fetched archive
+                archive = archives_map.get(archive_id) if archive_id else None
+                if source:
+                    if not archive or archive.get("source") != source:
+                        continue
+                
+                # Enrich summary with thread and archive metadata
+                summary["thread_metadata"] = {
+                    "subject": thread.get("subject", ""),
+                    "participants": participants,
+                    "participant_count": participant_count,
+                    "message_count": message_count,
+                    "first_message_date": thread.get("first_message_date"),
+                    "last_message_date": thread.get("last_message_date"),
+                }
+                
+                if archive:
+                    summary["archive_metadata"] = {
+                        "source": archive.get("source", ""),
+                        "source_url": archive.get("source_url", ""),
+                        "ingestion_date": archive.get("ingestion_date"),
+                    }
+                
+                enriched_summaries.append(summary)
+            
+            summaries = enriched_summaries
+        
+        # Apply skip and limit
+        return summaries[skip:skip + limit]
+    
+    def _get_thread_by_id(self, thread_id: str) -> Optional[Dict[str, Any]]:
+        """Get thread metadata by ID.
+        
+        Args:
+            thread_id: Thread identifier
+            
+        Returns:
+            Thread document or None
+        """
+        try:
+            results = self.document_store.query_documents(
+                "threads",
+                filter_dict={"thread_id": thread_id},
+                limit=1,
+            )
+            return results[0] if results else None
+        except Exception as e:
+            logger.warning(f"Failed to fetch thread {thread_id}: {e}")
+            return None
+    
+    def _get_archive_by_id(self, archive_id: str) -> Optional[Dict[str, Any]]:
+        """Get archive metadata by ID.
+        
+        Args:
+            archive_id: Archive identifier
+            
+        Returns:
+            Archive document or None
+        """
+        try:
+            results = self.document_store.query_documents(
+                "archives",
+                filter_dict={"archive_id": archive_id},
+                limit=1,
+            )
+            return results[0] if results else None
+        except Exception as e:
+            logger.warning(f"Failed to fetch archive {archive_id}: {e}")
+            return None
+    
+    def search_reports_by_topic(
+        self,
+        topic: str,
+        limit: int = 10,
+        min_score: float = 0.5,
+    ) -> List[Dict[str, Any]]:
+        """Search reports by topic using embedding-based similarity.
+        
+        Args:
+            topic: Topic or query text to search for
+            limit: Maximum number of results
+            min_score: Minimum similarity score (0.0 to 1.0)
+            
+        Returns:
+            List of report documents with relevance scores
+            
+        Raises:
+            ValueError: If vector store or embedding provider not configured
+        """
+        if not self.vector_store or not self.embedding_provider:
+            raise ValueError("Topic search requires vector store and embedding provider")
+        
+        # Generate embedding for the topic query
+        try:
+            topic_embedding = self.embedding_provider.embed(topic)
+        except Exception as e:
+            logger.error(f"Failed to generate embedding for topic: {e}", exc_info=True)
+            raise ValueError(f"Failed to generate topic embedding: {e}")
+        
+        # Search vector store for similar chunks
+        try:
+            search_results = self.vector_store.query(topic_embedding, top_k=limit * 3)
+        except Exception as e:
+            logger.error(f"Failed to query vector store: {e}", exc_info=True)
+            raise ValueError(f"Vector store query failed: {e}")
+        
+        # Extract chunk IDs and group by thread
+        thread_scores = {}
+        for result in search_results:
+            if result.score < min_score:
+                continue
+            
+            chunk_id = result.id
+            metadata = result.metadata
+            thread_id = metadata.get("thread_id")
+            
+            if thread_id:
+                if thread_id not in thread_scores:
+                    thread_scores[thread_id] = {
+                        "max_score": result.score,
+                        "avg_score": result.score,
+                        "chunk_count": 1,
+                        "chunks": [chunk_id],
+                    }
+                else:
+                    thread_scores[thread_id]["max_score"] = max(
+                        thread_scores[thread_id]["max_score"], result.score
+                    )
+                    thread_scores[thread_id]["avg_score"] = (
+                        thread_scores[thread_id]["avg_score"] * thread_scores[thread_id]["chunk_count"] + result.score
+                    ) / (thread_scores[thread_id]["chunk_count"] + 1)
+                    thread_scores[thread_id]["chunk_count"] += 1
+                    thread_scores[thread_id]["chunks"].append(chunk_id)
+        
+        # Sort threads by relevance (max score)
+        sorted_threads = sorted(
+            thread_scores.items(),
+            key=lambda x: x[1]["max_score"],
+            reverse=True,
+        )[:limit]
+        
+        # Fetch summaries for the top threads
+        enriched_reports = []
+        for thread_id, scores in sorted_threads:
+            summary = self.get_thread_summary(thread_id)
+            if summary:
+                summary["relevance_score"] = scores["max_score"]
+                summary["avg_relevance_score"] = scores["avg_score"]
+                summary["matching_chunks"] = scores["chunk_count"]
+                
+                # Enrich with thread metadata
+                thread = self._get_thread_by_id(thread_id)
+                if thread:
+                    summary["thread_metadata"] = {
+                        "subject": thread.get("subject", ""),
+                        "participants": thread.get("participants", []),
+                        "participant_count": len(thread.get("participants", [])),
+                        "message_count": thread.get("message_count", 0),
+                        "first_message_date": thread.get("first_message_date"),
+                        "last_message_date": thread.get("last_message_date"),
+                    }
+                    
+                    # Enrich with archive metadata
+                    archive_id = thread.get("archive_id")
+                    if archive_id:
+                        archive = self._get_archive_by_id(archive_id)
+                        if archive:
+                            summary["archive_metadata"] = {
+                                "source": archive.get("source", ""),
+                                "source_url": archive.get("source_url", ""),
+                                "ingestion_date": archive.get("ingestion_date"),
+                            }
+                
+                enriched_reports.append(summary)
+        
+        return enriched_reports
+    
+    def get_available_sources(self) -> List[str]:
+        """Get list of available archive sources.
+        
+        Returns:
+            List of unique source names
+        """
+        try:
+            # Query all archives to extract unique source names
+            # Using a high limit (10000) to ensure we capture all archives in most deployments.
+            # TODO: Replace with a distinct query or aggregation pipeline for better scalability
+            archives = self.document_store.query_documents(
+                "archives",
+                filter_dict={},
+                limit=10000,
+            )
+            
+            # Extract unique sources
+            sources = set()
+            for archive in archives:
+                source = archive.get("source")
+                if source:
+                    sources.add(source)
+            
+            return sorted(list(sources))
+        except Exception as e:
+            logger.error(f"Failed to fetch available sources: {e}", exc_info=True)
+            return []
 
     def get_report_by_id(self, report_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific report by ID.

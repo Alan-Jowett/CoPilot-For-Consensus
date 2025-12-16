@@ -362,10 +362,11 @@ def test_get_reports_queries_document_store(reporting_service, mock_document_sto
     reports = reporting_service.get_reports()
     
     assert len(reports) == 2
+    # Service fetches limit + skip + METADATA_FILTER_BUFFER_SIZE (100)
     mock_document_store.query_documents.assert_called_once_with(
         "summaries",
         filter_dict={},
-        limit=10,
+        limit=110,
     )
 
 
@@ -378,10 +379,11 @@ def test_get_reports_with_thread_filter(reporting_service, mock_document_store):
     reports = reporting_service.get_reports(thread_id="thread1")
     
     assert len(reports) == 1
+    # Service fetches limit + skip + METADATA_FILTER_BUFFER_SIZE (100)
     mock_document_store.query_documents.assert_called_once_with(
         "summaries",
         filter_dict={"thread_id": "thread1"},
-        limit=10,
+        limit=110,
     )
 
 
@@ -544,3 +546,174 @@ def test_query_documents_uses_filter_dict_parameter(reporting_service, mock_docu
     # Check that filter_dict is in kwargs
     assert "filter_dict" in call_args[1], "query_documents must use 'filter_dict' parameter"
     assert "query" not in call_args[1], "query_documents should not use deprecated 'query' parameter"
+
+
+def test_get_reports_with_date_filters(reporting_service, mock_document_store):
+    """Test that get_reports supports date range filtering."""
+    mock_document_store.query_documents.return_value = [
+        {"summary_id": "rpt1", "thread_id": "thread1", "generated_at": "2025-01-15T12:00:00Z"},
+    ]
+    
+    reports = reporting_service.get_reports(
+        start_date="2025-01-01T00:00:00Z",
+        end_date="2025-01-31T23:59:59Z",
+    )
+    
+    assert len(reports) == 1
+    call_args = mock_document_store.query_documents.call_args
+    filter_dict = call_args[1]["filter_dict"]
+    
+    # Check that date filters are applied
+    assert "generated_at" in filter_dict
+    assert "$gte" in filter_dict["generated_at"]
+    assert "$lte" in filter_dict["generated_at"]
+    assert filter_dict["generated_at"]["$gte"] == "2025-01-01T00:00:00Z"
+    assert filter_dict["generated_at"]["$lte"] == "2025-01-31T23:59:59Z"
+
+
+def test_get_reports_with_metadata_filters(reporting_service, mock_document_store):
+    """Test that get_reports supports metadata filtering."""
+    # Setup mocks - need to return thread and archive data
+    def mock_query(collection, filter_dict, limit):
+        if collection == "summaries":
+            return [
+                {"summary_id": "rpt1", "thread_id": "thread1", "generated_at": "2025-01-15T12:00:00Z"},
+            ]
+        elif collection == "threads":
+            return [
+                {
+                    "thread_id": "thread1",
+                    "archive_id": "archive1",
+                    "subject": "Test thread",
+                    "participants": [{"email": "user1@example.com"}, {"email": "user2@example.com"}],
+                    "message_count": 10,
+                }
+            ]
+        elif collection == "archives":
+            return [
+                {
+                    "archive_id": "archive1",
+                    "source": "test-source",
+                    "source_url": "http://example.com",
+                    "ingestion_date": "2025-01-01T00:00:00Z",
+                }
+            ]
+        return []
+    
+    mock_document_store.query_documents.side_effect = mock_query
+    
+    reports = reporting_service.get_reports(
+        min_participants=2,
+        max_messages=15,
+        source="test-source",
+    )
+    
+    # Should return enriched report with metadata
+    assert len(reports) == 1
+    assert "thread_metadata" in reports[0]
+    assert reports[0]["thread_metadata"]["participant_count"] == 2
+    assert reports[0]["thread_metadata"]["message_count"] == 10
+    assert "archive_metadata" in reports[0]
+    assert reports[0]["archive_metadata"]["source"] == "test-source"
+
+
+def test_get_available_sources(reporting_service, mock_document_store):
+    """Test that get_available_sources returns unique source list."""
+    mock_document_store.query_documents.return_value = [
+        {"archive_id": "arch1", "source": "source-a"},
+        {"archive_id": "arch2", "source": "source-b"},
+        {"archive_id": "arch3", "source": "source-a"},  # Duplicate
+    ]
+    
+    sources = reporting_service.get_available_sources()
+    
+    assert len(sources) == 2
+    assert "source-a" in sources
+    assert "source-b" in sources
+    assert sources == sorted(sources)  # Should be sorted
+
+
+def test_search_reports_by_topic_requires_vector_store(reporting_service):
+    """Test that search_reports_by_topic raises error when vector store not configured."""
+    # Service was created without vector_store and embedding_provider
+    with pytest.raises(ValueError, match="Topic search requires vector store and embedding provider"):
+        reporting_service.search_reports_by_topic("test topic")
+
+
+def test_search_reports_by_topic_with_vector_store():
+    """Test topic-based search with vector store and embedding provider."""
+    # Create mocks
+    mock_doc_store = Mock()
+    mock_pub = Mock()
+    mock_sub = Mock()
+    mock_vector_store = Mock()
+    mock_embedding_provider = Mock()
+    
+    # Setup embedding provider
+    mock_embedding_provider.embed.return_value = [0.1] * 384
+    
+    # Setup vector store to return search results
+    mock_search_result = Mock()
+    mock_search_result.id = "chunk1"
+    mock_search_result.score = 0.85
+    mock_search_result.metadata = {"thread_id": "thread1"}
+    mock_vector_store.query.return_value = [mock_search_result]
+    
+    # Setup document store to return thread summary
+    def mock_query(collection, filter_dict, limit):
+        if collection == "summaries" and filter_dict.get("thread_id") == "thread1":
+            return [
+                {
+                    "summary_id": "rpt1",
+                    "thread_id": "thread1",
+                    "content_markdown": "Test summary",
+                    "generated_at": "2025-01-15T12:00:00Z",
+                }
+            ]
+        elif collection == "threads":
+            return [
+                {
+                    "thread_id": "thread1",
+                    "subject": "Test",
+                    "participants": [{"email": "user@example.com"}],
+                    "message_count": 5,
+                    "archive_id": "archive1",
+                }
+            ]
+        elif collection == "archives":
+            return [
+                {
+                    "archive_id": "archive1",
+                    "source": "test-source",
+                    "source_url": "http://example.com",
+                    "ingestion_date": "2025-01-01T00:00:00Z",
+                }
+            ]
+        return []
+    
+    mock_doc_store.query_documents.side_effect = mock_query
+    
+    # Create service with vector store
+    service = ReportingService(
+        document_store=mock_doc_store,
+        publisher=mock_pub,
+        subscriber=mock_sub,
+        vector_store=mock_vector_store,
+        embedding_provider=mock_embedding_provider,
+    )
+    
+    # Search by topic
+    reports = service.search_reports_by_topic("test topic", limit=10, min_score=0.5)
+    
+    # Verify embedding was generated
+    mock_embedding_provider.embed.assert_called_once_with("test topic")
+    
+    # Verify vector store was queried
+    mock_vector_store.query.assert_called_once()
+    
+    # Verify results are enriched with relevance score
+    assert len(reports) == 1
+    assert reports[0]["relevance_score"] == 0.85
+    assert reports[0]["matching_chunks"] == 1
+    assert "thread_metadata" in reports[0]
+    assert "archive_metadata" in reports[0]

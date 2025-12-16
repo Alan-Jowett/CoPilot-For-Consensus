@@ -173,11 +173,10 @@ def test_get_reports_with_pagination(client, test_service, mock_document_store):
     assert data["limit"] == 5
     assert data["skip"] == 10
     
-    # Verify the service was called with correct pagination
-    # Note: DocumentStore doesn't support skip, so we fetch limit+skip
+    # Service fetches limit + skip + METADATA_FILTER_BUFFER_SIZE (100)
     mock_document_store.query_documents.assert_called_once()
     call_args = mock_document_store.query_documents.call_args
-    assert call_args[1]["limit"] == 15  # limit + skip
+    assert call_args[1]["limit"] == 115
 
 
 @pytest.mark.integration
@@ -262,3 +261,153 @@ def test_get_reports_service_not_initialized(monkeypatch):
     
     response = client.get("/api/threads/thread1/summary")
     assert response.status_code == 503
+
+
+@pytest.mark.integration
+def test_get_reports_with_date_filters(client, test_service, mock_document_store):
+    """Test the GET /api/reports endpoint with date filters."""
+    mock_document_store.query_documents.return_value = [
+        {"summary_id": "rpt1", "thread_id": "thread1", "generated_at": "2025-01-15T12:00:00Z"},
+    ]
+    
+    response = client.get("/api/reports?start_date=2025-01-01T00:00:00Z&end_date=2025-01-31T23:59:59Z")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["count"] == 1
+    
+    # Verify the service was called with date filters
+    mock_document_store.query_documents.assert_called_once()
+    call_args = mock_document_store.query_documents.call_args
+    filter_dict = call_args[1]["filter_dict"]
+    assert "generated_at" in filter_dict
+
+
+@pytest.mark.integration
+def test_get_reports_with_source_filter(client, test_service, mock_document_store):
+    """Test the GET /api/reports endpoint with source filter."""
+    # Setup mocks to return thread and archive data
+    def mock_query(collection, filter_dict, limit):
+        if collection == "summaries":
+            return [{"summary_id": "rpt1", "thread_id": "thread1"}]
+        elif collection == "threads":
+            return [{
+                "thread_id": "thread1",
+                "archive_id": "archive1",
+                "participants": [],
+                "message_count": 5,
+            }]
+        elif collection == "archives":
+            return [{
+                "archive_id": "archive1",
+                "source": "test-source",
+            }]
+        return []
+    
+    mock_document_store.query_documents.side_effect = mock_query
+    
+    response = client.get("/api/reports?source=test-source")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Should return enriched report with archive metadata
+    assert len(data["reports"]) == 1
+
+
+@pytest.mark.integration
+def test_get_reports_with_metadata_filters(client, test_service, mock_document_store):
+    """Test the GET /api/reports endpoint with metadata filters."""
+    # Setup mocks
+    def mock_query(collection, filter_dict, limit):
+        if collection == "summaries":
+            return [{"summary_id": "rpt1", "thread_id": "thread1"}]
+        elif collection == "threads":
+            return [{
+                "thread_id": "thread1",
+                "participants": [{"email": "user1@example.com"}, {"email": "user2@example.com"}],
+                "message_count": 10,
+                "archive_id": "archive1",
+            }]
+        elif collection == "archives":
+            return [{"archive_id": "archive1", "source": "test"}]
+        return []
+    
+    mock_document_store.query_documents.side_effect = mock_query
+    
+    response = client.get("/api/reports?min_participants=2&min_messages=5&max_messages=15")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Should return enriched report
+    assert len(data["reports"]) == 1
+    assert "thread_metadata" in data["reports"][0]
+
+
+@pytest.mark.integration
+def test_search_reports_by_topic_endpoint(client, test_service):
+    """Test the GET /api/reports/search endpoint."""
+    # Setup mocks for vector store and embedding provider
+    test_service.vector_store = Mock()
+    test_service.embedding_provider = Mock()
+    
+    test_service.embedding_provider.embed.return_value = [0.1] * 384
+    
+    mock_result = Mock()
+    mock_result.id = "chunk1"
+    mock_result.score = 0.85
+    mock_result.metadata = {"thread_id": "thread1"}
+    test_service.vector_store.query.return_value = [mock_result]
+    
+    # Mock document store
+    def mock_query(collection, filter_dict, limit):
+        if collection == "summaries":
+            return [{
+                "summary_id": "rpt1",
+                "thread_id": "thread1",
+                "content_markdown": "Test",
+            }]
+        return []
+    
+    test_service.document_store.query_documents.side_effect = mock_query
+    
+    response = client.get("/api/reports/search?topic=test%20topic")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["topic"] == "test topic"
+    assert len(data["reports"]) == 1
+    assert data["reports"][0]["relevance_score"] == 0.85
+
+
+@pytest.mark.integration
+def test_search_reports_by_topic_not_configured(client, test_service):
+    """Test the GET /api/reports/search endpoint when topic search not configured."""
+    # Service doesn't have vector_store or embedding_provider
+    response = client.get("/api/reports/search?topic=test")
+    
+    assert response.status_code == 400
+    data = response.json()
+    assert "vector store" in data["detail"].lower()
+
+
+@pytest.mark.integration
+def test_get_available_sources_endpoint(client, test_service, mock_document_store):
+    """Test the GET /api/sources endpoint."""
+    mock_document_store.query_documents.return_value = [
+        {"archive_id": "arch1", "source": "source-a"},
+        {"archive_id": "arch2", "source": "source-b"},
+        {"archive_id": "arch3", "source": "source-a"},
+    ]
+    
+    response = client.get("/api/sources")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["count"] == 2
+    assert "source-a" in data["sources"]
+    assert "source-b" in data["sources"]
