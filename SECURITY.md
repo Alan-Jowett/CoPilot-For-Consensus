@@ -8,7 +8,7 @@
 If you discover a security vulnerability in this project, please report it by:
 
 1. **Opening a GitHub Security Advisory** in the repository
-2. **Emailing the maintainers** (see [GOVERNANCE.md](documents/GOVERNANCE.md) for contact information)
+2. **Emailing the maintainers** (see [GOVERNANCE.md](./GOVERNANCE.md) for contact information)
 
 Please do **not** report security vulnerabilities through public GitHub issues.
 
@@ -87,4 +87,4 @@ This is enforced by automated checks in CI.
 
 ---
 
-For more information about contributing securely, see [CONTRIBUTING.md](documents/CONTRIBUTING.md).
+For more information about contributing securely, see [CONTRIBUTING.md](./CONTRIBUTING.md).

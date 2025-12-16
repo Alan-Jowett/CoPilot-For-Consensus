@@ -103,7 +103,7 @@ module_name/
 
 ## Contributing
 
-See [CONTRIBUTING.md](../documents/CONTRIBUTING.md) in the main repository.
+See [CONTRIBUTING.md](../../CONTRIBUTING.md) in the main repository.
 
 ## License
 
@@ -536,4 +536,4 @@ MIT License - see LICENSE file for details.
 
 ## Contributing
 
-See CONTRIBUTING.md in the main repository for contribution guidelines.
+See [CONTRIBUTING.md](../../CONTRIBUTING.md) in the main repository for contribution guidelines.
