@@ -242,11 +242,11 @@ class TestFixedSizeChunker:
         chunker = FixedSizeChunker(messages_per_chunk=3)
         
         messages = [
-            {"message_id": "msg1", "text": "First message"},
-            {"message_id": "msg2", "text": "Second message"},
-            {"message_id": "msg3", "text": "Third message"},
-            {"message_id": "msg4", "text": "Fourth message"},
-            {"message_id": "msg5", "text": "Fifth message"},
+            {"message_id": "msg1", "message_key": "msgkey1", "text": "First message"},
+            {"message_id": "msg2", "message_key": "msgkey2", "text": "Second message"},
+            {"message_id": "msg3", "message_key": "msgkey3", "text": "Third message"},
+            {"message_id": "msg4", "message_key": "msgkey4", "text": "Fourth message"},
+            {"message_id": "msg5", "message_key": "msgkey5", "text": "Fifth message"},
         ]
         
         thread = Thread(
@@ -261,13 +261,13 @@ class TestFixedSizeChunker:
         
         # Should have 2 chunks (5 messages / 3 per chunk = 2 chunks)
         assert len(chunks) == 2
-        assert "msg1" in chunks[0].metadata["message_ids"]
-        assert "msg2" in chunks[0].metadata["message_ids"]
-        assert "msg3" in chunks[0].metadata["message_ids"]
+        assert "msgkey1" in chunks[0].metadata["message_keys"]
+        assert "msgkey2" in chunks[0].metadata["message_keys"]
+        assert "msgkey3" in chunks[0].metadata["message_keys"]
         assert chunks[0].metadata["message_count"] == 3
         
-        assert "msg4" in chunks[1].metadata["message_ids"]
-        assert "msg5" in chunks[1].metadata["message_ids"]
+        assert "msgkey4" in chunks[1].metadata["message_keys"]
+        assert "msgkey5" in chunks[1].metadata["message_keys"]
         assert chunks[1].metadata["message_count"] == 2
     
     def test_chunk_empty_thread_raises_error(self):
@@ -287,7 +287,7 @@ class TestFixedSizeChunker:
         """Test chunking with a single message."""
         chunker = FixedSizeChunker(messages_per_chunk=2)
         
-        messages = [{"message_id": "msg1", "body": "Only message"}]
+        messages = [{"message_id": "msg1", "message_key": "msgkey1", "body": "Only message"}]
         thread = Thread(
             thread_id="test-thread",
             text="",

@@ -104,6 +104,7 @@ def test_retrieve_context(orchestration_service, mock_document_store):
         {
             "chunk_id": "chunk-1",
             "message_id": "<msg-1@example.com>",
+            "message_key": "<msg-1@example.com>",
             "thread_id": thread_id,
             "text": "Test chunk 1",
             "embedding_generated": True,
@@ -111,6 +112,7 @@ def test_retrieve_context(orchestration_service, mock_document_store):
         {
             "chunk_id": "chunk-2",
             "message_id": "<msg-2@example.com>",
+            "message_key": "<msg-2@example.com>",
             "thread_id": thread_id,
             "text": "Test chunk 2",
             "embedding_generated": True,
@@ -120,6 +122,7 @@ def test_retrieve_context(orchestration_service, mock_document_store):
     messages = [
         {
             "message_id": "<msg-1@example.com>",
+            "message_key": "<msg-1@example.com>",
             "subject": "Test Subject",
             "from": {"name": "User 1", "email": "user1@example.com"},
             "date": "2023-10-15T12:00:00Z",
@@ -127,6 +130,7 @@ def test_retrieve_context(orchestration_service, mock_document_store):
         },
         {
             "message_id": "<msg-2@example.com>",
+            "message_key": "<msg-2@example.com>",
             "subject": "Re: Test Subject",
             "from": {"name": "User 2", "email": "user2@example.com"},
             "date": "2023-10-15T13:00:00Z",
@@ -139,6 +143,7 @@ def test_retrieve_context(orchestration_service, mock_document_store):
         if collection == "chunks":
             return chunks
         elif collection == "messages":
+            # Expect filter on message_key $in
             return messages
         return []
     

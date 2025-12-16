@@ -13,7 +13,7 @@
           "properties": {
             "archive_id": { "type": "string", "minLength": 16, "maxLength": 64, "description": "SHA256 hash of mbox file (first 16 chars)" },
             "message_count": { "type": "integer", "minimum": 0 },
-            "parsed_message_ids": {
+            "message_keys": {
               "type": "array",
               "items": { "type": "string", "minLength": 1 },
               "minItems": 1,
@@ -31,7 +31,7 @@
           "required": [
             "archive_id",
             "message_count",
-            "parsed_message_ids",
+            "message_keys",
             "thread_count",
             "thread_ids",
             "parsing_duration_seconds"

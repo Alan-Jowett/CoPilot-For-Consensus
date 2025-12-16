@@ -144,6 +144,7 @@ def test_process_messages_success(chunking_service, mock_document_store, mock_pu
     messages = [
         {
             "message_id": "<test1@example.com>",
+            "message_key": "mk1",
             "thread_id": "<thread@example.com>",
             "archive_id": "archive-123",
             "body_normalized": "This is test message one. " * 50,
@@ -154,6 +155,7 @@ def test_process_messages_success(chunking_service, mock_document_store, mock_pu
         },
         {
             "message_id": "<test2@example.com>",
+            "message_key": "mk2",
             "thread_id": "<thread@example.com>",
             "archive_id": "archive-123",
             "body_normalized": "This is test message two. " * 50,
@@ -168,7 +170,7 @@ def test_process_messages_success(chunking_service, mock_document_store, mock_pu
     
     event_data = {
         "archive_id": "archive-123",
-        "parsed_message_ids": ["<test1@example.com>", "<test2@example.com>"],
+        "message_keys": ["mk1", "mk2"],
     }
     
     chunking_service.process_messages(event_data)
@@ -195,7 +197,7 @@ def test_process_messages_no_messages_found(chunking_service, mock_document_stor
     
     event_data = {
         "archive_id": "archive-123",
-        "parsed_message_ids": ["<test@example.com>"],
+        "message_keys": ["mk"],
     }
     
     chunking_service.process_messages(event_data)
@@ -210,7 +212,7 @@ def test_process_messages_empty_list(chunking_service, mock_document_store, mock
     """Test processing with empty message list."""
     event_data = {
         "archive_id": "archive-123",
-        "parsed_message_ids": [],
+        "message_keys": [],
     }
     
     chunking_service.process_messages(event_data)
@@ -236,7 +238,7 @@ def test_get_stats(chunking_service):
 def test_publish_chunks_prepared(chunking_service, mock_publisher):
     """Test publishing ChunksPrepared event."""
     chunking_service._publish_chunks_prepared(
-        message_ids=["<msg1@example.com>", "<msg2@example.com>"],
+        message_keys=["<msg1@example.com>", "<msg2@example.com>"],
         chunk_ids=["chunk1", "chunk2", "chunk3"],
         chunk_count=3,
         avg_chunk_size=350.5,
@@ -262,7 +264,7 @@ def test_publish_chunks_prepared(chunking_service, mock_publisher):
 def test_publish_chunking_failed(chunking_service, mock_publisher):
     """Test publishing ChunkingFailed event."""
     chunking_service._publish_chunking_failed(
-        message_ids=["<msg1@example.com>"],
+        message_keys=["<msg1@example.com>"],
         error_message="Test error",
         error_type="TestError",
         retry_count=0,
@@ -305,7 +307,7 @@ def test_schema_validation_chunks_prepared():
     )
     
     service._publish_chunks_prepared(
-        message_ids=["<msg@example.com>"],
+        message_keys=["<msg@example.com>"],
         chunk_ids=["chunk1", "chunk2"],
         chunk_count=2,
         avg_chunk_size=100.0,
@@ -333,7 +335,7 @@ def test_schema_validation_chunking_failed():
     )
     
     service._publish_chunking_failed(
-        message_ids=["<msg@example.com>"],
+        message_keys=["<msg@example.com>"],
         error_message="Test error",
         error_type="ValidationError",
         retry_count=1,
@@ -369,7 +371,7 @@ def test_consume_json_parsed_event():
         "version": "1.0",
         "data": {
             "archive_id": "a1b2c3d4e5f67890",
-            "parsed_message_ids": ["<msg@example.com>"],
+            "message_keys": ["mk1"],
             "thread_ids": ["<thread@example.com>"],
             "message_count": 1,
             "thread_count": 1,
@@ -383,7 +385,7 @@ def test_consume_json_parsed_event():
     # Process the event - would normally be called by subscriber
     # For now, just verify the event structure is correct
     assert event["data"]["archive_id"] == "a1b2c3d4e5f67890"
-    assert len(event["data"]["parsed_message_ids"]) == 1
+    assert len(event["data"]["message_keys"]) == 1
 
 
 def test_consume_json_parsed_multiple_messages():
@@ -395,10 +397,10 @@ def test_consume_json_parsed_multiple_messages():
         "version": "1.0",
         "data": {
             "archive_id": "a1b2c3d4e5f67890",
-            "parsed_message_ids": [
-                "<msg1@example.com>",
-                "<msg2@example.com>",
-                "<msg3@example.com>",
+            "message_keys": [
+                "mk1",
+                "mk2",
+                "mk3",
             ],
             "thread_ids": ["<thread@example.com>"],
             "message_count": 3,
@@ -444,8 +446,8 @@ def test_handle_malformed_event_missing_data():
         service._handle_json_parsed(event)
 
 
-def test_handle_event_with_invalid_message_ids_type():
-    """Test handling event with invalid parsed_message_ids type."""
+def test_handle_event_with_invalid_message_keys_type():
+    """Test handling event with invalid message_keys type."""
     mock_store = Mock()
     mock_publisher = Mock()
     mock_subscriber = Mock()
@@ -458,7 +460,7 @@ def test_handle_event_with_invalid_message_ids_type():
         chunker=mock_chunker,
     )
     
-    # parsed_message_ids should be array but is string
+    # message_keys should be array but is string
     event = {
         "event_type": "JSONParsed",
         "event_id": "test-123",
@@ -466,7 +468,7 @@ def test_handle_event_with_invalid_message_ids_type():
         "version": "1.0",
         "data": {
             "archive_id": "archive-123",
-            "parsed_message_ids": "not-an-array",
+            "message_keys": "not-an-array",
             "thread_ids": ["<thread@example.com>"],
             "message_count": 1,
             "thread_count": 1,
@@ -487,7 +489,7 @@ def test_publish_chunks_prepared_raises_on_publish_error(chunking_service, mock_
     # Verify exception is raised, not swallowed
     with pytest.raises(Exception, match="RabbitMQ connection lost"):
         chunking_service._publish_chunks_prepared(
-            message_ids=["<msg-1@example.com>"],
+            message_keys=["<msg-1@example.com>"],
             chunk_ids=["chunk-1"],
             chunk_count=1,
             avg_chunk_size=100.0
@@ -502,7 +504,7 @@ def test_publish_chunking_failed_raises_on_publish_error(chunking_service, mock_
     # Verify exception is raised, not swallowed
     with pytest.raises(Exception, match="RabbitMQ connection lost"):
         chunking_service._publish_chunking_failed(
-            message_ids=["<msg-1@example.com>"],
+            message_keys=["<msg-1@example.com>"],
             error_message="Test error",
             error_type="TestError",
             retry_count=0
@@ -531,7 +533,7 @@ def test_query_documents_uses_filter_dict_parameter(chunking_service, mock_docum
     
     event_data = {
         "archive_id": "archive-123",
-        "parsed_message_ids": ["<test@example.com>"],
+        "message_keys": ["mk"],
     }
     
     # Process messages
@@ -550,7 +552,7 @@ def test_publisher_uses_event_parameter(chunking_service, mock_publisher):
     """Test that publisher.publish is called with event parameter, not message."""
     # Trigger a chunks prepared event
     chunking_service._publish_chunks_prepared(
-        message_ids=["<test@example.com>"],
+        message_keys=["<test@example.com>"],
         chunk_ids=["chunk-1"],
         chunk_count=1,
         avg_chunk_size=100.0
@@ -573,6 +575,7 @@ def test_idempotent_chunk_insertion(chunking_service, mock_document_store, mock_
     messages = [
         {
             "message_id": "<test@example.com>",
+            "message_key": "mk-test",
             "thread_id": "<thread@example.com>",
             "archive_id": "archive-123",
             "body_normalized": "This is a test message. " * 50,
@@ -598,7 +601,7 @@ def test_idempotent_chunk_insertion(chunking_service, mock_document_store, mock_
     
     event_data = {
         "archive_id": "archive-123",
-        "parsed_message_ids": ["<test@example.com>"],
+        "message_keys": ["mk-test"],
     }
     
     # Process should succeed despite duplicate
@@ -621,6 +624,7 @@ def test_metrics_collector_uses_observe_for_histograms():
     mock_store.query_documents = Mock(return_value=[
         {
             "message_id": "<test@example.com>",
+            "message_key": "mk-test-metrics",
             "thread_id": "<thread@example.com>",
             "archive_id": "archive-123",
             "body_normalized": "This is a test message. " * 50,
@@ -646,7 +650,7 @@ def test_metrics_collector_uses_observe_for_histograms():
     
     event_data = {
         "archive_id": "archive-123",
-        "parsed_message_ids": ["<test@example.com>"],
+        "message_keys": ["mk-test-metrics"],
     }
     
     service.process_messages(event_data)

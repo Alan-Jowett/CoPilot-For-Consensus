@@ -10,6 +10,7 @@ import uuid
 
 from app.service import ChunkingService
 from copilot_chunking import TokenWindowChunker, create_chunker
+from copilot_schema_validation.message_key_generator import generate_message_key
 
 
 @pytest.mark.integration
@@ -25,19 +26,34 @@ def test_end_to_end_chunking(document_store):
     now = datetime.now(timezone.utc).isoformat()
     
     # Setup test messages in document store
+    archive_id = "archive-00000001"
+    message_id = "<test@example.com>"
+    date = "2023-10-15T12:00:00Z"
+    sender_email = "user@example.com"
+    subject = "Test Subject"
+    
+    # Generate message_key using the same logic as the parsing service
+    message_key = generate_message_key(
+        archive_id=archive_id,
+        message_id=message_id,
+        date=date,
+        sender_email=sender_email,
+        subject=subject
+    )
+    
     messages = [
         {
-            "message_id": "<test@example.com>",
-            "message_key": "msgkey-0000000001",
+            "message_id": message_id,
+            "message_key": message_key,
             "thread_id": "<thread@example.com>",
-            "archive_id": "archive-00000001",
+            "archive_id": archive_id,
             "body_normalized": (
                 "This is a test message that contains enough text to be split "
                 "into multiple chunks. " * 20
             ),
-            "from": {"email": "user@example.com", "name": "Test User"},
-            "date": "2023-10-15T12:00:00Z",
-            "subject": "Test Subject",
+            "from": {"email": sender_email, "name": "Test User"},
+            "date": date,
+            "subject": subject,
             "draft_mentions": [],
             "created_at": now,
         }
@@ -56,7 +72,7 @@ def test_end_to_end_chunking(document_store):
     # Process messages
     event_data = {
         "archive_id": messages[0]["archive_id"],
-        "parsed_message_ids": ["<test@example.com>"],
+        "message_keys": [message_key],
     }
     
     service.process_messages(event_data)
@@ -95,19 +111,34 @@ def test_different_chunking_strategies(document_store):
         now = datetime.now(timezone.utc).isoformat()
         
         # Setup test message
+        archive_id = "archive-00000001"
+        message_id = f"<test-{strategy_name}@example.com>"
+        date = "2023-10-15T12:00:00Z"
+        sender_email = "user@example.com"
+        subject = "Test Subject"
+        
+        # Generate message_key using the same logic as the parsing service
+        message_key = generate_message_key(
+            archive_id=archive_id,
+            message_id=message_id,
+            date=date,
+            sender_email=sender_email,
+            subject=subject
+        )
+        
         messages = [
             {
-                "message_id": f"<test-{strategy_name}@example.com>",
-                "message_key": "msgkey-0000000002",
+                "message_id": message_id,
+                "message_key": message_key,
                 "thread_id": "<thread@example.com>",
-                "archive_id": "archive-00000001",
+                "archive_id": archive_id,
                 "body_normalized": (
                     "This is a test sentence. Another sentence follows. "
                     "Yet another sentence here. And one more for good measure. " * 10
                 ),
-                "from": {"email": "user@example.com", "name": "Test User"},
-                "date": "2023-10-15T12:00:00Z",
-                "subject": "Test Subject",
+                "from": {"email": sender_email, "name": "Test User"},
+                "date": date,
+                "subject": subject,
                 "draft_mentions": [],
                 "created_at": now,
             }
@@ -126,7 +157,7 @@ def test_different_chunking_strategies(document_store):
         # Process messages
         event_data = {
             "archive_id": messages[0]["archive_id"],
-            "parsed_message_ids": [f"<test-{strategy_name}@example.com>"],
+            "message_keys": [message_key],
         }
         
         service.process_messages(event_data)
@@ -151,16 +182,31 @@ def test_oversize_message_handling(document_store):
     
     # Create a very large message
     large_text = "word " * 2000  # 2000 words
+    archive_id = "archive-00000001"
+    message_id = "<large@example.com>"
+    date = "2023-10-15T12:00:00Z"
+    sender_email = "user@example.com"
+    subject = "Large Message"
+    
+    # Generate message_key using the same logic as the parsing service
+    message_key = generate_message_key(
+        archive_id=archive_id,
+        message_id=message_id,
+        date=date,
+        sender_email=sender_email,
+        subject=subject
+    )
+    
     messages = [
         {
-            "message_id": "<large@example.com>",
-            "message_key": "msgkey-0000000003",
+            "message_id": message_id,
+            "message_key": message_key,
             "thread_id": "<thread@example.com>",
-            "archive_id": "archive-00000001",
+            "archive_id": archive_id,
             "body_normalized": large_text,
-            "from": {"email": "user@example.com", "name": "Test User"},
-            "date": "2023-10-15T12:00:00Z",
-            "subject": "Large Message",
+            "from": {"email": sender_email, "name": "Test User"},
+            "date": date,
+            "subject": subject,
             "draft_mentions": [],
             "created_at": now,
         }
@@ -179,7 +225,7 @@ def test_oversize_message_handling(document_store):
     # Process messages
     event_data = {
         "archive_id": messages[0]["archive_id"],
-        "parsed_message_ids": ["<large@example.com>"],
+        "message_keys": [message_key],
     }
     
     service.process_messages(event_data)

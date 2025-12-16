@@ -249,7 +249,7 @@ The payload contains metadata that links the embedding back to the source messag
 
 Each vector in the vector store contains metadata that directly references:
 1. **`chunk_id`** → Links to `chunks` collection
-2. **`message_id`** → Links to `messages` collection
+2. **`message_key`** → Links to `messages` collection
 3. **`thread_id`** → Links to `threads` collection
 
 **Retrieval Flow:**
@@ -273,8 +273,8 @@ chunk_ids = [r.payload["chunk_id"] for r in search_results]
 chunks = db.chunks.find({"chunk_id": {"$in": chunk_ids}})
 
 # 4. Retrieve full messages
-message_ids = [c["message_id"] for c in chunks]
-messages = db.messages.find({"message_id": {"$in": message_ids}})
+message_keys = [c["message_key"] for c in chunks]
+messages = db.messages.find({"message_key": {"$in": message_keys}})
 ```
 
 ### Reverse Linkage (Message → Embedding)
@@ -285,7 +285,7 @@ To find all embeddings for a given message:
 ```python
 # 1. Find all chunks for a message
 chunks = list(db.chunks.find({
-    "message_id": "<20231015123456.ABC123@example.com>"
+  "message_key": "<20231015123456.ABC123@example.com>"
 }))
 
 # 2. Extract chunk_ids
@@ -299,9 +299,9 @@ embeddings = vector_store.retrieve(chunk_ids)
 ```python
 # Direct filter on vector store payload
 embeddings = vector_store.scroll(
-    scroll_filter={
-        "message_id": "<20231015123456.ABC123@example.com>"
-    }
+  scroll_filter={
+    "message_key": "<20231015123456.ABC123@example.com>"
+  }
 )
 ```
 
@@ -332,7 +332,7 @@ archives (1) ──< (N) messages
    - FK: `messages.archive_id` → `archives.archive_id`
 
 2. **Message → Chunks**: One message splits into many chunks
-   - FK: `chunks.message_id` → `messages.message_id`
+  - FK: `chunks.message_key` → `messages.message_key`
 
 3. **Chunk → Embedding**: One chunk has one embedding (1:1)
    - FK: `vector_store.id` = `chunks.chunk_id`
@@ -389,8 +389,8 @@ for result in results:
 messages = list(db.messages.find({
     "thread_id": "<20231015120000.XYZ789@example.com>"
 }))
-message_ids = [m["message_id"] for m in messages]
-chunks = list(db.chunks.find({"message_id": {"$in": message_ids}}))
+message_keys = [m["message_key"] for m in messages]
+chunks = list(db.chunks.find({"message_key": {"$in": message_keys}}))
 embeddings = vector_store.retrieve([c["chunk_id"] for c in chunks])
 
 # Option B: Direct vector store filter
@@ -411,7 +411,7 @@ for citation in summary["citations"]:
     chunk = db.chunks.find_one({"chunk_id": citation["chunk_id"]})
     
     # Retrieve original message
-    message = db.messages.find_one({"message_id": chunk["message_id"]})
+    message = db.messages.find_one({"message_key": chunk["message_key"]})
     
     # Verify quote appears in chunk
     is_valid = citation["quote"] in chunk["text"]
@@ -708,9 +708,9 @@ Signals that an archive has been parsed and messages are stored.
   "data": {
     "archive_id": "b9c8d7e6f5a4b3c",
     "message_count": 150,
-    "parsed_message_ids": [
-      "<20231015123456.ABC123@example.com>",
-      "<20231015123457.DEF456@example.com>"
+    "message_keys": [
+      "b0909b070abce029",
+      "3af08455db2c8691"
     ],
     "thread_count": 45,
     "thread_ids": [
@@ -761,7 +761,7 @@ Signals that messages have been chunked and stored.
   "timestamp": "2023-10-15T14:40:00Z",
   "version": "1.0",
   "data": {
-    "message_ids": [
+    "message_keys": [
       "<20231015123456.ABC123@example.com>"
     ],
     "chunk_count": 45,
@@ -790,7 +790,7 @@ Signals that chunking failed for a batch of messages.
   "timestamp": "2023-10-15T14:42:00Z",
   "version": "1.0",
   "data": {
-    "message_ids": [
+    "message_keys": [
       "<20231015123456.ABC123@example.com>"
     ],
     "error_message": "Failed to retrieve messages from database",

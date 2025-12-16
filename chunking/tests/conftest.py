@@ -18,12 +18,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 def create_query_with_in_support(original_query):
     """Create a custom query function that supports MongoDB $in operator."""
     def custom_query(collection, filter_dict, limit=100):
-        # Handle $in operator for message_ids
-        if "message_id" in filter_dict and isinstance(filter_dict["message_id"], dict):
-            message_ids = filter_dict["message_id"].get("$in", [])
+        # Handle $in operator for message_keys
+        if "message_key" in filter_dict and isinstance(filter_dict["message_key"], dict):
+            message_keys = filter_dict["message_key"].get("$in", [])
             results = []
-            for message_id in message_ids:
-                msg_results = original_query(collection, {"message_id": message_id}, limit)
+            for message_key in message_keys:
+                msg_results = original_query(collection, {"message_key": message_key}, limit)
                 results.extend(msg_results)
             return results[:limit]
         else:

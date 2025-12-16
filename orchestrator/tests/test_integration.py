@@ -31,12 +31,12 @@ def create_query_with_in_support(original_query):
                 chunk_results = original_query(collection, {"chunk_id": chunk_id}, limit)
                 results.extend(chunk_results)
             return results[:limit]  # Respect limit
-        # Handle $in operator for message_ids
-        elif "message_id" in filter_dict and isinstance(filter_dict["message_id"], dict):
-            message_ids = filter_dict["message_id"].get("$in", [])
+        # Handle $in operator for message_keys
+        elif "message_key" in filter_dict and isinstance(filter_dict["message_key"], dict):
+            message_keys = filter_dict["message_key"].get("$in", [])
             results = []
-            for message_id in message_ids:
-                msg_results = original_query(collection, {"message_id": message_id}, limit)
+            for message_key in message_keys:
+                msg_results = original_query(collection, {"message_key": message_key}, limit)
                 results.extend(msg_results)
             return results[:limit]  # Respect limit
         else:

@@ -103,8 +103,8 @@ class TestEventSchemaValidation:
             "timestamp": "2023-10-15T12:02:00Z",
             "version": "1.0",
             "data": {
-                "archive_id": "a1b2c3d4e5f6789",
-                "parsed_message_ids": ["<msg1@example.com>", "<msg2@example.com>"],
+                "archive_id": "a1b2c3d4e5f67890",
+                "message_keys": ["mk1", "mk2"],
                 "thread_ids": ["<thread@example.com>"],
                 "message_count": 2,
                 "thread_count": 1,
@@ -125,7 +125,7 @@ class TestEventSchemaValidation:
             "version": "1.0",
             "data": {
                 "chunk_ids": ["chunk_1", "chunk_2"],
-                "message_ids": ["<msg1@example.com>"],
+                "message_keys": ["<msg1@example.com>"],
                 "chunk_count": 2,
                 "avg_chunk_size_tokens": 256,
                 "chunks_ready": True,
@@ -196,7 +196,7 @@ class TestEventSchemaValidation:
             "version": "1.0",
             "data": {
                 # Missing required fields
-                "archive_id": "a1b2c3d4e5f6789",
+                "archive_id": "a1b2c3d4e5f67890",
             }
         }
         
@@ -215,8 +215,8 @@ class TestEventSchemaValidation:
             "timestamp": "2023-10-15T12:00:00Z",
             "version": "1.0",
             "data": {
-                "archive_id": "a1b2c3d4e5f6789",
-                "parsed_message_ids": "not-an-array",  # Should be array
+                "archive_id": "a1b2c3d4e5f67890",
+                "message_keys": "not-an-array",  # Should be array
                 "thread_ids": ["<thread@example.com>"],
                 "message_count": 1,
                 "thread_count": 1,
@@ -248,7 +248,7 @@ class TestMessageFlowPatterns:
             "timestamp": "2023-10-15T12:00:00Z",
             "version": "1.0",
             "data": {
-                "archive_id": "a1b2c3d4e5f6789",
+                "archive_id": "a1b2c3d4e5f67890",
                 "source_name": "test-source",
                 "source_type": "local",
                 "source_url": "/path/to/source",
@@ -276,7 +276,7 @@ class TestMessageFlowPatterns:
             "timestamp": "2023-10-15T12:00:00Z",
             "version": "1.0",
             "data": {
-                "archive_id": "a1b2c3d4e5f6789",
+                "archive_id": "a1b2c3d4e5f67890",
                 "source_name": "test-source",
                 "source_type": "local",
                 "source_url": "/path/to/source",
@@ -298,7 +298,7 @@ class TestMessageFlowPatterns:
             "version": "1.0",
             "data": {
                 "archive_id": input_event["data"]["archive_id"],  # Preserved
-                "parsed_message_ids": ["<msg1@example.com>", "<msg2@example.com>"],
+                "message_keys": ["<msg1@example.com>", "<msg2@example.com>"],
                 "thread_ids": ["<thread@example.com>"],
                 "message_count": 2,
                 "thread_count": 1,
@@ -321,8 +321,8 @@ class TestMessageFlowPatterns:
             "timestamp": "2023-10-15T12:01:00Z",
             "version": "1.0",
             "data": {
-                "archive_id": "a1b2c3d4e5f6789",
-                "parsed_message_ids": ["<msg1@example.com>", "<msg2@example.com>"],
+                "archive_id": "a1b2c3d4e5f67890",
+                "message_keys": ["<msg1@example.com>", "<msg2@example.com>"],
                 "thread_ids": ["<thread@example.com>"],
                 "message_count": 2,
                 "thread_count": 1,
@@ -340,7 +340,7 @@ class TestMessageFlowPatterns:
             "version": "1.0",
             "data": {
                 "chunk_ids": ["chunk_1", "chunk_2", "chunk_3"],
-                "message_ids": input_event["data"]["parsed_message_ids"],  # Preserved
+                "message_keys": input_event["data"]["message_keys"],  # Preserved
                 "chunk_count": 3,
                 "avg_chunk_size_tokens": 256,
                 "chunks_ready": True,
@@ -350,5 +350,5 @@ class TestMessageFlowPatterns:
         
         validate_event(output_event)
         
-        # Verify data flow: message_ids are preserved
-        assert output_event["data"]["message_ids"] == input_event["data"]["parsed_message_ids"]
+        # Verify data flow: message_keys are preserved
+        assert output_event["data"]["message_keys"] == input_event["data"]["message_keys"]

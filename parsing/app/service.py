@@ -409,12 +409,12 @@ class ParsingService:
         
         for message in parsed_messages:
             # Validate required fields exist
-            message_id = message.get("message_id")
-            if not message_id:
-                logger.error(f"Cannot publish event: message missing required 'message_id' field")
+            message_key = message.get("message_key")
+            if not message_key:
+                logger.error(f"Cannot publish event: message missing required 'message_key' field")
                 failed_publishes.append((
                     "unknown",
-                    ValueError("Message missing required 'message_id' field")
+                    ValueError("Message missing required 'message_key' field")
                 ))
                 continue
             
@@ -427,7 +427,7 @@ class ParsingService:
                 data={
                     "archive_id": archive_id,
                     "message_count": 1,  # Single message per event
-                    "parsed_message_ids": [message_id],  # Single-item array
+                    "message_keys": [message_key],  # Single-item array
                     "thread_count": len(thread_ids),
                     "thread_ids": thread_ids,
                     # Note: parsing_duration_seconds represents the total archive parsing time,
@@ -442,20 +442,20 @@ class ParsingService:
                     routing_key="json.parsed",
                     event=event.to_dict(),
                 )
-                logger.debug(f"Published JSONParsed event for message {message_id}")
+                logger.debug(f"Published JSONParsed event for message {message_key}")
             except Exception as e:
                 logger.error(
-                    f"Failed to publish JSONParsed event for message {message_id}: {e}",
+                    f"Failed to publish JSONParsed event for message {message_key}: {e}",
                     exc_info=True
                 )
-                failed_publishes.append((message_id, e))
+                failed_publishes.append((message_key, e))
                 if self.error_reporter:
                     self.error_reporter.report(
                         e,
                         context={
                             "operation": "publish_json_parsed",
                             "archive_id": archive_id,
-                            "message_id": message_id,
+                            "message_key": message_key,
                         }
                     )
         
