@@ -14,6 +14,7 @@ on:
       - 'orchestrator/**'
       - 'parsing/**'
       - 'reporting/**'
+      - 'reporting-ui/**'
       - 'summarization/**'
       - 'adapters/**'
       - '.github/workflows/unified-ci.yml'
@@ -31,6 +32,7 @@ on:
       - 'orchestrator/**'
       - 'parsing/**'
       - 'reporting/**'
+      - 'reporting-ui/**'
       - 'summarization/**'
       - 'adapters/**'
       - '.github/workflows/unified-ci.yml'
@@ -64,6 +66,7 @@ jobs:
       orchestrator: ${{ steps.filter.outputs.orchestrator }}
       parsing: ${{ steps.filter.outputs.parsing }}
       reporting: ${{ steps.filter.outputs.reporting }}
+      reporting-ui: ${{ steps.filter.outputs.reporting-ui }}
       summarization: ${{ steps.filter.outputs.summarization }}
       # Adapters
       copilot_auth: ${{ steps.filter.outputs.copilot_auth }}
@@ -118,6 +121,9 @@ jobs:
               - 'adapters/**'
             reporting:
               - 'reporting/**'
+              - 'adapters/**'
+            reporting-ui:
+              - 'reporting-ui/**'
               - 'adapters/**'
             summarization:
               - 'summarization/**'
@@ -225,6 +231,18 @@ jobs:
       service_id: 'reporting'
       service_path: 'reporting'
       adapter_names: 'copilot_config copilot_events copilot_storage copilot_metrics copilot_reporting copilot_logging copilot_schema_validation'
+      app_module: 'app'
+      python_version: '3.10'
+    secrets: inherit
+
+  reporting-ui:
+    needs: detect-changes
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.detect-changes.outputs.reporting-ui == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
+    uses: ./.github/workflows/service-reusable-unit-test-ci.yml
+    with:
+      service_id: 'reporting-ui'
+      service_path: 'reporting-ui'
+      adapter_names: 'copilot_config copilot_logging'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
@@ -457,6 +475,7 @@ jobs:
       - orchestrator
       - parsing
       - reporting
+      - reporting-ui
       - summarization
       - error-reporting
       # Adapters
@@ -492,7 +511,7 @@ jobs:
           github-token: ${{ github.token }}
           parallel-finished: true
           carryforward: >-
-            chunking,embedding,ingestion,orchestrator,parsing,reporting,summarization,error-reporting,
+            chunking,embedding,ingestion,orchestrator,parsing,reporting,reporting-ui,summarization,error-reporting,
             copilot_auth,copilot_config,copilot_events,copilot_logging,copilot_metrics,
             copilot_archive_fetcher,copilot_reporting,copilot_storage,copilot_embedding,
             copilot_chunking,copilot_consensus,copilot_schema_validation,copilot_summarization,
