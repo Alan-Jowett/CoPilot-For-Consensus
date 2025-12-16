@@ -10,6 +10,10 @@ This script tests:
 2. Localhost services are accessible from host
 3. Internal services can be reached by other containers (via Docker network)
 
+NOTE: This is a basic smoke test. Some internal service endpoints may require
+authentication or may vary by version. Test failures don't necessarily indicate
+problems with port exposure - verify manually if needed.
+
 Usage:
     python tests/validate_port_changes.py
 
