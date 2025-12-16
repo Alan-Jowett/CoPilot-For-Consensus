@@ -195,7 +195,7 @@ class EmbeddingService:
                     self._store_embeddings(embeddings)
                     
                     # Update chunk status in document database by Mongo _id
-                    # All chunks validated to have _id at query time
+                    # All chunks validated to have _id above
                     batch_doc_ids = [chunk["_id"] for chunk in batch]
                     self._update_chunk_status_by_doc_ids(batch_doc_ids)
                     # Keep original chunk_ids for events/metrics
