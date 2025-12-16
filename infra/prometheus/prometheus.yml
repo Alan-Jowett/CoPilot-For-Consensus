@@ -58,3 +58,12 @@ scrape_configs:
         target_label: instance
         replacement: 'qdrant-exporter'
 
+  - job_name: 'document-processing'
+    static_configs:
+      - targets:
+          - 'document-processing-exporter:9502'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'document-processing-exporter'
+

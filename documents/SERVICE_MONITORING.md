@@ -96,6 +96,13 @@ While services don't expose `/metrics`, they do provide:
   - Error rate trends over time
   - Top services by error count
 - **MongoDB Document Store Status**: Document counts, growth rate, totals, storage by collection, connections, op counters, query latency, recent changes
+- **Document Processing Status**: Document processing state tracking and anomaly detection (opt-in with `--profile monitoring-extra`)
+  - Document counts by status (pending, processing, completed, failed)
+  - Status transition trends over time
+  - Processing duration metrics
+  - Document age tracking to detect stuck flows
+  - Embedding completion rates
+  - Attempt count distributions
 - **Pipeline Flow Visualization**: End-to-end pipeline monitoring showing message flow from ingestion through reporting
   - Identify bottlenecks quickly
   - Monitor message rates per stage using counter-based rates
@@ -391,6 +398,260 @@ python scripts/manage_failed_queues.py purge parsing.failed --limit 100 --confir
 **⚠️ Always export messages before purging!**
 
 For complete operational runbook, see **[FAILED_QUEUE_OPERATIONS.md](./FAILED_QUEUE_OPERATIONS.md)**
+
+## 9.4) Document Processing Status Monitoring
+
+The document processing status exporter provides deep visibility into document states across the pipeline. This helps detect stuck flows, supports debugging, and provides visibility into system health and throughput.
+
+### Enabling the Exporter
+
+The document processing status exporter is optional and uses the `monitoring-extra` compose profile:
+
+```bash
+# Start document processing monitoring (requires MongoDB to be running)
+docker compose --profile monitoring-extra up -d document-processing-exporter
+
+# Or start all monitoring services including document processing
+docker compose --profile monitoring-extra up -d
+```
+
+**Note**: The exporter is not required for core functionality and won't impact CI builds.
+
+### Key Metrics
+
+The exporter exposes the following metrics for monitoring document processing:
+
+- **`copilot_document_status_count{collection, status}`**: Count of documents by collection and status
+  - Collections: `archives`, `messages`, `chunks`, `threads`
+  - Status values: `pending`, `processing`, `processed`, `failed`
+  
+- **`copilot_document_processing_duration_seconds{collection}`**: Average processing duration (time between creation and completion)
+  - Useful for identifying performance degradation
+  - Default threshold: Warning at 300s (5 min), Critical at 600s (10 min)
+
+- **`copilot_document_age_seconds{collection, status}`**: Average time since last update
+  - Critical for detecting stuck documents
+  - Default threshold: Warning at 1800s (30 min), Critical at 3600s (1 hour)
+
+- **`copilot_document_attempt_count{collection}`**: Average retry attempt count
+  - Indicates transient failures or resource contention
+  - Default threshold: Warning at 2.5 average attempts
+
+- **`copilot_chunks_embedding_status_count{embedding_generated}`**: Count of chunks by embedding status
+  - Values: `True` (embedded), `False` (not embedded)
+  - Target completion rate: >80%
+
+### Dashboard Panels
+
+The **Document Processing Status** dashboard (UID: `copilot-document-processing-status`) provides:
+
+1. **Archive Processing Status**: Bar gauge showing document counts by status
+2. **Archive Status Over Time**: Stacked area chart of status transitions
+3. **Avg Archive Processing Duration**: Gauge with yellow (>5 min) and red (>10 min) thresholds
+4. **Avg Pending Archive Age**: Gauge showing how long documents wait for processing
+5. **Avg Archive Attempt Count**: Retry distribution indicator
+6. **Chunk Embedding Completion Rate**: Percentage of chunks with embeddings
+7. **Chunk Embedding Status Over Time**: Trend of embedding generation progress
+8. **Document Age by Status**: Multi-line chart to detect stuck documents
+9. **Archive Status Summary**: Table view with status, count, and age
+10. **Archive Processing & Failure Rates**: Rate of successful vs. failed processing
+
+### Prometheus Queries
+
+Use these queries for ad-hoc investigation:
+
+```promql
+# Current status distribution for archives
+copilot_document_status_count{collection="archives"}
+
+# Failure rate (percentage)
+(copilot_document_status_count{collection="archives",status="failed"} 
+ / (copilot_document_status_count{collection="archives",status="failed"} 
+    + copilot_document_status_count{collection="archives",status="processed"})) * 100
+
+# Documents pending longer than 30 minutes
+copilot_document_age_seconds{collection="archives",status="pending"} > 1800
+
+# Embedding completion rate
+copilot_chunks_embedding_status_count{embedding_generated="True"} 
+/ (copilot_chunks_embedding_status_count{embedding_generated="True"} 
+   + copilot_chunks_embedding_status_count{embedding_generated="False"})
+
+# Processing rate (documents/second over 5 minutes)
+rate(copilot_document_status_count{collection="archives",status="processed"}[5m])
+
+# Failure rate (failures/second over 5 minutes)
+rate(copilot_document_status_count{collection="archives",status="failed"}[5m])
+```
+
+### Alert Rules
+
+The system includes automated alerts for document processing anomalies (see `infra/prometheus/alerts/document_processing.yml`):
+
+- **HighDocumentFailureRate**: >10% failure rate for 15 minutes
+- **DocumentsStuckPending**: Pending documents older than 1 hour
+- **LongDocumentProcessingDuration**: Processing takes >10 minutes
+- **LowEmbeddingCompletionRate**: <80% of chunks have embeddings
+- **HighDocumentAttemptCount**: Average >2.5 retry attempts
+- **FailedDocumentsAccumulating**: Rapid increase in failed documents (>0.5/sec)
+- **DocumentsStuckProcessing**: Documents in processing state for >2 hours
+
+### Operational Triage Guide
+
+#### Scenario 1: High failure rate alert
+
+**Symptoms**: `HighDocumentFailureRate` alert firing, dashboard shows increasing failed count
+
+**Diagnosis**:
+1. Check the **Archive Status Over Time** panel - is the failure rate sudden or gradual?
+2. Review failed document count in **Archive Processing Status**
+3. Check parsing service logs: `docker compose logs parsing | grep -i error`
+4. Verify MongoDB connectivity: `docker compose ps documentdb`
+
+**Actions**:
+1. Query failed archives in MongoDB:
+   ```javascript
+   db.archives.find({status: "failed"}).limit(10)
+   ```
+2. Check error-reporting service for detailed error messages
+3. Review recent deployments or configuration changes
+4. If transient (network, resource), consider reprocessing failed archives
+5. If systematic, fix root cause before reprocessing
+
+#### Scenario 2: Documents stuck in pending
+
+**Symptoms**: `DocumentsStuckPending` alert, **Avg Pending Archive Age** gauge is red
+
+**Diagnosis**:
+1. Check RabbitMQ ingestion queue depth: http://localhost:15672
+2. Verify parsing service is running: `docker compose ps parsing`
+3. Check for consumer connection issues in RabbitMQ UI
+4. Review parsing service logs for exceptions
+
+**Actions**:
+1. Restart parsing service if not consuming: `docker compose restart parsing`
+2. Check for message backlog in RabbitMQ and scale consumers if needed
+3. Verify MongoDB is accepting writes
+4. Monitor **Archive Status Over Time** to confirm pending count decreases
+
+#### Scenario 3: Low embedding completion rate
+
+**Symptoms**: `LowEmbeddingCompletionRate` alert, **Chunk Embedding Completion Rate** gauge is yellow/red
+
+**Diagnosis**:
+1. Check **Chunk Embedding Status Over Time** - is the gap widening?
+2. Verify embedding service health: `docker compose ps embedding`
+3. Check Qdrant vectorstore: `curl http://localhost:6333/collections`
+4. Review Ollama service status: `docker compose ps ollama`
+
+**Actions**:
+1. Check embedding service logs: `docker compose logs embedding`
+2. Verify Qdrant is accepting writes: Grafana > Qdrant Vectorstore Status
+3. Check Ollama model availability: `docker compose logs ollama | grep -i model`
+4. Monitor embedding queue in RabbitMQ for backlog
+5. Consider scaling embedding service if sustained high load
+
+#### Scenario 4: Long processing duration
+
+**Symptoms**: `LongDocumentProcessingDuration` alert, **Avg Archive Processing Duration** gauge is red
+
+**Diagnosis**:
+1. Check if all archives are slow or just a subset
+2. Query MongoDB for largest archives:
+   ```javascript
+   db.archives.find().sort({file_size_bytes: -1}).limit(10)
+   ```
+3. Review **Container Resource Usage** dashboard for bottlenecks
+4. Check MongoDB performance: **MongoDB Document Store Status** dashboard
+
+**Actions**:
+1. If specific archives are large/complex, this may be expected
+2. If all processing is slow, check resource constraints (CPU, memory, disk I/O)
+3. Review MongoDB query performance and indexes
+4. Consider optimizing parsing logic for complex documents
+5. Scale parsing service if CPU-bound: `docker compose up -d --scale parsing=2`
+
+#### Scenario 5: High attempt count
+
+**Symptoms**: `HighDocumentAttemptCount` alert, **Avg Archive Attempt Count** gauge is yellow/red
+
+**Diagnosis**:
+1. Check for patterns in retry errors (transient vs. persistent)
+2. Review error-reporting service for retry context
+3. Monitor RabbitMQ for message redelivery patterns
+4. Check service restart frequency in **Container Resource Usage**
+
+**Actions**:
+1. If transient (network timeouts), monitor for resolution
+2. If persistent errors, investigate root cause before further retries
+3. Check dependency health (MongoDB, RabbitMQ connectivity)
+4. Review service resource limits and adjust if OOM kills are occurring
+5. Consider exponential backoff or circuit breaker patterns if not implemented
+
+### MongoDB Direct Inspection
+
+For detailed document investigation, connect to MongoDB and query directly:
+
+```bash
+# Connect to MongoDB
+docker compose exec documentdb mongosh -u root -p example --authenticationDatabase admin
+
+# Switch to copilot database
+use copilot
+
+# Count documents by status
+db.archives.aggregate([
+  {$group: {_id: "$status", count: {$sum: 1}}}
+])
+
+# Find oldest pending archives
+db.archives.find({status: "pending"})
+  .sort({created_at: 1})
+  .limit(10)
+
+# Find failed archives with errors
+db.archives.find({status: "failed"})
+  .sort({updated_at: -1})
+  .limit(10)
+
+# Find documents with high attempt counts (if field exists)
+db.archives.find({attemptCount: {$gt: 2}})
+  .sort({attemptCount: -1})
+
+# Find chunks without embeddings
+db.chunks.find({embedding_generated: false})
+  .limit(10)
+
+# Count chunks by embedding status
+db.chunks.aggregate([
+  {$group: {_id: "$embedding_generated", count: {$sum: 1}}}
+])
+```
+
+### Troubleshooting
+
+- **No data in dashboard**:
+  1. Verify exporter is enabled and running: `docker compose --profile monitoring-extra ps document-processing-exporter`
+  2. If not running, start it: `docker compose --profile monitoring-extra up -d document-processing-exporter`
+  3. Check exporter logs: `docker compose --profile monitoring-extra logs document-processing-exporter`
+
+- **Missing metrics**: 
+  1. Check Prometheus targets (http://localhost:9090/targets) - `document-processing` should be UP
+  2. Verify MongoDB connectivity from exporter
+  3. Ensure collections have documents with expected fields
+
+- **Incorrect age calculations**:
+  1. Verify documents have `created_at` and `updated_at` timestamps
+  2. Check for timezone issues (all timestamps should be UTC)
+  3. Review exporter logs for aggregation errors
+
+- **Alert not firing**:
+  1. Verify alert rules loaded: http://localhost:9090/alerts
+  2. Check Prometheus rule evaluation: http://localhost:9090/rules
+  3. Review alert conditions match actual metric values
+  4. Ensure alert manager is configured if using external alerting
+
+
 
 ## 10) Scaling & Load Debugging
 - Horizontal scale in compose: `docker compose up -d --scale <service>=N` (if the service is stateless and supports scaling).
