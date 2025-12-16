@@ -264,42 +264,37 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "expr": "rabbitmq_queue_messages_ready{queue=\"json.parsed\"}",
+          "expr": "rabbitmq_queue_messages_ready{queue=\"archive.ingested\"}",
           "refId": "A",
-          "legendFormat": "Parsing Output"
+          "legendFormat": "Parsing Input"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"json.parsed\"}",
+          "refId": "B",
+          "legendFormat": "Chunking Input"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"embedding-service\"}",
+          "refId": "C",
+          "legendFormat": "Embedding Input"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=\"orchestrator-service\"}",
+          "refId": "D",
+          "legendFormat": "Orchestrator Input"
         },
         {
           "expr": "rabbitmq_queue_messages_ready{queue=\"chunks.prepared\"}",
-          "refId": "B",
-          "legendFormat": "Chunking Output"
-        },
-        {
-          "expr": "rabbitmq_queue_messages_ready{queue=\"embeddings.generated\"}",
-          "refId": "C",
-          "legendFormat": "Embedding Output"
-        },
-        {
-          "expr": "rabbitmq_queue_messages_ready{queue=\"summarization.requested\"}",
-          "refId": "D",
+          "refId": "E",
           "legendFormat": "Summarization Input"
         },
         {
           "expr": "rabbitmq_queue_messages_ready{queue=\"summary.complete\"}",
-          "refId": "E",
-          "legendFormat": "Summary Output"
-        },
-        {
-          "expr": "rabbitmq_queue_messages_ready{queue=\"report.published\"}",
           "refId": "F",
-          "legendFormat": "Report Output"
-        },
-        {
-          "expr": "rabbitmq_queue_messages_ready{queue=\"archive.ingested\"}",
-          "refId": "G",
-          "legendFormat": "Ingestion Output"
+          "legendFormat": "Reporting Input"
         }
       ],
-      "title": "Current Service Queue Depth (Gauges)",
+      "title": "Current Service Input Queue Depth (Gauges)",
       "type": "gauge"
     },
     {
