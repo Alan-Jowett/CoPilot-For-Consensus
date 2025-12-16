@@ -9,7 +9,6 @@ on:
     paths:
       - 'chunking/**'
       - 'embedding/**'
-      - 'error-reporting/**'
       - 'ingestion/**'
       - 'orchestrator/**'
       - 'parsing/**'
@@ -27,7 +26,6 @@ on:
     paths:
       - 'chunking/**'
       - 'embedding/**'
-      - 'error-reporting/**'
       - 'ingestion/**'
       - 'orchestrator/**'
       - 'parsing/**'
@@ -61,7 +59,6 @@ jobs:
       # Services
       chunking: ${{ steps.filter.outputs.chunking }}
       embedding: ${{ steps.filter.outputs.embedding }}
-      error-reporting: ${{ steps.filter.outputs.error-reporting }}
       ingestion: ${{ steps.filter.outputs.ingestion }}
       orchestrator: ${{ steps.filter.outputs.orchestrator }}
       parsing: ${{ steps.filter.outputs.parsing }}
@@ -106,9 +103,6 @@ jobs:
               - 'adapters/**'
             embedding:
               - 'embedding/**'
-              - 'adapters/**'
-            error-reporting:
-              - 'error-reporting/**'
               - 'adapters/**'
             ingestion:
               - 'ingestion/**'
@@ -255,18 +249,6 @@ jobs:
       service_id: 'summarization'
       service_path: 'summarization'
       adapter_names: 'copilot_config copilot_events copilot_storage copilot_vectorstore copilot_metrics copilot_reporting copilot_summarization copilot_logging copilot_schema_validation'
-      app_module: 'app'
-      python_version: '3.10'
-    secrets: inherit
-
-  error-reporting:
-    needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.detect-changes.outputs.error-reporting == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
-    uses: ./.github/workflows/service-reusable-unit-test-ci.yml
-    with:
-      service_id: 'error-reporting'
-      service_path: 'error-reporting'
-      adapter_names: 'copilot_config copilot_logging'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
@@ -477,7 +459,6 @@ jobs:
       - reporting
       - reporting-ui
       - summarization
-      - error-reporting
       # Adapters
       - auth-ci
       - config-ci
@@ -511,7 +492,7 @@ jobs:
           github-token: ${{ github.token }}
           parallel-finished: true
           carryforward: >-
-            chunking,embedding,ingestion,orchestrator,parsing,reporting,reporting-ui,summarization,error-reporting,
+            chunking,embedding,ingestion,orchestrator,parsing,reporting,reporting-ui,summarization,
             copilot_auth,copilot_config,copilot_events,copilot_logging,copilot_metrics,
             copilot_archive_fetcher,copilot_reporting,copilot_storage,copilot_embedding,
             copilot_chunking,copilot_consensus,copilot_schema_validation,copilot_summarization,

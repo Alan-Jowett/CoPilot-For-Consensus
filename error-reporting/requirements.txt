@@ -1,4 +1,0 @@
-Flask==3.1.2
-Werkzeug==3.1.4
-
-# NOTE: Adapters are installed separately in CI and Docker builds

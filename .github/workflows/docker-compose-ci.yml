@@ -163,11 +163,6 @@ jobs:
         docker compose up -d reporting-ui
         timeout 120s bash -c 'until docker compose ps reporting-ui --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for reporting-ui..."; sleep 3; done' || (docker compose logs reporting-ui --tail=50 && exit 1)
 
-    - name: Start error-reporting
-      run: |
-        docker compose up -d error-reporting
-        timeout 120s bash -c 'until docker compose ps error-reporting --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for error-reporting..."; sleep 3; done' || (docker compose logs error-reporting --tail=50 && exit 1)
-
     - name: Check service status
       run: docker compose ps
 
@@ -297,10 +292,6 @@ jobs:
         echo "Testing error-reporting UI..."
         curl -f http://localhost:8081/ui || (docker compose logs error-reporting --tail=50 && exit 1)
 
-    - name: Test error-reporting API
-      run: |
-        echo "Testing error-reporting stats API..."
-        curl -f http://localhost:8081/api/stats || (docker compose logs error-reporting --tail=50 && exit 1)
 
     - name: Test Grafana health endpoint
       run: |

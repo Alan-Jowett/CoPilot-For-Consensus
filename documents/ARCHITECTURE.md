@@ -115,14 +115,8 @@ This design ensures the system can operate in air-gapped environments, resource-
     - Scrapes Docker container logs automatically
     - Labels logs by service, container, and level
     - Forwards structured logs to Loki
-  - **Error Reporting Service** (Port 8081): Error tracking and debugging
-    - REST API for error submission at `/api/errors`
-    - Web UI at `/ui` for browsing and filtering errors
-    - Statistics dashboard showing error distribution by service, level, and type
-    - In-memory storage for up to 10,000 recent errors
 - **Access Points:**
   - Grafana: http://localhost:3000
-  - Error Tracking UI: http://localhost:8081/ui
   - Prometheus: http://localhost:9090
 
 ### 11. Retry Policy & Failure Recovery

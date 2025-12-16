@@ -54,7 +54,7 @@ After all tests complete on `main` branch pushes, a final aggregation step:
 
 **Jobs:**
 - `detect-changes`: Runs only on pull requests to determine changed services and adapters
-- Service jobs (`chunking`, `embedding`, `ingestion`, `orchestrator`, `parsing`, `reporting`, `summarization`, `error-reporting`):
+- Service jobs (`chunking`, `embedding`, `ingestion`, `orchestrator`, `parsing`, `reporting`, `summarization`):
   - On PR: Run only if the service or its dependencies changed
   - On main push: Always run
   - On schedule/manual: Always run
@@ -65,7 +65,7 @@ After all tests complete on `main` branch pushes, a final aggregation step:
 - `coverage-summary`: Runs only on main pushes to finalize coverage aggregation for **all** services and adapters
 
 **Coverage Flags:**
-- Services: `chunking`, `embedding`, `ingestion`, `orchestrator`, `parsing`, `reporting`, `summarization`, `error-reporting`
+- Services: `chunking`, `embedding`, `ingestion`, `orchestrator`, `parsing`, `reporting`, `summarization`
 - Adapter unit tests: `copilot_auth`, `copilot_config`, `copilot_events`, `copilot_logging`, `copilot_metrics`, `copilot_archive_fetcher`, `copilot_reporting`, `copilot_storage`, `copilot_embedding`, `copilot_chunking`, `copilot_consensus`, `copilot_schema_validation`, `copilot_summarization`, `copilot_vectorstore`, `copilot_draft_diff`
 - Adapter integration tests: `copilot_archive_fetcher_integration`, `copilot_storage_integration`, `copilot_events_integration`, `copilot_schema_validation_integration`, `copilot_vectorstore_integration`
 

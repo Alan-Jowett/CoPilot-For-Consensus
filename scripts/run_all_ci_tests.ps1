@@ -39,7 +39,6 @@ $root = Split-Path -Parent $PSScriptRoot
 $services = @(
     @{ Name = 'chunking'; Path = 'chunking' },
     @{ Name = 'embedding'; Path = 'embedding' },
-    @{ Name = 'error-reporting'; Path = 'error-reporting' },
     @{ Name = 'ingestion'; Path = 'ingestion' },
     @{ Name = 'orchestrator'; Path = 'orchestrator' },
     @{ Name = 'parsing'; Path = 'parsing' },

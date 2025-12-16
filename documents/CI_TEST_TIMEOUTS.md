@@ -85,7 +85,6 @@ def test_no_timeout():
 All services have timeout configuration:
 - chunking
 - embedding
-- error-reporting
 - ingestion
 - orchestrator
 - parsing

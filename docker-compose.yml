@@ -399,29 +399,6 @@ services:
       start_period: 90s
     restart: unless-stopped
 
-  # WARNING: The error-reporting service has NO authentication or authorization.
-  # Do NOT expose this service to untrusted networks or in production environments.
-  # This is intended for local development only. See error-reporting/README.md for details.
-  # WARNING: The error-reporting service has NO authentication or authorization.
-  # Do NOT expose this service to untrusted networks or in production environments.
-  # For local development only. See README for details.
-  error-reporting:
-    image: copilot-error-reporting:latest
-    build:
-      context: .
-      dockerfile: ./error-reporting/Dockerfile
-    environment:
-      - SCHEMA_DIR=/app/documents/schemas/configs
-    ports:
-      - "127.0.0.1:8081:8081"
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8081/')"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
-    restart: unless-stopped
-
   ingestion:
     image: copilot-ingestion:latest
     build:
