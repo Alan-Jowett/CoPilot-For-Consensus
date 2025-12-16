@@ -202,7 +202,10 @@ docker compose exec ollama ollama pull mistral
 6. **(Optional) Enable GPU acceleration** for 10-100x faster inference:
    - See [documents/OLLAMA_GPU_SETUP.md](./documents/OLLAMA_GPU_SETUP.md) for setup instructions
    - Requires NVIDIA GPU with drivers and nvidia-container-toolkit
-   - Verify GPU support: `./scripts/check_ollama_gpu.sh`
+   - Verify GPU support:
+     - Linux/macOS/WSL2: `./scripts/check_ollama_gpu.sh`
+     - Windows PowerShell: `.\scripts\check_ollama_gpu.ps1`
+     - Or directly: `docker exec ollama nvidia-smi`
 
 7. Run ingestion:
 ```bash

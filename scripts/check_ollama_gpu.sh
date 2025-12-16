@@ -4,8 +4,6 @@
 
 # Script to check if Ollama is using GPU acceleration
 
-set -e
-
 echo "Checking Ollama GPU status..."
 echo ""
 

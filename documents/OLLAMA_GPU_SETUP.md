@@ -123,9 +123,17 @@ You should see the Ollama process listed in the GPU processes table.
 
 Alternatively, use the provided verification script:
 
+**Linux/macOS/WSL2:**
 ```bash
 ./scripts/check_ollama_gpu.sh
 ```
+
+**Windows PowerShell:**
+```powershell
+.\scripts\check_ollama_gpu.ps1
+```
+
+*Note: On Linux/macOS, if the script is not executable, run `chmod +x scripts/check_ollama_gpu.sh` first.*
 
 Expected output:
 - **With GPU**: `✓ GPU detected` + nvidia-smi output
