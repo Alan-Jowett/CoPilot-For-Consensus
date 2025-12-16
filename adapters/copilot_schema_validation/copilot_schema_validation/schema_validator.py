@@ -20,17 +20,17 @@ logger = logging.getLogger(__name__)
 # Falls back silently if the supporting schema file is not present.
 def _build_registry() -> Registry:
     """Build a referencing Registry with preloaded schemas.
-    
+
     The event envelope schema is loaded from the filesystem only, not from
     arbitrary schema providers. This prevents inappropriate lookups when
     validating documents (which don't use event envelopes).
-        
+
     Returns:
         Registry with preloaded schemas for $ref resolution
     """
     resources = {}
     envelope_schema = None
-    
+
     # Load event envelope from filesystem
     candidate_bases = [
         Path(__file__).resolve().parents[2],  # when running from repo package folder
@@ -48,20 +48,20 @@ def _build_registry() -> Registry:
             logger.debug(
                 f"Could not load envelope schema from {envelope_path} (will try next candidate): {exc}"
             )
-    
+
     # Register the envelope schema if found
     if envelope_schema:
         resource = Resource.from_contents(envelope_schema)
-        
+
         # Register by $id if present
         schema_id = envelope_schema.get("$id")
         if schema_id:
             resources[schema_id] = resource
-        
+
         # Also register under the relative path used in references
         resources["../event-envelope.schema.json"] = resource
         resources["event-envelope.schema.json"] = resource
-    
+
     # Build the registry with all preloaded resources
     return Registry().with_resources(resources.items())
 
