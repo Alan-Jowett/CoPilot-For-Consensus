@@ -74,7 +74,7 @@ class LocalVolumeArchiveStore(ArchiveStore):
         """Calculate SHA256 hash of content."""
         return hashlib.sha256(content).hexdigest()
 
-    async def store_archive(self, source_name: str, file_path: str, content: bytes) -> str:
+    def store_archive(self, source_name: str, file_path: str, content: bytes) -> str:
         """Store archive content in local filesystem.
         
         Args:
@@ -119,7 +119,7 @@ class LocalVolumeArchiveStore(ArchiveStore):
         except Exception as e:
             raise ArchiveStoreError(f"Failed to store archive: {e}")
 
-    async def get_archive(self, archive_id: str) -> Optional[bytes]:
+    def get_archive(self, archive_id: str) -> Optional[bytes]:
         """Retrieve archive content from local filesystem.
         
         Args:
@@ -144,7 +144,7 @@ class LocalVolumeArchiveStore(ArchiveStore):
         except Exception as e:
             raise ArchiveStoreError(f"Failed to retrieve archive: {e}")
 
-    async def get_archive_by_hash(self, content_hash: str) -> Optional[str]:
+    def get_archive_by_hash(self, content_hash: str) -> Optional[str]:
         """Retrieve archive ID by content hash.
         
         Args:
@@ -158,7 +158,7 @@ class LocalVolumeArchiveStore(ArchiveStore):
                 return archive_id
         return None
 
-    async def archive_exists(self, archive_id: str) -> bool:
+    def archive_exists(self, archive_id: str) -> bool:
         """Check if archive exists.
         
         Args:
@@ -174,7 +174,7 @@ class LocalVolumeArchiveStore(ArchiveStore):
         file_path = Path(metadata["file_path"])
         return file_path.exists()
 
-    async def delete_archive(self, archive_id: str) -> bool:
+    def delete_archive(self, archive_id: str) -> bool:
         """Delete archive from local filesystem.
         
         Args:
@@ -202,7 +202,7 @@ class LocalVolumeArchiveStore(ArchiveStore):
         except Exception as e:
             raise ArchiveStoreError(f"Failed to delete archive: {e}")
 
-    async def list_archives(self, source_name: str) -> List[Dict[str, Any]]:
+    def list_archives(self, source_name: str) -> List[Dict[str, Any]]:
         """List all archives for a given source.
         
         Args:

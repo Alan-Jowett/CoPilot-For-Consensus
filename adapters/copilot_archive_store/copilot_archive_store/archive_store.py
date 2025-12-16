@@ -36,7 +36,7 @@ class ArchiveStore(ABC):
     """
 
     @abstractmethod
-    async def store_archive(self, source_name: str, file_path: str, content: bytes) -> str:
+    def store_archive(self, source_name: str, file_path: str, content: bytes) -> str:
         """Store archive content and return unique archive identifier.
         
         Args:
@@ -53,7 +53,7 @@ class ArchiveStore(ABC):
         pass
 
     @abstractmethod
-    async def get_archive(self, archive_id: str) -> Optional[bytes]:
+    def get_archive(self, archive_id: str) -> Optional[bytes]:
         """Retrieve archive content by ID.
         
         Args:
@@ -68,7 +68,7 @@ class ArchiveStore(ABC):
         pass
 
     @abstractmethod
-    async def get_archive_by_hash(self, content_hash: str) -> Optional[str]:
+    def get_archive_by_hash(self, content_hash: str) -> Optional[str]:
         """Retrieve archive ID by content hash for deduplication.
         
         This method enables content-addressable storage and deduplication.
@@ -86,7 +86,7 @@ class ArchiveStore(ABC):
         pass
 
     @abstractmethod
-    async def archive_exists(self, archive_id: str) -> bool:
+    def archive_exists(self, archive_id: str) -> bool:
         """Check if archive exists.
         
         Args:
@@ -101,7 +101,7 @@ class ArchiveStore(ABC):
         pass
 
     @abstractmethod
-    async def delete_archive(self, archive_id: str) -> bool:
+    def delete_archive(self, archive_id: str) -> bool:
         """Delete archive by ID.
         
         Args:
@@ -116,7 +116,7 @@ class ArchiveStore(ABC):
         pass
 
     @abstractmethod
-    async def list_archives(self, source_name: str) -> List[Dict[str, Any]]:
+    def list_archives(self, source_name: str) -> List[Dict[str, Any]]:
         """List all archives for a given source.
         
         Args:

@@ -22,26 +22,26 @@ class MongoDBArchiveStore(ArchiveStore):
         """Initialize MongoDB archive store."""
         raise NotImplementedError("MongoDB backend not yet implemented")
 
-    async def store_archive(self, source_name: str, file_path: str, content: bytes) -> str:
+    def store_archive(self, source_name: str, file_path: str, content: bytes) -> str:
         """Store archive content (not implemented)."""
         raise NotImplementedError("MongoDB backend not yet implemented")
 
-    async def get_archive(self, archive_id: str) -> Optional[bytes]:
+    def get_archive(self, archive_id: str) -> Optional[bytes]:
         """Retrieve archive content (not implemented)."""
         raise NotImplementedError("MongoDB backend not yet implemented")
 
-    async def get_archive_by_hash(self, content_hash: str) -> Optional[str]:
+    def get_archive_by_hash(self, content_hash: str) -> Optional[str]:
         """Retrieve archive ID by hash (not implemented)."""
         raise NotImplementedError("MongoDB backend not yet implemented")
 
-    async def archive_exists(self, archive_id: str) -> bool:
+    def archive_exists(self, archive_id: str) -> bool:
         """Check if archive exists (not implemented)."""
         raise NotImplementedError("MongoDB backend not yet implemented")
 
-    async def delete_archive(self, archive_id: str) -> bool:
+    def delete_archive(self, archive_id: str) -> bool:
         """Delete archive (not implemented)."""
         raise NotImplementedError("MongoDB backend not yet implemented")
 
-    async def list_archives(self, source_name: str) -> List[Dict[str, Any]]:
+    def list_archives(self, source_name: str) -> List[Dict[str, Any]]:
         """List archives for a source (not implemented)."""
         raise NotImplementedError("MongoDB backend not yet implemented")
