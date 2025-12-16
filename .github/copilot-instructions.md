@@ -165,7 +165,7 @@ Linux/macOS (bash):
 
 ```bash
 # 1) Create temporary ingestion config for the IETF source
-TOPIC="${1:-ipsec}"  # default to ipsec if not provided
+TOPIC="ipsec"  # change to desired topic, e.g. "dnsop"
 CONFIG_FILE="/tmp/ietf-${TOPIC}-config.json"
 cat > "$CONFIG_FILE" <<EOF
 {
@@ -180,8 +180,8 @@ cat > "$CONFIG_FILE" <<EOF
 }
 EOF
 
-# 2) Upload the ingestion source to DocumentDB
-docker compose run --rm ingestion \
+# 2) Upload the ingestion source to DocumentDB (mount the config file into the container)
+docker compose run --rm -v "$CONFIG_FILE":"$CONFIG_FILE":ro ingestion \
   python /app/upload_ingestion_sources.py "$CONFIG_FILE"
 
 # 3) Run the ingestion batch job (runs once and exits)
@@ -195,7 +195,7 @@ Windows (PowerShell):
 
 ```powershell
 # 1) Create temporary ingestion config for the IETF source
-$topic = if ($args.Count -gt 0) { $args[0] } else { "ipsec" }  # default to ipsec
+$topic = "ipsec"  # Change this to your desired topic
 $configFile = $env:TEMP + "\ietf-${topic}-config.json"
 $configContent = @{
   sources = @(
@@ -206,11 +206,11 @@ $configContent = @{
       enabled = $true
     }
   )
-} | ConvertTo-Json
+} | ConvertTo-Json -Depth 10
 Set-Content -Path $configFile -Value $configContent -Encoding UTF8
 
-# 2) Upload the ingestion source to DocumentDB
-docker compose run --rm ingestion `
+# 2) Upload the ingestion source to DocumentDB (mount the config file into the container)
+docker compose run --rm -v $configFile:$configFile:ro ingestion `
   python /app/upload_ingestion_sources.py $configFile
 
 # 3) Run the ingestion batch job (runs once and exits)
