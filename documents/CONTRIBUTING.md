@@ -108,6 +108,17 @@ if existing:
     return
 ```
 
+> **Note: Race Conditions in Concurrent Scenarios**  
+> 
+> In concurrent scenarios, multiple processes or threads may pass the existence check simultaneously and proceed to create duplicate results. This is a race condition inherent to the "State Checks Before Side Effects" pattern. For this system, such duplicates are generally wasteful but not harmful (the latest write wins in the database), and the pattern provides best-effort idempotency.
+> 
+> If your use case requires strict once-only semantics (i.e., absolutely no duplicates), you must use additional mechanisms such as:
+> - Distributed locks (e.g., Redis SETNX)
+> - Database transactions with unique constraints
+> - Optimistic concurrency control with version fields
+>
+> For most pipeline stages in this system, best-effort idempotency is sufficient as duplicates are detected and handled gracefully by downstream consumers.
+
 #### 3. Event Publishing
 
 **Design Events to be Replayable:**

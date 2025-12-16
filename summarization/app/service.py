@@ -171,6 +171,9 @@ class SummarizationService:
         retry_count = 0
         
         # Check if summary already exists (idempotency check)
+        # Note: There's a potential race condition between this check and summary creation.
+        # Multiple concurrent requests could pass this check and create duplicate summaries.
+        # This is acceptable as duplicates are wasteful but not harmful (latest write wins).
         try:
             existing_summaries = list(self.document_store.query_documents(
                 collection="summaries",
