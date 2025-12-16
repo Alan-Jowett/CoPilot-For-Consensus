@@ -27,7 +27,19 @@
     "ingestion_date": { "type": "string", "format": "date-time" },
     "message_count": { "type": "integer", "minimum": 0 },
     "file_path": { "type": "string", "minLength": 1 },
-    "status": { "type": "string", "enum": ["pending", "processed", "failed"] }
+    "status": { "type": "string", "enum": ["pending", "processing", "processed", "failed", "failed_max_retries"] },
+    "attemptCount": { 
+      "type": "integer", 
+      "minimum": 0,
+      "description": "Number of processing attempts for retry tracking"
+    },
+    "lastAttemptTime": { 
+      "anyOf": [
+        { "type": "string", "format": "date-time" },
+        { "type": "null" }
+      ],
+      "description": "Timestamp of the last processing attempt"
+    }
   },
   "required": ["archive_id", "file_hash", "file_size_bytes", "source", "ingestion_date", "status"]
 }

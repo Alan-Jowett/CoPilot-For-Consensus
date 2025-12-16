@@ -40,7 +40,24 @@
       "additionalProperties": true
     },
     "created_at": { "type": "string", "format": "date-time" },
-    "embedding_generated": { "type": "boolean" }
+    "embedding_generated": { "type": "boolean" },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "processing", "completed", "failed", "failed_max_retries"],
+      "description": "Processing status for retry and workflow tracking"
+    },
+    "attemptCount": { 
+      "type": "integer", 
+      "minimum": 0,
+      "description": "Number of embedding generation attempts for retry tracking"
+    },
+    "lastAttemptTime": { 
+      "anyOf": [
+        { "type": "string", "format": "date-time" },
+        { "type": "null" }
+      ],
+      "description": "Timestamp of the last embedding generation attempt"
+    }
   },
   "required": ["chunk_key", "message_key", "message_id", "thread_id", "chunk_index", "text", "created_at", "embedding_generated"]
 }

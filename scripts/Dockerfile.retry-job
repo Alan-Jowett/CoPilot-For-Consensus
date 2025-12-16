@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+FROM python:3.11-slim@sha256:158caf0e080e2cd74ef2879ed3c4e697792ee65251c8208b7afb56683c32ea6c
+
+WORKDIR /app
+
+# Install dependencies with pinned versions for security and reproducibility
+# Version notes:
+# - pymongo 4.8.0: Stable MongoDB driver with Python 3.11 support
+# - pika 1.3.2: RabbitMQ client with connection stability improvements
+# - prometheus_client 0.20.0: Metrics library with pushgateway support
+RUN pip install --no-cache-dir \
+    pymongo==4.8.0 \
+    pika==1.3.2 \
+    prometheus_client==0.20.0
+
+# Copy retry job script
+COPY scripts/retry_stuck_documents.py /app/retry_stuck_documents.py
+
+# Make script executable
+RUN chmod +x /app/retry_stuck_documents.py
+
+# Run retry job
+CMD ["python", "/app/retry_stuck_documents.py"]

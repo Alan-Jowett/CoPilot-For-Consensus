@@ -1,0 +1,143 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+# Prometheus alert rules for document retry policy
+# See documents/RETRY_POLICY.md for operational procedures
+
+groups:
+  - name: retry_policy
+    interval: 60s
+    rules:
+      # Warning: High number of stuck documents
+      - alert: StuckDocumentsWarning
+        expr: retry_job_stuck_documents > 50
+        for: 1h
+        labels:
+          severity: warning
+          component: retry-job
+        annotations:
+          summary: "High number of stuck documents in {{ $labels.collection }}"
+          description: |
+            Collection {{ $labels.collection }} has {{ $value }} stuck documents for over 1 hour.
+            Documents are considered stuck when status is "pending" or "processing" and lastAttemptTime > 24 hours.
+            
+            Investigation steps:
+            1. Check service health: docker compose logs {{ $labels.collection }}
+            2. Review recent deployments/changes
+            3. Inspect stuck documents: python scripts/retry_stuck_documents.py --once --verbose
+            4. Check for dependency issues (MongoDB, RabbitMQ, Ollama)
+            
+            See documents/RETRY_POLICY.md for escalation procedures.
+          runbook_url: "https://github.com/Alan-Jowett/CoPilot-For-Consensus/blob/main/documents/RETRY_POLICY.md#tier-2-warning-alert-24-48-hours"
+
+      # Critical: Documents exceeding max retry attempts
+      - alert: MaxRetriesExceededCritical
+        expr: rate(retry_job_documents_max_retries_exceeded_total[1h]) > 10
+        for: 15m
+        labels:
+          severity: critical
+          component: retry-job
+        annotations:
+          summary: "Documents exceeding max retry attempts in {{ $labels.collection }}"
+          description: |
+            Collection {{ $labels.collection }} has documents failing permanently at rate {{ $value }}/hour.
+            Documents have exceeded max retry attempts and are marked as "failed_max_retries".
+            
+            Immediate actions:
+            1. Check failed queue: python scripts/manage_failed_queues.py inspect {{ $labels.collection }}.failed
+            2. Review error logs: docker compose logs {{ $labels.collection }} | grep ERROR
+            3. Identify failure pattern (bug, data quality, dependency failure)
+            4. Escalate to service team if needed
+            
+            See documents/RETRY_POLICY.md for response procedures.
+          runbook_url: "https://github.com/Alan-Jowett/CoPilot-For-Consensus/blob/main/documents/RETRY_POLICY.md#tier-3-critical-alert-max-retries-exceeded"
+
+      # Warning: Retry job execution failed
+      - alert: RetryJobFailed
+        expr: increase(retry_job_runs_total{status="failure"}[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: retry-job
+        annotations:
+          summary: "Retry job execution failed"
+          description: |
+            Retry job encountered errors during execution.
+            Total failures: {{ $value }}
+            
+            Investigation steps:
+            1. Check retry job logs: docker compose logs retry-job
+            2. Verify MongoDB connection health
+            3. Verify RabbitMQ connection health
+            4. Check for configuration issues
+            5. Manually run job: docker compose run --rm retry-job --once --verbose
+            
+            See documents/RETRY_POLICY.md for troubleshooting.
+          runbook_url: "https://github.com/Alan-Jowett/CoPilot-For-Consensus/blob/main/documents/RETRY_POLICY.md#operational-procedures"
+
+      # Critical: Extremely high stuck document count (emergency threshold)
+      - alert: StuckDocumentsEmergency
+        expr: retry_job_stuck_documents > 1000
+        for: 15m
+        labels:
+          severity: critical
+          component: retry-job
+        annotations:
+          summary: "EMERGENCY: Over 1000 stuck documents in {{ $labels.collection }}"
+          description: |
+            Collection {{ $labels.collection }} has {{ $value }} stuck documents.
+            This indicates a severe pipeline degradation or complete processing halt.
+            
+            EMERGENCY RESPONSE:
+            1. Declare incident
+            2. Check all service health: docker compose ps
+            3. Check dependency health: MongoDB, RabbitMQ, Qdrant, Ollama
+            4. Review system resources: CPU, memory, disk
+            5. Consider disabling affected service to prevent queue buildup
+            6. Escalate to engineering lead immediately
+            
+            See documents/RETRY_POLICY.md for escalation procedures.
+          runbook_url: "https://github.com/Alan-Jowett/CoPilot-For-Consensus/blob/main/documents/RETRY_POLICY.md#tier-4-escalation-to-engineering-lead-1000-failures"
+
+      # Warning: Failed documents accumulating
+      - alert: FailedDocumentsAccumulating
+        expr: retry_job_failed_documents > 100
+        for: 1h
+        labels:
+          severity: warning
+          component: retry-job
+        annotations:
+          summary: "Failed documents accumulating in {{ $labels.collection }}"
+          description: |
+            Collection {{ $labels.collection }} has {{ $value }} documents marked as "failed_max_retries".
+            These documents require manual investigation and decision (requeue or purge).
+            
+            Investigation steps:
+            1. Export failed documents: python scripts/manage_failed_queues.py export {{ $labels.collection }}.failed --output failed_docs.json
+            2. Analyze failure patterns
+            3. Determine if reprocessing is viable (bug fixed) or data should be purged
+            4. Document decision in incident log
+            
+            See documents/RETRY_POLICY.md for procedures.
+          runbook_url: "https://github.com/Alan-Jowett/CoPilot-For-Consensus/blob/main/documents/RETRY_POLICY.md#purging-permanently-failed-documents"
+
+      # Info: High backoff skip rate (may indicate aggressive retry attempts)
+      - alert: HighBackoffSkipRate
+        expr: rate(retry_job_documents_skipped_backoff_total[5m]) > 50
+        for: 30m
+        labels:
+          severity: info
+          component: retry-job
+        annotations:
+          summary: "High backoff skip rate in {{ $labels.collection }}"
+          description: |
+            Collection {{ $labels.collection }} has high rate of documents skipped due to backoff: {{ $value }}/sec.
+            This may indicate documents are being retried too aggressively or stuck in retry loop.
+            
+            Investigation (informational):
+            1. Check if retry interval is too short (default: 15 minutes)
+            2. Review backoff configuration (base: 5min, max: 60min)
+            3. Consider adjusting RETRY_JOB_INTERVAL_SECONDS if needed
+            
+            This is informational only; no immediate action required.
+          runbook_url: "https://github.com/Alan-Jowett/CoPilot-For-Consensus/blob/main/documents/RETRY_POLICY.md#configuration"

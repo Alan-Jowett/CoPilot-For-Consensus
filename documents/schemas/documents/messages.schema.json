@@ -106,7 +106,24 @@
       "minItems": 0,
       "uniqueItems": true
     },
-    "created_at": { "type": "string", "format": "date-time" }
+    "created_at": { "type": "string", "format": "date-time" },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "processing", "completed", "failed", "failed_max_retries"],
+      "description": "Processing status for retry and workflow tracking"
+    },
+    "attemptCount": { 
+      "type": "integer", 
+      "minimum": 0,
+      "description": "Number of processing attempts for retry tracking"
+    },
+    "lastAttemptTime": { 
+      "anyOf": [
+        { "type": "string", "format": "date-time" },
+        { "type": "null" }
+      ],
+      "description": "Timestamp of the last processing attempt"
+    }
   },
   "required": ["message_key", "message_id", "archive_id", "thread_id", "body_normalized", "created_at"]
 }
