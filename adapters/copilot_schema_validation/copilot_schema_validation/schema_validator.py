@@ -99,8 +99,9 @@ def validate_json(document: Dict[str, Any], schema: Dict[str, Any], schema_provi
     Args:
         document: The JSON document to validate.
         schema: The JSON schema to validate against.
-        schema_provider: Deprecated parameter, kept for backward compatibility but not used.
-                        Event envelope is always loaded from filesystem.
+        schema_provider: Deprecated parameter (ignored). Event envelope is always loaded
+                        from filesystem. This parameter will be removed in a future version.
+                        Callers should remove this argument from their validate_json() calls.
 
     Returns:
         Tuple of (is_valid, errors). is_valid is True when the document conforms
