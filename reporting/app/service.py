@@ -8,7 +8,7 @@ import time
 import uuid
 import requests
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, TYPE_CHECKING
 
 from copilot_events import (
     EventPublisher,
@@ -20,8 +20,11 @@ from copilot_events import (
 from copilot_storage import DocumentStore
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
-from copilot_vectorstore import VectorStore
-from copilot_embedding import EmbeddingProvider
+
+# Optional dependencies for search/filtering features
+if TYPE_CHECKING:
+    from copilot_vectorstore import VectorStore
+    from copilot_embedding import EmbeddingProvider
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +48,8 @@ class ReportingService:
         webhook_url: Optional[str] = None,
         notify_enabled: bool = False,
         webhook_summary_max_length: int = 500,
-        vector_store: Optional[VectorStore] = None,
-        embedding_provider: Optional[EmbeddingProvider] = None,
+        vector_store: Optional["VectorStore"] = None,
+        embedding_provider: Optional["EmbeddingProvider"] = None,
     ):
         """Initialize reporting service.
         
