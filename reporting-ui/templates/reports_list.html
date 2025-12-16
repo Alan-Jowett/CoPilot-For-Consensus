@@ -1,0 +1,281 @@
+<!-- SPDX-License-Identifier: MIT
+     Copyright (c) 2025 Copilot-for-Consensus contributors -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports - Copilot for Consensus</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .filters form {
+            display: flex;
+            gap: 15px;
+            align-items: end;
+            flex-wrap: wrap;
+        }
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        .filter-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .filter-group input,
+        .filter-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .filter-group button {
+            padding: 8px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .filter-group button:hover {
+            background-color: #0056b3;
+        }
+        .reports-table {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            background-color: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #dee2e6;
+        }
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        .report-link {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .report-link:hover {
+            text-decoration: underline;
+        }
+        .thread-id {
+            font-family: monospace;
+            font-size: 12px;
+            color: #666;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .copy-btn {
+            margin-left: 5px;
+            padding: 2px 6px;
+            font-size: 11px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .copy-btn:hover {
+            background-color: #5a6268;
+        }
+        .timestamp {
+            color: #666;
+            font-size: 13px;
+        }
+        .no-reports {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            margin-top: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .pagination a {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        .pagination a:hover {
+            background-color: #0056b3;
+        }
+        .pagination a.disabled {
+            background-color: #ccc;
+            pointer-events: none;
+        }
+        .summary-preview {
+            max-width: 500px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #555;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            background-color: #17a2b8;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Reports</h1>
+        <p class="subtitle">Browse and search summarization reports</p>
+        
+        <div class="filters">
+            <form method="get" action="/reports">
+                <div class="filter-group">
+                    <label for="thread_id">Thread ID</label>
+                    <input type="text" name="thread_id" id="thread_id" value="{{ thread_id }}" placeholder="Filter by thread ID">
+                </div>
+                <div class="filter-group">
+                    <label for="limit">Results per page</label>
+                    <select name="limit" id="limit">
+                        <option value="10" {% if limit == 10 %}selected{% endif %}>10</option>
+                        <option value="20" {% if limit == 20 %}selected{% endif %}>20</option>
+                        <option value="50" {% if limit == 50 %}selected{% endif %}>50</option>
+                        <option value="100" {% if limit == 100 %}selected{% endif %}>100</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <button type="submit">Filter</button>
+                </div>
+            </form>
+        </div>
+        
+        <div class="reports-table">
+            {% if reports %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Report ID</th>
+                        <th>Thread ID</th>
+                        <th>Generated</th>
+                        <th>Summary Preview</th>
+                        <th>Citations</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in reports %}
+                    <tr>
+                        <td>
+                            <a href="/reports/{{ report.summary_id }}" class="report-link">
+                                {{ report.summary_id[:8] }}...
+                            </a>
+                            <button class="copy-btn" onclick="copyToClipboard('{{ report.summary_id }}')">Copy</button>
+                        </td>
+                        <td>
+                            <div class="thread-id" title="{{ report.thread_id }}">
+                                {{ report.thread_id }}
+                            </div>
+                            <button class="copy-btn" onclick="copyToClipboard('{{ report.thread_id }}')">Copy</button>
+                        </td>
+                        <td class="timestamp">{{ report.generated_at }}</td>
+                        <td class="summary-preview" title="{{ report.content_markdown }}">
+                            {{ report.content_markdown[:100] }}...
+                        </td>
+                        <td>
+                            <span class="badge">{{ report.citations|length }} citations</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="no-reports">
+                <p>No reports match the selected filters.</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        {% if reports %}
+        <div class="pagination">
+            <a href="?thread_id={{ thread_id }}&limit={{ limit }}&skip={{ skip - limit if skip >= limit else 0 }}" 
+               class="{% if skip == 0 %}disabled{% endif %}">
+                ← Previous
+            </a>
+            <span>Showing {{ skip + 1 }} - {{ skip + count }} ({{ count }} reports)</span>
+            <a href="?thread_id={{ thread_id }}&limit={{ limit }}&skip={{ skip + limit }}"
+               class="{% if count < limit %}disabled{% endif %}">
+                Next →
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    
+    <script>
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                // Show a brief success indication
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(function() {
+                    btn.textContent = originalText;
+                }, 1500);
+            }, function(err) {
+                console.error('Failed to copy text: ', err);
+                alert('Failed to copy to clipboard');
+            });
+        }
+    </script>
+</body>
+</html>

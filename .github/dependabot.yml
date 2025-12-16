@@ -58,6 +58,13 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
 
+  # Monitor Python dependencies in reporting-ui service
+  - package-ecosystem: "pip"
+    directory: "/reporting-ui"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
   # Monitor Python dependencies in scripts service
   - package-ecosystem: "pip"
     directory: "/scripts"
