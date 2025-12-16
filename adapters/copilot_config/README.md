@@ -291,4 +291,4 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ## Contributing
 
-See [CONTRIBUTING.md](../../documents/CONTRIBUTING.md) for contribution guidelines.
+See [CONTRIBUTING.md](../../CONTRIBUTING.md) for contribution guidelines.

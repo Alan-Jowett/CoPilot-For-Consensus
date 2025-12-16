@@ -275,6 +275,7 @@ Comprehensive documentation is available throughout the repository:
 
 ### Development Guides
 - **[docs/LOCAL_DEVELOPMENT.md](./docs/LOCAL_DEVELOPMENT.md)**: Complete local development setup, debugging, and testing guide
+- **[docs/TESTING_STRATEGY.md](./docs/TESTING_STRATEGY.md)**: Integration testing strategy, test organization, and CI/CD integration
 - **[docs/CONVENTIONS.md](./docs/CONVENTIONS.md)**: Documentation conventions, style guide, and contribution standards
 
 ### Service Documentation
