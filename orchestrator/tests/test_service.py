@@ -410,6 +410,79 @@ def test_handle_embeddings_generated_raises_on_missing_data_field(orchestration_
         orchestration_service._handle_embeddings_generated(event)
 
 
+def test_idempotent_orchestration(
+    orchestration_service,
+    mock_document_store,
+    mock_publisher,
+):
+    """Test that duplicate orchestration requests are idempotent (safe retry).
+    
+    If a summary already exists for a thread, the orchestrator should skip
+    publishing SummarizationRequested to avoid redundant processing.
+    """
+    thread_id = "<thread@example.com>"
+    chunk_ids = ["chunk-1", "chunk-2"]
+    
+    # Setup: chunks exist and map to thread
+    chunks = [
+        {"chunk_id": "chunk-1", "thread_id": thread_id, "embedding_generated": True},
+        {"chunk_id": "chunk-2", "thread_id": thread_id, "embedding_generated": True},
+    ]
+    
+    # First call: no existing summary
+    call_count = [0]
+    def query_side_effect(collection, filter_dict, **kwargs):
+        call_count[0] += 1
+        if collection == "summaries":
+            # First time: no existing summary
+            return []
+        elif collection == "chunks":
+            return chunks
+        return []
+    
+    mock_document_store.query_documents.side_effect = query_side_effect
+    
+    event_data = {
+        "chunk_ids": chunk_ids,
+        "embedding_count": 2,
+    }
+    
+    # First processing - should orchestrate
+    orchestration_service.process_embeddings(event_data)
+    
+    # Verify SummarizationRequested was published
+    assert mock_publisher.publish.call_count == 1
+    call_args = mock_publisher.publish.call_args
+    assert call_args[1]["routing_key"] == "summarization.requested"
+    
+    # Reset mocks
+    mock_publisher.publish.reset_mock()
+    call_count[0] = 0
+    
+    # Second call: summary now exists (simulating retry)
+    existing_summary = {
+        "summary_id": "summary-123",
+        "thread_id": thread_id,
+        "summary_type": "thread",
+    }
+    
+    def query_side_effect_with_summary(collection, filter_dict, **kwargs):
+        call_count[0] += 1
+        if collection == "summaries":
+            # Second time: summary exists
+            return [existing_summary]
+        elif collection == "chunks":
+            return chunks
+        return []
+    
+    mock_document_store.query_documents.side_effect = query_side_effect_with_summary
+    
+    # Second processing (retry scenario) - should skip orchestration
+    orchestration_service.process_embeddings(event_data)
+    
+    # Verify NO new SummarizationRequested was published
+    assert mock_publisher.publish.call_count == 0
+
 def test_metrics_collector_uses_tags_parameter(mock_document_store, mock_publisher, mock_subscriber):
     """Test that metrics collector calls use tags= parameter, not labels=."""
     mock_metrics = Mock()

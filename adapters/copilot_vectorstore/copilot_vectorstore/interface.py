@@ -36,13 +36,16 @@ class VectorStore(ABC):
     def add_embedding(self, id: str, vector: List[float], metadata: Dict[str, Any]) -> None:
         """Add a single embedding to the vector store.
         
+        Idempotent operation: if the ID already exists, implementations should use
+        upsert semantics (update the existing embedding with new vector and metadata).
+        
         Args:
             id: Unique identifier for this embedding
             vector: The embedding vector
             metadata: Additional metadata to store with the embedding
             
         Raises:
-            ValueError: If id already exists or vector is invalid
+            ValueError: If vector is invalid (e.g., wrong dimensions)
         """
         pass
     
@@ -51,13 +54,17 @@ class VectorStore(ABC):
                       metadatas: List[Dict[str, Any]]) -> None:
         """Add multiple embeddings to the vector store in batch.
         
+        Idempotent operation: if any IDs already exist, implementations should use
+        upsert semantics (update existing embeddings with new vectors and metadata).
+        
         Args:
             ids: List of unique identifiers
             vectors: List of embedding vectors
             metadatas: List of metadata dictionaries
             
         Raises:
-            ValueError: If lengths don't match or any id already exists
+            ValueError: If lengths don't match, vectors have wrong dimensions, 
+                       or duplicate IDs exist within the batch
         """
         pass
     

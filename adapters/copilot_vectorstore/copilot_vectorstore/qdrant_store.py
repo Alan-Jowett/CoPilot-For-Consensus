@@ -147,13 +147,16 @@ class QdrantVectorStore(VectorStore):
     def add_embedding(self, id: str, vector: List[float], metadata: Dict[str, Any]) -> None:
         """Add a single embedding to the vector store.
         
+        Idempotent operation: if the ID already exists, it will be updated with the new
+        vector and metadata (upsert semantics).
+        
         Args:
             id: Unique identifier for this embedding
             vector: The embedding vector
             metadata: Additional metadata to store with the embedding
             
         Raises:
-            ValueError: If vector dimension doesn't match or id already exists
+            ValueError: If vector dimension doesn't match
         """
         if len(vector) != self._vector_size:
             raise ValueError(
@@ -161,25 +164,7 @@ class QdrantVectorStore(VectorStore):
                 f"expected dimension ({self._vector_size})"
             )
         
-        # Check if ID already exists
-        try:
-            uuid_id = _string_to_uuid(id)
-            existing = self._client.retrieve(
-                collection_name=self._collection_name,
-                ids=[uuid_id],
-            )
-            if existing:
-                raise ValueError(f"ID '{id}' already exists in the vector store")
-        except ValueError:
-            # Re-raise our ValueError
-            raise
-        except (ConnectionError, OSError, TimeoutError, AttributeError):
-            # Network/connection errors or collection doesn't exist - proceed with upsert
-            # AttributeError can occur if client is not properly initialized
-            logger.warning(f"Could not verify ID existence, proceeding with upsert: {id}")
-            pass
-        
-        # Add the point
+        # Add the point (upsert: create if new, update if exists)
         point = self._PointStruct(
             id=_string_to_uuid(id),
             vector=vector,
@@ -190,10 +175,14 @@ class QdrantVectorStore(VectorStore):
             collection_name=self._collection_name,
             points=[point],
         )
+        logger.debug(f"Upserted embedding with ID: {id}")
     
     def add_embeddings(self, ids: List[str], vectors: List[List[float]], 
                       metadatas: List[Dict[str, Any]]) -> None:
         """Add multiple embeddings to the vector store in batch.
+        
+        Idempotent operation: if any IDs already exist, they will be updated with the new
+        vectors and metadata (upsert semantics).
         
         Args:
             ids: List of unique identifiers
@@ -201,7 +190,7 @@ class QdrantVectorStore(VectorStore):
             metadatas: List of metadata dictionaries
             
         Raises:
-            ValueError: If lengths don't match, vector dimensions are wrong, or any id already exists
+            ValueError: If lengths don't match or vector dimensions are wrong
         """
         if not (len(ids) == len(vectors) == len(metadatas)):
             raise ValueError("ids, vectors, and metadatas must have the same length")
@@ -221,27 +210,7 @@ class QdrantVectorStore(VectorStore):
         # Convert IDs to UUIDs for Qdrant compatibility
         uuid_ids = [_string_to_uuid(id_val) for id_val in ids]
         
-        # Check if any IDs already exist
-        try:
-            existing = self._client.retrieve(
-                collection_name=self._collection_name,
-                ids=uuid_ids,
-            )
-            if existing:
-                existing_ids = [p.payload.get("_original_id", p.id) for p in existing]
-                raise ValueError(
-                    f"The following IDs already exist in the vector store: {existing_ids}"
-                )
-        except ValueError:
-            # Re-raise our ValueError
-            raise
-        except (ConnectionError, OSError, TimeoutError, AttributeError):
-            # Network/connection errors or collection doesn't exist - proceed with upsert
-            # AttributeError can occur if client is not properly initialized
-            logger.warning("Could not verify ID existence, proceeding with batch upsert")
-            pass
-        
-        # Create points with UUID IDs
+        # Create points (upsert: create if new, update if exists)
         points = [
             self._PointStruct(
                 id=uuid_id,  # Use deterministic UUID for Qdrant compatibility

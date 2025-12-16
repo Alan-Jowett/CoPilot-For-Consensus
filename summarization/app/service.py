@@ -158,6 +158,9 @@ class SummarizationService:
     ):
         """Process a single thread for summarization.
         
+        Idempotent operation: checks if a summary already exists for this thread
+        and skips regeneration if found, ensuring safe retry behavior.
+        
         Args:
             thread_id: Thread identifier
             top_k: Number of chunks to retrieve
@@ -166,6 +169,36 @@ class SummarizationService:
         """
         start_time = time.time()
         retry_count = 0
+        
+        # Check if summary already exists (idempotency check)
+        # Note: There's a potential race condition between this check and summary creation.
+        # Multiple concurrent requests could pass this check and create duplicate summaries.
+        # This is acceptable as duplicates are wasteful but not harmful (latest write wins).
+        try:
+            existing_summaries = list(self.document_store.query_documents(
+                collection="summaries",
+                filter_dict={"thread_id": thread_id, "summary_type": "thread"},
+                limit=1
+            ))
+            if existing_summaries:
+                logger.info(
+                    f"Summary already exists for thread {thread_id}, skipping regeneration "
+                    "(idempotent retry)"
+                )
+                # Update stats to reflect we "processed" it
+                self.summaries_generated += 1
+                return
+        except (ConnectionError, OSError, TimeoutError) as e:
+            # Database connectivity issues - log but continue with regeneration
+            # (better to regenerate than fail on transient database errors during idempotency check)
+            logger.warning(f"Could not check for existing summary for {thread_id}: {e}")
+        except Exception as e:
+            # Unexpected errors (e.g., programming errors) should be logged with full context
+            logger.error(
+                f"Unexpected error checking for existing summary for {thread_id}: {e}",
+                exc_info=True
+            )
+            # Continue with regeneration - idempotency check is an optimization, not critical path
         
         while retry_count < self.retry_max_attempts:
             try:

@@ -15,7 +15,9 @@ from .test_helpers import assert_valid_event_schema
 def mock_document_store():
     """Create a mock document store."""
     store = Mock()
-    store.query_documents = Mock(return_value=[
+    
+    # Default messages data
+    messages_data = [
         {
             "message_id": "<msg1@example.com>",
             "thread_id": "<thread@example.com>",
@@ -32,7 +34,18 @@ def mock_document_store():
             "date": "2023-10-15T13:00:00Z",
             "subject": "Re: Test Subject",
         },
-    ])
+    ]
+    
+    # Collection-aware query that returns messages only for "messages" collection
+    # and empty list for "summaries" collection (no existing summaries by default)
+    def query_side_effect(collection, *args, **kwargs):
+        if collection == "messages":
+            return messages_data
+        elif collection == "summaries":
+            return []  # No existing summaries by default
+        return []
+    
+    store.query_documents = Mock(side_effect=query_side_effect)
     return store
 
 
@@ -145,7 +158,8 @@ def test_retrieve_context_success(summarization_service, mock_document_store):
 
 def test_retrieve_context_no_messages(summarization_service, mock_document_store):
     """Test retrieving context when no messages are found."""
-    mock_document_store.query_documents.return_value = []
+    # Override with side_effect that returns empty for all collections
+    mock_document_store.query_documents.side_effect = lambda *args, **kwargs: []
     
     context = summarization_service._retrieve_context("<thread@example.com>", top_k=10)
     
@@ -224,7 +238,8 @@ def test_process_thread_success(summarization_service, mock_summarizer, mock_pub
 
 def test_process_thread_no_context(summarization_service, mock_document_store, mock_publisher):
     """Test processing a thread when no context is available."""
-    mock_document_store.query_documents.return_value = []
+    # Override with side_effect that returns empty for all collections
+    mock_document_store.query_documents.side_effect = lambda *args, **kwargs: []
     
     summarization_service._process_thread(
         thread_id="<thread@example.com>",
@@ -552,7 +567,9 @@ def test_schema_validation_summarization_failed_valid(summarization_service, moc
 def test_consume_summarization_requested_event():
     """Test consuming a SummarizationRequested event."""
     mock_store = Mock()
-    mock_store.query_documents = Mock(return_value=[
+    
+    # Collection-aware mock that returns messages for "messages" and empty for "summaries"
+    messages_data = [
         {
             "message_id": "<msg@example.com>",
             "thread_id": "<thread@example.com>",
@@ -561,7 +578,16 @@ def test_consume_summarization_requested_event():
             "date": "2023-10-15T12:00:00Z",
             "subject": "Test",
         }
-    ])
+    ]
+    
+    def query_side_effect(collection, *args, **kwargs):
+        if collection == "messages":
+            return messages_data
+        elif collection == "summaries":
+            return []
+        return []
+    
+    mock_store.query_documents = Mock(side_effect=query_side_effect)
     
     mock_vector = Mock()
     mock_publisher = Mock()
@@ -624,7 +650,9 @@ def test_consume_summarization_requested_event():
 def test_consume_summarization_requested_multiple_threads():
     """Test consuming a SummarizationRequested event with multiple threads."""
     mock_store = Mock()
-    mock_store.query_documents = Mock(return_value=[
+    
+    # Collection-aware mock that returns messages for "messages" and empty for "summaries"
+    messages_data = [
         {
             "message_id": "<msg@example.com>",
             "thread_id": "<thread1@example.com>",
@@ -633,7 +661,16 @@ def test_consume_summarization_requested_multiple_threads():
             "date": "2023-10-15T12:00:00Z",
             "subject": "Test",
         }
-    ])
+    ]
+    
+    def query_side_effect(collection, *args, **kwargs):
+        if collection == "messages":
+            return messages_data
+        elif collection == "summaries":
+            return []
+        return []
+    
+    mock_store.query_documents = Mock(side_effect=query_side_effect)
     
     mock_vector = Mock()
     mock_publisher = Mock()
@@ -856,3 +893,101 @@ def test_publish_summarization_failed_with_publisher_failure(
         )
     
     assert "Failed to publish SummarizationFailed event" in str(exc_info.value)
+
+
+def test_idempotent_summarization(
+    summarization_service,
+    mock_document_store,
+    mock_summarizer,
+    mock_publisher,
+):
+    """Test that duplicate summarization requests are idempotent (safe retry).
+    
+    If a summary already exists for a thread, the service should skip regeneration
+    to avoid unnecessary LLM calls and ensure idempotent behavior.
+    """
+    thread_id = "<thread@example.com>"
+    
+    # Setup messages for context retrieval
+    messages_data = [
+        {
+            "message_id": "<msg1@example.com>",
+            "thread_id": thread_id,
+            "body_normalized": "Test message 1",
+        },
+        {
+            "message_id": "<msg2@example.com>",
+            "thread_id": thread_id,
+            "body_normalized": "Test message 2",
+        },
+    ]
+    
+    # First call: no existing summary, but has messages
+    call_count = [0]
+    def query_side_effect(collection, filter_dict, **kwargs):
+        call_count[0] += 1
+        if collection == "summaries":
+            # First check: no existing summary
+            return []
+        elif collection == "messages":
+            # Return messages for context
+            return messages_data
+        return []
+    
+    mock_document_store.query_documents.side_effect = query_side_effect
+    
+    event_data = {
+        "thread_ids": [thread_id],
+        "top_k": 12,
+        "context_window_tokens": 3000,
+        "prompt_template": "Summarize this:",
+    }
+    
+    # First processing - should generate summary
+    summarization_service.process_summarization(event_data)
+    
+    # Verify summarizer was called
+    assert mock_summarizer.summarize.call_count == 1
+    
+    # Verify summary complete event was published
+    assert mock_publisher.publish.call_count == 1
+    assert summarization_service.summaries_generated == 1
+    
+    # Reset mocks
+    mock_summarizer.summarize.reset_mock()
+    mock_publisher.publish.reset_mock()
+    call_count[0] = 0
+    
+    # Second call: summary now exists (simulating retry)
+    existing_summary = {
+        "summary_id": "summary-123",
+        "thread_id": thread_id,
+        "summary_type": "thread",
+        "summary_markdown": "Existing summary",
+    }
+    
+    # Configure mock to return existing summary on first query_documents call
+    # (for idempotency check) and messages on subsequent calls (for context retrieval)
+    def query_side_effect_with_summary(collection, filter_dict, **kwargs):
+        call_count[0] += 1
+        if call_count[0] == 1 and collection == "summaries":
+            # First call checks for existing summary
+            return [existing_summary]
+        elif collection == "messages":
+            # Subsequent calls return messages for context
+            return messages_data
+        return []
+    
+    mock_document_store.query_documents.side_effect = query_side_effect_with_summary
+    
+    # Second processing (retry scenario) - should skip generation
+    summarization_service.process_summarization(event_data)
+    
+    # Verify summarizer was NOT called (skipped due to existing summary)
+    assert mock_summarizer.summarize.call_count == 0
+    
+    # No new event should be published
+    assert mock_publisher.publish.call_count == 0
+    
+    # Stats still reflect that we "processed" it (for metrics consistency)
+    assert summarization_service.summaries_generated == 2  # 1 + 1 (skipped counts as processed)

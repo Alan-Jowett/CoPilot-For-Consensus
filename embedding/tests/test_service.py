@@ -592,3 +592,75 @@ def test_publish_embedding_failed_false_return(embedding_service, mock_publisher
         ], "boom", "TestError", 0)
 
     mock_publisher.publish.assert_called_once()
+
+
+def test_idempotent_embedding_generation(
+    embedding_service,
+    mock_document_store,
+    mock_vector_store,
+    mock_embedding_provider,
+    mock_publisher,
+):
+    """Test that duplicate embedding generation is idempotent (safe retry).
+    
+    The vectorstore now uses upsert semantics, so duplicate embeddings should
+    not cause errors. The chunk status update should also be safe to retry.
+    """
+    # Setup: chunks exist in database
+    chunks = [
+        {
+            "_id": f"chunk-{i}",  # MongoDB _id field required by service
+            "chunk_id": f"chunk-{i}",
+            "text": f"This is test chunk {i}",
+            "message_id": "<test@example.com>",
+            "thread_id": "<thread@example.com>",
+            "archive_id": "archive-123",
+            "chunk_index": i,
+            "token_count": 10,
+            "metadata": {
+                "sender": "user@example.com",
+                "sender_name": "Test User",
+                "date": "2023-10-15T12:00:00Z",
+                "subject": "Test Subject",
+                "draft_mentions": [],
+            },
+        }
+        for i in range(3)
+    ]
+    
+    mock_document_store.query_documents.return_value = chunks
+    
+    event_data = {
+        "chunk_ids": ["chunk-0", "chunk-1", "chunk-2"],
+        "chunk_count": 3,
+    }
+    
+    # First processing - should succeed
+    embedding_service.process_chunks(event_data)
+    
+    # Verify embeddings were generated and stored
+    assert mock_embedding_provider.embed.call_count == 3
+    assert mock_vector_store.add_embeddings.call_count == 1
+    assert mock_document_store.update_document.call_count == 3
+    
+    # Reset mocks to track second call
+    mock_embedding_provider.embed.reset_mock()
+    mock_vector_store.add_embeddings.reset_mock()
+    mock_document_store.update_document.reset_mock()
+    mock_publisher.publish.reset_mock()
+    
+    # Second processing (retry scenario) - should also succeed due to upsert
+    embedding_service.process_chunks(event_data)
+    
+    # Verify the retry succeeded (idempotent behavior)
+    assert mock_embedding_provider.embed.call_count == 3
+    assert mock_vector_store.add_embeddings.call_count == 1
+    # Status updates are safe to retry (idempotent)
+    assert mock_document_store.update_document.call_count == 3
+    
+    # Both attempts should publish success events
+    assert mock_publisher.publish.call_count == 1
+    
+    # Verify stats reflect both processing attempts
+    assert embedding_service.chunks_processed == 6  # 3 + 3
+    assert embedding_service.embeddings_generated_total == 6  # 3 + 3

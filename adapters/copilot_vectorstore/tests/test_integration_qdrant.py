@@ -238,16 +238,26 @@ class TestQdrantIntegration:
         
         assert results == []
     
-    def test_duplicate_id_raises_error(self, clean_store):
-        """Test that adding duplicate ID raises ValueError."""
-        vector = [0.1] * 384
-        clean_store.add_embedding("doc1", vector, {"text": "first"})
+    def test_add_embedding_is_idempotent(self, clean_store):
+        """Test that adding duplicate ID uses upsert semantics (idempotent)."""
+        vector1 = [0.1] * 384
+        vector2 = [0.2] * 384
+        
+        # Add same ID twice - should not raise an error (upsert semantics)
+        clean_store.add_embedding("doc1", vector1, {"text": "first"})
         
         # Give Qdrant time to index
         time.sleep(0.1)
         
-        with pytest.raises(ValueError, match="already exists"):
-            clean_store.add_embedding("doc1", vector, {"text": "second"})
+        # Adding again should succeed (upsert)
+        clean_store.add_embedding("doc1", vector2, {"text": "second"})
+        
+        # Verify the embedding was updated by querying
+        results = clean_store.query(vector2, top_k=1)
+        assert len(results) == 1
+        assert results[0].id == "doc1"
+        assert results[0].metadata["text"] == "second"
+
     
     def test_vector_dimension_mismatch_raises_error(self, clean_store):
         """Test that vector dimension mismatch raises ValueError."""

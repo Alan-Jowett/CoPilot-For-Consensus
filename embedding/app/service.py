@@ -333,15 +333,31 @@ class EmbeddingService:
     def _update_chunk_status_by_doc_ids(self, doc_ids: List[str]):
         """Update chunk embedding status in document database using Mongo _id values.
         
+        Idempotent operation: updates chunks with embedding_generated=True.
+        Safe to call multiple times - setting a field to the same value is idempotent.
+        
         Args:
             doc_ids: List of Mongo document IDs to update
         """
         for doc_id in doc_ids:
-            self.document_store.update_document(
-                collection="chunks",
-                doc_id=doc_id,
-                patch={"embedding_generated": True},
-            )
+            try:
+                # Update is idempotent - setting embedding_generated=True multiple times is safe
+                self.document_store.update_document(
+                    collection="chunks",
+                    doc_id=doc_id,
+                    patch={"embedding_generated": True},
+                )
+            except (ConnectionError, OSError, TimeoutError) as e:
+                # Database connectivity issues - log but don't fail
+                # The embedding itself has already been stored in vectorstore
+                logger.warning(f"Failed to update status for chunk {doc_id} (connectivity): {e}")
+            except Exception as e:
+                # Other errors (e.g., chunk not found, validation errors) - log with full context
+                logger.error(
+                    f"Unexpected error updating status for chunk {doc_id}: {e}",
+                    exc_info=True
+                )
+        
         logger.debug(f"Updated {len(doc_ids)} chunks with embedding_generated=True")
 
     def _publish_embeddings_generated(

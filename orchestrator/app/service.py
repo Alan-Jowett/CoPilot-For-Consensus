@@ -208,6 +208,9 @@ class OrchestrationService:
 
     def _orchestrate_thread(self, thread_id: str):
         """Orchestrate summarization for a single thread.
+        
+        Idempotent operation: checks if a summary already exists for this thread
+        and skips orchestration if found, ensuring safe retry behavior.
 
         Args:
             thread_id: Thread ID to orchestrate
@@ -215,6 +218,37 @@ class OrchestrationService:
         logger.info(f"Orchestrating thread: {thread_id}")
 
         try:
+            # Check if summary already exists (idempotency check)
+            # Note: There's a potential race condition between this check and event publishing.
+            # Multiple concurrent requests could pass this check and publish duplicate events.
+            # This is acceptable as downstream services should also be idempotent.
+            try:
+                existing_summaries = list(self.document_store.query_documents(
+                    collection="summaries",
+                    filter_dict={"thread_id": thread_id, "summary_type": "thread"},
+                    limit=1
+                ))
+                if existing_summaries:
+                    logger.info(
+                        f"Summary already exists for thread {thread_id}, skipping orchestration "
+                        "(idempotent retry)"
+                    )
+                    return
+            except (ConnectionError, OSError, TimeoutError) as e:
+                # Database connectivity issues during idempotency check
+                # Log warning but continue processing - better to potentially duplicate than skip
+                logger.warning(
+                    f"Could not check for existing summary for thread {thread_id} "
+                    f"due to database connectivity issue: {e}. Proceeding with orchestration."
+                )
+            except Exception as e:
+                # Unexpected errors - log with full context but continue
+                logger.error(
+                    f"Unexpected error checking for existing summary for thread {thread_id}: {e}",
+                    exc_info=True
+                )
+                # Continue processing - err on the side of completing the request
+            
             # Retrieve top-k chunks for this thread
             context = self._retrieve_context(thread_id)
 
