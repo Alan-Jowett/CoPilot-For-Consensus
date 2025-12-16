@@ -125,6 +125,22 @@ This design ensures the system can operate in air-gapped environments, resource-
   - Error Tracking UI: http://localhost:8081/ui
   - Prometheus: http://localhost:9090
 
+### 11. Retry Policy & Failure Recovery
+
+- **Purpose:** Ensure forward progress for stuck or failed documents without infinite loops.
+- **Components:**
+  - **Retry Job Service**: Periodic background job that identifies and requeues stuck documents
+  - **Exponential Backoff**: Prevents overwhelming dependencies with 5min, 10min, 20min delays (capped at 60min)
+  - **Bounded Retries**: Maximum attempts per document type (3 for archives/messages, 5 for chunks/threads)
+  - **Metrics & Alerting**: Prometheus alerts for stuck documents, max retries exceeded, and job failures
+- **Key Features:**
+  - Automatic recovery from transient failures (network, resource constraints)
+  - Clear escalation paths for persistent failures
+  - Per-document attempt tracking via `attemptCount` and `lastAttemptTime` fields
+  - Idempotent retry operations across all services
+  - Grafana dashboard for retry policy monitoring
+- **Documentation:** See [RETRY_POLICY.md](./RETRY_POLICY.md) for complete specification and operational procedures.
+
 ## Configuration Management
 
 ### Schema-Driven Configuration System

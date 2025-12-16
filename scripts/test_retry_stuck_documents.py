@@ -48,17 +48,17 @@ class TestRetryStuckDocumentsJob(unittest.TestCase):
         self.assertEqual(self.job.calculate_backoff_delay(0), 0)
         self.assertEqual(self.job.calculate_backoff_delay(1), 0)
         
-        # Second attempt: base delay (300s = 5 min)
-        self.assertEqual(self.job.calculate_backoff_delay(2), 300)
+        # Second attempt: base delay * 2^(2-1) = 300 * 2 = 600s (10 min)
+        self.assertEqual(self.job.calculate_backoff_delay(2), 600)
         
-        # Third attempt: 2x base delay (600s = 10 min)
-        self.assertEqual(self.job.calculate_backoff_delay(3), 600)
+        # Third attempt: base delay * 2^(3-1) = 300 * 4 = 1200s (20 min)
+        self.assertEqual(self.job.calculate_backoff_delay(3), 1200)
         
-        # Fourth attempt: 4x base delay (1200s = 20 min)
-        self.assertEqual(self.job.calculate_backoff_delay(4), 1200)
+        # Fourth attempt: base delay * 2^(4-1) = 300 * 8 = 2400s (40 min)
+        self.assertEqual(self.job.calculate_backoff_delay(4), 2400)
         
-        # Fifth attempt: 8x base delay (2400s = 40 min)
-        self.assertEqual(self.job.calculate_backoff_delay(5), 2400)
+        # Fifth attempt: base delay * 2^(5-1) = 300 * 16 = 4800s, capped at 3600s (60 min)
+        self.assertEqual(self.job.calculate_backoff_delay(5), 3600)
         
         # Sixth+ attempts: capped at max delay (3600s = 60 min)
         self.assertEqual(self.job.calculate_backoff_delay(6), 3600)
@@ -78,27 +78,27 @@ class TestRetryStuckDocumentsJob(unittest.TestCase):
     
     def test_is_backoff_elapsed_second_retry_not_ready(self):
         """Test backoff check for second retry (not ready)."""
-        # Second retry requires 300s delay
-        last_attempt = datetime.now(timezone.utc) - timedelta(seconds=200)
+        # Second retry requires 600s delay (10 min)
+        last_attempt = datetime.now(timezone.utc) - timedelta(seconds=400)
         
-        # Only 200s elapsed, need 300s
+        # Only 400s elapsed, need 600s
         self.assertFalse(self.job.is_backoff_elapsed(last_attempt, 2))
     
     def test_is_backoff_elapsed_second_retry_ready(self):
         """Test backoff check for second retry (ready)."""
-        # Second retry requires 300s delay
-        last_attempt = datetime.now(timezone.utc) - timedelta(seconds=400)
+        # Second retry requires 600s delay (10 min)
+        last_attempt = datetime.now(timezone.utc) - timedelta(seconds=700)
         
-        # 400s elapsed, more than 300s required
+        # 700s elapsed, more than 600s required
         self.assertTrue(self.job.is_backoff_elapsed(last_attempt, 2))
     
     def test_is_backoff_elapsed_third_retry(self):
         """Test backoff check for third retry."""
-        # Third retry requires 600s delay
-        last_attempt = datetime.now(timezone.utc) - timedelta(seconds=500)
+        # Third retry requires 1200s delay (20 min)
+        last_attempt = datetime.now(timezone.utc) - timedelta(seconds=1000)
         self.assertFalse(self.job.is_backoff_elapsed(last_attempt, 3))
         
-        last_attempt = datetime.now(timezone.utc) - timedelta(seconds=700)
+        last_attempt = datetime.now(timezone.utc) - timedelta(seconds=1300)
         self.assertTrue(self.job.is_backoff_elapsed(last_attempt, 3))
     
     def test_build_event_data_archives(self):

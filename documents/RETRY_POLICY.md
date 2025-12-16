@@ -65,10 +65,10 @@ delay = min(base_delay * 2^(attemptCount - 1), max_delay)
 
 **Delay Schedule:**
 - Attempt 1: Immediate (no delay)
-- Attempt 2: 5 minutes after attempt 1
-- Attempt 3: 10 minutes after attempt 2
-- Attempt 4: 20 minutes after attempt 3
-- Attempt 5: 40 minutes after attempt 4 (capped at 60 min for subsequent attempts)
+- Attempt 2: 10 minutes after attempt 1
+- Attempt 3: 20 minutes after attempt 2
+- Attempt 4: 40 minutes after attempt 3
+- Attempt 5: 60 minutes after attempt 4 (capped at max)
 
 **Implementation**: Retry job checks `lastAttemptTime + calculated_delay < now()` before requeuing.
 
