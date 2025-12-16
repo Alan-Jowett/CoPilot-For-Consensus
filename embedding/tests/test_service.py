@@ -197,12 +197,14 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
     assert stored_metadata[0]["embedding_model"] == "all-MiniLM-L6-v2"
     assert stored_metadata[0]["embedding_backend"] == "sentencetransformers"
     
-    # Verify chunk status was updated
+    # Verify chunk status was updated using MongoDB _id (not chunk_id)
     assert mock_document_store.update_document.call_count == 3
-    # Verify the update calls were made for each chunk
+    # Verify the update calls were made using MongoDB _id for each chunk
     update_calls = mock_document_store.update_document.call_args_list
-    updated_chunk_ids = [call[1]["doc_id"] for call in update_calls]
-    assert set(updated_chunk_ids) == set(chunk_ids)
+    updated_doc_ids = [call[1]["doc_id"] for call in update_calls]
+    # Expected _id values from test chunks
+    expected_mongo_ids = ["chunk-1", "chunk-2", "chunk-3"]
+    assert set(updated_doc_ids) == set(expected_mongo_ids)
     
     # Verify success event was published
     mock_publisher.publish.assert_called_once()

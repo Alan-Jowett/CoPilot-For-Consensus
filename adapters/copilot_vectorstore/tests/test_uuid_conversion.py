@@ -3,7 +3,7 @@
 
 """Tests for UUID conversion and original ID preservation in Qdrant."""
 
-import pytest
+import uuid
 from unittest.mock import Mock, patch
 from copilot_vectorstore.qdrant_store import _string_to_uuid, QdrantVectorStore
 
@@ -21,12 +21,14 @@ def test_string_to_uuid_unique_for_different_inputs():
     uuid1 = _string_to_uuid("chunk-1")
     uuid2 = _string_to_uuid("chunk-2")
     uuid3 = _string_to_uuid("chunk-10")
-    assert uuid1 != uuid2 != uuid3
+    # Verify all three UUIDs are unique
+    assert uuid1 != uuid2
+    assert uuid2 != uuid3
+    assert uuid1 != uuid3
 
 
 def test_string_to_uuid_format():
     """UUID should be valid UUID5 format."""
-    import uuid
     result = _string_to_uuid("test-id")
     # Should parse as valid UUID
     uuid_obj = uuid.UUID(result)
@@ -82,6 +84,5 @@ def test_add_embeddings_batch_uses_uuids_for_duplicate_check(mock_client_class):
     assert uuid_ids[0] != original_ids[0]
     assert uuid_ids[1] != original_ids[1]
     # Should be valid UUID format
-    import uuid
     for uid in uuid_ids:
         uuid.UUID(uid)  # Raises if invalid
