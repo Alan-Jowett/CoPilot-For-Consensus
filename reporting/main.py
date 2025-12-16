@@ -120,6 +120,40 @@ def get_reports(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/reports/search")
+def search_reports_by_topic(
+    topic: str = Query(..., description="Topic or query text to search for"),
+    limit: int = Query(10, ge=1, le=50, description="Maximum number of results"),
+    min_score: float = Query(0.5, ge=0.0, le=1.0, description="Minimum similarity score"),
+):
+    """Search reports by topic using embedding-based similarity."""
+    global reporting_service
+    
+    if not reporting_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    try:
+        reports = reporting_service.search_reports_by_topic(
+            topic=topic,
+            limit=limit,
+            min_score=min_score,
+        )
+        
+        return {
+            "reports": reports,
+            "count": len(reports),
+            "topic": topic,
+            "min_score": min_score,
+        }
+        
+    except ValueError as e:
+        # Topic search may not be configured
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error searching reports by topic: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/reports/{report_id}")
 def get_report(report_id: str):
     """Get a specific report by ID."""
@@ -163,40 +197,6 @@ def get_thread_summary(thread_id: str):
         raise
     except Exception as e:
         logger.error(f"Error fetching thread summary {thread_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/reports/search")
-def search_reports_by_topic(
-    topic: str = Query(..., description="Topic or query text to search for"),
-    limit: int = Query(10, ge=1, le=50, description="Maximum number of results"),
-    min_score: float = Query(0.5, ge=0.0, le=1.0, description="Minimum similarity score"),
-):
-    """Search reports by topic using embedding-based similarity."""
-    global reporting_service
-    
-    if not reporting_service:
-        raise HTTPException(status_code=503, detail="Service not initialized")
-    
-    try:
-        reports = reporting_service.search_reports_by_topic(
-            topic=topic,
-            limit=limit,
-            min_score=min_score,
-        )
-        
-        return {
-            "reports": reports,
-            "count": len(reports),
-            "topic": topic,
-            "min_score": min_score,
-        }
-        
-    except ValueError as e:
-        # Topic search may not be configured
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error searching reports by topic: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
