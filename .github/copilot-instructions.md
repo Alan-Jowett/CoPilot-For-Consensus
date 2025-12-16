@@ -53,6 +53,572 @@ Repository maintainers are responsible for reviewing Copilot-generated code and 
 
 For more information, see [CONTRIBUTING.md](documents/CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](documents/CODE_OF_CONDUCT.md).
 
+### Natural Language Intents (Copilot Shortcuts)
+
+The following phrases map to concrete, platform-aware actions. Copilot should run the appropriate commands for the user's OS (PowerShell on Windows; bash on Linux/macOS).
+
+#### "startup the project"
+
+Meaning: build fresh images, start all services in the background, and verify health.
+
+Linux/macOS (bash):
+
+```bash
+docker compose build --no-cache --parallel
+docker compose up -d
+# Quick status summary
+docker compose ps
+
+# Optional: wait for key services to be healthy (mirrors CI strategy)
+for s in documentdb messagebus vectorstore ollama monitoring pushgateway grafana promtail parsing chunking embedding orchestrator summarization reporting reporting-ui error-reporting; do
+  echo "Waiting for $s ..."
+  # Loki has no healthcheck; treat any "Up" as ready
+  if [ "$s" = "loki" ]; then
+    until docker compose ps loki --format '{{.Status}}' | grep -q "Up"; do sleep 3; done
+  else
+    until docker compose ps "$s" --format '{{.Status}}' | grep -q "(healthy)"; do sleep 3; done
+  fi
+done
+```
+
+Windows (PowerShell):
+
+```powershell
+docker compose build --no-cache --parallel
+docker compose up -d
+# Quick status summary
+docker compose ps
+
+# Optional: wait for key services to be healthy (mirrors CI strategy)
+$services = @('documentdb','messagebus','vectorstore','ollama','monitoring','pushgateway','grafana','promtail','parsing','chunking','embedding','orchestrator','summarization','reporting','reporting-ui','error-reporting')
+foreach ($s in $services) {
+  Write-Host "Waiting for $s ..."
+  if ($s -eq 'loki') {
+    while (-not ((docker compose ps loki --format '{{.Status}}') -match 'Up')) { Start-Sleep -Seconds 3 }
+  } else {
+    while (-not ((docker compose ps $s --format '{{.Status}}') -match '\(healthy\)')) { Start-Sleep -Seconds 3 }
+  }
+}
+```
+
+#### "ingest test data"
+
+Meaning: (1) upload ONLY the test ingestion configuration at `tests/fixtures/mailbox_sample/ingestion-config.json` into DocumentDB via the ingestion utility, and (2) run the ingestion batch job. Do not use the generic PowerShell helper script here because it targets `ingestion/config.test.json`.
+
+Linux/macOS (bash):
+
+```bash
+# 1) Upload test ingestion configuration (mailbox_sample)
+docker compose run --rm \
+  -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
+  ingestion \
+  python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
+
+# 2) Run the ingestion batch job (runs once and exits)
+docker compose run --rm \
+  -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
+  ingestion
+```
+
+Windows (PowerShell):
+
+```powershell
+# NOTE: Do NOT use upload_ingestion_config.ps1 for this intent; it uploads ingestion/config.test.json.
+
+# 1) Upload test ingestion configuration (mailbox_sample)
+$mount = (Get-Location).Path + "/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro"
+docker compose run --rm -v $mount ingestion `
+  python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
+
+# 2) Run the ingestion batch job (runs once and exits)
+docker compose run --rm -v $mount ingestion
+```
+
+Quick verification (optional):
+
+```powershell
+# Reporting API should return a non-zero count
+($r = Invoke-WebRequest -UseBasicParsing http://localhost:8080/api/reports).Content | ConvertFrom-Json | Select-Object -ExpandProperty count
+```
+
+#### "cleanup the project"
+
+Meaning: stop all Docker Compose services and remove associated volumes (data loss for services using named volumes).
+
+Linux/macOS (bash):
+
+```bash
+docker compose down -v
+```
+
+Windows (PowerShell):
+
+```powershell
+docker compose down -v
+```
+
+#### "ingest live data from ietf-<topic>"
+
+Meaning: (1) create an ingestion source for a real IETF mailing list archive at `rsync.ietf.org::mailman-archive/<topic>/`, upload it into DocumentDB via the ingestion utility, and (2) run the ingestion batch job. Example: "ingest live data from ietf-ipsec" creates a source named "ietf-ipsec" with URL "rsync.ietf.org::mailman-archive/ipsec/".
+
+Linux/macOS (bash):
+
+```bash
+# 1) Create temporary ingestion config for the IETF source
+TOPIC="ipsec"  # change to desired topic, e.g. "dnsop"
+CONFIG_FILE="/tmp/ietf-${TOPIC}-config.json"
+cat > "$CONFIG_FILE" <<EOF
+{
+  "sources": [
+    {
+      "name": "ietf-${TOPIC}",
+      "source_type": "rsync",
+      "url": "rsync.ietf.org::mailman-archive/${TOPIC}/",
+      "enabled": true
+    }
+  ]
+}
+EOF
+
+# 2) Upload the ingestion source to DocumentDB (mount the config file into the container)
+docker compose run --rm -v "$CONFIG_FILE":"$CONFIG_FILE":ro ingestion \
+  python /app/upload_ingestion_sources.py "$CONFIG_FILE"
+
+# 3) Run the ingestion batch job (runs once and exits)
+docker compose run --rm ingestion
+
+# 4) Clean up temporary config
+rm "$CONFIG_FILE"
+```
+
+Windows (PowerShell):
+
+```powershell
+# 1) Create temporary ingestion config for the IETF source
+$topic = "ipsec"  # Change this to your desired topic
+$configFile = $env:TEMP + "\ietf-${topic}-config.json"
+$configContent = @{
+  sources = @(
+    @{
+      name = "ietf-${topic}"
+      source_type = "rsync"
+      url = "rsync.ietf.org::mailman-archive/${topic}/"
+      enabled = $true
+    }
+  )
+} | ConvertTo-Json -Depth 10
+Set-Content -Path $configFile -Value $configContent -Encoding UTF8
+
+# 2) Upload the ingestion source to DocumentDB (mount the config file into the container)
+docker compose run --rm -v $configFile:$configFile:ro ingestion `
+  python /app/upload_ingestion_sources.py $configFile
+
+# 3) Run the ingestion batch job (runs once and exits)
+docker compose run --rm ingestion
+
+# 4) Clean up temporary config
+Remove-Item -Path $configFile -Force
+```
+
+Example usage:
+- `"ingest live data from ietf-ipsec"` → ingests from `rsync.ietf.org::mailman-archive/ipsec/`
+- `"ingest live data from ietf-quic"` → ingests from `rsync.ietf.org::mailman-archive/quic/`
+- `"ingest live data from ietf-http"` → ingests from `rsync.ietf.org::mailman-archive/http/`
+
+#### "test the current change"
+
+Meaning: examine the current branch relative to main, identify which adapter or microservice was modified, and run the appropriate test suite. For adapters (e.g., `adapters/copilot_events`), run unit tests excluding integration. For services (e.g., `orchestrator`, `chunking`), run both unit and integration tests. Coverage and JUnit artifacts are generated.
+
+Linux/macOS (bash):
+
+```bash
+# 1) Find changed files relative to main
+CHANGED_FILES=$(git diff origin/main --name-only)
+
+# 2) Determine if it's an adapter or service change
+if echo "$CHANGED_FILES" | grep -q "^adapters/"; then
+  # Adapter change: extract adapter name and run unit tests (excluding integration)
+  ADAPTER=$(echo "$CHANGED_FILES" | grep "^adapters/" | head -1 | cut -d/ -f2)
+  ADAPTER_PATH="adapters/$ADAPTER"
+  
+  echo "Running unit tests for adapter: $ADAPTER"
+  cd "$ADAPTER_PATH"
+  python -m pip install --upgrade pip
+  pip install -r requirements.txt 2>/dev/null || true
+  pip install pytest pytest-cov
+  pytest tests/ -v --tb=short -m "not integration" \
+    --junit-xml=test-results.xml \
+    --cov=$(basename "$ADAPTER_PATH") --cov-report=lcov --cov-report=html --cov-report=term
+  
+elif echo "$CHANGED_FILES" | grep -qE "^(chunking|embedding|parsing|orchestrator|summarization|reporting|reporting-ui|error-reporting|ingestion)/"; then
+  # Service change: extract service name and run all tests (unit + integration)
+  SERVICE=$(echo "$CHANGED_FILES" | grep -oE "^(chunking|embedding|parsing|orchestrator|summarization|reporting|reporting-ui|error-reporting|ingestion)" | head -1)
+  
+  echo "Running tests for service: $SERVICE"
+  cd "$SERVICE"
+  python -m pip install --upgrade pip
+  pip install -r requirements.txt 2>/dev/null || true
+  pip install pytest pytest-cov
+  pytest tests/ -v --tb=short \
+    --junit-xml=test-results.xml \
+    --cov=app --cov-report=lcov --cov-report=html --cov-report=term
+else
+  echo "No adapter or service changes detected."
+  exit 1
+fi
+```
+
+Windows (PowerShell):
+
+```powershell
+# 1) Find changed files relative to main
+$changedFiles = git diff origin/main --name-only
+
+# 2) Determine if it's an adapter or service change
+$adapterMatch = $changedFiles | Where-Object { $_ -match "^adapters/" } | Select-Object -First 1
+$serviceMatch = $changedFiles | Where-Object { $_ -match "^(chunking|embedding|parsing|orchestrator|summarization|reporting|reporting-ui|error-reporting|ingestion)/" } | Select-Object -First 1
+
+if ($adapterMatch) {
+  # Adapter change: extract adapter name and run unit tests (excluding integration)
+  $adapter = $adapterMatch -replace "^adapters/", "" -replace "/.*", ""
+  $adapterPath = "adapters/$adapter"
+  
+  Write-Host "Running unit tests for adapter: $adapter"
+  Push-Location $adapterPath
+  python -m pip install --upgrade pip
+  if (Test-Path requirements.txt) { pip install -r requirements.txt } else { Write-Host "No requirements.txt" }
+  pip install pytest pytest-cov
+  pytest tests/ -v --tb=short -m "not integration" `
+    --junit-xml=test-results.xml `
+    --cov=$adapter --cov-report=lcov --cov-report=html --cov-report=term
+  Pop-Location
+  
+} elseif ($serviceMatch) {
+  # Service change: extract service name and run all tests (unit + integration)
+  $service = $serviceMatch -replace "/.*", ""
+  
+  Write-Host "Running tests for service: $service"
+  Push-Location $service
+  python -m pip install --upgrade pip
+  if (Test-Path requirements.txt) { pip install -r requirements.txt } else { Write-Host "No requirements.txt" }
+  pip install pytest pytest-cov
+  pytest tests/ -v --tb=short `
+    --junit-xml=test-results.xml `
+    --cov=app --cov-report=lcov --cov-report=html --cov-report=term
+  Pop-Location
+  
+} else {
+  Write-Host "No adapter or service changes detected."
+  exit 1
+}
+```
+
+Example usage:
+- `"test the current change"` (on a branch modifying `adapters/copilot_events`) → runs `adapters/copilot_events/tests/` unit tests
+- `"test the current change"` (on a branch modifying `chunking`) → runs `chunking/tests/` all tests (unit + integration)
+
+#### "run the docker compose workflow"
+
+Meaning: execute the Docker Compose end-to-end validation workflow locally, mirroring the steps in [docker-compose-ci.yml](.github/workflows/docker-compose-ci.yml). The workflow builds all services, starts infrastructure and application services with health checks, runs test ingestion, validates end-to-end message flow, tests all service endpoints, and stops services cleanly. Stops immediately on first error for quick feedback.
+
+Linux/macOS (bash):
+
+```bash
+set -e  # Stop on first error
+trap 'echo "Workflow failed at step $LINENO"; exit 1' ERR
+
+echo "=== Docker Compose Workflow (Local) ==="
+
+# Clean up
+echo "Cleaning up existing containers and volumes..."
+docker compose down -v || true
+docker container prune -f || true
+
+# Validate config
+echo "Validating docker-compose configuration..."
+docker compose config > /dev/null
+
+# Build
+echo "Building all services in parallel..."
+docker compose build --parallel
+
+# Infrastructure Services
+echo "Starting infrastructure services..."
+for svc in documentdb messagebus vectorstore ollama monitoring pushgateway loki grafana promtail; do
+  echo "  Starting $svc..."
+  docker compose up -d $svc
+  if [ "$svc" = "loki" ]; then
+    timeout 60s bash -c "until docker compose ps loki --format '{{.Status}}' | grep -q 'Up'; do sleep 3; done" || { echo "❌ $svc failed"; docker compose logs $svc --tail=50; exit 1; }
+  else
+    timeout 60s bash -c "until docker compose ps $svc --format '{{.Status}}' | grep -q '(healthy)'; do sleep 3; done" || { echo "❌ $svc failed"; docker compose logs $svc --tail=50; exit 1; }
+  fi
+done
+echo "✓ Infrastructure services healthy"
+
+# Validators
+echo "Running validators..."
+for validator in db-init db-validate vectorstore-validate ollama-validate; do
+  echo "  Running $validator..."
+  docker compose run --rm $validator || { echo "❌ $validator failed"; exit 1; }
+done
+echo "✓ Validators passed"
+
+# Application Services
+echo "Starting application services..."
+for svc in parsing chunking embedding orchestrator summarization reporting reporting-ui error-reporting; do
+  echo "  Starting $svc..."
+  docker compose up -d $svc
+  timeout 120s bash -c "until docker compose ps $svc --format '{{.Status}}' | grep -q '(healthy)'; do sleep 3; done" || { echo "❌ $svc failed"; docker compose logs $svc --tail=50; exit 1; }
+done
+echo "✓ Application services healthy"
+
+# Ingestion
+echo "Uploading test ingestion configuration..."
+docker compose run --rm \
+  -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
+  ingestion \
+  python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json || { echo "❌ Upload failed"; exit 1; }
+
+echo "Running ingestion batch job..."
+docker compose run --rm \
+  -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
+  ingestion || { echo "❌ Ingestion failed"; exit 1; }
+echo "✓ Ingestion completed"
+
+# End-to-end validation
+echo "Validating end-to-end message flow..."
+docker compose run --rm \
+  -v "$PWD/tests:/app/tests:ro" \
+  -e QDRANT_HOST=vectorstore \
+  -e QDRANT_PORT=6333 \
+  -e QDRANT_COLLECTION=embeddings \
+  --entrypoint "" \
+  embedding \
+  bash -c "python /app/tests/validate_e2e_flow.py" || { echo "❌ E2E validation failed"; exit 1; }
+echo "✓ End-to-end validation passed"
+
+# Health checks
+echo "Testing service endpoints..."
+for endpoint in "http://localhost:8080/" "http://localhost:8080/api/reports" "http://localhost:8081/" "http://localhost:8083/health" "http://localhost:8083/reports" "http://localhost:3000/api/health" "http://localhost:9090/-/healthy"; do
+  echo "  Testing $endpoint..."
+  curl -f "$endpoint" > /dev/null 2>&1 || { echo "❌ $endpoint failed"; exit 1; }
+done
+echo "✓ All endpoints healthy"
+
+# Cleanup
+echo "Cleaning up services..."
+docker compose down || true
+
+echo "✅ Docker Compose Workflow completed successfully"
+```
+
+Windows (PowerShell):
+
+```powershell
+$ErrorActionPreference = "Stop"
+$WarningPreference = "SilentlyContinue"
+
+trap {
+  Write-Host "❌ Workflow failed at line $($_.InvocationInfo.ScriptLineNumber)"
+  exit 1
+}
+
+Write-Host "=== Docker Compose Workflow (Local) ===" -ForegroundColor Cyan
+
+# Clean up
+Write-Host "Cleaning up existing containers and volumes..."
+docker compose down -v 2>$null || $true
+docker container prune -f 2>$null || $true
+
+# Validate config
+Write-Host "Validating docker-compose configuration..."
+docker compose config > $null
+
+# Build
+Write-Host "Building all services in parallel..."
+docker compose build --parallel
+
+# Infrastructure Services
+Write-Host "Starting infrastructure services..."
+$infra = @('documentdb','messagebus','vectorstore','ollama','monitoring','pushgateway','loki','grafana','promtail')
+foreach ($svc in $infra) {
+  Write-Host "  Starting $svc..."
+  docker compose up -d $svc
+  $maxWait = 60
+  $elapsed = 0
+  while ($elapsed -lt $maxWait) {
+    if ($svc -eq 'loki') {
+      $status = docker compose ps loki --format '{{.Status}}'
+      if ($status -match 'Up') { break }
+    } else {
+      $status = docker compose ps $svc --format '{{.Status}}'
+      if ($status -match '\(healthy\)') { break }
+    }
+    Start-Sleep -Seconds 3
+    $elapsed += 3
+  }
+  if ($elapsed -ge $maxWait) {
+    Write-Host "❌ $svc failed to become healthy" -ForegroundColor Red
+    docker compose logs $svc --tail=50
+    exit 1
+  }
+}
+Write-Host "✓ Infrastructure services healthy" -ForegroundColor Green
+
+# Validators
+Write-Host "Running validators..."
+$validators = @('db-init','db-validate','vectorstore-validate','ollama-validate')
+foreach ($validator in $validators) {
+  Write-Host "  Running $validator..."
+  docker compose run --rm $validator
+}
+Write-Host "✓ Validators passed" -ForegroundColor Green
+
+# Application Services
+Write-Host "Starting application services..."
+$services = @('parsing','chunking','embedding','orchestrator','summarization','reporting','reporting-ui','error-reporting')
+foreach ($svc in $services) {
+  Write-Host "  Starting $svc..."
+  docker compose up -d $svc
+  $maxWait = 120
+  $elapsed = 0
+  while ($elapsed -lt $maxWait) {
+    $status = docker compose ps $svc --format '{{.Status}}'
+    if ($status -match '\(healthy\)') { break }
+    Start-Sleep -Seconds 3
+    $elapsed += 3
+  }
+  if ($elapsed -ge $maxWait) {
+    Write-Host "❌ $svc failed to become healthy" -ForegroundColor Red
+    docker compose logs $svc --tail=50
+    exit 1
+  }
+}
+Write-Host "✓ Application services healthy" -ForegroundColor Green
+
+# Ingestion
+Write-Host "Uploading test ingestion configuration..."
+$mount = (Get-Location).Path + "/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro"
+docker compose run --rm -v $mount ingestion `
+  python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
+
+Write-Host "Running ingestion batch job..."
+docker compose run --rm -v $mount ingestion
+Write-Host "✓ Ingestion completed" -ForegroundColor Green
+
+# End-to-end validation
+Write-Host "Validating end-to-end message flow..."
+$mount = (Get-Location).Path + "/tests:/app/tests:ro"
+docker compose run --rm -v $mount `
+  -e QDRANT_HOST=vectorstore `
+  -e QDRANT_PORT=6333 `
+  -e QDRANT_COLLECTION=embeddings `
+  --entrypoint "" `
+  embedding `
+  bash -c "python /app/tests/validate_e2e_flow.py"
+Write-Host "✓ End-to-end validation passed" -ForegroundColor Green
+
+# Health checks
+Write-Host "Testing service endpoints..."
+$endpoints = @(
+  "http://localhost:8080/",
+  "http://localhost:8080/api/reports",
+  "http://localhost:8081/",
+  "http://localhost:8083/health",
+  "http://localhost:8083/reports",
+  "http://localhost:3000/api/health",
+  "http://localhost:9090/-/healthy"
+)
+foreach ($endpoint in $endpoints) {
+  Write-Host "  Testing $endpoint..."
+  try {
+    Invoke-WebRequest -UseBasicParsing -Uri $endpoint > $null
+  } catch {
+    Write-Host "❌ $endpoint failed" -ForegroundColor Red
+    exit 1
+  }
+}
+Write-Host "✓ All endpoints healthy" -ForegroundColor Green
+
+# Cleanup
+Write-Host "Cleaning up services..."
+docker compose down 2>$null || $true
+
+Write-Host "✅ Docker Compose Workflow completed successfully" -ForegroundColor Green
+```
+
+Example usage:
+- `"run the docker compose workflow"` → executes full end-to-end workflow locally, stops on first error
+
+#### "review PR <number>"
+
+Meaning: Review an open pull request without changing code. Summarize what the PR does, list any issues found, and highlight actionable suggestions. Do not push commits.
+
+Process:
+- Fetch PR details and diffs using GitHub MCP.
+- Read review comments and CI status.
+- Provide a concise review summary: scope, risk, correctness, style, docs/tests.
+- Add non-blocking/blocking comments as needed via PR review comment, but avoid code changes.
+
+Example usage:
+- "review PR 310" → returns a summary of changes, potential issues, and suggestions, but makes no commits.
+
+#### "review and respond to PR <number>"
+
+Meaning: Actively address review feedback on the specified PR. Apply straightforward documentation or configuration updates, push changes to the PR branch, and reply inline to review comments explaining the fixes. Ask for clarification if a comment is ambiguous.
+
+Process:
+1) Retrieve PR review comments and files using GitHub MCP.
+2) For each actionable comment:
+  - Update the relevant files (docs/config/scripts), keeping changes minimal and scoped.
+  - Commit with a descriptive message referencing the change.
+  - Push to the PR branch.
+  - Reply to the specific review thread describing what changed.
+3) If a comment is unclear or requires design input, reply asking for clarification rather than guessing.
+
+Notes:
+- Prefer not to modify application logic unless explicitly requested.
+- Keep edits surgical and reference exact lines/sections fixed.
+- Do not mark threads resolved unless requested by a maintainer.
+
+Example usage:
+- "review and respond to PR 310" → fetches comments, applies agreed doc fixes, pushes, and posts replies.
+
+#### "file an issue for this"
+
+Meaning: Create a GitHub issue for a problem or task discussed in the current conversation. Examine the recent conversation context to determine what the user is referring to. If the issue is ambiguous or unclear, ask the user for clarification before filing.
+
+**Process:**
+
+1. **Analyze recent conversation** to identify:
+   - What problem or task the user is describing
+   - Key details: error messages, reproduction steps, affected components
+   - Suggested labels or assignees (if mentioned)
+
+2. **Ask for clarification if needed**:
+   - If multiple issues are discussed, ask which one to file
+   - If details are missing (title, description), ask the user to provide them
+   - If the problem is vague, ask for more specifics
+
+3. **Create the issue using GitHub MCP** with:
+   - Clear, descriptive title
+   - Detailed description including context from the conversation
+   - Relevant labels (e.g., `bug`, `enhancement`, `documentation`, `testing`)
+   - Optional: assign to specific team members if applicable
+
+**Examples:**
+
+- User: "file an issue for this" (after discussing a failing test)
+  → Ask: "Should I file this as a bug for the failing test in the orchestrator service?"
+  → Create issue titled: "orchestrator: test_message_handling fails intermittently"
+
+- User: "file an issue for the summarization API mismatch"
+  → Recognized from context: `EventPublisher.publish(..., message=...)` vs expected `event=...`
+  → Create issue titled: "summarization: Fix API mismatch in publish() method call"
+
+- User: "file an issue for this" (without clear context)
+  → Ask: "What issue would you like me to file? Please provide a title and description."
+
 ## CI & Testing Overview
 
 - **PRs Required**: Direct pushes to `main` are blocked. Open a PR; required check includes the `Test Docker Compose` job.
