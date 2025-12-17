@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
 # DirectML-Enabled llama.cpp Server
 
 This directory contains the DirectML-enabled llama.cpp server for AMD/Intel GPU acceleration on Windows/WSL2.
