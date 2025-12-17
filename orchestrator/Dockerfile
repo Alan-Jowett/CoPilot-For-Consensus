@@ -19,6 +19,7 @@ RUN python /app/adapters/scripts/install_adapters.py \
     copilot_metrics \
     copilot_reporting \
     copilot_schema_validation \
+    copilot_logging \
     copilot_startup
 
 # Copy schema files for validation

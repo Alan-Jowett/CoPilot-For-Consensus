@@ -96,15 +96,6 @@ def main():
         config = load_typed_config("parsing")
         logger.info("Configuration loaded successfully")
         
-        # Set logging level from config
-        # Note: copilot_logging doesn't support dynamic level changes, so we create a new logger
-        global logger
-        logger = create_logger(
-            logger_type="stdout",
-            level=config.log_level if hasattr(config, 'log_level') else "INFO",
-            name="parsing"
-        )
-        
         # Create event publisher with schema validation
         logger.info(f"Creating event publisher ({config.message_bus_type})")
         base_publisher = create_publisher(
