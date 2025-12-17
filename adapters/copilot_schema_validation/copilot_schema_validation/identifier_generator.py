@@ -58,12 +58,12 @@ def generate_message_doc_id(
     return _sha256_16(composite)
 
 
-def generate_chunk_id(message_id: str, chunk_index: int) -> str:
+def generate_chunk_id(message_doc_id: str, chunk_index: int) -> str:
     """Generate the canonical `_id` for a chunk document.
 
-    Per design, `_id = SHA256_16(message_id | chunk_index)`.
+    Per design, `_id = SHA256_16(message_doc_id | chunk_index)`.
     """
-    composite = f"{message_id}|{chunk_index}"
+    composite = f"{message_doc_id}|{chunk_index}"
     return _sha256_16(composite)
 
 

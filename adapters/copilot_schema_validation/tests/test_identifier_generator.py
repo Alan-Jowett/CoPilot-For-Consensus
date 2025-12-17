@@ -53,9 +53,10 @@ def test_generate_message_doc_id_is_deterministic_and_changes_with_fields():
 
 
 def test_generate_chunk_id_is_deterministic_and_changes_with_index():
-    cid1 = generate_chunk_id("<abc@example.com>", 0)
-    cid2 = generate_chunk_id("<abc@example.com>", 0)
-    cid3 = generate_chunk_id("<abc@example.com>", 1)
+    message_doc_id = "abcdef0123456789"
+    cid1 = generate_chunk_id(message_doc_id, 0)
+    cid2 = generate_chunk_id(message_doc_id, 0)
+    cid3 = generate_chunk_id(message_doc_id, 1)
     assert cid1 == cid2
     assert cid1 != cid3
     assert len(cid1) == 16

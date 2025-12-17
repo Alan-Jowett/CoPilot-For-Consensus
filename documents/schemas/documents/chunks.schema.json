@@ -6,12 +6,30 @@
   "properties": {
     "_id": {
       "type": "string",
+      "pattern": "^[a-f0-9]{16}$",
       "minLength": 16,
-      "maxLength": 64,
-      "description": "Deterministic SHA256 hash of (message_id|chunk_index)"
+      "maxLength": 16,
+      "description": "Canonical chunk document identifier (SHA256 hash of message_doc_id|chunk_index)"
     },
-    "message_id": { "type": "string", "minLength": 1 },
-    "thread_id": { "type": "string", "minLength": 1 },
+    "message_doc_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{16}$",
+      "minLength": 16,
+      "maxLength": 16,
+      "description": "Reference to messages._id (canonical message document identifier we generate)"
+    },
+    "message_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "RFC 5322 Message-ID header from the source email (external identifier)"
+    },
+    "thread_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{16}$",
+      "minLength": 16,
+      "maxLength": 16,
+      "description": "Reference to threads._id (canonical thread identifier we generate)"
+    },
     "chunk_index": { "type": "integer", "minimum": 0 },
     "text": { "type": "string", "minLength": 1 },
     "token_count": { "type": "integer", "minimum": 0 },
@@ -57,5 +75,5 @@
       "description": "Timestamp of the last embedding generation attempt"
     }
   },
-  "required": ["_id", "message_id", "thread_id", "chunk_index", "text", "created_at", "embedding_generated"]
+  "required": ["_id", "message_doc_id", "message_id", "thread_id", "chunk_index", "text", "created_at", "embedding_generated"]
 }

@@ -126,9 +126,9 @@ class TestJSONParsedEvent:
         data = {
             "archive_id": "test-123",
             "message_count": 150,
-                "message_keys": ["msg1", "msg2", "msg3"],
+            "message_doc_ids": ["abcd1234abcd1234", "abcd5678abcd5678", "abcd9abcabcd9abc"],
             "thread_count": 45,
-            "thread_ids": ["thread1", "thread2"],
+            "thread_ids": ["feedfacefeedface", "deadbeefdeadbeef"],
             "parsing_duration_seconds": 12.5,
         }
         event = JSONParsedEvent(data=data)

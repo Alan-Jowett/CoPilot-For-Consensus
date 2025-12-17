@@ -87,9 +87,10 @@ Stores text chunks derived from messages for embedding generation.
 
 | Field | Type | Description | Indexed |
 |-------|------|-------------|---------|
-| `_id` | String (SHA256 hash, 16 chars) | Deterministic hash of (message_id\|chunk_index) — canonical primary key | Primary Key |
-| `message_id` | String | Source message Message-ID | Yes |
-| `thread_id` | String | Thread identifier | Yes |
+| `_id` | String (SHA256_16 hex, 16 chars) | Deterministic hash of (message_doc_id\|chunk_index) — canonical primary key | Primary Key |
+| `message_doc_id` | String (SHA256_16 hex, 16 chars) | Reference to `messages._id` (canonical message identifier) | Yes |
+| `message_id` | String | Source message Message-ID (RFC 5322 header) | Yes |
+| `thread_id` | String (SHA256_16 hex, 16 chars) | Thread identifier (`threads._id`) | Yes |
 | `chunk_index` | Integer | Sequential index within message (0-based) | No |
 | `text` | String | Chunk text content | No |
 | `token_count` | Integer | Approximate token count | No |
@@ -102,14 +103,15 @@ Stores text chunks derived from messages for embedding generation.
 
 **Indexes:**
 - Primary: `_id`
-- Secondary: `message_id`, `thread_id`, `created_at`, `embedding_generated`
+- Secondary: `message_doc_id`, `message_id`, `thread_id`, `created_at`, `embedding_generated`
 
 **Example Document:**
 ```json
 {
-  "_id": "b9c8d7e6f5a4b3c",
+  "_id": "b9c8d7e6f5a4b3c0",
+  "message_doc_id": "a1b2c3d4e5f6789a",
   "message_id": "<20231015123456.ABC123@example.com>",
-  "thread_id": "<20231015120000.XYZ789@example.com>",
+  "thread_id": "0f1e2d3c4b5a6978",
   "chunk_index": 0,
   "text": "I agree with the proposed approach for connection migration. The key concern is...",
   "token_count": 128,
@@ -185,6 +187,12 @@ Stores generated summaries and reports.
 ---
 
 ## Vector Store Schema
+
+### Identifier Naming Rules
+- `_id`: Always the canonical deterministic hex primary key for that collection (16 hex chars from SHA256_16).
+- `<collection>_id`: Reference to another collection’s `_id` (e.g., `message_doc_id` → `messages._id`, `thread_id` → `threads._id`) and also 16 hex chars.
+- RFC headers keep their RFC names (`message_id`, `in_reply_to`, `references`); these are external identifiers and never double as primary keys.
+- Never overload RFC header names for our `_id` values; `_id` stays the Mongo/document key everywhere.
 
 ### Vector Collection: `message_embeddings`
 Stores embeddings with metadata for semantic search and retrieval-augmented generation (RAG).

@@ -255,8 +255,9 @@ class TestChunkSchemaRegression:
         """Test that a chunk with additional properties is valid."""
         chunk = {
             "_id": "a1b2c3d4e5f6789a",
-            "message_id": "msg-123",
-            "thread_id": "thread-1",
+            "message_doc_id": "abcdefabcdefabcd",
+            "message_id": "<msg-123@example.com>",
+            "thread_id": "feedfacecafebeef",
             "chunk_index": 0,
             "text": "Test chunk text",
             "created_at": "2025-01-01T00:00:00Z",

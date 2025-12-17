@@ -105,14 +105,14 @@ class ChunkingService:
                 pipeline = [
                     {
                         "$match": {
-                            "message_key": {"$exists": True},
+                            "_id": {"$exists": True},
                         }
                     },
                     {
                         "$lookup": {
                             "from": "chunks",
-                            "localField": "message_key",
-                            "foreignField": "message_key",
+                            "localField": "_id",
+                            "foreignField": "message_doc_id",
                             "as": "chunks",
                         }
                     },
@@ -142,21 +142,21 @@ class ChunkingService:
                 # Group messages by archive_id for efficient requeue
                 archive_groups = {}
                 for msg in unchunked_messages:
-                    msg_key = msg.get("message_key")
+                    msg_doc_id = msg.get("_id")
                     archive_id = msg.get("archive_id")
-                    if not msg_key or archive_id is None:
+                    if not msg_doc_id or archive_id is None:
                         continue
                     if archive_id not in archive_groups:
                         archive_groups[archive_id] = []
-                    archive_groups[archive_id].append(msg_key)
+                    archive_groups[archive_id].append(msg_doc_id)
                 
                 # Requeue by archive
                 requeued = 0
-                for archive_id, msg_keys in archive_groups.items():
+                for archive_id, msg_doc_ids in archive_groups.items():
                     event_data = {
                         "archive_id": archive_id,
-                        "message_keys": msg_keys,
-                        "message_count": len(msg_keys),
+                        "message_doc_ids": msg_doc_ids,
+                        "message_count": len(msg_doc_ids),
                     }
                     
                     try:
@@ -166,8 +166,8 @@ class ChunkingService:
                             routing_key="json.parsed",
                             exchange="copilot.events",
                         )
-                        requeued += len(msg_keys)
-                        logger.debug(f"Requeued {len(msg_keys)} messages from archive {archive_id}")
+                        requeued += len(msg_doc_ids)
+                        logger.debug(f"Requeued {len(msg_doc_ids)} messages from archive {archive_id}")
                     except Exception as e:
                         logger.error(f"Failed to requeue messages from archive {archive_id}: {e}")
                 
@@ -229,42 +229,42 @@ class ChunkingService:
             
         Raises:
             ValueError: If event_data is missing required fields
-            TypeError: If message_keys is not iterable
+            TypeError: If message_doc_ids is not iterable
         """
         # Check for required field
-        if "message_keys" not in event_data:
-            error_msg = "message_keys field missing from event data"
+        if "message_doc_ids" not in event_data:
+            error_msg = "message_doc_ids field missing from event data"
             logger.error(error_msg)
             raise ValueError(error_msg)
             
-        message_keys = event_data["message_keys"]
+        message_doc_ids = event_data["message_doc_ids"]
         
-        # Validate message_keys is iterable (list/array)
-        if not isinstance(message_keys, list):
-            error_msg = f"message_keys must be a list, got {type(message_keys).__name__}"
+        # Validate message_doc_ids is iterable (list/array)
+        if not isinstance(message_doc_ids, list):
+            error_msg = f"message_doc_ids must be a list, got {type(message_doc_ids).__name__}"
             logger.error(error_msg)
             raise TypeError(error_msg)
         
-        if not message_keys:
+        if not message_doc_ids:
             logger.info("Empty message list in JSONParsed event, nothing to process")
             return
         
         start_time = time.time()
         
         try:
-            logger.info(f"Chunking {len(message_keys)} messages")
+            logger.info(f"Chunking {len(message_doc_ids)} messages")
             
             # Retrieve messages from database
             messages = self.document_store.query_documents(
                 collection="messages",
-                filter_dict={"message_key": {"$in": message_keys}}
+                filter_dict={"_id": {"$in": message_doc_ids}}
             )
             
             if not messages:
                 error_msg = "No messages found in database"
                 logger.warning(error_msg)
                 self._publish_chunking_failed(
-                    message_keys,
+                    message_doc_ids,
                     error_msg,
                     "MessageNotFoundError",
                     0,
@@ -273,19 +273,19 @@ class ChunkingService:
             
             # Process each message
             all_chunks = []
-            processed_message_keys = []
+            processed_message_doc_ids = []
             
             for message in messages:
                 try:
-                    if not message.get("message_key"):
+                    if not message.get("_id"):
                         raise ValueError(
-                            f"message_key is required on message documents for chunking (message_id: {message.get('message_id')}, archive_id: {message.get('archive_id')})"
+                            f"_id is required on message documents for chunking (message_id: {message.get('message_id')}, archive_id: {message.get('archive_id')})"
                         )
 
                     chunks = self._chunk_message(message)
                     if chunks:
                         all_chunks.extend(chunks)
-                        processed_message_keys.append(message["message_key"])
+                        processed_message_doc_ids.append(message["_id"])
                 except Exception as e:
                     logger.error(
                         f"Error chunking message {message.get('message_id')}: {e}",
@@ -302,16 +302,16 @@ class ChunkingService:
                 for chunk in all_chunks:
                     try:
                         self.document_store.insert_document("chunks", chunk)
-                        chunk_ids.append(chunk["chunk_id"])
+                        chunk_ids.append(chunk["_id"])
                         new_chunks_created += 1
                     except DuplicateKeyError:
                         # Chunk already exists (idempotent retry)
-                        logger.debug(f"Chunk {chunk.get('chunk_id', 'unknown')} already exists, skipping")
-                        chunk_ids.append(chunk.get("chunk_id", "unknown"))  # Still include in output
+                        logger.debug(f"Chunk {chunk.get('_id', 'unknown')} already exists, skipping")
+                        chunk_ids.append(chunk.get("_id", "unknown"))  # Still include in output
                         skipped_duplicates += 1
                     except Exception as e:
                         # Other errors (transient) should fail the processing
-                        logger.error(f"Error storing chunk {chunk.get('chunk_id')}: {e}")
+                        logger.error(f"Error storing chunk {chunk.get('_id')}: {e}")
                         raise
                 
                 if skipped_duplicates > 0:
@@ -345,14 +345,14 @@ class ChunkingService:
             self.last_processing_time = duration
             
             # Update stats
-            self.messages_processed += len(processed_message_keys)
+            self.messages_processed += len(processed_message_doc_ids)
             self.chunks_created_total += len(all_chunks)
             
             # Record metrics
             if self.metrics_collector:
                 self.metrics_collector.increment(
                     "chunking_messages_processed_total",
-                    len(processed_message_keys),
+                    len(processed_message_doc_ids),
                     {"status": "success"}
                 )
                 self.metrics_collector.increment(
@@ -371,14 +371,14 @@ class ChunkingService:
             
             # Publish ChunksPrepared event
             self._publish_chunks_prepared(
-                processed_message_keys,
+                processed_message_doc_ids,
                 chunk_ids,
                 len(all_chunks),
                 avg_chunk_size,
             )
             
             logger.info(
-                f"Chunking completed: {len(processed_message_keys)} messages, "
+                f"Chunking completed: {len(processed_message_doc_ids)} messages, "
                 f"{len(all_chunks)} chunks in {duration:.2f}s"
             )
             
@@ -395,7 +395,7 @@ class ChunkingService:
             
             # Publish failure event
             self._publish_chunking_failed(
-                message_keys,
+                message_doc_ids,
                 str(e),
                 type(e).__name__,
                 0,
@@ -403,7 +403,7 @@ class ChunkingService:
             
             # Report error
             if self.error_reporter:
-                self.error_reporter.report(e, context={"message_keys": message_keys})
+                self.error_reporter.report(e, context={"message_doc_ids": message_doc_ids})
 
     def _chunk_message(self, message: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Chunk a single message.
@@ -415,7 +415,8 @@ class ChunkingService:
             List of chunk documents
         """
         message_id = message.get("message_id")
-        message_key = message.get("message_key", "")
+        message_doc_id = message.get("_id", "")
+        thread_id = message.get("thread_id", "")
         text = message.get("body_normalized", "")
         
         # Skip empty messages
@@ -425,8 +426,8 @@ class ChunkingService:
         
         # Create thread object for chunking
         thread = Thread(
-            thread_id=message_id,
-            message_key=message_key,
+            thread_id=thread_id,
+            message_doc_id=message_doc_id,
             text=text,
             metadata={
                 "sender": message.get("from", {}).get("email", ""),
@@ -444,11 +445,10 @@ class ChunkingService:
         chunk_docs = []
         for chunk in chunks:
             chunk_doc = {
-                "chunk_key": chunk.chunk_id,
-                "chunk_id": chunk.chunk_id,
-                "message_key": chunk.message_key,
+                "_id": chunk.chunk_id,
+                "message_doc_id": chunk.message_doc_id,
                 "message_id": message_id,
-                "thread_id": message.get("thread_id"),
+                "thread_id": chunk.thread_id,
                 "archive_id": message.get("archive_id"),
                 "chunk_index": chunk.chunk_index,
                 "text": chunk.text,
@@ -476,7 +476,7 @@ class ChunkingService:
 
     def _publish_chunks_prepared(
         self,
-        message_keys: List[str],
+        message_doc_ids: List[str],
         chunk_ids: List[str],
         chunk_count: int,
         avg_chunk_size: float,
@@ -484,7 +484,7 @@ class ChunkingService:
         """Publish ChunksPrepared event.
         
         Args:
-            message_keys: List of message keys that were chunked
+            message_doc_ids: List of message document IDs that were chunked
             chunk_ids: List of chunk IDs created
             chunk_count: Total number of chunks
             avg_chunk_size: Average chunk size in tokens
@@ -492,7 +492,7 @@ class ChunkingService:
         try:
             event = ChunksPreparedEvent(
                 data={
-                    "message_keys": message_keys,
+                    "message_doc_ids": message_doc_ids,
                     "chunk_count": chunk_count,
                     "chunk_ids": chunk_ids,
                     "chunks_ready": True,
@@ -515,7 +515,7 @@ class ChunkingService:
 
     def _publish_chunking_failed(
         self,
-        message_keys: List[str],
+        message_doc_ids: List[str],
         error_message: str,
         error_type: str,
         retry_count: int,
@@ -523,7 +523,7 @@ class ChunkingService:
         """Publish ChunkingFailed event.
         
         Args:
-            message_keys: List of message keys that failed
+            message_doc_ids: List of message document IDs that failed
             error_message: Error description
             error_type: Error classification
             retry_count: Number of retries
@@ -531,7 +531,7 @@ class ChunkingService:
         try:
             event = ChunkingFailedEvent(
                 data={
-                    "message_keys": message_keys,
+                    "message_doc_ids": message_doc_ids,
                     "error_message": error_message,
                     "error_type": error_type,
                     "retry_count": retry_count,
