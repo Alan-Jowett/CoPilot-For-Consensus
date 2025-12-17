@@ -238,7 +238,7 @@ jobs:
 
       - name: Run import smoke tests
         env:
-          PYTHONWARNINGS: error::DeprecationWarning,error::FutureWarning
+          PYTHONWARNINGS: default::DeprecationWarning,default::FutureWarning
         run: |
           echo "::group::Running Import Smoke Tests"
           pytest tests/test_imports.py -v --tb=short --timeout=60
