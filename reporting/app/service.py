@@ -151,7 +151,20 @@ class ReportingService:
             Report ID
         """
         # Extract data from event
-        report_id = event_data.get("summary_id", str(uuid.uuid4()))  # Fallback to UUID for backward compatibility
+        if "summary_id" in event_data:
+            report_id = event_data["summary_id"]
+        else:
+            # Fallback to UUID for backward compatibility; log for observability
+            report_id = str(uuid.uuid4())
+            logger.warning(
+                "SummaryComplete event missing required 'summary_id'; generated fallback UUID '%s' for backward compatibility. "
+                "This may indicate an older publisher version or misconfiguration. event_metadata=%s",
+                report_id,
+                {
+                    "event_type": full_event.get("type"),
+                    "event_id": full_event.get("event_id") or full_event.get("id"),
+                },
+            )
         thread_id = event_data.get("thread_id")
         summary_markdown = event_data.get("summary_markdown", "")
         citations = event_data.get("citations", [])

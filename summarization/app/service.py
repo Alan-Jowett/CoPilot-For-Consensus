@@ -477,8 +477,8 @@ class SummarizationService:
         Returns:
             Hex string of SHA256 hash (64 characters)
         """
-        # Extract and sort chunk IDs to ensure consistent ordering
-        chunk_ids = sorted(set(c.get("chunk_id", "") for c in citations))
+        # Extract and sort chunk IDs to ensure consistent ordering, ignoring missing/empty IDs
+        chunk_ids = sorted({c.get("chunk_id") for c in citations if c.get("chunk_id")})
         
         # Combine thread_id and chunk_ids into a single string
         id_input = f"{thread_id}:{','.join(chunk_ids)}"
