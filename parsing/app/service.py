@@ -196,6 +196,17 @@ class ParsingService:
                 )
                 return
             
+            # Generate canonical _id for each message (needed for thread building)
+            for message in parsed_messages:
+                if "_id" not in message:
+                    message["_id"] = generate_message_doc_id(
+                        archive_id=archive_id,
+                        message_id=message.get("message_id", ""),
+                        date=message.get("date"),
+                        sender_email=message.get("from", {}).get("email"),
+                        subject=message.get("subject"),
+                    )
+            
             # Build threads
             threads = self.thread_builder.build_threads(parsed_messages)
             
