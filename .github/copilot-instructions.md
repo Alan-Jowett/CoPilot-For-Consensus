@@ -250,9 +250,9 @@ if echo "$CHANGED_FILES" | grep -q "^adapters/"; then
     --junit-xml=test-results.xml \
     --cov=$(basename "$ADAPTER_PATH") --cov-report=lcov --cov-report=html --cov-report=term
   
-elif echo "$CHANGED_FILES" | grep -qE "^(chunking|embedding|parsing|orchestrator|summarization|reporting|reporting-ui|error-reporting|ingestion)/"; then
+elif echo "$CHANGED_FILES" | grep -qE "^(chunking|embedding|parsing|orchestrator|summarization|reporting|reporting-ui|ingestion)/"; then
   # Service change: extract service name and run all tests (unit + integration)
-  SERVICE=$(echo "$CHANGED_FILES" | grep -oE "^(chunking|embedding|parsing|orchestrator|summarization|reporting|reporting-ui|error-reporting|ingestion)" | head -1)
+  SERVICE=$(echo "$CHANGED_FILES" | grep -oE "^(chunking|embedding|parsing|orchestrator|summarization|reporting|reporting-ui|ingestion)" | head -1)
   
   echo "Running tests for service: $SERVICE"
   cd "$SERVICE"
@@ -276,7 +276,7 @@ $changedFiles = git diff origin/main --name-only
 
 # 2) Determine if it's an adapter or service change
 $adapterMatch = $changedFiles | Where-Object { $_ -match "^adapters/" } | Select-Object -First 1
-$serviceMatch = $changedFiles | Where-Object { $_ -match "^(chunking|embedding|parsing|orchestrator|summarization|reporting|reporting-ui|error-reporting|ingestion)/" } | Select-Object -First 1
+$serviceMatch = $changedFiles | Where-Object { $_ -match "^(chunking|embedding|parsing|orchestrator|summarization|reporting|reporting-ui|ingestion)/" } | Select-Object -First 1
 
 if ($adapterMatch) {
   # Adapter change: extract adapter name and run unit tests (excluding integration)
