@@ -30,7 +30,7 @@ A custom Prometheus exporter that queries MongoDB to expose document processing 
 **File**: `docker-compose.yml` (lines 252-269)
 
 Added `document-processing-exporter` service:
-- Uses `monitoring-extra` profile (optional, doesn't impact CI)
+- Starts automatically with the monitoring stack
 - Depends on MongoDB
 - Exposes metrics on port 9502
 
@@ -131,11 +131,11 @@ All tests pass (6/6).
 ### Enable the Exporter
 
 ```bash
-# Start all monitoring services including document processing
-docker compose --profile monitoring-extra up -d
+# Start all services (including document processing monitoring)
+docker compose up -d
 
 # Or start just the document processing exporter
-docker compose --profile monitoring-extra up -d document-processing-exporter
+docker compose up -d document-processing-exporter
 ```
 
 ### Access the Dashboard
@@ -264,7 +264,7 @@ python tests/test_document_processing_exporter.py
 ```
 
 ### Integration Testing
-1. Start full stack: `docker compose --profile monitoring-extra up -d`
+1. Start full stack: `docker compose up -d`
 2. Ingest test data: `docker compose run --rm ingestion`
 3. Verify metrics appear in Prometheus
 4. Check dashboard displays data
@@ -290,8 +290,8 @@ python tests/test_document_processing_exporter.py
 
 **Exporter not running**:
 ```bash
-docker compose --profile monitoring-extra ps document-processing-exporter
-docker compose --profile monitoring-extra logs document-processing-exporter
+docker compose ps document-processing-exporter
+docker compose logs document-processing-exporter
 ```
 
 **No metrics in Prometheus**:

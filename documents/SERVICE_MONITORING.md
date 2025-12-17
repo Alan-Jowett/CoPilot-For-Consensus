@@ -96,7 +96,7 @@ While services don't expose `/metrics`, they do provide:
   - Error rate trends over time
   - Top services by error count
 - **MongoDB Document Store Status**: Document counts, growth rate, totals, storage by collection, connections, op counters, query latency, recent changes
-- **Document Processing Status**: Document processing state tracking and anomaly detection (opt-in with `--profile monitoring-extra`)
+- **Document Processing Status**: Document processing state tracking and anomaly detection
   - Document counts by status (pending, processing, completed, failed)
   - Status transition trends over time
   - Processing duration metrics
@@ -405,17 +405,17 @@ The document processing status exporter provides deep visibility into document s
 
 ### Enabling the Exporter
 
-The document processing status exporter is optional and uses the `monitoring-extra` compose profile:
+The document processing status exporter starts automatically with the monitoring stack:
 
 ```bash
-# Start document processing monitoring (requires MongoDB to be running)
-docker compose --profile monitoring-extra up -d document-processing-exporter
+# Start all services (including document processing monitoring)
+docker compose up -d
 
-# Or start all monitoring services including document processing
-docker compose --profile monitoring-extra up -d
+# Or start just the document processing exporter (requires MongoDB to be running)
+docker compose up -d document-processing-exporter
 ```
 
-**Note**: The exporter is not required for core functionality and won't impact CI builds.
+**Note**: The exporter is enabled by default as part of the core monitoring infrastructure.
 
 ### Key Metrics
 
@@ -631,9 +631,9 @@ db.chunks.aggregate([
 ### Troubleshooting
 
 - **No data in dashboard**:
-  1. Verify exporter is enabled and running: `docker compose --profile monitoring-extra ps document-processing-exporter`
-  2. If not running, start it: `docker compose --profile monitoring-extra up -d document-processing-exporter`
-  3. Check exporter logs: `docker compose --profile monitoring-extra logs document-processing-exporter`
+  1. Verify exporter is running: `docker compose ps document-processing-exporter`
+  2. If not running, start it: `docker compose up -d document-processing-exporter`
+  3. Check exporter logs: `docker compose logs document-processing-exporter`
 
 - **Missing metrics**: 
   1. Check Prometheus targets (http://localhost:9090/targets) - `document-processing` should be UP
