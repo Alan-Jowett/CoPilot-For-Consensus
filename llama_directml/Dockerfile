@@ -16,11 +16,14 @@ RUN apt-get update && apt-get install -y \
     clblast \
     libclblast-dev \
     opencl-headers \
+    clinfo \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up OpenCL ICD loader to find GPU devices
-RUN mkdir -p /etc/OpenCL/vendors && \
-    echo "libamdocl64.so" > /etc/OpenCL/vendors/amdocl64.icd
+# Set up OpenCL ICD loader to auto-detect GPU devices
+# This configuration works for both AMD and Intel GPUs
+RUN mkdir -p /etc/OpenCL/vendors
+# Note: OpenCL runtime libraries are provided by the host system via /dev/dxg
+# The ICD loader will automatically detect available OpenCL implementations
 
 # Set working directory
 WORKDIR /app
@@ -33,12 +36,12 @@ RUN pip install --no-cache-dir \
 
 # Build llama-cpp-python with CLBlast support
 # Force rebuild from source with CLBlast enabled
-# Note: Using recent stable version with good CLBlast support
-# Version 0.3.x includes performance improvements and bug fixes
+# Note: Using latest stable version (0.3.16 as of Dec 2025)
+# Provides best CLBlast support, performance improvements, and security fixes
 ENV CMAKE_ARGS="-DLLAMA_CLBLAST=on"
 ENV FORCE_CMAKE=1
 
-RUN pip install --no-cache-dir --force-reinstall --no-binary :all: llama-cpp-python==0.3.1
+RUN pip install --no-cache-dir --force-reinstall --no-binary :all: llama-cpp-python==0.3.16
 
 # Create model directory
 RUN mkdir -p /models

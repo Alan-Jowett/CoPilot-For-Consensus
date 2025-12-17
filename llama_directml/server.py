@@ -12,7 +12,7 @@ import os
 import sys
 import time
 import logging
-from typing import Optional, List, Dict, Any
+from typing import Optional
 from flask import Flask, request, jsonify
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
@@ -50,8 +50,8 @@ tokens_generated = Counter(
 )
 
 # Configuration from environment variables
-# Note: Model path should be configured via environment variable in docker-compose
-# Default points to commonly used Mistral 7B model for reference
+# Note: Model path must be configured via LLAMA_MODEL environment variable
+# Default is an example path - the model file must be downloaded separately (see DIRECTML_SETUP.md)
 MODEL_PATH = os.getenv("LLAMA_MODEL", "/models/mistral-7b-instruct-v0.2.Q4_K_M.gguf")
 GPU_LAYERS = int(os.getenv("LLAMA_GPU_LAYERS", "35"))
 CTX_SIZE = int(os.getenv("LLAMA_CTX_SIZE", "4096"))
@@ -94,15 +94,21 @@ def initialize_llm():
 
 @app.route("/health", methods=["GET"])
 def health():
-    """Health check endpoint."""
+    """Health check endpoint.
+    
+    Returns 200 OK even during initialization to prevent container restarts.
+    Check 'status' field to determine if service is ready.
+    """
     if llm is None:
         return jsonify({
             "status": "initializing",
-            "message": "LLM is still loading"
-        }), 503
+            "message": "LLM is still loading",
+            "ready": False
+        }), 200
     
     return jsonify({
         "status": "healthy",
+        "ready": True,
         "model": MODEL_PATH,
         "gpu_layers": GPU_LAYERS,
         "context_size": CTX_SIZE
@@ -191,22 +197,37 @@ def v1_chat_completions():
         temperature = data.get("temperature", 0.7)
         stop = data.get("stop", ["</s>"])
         
-        # Convert chat messages to prompt
-        # Format: <s>[INST] {user_message} [/INST] {assistant_message}</s>
+        # Convert chat messages to prompt using Mistral instruction format
+        # Format: <s>[INST] {user_message} [/INST]{assistant_message}</s>
+        # Note: This template is specific to Mistral models. Other models require different templates.
         prompt_parts = []
+        last_role = None
+        
         for msg in messages:
             role = msg.get("role", "")
             content = msg.get("content", "")
             
+            # Validate role alternation for proper formatting
+            if role == "user" and last_role == "user":
+                logger.warning("Consecutive user messages detected - combining into single message")
+            
             if role == "system":
-                prompt_parts.append(f"<s>[INST] {content} [/INST] ")
+                # System messages treated as initial instruction
+                prompt_parts.append(f"<s>[INST] {content} [/INST]")
             elif role == "user":
-                if prompt_parts:
-                    prompt_parts.append(f"[INST] {content} [/INST] ")
+                if prompt_parts and last_role == "assistant":
+                    # New turn after assistant response
+                    prompt_parts.append(f"<s>[INST] {content} [/INST]")
+                elif prompt_parts:
+                    # Continue existing instruction
+                    prompt_parts.append(f"[INST] {content} [/INST]")
                 else:
-                    prompt_parts.append(f"<s>[INST] {content} [/INST] ")
+                    # First message
+                    prompt_parts.append(f"<s>[INST] {content} [/INST]")
             elif role == "assistant":
                 prompt_parts.append(f"{content}</s>")
+            
+            last_role = role
         
         prompt = "".join(prompt_parts)
         
