@@ -11,7 +11,7 @@
         "data": {
           "type": "object",
           "properties": {
-            "message_keys": {
+            "message_doc_ids": {
               "type": "array",
               "items": { "type": "string", "pattern": "^[0-9a-f]{16,64}$" },
               "minItems": 1,
@@ -23,7 +23,7 @@
             "failed_at": { "type": "string", "format": "date-time" }
           },
           "required": [
-            "message_keys",
+            "message_doc_ids",
             "error_message",
             "error_type",
             "retry_count",
