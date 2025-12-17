@@ -13,7 +13,7 @@ This script validates that the exporter can:
 
 import os
 import sys
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock
 
 # Add scripts directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))

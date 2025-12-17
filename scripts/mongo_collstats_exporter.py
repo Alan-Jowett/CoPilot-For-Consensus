@@ -15,7 +15,7 @@ Exposes MongoDB collection-level storage metrics including:
 Environment Variables:
     MONGO_URI: MongoDB connection URI (default: mongodb://root:example@documentdb:27017/admin)
     MONGO_DB: Database name to monitor (default: copilot)
-    PORT: Exporter HTTP port (default: 9502)
+    PORT: Exporter HTTP port (default: 9503)
     SCRAPE_INTERVAL_SEC: Metrics collection interval (default: 5)
 """
 
@@ -25,12 +25,13 @@ from typing import Dict, Any
 
 from prometheus_client import Gauge, start_http_server
 from pymongo import MongoClient
+from pymongo import errors as pymongo_errors
 
 
 # Configuration
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb://root:example@documentdb:27017/admin")
 DB_NAME = os.environ.get("MONGO_DB", "copilot")
-PORT = int(os.environ.get("PORT", "9502"))
+PORT = int(os.environ.get("PORT", "9503"))
 INTERVAL = float(os.environ.get("SCRAPE_INTERVAL_SEC", "5"))
 
 
@@ -83,7 +84,7 @@ def get_collection_stats(db, collection_name: str) -> Dict[str, Any]:
     try:
         stats = db.command("collStats", collection_name)
         return stats
-    except Exception as e:
+    except pymongo_errors.PyMongoError as e:
         print(f"Error fetching stats for collection {collection_name}: {e}")
         return {}
 
@@ -143,7 +144,7 @@ def collect_metrics(client: MongoClient) -> None:
                 f"{stats.get('totalIndexSize', 0)} bytes indexes"
             )
             
-        except Exception as e:
+        except pymongo_errors.PyMongoError as e:
             print(f"Error collecting metrics for {collection_name}: {e}")
 
 
@@ -158,12 +159,38 @@ def main():
     start_http_server(PORT)
     print(f"Metrics endpoint available at http://0.0.0.0:{PORT}/metrics")
     
-    # Connect to MongoDB
-    client = MongoClient(MONGO_URI, directConnection=True)
+    # Connect to MongoDB with retry logic
+    client = None
+    max_retries = 5
+    retry_delay = 5
     
-    # Main scrape loop
+    for attempt in range(max_retries):
+        try:
+            client = MongoClient(MONGO_URI, directConnection=True, serverSelectionTimeoutMS=5000)
+            # Test the connection
+            client.admin.command('ping')
+            print(f"Successfully connected to MongoDB")
+            break
+        except pymongo_errors.PyMongoError as e:
+            print(f"Failed to connect to MongoDB (attempt {attempt + 1}/{max_retries}): {e}")
+            if attempt < max_retries - 1:
+                print(f"Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+            else:
+                print("Max retries reached. Exiting.")
+                raise
+    
+    # Main scrape loop with error handling
     while True:
-        collect_metrics(client)
+        try:
+            collect_metrics(client)
+        except pymongo_errors.PyMongoError as e:
+            print(f"MongoDB error during metrics collection: {e}")
+            print("Will retry on next iteration...")
+        except Exception as e:
+            print(f"Unexpected error during metrics collection: {e}")
+            print("Will retry on next iteration...")
+        
         time.sleep(INTERVAL)
 
 
