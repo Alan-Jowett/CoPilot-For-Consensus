@@ -231,7 +231,7 @@ class RetryStuckDocumentsJob:
         if self.mongodb_username and self.mongodb_password:
             connection_string = (
                 f"mongodb://{self.mongodb_username}:{self.mongodb_password}@"
-                f"{self.mongodb_host}:{self.mongodb_port}/{self.mongodb_database}"
+                f"{self.mongodb_host}:{self.mongodb_port}/{self.mongodb_database}?authSource=admin"
             )
         else:
             connection_string = f"mongodb://{self.mongodb_host}:{self.mongodb_port}/{self.mongodb_database}"
