@@ -11,8 +11,8 @@
         "data": {
           "type": "object",
           "properties": {
-            "summary_id": { "type": "string", "minLength": 1 },
-            "thread_id": { "type": "string", "minLength": 1 },
+            "summary_id": { "type": "string", "pattern": "^[0-9a-f]{16,64}$" },
+            "thread_id": { "type": "string", "pattern": "^[0-9a-f]{16,64}$" },
             "summary_markdown": { "type": "string", "minLength": 1 },
             "citations": {
               "type": "array",
@@ -20,7 +20,7 @@
                 "type": "object",
                 "properties": {
                   "message_id": { "type": "string", "minLength": 1 },
-                  "chunk_id": { "type": "string", "minLength": 1 },
+                  "chunk_id": { "type": "string", "pattern": "^[0-9a-f]{16,64}$" },
                   "offset": { "type": "integer", "minimum": 0 }
                 },
                 "required": ["message_id", "chunk_id", "offset"],

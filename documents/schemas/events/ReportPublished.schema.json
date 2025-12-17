@@ -11,7 +11,7 @@
         "data": {
           "type": "object",
           "properties": {
-            "thread_id": { "type": "string", "minLength": 1 },
+            "thread_id": { "type": "string", "pattern": "^[0-9a-f]{16,64}$" },
             "report_id": { "type": "string", "minLength": 1 },
             "format": { "type": "string", "minLength": 1 },
             "notified": { "type": "boolean" },

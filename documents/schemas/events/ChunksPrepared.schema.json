@@ -13,14 +13,14 @@
           "properties": {
             "message_keys": {
               "type": "array",
-              "items": { "type": "string", "minLength": 1 },
+              "items": { "type": "string", "pattern": "^[0-9a-f]{16,64}$" },
               "minItems": 1,
               "uniqueItems": true
             },
             "chunk_count": { "type": "integer", "minimum": 0 },
             "chunk_ids": {
               "type": "array",
-              "items": { "type": "string", "minLength": 1 },
+              "items": { "type": "string", "pattern": "^[0-9a-f]{16,64}$" },
               "minItems": 1,
               "uniqueItems": true
             },

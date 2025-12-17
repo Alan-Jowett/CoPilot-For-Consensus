@@ -11,18 +11,24 @@
         "data": {
           "type": "object",
           "properties": {
-            "archive_id": { "type": "string", "minLength": 16, "maxLength": 64, "description": "SHA256 hash of mbox file (first 16 chars)" },
+            "archive_id": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 64,
+              "pattern": "^[0-9a-f]{16,64}$",
+              "description": "archives._id (16-64 hex)"
+            },
             "message_count": { "type": "integer", "minimum": 0 },
             "message_keys": {
               "type": "array",
-              "items": { "type": "string", "minLength": 1 },
+              "items": { "type": "string", "pattern": "^[0-9a-f]{16,64}$" },
               "minItems": 1,
               "uniqueItems": true
             },
             "thread_count": { "type": "integer", "minimum": 0 },
             "thread_ids": {
               "type": "array",
-              "items": { "type": "string", "minLength": 1 },
+              "items": { "type": "string", "pattern": "^[0-9a-f]{16,64}$" },
               "minItems": 0,
               "uniqueItems": true
             },
