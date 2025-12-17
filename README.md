@@ -230,12 +230,9 @@ docker compose logs db-init
 
 For the full list of exposed ports and security considerations, see [docs/EXPOSED_PORTS.md](docs/EXPOSED_PORTS.md).
 
-5. Pull an LLM model (first time only):
-```bash
-docker compose exec ollama ollama pull mistral
-```
+**Note:** The Mistral LLM model is automatically downloaded on first startup via the `ollama-model-loader` service. This may take several minutes depending on your internet connection.
 
-6. **(Optional) Enable GPU acceleration** for 10-100x faster inference:
+5. **(Optional) Enable GPU acceleration** for 10-100x faster inference:
    - **NVIDIA GPU** (recommended): See [documents/OLLAMA_GPU_SETUP.md](./documents/OLLAMA_GPU_SETUP.md)
      - Requires NVIDIA GPU with drivers and nvidia-container-toolkit
      - Verify GPU support:
@@ -244,10 +241,28 @@ docker compose exec ollama ollama pull mistral
        - Or directly: `docker exec ollama nvidia-smi`
    - **AMD GPU** (experimental): See [AMD GPU Setup Guide](./documents/LLAMA_CPP_AMD_SETUP.md) to enable llama.cpp with Vulkan/ROCm
 
-7. Run ingestion:
-```bash
-docker compose run --rm ingestion
-```
+6. Run ingestion to process test data:
+
+   **Option A: Using test fixtures (recommended for first-time users):**
+   ```bash
+   # Upload test ingestion configuration
+   docker compose run --rm \
+     -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
+     ingestion \
+     python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
+   
+   # Run the ingestion job
+   docker compose run --rm \
+     -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
+     ingestion
+   ```
+
+   **Option B: Using PowerShell helper (Windows):**
+   ```powershell
+   .\run_ingestion_test.ps1
+   ```
+
+   After ingestion completes, summaries will be available via the Reporting API at http://localhost:8080/api/reports
 
 ### Viewing Logs
 
