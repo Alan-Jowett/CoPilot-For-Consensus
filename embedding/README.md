@@ -192,6 +192,43 @@ See [EmbeddingGenerationFailed schema](../documents/SCHEMA.md#8-embeddinggenerat
 }
 ```
 
+## Startup Requeue
+
+The Embedding Service automatically requeues chunks without embeddings on startup to ensure forward progress after service crashes or restarts.
+
+### Behavior
+
+On service startup (before subscribing to events), the service:
+1. Queries the document store for chunks with `embedding_generated: false`
+2. Publishes `ChunksPrepared` events for each chunk without embeddings
+3. Logs requeue actions at INFO level
+4. Emits metrics for observability
+
+### Configuration
+
+- **Enabled by Default**: Startup requeue is enabled by default
+- **Disable**: Pass `enable_startup_requeue=False` to the `start()` method
+- **Query Limit**: Requeues up to 1000 chunks per startup
+
+### Metrics
+
+Startup requeue emits the following metrics:
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `startup_requeue_documents_total` | Counter | Total documents requeued, labeled by collection |
+| `startup_requeue_errors_total` | Counter | Errors during requeue, labeled by collection and error_type |
+
+### Coordination with Retry Job
+
+Startup requeue complements the periodic retry job:
+- **Startup Requeue**: Runs once on service startup for immediate recovery
+- **Retry Job**: Runs periodically (every 15 minutes) with exponential backoff
+
+Both mechanisms are idempotent and safe to run concurrently.
+
+See [FORWARD_PROGRESS.md](../documents/FORWARD_PROGRESS.md) for complete details on startup behavior and retry policies.
+
 ## Data Flow
 
 ```mermaid

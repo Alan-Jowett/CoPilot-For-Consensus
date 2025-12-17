@@ -65,9 +65,17 @@ class ParsingService:
         self.threads_created = 0
         self.last_processing_time = 0.0
 
-    def start(self):
-        """Start the parsing service and subscribe to events."""
+    def start(self, enable_startup_requeue: bool = True):
+        """Start the parsing service and subscribe to events.
+        
+        Args:
+            enable_startup_requeue: Whether to requeue incomplete documents on startup (default: True)
+        """
         logger.info("Starting Parsing Service")
+        
+        # Requeue incomplete archives on startup
+        if enable_startup_requeue:
+            self._requeue_incomplete_archives()
         
         # Subscribe to ArchiveIngested events
         self.subscriber.subscribe(
@@ -79,6 +87,42 @@ class ParsingService:
         
         logger.info("Subscribed to archive.ingested events")
         logger.info("Parsing service is ready")
+    
+    def _requeue_incomplete_archives(self):
+        """Requeue incomplete archives on startup for forward progress."""
+        try:
+            from copilot_startup import StartupRequeue
+            
+            logger.info("Scanning for incomplete archives to requeue on startup...")
+            
+            requeue = StartupRequeue(
+                document_store=self.document_store,
+                publisher=self.publisher,
+                metrics_collector=self.metrics_collector,
+            )
+            
+            count = requeue.requeue_incomplete(
+                collection="archives",
+                query={"status": {"$in": ["pending", "processing"]}},
+                event_type="ArchiveIngested",
+                routing_key="archive.ingested",
+                id_field="archive_id",
+                build_event_data=lambda doc: {
+                    "archive_id": doc.get("archive_id"),
+                    "file_path": doc.get("file_path"),
+                    "source": doc.get("source"),
+                    "message_count": doc.get("message_count", 0),
+                },
+                limit=1000,
+            )
+            
+            logger.info(f"Startup requeue: {count} incomplete archives requeued")
+            
+        except ImportError:
+            logger.warning("copilot_startup module not available, skipping startup requeue")
+        except Exception as e:
+            logger.error(f"Startup requeue failed: {e}", exc_info=True)
+            # Don't fail service startup on requeue errors
 
     def _handle_archive_ingested(self, event: Dict[str, Any]):
         """Handle ArchiveIngested event.

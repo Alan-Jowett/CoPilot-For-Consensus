@@ -163,6 +163,13 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
 
+  # Monitor Python dependencies in copilot_startup adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_startup"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
   # Monitor Python dependencies in copilot_storage adapter
   - package-ecosystem: "pip"
     directory: "/adapters/copilot_storage"

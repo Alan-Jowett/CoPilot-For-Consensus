@@ -59,9 +59,17 @@ class ChunkingService:
         self.chunks_created_total = 0
         self.last_processing_time = 0.0
 
-    def start(self):
-        """Start the chunking service and subscribe to events."""
+    def start(self, enable_startup_requeue: bool = True):
+        """Start the chunking service and subscribe to events.
+        
+        Args:
+            enable_startup_requeue: Whether to requeue incomplete documents on startup (default: True)
+        """
         logger.info("Starting Chunking Service")
+        
+        # Requeue incomplete messages on startup
+        if enable_startup_requeue:
+            self._requeue_incomplete_messages()
         
         # Subscribe to JSONParsed events
         self.subscriber.subscribe(
@@ -73,6 +81,119 @@ class ChunkingService:
         
         logger.info("Subscribed to json.parsed events")
         logger.info("Chunking service is ready")
+    
+    def _requeue_incomplete_messages(self):
+        """Requeue parsed messages without chunks on startup for forward progress."""
+        try:
+            from copilot_startup import StartupRequeue
+            
+            logger.info("Scanning for parsed messages without chunks to requeue on startup...")
+            
+            requeue = StartupRequeue(
+                document_store=self.document_store,
+                publisher=self.publisher,
+                metrics_collector=self.metrics_collector,
+            )
+            
+            # Use aggregation pipeline to efficiently find messages without chunks
+            try:
+                # Check if document store supports aggregation
+                if not hasattr(self.document_store, 'aggregate_documents'):
+                    logger.warning("Document store doesn't support aggregation, skipping chunking requeue")
+                    return
+                
+                pipeline = [
+                    {
+                        "$match": {
+                            "message_key": {"$exists": True},
+                        }
+                    },
+                    {
+                        "$lookup": {
+                            "from": "chunks",
+                            "localField": "message_key",
+                            "foreignField": "message_key",
+                            "as": "chunks",
+                        }
+                    },
+                    {
+                        # Keep only messages that have no corresponding chunks
+                        "$match": {
+                            "chunks": {"$eq": []},
+                        }
+                    },
+                    {
+                        # Bound the number of messages we attempt to requeue on startup
+                        "$limit": 1000,
+                    },
+                ]
+                
+                unchunked_messages = self.document_store.aggregate_documents(
+                    collection="messages",
+                    pipeline=pipeline,
+                )
+                
+                if not unchunked_messages:
+                    logger.info("All messages have chunks, nothing to requeue")
+                    return
+                
+                logger.info(f"Found {len(unchunked_messages)} messages without chunks")
+                
+                # Group messages by archive_id for efficient requeue
+                archive_groups = {}
+                for msg in unchunked_messages:
+                    msg_key = msg.get("message_key")
+                    archive_id = msg.get("archive_id")
+                    if not msg_key or archive_id is None:
+                        continue
+                    if archive_id not in archive_groups:
+                        archive_groups[archive_id] = []
+                    archive_groups[archive_id].append(msg_key)
+                
+                # Requeue by archive
+                requeued = 0
+                for archive_id, msg_keys in archive_groups.items():
+                    event_data = {
+                        "archive_id": archive_id,
+                        "message_keys": msg_keys,
+                        "message_count": len(msg_keys),
+                    }
+                    
+                    try:
+                        self.publisher.publish(
+                            event_type="JSONParsed",
+                            data=event_data,
+                            routing_key="json.parsed",
+                            exchange="copilot.events",
+                        )
+                        requeued += len(msg_keys)
+                        logger.debug(f"Requeued {len(msg_keys)} messages from archive {archive_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to requeue messages from archive {archive_id}: {e}")
+                
+                if self.metrics_collector:
+                    self.metrics_collector.increment(
+                        "startup_requeue_documents_total",
+                        requeued,
+                        tags={"collection": "messages"}
+                    )
+                
+                logger.info(f"Startup requeue: {requeued} messages without chunks requeued")
+                
+            except Exception as e:
+                logger.error(f"Error querying for unchunked messages: {e}", exc_info=True)
+                if self.metrics_collector:
+                    self.metrics_collector.increment(
+                        "startup_requeue_errors_total",
+                        1,
+                        tags={"collection": "messages", "error_type": type(e).__name__}
+                    )
+            
+        except ImportError:
+            logger.warning("copilot_startup module not available, skipping startup requeue")
+        except Exception as e:
+            logger.error(f"Startup requeue failed: {e}", exc_info=True)
+            # Don't fail service startup on requeue errors
 
     def _handle_json_parsed(self, event: Dict[str, Any]):
         """Handle JSONParsed event.
