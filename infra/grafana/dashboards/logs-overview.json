@@ -89,12 +89,12 @@
       },
       "targets": [
         {
-          "expr": "sum by (container) (count_over_time({container=~\".+\", level=\"error\"}[1h]))",
+          "expr": "sum by (service_name) (count_over_time({service_name=~\".+\", level=\"WARNING\"}[1h]))",
           "refId": "A",
-          "legendFormat": "{{container}}"
+          "legendFormat": "{{service_name}}"
         }
       ],
-      "title": "Error Count per Service (last 1h)",
+      "title": "Warning Count per Service (last 1h)",
       "type": "timeseries"
     },
     {
@@ -168,12 +168,12 @@
       },
       "targets": [
         {
-          "expr": "sum by (container) (count_over_time({container=~\".+\", level=\"warning\"}[1h]))",
+          "expr": "sum by (service_name) (count_over_time({service_name=~\".+\", level=\"INFO\"}[1h]))",
           "refId": "A",
-          "legendFormat": "{{container}}"
+          "legendFormat": "{{service_name}}"
         }
       ],
-      "title": "Warning Count per Service (last 1h)",
+      "title": "Info Count per Service (last 1h)",
       "type": "timeseries"
     },
     {
@@ -245,12 +245,12 @@
       },
       "targets": [
         {
-          "expr": "sum by (container) (rate({container=~\".+\", level=\"error\"}[1m]))",
+          "expr": "sum by (service_name) (rate({service_name=~\".+\", level=\"WARNING\"}[1m]))",
           "refId": "A",
-          "legendFormat": "{{container}}"
+          "legendFormat": "{{service_name}}"
         }
       ],
-      "title": "Error Rate Over Time",
+      "title": "Warning Rate Over Time",
       "type": "timeseries"
     },
     {
@@ -274,11 +274,11 @@
       },
       "targets": [
         {
-          "expr": "{container=~\".+\", level=\"error\"}",
+          "expr": "{service_name=~\".+\", level=\"WARNING\"}",
           "refId": "A"
         }
       ],
-      "title": "Recent Errors (last 100)",
+      "title": "Recent Warnings (last 100)",
       "type": "logs",
       "maxDataPoints": 100
     },
@@ -303,11 +303,11 @@
       },
       "targets": [
         {
-          "expr": "{container=~\".+\", level=\"warning\"}",
+          "expr": "{service_name=~\".+\", level=\"INFO\"}",
           "refId": "A"
         }
       ],
-      "title": "Recent Warnings (last 100)",
+      "title": "Recent Info Logs (last 100)",
       "type": "logs",
       "maxDataPoints": 100
     },
@@ -385,13 +385,13 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "expr": "topk(20, sum by (container) (count_over_time({container=~\".+\", level=\"error\"}[1h])))",
+          "expr": "topk(20, sum by (service_name) (count_over_time({service_name=~\".+\", level=\"WARNING\"}[1h])))",
           "refId": "A",
           "legendFormat": "",
           "instant": true
         }
       ],
-      "title": "Top Services by Error Count (last 1h)",
+      "title": "Top Services by Warning Count (last 1h)",
       "type": "table",
       "transformations": [
         {
@@ -402,7 +402,7 @@
             },
             "indexByName": {},
             "renameByName": {
-              "container": "Service",
+              "service_name": "Service",
               "Value": "Count"
             }
           }
