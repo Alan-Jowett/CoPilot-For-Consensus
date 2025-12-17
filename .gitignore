@@ -8,6 +8,9 @@ ollama_models/
 infra/azure/what-if-output.json
 infra/azure/main.json
 infra/azure/modules/*.json
+# llama.cpp models (GGUF files, cached locally)
+llama_models/
+*.gguf
 
 **/__pycache__/**
 **/*.egg-info/**

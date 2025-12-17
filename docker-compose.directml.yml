@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+# Docker Compose override for DirectML GPU support on Windows/WSL2
+# Usage: docker compose -f docker-compose.yml -f docker-compose.directml.yml up
+
+services:
+  # DirectML-enabled llama.cpp server for AMD/Intel GPU acceleration
+  llama-directml:
+    image: copilot-llama-directml:latest
+    build:
+      context: ./llama_directml
+      dockerfile: Dockerfile
+    container_name: llama-directml
+    environment:
+      # Model configuration
+      - LLAMA_MODEL=/models/mistral-7b-instruct-v0.2.Q4_K_M.gguf
+      
+      # GPU configuration
+      # Mistral 7B has 32 transformer layers + embeddings/output = ~35 layers total
+      # Adjust LLAMA_GPU_LAYERS based on VRAM:
+      #   - 35 layers: ~4.5GB VRAM (full GPU offload)
+      #   - 24 layers: ~3GB VRAM (partial offload)
+      #   - 0 layers: CPU only (no GPU)
+      - LLAMA_GPU_LAYERS=35
+      
+      # Context and performance
+      - LLAMA_CTX_SIZE=4096   # Context window size (tokens)
+      - LLAMA_THREADS=4       # CPU threads for non-GPU operations
+      - LLAMA_VERBOSE=true    # Enable verbose logging to verify CLBlast
+    
+    volumes:
+      # Mount model directory (user must download model separately)
+      # Download from: https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF
+      # Place in: ./llama_models/mistral-7b-instruct-v0.2.Q4_K_M.gguf
+      - ./llama_models:/models:ro
+    
+    devices:
+      # WSL2 GPU device for DirectML/OpenCL acceleration
+      # This device is automatically created by WSL2 when GPU drivers are installed
+      - /dev/dxg:/dev/dxg
+    
+    ports:
+      # Expose on localhost only for security
+      - "127.0.0.1:8082:8082"
+    
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8082/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s  # Allow time for model loading
+    
+    restart: unless-stopped
+    
+    # Resource limits (adjust based on your system)
+    deploy:
+      resources:
+        limits:
+          memory: 8G  # Adjust based on model size and VRAM offloading
+        reservations:
+          memory: 4G
+
+  # Update summarization service to use DirectML backend
+  summarization:
+    environment:
+      # Switch to llamacpp backend for DirectML acceleration
+      - LLM_BACKEND=llamacpp
+      - LLAMACPP_HOST=http://llama-directml:8082
+      - LLM_MODEL=mistral-7b-instruct-v0.2.Q4_K_M
+    
+    depends_on:
+      llama-directml:
+        condition: service_healthy
+
+# Named volumes for model storage (optional - can use bind mount instead)
+volumes:
+  llama_models:
+    driver: local
