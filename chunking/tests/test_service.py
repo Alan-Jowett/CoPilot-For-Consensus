@@ -447,7 +447,7 @@ def test_handle_malformed_event_missing_data():
         service._handle_json_parsed(event)
 
 
-def test_handle_event_with_invalid_message_keys_type():
+def test_handle_event_with_invalid_message_doc_ids_type():
     """Test handling event with invalid message_doc_ids type."""
     mock_store = Mock()
     mock_publisher = Mock()
