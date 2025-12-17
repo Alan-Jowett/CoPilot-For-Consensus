@@ -218,7 +218,7 @@ This section clarifies which identifiers are sourced from email RFCs versus inte
 - in_reply_to: RFC 5322 In-Reply-To header referencing the parent message’s Message-ID.
 - references: RFC 5322 References header listing ancestor Message-IDs (ordered) forming the reply chain.
 
-Note: For consistency across collections, `_id` is the canonical primary key name everywhere (archives, messages, chunks, threads, summaries). Legacy fields like `message_key`, `chunk_key`, `thread_id`, and `summary_id` have been removed from schemas in favor of `_id`.
+Note: For consistency across collections, `_id` is the canonical primary key name everywhere (archives, messages, chunks, threads, summaries). All queries and references use `_id`.
 
 #### Payload Schema
 
@@ -728,7 +728,7 @@ Signals that an archive has been parsed and messages are stored.
   "data": {
     "archive_id": "b9c8d7e6f5a4b3c",
     "message_count": 150,
-    "message_keys": [
+    "message_doc_ids": [
       "b0909b070abce029",
       "3af08455db2c8691"
     ],
@@ -781,7 +781,7 @@ Signals that messages have been chunked and stored.
   "timestamp": "2023-10-15T14:40:00Z",
   "version": "1.0",
   "data": {
-    "message_keys": [
+    "message_doc_ids": [
       "<20231015123456.ABC123@example.com>"
     ],
     "chunk_count": 45,
@@ -810,7 +810,7 @@ Signals that chunking failed for a batch of messages.
   "timestamp": "2023-10-15T14:42:00Z",
   "version": "1.0",
   "data": {
-    "message_keys": [
+    "message_doc_ids": [
       "<20231015123456.ABC123@example.com>"
     ],
     "error_message": "Failed to retrieve messages from database",
