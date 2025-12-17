@@ -116,7 +116,7 @@ See [JSONParsed schema](../documents/SCHEMA.md#3-jsonparsed) in SCHEMA.md for th
 **Key Fields:**
 - `archive_id`: Source archive hash (SHA256, first 16 chars)
 - `message_count`: Number of messages parsed
-- `message_keys`: Deterministic IDs for all messages (used by chunking service)
+- `message_doc_ids`: Canonical IDs for all messages (used by chunking service)
 - `thread_count`: Number of distinct threads identified
 - `thread_ids`: List of root Message-IDs for threads
 - `parsing_duration_seconds`: Time taken to parse archive
@@ -300,13 +300,13 @@ async def process_archive_ingested_event(event: ArchiveIngestedEvent):
         
         # 2. Parse all messages
         parsed_messages = []
-        message_keys = []
+        message_doc_ids = []
         
         for message in mbox:
             try:
                 parsed = parse_message(message, archive_id)
                 parsed_messages.append(parsed)
-                message_keys.append(parsed["message_key"])
+                message_doc_ids.append(parsed["_id"])
             except Exception as e:
                 logger.warning(f"Failed to parse message: {e}")
                 continue
@@ -327,7 +327,7 @@ async def process_archive_ingested_event(event: ArchiveIngestedEvent):
         await publish_json_parsed_event(
             archive_id=archive_id,
             message_count=len(parsed_messages),
-            message_keys=message_keys,
+            message_doc_ids=message_doc_ids,
             thread_count=len(threads)
         )
         
