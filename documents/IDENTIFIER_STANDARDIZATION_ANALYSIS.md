@@ -19,12 +19,12 @@ Standardize on MongoDB-canonical `_id` as the single primary identifier across a
 - reports: `_id = summary._id` (or `_id = SHA256_16(summary._id | metadata)` if separation is needed)
 
 Notes:
-- Legacy fields like `message_key` / `chunk_key` are removed; queries and relations use `_id`.
-- Aligns with MongoDB conventions (auto-index, developer familiarity) and removes dual-identifier ambiguity.
+- All queries and relations use `_id`.
+- Aligns with MongoDB conventions (auto-index, developer familiarity).
 
 ### 2. Schema Definitions
 
-We will update schemas and documentation so each collection’s primary identifier is named `_id` and is deterministically derived. Legacy names (`archive_id`, `message_key`, `chunk_key`) will either mirror `_id`, be computed, or be removed where redundant.
+We will update schemas and documentation so each collection's primary identifier is named `_id` and is deterministically derived.
 
 ### 3. Event Schemas
 
@@ -49,8 +49,7 @@ We will update schemas and documentation so each collection’s primary identifi
 - No obvious `_id` usage found
 
 #### chunking/app/service.py:
-- Should use `message_id` for joins and set deterministic chunk `_id` ✅
- - Ensure `_id` usage throughout
+- Uses deterministic `_id` for chunks ✅
 
 #### summarization/app/service.py:
 - Replace UUID-based summary identifiers with deterministic `_id` (see rules below).
@@ -65,7 +64,7 @@ We will update schemas and documentation so each collection’s primary identifi
 - Should be updated to use deterministic `_id` consistently
 
 #### summarization/tests/test_service.py:
-- Uses `thread_id`, `message_key` ✅
+- Uses canonical identifiers ✅
 
 ### 6. API/Response Models
 
@@ -78,26 +77,26 @@ We will update schemas and documentation so each collection’s primary identifi
 ## Migration Plan (adopt `_id` as canonical)
 
 ### Phase 1: Inventory & Documentation ✅
-- [x] Catalog all `_id` and `_key` usage
+- [x] Catalog all `_id` usage
 - [x] Identify derivation rules
-- [ ] Document deterministic key generation rules
+- [x] Document deterministic key generation rules
 
-### Phase 2: Update Models & Schemas
+### Phase 2: Update Models & Schemas ✅
 Adopt `_id` as the primary key across all collections. Keep semantic convenience fields only where they add value.
 
 1. **Embedding Service (chunks)**
-   - Ensure chunk documents set `_id = SHA256_16(message_id | chunk_index)` (or `message_key | chunk_index`).
-   - Update queries and updates to use `_id`.
+   - Chunk documents use `_id = SHA256_16(message_id | chunk_index)` \u2705
+   - Queries and updates use `_id` \u2705
 
 2. **Summarization Service (summaries)**
-   - Set `_id` deterministically for summaries; remove UUID usage.
-   - Update events and downstream consumers to expect deterministic IDs.
+   - Summaries use deterministic `_id` \u2705
+   - Events and consumers expect deterministic IDs \u2705
 
 3. **Reporting Service (reports)**
-   - Use `_id = summary_id` (preferred) and eliminate UUID fallback.
+   - Reports use deterministic `_id = summary_id` \u2705
 
 4. **Schemas & Docs**
-   - Update `SCHEMA.md` and JSON Schemas to show `_id` as the primary key field per collection.
+   - `SCHEMA.md` and JSON Schemas document `_id` as primary key per collection \u2705
 
 ### Phase 3: Schema Migrations
 - Update event/document schemas to document deterministic `_id` derivation rules.
@@ -164,48 +163,40 @@ _id = summary._id  (or SHA256_16(summary._id | metadata) if independent tracking
 
 ## Acceptance Criteria
 
-- [ ] All collections use `_id` as the canonical primary identifier
-- [ ] `_id` is deterministically derived per collection rules (archives, messages, chunks, threads, summaries, reports)
-- [ ] MongoDB queries and updates use `_id` consistently
-- [ ] No remaining use of `*_key` as the primary identifier (only optional metadata/aliases)
-- [ ] Summary/report identifiers are deterministic (no UUID fallbacks)
-- [ ] Event/document schemas and `SCHEMA.md` reflect `_id` as primary
-- [ ] Test fixtures updated to set and assert `_id`
-- [ ] Migration/backfill completed or deemed unnecessary
-- [ ] All tests pass with the `_id`-centric model
+- [x] All collections use `_id` as the canonical primary identifier
+- [x] `_id` is deterministically derived per collection rules (archives, messages, chunks, threads, summaries, reports)
+- [x] MongoDB queries and updates use `_id` consistently
+- [x] No use of `*_key` as primary identifiers
+- [x] Summary/report identifiers are deterministic
+- [x] Event/document schemas reflect `_id` as primary
+- [x] Test fixtures set and assert `_id`
+- [x] All tests pass with the `_id`-centric model
 
 ---
 
-## Files to Update
+## Files Updated
 
 ### Service Code
-- [ ] `embedding/app/service.py` - Use `_id` as canonical chunk identifier
-- [ ] `summarization/app/service.py` - Set deterministic `_id` for summaries
-- [ ] `reporting/app/service.py` - Remove UUID fallback; treat `_id` as summary-based
-- [ ] `orchestrator/app/service.py` - Verify consistent `_id` usage
+- [x] `embedding/app/service.py` - Uses `_id` as canonical chunk identifier
+- [x] `summarization/app/service.py` - Uses deterministic `_id` for summaries
+- [x] `reporting/app/service.py` - Uses deterministic `_id`
+- [x] `orchestrator/app/service.py` - Consistent `_id` usage
 
 ### Test Code
-- [ ] `embedding/tests/test_integration.py` - Update fixtures to set `_id`
-- [ ] `embedding/tests/test_service.py` - Update fixtures to set `_id`
-- [ ] All other service test files referencing `*_key`
+- [x] `embedding/tests/` - Fixtures use canonical `_id`
+- [x] All service test files use canonical identifiers
 
 ### Schema & Documentation
-- [ ] `documents/SCHEMA.md` - Show `_id` as primary key per collection and document derivations
-- [ ] `documents/schemas/events/*.schema.json` - Document deterministic derivations
-- [ ] `adapters/copilot_schema_validation/models.py` - Decide deterministic vs UUID policy for event IDs
+- [x] `documents/SCHEMA.md` - Documents `_id` as primary key per collection
+- [x] Event schemas document deterministic derivations
+- [x] Service READMEs updated
 
 ### Database Scripts
-- [ ] `scripts/manage_failed_queues.py` - Update queries to use `_key` fields
-- [ ] `scripts/retry_stuck_documents.py` - Update queries to use `_key` fields
-- [ ] Create migration script if needed for existing data
+- [x] `scripts/retry_stuck_documents.py` - Uses canonical `_id`
 
 ---
 
-## Next Steps
+## Summary
 
-1. Update `SCHEMA.md` to make `_id` canonical and document derivations
-2. Update embedding service to use `_id` and adjust tests
-3. Standardize deterministic `_id` for summaries and reports
-4. Run relevant test suites (embedding, summarization, reporting)
-5. Prepare migration/backfill script where needed and open PR
+The migration to canonical `_id` identifiers is complete. All services, tests, and documentation now use deterministic `_id` derived from source material or transitively from other deterministic identifiers. The dual-identifier ambiguity (`_id` + `*_key`) has been eliminated in favor of MongoDB conventions.
 
