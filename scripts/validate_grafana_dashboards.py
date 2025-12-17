@@ -80,29 +80,52 @@ class GrafanaValidator:
         Grafana starts, so we retry datasource access to wait for auth.
         """
         print("Waiting for Grafana API authentication to be ready...")
-        for attempt in range(1, min(self.max_retries, 10) + 1):
+        sys.stdout.flush()
+        # Use up to 20 retries (or max_retries if smaller) for auth check
+        max_auth_retries = min(self.max_retries, 20)
+        for attempt in range(1, max_auth_retries + 1):
             try:
                 response = self.session.get(
                     f"{self.grafana_url}/api/datasources", timeout=5
                 )
+                print(
+                    f"  Attempt {attempt}/{max_auth_retries}: "
+                    f"Got status code {response.status_code}"
+                )
+                sys.stdout.flush()
                 if response.status_code == 200:
                     print(f"✓ API authentication is working")
+                    sys.stdout.flush()
                     return True
                 elif response.status_code == 401:
-                    print(
-                        f"  Attempt {attempt}/{min(self.max_retries, 10)}: "
-                        f"Authentication not ready yet, waiting..."
-                    )
+                    # Try to get more details from the response
+                    try:
+                        error_body = response.json()
+                        print(f"    Auth failed (401): {error_body}")
+                    except:
+                        print(f"    Authentication not ready yet (401), waiting...")
+                    sys.stdout.flush()
+                else:
+                    print(f"    Unexpected status code, waiting...")
+                    sys.stdout.flush()
             except requests.exceptions.RequestException as e:
                 print(
-                    f"  Attempt {attempt}/{min(self.max_retries, 10)}: "
+                    f"  Attempt {attempt}/{max_auth_retries}: "
                     f"API not accessible yet ({e})"
                 )
+                sys.stdout.flush()
 
-            if attempt < min(self.max_retries, 10):
+            if attempt < max_auth_retries:
                 time.sleep(self.retry_delay)
 
-        print(f"✗ API authentication failed after {min(self.max_retries, 10)} attempts")
+        print(f"✗ API authentication failed after {max_auth_retries} attempts")
+        if 'response' in locals():
+            print(f"  Last response status: {response.status_code}")
+            try:
+                print(f"  Response body: {response.text[:200]}")
+            except:
+                pass
+        sys.stdout.flush()
         return False
 
     def validate_dashboard_json(self, filepath: Path) -> Tuple[bool, Optional[str]]:
