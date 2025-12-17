@@ -84,6 +84,7 @@ def sample_summary_complete_event():
         "timestamp": "2025-01-15T12:00:00Z",
         "version": "1.0",
         "data": {
+            "summary_id": "a1b2c3d4e5f6",
             "thread_id": "<thread_123@example.com>",
             "summary_markdown": "# Summary\n\nThis is a test summary.",
             "citations": [

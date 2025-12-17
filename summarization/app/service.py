@@ -3,6 +3,7 @@
 
 """Main summarization service implementation."""
 
+import hashlib
 import logging
 import time
 from typing import Optional, Dict, Any, List
@@ -265,6 +266,9 @@ class SummarizationService:
                     chunks,
                 )
                 
+                # Generate deterministic summary ID based on thread and chunks
+                summary_id = self._generate_summary_id(thread_id, formatted_citations)
+                
                 # Calculate duration
                 duration = time.time() - start_time
                 self.last_processing_time = duration
@@ -274,6 +278,7 @@ class SummarizationService:
                 
                 # Publish success event
                 self._publish_summary_complete(
+                    summary_id=summary_id,
                     thread_id=thread_id,
                     summary_markdown=summary.summary_markdown,
                     citations=formatted_citations,
@@ -457,8 +462,34 @@ class SummarizationService:
         
         return formatted
 
+    def _generate_summary_id(self, thread_id: str, citations: List[Dict[str, Any]]) -> str:
+        """Generate deterministic summary ID from thread and chunk IDs.
+        
+        Creates a SHA256 hash of the thread_id combined with sorted chunk_ids
+        from citations. This ensures:
+        - Same thread + same chunks = same summary_id (deduplication)
+        - Different chunks = different summary_id (allows regeneration)
+        
+        Args:
+            thread_id: Thread identifier
+            citations: List of citation dictionaries containing chunk_id
+            
+        Returns:
+            Hex string of SHA256 hash (64 characters)
+        """
+        # Extract and sort chunk IDs to ensure consistent ordering, ignoring missing/empty IDs
+        chunk_ids = sorted({c.get("chunk_id") for c in citations if c.get("chunk_id")})
+        
+        # Combine thread_id and chunk_ids into a single string
+        id_input = f"{thread_id}:{','.join(chunk_ids)}"
+        
+        # Generate SHA256 hash
+        hash_obj = hashlib.sha256(id_input.encode("utf-8"))
+        return hash_obj.hexdigest()
+
     def _publish_summary_complete(
         self,
+        summary_id: str,
         thread_id: str,
         summary_markdown: str,
         citations: List[Dict[str, Any]],
@@ -471,6 +502,7 @@ class SummarizationService:
         """Publish SummaryComplete event.
         
         Args:
+            summary_id: Deterministic summary identifier
             thread_id: Thread identifier
             summary_markdown: Generated summary in Markdown
             citations: List of citation dictionaries
@@ -482,6 +514,7 @@ class SummarizationService:
         """
         event = SummaryCompleteEvent(
             data={
+                "summary_id": summary_id,
                 "thread_id": thread_id,
                 "summary_markdown": summary_markdown,
                 "citations": citations,
