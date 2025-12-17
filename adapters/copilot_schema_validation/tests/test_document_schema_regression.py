@@ -27,7 +27,7 @@ class TestMessageSchemaRegression:
             "_id": "a1b2c3d4e5f6789a",
             "message_id": "msg-123",
             "archive_id": "a1b2c3d4e5f67890",
-            "thread_id": "thread-1",
+            "thread_id": "feedfacecafebeef",
             "date": None,
             "body_normalized": "Test message body",
             "created_at": "2025-01-01T00:00:00Z"
@@ -42,7 +42,7 @@ class TestMessageSchemaRegression:
             "_id": "a1b2c3d4e5f6789a",
             "message_id": "msg-123",
             "archive_id": "a1b2c3d4e5f67890",
-            "thread_id": "thread-1",
+            "thread_id": "feedfacecafebeef",
             "subject": None,
             "body_normalized": "Test message body",
             "created_at": "2025-01-01T00:00:00Z"
@@ -57,7 +57,7 @@ class TestMessageSchemaRegression:
             "_id": "a1b2c3d4e5f6789a",
             "message_id": "msg-123",
             "archive_id": "a1b2c3d4e5f67890",
-            "thread_id": "thread-1",
+            "thread_id": "feedfacecafebeef",
             "from": None,
             "body_normalized": "Test message body",
             "created_at": "2025-01-01T00:00:00Z"
@@ -72,7 +72,7 @@ class TestMessageSchemaRegression:
             "_id": "a1b2c3d4e5f6789a",
             "message_id": "msg-123",
             "archive_id": "a1b2c3d4e5f67890",
-            "thread_id": "thread-1",
+            "thread_id": "feedfacecafebeef",
             "references": ["ref-1", "ref-2", "ref-1"],  # Duplicate ref-1
             "body_normalized": "Test message body",
             "created_at": "2025-01-01T00:00:00Z"
@@ -87,7 +87,7 @@ class TestMessageSchemaRegression:
             "_id": "a1b2c3d4e5f6789a",
             "message_id": "msg-123",
             "archive_id": "a1b2c3d4e5f67890",
-            "thread_id": "thread-1",
+            "thread_id": "feedfacecafebeef",
             "body_normalized": "Test message body",
             "created_at": "2025-01-01T00:00:00Z"
         }
@@ -101,7 +101,7 @@ class TestMessageSchemaRegression:
             "_id": "a1b2c3d4e5f6789a",
             "message_id": "msg-123",
             "archive_id": "a1b2c3d4e5f67890",
-            "thread_id": "thread-1",
+            "thread_id": "feedfacecafebeef",
             "subject": "Valid Subject",
             "body_normalized": "Test message body",
             "created_at": "2025-01-01T00:00:00Z"
@@ -116,7 +116,7 @@ class TestMessageSchemaRegression:
             "_id": "a1b2c3d4e5f6789a",
             "message_id": "msg-123",
             "archive_id": "a1b2c3d4e5f67890",
-            "thread_id": "thread-1",
+            "thread_id": "feedfacecafebeef",
             "subject": "",  # Empty string is allowed
             "body_normalized": "Test message body",
             "created_at": "2025-01-01T00:00:00Z"
@@ -131,7 +131,7 @@ class TestMessageSchemaRegression:
             "_id": "a1b2c3d4e5f6789a",
             "message_id": "msg-123",
             "archive_id": "a1b2c3d4e5f67890",
-            "thread_id": "thread-1",
+            "thread_id": "feedfacecafebeef",
             "from": {
                 "name": "",  # Empty string now allowed
                 "email": "sender@example.com"
