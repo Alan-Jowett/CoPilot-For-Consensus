@@ -14,8 +14,9 @@ services:
     container_name: llama-directml
     environment:
       # Model configuration
-      # Note: Update this path if using a different model variant
-      # Supported: Any GGUF format model (Mistral, Llama 2, etc.)
+      # IMPORTANT: Chat template is Mistral-specific. Using other models (Llama 2, etc.)
+      # requires modifying the chat template in server.py to match the model's format.
+      # Update this path to your downloaded GGUF model file.
       - LLAMA_MODEL=/models/mistral-7b-instruct-v0.2.Q4_K_M.gguf
       
       # GPU configuration
@@ -32,9 +33,11 @@ services:
       - LLAMA_VERBOSE=true    # Enable verbose logging to verify CLBlast
     
     volumes:
-      # Mount model directory (user must download model separately)
+      # Mount model directory (user must download model separately - see DIRECTML_SETUP.md)
       # Download from: https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2-GGUF
       # Place in: ./llama_models/mistral-7b-instruct-v0.2.Q4_K_M.gguf
+      # Read-only mount (:ro) prevents accidental model modification
+      # If using named volume for model storage, mount as read-write initially for downloads
       - ./llama_models:/models:ro
     
     devices:

@@ -59,7 +59,7 @@ This project aims to be:
 - **Observability Stack**: Prometheus metrics, Grafana dashboards, Loki logging, and Promtail log aggregation
 - **Error Handling**: Retry policies, failed queue management, and centralized error reporting
 - **Idempotency**: All operations are idempotent with deduplication support
-- **GPU Acceleration**: Optional NVIDIA (Ollama), AMD/Intel (DirectML) GPU support for 10-100x faster inference
+- **GPU Acceleration**: Optional NVIDIA (Ollama), AMD/Intel (DirectML) GPU support for 3-10x faster inference
 - **Schema Validation**: JSON schema validation for all messages and events
 - **Health Checks**: Comprehensive health checks for all services
 - **TLS/HTTPS Support**: API Gateway supports TLS with configurable certificates for secure communication
@@ -294,7 +294,7 @@ For the full list of exposed ports and security considerations, see [documents/E
 
 **Note:** The Mistral LLM model is automatically downloaded on first startup via the `ollama-model-loader` service when using the default Ollama backend. This may take several minutes depending on your internet connection. Models are stored in the `ollama_models` Docker volume for persistence.
 
-5. **(Optional) Enable GPU acceleration** for 10-100x faster inference:
+5. **(Optional) Enable GPU acceleration** for 3-10x faster inference:
    - **NVIDIA GPU** (recommended): See [documents/OLLAMA_GPU_SETUP.md](./documents/OLLAMA_GPU_SETUP.md)
      - Requires NVIDIA GPU with drivers and nvidia-container-toolkit
      - Verify GPU support:
@@ -304,6 +304,7 @@ For the full list of exposed ports and security considerations, see [documents/E
    - **AMD/Intel GPU on Windows/WSL2**: See [DIRECTML_SETUP.md](./DIRECTML_SETUP.md) for DirectML setup
      - Best option for AMD Radeon RX series and integrated GPUs on Windows
      - Uses native DirectX 12 acceleration (no ROCm required)
+     - Provides 3-10x speedup (15-70 tok/s vs 5-10 tok/s CPU)
    - **AMD GPU on Linux** (experimental): See [AMD GPU Setup Guide](./documents/LLAMA_CPP_AMD_SETUP.md) to enable llama.cpp with Vulkan/ROCm
 
 6. Run ingestion to process test data:

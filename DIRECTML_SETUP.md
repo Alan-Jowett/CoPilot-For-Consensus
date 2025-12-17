@@ -53,7 +53,7 @@ wsl --set-default-version 2
 # Check if /dev/dxg exists (WSL2 GPU device)
 wsl -e bash -c "ls -la /dev/dxg"
 
-# Should output: crw-rw-rw- 1 root root 10, 126 Dec 17 02:00 /dev/dxg
+# Should output: crw-rw-rw- 1 root root 10, 126 <date> /dev/dxg
 ```
 
 If `/dev/dxg` doesn't exist:
@@ -95,6 +95,8 @@ Invoke-WebRequest -Uri "https://huggingface.co/TheBloke/Mistral-7B-Instruct-v0.2
 - `Q3_K_M.gguf`: 3.52 GB - Lower quality, fits in limited VRAM
 
 ## Quick Start
+
+**⚠️ Security Warning**: The llama-directml service exposes LLM inference endpoints without authentication. The default docker-compose configuration binds to `127.0.0.1` (localhost only) for security. If you modify the port binding or run the container standalone, ensure proper network security measures are in place. For production deployments, implement authentication/API key support or use a reverse proxy with access controls.
 
 ### 1. Build and Start Services
 
@@ -229,6 +231,7 @@ wsl -e uname -r
 
 2. **OpenCL runtime missing**: Check container logs for OpenCL errors
    ```powershell
+   # Verify OpenCL devices are visible inside container
    docker compose -f docker-compose.directml.yml run --rm llama-directml clinfo
    ```
 
