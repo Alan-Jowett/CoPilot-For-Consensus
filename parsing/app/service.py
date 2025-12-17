@@ -26,7 +26,7 @@ from copilot_logging import create_logger
 from .parser import MessageParser
 from .thread_builder import ThreadBuilder
 
-logger = create_logger(name=__name__)
+logger = create_logger(name="parsing")
 
 
 class ParsingService:
