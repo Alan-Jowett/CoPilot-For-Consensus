@@ -4,11 +4,18 @@
   "title": "messages collection",
   "type": "object",
   "properties": {
+    "_id": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 64,
+      "description": "Canonical primary key: deterministic SHA256 (first 16 chars) of (archive_id|message_id|date|sender_email|subject)"
+    },
     "message_key": { 
       "type": "string", 
       "minLength": 16,
       "maxLength": 64,
-      "description": "Deterministic SHA256 hash of (archive_id|message_id|date|sender_email|subject) for guaranteed global uniqueness and audit trail"
+      "deprecated": true,
+      "description": "Deprecated alias for _id (deterministic SHA256 first 16 chars). Use `_id` going forward."
     },
     "message_id": { "type": "string", "minLength": 1 },
     "archive_id": { 
@@ -125,5 +132,5 @@
       "description": "Timestamp of the last processing attempt"
     }
   },
-  "required": ["message_key", "message_id", "archive_id", "thread_id", "body_normalized", "created_at"]
+  "required": ["_id", "message_id", "archive_id", "thread_id", "body_normalized", "created_at"]
 }
