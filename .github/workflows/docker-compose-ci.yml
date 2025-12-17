@@ -299,10 +299,16 @@ jobs:
         echo "Loki failed to become ready after $max_attempts attempts"
         exit 1
 
+    - name: Test Grafana Dashboard Validation Script
+      run: |
+        echo "Running unit tests for Grafana dashboard validation script..."
+        pip install -q requests
+        python -m unittest scripts/test_validate_grafana_dashboards.py -v
+        echo "✓ All tests passed"
+
     - name: Validate Grafana Dashboards
       run: |
         echo "Validating Grafana dashboards..."
-        pip install -q requests
         python scripts/validate_grafana_dashboards.py \
           --grafana-url http://localhost:3000 \
           --username admin \

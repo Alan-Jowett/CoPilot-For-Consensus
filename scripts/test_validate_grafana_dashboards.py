@@ -175,7 +175,7 @@ class TestGrafanaValidator(unittest.TestCase):
             "targets": []
         }
         
-        is_valid, status_msg = self.validator.validate_panel_structure(panel, "ds-uid", "db-uid")
+        is_valid, status_msg = self.validator.validate_panel_structure(panel)
         self.assertTrue(is_valid)
         self.assertIn("No queries configured", status_msg)
 
@@ -190,7 +190,7 @@ class TestGrafanaValidator(unittest.TestCase):
             ]
         }
         
-        is_valid, status_msg = self.validator.validate_panel_structure(panel, "ds-uid", "db-uid")
+        is_valid, status_msg = self.validator.validate_panel_structure(panel)
         self.assertTrue(is_valid)
         self.assertIn("Basic structure valid", status_msg)
 

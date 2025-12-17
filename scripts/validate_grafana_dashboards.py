@@ -73,6 +73,38 @@ class GrafanaValidator:
         print(f"✗ Grafana failed to become ready after {self.max_retries} attempts")
         return False
 
+    def wait_for_api_auth(self) -> bool:
+        """Wait for Grafana API authentication to work.
+        
+        The admin user may take a few seconds to be fully provisioned after
+        Grafana starts, so we retry datasource access to wait for auth.
+        """
+        print("Waiting for Grafana API authentication to be ready...")
+        for attempt in range(1, min(self.max_retries, 10) + 1):
+            try:
+                response = self.session.get(
+                    f"{self.grafana_url}/api/datasources", timeout=5
+                )
+                if response.status_code == 200:
+                    print(f"✓ API authentication is working")
+                    return True
+                elif response.status_code == 401:
+                    print(
+                        f"  Attempt {attempt}/{min(self.max_retries, 10)}: "
+                        f"Authentication not ready yet, waiting..."
+                    )
+            except requests.exceptions.RequestException as e:
+                print(
+                    f"  Attempt {attempt}/{min(self.max_retries, 10)}: "
+                    f"API not accessible yet ({e})"
+                )
+
+            if attempt < min(self.max_retries, 10):
+                time.sleep(self.retry_delay)
+
+        print(f"✗ API authentication failed after {min(self.max_retries, 10)} attempts")
+        return False
+
     def validate_dashboard_json(self, filepath: Path) -> Tuple[bool, Optional[str]]:
         """Validate dashboard JSON structure."""
         try:
@@ -135,7 +167,6 @@ class GrafanaValidator:
 
     def validate_datasource_health(self, datasource: Dict) -> Tuple[bool, str]:
         """Check if a datasource is healthy."""
-        ds_name = datasource.get("name", "Unknown")
         ds_id = datasource.get("uid")
 
         if not ds_id:
@@ -252,9 +283,7 @@ class GrafanaValidator:
 
         return all_provisioned
 
-    def validate_panel_structure(
-        self, panel: Dict, datasource_uid: str, dashboard_uid: str
-    ) -> Tuple[bool, str]:
+    def validate_panel_structure(self, panel: Dict) -> Tuple[bool, str]:
         """Validate basic panel structure and query configuration.
         
         Performs structural validation only - checks if panel has datasource and targets.
@@ -263,8 +292,6 @@ class GrafanaValidator:
         Note: Full query execution would require the /api/ds/query endpoint
         with complex payload construction.
         """
-        panel_title = panel.get("title", "Untitled")
-
         # Check if panel has targets (queries)
         targets = panel.get("targets", [])
         if not targets:
@@ -315,18 +342,8 @@ class GrafanaValidator:
             for panel in panels:
                 total_panels += 1
                 panel_title = panel.get("title", "Untitled")
-                datasource = panel.get("datasource")
 
-                # Extract datasource UID
-                datasource_uid = None
-                if isinstance(datasource, dict):
-                    datasource_uid = datasource.get("uid")
-                elif isinstance(datasource, str):
-                    datasource_uid = datasource
-
-                is_valid, status_msg = self.validate_panel_structure(
-                    panel, datasource_uid or "", db_uid
-                )
+                is_valid, status_msg = self.validate_panel_structure(panel)
 
                 if is_valid:
                     print(
@@ -372,23 +389,27 @@ class GrafanaValidator:
         if not self.wait_for_grafana():
             return False
 
-        # Step 2: Validate dashboard JSON files
+        # Step 2: Wait for API authentication to work
+        if not self.wait_for_api_auth():
+            return False
+
+        # Step 3: Validate dashboard JSON files
         if not self.validate_all_dashboard_files():
             return False
 
-        # Step 3: Validate datasources
+        # Step 4: Validate datasources
         if not self.validate_datasources():
             return False
 
-        # Step 4: Wait for dashboards to be provisioned
+        # Step 5: Wait for dashboards to be provisioned
         if not self.wait_for_dashboards():
             return False
 
-        # Step 5: Validate dashboard provisioning
+        # Step 6: Validate dashboard provisioning
         if not self.validate_dashboard_provisioning():
             return False
 
-        # Step 6: Validate panel structures
+        # Step 7: Validate panel structures
         if not self.validate_panel_queries():
             return False
 
