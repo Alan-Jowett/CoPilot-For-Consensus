@@ -6,15 +6,20 @@ Unit tests for validate_grafana_dashboards.py
 """
 
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
-import sys
-sys.path.insert(0, str(Path(__file__).parent))
-
-from validate_grafana_dashboards import GrafanaValidator
+# Import the module under test
+# Note: This assumes tests run from the scripts directory or pytest is used with proper path setup
+try:
+    from validate_grafana_dashboards import GrafanaValidator
+except ImportError:
+    # Fallback for running tests directly
+    sys.path.insert(0, str(Path(__file__).parent))
+    from validate_grafana_dashboards import GrafanaValidator
 
 
 class TestGrafanaValidator(unittest.TestCase):
@@ -163,19 +168,19 @@ class TestGrafanaValidator(unittest.TestCase):
         self.assertFalse(is_healthy)
         self.assertIn("Connection refused", status_msg)
 
-    def test_execute_panel_query_no_targets(self):
-        """Test panel query validation with no targets."""
+    def test_validate_panel_structure_no_targets(self):
+        """Test panel structure validation with no targets."""
         panel = {
             "title": "Test Panel",
             "targets": []
         }
         
-        is_valid, status_msg = self.validator.execute_panel_query(panel, "ds-uid", "db-uid")
+        is_valid, status_msg = self.validator.validate_panel_structure(panel, "ds-uid", "db-uid")
         self.assertTrue(is_valid)
-        self.assertEqual(status_msg, "No queries to test")
+        self.assertEqual(status_msg, "No queries configured")
 
-    def test_execute_panel_query_with_expression(self):
-        """Test panel query validation with query expression."""
+    def test_validate_panel_structure_with_expression(self):
+        """Test panel structure validation with query expression."""
         panel = {
             "title": "Test Panel",
             "targets": [
@@ -185,7 +190,7 @@ class TestGrafanaValidator(unittest.TestCase):
             ]
         }
         
-        is_valid, status_msg = self.validator.execute_panel_query(panel, "ds-uid", "db-uid")
+        is_valid, status_msg = self.validator.validate_panel_structure(panel, "ds-uid", "db-uid")
         self.assertTrue(is_valid)
         self.assertIn("Panel structure valid", status_msg)
 

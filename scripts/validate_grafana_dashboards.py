@@ -252,16 +252,20 @@ class GrafanaValidator:
 
         return all_provisioned
 
-    def execute_panel_query(
+    def validate_panel_structure(
         self, panel: Dict, datasource_uid: str, dashboard_uid: str
     ) -> Tuple[bool, str]:
-        """Execute a panel query to verify it works."""
+        """Validate panel structure and query configuration.
+        
+        Note: This performs structural validation only. Full query execution
+        would require the /api/ds/query endpoint with complex payload construction.
+        """
         panel_title = panel.get("title", "Untitled")
 
         # Check if panel has targets (queries)
         targets = panel.get("targets", [])
         if not targets:
-            return True, "No queries to test"
+            return True, "No queries configured"
 
         # Get the first query expression
         first_target = targets[0]
@@ -270,14 +274,12 @@ class GrafanaValidator:
         if not query_expr:
             return True, "No query expression found"
 
-        # For basic validation, we'll just check if the panel structure is valid
-        # Full query execution would require the /api/ds/query endpoint
-        # which needs more complex payload construction
+        # Validate the panel has the required structure for queries
         return True, f"Panel structure valid (query: {query_expr[:50]}...)"
 
     def validate_panel_queries(self) -> bool:
-        """Validate that dashboard panels can execute queries."""
-        print("\n=== Validating Panel Queries ===")
+        """Validate that dashboard panels have proper query structure."""
+        print("\n=== Validating Panel Structures ===")
 
         grafana_dashboards = self.get_dashboards()
         if not grafana_dashboards:
@@ -317,7 +319,7 @@ class GrafanaValidator:
                 elif isinstance(datasource, str):
                     datasource_uid = datasource
 
-                is_valid, status_msg = self.execute_panel_query(
+                is_valid, status_msg = self.validate_panel_structure(
                     panel, datasource_uid or "", db_uid
                 )
 
@@ -337,6 +339,24 @@ class GrafanaValidator:
         print(f"\nValidated {validated_panels}/{total_panels} panels")
         return all_valid
 
+    def wait_for_dashboards(self) -> bool:
+        """Wait for dashboards to be provisioned and available."""
+        print("\nWaiting for dashboards to be provisioned...")
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                dashboards = self.get_dashboards()
+                if dashboards is not None and len(dashboards) > 0:
+                    print(f"✓ Found {len(dashboards)} dashboard(s) provisioned")
+                    return True
+            except Exception as e:
+                print(f"  Attempt {attempt}/{self.max_retries}: Dashboards not ready yet ({e})")
+
+            if attempt < self.max_retries:
+                time.sleep(self.retry_delay)
+
+        print(f"✗ Dashboards failed to provision after {self.max_retries} attempts")
+        return False
+
     def run_all_validations(self) -> bool:
         """Run all validation checks."""
         print("=" * 60)
@@ -355,15 +375,15 @@ class GrafanaValidator:
         if not self.validate_datasources():
             return False
 
-        # Give dashboards a moment to provision after Grafana is ready
-        print("\nWaiting for dashboards to provision...")
-        time.sleep(10)
+        # Step 4: Wait for dashboards to be provisioned
+        if not self.wait_for_dashboards():
+            return False
 
-        # Step 4: Validate dashboard provisioning
+        # Step 5: Validate dashboard provisioning
         if not self.validate_dashboard_provisioning():
             return False
 
-        # Step 5: Validate panel queries
+        # Step 6: Validate panel structures
         if not self.validate_panel_queries():
             return False
 
