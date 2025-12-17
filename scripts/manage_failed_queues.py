@@ -17,11 +17,12 @@ See documents/FAILED_QUEUE_OPERATIONS.md for operational runbook.
 
 import argparse
 import json
-import logging
 import os
 import sys
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
+
+from copilot_logging import create_logger
 
 try:
     import pika
@@ -29,11 +30,7 @@ except ImportError:
     print("Error: pika library not installed. Run: pip install pika", file=sys.stderr)
     sys.exit(1)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+logger = create_logger(name=__name__)
 
 
 class FailedQueueManager:
@@ -446,7 +443,7 @@ For full operational guide, see documents/FAILED_QUEUE_OPERATIONS.md
     
     # Configure logging
     if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
+        logger.setLevel("DEBUG")
     
     # Create manager
     manager = FailedQueueManager(

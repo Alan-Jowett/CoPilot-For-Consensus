@@ -54,15 +54,29 @@ class TestLoggerFactory:
         with pytest.raises(ValueError, match="Unknown logger_type"):
             create_logger(logger_type="invalid", level="INFO")
 
-    def test_create_logger_from_env(self):
-        """Test that logger_type parameter is required."""
-        with pytest.raises(ValueError, match="logger_type parameter is required"):
-            create_logger()
+    def test_create_logger_from_env_defaults(self, monkeypatch):
+        """Defaults come from env or fall back to stdout/INFO/copilot."""
+        monkeypatch.delenv("LOG_TYPE", raising=False)
+        monkeypatch.delenv("LOG_LEVEL", raising=False)
+        monkeypatch.delenv("LOG_NAME", raising=False)
 
-    def test_create_logger_defaults_to_stdout(self):
-        """Test that level parameter is required."""
-        with pytest.raises(ValueError, match="level parameter is required"):
-            create_logger(logger_type="stdout")
+        logger = create_logger()
+
+        assert isinstance(logger, StdoutLogger)
+        assert logger.level == "INFO"
+        assert logger.name == "copilot"
+
+    def test_create_logger_from_env_overrides(self, monkeypatch):
+        """Env variables override defaults when args are omitted."""
+        monkeypatch.setenv("LOG_TYPE", "silent")
+        monkeypatch.setenv("LOG_LEVEL", "WARNING")
+        monkeypatch.setenv("LOG_NAME", "env-service")
+
+        logger = create_logger()
+
+        assert isinstance(logger, SilentLogger)
+        assert logger.level == "WARNING"
+        assert logger.name == "env-service"
 
 
 class TestSilentLogger:
