@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
 # DirectML GPU Support Setup Guide
 
 This guide explains how to enable AMD/Intel GPU acceleration for LLM inference using DirectML on Windows/WSL2.
