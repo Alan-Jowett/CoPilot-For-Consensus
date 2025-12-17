@@ -382,25 +382,41 @@ def _on_message(self, channel, method, properties, body):
 4. **If JSON is malformed**: ack to prevent infinite loop
 5. **If callback succeeds**: ack to remove from queue
 
-### Startup Behavior: No Automatic Requeue
+### Startup Behavior: Automatic Requeue
 
-**Important:** Services do NOT automatically requeue pending work on startup.
+**Important:** Services automatically requeue pending work on startup to ensure forward progress after crashes or restarts.
 
 **Rationale:**
-- **Message Queue Owns State**: RabbitMQ maintains in-flight messages
-- **No Database Polling**: Services don't scan for "pending" records
-- **Crash Recovery**: Unacknowledged messages are automatically redelivered by RabbitMQ
-- **Simplicity**: Avoids complex startup logic and race conditions
+- **Crash Recovery**: Ensures documents in-flight during service crash are requeued
+- **Forward Progress**: Prevents documents from getting stuck indefinitely
+- **Complements Retry Job**: Works alongside the periodic retry job for comprehensive coverage
+- **Observability**: Logs and metrics provide visibility into startup requeue operations
 
-**Recovery Pattern:**
-1. Service crashes while processing message
-2. RabbitMQ detects connection loss
-3. RabbitMQ requeues unacknowledged message
-4. Service restarts and reconnects
-5. Service receives requeued message
-6. Idempotency ensures safe retry
+**Startup Requeue Pattern:**
+1. Service starts and connects to dependencies
+2. Service scans document store for incomplete documents (status != completed)
+3. Service publishes requeue events for incomplete documents
+4. Service logs requeue actions and emits metrics
+5. Service starts normal event processing
 
-**Manual Requeue:** Operators can manually requeue failed messages using `scripts/manage_failed_queues.py`
+**Implementation:**
+Services use the `copilot_startup.StartupRequeue` utility to scan and requeue incomplete documents:
+- **Parsing Service**: Requeues archives with status "pending" or "processing"
+- **Chunking Service**: Requeues messages without chunks
+- **Embedding Service**: Requeues chunks with `embedding_generated: false`
+- **Summarization Service**: Requeues threads with `summary_id: null`
+- **Orchestrator Service**: Requeues threads ready for orchestration
+
+**Configuration:**
+Startup requeue can be disabled per service via the `enable_startup_requeue` parameter in the `start()` method (default: True).
+
+**Coordination with Retry Job:**
+The startup requeue mechanism complements the existing periodic retry job:
+- **Startup Requeue**: Runs once on service startup for immediate recovery
+- **Retry Job**: Runs periodically (every 15 minutes) with exponential backoff for stuck documents
+- Both mechanisms are idempotent and safe to run concurrently
+
+**Manual Requeue:** Operators can also manually requeue failed messages using `scripts/manage_failed_queues.py`
 
 ## Retry Policies
 

@@ -72,9 +72,17 @@ class OrchestrationService:
         self.failures_count = 0
         self.last_processing_time = 0.0
 
-    def start(self):
-        """Start the orchestration service and subscribe to events."""
+    def start(self, enable_startup_requeue: bool = True):
+        """Start the orchestration service and subscribe to events.
+        
+        Args:
+            enable_startup_requeue: Whether to requeue incomplete documents on startup (default: True)
+        """
         logger.info("Starting Orchestration Service")
+
+        # Requeue incomplete threads on startup
+        if enable_startup_requeue:
+            self._requeue_incomplete_threads()
 
         # Subscribe to EmbeddingsGenerated events
         self.subscriber.subscribe(
@@ -86,6 +94,45 @@ class OrchestrationService:
 
         logger.info("Subscribed to embeddings.generated events")
         logger.info("Orchestration service is ready")
+    
+    def _requeue_incomplete_threads(self):
+        """Requeue threads ready for summarization on startup for forward progress."""
+        try:
+            from copilot_startup import StartupRequeue
+            
+            logger.info("Scanning for threads ready for summarization to requeue on startup...")
+            
+            requeue = StartupRequeue(
+                document_store=self.document_store,
+                publisher=self.publisher,
+                metrics_collector=self.metrics_collector,
+            )
+            
+            # Requeue threads that have embeddings but no summary yet
+            # This requires checking that all chunks have embeddings
+            count = requeue.requeue_incomplete(
+                collection="threads",
+                query={
+                    "summary_id": None,
+                    # Additional logic could verify all chunks have embeddings
+                },
+                event_type="SummarizationRequested",
+                routing_key="summarization.requested",
+                id_field="thread_id",
+                build_event_data=lambda doc: {
+                    "thread_ids": [doc.get("thread_id")],
+                    "archive_id": doc.get("archive_id"),
+                },
+                limit=500,
+            )
+            
+            logger.info(f"Startup requeue: {count} threads ready for summarization requeued")
+            
+        except ImportError:
+            logger.warning("copilot_startup module not available, skipping startup requeue")
+        except Exception as e:
+            logger.error(f"Startup requeue failed: {e}", exc_info=True)
+            # Don't fail service startup on requeue errors
 
     def _handle_embeddings_generated(self, event: Dict[str, Any]):
         """Handle EmbeddingsGenerated event.

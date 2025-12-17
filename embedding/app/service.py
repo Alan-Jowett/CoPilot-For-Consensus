@@ -83,9 +83,17 @@ class EmbeddingService:
         self.last_processing_time = 0.0
         self.service_start_time = time.time()
 
-    def start(self):
-        """Start the embedding service and subscribe to events."""
+    def start(self, enable_startup_requeue: bool = True):
+        """Start the embedding service and subscribe to events.
+        
+        Args:
+            enable_startup_requeue: Whether to requeue incomplete documents on startup (default: True)
+        """
         logger.info("Starting Embedding Service")
+        
+        # Requeue incomplete chunks on startup
+        if enable_startup_requeue:
+            self._requeue_incomplete_chunks()
         
         # Subscribe to ChunksPrepared events
         self.subscriber.subscribe(
@@ -97,6 +105,41 @@ class EmbeddingService:
         
         logger.info("Subscribed to chunks.prepared events")
         logger.info("Embedding service is ready")
+    
+    def _requeue_incomplete_chunks(self):
+        """Requeue chunks without embeddings on startup for forward progress."""
+        try:
+            from copilot_startup import StartupRequeue
+            
+            logger.info("Scanning for chunks without embeddings to requeue on startup...")
+            
+            requeue = StartupRequeue(
+                document_store=self.document_store,
+                publisher=self.publisher,
+                metrics_collector=self.metrics_collector,
+            )
+            
+            # Requeue chunks that don't have embeddings yet
+            count = requeue.requeue_incomplete(
+                collection="chunks",
+                query={"embedding_generated": False},
+                event_type="ChunksPrepared",
+                routing_key="chunks.prepared",
+                id_field="chunk_key",
+                build_event_data=lambda doc: {
+                    "chunk_ids": [doc.get("chunk_key")],
+                    "message_keys": [doc.get("message_key")],
+                },
+                limit=1000,
+            )
+            
+            logger.info(f"Startup requeue: {count} chunks without embeddings requeued")
+            
+        except ImportError:
+            logger.warning("copilot_startup module not available, skipping startup requeue")
+        except Exception as e:
+            logger.error(f"Startup requeue failed: {e}", exc_info=True)
+            # Don't fail service startup on requeue errors
 
     def _handle_chunks_prepared(self, event: Dict[str, Any]):
         """Handle ChunksPrepared event.
