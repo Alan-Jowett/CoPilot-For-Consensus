@@ -48,6 +48,12 @@ scrape_configs:
       - source_labels: [__address__]
         target_label: instance
         replacement: 'cadvisor'
+    metric_relabel_configs:
+      # Extract service name from container_label_com_docker_compose_service
+      - source_labels: [container_label_com_docker_compose_service]
+        target_label: name
+        regex: '^(.+)$'
+        replacement: '$1'
 
   - job_name: 'qdrant'
     static_configs:
