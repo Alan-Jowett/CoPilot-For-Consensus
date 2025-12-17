@@ -4,6 +4,10 @@
 # Ollama models (large files, cached locally)
 ollama_models/
 
+# llama.cpp models (GGUF files, cached locally)
+llama_models/
+*.gguf
+
 **/__pycache__/**
 **/*.egg-info/**
 **/build/**
