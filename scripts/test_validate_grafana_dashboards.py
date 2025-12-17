@@ -194,6 +194,72 @@ class TestGrafanaValidator(unittest.TestCase):
         self.assertTrue(is_valid)
         self.assertIn("Basic structure valid", status_msg)
 
+    def test_execute_panel_query_with_data(self):
+        """Test panel query execution that returns data."""
+        panel = {
+            "title": "Test Panel",
+            "datasource": {"uid": "prom-uid", "type": "prometheus"},
+            "targets": [
+                {
+                    "expr": "up",
+                    "refId": "A"
+                }
+            ]
+        }
+        
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "results": {
+                "A": {
+                    "frames": [
+                        {
+                            "data": {
+                                "values": [[1, 2, 3]]
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+        self.validator.session.post = Mock(return_value=mock_response)
+        
+        is_valid, status_msg = self.validator.execute_panel_query(panel, "prom-uid", "Test Dashboard")
+        self.assertTrue(is_valid)
+        self.assertIn("successfully", status_msg.lower())
+
+    def test_execute_panel_query_no_data(self):
+        """Test panel query execution that returns no data."""
+        panel = {
+            "title": "Test Panel",
+            "datasource": {"uid": "prom-uid", "type": "prometheus"},
+            "targets": [
+                {
+                    "expr": "nonexistent_metric",
+                    "refId": "A"
+                }
+            ]
+        }
+        
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "results": {
+                "A": {
+                    "frames": [
+                        {
+                            "data": {
+                                "values": [[]]
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+        self.validator.session.post = Mock(return_value=mock_response)
+        
+        is_valid, status_msg = self.validator.execute_panel_query(panel, "prom-uid", "Test Dashboard")
+        self.assertFalse(is_valid)
+        self.assertIn("no data", status_msg.lower())
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -306,14 +306,120 @@ class GrafanaValidator:
 
         return all_provisioned
 
+    def execute_panel_query(
+        self, panel: Dict, datasource_uid: str, dashboard_title: str
+    ) -> Tuple[bool, str]:
+        """Execute a panel query to check if it returns data.
+        
+        This performs actual query execution via Grafana's /api/ds/query endpoint
+        to verify panels return data and don't have query errors.
+        """
+        panel_title = panel.get("title", "Untitled")
+        
+        # Check if panel has targets (queries)
+        targets = panel.get("targets", [])
+        if not targets:
+            # Panel without queries (e.g., text panels, row headers) is valid
+            return True, "No queries configured (non-query panel)"
+
+        # Get datasource from panel
+        datasource = panel.get("datasource")
+        if not datasource:
+            return True, "Panel has no datasource (may use dashboard default)"
+        
+        # Extract datasource UID
+        if isinstance(datasource, dict):
+            ds_uid = datasource.get("uid")
+            ds_type = datasource.get("type")
+        elif isinstance(datasource, str):
+            ds_uid = datasource
+            ds_type = None
+        else:
+            return True, "Could not determine datasource"
+        
+        if not ds_uid:
+            return True, "Panel datasource has no UID"
+        
+        # Only validate Prometheus queries for now (most common)
+        # Loki and other datasources have different query formats
+        if ds_type and ds_type != "prometheus":
+            return True, f"Skipping non-Prometheus datasource ({ds_type})"
+        
+        # Execute the first target query
+        first_target = targets[0]
+        query_expr = first_target.get("expr")
+        
+        if not query_expr:
+            return True, "Panel has targets but no query expression"
+        
+        # Construct query payload for Grafana's query API
+        # Use a simple time range (last 5 minutes)
+        import time
+        now = int(time.time())
+        from_time = now - 300  # 5 minutes ago
+        
+        query_payload = {
+            "queries": [
+                {
+                    "refId": first_target.get("refId", "A"),
+                    "expr": query_expr,
+                    "datasource": {"type": "prometheus", "uid": ds_uid},
+                    "intervalMs": 15000,
+                    "maxDataPoints": 100,
+                }
+            ],
+            "from": str(from_time * 1000),
+            "to": str(now * 1000),
+        }
+        
+        try:
+            response = self.session.post(
+                f"{self.grafana_url}/api/ds/query",
+                json=query_payload,
+                timeout=10,
+            )
+            response.raise_for_status()
+            result = response.json()
+            
+            # Check for errors in the response
+            if "results" in result:
+                for query_result in result.get("results", {}).values():
+                    if "error" in query_result:
+                        return False, f"Query error: {query_result['error']}"
+                    
+                    # Check if query returned any data
+                    frames = query_result.get("frames", [])
+                    if not frames:
+                        return False, "Query returned no data (empty frames)"
+                    
+                    # Check if frames have data points
+                    has_data = False
+                    for frame in frames:
+                        if frame.get("data") and frame["data"].get("values"):
+                            # Check if there are actual values
+                            for value_array in frame["data"]["values"]:
+                                if value_array and len(value_array) > 0:
+                                    has_data = True
+                                    break
+                        if has_data:
+                            break
+                    
+                    if not has_data:
+                        return False, f"Query returned no data points (query: {query_expr[:50]}...)"
+            
+            return True, "Query executed successfully with data"
+            
+        except requests.exceptions.RequestException as e:
+            return False, f"Query execution failed: {e}"
+
     def validate_panel_structure(self, panel: Dict) -> Tuple[bool, str]:
         """Validate basic panel structure and query configuration.
         
         Performs structural validation only - checks if panel has datasource and targets.
         Does not execute queries or validate query syntax.
         
-        Note: Full query execution would require the /api/ds/query endpoint
-        with complex payload construction.
+        Note: This method is kept for backward compatibility but validate_panel_queries
+        now uses execute_panel_query for actual query execution.
         """
         # Check if panel has targets (queries)
         targets = panel.get("targets", [])
@@ -333,8 +439,8 @@ class GrafanaValidator:
         return True, f"Basic structure valid (has query expr)"
 
     def validate_panel_queries(self) -> bool:
-        """Validate that dashboard panels have proper query structure."""
-        print("\n=== Validating Panel Structures ===")
+        """Validate that dashboard panels execute queries and return data."""
+        print("\n=== Validating Panel Queries (Executing Queries) ===")
 
         grafana_dashboards = self.get_dashboards()
         if not grafana_dashboards:
@@ -344,6 +450,9 @@ class GrafanaValidator:
         all_valid = True
         total_panels = 0
         validated_panels = 0
+        panels_with_data = 0
+        panels_no_data = 0
+        skipped_panels = 0
 
         for db in grafana_dashboards:
             db_uid = db.get("uid")
@@ -366,22 +475,48 @@ class GrafanaValidator:
                 total_panels += 1
                 panel_title = panel.get("title", "Untitled")
 
-                is_valid, status_msg = self.validate_panel_structure(panel)
+                # Get datasource UID for the panel
+                datasource = panel.get("datasource")
+                ds_uid = ""
+                if isinstance(datasource, dict):
+                    ds_uid = datasource.get("uid", "")
+
+                is_valid, status_msg = self.execute_panel_query(panel, ds_uid, db_title)
 
                 if is_valid:
-                    print(
-                        f"✓ Dashboard '{db_title}' -> "
-                        f"Panel '{panel_title}': {status_msg}"
-                    )
+                    if "no data" in status_msg.lower():
+                        panels_no_data += 1
+                        print(
+                            f"⚠ Dashboard '{db_title}' -> "
+                            f"Panel '{panel_title}': {status_msg}"
+                        )
+                        sys.stdout.flush()
+                        all_valid = False
+                    elif "skip" in status_msg.lower() or "non-query" in status_msg.lower():
+                        skipped_panels += 1
+                        # Don't print skipped panels to reduce noise
+                    else:
+                        panels_with_data += 1
+                        print(
+                            f"✓ Dashboard '{db_title}' -> "
+                            f"Panel '{panel_title}': {status_msg}"
+                        )
+                        sys.stdout.flush()
                     validated_panels += 1
                 else:
                     print(
                         f"✗ Dashboard '{db_title}' -> "
                         f"Panel '{panel_title}': {status_msg}"
                     )
+                    sys.stdout.flush()
                     all_valid = False
 
-        print(f"\nValidated {validated_panels}/{total_panels} panels")
+        print(
+            f"\nPanel validation summary: {total_panels} total, "
+            f"{panels_with_data} with data, {panels_no_data} no data, "
+            f"{skipped_panels} skipped, {total_panels - validated_panels} failed"
+        )
+        sys.stdout.flush()
         return all_valid
 
     def wait_for_dashboards(self) -> bool:
