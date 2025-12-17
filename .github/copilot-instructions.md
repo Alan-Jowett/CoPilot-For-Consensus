@@ -70,7 +70,7 @@ docker compose up -d
 docker compose ps
 
 # Optional: wait for key services to be healthy (mirrors CI strategy)
-for s in documentdb messagebus vectorstore ollama monitoring pushgateway grafana promtail parsing chunking embedding orchestrator summarization reporting reporting-ui error-reporting; do
+for s in documentdb messagebus vectorstore ollama monitoring pushgateway grafana promtail parsing chunking embedding orchestrator summarization reporting reporting-ui; do
   echo "Waiting for $s ..."
   # Loki has no healthcheck; treat any "Up" as ready
   if [ "$s" = "loki" ]; then
