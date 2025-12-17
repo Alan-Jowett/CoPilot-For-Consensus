@@ -290,7 +290,7 @@ When documenting JSON/YAML configs:
 
 ### Services
 
-- Use kebab-case for directory names: `parsing`, `error-reporting`
+- Use kebab-case for directory names: `parsing`, `reporting-ui`
 - Use descriptive names that indicate purpose: `parsing`, not `parser`
 
 ### Adapters

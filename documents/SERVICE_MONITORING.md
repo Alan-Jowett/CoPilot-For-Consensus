@@ -618,7 +618,7 @@ The system includes automated alerts for document processing anomalies (see `inf
    ```javascript
    db.archives.find({status: "failed"}).limit(10)
    ```
-2. Check error-reporting service for detailed error messages
+2. Check reporting API for detailed error information
 3. Review recent deployments or configuration changes
 4. If transient (network, resource), consider reprocessing failed archives
 5. If systematic, fix root cause before reprocessing
@@ -682,7 +682,7 @@ The system includes automated alerts for document processing anomalies (see `inf
 
 **Diagnosis**:
 1. Check for patterns in retry errors (transient vs. persistent)
-2. Review error-reporting service for retry context
+2. Review service logs and reporting API for retry context
 3. Monitor RabbitMQ for message redelivery patterns
 4. Check service restart frequency in **Container Resource Usage**
 

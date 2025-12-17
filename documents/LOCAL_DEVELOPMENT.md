@@ -71,7 +71,7 @@ docker compose run --rm ollama-validate
 
 ```bash
 # Start all microservices
-docker compose up -d parsing chunking embedding orchestrator summarization reporting error-reporting
+docker compose up -d parsing chunking embedding orchestrator summarization reporting reporting-ui
 ```
 
 ### 6. Download LLM Model (First Time Only)
@@ -187,7 +187,7 @@ docker compose up -d embedding     # Generates embeddings
 docker compose up -d orchestrator  # Coordinates workflow
 docker compose up -d summarization # Creates summaries
 docker compose up -d reporting     # Serves results
-docker compose up -d error-reporting  # Error tracking
+docker compose up -d reporting-ui  # Web UI for results
 ```
 
 #### 4. Ingestion (On-Demand)
@@ -273,12 +273,12 @@ docker compose run --rm db-init
 docker compose run --rm db-validate
 docker compose run --rm vectorstore-validate
 docker compose run --rm ollama-validate
-docker compose up -d parsing chunking embedding orchestrator summarization reporting error-reporting
+docker compose up -d parsing chunking embedding orchestrator summarization reporting reporting-ui
 docker compose run --rm ingestion
 
 # Validate health endpoints
 curl -f http://localhost:8080/      # reporting
-curl -f http://localhost:8081/      # error-reporting
+curl -f http://localhost:3000/      # reporting-ui
 curl -f http://localhost:3000/api/health  # grafana
 curl -f http://localhost:9090/-/healthy   # prometheus
 
