@@ -3,7 +3,6 @@
 
 """Parsing Service: Convert raw .mbox files into structured JSON."""
 
-import logging
 import os
 import sys
 from pathlib import Path
@@ -21,16 +20,13 @@ from copilot_storage import create_document_store, ValidatingDocumentStore
 from copilot_metrics import create_metrics_collector
 from copilot_reporting import create_error_reporter
 from copilot_schema_validation import FileSchemaProvider
+from copilot_logging import create_logger
 
 from app import __version__
 from app.service import ParsingService
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+# Configure structured JSON logging
+logger = create_logger(logger_type="stdout", level="INFO", name="parsing")
 
 # Create FastAPI app
 app = FastAPI(title="Parsing Service", version=__version__)
@@ -84,7 +80,7 @@ def start_subscriber_thread(service: ParsingService):
     except KeyboardInterrupt:
         logger.info("Subscriber interrupted")
     except Exception as e:
-        logger.error(f"Subscriber error: {e}", exc_info=True)
+        logger.error(f"Subscriber error: {e}")
         # Fail fast - re-raise to terminate the service
         raise
 
@@ -101,7 +97,13 @@ def main():
         logger.info("Configuration loaded successfully")
         
         # Set logging level from config
-        logging.getLogger().setLevel(config.log_level)
+        # Note: copilot_logging doesn't support dynamic level changes, so we create a new logger
+        global logger
+        logger = create_logger(
+            logger_type="stdout",
+            level=config.log_level if hasattr(config, 'log_level') else "INFO",
+            name="parsing"
+        )
         
         # Create event publisher with schema validation
         logger.info(f"Creating event publisher ({config.message_bus_type})")
@@ -170,7 +172,7 @@ def main():
         try:
             base_document_store.connect()
         except Exception as e:
-            logger.error(f"Failed to connect to document store: {e}", exc_info=True)
+            logger.error(f"Failed to connect to document store: {e}")
             raise  # Re-raise the original exception
         
         # Wrap with schema validation
@@ -211,7 +213,7 @@ def main():
     except KeyboardInterrupt:
         logger.info("Shutting down parsing service")
     except Exception as e:
-        logger.error(f"Fatal error in parsing service: {e}", exc_info=True)
+        logger.error(f"Fatal error in parsing service: {e}")
         sys.exit(1)
     finally:
         # Cleanup
