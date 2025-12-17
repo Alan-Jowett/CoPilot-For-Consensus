@@ -90,7 +90,7 @@ Consumes events from the Parsing & Normalization Service when messages are parse
 See [JSONParsed schema](../documents/SCHEMA.md#3-jsonparsed) in SCHEMA.md for the complete payload definition.
 
 **Processing:**
-1. Retrieve messages by `message_key` from document database
+1. Retrieve messages by `_id` from document database
 2. Extract `body_normalized` field for chunking
 3. Create chunks with metadata
 4. Store chunks in document database
@@ -110,9 +110,9 @@ Published when messages have been successfully chunked and stored.
 See [ChunksPrepared schema](../documents/SCHEMA.md#5-chunksprepared) in SCHEMA.md for the complete payload definition.
 
 **Key Fields:**
-- `message_keys`: List of source message keys that were chunked
+- `archive_id`: Archive identifier processed
 - `chunk_count`: Total number of chunks created
-- `chunk_keys`: List of all chunk hash identifiers (for embedding service)
+- `chunk_ids`: List of canonical chunk identifiers (_id) for embedding service
 - `chunks_ready`: Boolean indicating chunks are stored and ready
 - `chunking_strategy`: Strategy used for chunking
 - `avg_chunk_size_tokens`: Average chunk size for monitoring
@@ -127,7 +127,8 @@ Published when chunking fails for a batch of messages.
 See [ChunkingFailed schema](../documents/SCHEMA.md#6-chunkingfailed) in SCHEMA.md for the complete payload definition.
 
 **Key Fields:**
-- `message_keys`: List of message keys that failed
+- `archive_id`: Archive identifier
+- `chunk_ids`: List of canonical chunk identifiers (_id) that failed
 - `error_message`, `error_type`: Error details
 - `retry_count`: Number of retry attempts
 

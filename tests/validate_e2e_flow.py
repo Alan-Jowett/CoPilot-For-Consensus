@@ -271,9 +271,9 @@ class E2EMessageFlowValidator:
             print(f"⚠ Warning: Expected at least {expected_min_count} chunks, got {len(chunks)}")
         
         # Validate chunk structure
-        required_fields = ["chunk_key", "message_key", "message_id", "thread_id", "text", "chunk_index"]
+        required_fields = ["_id", "message_id", "thread_id", "text", "chunk_index"]
         for chunk in chunks[:3]:  # Check first 3 chunks
-            print(f"  - Chunk key: {chunk.get('chunk_key')}")
+            print(f"  - Chunk ID (_id): {chunk.get('_id')}")
             print(f"    Message ID: {chunk.get('message_id')}")
             print(f"    Index: {chunk.get('chunk_index')}")
             print(f"    Token count: {chunk.get('token_count', 'N/A')}")
@@ -306,14 +306,14 @@ class E2EMessageFlowValidator:
             # Sample a few embeddings using known chunk IDs from document store
             sample_chunks = self._safe_mongo_find("chunks")[:3]
             for ch in sample_chunks:
-                cid = ch.get("chunk_id") or ch.get("chunk_key")
+                cid = ch.get("_id") or ch.get("chunk_id")
                 if not cid:
                     continue
                 try:
                     res = self.vector_store.get(cid)
                     print(f"  - Point ID: {res.id}")
                     md = res.metadata or {}
-                    print(f"    Chunk key: {md.get('chunk_key', cid)}")
+                    print(f"    Chunk ID (_id): {md.get('_id', cid)}")
                     print(f"    Message ID: {md.get('message_id', 'N/A')}")
                     print(f"    Thread ID: {md.get('thread_id', 'N/A')}")
                 except Exception as ge:
