@@ -10,13 +10,6 @@
       "maxLength": 64,
       "description": "Canonical primary key: deterministic SHA256 (first 16 chars) of (archive_id|message_id|date|sender_email|subject)"
     },
-    "message_key": { 
-      "type": "string", 
-      "minLength": 16,
-      "maxLength": 64,
-      "deprecated": true,
-      "description": "Deprecated alias for _id (deterministic SHA256 first 16 chars). Use `_id` going forward."
-    },
     "message_id": { "type": "string", "minLength": 1 },
     "archive_id": { 
       "type": "string", 
