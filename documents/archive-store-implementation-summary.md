@@ -25,7 +25,7 @@ This document summarizes the completed Phase 1 implementation of the ArchiveStor
    - ✅ ArchiveAccessor tests (12)
 
 3. **Documentation**
-   - ✅ Architecture guide (`docs/archive-store-architecture.md`)
+   - ✅ Architecture guide (`documents/archive-store-architecture.md`)
    - ✅ README with usage examples
    - ✅ Inline code documentation
 
@@ -189,7 +189,7 @@ Fetcher → ArchiveStore → Ingestion Service → Event → Parsing Service
 - `adapters/copilot_archive_store/setup.py`
 - `adapters/copilot_archive_store/pytest.ini`
 - `adapters/copilot_archive_store/README.md`
-- `docs/archive-store-architecture.md`
+- `documents/archive-store-architecture.md`
 
 ### Modified Files
 - `adapters/scripts/install_adapters.py` (added copilot_archive_store)

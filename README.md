@@ -109,7 +109,7 @@ For detailed architecture documentation, design patterns, and service interactio
 | Promtail | Log scraping from Docker containers | - | Production |
 | Pushgateway | Metrics push gateway for batch jobs | - | Production |
 
-**Note**: Services marked as "public" (0.0.0.0) are accessible from outside the host. All other services are bound to localhost (127.0.0.1) for security. See [docs/EXPOSED_PORTS.md](./docs/EXPOSED_PORTS.md) for security details.
+**Note**: Services marked as "public" (0.0.0.0) are accessible from outside the host. All other services are bound to localhost (127.0.0.1) for security. See [documents/EXPOSED_PORTS.md](./documents/EXPOSED_PORTS.md) for security details.
 
 ### Microservices
 
@@ -195,7 +195,7 @@ See [adapters/README.md](./adapters/README.md) for detailed adapter documentatio
 
 ## Quick Start
 
-**For detailed local development setup, see [docs/LOCAL_DEVELOPMENT.md](./docs/LOCAL_DEVELOPMENT.md).**
+**For detailed local development setup, see [documents/LOCAL_DEVELOPMENT.md](./documents/LOCAL_DEVELOPMENT.md).**
 
 ### Prerequisites
 - Docker and Docker Compose
@@ -226,7 +226,7 @@ docker compose logs db-init
 - **Reporting UI**: http://localhost:8083
 - **Grafana Dashboards**: http://localhost:3000 (admin/admin)
 
-For the full list of exposed ports and security considerations, see [docs/EXPOSED_PORTS.md](docs/EXPOSED_PORTS.md).
+For the full list of exposed ports and security considerations, see [documents/EXPOSED_PORTS.md](documents/EXPOSED_PORTS.md).
 
 **Note:** The Mistral LLM model is automatically downloaded on first startup via the `ollama-model-loader` service when using the default Ollama backend. This may take several minutes depending on your internet connection. Models are stored in the `ollama_models` Docker volume for persistence.
 
@@ -304,7 +304,7 @@ Query centralized logs in Grafana:
 - Verify RabbitMQ is healthy: `docker compose ps messagebus`
 - Check management UI: http://localhost:15672 (guest/guest)
 
-For more troubleshooting, see [docs/LOCAL_DEVELOPMENT.md](./docs/LOCAL_DEVELOPMENT.md).
+For more troubleshooting, see [documents/LOCAL_DEVELOPMENT.md](./documents/LOCAL_DEVELOPMENT.md).
 
 ### Demo vs Production Setup
 
@@ -379,10 +379,10 @@ Comprehensive documentation is available throughout the repository:
 - **[documents/FAILED_QUEUE_OPERATIONS.md](./documents/FAILED_QUEUE_OPERATIONS.md)**: Failed queue management and troubleshooting
 
 ### Development Guides
-- **[docs/LOCAL_DEVELOPMENT.md](./docs/LOCAL_DEVELOPMENT.md)**: Complete local development setup, debugging, and testing guide
-- **[docs/TESTING_STRATEGY.md](./docs/TESTING_STRATEGY.md)**: Integration testing strategy, test organization, and CI/CD integration
-- **[docs/CONVENTIONS.md](./docs/CONVENTIONS.md)**: Documentation conventions, style guide, and contribution standards
-- **[docs/EXPOSED_PORTS.md](./docs/EXPOSED_PORTS.md)**: Network ports reference, security considerations, and access control
+- **[documents/LOCAL_DEVELOPMENT.md](./documents/LOCAL_DEVELOPMENT.md)**: Complete local development setup, debugging, and testing guide
+- **[documents/TESTING_STRATEGY.md](./documents/TESTING_STRATEGY.md)**: Integration testing strategy, test organization, and CI/CD integration
+- **[documents/CONVENTIONS.md](./documents/CONVENTIONS.md)**: Documentation conventions, style guide, and contribution standards
+- **[documents/EXPOSED_PORTS.md](./documents/EXPOSED_PORTS.md)**: Network ports reference, security considerations, and access control
 
 ### Service Documentation
 Each microservice has a comprehensive README:
@@ -404,13 +404,13 @@ Each microservice has a comprehensive README:
 
 ### Local Development Setup
 
-For detailed local development instructions, see [docs/LOCAL_DEVELOPMENT.md](./docs/LOCAL_DEVELOPMENT.md).
+For detailed local development instructions, see [documents/LOCAL_DEVELOPMENT.md](./documents/LOCAL_DEVELOPMENT.md).
 
 **Quick setup:**
 1. Clone the repository
 2. Install pre-commit hooks: `pip install pre-commit && pre-commit install`
 3. Start services: `docker compose up -d`
-4. Run tests: See [docs/TESTING_STRATEGY.md](./docs/TESTING_STRATEGY.md)
+4. Run tests: See [documents/TESTING_STRATEGY.md](./documents/TESTING_STRATEGY.md)
 
 ### Pre-commit Hooks
 
@@ -452,7 +452,7 @@ python tests/test_port_exposure.py
 python tests/validate_port_changes.py
 ```
 
-For comprehensive testing documentation, see [docs/TESTING_STRATEGY.md](./docs/TESTING_STRATEGY.md).
+For comprehensive testing documentation, see [documents/TESTING_STRATEGY.md](./documents/TESTING_STRATEGY.md).
 
 ### Code Quality
 
