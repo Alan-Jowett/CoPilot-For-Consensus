@@ -4,8 +4,7 @@
 """Tests for startup requeue utility."""
 
 import pytest
-from unittest.mock import Mock, MagicMock, call
-from datetime import datetime, timezone
+from unittest.mock import Mock
 
 from copilot_startup import StartupRequeue
 
@@ -243,7 +242,7 @@ class TestStartupRequeue:
         )
         
         # Execute requeue with limit
-        count = requeue.requeue_incomplete(
+        requeue.requeue_incomplete(
             collection="chunks",
             query={"embedding_generated": False},
             event_type="ChunksPrepared",

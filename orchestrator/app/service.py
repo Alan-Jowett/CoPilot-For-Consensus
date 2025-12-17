@@ -122,31 +122,60 @@ class OrchestrationService:
                     logger.info("No threads without summaries found")
                     return
                 
-                logger.info(f"Found {len(threads)} threads without summaries, checking embedding status...")
+                # Collect all thread IDs to batch-fetch chunks for all threads at once
+                thread_ids = [
+                    thread.get("thread_id")
+                    for thread in threads
+                    if thread.get("thread_id") is not None
+                ]
+                
+                if not thread_ids:
+                    logger.info("No valid thread IDs found for threads without summaries")
+                    return
+                
+                # Batch query: fetch chunks for all relevant threads in a single call
+                logger.debug(
+                    f"Batch querying chunks for {len(thread_ids)} threads to check embedding status"
+                )
+                chunks = self.document_store.query_documents(
+                    collection="chunks",
+                    filter_dict={"thread_id": {"$in": thread_ids}},
+                    limit=len(thread_ids) * 1000,
+                )
+                
+                # Group chunks by thread_id for efficient per-thread checks
+                chunks_by_thread = {}
+                for chunk in chunks:
+                    chunk_thread_id = chunk.get("thread_id")
+                    if chunk_thread_id is None:
+                        continue
+                    chunks_by_thread.setdefault(chunk_thread_id, []).append(chunk)
                 
                 # For each thread, verify all chunks have embeddings
                 ready_threads = []
                 for thread in threads:
                     thread_id = thread.get("thread_id")
+                    if thread_id is None:
+                        logger.debug(f"Skipping thread without thread_id: {thread}")
+                        continue
                     
-                    # Query chunks for this thread
-                    chunks = self.document_store.query_documents(
-                        collection="chunks",
-                        filter_dict={"thread_id": thread_id},
-                        limit=1000,
-                    )
+                    thread_chunks = chunks_by_thread.get(thread_id, [])
                     
-                    if not chunks:
+                    if not thread_chunks:
                         logger.debug(f"Thread {thread_id} has no chunks, skipping")
                         continue
                     
                     # Check if all chunks have embeddings
-                    all_embedded = all(chunk.get("embedding_generated", False) for chunk in chunks)
+                    all_embedded = all(
+                        chunk.get("embedding_generated", False) for chunk in thread_chunks
+                    )
                     
                     if all_embedded:
                         ready_threads.append(thread)
                     else:
-                        logger.debug(f"Thread {thread_id} has {len(chunks)} chunks but not all have embeddings")
+                        logger.debug(
+                            f"Thread {thread_id} has {len(thread_chunks)} chunks but not all have embeddings"
+                        )
                 
                 if not ready_threads:
                     logger.info("No threads with complete embeddings found")

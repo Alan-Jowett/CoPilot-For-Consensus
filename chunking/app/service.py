@@ -95,47 +95,60 @@ class ChunkingService:
                 metrics_collector=self.metrics_collector,
             )
             
-            # Query for messages that exist but don't have any chunks
-            # This aggregation finds messages with no corresponding chunks
+            # Use aggregation pipeline to efficiently find messages without chunks
             try:
-                # Get all message keys
-                messages = self.document_store.query_documents(
-                    collection="messages",
-                    filter_dict={},
-                    limit=1000,
-                )
-                
-                if not messages:
-                    logger.info("No messages found in database")
+                # Check if document store supports aggregation
+                if not hasattr(self.document_store, 'aggregate_documents'):
+                    logger.warning("Document store doesn't support aggregation, skipping chunking requeue")
                     return
                 
-                message_keys = [msg.get("message_key") for msg in messages if msg.get("message_key")]
+                pipeline = [
+                    {
+                        "$match": {
+                            "message_key": {"$exists": True},
+                        }
+                    },
+                    {
+                        "$lookup": {
+                            "from": "chunks",
+                            "localField": "message_key",
+                            "foreignField": "message_key",
+                            "as": "chunks",
+                        }
+                    },
+                    {
+                        # Keep only messages that have no corresponding chunks
+                        "$match": {
+                            "chunks": {"$eq": []},
+                        }
+                    },
+                    {
+                        # Bound the number of messages we attempt to requeue on startup
+                        "$limit": 1000,
+                    },
+                ]
                 
-                # Find which messages have chunks
-                chunks = self.document_store.query_documents(
-                    collection="chunks",
-                    filter_dict={"message_key": {"$in": message_keys}},
-                    limit=10000,  # Higher limit to get all chunks
+                unchunked_messages = self.document_store.aggregate_documents(
+                    collection="messages",
+                    pipeline=pipeline,
                 )
                 
-                chunked_message_keys = set(chunk.get("message_key") for chunk in chunks if chunk.get("message_key"))
-                unchunked_message_keys = [mk for mk in message_keys if mk not in chunked_message_keys]
-                
-                if not unchunked_message_keys:
+                if not unchunked_messages:
                     logger.info("All messages have chunks, nothing to requeue")
                     return
                 
-                logger.info(f"Found {len(unchunked_message_keys)} messages without chunks")
+                logger.info(f"Found {len(unchunked_messages)} messages without chunks")
                 
                 # Group messages by archive_id for efficient requeue
                 archive_groups = {}
-                for msg in messages:
+                for msg in unchunked_messages:
                     msg_key = msg.get("message_key")
-                    if msg_key in unchunked_message_keys:
-                        archive_id = msg.get("archive_id")
-                        if archive_id not in archive_groups:
-                            archive_groups[archive_id] = []
-                        archive_groups[archive_id].append(msg_key)
+                    archive_id = msg.get("archive_id")
+                    if not msg_key or archive_id is None:
+                        continue
+                    if archive_id not in archive_groups:
+                        archive_groups[archive_id] = []
+                    archive_groups[archive_id].append(msg_key)
                 
                 # Requeue by archive
                 requeued = 0

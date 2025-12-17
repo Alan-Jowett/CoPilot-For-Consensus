@@ -3,10 +3,9 @@
 
 """Startup requeue utility for incomplete documents."""
 
-import json
 import logging
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Callable, Optional
+from typing import Dict, Any, Callable, Optional
 
 from copilot_storage import DocumentStore
 from copilot_events import EventPublisher
@@ -97,14 +96,6 @@ class StartupRequeue:
                     event_data = build_event_data(doc)
                     
                     # Publish requeue event
-                    event = {
-                        "event_type": event_type,
-                        "event_id": f"startup-requeue-{doc_id}",
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                        "version": "1.0",
-                        "data": event_data,
-                    }
-                    
                     self.publisher.publish(
                         event_type=event_type,
                         data=event_data,
