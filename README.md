@@ -76,8 +76,6 @@ Beyond summarization, Copilot-for-Consensus will evolve into an **interactive su
 
 ***
 
-***
-
 ## Architecture
 
 The system follows a **microservice-based, event-driven architecture** where services communicate asynchronously through a message bus (RabbitMQ) and store data in MongoDB and Qdrant. This design ensures loose coupling, scalability, and resilience.
@@ -103,7 +101,7 @@ For detailed architecture documentation, design patterns, and service interactio
 | Qdrant | Vector database for semantic search | 6333 (localhost) | Production |
 | RabbitMQ | Message broker for event-driven communication | 5672, 15672 (localhost) | Production |
 | Ollama | Local LLM runtime (offline capable) | 11434 (localhost) | Production |
-| llama.cpp | Alternative LLM runtime with AMD GPU support | 8081 | Optional |
+| llama.cpp | Alternative LLM runtime with AMD GPU support | 8081 (localhost) | Optional |
 | **Observability** | | | |
 | Prometheus | Metrics collection and aggregation | 9090 (localhost) | Production |
 | Grafana | Monitoring dashboards and visualization | 3000 (public) | Production |
@@ -230,7 +228,7 @@ docker compose logs db-init
 
 For the full list of exposed ports and security considerations, see [docs/EXPOSED_PORTS.md](docs/EXPOSED_PORTS.md).
 
-**Note:** The Mistral LLM model is automatically downloaded on first startup via the `ollama-model-loader` service. This may take several minutes depending on your internet connection.
+**Note:** The Mistral LLM model is automatically downloaded on first startup via the `ollama-model-loader` service when using the default Ollama backend. This may take several minutes depending on your internet connection. Models are stored in the `ollama_models` Docker volume for persistence.
 
 5. **(Optional) Enable GPU acceleration** for 10-100x faster inference:
    - **NVIDIA GPU** (recommended): See [documents/OLLAMA_GPU_SETUP.md](./documents/OLLAMA_GPU_SETUP.md)
