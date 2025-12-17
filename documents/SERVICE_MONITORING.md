@@ -236,6 +236,111 @@ curl -X POST http://localhost:6333/collections/embeddings/points/count \
   -d '{"exact": true}'
 ```
 
+## 5.2) MongoDB Document Store Monitoring
+- **Grafana Dashboard**: http://localhost:3000 → **MongoDB Document Store Status**
+- **MongoDB Direct Access**: http://localhost:27017 (connection string: `mongodb://root:example@localhost:27017/admin`)
+- **Prometheus Metrics**: Multiple exporters provide comprehensive MongoDB monitoring
+
+### MongoDB Exporters
+The system uses three complementary exporters for complete MongoDB observability:
+
+1. **mongodb-exporter** (Port 9216): Generic MongoDB metrics
+   - Server status, operation counters, connection stats
+   - Query execution metrics and latency
+   - Replication and cluster health
+   - Provided by: Percona MongoDB Exporter
+
+2. **mongo-doc-count-exporter** (Port 9500): Document counts per collection
+   - Real-time document counts for all system collections
+   - Collections monitored: archives, messages, chunks, threads, summaries, reports, sources
+   - Metric: `copilot_collection_document_count{database, collection}`
+
+3. **mongo-collstats-exporter** (Port 9503): Collection-level storage statistics
+   - Storage size per collection (`mongodb_collstats_storageSize`)
+   - Document counts (`mongodb_collstats_count`)
+   - Average object size (`mongodb_collstats_avgObjSize`)
+   - Index sizes (`mongodb_collstats_totalIndexSize`, `mongodb_collstats_indexSize`)
+   - Powers the "Storage Size by Collection" dashboard panel
+
+**Note**: All exporters start automatically with the monitoring stack and require documentdb to be healthy.
+
+### Key Metrics
+- **Document Counts**: `copilot_collection_document_count{database="copilot",collection="archives"}`
+- **Storage Size**: `mongodb_collstats_storageSize{db="copilot",collection="archives"}`
+- **Average Object Size**: `mongodb_collstats_avgObjSize{db="copilot"}`
+- **Index Sizes**: `mongodb_collstats_totalIndexSize{db="copilot"}`
+- **Operations**: `mongodb_op_counters_total` (insert, query, update, delete, command)
+- **Connections**: `mongodb_connections{state="current"}`
+- **Query Performance**: `mongodb_op_latencies_latency` (read, write, command latency)
+
+### Monitoring Queries (Prometheus)
+```promql
+# Total documents across all collections
+sum(copilot_collection_document_count{database="copilot"})
+
+# Storage growth rate
+deriv(mongodb_collstats_storageSize{db="copilot"}[5m])
+
+# Collection size by collection (for dashboard)
+mongodb_collstats_storageSize{db="copilot"}
+
+# Operations per second
+rate(mongodb_op_counters_total[5m])
+
+# Current connections
+mongodb_connections{state="current"}
+
+# Query latency (microseconds)
+mongodb_op_latencies_latency
+```
+
+**Dashboard Tips**: 
+- Use the **MongoDB Document Store Status** dashboard for comprehensive monitoring
+- The "Storage Size by Collection" panel shows disk space usage per collection
+- Check operation counters to identify high-traffic collections
+
+### Troubleshooting
+- **No storage size data**: 
+  1. Verify mongo-collstats-exporter is running: `docker compose ps mongo-collstats-exporter`
+  2. If not running, start it: `docker compose up -d mongo-collstats-exporter`
+  3. Check exporter logs: `docker compose logs mongo-collstats-exporter`
+
+- **Missing document counts**:
+  1. Check Prometheus targets (http://localhost:9090/targets)
+  2. Verify `mongo-doc-count` and `mongo-collstats` jobs are UP
+  3. Ensure documentdb is healthy: `docker compose ps documentdb`
+
+- **High storage usage**: 
+  1. Check storage by collection: `mongodb_collstats_storageSize{db="copilot"}`
+  2. Identify largest collections and review data retention policies
+  3. Consider collection compaction or archival for old data
+
+- **Slow queries**: 
+  1. Review query latency metrics: `mongodb_op_latencies_latency`
+  2. Check for missing indexes on frequently queried fields
+  3. Use MongoDB explain plans to optimize slow queries
+
+### Direct Database Inspection
+```bash
+# Connect to MongoDB shell
+docker compose exec documentdb mongosh -u root -p example --authenticationDatabase admin
+
+# Switch to copilot database
+use copilot
+
+# Get collection statistics
+db.archives.stats()
+
+# Check collection sizes
+db.stats()
+
+# List all collections
+show collections
+
+# Check indexes for a collection
+db.archives.getIndexes()
+```
+
 ## 6) Log Collection (Loki / Promtail)
 - Container logs are forwarded by Promtail into Loki.
 - If logs are missing in Loki:

@@ -40,6 +40,11 @@ scrape_configs:
       - targets:
           - 'mongo-doc-count-exporter:9500'
 
+  - job_name: 'mongo-collstats'
+    static_configs:
+      - targets:
+          - 'mongo-collstats-exporter:9503'
+
   - job_name: 'cadvisor'
     static_configs:
       - targets:
