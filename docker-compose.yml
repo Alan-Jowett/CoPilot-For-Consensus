@@ -321,6 +321,25 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  mongo-collstats-exporter:
+    image: python:3.11-slim
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        pip install -q -r /app/scripts/requirements.txt &&
+        python /app/scripts/mongo_collstats_exporter.py
+    environment:
+      - MONGO_URI=mongodb://${DOC_DB_ADMIN_USERNAME:-root}:${DOC_DB_ADMIN_PASSWORD:-example}@documentdb:27017/admin
+      - MONGO_DB=copilot
+      - PORT=9503
+      - SCRAPE_INTERVAL_SEC=5
+    volumes:
+      - ./:/app:ro
+    depends_on:
+      documentdb:
+        condition: service_healthy
+    restart: unless-stopped
+
   document-processing-exporter:
     profiles: ["monitoring-extra"]
     image: python:3.11-slim
