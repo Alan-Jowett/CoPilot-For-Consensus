@@ -95,30 +95,86 @@ class ChunkingService:
                 metrics_collector=self.metrics_collector,
             )
             
-            # Find messages that don't have chunks yet
-            # We need to find messages that exist but have no corresponding chunks
-            # This is done by querying messages and checking for chunk existence
-            
-            # For simplicity, we'll requeue based on archive status
-            # Archives that are "processed" but messages don't have chunks
-            count = requeue.requeue_incomplete(
-                collection="archives",
-                query={
-                    "status": "processed",
-                    # Additional logic could check for missing chunks per message
-                },
-                event_type="JSONParsed",
-                routing_key="json.parsed",
-                id_field="archive_id",
-                build_event_data=lambda doc: {
-                    "archive_id": doc.get("archive_id"),
-                    "message_keys": [],  # Will be populated by querying messages
-                    "message_count": doc.get("message_count", 0),
-                },
-                limit=100,  # Lower limit for chunking requeue
-            )
-            
-            logger.info(f"Startup requeue: {count} archives with unparsed messages requeued")
+            # Query for messages that exist but don't have any chunks
+            # This aggregation finds messages with no corresponding chunks
+            try:
+                # Get all message keys
+                messages = self.document_store.query_documents(
+                    collection="messages",
+                    filter_dict={},
+                    limit=1000,
+                )
+                
+                if not messages:
+                    logger.info("No messages found in database")
+                    return
+                
+                message_keys = [msg.get("message_key") for msg in messages if msg.get("message_key")]
+                
+                # Find which messages have chunks
+                chunks = self.document_store.query_documents(
+                    collection="chunks",
+                    filter_dict={"message_key": {"$in": message_keys}},
+                    limit=10000,  # Higher limit to get all chunks
+                )
+                
+                chunked_message_keys = set(chunk.get("message_key") for chunk in chunks if chunk.get("message_key"))
+                unchunked_message_keys = [mk for mk in message_keys if mk not in chunked_message_keys]
+                
+                if not unchunked_message_keys:
+                    logger.info("All messages have chunks, nothing to requeue")
+                    return
+                
+                logger.info(f"Found {len(unchunked_message_keys)} messages without chunks")
+                
+                # Group messages by archive_id for efficient requeue
+                archive_groups = {}
+                for msg in messages:
+                    msg_key = msg.get("message_key")
+                    if msg_key in unchunked_message_keys:
+                        archive_id = msg.get("archive_id")
+                        if archive_id not in archive_groups:
+                            archive_groups[archive_id] = []
+                        archive_groups[archive_id].append(msg_key)
+                
+                # Requeue by archive
+                requeued = 0
+                for archive_id, msg_keys in archive_groups.items():
+                    event_data = {
+                        "archive_id": archive_id,
+                        "message_keys": msg_keys,
+                        "message_count": len(msg_keys),
+                    }
+                    
+                    try:
+                        self.publisher.publish(
+                            event_type="JSONParsed",
+                            data=event_data,
+                            routing_key="json.parsed",
+                            exchange="copilot.events",
+                        )
+                        requeued += len(msg_keys)
+                        logger.debug(f"Requeued {len(msg_keys)} messages from archive {archive_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to requeue messages from archive {archive_id}: {e}")
+                
+                if self.metrics_collector:
+                    self.metrics_collector.increment(
+                        "startup_requeue_documents_total",
+                        requeued,
+                        tags={"collection": "messages"}
+                    )
+                
+                logger.info(f"Startup requeue: {requeued} messages without chunks requeued")
+                
+            except Exception as e:
+                logger.error(f"Error querying for unchunked messages: {e}", exc_info=True)
+                if self.metrics_collector:
+                    self.metrics_collector.increment(
+                        "startup_requeue_errors_total",
+                        1,
+                        tags={"collection": "messages", "error_type": type(e).__name__}
+                    )
             
         except ImportError:
             logger.warning("copilot_startup module not available, skipping startup requeue")

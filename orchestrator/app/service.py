@@ -108,25 +108,92 @@ class OrchestrationService:
                 metrics_collector=self.metrics_collector,
             )
             
-            # Requeue threads that have embeddings but no summary yet
-            # This requires checking that all chunks have embeddings
-            count = requeue.requeue_incomplete(
-                collection="threads",
-                query={
-                    "summary_id": None,
-                    # Additional logic could verify all chunks have embeddings
-                },
-                event_type="SummarizationRequested",
-                routing_key="summarization.requested",
-                id_field="thread_id",
-                build_event_data=lambda doc: {
-                    "thread_ids": [doc.get("thread_id")],
-                    "archive_id": doc.get("archive_id"),
-                },
-                limit=500,
-            )
-            
-            logger.info(f"Startup requeue: {count} threads ready for summarization requeued")
+            # Find threads that don't have summaries and have all chunks embedded
+            # This requires verifying embeddings are complete before triggering summarization
+            try:
+                # Get threads without summaries
+                threads = self.document_store.query_documents(
+                    collection="threads",
+                    filter_dict={"summary_id": None},
+                    limit=500,
+                )
+                
+                if not threads:
+                    logger.info("No threads without summaries found")
+                    return
+                
+                logger.info(f"Found {len(threads)} threads without summaries, checking embedding status...")
+                
+                # For each thread, verify all chunks have embeddings
+                ready_threads = []
+                for thread in threads:
+                    thread_id = thread.get("thread_id")
+                    
+                    # Query chunks for this thread
+                    chunks = self.document_store.query_documents(
+                        collection="chunks",
+                        filter_dict={"thread_id": thread_id},
+                        limit=1000,
+                    )
+                    
+                    if not chunks:
+                        logger.debug(f"Thread {thread_id} has no chunks, skipping")
+                        continue
+                    
+                    # Check if all chunks have embeddings
+                    all_embedded = all(chunk.get("embedding_generated", False) for chunk in chunks)
+                    
+                    if all_embedded:
+                        ready_threads.append(thread)
+                    else:
+                        logger.debug(f"Thread {thread_id} has {len(chunks)} chunks but not all have embeddings")
+                
+                if not ready_threads:
+                    logger.info("No threads with complete embeddings found")
+                    return
+                
+                logger.info(f"Found {len(ready_threads)} threads ready for summarization")
+                
+                # Requeue each ready thread
+                requeued = 0
+                for thread in ready_threads:
+                    thread_id = thread.get("thread_id")
+                    archive_id = thread.get("archive_id")
+                    
+                    event_data = {
+                        "thread_ids": [thread_id],
+                        "archive_id": archive_id,
+                    }
+                    
+                    try:
+                        self.publisher.publish(
+                            event_type="SummarizationRequested",
+                            data=event_data,
+                            routing_key="summarization.requested",
+                            exchange="copilot.events",
+                        )
+                        requeued += 1
+                        logger.debug(f"Requeued thread {thread_id} for summarization")
+                    except Exception as e:
+                        logger.error(f"Failed to requeue thread {thread_id}: {e}")
+                
+                if self.metrics_collector:
+                    self.metrics_collector.increment(
+                        "startup_requeue_documents_total",
+                        requeued,
+                        tags={"collection": "threads"}
+                    )
+                
+                logger.info(f"Startup requeue: {requeued} threads ready for summarization requeued")
+                
+            except Exception as e:
+                logger.error(f"Error querying for ready threads: {e}", exc_info=True)
+                if self.metrics_collector:
+                    self.metrics_collector.increment(
+                        "startup_requeue_errors_total",
+                        1,
+                        tags={"collection": "threads", "error_type": type(e).__name__}
+                    )
             
         except ImportError:
             logger.warning("copilot_startup module not available, skipping startup requeue")
