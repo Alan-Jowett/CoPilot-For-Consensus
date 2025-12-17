@@ -440,6 +440,10 @@ class IngestionService:
                         "ingestion_files_total",
                         tags={**metric_tags, "status": "success"},
                     )
+                    self.metrics.increment(
+                        "ingestion_documents_total",
+                        tags={**metric_tags, "status": "success"},
+                    )
                     self.metrics.observe(
                         "ingestion_file_size_bytes",
                         file_size,

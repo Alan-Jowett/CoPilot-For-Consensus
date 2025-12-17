@@ -68,7 +68,7 @@
       },
       "targets": [
         {
-          "expr": "rate(ingestion_documents_total[5m])",
+          "expr": "rate(copilot_ingestion_documents_total[5m])",
           "refId": "A",
           "legendFormat": "Ingestion Rate"
         }
@@ -136,7 +136,7 @@
       },
       "targets": [
         {
-          "expr": "rate(parsing_messages_total[5m])",
+          "expr": "rate(copilot_parsing_messages_parsed_total[5m])",
           "refId": "A",
           "legendFormat": "Parsing Rate"
         }
@@ -212,12 +212,12 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, rate(embedding_duration_seconds_bucket[5m]))",
+          "expr": "histogram_quantile(0.95, rate(copilot_embedding_generation_duration_seconds_bucket[5m]))",
           "refId": "A",
           "legendFormat": "p95 Embedding Latency"
         },
         {
-          "expr": "histogram_quantile(0.50, rate(embedding_duration_seconds_bucket[5m]))",
+          "expr": "histogram_quantile(0.50, rate(copilot_embedding_generation_duration_seconds_bucket[5m]))",
           "refId": "B",
           "legendFormat": "p50 Embedding Latency"
         }
@@ -285,7 +285,7 @@
       },
       "targets": [
         {
-          "expr": "vector_store_documents_total",
+          "expr": "copilot_vector_store_documents_total",
           "refId": "A",
           "legendFormat": "Total Vectors"
         }

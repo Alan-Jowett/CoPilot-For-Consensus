@@ -664,3 +664,97 @@ def test_idempotent_embedding_generation(
     # Verify stats reflect both processing attempts
     assert embedding_service.chunks_processed == 6  # 3 + 3
     assert embedding_service.embeddings_generated_total == 6  # 3 + 3
+
+
+def test_vector_store_documents_total_metric_recorded(
+    mock_document_store, mock_vector_store, mock_embedding_provider, mock_publisher, mock_subscriber
+):
+    """Test that vector_store_documents_total metric is recorded when embeddings are stored."""
+    from copilot_metrics import NoOpMetricsCollector
+    
+    # Create a metrics collector
+    metrics_collector = NoOpMetricsCollector()
+    
+    # Create service with metrics collector
+    embedding_service = EmbeddingService(
+        document_store=mock_document_store,
+        vector_store=mock_vector_store,
+        embedding_provider=mock_embedding_provider,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        metrics_collector=metrics_collector,
+        embedding_model="all-MiniLM-L6-v2",
+        embedding_backend="sentencetransformers",
+        embedding_dimension=384,
+        batch_size=32,
+    )
+    
+    # Setup mock data
+    chunk_ids = ["chunk-1", "chunk-2", "chunk-3"]
+    chunks = [
+        {
+            "_id": "chunk-1",
+            "chunk_id": "chunk-1",
+            "message_id": "<msg1@example.com>",
+            "thread_id": "<thread@example.com>",
+            "archive_id": "archive-123",
+            "chunk_index": 0,
+            "text": "This is chunk 1 text.",
+            "token_count": 10,
+            "metadata": {
+                "sender": "user1@example.com",
+                "sender_name": "User One",
+                "date": "2023-10-15T12:00:00Z",
+                "subject": "Test Subject",
+                "draft_mentions": [],
+            }
+        },
+        {
+            "_id": "chunk-2",
+            "chunk_id": "chunk-2",
+            "message_id": "<msg1@example.com>",
+            "thread_id": "<thread@example.com>",
+            "archive_id": "archive-123",
+            "chunk_index": 1,
+            "text": "This is chunk 2 text.",
+            "token_count": 10,
+            "metadata": {
+                "sender": "user1@example.com",
+                "sender_name": "User One",
+                "date": "2023-10-15T12:00:00Z",
+                "subject": "Test Subject",
+                "draft_mentions": [],
+            }
+        },
+        {
+            "_id": "chunk-3",
+            "chunk_id": "chunk-3",
+            "message_id": "<msg2@example.com>",
+            "thread_id": "<thread@example.com>",
+            "archive_id": "archive-123",
+            "chunk_index": 0,
+            "text": "This is chunk 3 text.",
+            "token_count": 10,
+            "metadata": {
+                "sender": "user2@example.com",
+                "sender_name": "User Two",
+                "date": "2023-10-15T13:00:00Z",
+                "subject": "Re: Test Subject",
+                "draft_mentions": [],
+            }
+        },
+    ]
+    
+    mock_document_store.query_documents.return_value = chunks
+    
+    event_data = {
+        "chunk_ids": chunk_ids,
+        "chunk_count": 3,
+    }
+    
+    # Process chunks
+    embedding_service.process_chunks(event_data)
+    
+    # Verify vector_store_documents_total metric was recorded
+    assert metrics_collector.get_counter_total("vector_store_documents_total") == 3.0
+

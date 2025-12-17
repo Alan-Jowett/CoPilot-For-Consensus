@@ -157,6 +157,10 @@ class TestIngestionService:
                 "ingestion_files_total",
                 tags={**metric_tags, "status": "success"},
             ) == 1.0
+            assert service.metrics.get_counter_total(
+                "ingestion_documents_total",
+                tags={**metric_tags, "status": "success"},
+            ) == 1.0
             assert service.metrics.get_gauge_value(
                 "ingestion_files_processed",
                 tags=metric_tags,
