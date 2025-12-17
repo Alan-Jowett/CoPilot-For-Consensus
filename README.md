@@ -1,85 +1,78 @@
 <!-- SPDX-License-Identifier: MIT
   Copyright (c) 2025 Copilot-for-Consensus contributors -->
 # Copilot-for-Consensus
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Docker](https://img.shields.io/badge/docker-required-blue.svg)](https://www.docker.com/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 **An open-source AI assistant that ingests mailing list discussions, summarizes threads, and surfaces consensus for technical working groups.**
+
+📚 **[Documentation](#documentation)** | 🚀 **[Quick Start](#quick-start)** | 🏗️ **[Architecture](./documents/ARCHITECTURE.md)** | 🤝 **[Contributing](./CONTRIBUTING.md)** | 📋 **[Governance](./GOVERNANCE.md)**
 
 ***
 
-## Pre-commit Hook
+## Table of Contents
 
-Install and enable the pre-commit hook to run the header check locally before commits:
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Architecture](#architecture)
+- [Quick Start](#quick-start)
+- [Documentation](#documentation)
+- [Development](#development)
+- [Contributing](#contributing)
+- [License](#license)
 
-```
-pip install pre-commit
-pre-commit install
-```
-
-You can run it against all files at any time:
-
-```
-pre-commit run --all-files
-```
-
+***
 
 ## Overview
+
 Copilot-for-Consensus is designed to **scale institutional memory and accelerate decision-making** in technical communities like IETF working groups. It uses **LLM-powered summarization and insight extraction** to help participants keep up with mailing list traffic, track draft evolution, and identify consensus or dissent.
 
 This project aims to be:
-- **Containerized** for easy deployment.
-- **Microservice-based** for modularity and scalability.
-- **Deployable locally** using a lightweight micro-LLM or **in Azure Cloud** for enterprise-scale workloads.
-- Built primarily in **Python** for accessibility and community contribution.
+- **Containerized** for easy deployment
+- **Microservice-based** for modularity and scalability
+- **Deployable locally** using lightweight open-source LLMs or **in Azure Cloud** for enterprise-scale workloads
+- Built primarily in **Python** for accessibility and community contribution
+- **Production-ready** with comprehensive observability, error handling, and testing
 
 ***
 
-## Key Features (MVP)
-- **Mailing List Ingestion:** Fetch archives via rsync or IMAP.
-- **Parsing & Normalization:** Use Python `mailbox` or equivalent for structured extraction.
-- **Vector Store Abstraction:** Modular backend support (FAISS, in-memory, future: Qdrant, Azure) for semantic search.
-- **Summarization Engine:** Extractive + abstractive summaries powered by LLMs.
-- **Consensus Detection:** Identify agreement/dissent signals in threads.
-- **Draft Tracking:** Monitor mentions and evolution of RFC drafts.
-- **Transparency:** Inline citations linking summaries to original messages.
+## Key Features
+
+### Core Capabilities
+- **Mailing List Ingestion**: Fetch archives via rsync, IMAP, or HTTP from multiple sources
+- **Parsing & Normalization**: Extract structured data from `.mbox` files with thread detection and RFC/draft mention tracking
+- **Semantic Chunking**: Token-aware splitting with semantic coherence for optimal embedding
+- **Vector Search**: Fast similarity search using Qdrant with configurable backends (FAISS, in-memory)
+- **LLM-Powered Summarization**: Extractive + abstractive summaries with configurable backends:
+  - **Local**: Ollama (Mistral, Llama 2, etc.) for fully offline operation
+  - **Cloud**: Azure OpenAI, OpenAI API for production scale
+  - **Alternative**: llama.cpp with AMD GPU support
+- **Consensus Detection**: Identify agreement/dissent signals in threads (in development)
+- **Draft Tracking**: Monitor mentions and evolution of RFC drafts (in development)
+- **Transparency**: Inline citations linking summaries to original messages
+
+### Production Features
+- **Event-Driven Architecture**: Asynchronous message bus (RabbitMQ) for loose coupling
+- **Observability Stack**: Prometheus metrics, Grafana dashboards, Loki logging, and Promtail log aggregation
+- **Error Handling**: Retry policies, failed queue management, and centralized error reporting
+- **Idempotency**: All operations are idempotent with deduplication support
+- **GPU Acceleration**: Optional NVIDIA (Ollama) or AMD (llama.cpp) GPU support for 10-100x faster inference
+- **Schema Validation**: JSON schema validation for all messages and events
+- **Health Checks**: Comprehensive health checks for all services
 
 ***
 
 ## Long-Term Vision
+
 Beyond summarization, Copilot-for-Consensus will evolve into an **interactive subject matter expert** that:
-- **Understands RFCs and mailing list history** for deep contextual answers.
-- Provides **semantic search and Q&A** across technical archives.
-- Supports **multi-modal knowledge** (text, diagrams, code snippets).
-- Offers **real-time collaboration tools** for chairs and contributors.
-- Integrates with **standards governance workflows** for better decision tracking.
-
-***
-
-## License & Code Headers
-
-This project is distributed under the **MIT License**. All files that support comments must include an SPDX license header:
-
-```
-SPDX-License-Identifier: MIT
-Copyright (c) 2025 Copilot-for-Consensus contributors
-```
-
-**Header formats by file type:**
-- **Python, Bash, Docker Compose:** Use `#` comments
-  ```python
-  # SPDX-License-Identifier: MIT
-  # Copyright (c) 2025 Copilot-for-Consensus contributors
-  ```
-- **Markdown, HTML, XML:** Use `<!-- -->` comments
-  ```html
-  <!-- SPDX-License-Identifier: MIT
-       Copyright (c) 2025 Copilot-for-Consensus contributors -->
-  ```
-- **JavaScript/TypeScript:** Use `//` comments
-  ```typescript
-  // SPDX-License-Identifier: MIT
-  // Copyright (c) 2025 Copilot-for-Consensus contributors
-  ```
-
-All contributions must include appropriate SPDX headers. See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
+- **Understands RFCs and mailing list history** for deep contextual answers
+- Provides **semantic search and Q&A** across technical archives
+- Supports **multi-modal knowledge** (text, diagrams, code snippets)
+- Offers **real-time collaboration tools** for chairs and contributors
+- Integrates with **standards governance workflows** for better decision tracking
 
 ***
 
@@ -88,6 +81,35 @@ All contributions must include appropriate SPDX headers. See [CONTRIBUTING.md](.
 The system follows a **microservice-based, event-driven architecture** where services communicate asynchronously through a message bus (RabbitMQ) and store data in MongoDB and Qdrant. This design ensures loose coupling, scalability, and resilience.
 
 For detailed architecture documentation, design patterns, and service interactions, see [documents/ARCHITECTURE.md](./documents/ARCHITECTURE.md).
+
+### Services Overview
+
+| Service | Purpose | Port(s) | Status |
+|---------|---------|---------|--------|
+| **Processing Pipeline** | | | |
+| Ingestion | Fetches mailing list archives from remote sources | 8000 (localhost) | Production |
+| Parsing | Extracts and normalizes email messages from archives | - | Production |
+| Chunking | Splits messages into semantic chunks for embedding | - | Production |
+| Embedding | Generates vector embeddings for semantic search | - | Production |
+| Orchestrator | Coordinates RAG workflow and summarization | - | Production |
+| Summarization | Creates summaries using configurable LLM backends | - | Production |
+| **User-Facing** | | | |
+| Reporting API | HTTP API for accessing summaries and insights | 8080 (public) | Production |
+| Reporting UI | Web interface for viewing reports | 8083 (localhost) | Production |
+| **Infrastructure** | | | |
+| MongoDB | Document storage for messages and summaries | 27017 (localhost) | Production |
+| Qdrant | Vector database for semantic search | 6333 (localhost) | Production |
+| RabbitMQ | Message broker for event-driven communication | 5672, 15672 (localhost) | Production |
+| Ollama | Local LLM runtime (offline capable) | 11434 (localhost) | Production |
+| llama.cpp | Alternative LLM runtime with AMD GPU support | 8081 (localhost) | Optional |
+| **Observability** | | | |
+| Prometheus | Metrics collection and aggregation | 9090 (localhost) | Production |
+| Grafana | Monitoring dashboards and visualization | 3000 (public) | Production |
+| Loki | Log aggregation | 3100 (localhost) | Production |
+| Promtail | Log scraping from Docker containers | - | Production |
+| Pushgateway | Metrics push gateway for batch jobs | - | Production |
+
+**Note**: Services marked as "public" (0.0.0.0) are accessible from outside the host. All other services are bound to localhost (127.0.0.1) for security. See [docs/EXPOSED_PORTS.md](./docs/EXPOSED_PORTS.md) for security details.
 
 ### Microservices
 
@@ -100,8 +122,8 @@ For detailed architecture documentation, design patterns, and service interactio
 - **Summarization Service**: Creates summaries using LLMs with configurable backends (OpenAI, Azure OpenAI, Ollama, llama.cpp)
 
 #### User-Facing Services
-- **Reporting Service**: Provides HTTP API and web UI for accessing summaries and insights (port 8080)
-- **Error Reporting Service**: Centralized error tracking and debugging interface (port 8081)
+- **Reporting Service**: Provides HTTP API for accessing summaries and insights (port 8080)
+- **Reporting UI**: Web interface for viewing reports and insights (port 8083)
 
 ### Infrastructure Components
 
@@ -149,14 +171,23 @@ Access Grafana at `http://localhost:3000` (default credentials: admin/admin)
 
 The system uses adapter modules to decouple core business logic from external dependencies:
 
-- **copilot_storage**: Document store abstraction (MongoDB, in-memory)
-- **copilot_events**: Event publishing, subscription, and schema validation
+- **copilot_archive_fetcher**: Fetches archives from remote sources
+- **copilot_archive_store**: Archive storage abstraction
+- **copilot_auth**: Authentication and authorization
+- **copilot_chunking**: Text chunking algorithms
 - **copilot_config**: Unified configuration management with schema validation
-- **copilot_schema_validation**: JSON schema validation for messages and events
-- **copilot_vectorstore**: Vector store abstraction (Qdrant, FAISS)
-- **copilot_metrics**: Metrics collection (Prometheus)
+- **copilot_consensus**: Consensus detection logic
+- **copilot_draft_diff**: RFC draft difference tracking
+- **copilot_embedding**: Embedding generation abstraction
+- **copilot_events**: Event publishing, subscription, and schema validation
 - **copilot_logging**: Structured logging
+- **copilot_metrics**: Metrics collection (Prometheus)
 - **copilot_reporting**: Error reporting
+- **copilot_schema_validation**: JSON schema validation for messages and events
+- **copilot_startup**: Service startup coordination
+- **copilot_storage**: Document store abstraction (MongoDB, in-memory)
+- **copilot_summarization**: Summarization logic abstraction
+- **copilot_vectorstore**: Vector store abstraction (Qdrant, FAISS)
 
 See [adapters/README.md](./adapters/README.md) for detailed adapter documentation.
 
@@ -197,12 +228,9 @@ docker compose logs db-init
 
 For the full list of exposed ports and security considerations, see [docs/EXPOSED_PORTS.md](docs/EXPOSED_PORTS.md).
 
-5. Pull an LLM model (first time only):
-```bash
-docker compose exec ollama ollama pull mistral
-```
+**Note:** The Mistral LLM model is automatically downloaded on first startup via the `ollama-model-loader` service when using the default Ollama backend. This may take several minutes depending on your internet connection. Models are stored in the `ollama_models` Docker volume for persistence.
 
-6. **(Optional) Enable GPU acceleration** for 10-100x faster inference:
+5. **(Optional) Enable GPU acceleration** for 10-100x faster inference:
    - **NVIDIA GPU** (recommended): See [documents/OLLAMA_GPU_SETUP.md](./documents/OLLAMA_GPU_SETUP.md)
      - Requires NVIDIA GPU with drivers and nvidia-container-toolkit
      - Verify GPU support:
@@ -211,11 +239,28 @@ docker compose exec ollama ollama pull mistral
        - Or directly: `docker exec ollama nvidia-smi`
    - **AMD GPU** (experimental): See [AMD GPU Setup Guide](./documents/LLAMA_CPP_AMD_SETUP.md) to enable llama.cpp with Vulkan/ROCm
 
-7. Run ingestion:
->>>>>>> 2423c83 (Add AMD GPU setup documentation and README updates)
-```bash
-docker compose run --rm ingestion
-```
+6. Run ingestion to process test data:
+
+   **Option A: Using test fixtures (recommended for first-time users):**
+   ```bash
+   # Upload test ingestion configuration
+   docker compose run --rm \
+     -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
+     ingestion \
+     python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
+   
+   # Run the ingestion job
+   docker compose run --rm \
+     -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
+     ingestion
+   ```
+
+   **Option B: Using PowerShell helper (Windows):**
+   ```powershell
+   .\run_ingestion_test.ps1
+   ```
+
+   After ingestion completes, summaries will be available via the Reporting API at http://localhost:8080/api/reports
 
 ### Viewing Logs
 
@@ -234,6 +279,52 @@ Query centralized logs in Grafana:
 2. Navigate to Explore
 3. Select "Loki" datasource
 4. Query: `{service="parsing"}` to see parsing service logs
+
+### Troubleshooting
+
+**Services won't start:**
+- Ensure Docker has at least 8GB RAM allocated
+- Check for port conflicts:
+  - Linux/macOS: `netstat -tuln | grep -E '(3000|8080|27017|5672|6333)'`
+  - Windows PowerShell: `Get-NetTCPConnection -LocalPort 3000,8080,27017,5672,6333 -ErrorAction SilentlyContinue`
+  - Or check service status: `docker compose ps`
+- View service logs: `docker compose logs <service-name>`
+
+**Ollama model pull fails:**
+- Wait for ollama service to be healthy: `docker compose ps ollama`
+- Check connectivity: `docker compose exec ollama ollama list`
+- Retry: The ollama-model-loader service retries up to 5 times
+
+**Database connection errors:**
+- Verify MongoDB is healthy: `docker compose ps documentdb`
+- Check credentials match `.env` file
+- Run smoke test (see Database Smoke Testing section below)
+
+**RabbitMQ connection errors:**
+- Verify RabbitMQ is healthy: `docker compose ps messagebus`
+- Check management UI: http://localhost:15672 (guest/guest)
+
+For more troubleshooting, see [docs/LOCAL_DEVELOPMENT.md](./docs/LOCAL_DEVELOPMENT.md).
+
+### Demo vs Production Setup
+
+**Current setup is optimized for local development and integration testing:**
+- Uses local Ollama for LLM inference (no API keys needed)
+- All services run in Docker Compose on a single host
+- In-memory queues (RabbitMQ) and local storage
+- No authentication or TLS on most services
+
+**For production deployments, consider:**
+- **LLM Backend**: Use Azure OpenAI or OpenAI API for better performance and reliability
+  - Set `LLM_BACKEND=azure` and configure `AZURE_OPENAI_KEY` and `AZURE_OPENAI_ENDPOINT`
+- **Message Queue**: Use managed RabbitMQ (e.g., CloudAMQP) or Azure Service Bus for durability
+- **Storage**: Use Azure Cosmos DB or managed MongoDB for high availability
+- **Vector Store**: Use managed Qdrant Cloud or Azure Cognitive Search
+- **Observability**: Use Azure Monitor, Datadog, or New Relic for production monitoring
+- **Security**: Enable TLS, authentication, and network policies (see [SECURITY.md](./SECURITY.md))
+- **Scaling**: Deploy services independently with Kubernetes or Azure Container Apps
+
+See [documents/ARCHITECTURE.md](./documents/ARCHITECTURE.md) for detailed production architecture guidance.
 
 ***
 
@@ -302,68 +393,140 @@ Each microservice has a comprehensive README:
 - [Orchestrator Service](./orchestrator/README.md)
 - [Summarization Service](./summarization/README.md)
 - [Reporting Service](./reporting/README.md)
-- [Error Reporting Service](./error-reporting/README.md)
+- [Reporting UI](./reporting-ui/README.md)
 
 ### Adapter Documentation
 - **[adapters/README.md](./adapters/README.md)**: Overview of the adapter layer and available adapters
 
 ***
 
-## License Header Check
+## Development
 
-This repository includes a utility to verify that files contain both an SPDX license identifier and a copyright header.
+### Local Development Setup
 
-### Run
+For detailed local development instructions, see [docs/LOCAL_DEVELOPMENT.md](./docs/LOCAL_DEVELOPMENT.md).
 
-Run the check manually:
+**Quick setup:**
+1. Clone the repository
+2. Install pre-commit hooks: `pip install pre-commit && pre-commit install`
+3. Start services: `docker compose up -d`
+4. Run tests: See [docs/TESTING_STRATEGY.md](./docs/TESTING_STRATEGY.md)
 
+### Pre-commit Hooks
+
+This project uses pre-commit hooks to enforce code quality and license headers:
+
+```bash
+# Install pre-commit
+pip install pre-commit
+
+# Install the hooks
+pre-commit install
+
+# Run manually on all files
+pre-commit run --all-files
 ```
-python scripts/check_license_headers.py --root .
+
+### Running Tests
+
+**Integration tests:**
+```bash
+# Run all integration tests
+docker compose -f docker-compose.yml up -d
+python -m pytest tests/integration/
+
+# Run specific service tests
+python -m pytest tests/integration/test_parsing.py
 ```
-### CI enforcement
 
-All pull requests run a GitHub Action that executes the same header check. If any file that should have headers is missing either the SPDX identifier or the copyright line, the workflow fails.
+**Unit tests:**
+```bash
+# Run unit tests for a specific service
+cd parsing
+python -m pytest tests/
+```
 
-
-Common flags:
-- `--extensions`: space-separated list of extensions to check (default covers common source and config files)
-- `--filenames`: specific filenames to include (default includes `Dockerfile`)
-- `--exclude`: directories or patterns to exclude (defaults include common build and cache folders)
-- `--ignore-file`: path to a repository-relative ignore file (default `.headercheckignore`)
-- `--root`: root directory to search for files (default is current directory)
-- `--head-lines`: number of lines at the top of each file to check for headers (default is 30)
-
-### Ignore file
-
-You can create `.headercheckignore` at the repo root to exclude additional folders or patterns, one per line. Lines starting with `#` are comments.
-
-
-***
-
-## Port Exposure Validation
-
-The repository includes tests to validate that network ports are properly configured according to security best practices.
-
-### Run Port Exposure Test
-
-Validate that services expose only the necessary ports:
-
+**Port exposure validation:**
 ```bash
 python tests/test_port_exposure.py
-```
-
-This test verifies:
-- Public services (Grafana, Reporting API) are accessible on all interfaces (0.0.0.0)
-- Development services (Prometheus, MongoDB, etc.) are bound to localhost only (127.0.0.1)
-- Internal services (exporters, processors) have no port mappings
-
-### Validate Running Services
-
-After starting the stack, verify that services can communicate correctly:
-
-```bash
-# Requires: pip install requests
 python tests/validate_port_changes.py
 ```
 
-For detailed port documentation and security considerations, see [docs/EXPOSED_PORTS.md](docs/EXPOSED_PORTS.md).
+For comprehensive testing documentation, see [docs/TESTING_STRATEGY.md](./docs/TESTING_STRATEGY.md).
+
+### Code Quality
+
+**License headers:**
+All source files must include SPDX license headers. Verify compliance:
+```bash
+python scripts/check_license_headers.py --root .
+```
+
+**Linting and formatting:**
+The project uses black for Python formatting and pre-commit hooks for enforcement.
+
+***
+
+## Contributing
+
+We welcome contributions from the community! This project follows open-source governance principles.
+
+### How to Contribute
+
+1. **Read the guidelines**: See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed instructions
+2. **Follow the Code of Conduct**: Read [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
+3. **Understand governance**: Review [GOVERNANCE.md](./GOVERNANCE.md) for project structure
+4. **Report security issues**: Follow [SECURITY.md](./SECURITY.md) for vulnerability reporting
+
+### Contribution Areas
+
+- **Core features**: Implement new microservices or enhance existing ones
+- **Adapters**: Add support for new storage, messaging, or LLM backends
+- **Documentation**: Improve guides, add examples, fix errors
+- **Testing**: Add test coverage, improve CI/CD
+- **Performance**: Optimize processing pipelines, reduce latency
+- **Observability**: Enhance metrics, dashboards, and logging
+
+### Development Workflow
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Make your changes with appropriate tests
+4. Ensure all tests pass and pre-commit hooks succeed
+5. Submit a pull request with a clear description
+
+All pull requests are reviewed according to the governance process documented in [GOVERNANCE.md](./GOVERNANCE.md).
+
+***
+
+## License
+
+This project is distributed under the **MIT License**. See [LICENSE](./LICENSE) for details.
+
+### License Headers
+
+All files that support comments must include an SPDX license identifier and copyright header:
+
+```
+SPDX-License-Identifier: MIT
+Copyright (c) 2025 Copilot-for-Consensus contributors
+```
+
+**Header formats by file type:**
+- **Python, Bash, Docker Compose:** Use `#` comments
+  ```python
+  # SPDX-License-Identifier: MIT
+  # Copyright (c) 2025 Copilot-for-Consensus contributors
+  ```
+- **Markdown, HTML, XML:** Use `<!-- -->` comments
+  ```html
+  <!-- SPDX-License-Identifier: MIT
+       Copyright (c) 2025 Copilot-for-Consensus contributors -->
+  ```
+- **JavaScript/TypeScript:** Use `//` comments
+  ```typescript
+  // SPDX-License-Identifier: MIT
+  // Copyright (c) 2025 Copilot-for-Consensus contributors
+  ```
+
+All contributions must include appropriate SPDX headers. The pre-commit hook and CI enforce this requirement.
