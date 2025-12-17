@@ -182,6 +182,13 @@ class InMemoryDocumentStore(DocumentStore):
             List of aggregation results
         """
         # Start with all documents in the collection
+        # Return empty list if collection doesn't exist
+        if collection not in self.collections:
+            logger.debug(
+                f"InMemoryDocumentStore: collection '{collection}' not found for aggregation"
+            )
+            return []
+        
         results = [copy.deepcopy(doc) for doc in self.collections[collection].values()]
         
         for stage in pipeline:
@@ -233,16 +240,23 @@ class InMemoryDocumentStore(DocumentStore):
                         if op == "$exists":
                             if value and key not in doc:
                                 matches = False
+                                break
                             elif not value and key in doc:
                                 matches = False
+                                break
                         elif op == "$eq":
                             if doc.get(key) != value:
                                 matches = False
+                                break
                         # Add more operators as needed
                 else:
                     # Simple equality check
                     if doc.get(key) != condition:
                         matches = False
+                        break
+                
+                if not matches:
+                    break
             
             if matches:
                 filtered.append(doc)
@@ -265,6 +279,19 @@ class InMemoryDocumentStore(DocumentStore):
         local_field = lookup_spec["localField"]
         foreign_field = lookup_spec["foreignField"]
         as_field = lookup_spec["as"]
+        
+        # Check if the foreign collection exists
+        if from_collection not in self.collections:
+            logger.debug(
+                f"InMemoryDocumentStore: foreign collection '{from_collection}' not found in $lookup"
+            )
+            # Return documents with empty array for the 'as' field (mimics MongoDB behavior)
+            result_docs = []
+            for doc in documents:
+                enriched_doc = copy.deepcopy(doc)
+                enriched_doc[as_field] = []
+                result_docs.append(enriched_doc)
+            return result_docs
         
         result_docs = []
         for doc in documents:

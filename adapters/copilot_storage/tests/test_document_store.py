@@ -478,6 +478,43 @@ class TestInMemoryDocumentStore:
         assert "msg2" in message_keys
         assert "msg3" in message_keys
 
+    def test_aggregate_documents_nonexistent_collection(self):
+        """Test aggregation on a collection that doesn't exist."""
+        store = InMemoryDocumentStore()
+        store.connect()
+
+        pipeline = [{"$match": {"status": "pending"}}]
+
+        # Should return empty list, not raise an error
+        results = store.aggregate_documents("nonexistent", pipeline)
+        assert results == []
+
+    def test_aggregate_documents_lookup_nonexistent_foreign_collection(self):
+        """Test $lookup with a foreign collection that doesn't exist."""
+        store = InMemoryDocumentStore()
+        store.connect()
+
+        # Insert messages but no chunks collection
+        store.insert_document("messages", {"message_key": "msg1", "text": "Hello"})
+
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "nonexistent_chunks",
+                    "localField": "message_key",
+                    "foreignField": "message_key",
+                    "as": "chunks"
+                }
+            }
+        ]
+
+        results = store.aggregate_documents("messages", pipeline)
+
+        # Should return messages with empty chunks array
+        assert len(results) == 1
+        assert "chunks" in results[0]
+        assert results[0]["chunks"] == []
+
 
 class TestMongoDocumentStore:
     """Tests for MongoDocumentStore."""
