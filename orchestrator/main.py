@@ -3,7 +3,6 @@
 
 """Orchestration Service: Coordinate summarization and analysis tasks."""
 
-import logging
 import os
 import sys
 import threading
@@ -21,16 +20,13 @@ from copilot_storage import create_document_store, ValidatingDocumentStore, Docu
 from copilot_schema_validation import FileSchemaProvider
 from copilot_metrics import create_metrics_collector
 from copilot_reporting import create_error_reporter
+from copilot_logging import create_logger
 
 from app import __version__
 from app.service import OrchestrationService
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+# Configure structured JSON logging
+logger = create_logger(logger_type="stdout", level="INFO", name="orchestrator")
 
 # Create FastAPI app
 app = FastAPI(title="Orchestration Service", version=__version__)
@@ -85,7 +81,7 @@ def start_subscriber_thread(service: OrchestrationService):
     except KeyboardInterrupt:
         logger.info("Subscriber interrupted")
     except Exception as e:
-        logger.error(f"Subscriber error: {e}", exc_info=True)
+        logger.error(f"Subscriber error: {e}")
         # Fail fast - re-raise to terminate the service
         raise
 
@@ -191,7 +187,7 @@ def main():
         uvicorn.run(app, host="0.0.0.0", port=config.http_port)
 
     except Exception as e:
-        logger.error(f"Failed to start orchestration service: {e}", exc_info=True)
+        logger.error(f"Failed to start orchestration service: {e}")
         sys.exit(1)
 
 

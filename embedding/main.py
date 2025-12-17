@@ -3,7 +3,6 @@
 
 """Embedding Service: Generate vector embeddings for text chunks."""
 
-import logging
 import os
 import sys
 import threading
@@ -23,16 +22,13 @@ from copilot_vectorstore import create_vector_store
 from copilot_embedding import create_embedding_provider
 from copilot_metrics import create_metrics_collector
 from copilot_reporting import create_error_reporter
+from copilot_logging import create_logger
 
 from app import __version__
 from app.service import EmbeddingService
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+# Configure structured JSON logging
+logger = create_logger(logger_type="stdout", level="INFO", name="embedding")
 
 # Create FastAPI app
 app = FastAPI(title="Embedding Service", version=__version__)
@@ -87,7 +83,7 @@ def start_subscriber_thread(service: EmbeddingService):
     except KeyboardInterrupt:
         logger.info("Subscriber interrupted")
     except Exception as e:
-        logger.error(f"Subscriber error: {e}", exc_info=True)
+        logger.error(f"Subscriber error: {e}")
         # Fail fast - re-raise to terminate the service
         raise
 
@@ -277,7 +273,7 @@ def main():
         uvicorn.run(app, host="0.0.0.0", port=config.http_port)
         
     except Exception as e:
-        logger.error(f"Failed to start embedding service: {e}", exc_info=True)
+        logger.error(f"Failed to start embedding service: {e}")
         sys.exit(1)
 
 
