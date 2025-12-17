@@ -177,7 +177,7 @@ class TestGrafanaValidator(unittest.TestCase):
         
         is_valid, status_msg = self.validator.validate_panel_structure(panel, "ds-uid", "db-uid")
         self.assertTrue(is_valid)
-        self.assertEqual(status_msg, "No queries configured")
+        self.assertIn("No queries configured", status_msg)
 
     def test_validate_panel_structure_with_expression(self):
         """Test panel structure validation with query expression."""
@@ -192,7 +192,7 @@ class TestGrafanaValidator(unittest.TestCase):
         
         is_valid, status_msg = self.validator.validate_panel_structure(panel, "ds-uid", "db-uid")
         self.assertTrue(is_valid)
-        self.assertIn("Panel structure valid", status_msg)
+        self.assertIn("Basic structure valid", status_msg)
 
 
 if __name__ == '__main__':

@@ -255,27 +255,32 @@ class GrafanaValidator:
     def validate_panel_structure(
         self, panel: Dict, datasource_uid: str, dashboard_uid: str
     ) -> Tuple[bool, str]:
-        """Validate panel structure and query configuration.
+        """Validate basic panel structure and query configuration.
         
-        Note: This performs structural validation only. Full query execution
-        would require the /api/ds/query endpoint with complex payload construction.
+        Performs structural validation only - checks if panel has datasource and targets.
+        Does not execute queries or validate query syntax.
+        
+        Note: Full query execution would require the /api/ds/query endpoint
+        with complex payload construction.
         """
         panel_title = panel.get("title", "Untitled")
 
         # Check if panel has targets (queries)
         targets = panel.get("targets", [])
         if not targets:
-            return True, "No queries configured"
+            # Panel without queries (e.g., text panels, row headers) is valid
+            return True, "No queries configured (non-query panel)"
 
         # Get the first query expression
         first_target = targets[0]
         query_expr = first_target.get("expr")
 
         if not query_expr:
-            return True, "No query expression found"
+            # Query target exists but no expression - might be template variable
+            return True, "Panel has targets but no query expression"
 
-        # Validate the panel has the required structure for queries
-        return True, f"Panel structure valid (query: {query_expr[:50]}...)"
+        # Validate the panel has the required basic structure
+        return True, f"Basic structure valid (has query expr)"
 
     def validate_panel_queries(self) -> bool:
         """Validate that dashboard panels have proper query structure."""
