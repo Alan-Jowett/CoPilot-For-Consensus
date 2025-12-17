@@ -7,7 +7,6 @@ from copilot_schema_validation.identifier_generator import (
     generate_archive_id_from_bytes,
     generate_message_doc_id,
     generate_chunk_id,
-    generate_thread_id,
     generate_summary_id,
 )
 
@@ -60,22 +59,6 @@ def test_generate_chunk_id_is_deterministic_and_changes_with_index():
     assert cid1 == cid2
     assert cid1 != cid3
     assert len(cid1) == 16
-
-
-def test_generate_thread_id_scoped_by_source_and_subject():
-    root_mid = "<20231015120000.XYZ789@example.com>"
-    tid1 = generate_thread_id("ietf-quic", root_mid, "Re: Transport Topics")
-    tid2 = generate_thread_id("ietf-quic", root_mid, "Re: Transport Topics")
-    assert tid1 == tid2
-    assert len(tid1) == 16
-
-    # Different source → different thread id
-    tid_other_list = generate_thread_id("ietf-http", root_mid, "Re: Transport Topics")
-    assert tid_other_list != tid1
-
-    # Different subject normalization → different thread id
-    tid_other_subject = generate_thread_id("ietf-quic", root_mid, "Re: Different Subject")
-    assert tid_other_subject != tid1
 
 
 def test_generate_summary_id_is_deterministic_and_length():

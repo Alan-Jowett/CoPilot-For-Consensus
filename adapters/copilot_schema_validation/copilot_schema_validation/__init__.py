@@ -16,7 +16,6 @@ from .identifier_generator import (
     generate_archive_id_from_bytes,
     generate_message_doc_id,
     generate_chunk_id,
-    generate_thread_id,
     generate_summary_id,
 )
 from .models import (
@@ -72,6 +71,5 @@ __all__ = [
     "generate_archive_id_from_bytes",
     "generate_message_doc_id",
     "generate_chunk_id",
-    "generate_thread_id",
     "generate_summary_id",
 ]
