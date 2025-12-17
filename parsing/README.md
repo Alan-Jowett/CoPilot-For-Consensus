@@ -393,7 +393,7 @@ def parse_message(raw_message: mailbox.mboxMessage, archive_id: str) -> dict:
         "headers": extract_extra_headers(raw_message),
         "attachments": attachments,
         "draft_mentions": draft_mentions,
-        "created_at": datetime.utcnow()
+        "created_at": datetime.now(timezone.utc)
     }
 ```
 
@@ -505,7 +505,7 @@ def build_threads(messages: List[dict]) -> List[dict]:
                 "first_message_date": message["date"],
                 "last_message_date": message["date"],
                 "draft_mentions": set(),
-                "created_at": datetime.utcnow()
+                "created_at": datetime.now(timezone.utc)
             }
         
         thread = threads[thread_id]

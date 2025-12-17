@@ -330,7 +330,7 @@ async def generate_embeddings(chunks: List[Dict]) -> List[Dict]:
                 "token_count": chunk["token_count"],
                 "embedding_model": embedding_config.model,
                 "embedding_backend": embedding_config.backend,
-                "embedding_date": datetime.utcnow().isoformat()
+                "embedding_date": datetime.now(timezone.utc).isoformat()
             }
         }
         embeddings.append(embedding)

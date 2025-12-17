@@ -311,7 +311,7 @@ async def process_json_parsed_event(event: JSONParsedEvent):
                         "draft_mentions": message.get("draft_mentions", [])
                     },
                     "chunking_strategy": chunk_config.strategy,
-                    "created_at": datetime.utcnow(),
+                    "created_at": datetime.now(timezone.utc),
                     "embedding_generated": False
                 })
                 all_chunks.append(chunk)
