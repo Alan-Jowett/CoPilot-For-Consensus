@@ -112,7 +112,8 @@ jobs:
     - name: Start document-processing-exporter
       run: |
         docker compose up -d document-processing-exporter
-        timeout 60s bash -c 'until docker compose ps document-processing-exporter --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for document-processing-exporter..."; sleep 3; done' || (docker compose logs document-processing-exporter --tail=50 && exit 1)
+        # Python exporter has no healthcheck, so wait for it to be running
+        timeout 60s bash -c 'until docker compose ps document-processing-exporter --format "{{.Status}}" | grep -q "Up"; do echo "Waiting for document-processing-exporter..."; sleep 3; done' || (docker compose logs document-processing-exporter --tail=50 && exit 1)
 
     # Validator Services (one-shot containers)
     - name: Run db-init
