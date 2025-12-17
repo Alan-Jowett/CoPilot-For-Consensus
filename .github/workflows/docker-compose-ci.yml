@@ -299,6 +299,19 @@ jobs:
         echo "Loki failed to become ready after $max_attempts attempts"
         exit 1
 
+    - name: Validate Grafana Dashboards
+      run: |
+        echo "Validating Grafana dashboards..."
+        pip install -q requests
+        python scripts/validate_grafana_dashboards.py \
+          --grafana-url http://localhost:3000 \
+          --username admin \
+          --password admin \
+          --dashboard-dir infra/grafana/dashboards \
+          --max-retries 30 \
+          --retry-delay 5
+        echo "✓ Grafana dashboard validation completed"
+
     - name: View service logs
       if: always()
       run: docker compose logs --tail=50
