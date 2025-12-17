@@ -65,8 +65,8 @@ def get_repo_root() -> Path:
         )
         return Path(result.stdout.strip())
     except subprocess.CalledProcessError:
-        # Fallback to script location
-        return Path(__file__).parent
+        # Fallback to script location (scripts/ -> repo root)
+        return Path(__file__).parent.parent
 
 
 def validate_ruff(repo_root: Path, fix: bool = False) -> int:

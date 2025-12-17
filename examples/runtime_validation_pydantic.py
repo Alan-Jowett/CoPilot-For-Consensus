@@ -64,7 +64,7 @@ class ChunksPreparedEvent(MessageEvent):
     
     @field_validator('chunk_ids')
     @classmethod
-    def validate_chunk_ids(cls, v, info):
+    def validate_chunk_ids(cls, v: List[str], info) -> List[str]:
         """Ensure chunk_ids count matches chunk_count."""
         chunk_count = info.data.get('chunk_count')
         if chunk_count is not None and len(v) != chunk_count:
@@ -156,7 +156,7 @@ class ServiceConfig(BaseModel):
     
     @field_validator('service_name')
     @classmethod
-    def validate_service_name(cls, v):
+    def validate_service_name(cls, v: str) -> str:
         """Ensure service name follows naming convention."""
         valid_services = [
             'ingestion', 'parsing', 'chunking', 'embedding',
