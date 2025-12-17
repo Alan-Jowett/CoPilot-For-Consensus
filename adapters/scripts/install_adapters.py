@@ -49,6 +49,7 @@ ADAPTER_DEPENDENCIES = {
     "copilot_vectorstore": [],
     "copilot_summarization": [],
     "copilot_archive_fetcher": [],
+    "copilot_archive_store": [],
     "copilot_auth": [],
     "copilot_draft_diff": [],
     "copilot_consensus": [],
