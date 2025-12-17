@@ -399,7 +399,7 @@ echo "✓ End-to-end validation passed"
 
 # Health checks
 echo "Testing service endpoints..."
-for endpoint in "http://localhost:8080/" "http://localhost:8080/api/reports" "http://localhost:3000/" "http://localhost:9090/-/healthy" "http://localhost:3100/ready"; do
+for endpoint in "http://localhost:8080/" "http://localhost:8080/api/reports" "http://localhost:8083/health" "http://localhost:3000/api/health" "http://localhost:9090/-/healthy" "http://localhost:3100/ready"; do
   echo "  Testing $endpoint..."
   curl -f "$endpoint" > /dev/null 2>&1 || { echo "❌ $endpoint failed"; exit 1; }
 done
@@ -857,7 +857,7 @@ docker compose up -d parsing chunking embedding orchestrator summarization repor
 docker compose run --rm ingestion
 # quick health checks
 curl -f http://localhost:8080/      # reporting
-curl -f http://localhost:3000/      # reporting-ui
+curl -f http://localhost:8083/health      # reporting-ui
 curl -f http://localhost:9090/-/healthy   # prometheus
 curl -f http://localhost:3100/ready       # loki
 docker compose down
@@ -876,7 +876,7 @@ docker compose up -d parsing chunking embedding orchestrator summarization repor
 docker compose run --rm ingestion
 # quick health checks
 Invoke-WebRequest -UseBasicParsing http://localhost:8080/ | Out-Null
-Invoke-WebRequest -UseBasicParsing http://localhost:3000/ | Out-Null
+Invoke-WebRequest -UseBasicParsing http://localhost:8083/health | Out-Null
 Invoke-WebRequest -UseBasicParsing http://localhost:3000/api/health | Out-Null
 Invoke-WebRequest -UseBasicParsing http://localhost:9090/-/healthy | Out-Null
 Invoke-WebRequest -UseBasicParsing http://localhost:3100/ready | Out-Null
