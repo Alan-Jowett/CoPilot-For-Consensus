@@ -4,7 +4,7 @@
 import json
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, Any, Iterable, List
 
@@ -316,7 +316,7 @@ class IngestionService:
         if max_retries is None:
             max_retries = self.config.retry_max_attempts
 
-        ingestion_started_at = datetime.utcnow().isoformat() + "Z"
+        ingestion_started_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         started_monotonic = time.monotonic()
         metric_tags = self._metric_tags(source)
 
@@ -409,7 +409,7 @@ class IngestionService:
                     archive_id = file_hash[:16]
 
                     # Create metadata
-                    ingestion_completed_at = datetime.utcnow().isoformat() + "Z"
+                    ingestion_completed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
                     metadata = ArchiveMetadata(
                         archive_id=archive_id,
@@ -754,7 +754,7 @@ class IngestionService:
         Raises:
             Exception: Re-raises any exception from publisher to ensure visibility
         """
-        failed_at = datetime.utcnow().isoformat() + "Z"
+        failed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
         try:
             event = ArchiveIngestionFailedEvent(
