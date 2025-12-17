@@ -11,6 +11,7 @@
         "data": {
           "type": "object",
           "properties": {
+            "summary_id": { "type": "string", "minLength": 1 },
             "thread_id": { "type": "string", "minLength": 1 },
             "summary_markdown": { "type": "string", "minLength": 1 },
             "citations": {
@@ -35,6 +36,7 @@
             "latency_ms": { "type": "integer", "minimum": 0 }
           },
           "required": [
+            "summary_id",
             "thread_id",
             "summary_markdown",
             "citations",

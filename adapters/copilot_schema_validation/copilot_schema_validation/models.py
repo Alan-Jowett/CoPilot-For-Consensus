@@ -303,6 +303,7 @@ class SummaryCompleteEvent(BaseEvent):
     Routing Key: summary.complete
     
     Data fields:
+        summary_id: Deterministic ID (SHA256 of thread_id + chunk_ids)
         thread_id: Thread that was summarized
         summary_markdown: Generated summary in Markdown format
         citations: List of citation objects with message_id, chunk_id, offset

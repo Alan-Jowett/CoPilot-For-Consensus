@@ -528,6 +528,7 @@ def test_handle_summarization_requested_event(
 def test_publish_summary_complete(summarization_service, mock_publisher):
     """Test publishing SummaryComplete event."""
     summarization_service._publish_summary_complete(
+        summary_id="test-summary-id",
         thread_id="<thread@example.com>",
         summary_markdown="# Summary\n\nTest summary",
         citations=[{"message_id": "<msg1@example.com>", "chunk_id": "chunk_1", "offset": 0}],
@@ -546,6 +547,7 @@ def test_publish_summary_complete(summarization_service, mock_publisher):
     assert call_args[1]["routing_key"] == "summary.complete"
     
     message = call_args[1]["event"]
+    assert message["data"]["summary_id"] == "test-summary-id"
     assert message["data"]["thread_id"] == "<thread@example.com>"
     assert message["data"]["summary_markdown"] == "# Summary\n\nTest summary"
     assert len(message["data"]["citations"]) == 1
@@ -652,6 +654,7 @@ def test_service_with_error_reporter(
 def test_schema_validation_summary_complete_valid(summarization_service, mock_publisher):
     """Test that SummaryComplete events validate against schema."""
     summarization_service._publish_summary_complete(
+        summary_id="test-summary-id",
         thread_id="<thread@example.com>",
         summary_markdown="# Summary\n\nTest",
         citations=[],
@@ -976,6 +979,7 @@ def test_publish_summary_complete_with_publisher_failure(
     # Should propagate exception when publisher raises
     with pytest.raises(Exception) as exc_info:
         service._publish_summary_complete(
+            summary_id="test-summary-id",
             thread_id="test-thread",
             summary_markdown="# Test Summary",
             citations=[],
@@ -1102,3 +1106,45 @@ def test_idempotent_summarization(
     # Stats reflect both summaries were generated
     assert summarization_service.summaries_generated == 2
 
+
+def test_generate_summary_id_deterministic(summarization_service):
+    """Test that summary ID generation is deterministic."""
+    citations1 = [
+        {"chunk_id": "chunk_1", "message_id": "msg_1", "offset": 0},
+        {"chunk_id": "chunk_2", "message_id": "msg_2", "offset": 10},
+    ]
+    
+    citations2 = [
+        {"chunk_id": "chunk_2", "message_id": "msg_2", "offset": 10},
+        {"chunk_id": "chunk_1", "message_id": "msg_1", "offset": 0},
+    ]
+    
+    # Same thread and chunks (different order) should produce same ID
+    id1 = summarization_service._generate_summary_id("<thread@example.com>", citations1)
+    id2 = summarization_service._generate_summary_id("<thread@example.com>", citations2)
+    
+    assert id1 == id2
+    assert len(id1) == 64  # SHA256 hex digest length
+    
+    # Different thread should produce different ID
+    id3 = summarization_service._generate_summary_id("<other_thread@example.com>", citations1)
+    assert id3 != id1
+    
+    # Different chunks should produce different ID
+    citations3 = [
+        {"chunk_id": "chunk_3", "message_id": "msg_3", "offset": 0},
+    ]
+    id4 = summarization_service._generate_summary_id("<thread@example.com>", citations3)
+    assert id4 != id1
+
+
+def test_generate_summary_id_empty_citations(summarization_service):
+    """Test that summary ID generation works with empty citations."""
+    id1 = summarization_service._generate_summary_id("<thread@example.com>", [])
+    
+    assert id1 is not None
+    assert len(id1) == 64
+    
+    # Same thread with no citations should produce same ID
+    id2 = summarization_service._generate_summary_id("<thread@example.com>", [])
+    assert id1 == id2

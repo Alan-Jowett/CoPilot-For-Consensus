@@ -150,10 +150,8 @@ class ReportingService:
         Returns:
             Report ID
         """
-        # Generate report ID
-        report_id = str(uuid.uuid4())
-        
         # Extract data from event
+        report_id = event_data.get("summary_id", str(uuid.uuid4()))  # Fallback to UUID for backward compatibility
         thread_id = event_data.get("thread_id")
         summary_markdown = event_data.get("summary_markdown", "")
         citations = event_data.get("citations", [])
