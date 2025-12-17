@@ -50,6 +50,8 @@ tokens_generated = Counter(
 )
 
 # Configuration from environment variables
+# Note: Model path should be configured via environment variable in docker-compose
+# Default points to commonly used Mistral 7B model for reference
 MODEL_PATH = os.getenv("LLAMA_MODEL", "/models/mistral-7b-instruct-v0.2.Q4_K_M.gguf")
 GPU_LAYERS = int(os.getenv("LLAMA_GPU_LAYERS", "35"))
 CTX_SIZE = int(os.getenv("LLAMA_CTX_SIZE", "4096"))
@@ -197,14 +199,14 @@ def v1_chat_completions():
             content = msg.get("content", "")
             
             if role == "system":
-                prompt_parts.append(f"<s>[INST] {content} [/INST]")
+                prompt_parts.append(f"<s>[INST] {content} [/INST] ")
             elif role == "user":
                 if prompt_parts:
-                    prompt_parts.append(f"[INST] {content} [/INST]")
+                    prompt_parts.append(f"[INST] {content} [/INST] ")
                 else:
-                    prompt_parts.append(f"<s>[INST] {content} [/INST]")
+                    prompt_parts.append(f"<s>[INST] {content} [/INST] ")
             elif role == "assistant":
-                prompt_parts.append(f" {content}</s>")
+                prompt_parts.append(f"{content}</s>")
         
         prompt = "".join(prompt_parts)
         

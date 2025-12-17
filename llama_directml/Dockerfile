@@ -33,10 +33,12 @@ RUN pip install --no-cache-dir \
 
 # Build llama-cpp-python with CLBlast support
 # Force rebuild from source with CLBlast enabled
+# Note: Using recent stable version with good CLBlast support
+# Version 0.3.x includes performance improvements and bug fixes
 ENV CMAKE_ARGS="-DLLAMA_CLBLAST=on"
 ENV FORCE_CMAKE=1
 
-RUN pip install --no-cache-dir --force-reinstall --no-binary :all: llama-cpp-python==0.2.27
+RUN pip install --no-cache-dir --force-reinstall --no-binary :all: llama-cpp-python==0.3.1
 
 # Create model directory
 RUN mkdir -p /models
