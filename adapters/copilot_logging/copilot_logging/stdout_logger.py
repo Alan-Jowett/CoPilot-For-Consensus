@@ -37,6 +37,11 @@ class StdoutLogger(Logger):
         if self.level not in self._level_map:
             raise ValueError(f"Invalid log level: {level}. Must be one of {list(self._level_map.keys())}")
 
+        # Configure a stdlib logger so caplog and handlers can capture records
+        self._stdlib_logger = logging.getLogger(self.name)
+        # Use NOTSET to inherit the root level; filtering happens in _log using self.level
+        self._stdlib_logger.setLevel(logging.NOTSET)
+
     def _log(self, level: str, message: str, **kwargs: Any) -> None:
         """Internal method to format and output log message.
         
@@ -45,7 +50,7 @@ class StdoutLogger(Logger):
             message: The log message
             **kwargs: Additional structured data to log
         """
-        # Check if we should log at this level
+        # Check if we should log at this level for stdout output
         if self._level_map[level] < self._level_map[self.level]:
             return
         
@@ -68,6 +73,9 @@ class StdoutLogger(Logger):
         except Exception as e:
             # Fallback to plain text if JSON serialization fails
             print(f"{level}: {message} (JSON serialization failed: {e})", file=sys.stderr, flush=True)
+
+        # Also emit via stdlib logging so test harnesses (caplog) can capture
+        self._stdlib_logger.log(self._level_map[level], message, **kwargs)
 
     def info(self, message: str, **kwargs: Any) -> None:
         """Log an info-level message.
@@ -94,6 +102,11 @@ class StdoutLogger(Logger):
             message: The log message
             **kwargs: Additional structured data to log
         """
+        self._log("ERROR", message, **kwargs)
+
+    def exception(self, message: str, **kwargs: Any) -> None:
+        """Log an error-level message with exception context."""
+        kwargs.setdefault("exc_info", True)
         self._log("ERROR", message, **kwargs)
 
     def debug(self, message: str, **kwargs: Any) -> None:
