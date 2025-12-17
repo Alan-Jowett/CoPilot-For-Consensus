@@ -4,11 +4,18 @@
   "title": "archives collection",
   "type": "object",
   "properties": {
+    "_id": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 64,
+      "description": "Canonical primary key: deterministic SHA256 (first 16 chars) of mbox file contents"
+    },
     "archive_id": { 
       "type": "string", 
       "minLength": 16,
       "maxLength": 64,
-      "description": "Deterministic SHA256 hash of mbox file contents (first 16 chars) for reproducible archive identification"
+      "deprecated": true,
+      "description": "Deprecated alias for _id (deterministic SHA256 first 16 chars). Use `_id` going forward."
     },
     "file_hash": { 
       "type": "string", 
@@ -41,5 +48,5 @@
       "description": "Timestamp of the last processing attempt"
     }
   },
-  "required": ["archive_id", "file_hash", "file_size_bytes", "source", "ingestion_date", "status"]
+  "required": ["_id", "file_hash", "file_size_bytes", "source", "ingestion_date", "status"]
 }

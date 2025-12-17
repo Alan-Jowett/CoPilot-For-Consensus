@@ -17,7 +17,7 @@ Stores metadata about ingested mailing list archives.
 
 | Field | Type | Description | Indexed |
 |-------|------|-------------|---------|
-| `archive_id` | String (SHA256 hash, 16 chars) | Deterministic hash of mbox file for reproducible archive ID | Primary Key |
+| `_id` | String (SHA256 hash, 16 chars) | Deterministic hash of mbox file (first 16 chars) — canonical primary key | Primary Key |
 | `file_hash` | String (SHA256 hash, 64 chars) | Full SHA256 hash of the mbox file for integrity verification | Yes |
 | `file_size_bytes` | Integer | Size of the original mbox file in bytes | No |
 | `source` | String | Source identifier (e.g., "ietf-quic") | Yes |
@@ -29,7 +29,7 @@ Stores metadata about ingested mailing list archives.
 | `status` | String | Processing status (pending, processed, failed) | Yes |
 
 **Indexes:**
-- Primary: `archive_id`
+- Primary: `_id`
 - Secondary: `source`, `file_hash`, `ingestion_date`, `status`
 
 ---
@@ -39,7 +39,7 @@ Stores parsed and normalized email messages.
 
 | Field | Type | Description | Indexed |
 |-------|------|-------------|---------|
-| `message_key` | String (SHA256 hash, 16 chars) | Deterministic hash of (archive_id\|message_id\|date\|sender\|subject) for global uniqueness | Primary Key |
+| `_id` | String (SHA256 hash, 16 chars) | Deterministic hash of (archive_id\|message_id\|date\|sender\|subject) — canonical primary key | Primary Key |
 | `message_id` | String | RFC 5322 Message-ID from email header | Yes |
 | `archive_id` | String (SHA256 hash, 16 chars) | Hash of the mbox file this message came from | Yes |
 | `thread_id` | String | Thread identifier (root message_id) | Yes |
@@ -59,13 +59,13 @@ Stores parsed and normalized email messages.
 | `created_at` | DateTime | Record creation timestamp | Yes |
 
 **Indexes:**
-- Primary: `message_key`
+- Primary: `_id`
 - Secondary: `archive_id`, `thread_id`, `date`, `in_reply_to`, `draft_mentions`, `created_at`
 
 **Example Document:**
 ```json
 {
-  "message_key": "a1b2c3d4e5f6789",
+  "_id": "a1b2c3d4e5f6789",
   "message_id": "<20231015123456.ABC123@example.com>",
   "archive_id": "c3d4e5f6789a1b2",
   "thread_id": "<20231015120000.XYZ789@example.com>",
@@ -87,7 +87,7 @@ Stores text chunks derived from messages for embedding generation.
 
 | Field | Type | Description | Indexed |
 |-------|------|-------------|---------|
-| `chunk_key` | String (SHA256 hash, 16 chars) | Deterministic hash of (message_key\|chunk_index) | Primary Key |
+| `_id` | String (SHA256 hash, 16 chars) | Deterministic hash of (message_id\|chunk_index) or (message_key\|chunk_index) — canonical primary key | Primary Key |
 | `message_key` | String (SHA256 hash, 16 chars) | Reference to parent message | Yes |
 | `message_id` | String | Source message Message-ID | Yes |
 | `thread_id` | String | Thread identifier | Yes |
@@ -102,13 +102,13 @@ Stores text chunks derived from messages for embedding generation.
 | `embedding_generated` | Boolean | Whether embedding exists in vector store | Yes |
 
 **Indexes:**
-- Primary: `chunk_key`
+- Primary: `_id`
 - Secondary: `message_key`, `message_id`, `thread_id`, `created_at`, `embedding_generated`
 
 **Example Document:**
 ```json
 {
-  "chunk_key": "b9c8d7e6f5a4b3c",
+  "_id": "b9c8d7e6f5a4b3c",
   "message_key": "a1b2c3d4e5f6789",
   "message_id": "<20231015123456.ABC123@example.com>",
   "thread_id": "<20231015120000.XYZ789@example.com>",
@@ -135,7 +135,7 @@ Stores aggregated thread metadata for quick retrieval.
 
 | Field | Type | Description | Indexed |
 |-------|------|-------------|---------|
-| `thread_id` | String | Thread identifier (root message_id) | Primary Key |
+| `_id` | String | Thread identifier (root message_id) — canonical primary key | Primary Key |
 | `archive_id` | String (SHA256 hash, 16 chars) | Hash of the mbox file this thread came from | Yes |
 | `subject` | String | Thread subject (from root message) | No |
 | `participants` | Array[Object] | List of participants (name, email) | No |
