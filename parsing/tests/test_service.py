@@ -233,9 +233,9 @@ class TestParsingService:
         thread_ids = [msg["thread_id"] for msg in messages]
         assert len(set(thread_ids)) == 1  # All same thread
         
-        # The thread_id should be the root message
+        # The thread_id should be the root message's canonical _id
         root_msg = [m for m in messages if not m.get("in_reply_to")][0]
-        assert all(tid == root_msg["message_id"] for tid in thread_ids)
+        assert all(tid == root_msg["_id"] for tid in thread_ids)
 
     def test_get_stats(self, service, sample_mbox_file):
         """Test statistics reporting."""
