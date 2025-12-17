@@ -85,8 +85,8 @@ def validate_mypy(repo_root: Path, target: str = None) -> int:
     else:
         # Check adapters
         targets = [
-            str(d) for d in (repo_root / "adapters").glob("copilot_*")
-            if d.is_dir() and (d / (d.name) / "__init__.py").exists()
+            str(d / d.name) for d in (repo_root / "adapters").glob("copilot_*")
+            if d.is_dir() and (d / d.name / "__init__.py").exists()
         ]
     
     exit_codes = []
@@ -114,8 +114,8 @@ def validate_pyright(repo_root: Path, target: str = None) -> int:
     else:
         # Check adapters
         targets = [
-            str(d) for d in (repo_root / "adapters").glob("copilot_*")
-            if d.is_dir() and (d / (d.name) / "__init__.py").exists()
+            str(d / d.name) for d in (repo_root / "adapters").glob("copilot_*")
+            if d.is_dir() and (d / d.name / "__init__.py").exists()
         ]
     
     exit_codes = []
@@ -137,7 +137,7 @@ def validate_pylint(repo_root: Path, target: str = None) -> int:
         # Check adapters
         targets = [
             str(d / d.name) for d in (repo_root / "adapters").glob("copilot_*")
-            if d.is_dir() and (d / (d.name) / "__init__.py").exists()
+            if d.is_dir() and (d / d.name / "__init__.py").exists()
         ]
     
     exit_codes = []

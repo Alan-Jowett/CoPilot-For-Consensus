@@ -13,7 +13,7 @@ import sys
 import importlib
 import pkgutil
 from pathlib import Path
-from typing import List, Set
+from typing import List
 import pytest
 
 
@@ -25,7 +25,6 @@ SERVICE_PATHS = [
     "orchestrator.app",
     "parsing.app",
     "reporting.app",
-    "reporting-ui.app",
     "summarization.app",
 ]
 

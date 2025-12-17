@@ -41,16 +41,16 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v4
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
       - name: Install Node.js (for pyright)
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v6
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4
         with:
           node-version: '20'
 
@@ -191,10 +191,10 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v4
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
@@ -241,7 +241,7 @@ jobs:
           PYTHONWARNINGS: default::DeprecationWarning,default::FutureWarning
         run: |
           echo "::group::Running Import Smoke Tests"
-          pytest tests/test_imports.py -v --tb=short --timeout=60
+          pytest tests/test_imports.py -v --tb=short --timeout=60 --junit-xml=test-results.xml
           echo "::endgroup::"
 
       - name: Test Report
