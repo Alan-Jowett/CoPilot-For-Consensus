@@ -303,3 +303,43 @@ class MongoDocumentStore(DocumentStore):
         except Exception as e:
             logger.error(f"MongoDocumentStore: delete_document failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to delete document {doc_id} from {collection}") from e
+
+    def aggregate_documents(
+        self, collection: str, pipeline: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Execute an aggregation pipeline on a collection.
+        
+        Args:
+            collection: Name of the collection
+            pipeline: MongoDB aggregation pipeline (list of stage dictionaries)
+            
+        Returns:
+            List of aggregation results
+            
+        Raises:
+            DocumentStoreNotConnectedError: If not connected to MongoDB
+            DocumentStoreError: If aggregation operation fails
+        """
+        if self.database is None:
+            raise DocumentStoreNotConnectedError("Not connected to MongoDB")
+        
+        try:
+            coll = self.database[collection]
+            cursor = coll.aggregate(pipeline)
+            
+            results = []
+            for doc in cursor:
+                # Convert ObjectId to string for serialization
+                if "_id" in doc:
+                    doc["_id"] = str(doc["_id"])
+                results.append(doc)
+            
+            logger.debug(
+                f"MongoDocumentStore: aggregation on {collection} "
+                f"returned {len(results)} documents"
+            )
+            return results
+            
+        except Exception as e:
+            logger.error(f"MongoDocumentStore: aggregate_documents failed - {e}", exc_info=True)
+            raise DocumentStoreError(f"Failed to aggregate documents from {collection}") from e
