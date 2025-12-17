@@ -4,34 +4,27 @@
 # Identifier Standardization Analysis (Issue #372)
 
 ## Objective
-Standardize on `_key` (removing mixed `_id`/`_key`) across all services, schemas, and databases, ensuring every `_key` is derived from ingested source material or transitively derived from another `_key` plus content-derived data.
+Standardize on MongoDB-canonical `_id` as the single primary identifier across all collections. `_id` must be deterministically derived from ingested source material (or transitively from another deterministic identifier plus content-derived data). Retire mixed `_id`/`_key` usage and make `_id` the one source of truth used for all queries and references.
 
 ## Current State Analysis
 
 ### 1. Database Collections (MongoDB)
 
-#### ✅ Collections Already Using `_key` (Documented in SCHEMA.md):
-- **archives**: Primary key is `archive_id` (SHA256 hash of mbox file, 16 chars)
-- **messages**: Primary key is `message_key` (SHA256 hash of archive_id|message_id|date|sender|subject, 16 chars)
-- **chunks**: Primary key is `chunk_key` (SHA256 hash of message_key|chunk_index, 16 chars)
-- **threads**: Primary key is `thread_id` (root message_id)
+#### Target mapping (make `_id` canonical):
+- archives: `_id = SHA256_16(mbox_file_contents)` (previously `archive_id`)
+- messages: `_id = SHA256_16(archive_id | message_id | date | sender | subject)` (previously `message_key`)
+- chunks: `_id = SHA256_16(message_id | chunk_index)` or `_id = SHA256_16(message_key | chunk_index)` (previously `chunk_key`)
+- threads: `_id = root_message_id` (unchanged concept; stored in `_id`)
+- summaries: `_id = SHA256_16(thread_id | summary_content | generation_timestamp)` (replace UUIDs)
+- reports: `_id = summary_id` (or `_id = SHA256_16(summary_id | metadata)` if separation is needed)
 
-#### ⚠️ Collections Using MongoDB `_id`:
-- **chunks**: Uses MongoDB `_id` field for queries (e.g., `embedding/app/service.py:242`)
-  - Current: `batch_doc_ids = [chunk["_id"] for chunk in batch]`
-  - Should use: `chunk_key` instead
-- **Test fixtures**: Many test files insert documents with `"_id": "chunk-000000000001"` (embedding integration tests)
-  - These should be `chunk_key` instead
+Notes:
+- Convenience fields like `message_key` / `chunk_key` can remain as metadata if helpful, but queries and relations should use `_id`.
+- Aligns with MongoDB conventions (auto-index, developer familiarity) and removes dual-identifier ambiguity.
 
 ### 2. Schema Definitions
 
-#### Current State (from documents/SCHEMA.md):
-- **Archives collection**: `archive_id` (primary) - deterministic
-- **Messages collection**: `message_key` (primary) - deterministic from (archive_id|message_id|date|sender|subject)
-- **Chunks collection**: `chunk_key` (primary) - deterministic from (message_key|chunk_index)
-- **Threads collection**: `thread_id` (primary) - root message_id
-
-**Status**: Good alignment on `_key` naming, but MongoDB's `_id` is still being used in queries.
+We will update schemas and documentation so each collection’s primary identifier is named `_id` and is deterministically derived. Legacy names (`archive_id`, `message_key`, `chunk_key`) will either mirror `_id`, be computed, or be removed where redundant.
 
 ### 3. Event Schemas
 
@@ -43,25 +36,13 @@ Standardize on `_key` (removing mixed `_id`/`_key`) across all services, schemas
 - **ReportPublished**: Uses `summary_id` for identification
 
 #### Identified Issues:
-- **summary_id**: Generated as `uuid.uuid4()` in summarization/app/service.py:270
-  - Current: `summary_id = self._generate_summary_id(thread_id, formatted_citations)`
-  - Issue: Not consistently derived from source material
-  - Should be: SHA256(thread_id|summary_content|timestamp) for deterministic reproducibility
-
-- **report_id**: Uses `uuid.uuid4()` in reporting/app/service.py:158
-  - Issue: Non-deterministic
-  - Should be: Derived from summary_id and content
+- summary identifiers are UUID-based in summarization; must become deterministic `_id` as per rule below.
+- reporting falls back to UUID for report identifiers; must be removed. Prefer `_id (report) = summary_id`.
 
 ### 4. Service Code Usage
 
 #### embedding/app/service.py:
-- Line 220: `chunks_without_id = [c.get("chunk_id", "unknown") for c in chunks if not c.get("_id")]`
-  - **Issue**: Checking for MongoDB `_id` instead of `chunk_key`
-  - **Fix**: Change to check for `chunk_key`
-
-- Line 242: `batch_doc_ids = [chunk["_id"] for chunk in batch]`
-  - **Issue**: Using MongoDB `_id` for updates
-  - **Fix**: Use `chunk_key` instead
+- Consolidate on `_id` for chunks: ensure documents set deterministic `_id` and queries/updates use `_id` consistently; adjust tests accordingly.
 
 #### orchestrator/app/service.py:
 - Uses `thread_id`, `archive_id`, `chunk_thread_id` consistently ✅
@@ -72,15 +53,10 @@ Standardize on `_key` (removing mixed `_id`/`_key`) across all services, schemas
 - No obvious `_id` usage found
 
 #### summarization/app/service.py:
-- Line 270: `summary_id = self._generate_summary_id(thread_id, formatted_citations)`
-  - **Issue**: UUID-based, not deterministic from source
-  - **Fix**: Use SHA256-based derivation
+- Replace UUID-based summary identifiers with deterministic `_id` (see rules below).
 
 #### reporting/app/service.py:
-- Line 155: `report_id = event_data["summary_id"]`
-- Line 158: Falls back to `report_id = str(uuid.uuid4())`
-  - **Issue**: Should always use summary_id or derive consistently
-  - **Fix**: Remove UUID fallback or make deterministic
+- Use deterministic `_id` for reports (prefer equal to `summary_id`); remove UUID fallback entirely.
 
 ### 5. Test Fixtures
 
@@ -99,7 +75,7 @@ Standardize on `_key` (removing mixed `_id`/`_key`) across all services, schemas
 
 ---
 
-## Migration Plan
+## Migration Plan (adopt `_id` as canonical)
 
 ### Phase 1: Inventory & Documentation ✅
 - [x] Catalog all `_id` and `_key` usage
@@ -107,117 +83,118 @@ Standardize on `_key` (removing mixed `_id`/`_key`) across all services, schemas
 - [ ] Document deterministic key generation rules
 
 ### Phase 2: Update Models & Schemas
-**Services to update:**
-1. **Embedding Service**
-   - Replace `chunk["_id"]` with `chunk["chunk_key"]`
-   - Update MongoDB queries to use `chunk_key` as primary identifier
+Adopt `_id` as the primary key across all collections. Keep semantic convenience fields only where they add value.
 
-2. **Summarization Service**
-   - Replace UUID-based `summary_id` with deterministic SHA256 derivation
-   - Update event schema to reflect deterministic summary_id
+1. **Embedding Service (chunks)**
+   - Ensure chunk documents set `_id = SHA256_16(message_id | chunk_index)` (or `message_key | chunk_index`).
+   - Update queries and updates to use `_id`.
 
-3. **Reporting Service**
-   - Use `summary_id` consistently (no UUID fallback)
-   - Ensure `report_id` is deterministic or tied to summary_id
+2. **Summarization Service (summaries)**
+   - Set `_id` deterministically for summaries; remove UUID usage.
+   - Update events and downstream consumers to expect deterministic IDs.
 
-4. **All Services**
-   - Update any remaining `_id` references to use appropriate `_key` fields
+3. **Reporting Service (reports)**
+   - Use `_id = summary_id` (preferred) and eliminate UUID fallback.
+
+4. **Schemas & Docs**
+   - Update `SCHEMA.md` and JSON Schemas to show `_id` as the primary key field per collection.
 
 ### Phase 3: Schema Migrations
-- Update event schemas to document `_key` derivation rules
-- Add constraints to validate deterministic key generation
-- Update SCHEMA.md with complete derivation formulas
+- Update event/document schemas to document deterministic `_id` derivation rules.
+- Add constraints/validators where applicable to enforce presence of `_id`.
+- Update `SCHEMA.md` with complete derivation formulas using `_id`.
 
 ### Phase 4: Data Migration
-- Create migration script for embedding updates (change `_id` to `chunk_key` tracking)
-- Backfill `summary_id` values with deterministic hashes (if needed)
-- Migrate any legacy UUID-based identifiers
+- Backfill documents to set `_id` where missing or non-deterministic.
+- For existing collections where `_id` was arbitrary and a semantic key exists, rewrite `_id` from the semantic key and update references.
+- Backfill summary/report identifiers to deterministic values.
 
 ### Phase 5: Tests & Documentation
-- Update all test fixtures to use consistent `_key` naming
-- Update SCHEMA.md with final reference
-- Add documentation of key derivation rules
-- Update validation schemas and code comments
+- Update test fixtures to set `_id` deterministically and remove reliance on separate `*_key` fields.
+- Update `SCHEMA.md` and docs with `_id`-centric guidance.
+- Update validation schemas and code comments.
 
 ---
 
-## Key Derivation Rules (Deterministic)
+## Key Derivation Rules (Deterministic, stored in `_id`)
 
-### Archive Key
+### Archives
 ```
-archive_id = SHA256_16(mbox_file_contents)
+_id = SHA256_16(mbox_file_contents)
 ```
 **Source**: File content from ingestion source
 **Status**: ✅ Already implemented
 
-### Message Key
+### Messages
 ```
-message_key = SHA256_16(archive_id | message_id | date | sender | subject)
+_id = SHA256_16(archive_id | message_id | date | sender | subject)
 ```
 **Source**: Email headers + archive_id
-**Status**: ✅ Already defined in SCHEMA.md
+**Status**: ✅ Already defined in SCHEMA.md (now stored in `_id`)
 
-### Chunk Key
+### Chunks
 ```
-chunk_key = SHA256_16(message_key | chunk_index)
+_id = SHA256_16(message_id | chunk_index)
+# or
+_id = SHA256_16(message_key | chunk_index)
 ```
-**Source**: message_key + position in message
-**Status**: ✅ Already defined in SCHEMA.md
+**Source**: message + position within message
+**Status**: ✅ Previously `chunk_key`; moved to `_id`
 
-### Thread ID
+### Threads
 ```
-thread_id = root_message_id  (first message in thread)
+_id = root_message_id  (first message in thread)
 ```
 **Source**: Original message thread root
-**Status**: ✅ Already implemented
+**Status**: ✅ Already implemented (now stored in `_id`)
 
-### Summary ID (TO STANDARDIZE)
+### Summaries (TO STANDARDIZE)
 ```
-summary_id = SHA256_16(thread_id | summary_content | generation_timestamp)
+_id = SHA256_16(thread_id | summary_content | generation_timestamp)
 ```
 **Current**: UUID-based (non-deterministic) ❌
 **Proposed**: Deterministic from content + timestamp
 
-### Report ID (TO STANDARDIZE)
+### Reports (TO STANDARDIZE)
 ```
-report_id = summary_id  (or SHA256_16(summary_id | metadata) if independent tracking needed)
+_id = summary_id  (or SHA256_16(summary_id | metadata) if independent tracking needed)
 ```
 **Current**: UUID-based or summary_id ⚠️
-**Proposed**: Deterministic, preferably = summary_id
+**Proposed**: Deterministic, preferably equal to `summary_id`
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] No remaining `_id` usage for primary identifiers in service code
-- [ ] All collections use `_key`-based identification (archive_id, message_key, chunk_key, etc.)
-- [ ] `summary_id` and `report_id` are deterministically derived from source material
-- [ ] All MongoDB queries updated to use `_key` fields instead of `_id`
-- [ ] Test fixtures updated to use consistent `_key` naming
-- [ ] Event schemas document derivation rules
-- [ ] Data migration completed or deemed unnecessary
-- [ ] Documentation (SCHEMA.md) updated with complete key derivation reference
-- [ ] All tests passing with new identifier scheme
+- [ ] All collections use `_id` as the canonical primary identifier
+- [ ] `_id` is deterministically derived per collection rules (archives, messages, chunks, threads, summaries, reports)
+- [ ] MongoDB queries and updates use `_id` consistently
+- [ ] No remaining use of `*_key` as the primary identifier (only optional metadata/aliases)
+- [ ] Summary/report identifiers are deterministic (no UUID fallbacks)
+- [ ] Event/document schemas and `SCHEMA.md` reflect `_id` as primary
+- [ ] Test fixtures updated to set and assert `_id`
+- [ ] Migration/backfill completed or deemed unnecessary
+- [ ] All tests pass with the `_id`-centric model
 
 ---
 
 ## Files to Update
 
 ### Service Code
-- [ ] `embedding/app/service.py` - Replace `_id` with `chunk_key`
-- [ ] `summarization/app/service.py` - Standardize `summary_id` derivation
-- [ ] `reporting/app/service.py` - Remove UUID fallback for report_id
-- [ ] `orchestrator/app/service.py` - Verify consistent `_key` usage
+- [ ] `embedding/app/service.py` - Use `_id` as canonical chunk identifier
+- [ ] `summarization/app/service.py` - Set deterministic `_id` for summaries
+- [ ] `reporting/app/service.py` - Remove UUID fallback; treat `_id` as summary-based
+- [ ] `orchestrator/app/service.py` - Verify consistent `_id` usage
 
 ### Test Code
-- [ ] `embedding/tests/test_integration.py` - Update fixtures
-- [ ] `embedding/tests/test_service.py` - Update fixtures
-- [ ] All other service test files with `_id` fields
+- [ ] `embedding/tests/test_integration.py` - Update fixtures to set `_id`
+- [ ] `embedding/tests/test_service.py` - Update fixtures to set `_id`
+- [ ] All other service test files referencing `*_key`
 
 ### Schema & Documentation
-- [ ] `documents/SCHEMA.md` - Add key derivation rules section
-- [ ] `documents/schemas/events/*.schema.json` - Document deterministic derivation
-- [ ] `adapters/copilot_schema_validation/models.py` - Update event_id handling if needed
+- [ ] `documents/SCHEMA.md` - Show `_id` as primary key per collection and document derivations
+- [ ] `documents/schemas/events/*.schema.json` - Document deterministic derivations
+- [ ] `adapters/copilot_schema_validation/models.py` - Decide deterministic vs UUID policy for event IDs
 
 ### Database Scripts
 - [ ] `scripts/manage_failed_queues.py` - Update queries to use `_key` fields
@@ -228,9 +205,9 @@ report_id = summary_id  (or SHA256_16(summary_id | metadata) if independent trac
 
 ## Next Steps
 
-1. Update SCHEMA.md with key derivation rules (Phase 1 completion)
-2. Start Phase 2: Update embedding service to use chunk_key
-3. Standardize summary_id generation
-4. Run test suite to validate changes
-5. Create PR with migration script and documentation
+1. Update `SCHEMA.md` to make `_id` canonical and document derivations
+2. Update embedding service to use `_id` and adjust tests
+3. Standardize deterministic `_id` for summaries and reports
+4. Run relevant test suites (embedding, summarization, reporting)
+5. Prepare migration/backfill script where needed and open PR
 
