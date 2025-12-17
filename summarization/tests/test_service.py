@@ -19,16 +19,18 @@ def mock_document_store():
     # Default messages data
     messages_data = [
         {
+            "_id": "aaa1111bbb222222",
             "message_id": "<msg1@example.com>",
-            "thread_id": "<thread@example.com>",
+            "thread_id": "1111222233334444",
             "body_normalized": "This is the first message in the thread.",
             "from": {"email": "user1@example.com", "name": "User One"},
             "date": "2023-10-15T12:00:00Z",
             "subject": "Test Subject",
         },
         {
+            "_id": "ccc3333ddd444444",
             "message_id": "<msg2@example.com>",
-            "thread_id": "<thread@example.com>",
+            "thread_id": "1111222233334444",
             "body_normalized": "This is the second message in the thread.",
             "from": {"email": "user2@example.com", "name": "User Two"},
             "date": "2023-10-15T13:00:00Z",
@@ -36,11 +38,32 @@ def mock_document_store():
         },
     ]
     
-    # Collection-aware query that returns messages only for "messages" collection
-    # and empty list for "summaries" collection (no existing summaries by default)
+    # Default chunks data with canonical _id
+    chunks_data = [
+        {
+            "_id": "aaaa1111bbbb2222",
+            "message_id": "<msg1@example.com>",
+            "thread_id": "1111222233334444",
+            "text": "This is the first chunk.",
+            "token_count": 10,
+            "chunk_index": 0,
+        },
+        {
+            "_id": "cccc3333dddd4444",
+            "message_id": "<msg2@example.com>",
+            "thread_id": "1111222233334444",
+            "text": "This is the second chunk.",
+            "token_count": 10,
+            "chunk_index": 0,
+        },
+    ]
+    
+    # Collection-aware query that returns messages and chunks by thread_id
     def query_side_effect(collection, *args, **kwargs):
         if collection == "messages":
             return messages_data
+        elif collection == "chunks":
+            return chunks_data
         elif collection == "summaries":
             return []  # No existing summaries by default
         return []
@@ -78,12 +101,12 @@ def mock_summarizer():
     """Create a mock summarizer."""
     summarizer = Mock()
     summarizer.summarize = Mock(return_value=Summary(
-        thread_id="<thread@example.com>",
+        thread_id="1111222233334444",
         summary_markdown="# Summary\n\nThis is a test summary with citations [1].",
         citations=[
             Citation(
                 message_id="<msg1@example.com>",
-                chunk_id="chunk_1",
+                chunk_id="aaaa1111bbbb2222",
                 offset=0,
             ),
         ],
@@ -142,7 +165,7 @@ def test_service_start(summarization_service, mock_subscriber):
 
 def test_retrieve_context_success(summarization_service, mock_document_store):
     """Test retrieving context for a thread successfully."""
-    context = summarization_service._retrieve_context("<thread@example.com>", top_k=10)
+    context = summarization_service._retrieve_context("1111222233334444", top_k=10)
     
     # Verify context was retrieved
     assert len(context["messages"]) > 0
@@ -152,7 +175,7 @@ def test_retrieve_context_success(summarization_service, mock_document_store):
     # Verify document store was queried
     mock_document_store.query_documents.assert_called_once_with(
         collection="messages",
-        filter_dict={"thread_id": "<thread@example.com>"},
+        filter_dict={"thread_id": "1111222233334444"},
     )
 
 
@@ -161,7 +184,7 @@ def test_retrieve_context_no_messages(summarization_service, mock_document_store
     # Override with side_effect that returns empty for all collections
     mock_document_store.query_documents.side_effect = lambda *args, **kwargs: []
     
-    context = summarization_service._retrieve_context("<thread@example.com>", top_k=10)
+    context = summarization_service._retrieve_context("1111222233334444", top_k=10)
     
     # Verify empty context
     assert context["messages"] == []
@@ -173,26 +196,27 @@ def test_format_citations(summarization_service):
     citations = [
         Citation(
             message_id="<msg1@example.com>",
-            chunk_id="chunk_1",
+            chunk_id="aaaa1111bbbb2222",
             offset=0,
         ),
         Citation(
             message_id="<msg2@example.com>",
-            chunk_id="chunk_2",
+            chunk_id="cccc3333dddd4444",
             offset=10,
         ),
     ]
     
     chunks = [
-        {"chunk_id": "chunk_1", "message_id": "<msg1@example.com>", "text": "Text 1"},
-        {"chunk_id": "chunk_2", "message_id": "<msg2@example.com>", "text": "Text 2"},
+        {"_id": "aaaa1111bbbb2222", "message_id": "<msg1@example.com>", "text": "Text 1"},
+        {"_id": "cccc3333dddd4444", "message_id": "<msg2@example.com>", "text": "Text 2"},
     ]
     
     formatted = summarization_service._format_citations(citations, chunks)
     
     assert len(formatted) == 2
     assert formatted[0]["message_id"] == "<msg1@example.com>"
-    assert formatted[0]["chunk_id"] == "chunk_1"
+    assert formatted[0]["chunk_id"] == "aaaa1111bbbb2222"
+    assert formatted[0]["_id"] == "aaaa1111bbbb2222"
     assert formatted[0]["offset"] == 0
     assert formatted[0]["text"] == "Text 1"
     assert formatted[1]["text"] == "Text 2"
@@ -223,13 +247,13 @@ def test_format_citations_text_truncation(summarization_service):
     citations = [
         Citation(
             message_id="<msg1@example.com>",
-            chunk_id="chunk_1",
+            chunk_id="aaaa1111bbbb2222",
             offset=0,
         ),
     ]
     
     chunks = [
-        {"chunk_id": "chunk_1", "message_id": "<msg1@example.com>", "text": long_text},
+        {"_id": "aaaa1111bbbb2222", "message_id": "<msg1@example.com>", "text": long_text},
     ]
     
     formatted = summarization_service._format_citations(citations, chunks)
@@ -250,7 +274,7 @@ def test_format_citations_missing_chunk_id(summarization_service):
     ]
     
     chunks = [
-        {"chunk_id": "chunk_1", "message_id": "<msg1@example.com>", "text": "Text 1"},
+        {"_id": "aaaa1111bbbb2222", "message_id": "<msg1@example.com>", "text": "Text 1"},
     ]
     
     formatted = summarization_service._format_citations(citations, chunks)
@@ -263,7 +287,7 @@ def test_format_citations_missing_chunk_id(summarization_service):
 def test_process_thread_success(summarization_service, mock_summarizer, mock_publisher):
     """Test processing a thread successfully."""
     summarization_service._process_thread(
-        thread_id="<thread@example.com>",
+        thread_id="1111222233334444",
         top_k=10,
         context_window_tokens=3000,
         prompt_template="Summarize:",
@@ -298,7 +322,7 @@ def test_process_thread_citations_generated_from_chunks(
     # Configure mock_summarizer to return a summary with citations
     # (even though real LLMs return empty arrays)
     mock_summarizer.summarize.return_value = Summary(
-        thread_id="<thread@example.com>",
+        thread_id="1111222233334444",
         summary_markdown="# Summary\n\nTest summary with LLM-provided citations [1][2].",
         citations=[
             # These citations from the LLM should be IGNORED
@@ -317,7 +341,7 @@ def test_process_thread_citations_generated_from_chunks(
     
     # Process the thread
     summarization_service._process_thread(
-        thread_id="<thread@example.com>",
+        thread_id="1111222233334444",
         top_k=10,
         context_window_tokens=3000,
         prompt_template="Summarize:",
@@ -368,7 +392,7 @@ def test_process_thread_no_context(summarization_service, mock_document_store, m
     mock_document_store.query_documents.side_effect = lambda *args, **kwargs: []
     
     summarization_service._process_thread(
-        thread_id="<thread@example.com>",
+        thread_id="1111222233334444",
         top_k=10,
         context_window_tokens=3000,
         prompt_template="Summarize:",
@@ -394,7 +418,7 @@ def test_process_thread_retry_on_failure(
         Exception("LLM error"),
         Exception("LLM error"),
         Summary(
-            thread_id="<thread@example.com>",
+            thread_id="1111222233334444",
             summary_markdown="Success on retry",
             citations=[],
             llm_backend="mock",
@@ -408,7 +432,7 @@ def test_process_thread_retry_on_failure(
     summarization_service.retry_backoff_seconds = 0  # No delay for testing
     
     summarization_service._process_thread(
-        thread_id="<thread@example.com>",
+        thread_id="1111222233334444",
         top_k=10,
         context_window_tokens=3000,
         prompt_template="Summarize:",
@@ -438,7 +462,7 @@ def test_process_thread_max_retries_exceeded(
     summarization_service.retry_backoff_seconds = 0  # No delay for testing
     
     summarization_service._process_thread(
-        thread_id="<thread@example.com>",
+        thread_id="1111222233334444",
         top_k=10,
         context_window_tokens=3000,
         prompt_template="Summarize:",
@@ -505,7 +529,7 @@ def test_handle_summarization_requested_event(
     """Test handling SummarizationRequested event."""
     event = {
         "data": {
-            "thread_ids": ["<thread@example.com>"],
+            "thread_ids": ["1111222233334444"],
             "top_k": 10,
             "context_window_tokens": 3000,
             "prompt_template": "Summarize:",
@@ -528,10 +552,10 @@ def test_handle_summarization_requested_event(
 def test_publish_summary_complete(summarization_service, mock_publisher):
     """Test publishing SummaryComplete event."""
     summarization_service._publish_summary_complete(
-        summary_id="test-summary-id",
-        thread_id="<thread@example.com>",
+        summary_id="aaaaaabbbbbbcccc",
+        thread_id="1111222233334444",
         summary_markdown="# Summary\n\nTest summary",
-        citations=[{"message_id": "<msg1@example.com>", "chunk_id": "chunk_1", "offset": 0}],
+        citations=[{"message_id": "<msg1@example.com>", "chunk_id": "aaaa1111bbbb2222", "offset": 0}],
         llm_backend="mock",
         llm_model="mock-model",
         tokens_prompt=100,
@@ -547,8 +571,8 @@ def test_publish_summary_complete(summarization_service, mock_publisher):
     assert call_args[1]["routing_key"] == "summary.complete"
     
     message = call_args[1]["event"]
-    assert message["data"]["summary_id"] == "test-summary-id"
-    assert message["data"]["thread_id"] == "<thread@example.com>"
+    assert message["data"]["summary_id"] == "aaaaaabbbbbbcccc"
+    assert message["data"]["thread_id"] == "1111222233334444"
     assert message["data"]["summary_markdown"] == "# Summary\n\nTest summary"
     assert len(message["data"]["citations"]) == 1
     
@@ -559,7 +583,7 @@ def test_publish_summary_complete(summarization_service, mock_publisher):
 def test_publish_summarization_failed(summarization_service, mock_publisher):
     """Test publishing SummarizationFailed event."""
     summarization_service._publish_summarization_failed(
-        thread_id="<thread@example.com>",
+        thread_id="1111222233334444",
         error_type="LLMTimeout",
         error_message="Request timed out",
         retry_count=2,
@@ -573,7 +597,7 @@ def test_publish_summarization_failed(summarization_service, mock_publisher):
     assert call_args[1]["routing_key"] == "summarization.failed"
     
     message = call_args[1]["event"]
-    assert message["data"]["thread_id"] == "<thread@example.com>"
+    assert message["data"]["thread_id"] == "1111222233334444"
     assert message["data"]["error_type"] == "LLMTimeout"
     assert message["data"]["error_message"] == "Request timed out"
     assert message["data"]["retry_count"] == 2
@@ -602,7 +626,7 @@ def test_service_with_metrics_collector(
     )
     
     service._process_thread(
-        thread_id="<thread@example.com>",
+        thread_id="1111222233334444",
         top_k=10,
         context_window_tokens=3000,
         prompt_template="Summarize:",
@@ -636,7 +660,7 @@ def test_service_with_error_reporter(
     )
     
     service._process_thread(
-        thread_id="<thread@example.com>",
+        thread_id="1111222233334444",
         top_k=10,
         context_window_tokens=3000,
         prompt_template="Summarize:",
@@ -654,8 +678,8 @@ def test_service_with_error_reporter(
 def test_schema_validation_summary_complete_valid(summarization_service, mock_publisher):
     """Test that SummaryComplete events validate against schema."""
     summarization_service._publish_summary_complete(
-        summary_id="test-summary-id",
-        thread_id="<thread@example.com>",
+        summary_id="aaaaaabbbbbbcccc",
+        thread_id="1111222233334444",
         summary_markdown="# Summary\n\nTest",
         citations=[],
         llm_backend="test",
@@ -675,7 +699,7 @@ def test_schema_validation_summary_complete_valid(summarization_service, mock_pu
 def test_schema_validation_summarization_failed_valid(summarization_service, mock_publisher):
     """Test that SummarizationFailed events validate against schema."""
     summarization_service._publish_summarization_failed(
-        thread_id="<thread@example.com>",
+        thread_id="1111222233334444",
         error_type="TestError",
         error_message="Test error message",
         retry_count=0,
@@ -701,7 +725,7 @@ def test_consume_summarization_requested_event():
     messages_data = [
         {
             "message_id": "<msg@example.com>",
-            "thread_id": "<thread@example.com>",
+            "thread_id": "1111222233334444",
             "body_normalized": "Test message",
             "from": {"email": "user@example.com", "name": "User"},
             "date": "2023-10-15T12:00:00Z",
@@ -725,7 +749,7 @@ def test_consume_summarization_requested_event():
     
     mock_summarizer = Mock()
     mock_summarizer.summarize = Mock(return_value=Summary(
-        thread_id="<thread@example.com>",
+        thread_id="1111222233334444",
         summary_markdown="Test summary",
         citations=[],
         llm_backend="test",
@@ -752,7 +776,7 @@ def test_consume_summarization_requested_event():
         "timestamp": "2023-10-15T12:00:00Z",
         "version": "1.0",
         "data": {
-            "thread_ids": ["<thread@example.com>"],
+            "thread_ids": ["1111222233334444"],
             "top_k": 10,
             "llm_backend": "test",
             "llm_model": "test-model",
@@ -807,7 +831,7 @@ def test_consume_summarization_requested_multiple_threads():
     
     mock_summarizer = Mock()
     mock_summarizer.summarize = Mock(return_value=Summary(
-        thread_id="<thread@example.com>",
+        thread_id="1111222233334444",
         summary_markdown="Test",
         citations=[],
         llm_backend="test",
@@ -979,7 +1003,7 @@ def test_publish_summary_complete_with_publisher_failure(
     # Should propagate exception when publisher raises
     with pytest.raises(Exception) as exc_info:
         service._publish_summary_complete(
-            summary_id="test-summary-id",
+            summary_id="aaaaaabbbbbbcccc",
             thread_id="test-thread",
             summary_markdown="# Test Summary",
             citations=[],
@@ -1037,7 +1061,7 @@ def test_idempotent_summarization(
     should always execute summarization requests, allowing the orchestrator to control
     regeneration policy (e.g., when new chunks arrive for a thread).
     """
-    thread_id = "<thread@example.com>"
+    thread_id = "1111222233334444"
     
     # Setup messages for context retrieval
     messages_data = [
@@ -1110,18 +1134,18 @@ def test_idempotent_summarization(
 def test_generate_summary_id_deterministic(summarization_service):
     """Test that summary ID generation is deterministic."""
     citations1 = [
-        {"chunk_id": "chunk_1", "message_id": "msg_1", "offset": 0},
-        {"chunk_id": "chunk_2", "message_id": "msg_2", "offset": 10},
+        {"_id": "aaaa1111bbbb2222", "chunk_id": "aaaa1111bbbb2222", "message_id": "msg_1", "offset": 0},
+        {"_id": "cccc3333dddd4444", "chunk_id": "cccc3333dddd4444", "message_id": "msg_2", "offset": 10},
     ]
     
     citations2 = [
-        {"chunk_id": "chunk_2", "message_id": "msg_2", "offset": 10},
-        {"chunk_id": "chunk_1", "message_id": "msg_1", "offset": 0},
+        {"_id": "cccc3333dddd4444", "chunk_id": "cccc3333dddd4444", "message_id": "msg_2", "offset": 10},
+        {"_id": "aaaa1111bbbb2222", "chunk_id": "aaaa1111bbbb2222", "message_id": "msg_1", "offset": 0},
     ]
     
     # Same thread and chunks (different order) should produce same ID
-    id1 = summarization_service._generate_summary_id("<thread@example.com>", citations1)
-    id2 = summarization_service._generate_summary_id("<thread@example.com>", citations2)
+    id1 = summarization_service._generate_summary_id("1111222233334444", citations1)
+    id2 = summarization_service._generate_summary_id("1111222233334444", citations2)
     
     assert id1 == id2
     assert len(id1) == 64  # SHA256 hex digest length
@@ -1132,19 +1156,19 @@ def test_generate_summary_id_deterministic(summarization_service):
     
     # Different chunks should produce different ID
     citations3 = [
-        {"chunk_id": "chunk_3", "message_id": "msg_3", "offset": 0},
+        {"_id": "eeee5555ffff6666", "chunk_id": "eeee5555ffff6666", "message_id": "msg_3", "offset": 0},
     ]
-    id4 = summarization_service._generate_summary_id("<thread@example.com>", citations3)
+    id4 = summarization_service._generate_summary_id("1111222233334444", citations3)
     assert id4 != id1
 
 
 def test_generate_summary_id_empty_citations(summarization_service):
     """Test that summary ID generation works with empty citations."""
-    id1 = summarization_service._generate_summary_id("<thread@example.com>", [])
+    id1 = summarization_service._generate_summary_id("1111222233334444", [])
     
     assert id1 is not None
     assert len(id1) == 64
     
     # Same thread with no citations should produce same ID
-    id2 = summarization_service._generate_summary_id("<thread@example.com>", [])
+    id2 = summarization_service._generate_summary_id("1111222233334444", [])
     assert id1 == id2
