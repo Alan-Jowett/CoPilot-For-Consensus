@@ -3,19 +3,15 @@
 
 """Reporting UI Service: Web interface for viewing reports and summaries."""
 
-import logging
 from functools import lru_cache
 
 from flask import Flask, request, render_template
 import requests
 
 from copilot_config import load_typed_config
+from copilot_logging import create_logger
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+logger = create_logger(name=__name__)
 
 app = Flask(__name__, template_folder='templates')
 

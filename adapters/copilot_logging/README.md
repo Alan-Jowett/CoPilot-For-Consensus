@@ -29,7 +29,7 @@ pip install -e .
 ```python
 from copilot_logging import create_logger
 
-# Create a logger (defaults to stdout with INFO level)
+# Create a logger (defaults: LOG_TYPE/LOG_LEVEL/LOG_NAME env or stdout/INFO/copilot)
 logger = create_logger()
 
 # Log messages at different levels
@@ -84,7 +84,7 @@ export LOG_LEVEL=INFO
 # Set logger name
 export LOG_NAME=ingestion-service
 
-# Create logger from environment
+# Create logger from environment (falls back to stdout/INFO/copilot)
 python -c "from copilot_logging import create_logger; logger = create_logger()"
 ```
 

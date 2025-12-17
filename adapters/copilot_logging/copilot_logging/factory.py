@@ -11,6 +11,11 @@ from .stdout_logger import StdoutLogger
 from .silent_logger import SilentLogger
 
 
+def _default(value: Optional[str], env_var: str, fallback: str) -> str:
+    """Helper to pick an explicit value, then env var, then fallback."""
+    return (value or os.getenv(env_var) or fallback)
+
+
 def create_logger(
     logger_type: Optional[str] = None,
     level: Optional[str] = None,
@@ -19,15 +24,15 @@ def create_logger(
     """Factory function to create a logger instance.
     
     Args:
-        logger_type: Type of logger to create (required). Options: "stdout", "silent"
-        level: Logging level (required). Options: DEBUG, INFO, WARNING, ERROR
-        name: Optional logger name for identification.
+        logger_type: Type of logger to create. Options: "stdout", "silent". Defaults to LOG_TYPE env or "stdout".
+        level: Logging level. Options: DEBUG, INFO, WARNING, ERROR. Defaults to LOG_LEVEL env or "INFO".
+        name: Logger name for identification. Defaults to LOG_NAME env or "copilot".
         
     Returns:
         Logger instance
         
     Raises:
-        ValueError: If logger_type is not recognized or required parameters are missing
+        ValueError: If logger_type is not recognized
         
     Example:
         >>> # Create stdout logger with INFO level
@@ -39,20 +44,9 @@ def create_logger(
         >>> # Create silent logger for testing
         >>> logger = create_logger(logger_type="silent", level="INFO")
     """
-    if not logger_type:
-        raise ValueError(
-            "logger_type parameter is required. "
-            "Must be one of: stdout, silent"
-        )
-    
-    if not level:
-        raise ValueError(
-            "level parameter is required. "
-            "Must be one of: DEBUG, INFO, WARNING, ERROR"
-        )
-    
-    logger_type = logger_type.lower()
-    level = level.upper()
+    logger_type = _default(logger_type, "LOG_TYPE", "stdout").lower()
+    level = _default(level, "LOG_LEVEL", "INFO").upper()
+    name = _default(name, "LOG_NAME", "copilot")
     
     # Create appropriate logger
     if logger_type == "stdout":

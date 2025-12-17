@@ -3,7 +3,6 @@
 
 """Main reporting service implementation."""
 
-import logging
 import time
 import uuid
 import requests
@@ -20,13 +19,14 @@ from copilot_events import (
 from copilot_storage import DocumentStore
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
+from copilot_logging import create_logger
 
 # Optional dependencies for search/filtering features
 if TYPE_CHECKING:
     from copilot_vectorstore import VectorStore
     from copilot_embedding import EmbeddingProvider
 
-logger = logging.getLogger(__name__)
+logger = create_logger(name=__name__)
 
 # Buffer size for fetching additional documents when metadata filtering is applied.
 # This ensures we have enough documents to filter and still return the requested limit.
@@ -157,10 +157,9 @@ class ReportingService:
             # Fallback to UUID for backward compatibility; log for observability
             report_id = str(uuid.uuid4())
             logger.warning(
-                "SummaryComplete event missing required 'summary_id'; generated fallback UUID '%s' for backward compatibility. "
-                "This may indicate an older publisher version or misconfiguration. event_metadata=%s",
-                report_id,
-                {
+                "SummaryComplete event missing required 'summary_id'; generated fallback UUID for backward compatibility. This may indicate an older publisher version or misconfiguration.",
+                report_id=report_id,
+                event_metadata={
                     "event_type": full_event.get("type"),
                     "event_id": full_event.get("event_id") or full_event.get("id"),
                 },

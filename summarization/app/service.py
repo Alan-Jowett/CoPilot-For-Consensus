@@ -4,7 +4,6 @@
 """Main summarization service implementation."""
 
 import hashlib
-import logging
 import time
 from typing import Optional, Dict, Any, List
 
@@ -20,8 +19,9 @@ from copilot_vectorstore import VectorStore
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
 from copilot_summarization import Summarizer, Thread, Citation
+from copilot_logging import create_logger
 
-logger = logging.getLogger(__name__)
+logger = create_logger(name=__name__)
 
 
 class SummarizationService:

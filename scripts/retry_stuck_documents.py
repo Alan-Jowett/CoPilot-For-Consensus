@@ -33,12 +33,13 @@ Usage:
 
 import argparse
 import json
-import logging
 import os
 import sys
 import time
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List, Optional
+
+from copilot_logging import create_logger
 
 # Import dependencies - these will fail gracefully in main() if not installed
 try:
@@ -66,11 +67,7 @@ except ImportError:
     Histogram = None  # type: ignore
     push_to_gateway = None  # type: ignore
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+logger = create_logger(name=__name__)
 
 
 class RetryJobMetrics:
@@ -691,8 +688,9 @@ For full documentation, see documents/RETRY_POLICY.md
     args = parser.parse_args()
     
     # Configure logging
+    global logger
     if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
+        logger = create_logger(name=__name__, level="DEBUG")
     
     # Create retry job
     job = RetryStuckDocumentsJob(

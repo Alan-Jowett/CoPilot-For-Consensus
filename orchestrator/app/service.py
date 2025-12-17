@@ -3,7 +3,6 @@
 
 """Main orchestration service implementation."""
 
-import logging
 import time
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List, Set
@@ -18,8 +17,9 @@ from copilot_events import (
 from copilot_storage import DocumentStore
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
+from copilot_logging import create_logger
 
-logger = logging.getLogger(__name__)
+logger = create_logger(name=__name__)
 
 
 class OrchestrationService:

@@ -3,7 +3,6 @@
 
 """Main parsing service implementation."""
 
-import logging
 import time
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
@@ -22,11 +21,12 @@ from copilot_storage import DocumentStore
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
 from copilot_schema_validation import generate_message_key
+from copilot_logging import create_logger
 
 from .parser import MessageParser
 from .thread_builder import ThreadBuilder
 
-logger = logging.getLogger(__name__)
+logger = create_logger(name=__name__)
 
 
 class ParsingService:
@@ -341,7 +341,7 @@ class ParsingService:
                 # Permanent errors - skip but log it
                 message_id = message.get("message_id", "unknown")
                 error_type = type(e).__name__
-                logger.debug(f"Skipping message {message_id} ({error_type}): {e}")
+                logger.info(f"Skipping message {message_id} ({error_type}): {e}")
                 skipped_count += 1
             except Exception as e:
                 # Other errors are transient failures - re-raise
@@ -373,7 +373,7 @@ class ParsingService:
                 # Permanent errors - skip but log it
                 thread_id = thread.get("thread_id", "unknown")
                 error_type = type(e).__name__
-                logger.debug(f"Skipping thread {thread_id} ({error_type}): {e}")
+                logger.info(f"Skipping thread {thread_id} ({error_type}): {e}")
                 skipped_count += 1
             except Exception as e:
                 # Other errors are transient failures - re-raise
