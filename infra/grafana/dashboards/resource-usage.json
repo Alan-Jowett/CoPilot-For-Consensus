@@ -811,7 +811,7 @@
       },
       "targets": [
         {
-          "expr": "up{job=~\"copilot-services|mongodb-exporter|rabbitmq-exporter|mongo-doc-count-exporter\"}",
+          "expr": "up{job=~\"mongodb|rabbitmq|mongo-doc-count|qdrant|pushgateway|prometheus\"}",
           "refId": "A",
           "legendFormat": "{{job}}"
         }
