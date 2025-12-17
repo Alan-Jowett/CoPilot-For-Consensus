@@ -372,6 +372,10 @@ class EmbeddingService:
         self.vector_store.add_embeddings(ids, vectors, metadatas)
         
         logger.info(f"Stored {len(embeddings)} embeddings in vector store")
+        
+        # Record metric for vector store size
+        if self.metrics_collector:
+            self.metrics_collector.increment("vector_store_documents_total", len(embeddings))
 
     def _update_chunk_status_by_doc_ids(self, doc_ids: List[str]):
         """Update chunk embedding status in document database using Mongo _id values.
