@@ -37,7 +37,7 @@ groups:
             Action:
               1. Check parsing service logs: docker compose logs parsing
               2. Verify MongoDB connectivity and disk space
-              3. Review error-reporting service for detailed error messages
+              3. Check parsing service logs and MongoDB for detailed error information
               4. Inspect failed archives in MongoDB: db.archives.find({status: "failed"})
             
             Dashboard: Grafana > Document Processing Status
@@ -130,7 +130,7 @@ groups:
             This suggests transient failures or resource contention.
             
             Action:
-              1. Review error-reporting service for retry patterns
+              1. Check service logs for retry patterns
               2. Check for intermittent connectivity issues with dependencies
               3. Monitor RabbitMQ for message redeliveries
               4. Check service health and restart cycles

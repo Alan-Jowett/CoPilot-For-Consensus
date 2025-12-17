@@ -185,7 +185,7 @@ View active alerts:
    ```javascript
    db.archives.find({status: "failed"}).limit(10)
    ```
-4. Check error-reporting service for details
+4. Check reporting service or logs for error details
 5. If transient, reprocess; if systematic, fix root cause first
 
 ### Scenario 2: Documents Stuck in Pending
