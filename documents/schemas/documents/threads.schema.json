@@ -4,7 +4,7 @@
   "title": "threads collection",
   "type": "object",
   "properties": {
-    "thread_id": { "type": "string", "minLength": 1 },
+    "_id": { "type": "string", "minLength": 16, "maxLength": 64, "description": "Deterministic thread identifier (e.g., root message or normalized subject lineage)" },
     "archive_id": { 
       "type": "string", 
       "minLength": 16,
@@ -51,11 +51,12 @@
         { "type": "null" }
       ]
     },
-    "summary_id": { 
+    "summary_id": {
       "anyOf": [
-        { "type": "string", "format": "uuid" },
+        { "type": "string", "minLength": 16, "maxLength": 64 },
         { "type": "null" }
-      ]
+      ],
+      "description": "Reference to summaries._id"
     },
     "created_at": { "type": "string", "format": "date-time" },
     "status": {
@@ -76,5 +77,5 @@
       "description": "Timestamp of the last summarization attempt"
     }
   },
-  "required": ["thread_id", "archive_id", "has_consensus", "created_at"]
+  "required": ["_id", "archive_id", "has_consensus", "created_at"]
 }

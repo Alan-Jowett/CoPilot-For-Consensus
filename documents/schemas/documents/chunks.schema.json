@@ -4,14 +4,12 @@
   "title": "chunks collection",
   "type": "object",
   "properties": {
-    "chunk_key": { 
-      "type": "string", 
+    "_id": {
+      "type": "string",
       "minLength": 16,
       "maxLength": 64,
-      "description": "Deterministic SHA256 hash of (message_key|chunk_index) for guaranteed uniqueness per message"
+      "description": "Deterministic SHA256 hash of (message_id|chunk_index)"
     },
-    "chunk_id": { "type": "string", "minLength": 16, "description": "Transitional field: use chunk_key as the unique identifier. chunk_id is kept for backward compatibility but chunk_key should be preferred for new code." },
-    "message_key": { "type": "string", "minLength": 16, "description": "Reference to parent message's message_key" },
     "message_id": { "type": "string", "minLength": 1 },
     "thread_id": { "type": "string", "minLength": 1 },
     "chunk_index": { "type": "integer", "minimum": 0 },
@@ -59,5 +57,5 @@
       "description": "Timestamp of the last embedding generation attempt"
     }
   },
-  "required": ["chunk_key", "message_key", "message_id", "thread_id", "chunk_index", "text", "created_at", "embedding_generated"]
+  "required": ["_id", "message_id", "thread_id", "chunk_index", "text", "created_at", "embedding_generated"]
 }

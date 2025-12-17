@@ -123,11 +123,11 @@ class JSONParsedEvent(BaseEvent):
     Routing Key: json.parsed
     
     Data fields:
-        archive_id: Archive that was parsed
+        archive_id: Archive that was parsed (archives._id)
         message_count: Number of messages parsed
-        message_keys: List of message_keys (deterministic IDs)
+        message_keys: Deterministic message document identifiers (messages._id)
         thread_count: Number of threads identified
-        thread_ids: List of thread IDs (root message IDs)
+        thread_ids: Deterministic thread identifiers (threads._id)
         parsing_duration_seconds: Time taken to parse
     """
     event_type: str = field(default="JSONParsed", init=False)
@@ -169,9 +169,9 @@ class ChunksPreparedEvent(BaseEvent):
     Routing Key: chunks.prepared
     
     Data fields:
-        message_keys: List of source message keys that were chunked
+        message_keys: Message document identifiers chunked (messages._id)
         chunk_count: Total number of chunks created
-        chunk_ids: List of chunk hash identifiers
+        chunk_ids: Deterministic chunk identifiers (chunks._id)
         chunks_ready: Whether chunks are ready for embedding
         chunking_strategy: Strategy used (e.g., "recursive")
         avg_chunk_size_tokens: Average chunk size in tokens
@@ -189,7 +189,7 @@ class ChunkingFailedEvent(BaseEvent):
     Routing Key: chunks.failed
     
     Data fields:
-        message_keys: Messages that failed to be chunked
+        message_keys: Message document identifiers that failed (messages._id)
         error_message: Human-readable error description
         error_type: Error classification
         retry_count: Number of retry attempts made
@@ -213,7 +213,7 @@ class EmbeddingsGeneratedEvent(BaseEvent):
     Routing Key: embeddings.generated
     
     Data fields:
-        chunk_ids: List of chunk IDs that were embedded
+        chunk_ids: Chunk document identifiers embedded (chunks._id)
         embedding_count: Number of embeddings generated
         embedding_model: Model used (e.g., "all-MiniLM-L6-v2")
         embedding_backend: Backend used (e.g., "sentencetransformers")
@@ -260,7 +260,7 @@ class SummarizationRequestedEvent(BaseEvent):
     Routing Key: summarization.requested
     
     Data fields:
-        thread_ids: List of thread IDs to summarize
+        thread_ids: Thread identifiers to summarize (threads._id)
         top_k: Number of top relevant chunks to retrieve
         llm_backend: LLM backend to use (e.g., "ollama")
         llm_model: Model name (e.g., "mistral")
@@ -280,7 +280,7 @@ class OrchestrationFailedEvent(BaseEvent):
     Routing Key: orchestration.failed
     
     Data fields:
-        thread_ids: Threads that failed orchestration
+        thread_ids: Threads that failed (threads._id)
         error_type: Error classification
         error_message: Human-readable error description
         retry_count: Number of retry attempts made
@@ -303,8 +303,8 @@ class SummaryCompleteEvent(BaseEvent):
     Routing Key: summary.complete
     
     Data fields:
-        summary_id: Deterministic ID (SHA256 of thread_id + chunk_ids)
-        thread_id: Thread that was summarized
+        summary_id: Summary identifier (summaries._id)
+        thread_id: Thread that was summarized (threads._id)
         summary_markdown: Generated summary in Markdown format
         citations: List of citation objects with message_id, chunk_id, offset
         llm_backend: LLM backend used
@@ -326,7 +326,7 @@ class SummarizationFailedEvent(BaseEvent):
     Routing Key: summarization.failed
     
     Data fields:
-        thread_id: Thread that failed summarization
+        thread_id: Thread that failed summarization (threads._id)
         error_type: Error classification (e.g., "LLMTimeout")
         error_message: Human-readable error description
         retry_count: Number of retry attempts made
@@ -348,7 +348,7 @@ class ReportPublishedEvent(BaseEvent):
     Routing Key: report.published
     
     Data fields:
-        thread_id: Thread the report is for
+        thread_id: Thread the report is for (threads._id)
         report_id: Unique report identifier
         format: Report format (e.g., "markdown")
         notified: Whether notifications were sent
@@ -369,7 +369,7 @@ class ReportDeliveryFailedEvent(BaseEvent):
     
     Data fields:
         report_id: Report that failed delivery
-        thread_id: Associated thread
+        thread_id: Associated thread (threads._id)
         delivery_channel: Channel that failed (e.g., "webhook")
         error_message: Human-readable error description
         error_type: Error classification

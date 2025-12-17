@@ -4,7 +4,7 @@
   "title": "summaries collection",
   "type": "object",
   "properties": {
-    "summary_id": { "type": "string", "format": "uuid" },
+    "_id": { "type": "string", "minLength": 16, "maxLength": 64, "description": "Deterministic summary identifier (e.g., derived from thread_id, summary_type, and inputs)" },
     "thread_id": { "type": "string" },
     "summary_type": { "type": "string", "enum": ["thread", "weekly", "consensus", "draft-focused"] },
     "title": { "type": "string" },
@@ -29,5 +29,5 @@
     "generated_at": { "type": "string", "format": "date-time" },
     "metadata": { "type": "object" }
   },
-  "required": ["summary_id", "summary_type", "generated_at", "content_markdown"]
+  "required": ["_id", "summary_type", "generated_at", "content_markdown"]
 }

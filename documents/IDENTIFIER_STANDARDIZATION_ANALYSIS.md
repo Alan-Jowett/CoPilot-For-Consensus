@@ -13,13 +13,13 @@ Standardize on MongoDB-canonical `_id` as the single primary identifier across a
 #### Target mapping (make `_id` canonical):
 - archives: `_id = SHA256_16(mbox_file_contents)` (previously `archive_id`)
 - messages: `_id = SHA256_16(archive_id | message_id | date | sender | subject)` (previously `message_key`)
-- chunks: `_id = SHA256_16(message_id | chunk_index)` or `_id = SHA256_16(message_key | chunk_index)` (previously `chunk_key`)
+- chunks: `_id = SHA256_16(message_id | chunk_index)` (previously `chunk_key`)
 - threads: `_id = root_message_id` (unchanged concept; stored in `_id`)
 - summaries: `_id = SHA256_16(thread_id | summary_content | generation_timestamp)` (replace UUIDs)
-- reports: `_id = summary_id` (or `_id = SHA256_16(summary_id | metadata)` if separation is needed)
+- reports: `_id = summary._id` (or `_id = SHA256_16(summary._id | metadata)` if separation is needed)
 
 Notes:
-- Convenience fields like `message_key` / `chunk_key` can remain as metadata if helpful, but queries and relations should use `_id`.
+- Legacy fields like `message_key` / `chunk_key` are removed; queries and relations use `_id`.
 - Aligns with MongoDB conventions (auto-index, developer familiarity) and removes dual-identifier ambiguity.
 
 ### 2. Schema Definitions
@@ -30,14 +30,14 @@ We will update schemas and documentation so each collection’s primary identifi
 
 #### Events Using Deterministic IDs:
 - **ArchiveIngested**: Uses `archive_id` (SHA256 hash, 16 chars) ✅
-- **ChunksPrepared**: Uses `chunk_id` fields (should verify consistency with `chunk_key`)
+- **ChunksPrepared**: Uses `chunk_id` fields (should verify consistency with `chunks._id`)
 - **EmbeddingsGenerated**: Uses `chunk_id` references
-- **SummaryComplete**: Uses `summary_id` and `thread_id`
-- **ReportPublished**: Uses `summary_id` for identification
+- **SummaryComplete**: Uses `summary._id` (referenced via `threads.summary_id`) and `thread_id`
+- **ReportPublished**: Uses `summary._id` for identification
 
 #### Identified Issues:
 - summary identifiers are UUID-based in summarization; must become deterministic `_id` as per rule below.
-- reporting falls back to UUID for report identifiers; must be removed. Prefer `_id (report) = summary_id`.
+- reporting falls back to UUID for report identifiers; must be removed. Prefer `report._id = summary._id`.
 
 ### 4. Service Code Usage
 
@@ -49,8 +49,8 @@ We will update schemas and documentation so each collection’s primary identifi
 - No obvious `_id` usage found
 
 #### chunking/app/service.py:
-- Uses `message_key`, `archive_id` ✅
-- No obvious `_id` usage found
+- Should use `message_id` for joins and set deterministic chunk `_id` ✅
+ - Ensure `_id` usage throughout
 
 #### summarization/app/service.py:
 - Replace UUID-based summary identifiers with deterministic `_id` (see rules below).
@@ -62,7 +62,7 @@ We will update schemas and documentation so each collection’s primary identifi
 
 #### embedding/tests/test_integration.py, test_service.py:
 - Multiple test documents use `"_id": "chunk-000000000001"`
-- Should be updated to use `chunk_key` consistently
+- Should be updated to use deterministic `_id` consistently
 
 #### summarization/tests/test_service.py:
 - Uses `thread_id`, `message_key` ✅
@@ -157,10 +157,10 @@ _id = SHA256_16(thread_id | summary_content | generation_timestamp)
 
 ### Reports (TO STANDARDIZE)
 ```
-_id = summary_id  (or SHA256_16(summary_id | metadata) if independent tracking needed)
+_id = summary._id  (or SHA256_16(summary._id | metadata) if independent tracking needed)
 ```
-**Current**: UUID-based or summary_id ⚠️
-**Proposed**: Deterministic, preferably equal to `summary_id`
+**Current**: UUID-based or summary reference ⚠️
+**Proposed**: Deterministic, preferably equal to `summary._id`
 
 ---
 

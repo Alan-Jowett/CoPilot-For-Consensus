@@ -4,7 +4,7 @@
       "name": "archives",
       "schema": "/schemas/documents/archives.schema.json",
       "indexes": [
-        { "keys": { "archive_id": 1 }, "options": { "unique": true, "name": "archive_id_unique" } },
+        { "keys": { "_id": 1 }, "options": { "unique": true, "name": "_id_unique" } },
         { "keys": { "source": 1 }, "options": { "name": "source_idx" } },
         { "keys": { "ingestion_date": 1 }, "options": { "name": "ingestion_date_idx" } },
         { "keys": { "status": 1 }, "options": { "name": "status_idx" } }
@@ -14,7 +14,7 @@
       "name": "messages",
       "schema": "/schemas/documents/messages.schema.json",
       "indexes": [
-        { "keys": { "message_key": 1 }, "options": { "unique": true, "name": "message_key_unique" } },
+        { "keys": { "_id": 1 }, "options": { "unique": true, "name": "_id_unique" } },
         { "keys": { "message_id": 1 }, "options": { "name": "message_id_idx" } },
         { "keys": { "archive_id": 1 }, "options": { "name": "archive_id_idx" } },
         { "keys": { "thread_id": 1 }, "options": { "name": "thread_id_idx" } },
@@ -28,8 +28,7 @@
       "name": "chunks",
       "schema": "/schemas/documents/chunks.schema.json",
       "indexes": [
-        { "keys": { "chunk_key": 1 }, "options": { "unique": true, "name": "chunk_key_unique" } },
-        { "keys": { "message_key": 1 }, "options": { "name": "message_key_idx" } },
+        { "keys": { "_id": 1 }, "options": { "unique": true, "name": "_id_unique" } },
         { "keys": { "message_id": 1 }, "options": { "name": "message_id_idx" } },
         { "keys": { "thread_id": 1 }, "options": { "name": "thread_id_idx" } },
         { "keys": { "created_at": 1 }, "options": { "name": "created_at_idx" } },
@@ -40,7 +39,7 @@
       "name": "threads",
       "schema": "/schemas/documents/threads.schema.json",
       "indexes": [
-        { "keys": { "thread_id": 1 }, "options": { "unique": true, "name": "thread_id_unique" } },
+        { "keys": { "_id": 1 }, "options": { "unique": true, "name": "_id_unique" } },
         { "keys": { "archive_id": 1 }, "options": { "name": "archive_id_idx" } },
         { "keys": { "first_message_date": 1 }, "options": { "name": "first_message_date_idx" } },
         { "keys": { "last_message_date": 1 }, "options": { "name": "last_message_date_idx" } },
@@ -54,7 +53,7 @@
       "name": "summaries",
       "schema": "/schemas/documents/summaries.schema.json",
       "indexes": [
-        { "keys": { "summary_id": 1 }, "options": { "unique": true, "name": "summary_id_unique" } },
+        { "keys": { "_id": 1 }, "options": { "unique": true, "name": "_id_unique" } },
         { "keys": { "thread_id": 1 }, "options": { "name": "thread_id_idx" } },
         { "keys": { "summary_type": 1 }, "options": { "name": "summary_type_idx" } },
         { "keys": { "generated_at": 1 }, "options": { "name": "generated_at_idx" } }

@@ -209,26 +209,26 @@ def add_embeddings(self, ids: List[str], vectors: List[List[float]], metadatas: 
 
 **Testing Idempotency:** The embedding service queries only chunks with `embedding_generated: false`, preventing duplicate embedding generation attempts.
 
-#### Parsing Service: Message Key Uniqueness
+#### Parsing Service: Message `_id` Uniqueness
 
-**Pattern:** Use deterministic message keys; MongoDB unique index prevents duplicates
+**Pattern:** Use deterministic message `_id`; MongoDB unique index prevents duplicates
 
 **Implementation:**
 ```python
 # parsing/app/service.py
 message_doc = {
-    "message_key": message_key,  # Deterministic hash of Message-ID
-    "message_id": message_id,
+    "_id": message_internal_id,  # Deterministic SHA256_16 of stable fields
+    "message_id": message_id,    # RFC 5322 Message-ID
     # ... other fields
 }
-# Unique index on message_key prevents duplicates
+# Unique index on _id prevents duplicates
 self.document_store.insert_document("messages", message_doc)
 ```
 
-**Schema:** Messages collection has unique index on `message_key`
+**Schema:** Messages collection has unique index on `_id`
 
 **Key Points:**
-- `message_key` is a **deterministic hash** of the email `Message-ID` header
+- `_id` is a **deterministic hash** derived from stable fields (e.g., archive_id | message_id | date | sender_email | subject)
 - MongoDB unique index ensures duplicates are rejected
 - Parsing service **does not catch** DuplicateKeyError (intentional - indicates data issue)
 
