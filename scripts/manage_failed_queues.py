@@ -442,8 +442,9 @@ For full operational guide, see documents/FAILED_QUEUE_OPERATIONS.md
     args = parser.parse_args()
     
     # Configure logging
+    global logger
     if args.verbose:
-        logger.setLevel("DEBUG")
+        logger = create_logger(name=__name__, level="DEBUG")
     
     # Create manager
     manager = FailedQueueManager(

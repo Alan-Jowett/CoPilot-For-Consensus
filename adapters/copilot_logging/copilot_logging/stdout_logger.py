@@ -54,6 +54,9 @@ class StdoutLogger(Logger):
         if self._level_map[level] < self._level_map[self.level]:
             return
         
+        # Extract exc_info (bool or tuple) to pass correctly to stdlib logger
+        exc_info = kwargs.pop("exc_info", None)
+
         # Build structured log entry
         log_entry = {
             "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -75,7 +78,8 @@ class StdoutLogger(Logger):
             print(f"{level}: {message} (JSON serialization failed: {e})", file=sys.stderr, flush=True)
 
         # Also emit via stdlib logging so test harnesses (caplog) can capture
-        self._stdlib_logger.log(self._level_map[level], message, **kwargs)
+        extra = {"extra": kwargs} if kwargs else None
+        self._stdlib_logger.log(self._level_map[level], message, exc_info=exc_info, extra=extra)
 
     def info(self, message: str, **kwargs: Any) -> None:
         """Log an info-level message.

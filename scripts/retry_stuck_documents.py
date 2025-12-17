@@ -688,8 +688,9 @@ For full documentation, see documents/RETRY_POLICY.md
     args = parser.parse_args()
     
     # Configure logging
+    global logger
     if args.verbose:
-        logger.setLevel("DEBUG")
+        logger = create_logger(name=__name__, level="DEBUG")
     
     # Create retry job
     job = RetryStuckDocumentsJob(
