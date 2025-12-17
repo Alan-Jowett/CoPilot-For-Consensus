@@ -284,7 +284,10 @@ Query centralized logs in Grafana:
 
 **Services won't start:**
 - Ensure Docker has at least 8GB RAM allocated
-- Check for port conflicts: `docker compose ps` and `netstat -tuln | grep -E '(3000|8080|27017|5672|6333)'`
+- Check for port conflicts:
+  - Linux/macOS: `netstat -tuln | grep -E '(3000|8080|27017|5672|6333)'`
+  - Windows PowerShell: `Get-NetTCPConnection -LocalPort 3000,8080,27017,5672,6333 -ErrorAction SilentlyContinue`
+  - Or check service status: `docker compose ps`
 - View service logs: `docker compose logs <service-name>`
 
 **Ollama model pull fails:**
