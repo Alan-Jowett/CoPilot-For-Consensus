@@ -247,10 +247,22 @@ class SummarizationService:
                 # Generate summary
                 summary = self.summarizer.summarize(thread)
                 
+                # Generate citations from chunks (since LLMs can hallucinate, we use actual chunks)
+                # Create a citation for each chunk that was used as context
+                chunks = context.get("chunks", [])
+                citations_from_chunks = [
+                    Citation(
+                        message_id=chunk.get("message_id", ""),
+                        chunk_id=chunk.get("chunk_id", ""),
+                        offset=chunk.get("offset", 0),
+                    )
+                    for chunk in chunks
+                ]
+                
                 # Format citations
                 formatted_citations = self._format_citations(
-                    summary.citations,
-                    context.get("chunks", []),
+                    citations_from_chunks,
+                    chunks,
                 )
                 
                 # Calculate duration

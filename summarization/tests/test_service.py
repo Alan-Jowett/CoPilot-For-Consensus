@@ -282,6 +282,86 @@ def test_process_thread_success(summarization_service, mock_summarizer, mock_pub
     assert summarization_service.summarization_failures == 0
 
 
+def test_process_thread_citations_generated_from_chunks(
+    summarization_service,
+    mock_summarizer,
+    mock_publisher,
+    mock_document_store,
+):
+    """Test that citations are generated from chunks, not from LLM output.
+    
+    This test verifies the fix for issue 365: all production summarizers return
+    empty citations. The service should generate citations from the chunks used
+    as context, ignoring any citations returned by the LLM (which may be empty
+    or hallucinated).
+    """
+    # Configure mock_summarizer to return a summary with citations
+    # (even though real LLMs return empty arrays)
+    mock_summarizer.summarize.return_value = Summary(
+        thread_id="<thread@example.com>",
+        summary_markdown="# Summary\n\nTest summary with LLM-provided citations [1][2].",
+        citations=[
+            # These citations from the LLM should be IGNORED
+            Citation(
+                message_id="<hallucinated@example.com>",
+                chunk_id="hallucinated_chunk",
+                offset=999,
+            ),
+        ],
+        llm_backend="mock",
+        llm_model="mock-model",
+        tokens_prompt=100,
+        tokens_completion=50,
+        latency_ms=150,
+    )
+    
+    # Process the thread
+    summarization_service._process_thread(
+        thread_id="<thread@example.com>",
+        top_k=10,
+        context_window_tokens=3000,
+        prompt_template="Summarize:",
+    )
+    
+    # Verify success event was published
+    assert mock_publisher.publish.call_count == 1
+    publish_call = mock_publisher.publish.call_args
+    assert publish_call[1]["routing_key"] == "summary.complete"
+    
+    # Get the published event (passed as 'event' parameter)
+    event_data = publish_call[1]["event"]
+    
+    # CRITICAL: Verify citations were generated from chunks, NOT from LLM
+    citations = event_data["data"]["citations"]
+    
+    # Should have 2 citations (one per message/chunk from context)
+    assert len(citations) == 2, "Should generate citations from chunks in context"
+    
+    # Verify citations match the messages in context (from mock_document_store)
+    citation_message_ids = {c["message_id"] for c in citations}
+    expected_message_ids = {"<msg1@example.com>", "<msg2@example.com>"}
+    assert citation_message_ids == expected_message_ids, \
+        "Citations should reference actual messages from context"
+    
+    # Verify LLM-returned citations were IGNORED (no hallucinated citations)
+    for citation in citations:
+        assert citation["message_id"] != "<hallucinated@example.com>", \
+            "Should not include hallucinated citation from LLM"
+        assert citation["chunk_id"] != "hallucinated_chunk", \
+            "Should not include hallucinated chunk_id from LLM"
+    
+    # Verify each citation has required fields from chunks
+    for citation in citations:
+        assert "message_id" in citation
+        assert "chunk_id" in citation
+        assert "offset" in citation
+        assert "text" in citation  # Text from chunk
+        assert citation["text"] != "", "Citation should have text from chunk"
+    
+    # Verify stats were updated
+    assert summarization_service.summaries_generated == 1
+
+
 def test_process_thread_no_context(summarization_service, mock_document_store, mock_publisher):
     """Test processing a thread when no context is available."""
     # Override with side_effect that returns empty for all collections
