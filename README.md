@@ -456,6 +456,34 @@ For comprehensive testing documentation, see [documents/TESTING_STRATEGY.md](./d
 
 ### Code Quality
 
+**Static Analysis and Validation:**
+This project uses comprehensive static analysis to catch attribute errors, type issues, and other problems before deployment:
+
+```bash
+# Install validation tools
+pip install -r requirements-dev.txt
+
+# Run all validation checks
+python scripts/validate_python.py
+
+# Run specific checks
+python scripts/validate_python.py --tool ruff      # Fast linting
+python scripts/validate_python.py --tool mypy      # Type checking
+python scripts/validate_python.py --tool pyright   # Advanced type checking
+python scripts/validate_python.py --tool pylint    # Attribute checking
+python scripts/validate_python.py --tool import-tests  # Import smoke tests
+
+# Auto-fix issues (where possible)
+python scripts/validate_python.py --tool ruff --fix
+```
+
+The CI pipeline enforces:
+- **Ruff**: Fast Python linter for syntax and style
+- **MyPy**: Static type checker with strict mode
+- **Pyright**: Advanced type checker for catching attribute errors
+- **Pylint**: Attribute and member access validation
+- **Import Tests**: Ensures all modules load without errors
+
 **License headers:**
 All source files must include SPDX license headers. Verify compliance:
 ```bash
@@ -463,7 +491,7 @@ python scripts/check_license_headers.py --root .
 ```
 
 **Linting and formatting:**
-The project uses black for Python formatting and pre-commit hooks for enforcement.
+The project uses ruff for Python formatting and pre-commit hooks for enforcement.
 
 ***
 
