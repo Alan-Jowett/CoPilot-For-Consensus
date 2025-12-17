@@ -85,18 +85,18 @@ We will update schemas and documentation so each collection's primary identifier
 Adopt `_id` as the primary key across all collections. Keep semantic convenience fields only where they add value.
 
 1. **Embedding Service (chunks)**
-   - Chunk documents use `_id = SHA256_16(message_id | chunk_index)` \u2705
-   - Queries and updates use `_id` \u2705
+   - Chunk documents use `_id = SHA256_16(message_id | chunk_index)` ✅
+   - Queries and updates use `_id` ✅
 
 2. **Summarization Service (summaries)**
-   - Summaries use deterministic `_id` \u2705
-   - Events and consumers expect deterministic IDs \u2705
+   - Summaries use deterministic `_id` ✅
+   - Events and consumers expect deterministic IDs ✅
 
 3. **Reporting Service (reports)**
-   - Reports use deterministic `_id = summary_id` \u2705
+   - Reports use deterministic `_id = summary_id` ✅
 
 4. **Schemas & Docs**
-   - `SCHEMA.md` and JSON Schemas document `_id` as primary key per collection \u2705
+   - `SCHEMA.md` and JSON Schemas document `_id` as primary key per collection ✅
 
 ### Phase 3: Schema Migrations
 - Update event/document schemas to document deterministic `_id` derivation rules.
