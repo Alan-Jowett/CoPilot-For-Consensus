@@ -125,10 +125,10 @@ class EmbeddingService:
                 query={"embedding_generated": False},
                 event_type="ChunksPrepared",
                 routing_key="chunks.prepared",
-                id_field="chunk_key",
+                id_field="_id",
                 build_event_data=lambda doc: {
-                    "chunk_ids": [doc.get("chunk_key")],
-                    "message_keys": [doc.get("message_key")],
+                    "chunk_ids": [doc.get("_id")],
+                    "message_doc_ids": [doc.get("message_doc_id")],
                 },
                 limit=1000,
             )
@@ -207,7 +207,7 @@ class EmbeddingService:
                 chunks = list(self.document_store.query_documents(
                     collection="chunks",
                     filter_dict={
-                        "chunk_id": {"$in": chunk_ids},
+                        "_id": {"$in": chunk_ids},
                         "embedding_generated": False
                     }
                 ))
@@ -217,7 +217,7 @@ class EmbeddingService:
                     return
                 
                 # Validate all chunks have MongoDB _id (fail fast to prevent inconsistent state)
-                chunks_without_id = [c.get("chunk_id", "unknown") for c in chunks if not c.get("_id")]
+                chunks_without_id = [c.get("_id", "unknown") for c in chunks if not c.get("_id")]
                 if chunks_without_id:
                     error_msg = f"Chunks missing MongoDB _id field: {chunks_without_id}. Cannot update status."
                     logger.error(error_msg)
@@ -241,8 +241,8 @@ class EmbeddingService:
                     # All chunks validated to have _id above
                     batch_doc_ids = [chunk["_id"] for chunk in batch]
                     self._update_chunk_status_by_doc_ids(batch_doc_ids)
-                    # Keep original chunk_ids for events/metrics
-                    batch_chunk_ids = [chunk["chunk_id"] for chunk in batch]
+                    # Track canonical chunk IDs for events/metrics
+                    batch_chunk_ids = [chunk["_id"] for chunk in batch]
                     
                     all_generated_count += len(embeddings)
                     processed_chunk_ids.extend(batch_chunk_ids)
@@ -322,7 +322,7 @@ class EmbeddingService:
             text = chunk.get("text", "")
             
             if not text:
-                logger.warning(f"Chunk {chunk.get('chunk_id')} has no text, skipping")
+                logger.warning(f"Chunk {chunk.get('_id')} has no text, skipping")
                 continue
             
             # Generate embedding
@@ -330,10 +330,10 @@ class EmbeddingService:
             
             # Create embedding object with metadata
             embedding = {
-                "id": chunk["chunk_id"],
+                "id": chunk["_id"],
                 "vector": vector,
                 "metadata": {
-                    "chunk_id": chunk["chunk_id"],
+                    "chunk_id": chunk["_id"],
                     "message_id": chunk.get("message_id", ""),
                     "thread_id": chunk.get("thread_id", ""),
                     "archive_id": chunk.get("archive_id", ""),

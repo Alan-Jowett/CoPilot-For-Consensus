@@ -170,7 +170,7 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
     mock_document_store.query_documents.assert_called_once_with(
         collection="chunks",
         filter_dict={
-            "chunk_id": {"$in": chunk_ids},
+            "_id": {"$in": chunk_ids},
             "embedding_generated": False,
         }
     )
