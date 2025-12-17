@@ -7,20 +7,15 @@
     "_id": {
       "type": "string",
       "minLength": 16,
-      "maxLength": 64,
+      "maxLength": 16,
+      "pattern": "^[A-Fa-f0-9]{16}$",
       "description": "Canonical primary key: deterministic SHA256 (first 16 chars) of mbox file contents"
-    },
-    "archive_id": { 
-      "type": "string", 
-      "minLength": 16,
-      "maxLength": 64,
-      "deprecated": true,
-      "description": "Deprecated alias for _id (deterministic SHA256 first 16 chars). Use `_id` going forward."
     },
     "file_hash": { 
       "type": "string", 
       "minLength": 64,
       "maxLength": 64,
+      "pattern": "^[A-Fa-f0-9]{64}$",
       "description": "Full SHA256 hash of the mbox file for complete audit trail and integrity verification"
     },
     "file_size_bytes": { 

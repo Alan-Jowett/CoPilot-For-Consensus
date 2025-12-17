@@ -4,11 +4,18 @@
   "title": "threads collection",
   "type": "object",
   "properties": {
-    "_id": { "type": "string", "minLength": 16, "maxLength": 64, "description": "Deterministic thread identifier (e.g., root message or normalized subject lineage)" },
+    "_id": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 16,
+      "pattern": "^[A-Fa-f0-9]{16}$",
+      "description": "Deterministic thread identifier (e.g., root message or normalized subject lineage)"
+    },
     "archive_id": { 
       "type": "string", 
       "minLength": 16,
-      "maxLength": 64,
+      "maxLength": 16,
+      "pattern": "^[A-Fa-f0-9]{16}$",
       "description": "SHA256 hash of the mbox file this thread came from (first 16 chars)"
     },
     "subject": { "type": "string" },
@@ -53,7 +60,7 @@
     },
     "summary_id": {
       "anyOf": [
-        { "type": "string", "minLength": 16, "maxLength": 64 },
+        { "type": "string", "minLength": 16, "maxLength": 16, "pattern": "^[A-Fa-f0-9]{16}$" },
         { "type": "null" }
       ],
       "description": "Reference to summaries._id"

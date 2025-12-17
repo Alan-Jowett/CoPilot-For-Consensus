@@ -7,7 +7,8 @@
     "_id": {
       "type": "string",
       "minLength": 16,
-      "maxLength": 64,
+      "maxLength": 16,
+      "pattern": "^[A-Fa-f0-9]{16}$",
       "description": "Internal canonical identifier for this message. Deterministic SHA256 (first 16 chars) computed from stable fields (e.g., archive_id|message_id|date|sender_email|subject). Used as the MongoDB _id."
     },
     "message_id": {
@@ -18,12 +19,15 @@
     "archive_id": { 
       "type": "string", 
       "minLength": 16,
-      "maxLength": 64,
+      "maxLength": 16,
+      "pattern": "^[A-Fa-f0-9]{16}$",
       "description": "Internal identifier for the source archive (mbox file). Deterministic SHA256 (first 16 chars) of the archive content (or path), used to group messages by ingestion source."
     },
     "thread_id": {
       "type": "string",
-      "minLength": 1,
+      "minLength": 16,
+      "maxLength": 16,
+      "pattern": "^[A-Fa-f0-9]{16}$",
       "description": "Reference to the thread's canonical identifier (threads._id). Internal usage for grouping related messages; not an RFC field."
     },
     "in_reply_to": { 
