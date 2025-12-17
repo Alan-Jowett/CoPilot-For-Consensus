@@ -89,9 +89,9 @@
       },
       "targets": [
         {
-          "expr": "sum by (service_name) (count_over_time({service_name=~\".+\", level=\"WARNING\"}[1h]))",
+          "expr": "sum by (service) (count_over_time({service=~\".+\", level=\"WARNING\"}[1h]))",
           "refId": "A",
-          "legendFormat": "{{service_name}}"
+          "legendFormat": "{{service}}"
         }
       ],
       "title": "Warning Count per Service (last 1h)",
@@ -168,9 +168,9 @@
       },
       "targets": [
         {
-          "expr": "sum by (service_name) (count_over_time({service_name=~\".+\", level=\"INFO\"}[1h]))",
+          "expr": "sum by (service) (count_over_time({service=~\".+\", level=\"INFO\"}[1h]))",
           "refId": "A",
-          "legendFormat": "{{service_name}}"
+          "legendFormat": "{{service}}"
         }
       ],
       "title": "Info Count per Service (last 1h)",
@@ -245,9 +245,9 @@
       },
       "targets": [
         {
-          "expr": "sum by (service_name) (rate({service_name=~\".+\", level=\"WARNING\"}[1m]))",
+          "expr": "sum by (service) (rate({service=~\".+\", level=\"WARNING\"}[1m]))",
           "refId": "A",
-          "legendFormat": "{{service_name}}"
+          "legendFormat": "{{service}}"
         }
       ],
       "title": "Warning Rate Over Time",
@@ -274,7 +274,7 @@
       },
       "targets": [
         {
-          "expr": "{service_name=~\".+\", level=\"WARNING\"}",
+          "expr": "{service=~\".+\", level=\"WARNING\"}",
           "refId": "A"
         }
       ],
@@ -303,7 +303,7 @@
       },
       "targets": [
         {
-          "expr": "{service_name=~\".+\", level=\"INFO\"}",
+          "expr": "{service=~\".+\", level=\"INFO\"}",
           "refId": "A"
         }
       ],
@@ -385,7 +385,7 @@
       "pluginVersion": "8.0.0",
       "targets": [
         {
-          "expr": "topk(20, sum by (service_name) (count_over_time({service_name=~\".+\", level=\"WARNING\"}[1h])))",
+          "expr": "topk(20, sum by (service) (count_over_time({service=~\".+\", level=\"WARNING\"}[1h])))",
           "refId": "A",
           "legendFormat": "",
           "instant": true
@@ -402,7 +402,7 @@
             },
             "indexByName": {},
             "renameByName": {
-              "service_name": "Service",
+              "service": "Service",
               "Value": "Count"
             }
           }
