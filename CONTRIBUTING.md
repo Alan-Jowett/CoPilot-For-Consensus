@@ -32,6 +32,7 @@ See [GOVERNANCE.md](./GOVERNANCE.md) for details.
 *   Follow coding standards:
     *   Python: PEP 8 compliance
     *   Include docstrings and type hints
+    *   Pass all static analysis checks (ruff, mypy, pyright, pylint)
 *   Add tests for new functionality.
 *   Submit a PR with:
     *   A descriptive title
@@ -58,6 +59,51 @@ See [GOVERNANCE.md](./GOVERNANCE.md) for details.
 *   **Testing:** Unit tests for core logic, integration tests for pipeline components.
 *   **Documentation:** Update README.md and relevant docs for any new feature.
 *   **Forward Progress:** All services must guarantee forward progress through idempotency, retry logic, and proper error handling. See [documents/FORWARD_PROGRESS.md](./documents/FORWARD_PROGRESS.md) for detailed patterns and implementation guidelines.
+
+### Development Environment Setup
+
+To set up your development environment with all validation tools:
+
+```bash
+# Clone the repository
+git clone https://github.com/Alan-Jowett/CoPilot-For-Consensus.git
+cd CoPilot-For-Consensus
+
+# Install development dependencies (includes type checkers and linters)
+pip install -r requirements-dev.txt
+
+# Install pre-commit hooks
+pip install pre-commit
+pre-commit install
+```
+
+### Static Analysis and Validation
+
+This project uses comprehensive static analysis to catch attribute errors, missing fields, and type issues before they reach production:
+
+*   **Ruff**: Fast Python linter for syntax and style checks
+*   **MyPy**: Static type checker with strict mode enabled
+*   **Pyright**: Advanced type checker for catching attribute errors
+*   **Pylint**: Additional linting focused on attribute and member access
+
+All pull requests must pass these checks in CI. To run validation locally:
+
+```bash
+# Run all linters and type checkers
+ruff check .                          # Fast linting
+mypy <module_path>                    # Type checking with mypy
+npx pyright <module_path>            # Type checking with pyright
+pylint <module_path> --disable=all --enable=E1101,E0611,E1102,E1120,E1121
+
+# Run import smoke tests
+pytest tests/test_imports.py -v
+```
+
+The CI pipeline includes:
+- Static type checking (mypy, pyright)
+- Linting (ruff, pylint)
+- Import smoke tests to ensure all modules load without errors
+- Runtime validation for configs and JSON payloads (via Pydantic where applicable)
 
 ### Key Patterns for Contributors
 

@@ -1,0 +1,150 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+# Root-level configuration for Python validation tools
+# This file enables strict static type checking and linting for the entire project
+
+[tool.ruff]
+# Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default.
+# Also enable import sorting (`I`), unused arguments (`ARG`), and undefined names (`F821`)
+select = ["E", "F", "W", "I", "ARG", "UP"]
+ignore = []
+
+# Allow autofix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+    "htmlcov",
+]
+
+# Same as Black.
+line-length = 120
+
+# Target Python 3.10+
+target-version = "py310"
+
+[tool.ruff.per-file-ignores]
+# Ignore import order in __init__.py files
+"__init__.py" = ["F401", "E402"]
+# Ignore unused arguments in test files
+"test_*.py" = ["ARG001", "ARG002"]
+
+[tool.mypy]
+# Strict mode enables all optional error checking flags
+strict = true
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_unimported = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+check_untyped_defs = true
+strict_equality = true
+
+# Per-module configuration
+[[tool.mypy.overrides]]
+module = [
+    "pymongo.*",
+    "pika.*",
+    "qdrant_client.*",
+    "prometheus_client.*",
+    "uvicorn.*",
+    "fastapi.*",
+    "pydantic.*",
+]
+ignore_missing_imports = true
+
+[tool.pyright]
+# Pyright strict mode - catches attribute errors and missing fields
+pythonVersion = "3.10"
+typeCheckingMode = "basic"  # Start with basic, can move to "strict" gradually
+reportMissingImports = true
+reportMissingTypeStubs = false
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportUnknownVariableType = false
+reportUnknownLambdaType = false
+reportUnknownParameterType = false
+reportUnnecessaryIsInstance = "warning"
+reportUnnecessaryCast = "warning"
+reportUnnecessaryComparison = "warning"
+reportAttributeAccessIssue = "error"  # Critical: catch attribute errors
+reportOptionalMemberAccess = "error"
+reportOptionalSubscript = "error"
+reportOptionalOperand = "error"
+
+# Exclude directories that shouldn't be type-checked
+exclude = [
+    "**/__pycache__",
+    "**/node_modules",
+    "**/.venv",
+    "**/venv",
+    "**/dist",
+    "**/build",
+    "htmlcov",
+]
+
+[tool.pylint.main]
+# Pylint configuration for catching attribute issues
+py-version = "3.10"
+jobs = 0  # Use all available CPUs
+
+[tool.pylint.messages_control]
+# Enable critical checks for missing attributes and members
+enable = [
+    "E1101",  # no-member: Used when a variable is accessed for a nonexistent member
+    "E0611",  # no-name-in-module: Used when a name cannot be found in a module
+    "E1102",  # not-callable: Used when an object being called has been inferred to a non-callable object
+    "E1120",  # no-value-for-parameter: Used when a function call passes too few arguments
+    "E1121",  # too-many-function-args: Used when a function call passes too many positional arguments
+]
+
+# Disable overly strict or noisy checks
+disable = [
+    "C0111",  # missing-docstring
+    "C0103",  # invalid-name
+    "R0903",  # too-few-public-methods
+    "R0913",  # too-many-arguments
+    "W0212",  # protected-access
+]
+
+[tool.pylint.format]
+max-line-length = 120
+
+[tool.pytest.ini_options]
+# Pytest configuration
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --strict-markers"
+markers = [
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]

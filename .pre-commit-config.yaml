@@ -18,3 +18,17 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [commit, push]
+      - id: ruff-check
+        name: Ruff linter
+        entry: ruff check --fix
+        language: system
+        types: [python]
+        require_serial: true
+        stages: [commit]
+      - id: ruff-format
+        name: Ruff formatter
+        entry: ruff format
+        language: system
+        types: [python]
+        require_serial: true
+        stages: [commit]
