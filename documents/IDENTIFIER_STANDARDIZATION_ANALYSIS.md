@@ -11,9 +11,9 @@ Standardize on MongoDB-canonical `_id` as the single primary identifier across a
 ### 1. Database Collections (MongoDB)
 
 #### Target mapping (make `_id` canonical):
-- archives: `_id = SHA256_16(mbox_file_contents)` (previously `archive_id`)
-- messages: `_id = SHA256_16(archive_id | message_id | date | sender | subject)` (previously `message_key`)
-- chunks: `_id = SHA256_16(message_id | chunk_index)` (previously `chunk_key`)
+- archives: `_id = SHA256_16(mbox_file_contents)`
+- messages: `_id = SHA256_16(archive_id | message_id | date | sender | subject)`
+- chunks: `_id = SHA256_16(message_id | chunk_index)`
 - threads: `_id = root_message_id` (unchanged concept; stored in `_id`)
 - summaries: `_id = SHA256_16(thread_id | summary_content | generation_timestamp)` (replace UUIDs)
 - reports: `_id = summary._id` (or `_id = SHA256_16(summary._id | metadata)` if separation is needed)
@@ -123,30 +123,28 @@ Adopt `_id` as the primary key across all collections. Keep semantic convenience
 _id = SHA256_16(mbox_file_contents)
 ```
 **Source**: File content from ingestion source
-**Status**: ✅ Already implemented
+**Status**: ✅ Canonical identifier established
 
 ### Messages
 ```
 _id = SHA256_16(archive_id | message_id | date | sender | subject)
 ```
 **Source**: Email headers + archive_id
-**Status**: ✅ Already defined in SCHEMA.md (now stored in `_id`)
+**Status**: ✅ Canonical identifier established
 
 ### Chunks
 ```
 _id = SHA256_16(message_id | chunk_index)
-# or
-_id = SHA256_16(message_key | chunk_index)
 ```
 **Source**: message + position within message
-**Status**: ✅ Previously `chunk_key`; moved to `_id`
+**Status**: ✅ Canonical identifier established
 
 ### Threads
 ```
 _id = root_message_id  (first message in thread)
 ```
 **Source**: Original message thread root
-**Status**: ✅ Already implemented (now stored in `_id`)
+**Status**: ✅ Canonical identifier established
 
 ### Summaries (TO STANDARDIZE)
 ```
