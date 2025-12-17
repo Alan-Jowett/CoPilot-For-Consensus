@@ -92,7 +92,7 @@ def test_resolve_threads(orchestration_service, mock_document_store):
     mock_document_store.query_documents.assert_called_once()
     call_args = mock_document_store.query_documents.call_args
     assert call_args[0][0] == "chunks"
-    assert "chunk_id" in call_args[0][1]
+    assert "_id" in call_args[0][1]
 
 
 def test_retrieve_context(orchestration_service, mock_document_store):
@@ -102,17 +102,17 @@ def test_retrieve_context(orchestration_service, mock_document_store):
     # Setup mock data
     chunks = [
         {
-            "chunk_id": "chunk-1",
+            "_id": "aaaa1111bbbb2222",
+            "message_doc_id": "abc123def4567890",
             "message_id": "<msg-1@example.com>",
-            "message_key": "<msg-1@example.com>",
             "thread_id": thread_id,
             "text": "Test chunk 1",
             "embedding_generated": True,
         },
         {
-            "chunk_id": "chunk-2",
+            "_id": "cccc3333dddd4444",
+            "message_doc_id": "fedcba9876543210",
             "message_id": "<msg-2@example.com>",
-            "message_key": "<msg-2@example.com>",
             "thread_id": thread_id,
             "text": "Test chunk 2",
             "embedding_generated": True,
@@ -121,16 +121,16 @@ def test_retrieve_context(orchestration_service, mock_document_store):
     
     messages = [
         {
+            "_id": "abc123def4567890",
             "message_id": "<msg-1@example.com>",
-            "message_key": "<msg-1@example.com>",
             "subject": "Test Subject",
             "from": {"name": "User 1", "email": "user1@example.com"},
             "date": "2023-10-15T12:00:00Z",
             "draft_mentions": [],
         },
         {
+            "_id": "fedcba9876543210",
             "message_id": "<msg-2@example.com>",
-            "message_key": "<msg-2@example.com>",
             "subject": "Re: Test Subject",
             "from": {"name": "User 2", "email": "user2@example.com"},
             "date": "2023-10-15T13:00:00Z",
@@ -143,7 +143,7 @@ def test_retrieve_context(orchestration_service, mock_document_store):
         if collection == "chunks":
             return chunks
         elif collection == "messages":
-            # Expect filter on message_key $in
+            # Expect filter on _id $in
             return messages
         return []
     

@@ -319,7 +319,7 @@ class OrchestrationService:
         """Resolve thread IDs from chunk IDs.
 
         Args:
-            chunk_ids: List of chunk IDs
+            chunk_ids: List of chunk IDs (_id values)
 
         Returns:
             List of unique thread IDs
@@ -327,10 +327,10 @@ class OrchestrationService:
         thread_ids: Set[str] = set()
 
         try:
-            # Query document store for chunks
+            # Query document store for chunks by _id
             chunks = self.document_store.query_documents(
                 "chunks",
-                {"chunk_id": {"$in": chunk_ids}},
+                {"_id": {"$in": chunk_ids}},
                 limit=len(chunk_ids)
             )
 
@@ -403,14 +403,14 @@ class OrchestrationService:
                 return {}
 
             # Get message metadata
-            message_keys = list(set(chunk.get("message_key") for chunk in chunks if chunk.get("message_key")))
+            message_doc_ids = list(set(chunk.get("message_doc_id") for chunk in chunks if chunk.get("message_doc_id")))
             messages = []
 
-            if message_keys:
+            if message_doc_ids:
                 messages = self.document_store.query_documents(
                     "messages",
-                    {"message_key": {"$in": message_keys}},
-                    limit=len(message_keys)
+                    {"_id": {"$in": message_doc_ids}},
+                    limit=len(message_doc_ids)
                 )
 
             context = {
