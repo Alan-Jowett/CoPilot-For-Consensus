@@ -1,0 +1,282 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Python Validation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '**.py'
+      - 'pyproject.toml'
+      - 'requirements-dev.txt'
+      - '.github/workflows/python-validation.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '**.py'
+      - 'pyproject.toml'
+      - 'requirements-dev.txt'
+      - '.github/workflows/python-validation.yml'
+  workflow_dispatch:  # Allow manual triggering
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-analysis:
+    name: Static Type Checking and Linting
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    strategy:
+      matrix:
+        python-version: ["3.10"]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install Node.js (for pyright)
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4
+        with:
+          node-version: '20'
+
+      - name: Install validation dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Install all adapters
+        run: |
+          # Install all adapters for comprehensive validation
+          python adapters/scripts/install_adapters.py \
+            copilot_auth \
+            copilot_chunking \
+            copilot_config \
+            copilot_consensus \
+            copilot_embedding \
+            copilot_events \
+            copilot_logging \
+            copilot_metrics \
+            copilot_archive_fetcher \
+            copilot_archive_store \
+            copilot_reporting \
+            copilot_schema_validation \
+            copilot_storage \
+            copilot_summarization \
+            copilot_vectorstore \
+            copilot_draft_diff \
+            copilot_startup
+
+      - name: Ruff - Fast Python Linter
+        run: |
+          echo "::group::Running Ruff"
+          ruff check . --output-format=github || true
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: Ruff - Check Import Sorting
+        run: |
+          echo "::group::Checking Import Order"
+          ruff check . --select I --output-format=github || true
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: Pylint - Attribute and Member Checking
+        run: |
+          echo "::group::Running Pylint for Critical Checks"
+          # Run pylint on adapters focusing on attribute errors
+          for adapter_dir in adapters/copilot_*/; do
+            if [ -d "$adapter_dir" ]; then
+              adapter_name=$(basename "$adapter_dir")
+              echo "Checking $adapter_name..."
+              pylint "$adapter_dir/$adapter_name/" \
+                --disable=all \
+                --enable=E1101,E0611,E1102,E1120,E1121 \
+                --output-format=colorized || echo "Pylint found issues in $adapter_name"
+            fi
+          done
+          
+          # Run pylint on services
+          for service_dir in chunking embedding ingestion orchestrator parsing reporting reporting-ui summarization; do
+            if [ -d "$service_dir/app" ]; then
+              echo "Checking $service_dir..."
+              pylint "$service_dir/app/" \
+                --disable=all \
+                --enable=E1101,E0611,E1102,E1120,E1121 \
+                --output-format=colorized || echo "Pylint found issues in $service_dir"
+            fi
+          done
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: MyPy - Static Type Checking
+        run: |
+          echo "::group::Running MyPy Type Checker"
+          # Run mypy on adapters
+          for adapter_dir in adapters/copilot_*/; do
+            if [ -d "$adapter_dir" ]; then
+              adapter_name=$(basename "$adapter_dir")
+              echo "Type checking $adapter_name..."
+              mypy "$adapter_dir/$adapter_name/" --no-error-summary || echo "MyPy found issues in $adapter_name"
+            fi
+          done
+          
+          # Run mypy on services (may have more external dependencies)
+          for service_dir in chunking embedding ingestion orchestrator parsing reporting reporting-ui summarization; do
+            if [ -d "$service_dir/app" ]; then
+              echo "Type checking $service_dir..."
+              mypy "$service_dir/app/" --no-error-summary || echo "MyPy found issues in $service_dir"
+            fi
+          done
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: Pyright - Strict Type Checking
+        run: |
+          echo "::group::Running Pyright Type Checker"
+          # Install pyright globally via npm
+          npm install -g pyright
+          
+          # Run pyright on adapters
+          for adapter_dir in adapters/copilot_*/; do
+            if [ -d "$adapter_dir" ]; then
+              adapter_name=$(basename "$adapter_dir")
+              echo "Type checking $adapter_name..."
+              pyright "$adapter_dir/$adapter_name/" --level error || echo "Pyright found issues in $adapter_name"
+            fi
+          done
+          
+          # Run pyright on services
+          for service_dir in chunking embedding ingestion orchestrator parsing reporting reporting-ui summarization; do
+            if [ -d "$service_dir/app" ]; then
+              echo "Type checking $service_dir..."
+              pyright "$service_dir/app/" --level error || echo "Pyright found issues in $service_dir"
+            fi
+          done
+          echo "::endgroup::"
+        continue-on-error: true
+
+      - name: Generate Validation Summary
+        if: always()
+        run: |
+          echo "## Python Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Static analysis checks completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note**: Some checks are set to continue-on-error to allow gradual adoption." >> $GITHUB_STEP_SUMMARY
+          echo "Please review any warnings or errors reported above." >> $GITHUB_STEP_SUMMARY
+
+  import-smoke-tests:
+    name: Import Smoke Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    strategy:
+      matrix:
+        python-version: ["3.10"]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-timeout
+
+      - name: Install all adapters
+        run: |
+          # Install all adapters for import testing
+          python adapters/scripts/install_adapters.py \
+            copilot_auth \
+            copilot_chunking \
+            copilot_config \
+            copilot_consensus \
+            copilot_embedding \
+            copilot_events \
+            copilot_logging \
+            copilot_metrics \
+            copilot_archive_fetcher \
+            copilot_archive_store \
+            copilot_reporting \
+            copilot_schema_validation \
+            copilot_storage \
+            copilot_summarization \
+            copilot_vectorstore \
+            copilot_draft_diff \
+            copilot_startup
+
+      - name: Install service dependencies (minimal)
+        run: |
+          # Install minimal dependencies for each service to enable imports
+          for service_dir in chunking embedding ingestion orchestrator parsing reporting reporting-ui summarization; do
+            if [ -f "$service_dir/requirements.txt" ]; then
+              echo "Installing dependencies for $service_dir..."
+              pip install -r "$service_dir/requirements.txt" || echo "Some dependencies for $service_dir failed to install"
+            fi
+          done
+
+      - name: Run import smoke tests
+        env:
+          PYTHONWARNINGS: default::DeprecationWarning,default::FutureWarning
+        run: |
+          echo "::group::Running Import Smoke Tests"
+          pytest tests/test_imports.py -v --tb=short --timeout=60 --junit-xml=test-results.xml
+          echo "::endgroup::"
+
+      - name: Test Report
+        if: always()
+        uses: dorny/test-reporter@fe45e9537387dac839af0d33ba56eed8e24189e8 # v2
+        with:
+          name: Import Smoke Test Results
+          path: 'test-results.xml'
+          reporter: 'java-junit'
+        continue-on-error: true
+
+  validation-summary:
+    name: Validation Summary
+    runs-on: ubuntu-latest
+    needs: [static-analysis, import-smoke-tests]
+    if: always()
+    
+    steps:
+      - name: Report Status
+        run: |
+          echo "## Overall Python Validation Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Static Analysis: ${{ needs.static-analysis.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Import Smoke Tests: ${{ needs.import-smoke-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.static-analysis.result }}" = "success" ] && [ "${{ needs.import-smoke-tests.result }}" = "success" ]; then
+            echo "✅ All validation checks passed!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Some validation checks reported issues. Please review." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check for Critical Failures
+        run: |
+          if [ "${{ needs.import-smoke-tests.result }}" = "failure" ]; then
+            echo "::error::Import smoke tests failed - critical import errors detected"
+            exit 1
+          fi
