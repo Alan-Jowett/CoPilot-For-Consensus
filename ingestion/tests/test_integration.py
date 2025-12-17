@@ -109,7 +109,7 @@ class TestIngestionIntegration:
         
         # Verify each archive has correct structure
         for archive in archives:
-            assert "archive_id" in archive
+            assert "_id" in archive
             assert archive["status"] == "pending"
             assert archive["message_count"] == 0
             assert "ingestion_date" in archive

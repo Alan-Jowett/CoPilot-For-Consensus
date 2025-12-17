@@ -649,8 +649,14 @@ class IngestionService:
             file_ext = os.path.splitext(file_path)[1].lstrip('.')
             archive_format = file_ext if file_ext else "mbox"  # default to mbox
 
+            # Compute required fields for schema validation
+            file_hash = calculate_file_hash(file_path)
+            file_size_bytes = os.path.getsize(file_path)
+
             archive_doc = {
-                "archive_id": archive_id,
+                "_id": archive_id,  # Canonical identifier
+                "file_hash": file_hash,
+                "file_size_bytes": file_size_bytes,
                 "source": source.name,
                 "source_url": source.url,
                 "format": archive_format,
