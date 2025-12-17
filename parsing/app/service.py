@@ -20,6 +20,7 @@ from copilot_events import (
 from copilot_storage import DocumentStore
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
+from copilot_schema_validation import generate_message_doc_id
 from copilot_logging import create_logger
 
 from .parser import MessageParser
@@ -314,6 +315,7 @@ class ParsingService:
             messages: List of message dictionaries
             
         Note:
+            - Computes canonical _id for each message before storing
             - Inserts documents one at a time
             - Skips duplicate and validation errors and logs them
             - Re-raises other errors (transient failures)
@@ -323,7 +325,16 @@ class ParsingService:
         
         for message in messages:
             try:
-                # Messages already have canonical _id assigned during parsing
+                # Compute canonical _id if not already present
+                if "_id" not in message:
+                    message["_id"] = generate_message_doc_id(
+                        archive_id=message.get("archive_id", ""),
+                        message_id=message.get("message_id", ""),
+                        date=message.get("date"),
+                        sender_email=message.get("from", {}).get("email"),
+                        subject=message.get("subject"),
+                    )
+                
                 self.document_store.insert_document("messages", message)
                 stored_count += 1
             except (DuplicateKeyError, DocumentValidationError) as e:
@@ -450,8 +461,8 @@ class ParsingService:
         
         for message in parsed_messages:
             # Validate required fields exist
-            message_id = message.get("_id")
-            if not message_id:
+            message_doc_id = message.get("_id")
+            if not message_doc_id:
                 logger.error(f"Cannot publish event: message missing required '_id' field")
                 failed_publishes.append((
                     "unknown",
@@ -468,7 +479,7 @@ class ParsingService:
                 data={
                     "archive_id": archive_id,
                     "message_count": 1,  # Single message per event
-                    "message_doc_ids": [message_id],  # Single-item array
+                    "message_doc_ids": [message_doc_id],  # Single-item array
                     "thread_count": len(thread_ids),
                     "thread_ids": thread_ids,
                     # Note: parsing_duration_seconds represents the total archive parsing time,
@@ -483,20 +494,20 @@ class ParsingService:
                     routing_key="json.parsed",
                     event=event.to_dict(),
                 )
-                logger.debug(f"Published JSONParsed event for message {message_id}")
+                logger.debug(f"Published JSONParsed event for message {message_doc_id}")
             except Exception as e:
                 logger.error(
-                    f"Failed to publish JSONParsed event for message {message_id}: {e}",
+                    f"Failed to publish JSONParsed event for message {message_doc_id}: {e}",
                     exc_info=True
                 )
-                failed_publishes.append((message_id, e))
+                failed_publishes.append((message_doc_id, e))
                 if self.error_reporter:
                     self.error_reporter.report(
                         e,
                         context={
                             "operation": "publish_json_parsed",
                             "archive_id": archive_id,
-                            "message_id": message_id,
+                            "message_doc_id": message_doc_id,
                         }
                     )
         
