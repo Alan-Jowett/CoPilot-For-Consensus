@@ -49,7 +49,7 @@ This project aims to be:
 - **LLM-Powered Summarization**: Extractive + abstractive summaries with configurable backends:
   - **Local**: Ollama (Mistral, Llama 2, etc.) for fully offline operation
   - **Cloud**: Azure OpenAI, OpenAI API for production scale
-  - **Alternative**: llama.cpp with AMD GPU support
+  - **Alternative**: llama.cpp with AMD/Intel GPU support (DirectML on Windows/WSL2)
 - **Consensus Detection**: Identify agreement/dissent signals in threads (in development)
 - **Draft Tracking**: Monitor mentions and evolution of RFC drafts (in development)
 - **Transparency**: Inline citations linking summaries to original messages
@@ -59,7 +59,7 @@ This project aims to be:
 - **Observability Stack**: Prometheus metrics, Grafana dashboards, Loki logging, and Promtail log aggregation
 - **Error Handling**: Retry policies, failed queue management, and centralized error reporting
 - **Idempotency**: All operations are idempotent with deduplication support
-- **GPU Acceleration**: Optional NVIDIA (Ollama) or AMD (llama.cpp) GPU support for 10-100x faster inference
+- **GPU Acceleration**: Optional NVIDIA (Ollama), AMD/Intel (DirectML) GPU support for 10-100x faster inference
 - **Schema Validation**: JSON schema validation for all messages and events
 - **Health Checks**: Comprehensive health checks for all services
 - **TLS/HTTPS Support**: API Gateway supports TLS with configurable certificates for secure communication
@@ -116,6 +116,7 @@ See [Gateway Documentation](./docs/gateway/overview.md) for architecture, deploy
 | RabbitMQ | Message broker for event-driven communication | 5672, 15672 (localhost) | Production |
 | Ollama | Local LLM runtime (offline capable) | 11434 (localhost) | Production |
 | llama.cpp | Alternative LLM runtime with AMD GPU support | 8081 (localhost) | Optional |
+| llama-directml | DirectML-enabled LLM runtime (Windows/WSL2) | 8082 (localhost) | Optional |
 | **Observability** | | | |
 | Prometheus | Metrics collection and aggregation | 9090 (localhost) | Production |
 | Grafana | Monitoring dashboards and visualization | via 8080 (/grafana) | Production |
@@ -156,6 +157,7 @@ See [Gateway Documentation](./docs/gateway/overview.md) for architecture, deploy
   - Supports optional GPU acceleration (10-100x speedup) - see [documents/OLLAMA_GPU_SETUP.md](./documents/OLLAMA_GPU_SETUP.md)
   - NVIDIA GPU support (recommended for performance)
 - **llama.cpp** (optional): Alternative local LLM runtime with AMD GPU support (Vulkan/ROCm) - see [AMD GPU Setup Guide](./documents/LLAMA_CPP_AMD_SETUP.md)
+- **llama-directml** (optional): DirectML-enabled LLM runtime for AMD/Intel GPUs on Windows/WSL2 - see [DIRECTML_SETUP.md](./DIRECTML_SETUP.md)
 
 ### Observability Stack
 
@@ -299,7 +301,10 @@ For the full list of exposed ports and security considerations, see [documents/E
        - Linux/macOS/WSL2: `./scripts/check_ollama_gpu.sh`
        - Windows PowerShell: `.\scripts\check_ollama_gpu.ps1`
        - Or directly: `docker exec ollama nvidia-smi`
-   - **AMD GPU** (experimental): See [AMD GPU Setup Guide](./documents/LLAMA_CPP_AMD_SETUP.md) to enable llama.cpp with Vulkan/ROCm
+   - **AMD/Intel GPU on Windows/WSL2**: See [DIRECTML_SETUP.md](./DIRECTML_SETUP.md) for DirectML setup
+     - Best option for AMD Radeon RX series and integrated GPUs on Windows
+     - Uses native DirectX 12 acceleration (no ROCm required)
+   - **AMD GPU on Linux** (experimental): See [AMD GPU Setup Guide](./documents/LLAMA_CPP_AMD_SETUP.md) to enable llama.cpp with Vulkan/ROCm
 
 6. Run ingestion to process test data:
 
