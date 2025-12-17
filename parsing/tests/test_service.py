@@ -478,7 +478,7 @@ def test_json_parsed_event_schema_validation(document_store, sample_mbox_file):
     )
     
     archive_data = {
-        "archive_id": "test-archive-schema",
+        "archive_id": "aaaaaaaaaaaaaaaa",
         "file_path": sample_mbox_file,
     }
     
@@ -512,7 +512,7 @@ def test_parsing_failed_event_schema_validation(document_store):
     
     # Try to process a non-existent file
     archive_data = {
-        "archive_id": "test-archive-fail",
+        "archive_id": "bbbbbbbbbbbbbbbb",
         "file_path": "/nonexistent/file.mbox",
     }
     
@@ -556,7 +556,7 @@ def test_consume_archive_ingested_event(document_store, sample_mbox_file):
         "timestamp": "2023-10-15T12:00:00Z",
         "version": "1.0",
         "data": {
-            "archive_id": "test-archive-consume",
+            "archive_id": "cccccccccccccccc",
             "source_name": "test-source",
             "source_type": "local",
             "source_url": sample_mbox_file,
