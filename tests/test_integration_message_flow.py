@@ -104,7 +104,7 @@ class TestEventSchemaValidation:
             "version": "1.0",
             "data": {
                 "archive_id": "a1b2c3d4e5f67890",
-                "message_keys": ["mk1", "mk2"],
+                "message_doc_ids": ["mk1", "mk2"],
                 "thread_ids": ["<thread@example.com>"],
                 "message_count": 2,
                 "thread_count": 1,
@@ -125,7 +125,7 @@ class TestEventSchemaValidation:
             "version": "1.0",
             "data": {
                 "chunk_ids": ["chunk_1", "chunk_2"],
-                "message_keys": ["<msg1@example.com>"],
+                "message_doc_ids": ["<msg1@example.com>"],
                 "chunk_count": 2,
                 "avg_chunk_size_tokens": 256,
                 "chunks_ready": True,
@@ -216,7 +216,7 @@ class TestEventSchemaValidation:
             "version": "1.0",
             "data": {
                 "archive_id": "a1b2c3d4e5f67890",
-                "message_keys": "not-an-array",  # Should be array
+                "message_doc_ids": "not-an-array",  # Should be array
                 "thread_ids": ["<thread@example.com>"],
                 "message_count": 1,
                 "thread_count": 1,
@@ -298,7 +298,7 @@ class TestMessageFlowPatterns:
             "version": "1.0",
             "data": {
                 "archive_id": input_event["data"]["archive_id"],  # Preserved
-                "message_keys": ["<msg1@example.com>", "<msg2@example.com>"],
+                "message_doc_ids": ["<msg1@example.com>", "<msg2@example.com>"],
                 "thread_ids": ["<thread@example.com>"],
                 "message_count": 2,
                 "thread_count": 1,
@@ -322,7 +322,7 @@ class TestMessageFlowPatterns:
             "version": "1.0",
             "data": {
                 "archive_id": "a1b2c3d4e5f67890",
-                "message_keys": ["<msg1@example.com>", "<msg2@example.com>"],
+                "message_doc_ids": ["<msg1@example.com>", "<msg2@example.com>"],
                 "thread_ids": ["<thread@example.com>"],
                 "message_count": 2,
                 "thread_count": 1,
@@ -340,7 +340,7 @@ class TestMessageFlowPatterns:
             "version": "1.0",
             "data": {
                 "chunk_ids": ["chunk_1", "chunk_2", "chunk_3"],
-                "message_keys": input_event["data"]["message_keys"],  # Preserved
+                "message_doc_ids": input_event["data"]["message_doc_ids"],  # Preserved
                 "chunk_count": 3,
                 "avg_chunk_size_tokens": 256,
                 "chunks_ready": True,
@@ -350,5 +350,5 @@ class TestMessageFlowPatterns:
         
         validate_event(output_event)
         
-        # Verify data flow: message_keys are preserved
-        assert output_event["data"]["message_keys"] == input_event["data"]["message_keys"]
+        # Verify data flow: message_doc_ids are preserved
+        assert output_event["data"]["message_doc_ids"] == input_event["data"]["message_doc_ids"]

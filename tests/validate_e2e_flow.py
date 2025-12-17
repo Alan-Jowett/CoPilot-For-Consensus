@@ -217,7 +217,7 @@ class E2EMessageFlowValidator:
             print(f"⚠ Warning: Expected at least {expected_min_count} messages, got {len(messages)}")
         
         # Validate message structure
-        required_fields = ["message_key", "message_id", "archive_id", "thread_id", "subject", "from", "date"]
+        required_fields = ["_id", "message_id", "archive_id", "thread_id", "subject", "from", "date"]
         for msg in messages[:3]:  # Check first 3 messages
             print(f"  - Message ID: {msg.get('message_id')}")
             print(f"    Subject: {msg.get('subject')}")
@@ -344,10 +344,10 @@ class E2EMessageFlowValidator:
             return {"status": "SKIP"}
         
         # Check that all chunks reference valid messages
-        message_keys = {msg["message_key"] for msg in messages}
-        chunk_message_keys = {chunk["message_key"] for chunk in chunks}
+        message_ids = {msg["_id"] for msg in messages}
+        chunk_message_ids = {chunk["_id"] for chunk in chunks}
         
-        orphaned_chunks = chunk_message_keys - message_keys
+        orphaned_chunks = chunk_message_ids - message_ids
         if orphaned_chunks:
             print(f"⚠ Warning: Found {len(orphaned_chunks)} chunks referencing non-existent messages")
         else:
