@@ -312,7 +312,7 @@ jobs:
         python scripts/validate_grafana_dashboards.py \
           --grafana-url http://localhost:3000 \
           --username admin \
-          --password admin \
+          --password PLEASE_CHANGE_ME \
           --dashboard-dir infra/grafana/dashboards \
           --max-retries 30 \
           --retry-delay 5
