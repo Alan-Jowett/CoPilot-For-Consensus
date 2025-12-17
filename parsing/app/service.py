@@ -20,7 +20,6 @@ from copilot_events import (
 from copilot_storage import DocumentStore
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
-from copilot_schema_validation import generate_message_key
 from copilot_logging import create_logger
 
 from .parser import MessageParser
@@ -315,7 +314,6 @@ class ParsingService:
             messages: List of message dictionaries
             
         Note:
-            - Computes message_key for each message before storing
             - Inserts documents one at a time
             - Skips duplicate and validation errors and logs them
             - Re-raises other errors (transient failures)
@@ -325,16 +323,7 @@ class ParsingService:
         
         for message in messages:
             try:
-                # Compute message_key if not already present
-                if "message_key" not in message:
-                    message["message_key"] = generate_message_key(
-                        archive_id=message.get("archive_id", ""),
-                        message_id=message.get("message_id", ""),
-                        date=message.get("date"),
-                        sender_email=message.get("from", {}).get("email"),
-                        subject=message.get("subject"),
-                    )
-                
+                # Messages already have canonical _id assigned during parsing
                 self.document_store.insert_document("messages", message)
                 stored_count += 1
             except (DuplicateKeyError, DocumentValidationError) as e:
@@ -461,12 +450,12 @@ class ParsingService:
         
         for message in parsed_messages:
             # Validate required fields exist
-            message_key = message.get("message_key")
-            if not message_key:
-                logger.error(f"Cannot publish event: message missing required 'message_key' field")
+            message_id = message.get("_id")
+            if not message_id:
+                logger.error(f"Cannot publish event: message missing required '_id' field")
                 failed_publishes.append((
                     "unknown",
-                    ValueError("Message missing required 'message_key' field")
+                    ValueError("Message missing required '_id' field")
                 ))
                 continue
             
@@ -479,7 +468,7 @@ class ParsingService:
                 data={
                     "archive_id": archive_id,
                     "message_count": 1,  # Single message per event
-                    "message_keys": [message_key],  # Single-item array
+                    "message_doc_ids": [message_id],  # Single-item array
                     "thread_count": len(thread_ids),
                     "thread_ids": thread_ids,
                     # Note: parsing_duration_seconds represents the total archive parsing time,
@@ -494,20 +483,20 @@ class ParsingService:
                     routing_key="json.parsed",
                     event=event.to_dict(),
                 )
-                logger.debug(f"Published JSONParsed event for message {message_key}")
+                logger.debug(f"Published JSONParsed event for message {message_id}")
             except Exception as e:
                 logger.error(
-                    f"Failed to publish JSONParsed event for message {message_key}: {e}",
+                    f"Failed to publish JSONParsed event for message {message_id}: {e}",
                     exc_info=True
                 )
-                failed_publishes.append((message_key, e))
+                failed_publishes.append((message_id, e))
                 if self.error_reporter:
                     self.error_reporter.report(
                         e,
                         context={
                             "operation": "publish_json_parsed",
                             "archive_id": archive_id,
-                            "message_key": message_key,
+                            "message_id": message_id,
                         }
                     )
         
