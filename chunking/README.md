@@ -160,7 +160,7 @@ Each chunk is stored in the `chunks` collection:
 
 ```python
 {
-    "chunk_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "_id": "a1b2c3d4e5f6789abcdef123456789ab",
     "message_id": "<20231015123456.ABC123@example.com>",
     "thread_id": "<20231015120000.XYZ789@example.com>",
     "archive_id": "b9c8d7e6f5a4b3c",
@@ -188,7 +188,7 @@ Each chunk is stored in the `chunks` collection:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `chunk_id` | String (SHA256 hash, 16 chars) | Unique identifier for chunk |
+| `_id` | String (SHA256 hash, 16 chars) | Unique identifier for chunk (canonical) |
 | `message_id` | String | Source message Message-ID |
 | `thread_id` | String | Thread identifier |
 | `archive_id` | String (SHA256 hash, 16 chars) | Source archive identifier |
@@ -236,7 +236,7 @@ def chunk_message(message_text: str, config: ChunkConfig) -> List[Chunk]:
     offset = 0
     for i, text in enumerate(text_chunks):
         chunk = {
-            "chunk_id": str(uuid.uuid4()),
+            "_id": sha256_hash(f"{message_id}_{i}"),
             "chunk_index": i,
             "text": text,
             "token_count": count_tokens(text),
@@ -282,7 +282,7 @@ async def process_json_parsed_event(event: JSONParsedEvent):
     try:
         # 1. Retrieve messages from database
         messages = db.messages.find({
-            "message_key": {"$in": event.data.message_keys}
+            "_id": {"$in": event.data.message_doc_ids}
         })
         
         # 2. Process each message
@@ -324,15 +324,15 @@ async def process_json_parsed_event(event: JSONParsedEvent):
         
         # 4. Publish ChunksPrepared event
         await publish_chunks_prepared_event(
-            message_keys=event.data.message_keys,
-            chunk_ids=[c["chunk_id"] for c in all_chunks],
+            message_doc_ids=event.data.message_doc_ids,
+            chunk_ids=[c["_id"] for c in all_chunks],
             chunk_count=len(all_chunks)
         )
         
     except Exception as e:
         logger.error(f"Chunking failed: {e}")
         await publish_chunking_failed_event(
-            message_keys=event.data.message_keys,
+            message_doc_ids=event.data.message_doc_ids,
             error=str(e)
         )
         raise
