@@ -672,52 +672,57 @@ def test_metrics_collector_uses_observe_for_histograms():
 
 
 def test_requeue_incomplete_messages_with_aggregation_support():
-    """Test that startup requeue works when document store supports aggregation."""
+    """Test startup requeue using aggregation with canonical fields."""
     from copilot_storage import InMemoryDocumentStore
-    
-    # Use real InMemoryDocumentStore which now supports aggregation
+
+    # Use real InMemoryDocumentStore which supports aggregation
     store = InMemoryDocumentStore()
     store.connect()
-    
+
+    # Canonical hex IDs
+    archive_id = '1111111111111111'
+    msg1_id = 'aaaaaaaaaaaaaaaa'
+    msg2_id = 'bbbbbbbbbbbbbbbb'
+
     # Insert test data: 2 messages, only 1 has chunks
     store.insert_document('messages', {
-        'message_key': 'msg1',
-        'archive_id': 1,
+        '_id': msg1_id,
+        'archive_id': archive_id,
         'body_normalized': 'test message 1'
     })
     store.insert_document('messages', {
-        'message_key': 'msg2',
-        'archive_id': 1,
+        '_id': msg2_id,
+        'archive_id': archive_id,
         'body_normalized': 'test message 2'
     })
     store.insert_document('chunks', {
-        'message_key': 'msg1',
-        'chunk_id': 'chunk1'
+        'message_doc_id': msg1_id,
+        '_id': 'cccccccccccccccc'
     })
-    
+
     mock_publisher = Mock()
     mock_subscriber = Mock()
     mock_chunker = TokenWindowChunker(chunk_size=384, overlap=50)
-    
+
     service = ChunkingService(
         document_store=store,
         publisher=mock_publisher,
         subscriber=mock_subscriber,
         chunker=mock_chunker,
     )
-    
+
     # Call requeue - should use aggregation to find msg2
     service._requeue_incomplete_messages()
-    
+
     # Verify that a requeue event was published for msg2
     assert mock_publisher.publish.call_count == 1
     call_args = mock_publisher.publish.call_args
-    
-    # Verify the published event contains msg2
+
+    # Verify the published event contains msg2 only (no msg1 which has chunks)
     event_data = call_args[1]['data']
-    assert event_data['archive_id'] == 1
-    assert 'msg2' in event_data['message_keys']
-    assert 'msg1' not in event_data['message_keys']
+    assert event_data['archive_id'] == archive_id
+    assert msg2_id in event_data['message_doc_ids']
+    assert msg1_id not in event_data['message_doc_ids']
 
 
 def test_requeue_skips_when_aggregation_not_supported():
