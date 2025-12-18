@@ -242,12 +242,22 @@ def main():
         results = service.ingest_all_enabled_sources()
 
         # Log results
-        for source_name, success in results.items():
-            status = "SUCCESS" if success else "FAILED"
-            log.info("Source ingestion summary", source_name=source_name, status=status)
+        for source_name, exception in results.items():
+            if exception is None:
+                status = "SUCCESS"
+                log.info("Source ingestion summary", source_name=source_name, status=status)
+            else:
+                status = "FAILED"
+                log.error(
+                    "Source ingestion summary",
+                    source_name=source_name,
+                    status=status,
+                    error=str(exception),
+                    error_type=type(exception).__name__,
+                )
 
-        # Count successes
-        successful = sum(1 for s in results.values() if s)
+        # Count successes (None values indicate success)
+        successful = sum(1 for exc in results.values() if exc is None)
         log.info(
             "Ingestion complete",
             successful_sources=successful,
