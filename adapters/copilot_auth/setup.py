@@ -29,7 +29,10 @@ setup(
     ],
     python_requires=">=3.10",
     install_requires=[
-        # No dependencies for base auth module
+        "httpx>=0.27.0",  # For OIDC HTTP requests
+        "PyJWT>=2.8.0",  # For JWT token minting and validation
+        "cryptography>=42.0.0",  # For JWT key management
+        "pydantic>=2.0.0",  # For configuration and validation
     ],
     extras_require={
         "dev": [
