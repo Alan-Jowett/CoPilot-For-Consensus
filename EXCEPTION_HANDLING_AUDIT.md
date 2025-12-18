@@ -24,38 +24,38 @@ Refactored core services to use Python exceptions for error conditions, making f
 
 #### `ingestion/app/exceptions.py`
 ```python
-class IngestionError(Exception)
+class IngestionError(Exception):
     """Base exception for ingestion service errors."""
 
-class SourceConfigurationError(IngestionError)
+class SourceConfigurationError(IngestionError):
     """Invalid or missing source configuration."""
 
-class FetchError(IngestionError)
+class FetchError(IngestionError):
     """Failed to fetch archives from source."""
     # Includes source_name and retry_count attributes
 
-class ChecksumPersistenceError(IngestionError)
+class ChecksumPersistenceError(IngestionError):
     """Failed to save checksum metadata."""
 
-class ArchivePublishError(IngestionError)
+class ArchivePublishError(IngestionError):
     """Failed to publish archive events."""
     # Includes archive_id attribute
 ```
 
 #### `parsing/app/exceptions.py`
 ```python
-class ParsingError(Exception)
+class ParsingError(Exception):
     """Base exception for parsing service errors."""
 
-class MessageParsingError(ParsingError)
+class MessageParsingError(ParsingError):
     """Failed to parse individual message."""
     # Includes message_index attribute
 
-class MboxFileError(ParsingError)
+class MboxFileError(ParsingError):
     """Failed to open or read mbox file."""
     # Includes file_path attribute
 
-class RequiredFieldMissingError(ParsingError)
+class RequiredFieldMissingError(ParsingError):
     """Required field missing from message."""
     # Includes field_name and message_id attributes
 ```

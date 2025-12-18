@@ -61,8 +61,7 @@ class MessageParser:
             for idx, message in enumerate(mbox):
                 try:
                     parsed = self.parse_message(message, archive_id)
-                    if parsed:
-                        parsed_messages.append(parsed)
+                    parsed_messages.append(parsed)
                 except RequiredFieldMissingError as e:
                     # Required field missing - skip message but collect error
                     error_msg = f"Message {idx}: {str(e)}"

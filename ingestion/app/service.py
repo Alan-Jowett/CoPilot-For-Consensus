@@ -2,6 +2,7 @@
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
 import json
+import logging
 import os
 import time
 from datetime import datetime, timezone
@@ -19,8 +20,6 @@ from .exceptions import (
     IngestionError,
     SourceConfigurationError,
     FetchError,
-    ChecksumPersistenceError,
-    ArchivePublishError,
 )
 
 DEFAULT_CONFIG = {
@@ -170,7 +169,6 @@ def _enabled_sources(raw_sources: Iterable[Any]) -> List[SourceConfig]:
         except SourceConfigurationError as e:
             # Log but skip invalid source configurations
             # This allows the service to continue with valid sources
-            import logging
             logger = logging.getLogger(__name__)
             logger.warning(f"Skipping invalid source configuration: {e}")
             continue

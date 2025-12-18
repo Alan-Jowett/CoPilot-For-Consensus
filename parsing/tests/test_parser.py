@@ -4,6 +4,7 @@
 """Unit tests for message parser."""
 
 import os
+import pytest
 
 from app.parser import MessageParser
 
@@ -54,14 +55,12 @@ class TestMessageParser:
         parser = MessageParser()
         
         # Should raise MboxFileError for non-existent file
-        import pytest
         with pytest.raises(MboxFileError):
             parser.parse_mbox("/nonexistent/file.mbox", "test-archive-3")
 
     def test_message_without_message_id(self, temp_dir):
         """Test handling message without Message-ID."""
         from app.exceptions import MessageParsingError
-        import pytest
         # Create mbox with message missing Message-ID
         mbox_path = os.path.join(temp_dir, "no_id.mbox")
         with open(mbox_path, "w") as f:
