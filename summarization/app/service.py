@@ -21,7 +21,7 @@ from copilot_reporting import ErrorReporter
 from copilot_summarization import Summarizer, Thread, Citation
 from copilot_logging import create_logger
 
-logger = create_logger(name=__name__)
+logger = create_logger(name="summarization")
 
 
 class SummarizationService:

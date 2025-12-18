@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from copilot_vectorstore import VectorStore
     from copilot_embedding import EmbeddingProvider
 
-logger = create_logger(name=__name__)
+logger = create_logger(name="reporting")
 
 # Buffer size for fetching additional documents when metadata filtering is applied.
 # This ensures we have enough documents to filter and still return the requested limit.

@@ -22,7 +22,7 @@ from copilot_reporting import ErrorReporter
 from copilot_chunking import Thread, ThreadChunker
 from copilot_logging import create_logger
 
-logger = create_logger(name=__name__)
+logger = create_logger(name="chunking")
 
 
 class ChunkingService:
