@@ -4,7 +4,7 @@
 """Tests for RabbitMQ reconnection logic."""
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 try:
     import pika
@@ -244,4 +244,42 @@ class TestRabbitMQReconnection:
 
             # Verify only one publish attempt (no retry) and reconnect attempted once
             assert mock_channel.basic_publish.call_count == 1
+            assert mock_reconnect.call_count == 1
+
+    def test_publish_retry_failure_propagates_exception(self):
+        """Test that when reconnection succeeds but retry publish fails, the exception is propagated."""
+        publisher = RabbitMQPublisher(
+            reconnect_delay=0.0,
+        )
+
+        # Mock connection and channel
+        mock_connection = MagicMock()
+        mock_channel = MagicMock()
+        publisher.connection = mock_connection
+        publisher.channel = mock_channel
+        mock_connection.is_closed = False
+        mock_channel.is_open = True
+
+        event = {
+            "event_type": "TestEvent",
+            "event_id": "123",
+            "timestamp": "2025-01-01T00:00:00Z",
+            "version": "1.0",
+            "data": {}
+        }
+
+        # First publish raises connection/channel error, retry raises UnroutableError
+        mock_channel.basic_publish.side_effect = [
+            pika.exceptions.ChannelWrongStateError(),
+            pika.exceptions.UnroutableError([]),
+        ]
+
+        # Mock successful reconnection
+        with patch.object(publisher, '_reconnect', return_value=True) as mock_reconnect:
+            # The retry failure should be propagated to caller
+            with pytest.raises(pika.exceptions.UnroutableError):
+                publisher.publish("test.exchange", "test.key", event)
+
+            # Verify publish was attempted twice and reconnect occurred once
+            assert mock_channel.basic_publish.call_count == 2
             assert mock_reconnect.call_count == 1
