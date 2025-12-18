@@ -669,3 +669,75 @@ def test_metrics_collector_uses_observe_for_histograms():
     assert 'histogram' not in method_names, \
         "histogram() method should not be used (use observe() instead)"
 
+
+def test_requeue_incomplete_messages_with_aggregation_support():
+    """Test that startup requeue works when document store supports aggregation."""
+    from copilot_storage import InMemoryDocumentStore
+    
+    # Use real InMemoryDocumentStore which now supports aggregation
+    store = InMemoryDocumentStore()
+    store.connect()
+    
+    # Insert test data: 2 messages, only 1 has chunks
+    store.insert_document('messages', {
+        'message_key': 'msg1',
+        'archive_id': 1,
+        'body_normalized': 'test message 1'
+    })
+    store.insert_document('messages', {
+        'message_key': 'msg2',
+        'archive_id': 1,
+        'body_normalized': 'test message 2'
+    })
+    store.insert_document('chunks', {
+        'message_key': 'msg1',
+        'chunk_id': 'chunk1'
+    })
+    
+    mock_publisher = Mock()
+    mock_subscriber = Mock()
+    mock_chunker = TokenWindowChunker(chunk_size=384, overlap=50)
+    
+    service = ChunkingService(
+        document_store=store,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        chunker=mock_chunker,
+    )
+    
+    # Call requeue - should use aggregation to find msg2
+    service._requeue_incomplete_messages()
+    
+    # Verify that a requeue event was published for msg2
+    assert mock_publisher.publish.call_count == 1
+    call_args = mock_publisher.publish.call_args
+    
+    # Verify the published event contains msg2
+    event_data = call_args[1]['data']
+    assert event_data['archive_id'] == 1
+    assert 'msg2' in event_data['message_keys']
+    assert 'msg1' not in event_data['message_keys']
+
+
+def test_requeue_skips_when_aggregation_not_supported():
+    """Test that startup requeue is skipped gracefully when aggregation not supported."""
+    # Create a mock store without aggregate_documents method
+    mock_store = Mock(spec=['connect', 'insert_document', 'query_documents'])
+    
+    mock_publisher = Mock()
+    mock_subscriber = Mock()
+    mock_chunker = TokenWindowChunker(chunk_size=384, overlap=50)
+    
+    service = ChunkingService(
+        document_store=mock_store,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        chunker=mock_chunker,
+    )
+    
+    # Call requeue - should detect missing method and skip gracefully
+    service._requeue_incomplete_messages()
+    
+    # Verify no events were published (requeue was skipped)
+    assert mock_publisher.publish.call_count == 0
+

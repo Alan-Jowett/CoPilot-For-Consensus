@@ -303,3 +303,67 @@ class MongoDocumentStore(DocumentStore):
         except Exception as e:
             logger.error(f"MongoDocumentStore: delete_document failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to delete document {doc_id} from {collection}") from e
+
+    def aggregate_documents(
+        self, collection: str, pipeline: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Execute an aggregation pipeline on a collection.
+        
+        **Note**: ObjectId values are recursively converted to strings for JSON
+        serialization compatibility. This handles ObjectIds in nested documents
+        (e.g., from $lookup stages).
+        
+        Args:
+            collection: Name of the collection
+            pipeline: MongoDB aggregation pipeline (list of stage dictionaries)
+            
+        Returns:
+            List of aggregation results
+            
+        Raises:
+            DocumentStoreNotConnectedError: If not connected to MongoDB
+            DocumentStoreError: If aggregation operation fails
+        """
+        if self.database is None:
+            raise DocumentStoreNotConnectedError("Not connected to MongoDB")
+        
+        try:
+            coll = self.database[collection]
+            cursor = coll.aggregate(pipeline)
+            
+            results = []
+            for doc in cursor:
+                # Recursively convert all ObjectId instances to strings
+                self._convert_objectids_to_strings(doc)
+                results.append(doc)
+            
+            logger.debug(
+                f"MongoDocumentStore: aggregation on {collection} "
+                f"returned {len(results)} documents"
+            )
+            return results
+            
+        except Exception as e:
+            logger.error(f"MongoDocumentStore: aggregate_documents failed - {e}", exc_info=True)
+            raise DocumentStoreError(f"Failed to aggregate documents from {collection}") from e
+
+    def _convert_objectids_to_strings(self, obj: Any) -> None:
+        """Recursively convert ObjectId instances to strings in-place.
+        
+        Args:
+            obj: Object to convert (dict, list, or primitive)
+        """
+        from bson import ObjectId
+        
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                if isinstance(value, ObjectId):
+                    obj[key] = str(value)
+                elif isinstance(value, (dict, list)):
+                    self._convert_objectids_to_strings(value)
+        elif isinstance(obj, list):
+            for i, item in enumerate(obj):
+                if isinstance(item, ObjectId):
+                    obj[i] = str(item)
+                elif isinstance(item, (dict, list)):
+                    self._convert_objectids_to_strings(item)

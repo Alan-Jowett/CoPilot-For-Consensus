@@ -305,6 +305,216 @@ class TestInMemoryDocumentStore:
         assert len(retrieved_again["projects"][1]["contributors"]) == 1
         assert retrieved_again["projects"][1]["contributors"][0]["roles"] == ["pm"]
 
+    def test_aggregate_documents_simple_match(self):
+        """Test aggregation with $match stage."""
+        store = InMemoryDocumentStore()
+        store.connect()
+
+        store.insert_document("messages", {"message_key": "msg1", "status": "pending"})
+        store.insert_document("messages", {"message_key": "msg2", "status": "complete"})
+        store.insert_document("messages", {"message_key": "msg3", "status": "pending"})
+
+        pipeline = [
+            {"$match": {"status": "pending"}}
+        ]
+
+        results = store.aggregate_documents("messages", pipeline)
+
+        assert len(results) == 2
+        assert all(doc["status"] == "pending" for doc in results)
+
+    def test_aggregate_documents_match_exists(self):
+        """Test aggregation with $match and $exists operator."""
+        store = InMemoryDocumentStore()
+        store.connect()
+
+        store.insert_document("messages", {"message_key": "msg1", "archive_id": 1})
+        store.insert_document("messages", {"message_key": "msg2"})
+        store.insert_document("messages", {"message_key": "msg3", "archive_id": 2})
+
+        pipeline = [
+            {"$match": {"message_key": {"$exists": True}}}
+        ]
+
+        results = store.aggregate_documents("messages", pipeline)
+
+        assert len(results) == 3
+
+    def test_aggregate_documents_lookup(self):
+        """Test aggregation with $lookup stage to join collections."""
+        store = InMemoryDocumentStore()
+        store.connect()
+
+        # Insert messages
+        store.insert_document("messages", {"message_key": "msg1", "text": "Hello"})
+        store.insert_document("messages", {"message_key": "msg2", "text": "World"})
+
+        # Insert chunks (some messages have chunks, some don't)
+        store.insert_document("chunks", {"message_key": "msg1", "chunk_id": "chunk1"})
+        store.insert_document("chunks", {"message_key": "msg1", "chunk_id": "chunk2"})
+
+        # Lookup chunks for each message
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "chunks",
+                    "localField": "message_key",
+                    "foreignField": "message_key",
+                    "as": "chunks"
+                }
+            }
+        ]
+
+        results = store.aggregate_documents("messages", pipeline)
+
+        assert len(results) == 2
+        # Find msg1 - should have 2 chunks
+        msg1 = next(r for r in results if r["message_key"] == "msg1")
+        assert len(msg1["chunks"]) == 2
+        # Find msg2 - should have 0 chunks
+        msg2 = next(r for r in results if r["message_key"] == "msg2")
+        assert len(msg2["chunks"]) == 0
+
+    def test_aggregate_documents_lookup_and_match(self):
+        """Test aggregation with $lookup followed by $match to find messages without chunks."""
+        store = InMemoryDocumentStore()
+        store.connect()
+
+        # Insert messages
+        store.insert_document("messages", {"message_key": "msg1", "text": "Hello"})
+        store.insert_document("messages", {"message_key": "msg2", "text": "World"})
+        store.insert_document("messages", {"message_key": "msg3", "text": "Foo"})
+
+        # Insert chunks (only for msg1)
+        store.insert_document("chunks", {"message_key": "msg1", "chunk_id": "chunk1"})
+
+        # Find messages without chunks
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "chunks",
+                    "localField": "message_key",
+                    "foreignField": "message_key",
+                    "as": "chunks"
+                }
+            },
+            {
+                "$match": {
+                    "chunks": {"$eq": []}
+                }
+            }
+        ]
+
+        results = store.aggregate_documents("messages", pipeline)
+
+        # Should find msg2 and msg3 (no chunks)
+        assert len(results) == 2
+        message_keys = [r["message_key"] for r in results]
+        assert "msg1" not in message_keys
+        assert "msg2" in message_keys
+        assert "msg3" in message_keys
+
+    def test_aggregate_documents_with_limit(self):
+        """Test aggregation with $limit stage."""
+        store = InMemoryDocumentStore()
+        store.connect()
+
+        for i in range(10):
+            store.insert_document("items", {"index": i, "type": "test"})
+
+        pipeline = [
+            {"$match": {"type": "test"}},
+            {"$limit": 3}
+        ]
+
+        results = store.aggregate_documents("items", pipeline)
+
+        assert len(results) == 3
+
+    def test_aggregate_documents_complex_pipeline(self):
+        """Test aggregation with a complex pipeline similar to chunking requeue."""
+        store = InMemoryDocumentStore()
+        store.connect()
+
+        # Insert messages
+        store.insert_document("messages", {"message_key": "msg1", "archive_id": 1})
+        store.insert_document("messages", {"message_key": "msg2", "archive_id": 1})
+        store.insert_document("messages", {"message_key": "msg3", "archive_id": 2})
+
+        # Insert chunks (only for msg1)
+        store.insert_document("chunks", {"message_key": "msg1", "chunk_id": "chunk1"})
+
+        # Find messages without chunks (similar to chunking requeue logic)
+        pipeline = [
+            {
+                "$match": {
+                    "message_key": {"$exists": True},
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "chunks",
+                    "localField": "message_key",
+                    "foreignField": "message_key",
+                    "as": "chunks",
+                }
+            },
+            {
+                "$match": {
+                    "chunks": {"$eq": []},
+                }
+            },
+            {
+                "$limit": 1000,
+            },
+        ]
+
+        results = store.aggregate_documents("messages", pipeline)
+
+        # Should find msg2 and msg3
+        assert len(results) == 2
+        message_keys = [r["message_key"] for r in results]
+        assert "msg1" not in message_keys
+        assert "msg2" in message_keys
+        assert "msg3" in message_keys
+
+    def test_aggregate_documents_nonexistent_collection(self):
+        """Test aggregation on a collection that doesn't exist."""
+        store = InMemoryDocumentStore()
+        store.connect()
+
+        pipeline = [{"$match": {"status": "pending"}}]
+
+        # Should return empty list, not raise an error
+        results = store.aggregate_documents("nonexistent", pipeline)
+        assert results == []
+
+    def test_aggregate_documents_lookup_nonexistent_foreign_collection(self):
+        """Test $lookup with a foreign collection that doesn't exist."""
+        store = InMemoryDocumentStore()
+        store.connect()
+
+        # Insert messages but no chunks collection
+        store.insert_document("messages", {"message_key": "msg1", "text": "Hello"})
+
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "nonexistent_chunks",
+                    "localField": "message_key",
+                    "foreignField": "message_key",
+                    "as": "chunks"
+                }
+            }
+        ]
+
+        results = store.aggregate_documents("messages", pipeline)
+
+        # Should return messages with empty chunks array
+        assert len(results) == 1
+        assert "chunks" in results[0]
+        assert results[0]["chunks"] == []
+
 
 class TestMongoDocumentStore:
     """Tests for MongoDocumentStore."""

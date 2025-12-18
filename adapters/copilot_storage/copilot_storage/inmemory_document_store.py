@@ -165,3 +165,169 @@ class InMemoryDocumentStore(DocumentStore):
         """Clear all collections (useful for testing)."""
         self.collections.clear()
         logger.debug("InMemoryDocumentStore: cleared all collections")
+
+    def aggregate_documents(
+        self, collection: str, pipeline: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Execute a simplified aggregation pipeline on a collection.
+        
+        This is a simplified implementation that supports common aggregation stages
+        for testing purposes. It supports: $match, $lookup, $limit.
+        
+        **Note**: This implementation is optimized for testing with small datasets.
+        Performance may degrade with large collections due to O(N*M) complexity in
+        $lookup operations.
+        
+        **Supported operators in $match**:
+        - $exists: Check if a field exists
+        - $eq: Equality comparison
+        
+        Args:
+            collection: Name of the collection
+            pipeline: Aggregation pipeline (list of stage dictionaries)
+            
+        Returns:
+            List of aggregation results
+        """
+        # Start with all documents in the collection
+        # Return empty list if collection doesn't exist
+        if collection not in self.collections:
+            logger.debug(
+                f"InMemoryDocumentStore: collection '{collection}' not found for aggregation"
+            )
+            return []
+        
+        results = [copy.deepcopy(doc) for doc in self.collections[collection].values()]
+        
+        for stage in pipeline:
+            stage_name = list(stage.keys())[0]
+            stage_spec = stage[stage_name]
+            
+            if stage_name == "$match":
+                # Filter documents based on match criteria
+                results = self._apply_match(results, stage_spec)
+            
+            elif stage_name == "$lookup":
+                # Join with another collection
+                results = self._apply_lookup(results, stage_spec)
+            
+            elif stage_name == "$limit":
+                # Limit number of results
+                results = results[:stage_spec]
+            
+            else:
+                logger.warning(
+                    f"InMemoryDocumentStore: aggregation stage '{stage_name}' not implemented, skipping"
+                )
+        
+        logger.debug(
+            f"InMemoryDocumentStore: aggregation on {collection} "
+            f"returned {len(results)} documents"
+        )
+        return results
+
+    def _apply_match(
+        self, documents: List[Dict[str, Any]], match_spec: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Apply $match stage to filter documents.
+        
+        Supports operators: $exists, $eq
+        For unsupported operators, a warning is logged and the condition is skipped.
+        
+        Args:
+            documents: List of documents to filter
+            match_spec: Match specification
+            
+        Returns:
+            Filtered list of documents
+        """
+        filtered = []
+        for doc in documents:
+            matches = True
+            for key, condition in match_spec.items():
+                if isinstance(condition, dict):
+                    # Handle operators like $exists, $eq, etc.
+                    for op, value in condition.items():
+                        if op == "$exists":
+                            if value and key not in doc:
+                                matches = False
+                                break
+                            elif not value and key in doc:
+                                matches = False
+                                break
+                        elif op == "$eq":
+                            if doc.get(key) != value:
+                                matches = False
+                                break
+                        else:
+                            # Unsupported operator - log warning and skip
+                            logger.warning(
+                                f"InMemoryDocumentStore: unsupported operator '{op}' in $match, skipping"
+                            )
+                    
+                    # If any operator failed, exit the key loop early
+                    if not matches:
+                        break
+                else:
+                    # Simple equality check
+                    if doc.get(key) != condition:
+                        matches = False
+                        break
+            
+            if matches:
+                filtered.append(doc)
+        
+        return filtered
+
+    def _apply_lookup(
+        self, documents: List[Dict[str, Any]], lookup_spec: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """Apply $lookup stage to join with another collection.
+        
+        **Performance Note**: This implementation has O(N*M) complexity where N is
+        the number of input documents and M is the size of the foreign collection.
+        It is suitable for testing but may not perform well with large datasets.
+        
+        Args:
+            documents: List of documents to enrich
+            lookup_spec: Lookup specification with 'from', 'localField', 'foreignField', 'as'
+            
+        Returns:
+            Documents with joined data
+        """
+        from_collection = lookup_spec["from"]
+        local_field = lookup_spec["localField"]
+        foreign_field = lookup_spec["foreignField"]
+        as_field = lookup_spec["as"]
+        
+        # Check if the foreign collection exists
+        if from_collection not in self.collections:
+            logger.debug(
+                f"InMemoryDocumentStore: foreign collection '{from_collection}' not found in $lookup"
+            )
+            # Return documents with empty array for the 'as' field (mimics MongoDB behavior)
+            result_docs = []
+            for doc in documents:
+                enriched_doc = copy.deepcopy(doc)
+                enriched_doc[as_field] = []
+                result_docs.append(enriched_doc)
+            return result_docs
+        
+        result_docs = []
+        for doc in documents:
+            # Make a copy to avoid modifying original
+            enriched_doc = copy.deepcopy(doc)
+            
+            # Find matching documents in the foreign collection
+            local_value = doc.get(local_field)
+            matches = []
+            
+            for foreign_doc in self.collections[from_collection].values():
+                if foreign_doc.get(foreign_field) == local_value:
+                    matches.append(copy.deepcopy(foreign_doc))
+            
+            # Add matches as an array field
+            enriched_doc[as_field] = matches
+            result_docs.append(enriched_doc)
+        
+        return result_docs
