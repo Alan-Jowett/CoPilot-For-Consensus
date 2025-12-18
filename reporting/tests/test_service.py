@@ -722,3 +722,214 @@ def test_search_reports_by_topic_with_vector_store():
     assert reports[0]["matching_chunks"] == 1
     assert "thread_metadata" in reports[0]
     assert "archive_metadata" in reports[0]
+
+
+def test_get_threads(reporting_service, mock_document_store):
+    """Test that get_threads retrieves threads with pagination."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "thread1", "subject": "Thread 1"},
+        {"_id": "thread2", "subject": "Thread 2"},
+        {"_id": "thread3", "subject": "Thread 3"},
+    ]
+    
+    threads = reporting_service.get_threads(limit=2, skip=0)
+    
+    assert len(threads) == 2
+    assert threads[0]["_id"] == "thread1"
+    assert threads[1]["_id"] == "thread2"
+    
+    mock_document_store.query_documents.assert_called_once_with(
+        "threads",
+        filter_dict={},
+        limit=2,
+    )
+
+
+def test_get_threads_with_archive_filter(reporting_service, mock_document_store):
+    """Test that get_threads supports archive_id filtering."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "thread1", "archive_id": "archive1"},
+    ]
+    
+    threads = reporting_service.get_threads(archive_id="archive1")
+    
+    assert len(threads) == 1
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["filter_dict"]["archive_id"] == "archive1"
+
+
+def test_get_thread_by_id(reporting_service, mock_document_store):
+    """Test that get_thread_by_id retrieves a specific thread."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "thread1", "subject": "Test Thread"},
+    ]
+    
+    thread = reporting_service.get_thread_by_id("thread1")
+    
+    assert thread is not None
+    assert thread["_id"] == "thread1"
+    mock_document_store.query_documents.assert_called_once_with(
+        "threads",
+        filter_dict={"_id": "thread1"},
+        limit=1,
+    )
+
+
+def test_get_thread_by_id_not_found(reporting_service, mock_document_store):
+    """Test that get_thread_by_id returns None when not found."""
+    mock_document_store.query_documents.return_value = []
+    
+    thread = reporting_service.get_thread_by_id("nonexistent")
+    
+    assert thread is None
+
+
+def test_get_messages(reporting_service, mock_document_store):
+    """Test that get_messages retrieves messages with pagination."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "msg1", "message_id": "<msg1@example.com>"},
+        {"_id": "msg2", "message_id": "<msg2@example.com>"},
+    ]
+    
+    messages = reporting_service.get_messages(limit=10, skip=0)
+    
+    assert len(messages) == 2
+    mock_document_store.query_documents.assert_called_once_with(
+        "messages",
+        filter_dict={},
+        limit=10,
+    )
+
+
+def test_get_messages_with_thread_filter(reporting_service, mock_document_store):
+    """Test that get_messages supports thread_id filtering."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "msg1", "thread_id": "thread1"},
+    ]
+    
+    messages = reporting_service.get_messages(thread_id="thread1")
+    
+    assert len(messages) == 1
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["filter_dict"]["thread_id"] == "thread1"
+
+
+def test_get_messages_with_message_id_filter(reporting_service, mock_document_store):
+    """Test that get_messages supports message_id filtering."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "msg1", "message_id": "<msg1@example.com>"},
+    ]
+    
+    messages = reporting_service.get_messages(message_id="<msg1@example.com>")
+    
+    assert len(messages) == 1
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["filter_dict"]["message_id"] == "<msg1@example.com>"
+
+
+def test_get_message_by_id(reporting_service, mock_document_store):
+    """Test that get_message_by_id retrieves a specific message."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "msg1", "message_id": "<msg1@example.com>", "body_normalized": "Test"},
+    ]
+    
+    message = reporting_service.get_message_by_id("msg1")
+    
+    assert message is not None
+    assert message["_id"] == "msg1"
+    mock_document_store.query_documents.assert_called_once_with(
+        "messages",
+        filter_dict={"_id": "msg1"},
+        limit=1,
+    )
+
+
+def test_get_message_by_id_not_found(reporting_service, mock_document_store):
+    """Test that get_message_by_id returns None when not found."""
+    mock_document_store.query_documents.return_value = []
+    
+    message = reporting_service.get_message_by_id("nonexistent")
+    
+    assert message is None
+
+
+def test_get_chunks(reporting_service, mock_document_store):
+    """Test that get_chunks retrieves chunks with pagination."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "chunk1", "text": "Chunk 1"},
+        {"_id": "chunk2", "text": "Chunk 2"},
+    ]
+    
+    chunks = reporting_service.get_chunks(limit=10, skip=0)
+    
+    assert len(chunks) == 2
+    mock_document_store.query_documents.assert_called_once_with(
+        "chunks",
+        filter_dict={},
+        limit=10,
+    )
+
+
+def test_get_chunks_with_message_id_filter(reporting_service, mock_document_store):
+    """Test that get_chunks supports message_id filtering."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "chunk1", "message_id": "<msg1@example.com>"},
+    ]
+    
+    chunks = reporting_service.get_chunks(message_id="<msg1@example.com>")
+    
+    assert len(chunks) == 1
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["filter_dict"]["message_id"] == "<msg1@example.com>"
+
+
+def test_get_chunks_with_thread_filter(reporting_service, mock_document_store):
+    """Test that get_chunks supports thread_id filtering."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "chunk1", "thread_id": "thread1"},
+    ]
+    
+    chunks = reporting_service.get_chunks(thread_id="thread1")
+    
+    assert len(chunks) == 1
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["filter_dict"]["thread_id"] == "thread1"
+
+
+def test_get_chunks_with_message_doc_id_filter(reporting_service, mock_document_store):
+    """Test that get_chunks supports message_doc_id filtering."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "chunk1", "message_doc_id": "msg_doc_1"},
+    ]
+    
+    chunks = reporting_service.get_chunks(message_doc_id="msg_doc_1")
+    
+    assert len(chunks) == 1
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["filter_dict"]["message_doc_id"] == "msg_doc_1"
+
+
+def test_get_chunk_by_id(reporting_service, mock_document_store):
+    """Test that get_chunk_by_id retrieves a specific chunk."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "chunk1", "text": "Test chunk"},
+    ]
+    
+    chunk = reporting_service.get_chunk_by_id("chunk1")
+    
+    assert chunk is not None
+    assert chunk["_id"] == "chunk1"
+    mock_document_store.query_documents.assert_called_once_with(
+        "chunks",
+        filter_dict={"_id": "chunk1"},
+        limit=1,
+    )
+
+
+def test_get_chunk_by_id_not_found(reporting_service, mock_document_store):
+    """Test that get_chunk_by_id returns None when not found."""
+    mock_document_store.query_documents.return_value = []
+    
+    chunk = reporting_service.get_chunk_by_id("nonexistent")
+    
+    assert chunk is None

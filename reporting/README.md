@@ -95,11 +95,33 @@ graph LR
 
 ## API Endpoints
 
+### Reports
 - `GET /health` — health and config snapshot
-- `GET /api/reports` — list reports (filters: `thread_id`, `wg`, `from`, `to`, `draft`)
+- `GET /api/reports` — list reports (filters: `thread_id`, `start_date`, `end_date`, `source`, `min_participants`, `max_participants`, `min_messages`, `max_messages`)
 - `GET /api/reports/<report_id>` — fetch a specific report with citations
+- `GET /api/reports/search?topic=<query>` — semantic search over summaries (requires vector store)
 - `GET /api/threads/<thread_id>/summary` — fetch latest summary for a thread
-- `POST /api/search` — semantic/keyword search over summaries (optional)
+- `GET /api/sources` — list available archive sources
+
+### Threads (Citation Drilldown)
+- `GET /api/threads` — list threads (filters: `archive_id`, pagination: `limit`, `skip`)
+- `GET /api/threads/<thread_id>` — fetch a specific thread with metadata (subject, participants, message count, dates)
+
+### Messages (Citation Drilldown)
+- `GET /api/messages` — list messages (filters: `thread_id`, `message_id`, pagination: `limit`, `skip`)
+- `GET /api/messages/<message_doc_id>` — fetch a specific message with headers, body, and metadata
+
+### Chunks (Citation Drilldown)
+- `GET /api/chunks` — list chunks (filters: `message_id`, `thread_id`, `message_doc_id`, pagination: `limit`, `skip`)
+- `GET /api/chunks/<chunk_id>` — fetch a specific chunk with text and offsets
+
+### Citation Drilldown Navigation
+The new endpoints enable navigation from report citations to original content:
+1. Start with a report citation (contains `chunk_id` and `message_id`)
+2. Use `GET /api/chunks/<chunk_id>` to retrieve the chunk with context
+3. Use `GET /api/messages/<message_doc_id>` to view the full message
+4. Use `GET /api/threads/<thread_id>` to see thread metadata
+5. Use `GET /api/messages?thread_id=<thread_id>` to browse all messages in the thread
 
 ## Storage Model (example)
 

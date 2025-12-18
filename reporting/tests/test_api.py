@@ -411,3 +411,270 @@ def test_get_available_sources_endpoint(client, test_service, mock_document_stor
     assert data["count"] == 2
     assert "source-a" in data["sources"]
     assert "source-b" in data["sources"]
+
+
+@pytest.mark.integration
+def test_get_threads_endpoint(client, test_service, mock_document_store):
+    """Test the GET /api/threads endpoint."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "thread1", "subject": "Thread 1", "message_count": 5},
+        {"_id": "thread2", "subject": "Thread 2", "message_count": 3},
+    ]
+    
+    response = client.get("/api/threads")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["count"] == 2
+    assert len(data["threads"]) == 2
+    assert data["threads"][0]["_id"] == "thread1"
+
+
+@pytest.mark.integration
+def test_get_threads_with_pagination(client, test_service, mock_document_store):
+    """Test the GET /api/threads endpoint with pagination."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": f"thread{i}", "subject": f"Thread {i}"} for i in range(5)
+    ]
+    
+    response = client.get("/api/threads?limit=2&skip=1")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["limit"] == 2
+    assert data["skip"] == 1
+    assert len(data["threads"]) == 2
+
+
+@pytest.mark.integration
+def test_get_threads_with_archive_filter(client, test_service, mock_document_store):
+    """Test the GET /api/threads endpoint with archive filter."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "thread1", "archive_id": "archive1"},
+    ]
+    
+    response = client.get("/api/threads?archive_id=archive1")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["count"] == 1
+    # Verify the service was called with correct filter
+    mock_document_store.query_documents.assert_called_once()
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["filter_dict"]["archive_id"] == "archive1"
+
+
+@pytest.mark.integration
+def test_get_thread_by_id_endpoint(client, test_service, mock_document_store):
+    """Test the GET /api/threads/{thread_id} endpoint."""
+    mock_document_store.query_documents.return_value = [
+        {
+            "_id": "thread1",
+            "subject": "Test Thread",
+            "message_count": 10,
+            "participants": [{"email": "user@example.com"}],
+        },
+    ]
+    
+    response = client.get("/api/threads/thread1")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["_id"] == "thread1"
+    assert data["subject"] == "Test Thread"
+
+
+@pytest.mark.integration
+def test_get_thread_by_id_not_found(client, test_service, mock_document_store):
+    """Test the GET /api/threads/{thread_id} endpoint when thread not found."""
+    mock_document_store.query_documents.return_value = []
+    
+    response = client.get("/api/threads/nonexistent")
+    
+    assert response.status_code == 404
+    data = response.json()
+    assert "not found" in data["detail"].lower()
+
+
+@pytest.mark.integration
+def test_get_messages_endpoint(client, test_service, mock_document_store):
+    """Test the GET /api/messages endpoint."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "msg1", "message_id": "<msg1@example.com>", "subject": "Message 1"},
+        {"_id": "msg2", "message_id": "<msg2@example.com>", "subject": "Message 2"},
+    ]
+    
+    response = client.get("/api/messages")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["count"] == 2
+    assert len(data["messages"]) == 2
+    assert data["messages"][0]["_id"] == "msg1"
+
+
+@pytest.mark.integration
+def test_get_messages_with_thread_filter(client, test_service, mock_document_store):
+    """Test the GET /api/messages endpoint with thread_id filter."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "msg1", "thread_id": "thread1"},
+    ]
+    
+    response = client.get("/api/messages?thread_id=thread1")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["count"] == 1
+    # Verify the service was called with correct filter
+    mock_document_store.query_documents.assert_called_once()
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["filter_dict"]["thread_id"] == "thread1"
+
+
+@pytest.mark.integration
+def test_get_messages_with_message_id_filter(client, test_service, mock_document_store):
+    """Test the GET /api/messages endpoint with message_id filter."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "msg1", "message_id": "<msg1@example.com>"},
+    ]
+    
+    response = client.get("/api/messages?message_id=%3Cmsg1%40example.com%3E")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["count"] == 1
+
+
+@pytest.mark.integration
+def test_get_message_by_id_endpoint(client, test_service, mock_document_store):
+    """Test the GET /api/messages/{message_doc_id} endpoint."""
+    mock_document_store.query_documents.return_value = [
+        {
+            "_id": "msg1",
+            "message_id": "<msg1@example.com>",
+            "subject": "Test Message",
+            "body_normalized": "Test content",
+        },
+    ]
+    
+    response = client.get("/api/messages/msg1")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["_id"] == "msg1"
+    assert data["subject"] == "Test Message"
+
+
+@pytest.mark.integration
+def test_get_message_by_id_not_found(client, test_service, mock_document_store):
+    """Test the GET /api/messages/{message_doc_id} endpoint when message not found."""
+    mock_document_store.query_documents.return_value = []
+    
+    response = client.get("/api/messages/nonexistent")
+    
+    assert response.status_code == 404
+    data = response.json()
+    assert "not found" in data["detail"].lower()
+
+
+@pytest.mark.integration
+def test_get_chunks_endpoint(client, test_service, mock_document_store):
+    """Test the GET /api/chunks endpoint."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "chunk1", "text": "Chunk 1", "chunk_index": 0},
+        {"_id": "chunk2", "text": "Chunk 2", "chunk_index": 1},
+    ]
+    
+    response = client.get("/api/chunks")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["count"] == 2
+    assert len(data["chunks"]) == 2
+    assert data["chunks"][0]["_id"] == "chunk1"
+
+
+@pytest.mark.integration
+def test_get_chunks_with_message_id_filter(client, test_service, mock_document_store):
+    """Test the GET /api/chunks endpoint with message_id filter."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "chunk1", "message_id": "<msg1@example.com>"},
+    ]
+    
+    response = client.get("/api/chunks?message_id=%3Cmsg1%40example.com%3E")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["count"] == 1
+
+
+@pytest.mark.integration
+def test_get_chunks_with_thread_filter(client, test_service, mock_document_store):
+    """Test the GET /api/chunks endpoint with thread_id filter."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "chunk1", "thread_id": "thread1"},
+    ]
+    
+    response = client.get("/api/chunks?thread_id=thread1")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["count"] == 1
+
+
+@pytest.mark.integration
+def test_get_chunks_with_message_doc_id_filter(client, test_service, mock_document_store):
+    """Test the GET /api/chunks endpoint with message_doc_id filter."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "chunk1", "message_doc_id": "msg_doc_1"},
+    ]
+    
+    response = client.get("/api/chunks?message_doc_id=msg_doc_1")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["count"] == 1
+
+
+@pytest.mark.integration
+def test_get_chunk_by_id_endpoint(client, test_service, mock_document_store):
+    """Test the GET /api/chunks/{chunk_id} endpoint."""
+    mock_document_store.query_documents.return_value = [
+        {
+            "_id": "chunk1",
+            "text": "Test chunk content",
+            "chunk_index": 0,
+        },
+    ]
+    
+    response = client.get("/api/chunks/chunk1")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["_id"] == "chunk1"
+    assert data["text"] == "Test chunk content"
+
+
+@pytest.mark.integration
+def test_get_chunk_by_id_not_found(client, test_service, mock_document_store):
+    """Test the GET /api/chunks/{chunk_id} endpoint when chunk not found."""
+    mock_document_store.query_documents.return_value = []
+    
+    response = client.get("/api/chunks/nonexistent")
+    
+    assert response.status_code == 404
+    data = response.json()
+    assert "not found" in data["detail"].lower()

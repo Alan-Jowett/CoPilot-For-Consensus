@@ -217,6 +217,174 @@ def get_available_sources():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/threads")
+def get_threads(
+    limit: int = Query(10, ge=1, le=100, description="Maximum number of results"),
+    skip: int = Query(0, ge=0, description="Number of results to skip"),
+    archive_id: str = Query(None, description="Filter by archive ID"),
+):
+    """Get list of threads with optional filters."""
+    global reporting_service
+    
+    if not reporting_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    try:
+        threads = reporting_service.get_threads(
+            limit=limit,
+            skip=skip,
+            archive_id=archive_id,
+        )
+        
+        return {
+            "threads": threads,
+            "count": len(threads),
+            "limit": limit,
+            "skip": skip,
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching threads: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/threads/{thread_id}")
+def get_thread(thread_id: str):
+    """Get a specific thread by ID."""
+    global reporting_service
+    
+    if not reporting_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    try:
+        thread = reporting_service.get_thread_by_id(thread_id)
+        
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+        
+        return thread
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching thread {thread_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/messages")
+def get_messages(
+    limit: int = Query(10, ge=1, le=100, description="Maximum number of results"),
+    skip: int = Query(0, ge=0, description="Number of results to skip"),
+    thread_id: str = Query(None, description="Filter by thread ID"),
+    message_id: str = Query(None, description="Filter by RFC 5322 Message-ID"),
+):
+    """Get list of messages with optional filters."""
+    global reporting_service
+    
+    if not reporting_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    try:
+        messages = reporting_service.get_messages(
+            limit=limit,
+            skip=skip,
+            thread_id=thread_id,
+            message_id=message_id,
+        )
+        
+        return {
+            "messages": messages,
+            "count": len(messages),
+            "limit": limit,
+            "skip": skip,
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching messages: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/messages/{message_doc_id}")
+def get_message(message_doc_id: str):
+    """Get a specific message by its document ID."""
+    global reporting_service
+    
+    if not reporting_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    try:
+        message = reporting_service.get_message_by_id(message_doc_id)
+        
+        if not message:
+            raise HTTPException(status_code=404, detail="Message not found")
+        
+        return message
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching message {message_doc_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/chunks")
+def get_chunks(
+    limit: int = Query(10, ge=1, le=100, description="Maximum number of results"),
+    skip: int = Query(0, ge=0, description="Number of results to skip"),
+    message_id: str = Query(None, description="Filter by RFC 5322 Message-ID"),
+    thread_id: str = Query(None, description="Filter by thread ID"),
+    message_doc_id: str = Query(None, description="Filter by message document ID"),
+):
+    """Get list of chunks with optional filters."""
+    global reporting_service
+    
+    if not reporting_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    try:
+        chunks = reporting_service.get_chunks(
+            limit=limit,
+            skip=skip,
+            message_id=message_id,
+            thread_id=thread_id,
+            message_doc_id=message_doc_id,
+        )
+        
+        return {
+            "chunks": chunks,
+            "count": len(chunks),
+            "limit": limit,
+            "skip": skip,
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching chunks: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/chunks/{chunk_id}")
+def get_chunk(chunk_id: str):
+    """Get a specific chunk by ID."""
+    global reporting_service
+    
+    if not reporting_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    try:
+        chunk = reporting_service.get_chunk_by_id(chunk_id)
+        
+        if not chunk:
+            raise HTTPException(status_code=404, detail="Chunk not found")
+        
+        return chunk
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching chunk {chunk_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 def start_subscriber_thread(service: ReportingService):
     """Start the event subscriber in a separate thread.
     
