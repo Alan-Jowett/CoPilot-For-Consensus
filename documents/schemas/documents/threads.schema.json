@@ -16,7 +16,7 @@
       "minLength": 16,
       "maxLength": 16,
       "pattern": "^[A-Fa-f0-9]{16}$",
-      "description": "SHA256 hash of the mbox file this thread came from (first 16 chars)"
+      "description": "16-hex-character prefix of the SHA256 hash of the mbox file this thread came from"
     },
     "subject": { "type": "string" },
     "participants": {
