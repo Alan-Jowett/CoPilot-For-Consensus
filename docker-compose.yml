@@ -707,7 +707,6 @@ services:
       - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
       - ./adapters/copilot_logging:/app/adapters/copilot_logging:ro
       - ./adapters/copilot_metrics:/app/adapters/copilot_metrics:ro
-<<<<<<< HEAD
       - ./secrets:/run/secrets:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')"]

@@ -147,8 +147,10 @@ def load_typed_config(
                 base_path=base_path,
             )
             secret_provider = SecretConfigProvider(secret_provider=secret_provider_instance)
-        except Exception:
+        except Exception as e:
             # If secret provider fails, continue without it
+            import sys
+            print(f"[DEBUG typed_config] Failed to create secret provider: {e}", file=sys.stderr)
             secret_provider = None
     
     # Second pass: reload config with secret provider if one was created

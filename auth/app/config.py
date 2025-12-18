@@ -42,7 +42,7 @@ def load_auth_config():
         if hasattr(config, 'jwt_private_key') and config.jwt_private_key:
             # Write secrets to temp files
             temp_dir = Path(tempfile.gettempdir()) / "auth_keys"
-            temp_dir.mkdir(exist_ok=True)
+            temp_dir.mkdir(parents=True, exist_ok=True)
             
             private_key_path = temp_dir / "jwt_private.pem"
             public_key_path = temp_dir / "jwt_public.pem"

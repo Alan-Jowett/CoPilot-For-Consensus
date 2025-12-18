@@ -6,6 +6,7 @@
 import asyncio
 import secrets
 import time
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from copilot_auth import (
@@ -66,16 +67,30 @@ class AuthService:
         """Initialize OIDC providers and JWT manager."""
         logger.info("Initializing Auth Service...")
         
-        # Initialize JWT manager
-        # Get key paths from processed config (added dynamically in load_auth_config)
-        private_key_path = getattr(self.config._config, '_jwt_private_key_path', None)
-        public_key_path = getattr(self.config._config, '_jwt_public_key_path', None)
+        # Get JWT keys from secrets store (via copilot_secrets adapter)
+        private_key = getattr(self.config, 'jwt_private_key', None)
+        public_key = getattr(self.config, 'jwt_public_key', None)
+        
+        if not private_key or not public_key:
+            logger.error(f"Keys not found: private={private_key is not None}, public={public_key is not None}")
+            raise ValueError("JWT keys (jwt_private_key, jwt_public_key) not found in secrets store")
+        
+        # Write keys to temp files for JWTManager
+        import tempfile
+        temp_dir = Path(tempfile.gettempdir()) / "auth_keys"
+        temp_dir.mkdir(exist_ok=True)
+        
+        private_key_path = temp_dir / "jwt_private.pem"
+        public_key_path = temp_dir / "jwt_public.pem"
+        
+        private_key_path.write_text(private_key)
+        public_key_path.write_text(public_key)
         
         self.jwt_manager = JWTManager(
             issuer=self.config.issuer,
             algorithm=self.config.jwt_algorithm,
-            private_key_path=private_key_path,
-            public_key_path=public_key_path,
+            private_key_path=str(private_key_path),
+            public_key_path=str(public_key_path),
             secret_key=getattr(self.config, 'jwt_secret_key', None),
             key_id=self.config.jwt_key_id,
             default_expiry=self.config.jwt_default_expiry,

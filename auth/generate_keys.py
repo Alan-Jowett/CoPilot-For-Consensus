@@ -71,8 +71,8 @@ if __name__ == "__main__":
     # Get script directory
     script_dir = Path(__file__).parent
     
-    # Default output directory
-    output_dir = script_dir / "config"
+    # Default output directory is now the secrets folder
+    output_dir = script_dir.parent / "secrets"
     
     # Allow custom output directory via command line
     if len(sys.argv) > 1:

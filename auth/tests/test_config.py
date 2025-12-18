@@ -5,6 +5,7 @@
 
 from pathlib import Path
 import sys
+import tempfile
 
 import pytest
 from copilot_config import TypedConfig
@@ -47,3 +48,29 @@ class TestAuthConfig:
         # Should have an issuer set
         assert config.issuer is not None
         assert isinstance(config.issuer, str)
+
+    def test_secrets_loaded_and_written_to_temp(self, tmp_path, monkeypatch):
+        """Ensure JWT secrets are pulled from local provider and materialized to files."""
+        secret_dir = tmp_path / "secrets"
+        secret_dir.mkdir()
+
+        private_content = "PRIVATE_KEY_CONTENT"
+        public_content = "PUBLIC_KEY_CONTENT"
+
+        (secret_dir / "jwt_private_key").write_text(private_content)
+        (secret_dir / "jwt_public_key").write_text(public_content)
+
+        monkeypatch.setenv("SECRET_PROVIDER_TYPE", "local")
+        monkeypatch.setenv("SECRETS_BASE_PATH", str(secret_dir))
+
+        temp_root = tmp_path / "auth_temp"
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(temp_root))
+
+        config = load_auth_config()
+
+        assert config.jwt_private_key == private_content
+        assert config.jwt_public_key == public_content
+
+        materialized_dir = temp_root / "auth_keys"
+        assert (materialized_dir / "jwt_private.pem").read_text() == private_content
+        assert (materialized_dir / "jwt_public.pem").read_text() == public_content

@@ -29,6 +29,14 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
+    - name: Create auth test secrets
+      run: |
+        mkdir -p secrets
+        if [ ! -f secrets/jwt_private_key ]; then
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out secrets/jwt_private_key
+          openssl rsa -pubout -in secrets/jwt_private_key -out secrets/jwt_public_key
+        fi
+
     - name: Free up disk space
       run: |
         echo "Disk space before cleanup:"
@@ -161,6 +169,11 @@ jobs:
       run: |
         docker compose up -d summarization
         timeout 120s bash -c 'until docker compose ps summarization --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for summarization..."; sleep 3; done' || (docker compose logs summarization --tail=50 && exit 1)
+
+    - name: Start auth
+      run: |
+        docker compose up -d auth
+        timeout 120s bash -c 'until docker compose ps auth --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for auth..."; sleep 3; done' || (docker compose logs auth --tail=50 && exit 1)
 
     - name: Start reporting
       run: |
@@ -298,6 +311,24 @@ jobs:
         done
         echo "❌ Reporting service failed to respond after $max_attempts attempts"
         docker compose logs reporting --tail=50
+        exit 1
+
+    - name: Test auth service health endpoint
+      run: |
+        echo "Testing auth service..."
+        max_attempts=10
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+          if curl -f http://localhost:8090/health 2>/dev/null; then
+            echo "✓ Auth service is healthy"
+            exit 0
+          fi
+          echo "Attempt $attempt/$max_attempts: Auth service not responding yet..."
+          sleep 3
+          attempt=$((attempt + 1))
+        done
+        echo "❌ Auth service failed to respond after $max_attempts attempts"
+        docker compose logs auth --tail=50
         exit 1
 
     - name: Test reporting API endpoint
