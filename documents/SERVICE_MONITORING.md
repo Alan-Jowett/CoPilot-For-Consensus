@@ -128,7 +128,8 @@ All service metrics use the `copilot_` namespace prefix. Services push metrics t
 
 5. **Check for metric push errors in service logs**:
    - Search logs for "Failed to push metrics"
-   - Example: `docker compose logs parsing | grep "push metrics"`
+   - Linux/macOS: `docker compose logs parsing | grep "push metrics"`
+   - Windows PowerShell: `docker compose logs parsing | Select-String "push metrics"`
    - Fix any connection errors to Pushgateway
 
 6. **Verify correct metric names**:
@@ -146,7 +147,25 @@ All service metrics use the `copilot_` namespace prefix. Services push metrics t
 - **Queue Depths**: Requires RabbitMQ exporter to be running (`docker compose ps rabbitmq-exporter`)
 
 **Quick Fix Checklist**:
+
+Linux/macOS (bash):
 ```bash
+# 1. Restart all monitoring services
+docker compose restart pushgateway monitoring grafana
+
+# 2. Restart service that's missing metrics
+docker compose restart parsing  # or chunking, embedding, summarization
+
+# 3. Trigger some processing to generate metrics
+# (Ingest test data - see "ingest test data" intent in .github/copilot-instructions.md)
+
+# 4. Wait 15-30 seconds for metrics to propagate
+
+# 5. Refresh Grafana dashboard
+```
+
+Windows (PowerShell):
+```powershell
 # 1. Restart all monitoring services
 docker compose restart pushgateway monitoring grafana
 
