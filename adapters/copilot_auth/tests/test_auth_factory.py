@@ -28,6 +28,7 @@ class TestCreateIdentityProvider:
             "github",
             client_id="test-client-id",
             client_secret="test-client-secret",
+            redirect_uri="https://auth.example.com/callback",
             api_base_url="https://api.github.com"
         )
         
@@ -42,26 +43,31 @@ class TestCreateIdentityProvider:
             "github",
             client_id="test-client-id",
             client_secret="test-client-secret",
+            redirect_uri="https://auth.example.com/callback",
             api_base_url="https://github.enterprise.com/api"
         )
         
         assert isinstance(provider, GitHubIdentityProvider)
         assert provider.api_base_url == "https://github.enterprise.com/api"
 
-    def test_create_github_provider_requires_api_base_url(self):
-        """Test creating a GitHub provider requires api_base_url parameter."""
-        with pytest.raises(ValueError, match="api_base_url parameter is required"):
-            create_identity_provider(
-                "github",
-                client_id="test-client-id",
-                client_secret="test-client-secret"
-            )
+    def test_create_github_provider_with_default_api_url(self):
+        """Test creating a GitHub provider uses default api_base_url."""
+        provider = create_identity_provider(
+            "github",
+            client_id="test-client-id",
+            client_secret="test-client-secret",
+            redirect_uri="https://auth.example.com/callback"
+        )
+
+        assert isinstance(provider, GitHubIdentityProvider)
+        assert provider.api_base_url == "https://api.github.com"
 
     def test_create_github_provider_requires_credentials(self):
         """Test creating a GitHub provider without credentials raises error."""
         with pytest.raises(ValueError, match="client_id parameter is required"):
             create_identity_provider(
                 "github",
+                redirect_uri="https://auth.example.com/callback",
                 api_base_url="https://api.github.com"
             )
 
@@ -71,6 +77,7 @@ class TestCreateIdentityProvider:
             create_identity_provider(
                 "github",
                 client_id="test-client-id",
+                redirect_uri="https://auth.example.com/callback",
                 api_base_url="https://api.github.com"
             )
 
