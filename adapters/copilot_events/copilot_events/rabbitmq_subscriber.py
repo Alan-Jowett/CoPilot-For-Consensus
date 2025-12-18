@@ -209,7 +209,7 @@ class RabbitMQSubscriber(EventSubscriber):
             try:
                 self.channel.stop_consuming()
                 logger.info("Stopped consuming events")
-            except (AssertionError, Exception) as e:
+            except Exception as e:
                 # Log but don't raise - we're trying to stop cleanly
                 logger.debug(f"Exception during stop_consuming (expected during shutdown): {e}")
             finally:
