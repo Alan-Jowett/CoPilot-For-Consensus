@@ -222,6 +222,13 @@ class IngestionService:
         else:
             self.error_reporter = error_reporter
         
+        # Source status tracking
+        self._source_status: Dict[str, Dict[str, Any]] = {}
+        self._stats = {
+            "total_files_ingested": 0,
+            "last_ingestion_at": None,
+        }
+        
         self.load_checksums()
 
     @staticmethod
@@ -421,6 +428,12 @@ class IngestionService:
                                 retry_count=retry_count
                             )
                         self._record_failure_metrics(metric_tags, started_monotonic)
+                        # Update source status tracking
+                        self._update_source_status(
+                            source.name,
+                            status="failed",
+                            error=last_error,
+                        )
                         raise FetchError(
                             last_error,
                             source_name=source.name,
@@ -516,6 +529,15 @@ class IngestionService:
                     files_processed,
                     files_skipped,
                 )
+                
+                # Update source status tracking
+                self._update_source_status(
+                    source.name,
+                    status="success",
+                    files_processed=files_processed,
+                    files_skipped=files_skipped,
+                )
+                
                 # Success - method returns normally without exception
                 return
 
@@ -579,6 +601,12 @@ class IngestionService:
                             f"Ingestion failed: {last_error}. Event publish also failed: {publish_error}"
                         ) from e
                     self._record_failure_metrics(metric_tags, started_monotonic)
+                    # Update source status tracking
+                    self._update_source_status(
+                        source.name,
+                        status="failed",
+                        error=last_error,
+                    )
                     raise IngestionError(last_error) from e
 
         # Should never reach here due to loop structure, but add safety
@@ -919,3 +947,315 @@ class IngestionService:
             "source_name": name or "unknown",
             "source_type": src_type or "unknown",
         }
+    
+    # Source management API methods
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Get service statistics.
+        
+        Returns:
+            Dictionary with service statistics
+        """
+        sources = _enabled_sources(getattr(self.config, "sources", []))
+        
+        return {
+            "sources_configured": len(getattr(self.config, "sources", [])),
+            "sources_enabled": len(sources),
+            "total_files_ingested": self._stats.get("total_files_ingested", 0),
+            "last_ingestion_at": self._stats.get("last_ingestion_at"),
+            "version": getattr(self, "version", "unknown"),
+        }
+    
+    def list_sources(self, enabled_only: bool = False) -> List[Dict[str, Any]]:
+        """List all sources.
+        
+        Args:
+            enabled_only: If True, only return enabled sources
+            
+        Returns:
+            List of source configurations
+        """
+        sources = getattr(self.config, "sources", [])
+        
+        result = []
+        for source in sources:
+            if isinstance(source, dict):
+                source_dict = source.copy()
+            else:
+                source_dict = {
+                    "name": getattr(source, "name", None),
+                    "source_type": getattr(source, "source_type", None),
+                    "url": getattr(source, "url", None),
+                    "port": getattr(source, "port", None),
+                    "username": getattr(source, "username", None),
+                    "password": "***" if getattr(source, "password", None) else None,
+                    "folder": getattr(source, "folder", None),
+                    "enabled": getattr(source, "enabled", True),
+                    "schedule": getattr(source, "schedule", None),
+                }
+            
+            # Mask password
+            if "password" in source_dict and source_dict["password"]:
+                source_dict["password"] = "***"
+            
+            if enabled_only and not source_dict.get("enabled", True):
+                continue
+            
+            result.append(source_dict)
+        
+        return result
+    
+    def get_source(self, source_name: str) -> Optional[Dict[str, Any]]:
+        """Get a specific source by name.
+        
+        Args:
+            source_name: Name of the source
+            
+        Returns:
+            Source configuration or None if not found
+        """
+        sources = self.list_sources()
+        for source in sources:
+            if source.get("name") == source_name:
+                return source
+        return None
+    
+    def create_source(self, source_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new source.
+        
+        Args:
+            source_data: Source configuration data
+            
+        Returns:
+            Created source configuration
+            
+        Raises:
+            ValueError: If source name already exists or data is invalid
+        """
+        if not self.document_store:
+            raise ValueError("Document store not configured")
+        
+        # Validate required fields
+        required_fields = {"name", "source_type", "url"}
+        if not required_fields.issubset(source_data.keys()):
+            missing = required_fields - set(source_data.keys())
+            raise ValueError(f"Missing required fields: {missing}")
+        
+        # Check if source already exists
+        existing = self.get_source(source_data["name"])
+        if existing:
+            raise ValueError(f"Source '{source_data['name']}' already exists")
+        
+        # Add default enabled flag if not present
+        if "enabled" not in source_data:
+            source_data["enabled"] = True
+        
+        # Store in document store
+        try:
+            self.document_store.insert_document("sources", source_data)
+            
+            # Reload sources from config
+            self._reload_sources()
+            
+            self.logger.info("Source created", source_name=source_data["name"])
+            
+            # Return created source (with password masked)
+            created = source_data.copy()
+            if "password" in created and created["password"]:
+                created["password"] = "***"
+            
+            return created
+        except Exception as e:
+            self.logger.error("Failed to create source", error=str(e), exc_info=True)
+            raise ValueError(f"Failed to create source: {str(e)}")
+    
+    def update_source(self, source_name: str, source_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Update an existing source.
+        
+        Args:
+            source_name: Name of the source to update
+            source_data: Updated source configuration
+            
+        Returns:
+            Updated source configuration or None if not found
+            
+        Raises:
+            ValueError: If update fails
+        """
+        if not self.document_store:
+            raise ValueError("Document store not configured")
+        
+        # Check if source exists
+        existing = self.get_source(source_name)
+        if not existing:
+            return None
+        
+        try:
+            # Update in document store
+            self.document_store.update_document(
+                "sources",
+                {"name": source_name},
+                source_data
+            )
+            
+            # Reload sources from config
+            self._reload_sources()
+            
+            self.logger.info("Source updated", source_name=source_name)
+            
+            # Return updated source (with password masked)
+            updated = source_data.copy()
+            if "password" in updated and updated["password"]:
+                updated["password"] = "***"
+            
+            return updated
+        except Exception as e:
+            self.logger.error("Failed to update source", error=str(e), exc_info=True)
+            raise ValueError(f"Failed to update source: {str(e)}")
+    
+    def delete_source(self, source_name: str) -> bool:
+        """Delete a source.
+        
+        Args:
+            source_name: Name of the source to delete
+            
+        Returns:
+            True if deleted, False if not found
+            
+        Raises:
+            ValueError: If deletion fails
+        """
+        if not self.document_store:
+            raise ValueError("Document store not configured")
+        
+        # Check if source exists
+        existing = self.get_source(source_name)
+        if not existing:
+            return False
+        
+        try:
+            # Delete from document store
+            self.document_store.delete_document("sources", {"name": source_name})
+            
+            # Reload sources from config
+            self._reload_sources()
+            
+            # Clear status tracking
+            if source_name in self._source_status:
+                del self._source_status[source_name]
+            
+            self.logger.info("Source deleted", source_name=source_name)
+            
+            return True
+        except Exception as e:
+            self.logger.error("Failed to delete source", error=str(e), exc_info=True)
+            raise ValueError(f"Failed to delete source: {str(e)}")
+    
+    def trigger_ingestion(self, source_name: str) -> tuple[bool, str]:
+        """Trigger manual ingestion for a source.
+        
+        Args:
+            source_name: Name of the source to ingest
+            
+        Returns:
+            Tuple of (success, message)
+        """
+        # Find the source
+        source = self.get_source(source_name)
+        if not source:
+            return False, f"Source '{source_name}' not found"
+        
+        if not source.get("enabled", True):
+            return False, f"Source '{source_name}' is disabled"
+        
+        try:
+            # Convert to SourceConfig
+            source_cfg = _source_from_mapping(source)
+            
+            # Run ingestion
+            self.ingest_archive(source_cfg)
+            
+            return True, f"Ingestion triggered successfully for '{source_name}'"
+        except Exception as e:
+            return False, f"Ingestion failed: {str(e)}"
+    
+    def get_source_status(self, source_name: str) -> Optional[Dict[str, Any]]:
+        """Get status information for a source.
+        
+        Args:
+            source_name: Name of the source
+            
+        Returns:
+            Status information or None if source not found
+        """
+        source = self.get_source(source_name)
+        if not source:
+            return None
+        
+        # Get status from tracking or create default
+        status = self._source_status.get(source_name, {})
+        
+        return {
+            "name": source_name,
+            "enabled": source.get("enabled", True),
+            "last_run_at": status.get("last_run_at"),
+            "last_run_status": status.get("last_run_status"),
+            "last_error": status.get("last_error"),
+            "next_run_at": status.get("next_run_at"),
+            "files_processed": status.get("files_processed", 0),
+            "files_skipped": status.get("files_skipped", 0),
+        }
+    
+    def _reload_sources(self):
+        """Reload sources from document store."""
+        if not self.document_store:
+            return
+        
+        try:
+            from copilot_config.providers import DocStoreConfigProvider
+            
+            doc_store_provider = DocStoreConfigProvider(self.document_store)
+            sources = doc_store_provider.query_documents_from_collection("sources") or []
+            
+            # Update config sources
+            self.config._overrides["sources"] = sources
+            
+            self.logger.info("Sources reloaded", source_count=len(sources))
+        except Exception as e:
+            self.logger.warning("Failed to reload sources", error=str(e), exc_info=True)
+    
+    def _update_source_status(
+        self,
+        source_name: str,
+        status: str,
+        error: Optional[str] = None,
+        files_processed: int = 0,
+        files_skipped: int = 0,
+    ):
+        """Update status tracking for a source.
+        
+        Args:
+            source_name: Name of the source
+            status: Status (success, failed)
+            error: Error message if failed
+            files_processed: Number of files processed
+            files_skipped: Number of files skipped
+        """
+        now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        
+        if source_name not in self._source_status:
+            self._source_status[source_name] = {}
+        
+        self._source_status[source_name].update({
+            "last_run_at": now,
+            "last_run_status": status,
+            "last_error": error,
+            "files_processed": files_processed,
+            "files_skipped": files_skipped,
+        })
+        
+        # Update global stats
+        if status == "success":
+            self._stats["total_files_ingested"] += files_processed
+            self._stats["last_ingestion_at"] = now
+
