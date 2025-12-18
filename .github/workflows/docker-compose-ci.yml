@@ -184,13 +184,43 @@ jobs:
           python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
         echo "✓ Test configuration uploaded"
 
-    - name: Run ingestion service (batch job)
+    - name: Start ingestion service
       run: |
-        echo "Running ingestion service (batch job - runs once and exits)..."
-        docker compose run --rm \
-          -v $PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro \
-          ingestion
-        echo "✓ Ingestion service completed successfully"
+        docker compose up -d ingestion
+        timeout 120s bash -c 'until docker compose ps ingestion --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for ingestion service..."; sleep 3; done' || (docker compose logs ingestion --tail=50 && exit 1)
+        echo "✓ Ingestion service started and healthy"
+
+    - name: Trigger ingestion via API
+      run: |
+        echo "Triggering ingestion for test source via REST API..."
+        # The test configuration creates a source named "test-mailbox"
+        # Trigger ingestion for this source using the REST API
+        max_attempts=5
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+          if curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger 2>/dev/null; then
+            echo "✓ Ingestion triggered successfully"
+            break
+          fi
+          echo "Attempt $attempt/$max_attempts: Failed to trigger ingestion, retrying..."
+          sleep 2
+          attempt=$((attempt + 1))
+        done
+        
+        if [ $attempt -gt $max_attempts ]; then
+          echo "❌ Failed to trigger ingestion after $max_attempts attempts"
+          docker compose logs ingestion --tail=50
+          exit 1
+        fi
+        
+        # Wait for ingestion to complete (check status)
+        echo "Waiting for ingestion to complete..."
+        sleep 10  # Give it time to process
+        
+        # Check ingestion status
+        status=$(curl -s http://localhost:8001/api/sources/test-mailbox/status)
+        echo "Ingestion status: $status"
+        echo "✓ Ingestion process completed"
 
     - name: View ingestion logs
       if: always()
