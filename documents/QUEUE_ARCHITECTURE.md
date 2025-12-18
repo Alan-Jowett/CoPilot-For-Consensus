@@ -136,6 +136,11 @@ Use the RabbitMQ Management UI (`http://localhost:15672`) to monitor:
 - **Message rate** - Should balance publish/consume rates
 - **Consumers** - Each service queue should have 1 active consumer
 
+**Note on Grafana Dashboards:** Some Grafana dashboards may reference old queue names like `chunks.prepared`, `embeddings.generated`, and `report.published`. These queries will return no data since those queues no longer exist. To monitor the actual message flow, use the service queue names instead:
+- `embedding-service` instead of `chunks.prepared`
+- `orchestrator-service` instead of `embeddings.generated`
+- For `report.published` events, monitor the `summary.complete` queue consumption rate
+
 ### Expected Queue States When Idle
 
 | Queue | Ready Messages | Consumers |
