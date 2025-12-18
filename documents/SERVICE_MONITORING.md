@@ -284,22 +284,57 @@ retry_job_errors_total
 
 **Diagnosis**:
 1. Check if retry-job is running:
+   
+   Linux/macOS (bash):
    ```bash
    docker compose ps retry-job
    ```
+   
+   Windows (PowerShell):
+   ```powershell
+   docker compose ps retry-job
+   ```
+
 2. View retry-job logs:
+   
+   Linux/macOS (bash):
    ```bash
    docker compose logs retry-job
    ```
+   
+   Windows (PowerShell):
+   ```powershell
+   docker compose logs retry-job
+   ```
+
 3. Check Prometheus Pushgateway for metrics:
    - Open http://localhost:9091
    - Look for job `retry-job`
 
 **Solutions**:
-- If retry-job isn't running: `docker compose up -d retry-job`
-- If retry-job is failing: Check logs for connection errors to MongoDB or RabbitMQ
-- If you need metrics immediately: Manually trigger the job:
+- If retry-job isn't running:
+  
+  Linux/macOS (bash):
   ```bash
+  docker compose up -d retry-job
+  ```
+  
+  Windows (PowerShell):
+  ```powershell
+  docker compose up -d retry-job
+  ```
+
+- If retry-job is failing: Check logs for connection errors to MongoDB or RabbitMQ
+
+- If you need metrics immediately: Manually trigger the job:
+  
+  Linux/macOS (bash):
+  ```bash
+  docker compose run --rm retry-job python /app/scripts/retry_stuck_documents.py --once
+  ```
+  
+  Windows (PowerShell):
+  ```powershell
   docker compose run --rm retry-job python /app/scripts/retry_stuck_documents.py --once
   ```
 
@@ -310,14 +345,43 @@ retry_job_errors_total
 **Diagnosis**:
 1. Check which collection has stuck documents (dashboard shows breakdown)
 2. Review service health for that stage:
+   
+   Linux/macOS (bash):
    ```bash
    docker compose logs <service> | grep ERROR
    ```
+   
+   Windows (PowerShell):
+   ```powershell
+   docker compose logs <service> | Select-String -Pattern "ERROR"
+   ```
+
 3. Check RabbitMQ queue depth: http://localhost:15672
-4. Verify MongoDB connectivity: `docker compose ps documentdb`
+4. Verify MongoDB connectivity:
+   
+   Linux/macOS (bash):
+   ```bash
+   docker compose ps documentdb
+   ```
+   
+   Windows (PowerShell):
+   ```powershell
+   docker compose ps documentdb
+   ```
 
 **Actions**:
-1. If service is down: Restart it: `docker compose restart <service>`
+1. If service is down: Restart it:
+   
+   Linux/macOS (bash):
+   ```bash
+   docker compose restart <service>
+   ```
+   
+   Windows (PowerShell):
+   ```powershell
+   docker compose restart <service>
+   ```
+
 2. If queue is backed up: Check consumer count in RabbitMQ UI
 3. If dependency issue: Fix dependency (MongoDB, RabbitMQ, Qdrant, Ollama)
 4. Monitor dashboard to confirm stuck count decreases
@@ -329,13 +393,31 @@ retry_job_errors_total
 **Diagnosis**:
 1. Check which collection has failures (dashboard shows breakdown)
 2. Investigate error patterns:
+   
+   Linux/macOS (bash):
    ```bash
    docker compose exec documentdb mongosh -u root -p example --authenticationDatabase admin
    use copilot
    db.archives.find({status: "failed_max_retries"}).limit(10)
    ```
+   
+   Windows (PowerShell):
+   ```powershell
+   docker compose exec documentdb mongosh -u root -p example --authenticationDatabase admin
+   # Then in mongosh:
+   # use copilot
+   # db.archives.find({status: "failed_max_retries"}).limit(10)
+   ```
+
 3. Review failed queue messages:
+   
+   Linux/macOS (bash):
    ```bash
+   python scripts/manage_failed_queues.py inspect parsing.failed --limit 10
+   ```
+   
+   Windows (PowerShell):
+   ```powershell
    python scripts/manage_failed_queues.py inspect parsing.failed --limit 10
    ```
 
@@ -350,20 +432,57 @@ retry_job_errors_total
 
 **Diagnosis**:
 1. Check retry-job logs for errors:
+   
+   Linux/macOS (bash):
    ```bash
    docker compose logs retry-job | tail -100
    ```
+   
+   Windows (PowerShell):
+   ```powershell
+   docker compose logs retry-job | Select-Object -Last 100
+   ```
+
 2. Common issues:
    - MongoDB connection timeout
    - RabbitMQ connection refused
    - Pushgateway unreachable
 
 **Actions**:
-1. Verify all dependencies are healthy: `docker compose ps`
-2. Check network connectivity between services
-3. Restart retry-job: `docker compose restart retry-job`
-4. Run manually with verbose logging:
+1. Verify all dependencies are healthy:
+   
+   Linux/macOS (bash):
    ```bash
+   docker compose ps
+   ```
+   
+   Windows (PowerShell):
+   ```powershell
+   docker compose ps
+   ```
+
+2. Check network connectivity between services
+3. Restart retry-job:
+   
+   Linux/macOS (bash):
+   ```bash
+   docker compose restart retry-job
+   ```
+   
+   Windows (PowerShell):
+   ```powershell
+   docker compose restart retry-job
+   ```
+
+4. Run manually with verbose logging:
+   
+   Linux/macOS (bash):
+   ```bash
+   docker compose run --rm retry-job python /app/scripts/retry_stuck_documents.py --once --verbose
+   ```
+   
+   Windows (PowerShell):
+   ```powershell
    docker compose run --rm retry-job python /app/scripts/retry_stuck_documents.py --once --verbose
    ```
 

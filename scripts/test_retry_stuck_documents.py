@@ -589,14 +589,6 @@ class TestRunOnce(unittest.TestCase):
         # Verify metrics were pushed
         mock_push.assert_called_once()
         
-        # Verify gauges were initialized to 0 for all collections
-        # This ensures metrics exist in Prometheus even with no stuck documents
-        for collection_name in self.job.COLLECTION_CONFIGS.keys():
-            # Gauges should have been set (implicitly called during initialization)
-            # We can't directly verify .set() calls on gauges, but we can verify
-            # the job completed successfully which means gauges were initialized
-            pass
-        
         # Verify success metric was incremented
         # Note: Can't directly verify counter increment without access to registry
     

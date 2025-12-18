@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Verification Guide: Retry Policy Dashboard Fix
 
 ## Issue Summary
@@ -55,20 +58,43 @@ Added comprehensive section 4.2 "Retry Policy Monitoring" covering:
 ## Verification Steps
 
 ### Step 1: Start the Stack
+
+Linux/macOS (bash):
 ```bash
 cd /home/runner/work/CoPilot-For-Consensus/CoPilot-For-Consensus
 docker compose up -d
 ```
 
+Windows (PowerShell):
+```powershell
+cd /home/runner/work/CoPilot-For-Consensus/CoPilot-For-Consensus
+docker compose up -d
+```
+
 ### Step 2: Verify Retry-Job Service is Running
+
+Linux/macOS (bash):
 ```bash
 docker compose ps retry-job
 ```
+
+Windows (PowerShell):
+```powershell
+docker compose ps retry-job
+```
+
 Expected output: Service should be "Up" with status "Up X seconds/minutes"
 
 ### Step 3: Manually Trigger Retry Job (Optional - for immediate verification)
 Instead of waiting 15 minutes for the first scheduled run:
+
+Linux/macOS (bash):
 ```bash
+docker compose run --rm retry-job python /app/scripts/retry_stuck_documents.py --once
+```
+
+Windows (PowerShell):
+```powershell
 docker compose run --rm retry-job python /app/scripts/retry_stuck_documents.py --once
 ```
 
@@ -153,6 +179,8 @@ Wait 15-30 minutes and check that:
 
 ### Test Case 4: Actual Stuck Documents
 To simulate stuck documents:
+
+Linux/macOS (bash):
 ```bash
 # Connect to MongoDB
 docker compose exec documentdb mongosh -u root -p example --authenticationDatabase admin
@@ -169,8 +197,32 @@ db.archives.insertOne({
 })
 ```
 
+Windows (PowerShell):
+```powershell
+# Connect to MongoDB
+docker compose exec documentdb mongosh -u root -p example --authenticationDatabase admin
+
+# Then in mongosh:
+# use copilot
+# db.archives.insertOne({
+#   archive_id: "test-stuck-archive",
+#   status: "pending",
+#   attemptCount: 1,
+#   lastAttemptTime: new Date(Date.now() - 48*60*60*1000),
+#   file_path: "/tmp/test.mbox",
+#   source: "test"
+# })
+```
+
 Wait for retry-job to run or manually trigger it:
+
+Linux/macOS (bash):
 ```bash
+docker compose run --rm retry-job python /app/scripts/retry_stuck_documents.py --once
+```
+
+Windows (PowerShell):
+```powershell
 docker compose run --rm retry-job python /app/scripts/retry_stuck_documents.py --once
 ```
 
@@ -181,16 +233,27 @@ docker compose run --rm retry-job python /app/scripts/retry_stuck_documents.py -
 - After requeue, stuck count may decrease (if processing succeeds)
 
 Clean up:
+
+Linux/macOS (bash):
 ```bash
 docker compose exec documentdb mongosh -u root -p example --authenticationDatabase admin
 use copilot
 db.archives.deleteOne({archive_id: "test-stuck-archive"})
 ```
 
+Windows (PowerShell):
+```powershell
+docker compose exec documentdb mongosh -u root -p example --authenticationDatabase admin
+# Then in mongosh:
+# use copilot
+# db.archives.deleteOne({archive_id: "test-stuck-archive"})
+```
+
 ## Rollback Procedure (if needed)
 
 If the changes cause issues:
 
+Linux/macOS (bash):
 ```bash
 # Revert the dashboard
 git checkout HEAD~3 infra/grafana/dashboards/retry-policy.json
@@ -202,6 +265,29 @@ git checkout HEAD~3 scripts/retry_stuck_documents.py
 git checkout HEAD~3 documents/SERVICE_MONITORING.md
 
 # Restart Grafana to reload dashboard
+docker compose restart grafana
+
+# Rebuild and restart retry-job
+docker compose up -d --build retry-job
+```
+
+Windows (PowerShell):
+```powershell
+# Revert the dashboard
+git checkout HEAD~3 infra/grafana/dashboards/retry-policy.json
+
+# Revert the script
+git checkout HEAD~3 scripts/retry_stuck_documents.py
+
+# Revert the documentation
+git checkout HEAD~3 documents/SERVICE_MONITORING.md
+
+# Restart Grafana to reload dashboard
+docker compose restart grafana
+
+# Rebuild and restart retry-job
+docker compose up -d --build retry-job
+```
 docker compose restart grafana
 
 # Rebuild and restart retry-job
