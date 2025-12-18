@@ -50,14 +50,5 @@ def load_auth_config():
             private_key_path.write_text(config.jwt_private_key)
             if hasattr(config, 'jwt_public_key') and config.jwt_public_key:
                 public_key_path.write_text(config.jwt_public_key)
-            
-            # Add paths as dynamic attributes (TypedConfig allows this for processing)
-            object.__setattr__(config._config, '_jwt_private_key_path', str(private_key_path))
-            object.__setattr__(config._config, '_jwt_public_key_path', str(public_key_path))
-        else:
-            # Fallback to default dev keys in config/ for local development
-            base_path = Path(__file__).parent.parent / "config"
-            object.__setattr__(config._config, '_jwt_private_key_path', str(base_path / "dev_jwt_private.pem"))
-            object.__setattr__(config._config, '_jwt_public_key_path', str(base_path / "dev_jwt_public.pem"))
     
     return config
