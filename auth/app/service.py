@@ -17,7 +17,7 @@ from copilot_auth import (
 )
 from copilot_logging import create_logger
 
-from .config import AuthConfig
+from .config import load_auth_config
 
 logger = create_logger(logger_type="stdout", level="INFO", name="auth.service")
 
@@ -34,7 +34,7 @@ class AuthService:
         stats: Service statistics
     """
     
-    def __init__(self, config: AuthConfig):
+    def __init__(self, config):
         """Initialize the auth service.
         
         Args:
@@ -145,7 +145,7 @@ class AuthService:
         """Check if service is ready to handle requests."""
         return self.jwt_manager is not None and len(self.providers) > 0
     
-    def initiate_login(
+    async def initiate_login(
         self,
         provider: str,
         audience: str,
@@ -203,7 +203,7 @@ class AuthService:
         
         return authorization_url, state, nonce
     
-    def handle_callback(
+    async def handle_callback(
         self,
         code: str,
         state: str,

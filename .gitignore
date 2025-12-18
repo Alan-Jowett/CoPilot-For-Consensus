@@ -19,4 +19,4 @@ ollama_models/
 **/htmlcov/**
 **/*.pyc
 **/.venv/**
-auth/config/*.pem
+**/secrets/**

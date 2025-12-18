@@ -33,6 +33,7 @@ PRIORITY_ADAPTERS = [
     "copilot_events",
     "copilot_config",
     "copilot_summarization",
+    "copilot_logging",
 ]
 
 # Dependency map - what each adapter depends on
@@ -50,7 +51,8 @@ ADAPTER_DEPENDENCIES = {
     "copilot_summarization": [],
     "copilot_archive_fetcher": [],
     "copilot_archive_store": [],
-    "copilot_auth": [],
+    # copilot_auth imports copilot_logging in middleware
+    "copilot_auth": ["copilot_logging"],
     "copilot_draft_diff": [],
     "copilot_consensus": [],
 }

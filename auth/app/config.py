@@ -4,24 +4,24 @@
 """Auth service configuration.
 
 Uses copilot_config adapter with TypedConfig for schema-driven configuration.
+Secrets are automatically integrated based on schema metadata.
 """
 
-import os
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
-from copilot_config import load_typed_config, SecretConfigProvider, TypedConfig
-from copilot_secrets import create_secret_provider
+from copilot_config import load_typed_config
+from copilot_logging import create_logger
+
+logger = create_logger(logger_type="stdout", level="INFO", name="auth.config")
 
 
-def load_auth_config() -> TypedConfig:
+def load_auth_config():
     """Load auth service configuration from environment and secrets.
     
     Uses copilot_config with schema-driven configuration loading.
-    Secrets are loaded from SECRETS_BASE_PATH (default: /run/secrets).
-    
-    Configuration is accessed via attributes (config.issuer, config.jwt_algorithm, etc.)
-    See documents/schemas/configs/auth.json for complete schema.
+    Secrets integration is handled transparently by load_typed_config
+    based on configuration in documents/schemas/configs/auth.json.
     
     Returns:
         TypedConfig instance with validated configuration
@@ -33,22 +33,8 @@ def load_auth_config() -> TypedConfig:
         >>> print(config.jwt_algorithm)
         'RS256'
     """
-    # Create secret provider - factory reads provider type and config from environment
-    secrets = create_secret_provider()
-    secret_config = SecretConfigProvider(secret_provider=secrets)
-    
-    # Load configuration from schema
-    schema_dir = os.getenv("SCHEMA_DIR")
-    if not schema_dir:
-        # Default to repository schemas directory
-        repo_root = Path(__file__).parent.parent.parent
-        schema_dir = str(repo_root / "documents" / "schemas" / "configs")
-    
-    config = load_typed_config(
-        "auth",
-        schema_dir=schema_dir,
-        secret_provider=secret_config,
-    )
+    config = load_typed_config("auth")
+    logger.info("Auth configuration loaded successfully")
     
     # Handle JWT key file setup for RS256
     # JWTManager needs file paths, so we write secrets to temp files

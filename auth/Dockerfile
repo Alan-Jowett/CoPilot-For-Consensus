@@ -2,52 +2,31 @@
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
 # Authentication Service Dockerfile
-# Multi-stage build for production-ready container
+# Single-stage build aligned with other services
 
-FROM python:3.11-slim AS builder
-
-WORKDIR /build
-
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements
-COPY auth/requirements.txt .
-
-# Install Python dependencies
-RUN pip install --no-cache-dir --user -r requirements.txt
-
-# Production stage
-FROM python:3.11-slim
+FROM python:3.11-slim@sha256:158caf0e080e2cd74ef2879ed3c4e697792ee65251c8208b7afb56683c32ea6c
 
 WORKDIR /app
 
-# Copy Python dependencies from builder
-COPY --from=builder /root/.local /root/.local
+# Install shared adapters in dependency order using centralized script
+COPY adapters/ /app/adapters/
+RUN python /app/adapters/scripts/install_adapters.py \
+    copilot_auth \
+    copilot_config \
+    copilot_logging \
+    copilot_metrics \
+    copilot_secrets
 
-# Ensure scripts are in PATH
-ENV PATH=/root/.local/bin:$PATH
+# Install service dependencies
+COPY auth/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Install adapters (will be mounted as volumes in docker-compose)
-# For standalone builds, copy and install adapters
-COPY adapters/copilot_auth /tmp/copilot_auth
-COPY adapters/copilot_logging /tmp/copilot_logging
-COPY adapters/copilot_metrics /tmp/copilot_metrics
-
-RUN pip install --no-cache-dir /tmp/copilot_auth /tmp/copilot_logging /tmp/copilot_metrics && \
-    rm -rf /tmp/copilot_*
-
-# Copy application code
+# Copy service code
 COPY auth/app ./app
 COPY auth/main.py .
 
-# Create non-root user
-RUN useradd -m -u 1000 authuser && \
-    chown -R authuser:authuser /app
-
-USER authuser
+# Copy schema configuration
+COPY documents/schemas ./documents/schemas
 
 # Expose port
 EXPOSE 8090
@@ -56,5 +35,4 @@ EXPOSE 8090
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8090/health').read()" || exit 1
 
-# Run the service
 CMD ["python", "main.py"]

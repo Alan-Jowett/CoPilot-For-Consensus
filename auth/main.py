@@ -14,6 +14,7 @@ import os
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -66,13 +67,13 @@ app = FastAPI(
 
 
 @app.get("/")
-def root() -> dict[str, str]:
+async def root() -> dict[str, str]:
     """Root endpoint redirects to health check."""
     return health()
 
 
 @app.get("/health")
-def health() -> dict[str, any]:
+async def health() -> dict[str, Any]:
     """Health check endpoint."""
     global auth_service
     
@@ -90,7 +91,7 @@ def health() -> dict[str, any]:
 
 
 @app.get("/readyz")
-def readyz() -> dict[str, str]:
+async def readyz() -> dict[str, str]:
     """Readiness check endpoint."""
     global auth_service
     
@@ -101,7 +102,7 @@ def readyz() -> dict[str, str]:
 
 
 @app.get("/login")
-def login(
+async def login(
     provider: str = Query(..., description="OIDC provider (github, google, microsoft)"),
     aud: str = Query("copilot-orchestrator", description="Target audience for JWT"),
     prompt: str = Query(None, description="OAuth prompt parameter"),
@@ -124,7 +125,7 @@ def login(
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        authorization_url, state, nonce = auth_service.initiate_login(
+        authorization_url, state, nonce = await auth_service.initiate_login(
             provider=provider,
             audience=aud,
             prompt=prompt
@@ -149,7 +150,7 @@ def login(
 
 
 @app.get("/callback")
-def callback(
+async def callback(
     code: str = Query(..., description="Authorization code from provider"),
     state: str = Query(..., description="OAuth state parameter"),
 ) -> JSONResponse:
@@ -180,7 +181,7 @@ def callback(
     
     try:
         # Handle callback - provider and audience retrieved from session via state
-        local_jwt = auth_service.handle_callback(
+        local_jwt = await auth_service.handle_callback(
             code=code,
             state=state,
         )
