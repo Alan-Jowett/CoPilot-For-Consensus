@@ -95,12 +95,18 @@ class StartupRequeue:
                     # Build event data
                     event_data = build_event_data(doc)
                     
+                    # Build complete event payload
+                    event = {
+                        "event_type": event_type,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "data": event_data,
+                    }
+                    
                     # Publish requeue event
                     self.publisher.publish(
-                        event_type=event_type,
-                        data=event_data,
-                        routing_key=routing_key,
                         exchange="copilot.events",
+                        routing_key=routing_key,
+                        event=event,
                     )
                     
                     requeued += 1
