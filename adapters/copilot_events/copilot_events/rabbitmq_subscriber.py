@@ -191,13 +191,15 @@ class RabbitMQSubscriber(EventSubscriber):
                     f"Pika transport state assertion: {e}. "
                     "This is a known pika issue during connection cleanup."
                 )
-                # Ensure consuming flag is reset
-                self._consuming = False
                 # Don't re-raise - this is a benign shutdown race condition
             else:
                 # Other assertion errors should be re-raised
                 logger.error(f"Unexpected assertion error in start_consuming: {e}")
                 raise
+        finally:
+            # Ensure consuming flag is reset when start_consuming exits
+            # This handles cases where exceptions occur that aren't caught above
+            self._consuming = False
 
     def stop_consuming(self) -> None:
         """Stop consuming events gracefully.
@@ -209,9 +211,15 @@ class RabbitMQSubscriber(EventSubscriber):
             try:
                 self.channel.stop_consuming()
                 logger.info("Stopped consuming events")
+            except (AssertionError, ConnectionError, AttributeError) as e:
+                # Expected exceptions during shutdown:
+                # - AssertionError: transport state issues
+                # - ConnectionError: already disconnected
+                # - AttributeError: channel/connection already closed
+                logger.debug(f"Expected exception during stop_consuming: {e}")
             except Exception as e:
-                # Log but don't raise - we're trying to stop cleanly
-                logger.debug(f"Exception during stop_consuming (expected during shutdown): {e}")
+                # Unexpected exceptions should be logged at warning level
+                logger.warning(f"Unexpected exception during stop_consuming: {e}")
             finally:
                 # Always reset the flag
                 self._consuming = False
