@@ -29,11 +29,13 @@ setup(
     ],
     python_requires=">=3.10",
     install_requires=[
+        "fastapi>=0.109.0",  # For HTTP exception handling and request/response types
         "httpx>=0.27.0",  # For OIDC HTTP requests and middleware JWKS fetching
         "PyJWT>=2.8.0",  # For JWT token minting and validation
         "cryptography>=42.0.0",  # For JWT key management
         "pydantic>=2.0.0",  # For configuration and validation
         "starlette>=0.27.0",  # For middleware base classes
+        "copilot-logging>=0.1.0",  # For logging utilities
     ],
     extras_require={
         "dev": [
