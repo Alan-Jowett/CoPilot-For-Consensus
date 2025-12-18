@@ -90,6 +90,7 @@ While services don't expose `/metrics`, they do provide:
 - **Service Metrics**: Service-level performance metrics
 - **Queue Status**: RabbitMQ queue depths and message flow
 - **Failed Queues Overview**: Failed message monitoring and alerting
+- **Retry Policy Monitoring**: Document retry metrics and stuck document tracking (see section 4.2)
 - **Logs Overview**: Error and warning tracking across all services (Loki)
   - Error/warning counts per service (last 1h)
   - Live error and warning log streams
@@ -109,6 +110,8 @@ While services don't expose `/metrics`, they do provide:
   - Track success and failure counts by stage
   - View processing latency per stage (P95)
   - Default time range: Last 15 minutes
+- **Container Resource Usage**: CPU, memory, network, and disk I/O per container (see section 4.1)
+- **Qdrant Vectorstore Status**: Vector counts, storage, memory, and query performance (see section 5.1)
 
 ### Logs via Grafana Explore (Loki)
 - Data source: Loki
@@ -178,6 +181,228 @@ The **Container Resource Usage** dashboard provides comprehensive visibility int
 - **Missing metrics**: Check Prometheus targets (http://localhost:9090/targets) - cadvisor should be UP
 - **High memory %**: Investigate service logs, check for memory leaks, consider increasing container limits
 - **Frequent restarts**: Check container logs (`docker compose logs <service>`) for crash reasons
+
+## 4.2) Retry Policy Monitoring
+
+The **Retry Policy Monitoring** dashboard (UID: `retry-policy`) tracks the automated retry job that handles stuck and failed documents across the pipeline.
+
+### Understanding the Dashboard
+
+**Important**: This dashboard shows metrics from the `retry-job` service, which runs every 15 minutes by default.
+
+**Expected Behavior**:
+- **"No Data" state**: Normal if the retry-job hasn't run yet or there are genuinely no stuck/failed documents
+- **Zero values**: Healthy state indicating the pipeline is processing without issues
+- **Metrics appear**: After the first successful retry-job execution (within 15 minutes of system startup)
+
+### Key Panels
+
+1. **Dashboard Information** (top panel):
+   - Explains expected behavior and provides quick troubleshooting commands
+   - Always visible to help users understand the "no data" state
+
+2. **Stuck Documents (Current)**: 
+   - Gauge showing documents with `status=pending/processing` and `lastAttemptTime > 24 hours`
+   - Zero is healthy; values >50 trigger warnings
+   - Breakdown by collection (archives, messages, chunks, threads)
+
+3. **Failed Documents (Max Retries)**:
+   - Documents that exceeded max retry attempts (3 for archives/messages, 5 for chunks/threads)
+   - Require manual investigation and intervention
+
+4. **Retry Rate (docs/sec)**:
+   - Rate of documents being automatically requeued
+   - Indicates retry job activity
+
+5. **Stuck Documents (Timeseries)**:
+   - Historical trend of stuck documents
+   - Helps identify patterns (time of day, after deployments, etc.)
+
+6. **Total Documents Requeued**:
+   - Cumulative counter of retry attempts
+   - Should increase gradually if retries are occurring
+
+7. **Documents Skipped (Backoff)**:
+   - Documents skipped due to exponential backoff delay
+   - High values indicate backoff is working as intended
+
+8. **Documents Exceeding Max Retries**:
+   - Cumulative count of permanent failures
+   - Requires service team investigation
+
+9. **Retry Job Duration**:
+   - Time taken to complete each retry job execution
+   - Helps identify performance degradation
+
+10. **Retry Job Executions**:
+    - Success/failure count of retry job runs
+    - Should show steady success count
+
+11. **Retry Job Errors**:
+    - Errors encountered during retry job execution
+    - By error type (connection, publish, etc.)
+
+### Metrics Reference
+
+All metrics are pushed to Prometheus Pushgateway by the retry-job service:
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `retry_job_stuck_documents` | Gauge | Current count of stuck documents per collection |
+| `retry_job_failed_documents` | Gauge | Current count of failed documents (max retries) per collection |
+| `retry_job_documents_requeued_total` | Counter | Total documents requeued for retry |
+| `retry_job_documents_skipped_backoff_total` | Counter | Documents skipped due to backoff delay |
+| `retry_job_documents_max_retries_exceeded_total` | Counter | Documents exceeding max retry attempts |
+| `retry_job_runs_total` | Counter | Retry job executions (success/failure) |
+| `retry_job_errors_total` | Counter | Errors during retry job execution |
+| `retry_job_duration_seconds` | Histogram | Time to complete retry job |
+
+### Prometheus Queries
+
+Use these queries for ad-hoc investigation:
+
+```promql
+# Current stuck documents by collection
+retry_job_stuck_documents
+
+# Retry rate over last 5 minutes
+rate(retry_job_documents_requeued_total[5m])
+
+# Failed documents requiring intervention
+retry_job_failed_documents
+
+# Retry job success rate
+rate(retry_job_runs_total{status="success"}[1h])
+
+# Job execution errors
+retry_job_errors_total
+```
+
+### Troubleshooting
+
+#### Dashboard shows "No Data"
+
+**Diagnosis**:
+1. Check if retry-job is running:
+   ```bash
+   docker compose ps retry-job
+   ```
+2. View retry-job logs:
+   ```bash
+   docker compose logs retry-job
+   ```
+3. Check Prometheus Pushgateway for metrics:
+   - Open http://localhost:9091
+   - Look for job `retry-job`
+
+**Solutions**:
+- If retry-job isn't running: `docker compose up -d retry-job`
+- If retry-job is failing: Check logs for connection errors to MongoDB or RabbitMQ
+- If you need metrics immediately: Manually trigger the job:
+  ```bash
+  docker compose run --rm retry-job python /app/scripts/retry_stuck_documents.py --once
+  ```
+
+#### High Stuck Document Count
+
+**Symptoms**: `retry_job_stuck_documents` > 50 for extended period
+
+**Diagnosis**:
+1. Check which collection has stuck documents (dashboard shows breakdown)
+2. Review service health for that stage:
+   ```bash
+   docker compose logs <service> | grep ERROR
+   ```
+3. Check RabbitMQ queue depth: http://localhost:15672
+4. Verify MongoDB connectivity: `docker compose ps documentdb`
+
+**Actions**:
+1. If service is down: Restart it: `docker compose restart <service>`
+2. If queue is backed up: Check consumer count in RabbitMQ UI
+3. If dependency issue: Fix dependency (MongoDB, RabbitMQ, Qdrant, Ollama)
+4. Monitor dashboard to confirm stuck count decreases
+
+#### Documents Exceeding Max Retries
+
+**Symptoms**: `retry_job_failed_documents` > 0 and increasing
+
+**Diagnosis**:
+1. Check which collection has failures (dashboard shows breakdown)
+2. Investigate error patterns:
+   ```bash
+   docker compose exec documentdb mongosh -u root -p example --authenticationDatabase admin
+   use copilot
+   db.archives.find({status: "failed_max_retries"}).limit(10)
+   ```
+3. Review failed queue messages:
+   ```bash
+   python scripts/manage_failed_queues.py inspect parsing.failed --limit 10
+   ```
+
+**Actions**:
+1. If bug is fixed: Reset attempt count and requeue (see [RETRY_POLICY.md](./RETRY_POLICY.md#purging-permanently-failed-documents))
+2. If data is corrupt: Export for analysis then purge
+3. If still investigating: Leave in failed state and escalate
+
+#### Retry Job Failing
+
+**Symptoms**: `retry_job_runs_total{status="failure"}` increasing
+
+**Diagnosis**:
+1. Check retry-job logs for errors:
+   ```bash
+   docker compose logs retry-job | tail -100
+   ```
+2. Common issues:
+   - MongoDB connection timeout
+   - RabbitMQ connection refused
+   - Pushgateway unreachable
+
+**Actions**:
+1. Verify all dependencies are healthy: `docker compose ps`
+2. Check network connectivity between services
+3. Restart retry-job: `docker compose restart retry-job`
+4. Run manually with verbose logging:
+   ```bash
+   docker compose run --rm retry-job python /app/scripts/retry_stuck_documents.py --once --verbose
+   ```
+
+### Alert Integration
+
+The dashboard is integrated with Prometheus alerts defined in `infra/prometheus/alerts/retry_policy.yml`:
+
+- **StuckDocumentsWarning**: Triggers when >50 stuck documents for 1 hour
+- **MaxRetriesExceededCritical**: Triggers when documents permanently fail at >10/hour
+- **RetryJobFailed**: Triggers when retry job execution fails
+- **StuckDocumentsEmergency**: Triggers when >1000 stuck documents (critical)
+- **FailedDocumentsAccumulating**: Triggers when >100 failed documents accumulate
+
+See [RETRY_POLICY.md](./RETRY_POLICY.md) for complete alert response procedures.
+
+### Configuration
+
+The retry-job behavior can be tuned via environment variables in `docker-compose.yml`:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RETRY_JOB_INTERVAL_SECONDS` | 900 (15 min) | How often retry job runs |
+| `RETRY_JOB_BASE_DELAY_SECONDS` | 300 (5 min) | Base delay for exponential backoff |
+| `RETRY_JOB_MAX_DELAY_SECONDS` | 3600 (60 min) | Maximum backoff delay |
+| `RETRY_JOB_STUCK_THRESHOLD_HOURS` | 24 | Hours before document is "stuck" |
+
+To change the retry job interval (e.g., run every 5 minutes):
+```bash
+# In .env file or docker-compose.yml
+RETRY_JOB_INTERVAL_SECONDS=300
+```
+
+Then restart: `docker compose restart retry-job`
+
+### Related Documentation
+
+- **[RETRY_POLICY.md](./RETRY_POLICY.md)**: Complete retry policy specification and operational procedures
+- **[FAILED_QUEUE_OPERATIONS.md](./FAILED_QUEUE_OPERATIONS.md)**: Failed queue management
+- **[DOCUMENT_PROCESSING_OBSERVABILITY.md](./DOCUMENT_PROCESSING_OBSERVABILITY.md)**: Document processing status monitoring
 
 ## 5) RabbitMQ Management UI
 - URL: http://localhost:15672
