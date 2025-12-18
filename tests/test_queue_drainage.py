@@ -21,17 +21,29 @@ def get_rabbitmq_api_url() -> str:
     host = os.getenv("RABBITMQ_HOST", "localhost")
     port = os.getenv("RABBITMQ_MGMT_PORT", "15672")
     
-    # Validate host (prevent injection)
+    # Validate and sanitize host
     if not host or not isinstance(host, str):
         host = "localhost"
-    # Remove any protocol prefix if accidentally included
-    host = host.replace("http://", "").replace("https://", "").split("/")[0]
     
-    # Validate port is numeric
+    # Remove protocol and path components, extract just hostname/IP
+    # This prevents injection via URLs like http://evil.com/path
+    host = host.replace("http://", "").replace("https://", "")
+    host = host.split("/")[0]  # Remove path
+    host = host.split("?")[0]  # Remove query string
+    host = host.split("#")[0]  # Remove fragment
+    host = host.split(":")[0]  # Remove port if included in host
+    
+    # Only allow alphanumeric, dots, hyphens, and underscores (valid DNS characters)
+    # This prevents special characters that could be used for injection
+    if not all(c.isalnum() or c in ".-_" for c in host):
+        host = "localhost"
+    
+    # Validate port is numeric and in valid range
     try:
         port_num = int(port)
         if port_num < 1 or port_num > 65535:
-            port = "15672"
+            port_num = 15672
+        port = str(port_num)  # Use validated numeric value
     except (ValueError, TypeError):
         port = "15672"
     
