@@ -377,6 +377,11 @@ class OrchestrationService:
             # Check if a summary already exists with this exact set of chunks
             if self._summary_exists(expected_summary_id):
                 logger.info(f"Summary already exists for thread {thread_id} with current chunks (summary_id={expected_summary_id[:16]}), skipping")
+                if self.metrics_collector:
+                    self.metrics_collector.increment(
+                        "orchestrator_summary_skipped_total",
+                        tags={"reason": "summary_already_exists"}
+                    )
                 return
 
             # Publish SummarizationRequested event
@@ -384,6 +389,12 @@ class OrchestrationService:
                 thread_ids=[thread_id],
                 context=context
             )
+
+            if self.metrics_collector:
+                self.metrics_collector.increment(
+                    "orchestrator_summary_triggered_total",
+                    tags={"reason": "chunks_changed"}
+                )
 
             logger.info(f"Published SummarizationRequested for thread {thread_id} (expected summary_id={expected_summary_id[:16]})")
 

@@ -537,3 +537,172 @@ def test_metrics_collector_uses_tags_parameter(mock_document_store, mock_publish
     assert 'tags' in second_call_kwargs, "Second increment call should use 'tags=' parameter"
     assert 'labels' not in second_call_kwargs, "Second increment call should NOT use 'labels=' parameter"
     assert second_call_kwargs['tags'] == {"error_type": "TestError"}
+
+
+def test_orchestrate_thread_skips_when_summary_exists(
+    orchestration_service, mock_document_store, mock_publisher
+):
+    """Test that orchestration skips summarization when summary already exists for current chunks."""
+    thread_id = "<thread-1@example.com>"
+    
+    # Setup: chunks exist
+    chunks = [
+        {
+            "_id": "chunk-1",
+            "thread_id": thread_id,
+            "message_doc_id": "msg-1",
+            "embedding_generated": True
+        },
+        {
+            "_id": "chunk-2",
+            "thread_id": thread_id,
+            "message_doc_id": "msg-1",
+            "embedding_generated": True
+        },
+    ]
+    
+    messages = [
+        {
+            "_id": "msg-1",
+            "subject": "Test",
+            "from": {"email": "user@example.com"},
+            "date": "2023-10-15T12:00:00Z",
+            "draft_mentions": []
+        },
+    ]
+    
+    # Summary already exists for this combination of thread + chunks
+    existing_summary = [{
+        "_id": "summary-truncated-id"
+    }]
+    
+    def mock_query(collection, filter_dict, **kwargs):
+        if collection == "chunks":
+            return chunks
+        elif collection == "messages":
+            return messages
+        elif collection == "summaries":
+            return existing_summary  # Summary exists
+        return []
+    
+    mock_document_store.query_documents = Mock(side_effect=mock_query)
+    
+    # Orchestrate thread
+    orchestration_service._orchestrate_thread(thread_id)
+    
+    # Verify SummarizationRequested was NOT published
+    assert not mock_publisher.publish.called, "Should not publish when summary already exists"
+
+
+def test_orchestrate_thread_triggers_when_no_summary_exists(
+    orchestration_service, mock_document_store, mock_publisher
+):
+    """Test that orchestration triggers summarization when no summary exists for current chunks."""
+    thread_id = "<thread-1@example.com>"
+    
+    # Setup: chunks exist
+    chunks = [
+        {
+            "_id": "chunk-1",
+            "thread_id": thread_id,
+            "message_doc_id": "msg-1",
+            "embedding_generated": True
+        },
+        {
+            "_id": "chunk-2",
+            "thread_id": thread_id,
+            "message_doc_id": "msg-1",
+            "embedding_generated": True
+        },
+    ]
+    
+    messages = [
+        {
+            "_id": "msg-1",
+            "subject": "Test",
+            "from": {"email": "user@example.com"},
+            "date": "2023-10-15T12:00:00Z",
+            "draft_mentions": []
+        },
+    ]
+    
+    def mock_query(collection, filter_dict, **kwargs):
+        if collection == "chunks":
+            return chunks
+        elif collection == "messages":
+            return messages
+        elif collection == "summaries":
+            return []  # No summary exists
+        return []
+    
+    mock_document_store.query_documents = Mock(side_effect=mock_query)
+    
+    # Orchestrate thread
+    orchestration_service._orchestrate_thread(thread_id)
+    
+    # Verify SummarizationRequested WAS published
+    assert mock_publisher.publish.called, "Should publish when no summary exists"
+
+
+def test_orchestrate_thread_with_metrics_collector(mock_document_store, mock_publisher, mock_subscriber):
+    """Test that orchestration records metrics for skipped and triggered summaries."""
+    mock_metrics = Mock()
+    
+    service = OrchestrationService(
+        document_store=mock_document_store,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        metrics_collector=mock_metrics,
+    )
+    
+    thread_id = "<thread-1@example.com>"
+    
+    # Test case 1: Summary exists (should skip)
+    chunks = [
+        {"_id": "chunk-1", "thread_id": thread_id, "message_doc_id": "msg-1", "embedding_generated": True},
+    ]
+    messages = [{"_id": "msg-1", "subject": "Test", "from": {"email": "test@example.com"}, "date": "2023-10-15T12:00:00Z", "draft_mentions": []}]
+    existing_summary = [{"_id": "summary-id"}]
+    
+    def mock_query_with_summary(collection, filter_dict, **kwargs):
+        if collection == "chunks":
+            return chunks
+        elif collection == "messages":
+            return messages
+        elif collection == "summaries":
+            return existing_summary
+        return []
+    
+    mock_document_store.query_documents = Mock(side_effect=mock_query_with_summary)
+    
+    service._orchestrate_thread(thread_id)
+    
+    # Verify skipped metric was recorded
+    assert mock_metrics.increment.called
+    skip_calls = [call for call in mock_metrics.increment.call_args_list 
+                  if call[0][0] == "orchestrator_summary_skipped_total"]
+    assert len(skip_calls) == 1
+    assert skip_calls[0][1]["tags"] == {"reason": "summary_already_exists"}
+    
+    # Reset for test case 2
+    mock_metrics.reset_mock()
+    
+    # Test case 2: No summary exists (should trigger)
+    def mock_query_without_summary(collection, filter_dict, **kwargs):
+        if collection == "chunks":
+            return chunks
+        elif collection == "messages":
+            return messages
+        elif collection == "summaries":
+            return []  # No summary
+        return []
+    
+    mock_document_store.query_documents = Mock(side_effect=mock_query_without_summary)
+    
+    service._orchestrate_thread(thread_id)
+    
+    # Verify triggered metric was recorded
+    trigger_calls = [call for call in mock_metrics.increment.call_args_list 
+                     if call[0][0] == "orchestrator_summary_triggered_total"]
+    assert len(trigger_calls) == 1
+    assert trigger_calls[0][1]["tags"] == {"reason": "chunks_changed"}
