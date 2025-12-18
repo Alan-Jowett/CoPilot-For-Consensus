@@ -66,7 +66,7 @@ def create_uvicorn_log_config(service_name: str, log_level: str = "INFO") -> Dic
         Dictionary compatible with Uvicorn's log_config parameter
         
     Example:
-        >>> from copilot_logging.uvicorn_config import create_uvicorn_log_config
+        >>> from copilot_logging import create_uvicorn_log_config
         >>> import uvicorn
         >>> 
         >>> log_config = create_uvicorn_log_config("parsing", "INFO")

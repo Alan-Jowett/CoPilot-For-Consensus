@@ -273,7 +273,7 @@ if __name__ == "__main__":
 **Note:** Health check logs at DEBUG level are hidden by default when running at INFO level. To see them, set the log level to DEBUG:
 
 ```python
-log_config = create_uvicorn_log_config(service_name="parsing", log_level="DEBUG")
+log_config = create_uvicorn_log_config("parsing", "DEBUG")
 ```
 
 ## Benefits
