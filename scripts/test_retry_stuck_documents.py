@@ -595,6 +595,67 @@ class TestRunOnce(unittest.TestCase):
     @patch('retry_stuck_documents.push_to_gateway')
     @patch('retry_stuck_documents.MongoClient')
     @patch('retry_stuck_documents.pika.BlockingConnection')
+    def test_run_once_initializes_gauges_before_processing(self, mock_rabbitmq, mock_mongo, mock_push):
+        """Test that gauges are initialized to 0 before processing collections."""
+        # Mock MongoDB connection failure to ensure gauges are still initialized
+        mock_mongo.side_effect = Exception("MongoDB connection failed")
+        
+        # Spy on gauge .set() method
+        stuck_docs_gauge = self.job.metrics.stuck_documents
+        failed_docs_gauge = self.job.metrics.failed_documents
+        
+        stuck_set_calls = []
+        failed_set_calls = []
+        
+        original_stuck_set = stuck_docs_gauge.labels
+        original_failed_set = failed_docs_gauge.labels
+        
+        def stuck_labels_wrapper(**kwargs):
+            gauge = original_stuck_set(**kwargs)
+            original_set = gauge.set
+            def set_wrapper(value):
+                stuck_set_calls.append((kwargs, value))
+                return original_set(value)
+            gauge.set = set_wrapper
+            return gauge
+        
+        def failed_labels_wrapper(**kwargs):
+            gauge = original_failed_set(**kwargs)
+            original_set = gauge.set
+            def set_wrapper(value):
+                failed_set_calls.append((kwargs, value))
+                return original_set(value)
+            gauge.set = set_wrapper
+            return gauge
+        
+        stuck_docs_gauge.labels = stuck_labels_wrapper
+        failed_docs_gauge.labels = failed_labels_wrapper
+        
+        # Run job - should raise exception but gauges should still be initialized
+        with self.assertRaises(Exception) as context:
+            self.job.run_once()
+        
+        self.assertIn("MongoDB connection failed", str(context.exception))
+        
+        # Verify gauges were initialized to 0 for all collections before connection failed
+        self.assertEqual(len(stuck_set_calls), 4)  # archives, messages, chunks, threads
+        self.assertEqual(len(failed_set_calls), 4)
+        
+        # Verify all gauges were set to 0
+        for kwargs, value in stuck_set_calls:
+            self.assertEqual(value, 0)
+            self.assertIn(kwargs['collection'], ['archives', 'messages', 'chunks', 'threads'])
+        
+        for kwargs, value in failed_set_calls:
+            self.assertEqual(value, 0)
+            self.assertIn(kwargs['collection'], ['archives', 'messages', 'chunks', 'threads'])
+        
+        # Verify metrics were still pushed (in finally block)
+        mock_push.assert_called_once()
+    
+    @patch('retry_stuck_documents.push_to_gateway')
+    @patch('retry_stuck_documents.MongoClient')
+    @patch('retry_stuck_documents.pika.BlockingConnection')
     def test_run_once_mongodb_connection_failure(self, mock_rabbitmq, mock_mongo, mock_push):
         """Test run_once handles MongoDB connection failure."""
         # Mock MongoDB connection failure
