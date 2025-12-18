@@ -544,6 +544,11 @@ class RetryStuckDocumentsJob:
         logger.info("Starting retry job execution")
         start_time = time.time()
         
+        # Initialize all gauges to 0 to ensure metrics exist even on failure
+        for collection_name in self.COLLECTION_CONFIGS.keys():
+            self.metrics.stuck_documents.labels(collection=collection_name).set(0)
+            self.metrics.failed_documents.labels(collection=collection_name).set(0)
+        
         try:
             # Connect to dependencies
             self.connect_mongodb()
@@ -556,6 +561,7 @@ class RetryStuckDocumentsJob:
                 except Exception as e:
                     logger.error(f"Error processing collection {collection_name}: {e}", exc_info=True)
                     self.metrics.errors_total.labels(error_type="collection_error").inc()
+                    # Gauges already initialized to 0 above
             
             # Record success
             self.metrics.runs_total.labels(status="success").inc()
