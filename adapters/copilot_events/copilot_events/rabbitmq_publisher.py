@@ -134,7 +134,8 @@ class RabbitMQPublisher(EventPublisher):
         
         # Circuit breaker with exponential backoff: prevent rapid reconnection attempts
         time_since_last_reconnect = current_time - self._last_reconnect_time
-        backoff_delay = self.reconnect_delay * (2 ** self._reconnect_count)
+        # Exponential backoff with a reasonable cap to prevent excessive delay
+        backoff_delay = min(self.reconnect_delay * (2 ** self._reconnect_count), 60.0)
         if time_since_last_reconnect < backoff_delay:
             remaining = max(0.0, backoff_delay - time_since_last_reconnect)
             logger.warning(
@@ -189,7 +190,7 @@ class RabbitMQPublisher(EventPublisher):
             
             return True
         except Exception as e:
-            logger.error(f"Reconnection attempt {self._reconnect_count} failed")
+            logger.error(f"Reconnection attempt {self._reconnect_count} failed: {e}")
             return False
 
     def declare_queue(

@@ -106,13 +106,14 @@ def main():
             password=config.message_bus_password,
         )
         
-        if not base_publisher.connect():
+        try:
+            base_publisher.connect()
+        except Exception as e:
             if str(config.message_bus_type).lower() != "noop":
-                logger.error(
-                    "Failed to connect publisher to message bus. Failing fast.")
+                logger.error("Failed to connect publisher to message bus. Failing fast: %s", e)
                 raise ConnectionError("Publisher failed to connect to message bus")
             else:
-                logger.warning("Failed to connect publisher to message bus. Continuing with noop publisher.")
+                logger.warning("Failed to connect publisher to message bus. Continuing with noop publisher: %s", e)
         
         # Wrap with schema validation
         # Create schema providers for event and document validation
@@ -139,8 +140,10 @@ def main():
             queue_name="archive.ingested",
         )
         
-        if not base_subscriber.connect():
-            logger.error("Failed to connect subscriber to message bus")
+        try:
+            base_subscriber.connect()
+        except Exception as e:
+            logger.error("Failed to connect subscriber to message bus: %s", e)
             raise ConnectionError("Subscriber failed to connect to message bus")
         
         # Wrap with schema validation

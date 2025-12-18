@@ -105,12 +105,14 @@ def main():
             username=config.message_bus_user,
             password=config.message_bus_password,
         )
-        if not publisher.connect():
+        try:
+            publisher.connect()
+        except Exception as e:
             if str(config.message_bus_type).lower() != "noop":
-                logger.error("Failed to connect publisher to message bus. Failing fast.")
+                logger.error(f"Failed to connect publisher to message bus. Failing fast: {e}")
                 raise ConnectionError("Publisher failed to connect to message bus")
             else:
-                logger.warning("Failed to connect publisher to message bus. Continuing with noop publisher.")
+                logger.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
         
         logger.info("Creating message bus subscriber...")
         subscriber = create_subscriber(
@@ -121,8 +123,10 @@ def main():
             password=config.message_bus_password,
             queue_name="json.parsed",
         )
-        if not subscriber.connect():
-            logger.error("Failed to connect subscriber to message bus.")
+        try:
+            subscriber.connect()
+        except Exception as e:
+            logger.error(f"Failed to connect subscriber to message bus: {e}")
             raise ConnectionError("Subscriber failed to connect to message bus")
         
         logger.info("Creating document store...")
