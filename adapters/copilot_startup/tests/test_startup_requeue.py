@@ -74,15 +74,19 @@ class TestStartupRequeue:
         
         # Verify first event
         first_call = mock_publisher.publish.call_args_list[0]
-        assert first_call[1]["event_type"] == "ArchiveIngested"
-        assert first_call[1]["routing_key"] == "archive.ingested"
-        assert first_call[1]["data"]["archive_id"] == "archive-001"
-        assert first_call[1]["data"]["message_count"] == 10
+        call_args, call_kwargs = first_call
+        assert call_kwargs["exchange"] == "copilot.events"
+        assert call_kwargs["routing_key"] == "archive.ingested"
+        assert call_kwargs["event"]["event_type"] == "ArchiveIngested"
+        assert call_kwargs["event"]["data"]["archive_id"] == "archive-001"
+        assert call_kwargs["event"]["data"]["message_count"] == 10
+        assert "timestamp" in call_kwargs["event"]
         
         # Verify second event
         second_call = mock_publisher.publish.call_args_list[1]
-        assert second_call[1]["event_type"] == "ArchiveIngested"
-        assert second_call[1]["data"]["archive_id"] == "archive-002"
+        call_args, call_kwargs = second_call
+        assert call_kwargs["event"]["event_type"] == "ArchiveIngested"
+        assert call_kwargs["event"]["data"]["archive_id"] == "archive-002"
         
         # Verify metrics
         mock_metrics.increment.assert_called_once_with(
