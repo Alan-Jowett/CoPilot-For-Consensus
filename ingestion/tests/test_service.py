@@ -590,3 +590,44 @@ def test_ingest_all_enabled_sources_returns_exceptions(tmp_path):
         assert results["valid-source"] is None  # Success
         assert isinstance(results["invalid-source"], Exception)  # Failure
         assert isinstance(results["invalid-source"], FetchError)  # Specific exception type
+
+
+def test_exception_prevents_silent_failure():
+    """Demonstrate that exceptions prevent silent failures (the core issue this PR addresses).
+    
+    This test validates that the refactored code makes it impossible to ignore failures,
+    unlike the previous return-code-based approach where callers could forget to check
+    the return value.
+    """
+    import tempfile
+    from app.exceptions import FetchError
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config = make_config(storage_path=tmpdir)
+        publisher = NoopPublisher()
+        publisher.connect()
+        
+        service = IngestionService(config=config, publisher=publisher)
+        
+        # Create a source that will fail (non-existent file)
+        bad_source = make_source(name="bad", url="file:///this/does/not/exist.mbox")
+        
+        # OLD BEHAVIOR (before this PR):
+        # success = service.ingest_archive(bad_source)
+        # # Oops! Forgot to check 'success' - silent failure!
+        # continue_with_next_step()  # This would run even though ingestion failed
+        
+        # NEW BEHAVIOR (after this PR):
+        # Exception MUST be handled - can't be ignored
+        exception_was_raised = False
+        try:
+            service.ingest_archive(bad_source, max_retries=1)
+            # If we get here, test should fail - exception should have been raised
+            assert False, "Expected FetchError to be raised"
+        except FetchError as e:
+            # Good! Exception was raised and caught
+            exception_was_raised = True
+            assert e.source_name == "bad"
+            assert e.retry_count > 0
+        
+        assert exception_was_raised, "Exception-based approach successfully prevented silent failure"
