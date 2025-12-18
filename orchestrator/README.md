@@ -160,10 +160,18 @@ def handle_embeddings_generated(event):
     thread_ids = resolve_threads(event.data.chunk_ids)
     for thread_id in thread_ids:
         context = retrieve_context(thread_id, top_k=cfg.top_k)
-        prompt = build_prompt(context, cfg.system_prompt, cfg.user_prompt)
-        result = call_llm(prompt, backend=cfg.llm_backend, model=cfg.llm_model)
-        publish_summarization_requested(thread_id, prompt, cfg)
-        log_metrics(thread_id, context, result)
+        
+        # Calculate expected summary_id from thread + chunks
+        expected_summary_id = calculate_summary_id(thread_id, context.chunks)
+        
+        # Skip if summary already exists for this exact set of chunks
+        if summary_exists(expected_summary_id):
+            log_metric("orchestrator_summary_skipped_total")
+            continue
+        
+        # Trigger summarization only when chunks changed
+        publish_summarization_requested(thread_id, context, cfg)
+        log_metric("orchestrator_summary_triggered_total")
 ```
 
 ## API Endpoints
@@ -186,6 +194,10 @@ Prometheus metrics exposed at `/metrics`:
 - `orchestration_latency_seconds` (histogram: end-to-end per thread)
 - `orchestration_llm_calls_total` (labeled by backend/model)
 - `orchestration_failures_total` (labeled by error_type)
+- `orchestrator_summary_skipped_total` (labeled by reason) — counts summaries skipped due to existing summary with same chunks
+  - reason: `summary_already_exists` — summary exists for current chunk set
+- `orchestrator_summary_triggered_total` (labeled by reason) — counts summaries triggered
+  - reason: `chunks_changed` — chunk set changed, new summary needed
 
 Structured logs (JSON) include thread_id, backend, model, token counts, and latency.
 
