@@ -126,18 +126,15 @@ def login(
 def callback(
     code: str = Query(..., description="Authorization code from provider"),
     state: str = Query(..., description="OAuth state parameter"),
-    provider: str = Query(..., description="Provider identifier"),
-    aud: str = Query("copilot-orchestrator", description="Target audience"),
 ) -> JSONResponse:
     """OIDC callback handler.
     
     Exchanges authorization code for tokens and returns local JWT.
+    Provider and audience are retrieved from session state to prevent tampering.
     
     Args:
         code: Authorization code from provider
         state: OAuth state parameter
-        provider: Provider identifier
-        aud: Target audience for JWT
     
     Returns:
         JSON with local JWT token
@@ -148,15 +145,13 @@ def callback(
         raise HTTPException(status_code=503, detail="Service not initialized")
     
     try:
-        # Exchange code for access token and get user info
+        # Handle callback - provider and audience are validated from session state
         local_jwt = auth_service.handle_callback(
-            provider=provider,
             code=code,
             state=state,
-            audience=aud
         )
         
-        logger.info(f"Successful callback for provider={provider}")
+        logger.info(f"Successful callback for state={state[:8]}...")
         
         return JSONResponse(content={
             "access_token": local_jwt,
@@ -204,6 +199,7 @@ def userinfo(request: Request) -> JSONResponse:
     """Get user information from JWT.
     
     Requires Bearer token in Authorization header.
+    Validates token for any supported audience.
     
     Returns:
         User information from JWT claims
@@ -221,10 +217,18 @@ def userinfo(request: Request) -> JSONResponse:
     token = auth_header[7:]  # Remove "Bearer " prefix
     
     try:
-        # Validate token and extract claims
+        # Decode token without validating audience to extract it first
+        import jwt
+        unverified_claims = jwt.decode(token, options={"verify_signature": False})
+        audience = unverified_claims.get("aud")
+        
+        if not audience:
+            raise HTTPException(status_code=401, detail="Token missing audience claim")
+        
+        # Now validate token with correct audience
         claims = auth_service.validate_token(
             token=token,
-            audience="copilot-orchestrator"  # Default audience
+            audience=audience
         )
         
         return JSONResponse(content={

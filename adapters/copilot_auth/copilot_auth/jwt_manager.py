@@ -154,7 +154,7 @@ class JWTManager:
         # Build standard claims
         claims: Dict[str, Any] = {
             "iss": self.issuer,
-            "sub": f"oidc:{user.id}",
+            "sub": user.id,  # User ID already has provider prefix (e.g., "github:12345")
             "aud": audience,
             "exp": now + expiry,
             "iat": now,

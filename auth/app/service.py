@@ -147,18 +147,14 @@ class AuthService:
     
     def handle_callback(
         self,
-        provider: str,
         code: str,
         state: str,
-        audience: str,
     ) -> str:
         """Handle OIDC callback and mint local JWT.
         
         Args:
-            provider: Provider identifier
             code: Authorization code from provider
             state: OAuth state parameter
-            audience: Target audience for JWT
         
         Returns:
             Local JWT token
@@ -167,18 +163,14 @@ class AuthService:
             ValueError: If state is invalid or provider unknown
             AuthenticationError: If code exchange fails
         """
-        # Validate state
+        # Validate state and get session data
         session = self._sessions.get(state)
         if not session:
             raise ValueError("Invalid or expired state")
         
-        # Validate provider matches
-        if session["provider"] != provider:
-            raise ValueError("Provider mismatch")
-        
-        # Validate audience matches
-        if session["audience"] != audience:
-            raise ValueError("Audience mismatch")
+        # Extract provider and audience from session (prevents tampering)
+        provider = session["provider"]
+        audience = session["audience"]
         
         # Get provider instance
         if provider not in self.providers:

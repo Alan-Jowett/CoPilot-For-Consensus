@@ -206,9 +206,11 @@ Configuration is provided via environment variables:
    pip install -e ../adapters/copilot_metrics
    ```
 
-2. **Generate JWT keys** (already done during setup):
+2. **Generate JWT keys** (required for first-time setup):
    ```bash
-   # Keys are in config/dev_jwt_private.pem and config/dev_jwt_public.pem
+   cd auth
+   python generate_keys.py
+   # This creates config/dev_jwt_private.pem and config/dev_jwt_public.pem
    ```
 
 3. **Set environment variables:**
