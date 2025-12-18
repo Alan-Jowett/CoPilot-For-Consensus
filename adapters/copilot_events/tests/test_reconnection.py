@@ -211,3 +211,37 @@ class TestRabbitMQReconnection:
             assert mock_channel.basic_publish.call_count == 2
             # Verify reconnect was called
             assert publisher._reconnect.call_count == 1
+
+    def test_publish_connection_error_and_reconnect_failure(self):
+        """Test that publish raises ConnectionError when reconnection fails after a connection error."""
+        publisher = RabbitMQPublisher(
+            reconnect_delay=0.0,
+        )
+
+        # Mock connection and channel
+        mock_connection = MagicMock()
+        mock_channel = MagicMock()
+        publisher.connection = mock_connection
+        publisher.channel = mock_channel
+        mock_connection.is_closed = False
+        mock_channel.is_open = True
+
+        event = {
+            "event_type": "TestEvent",
+            "event_id": "123",
+            "timestamp": "2025-01-01T00:00:00Z",
+            "version": "1.0",
+            "data": {}
+        }
+
+        # Initial publish raises a connection/channel error
+        mock_channel.basic_publish.side_effect = pika.exceptions.ChannelWrongStateError()
+
+        # Reconnection attempt fails
+        with patch.object(publisher, '_reconnect', return_value=False) as mock_reconnect:
+            with pytest.raises(ConnectionError, match="Failed to publish after connection error"):
+                publisher.publish("test.exchange", "test.key", event)
+
+            # Verify only one publish attempt (no retry) and reconnect attempted once
+            assert mock_channel.basic_publish.call_count == 1
+            assert mock_reconnect.call_count == 1
