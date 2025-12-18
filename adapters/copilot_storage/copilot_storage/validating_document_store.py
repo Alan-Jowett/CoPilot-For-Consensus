@@ -279,3 +279,31 @@ class ValidatingDocumentStore(DocumentStore):
         """
         # No validation needed for deletion
         self._store.delete_document(collection, doc_id)
+
+    def aggregate_documents(
+        self, collection: str, pipeline: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Execute an aggregation pipeline on a collection.
+
+        This method delegates to the underlying store if it supports aggregation.
+        No validation is performed on aggregation results.
+
+        Args:
+            collection: Name of the collection
+            pipeline: Aggregation pipeline (list of stage dictionaries)
+
+        Returns:
+            List of aggregation results
+
+        Raises:
+            AttributeError: If underlying store doesn't support aggregation
+        """
+        # Check if underlying store supports aggregation
+        if not hasattr(self._store, 'aggregate_documents'):
+            raise AttributeError(
+                f"Underlying store {type(self._store).__name__} does not support aggregation"
+            )
+
+        # Delegate to underlying store without validation
+        # (aggregation results may not match original document schemas)
+        return self._store.aggregate_documents(collection, pipeline)
