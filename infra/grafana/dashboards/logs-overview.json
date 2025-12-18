@@ -293,7 +293,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "reqps"
         },
         "overrides": []
       },
@@ -320,7 +320,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (service) (rate({service=~\".+\", level=\"ERROR\"}[1m]))",
+          "expr": "sum by (service) (rate({service=~\".+\", level=\"ERROR\"}[$__interval]))",
           "refId": "A",
           "legendFormat": "{{service}}"
         }
