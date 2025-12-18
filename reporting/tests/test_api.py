@@ -446,6 +446,9 @@ def test_get_threads_with_pagination(client, test_service, mock_document_store):
     assert data["limit"] == 2
     assert data["skip"] == 1
     assert len(data["threads"]) == 2
+    # Verify the correct subset is returned (threads at indices 1 and 2)
+    assert data["threads"][0]["_id"] == "thread1"
+    assert data["threads"][1]["_id"] == "thread2"
 
 
 @pytest.mark.integration
@@ -678,3 +681,33 @@ def test_get_chunk_by_id_not_found(client, test_service, mock_document_store):
     assert response.status_code == 404
     data = response.json()
     assert "not found" in data["detail"].lower()
+
+
+@pytest.mark.integration
+def test_new_endpoints_service_not_initialized(monkeypatch):
+    """Test new endpoints when service is not initialized."""
+    import main
+    monkeypatch.setattr(main, "reporting_service", None)
+    
+    client = TestClient(app)
+    
+    # Test threads endpoints
+    response = client.get("/api/threads")
+    assert response.status_code == 503
+    
+    response = client.get("/api/threads/thread1")
+    assert response.status_code == 503
+    
+    # Test messages endpoints
+    response = client.get("/api/messages")
+    assert response.status_code == 503
+    
+    response = client.get("/api/messages/msg1")
+    assert response.status_code == 503
+    
+    # Test chunks endpoints
+    response = client.get("/api/chunks")
+    assert response.status_code == 503
+    
+    response = client.get("/api/chunks/chunk1")
+    assert response.status_code == 503
