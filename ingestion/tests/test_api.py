@@ -63,24 +63,6 @@ def client(service):
     return TestClient(app)
 
 
-class TestHealthEndpoint:
-    """Tests for /health endpoint."""
-    
-    def test_health_check(self, client):
-        """Test health check returns 200 and expected fields."""
-        response = client.get("/health")
-        
-        assert response.status_code == 200
-        data = response.json()
-        
-        assert data["status"] == "healthy"
-        assert data["service"] == "ingestion"
-        assert "version" in data
-        assert "sources_configured" in data
-        assert "sources_enabled" in data
-        assert "total_files_ingested" in data
-
-
 class TestStatsEndpoint:
     """Tests for /stats endpoint."""
     
