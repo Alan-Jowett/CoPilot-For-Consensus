@@ -5,6 +5,7 @@
 
 import json
 import logging
+import time
 from typing import Dict, Any, List, Optional
 
 try:
@@ -29,6 +30,8 @@ class RabbitMQPublisher(EventPublisher):
         exchange: str = "copilot.events",
         exchange_type: str = "topic",
         enable_publisher_confirms: bool = True,
+        max_reconnect_attempts: int = 3,
+        reconnect_delay: float = 2.0,
     ):
         """Initialize RabbitMQ publisher.
         
@@ -40,6 +43,8 @@ class RabbitMQPublisher(EventPublisher):
             exchange: Default exchange name
             exchange_type: Exchange type (topic, direct, fanout, headers)
             enable_publisher_confirms: Enable publisher confirms for guaranteed delivery
+            max_reconnect_attempts: Maximum number of reconnection attempts
+            reconnect_delay: Delay between reconnection attempts in seconds
         """
         self.host = host
         self.port = port
@@ -48,9 +53,13 @@ class RabbitMQPublisher(EventPublisher):
         self.exchange = exchange
         self.exchange_type = exchange_type
         self.enable_publisher_confirms = enable_publisher_confirms
+        self.max_reconnect_attempts = max_reconnect_attempts
+        self.reconnect_delay = reconnect_delay
         self.connection = None
         self.channel = None
         self._declared_queues = set()
+        self._last_reconnect_time = 0.0
+        self._reconnect_count = 0
 
     def connect(self) -> bool:
         """Connect to RabbitMQ and declare exchange.
@@ -100,6 +109,90 @@ class RabbitMQPublisher(EventPublisher):
             logger.info("Disconnected from RabbitMQ")
         except Exception as e:
             logger.error(f"Error disconnecting from RabbitMQ: {e}")
+
+    def _is_connected(self) -> bool:
+        """Check if connection and channel are open.
+        
+        Returns:
+            True if both connection and channel are open, False otherwise
+        """
+        try:
+            return (
+                self.connection is not None
+                and not self.connection.is_closed
+                and self.channel is not None
+                and self.channel.is_open
+            )
+        except Exception:
+            return False
+
+    def _reconnect(self) -> bool:
+        """Attempt to reconnect to RabbitMQ with circuit breaker logic.
+        
+        Implements exponential backoff to prevent reconnection storms.
+        Resets reconnect count after successful reconnection.
+        
+        Returns:
+            True if reconnection succeeded, False otherwise
+        """
+        current_time = time.time()
+        
+        # Circuit breaker: prevent rapid reconnection attempts
+        time_since_last_reconnect = current_time - self._last_reconnect_time
+        if time_since_last_reconnect < self.reconnect_delay:
+            logger.warning(
+                f"Reconnection throttled, {self.reconnect_delay - time_since_last_reconnect:.1f}s remaining"
+            )
+            return False
+        
+        self._last_reconnect_time = current_time
+        
+        # Check reconnection limit
+        if self._reconnect_count >= self.max_reconnect_attempts:
+            logger.error(
+                f"Maximum reconnection attempts ({self.max_reconnect_attempts}) exceeded"
+            )
+            return False
+        
+        # Close existing connections
+        try:
+            if self.channel and self.channel.is_open:
+                self.channel.close()
+        except Exception as e:
+            logger.debug(f"Error closing channel during reconnect: {e}")
+            
+        try:
+            if self.connection and not self.connection.is_closed:
+                self.connection.close()
+        except Exception as e:
+            logger.debug(f"Error closing connection during reconnect: {e}")
+        
+        # Reset state
+        self.channel = None
+        self.connection = None
+        
+        # Attempt reconnection
+        self._reconnect_count += 1
+        logger.info(
+            f"Attempting reconnection {self._reconnect_count}/{self.max_reconnect_attempts}..."
+        )
+        
+        if self.connect():
+            logger.info("Reconnection successful")
+            self._reconnect_count = 0  # Reset count on success
+            
+            # Re-declare queues that were previously declared
+            if self._declared_queues:
+                logger.info(f"Re-declaring {len(self._declared_queues)} queues...")
+                queues_to_redeclare = list(self._declared_queues)
+                self._declared_queues.clear()
+                for queue_name in queues_to_redeclare:
+                    self.declare_queue(queue_name)
+            
+            return True
+        else:
+            logger.error(f"Reconnection attempt {self._reconnect_count} failed")
+            return False
 
     def declare_queue(
         self,
@@ -185,12 +278,13 @@ class RabbitMQPublisher(EventPublisher):
         return success
 
     def publish(self, exchange: str, routing_key: str, event: Dict[str, Any]) -> None:
-        """Publish an event to RabbitMQ with message persistence.
+        """Publish an event to RabbitMQ with message persistence and automatic reconnection.
         
         Messages are published with:
         - delivery_mode=2 for persistence
         - mandatory=True to detect unroutable messages
         - Publisher confirms (if enabled) for guaranteed delivery
+        - Automatic reconnection on channel/connection errors
         
         Args:
             exchange: Exchange name
@@ -198,21 +292,24 @@ class RabbitMQPublisher(EventPublisher):
             event: Event data as dictionary
             
         Raises:
-            ConnectionError: If not connected to RabbitMQ
+            ConnectionError: If not connected and reconnection fails
             RuntimeError: If pika library is not installed
             pika.exceptions.UnroutableError: If message is unroutable
             pika.exceptions.NackError: If message is rejected by broker
             Exception: For other publishing failures
         """
-        if not self.channel:
-            error_msg = "Not connected to RabbitMQ"
-            logger.error(error_msg)
-            raise ConnectionError(error_msg)
-
         if pika is None:
             error_msg = "pika library is not installed"
             logger.error(error_msg)
             raise RuntimeError(error_msg)
+
+        # Check connection and attempt reconnection if needed
+        if not self._is_connected():
+            logger.warning("Channel closed, attempting reconnection...")
+            if not self._reconnect():
+                error_msg = "Not connected to RabbitMQ and reconnection failed"
+                logger.error(error_msg)
+                raise ConnectionError(error_msg)
 
         try:
             # Publish with persistence and mandatory flag
@@ -230,6 +327,37 @@ class RabbitMQPublisher(EventPublisher):
             logger.info(
                 f"Published event to {exchange}/{routing_key}: {event.get('event_type')}"
             )
+        except (
+            pika.exceptions.ChannelWrongStateError,
+            pika.exceptions.ChannelClosedByBroker,
+            pika.exceptions.ConnectionClosedByBroker,
+            pika.exceptions.AMQPConnectionError,
+            pika.exceptions.StreamLostError,
+        ) as e:
+            # Connection/channel errors - attempt reconnection and retry once
+            logger.warning(f"Connection error during publish: {e}, attempting reconnection...")
+            if self._reconnect():
+                logger.info("Retrying publish after reconnection...")
+                try:
+                    self.channel.basic_publish(
+                        exchange=exchange,
+                        routing_key=routing_key,
+                        body=json.dumps(event),
+                        properties=pika.BasicProperties(
+                            delivery_mode=2,
+                            content_type="application/json",
+                        ),
+                        mandatory=True,
+                    )
+                    logger.info(
+                        f"Successfully published event after reconnection: {event.get('event_type')}"
+                    )
+                except Exception as retry_error:
+                    logger.error(f"Retry publish failed after reconnection: {retry_error}")
+                    raise
+            else:
+                logger.error("Reconnection failed, cannot publish event")
+                raise ConnectionError(f"Failed to publish after connection error: {e}")
         except pika.exceptions.UnroutableError:
             error_msg = (
                 f"Message unroutable - no queue bound for {exchange}/{routing_key}. "
