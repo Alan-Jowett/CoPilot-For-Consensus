@@ -319,6 +319,12 @@ class SummarizationService:
                         summary.tokens_completion,
                         tags={"type": "completion"},
                     )
+                    # Push metrics to Pushgateway
+                    if hasattr(self.metrics_collector, 'push'):
+                        try:
+                            self.metrics_collector.push()
+                        except Exception as e:
+                            logger.warning(f"Failed to push metrics: {e}")
                 
                 return
                 
@@ -376,6 +382,12 @@ class SummarizationService:
                             "summarization_failures_total",
                             tags={"error_type": error_type},
                         )
+                        # Push metrics to Pushgateway
+                        if hasattr(self.metrics_collector, 'push'):
+                            try:
+                                self.metrics_collector.push()
+                            except Exception as push_error:
+                                logger.warning(f"Failed to push metrics: {push_error}")
 
     def _retrieve_context(self, thread_id: str, top_k: int) -> Dict[str, Any]:
         """Retrieve context for a thread from vector and document stores.

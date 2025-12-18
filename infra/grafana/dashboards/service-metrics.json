@@ -16,7 +16,7 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "axisLabel": "Documents/sec",
+            "axisLabel": "Messages/sec",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
@@ -53,12 +53,16 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 0
+        "y": 0,
+        "id": 1
       },
-      "id": 3,
+      "id": 1,
       "options": {
         "legend": {
-          "calcs": ["mean", "lastNotNull"],
+          "calcs": [
+            "mean",
+            "lastNotNull"
+          ],
           "displayMode": "table",
           "placement": "bottom"
         },
@@ -68,12 +72,12 @@
       },
       "targets": [
         {
-          "expr": "rate(copilot_ingestion_documents_total[5m])",
+          "expr": "rate(copilot_parsing_messages_parsed_total[5m])",
           "refId": "A",
-          "legendFormat": "Ingestion Rate"
+          "legendFormat": "Messages/sec"
         }
       ],
-      "title": "Ingestion Throughput",
+      "title": "Parsing Throughput",
       "type": "timeseries"
     },
     {
@@ -84,7 +88,7 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "axisLabel": "Documents/sec",
+            "axisLabel": "Chunks/sec",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
@@ -121,12 +125,16 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 0
+        "y": 0,
+        "id": 2
       },
-      "id": 4,
+      "id": 2,
       "options": {
         "legend": {
-          "calcs": ["mean", "lastNotNull"],
+          "calcs": [
+            "mean",
+            "lastNotNull"
+          ],
           "displayMode": "table",
           "placement": "bottom"
         },
@@ -136,12 +144,12 @@
       },
       "targets": [
         {
-          "expr": "rate(copilot_parsing_messages_parsed_total[5m])",
+          "expr": "rate(copilot_chunking_chunks_created_total[5m])",
           "refId": "A",
-          "legendFormat": "Parsing Rate"
+          "legendFormat": "Chunks/sec"
         }
       ],
-      "title": "Parsing Throughput",
+      "title": "Chunking Throughput",
       "type": "timeseries"
     },
     {
@@ -197,12 +205,16 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 8
+        "y": 8,
+        "id": 3
       },
-      "id": 5,
+      "id": 3,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "lastNotNull"
+          ],
           "displayMode": "table",
           "placement": "bottom"
         },
@@ -214,15 +226,100 @@
         {
           "expr": "histogram_quantile(0.95, rate(copilot_embedding_generation_duration_seconds_bucket[5m]))",
           "refId": "A",
-          "legendFormat": "p95 Embedding Latency"
+          "legendFormat": "p95"
         },
         {
           "expr": "histogram_quantile(0.50, rate(copilot_embedding_generation_duration_seconds_bucket[5m]))",
           "refId": "B",
-          "legendFormat": "p50 Embedding Latency"
+          "legendFormat": "p50"
         }
       ],
       "title": "Embedding Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "Seconds",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 2
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8,
+        "id": 4
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(copilot_summarization_latency_seconds_bucket[5m]))",
+          "refId": "A",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.50, rate(copilot_summarization_latency_seconds_bucket[5m]))",
+          "refId": "B",
+          "legendFormat": "p50"
+        }
+      ],
+      "title": "Summarization Latency",
       "type": "timeseries"
     },
     {
@@ -269,13 +366,17 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
-        "y": 8
+        "x": 0,
+        "y": 16,
+        "id": 5
       },
-      "id": 6,
+      "id": 5,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "mean",
+            "lastNotNull"
+          ],
           "displayMode": "table",
           "placement": "bottom"
         },
@@ -285,18 +386,297 @@
       },
       "targets": [
         {
-          "expr": "copilot_vector_store_documents_total",
+          "expr": "qdrant_collection_vectors_count{collection=\"embeddings\"}",
           "refId": "A",
-          "legendFormat": "Total Vectors"
+          "legendFormat": "Embeddings Collection"
         }
       ],
       "title": "Vector Store Size",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "Messages",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 200
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16,
+        "id": 6
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=~\".*parsing.*\"}",
+          "refId": "A",
+          "legendFormat": "Parsing"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=~\".*chunking.*\"}",
+          "refId": "B",
+          "legendFormat": "Chunking"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=~\".*embedding.*\"}",
+          "refId": "C",
+          "legendFormat": "Embedding"
+        },
+        {
+          "expr": "rabbitmq_queue_messages_ready{queue=~\".*summarization.*\"}",
+          "refId": "D",
+          "legendFormat": "Summarization"
+        }
+      ],
+      "title": "Queue Depths",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "Errors/sec",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.1
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24,
+        "id": 7
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(copilot_parsing_failures_total[5m])",
+          "refId": "A",
+          "legendFormat": "Parsing"
+        },
+        {
+          "expr": "rate(copilot_chunking_failures_total[5m])",
+          "refId": "B",
+          "legendFormat": "Chunking"
+        },
+        {
+          "expr": "rate(copilot_embedding_failures_total[5m])",
+          "refId": "C",
+          "legendFormat": "Embedding"
+        },
+        {
+          "expr": "rate(copilot_summarization_failures_total[5m])",
+          "refId": "D",
+          "legendFormat": "Summarization"
+        }
+      ],
+      "title": "Error Rates by Service",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "Seconds",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24,
+        "id": 8
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(copilot_parsing_duration_seconds_bucket[5m]))",
+          "refId": "A",
+          "legendFormat": "Parsing p95"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(copilot_chunking_duration_seconds_bucket[5m]))",
+          "refId": "B",
+          "legendFormat": "Chunking p95"
+        }
+      ],
+      "title": "Processing Latency (Parsing & Chunking)",
       "type": "timeseries"
     }
   ],
   "schemaVersion": 27,
   "style": "dark",
-  "tags": ["copilot", "services"],
+  "tags": [
+    "copilot",
+    "services",
+    "metrics"
+  ],
   "templating": {
     "list": []
   },
@@ -308,5 +688,5 @@
   "timezone": "",
   "title": "Copilot Service Metrics",
   "uid": "copilot-service-metrics",
-  "version": 0
+  "version": 1
 }

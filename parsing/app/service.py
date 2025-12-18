@@ -263,6 +263,12 @@ class ParsingService:
                     "parsing_duration_seconds",
                     duration,
                 )
+                # Push metrics to Pushgateway
+                if hasattr(self.metrics_collector, 'push'):
+                    try:
+                        self.metrics_collector.push()
+                    except Exception as e:
+                        logger.warning(f"Failed to push metrics: {e}")
             
             # Publish JSONParsed events (one per message for fine-grained retry)
             self._publish_json_parsed_per_message(
@@ -295,6 +301,12 @@ class ParsingService:
                     "parsing_failures_total",
                     tags={"error_type": type(e).__name__},
                 )
+                # Push metrics to Pushgateway
+                if hasattr(self.metrics_collector, 'push'):
+                    try:
+                        self.metrics_collector.push()
+                    except Exception as push_error:
+                        logger.warning(f"Failed to push metrics: {push_error}")
             
             # Report error
             if self.error_reporter:
