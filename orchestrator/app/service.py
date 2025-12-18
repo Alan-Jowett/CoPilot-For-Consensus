@@ -441,6 +441,14 @@ class OrchestrationService:
                 except Exception as e:
                     logger.warning(f"Failed to update retrieval set for thread {thread_id}: {e}")
                     # Continue with summarization even if update fails
+            else:
+                # Thread document doesn't exist yet - this can happen during race conditions
+                # or if the thread hasn't been created by upstream services yet.
+                # Log a warning but proceed with summarization.
+                logger.warning(
+                    f"Thread document not found for {thread_id}, "
+                    f"unable to store retrieval set. Proceeding with summarization."
+                )
 
             # Publish SummarizationRequested event
             self._publish_summarization_requested(
