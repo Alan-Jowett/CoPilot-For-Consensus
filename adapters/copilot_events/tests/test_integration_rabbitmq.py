@@ -46,9 +46,10 @@ def rabbitmq_publisher():
     # Attempt to connect with retries
     max_retries = 5
     for i in range(max_retries):
-        if publisher.connect():
+        try:
+            publisher.connect()
             break
-        if i < max_retries - 1:
+        except Exception:
             time.sleep(2)
     else:
         pytest.skip("Could not connect to RabbitMQ - skipping integration tests")
@@ -408,16 +409,16 @@ class TestRabbitMQErrorHandling:
         )
         
         # Connect
-        success = publisher.connect()
-        if not success:
+        try:
+            publisher.connect()
+        except Exception:
             pytest.skip("Could not connect to RabbitMQ")
         
         # Disconnect
         publisher.disconnect()
         
         # Reconnect
-        success = publisher.connect()
-        assert success is True
+        publisher.connect()  # Should not raise
         
         # Cleanup
         publisher.disconnect()

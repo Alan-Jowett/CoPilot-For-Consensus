@@ -16,11 +16,11 @@ class EventSubscriber(ABC):
     """
 
     @abstractmethod
-    def connect(self) -> bool:
+    def connect(self) -> None:
         """Connect to the message bus.
         
-        Returns:
-            bool: True if connection successful, False otherwise
+        Raises:
+            Exception: If connection fails for any reason
         """
         pass
 

@@ -285,15 +285,14 @@ class TestValidatingEventSubscriber:
         mock_subscriber.connect.assert_called_once()
 
     def test_connect_failure(self):
-        """Test failed connection."""
+        """Test failed connection raises exception."""
         mock_subscriber = Mock()
-        mock_subscriber.connect.return_value = False
+        mock_subscriber.connect.side_effect = Exception("Connection failed")
         
         subscriber = ValidatingEventSubscriber(subscriber=mock_subscriber)
         
-        result = subscriber.connect()
-        
-        assert result is False
+        with pytest.raises(Exception, match="Connection failed"):
+            subscriber.connect()
 
     def test_disconnect(self):
         """Test disconnection."""

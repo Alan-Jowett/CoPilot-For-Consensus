@@ -19,15 +19,10 @@ class NoopPublisher(EventPublisher):
         self.published_events: List[Dict[str, Any]] = []
         self.connected = False
 
-    def connect(self) -> bool:
-        """Pretend to connect.
-        
-        Returns:
-            Always returns True
-        """
+    def connect(self) -> None:
+        """Pretend to connect (always succeeds)."""
         self.connected = True
         logger.debug("NoopPublisher: connected")
-        return True
 
     def disconnect(self) -> None:
         """Pretend to disconnect."""

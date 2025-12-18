@@ -38,33 +38,33 @@ class TestRabbitMQReconnection:
             mock_channel.is_open = True
             mock_connection.is_closed = False
             
-            result = publisher.connect()
-            assert result is True
+            publisher.connect()  # Should not raise
         
         # Simulate channel being closed
         mock_channel.is_open = False
         
-        # Mock reconnection
-        with patch.object(publisher, 'connect', return_value=True) as mock_connect:
-            # Attempt to publish should detect closed channel and reconnect
-            event = {
-                "event_type": "TestEvent",
-                "event_id": "123",
-                "timestamp": "2025-01-01T00:00:00Z",
-                "version": "1.0",
-                "data": {}
-            }
+        # Mock successful reconnection that restores the channel
+        def mock_reconnect_success():
+            publisher.connection = mock_connection
+            publisher.channel = mock_channel
+            mock_channel.is_open = True
+            mock_connection.is_closed = False
+        
+        # Attempt to publish should detect closed channel and reconnect
+        event = {
+            "event_type": "TestEvent",
+            "event_id": "123",
+            "timestamp": "2025-01-01T00:00:00Z",
+            "version": "1.0",
+            "data": {}
+        }
+        
+        with patch.object(publisher, 'connect', side_effect=mock_reconnect_success):
+            # Should successfully publish after reconnection
+            publisher.publish("test.exchange", "test.key", event)
             
-            # First publish attempt will fail, trigger reconnect
-            with patch.object(mock_channel, 'basic_publish') as mock_publish:
-                mock_publish.side_effect = pika.exceptions.ChannelWrongStateError()
-                
-                # After reconnect, second attempt should succeed
-                with pytest.raises(ConnectionError):
-                    publisher.publish("test.exchange", "test.key", event)
-                
-                # Verify reconnect was attempted
-                assert mock_connect.call_count >= 1
+            # Verify channel.basic_publish was called
+            assert mock_channel.basic_publish.called
 
     def test_is_connected_checks_channel_state(self):
         """Test _is_connected properly checks connection and channel state."""
@@ -98,7 +98,7 @@ class TestRabbitMQReconnection:
         )
         
         # Mock failed connection
-        with patch.object(publisher, 'connect', return_value=False):
+        with patch.object(publisher, 'connect', side_effect=Exception("Connection failed")):
             # First reconnect attempt
             result1 = publisher._reconnect()
             assert result1 is False
@@ -118,7 +118,7 @@ class TestRabbitMQReconnection:
         )
         
         # Mock failed connection
-        with patch.object(publisher, 'connect', return_value=False):
+        with patch.object(publisher, 'connect', side_effect=Exception("Connection failed")):
             # Exhaust reconnection attempts
             publisher._reconnect()
             publisher._reconnect()
@@ -136,7 +136,13 @@ class TestRabbitMQReconnection:
         )
         
         # Simulate failed then successful reconnection
-        with patch.object(publisher, 'connect', side_effect=[False, True]):
+        def mock_connect_sequence():
+            """Mock that fails first time, succeeds second time."""
+            if publisher._reconnect_count < 2:
+                raise Exception("First attempt fails")
+            # Second attempt succeeds (returns None)
+        
+        with patch.object(publisher, 'connect', side_effect=mock_connect_sequence):
             # First attempt fails
             result1 = publisher._reconnect()
             assert result1 is False

@@ -154,17 +154,13 @@ class ValidatingEventSubscriber(EventSubscriber):
 
         return wrapper
 
-    def connect(self) -> bool:
+    def connect(self) -> None:
         """Connect to the message bus.
-
-        Returns:
-            bool: True if connection successful, False otherwise
+        
+        Raises:
+            Exception: If connection fails for any reason
         """
-        result = self._subscriber.connect()
-        # Return False if explicit failure, True if success (including None for backwards compat)
-        if result is False:
-            return False
-        return True
+        self._subscriber.connect()
 
     def disconnect(self) -> None:
         """Disconnect from the message bus."""

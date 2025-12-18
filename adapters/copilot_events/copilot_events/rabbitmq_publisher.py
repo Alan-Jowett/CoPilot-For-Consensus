@@ -61,45 +61,40 @@ class RabbitMQPublisher(EventPublisher):
         self._last_reconnect_time = 0.0
         self._reconnect_count = 0
 
-    def connect(self) -> bool:
+    def connect(self) -> None:
         """Connect to RabbitMQ and declare exchange.
         
-        Returns:
-            True if connection succeeded, False otherwise
+        Raises:
+            ImportError: If pika library is not installed
+            Exception: If connection or exchange declaration fails
         """
         if pika is None:
-            logger.error("pika library is not installed")
-            return False
+            raise ImportError("pika library is not installed")
             
-        try:
-            credentials = pika.PlainCredentials(self.username, self.password)
-            parameters = pika.ConnectionParameters(
-                host=self.host,
-                port=self.port,
-                credentials=credentials,
-                connection_attempts=3,
-                retry_delay=2,
-            )
-            self.connection = pika.BlockingConnection(parameters)
-            self.channel = self.connection.channel()
+        credentials = pika.PlainCredentials(self.username, self.password)
+        parameters = pika.ConnectionParameters(
+            host=self.host,
+            port=self.port,
+            credentials=credentials,
+            connection_attempts=3,
+            retry_delay=2,
+        )
+        self.connection = pika.BlockingConnection(parameters)
+        self.channel = self.connection.channel()
 
-            # Enable publisher confirms for guaranteed delivery
-            if self.enable_publisher_confirms:
-                self.channel.confirm_delivery()
-                logger.info("Publisher confirms enabled")
+        # Enable publisher confirms for guaranteed delivery
+        if self.enable_publisher_confirms:
+            self.channel.confirm_delivery()
+            logger.info("Publisher confirms enabled")
 
-            # Declare exchange
-            self.channel.exchange_declare(
-                exchange=self.exchange,
-                exchange_type=self.exchange_type,
-                durable=True,
-            )
+        # Declare exchange
+        self.channel.exchange_declare(
+            exchange=self.exchange,
+            exchange_type=self.exchange_type,
+            durable=True,
+        )
 
-            logger.info(f"Connected to RabbitMQ at {self.host}:{self.port}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to connect to RabbitMQ: {e}")
-            return False
+        logger.info(f"Connected to RabbitMQ at {self.host}:{self.port}")
 
     def disconnect(self) -> None:
         """Disconnect from RabbitMQ."""
@@ -177,7 +172,8 @@ class RabbitMQPublisher(EventPublisher):
             f"Attempting reconnection {self._reconnect_count}/{self.max_reconnect_attempts}..."
         )
         
-        if self.connect():
+        try:
+            self.connect()
             logger.info("Reconnection successful")
             self._reconnect_count = 0  # Reset count on success
             
@@ -190,7 +186,7 @@ class RabbitMQPublisher(EventPublisher):
                     self.declare_queue(queue_name)
             
             return True
-        else:
+        except Exception as e:
             logger.error(f"Reconnection attempt {self._reconnect_count} failed")
             return False
 
