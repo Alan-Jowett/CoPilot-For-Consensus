@@ -39,98 +39,32 @@
       "vhost": "/",
       "durable": true,
       "auto_delete": false,
-      "arguments": {}
-    },
-    {
-      "name": "archive.ingestion.failed",
-      "vhost": "/",
-      "durable": true,
-      "auto_delete": false,
-      "arguments": {}
+      "arguments": {},
+      "_comment": "Consumed by parsing service"
     },
     {
       "name": "json.parsed",
       "vhost": "/",
       "durable": true,
       "auto_delete": false,
-      "arguments": {}
-    },
-    {
-      "name": "parsing.failed",
-      "vhost": "/",
-      "durable": true,
-      "auto_delete": false,
-      "arguments": {}
-    },
-    {
-      "name": "chunks.prepared",
-      "vhost": "/",
-      "durable": true,
-      "auto_delete": false,
-      "arguments": {}
-    },
-    {
-      "name": "chunking.failed",
-      "vhost": "/",
-      "durable": true,
-      "auto_delete": false,
-      "arguments": {}
-    },
-    {
-      "name": "embeddings.generated",
-      "vhost": "/",
-      "durable": true,
-      "auto_delete": false,
-      "arguments": {}
-    },
-    {
-      "name": "embedding.generation.failed",
-      "vhost": "/",
-      "durable": true,
-      "auto_delete": false,
-      "arguments": {}
+      "arguments": {},
+      "_comment": "Consumed by chunking service"
     },
     {
       "name": "summarization.requested",
       "vhost": "/",
       "durable": true,
       "auto_delete": false,
-      "arguments": {}
-    },
-    {
-      "name": "orchestration.failed",
-      "vhost": "/",
-      "durable": true,
-      "auto_delete": false,
-      "arguments": {}
+      "arguments": {},
+      "_comment": "Consumed by summarization service"
     },
     {
       "name": "summary.complete",
       "vhost": "/",
       "durable": true,
       "auto_delete": false,
-      "arguments": {}
-    },
-    {
-      "name": "summarization.failed",
-      "vhost": "/",
-      "durable": true,
-      "auto_delete": false,
-      "arguments": {}
-    },
-    {
-      "name": "report.published",
-      "vhost": "/",
-      "durable": true,
-      "auto_delete": false,
-      "arguments": {}
-    },
-    {
-      "name": "report.delivery.failed",
-      "vhost": "/",
-      "durable": true,
-      "auto_delete": false,
-      "arguments": {}
+      "arguments": {},
+      "_comment": "Consumed by reporting service"
     }
   ],
   "exchanges": [
@@ -151,15 +85,8 @@
       "destination": "archive.ingested",
       "destination_type": "queue",
       "routing_key": "archive.ingested",
-      "arguments": {}
-    },
-    {
-      "source": "copilot.events",
-      "vhost": "/",
-      "destination": "archive.ingestion.failed",
-      "destination_type": "queue",
-      "routing_key": "archive.ingestion.failed",
-      "arguments": {}
+      "arguments": {},
+      "_comment": "Parsing service consumes archive.ingested events"
     },
     {
       "source": "copilot.events",
@@ -167,47 +94,8 @@
       "destination": "json.parsed",
       "destination_type": "queue",
       "routing_key": "json.parsed",
-      "arguments": {}
-    },
-    {
-      "source": "copilot.events",
-      "vhost": "/",
-      "destination": "parsing.failed",
-      "destination_type": "queue",
-      "routing_key": "parsing.failed",
-      "arguments": {}
-    },
-    {
-      "source": "copilot.events",
-      "vhost": "/",
-      "destination": "chunks.prepared",
-      "destination_type": "queue",
-      "routing_key": "chunks.prepared",
-      "arguments": {}
-    },
-    {
-      "source": "copilot.events",
-      "vhost": "/",
-      "destination": "chunking.failed",
-      "destination_type": "queue",
-      "routing_key": "chunking.failed",
-      "arguments": {}
-    },
-    {
-      "source": "copilot.events",
-      "vhost": "/",
-      "destination": "embeddings.generated",
-      "destination_type": "queue",
-      "routing_key": "embeddings.generated",
-      "arguments": {}
-    },
-    {
-      "source": "copilot.events",
-      "vhost": "/",
-      "destination": "embedding.generation.failed",
-      "destination_type": "queue",
-      "routing_key": "embedding.generation.failed",
-      "arguments": {}
+      "arguments": {},
+      "_comment": "Chunking service consumes json.parsed events"
     },
     {
       "source": "copilot.events",
@@ -215,15 +103,8 @@
       "destination": "summarization.requested",
       "destination_type": "queue",
       "routing_key": "summarization.requested",
-      "arguments": {}
-    },
-    {
-      "source": "copilot.events",
-      "vhost": "/",
-      "destination": "orchestration.failed",
-      "destination_type": "queue",
-      "routing_key": "orchestration.failed",
-      "arguments": {}
+      "arguments": {},
+      "_comment": "Summarization service consumes summarization.requested events"
     },
     {
       "source": "copilot.events",
@@ -231,31 +112,8 @@
       "destination": "summary.complete",
       "destination_type": "queue",
       "routing_key": "summary.complete",
-      "arguments": {}
-    },
-    {
-      "source": "copilot.events",
-      "vhost": "/",
-      "destination": "summarization.failed",
-      "destination_type": "queue",
-      "routing_key": "summarization.failed",
-      "arguments": {}
-    },
-    {
-      "source": "copilot.events",
-      "vhost": "/",
-      "destination": "report.published",
-      "destination_type": "queue",
-      "routing_key": "report.published",
-      "arguments": {}
-    },
-    {
-      "source": "copilot.events",
-      "vhost": "/",
-      "destination": "report.delivery.failed",
-      "destination_type": "queue",
-      "routing_key": "report.delivery.failed",
-      "arguments": {}
+      "arguments": {},
+      "_comment": "Reporting service consumes summary.complete events"
     }
   ]
 }
