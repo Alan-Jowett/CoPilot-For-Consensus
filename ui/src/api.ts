@@ -29,7 +29,8 @@ export interface ReportsListResponse {
   count: number
 }
 
-const DEFAULT_API = 'http://localhost:8080'
+// If VITE_REPORTING_API_URL is not set, use same-origin and rely on Nginx proxy (/api -> reporting)
+const DEFAULT_API = ''
 const base = (import.meta as any).env?.VITE_REPORTING_API_URL || DEFAULT_API
 
 export function reportingApiBase(): string {
