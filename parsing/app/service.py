@@ -195,8 +195,9 @@ class ParsingService:
                     0,
                 )
                 
-                # Re-raise to allow caller to handle
-                raise
+                # Don't re-raise - let event processing continue gracefully
+                # The error has been recorded in the archive status and event
+                return
             
             if not parsed_messages:
                 # No messages parsed (empty archive)

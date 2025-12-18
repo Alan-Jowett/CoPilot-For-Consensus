@@ -347,6 +347,8 @@ def test_archive_ingested_event_schema_validation():
 
 def test_archive_ingestion_failed_event_schema_validation():
     """Test that ArchiveIngestionFailed events validate against schema."""
+    from app.exceptions import FetchError
+    
     with tempfile.TemporaryDirectory() as tmpdir:
         config = make_config(storage_path=tmpdir)
         publisher = NoopPublisher()
@@ -357,7 +359,10 @@ def test_archive_ingestion_failed_event_schema_validation():
 
         source = make_source(name="test-source", url="/nonexistent/file.mbox")
 
-        service.ingest_archive(source, max_retries=1)
+        # ingest_archive now raises exceptions instead of returning False
+        # The failure event should still be published before the exception is raised
+        with pytest.raises(FetchError):
+            service.ingest_archive(source, max_retries=1)
 
         failure_events = [
             e for e in publisher.published_events

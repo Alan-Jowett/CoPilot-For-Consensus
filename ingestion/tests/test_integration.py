@@ -98,10 +98,11 @@ class TestIngestionIntegration:
         # Ingest all sources
         results = service.ingest_all_enabled_sources()
 
-        # Verify results
+        # Verify results - now returns Dict[str, Optional[Exception]]
         assert len(results) == 3
-        for source_name, success in results.items():
-            assert success is True
+        for source_name, exception in results.items():
+            # None indicates success, any Exception indicates failure
+            assert exception is None, f"Source {source_name} failed with: {exception}"
 
         # Verify archives collection was populated
         archives = document_store.query_documents("archives", {})
@@ -158,13 +159,15 @@ class TestIngestionIntegration:
 
         # First ingestion
         results1 = service.ingest_all_enabled_sources()
-        assert all(results1.values())
+        # All results should be None (success), not exceptions
+        assert all(exc is None for exc in results1.values()), f"Some sources failed: {results1}"
 
         initial_event_count = len(publisher.published_events)
 
         # Second ingestion (should skip duplicates)
         results2 = service.ingest_all_enabled_sources()
-        assert all(results2.values())
+        # All results should be None (success), not exceptions
+        assert all(exc is None for exc in results2.values()), f"Some sources failed on retry: {results2}"
 
         # Should have same number of events (no new success events for duplicates)
         # Note: actual behavior depends on implementation
@@ -191,7 +194,8 @@ class TestIngestionIntegration:
 
         # Only one source should be ingested
         assert len(results) == 1
-        assert results["test-list-0"] is True
+        # Result should be None (success), not an exception
+        assert results["test-list-0"] is None
 
     def test_checksums_persist_across_instances(self, temp_environment, test_sources):
         """Test that checksums persist across service instances."""

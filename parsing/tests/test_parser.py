@@ -60,7 +60,8 @@ class TestMessageParser:
 
     def test_message_without_message_id(self, temp_dir):
         """Test handling message without Message-ID."""
-        from app.exceptions import RequiredFieldMissingError
+        from app.exceptions import MessageParsingError
+        import pytest
         # Create mbox with message missing Message-ID
         mbox_path = os.path.join(temp_dir, "no_id.mbox")
         with open(mbox_path, "w") as f:
@@ -73,12 +74,10 @@ Body text
 """)
         
         parser = MessageParser()
-        # Parse should succeed but skip the message without Message-ID
-        # It should not raise if there's just one bad message
-        messages = parser.parse_mbox(mbox_path, "test-archive-4")
-        
-        # Should skip message without Message-ID
-        assert len(messages) == 0
+        # If all messages fail to parse (in this case, the only message),
+        # parse_mbox should raise MessageParsingError
+        with pytest.raises(MessageParsingError, match="Failed to parse any messages"):
+            parser.parse_mbox(mbox_path, "test-archive-4")
 
     def test_extract_headers(self, sample_mbox_file):
         """Test header extraction."""
@@ -96,7 +95,7 @@ Body text
         """Test thread_id assignment."""
         parser = MessageParser()
         
-        messages, _ = parser.parse_mbox(sample_mbox_file, "test-archive-6")
+        messages = parser.parse_mbox(sample_mbox_file, "test-archive-6")
         
         # First message: thread_id should equal message_id (no in_reply_to)
         msg1 = messages[0]
@@ -110,7 +109,7 @@ Body text
         """Test that body is normalized."""
         parser = MessageParser()
         
-        messages, _ = parser.parse_mbox(sample_mbox_file, "test-archive-7")
+        messages = parser.parse_mbox(sample_mbox_file, "test-archive-7")
         
         msg1 = messages[0]
         # Signature should be removed
@@ -129,7 +128,7 @@ Body text
         """Test draft detection during parsing."""
         parser = MessageParser()
         
-        messages, _ = parser.parse_mbox(sample_mbox_file, "test-archive-8")
+        messages = parser.parse_mbox(sample_mbox_file, "test-archive-8")
         
         msg1 = messages[0]
         assert len(msg1["draft_mentions"]) > 0
@@ -143,7 +142,7 @@ Body text
         """Test parsing of References header."""
         parser = MessageParser()
         
-        messages, _ = parser.parse_mbox(sample_mbox_file, "test-archive-9")
+        messages = parser.parse_mbox(sample_mbox_file, "test-archive-9")
         
         msg2 = messages[1]
         assert len(msg2["references"]) == 1
