@@ -353,10 +353,9 @@ class OrchestrationService:
     def _orchestrate_thread(self, thread_id: str):
         """Orchestrate summarization for a single thread.
         
-        This method triggers summary generation for the given thread only if the
-        retrieval set (the chunks selected for summarization) has changed since
-        the last summarization request. It also checks if a summary already exists
-        for the same set of chunks to avoid duplicate work.
+        Checks if a summary already exists for the same set of chunks. Only triggers
+        summarization if the chunks have changed (different top-k selection) to avoid
+        duplicate work and ensure summaries are regenerated when content changes.
 
         Args:
             thread_id: Thread ID to orchestrate
@@ -371,19 +370,8 @@ class OrchestrationService:
                 logger.warning(f"No context retrieved for thread {thread_id}")
                 return
 
-            # Extract chunk IDs from the current retrieval set
-            chunks = context.get("chunks", [])
-            current_chunk_ids = set(
-                chunk.get("chunk_key") or chunk.get("chunk_id") or chunk.get("_id")
-                for chunk in chunks
-                if chunk.get("chunk_key") or chunk.get("chunk_id") or chunk.get("_id")
-            )
-
-            if not current_chunk_ids:
-                logger.warning(f"No valid chunk IDs in context for thread {thread_id}")
-                return
-
             # Calculate expected summary_id based on chunks that would be used
+            chunks = context.get("chunks", [])
             expected_summary_id = self._calculate_summary_id(thread_id, chunks)
             
             # Check if a summary already exists with this exact set of chunks
@@ -392,63 +380,9 @@ class OrchestrationService:
                 if self.metrics_collector:
                     self.metrics_collector.increment(
                         "orchestrator_summary_skipped_total",
-                        tags={"reason": "summary_exists"}
+                        tags={"reason": "summary_already_exists"}
                     )
                 return
-
-            # Get the thread document to check previous retrieval set
-            threads = self.document_store.query_documents(
-                "threads",
-                {"thread_id": thread_id},
-                limit=1
-            )
-
-            previous_retrieval_set = set()
-            thread_doc_id = None
-            if threads:
-                thread_doc = threads[0]
-                thread_doc_id = thread_doc.get("_id")
-                previous_retrieval_set = set(thread_doc.get("retrieval_set", []))
-
-            # Compare retrieval sets
-            if current_chunk_ids == previous_retrieval_set:
-                logger.info(
-                    f"Skipping summarization for thread {thread_id}: "
-                    f"retrieval set unchanged ({len(current_chunk_ids)} chunks)"
-                )
-                if self.metrics_collector:
-                    self.metrics_collector.increment(
-                        "orchestrator_summary_skipped_total",
-                        tags={"reason": "retrieval_set_unchanged"}
-                    )
-                return
-
-            # Retrieval set has changed, proceed with summarization
-            logger.info(
-                f"Triggering summarization for thread {thread_id}: "
-                f"retrieval set changed (previous: {len(previous_retrieval_set)} chunks, "
-                f"current: {len(current_chunk_ids)} chunks)"
-            )
-
-            # Update thread document with new retrieval set
-            if thread_doc_id:
-                try:
-                    self.document_store.update_document(
-                        "threads",
-                        thread_doc_id,
-                        {"retrieval_set": list(current_chunk_ids)}
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to update retrieval set for thread {thread_id}: {e}")
-                    # Continue with summarization even if update fails
-            else:
-                # Thread document doesn't exist yet - this can happen during race conditions
-                # or if the thread hasn't been created by upstream services yet.
-                # Log a warning but proceed with summarization.
-                logger.warning(
-                    f"Thread document not found for {thread_id}, "
-                    f"unable to store retrieval set. Proceeding with summarization."
-                )
 
             # Publish SummarizationRequested event
             self._publish_summarization_requested(
@@ -459,7 +393,7 @@ class OrchestrationService:
             if self.metrics_collector:
                 self.metrics_collector.increment(
                     "orchestrator_summary_triggered_total",
-                    tags={"reason": "retrieval_set_changed"}
+                    tags={"reason": "chunks_changed"}
                 )
 
             logger.info(f"Published SummarizationRequested for thread {thread_id} (expected summary_id={expected_summary_id[:16]})")
