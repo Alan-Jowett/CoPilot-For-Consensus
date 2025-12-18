@@ -73,9 +73,15 @@ export function ReportsList() {
         if (cancelled) return
         setAvailableSources(sources)
         setData(result)
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (cancelled) return
-        setError(e?.message || 'Failed to load reports')
+        let message = 'Failed to load reports'
+        if (e instanceof Error && e.message) {
+          message = e.message
+        } else if (e && typeof e === 'object' && 'message' in e && typeof (e as { message: unknown }).message === 'string') {
+          message = (e as { message: string }).message
+        }
+        setError(message)
       } finally {
         if (!cancelled) setLoading(false)
       }

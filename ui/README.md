@@ -15,12 +15,12 @@ A single page application intended to be the primary UI for the project. It curr
 
 ## Configuration
 
-- `VITE_REPORTING_API_URL` (optional): Base URL for the Reporting API. Defaults to `http://localhost:8080`.
+- `VITE_REPORTING_API_URL` (optional): Base URL for the Reporting API. Defaults to same-origin (empty string) and relies on the Nginx `/api` proxy in Docker.
 
 ## Run Locally
 
 ```bash
-cd reporting-ui-react
+cd ui
 npm install
 npm run dev
 ```
@@ -37,7 +37,7 @@ VITE_REPORTING_API_URL=http://localhost:8080 npm run dev
 
 ```bash
 npm run build
-npm run preview  # serves on port 8083 by default
+npm run preview  # serves on port 4173 by default
 ```
 
 ## Docker
@@ -45,6 +45,6 @@ npm run preview  # serves on port 8083 by default
 Build and run the production image:
 
 ```bash
-docker build -t reporting-ui-react:local -f Dockerfile .
-docker run --rm -p 8083:80 -e VITE_REPORTING_API_URL="http://host.docker.internal:8080" reporting-ui-react:local
+docker build -t copilot-ui:local -f Dockerfile .
+docker run --rm -p 8084:80 -e VITE_REPORTING_API_URL="http://host.docker.internal:8080" copilot-ui:local
 ```

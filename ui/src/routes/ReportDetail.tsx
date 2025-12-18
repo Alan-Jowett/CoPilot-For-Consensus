@@ -67,22 +67,22 @@ export function ReportDetail() {
 
       <div className="metadata-section">
         <h2>Performance Metrics</h2>
-        <div className="metadata-grid">
-          <div className="metadata-item">
-            <div className="metadata-label">LLM Model</div>
-            <div className="metadata-value">{report.metadata?.llm_model ?? 'N/A'}</div>
+        <div className="info-grid">
+          <div className="info-item">
+            <div className="info-label">LLM Model</div>
+            <div className="info-value">{report.metadata?.llm_model ?? 'N/A'}</div>
           </div>
-          <div className="metadata-item">
-            <div className="metadata-label">Prompt Tokens</div>
-            <div className="metadata-value">{report.metadata?.tokens_prompt ?? 0}</div>
+          <div className="info-item">
+            <div className="info-label">Prompt Tokens</div>
+            <div className="info-value">{report.metadata?.tokens_prompt ?? 0}</div>
           </div>
-          <div className="metadata-item">
-            <div className="metadata-label">Completion Tokens</div>
-            <div className="metadata-value">{report.metadata?.tokens_completion ?? 0}</div>
+          <div className="info-item">
+            <div className="info-label">Completion Tokens</div>
+            <div className="info-value">{report.metadata?.tokens_completion ?? 0}</div>
           </div>
-          <div className="metadata-item">
-            <div className="metadata-label">Latency</div>
-            <div className="metadata-value">{report.metadata?.latency_ms ?? 0} ms</div>
+          <div className="info-item">
+            <div className="info-label">Latency</div>
+            <div className="info-value">{report.metadata?.latency_ms ?? 0} ms</div>
           </div>
         </div>
       </div>

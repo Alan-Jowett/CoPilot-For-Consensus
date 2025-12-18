@@ -120,6 +120,6 @@ tr:hover { background-color: #f8f9fa; }
 .info-value { font-size: 14px; color: #333; font-weight: 500; word-break: break-all; }
 .copy-btn-small { padding: 2px 6px; font-size: 10px; background-color: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer; }
 
-.markdown :is(h1,h2,h3,h4){ margin-top:1.5em; margin-bottom:.5em; }
+.markdown :is(h1, h2, h3, h4){ margin-top:1.5em; margin-bottom:.5em; }
 .markdown pre { background-color: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }
 .markdown code { background-color: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: monospace; }

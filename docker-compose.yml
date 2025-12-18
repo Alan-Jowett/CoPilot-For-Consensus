@@ -703,8 +703,8 @@ services:
       reporting:
         condition: service_healthy
     healthcheck:
-      # Nginx alpine image lacks curl/wget; use a simple file existence check
-      test: ["CMD-SHELL", "test -f /usr/share/nginx/html/index.html || exit 1"]
+      # Use HTTP check to ensure nginx serves content
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost/ || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3

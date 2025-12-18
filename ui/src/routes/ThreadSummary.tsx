@@ -49,7 +49,7 @@ export function ThreadSummary() {
         <div className="markdown">
           <ReactMarkdown>{summary.content_markdown || ''}</ReactMarkdown>
         </div>
-        <Link className="detail-link" to={`/reports/${summary._id}`}>View Full Report Details →</Link>
+        <Link className="report-link" to={`/reports/${summary._id}`}>View Full Report Details →</Link>
       </div>
     </div>
   )
