@@ -14,8 +14,8 @@ Usage:
 Environment Variables:
     RABBITMQ_HOST - RabbitMQ host (default: localhost)
     RABBITMQ_MGMT_PORT - RabbitMQ management port (default: 15672)
-    RABBITMQ_USER - RabbitMQ username (default: guest)
-    RABBITMQ_PASS - RabbitMQ password (default: guest)
+    RABBITMQ_DEFAULT_USER - RabbitMQ username (default: guest)
+    RABBITMQ_DEFAULT_PASS - RabbitMQ password (default: guest)
 """
 
 import os
@@ -61,8 +61,8 @@ def get_rabbitmq_api_url() -> str:
 
 def get_rabbitmq_credentials() -> tuple:
     """Get RabbitMQ credentials from environment or use defaults."""
-    username = os.getenv("RABBITMQ_USER", "guest")
-    password = os.getenv("RABBITMQ_PASS", "guest")
+    username = os.getenv("RABBITMQ_DEFAULT_USER", "guest")
+    password = os.getenv("RABBITMQ_DEFAULT_PASS", "guest")
     return (username, password)
 
 

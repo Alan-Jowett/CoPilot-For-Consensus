@@ -110,7 +110,7 @@ class TestQueueDrainage:
         # Queues that should NOT exist (removed from definitions.json)
         forbidden_queues = {
             "chunks.prepared",
-            "embeddings.generated", 
+            "embeddings.generated",
             "report.published",
             "archive.ingestion.failed",
             "parsing.failed",
@@ -206,8 +206,6 @@ class TestQueueDrainage:
         
         Queues without consumers will accumulate messages indefinitely.
         """
-        queues = get_queue_stats()
-        
         # Queues that should have consumers (from definitions.json)
         expected_consumers = {
             "archive.ingested": 1,
