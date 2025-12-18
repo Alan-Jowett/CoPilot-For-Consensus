@@ -26,7 +26,7 @@ def test_end_to_end_chunking(document_store):
     now = datetime.now(timezone.utc).isoformat()
     
     # Setup test messages in document store
-    archive_id = "archive-00000001"
+    archive_id = "feedfacecafebeef"
     message_id = "<test@example.com>"
     date = "2023-10-15T12:00:00Z"
     sender_email = "user@example.com"
@@ -111,7 +111,7 @@ def test_different_chunking_strategies(document_store):
         now = datetime.now(timezone.utc).isoformat()
         
         # Setup test message
-        archive_id = "archive-00000001"
+        archive_id = "feedfacecafebeef"
         message_id = f"<test-{strategy_name}@example.com>"
         date = "2023-10-15T12:00:00Z"
         sender_email = "user@example.com"
@@ -182,7 +182,7 @@ def test_oversize_message_handling(document_store):
     
     # Create a very large message
     large_text = "word " * 2000  # 2000 words
-    archive_id = "archive-00000001"
+    archive_id = "feedfacecafebeef"
     message_id = "<large@example.com>"
     date = "2023-10-15T12:00:00Z"
     sender_email = "user@example.com"

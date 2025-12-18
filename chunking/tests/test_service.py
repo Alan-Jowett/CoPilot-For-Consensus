@@ -80,7 +80,7 @@ def test_chunk_message_success(chunking_service, mock_document_store):
         "_id": "abc123def4567890",
         "message_id": "<test@example.com>",
         "thread_id": "fedcba9876543210",
-        "archive_id": "archive-123",
+        "archive_id": "a1b2c3d4e5f67890",
         "body_normalized": "This is a test message with some content. " * 100,
         "from": {"email": "user@example.com", "name": "Test User"},
         "date": "2023-10-15T12:00:00Z",
@@ -98,7 +98,7 @@ def test_chunk_message_success(chunking_service, mock_document_store):
     assert "_id" in chunk
     assert chunk["message_id"] == "<test@example.com>"
     assert chunk["thread_id"] == "fedcba9876543210"
-    assert chunk["archive_id"] == "archive-123"
+    assert chunk["archive_id"] == "a1b2c3d4e5f67890"
     assert chunk["chunk_index"] == 0
     assert "text" in chunk
     assert "token_count" in chunk
@@ -147,7 +147,7 @@ def test_process_messages_success(chunking_service, mock_document_store, mock_pu
             "_id": "abc123def4567890",
             "message_id": "<test1@example.com>",
             "thread_id": "1111222233334444",
-            "archive_id": "archive-123",
+            "archive_id": "a1b2c3d4e5f67890",
             "body_normalized": "This is test message one. " * 50,
             "from": {"email": "user1@example.com", "name": "User One"},
             "date": "2023-10-15T12:00:00Z",
@@ -158,7 +158,7 @@ def test_process_messages_success(chunking_service, mock_document_store, mock_pu
             "_id": "fedcba9876543210",
             "message_id": "<test2@example.com>",
             "thread_id": "5555666677778888",
-            "archive_id": "archive-123",
+            "archive_id": "a1b2c3d4e5f67890",
             "body_normalized": "This is test message two. " * 50,
             "from": {"email": "user2@example.com", "name": "User Two"},
             "date": "2023-10-15T13:00:00Z",
@@ -170,7 +170,7 @@ def test_process_messages_success(chunking_service, mock_document_store, mock_pu
     mock_document_store.query_documents.return_value = messages
     
     event_data = {
-        "archive_id": "archive-123",
+        "archive_id": "a1b2c3d4e5f67890",
         "message_doc_ids": ["abc123def4567890", "fedcba9876543210"],
     }
     
@@ -197,7 +197,7 @@ def test_process_messages_no_messages_found(chunking_service, mock_document_stor
     mock_document_store.query_documents.return_value = []
     
     event_data = {
-        "archive_id": "archive-123",
+        "archive_id": "a1b2c3d4e5f67890",
         "message_doc_ids": ["abc123def4567890"],
     }
     
@@ -212,7 +212,7 @@ def test_process_messages_no_messages_found(chunking_service, mock_document_stor
 def test_process_messages_empty_list(chunking_service, mock_document_store, mock_publisher):
     """Test processing with empty message list."""
     event_data = {
-        "archive_id": "archive-123",
+        "archive_id": "a1b2c3d4e5f67890",
         "message_doc_ids": [],
     }
     
@@ -468,7 +468,7 @@ def test_handle_event_with_invalid_message_doc_ids_type():
         "timestamp": "2023-10-15T12:00:00Z",
         "version": "1.0",
         "data": {
-            "archive_id": "archive-123",
+            "archive_id": "a1b2c3d4e5f67890",
             "message_doc_ids": "not-an-array",
             "thread_ids": ["1111222233334444"],
             "message_count": 1,
@@ -533,7 +533,7 @@ def test_query_documents_uses_filter_dict_parameter(chunking_service, mock_docum
     mock_document_store.query_documents.return_value = []
     
     event_data = {
-        "archive_id": "archive-123",
+        "archive_id": "a1b2c3d4e5f67890",
         "message_doc_ids": ["abc123def4567890"],
     }
     
@@ -578,7 +578,7 @@ def test_idempotent_chunk_insertion(chunking_service, mock_document_store, mock_
             "_id": "abc123def4567890",
             "message_id": "<test@example.com>",
             "thread_id": "1111222233334444",
-            "archive_id": "archive-123",
+            "archive_id": "a1b2c3d4e5f67890",
             "body_normalized": "This is a test message. " * 50,
             "from": {"email": "user@example.com", "name": "Test User"},
             "date": "2023-10-15T12:00:00Z",
@@ -601,7 +601,7 @@ def test_idempotent_chunk_insertion(chunking_service, mock_document_store, mock_
     mock_document_store.insert_document.side_effect = insert_side_effect
     
     event_data = {
-        "archive_id": "archive-123",
+        "archive_id": "a1b2c3d4e5f67890",
         "message_doc_ids": ["abc123def4567890"],
     }
     
