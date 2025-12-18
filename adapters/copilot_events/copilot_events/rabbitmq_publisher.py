@@ -197,23 +197,25 @@ class RabbitMQPublisher(EventPublisher):
         queue_name: str,
         routing_key: Optional[str] = None,
         exchange: Optional[str] = None,
-    ) -> bool:
+    ) -> None:
         """Declare a durable queue and bind it to an exchange.
-        
+
         This ensures the queue exists before publishing messages to it.
         Per RabbitMQ guidance, queues must be created before messages are sent.
-        
+
         Args:
             queue_name: Name of the queue to declare
             routing_key: Routing key to bind (defaults to queue_name)
             exchange: Exchange to bind to (defaults to self.exchange)
-            
-        Returns:
-            True if queue declared successfully, False otherwise
+
+        Raises:
+            ConnectionError: If not connected to RabbitMQ
+            Exception: If the broker returns an error while declaring/binding
         """
-        if not self.channel:
-            logger.error("Not connected to RabbitMQ")
-            return False
+        if not self._is_connected():
+            error_msg = "Not connected to RabbitMQ"
+            logger.error(error_msg)
+            raise ConnectionError(error_msg)
 
         try:
             # Use provided values or defaults
@@ -240,10 +242,9 @@ class RabbitMQPublisher(EventPublisher):
                 f"Declared durable queue '{queue_name}' and bound to "
                 f"{exchange}/{routing_key}"
             )
-            return True
         except Exception as e:
             logger.error(f"Failed to declare queue '{queue_name}': {e}")
-            return False
+            raise
 
     def declare_queues(self, queues: List[Dict[str, Optional[str]]]) -> bool:
         """Declare multiple queues at once.
@@ -265,12 +266,13 @@ class RabbitMQPublisher(EventPublisher):
                 success = False
                 continue
 
-            result = self.declare_queue(
-                queue_name=queue_name,
-                routing_key=queue_config.get("routing_key"),
-                exchange=queue_config.get("exchange"),
-            )
-            if not result:
+            try:
+                self.declare_queue(
+                    queue_name=queue_name,
+                    routing_key=queue_config.get("routing_key"),
+                    exchange=queue_config.get("exchange"),
+                )
+            except Exception:
                 success = False
 
         return success
