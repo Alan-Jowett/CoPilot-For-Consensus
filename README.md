@@ -96,6 +96,7 @@ For detailed architecture documentation, design patterns, and service interactio
 | **User-Facing** | | | |
 | Reporting API | HTTP API for accessing summaries and insights | 8080 (public) | Production |
 | Web UI | React SPA for viewing reports | 8084 (localhost) | Production |
+| Auth Service | OIDC authentication with local JWT minting | 8090 (localhost) | MVP |
 | **Infrastructure** | | | |
 | MongoDB | Document storage for messages and summaries | 27017 (localhost) | Production |
 | Qdrant | Vector database for semantic search | 6333 (localhost) | Production |
@@ -124,6 +125,11 @@ For detailed architecture documentation, design patterns, and service interactio
 #### User-Facing Services
 - **Reporting Service**: Provides HTTP API for accessing summaries and insights (port 8080)
 - **Web UI**: React SPA for browsing reports and insights (port 8084)
+- **Auth Service**: OIDC authentication with local JWT token minting (port 8090)
+  - Supports GitHub, Google, and Microsoft authentication
+  - Issues service-scoped JWTs with custom claims
+  - Provides JWKS endpoint for distributed token validation
+  - See [auth/README.md](./auth/README.md) for details
 
 ### Infrastructure Components
 
@@ -383,6 +389,7 @@ Comprehensive documentation is available throughout the repository:
 - **[documents/TESTING_STRATEGY.md](./documents/TESTING_STRATEGY.md)**: Integration testing strategy, test organization, and CI/CD integration
 - **[documents/CONVENTIONS.md](./documents/CONVENTIONS.md)**: Documentation conventions, style guide, and contribution standards
 - **[documents/EXPOSED_PORTS.md](./documents/EXPOSED_PORTS.md)**: Network ports reference, security considerations, and access control
+- **[documents/AUTH_INTEGRATION_EXAMPLES.md](./documents/AUTH_INTEGRATION_EXAMPLES.md)**: Authentication service integration examples and best practices
 
 ### Service Documentation
 Each microservice has a comprehensive README:
@@ -394,6 +401,7 @@ Each microservice has a comprehensive README:
 - [Summarization Service](./summarization/README.md)
 - [Reporting Service](./reporting/README.md)
 - [Web UI](./ui/README.md)
+- [Auth Service](./auth/README.md)
 
 ### Adapter Documentation
 - **[adapters/README.md](./adapters/README.md)**: Overview of the adapter layer and available adapters
