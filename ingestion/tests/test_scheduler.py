@@ -5,7 +5,7 @@
 
 import time
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from copilot_events import NoopPublisher
 from copilot_storage import InMemoryDocumentStore

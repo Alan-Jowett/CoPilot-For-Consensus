@@ -4,8 +4,8 @@
 """REST API for ingestion source management."""
 
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List
-from fastapi import APIRouter, HTTPException, Query, Body
+from typing import Optional, Dict, Any
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from copilot_logging import Logger
@@ -58,21 +58,6 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
         APIRouter instance
     """
     router = APIRouter()
-    
-    @router.get("/health")
-    def health():
-        """Health check endpoint."""
-        stats = service.get_stats()
-        
-        return {
-            "status": "healthy",
-            "service": "ingestion",
-            "version": getattr(service, "version", "unknown"),
-            "sources_configured": stats.get("sources_configured", 0),
-            "sources_enabled": stats.get("sources_enabled", 0),
-            "last_ingestion_at": stats.get("last_ingestion_at"),
-            "total_files_ingested": stats.get("total_files_ingested", 0),
-        }
     
     @router.get("/stats")
     def get_stats():

@@ -5,9 +5,7 @@
 
 import os
 import sys
-import threading
 import signal
-from pathlib import Path
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -41,6 +39,8 @@ app = FastAPI(title="Ingestion Service", version=__version__)
 # Global service instance and scheduler
 ingestion_service = None
 scheduler = None
+base_publisher = None
+base_document_store = None
 
 
 class _ConfigWithSources:
@@ -92,7 +92,7 @@ def health():
 
 def signal_handler(signum, frame):
     """Handle shutdown signals."""
-    global scheduler
+    global scheduler, base_publisher, base_document_store
     logger = bootstrap_logger
     
     logger.info("Received shutdown signal", signal=signum)
@@ -100,12 +100,27 @@ def signal_handler(signum, frame):
     if scheduler:
         scheduler.stop()
     
+    # Cleanup resources
+    if base_publisher:
+        try:
+            base_publisher.disconnect()
+            logger.info("Publisher disconnected")
+        except Exception as e:
+            logger.warning("Failed to disconnect publisher", error=str(e))
+    
+    if base_document_store:
+        try:
+            base_document_store.disconnect()
+            logger.info("Document store disconnected")
+        except Exception as e:
+            logger.warning("Failed to disconnect document store", error=str(e))
+    
     sys.exit(0)
 
 
 def main():
     """Main entry point for the ingestion service."""
-    global ingestion_service, scheduler
+    global ingestion_service, scheduler, base_publisher, base_document_store
     
     log = bootstrap_logger
     log.info("Starting Ingestion Service (continuous mode)", version=__version__)
