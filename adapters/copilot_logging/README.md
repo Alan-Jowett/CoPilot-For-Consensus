@@ -12,6 +12,7 @@ A pluggable logging abstraction layer for Copilot-for-Consensus microservices.
 - **Silent Testing**: SilentLogger stores logs in memory for testing without output
 - **Environment Configuration**: Easy configuration via environment variables
 - **Factory Pattern**: Simple factory function for creating loggers
+- **Uvicorn Integration**: Built-in configuration for FastAPI/Uvicorn HTTP access logs with DEBUG-level health checks
 
 ## Installation
 
@@ -222,6 +223,59 @@ if __name__ == "__main__":
     main()
 ```
 
+### Uvicorn Integration (FastAPI/HTTP Services)
+
+For FastAPI services using Uvicorn, use the `create_uvicorn_log_config` function to configure structured JSON logging for HTTP access logs:
+
+```python
+# main.py
+from fastapi import FastAPI
+import uvicorn
+from copilot_logging import create_logger, create_uvicorn_log_config
+
+# Create structured logger for application logs
+logger = create_logger(logger_type="stdout", level="INFO", name="parsing")
+
+# Create FastAPI app
+app = FastAPI(title="Parsing Service")
+
+@app.get("/health")
+def health():
+    """Health check endpoint."""
+    return {"status": "healthy"}
+
+def main():
+    logger.info("Starting FastAPI server on port 8000")
+    
+    # Configure Uvicorn with structured JSON logging
+    # Health check logs will be at DEBUG level
+    log_config = create_uvicorn_log_config(service_name="parsing", log_level="INFO")
+    
+    # Start server with custom log configuration
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_config=log_config)
+
+if __name__ == "__main__":
+    main()
+```
+
+**Key features:**
+- **Structured JSON output**: All Uvicorn logs use the same JSON format as application logs
+- **DEBUG-level access logs**: Health check and other access logs are at DEBUG level to reduce noise
+- **Consistent format**: Access logs match the format of application logs
+
+**Sample output:**
+```json
+{"timestamp": "2025-12-18T18:30:00.000000Z", "level": "INFO", "logger": "parsing", "message": "Starting FastAPI server on port 8000"}
+{"timestamp": "2025-12-18T18:30:01.123456Z", "level": "INFO", "logger": "parsing", "message": "Started server process"}
+{"timestamp": "2025-12-18T18:30:05.234567Z", "level": "DEBUG", "logger": "parsing", "message": "127.0.0.1:36210 - \"GET /health HTTP/1.1\" 200 OK"}
+```
+
+**Note:** Health check logs at DEBUG level are hidden by default when running at INFO level. To see them, set the log level to DEBUG:
+
+```python
+log_config = create_uvicorn_log_config(service_name="parsing", log_level="DEBUG")
+```
+
 ## Benefits
 
 1. **Consistent Logging**: All services use the same logging interface
@@ -252,6 +306,32 @@ Factory function to create logger instances.
 
 **Returns:**
 - `Logger`: Logger instance
+
+### `create_uvicorn_log_config(service_name, log_level)`
+
+Create Uvicorn logging configuration with structured JSON output.
+
+**Parameters:**
+- `service_name` (str): Name of the service for log identification
+- `log_level` (str, optional): Default log level ("DEBUG", "INFO", "WARNING", "ERROR"). Defaults to "INFO".
+
+**Returns:**
+- `dict`: Dictionary compatible with Uvicorn's `log_config` parameter
+
+**Features:**
+- Configures structured JSON logging for all Uvicorn logs
+- Sets access logs (including health checks) to DEBUG level
+- Uses INFO level for error logs
+- Integrates seamlessly with copilot_logging format
+
+**Example:**
+```python
+from copilot_logging import create_uvicorn_log_config
+import uvicorn
+
+log_config = create_uvicorn_log_config("parsing", "INFO")
+uvicorn.run(app, host="0.0.0.0", port=8000, log_config=log_config)
+```
 
 ### `Logger` (Abstract Interface)
 
