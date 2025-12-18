@@ -273,11 +273,11 @@
               },
               {
                 "color": "yellow",
-                "value": 1800
+                "value": 600
               },
               {
                 "color": "red",
-                "value": 3600
+                "value": 1800
               }
             ]
           },
@@ -532,11 +532,11 @@
               },
               {
                 "color": "yellow",
-                "value": 1800
+                "value": 600
               },
               {
                 "color": "red",
-                "value": 3600
+                "value": 1800
               }
             ]
           },
@@ -579,12 +579,13 @@
       },
       "targets": [
         {
-          "expr": "copilot_document_age_seconds{collection=\"archives\"}",
+          "expr": "copilot_document_age_seconds{collection=\"archives\",status!=\"processed\"}",
           "refId": "A",
           "legendFormat": "{{status}}"
         }
       ],
-      "title": "Document Age by Status (Detect Stuck Documents)",
+      "title": "Stuck Document Detection (Age by Status)",
+      "description": "Time since last update for documents NOT in 'processed' status. High values indicate documents stuck in pending or failed states. Excludes completed documents.",
       "type": "timeseries"
     },
     {
@@ -609,11 +610,11 @@
               },
               {
                 "color": "yellow",
-                "value": 1800
+                "value": 600
               },
               {
                 "color": "red",
-                "value": 3600
+                "value": 1800
               }
             ]
           },
@@ -683,6 +684,7 @@
         }
       ],
       "title": "Archive Status Summary",
+      "description": "Summary of document counts and age by status. Note: Age for 'processed' documents represents total lifetime (not useful for stuck detection). Focus on 'pending' and 'failed' age for troubleshooting.",
       "transformations": [
         {
           "id": "merge",

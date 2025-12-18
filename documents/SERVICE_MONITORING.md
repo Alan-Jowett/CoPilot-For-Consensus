@@ -553,12 +553,12 @@ The **Document Processing Status** dashboard (UID: `copilot-document-processing-
 1. **Archive Processing Status**: Bar gauge showing document counts by status
 2. **Archive Status Over Time**: Stacked area chart of status transitions
 3. **Avg Archive Processing Duration**: Gauge with yellow (>5 min) and red (>10 min) thresholds
-4. **Avg Pending Archive Age**: Gauge showing how long documents wait for processing
+4. **Avg Pending Archive Age**: Gauge showing how long documents wait for processing (yellow >10 min, red >30 min)
 5. **Avg Archive Attempt Count**: Retry distribution indicator
 6. **Chunk Embedding Completion Rate**: Percentage of chunks with embeddings
 7. **Chunk Embedding Status Over Time**: Trend of embedding generation progress
-8. **Document Age by Status**: Multi-line chart to detect stuck documents
-9. **Archive Status Summary**: Table view with status, count, and age
+8. **Stuck Document Detection (Age by Status)**: Multi-line chart showing age of documents in non-completed states (excludes "processed" documents). Yellow alert >10 min, red alert >30 min. Use this to identify documents stuck in pending or failed states.
+9. **Archive Status Summary**: Table view with status, count, and age (note: age for processed documents is not useful for stuck detection)
 10. **Archive Processing & Failure Rates**: Rate of successful vs. failed processing
 
 ### Prometheus Queries
@@ -576,6 +576,9 @@ copilot_document_status_count{collection="archives"}
 
 # Documents pending longer than 30 minutes
 copilot_document_age_seconds{collection="archives",status="pending"} > 1800
+
+# All non-completed documents (detect stuck documents)
+copilot_document_age_seconds{collection="archives",status!="processed"}
 
 # Embedding completion rate
 copilot_chunks_embedding_status_count{embedding_generated="True"} 
