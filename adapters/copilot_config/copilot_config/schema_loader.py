@@ -28,9 +28,10 @@ class FieldSpec:
     field_type: str  # "string", "int", "bool", "float", "object", "array"
     required: bool = False
     default: Any = None
-    source: str = "env"  # "env", "document_store", "static"
+    source: str = "env"  # "env", "document_store", "static", "secret"
     env_var: Optional[str] = None
     doc_store_path: Optional[str] = None
+    secret_name: Optional[str] = None
     description: Optional[str] = None
     nested_schema: Optional[Dict[str, 'FieldSpec']] = None
 
@@ -92,6 +93,7 @@ class ConfigSchema:
             source=data.get("source", "env"),
             env_var=data.get("env_var"),
             doc_store_path=doc_store_path,
+            secret_name=data.get("secret_name"),
             description=data.get("description"),
             nested_schema=nested_schema,
         )
@@ -130,6 +132,7 @@ class SchemaConfigLoader:
         schema: ConfigSchema,
         env_provider: Optional[ConfigProvider] = None,
         static_provider: Optional[StaticConfigProvider] = None,
+        secret_provider: Optional[ConfigProvider] = None,
     ):
         """Initialize the schema config loader.
         
@@ -137,10 +140,12 @@ class SchemaConfigLoader:
             schema: Configuration schema
             env_provider: Environment variable provider
             static_provider: Static/hardcoded provider
+            secret_provider: Secret provider (from copilot_secrets)
         """
         self.schema = schema
         self.env_provider = env_provider or EnvConfigProvider()
         self.static_provider = static_provider
+        self.secret_provider = secret_provider
 
     def load(self) -> Dict[str, Any]:
         """Load and validate configuration based on schema.
@@ -278,6 +283,8 @@ class SchemaConfigLoader:
             return self.env_provider
         elif source == "static":
             return self.static_provider
+        elif source == "secret":
+            return self.secret_provider
         else:
             return None
 
@@ -292,6 +299,9 @@ class SchemaConfigLoader:
         """
         if field_spec.source == "env":
             return field_spec.env_var or field_spec.name.upper()
+        elif field_spec.source == "secret":
+            # For secrets, use secret_name if provided, otherwise use field name
+            return getattr(field_spec, 'secret_name', None) or field_spec.name
         else:
             return field_spec.name
 
@@ -301,6 +311,7 @@ def _load_config(
     schema_dir: Optional[str] = None,
     env_provider: Optional[ConfigProvider] = None,
     static_provider: Optional[StaticConfigProvider] = None,
+    secret_provider: Optional[ConfigProvider] = None,
 ) -> Dict[str, Any]:
     """Load and validate configuration for a service (internal function).
     
@@ -316,6 +327,7 @@ def _load_config(
         schema_dir: Directory containing schema files (defaults to ./schemas)
         env_provider: Optional custom environment provider
         static_provider: Optional static provider
+        secret_provider: Optional secret provider (from copilot_secrets)
         
     Returns:
         Validated configuration dictionary
@@ -354,6 +366,7 @@ def _load_config(
         schema=schema,
         env_provider=env_provider,
         static_provider=static_provider,
+        secret_provider=secret_provider,
     )
     
     # Load and validate

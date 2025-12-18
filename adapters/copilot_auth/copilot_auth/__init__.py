@@ -21,6 +21,7 @@ from .microsoft_provider import MicrosoftIdentityProvider
 from .datatracker_provider import DatatrackerIdentityProvider
 from .jwt_manager import JWTManager
 from .factory import create_identity_provider
+from .middleware import JWTMiddleware, create_jwt_middleware
 
 __all__ = [
     # Version
@@ -42,4 +43,7 @@ __all__ = [
     # Exceptions
     "AuthenticationError",
     "ProviderError",
+    # Middleware
+    "JWTMiddleware",
+    "create_jwt_middleware",
 ]

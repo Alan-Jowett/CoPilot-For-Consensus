@@ -10,9 +10,8 @@ supporting both RSA and HMAC signing algorithms with key rotation.
 import json
 import secrets
 import time
-from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import jwt
 from cryptography.hazmat.backends import default_backend

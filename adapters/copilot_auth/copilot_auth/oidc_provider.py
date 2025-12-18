@@ -7,11 +7,14 @@ This module provides a base class for OIDC-based identity providers,
 implementing the common authentication code exchange and discovery logic.
 """
 
+import base64
+import hashlib
 import secrets
 from typing import Any, Dict, Optional
 from abc import abstractmethod
 
 import httpx
+import jwt
 
 from .provider import IdentityProvider, AuthenticationError, ProviderError
 from .models import User
@@ -63,6 +66,8 @@ class OIDCProvider(IdentityProvider):
         self._token_endpoint: Optional[str] = None
         self._userinfo_endpoint: Optional[str] = None
         self._jwks_uri: Optional[str] = None
+        self._issuer: Optional[str] = None
+        self._jwks_cache: Optional[Dict[str, Any]] = None
     
     def discover(self) -> None:
         """Perform OIDC discovery to retrieve provider endpoints.
@@ -80,6 +85,7 @@ class OIDCProvider(IdentityProvider):
             self._token_endpoint = self._discovery_data.get("token_endpoint")
             self._userinfo_endpoint = self._discovery_data.get("userinfo_endpoint")
             self._jwks_uri = self._discovery_data.get("jwks_uri")
+            self._issuer = self._discovery_data.get("issuer")
             
             if not all([self._authorization_endpoint, self._token_endpoint]):
                 raise ProviderError(
@@ -95,6 +101,8 @@ class OIDCProvider(IdentityProvider):
         state: Optional[str] = None,
         nonce: Optional[str] = None,
         prompt: Optional[str] = None,
+        code_challenge: Optional[str] = None,
+        code_challenge_method: str = "S256",
     ) -> tuple[str, str, str]:
         """Generate authorization URL for OAuth flow.
         
@@ -125,6 +133,10 @@ class OIDCProvider(IdentityProvider):
             "state": state,
             "nonce": nonce,
         }
+
+        if code_challenge:
+            params["code_challenge"] = code_challenge
+            params["code_challenge_method"] = code_challenge_method
         
         if prompt:
             params["prompt"] = prompt
@@ -138,13 +150,13 @@ class OIDCProvider(IdentityProvider):
     def exchange_code_for_token(
         self,
         code: str,
-        state: Optional[str] = None,
+        code_verifier: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Exchange authorization code for access and ID tokens.
         
         Args:
             code: Authorization code from callback
-            state: OAuth state parameter for validation
+            code_verifier: PKCE code verifier (optional)
         
         Returns:
             Token response containing access_token, id_token, etc.
@@ -165,6 +177,7 @@ class OIDCProvider(IdentityProvider):
                     "redirect_uri": self.redirect_uri,
                     "grant_type": "authorization_code",
                     "code": code,
+                    **({"code_verifier": code_verifier} if code_verifier else {}),
                 },
                 timeout=10.0,
             )
@@ -237,3 +250,54 @@ class OIDCProvider(IdentityProvider):
         """
         userinfo = self.get_userinfo(token)
         return self._map_userinfo_to_user(userinfo, self.__class__.__name__.replace("IdentityProvider", "").lower())
+
+    def validate_id_token(self, id_token: str, nonce: str, leeway: int = 60) -> Dict[str, Any]:
+        """Validate ID token using provider JWKS.
+
+        Args:
+            id_token: Raw ID token
+            nonce: Expected nonce value
+            leeway: Clock skew tolerance
+
+        Returns:
+            Decoded and validated ID token claims
+        """
+        if not self._jwks_uri:
+            self.discover()
+
+        if not self._jwks_cache:
+            try:
+                jwks_resp = httpx.get(self._jwks_uri, timeout=10.0)
+                jwks_resp.raise_for_status()
+                self._jwks_cache = jwks_resp.json()
+            except httpx.HTTPError as e:
+                raise ProviderError(f"Failed to fetch JWKS: {e}") from e
+
+        # Use PyJWT to verify signature and standard claims
+        try:
+            decoded = jwt.decode(
+                id_token,
+                key=self._jwks_cache,
+                algorithms=["RS256", "HS256"],
+                audience=self.client_id,
+                issuer=self._issuer,
+                leeway=leeway,
+                options={"verify_aud": True, "verify_iss": bool(self._issuer)},
+            )
+        except jwt.InvalidTokenError as e:
+            raise AuthenticationError(f"Invalid ID token: {e}") from e
+
+        # Nonce check (OIDC CSRF protection)
+        token_nonce = decoded.get("nonce")
+        if nonce and token_nonce != nonce:
+            raise AuthenticationError("ID token nonce mismatch")
+
+        return decoded
+
+    @staticmethod
+    def build_pkce_pair() -> tuple[str, str]:
+        """Generate code_verifier and code_challenge (S256)."""
+        verifier = secrets.token_urlsafe(64)
+        digest = hashlib.sha256(verifier.encode("ascii")).digest()
+        challenge = base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
+        return verifier, challenge

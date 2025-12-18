@@ -7,7 +7,7 @@ This module provides authentication via Microsoft Entra ID OAuth/OIDC,
 allowing users to authenticate using their Microsoft accounts.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from .models import User
 from .oidc_provider import OIDCProvider

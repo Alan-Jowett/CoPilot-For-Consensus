@@ -18,4 +18,5 @@ ollama_models/
 **/coverage.lcov
 **/htmlcov/**
 **/*.pyc
-**/.venv/**auth/config/*.pem
+**/.venv/**
+auth/config/*.pem

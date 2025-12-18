@@ -17,6 +17,7 @@ from .storage_provider import StorageConfigProvider
 from .providers import (
     DocStoreConfigProvider,
 )
+from .secret_provider import SecretConfigProvider
 from .schema_loader import (
     ConfigSchema,
     ConfigSchemaError,
@@ -38,6 +39,7 @@ __all__ = [
     "StaticConfigProvider",
     "StorageConfigProvider",
     "DocStoreConfigProvider",
+    "SecretConfigProvider",
     "create_config_provider",
     # Schema-driven configuration
     "ConfigSchema",

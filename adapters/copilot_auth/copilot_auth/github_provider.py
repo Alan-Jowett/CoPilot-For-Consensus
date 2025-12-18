@@ -13,7 +13,7 @@ import httpx
 
 from .models import User
 from .oidc_provider import OIDCProvider
-from .provider import AuthenticationError, ProviderError
+from .provider import AuthenticationError
 
 
 class GitHubIdentityProvider(OIDCProvider):
@@ -44,18 +44,40 @@ class GitHubIdentityProvider(OIDCProvider):
             redirect_uri: OAuth callback URL
             api_base_url: Base URL for GitHub API
         """
-        # GitHub uses token.actions.githubusercontent.com for OIDC
-        discovery_url = "https://token.actions.githubusercontent.com/.well-known/openid-configuration"
+        # NOTE: Standard GitHub OAuth is **not** OIDC and has no discovery document.
+        # We therefore wire endpoints manually to the OAuth authorize/token/userinfo URLs.
+        # This provider will surface an explicit error if an ID token is expected, because
+        # GitHub OAuth does not issue id_tokens. For GitHub Actions OIDC, you must configure
+        # that separately (token.actions.githubusercontent.com).
+        discovery_url = None  # overriden in discover()
         
         super().__init__(
             client_id=client_id,
             client_secret=client_secret,
             redirect_uri=redirect_uri,
-            discovery_url=discovery_url,
-            scopes=["openid", "read:user", "user:email"],
+            discovery_url="",  # placeholder; discover() is overridden
+            scopes=["read:user", "user:email"],
         )
         
         self.api_base_url = api_base_url
+
+    def discover(self) -> None:
+        """Set GitHub OAuth endpoints explicitly (no OIDC discovery)."""
+        # Authorization and token endpoints for standard GitHub OAuth apps
+        self._authorization_endpoint = "https://github.com/login/oauth/authorize"
+        self._token_endpoint = "https://github.com/login/oauth/access_token"
+        # Userinfo via REST API
+        self._userinfo_endpoint = f"{self.api_base_url}/user"
+        # No JWKS / issuer because GitHub OAuth does not return id_tokens
+        self._jwks_uri = None
+        self._issuer = None
+
+    def validate_id_token(self, id_token: str, nonce: str, leeway: int = 60):
+        """GitHub OAuth does not issue ID tokens; fail fast with guidance."""
+        raise AuthenticationError(
+            "GitHub OAuth does not provide an id_token. "
+            "Use an OIDC-capable provider or configure GitHub Actions OIDC separately."
+        )
     
     def _get_user_organizations(self, access_token: str) -> list[str]:
         """Retrieve user's GitHub organizations.

@@ -5,20 +5,43 @@
 
 This module provides middleware for validating JWT tokens in FastAPI applications,
 enforcing audience and role-based access control.
+
+Usage:
+    from copilot_auth import JWTMiddleware, create_jwt_middleware
+    from fastapi import FastAPI
+    
+    app = FastAPI()
+    
+    # Option 1: Use factory function
+    middleware = create_jwt_middleware(
+        auth_service_url="http://auth:8090",
+        audience="my-service",
+        required_roles=["reader"]
+    )
+    app.add_middleware(middleware)
+    
+    # Option 2: Direct instantiation
+    app.add_middleware(
+        JWTMiddleware,
+        auth_service_url="http://auth:8090",
+        audience="my-service",
+        required_roles=["reader"]
+    )
 """
 
 import os
+import time
+import traceback
 from typing import Callable, List, Optional
 
 import httpx
 import jwt
 from fastapi import HTTPException, Request, Response, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from copilot_logging import create_logger
 
-logger = create_logger(logger_type="stdout", level="INFO", name="auth.middleware")
+logger = create_logger(logger_type="stdout", level="INFO", name="copilot_auth.middleware")
 
 
 class JWTMiddleware(BaseHTTPMiddleware):
@@ -42,6 +65,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
         audience: str,
         required_roles: Optional[List[str]] = None,
         public_paths: Optional[List[str]] = None,
+        jwks_cache_ttl: int = 3600,
     ):
         """Initialize JWT middleware.
         
@@ -51,28 +75,45 @@ class JWTMiddleware(BaseHTTPMiddleware):
             audience: Expected audience claim
             required_roles: Optional list of required roles
             public_paths: List of paths that don't require auth
+            jwks_cache_ttl: JWKS cache TTL in seconds (default: 3600 = 1 hour)
         """
         super().__init__(app)
         self.auth_service_url = auth_service_url.rstrip("/")
         self.audience = audience
         self.required_roles = required_roles or []
         self.public_paths = public_paths or ["/health", "/readyz", "/docs", "/openapi.json"]
+        self.jwks_cache_ttl = jwks_cache_ttl
         
-        # JWKS cache
+        # JWKS cache with timestamp
         self.jwks: Optional[dict] = None
+        self.jwks_last_fetched: float = 0
         self._fetch_jwks()
     
-    def _fetch_jwks(self) -> None:
-        """Fetch JWKS from auth service."""
+    def _fetch_jwks(self, force: bool = False) -> None:
+        """Fetch JWKS from auth service with caching.
+        
+        Args:
+            force: Force refresh even if cache is valid
+        """
+        # Check if cache is still valid
+        if not force and self.jwks is not None:
+            cache_age = time.time() - self.jwks_last_fetched
+            if cache_age < self.jwks_cache_ttl:
+                logger.debug(f"JWKS cache valid (age: {cache_age:.0f}s, TTL: {self.jwks_cache_ttl}s)")
+                return
+        
         try:
             response = httpx.get(f"{self.auth_service_url}/keys", timeout=10.0)
             response.raise_for_status()
             self.jwks = response.json()
-            logger.info(f"Fetched JWKS from {self.auth_service_url}/keys")
+            self.jwks_last_fetched = time.time()
+            logger.info(f"Fetched JWKS from {self.auth_service_url}/keys ({len(self.jwks.get('keys', []))} keys)")
         
         except Exception as e:
             logger.error(f"Failed to fetch JWKS: {e}")
-            self.jwks = {"keys": []}
+            # Only reset on first fetch, keep stale cache on refresh failures
+            if self.jwks is None:
+                self.jwks = {"keys": []}
     
     def _get_public_key(self, token_header: dict) -> Optional[str]:
         """Get public key for token validation.
@@ -83,8 +124,12 @@ class JWTMiddleware(BaseHTTPMiddleware):
         Returns:
             Public key in PEM format or None
         """
+        # Refresh cache if stale (periodic refresh for key rotation)
+        self._fetch_jwks()
+        
         if not self.jwks or "keys" not in self.jwks:
-            self._fetch_jwks()
+            logger.warning("JWKS cache empty or invalid")
+            return None
         
         kid = token_header.get("kid")
         if not kid:
@@ -94,10 +139,18 @@ class JWTMiddleware(BaseHTTPMiddleware):
         # Find matching key in JWKS
         for key in self.jwks.get("keys", []):
             if key.get("kid") == kid:
-                # Convert JWK to PEM (simplified, use PyJWT's built-in for production)
                 return key
         
-        logger.warning(f"No matching key found for kid: {kid}")
+        # Key not found - force refresh and retry once
+        logger.warning(f"No matching key found for kid: {kid}, forcing JWKS refresh")
+        self._fetch_jwks(force=True)
+        
+        for key in self.jwks.get("keys", []):
+            if key.get("kid") == kid:
+                logger.info(f"Found key {kid} after forced refresh")
+                return key
+        
+        logger.error(f"Key {kid} not found even after forced refresh")
         return None
     
     def _validate_token(self, token: str) -> dict:
@@ -221,12 +274,40 @@ class JWTMiddleware(BaseHTTPMiddleware):
             return response
         
         except HTTPException:
+            # Let HTTPExceptions propagate as-is (401, 403, etc.)
             raise
+        except httpx.HTTPError as e:
+            # Network/connection errors to auth service
+            logger.error(
+                f"Auth service communication error: {type(e).__name__}: {e}",
+                extra={"error_type": type(e).__name__, "auth_service_url": self.auth_service_url}
+            )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication service unavailable"
+            )
+        except (jwt.DecodeError, ValueError) as e:
+            # Token parsing/decoding errors
+            logger.warning(
+                f"Token parsing error: {type(e).__name__}: {e}",
+                extra={"error_type": type(e).__name__}
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Malformed token"
+            )
         except Exception as e:
-            logger.error(f"Unexpected error during token validation: {e}")
+            # Unexpected errors - log full details for debugging
+            logger.error(
+                f"Unexpected error during token validation: {type(e).__name__}: {e}",
+                extra={
+                    "error_type": type(e).__name__,
+                    "traceback": traceback.format_exc()
+                }
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Internal server error"
+                detail="Authentication error"
             )
 
 
@@ -249,10 +330,12 @@ def create_jwt_middleware(
     
     Example:
         >>> from fastapi import FastAPI
+        >>> from copilot_auth import create_jwt_middleware
+        >>> 
         >>> app = FastAPI()
         >>> middleware = create_jwt_middleware(
         ...     auth_service_url="http://auth:8090",
-        ...     audience="my-service"
+        ...     audience="orchestrator"
         ... )
         >>> app.add_middleware(middleware)
     """

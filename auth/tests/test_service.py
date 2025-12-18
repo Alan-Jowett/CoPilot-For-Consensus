@@ -1,11 +1,18 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Unit tests for auth service."""
+"""Unit tests for auth service and middleware."""
 
-import pytest
 from pathlib import Path
-from copilot_auth import User
+import json
+from typing import Dict, Optional, Tuple
+
+import jwt
+import pytest
+from fastapi import FastAPI
+from starlette.testclient import TestClient
+from copilot_auth import User, OIDCProvider, AuthenticationError
+from jwt.algorithms import RSAAlgorithm
 
 # Add parent directory to path for imports
 import sys
@@ -13,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.config import AuthConfig, JWTConfig, OIDCProviderConfig, SecurityConfig
 from app.service import AuthService
+from app.middleware import JWTMiddleware
 
 
 class TestAuthConfig:
@@ -122,3 +130,517 @@ class TestAuthService:
         assert "tokens_validated" in stats
         assert "validation_failures" in stats
         assert stats["logins_total"] == 0
+
+
+class FakeOIDCProvider(OIDCProvider):
+    """In-memory OIDC provider used for tests."""
+
+    def __init__(self, user: User):
+        # Bypass parent init; set needed attributes manually
+        self.client_id = "client"
+        self.client_secret = "secret"
+        self.redirect_uri = "http://localhost/callback"
+        self.scopes = ["openid", "profile", "email"]
+        self.expected_user = user
+
+        # Track values passed through the flow
+        self.last_code: Optional[str] = None
+        self.last_code_verifier: Optional[str] = None
+        self.last_nonce: Optional[str] = None
+
+    # --- Helpers ---
+    @staticmethod
+    def build_pkce_pair() -> Tuple[str, str]:
+        return "verifier", "challenge"
+
+    def get_authorization_url(
+        self,
+        state: Optional[str] = None,
+        nonce: Optional[str] = None,
+        prompt: Optional[str] = None,
+        code_challenge: Optional[str] = None,
+        code_challenge_method: str = "S256",
+    ) -> tuple[str, str, str]:
+        # Echo state/nonce back so the caller stores them
+        return "https://provider/auth", state or "state", nonce or "nonce"
+
+    def _map_userinfo_to_user(self, userinfo, provider_id):  # pragma: no cover - not used in test
+        return self.expected_user
+
+    # --- Token / user steps ---
+    def exchange_code_for_token(
+        self,
+        code: str,
+        state: Optional[str] = None,
+        code_verifier: Optional[str] = None,
+    ) -> Dict[str, str]:
+        self.last_code = code
+        self.last_code_verifier = code_verifier
+        return {
+            "access_token": "access-token",
+            "id_token": "id-token",
+        }
+
+    def validate_id_token(self, id_token: str, nonce: str, leeway: int = 60) -> Dict[str, str]:
+        # Record and assert
+        self.last_nonce = nonce
+        if id_token != "id-token":
+            raise AssertionError("Unexpected id_token")
+        return {
+            "sub": self.expected_user.id,
+            "nonce": nonce,
+            "aud": self.client_id,
+        }
+
+    def get_user(self, token: str) -> Optional[User]:
+        if token != "access-token":
+            raise AssertionError("Unexpected access token")
+        return self.expected_user
+
+
+def _make_rsa_pair(tmp_path: Path) -> tuple[Path, Path, any]:
+    """Generate RSA key pair and return (private_path, public_path, private_key_obj)."""
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+        backend=default_backend()
+    )
+
+    private_path = tmp_path / "private.pem"
+    public_path = tmp_path / "public.pem"
+
+    private_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption()
+    )
+    private_path.write_bytes(private_pem)
+
+    public_key = private_key.public_key()
+    public_pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    public_path.write_bytes(public_pem)
+
+    return private_path, public_path, private_key
+
+
+@pytest.fixture
+def rsa_keys(tmp_path):
+    return _make_rsa_pair(tmp_path)
+
+
+def _auth_config_with_fake_provider(tmp_path: Path, user: User) -> AuthConfig:
+    private_path, public_path, _ = _make_rsa_pair(tmp_path)
+
+    jwt_config = JWTConfig(
+        algorithm="RS256",
+        private_key_path=private_path,
+        public_key_path=public_path,
+    )
+
+    return AuthConfig(
+        issuer="http://localhost:8090",
+        audiences=["test-audience"],
+        jwt=jwt_config,
+        oidc_providers={},  # Will inject fake provider directly
+    )
+
+
+class TestAuthServiceFlows:
+    def test_login_and_callback_flow(self, tmp_path):
+        user = User(id="github:123", email="a@example.com", name="Alice", roles=["contributor"], affiliations=[])
+        config = _auth_config_with_fake_provider(tmp_path, user)
+        service = AuthService(config=config)
+
+        # Inject fake provider
+        fake_provider = FakeOIDCProvider(user)
+        service.providers["fake"] = fake_provider
+
+        # Login
+        url, state, nonce = service.initiate_login(provider="fake", audience="test-audience")
+        assert "fake" in url or url.startswith("https://provider/")
+        assert state in service._sessions
+        stored = service._sessions[state]
+        assert stored["nonce"] == nonce
+        assert stored["code_verifier"]
+
+        # Callback
+        token = service.handle_callback(code="auth-code", state=state)
+        assert fake_provider.last_code == "auth-code"
+        assert fake_provider.last_code_verifier == stored["code_verifier"]
+        assert fake_provider.last_nonce == nonce
+
+        # Local JWT validates and carries expected claims
+        claims = service.validate_token(token=token, audience="test-audience")
+        assert claims["sub"] == "github:123"
+        assert claims["email"] == "a@example.com"
+        assert "contributor" in claims.get("roles", [])
+        assert claims["aud"] == "test-audience"
+
+    def test_callback_requires_id_token(self, tmp_path):
+        user = User(id="github:999", email="b@example.com", name="Bob", roles=[], affiliations=[])
+        config = _auth_config_with_fake_provider(tmp_path, user)
+        service = AuthService(config=config)
+
+        class NoIdTokenProvider(FakeOIDCProvider):
+            def exchange_code_for_token(self, code: str, state: Optional[str] = None, code_verifier: Optional[str] = None) -> Dict[str, str]:
+                return {"access_token": "access-token"}  # missing id_token
+
+        service.providers["fake"] = NoIdTokenProvider(user)
+        _, state, _ = service.initiate_login(provider="fake", audience="test-audience")
+
+        with pytest.raises(AuthenticationError):
+            service.handle_callback(code="auth-code", state=state)
+
+
+class TestJWTMiddleware:
+    def _make_token(self, private_key, kid: str = "test", audience: str = "svc") -> str:
+        claims = {
+            "sub": "user-1",
+            "email": "u@example.com",
+            "roles": ["reader"],
+            "aud": audience,
+        }
+        headers = {"kid": kid}
+        return jwt.encode(claims, private_key, algorithm="RS256", headers=headers)
+
+    def _app_with_jwks(self, private_key, audience: str = "svc", required_roles: Optional[list[str]] = None) -> FastAPI:
+        class JWKSStubMiddleware(JWTMiddleware):
+            def __init__(self, app):
+                super().__init__(
+                    app=app,
+                    auth_service_url="http://auth",
+                    audience=audience,
+                    required_roles=required_roles,
+                )
+                jwk_json = RSAAlgorithm.to_jwk(private_key.public_key())
+                jwk = json.loads(jwk_json)
+                jwk["kid"] = "test"
+                self.jwks = {"keys": [jwk]}
+
+            def _fetch_jwks(self):  # override to avoid network
+                return
+
+        app = FastAPI()
+        app.add_middleware(JWKSStubMiddleware)
+
+        @app.get("/protected")
+        async def protected(request):
+            return {"sub": request.state.user_id}
+
+        return app
+
+    def test_middleware_allows_valid_token(self, rsa_keys):
+        _, _, private_key = rsa_keys
+        app = self._app_with_jwks(private_key, audience="svc")
+
+        token = self._make_token(private_key, audience="svc")
+        client = TestClient(app)
+        resp = client.get("/protected", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 200
+        assert resp.json()["sub"] == "user-1"
+
+    def test_middleware_blocks_missing_role(self, rsa_keys):
+        _, _, private_key = rsa_keys
+        app = self._app_with_jwks(private_key, audience="svc", required_roles=["admin"])
+
+        token = self._make_token(private_key, audience="svc")  # roles: reader
+        client = TestClient(app)
+        resp = client.get("/protected", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 403
+
+
+class TestSessionManagement:
+    """Test session state management and security."""
+    
+    def test_invalid_state_raises_error(self, tmp_path):
+        """Test that invalid state in callback raises ValueError."""
+        user = User(id="user:1", email="test@example.com", name="Test", roles=[], affiliations=[])
+        config = _auth_config_with_fake_provider(tmp_path, user)
+        service = AuthService(config=config)
+        service.providers["fake"] = FakeOIDCProvider(user)
+        
+        # Attempt callback with invalid state
+        with pytest.raises(ValueError, match="Invalid or expired state"):
+            service.handle_callback(code="auth-code", state="invalid-state")
+    
+    def test_session_cleanup_after_callback(self, tmp_path):
+        """Test that session is deleted after successful callback."""
+        user = User(id="user:2", email="test2@example.com", name="Test2", roles=[], affiliations=[])
+        config = _auth_config_with_fake_provider(tmp_path, user)
+        service = AuthService(config=config)
+        service.providers["fake"] = FakeOIDCProvider(user)
+        
+        # Login
+        _, state, _ = service.initiate_login(provider="fake", audience="test-audience")
+        assert state in service._sessions
+        
+        # Callback
+        service.handle_callback(code="auth-code", state=state)
+        
+        # Session should be cleaned up
+        assert state not in service._sessions
+    
+    def test_session_cleanup_on_error(self, tmp_path):
+        """Test that session is cleaned up even if callback fails."""
+        user = User(id="user:3", email="test3@example.com", name="Test3", roles=[], affiliations=[])
+        config = _auth_config_with_fake_provider(tmp_path, user)
+        service = AuthService(config=config)
+        
+        class FailingProvider(FakeOIDCProvider):
+            def exchange_code_for_token(self, code: str, code_verifier: Optional[str] = None) -> Dict[str, str]:
+                raise AuthenticationError("Token exchange failed")
+        
+        service.providers["fake"] = FailingProvider(user)
+        
+        # Login
+        _, state, _ = service.initiate_login(provider="fake", audience="test-audience")
+        assert state in service._sessions
+        
+        # Callback fails
+        with pytest.raises(AuthenticationError):
+            service.handle_callback(code="auth-code", state=state)
+        
+        # Session should still be cleaned up
+        assert state not in service._sessions
+    
+    def test_state_not_reusable(self, tmp_path):
+        """Test that state cannot be reused after callback."""
+        user = User(id="user:4", email="test4@example.com", name="Test4", roles=[], affiliations=[])
+        config = _auth_config_with_fake_provider(tmp_path, user)
+        service = AuthService(config=config)
+        service.providers["fake"] = FakeOIDCProvider(user)
+        
+        # Login
+        _, state, _ = service.initiate_login(provider="fake", audience="test-audience")
+        
+        # First callback succeeds
+        service.handle_callback(code="auth-code", state=state)
+        
+        # Second callback with same state fails
+        with pytest.raises(ValueError, match="Invalid or expired state"):
+            service.handle_callback(code="auth-code-2", state=state)
+    
+    def test_concurrent_sessions(self, tmp_path):
+        """Test multiple concurrent sessions are handled correctly."""
+        user = User(id="user:5", email="test5@example.com", name="Test5", roles=[], affiliations=[])
+        config = _auth_config_with_fake_provider(tmp_path, user)
+        service = AuthService(config=config)
+        service.providers["fake"] = FakeOIDCProvider(user)
+        
+        # Create multiple sessions
+        _, state1, _ = service.initiate_login(provider="fake", audience="aud1")
+        _, state2, _ = service.initiate_login(provider="fake", audience="aud2")
+        _, state3, _ = service.initiate_login(provider="fake", audience="aud3")
+        
+        # All sessions exist
+        assert len(service._sessions) == 3
+        assert state1 in service._sessions
+        assert state2 in service._sessions
+        assert state3 in service._sessions
+        
+        # Complete one session
+        token1 = service.handle_callback(code="code1", state=state1)
+        
+        # Only that session is cleaned up
+        assert state1 not in service._sessions
+        assert state2 in service._sessions
+        assert state3 in service._sessions
+        
+        # Verify token has correct audience
+        claims = service.validate_token(token=token1, audience="aud1")
+        assert claims["aud"] == "aud1"
+
+
+class TestJWTMinting:
+    """Test JWT token minting with different configurations."""
+    
+    def test_mint_token_with_different_audiences(self, tmp_path):
+        """Test minting tokens for different audiences."""
+        user = User(id="user:6", email="test6@example.com", name="Test6", roles=["reader"], affiliations=[])
+        config = _auth_config_with_fake_provider(tmp_path, user)
+        service = AuthService(config=config)
+        service.providers["fake"] = FakeOIDCProvider(user)
+        
+        # Login for audience A
+        _, state_a, _ = service.initiate_login(provider="fake", audience="audience-a")
+        token_a = service.handle_callback(code="code-a", state=state_a)
+        
+        # Login for audience B
+        _, state_b, _ = service.initiate_login(provider="fake", audience="audience-b")
+        token_b = service.handle_callback(code="code-b", state=state_b)
+        
+        # Tokens should be different
+        assert token_a != token_b
+        
+        # Each token validates only with its own audience
+        claims_a = service.validate_token(token=token_a, audience="audience-a")
+        assert claims_a["aud"] == "audience-a"
+        
+        claims_b = service.validate_token(token=token_b, audience="audience-b")
+        assert claims_b["aud"] == "audience-b"
+        
+        # Cross-validation fails
+        with pytest.raises(Exception):  # jwt.InvalidAudienceError
+            service.validate_token(token=token_a, audience="audience-b")
+    
+    def test_token_includes_provider_claim(self, tmp_path):
+        """Test that minted tokens include provider information."""
+        user = User(id="user:7", email="test7@example.com", name="Test7", roles=[], affiliations=[])
+        config = _auth_config_with_fake_provider(tmp_path, user)
+        service = AuthService(config=config)
+        service.providers["fake"] = FakeOIDCProvider(user)
+        
+        _, state, _ = service.initiate_login(provider="fake", audience="test-aud")
+        token = service.handle_callback(code="code", state=state)
+        
+        claims = service.validate_token(token=token, audience="test-aud")
+        assert claims["provider"] == "fake"
+        assert claims["amr"] == ["pwd"]  # authentication method reference
+    
+    def test_token_includes_user_attributes(self, tmp_path):
+        """Test that minted tokens include all user attributes."""
+        user = User(
+            id="user:8",
+            email="test8@example.com",
+            name="Test User 8",
+            roles=["admin", "editor"],
+            affiliations=["org1", "org2"]
+        )
+        config = _auth_config_with_fake_provider(tmp_path, user)
+        service = AuthService(config=config)
+        service.providers["fake"] = FakeOIDCProvider(user)
+        
+        _, state, _ = service.initiate_login(provider="fake", audience="test-aud")
+        token = service.handle_callback(code="code", state=state)
+        
+        claims = service.validate_token(token=token, audience="test-aud")
+        assert claims["sub"] == "user:8"
+        assert claims["email"] == "test8@example.com"
+        assert claims["name"] == "Test User 8"
+        assert set(claims["roles"]) == {"admin", "editor"}
+        assert set(claims["affiliations"]) == {"org1", "org2"}
+    
+    def test_statistics_tracking(self, tmp_path):
+        """Test that statistics are tracked correctly."""
+        user = User(id="user:9", email="test9@example.com", name="Test9", roles=[], affiliations=[])
+        config = _auth_config_with_fake_provider(tmp_path, user)
+        service = AuthService(config=config)
+        service.providers["fake"] = FakeOIDCProvider(user)
+        
+        initial_stats = service.get_stats()
+        assert initial_stats["logins_total"] == 0
+        assert initial_stats["tokens_minted"] == 0
+        assert initial_stats["tokens_validated"] == 0
+        
+        # Login
+        _, state, _ = service.initiate_login(provider="fake", audience="test-aud")
+        stats = service.get_stats()
+        assert stats["logins_total"] == 1
+        
+        # Callback
+        token = service.handle_callback(code="code", state=state)
+        stats = service.get_stats()
+        assert stats["tokens_minted"] == 1
+        
+        # Validate
+        service.validate_token(token=token, audience="test-aud")
+        stats = service.get_stats()
+        assert stats["tokens_validated"] == 1
+        
+        # Invalid validation
+        try:
+            service.validate_token(token="invalid-token", audience="test-aud")
+        except:
+            pass
+        
+        stats = service.get_stats()
+        assert stats["validation_failures"] == 1
+
+
+class TestErrorHandling:
+    """Test error handling in auth flows."""
+    
+    def test_unknown_provider_error(self, tmp_path):
+        """Test error when using unknown provider."""
+        user = User(id="user:10", email="test10@example.com", name="Test10", roles=[], affiliations=[])
+        config = _auth_config_with_fake_provider(tmp_path, user)
+        service = AuthService(config=config)
+        
+        with pytest.raises(ValueError, match="Unknown provider"):
+            service.initiate_login(provider="nonexistent", audience="test-aud")
+    
+    def test_callback_without_access_token(self, tmp_path):
+        """Test callback fails when access_token is missing."""
+        user = User(id="user:11", email="test11@example.com", name="Test11", roles=[], affiliations=[])
+        config = _auth_config_with_fake_provider(tmp_path, user)
+        service = AuthService(config=config)
+        
+        class NoAccessTokenProvider(FakeOIDCProvider):
+            def exchange_code_for_token(self, code: str, code_verifier: Optional[str] = None) -> Dict[str, str]:
+                return {"id_token": "id-token"}  # missing access_token
+        
+        service.providers["fake"] = NoAccessTokenProvider(user)
+        _, state, _ = service.initiate_login(provider="fake", audience="test-aud")
+        
+        with pytest.raises(AuthenticationError, match="No access token"):
+            service.handle_callback(code="code", state=state)
+    
+    def test_callback_fails_on_user_retrieval_error(self, tmp_path):
+        """Test callback fails when user info retrieval fails."""
+        user = User(id="user:12", email="test12@example.com", name="Test12", roles=[], affiliations=[])
+        config = _auth_config_with_fake_provider(tmp_path, user)
+        service = AuthService(config=config)
+        
+        class FailingUserProvider(FakeOIDCProvider):
+            def get_user(self, token: str) -> Optional[User]:
+                return None  # Failed to retrieve user
+        
+        service.providers["fake"] = FailingUserProvider(user)
+        _, state, _ = service.initiate_login(provider="fake", audience="test-aud")
+        
+        with pytest.raises(AuthenticationError, match="Failed to retrieve user info"):
+            service.handle_callback(code="code", state=state)
+    
+    def test_pkce_verifier_passed_to_provider(self, tmp_path):
+        """Test that PKCE code_verifier is correctly passed to provider."""
+        user = User(id="user:13", email="test13@example.com", name="Test13", roles=[], affiliations=[])
+        config = _auth_config_with_fake_provider(tmp_path, user)
+        service = AuthService(config=config)
+        
+        fake_provider = FakeOIDCProvider(user)
+        service.providers["fake"] = fake_provider
+        
+        # Login
+        _, state, _ = service.initiate_login(provider="fake", audience="test-aud")
+        stored_verifier = service._sessions[state]["code_verifier"]
+        
+        # Callback
+        service.handle_callback(code="code", state=state)
+        
+        # Verify provider received the verifier
+        assert fake_provider.last_code_verifier == stored_verifier
+    
+    def test_nonce_validation(self, tmp_path):
+        """Test that nonce is validated during ID token verification."""
+        user = User(id="user:14", email="test14@example.com", name="Test14", roles=[], affiliations=[])
+        config = _auth_config_with_fake_provider(tmp_path, user)
+        service = AuthService(config=config)
+        
+        fake_provider = FakeOIDCProvider(user)
+        service.providers["fake"] = fake_provider
+        
+        # Login
+        _, state, nonce = service.initiate_login(provider="fake", audience="test-aud")
+        
+        # Callback
+        service.handle_callback(code="code", state=state)
+        
+        # Verify provider validated nonce
+        assert fake_provider.last_nonce == nonce

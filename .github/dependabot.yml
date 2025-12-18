@@ -9,6 +9,13 @@
 
 version: 2
 updates:
+  # Monitor Python dependencies in auth service
+  - package-ecosystem: "pip"
+    directory: "/auth"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
   # Monitor Python dependencies in chunking service
   - package-ecosystem: "pip"
     directory: "/chunking"
@@ -152,6 +159,13 @@ updates:
   # Monitor Python dependencies in copilot_schema_validation adapter
   - package-ecosystem: "pip"
     directory: "/adapters/copilot_schema_validation"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Monitor Python dependencies in copilot_secrets adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_secrets"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5

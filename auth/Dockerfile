@@ -42,11 +42,6 @@ RUN pip install --no-cache-dir /tmp/copilot_auth /tmp/copilot_logging /tmp/copil
 # Copy application code
 COPY auth/app ./app
 COPY auth/main.py .
-COPY auth/generate_keys.py .
-COPY auth/config ./config
-
-# Generate JWT keys if they don't exist
-RUN python generate_keys.py
 
 # Create non-root user
 RUN useradd -m -u 1000 authuser && \
@@ -59,7 +54,7 @@ EXPOSE 8090
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8090/health').raise_for_status()" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8090/health').read()" || exit 1
 
 # Run the service
 CMD ["python", "main.py"]

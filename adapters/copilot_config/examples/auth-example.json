@@ -1,0 +1,66 @@
+{
+  "service_name": "auth-example",
+  "metadata": {
+    "description": "Example auth service configuration with secrets",
+    "version": "1.0.0"
+  },
+  "fields": {
+    "service_name": {
+      "type": "string",
+      "source": "env",
+      "env_var": "SERVICE_NAME",
+      "default": "auth-service",
+      "description": "Service identifier"
+    },
+    "port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "PORT",
+      "default": 8000,
+      "description": "HTTP server port"
+    },
+    "log_level": {
+      "type": "string",
+      "source": "env",
+      "env_var": "LOG_LEVEL",
+      "default": "INFO",
+      "description": "Logging level"
+    },
+    "jwt_private_key": {
+      "type": "string",
+      "source": "secret",
+      "secret_name": "jwt_private_key",
+      "required": true,
+      "description": "RSA private key for JWT signing (PEM format)"
+    },
+    "jwt_public_key": {
+      "type": "string",
+      "source": "secret",
+      "secret_name": "jwt_public_key",
+      "required": true,
+      "description": "RSA public key for JWT verification (PEM format)"
+    },
+    "oidc_client_id": {
+      "type": "string",
+      "source": "env",
+      "env_var": "OIDC_CLIENT_ID",
+      "required": true,
+      "description": "OAuth client ID (public, from env)"
+    },
+    "oidc_client_secret": {
+      "type": "string",
+      "source": "secret",
+      "secret_name": "github_oauth_client_secret",
+      "required": true,
+      "description": "OAuth client secret (sensitive, from secret store)"
+    },
+    "database_password": {
+      "type": "string",
+      "source": "secret",
+      "secret_name": "db_password",
+      "required": false,
+      "default": null,
+      "description": "Database password (optional if using IAM auth)"
+    }
+  }
+}

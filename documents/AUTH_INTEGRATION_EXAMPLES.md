@@ -185,7 +185,12 @@ python cli_tool.py call /api/reports
 
 ## Web UI Integration
 
-### Example: JavaScript/React Login Flow
+### Example: JavaScript/React Login Flow (Secure)
+
+**IMPORTANT SECURITY NOTES:**
+- ❌ **NEVER put JWTs in URL query parameters** - they leak via browser history, referrers, and logs
+- ❌ **NEVER use localStorage for tokens** - vulnerable to XSS attacks and malicious scripts
+- ✅ **Use httpOnly cookies** (best) or POST responses with sessionStorage (acceptable)
 
 ```javascript
 // authService.js
@@ -193,6 +198,9 @@ const AUTH_SERVICE_URL = process.env.REACT_APP_AUTH_SERVICE_URL || 'http://local
 const AUDIENCE = 'copilot-reporting';
 
 export const initiateLogin = (provider = 'github') => {
+  // Store return URL for post-login redirect
+  sessionStorage.setItem('auth_return_url', window.location.pathname);
+  
   const params = new URLSearchParams({
     provider: provider,
     aud: AUDIENCE,
@@ -202,34 +210,116 @@ export const initiateLogin = (provider = 'github') => {
   window.location.href = `${AUTH_SERVICE_URL}/login?${params}`;
 };
 
-export const handleCallback = () => {
-  // This would be called on your callback page
-  // Parse URL parameters or POST body to extract JWT
-  const urlParams = new URLSearchParams(window.location.search);
-  const token = urlParams.get('access_token');
+export const handleCallback = async () => {
+  /**
+   * SECURE callback handler.
+   * 
+   * The auth service should redirect to your callback page with:
+   * - state parameter (validated)
+   * - code parameter (exchanged server-side)
+   * 
+   * Your backend should:
+   * 1. Exchange code for token server-side
+   * 2. Store token in httpOnly cookie
+   * 3. Redirect to application
+   */
   
-  if (token) {
-    // Store token in localStorage or sessionStorage
-    localStorage.setItem('jwt_token', token);
-    
-    // Redirect to app
-    window.location.href = '/';
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = urlParams.get('code');
+  const state = urlParams.get('state');
+  
+  if (!code || !state) {
+    throw new Error('Invalid callback - missing code or state');
   }
+  
+  // Exchange code for token via your backend
+  const response = await fetch('/api/auth/callback', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include', // Include cookies
+    body: JSON.stringify({ code, state }),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Authentication failed');
+  }
+  
+  // Token is now stored in httpOnly cookie by backend
+  // Redirect to original URL
+  const returnUrl = sessionStorage.getItem('auth_return_url') || '/';
+  sessionStorage.removeItem('auth_return_url');
+  window.location.href = returnUrl;
 };
 
-export const getToken = () => {
-  return localStorage.getItem('jwt_token');
-};
-
-export const logout = () => {
-  localStorage.removeItem('jwt_token');
+export const logout = async () => {
+  // Clear httpOnly cookie via backend
+  await fetch('/api/auth/logout', {
+    method: 'POST',
+    credentials: 'include',
+  });
+  
   window.location.href = '/login';
 };
 
 export const fetchWithAuth = async (url, options = {}) => {
-  const token = getToken();
+  /**
+   * Fetch with automatic auth handling.
+   * Token is sent automatically via httpOnly cookie.
+   */
+  const response = await fetch(url, {
+    ...options,
+    credentials: 'include', // Send cookies
+  });
+  
+  if (response.status === 401) {
+    // Token expired or invalid - redirect to login
+    window.location.href = '/login';
+    throw new Error('Authentication required');
+  }
+  
+  return response;
+};
+
+// Alternative: If you MUST use sessionStorage (less secure than cookies)
+export const handleCallbackWithSessionStorage = async () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = urlParams.get('code');
+  const state = urlParams.get('state');
+  
+  // Exchange code for token via backend
+  const response = await fetch('/api/auth/callback', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ code, state }),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Authentication failed');
+  }
+  
+  const data = await response.json();
+  
+  // Store in sessionStorage (cleared on tab close, safer than localStorage)
+  sessionStorage.setItem('jwt_token', data.access_token);
+  
+  // Clean URL (remove code/state from history)
+  window.history.replaceState({}, document.title, window.location.pathname);
+  
+  // Redirect to app
+  const returnUrl = sessionStorage.getItem('auth_return_url') || '/';
+  sessionStorage.removeItem('auth_return_url');
+  window.location.href = returnUrl;
+};
+
+export const fetchWithSessionStorage = async (url, options = {}) => {
+  const token = sessionStorage.getItem('jwt_token');
   
   if (!token) {
+    window.location.href = '/login';
     throw new Error('Not authenticated');
   }
   
@@ -244,13 +334,71 @@ export const fetchWithAuth = async (url, options = {}) => {
   });
   
   if (response.status === 401) {
-    // Token expired, logout and redirect to login
-    logout();
+    sessionStorage.removeItem('jwt_token');
+    window.location.href = '/login';
     throw new Error('Authentication expired');
   }
   
   return response;
 };
+```
+
+**Backend callback handler (Node.js/Express example):**
+
+```javascript
+// server/routes/auth.js
+app.post('/api/auth/callback', async (req, res) => {
+  const { code, state } = req.body;
+  
+  // Exchange code for token with auth service
+  const tokenResponse = await fetch(`${AUTH_SERVICE_URL}/callback?code=${code}&state=${state}`);
+  
+  if (!tokenResponse.ok) {
+    return res.status(401).json({ error: 'Authentication failed' });
+  }
+  
+  const { access_token, expires_in } = await tokenResponse.json();
+  
+  // Store token in httpOnly cookie (SECURE)
+  res.cookie('jwt_token', access_token, {
+    httpOnly: true,  // Not accessible to JavaScript
+    secure: true,    // Only sent over HTTPS
+    sameSite: 'strict', // CSRF protection
+    maxAge: expires_in * 1000, // Match token expiry
+  });
+  
+  res.json({ success: true });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  res.clearCookie('jwt_token');
+  res.json({ success: true });
+});
+
+// Middleware to extract token from cookie and validate
+app.use('/api/*', async (req, res, next) => {
+  const token = req.cookies.jwt_token;
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  
+  // Validate token with auth service or verify locally with JWKS
+  try {
+    const userInfo = await fetch(`${AUTH_SERVICE_URL}/userinfo`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (!userInfo.ok) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    
+    req.user = await userInfo.json();
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: 'Authentication failed' });
+  }
+});
 ```
 
 **Usage in React component:**
