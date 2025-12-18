@@ -132,11 +132,13 @@ class RabbitMQPublisher(EventPublisher):
         """
         current_time = time.time()
         
-        # Circuit breaker: prevent rapid reconnection attempts
+        # Circuit breaker with exponential backoff: prevent rapid reconnection attempts
         time_since_last_reconnect = current_time - self._last_reconnect_time
-        if time_since_last_reconnect < self.reconnect_delay:
+        backoff_delay = self.reconnect_delay * (2 ** self._reconnect_count)
+        if time_since_last_reconnect < backoff_delay:
+            remaining = max(0.0, backoff_delay - time_since_last_reconnect)
             logger.warning(
-                f"Reconnection throttled, {self.reconnect_delay - time_since_last_reconnect:.1f}s remaining"
+                f"Reconnection throttled, {remaining:.1f}s remaining (backoff {backoff_delay:.1f}s)"
             )
             return False
         
