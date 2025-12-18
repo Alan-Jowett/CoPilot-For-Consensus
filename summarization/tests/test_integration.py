@@ -38,7 +38,7 @@ def in_memory_document_store():
         doc={
             "_id": "aaa1111bbb222222",
             "message_id": "<msg1@example.com>",
-            "archive_id": "archive-00000001",
+            "archive_id": "feedfacecafebeef",
             "thread_id": "1111222233334444",
             "body_normalized": "This is a test message discussing important topics.",
             "from": {"email": "alice@example.com", "name": "Alice"},
@@ -52,7 +52,7 @@ def in_memory_document_store():
         doc={
             "_id": "ccc3333ddd444444",
             "message_id": "<msg2@example.com>",
-            "archive_id": "archive-00000001",
+            "archive_id": "feedfacecafebeef",
             "thread_id": "1111222233334444",
             "body_normalized": "I agree with the points raised in the previous message.",
             "from": {"email": "bob@example.com", "name": "Bob"},
