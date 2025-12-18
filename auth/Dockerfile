@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
-COPY requirements.txt .
+COPY auth/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --user -r requirements.txt
@@ -30,10 +30,19 @@ COPY --from=builder /root/.local /root/.local
 # Ensure scripts are in PATH
 ENV PATH=/root/.local/bin:$PATH
 
+# Install adapters (will be mounted as volumes in docker-compose)
+# For standalone builds, copy and install adapters
+COPY adapters/copilot_auth /tmp/copilot_auth
+COPY adapters/copilot_logging /tmp/copilot_logging
+COPY adapters/copilot_metrics /tmp/copilot_metrics
+
+RUN pip install --no-cache-dir /tmp/copilot_auth /tmp/copilot_logging /tmp/copilot_metrics && \
+    rm -rf /tmp/copilot_*
+
 # Copy application code
-COPY app ./app
-COPY main.py .
-COPY config ./config
+COPY auth/app ./app
+COPY auth/main.py .
+COPY auth/config ./config
 
 # Create non-root user
 RUN useradd -m -u 1000 authuser && \

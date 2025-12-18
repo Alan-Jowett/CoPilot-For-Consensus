@@ -669,9 +669,56 @@ services:
       start_period: 90s
     restart: unless-stopped
 
-  # React-based SPA (primary Web UI)
-  ui:
-    image: copilot-ui:latest
+  auth:
+    image: copilot-auth:latest
+    build:
+      context: .
+      dockerfile: ./auth/Dockerfile
+    environment:
+      - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8090}
+      - AUTH_AUDIENCES=${AUTH_AUDIENCES:-copilot-orchestrator,copilot-reporting}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-RS256}
+      - JWT_KEY_ID=${JWT_KEY_ID:-default}
+      - JWT_DEFAULT_EXPIRY=${JWT_DEFAULT_EXPIRY:-1800}
+      - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
+      - SECRETS_BASE_PATH=${SECRETS_BASE_PATH:-/run/secrets}
+      # OIDC Providers (set in .env or environment)
+      - AUTH_GITHUB_CLIENT_ID=${AUTH_GITHUB_CLIENT_ID:-}
+      - AUTH_GITHUB_CLIENT_SECRET=${AUTH_GITHUB_CLIENT_SECRET:-}
+      - AUTH_GITHUB_REDIRECT_URI=${AUTH_GITHUB_REDIRECT_URI:-http://localhost:8090/callback}
+      - AUTH_GOOGLE_CLIENT_ID=${AUTH_GOOGLE_CLIENT_ID:-}
+      - AUTH_GOOGLE_CLIENT_SECRET=${AUTH_GOOGLE_CLIENT_SECRET:-}
+      - AUTH_GOOGLE_REDIRECT_URI=${AUTH_GOOGLE_REDIRECT_URI:-http://localhost:8090/callback}
+      - AUTH_MS_CLIENT_ID=${AUTH_MS_CLIENT_ID:-}
+      - AUTH_MS_CLIENT_SECRET=${AUTH_MS_CLIENT_SECRET:-}
+      - AUTH_MS_REDIRECT_URI=${AUTH_MS_REDIRECT_URI:-http://localhost:8090/callback}
+      - AUTH_MS_TENANT=${AUTH_MS_TENANT:-common}
+      # Security
+      - AUTH_REQUIRE_PKCE=${AUTH_REQUIRE_PKCE:-true}
+      - AUTH_REQUIRE_NONCE=${AUTH_REQUIRE_NONCE:-true}
+      - AUTH_MAX_SKEW_SECONDS=${AUTH_MAX_SKEW_SECONDS:-90}
+      - PORT=8090
+      - HOST=0.0.0.0
+    ports:
+      - "127.0.0.1:8090:8090"
+    volumes:
+      - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
+      - ./adapters/copilot_logging:/app/adapters/copilot_logging:ro
+      - ./adapters/copilot_metrics:/app/adapters/copilot_metrics:ro
+      - ./secrets:/run/secrets:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # WARNING: The reporting-ui service has NO authentication or authorization.
+  # Do NOT expose this service to untrusted networks or in production environments.
+  # This is intended for local development only. See reporting-ui/README.md for details.
+  reporting-ui:
+    image: copilot-reporting-ui:latest
     build:
       context: ./ui
       dockerfile: Dockerfile
