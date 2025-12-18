@@ -353,8 +353,4 @@ class TestRabbitMQSubscriber:
         
         # Verify consuming flag was reset
         assert subscriber._consuming is False
-        subscriber.stop_consuming()
-        
-        # Verify consuming flag was reset despite the error
-        assert subscriber._consuming is False
 
