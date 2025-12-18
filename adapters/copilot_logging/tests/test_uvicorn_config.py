@@ -6,7 +6,8 @@
 import json
 import logging
 import logging.config
-import pytest
+import time
+from datetime import datetime, timezone
 from io import StringIO
 from unittest.mock import patch
 
@@ -81,6 +82,68 @@ class TestJSONFormatter:
         log_entry = json.loads(output)
         
         assert log_entry["logger"] == "custom-service"
+
+    def test_format_with_extra_fields(self):
+        """Test that extra fields from logging calls are included."""
+        formatter = JSONFormatter(logger_name="test-service")
+        
+        # Create a logger and add extra fields via logging call
+        logger = logging.getLogger("test-extra")
+        logger.handlers = []
+        handler = logging.StreamHandler(StringIO())
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+        
+        # Create a record with extra fields
+        record = logging.LogRecord(
+            name="test",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="Test message",
+            args=(),
+            exc_info=None,
+        )
+        
+        # Add custom fields to the record
+        record.user_id = 123
+        record.request_id = "abc-456"
+        
+        output = formatter.format(record)
+        log_entry = json.loads(output)
+        
+        assert log_entry["message"] == "Test message"
+        assert "extra" in log_entry
+        assert log_entry["extra"]["user_id"] == 123
+        assert log_entry["extra"]["request_id"] == "abc-456"
+
+    def test_format_uses_record_created_timestamp(self):
+        """Test that formatter uses record.created for accurate timestamps."""
+        formatter = JSONFormatter(logger_name="test-service")
+        
+        # Create a record with a known created timestamp
+        import time
+        test_time = time.time()
+        record = logging.LogRecord(
+            name="test",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="Test",
+            args=(),
+            exc_info=None,
+        )
+        record.created = test_time
+        
+        output = formatter.format(record)
+        log_entry = json.loads(output)
+        
+        # Verify the timestamp is based on record.created
+        expected_time = datetime.fromtimestamp(test_time, tz=timezone.utc)
+        expected_timestamp = expected_time.isoformat().replace("+00:00", "Z")
+        
+        assert log_entry["timestamp"] == expected_timestamp
 
 
 class TestCreateUvicornLogConfig:
