@@ -377,13 +377,20 @@ class TestRabbitMQErrorHandling:
     """Test edge cases and error handling."""
 
     def test_publish_without_connection(self):
-        """Test that publishing fails gracefully without connection."""
+        """Test that publishing fails gracefully without connection.
+
+        With automatic reconnection enabled, publishing without a prior
+        connection may succeed in connecting and then fail due to routing
+        (unroutable). To exercise the connection error path, disable
+        reconnection by setting max_reconnect_attempts=0.
+        """
         config = get_rabbitmq_config()
         publisher = RabbitMQPublisher(
             host=config["host"],
             port=config["port"],
             username=config["username"],
             password=config["password"],
+            max_reconnect_attempts=0,
         )
         # Don't connect
         
