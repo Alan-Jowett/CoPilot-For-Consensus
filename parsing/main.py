@@ -79,6 +79,21 @@ def start_subscriber_thread(service: ParsingService):
         service.subscriber.start_consuming()
     except KeyboardInterrupt:
         logger.info("Subscriber interrupted")
+    except AssertionError as e:
+        # Handle pika internal transport state errors gracefully
+        # These are typically race conditions during shutdown/cleanup
+        # and don't indicate service failure or message loss
+        error_str = str(e)
+        if "_AsyncTransportBase" in error_str or "_STATE_COMPLETED" in error_str:
+            logger.warning(
+                f"Pika transport state assertion during shutdown: {e}. "
+                "This is a known pika race condition and can be safely ignored."
+            )
+            # Don't re-raise - this is a benign shutdown race condition
+        else:
+            # Other assertion errors should fail fast
+            logger.error(f"Subscriber assertion error: {e}")
+            raise
     except Exception as e:
         logger.error(f"Subscriber error: {e}")
         # Fail fast - re-raise to terminate the service

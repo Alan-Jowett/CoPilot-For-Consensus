@@ -258,3 +258,66 @@ class TestRabbitMQSubscriber:
         assert subscriber._event_type_to_routing_key("JSONParsed") == "json.parsed"
         assert subscriber._event_type_to_routing_key("ParsingFailed") == "parsing.failed"
         assert subscriber._event_type_to_routing_key("TestEvent") == "test.event"
+
+    def test_start_consuming_handles_transport_assertion_error(self):
+        """Test that start_consuming handles pika transport state errors gracefully."""
+        from unittest.mock import MagicMock, patch
+        
+        subscriber = RabbitMQSubscriber(host="localhost")
+        
+        # Mock channel to simulate connected state
+        mock_channel = MagicMock()
+        subscriber.channel = mock_channel
+        subscriber._consuming = False
+        
+        # Simulate pika transport state assertion error
+        transport_error = AssertionError(
+            "_AsyncTransportBase._initate_abort() expected non-_STATE_COMPLETED", 4
+        )
+        mock_channel.start_consuming.side_effect = transport_error
+        
+        # Should not raise - should handle gracefully
+        subscriber.start_consuming()
+        
+        # Verify consuming flag was reset
+        assert subscriber._consuming is False
+    
+    def test_start_consuming_reraises_other_assertion_errors(self):
+        """Test that start_consuming re-raises non-transport assertion errors."""
+        from unittest.mock import MagicMock
+        
+        subscriber = RabbitMQSubscriber(host="localhost")
+        
+        # Mock channel to simulate connected state
+        mock_channel = MagicMock()
+        subscriber.channel = mock_channel
+        subscriber._consuming = False
+        
+        # Simulate a different assertion error (not transport-related)
+        other_error = AssertionError("Some other assertion failed")
+        mock_channel.start_consuming.side_effect = other_error
+        
+        # Should re-raise this error
+        with pytest.raises(AssertionError, match="Some other assertion failed"):
+            subscriber.start_consuming()
+    
+    def test_stop_consuming_handles_exceptions_gracefully(self):
+        """Test that stop_consuming handles exceptions during shutdown."""
+        from unittest.mock import MagicMock
+        
+        subscriber = RabbitMQSubscriber(host="localhost")
+        
+        # Mock channel that raises error during stop
+        mock_channel = MagicMock()
+        subscriber.channel = mock_channel
+        subscriber._consuming = True
+        
+        # Simulate exception during stop_consuming
+        mock_channel.stop_consuming.side_effect = AssertionError("Transport already stopped")
+        
+        # Should not raise - should handle gracefully
+        subscriber.stop_consuming()
+        
+        # Verify consuming flag was reset despite the error
+        assert subscriber._consuming is False
+
