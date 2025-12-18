@@ -537,3 +537,311 @@ def test_metrics_collector_uses_tags_parameter(mock_document_store, mock_publish
     assert 'tags' in second_call_kwargs, "Second increment call should use 'tags=' parameter"
     assert 'labels' not in second_call_kwargs, "Second increment call should NOT use 'labels=' parameter"
     assert second_call_kwargs['tags'] == {"error_type": "TestError"}
+
+
+def test_orchestrate_thread_skips_when_retrieval_set_unchanged(
+    orchestration_service, mock_document_store, mock_publisher
+):
+    """Test that orchestration skips summarization when retrieval set is unchanged."""
+    thread_id = "<thread-1@example.com>"
+    
+    # Setup: chunks exist
+    chunks = [
+        {
+            "chunk_id": "chunk-1",
+            "chunk_key": "chunk-1",
+            "thread_id": thread_id,
+            "message_key": "<msg-1@example.com>",
+            "embedding_generated": True
+        },
+        {
+            "chunk_id": "chunk-2",
+            "chunk_key": "chunk-2",
+            "thread_id": thread_id,
+            "message_key": "<msg-1@example.com>",
+            "embedding_generated": True
+        },
+    ]
+    
+    messages = [
+        {
+            "message_key": "<msg-1@example.com>",
+            "subject": "Test",
+            "from": {"email": "user@example.com"},
+            "date": "2023-10-15T12:00:00Z",
+            "draft_mentions": []
+        },
+    ]
+    
+    # Thread document with existing retrieval set (same as current)
+    thread_doc = {
+        "_id": "thread-doc-id",
+        "thread_id": thread_id,
+        "retrieval_set": ["chunk-1", "chunk-2"],  # Same as current chunks
+    }
+    
+    def mock_query(collection, filter_dict, **kwargs):
+        if collection == "chunks":
+            return chunks
+        elif collection == "messages":
+            return messages
+        elif collection == "threads":
+            return [thread_doc]
+        return []
+    
+    mock_document_store.query_documents = Mock(side_effect=mock_query)
+    
+    # Orchestrate thread
+    orchestration_service._orchestrate_thread(thread_id)
+    
+    # Verify SummarizationRequested was NOT published
+    assert not mock_publisher.publish.called, "Should not publish when retrieval set unchanged"
+    
+    # Verify thread document was NOT updated
+    assert not mock_document_store.update_document.called
+
+
+def test_orchestrate_thread_triggers_when_retrieval_set_changed(
+    orchestration_service, mock_document_store, mock_publisher
+):
+    """Test that orchestration triggers summarization when retrieval set changes."""
+    thread_id = "<thread-1@example.com>"
+    
+    # Setup: new chunks added
+    chunks = [
+        {
+            "chunk_id": "chunk-1",
+            "chunk_key": "chunk-1",
+            "thread_id": thread_id,
+            "message_key": "<msg-1@example.com>",
+            "embedding_generated": True
+        },
+        {
+            "chunk_id": "chunk-2",
+            "chunk_key": "chunk-2",
+            "thread_id": thread_id,
+            "message_key": "<msg-1@example.com>",
+            "embedding_generated": True
+        },
+        {
+            "chunk_id": "chunk-3",
+            "chunk_key": "chunk-3",
+            "thread_id": thread_id,
+            "message_key": "<msg-2@example.com>",
+            "embedding_generated": True
+        },
+    ]
+    
+    messages = [
+        {
+            "message_key": "<msg-1@example.com>",
+            "subject": "Test",
+            "from": {"email": "user@example.com"},
+            "date": "2023-10-15T12:00:00Z",
+            "draft_mentions": []
+        },
+        {
+            "message_key": "<msg-2@example.com>",
+            "subject": "Re: Test",
+            "from": {"email": "user2@example.com"},
+            "date": "2023-10-15T13:00:00Z",
+            "draft_mentions": []
+        },
+    ]
+    
+    # Thread document with old retrieval set (missing chunk-3)
+    thread_doc = {
+        "_id": "thread-doc-id",
+        "thread_id": thread_id,
+        "retrieval_set": ["chunk-1", "chunk-2"],  # Old set, chunk-3 is new
+    }
+    
+    def mock_query(collection, filter_dict, **kwargs):
+        if collection == "chunks":
+            return chunks
+        elif collection == "messages":
+            return messages
+        elif collection == "threads":
+            return [thread_doc]
+        return []
+    
+    mock_document_store.query_documents = Mock(side_effect=mock_query)
+    mock_document_store.update_document = Mock()
+    
+    # Orchestrate thread
+    orchestration_service._orchestrate_thread(thread_id)
+    
+    # Verify SummarizationRequested WAS published
+    assert mock_publisher.publish.called, "Should publish when retrieval set changed"
+    
+    # Verify thread document was updated with new retrieval set
+    mock_document_store.update_document.assert_called_once()
+    update_call = mock_document_store.update_document.call_args
+    assert update_call[0][0] == "threads"
+    assert update_call[0][1] == "thread-doc-id"
+    updated_set = set(update_call[0][2]["retrieval_set"])
+    assert updated_set == {"chunk-1", "chunk-2", "chunk-3"}
+
+
+def test_orchestrate_thread_triggers_when_no_previous_retrieval_set(
+    orchestration_service, mock_document_store, mock_publisher
+):
+    """Test that orchestration triggers summarization when no previous retrieval set exists."""
+    thread_id = "<thread-1@example.com>"
+    
+    chunks = [
+        {
+            "chunk_id": "chunk-1",
+            "chunk_key": "chunk-1",
+            "thread_id": thread_id,
+            "message_key": "<msg-1@example.com>",
+            "embedding_generated": True
+        },
+    ]
+    
+    messages = [
+        {
+            "message_key": "<msg-1@example.com>",
+            "subject": "Test",
+            "from": {"email": "user@example.com"},
+            "date": "2023-10-15T12:00:00Z",
+            "draft_mentions": []
+        },
+    ]
+    
+    # Thread document without retrieval_set field (first time)
+    thread_doc = {
+        "_id": "thread-doc-id",
+        "thread_id": thread_id,
+        # No retrieval_set field
+    }
+    
+    def mock_query(collection, filter_dict, **kwargs):
+        if collection == "chunks":
+            return chunks
+        elif collection == "messages":
+            return messages
+        elif collection == "threads":
+            return [thread_doc]
+        return []
+    
+    mock_document_store.query_documents = Mock(side_effect=mock_query)
+    mock_document_store.update_document = Mock()
+    
+    # Orchestrate thread
+    orchestration_service._orchestrate_thread(thread_id)
+    
+    # Verify SummarizationRequested WAS published (first time)
+    assert mock_publisher.publish.called, "Should publish when no previous retrieval set"
+    
+    # Verify thread document was updated
+    mock_document_store.update_document.assert_called_once()
+
+
+def test_orchestrate_thread_triggers_when_chunk_removed(
+    orchestration_service, mock_document_store, mock_publisher
+):
+    """Test that orchestration triggers summarization when a chunk is removed from retrieval set."""
+    thread_id = "<thread-1@example.com>"
+    
+    # Setup: only one chunk now (chunk-2 was removed/not in top-k anymore)
+    chunks = [
+        {
+            "chunk_id": "chunk-1",
+            "chunk_key": "chunk-1",
+            "thread_id": thread_id,
+            "message_key": "<msg-1@example.com>",
+            "embedding_generated": True
+        },
+    ]
+    
+    messages = [
+        {
+            "message_key": "<msg-1@example.com>",
+            "subject": "Test",
+            "from": {"email": "user@example.com"},
+            "date": "2023-10-15T12:00:00Z",
+            "draft_mentions": []
+        },
+    ]
+    
+    # Thread document with old retrieval set (had chunk-2)
+    thread_doc = {
+        "_id": "thread-doc-id",
+        "thread_id": thread_id,
+        "retrieval_set": ["chunk-1", "chunk-2"],  # chunk-2 was removed
+    }
+    
+    def mock_query(collection, filter_dict, **kwargs):
+        if collection == "chunks":
+            return chunks
+        elif collection == "messages":
+            return messages
+        elif collection == "threads":
+            return [thread_doc]
+        return []
+    
+    mock_document_store.query_documents = Mock(side_effect=mock_query)
+    mock_document_store.update_document = Mock()
+    
+    # Orchestrate thread
+    orchestration_service._orchestrate_thread(thread_id)
+    
+    # Verify SummarizationRequested WAS published (retrieval set changed)
+    assert mock_publisher.publish.called, "Should publish when chunk removed from retrieval set"
+
+
+def test_orchestrate_thread_with_metrics_collector(mock_document_store, mock_publisher, mock_subscriber):
+    """Test that orchestration records metrics for skipped and triggered summaries."""
+    mock_metrics = Mock()
+    
+    service = OrchestrationService(
+        document_store=mock_document_store,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        metrics_collector=mock_metrics,
+    )
+    
+    thread_id = "<thread-1@example.com>"
+    
+    # Test case 1: Unchanged retrieval set (should skip)
+    chunks = [
+        {"chunk_key": "chunk-1", "thread_id": thread_id, "message_key": "msg-1", "embedding_generated": True},
+    ]
+    messages = [{"message_key": "msg-1", "subject": "Test", "from": {"email": "test@example.com"}, "date": "2023-10-15T12:00:00Z", "draft_mentions": []}]
+    thread_doc = {"_id": "thread-doc-id", "thread_id": thread_id, "retrieval_set": ["chunk-1"]}
+    
+    def mock_query(collection, filter_dict, **kwargs):
+        if collection == "chunks":
+            return chunks
+        elif collection == "messages":
+            return messages
+        elif collection == "threads":
+            return [thread_doc]
+        return []
+    
+    mock_document_store.query_documents = Mock(side_effect=mock_query)
+    
+    service._orchestrate_thread(thread_id)
+    
+    # Verify skipped metric was recorded
+    assert mock_metrics.increment.called
+    skip_calls = [call for call in mock_metrics.increment.call_args_list 
+                  if call[0][0] == "orchestrator_summary_skipped_total"]
+    assert len(skip_calls) == 1
+    assert skip_calls[0][1]["tags"] == {"reason": "retrieval_set_unchanged"}
+    
+    # Reset for test case 2
+    mock_metrics.reset_mock()
+    
+    # Test case 2: Changed retrieval set (should trigger)
+    thread_doc["retrieval_set"] = []  # Empty previous set
+    mock_document_store.update_document = Mock()
+    
+    service._orchestrate_thread(thread_id)
+    
+    # Verify triggered metric was recorded
+    trigger_calls = [call for call in mock_metrics.increment.call_args_list 
+                     if call[0][0] == "orchestrator_summary_triggered_total"]
+    assert len(trigger_calls) == 1
+    assert trigger_calls[0][1]["tags"] == {"reason": "retrieval_set_changed"}
