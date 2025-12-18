@@ -39,32 +39,28 @@
       "vhost": "/",
       "durable": true,
       "auto_delete": false,
-      "arguments": {},
-      "_comment": "Consumed by parsing service"
+      "arguments": {}
     },
     {
       "name": "json.parsed",
       "vhost": "/",
       "durable": true,
       "auto_delete": false,
-      "arguments": {},
-      "_comment": "Consumed by chunking service"
+      "arguments": {}
     },
     {
       "name": "summarization.requested",
       "vhost": "/",
       "durable": true,
       "auto_delete": false,
-      "arguments": {},
-      "_comment": "Consumed by summarization service"
+      "arguments": {}
     },
     {
       "name": "summary.complete",
       "vhost": "/",
       "durable": true,
       "auto_delete": false,
-      "arguments": {},
-      "_comment": "Consumed by reporting service"
+      "arguments": {}
     }
   ],
   "exchanges": [
@@ -85,8 +81,7 @@
       "destination": "archive.ingested",
       "destination_type": "queue",
       "routing_key": "archive.ingested",
-      "arguments": {},
-      "_comment": "Parsing service consumes archive.ingested events"
+      "arguments": {}
     },
     {
       "source": "copilot.events",
@@ -94,8 +89,7 @@
       "destination": "json.parsed",
       "destination_type": "queue",
       "routing_key": "json.parsed",
-      "arguments": {},
-      "_comment": "Chunking service consumes json.parsed events"
+      "arguments": {}
     },
     {
       "source": "copilot.events",
@@ -103,8 +97,7 @@
       "destination": "summarization.requested",
       "destination_type": "queue",
       "routing_key": "summarization.requested",
-      "arguments": {},
-      "_comment": "Summarization service consumes summarization.requested events"
+      "arguments": {}
     },
     {
       "source": "copilot.events",
@@ -112,8 +105,7 @@
       "destination": "summary.complete",
       "destination_type": "queue",
       "routing_key": "summary.complete",
-      "arguments": {},
-      "_comment": "Reporting service consumes summary.complete events"
+      "arguments": {}
     }
   ]
 }

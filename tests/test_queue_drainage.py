@@ -20,6 +20,21 @@ def get_rabbitmq_api_url() -> str:
     """Get RabbitMQ management API URL from environment or use default."""
     host = os.getenv("RABBITMQ_HOST", "localhost")
     port = os.getenv("RABBITMQ_MGMT_PORT", "15672")
+    
+    # Validate host (prevent injection)
+    if not host or not isinstance(host, str):
+        host = "localhost"
+    # Remove any protocol prefix if accidentally included
+    host = host.replace("http://", "").replace("https://", "").split("/")[0]
+    
+    # Validate port is numeric
+    try:
+        port_num = int(port)
+        if port_num < 1 or port_num > 65535:
+            port = "15672"
+    except (ValueError, TypeError):
+        port = "15672"
+    
     return f"http://{host}:{port}/api"
 
 
@@ -43,8 +58,8 @@ def get_queue_stats() -> List[Dict]:
         response = requests.get(f"{api_url}/queues", auth=auth, timeout=10)
         response.raise_for_status()
         return response.json()
-    except requests.RequestException as e:
-        pytest.skip(f"Cannot connect to RabbitMQ management API: {e}")
+    except requests.RequestException:
+        pytest.skip("Cannot connect to RabbitMQ management API")
 
 
 def get_queue_by_name(queue_name: str) -> Dict:
@@ -132,8 +147,10 @@ class TestQueueDrainage:
         This is the main test for the lingering queue entries issue.
         When the system is idle, all queues should have 0 ready messages.
         """
-        # Wait a moment to let any in-flight messages finish processing
-        time.sleep(2)
+        # Wait for any in-flight messages to finish processing
+        # Duration can be overridden via environment variable
+        wait_time = int(os.getenv("QUEUE_DRAIN_WAIT_SECONDS", "2"))
+        time.sleep(wait_time)
         
         queues = get_queue_stats()
         

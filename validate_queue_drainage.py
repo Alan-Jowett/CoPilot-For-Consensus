@@ -29,6 +29,21 @@ def get_rabbitmq_api_url() -> str:
     """Get RabbitMQ management API URL from environment or use default."""
     host = os.getenv("RABBITMQ_HOST", "localhost")
     port = os.getenv("RABBITMQ_MGMT_PORT", "15672")
+    
+    # Validate host (prevent injection)
+    if not host or not isinstance(host, str):
+        host = "localhost"
+    # Remove any protocol prefix if accidentally included
+    host = host.replace("http://", "").replace("https://", "").split("/")[0]
+    
+    # Validate port is numeric
+    try:
+        port_num = int(port)
+        if port_num < 1 or port_num > 65535:
+            port = "15672"
+    except (ValueError, TypeError):
+        port = "15672"
+    
     return f"http://{host}:{port}/api"
 
 
@@ -49,9 +64,8 @@ def get_queue_stats() -> List[Dict]:
         response.raise_for_status()
         return response.json()
     except requests.RequestException as e:
-        print(f"❌ Cannot connect to RabbitMQ management API: {e}")
-        print(f"   URL: {api_url}/queues")
-        print(f"   Credentials: {auth[0]}/{'*' * len(auth[1])}")
+        print(f"❌ Cannot connect to RabbitMQ management API: {type(e).__name__}")
+        print(f"   Check that RabbitMQ is running and accessible")
         sys.exit(1)
 
 
