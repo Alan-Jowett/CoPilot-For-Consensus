@@ -21,7 +21,7 @@ from copilot_schema_validation import FileSchemaProvider
 from copilot_metrics import create_metrics_collector
 from copilot_reporting import create_error_reporter
 from copilot_chunking import create_chunker
-from copilot_logging import create_logger
+from copilot_logging import create_logger, create_uvicorn_log_config
 
 from app import __version__
 from app.service import ChunkingService
@@ -194,7 +194,10 @@ def main():
         
         # Start FastAPI server
         logger.info(f"Starting HTTP server on port {config.http_port}...")
-        uvicorn.run(app, host="0.0.0.0", port=config.http_port)
+        
+        # Configure Uvicorn with structured JSON logging
+        log_config = create_uvicorn_log_config(service_name="chunking", log_level="INFO")
+        uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config)
         
     except Exception as e:
         logger.error(f"Failed to start chunking service: {e}")

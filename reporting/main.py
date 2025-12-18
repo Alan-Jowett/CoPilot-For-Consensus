@@ -3,7 +3,6 @@
 
 """Reporting Service: Persist and serve summaries via REST and notifications."""
 
-import logging
 import os
 import sys
 import threading
@@ -22,16 +21,13 @@ from copilot_schema_validation import FileSchemaProvider
 from copilot_metrics import create_metrics_collector
 from copilot_reporting import create_error_reporter
 from copilot_schema_validation import FileSchemaProvider
+from copilot_logging import create_logger, create_uvicorn_log_config
 
 from app import __version__
 from app.service import ReportingService
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+# Configure structured JSON logging
+logger = create_logger(logger_type="stdout", level="INFO", name="reporting")
 
 # Create FastAPI app
 app = FastAPI(title="Reporting Service", version=__version__)
@@ -381,7 +377,10 @@ def main():
         
         # Start FastAPI server
         logger.info(f"Starting HTTP server on port {config.http_port}...")
-        uvicorn.run(app, host="0.0.0.0", port=config.http_port)
+        
+        # Configure Uvicorn with structured JSON logging
+        log_config = create_uvicorn_log_config(service_name="reporting", log_level="INFO")
+        uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config)
         
     except Exception as e:
         logger.error(f"Failed to start reporting service: {e}", exc_info=True)

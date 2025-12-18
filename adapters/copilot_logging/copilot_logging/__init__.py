@@ -29,6 +29,7 @@ from .logger import Logger
 from .stdout_logger import StdoutLogger
 from .silent_logger import SilentLogger
 from .factory import create_logger
+from .uvicorn_config import create_uvicorn_log_config
 
 __all__ = [
     # Version
@@ -40,4 +41,6 @@ __all__ = [
     "SilentLogger",
     # Factory
     "create_logger",
+    # Uvicorn integration
+    "create_uvicorn_log_config",
 ]
