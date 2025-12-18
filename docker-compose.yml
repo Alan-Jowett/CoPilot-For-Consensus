@@ -703,8 +703,8 @@ services:
       reporting:
         condition: service_healthy
     healthcheck:
-      # Use HTTP check to ensure nginx serves content
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost/ || exit 1"]
+      # File check is sufficient for static content; wget not available in nginx:alpine
+      test: ["CMD-SHELL", "test -f /usr/share/nginx/html/index.html || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
