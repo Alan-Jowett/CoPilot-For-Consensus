@@ -159,7 +159,13 @@ class RabbitMQSubscriber(EventSubscriber):
         )
 
     def start_consuming(self) -> None:
-        """Start consuming events from the queue."""
+        """Start consuming events from the queue.
+        
+        Raises:
+            RuntimeError: If not connected to RabbitMQ
+            AssertionError: Re-raised for non-transport-related assertions
+            Exception: Re-raised for unexpected errors
+        """
         if not self.channel:
             raise RuntimeError("Not connected. Call connect() first.")
         
@@ -176,13 +182,47 @@ class RabbitMQSubscriber(EventSubscriber):
             self.channel.start_consuming()
         except KeyboardInterrupt:
             self.stop_consuming()
+        except AssertionError as e:
+            # Handle pika internal transport state errors gracefully
+            # These are typically race conditions during shutdown/cleanup
+            error_str = str(e)
+            if "_AsyncTransportBase" in error_str or "_STATE_COMPLETED" in error_str:
+                logger.warning(
+                    f"Pika transport state assertion: {e}. "
+                    "This is a known pika issue during connection cleanup."
+                )
+                # Don't re-raise - this is a benign shutdown race condition
+            else:
+                # Other assertion errors should be re-raised
+                logger.error(f"Unexpected assertion error in start_consuming: {e}")
+                raise
+        finally:
+            # Ensure consuming flag is reset when start_consuming exits
+            # This handles cases where exceptions occur that aren't caught above
+            self._consuming = False
 
     def stop_consuming(self) -> None:
-        """Stop consuming events gracefully."""
+        """Stop consuming events gracefully.
+        
+        Handles potential exceptions during stop to prevent
+        shutdown race conditions.
+        """
         if self.channel and self._consuming:
-            self.channel.stop_consuming()
-            self._consuming = False
-            logger.info("Stopped consuming events")
+            try:
+                self.channel.stop_consuming()
+                logger.info("Stopped consuming events")
+            except (AssertionError, ConnectionError, AttributeError) as e:
+                # Expected exceptions during shutdown:
+                # - AssertionError: transport state issues
+                # - ConnectionError: already disconnected
+                # - AttributeError: channel/connection already closed
+                logger.debug(f"Expected exception during stop_consuming: {e}")
+            except Exception as e:
+                # Unexpected exceptions should be logged at warning level
+                logger.warning(f"Unexpected exception during stop_consuming: {e}")
+            finally:
+                # Always reset the flag
+                self._consuming = False
 
     def _on_message(self, channel, method, properties, body) -> None:
         """Handle incoming message from RabbitMQ.
