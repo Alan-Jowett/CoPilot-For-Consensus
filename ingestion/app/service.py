@@ -1217,8 +1217,12 @@ class IngestionService:
             doc_store_provider = DocStoreConfigProvider(self.document_store)
             sources = doc_store_provider.query_documents_from_collection("sources") or []
             
-            # Update config sources
-            self.config._overrides["sources"] = sources
+            # Update config sources - handle both _ConfigWithDefaults and SimpleNamespace
+            if hasattr(self.config, "_overrides"):
+                self.config._overrides["sources"] = sources
+            else:
+                # For SimpleNamespace, just update the attribute
+                self.config.sources = sources
             
             self.logger.info("Sources reloaded", source_count=len(sources))
         except Exception as e:
