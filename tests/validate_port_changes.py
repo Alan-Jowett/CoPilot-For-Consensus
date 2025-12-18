@@ -95,7 +95,7 @@ def main():
     localhost_services = [
         ("http://localhost:9090/-/healthy", "Prometheus"),
         ("http://localhost:3100/ready", "Loki"),
-        ("http://localhost:8083/health", "Reporting UI"),
+        ("http://localhost:8084/", "Web UI"),
         # Note: Can't easily test TCP services like MongoDB, RabbitMQ, Qdrant, Ollama via HTTP
     ]
     

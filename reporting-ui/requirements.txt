@@ -1,7 +1,0 @@
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2025 Copilot-for-Consensus contributors
-
-Flask==3.1.2
-requests==2.32.5
-
-# NOTE: Adapters are installed separately in CI and Docker builds

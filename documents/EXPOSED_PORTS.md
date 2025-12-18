@@ -154,21 +154,21 @@ These ports are bound to localhost and only accessible from the host machine. Th
   - Can trigger resource-intensive ingestion operations
   - Localhost binding prevents unauthorized ingestion triggers
 
-### Port 8083 - Reporting UI
+### Port 8084 - Web UI
 
-- **Service**: `reporting-ui`
-- **Purpose**: Web UI for viewing and browsing reports
+- **Service**: `ui`
+- **Purpose**: React SPA for browsing reports and managing data
 - **Protocol**: HTTP
-- **Access**: http://localhost:8083
+- **Access**: http://localhost:8084
 - **Use Cases**:
   - Human-readable report browsing
   - Summary verification
-  - Citation inspection
+  - UI access to reporting API
 - **Security Notes**:
   - **WARNING**: No authentication or authorization implemented
   - **DO NOT** expose to untrusted networks
   - Intended for local development and demonstration only
-  - See `reporting-ui/README.md` for security considerations
+  - Static assets served via nginx container
 
 ## Internal-Only Services (No Port Mapping)
 
@@ -242,9 +242,9 @@ For production, consider removing all localhost-only port bindings and accessing
 docker compose ps --format '{{.Name}}\t{{.Ports}}'
 
 # Check what's listening on the host
-netstat -tuln | grep -E ':(3000|8080|27017|5672|15672|6333|11434|9090|3100|8000|8083)'
+netstat -tuln | grep -E ':(3000|8080|27017|5672|15672|6333|11434|9090|3100|8000|8084)'
 # Or on Linux
-ss -tuln | grep -E ':(3000|8080|27017|5672|15672|6333|11434|9090|3100|8000|8083)'
+ss -tuln | grep -E ':(3000|8080|27017|5672|15672|6333|11434|9090|3100|8000|8084)'
 ```
 
 ### Test Localhost Binding

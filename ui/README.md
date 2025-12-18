@@ -3,7 +3,7 @@
 
 # Web UI (React)
 
-A single page application intended to be the primary UI for the project. It currently replicates the reporting functionality of the Flask-based `reporting-ui` service and will expand to include user management, ingestion source management, and browsing emails/threads.
+A single page application intended to be the primary UI for the project. It replaces the legacy Flask-based reporting UI and will expand to include user management, ingestion source management, and browsing emails/threads.
 
 ## Features
 

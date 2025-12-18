@@ -71,7 +71,7 @@ docker compose run --rm ollama-validate
 
 ```bash
 # Start all microservices
-docker compose up -d parsing chunking embedding orchestrator summarization reporting reporting-ui
+docker compose up -d parsing chunking embedding orchestrator summarization reporting ui
 ```
 
 ### 6. Download LLM Model (First Time Only)
@@ -95,7 +95,7 @@ docker compose run --rm ingestion
 
 #### User-Facing Services (Public Access)
 - **Reporting API**: http://localhost:8080
-- **Reporting UI**: http://localhost:8083
+- **Web UI**: http://localhost:8084
 - **Grafana**: http://localhost:3000 (admin/admin)
 
 #### Development & Debugging Services (Localhost-Only)
@@ -187,7 +187,7 @@ docker compose up -d embedding     # Generates embeddings
 docker compose up -d orchestrator  # Coordinates workflow
 docker compose up -d summarization # Creates summaries
 docker compose up -d reporting     # Serves results
-docker compose up -d reporting-ui  # Web UI for results
+docker compose up -d ui            # Web UI for results
 ```
 
 #### 4. Ingestion (On-Demand)
@@ -273,18 +273,18 @@ docker compose run --rm db-init
 docker compose run --rm db-validate
 docker compose run --rm vectorstore-validate
 docker compose run --rm ollama-validate
-docker compose up -d parsing chunking embedding orchestrator summarization reporting reporting-ui
+docker compose up -d parsing chunking embedding orchestrator summarization reporting ui
 docker compose run --rm ingestion
 
 # Validate health endpoints
 curl -f http://localhost:8080/      # reporting
-curl -f http://localhost:8083/health      # reporting-ui
+curl -f http://localhost:8084/      # web ui
 curl -f http://localhost:3000/api/health  # grafana
 curl -f http://localhost:9090/-/healthy   # prometheus
 
 # On Windows (PowerShell), use:
 # Invoke-WebRequest -UseBasicParsing http://localhost:8080/ | Out-Null
-# Invoke-WebRequest -UseBasicParsing http://localhost:8083/health | Out-Null
+# Invoke-WebRequest -UseBasicParsing http://localhost:8084/ | Out-Null
 # Invoke-WebRequest -UseBasicParsing http://localhost:3000/api/health | Out-Null
 # Invoke-WebRequest -UseBasicParsing http://localhost:9090/-/healthy | Out-Null
 
