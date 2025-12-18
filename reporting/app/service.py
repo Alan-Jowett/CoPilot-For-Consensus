@@ -784,6 +784,9 @@ class ReportingService:
         if archive_id:
             filter_dict["archive_id"] = archive_id
         
+        # TODO: Optimize pagination to use native skip in document store query
+        # Currently fetches limit + skip records and discards skip records in memory
+        # This matches existing pattern in get_reports but should be improved for scalability
         threads = self.document_store.query_documents(
             "threads",
             filter_dict=filter_dict,
@@ -835,6 +838,9 @@ class ReportingService:
         if message_id:
             filter_dict["message_id"] = message_id
         
+        # TODO: Optimize pagination to use native skip in document store query
+        # Currently fetches limit + skip records and discards skip records in memory
+        # This matches existing pattern in get_reports but should be improved for scalability
         messages = self.document_store.query_documents(
             "messages",
             filter_dict=filter_dict,
@@ -889,6 +895,9 @@ class ReportingService:
         if message_doc_id:
             filter_dict["message_doc_id"] = message_doc_id
         
+        # TODO: Optimize pagination to use native skip in document store query
+        # Currently fetches limit + skip records and discards skip records in memory
+        # This matches existing pattern in get_reports but should be improved for scalability
         chunks = self.document_store.query_documents(
             "chunks",
             filter_dict=filter_dict,
