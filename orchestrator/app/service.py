@@ -396,11 +396,7 @@ class OrchestrationService:
                     tags={"reason": "chunks_changed"}
                 )
                 # Push metrics to Pushgateway
-                if hasattr(self.metrics_collector, 'push'):
-                    try:
-                        self.metrics_collector.push()
-                    except Exception as e:
-                        logger.warning(f"Failed to push metrics: {e}")
+                self.metrics_collector.safe_push()
 
             logger.info(f"Published SummarizationRequested for thread {thread_id} (expected summary_id={expected_summary_id[:16]})")
 
@@ -547,11 +543,7 @@ class OrchestrationService:
                     tags={"event_type": "summarization_requested", "outcome": "success"}
                 )
                 # Push metrics to Pushgateway
-                if hasattr(self.metrics_collector, 'push'):
-                    try:
-                        self.metrics_collector.push()
-                    except Exception as e:
-                        logger.warning(f"Failed to push metrics: {e}")
+                self.metrics_collector.safe_push()
 
         except Exception as e:
             logger.error(f"Error publishing SummarizationRequested: {e}", exc_info=True)
@@ -595,11 +587,7 @@ class OrchestrationService:
                     tags={"error_type": error_type}
                 )
                 # Push metrics to Pushgateway
-                if hasattr(self.metrics_collector, 'push'):
-                    try:
-                        self.metrics_collector.push()
-                    except Exception as e:
-                        logger.warning(f"Failed to push metrics: {e}")
+                self.metrics_collector.safe_push()
 
         except Exception as e:
             logger.error(f"Error publishing OrchestrationFailed: {e}", exc_info=True)

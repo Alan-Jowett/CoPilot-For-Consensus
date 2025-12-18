@@ -369,11 +369,7 @@ class ChunkingService:
                         avg_chunk_size
                     )
                 # Push metrics to Pushgateway
-                if hasattr(self.metrics_collector, 'push'):
-                    try:
-                        self.metrics_collector.push()
-                    except Exception as e:
-                        logger.warning(f"Failed to push metrics: {e}")
+                self.metrics_collector.safe_push()
             
             # Publish ChunksPrepared event
             self._publish_chunks_prepared(
@@ -399,11 +395,7 @@ class ChunkingService:
                     {"error_type": type(e).__name__}
                 )
                 # Push metrics to Pushgateway
-                if hasattr(self.metrics_collector, 'push'):
-                    try:
-                        self.metrics_collector.push()
-                    except Exception as push_error:
-                        logger.warning(f"Failed to push metrics: {push_error}")
+                self.metrics_collector.safe_push()
             
             # Publish failure event
             self._publish_chunking_failed(

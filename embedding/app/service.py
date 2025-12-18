@@ -273,11 +273,7 @@ class EmbeddingService:
                     self.metrics_collector.increment("embedding_chunks_processed_total", all_generated_count)
                     self.metrics_collector.observe("embedding_generation_duration_seconds", processing_time)
                     # Push metrics to Pushgateway
-                    if hasattr(self.metrics_collector, 'push'):
-                        try:
-                            self.metrics_collector.push()
-                        except Exception as e:
-                            logger.warning(f"Failed to push metrics: {e}")
+                    self.metrics_collector.safe_push()
                 
                 return
                 
@@ -303,11 +299,7 @@ class EmbeddingService:
                     if self.metrics_collector:
                         self.metrics_collector.increment("embedding_failures_total", 1, tags={"error_type": error_type})
                         # Push metrics to Pushgateway
-                        if hasattr(self.metrics_collector, 'push'):
-                            try:
-                                self.metrics_collector.push()
-                            except Exception as push_error:
-                                logger.warning(f"Failed to push metrics: {push_error}")
+                        self.metrics_collector.safe_push()
                     
                     # Re-raise to trigger message requeue for guaranteed forward progress
                     raise
