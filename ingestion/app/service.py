@@ -2,6 +2,7 @@
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
 import json
+import logging
 import os
 import time
 from datetime import datetime, timezone
@@ -14,6 +15,12 @@ from copilot_metrics import MetricsCollector, create_metrics_collector
 from copilot_reporting import ErrorReporter, create_error_reporter
 from copilot_archive_fetcher import create_fetcher, calculate_file_hash, SourceConfig
 from copilot_storage import DocumentStore
+
+from .exceptions import (
+    IngestionError,
+    SourceConfigurationError,
+    FetchError,
+)
 
 DEFAULT_CONFIG = {
     "storage_path": "/data/raw_archives",
@@ -85,13 +92,26 @@ def _expand(value: Optional[str]) -> Optional[str]:
     return os.path.expandvars(value) if isinstance(value, str) else value
 
 
-def _source_from_mapping(source: Dict[str, Any]) -> Optional[SourceConfig]:
-    """Convert a raw mapping into a fetcher SourceConfig."""
+def _source_from_mapping(source: Dict[str, Any]) -> SourceConfig:
+    """Convert a raw mapping into a fetcher SourceConfig.
+    
+    Args:
+        source: Source configuration dictionary
+        
+    Returns:
+        SourceConfig object
+        
+    Raises:
+        SourceConfigurationError: If source is empty or missing required fields
+    """
     if not source:
-        return None
+        raise SourceConfigurationError("Source configuration is empty")
     required = {"name", "source_type", "url"}
     if not required.issubset(source):
-        return None
+        missing = required - set(source.keys())
+        raise SourceConfigurationError(
+            f"Source configuration missing required fields: {missing}"
+        )
 
     return SourceConfig(
         name=source["name"],
@@ -105,39 +125,53 @@ def _source_from_mapping(source: Dict[str, Any]) -> Optional[SourceConfig]:
 
 
 def _enabled_sources(raw_sources: Iterable[Any]) -> List[SourceConfig]:
-    """Normalize and filter enabled sources."""
+    """Normalize and filter enabled sources.
+    
+    Args:
+        raw_sources: Iterable of raw source configurations
+        
+    Returns:
+        List of enabled SourceConfig objects
+    """
     enabled_sources: List[SourceConfig] = []
 
     for raw in raw_sources or []:
-        enabled = True
-        if isinstance(raw, dict):
-            enabled = raw.get("enabled", True)
-            source_cfg = _source_from_mapping(raw)
-        elif isinstance(raw, SourceConfig):
-            enabled = getattr(raw, "enabled", True)
-            source_cfg = SourceConfig(
-                name=raw.name,
-                source_type=raw.source_type,
-                url=_expand(raw.url),
-                port=getattr(raw, "port", None),
-                username=_expand(getattr(raw, "username", None)),
-                password=_expand(getattr(raw, "password", None)),
-                folder=getattr(raw, "folder", None),
-            )
-        else:
-            enabled = getattr(raw, "enabled", True)
-            source_cfg = SourceConfig(
-                name=getattr(raw, "name", None),
-                source_type=getattr(raw, "source_type", None),
-                url=_expand(getattr(raw, "url", None)),
-                port=getattr(raw, "port", None),
-                username=_expand(getattr(raw, "username", None)),
-                password=_expand(getattr(raw, "password", None)),
-                folder=getattr(raw, "folder", None),
-            )
+        try:
+            enabled = True
+            if isinstance(raw, dict):
+                enabled = raw.get("enabled", True)
+                source_cfg = _source_from_mapping(raw)
+            elif isinstance(raw, SourceConfig):
+                enabled = getattr(raw, "enabled", True)
+                source_cfg = SourceConfig(
+                    name=raw.name,
+                    source_type=raw.source_type,
+                    url=_expand(raw.url),
+                    port=getattr(raw, "port", None),
+                    username=_expand(getattr(raw, "username", None)),
+                    password=_expand(getattr(raw, "password", None)),
+                    folder=getattr(raw, "folder", None),
+                )
+            else:
+                enabled = getattr(raw, "enabled", True)
+                source_cfg = SourceConfig(
+                    name=getattr(raw, "name", None),
+                    source_type=getattr(raw, "source_type", None),
+                    url=_expand(getattr(raw, "url", None)),
+                    port=getattr(raw, "port", None),
+                    username=_expand(getattr(raw, "username", None)),
+                    password=_expand(getattr(raw, "password", None)),
+                    folder=getattr(raw, "folder", None),
+                )
 
-        if enabled and source_cfg is not None:
-            enabled_sources.append(source_cfg)
+            if enabled:
+                enabled_sources.append(source_cfg)
+        except SourceConfigurationError as e:
+            # Log but skip invalid source configurations
+            # This allows the service to continue with valid sources
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Skipping invalid source configuration: {e}")
+            continue
 
     return enabled_sources
 
@@ -294,24 +328,28 @@ class IngestionService:
         self,
         source: object,
         max_retries: Optional[int] = None,
-    ) -> bool:
+    ) -> None:
         """Ingest archives from a source.
         
         Args:
             source: Source configuration
             max_retries: Maximum number of retries (uses config default if None)
             
-        Returns:
-            True if ingestion succeeded, False otherwise
+        Raises:
+            SourceConfigurationError: If source configuration is invalid
+            FetchError: If fetching archives fails after all retries
+            ChecksumPersistenceError: If saving checksums fails
+            ArchivePublishError: If publishing archive events fails
         """
         # Normalize source into fetcher SourceConfig
-        if isinstance(source, dict):
-            source = _source_from_mapping(source)
-        elif not isinstance(source, SourceConfig):
-            source = _source_from_mapping(getattr(source, "__dict__", {}))
-
-        if source is None:
-            return False
+        try:
+            if isinstance(source, dict):
+                source = _source_from_mapping(source)
+            elif not isinstance(source, SourceConfig):
+                source = _source_from_mapping(getattr(source, "__dict__", {}))
+        except SourceConfigurationError:
+            # Re-raise configuration errors directly
+            raise
 
         if max_retries is None:
             max_retries = self.config.retry_max_attempts
@@ -358,7 +396,7 @@ class IngestionService:
                         time.sleep(wait_time)
                         continue
                     else:
-                        # All retries exhausted
+                        # All retries exhausted - raise exception
                         try:
                             self._publish_failure_event(
                                 source,
@@ -376,9 +414,18 @@ class IngestionService:
                                 original_error=last_error,
                                 publish_error=str(publish_error),
                             )
-                            # Don't re-raise - we still want to return False to indicate failure
+                            # Wrap both errors in FetchError
+                            raise FetchError(
+                                f"Fetch failed: {last_error}. Event publish also failed: {publish_error}",
+                                source_name=source.name,
+                                retry_count=retry_count
+                            )
                         self._record_failure_metrics(metric_tags, started_monotonic)
-                        return False
+                        raise FetchError(
+                            last_error,
+                            source_name=source.name,
+                            retry_count=retry_count
+                        )
 
                 # Process each file individually
                 files_processed = 0
@@ -469,8 +516,12 @@ class IngestionService:
                     files_processed,
                     files_skipped,
                 )
-                return True
+                # Success - method returns normally without exception
+                return
 
+            except (FetchError, SourceConfigurationError):
+                # Don't retry configuration or already-handled fetch errors
+                raise
             except Exception as e:
                 last_error = f"Unexpected error: {str(e)}"
                 retry_count += 1
@@ -504,7 +555,7 @@ class IngestionService:
                     time.sleep(wait_time)
                     continue
                 else:
-                    # All retries exhausted
+                    # All retries exhausted - raise IngestionError
                     try:
                         self._publish_failure_event(
                             source,
@@ -522,29 +573,49 @@ class IngestionService:
                             original_error=last_error,
                             publish_error=str(publish_error),
                         )
-                        # Don't re-raise - we still want to return False to indicate failure
+                        # Wrap both errors in IngestionError
+                        self._record_failure_metrics(metric_tags, started_monotonic)
+                        raise IngestionError(
+                            f"Ingestion failed: {last_error}. Event publish also failed: {publish_error}"
+                        ) from e
                     self._record_failure_metrics(metric_tags, started_monotonic)
-                    return False
+                    raise IngestionError(last_error) from e
 
-        return False
+        # Should never reach here due to loop structure, but add safety
+        raise IngestionError(f"Ingestion failed for unknown reason (source: {source.name})")
 
-    def ingest_all_enabled_sources(self) -> Dict[str, bool]:
+    def ingest_all_enabled_sources(self) -> Dict[str, Optional[Exception]]:
         """Ingest from all enabled sources.
         
+        Attempts ingestion for each enabled source, catching exceptions to allow
+        other sources to be processed even if one fails.
+        
         Returns:
-            Dictionary mapping source name to ingestion success (True/False)
+            Dictionary mapping source name to exception (None if successful).
+            - None value indicates success
+            - Exception object indicates failure with details
         """
         results = {}
 
         for source in _enabled_sources(getattr(self.config, "sources", [])):
             self.logger.info("Starting source ingestion", source_name=source.name)
-            success = self.ingest_archive(source)
-            results[source.name] = success
-            self.logger.info(
-                "Source ingestion finished",
-                source_name=source.name,
-                status="success" if success else "failed",
-            )
+            try:
+                self.ingest_archive(source)
+                results[source.name] = None  # Success
+                self.logger.info(
+                    "Source ingestion finished",
+                    source_name=source.name,
+                    status="success",
+                )
+            except Exception as e:
+                results[source.name] = e  # Store exception
+                self.logger.error(
+                    "Source ingestion failed",
+                    source_name=source.name,
+                    status="failed",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
 
         return results
 

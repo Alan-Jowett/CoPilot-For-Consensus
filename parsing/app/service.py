@@ -176,13 +176,13 @@ class ParsingService:
         try:
             logger.info(f"Parsing archive {archive_id} from {file_path}")
             
-            # Parse mbox file
-            parsed_messages, errors = self.parser.parse_mbox(file_path, archive_id)
-            
-            if not parsed_messages:
-                # No messages parsed
-                error_msg = f"No messages parsed from archive. Errors: {errors}"
-                logger.warning(error_msg)
+            # Parse mbox file - raises exceptions on failure
+            try:
+                parsed_messages = self.parser.parse_mbox(file_path, archive_id)
+            except Exception as parse_error:
+                # Parsing failed - update archive status and publish event
+                error_msg = f"Failed to parse archive: {str(parse_error)}"
+                logger.error(error_msg, exc_info=True)
                 
                 # Update archive status to 'failed'
                 self._update_archive_status(archive_id, "failed", 0)
@@ -191,9 +191,22 @@ class ParsingService:
                     archive_id,
                     file_path,
                     error_msg,
-                    "NoMessagesError",
+                    type(parse_error).__name__,
                     0,
                 )
+                
+                # Don't re-raise - let event processing continue gracefully
+                # The error has been recorded in the archive status and event
+                return
+            
+            if not parsed_messages:
+                # No messages parsed (empty archive)
+                error_msg = "No messages found in archive"
+                logger.warning(error_msg)
+                
+                # Update archive status to 'processed' with 0 messages
+                # This is not an error - just an empty archive
+                self._update_archive_status(archive_id, "processed", 0)
                 return
             
             # Generate canonical _id for each message (needed for thread building)

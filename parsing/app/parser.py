@@ -12,6 +12,11 @@ from typing import Dict, Any, List, Optional
 
 from .normalizer import TextNormalizer
 from .draft_detector import DraftDetector
+from .exceptions import (
+    MessageParsingError,
+    MboxFileError,
+    RequiredFieldMissingError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +38,7 @@ class MessageParser:
         self.normalizer = normalizer or TextNormalizer()
         self.draft_detector = draft_detector or DraftDetector()
 
-    def parse_mbox(self, mbox_path: str, archive_id: str) -> tuple[List[Dict[str, Any]], List[str]]:
+    def parse_mbox(self, mbox_path: str, archive_id: str) -> List[Dict[str, Any]]:
         """Parse an mbox file and extract all messages.
         
         Args:
@@ -41,7 +46,11 @@ class MessageParser:
             archive_id: Archive identifier for tracking
             
         Returns:
-            Tuple of (parsed_messages, errors) where errors is a list of error messages
+            List of parsed message dictionaries
+            
+        Raises:
+            MboxFileError: If the mbox file cannot be opened or read
+            MessageParsingError: If critical parsing errors occur (aggregated)
         """
         parsed_messages = []
         errors = []
@@ -52,9 +61,15 @@ class MessageParser:
             for idx, message in enumerate(mbox):
                 try:
                     parsed = self.parse_message(message, archive_id)
-                    if parsed:
-                        parsed_messages.append(parsed)
+                    parsed_messages.append(parsed)
+                except RequiredFieldMissingError as e:
+                    # Required field missing - skip message but collect error
+                    error_msg = f"Message {idx}: {str(e)}"
+                    logger.warning(error_msg)
+                    errors.append(error_msg)
+                    continue
                 except Exception as e:
+                    # Unexpected parsing error - skip message but collect error
                     error_msg = f"Failed to parse message {idx}: {str(e)}"
                     logger.warning(error_msg)
                     errors.append(error_msg)
@@ -62,14 +77,26 @@ class MessageParser:
             
             logger.info(f"Parsed {len(parsed_messages)} messages from {mbox_path}")
             
+            # If we have messages but also errors, just log warnings (already done above)
+            # If we have NO messages and errors, that might indicate a serious problem
+            if not parsed_messages and errors:
+                # All messages failed to parse - raise exception
+                raise MessageParsingError(
+                    f"Failed to parse any messages from {mbox_path}. Errors: {'; '.join(errors[:5])}"
+                )
+            
+        except MessageParsingError:
+            # Re-raise message parsing errors
+            raise
         except Exception as e:
-            error_msg = f"Failed to open mbox file {mbox_path}: {str(e)}"
+            # File I/O or other unexpected errors
+            error_msg = f"Failed to open or read mbox file {mbox_path}: {str(e)}"
             logger.error(error_msg)
-            errors.append(error_msg)
+            raise MboxFileError(error_msg, file_path=mbox_path) from e
         
-        return parsed_messages, errors
+        return parsed_messages
 
-    def parse_message(self, message: email.message.Message, archive_id: str) -> Optional[Dict[str, Any]]:
+    def parse_message(self, message: email.message.Message, archive_id: str) -> Dict[str, Any]:
         """Parse a single email message.
         
         Args:
@@ -77,13 +104,15 @@ class MessageParser:
             archive_id: Archive identifier
             
         Returns:
-            Parsed message dictionary or None if required fields are missing
+            Parsed message dictionary
+            
+        Raises:
+            RequiredFieldMissingError: If Message-ID header is missing
         """
         # Extract message ID (required field)
         message_id = self._extract_message_id(message)
         if not message_id:
-            logger.warning("Message missing Message-ID header, skipping")
-            return None
+            raise RequiredFieldMissingError("Message-ID")
 
         # Extract headers
         in_reply_to = self._extract_in_reply_to(message)
