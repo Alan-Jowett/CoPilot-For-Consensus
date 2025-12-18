@@ -110,6 +110,42 @@ class TestRabbitMQReconnection:
             # Verify connect was only called once (throttled on second)
             assert publisher.connect.call_count == 1
 
+    def test_circuit_breaker_time_based_throttling(self):
+        """Test circuit breaker respects time delay and allows reconnect after backoff."""
+        publisher = RabbitMQPublisher(
+            reconnect_delay=2.0,
+        )
+        
+        # Mock time and connection
+        with patch('copilot_events.rabbitmq_publisher.time.time') as mock_time:
+            with patch.object(publisher, 'connect', side_effect=Exception("Connection failed")):
+                # Start at t=10 (well past the initial _last_reconnect_time of 0)
+                mock_time.return_value = 10.0
+                
+                # First reconnect attempt at t=10
+                result1 = publisher._reconnect()
+                assert result1 is False
+                assert publisher.connect.call_count == 1
+                
+                # Immediate second attempt at t=10 should be throttled
+                # Backoff is 2.0 * (2^(0+1)) = 4.0s (count was reset to 1 after first failure)
+                # Actually after first attempt, count is 1, so next backoff is 2.0 * (2^(1+1)) = 8.0s
+                result2 = publisher._reconnect()
+                assert result2 is False
+                assert publisher.connect.call_count == 1  # Still only one call
+                
+                # Advance time by 7 seconds (still < 8s backoff)
+                mock_time.return_value = 17.0
+                result3 = publisher._reconnect()
+                assert result3 is False
+                assert publisher.connect.call_count == 1  # Still throttled
+                
+                # Advance time by 9 seconds (> 8s backoff)
+                mock_time.return_value = 19.0
+                result4 = publisher._reconnect()
+                assert result4 is False
+                assert publisher.connect.call_count == 2  # Allowed after backoff
+
     def test_reconnect_limit_enforced(self):
         """Test maximum reconnection attempts are enforced."""
         publisher = RabbitMQPublisher(
@@ -142,15 +178,17 @@ class TestRabbitMQReconnection:
                 raise Exception("First attempt fails")
             # Second attempt succeeds (returns None)
         
-        with patch.object(publisher, 'connect', side_effect=mock_connect_sequence):
+        with patch.object(publisher, 'connect', side_effect=mock_connect_sequence) as mock_connect:
             # First attempt fails
             result1 = publisher._reconnect()
             assert result1 is False
+            assert mock_connect.call_count == 1
             assert publisher._reconnect_count == 1
             
             # Second attempt succeeds
             result2 = publisher._reconnect()
             assert result2 is True
+            assert mock_connect.call_count == 2
             assert publisher._reconnect_count == 0  # Reset on success
 
     def test_reconnect_redeclares_queues(self):
@@ -164,8 +202,8 @@ class TestRabbitMQReconnection:
         publisher._declared_queues.add("queue2")
         
         # Mock successful reconnection
-        with patch.object(publisher, 'connect', return_value=True):
-            with patch.object(publisher, 'declare_queue', return_value=True) as mock_declare:
+        with patch.object(publisher, 'connect'):
+            with patch.object(publisher, 'declare_queue') as mock_declare:
                 result = publisher._reconnect()
                 
                 assert result is True

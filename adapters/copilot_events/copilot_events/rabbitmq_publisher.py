@@ -135,7 +135,8 @@ class RabbitMQPublisher(EventPublisher):
         # Circuit breaker with exponential backoff: prevent rapid reconnection attempts
         time_since_last_reconnect = current_time - self._last_reconnect_time
         # Exponential backoff with a reasonable cap to prevent excessive delay
-        backoff_delay = min(self.reconnect_delay * (2 ** self._reconnect_count), 60.0)
+        # Use (count + 1) since increment happens after this check
+        backoff_delay = min(self.reconnect_delay * (2 ** (self._reconnect_count + 1)), 60.0)
         if time_since_last_reconnect < backoff_delay:
             remaining = max(0.0, backoff_delay - time_since_last_reconnect)
             logger.warning(
