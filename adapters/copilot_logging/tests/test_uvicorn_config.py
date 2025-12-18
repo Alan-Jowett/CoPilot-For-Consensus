@@ -123,7 +123,6 @@ class TestJSONFormatter:
         formatter = JSONFormatter(logger_name="test-service")
         
         # Create a record with a known created timestamp
-        import time
         test_time = time.time()
         record = logging.LogRecord(
             name="test",
