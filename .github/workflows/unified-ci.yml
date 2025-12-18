@@ -164,7 +164,7 @@ jobs:
     with:
       service_id: 'chunking'
       service_path: 'chunking'
-      adapter_names: 'copilot_chunking copilot_config copilot_events copilot_storage copilot_metrics copilot_reporting copilot_schema_validation copilot_logging'
+      adapter_names: 'copilot_chunking copilot_config copilot_events copilot_storage copilot_metrics copilot_reporting copilot_schema_validation copilot_logging copilot_startup'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
