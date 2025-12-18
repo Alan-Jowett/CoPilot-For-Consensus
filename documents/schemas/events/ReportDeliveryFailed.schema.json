@@ -12,7 +12,7 @@
           "type": "object",
           "properties": {
             "report_id": { "type": "string", "minLength": 1 },
-            "thread_id": { "type": "string", "minLength": 1 },
+            "thread_id": { "type": "string", "pattern": "^[0-9a-f]{16,64}$" },
             "delivery_channel": { "type": "string", "minLength": 1 },
             "error_message": { "type": "string", "minLength": 1 },
             "error_type": { "type": "string", "minLength": 1 },

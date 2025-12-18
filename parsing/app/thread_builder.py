@@ -48,20 +48,22 @@ class ThreadBuilder:
         for message in messages:
             message_id = message["message_id"]
             root = self._find_thread_root(message_id, message_map, roots)
-            thread_assignments[message_id] = root
-            # Update the message's thread_id
-            message["thread_id"] = root
+            root_doc_id = message_map[root].get("_id", root)  # Use root message's canonical _id
+            thread_assignments[message_id] = root_doc_id
+            # Update the message's thread_id to root message's canonical _id
+            message["thread_id"] = root_doc_id
 
         # Third pass: aggregate threads
         threads = {}
         
         for message in messages:
-            thread_id = message["thread_id"]
+            thread_doc_id = message["thread_id"]  # Now this is the root message's _id
             
-            if thread_id not in threads:
-                # Initialize thread
-                threads[thread_id] = {
-                    "thread_id": thread_id,
+            if thread_doc_id not in threads:
+                # Initialize thread - use root message's _id as thread _id
+                threads[thread_doc_id] = {
+                    "_id": thread_doc_id,
+                    "thread_id": thread_doc_id,
                     "archive_id": message["archive_id"],
                     "subject": self._clean_subject(message.get("subject", "")),
                     "participants": [],
@@ -73,7 +75,7 @@ class ThreadBuilder:
                     "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
                 }
             
-            thread = threads[thread_id]
+            thread = threads[thread_doc_id]
             thread["message_count"] += 1
             
             # Update participants (deduplicate by email)

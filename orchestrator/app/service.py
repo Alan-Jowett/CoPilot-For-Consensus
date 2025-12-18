@@ -3,6 +3,7 @@
 
 """Main orchestration service implementation."""
 
+import hashlib
 import time
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List, Set
@@ -319,7 +320,7 @@ class OrchestrationService:
         """Resolve thread IDs from chunk IDs.
 
         Args:
-            chunk_ids: List of chunk IDs
+            chunk_ids: List of chunk IDs (_id values)
 
         Returns:
             List of unique thread IDs
@@ -327,10 +328,10 @@ class OrchestrationService:
         thread_ids: Set[str] = set()
 
         try:
-            # Query document store for chunks
+            # Query document store for chunks by _id
             chunks = self.document_store.query_documents(
                 "chunks",
-                {"chunk_id": {"$in": chunk_ids}},
+                {"_id": {"$in": chunk_ids}},
                 limit=len(chunk_ids)
             )
 
@@ -352,9 +353,9 @@ class OrchestrationService:
     def _orchestrate_thread(self, thread_id: str):
         """Orchestrate summarization for a single thread.
         
-        This method triggers summary generation for the given thread without checking
-        for existing summaries, allowing summaries to be regenerated when new content
-        arrives or when explicitly requested.
+        Checks if a summary already exists for the same set of chunks. Only triggers
+        summarization if the chunks have changed (different top-k selection) to avoid
+        duplicate work and ensure summaries are regenerated when content changes.
 
         Args:
             thread_id: Thread ID to orchestrate
@@ -369,17 +370,80 @@ class OrchestrationService:
                 logger.warning(f"No context retrieved for thread {thread_id}")
                 return
 
+            # Calculate expected summary_id based on chunks that would be used
+            chunks = context.get("chunks", [])
+            expected_summary_id = self._calculate_summary_id(thread_id, chunks)
+            
+            # Check if a summary already exists with this exact set of chunks
+            if self._summary_exists(expected_summary_id):
+                logger.info(f"Summary already exists for thread {thread_id} with current chunks (summary_id={expected_summary_id[:16]}), skipping")
+                return
+
             # Publish SummarizationRequested event
             self._publish_summarization_requested(
                 thread_ids=[thread_id],
                 context=context
             )
 
-            logger.info(f"Published SummarizationRequested for thread {thread_id}")
+            logger.info(f"Published SummarizationRequested for thread {thread_id} (expected summary_id={expected_summary_id[:16]})")
 
         except Exception as e:
             logger.error(f"Error in _orchestrate_thread for {thread_id}: {e}", exc_info=True)
             raise
+    
+    def _calculate_summary_id(self, thread_id: str, chunks: List[Dict[str, Any]]) -> str:
+        """Calculate deterministic summary ID from thread and chunks.
+        
+        Uses the same algorithm as the summarization service to predict what
+        the summary_id will be. This allows checking if a summary already exists
+        before triggering regeneration.
+        
+        Args:
+            thread_id: Thread identifier
+            chunks: List of chunk documents that will be used for summarization
+            
+        Returns:
+            Hex string of SHA256 hash (64 characters)
+        """
+        # Extract and sort chunk IDs (_id field) to ensure consistent ordering
+        chunk_ids = sorted({chunk.get("_id") for chunk in chunks if chunk.get("_id")})
+        
+        # Combine thread_id and canonical _ids into a single string (matches summarization service)
+        id_input = f"{thread_id}:{','.join(chunk_ids)}"
+        
+        # Generate SHA256 hash
+        hash_obj = hashlib.sha256(id_input.encode("utf-8"))
+        return hash_obj.hexdigest()
+    
+    def _summary_exists(self, summary_id: str) -> bool:
+        """Check if a summary exists for the given summary_id.
+        
+        Queries the summaries collection using the truncated 16-char ID that
+        matches the reporting service's storage format.
+        
+        Args:
+            summary_id: Full 64-character SHA256 summary_id
+            
+        Returns:
+            True if summary exists, False otherwise
+        """
+        try:
+            # Generate 16-char ID (matches reporting service's truncation logic)
+            truncated_id = hashlib.sha256(summary_id.encode()).hexdigest()[:16]
+            
+            # Check if summary document exists
+            summaries = self.document_store.query_documents(
+                "summaries",
+                {"_id": truncated_id},
+                limit=1
+            )
+            
+            return len(summaries) > 0
+            
+        except Exception as e:
+            logger.error(f"Error checking if summary exists: {e}", exc_info=True)
+            # On error, assume summary doesn't exist to avoid blocking summarization
+            return False
 
     def _retrieve_context(self, thread_id: str) -> Dict[str, Any]:
         """Retrieve top-k chunks and metadata for a thread.
@@ -403,14 +467,14 @@ class OrchestrationService:
                 return {}
 
             # Get message metadata
-            message_keys = list(set(chunk.get("message_key") for chunk in chunks if chunk.get("message_key")))
+            message_doc_ids = list(set(chunk.get("message_doc_id") for chunk in chunks if chunk.get("message_doc_id")))
             messages = []
 
-            if message_keys:
+            if message_doc_ids:
                 messages = self.document_store.query_documents(
                     "messages",
-                    {"message_key": {"$in": message_keys}},
-                    limit=len(message_keys)
+                    {"_id": {"$in": message_doc_ids}},
+                    limit=len(message_doc_ids)
                 )
 
             context = {

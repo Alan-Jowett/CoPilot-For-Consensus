@@ -21,29 +21,35 @@ class TestChunkDataClass:
     def test_chunk_creation(self):
         """Test creating a Chunk instance."""
         chunk = Chunk(
-            chunk_id="test-123",
+            chunk_id="deadbeefdeadbeef",
             text="This is a test chunk.",
             chunk_index=0,
             token_count=5,
-            metadata={"sender": "test@example.com"}
+            metadata={"sender": "test@example.com"},
+            message_doc_id="abcd1234abcd1234",
+            thread_id="deadbeefdeadbeef"
         )
         
-        assert chunk.chunk_id == "test-123"
+        assert chunk.chunk_id == "deadbeefdeadbeef"
         assert chunk.text == "This is a test chunk."
         assert chunk.chunk_index == 0
         assert chunk.token_count == 5
         assert chunk.metadata["sender"] == "test@example.com"
+        assert chunk.message_doc_id == "abcd1234abcd1234"
+        assert chunk.thread_id == "deadbeefdeadbeef"
         assert chunk.start_offset is None
         assert chunk.end_offset is None
     
     def test_chunk_with_offsets(self):
         """Test chunk with character offsets."""
         chunk = Chunk(
-            chunk_id="test-456",
+            chunk_id="feedfacefeedface",
             text="Another chunk",
             chunk_index=1,
             token_count=2,
             metadata={},
+            message_doc_id="abcd1234abcd1234",
+            thread_id="deadbeefdeadbeef",
             start_offset=0,
             end_offset=13
         )
@@ -60,7 +66,8 @@ class TestThreadDataClass:
         thread = Thread(
             thread_id="thread-001",
             text="This is a sample email thread.",
-            metadata={"subject": "Test Subject"}
+            metadata={"subject": "Test Subject"},
+            message_doc_id="abcd1234abcd1234"
         )
         
         assert thread.thread_id == "thread-001"
@@ -118,7 +125,7 @@ class TestTokenWindowChunker:
             thread_id="test-thread",
             text="This is a short text that should fit in one chunk.",
             metadata={"sender": "test@example.com"},
-            message_key="msgkey-0000000001"
+            message_doc_id="abcd1234abcd1234"
         )
         
         chunks = chunker.chunk(thread)
@@ -140,7 +147,7 @@ class TestTokenWindowChunker:
             thread_id="test-thread",
             text=text,
             metadata={"subject": "Test"},
-            message_key="msgkey-0000000001"
+            message_doc_id="abcd1234abcd1234"
         )
         
         chunks = chunker.chunk(thread)
@@ -163,7 +170,7 @@ class TestTokenWindowChunker:
             thread_id="test-thread",
             text="",
             metadata={},
-            message_key="msgkey-0000000001"
+            message_doc_id="abcd1234abcd1234"
         )
         
         with pytest.raises(ValueError, match="Thread text cannot be empty"):
@@ -176,7 +183,7 @@ class TestTokenWindowChunker:
             thread_id="test-thread",
             text="   \n\n  ",
             metadata={},
-            message_key="msgkey-0000000001"
+            message_doc_id="abcd1234abcd1234"
         )
         
         with pytest.raises(ValueError, match="Thread text cannot be empty"):
@@ -191,7 +198,7 @@ class TestTokenWindowChunker:
             thread_id="test-thread",
             text=text,
             metadata={},
-            message_key="msgkey-0000000001"
+              message_doc_id="abcd1234abcd1234"
         )
         
         chunks = chunker.chunk(thread)
@@ -227,7 +234,7 @@ class TestFixedSizeChunker:
             thread_id="test-thread",
             text=text,
             metadata={"subject": "Test"},
-            message_key="msgkey-0000000001"
+            message_doc_id="abcd1234abcd1234"
         )
         
         chunks = chunker.chunk(thread)
@@ -242,11 +249,11 @@ class TestFixedSizeChunker:
         chunker = FixedSizeChunker(messages_per_chunk=3)
         
         messages = [
-            {"message_id": "msg1", "message_key": "msgkey1", "text": "First message"},
-            {"message_id": "msg2", "message_key": "msgkey2", "text": "Second message"},
-            {"message_id": "msg3", "message_key": "msgkey3", "text": "Third message"},
-            {"message_id": "msg4", "message_key": "msgkey4", "text": "Fourth message"},
-            {"message_id": "msg5", "message_key": "msgkey5", "text": "Fifth message"},
+            {"message_id": "msg1", "message_doc_id": "aaaa1111aaaa1111", "text": "First message"},
+            {"message_id": "msg2", "message_doc_id": "aaaa2222aaaa2222", "text": "Second message"},
+            {"message_id": "msg3", "message_doc_id": "aaaa3333aaaa3333", "text": "Third message"},
+            {"message_id": "msg4", "message_doc_id": "aaaa4444aaaa4444", "text": "Fourth message"},
+            {"message_id": "msg5", "message_doc_id": "aaaa5555aaaa5555", "text": "Fifth message"},
         ]
         
         thread = Thread(
@@ -254,20 +261,20 @@ class TestFixedSizeChunker:
             text="",
             metadata={"subject": "Test"},
             messages=messages,
-            message_key="msgkey-0000000001"
+            message_doc_id="abcd1234abcd1234"
         )
         
         chunks = chunker.chunk(thread)
         
         # Should have 2 chunks (5 messages / 3 per chunk = 2 chunks)
         assert len(chunks) == 2
-        assert "msgkey1" in chunks[0].metadata["message_keys"]
-        assert "msgkey2" in chunks[0].metadata["message_keys"]
-        assert "msgkey3" in chunks[0].metadata["message_keys"]
+        assert "aaaa1111aaaa1111" in chunks[0].metadata["message_doc_ids"]
+        assert "aaaa2222aaaa2222" in chunks[0].metadata["message_doc_ids"]
+        assert "aaaa3333aaaa3333" in chunks[0].metadata["message_doc_ids"]
         assert chunks[0].metadata["message_count"] == 3
         
-        assert "msgkey4" in chunks[1].metadata["message_keys"]
-        assert "msgkey5" in chunks[1].metadata["message_keys"]
+        assert "aaaa4444aaaa4444" in chunks[1].metadata["message_doc_ids"]
+        assert "aaaa5555aaaa5555" in chunks[1].metadata["message_doc_ids"]
         assert chunks[1].metadata["message_count"] == 2
     
     def test_chunk_empty_thread_raises_error(self):
@@ -277,7 +284,7 @@ class TestFixedSizeChunker:
             thread_id="test-thread",
             text="",
             metadata={},
-            message_key="msgkey-0000000001"
+            message_doc_id="abcd1234abcd1234"
         )
         
         with pytest.raises(ValueError, match="Thread must have either messages or text"):
@@ -287,13 +294,13 @@ class TestFixedSizeChunker:
         """Test chunking with a single message."""
         chunker = FixedSizeChunker(messages_per_chunk=2)
         
-        messages = [{"message_id": "msg1", "message_key": "msgkey1", "body": "Only message"}]
+        messages = [{"message_id": "msg1", "message_doc_id": "aaaa1111aaaa1111", "body": "Only message"}]
         thread = Thread(
             thread_id="test-thread",
             text="",
             metadata={},
             messages=messages,
-            message_key="msgkey-0000000001"
+            message_doc_id="abcd1234abcd1234"
         )
         
         chunks = chunker.chunk(thread)
@@ -324,7 +331,7 @@ class TestSemanticChunker:
             thread_id="test-thread",
             text="This is a single sentence.",
             metadata={"sender": "test@example.com"},
-            message_key="msgkey-0000000001"
+            message_doc_id="abcd1234abcd1234"
         )
         
         chunks = chunker.chunk(thread)
@@ -347,7 +354,7 @@ class TestSemanticChunker:
             thread_id="test-thread",
             text=text,
             metadata={},
-            message_key="msgkey-0000000001"
+            message_doc_id="abcd1234abcd1234"
         )
         
         chunks = chunker.chunk(thread)
@@ -372,7 +379,7 @@ class TestSemanticChunker:
             thread_id="test-thread",
             text=text,
             metadata={},
-            message_key="msgkey-0000000001"
+            message_doc_id="abcd1234abcd1234"
         )
         
         chunks = chunker.chunk(thread)
@@ -391,7 +398,7 @@ class TestSemanticChunker:
             thread_id="test-thread",
             text="",
             metadata={},
-            message_key="msgkey-0000000001"
+            message_doc_id="abcd1234abcd1234"
         )
         
         with pytest.raises(ValueError, match="Thread text cannot be empty"):
@@ -506,5 +513,5 @@ class TestThreadChunkerInterface:
         
         chunker = ValidChunker()
         assert isinstance(chunker, ThreadChunker)
-        result = chunker.chunk(Thread("test", "text", {}, message_key="msgkey-0000000001"))
+        result = chunker.chunk(Thread("test", "text", {}, message_doc_id="abcd1234abcd1234"))
         assert result == []

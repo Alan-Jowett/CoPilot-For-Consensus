@@ -36,10 +36,10 @@ def in_memory_document_store():
     validating_store.insert_document(
         collection="messages",
         doc={
+            "_id": "aaa1111bbb222222",
             "message_id": "<msg1@example.com>",
-            "message_key": "msgkey-0000000001",
-            "archive_id": "archive-00000001",
-            "thread_id": "<thread@example.com>",
+            "archive_id": "feedfacecafebeef",
+            "thread_id": "1111222233334444",
             "body_normalized": "This is a test message discussing important topics.",
             "from": {"email": "alice@example.com", "name": "Alice"},
             "date": "2023-10-15T12:00:00Z",
@@ -50,10 +50,10 @@ def in_memory_document_store():
     validating_store.insert_document(
         collection="messages",
         doc={
+            "_id": "ccc3333ddd444444",
             "message_id": "<msg2@example.com>",
-            "message_key": "msgkey-0000000002",
-            "archive_id": "archive-00000001",
-            "thread_id": "<thread@example.com>",
+            "archive_id": "feedfacecafebeef",
+            "thread_id": "1111222233334444",
             "body_normalized": "I agree with the points raised in the previous message.",
             "from": {"email": "bob@example.com", "name": "Bob"},
             "date": "2023-10-15T13:00:00Z",
@@ -120,7 +120,7 @@ def test_end_to_end_summarization(integration_service, mock_publisher):
     """Test end-to-end summarization with real document store."""
     # Process a thread
     integration_service._process_thread(
-        thread_id="<thread@example.com>",
+        thread_id="1111222233334444",
         top_k=10,
         context_window_tokens=3000,
         prompt_template="Summarize the following discussion:",
@@ -133,7 +133,7 @@ def test_end_to_end_summarization(integration_service, mock_publisher):
     
     # Verify event data
     message = publish_call[1]["event"]
-    assert message["data"]["thread_id"] == "<thread@example.com>"
+    assert message["data"]["thread_id"] == "1111222233334444"
     assert "summary_markdown" in message["data"]
     assert message["data"]["llm_backend"] == "mock"
     
@@ -147,7 +147,7 @@ def test_summarization_with_missing_thread(integration_service, mock_publisher):
     """Test summarization when thread doesn't exist."""
     # Process a non-existent thread
     integration_service._process_thread(
-        thread_id="<nonexistent@example.com>",
+        thread_id="9999999999999999",
         top_k=10,
         context_window_tokens=3000,
         prompt_template="Summarize:",
@@ -160,7 +160,7 @@ def test_summarization_with_missing_thread(integration_service, mock_publisher):
     
     # Verify error details
     message = publish_call[1]["event"]
-    assert message["data"]["thread_id"] == "<nonexistent@example.com>"
+    assert message["data"]["thread_id"] == "9999999999999999"
     assert message["data"]["error_type"] == "NoContextError"
     
     # Verify stats
@@ -171,7 +171,7 @@ def test_summarization_with_missing_thread(integration_service, mock_publisher):
 def test_multiple_thread_summarization(integration_service, mock_publisher):
     """Test summarizing multiple threads."""
     event_data = {
-        "thread_ids": ["<thread@example.com>"],
+        "thread_ids": ["1111222233334444"],
         "top_k": 10,
         "context_window_tokens": 3000,
         "prompt_template": "Summarize:",
@@ -193,7 +193,7 @@ def test_multiple_thread_summarization(integration_service, mock_publisher):
 @pytest.mark.integration
 def test_context_retrieval_integration(integration_service):
     """Test context retrieval with real document store."""
-    context = integration_service._retrieve_context("<thread@example.com>", top_k=10)
+    context = integration_service._retrieve_context("1111222233334444", top_k=10)
     
     # Verify context was retrieved
     assert len(context["messages"]) == 2
@@ -215,7 +215,7 @@ def test_service_stats_integration(integration_service):
     
     # Process a thread
     integration_service._process_thread(
-        thread_id="<thread@example.com>",
+        thread_id="1111222233334444",
         top_k=10,
         context_window_tokens=3000,
         prompt_template="Summarize:",

@@ -224,13 +224,17 @@ class Thread:
     thread_id: str                          # Unique identifier
     text: str                               # Text content to chunk
     metadata: Dict[str, Any]                # Context information
+    message_doc_id: Optional[str] = None    # Message document `_id`
+    message_id: Optional[str] = None        # RFC 5322 Message-ID header
     messages: Optional[List[Dict]] = None   # Optional message list
 ```
 
 **Fields**:
-- `thread_id`: Unique identifier for the thread (e.g., Message-ID)
+- `thread_id`: Canonical thread `_id` (deterministic hex)
 - `text`: The text content to chunk (single message or combined thread)
 - `metadata`: Context information (sender, subject, date, etc.)
+- `message_doc_id`: Message document `_id` (links to `messages._id`)
+- `message_id`: RFC 5322 Message-ID header (if available)
 - `messages`: Optional list of individual messages for FixedSizeChunker
 
 ### Chunk
@@ -245,16 +249,20 @@ class Chunk:
     chunk_index: int                # Sequential position (0-based)
     token_count: int                # Number of tokens
     metadata: Dict[str, Any]        # Context from original thread
+    message_doc_id: str             # Parent message document `_id`
+    thread_id: str                  # Parent thread `_id`
     start_offset: Optional[int]     # Character offset (optional)
     end_offset: Optional[int]       # End character offset (optional)
 ```
 
 **Fields**:
-- `chunk_id`: Unique identifier (deterministic SHA256 hash of message_key|chunk_index)
+- `chunk_id`: Unique identifier (deterministic SHA256 hash of message_doc_id|chunk_index)
 - `text`: The actual chunk text content
 - `chunk_index`: Sequential position within the source (0-based)
 - `token_count`: Number of tokens (word-based approximation)
 - `metadata`: Inherited from thread, may include chunk-specific additions
+- `message_doc_id`: Canonical message identifier (messages `_id`)
+- `thread_id`: Canonical thread identifier (threads `_id`)
 - `start_offset`, `end_offset`: Character offsets in original text (optional)
 
 ## Integration with Services
@@ -272,8 +280,14 @@ class ChunkingService:
         self.config = config or ChunkingConfig()
         self.chunker = create_chunker(**self.config.get_chunker_params())
     
-    def chunk_message(self, message_id, text, metadata):
-        thread = Thread(thread_id=message_id, text=text, metadata=metadata)
+    def chunk_message(self, message_doc_id, thread_id, message_id, text, metadata):
+        thread = Thread(
+            thread_id=thread_id,
+            text=text,
+            metadata=metadata,
+            message_doc_id=message_doc_id,
+            message_id=message_id,
+        )
         return self.chunker.chunk(thread)
 ```
 

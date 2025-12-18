@@ -4,16 +4,18 @@
   "title": "archives collection",
   "type": "object",
   "properties": {
-    "archive_id": { 
-      "type": "string", 
+    "_id": {
+      "type": "string",
       "minLength": 16,
-      "maxLength": 64,
-      "description": "Deterministic SHA256 hash of mbox file contents (first 16 chars) for reproducible archive identification"
+      "maxLength": 16,
+      "pattern": "^[A-Fa-f0-9]{16}$",
+      "description": "Canonical primary key: deterministic SHA256 (first 16 chars) of mbox file contents"
     },
     "file_hash": { 
       "type": "string", 
       "minLength": 64,
       "maxLength": 64,
+      "pattern": "^[A-Fa-f0-9]{64}$",
       "description": "Full SHA256 hash of the mbox file for complete audit trail and integrity verification"
     },
     "file_size_bytes": { 
@@ -41,5 +43,5 @@
       "description": "Timestamp of the last processing attempt"
     }
   },
-  "required": ["archive_id", "file_hash", "file_size_bytes", "source", "ingestion_date", "status"]
+  "required": ["_id", "file_hash", "file_size_bytes", "source", "ingestion_date", "status"]
 }

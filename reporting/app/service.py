@@ -3,6 +3,7 @@
 
 """Main reporting service implementation."""
 
+import hashlib
 import time
 import uuid
 import requests
@@ -151,20 +152,26 @@ class ReportingService:
             Report ID
         """
         # Extract data from event
-        if "summary_id" in event_data:
-            report_id = event_data["summary_id"]
+        original_summary_id = event_data.get("summary_id")  # SHA-256 hash from summarization service
+        thread_id = event_data.get("thread_id")
+        
+        # Generate a 16-character hex ID for summaries._id (matching schema requirements)
+        # Use a truncated hash of the original summary_id for determinism
+        if original_summary_id:
+            report_id = hashlib.sha256(original_summary_id.encode()).hexdigest()[:16]
         else:
             # Fallback to UUID for backward compatibility; log for observability
-            report_id = str(uuid.uuid4())
+            import uuid
+            report_id = str(uuid.uuid4()).replace("-", "")[:16]
             logger.warning(
-                "SummaryComplete event missing required 'summary_id'; generated fallback UUID for backward compatibility. This may indicate an older publisher version or misconfiguration.",
+                "SummaryComplete event missing required 'summary_id'; generated fallback ID for backward compatibility. This may indicate an older publisher version or misconfiguration.",
                 report_id=report_id,
                 event_metadata={
                     "event_type": full_event.get("type"),
                     "event_id": full_event.get("event_id") or full_event.get("id"),
                 },
             )
-        thread_id = event_data.get("thread_id")
+        
         summary_markdown = event_data.get("summary_markdown", "")
         citations = event_data.get("citations", [])
         llm_backend = event_data.get("llm_backend", "")
@@ -176,6 +183,7 @@ class ReportingService:
         # Create summary document
         now = datetime.now(timezone.utc).isoformat()
         summary_doc = {
+            "_id": report_id,
             "summary_id": report_id,
             "thread_id": thread_id,
             "summary_type": "thread",
@@ -198,15 +206,42 @@ class ReportingService:
                 "tokens_completion": tokens_completion,
                 "latency_ms": latency_ms,
                 "event_timestamp": full_event.get("timestamp", now),
+                # Store original summary_id (SHA-256 hash) from summarization service
+                "original_summary_id": original_summary_id,
                 # Store original event citations with offset for reference
                 "original_citations": citations,
             },
         }
         
         # Store summary
-        logger.info(f"Storing summary {report_id} for thread {thread_id}")
-        self.document_store.insert_document("summaries", summary_doc)
-        self.reports_stored += 1
+        # Idempotency: if the summary already exists, skip insert to avoid retries
+        try:
+            existing = self.document_store.query_documents(
+                "summaries",
+                filter_dict={"_id": report_id},
+                limit=1,
+            )
+            if existing:
+                logger.info(f"Summary {report_id} already stored; skipping insert")
+            else:
+                logger.info(f"Storing summary {report_id} for thread {thread_id}")
+                self.document_store.insert_document("summaries", summary_doc)
+                self.reports_stored += 1
+        except Exception as e:
+            # If insert races, treat duplicate key as success to allow ack and prevent requeue
+            if type(e).__name__ == "DuplicateKeyError" or "duplicate key error" in str(e):
+                logger.info(f"Summary {report_id} already exists (duplicate); treating as success")
+            else:
+                raise
+        
+        # Update thread document with summary_id to mark as complete
+        logger.info(f"Updating thread {thread_id} with summary_id {report_id}")
+        # Threads use thread_id as document _id; update by ID
+        self.document_store.update_document(
+            "threads",
+            thread_id,
+            {"summary_id": report_id},
+        )
         
         # Attempt webhook notification if enabled
         notified = False
@@ -698,6 +733,7 @@ class ReportingService:
         Returns:
             Report document or None
         """
+        # Backward-compatible lookup by summary_id (tests expect this).
         results = self.document_store.query_documents(
             "summaries",
             filter_dict={"summary_id": report_id},

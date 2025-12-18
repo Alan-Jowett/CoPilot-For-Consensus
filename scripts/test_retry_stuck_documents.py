@@ -120,27 +120,27 @@ class TestRetryStuckDocumentsJob(unittest.TestCase):
     def test_build_event_data_messages(self):
         """Test event data building for messages."""
         doc = {
-            "message_key": "msg123",
+            "_id": "aaa1111bbb222222",
             "archive_id": "abc123",
         }
         
         event_data = self.job._build_event_data("messages", doc)
         
         self.assertEqual(event_data["archive_id"], "abc123")
-        self.assertEqual(event_data["parsed_message_ids"], ["msg123"])
+        self.assertEqual(event_data["parsed_message_ids"], ["aaa1111bbb222222"])
         self.assertEqual(event_data["message_count"], 1)
     
     def test_build_event_data_chunks(self):
         """Test event data building for chunks."""
         doc = {
-            "chunk_key": "chunk123",
-            "message_key": "msg123",
+            "_id": "cccc3333dddd4444",
+            "archive_id": "abc123",
         }
         
         event_data = self.job._build_event_data("chunks", doc)
         
-        self.assertEqual(event_data["message_keys"], ["msg123"])
-        self.assertEqual(event_data["chunk_ids"], ["chunk123"])
+        self.assertEqual(event_data["archive_id"], "abc123")
+        self.assertEqual(event_data["chunk_ids"], ["cccc3333dddd4444"])
     
     def test_build_event_data_threads(self):
         """Test event data building for threads."""

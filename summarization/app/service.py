@@ -254,7 +254,7 @@ class SummarizationService:
                 citations_from_chunks = [
                     Citation(
                         message_id=chunk.get("message_id", ""),
-                        chunk_id=chunk.get("chunk_id", ""),
+                        chunk_id=chunk.get("_id", ""),
                         offset=chunk.get("offset", 0),
                     )
                     for chunk in chunks
@@ -410,7 +410,7 @@ class SummarizationService:
         chunks = []
         for i, msg in enumerate(messages[:top_k]):
             chunks.append({
-                "chunk_id": msg.get("message_id", f"chunk_{i}"),
+                "_id": msg.get("_id", msg.get("message_id", f"chunk_{i}")),
                 "message_id": msg.get("message_id", ""),
                 "text": msg.get("body_normalized", ""),
                 "offset": 0,
@@ -435,11 +435,11 @@ class SummarizationService:
         Returns:
             List of formatted citation dictionaries
         """
-        # Create a lookup map for chunks by chunk_id, skipping invalid IDs
+        # Create a lookup map for chunks by _id, skipping invalid IDs
         chunk_map = {
-            chunk["chunk_id"]: chunk
+            chunk["_id"]: chunk
             for chunk in chunks
-            if chunk.get("chunk_id") is not None
+            if chunk.get("_id") is not None
         }
         
         formatted = []
@@ -448,12 +448,14 @@ class SummarizationService:
         for citation in citations[:self.citation_count]:
             # Find the corresponding chunk to get the text
             chunk = chunk_map.get(citation.chunk_id, {})
+            # citation.chunk_id now contains the _id value
             text = chunk.get("text", "")
             
             # Truncate text to configured snippet length
             snippet = text[:self.citation_text_max_length]
             
             formatted.append({
+                "_id": chunk.get("_id"),
                 "message_id": citation.message_id,
                 "chunk_id": citation.chunk_id,
                 "offset": citation.offset,
@@ -478,9 +480,9 @@ class SummarizationService:
             Hex string of SHA256 hash (64 characters)
         """
         # Extract and sort chunk IDs to ensure consistent ordering, ignoring missing/empty IDs
-        chunk_ids = sorted({c.get("chunk_id") for c in citations if c.get("chunk_id")})
+        chunk_ids = sorted({c.get("_id") for c in citations if c.get("_id")})
         
-        # Combine thread_id and chunk_ids into a single string
+        # Combine thread_id and canonical _ids into a single string
         id_input = f"{thread_id}:{','.join(chunk_ids)}"
         
         # Generate SHA256 hash

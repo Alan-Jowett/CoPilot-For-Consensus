@@ -233,9 +233,9 @@ class TestParsingService:
         thread_ids = [msg["thread_id"] for msg in messages]
         assert len(set(thread_ids)) == 1  # All same thread
         
-        # The thread_id should be the root message
+        # The thread_id should be the root message's canonical _id
         root_msg = [m for m in messages if not m.get("in_reply_to")][0]
-        assert all(tid == root_msg["message_id"] for tid in thread_ids)
+        assert all(tid == root_msg["_id"] for tid in thread_ids)
 
     def test_get_stats(self, service, sample_mbox_file):
         """Test statistics reporting."""
@@ -370,7 +370,7 @@ class TestParsingService:
         assert event1["event"]["event_type"] == "JSONParsed"
         assert event1["event"]["data"]["archive_id"] == "test-archive-9"
         assert event1["event"]["data"]["message_count"] == 1  # Single message per event
-        assert len(event1["event"]["data"]["message_keys"]) == 1
+        assert len(event1["event"]["data"]["message_doc_ids"]) == 1
         
         # Check second event
         event2 = mock_publisher.published_events[1]
@@ -379,10 +379,10 @@ class TestParsingService:
         assert event2["event"]["event_type"] == "JSONParsed"
         assert event2["event"]["data"]["archive_id"] == "test-archive-9"
         assert event2["event"]["data"]["message_count"] == 1  # Single message per event
-        assert len(event2["event"]["data"]["message_keys"]) == 1
+        assert len(event2["event"]["data"]["message_doc_ids"]) == 1
         
         # Verify messages are different
-        assert event1["event"]["data"]["message_keys"][0] != event2["event"]["data"]["message_keys"][0]
+        assert event1["event"]["data"]["message_doc_ids"][0] != event2["event"]["data"]["message_doc_ids"][0]
 
     def test_event_publishing_on_failure(self, document_store, subscriber):
         """Test that ParsingFailed event is published on parsing failure."""
@@ -478,7 +478,7 @@ def test_json_parsed_event_schema_validation(document_store, sample_mbox_file):
     )
     
     archive_data = {
-        "archive_id": "test-archive-schema",
+        "archive_id": "aaaaaaaaaaaaaaaa",
         "file_path": sample_mbox_file,
     }
     
@@ -512,7 +512,7 @@ def test_parsing_failed_event_schema_validation(document_store):
     
     # Try to process a non-existent file
     archive_data = {
-        "archive_id": "test-archive-fail",
+        "archive_id": "bbbbbbbbbbbbbbbb",
         "file_path": "/nonexistent/file.mbox",
     }
     
@@ -556,7 +556,7 @@ def test_consume_archive_ingested_event(document_store, sample_mbox_file):
         "timestamp": "2023-10-15T12:00:00Z",
         "version": "1.0",
         "data": {
-            "archive_id": "test-archive-consume",
+            "archive_id": "cccccccccccccccc",
             "source_name": "test-source",
             "source_type": "local",
             "source_url": sample_mbox_file,
@@ -661,8 +661,8 @@ def test_publish_json_parsed_with_publisher_failure(document_store):
     
     # Should raise exception when publisher fails on any message
     parsed_messages = [
-        {"message_id": "msg-1", "message_key": "mk-1", "thread_id": "thread-1"},
-        {"message_id": "msg-2", "message_key": "mk-2", "thread_id": "thread-1"},
+        {"message_id": "msg-1", "_id": "mk-1", "thread_id": "thread-1"},
+        {"message_id": "msg-2", "_id": "mk-2", "thread_id": "thread-1"},
     ]
     threads = [
         {"thread_id": "thread-1"},
@@ -790,11 +790,11 @@ def test_publish_json_parsed_raises_on_missing_message_id(document_store):
         subscriber=subscriber,
     )
     
-    # Create messages with one missing message_key
+    # Create messages with one missing _id
     parsed_messages = [
-        {"message_id": "msg-1", "message_key": "mk-1", "thread_id": "thread-1"},
-        {"message_id": "msg-2", "thread_id": "thread-1"},  # Missing message_key
-        {"message_id": "msg-3", "message_key": "mk-3", "thread_id": "thread-1"},
+        {"message_id": "msg-1", "_id": "mk-1", "thread_id": "thread-1"},
+        {"message_id": "msg-2", "thread_id": "thread-1"},  # Missing _id
+        {"message_id": "msg-3", "_id": "mk-3", "thread_id": "thread-1"},
     ]
     threads = [{"thread_id": "thread-1"}]
     
@@ -807,6 +807,6 @@ def test_publish_json_parsed_raises_on_missing_message_id(document_store):
             duration=1.5
         )
     
-    assert "message_key" in str(exc_info.value)
+    assert "_id" in str(exc_info.value)
     # Should have attempted to publish for the valid messages before the error
     assert len(mock_publisher.published_events) >= 1

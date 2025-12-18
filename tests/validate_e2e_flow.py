@@ -217,7 +217,7 @@ class E2EMessageFlowValidator:
             print(f"⚠ Warning: Expected at least {expected_min_count} messages, got {len(messages)}")
         
         # Validate message structure
-        required_fields = ["message_key", "message_id", "archive_id", "thread_id", "subject", "from", "date"]
+        required_fields = ["_id", "message_id", "archive_id", "thread_id", "subject", "from", "date"]
         for msg in messages[:3]:  # Check first 3 messages
             print(f"  - Message ID: {msg.get('message_id')}")
             print(f"    Subject: {msg.get('subject')}")
@@ -271,9 +271,9 @@ class E2EMessageFlowValidator:
             print(f"⚠ Warning: Expected at least {expected_min_count} chunks, got {len(chunks)}")
         
         # Validate chunk structure
-        required_fields = ["chunk_key", "message_key", "message_id", "thread_id", "text", "chunk_index"]
+        required_fields = ["_id", "message_id", "thread_id", "text", "chunk_index"]
         for chunk in chunks[:3]:  # Check first 3 chunks
-            print(f"  - Chunk key: {chunk.get('chunk_key')}")
+            print(f"  - Chunk ID (_id): {chunk.get('_id')}")
             print(f"    Message ID: {chunk.get('message_id')}")
             print(f"    Index: {chunk.get('chunk_index')}")
             print(f"    Token count: {chunk.get('token_count', 'N/A')}")
@@ -306,14 +306,14 @@ class E2EMessageFlowValidator:
             # Sample a few embeddings using known chunk IDs from document store
             sample_chunks = self._safe_mongo_find("chunks")[:3]
             for ch in sample_chunks:
-                cid = ch.get("chunk_id") or ch.get("chunk_key")
+                cid = ch.get("_id") or ch.get("chunk_id")
                 if not cid:
                     continue
                 try:
                     res = self.vector_store.get(cid)
                     print(f"  - Point ID: {res.id}")
                     md = res.metadata or {}
-                    print(f"    Chunk key: {md.get('chunk_key', cid)}")
+                    print(f"    Chunk ID (_id): {md.get('_id', cid)}")
                     print(f"    Message ID: {md.get('message_id', 'N/A')}")
                     print(f"    Thread ID: {md.get('thread_id', 'N/A')}")
                 except Exception as ge:
@@ -344,10 +344,10 @@ class E2EMessageFlowValidator:
             return {"status": "SKIP"}
         
         # Check that all chunks reference valid messages
-        message_keys = {msg["message_key"] for msg in messages}
-        chunk_message_keys = {chunk["message_key"] for chunk in chunks}
+        message_ids = {msg["_id"] for msg in messages}
+        chunk_message_ids = {chunk["_id"] for chunk in chunks}
         
-        orphaned_chunks = chunk_message_keys - message_keys
+        orphaned_chunks = chunk_message_ids - message_ids
         if orphaned_chunks:
             print(f"⚠ Warning: Found {len(orphaned_chunks)} chunks referencing non-existent messages")
         else:

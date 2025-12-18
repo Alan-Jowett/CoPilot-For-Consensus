@@ -150,13 +150,13 @@ class RetryStuckDocumentsJob:
             "max_attempts": 3,
             "event_type": "JSONParsed",
             "routing_key": "json.parsed",
-            "id_field": "message_key",
+            "id_field": "_id",
         },
         "chunks": {
             "max_attempts": 5,
             "event_type": "ChunksPrepared",
             "routing_key": "chunks.prepared",
-            "id_field": "chunk_key",
+            "id_field": "_id",
         },
         "threads": {
             "max_attempts": 5,
@@ -457,13 +457,13 @@ class RetryStuckDocumentsJob:
         elif collection_name == "messages":
             return {
                 "archive_id": document.get("archive_id"),
-                "parsed_message_ids": [document.get("message_key")],
+                "parsed_message_ids": [document.get("_id")],
                 "message_count": 1,
             }
         elif collection_name == "chunks":
             return {
-                "message_keys": [document.get("message_key")],
-                "chunk_ids": [document.get("chunk_key")],
+                "archive_id": document.get("archive_id"),
+                "chunk_ids": [document.get("_id")],
             }
         elif collection_name == "threads":
             return {

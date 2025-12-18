@@ -11,7 +11,7 @@ threads before embedding or summarization.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
-from copilot_schema_validation import generate_chunk_key
+from copilot_schema_validation import generate_chunk_id
 
 
 @dataclass
@@ -24,7 +24,8 @@ class Chunk:
         chunk_index: Sequential position within the source (0-based)
         token_count: Number of tokens in the chunk
         metadata: Additional context information (sender, date, subject, etc.)
-        message_key: Parent message's message_key (SHA256 hash), optional
+        message_doc_id: Parent message document `_id`
+        thread_id: Thread `_id` the chunk belongs to
         start_offset: Character offset in original text (optional)
         end_offset: End character offset in original text (optional)
     """
@@ -33,7 +34,8 @@ class Chunk:
     chunk_index: int
     token_count: int
     metadata: Dict[str, Any]
-    message_key: Optional[str] = None
+    message_doc_id: str
+    thread_id: str
     start_offset: Optional[int] = None
     end_offset: Optional[int] = None
 
@@ -46,13 +48,15 @@ class Thread:
         thread_id: Unique identifier for the thread
         text: The text content to chunk (can be a single message or thread)
         metadata: Context information (sender, date, subject, etc.)
-        message_key: Message key (SHA256 hash) for tracking, optional
+        message_doc_id: Message document `_id` for tracking, optional
+        message_id: RFC 5322 Message-ID header, optional
         messages: Optional list of individual messages in the thread
     """
     thread_id: str
     text: str
     metadata: Dict[str, Any]
-    message_key: Optional[str] = None
+    message_doc_id: Optional[str] = None
+    message_id: Optional[str] = None
     messages: Optional[List[Dict[str, Any]]] = None
 
 
@@ -123,12 +127,12 @@ class TokenWindowChunker(ThreadChunker):
             List of chunks with metadata
             
         Raises:
-            ValueError: If thread text is empty or message_key is not provided
+            ValueError: If thread text is empty or message_doc_id is not provided
         """
         if not thread.text or not thread.text.strip():
             raise ValueError("Thread text cannot be empty")
-        if thread.message_key is None:
-            raise ValueError("Thread message_key must be provided before chunking")
+        if thread.message_doc_id is None:
+            raise ValueError("Thread message_doc_id must be provided before chunking")
         
         # Simple word-based approximation for token counting
         # In a real implementation, use tiktoken or similar
@@ -149,8 +153,9 @@ class TokenWindowChunker(ThreadChunker):
             # Only create chunk if it meets minimum size
             if len(chunk_words) >= self.min_chunk_size or end_idx == len(words):
                 chunk = Chunk(
-                    chunk_id=generate_chunk_key(thread.message_key, chunk_index),
-                    message_key=thread.message_key,
+                    chunk_id=generate_chunk_id(thread.message_doc_id, chunk_index),
+                    message_doc_id=thread.message_doc_id,
+                    thread_id=thread.thread_id,
                     text=chunk_text,
                     chunk_index=chunk_index,
                     token_count=len(chunk_words),
@@ -205,10 +210,10 @@ class FixedSizeChunker(ThreadChunker):
             List of chunks with metadata
             
         Raises:
-            ValueError: If thread has no messages or text is empty, or message_key is not provided
+            ValueError: If thread has no messages or text is empty, or message_doc_id is not provided
         """
-        if thread.message_key is None:
-            raise ValueError("Thread message_key must be provided before chunking")
+        if thread.message_doc_id is None:
+            raise ValueError("Thread message_doc_id must be provided before chunking")
         
         # If thread has explicit messages, use those
         if thread.messages:
@@ -231,8 +236,9 @@ class FixedSizeChunker(ThreadChunker):
             
             chunk_idx = i // self.messages_per_chunk
             chunk = Chunk(
-                chunk_id=generate_chunk_key(thread.message_key, chunk_idx),
-                message_key=thread.message_key,
+                chunk_id=generate_chunk_id(thread.message_doc_id, chunk_idx),
+                message_doc_id=thread.message_doc_id,
+                thread_id=thread.thread_id,
                 text=chunk_text,
                 chunk_index=chunk_idx,
                 token_count=token_count,
@@ -263,10 +269,10 @@ class FixedSizeChunker(ThreadChunker):
                 for msg in chunk_messages
             )
             
-            # Require message_key on each message; fail fast if missing to avoid ambiguous IDs
+            # Require message_doc_id on each message; fail fast if missing to avoid ambiguous IDs
             missing_info = [
                 f"index {idx} (message_id: {msg.get('message_id', 'unknown')})"
-                for idx, msg in enumerate(chunk_messages) if not msg.get("message_key")
+                for idx, msg in enumerate(chunk_messages) if not msg.get("message_doc_id")
             ]
             if missing_info:
                 max_display = 5
@@ -274,21 +280,22 @@ class FixedSizeChunker(ThreadChunker):
                 more_count = len(missing_info) - max_display
                 extra_msg = f", ... and {more_count} more" if more_count > 0 else ""
                 raise ValueError(
-                    f"message_key is required for each message when chunking explicit messages "
-                    f"({len(missing_info)} message(s) missing keys): {display_info}{extra_msg}"
+                    f"message_doc_id is required for each message when chunking explicit messages "
+                    f"({len(missing_info)} message(s) missing identifiers): {display_info}{extra_msg}"
                 )
 
             # Combine metadata from all messages
             combined_metadata = thread.metadata.copy()
-            combined_metadata["message_keys"] = [msg["message_key"] for msg in chunk_messages]
+            combined_metadata["message_doc_ids"] = [msg["message_doc_id"] for msg in chunk_messages]
             combined_metadata["message_count"] = len(chunk_messages)
             
             token_count = len(chunk_text.split())
             
             chunk_idx = i // self.messages_per_chunk
             chunk = Chunk(
-                chunk_id=generate_chunk_key(thread.message_key, chunk_idx),
-                message_key=thread.message_key,
+                chunk_id=generate_chunk_id(thread.message_doc_id, chunk_idx),
+                message_doc_id=thread.message_doc_id,
+                thread_id=thread.thread_id,
                 text=chunk_text,
                 chunk_index=chunk_idx,
                 token_count=token_count,
@@ -338,12 +345,12 @@ class SemanticChunker(ThreadChunker):
             List of chunks with metadata
             
         Raises:
-            ValueError: If thread text is empty or message_key is not provided
+            ValueError: If thread text is empty or message_doc_id is not provided
         """
         if not thread.text or not thread.text.strip():
             raise ValueError("Thread text cannot be empty")
-        if thread.message_key is None:
-            raise ValueError("Thread message_key must be provided before chunking")
+        if thread.message_doc_id is None:
+            raise ValueError("Thread message_doc_id must be provided before chunking")
         
         # Simple sentence splitting on common terminators
         # A more robust implementation would use NLTK or spaCy
@@ -361,8 +368,9 @@ class SemanticChunker(ThreadChunker):
             if current_chunk_sentences and current_token_count + sentence_tokens > self.target_chunk_size:
                 chunk_text = " ".join(current_chunk_sentences)
                 chunk = Chunk(
-                    chunk_id=generate_chunk_key(thread.message_key, chunk_index),
-                    message_key=thread.message_key,
+                    chunk_id=generate_chunk_id(thread.message_doc_id, chunk_index),
+                    message_doc_id=thread.message_doc_id,
+                    thread_id=thread.thread_id,
                     text=chunk_text,
                     chunk_index=chunk_index,
                     token_count=current_token_count,
@@ -382,8 +390,9 @@ class SemanticChunker(ThreadChunker):
         if current_chunk_sentences:
             chunk_text = " ".join(current_chunk_sentences)
             chunk = Chunk(
-                chunk_id=generate_chunk_key(thread.message_key, chunk_index),
-                message_key=thread.message_key,
+                chunk_id=generate_chunk_id(thread.message_doc_id, chunk_index),
+                message_doc_id=thread.message_doc_id,
+                thread_id=thread.thread_id,
                 text=chunk_text,
                 chunk_index=chunk_index,
                 token_count=current_token_count,

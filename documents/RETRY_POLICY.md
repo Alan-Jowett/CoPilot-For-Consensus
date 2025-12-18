@@ -423,10 +423,10 @@ All services (parsing, chunking, embedding, orchestrator, summarization) must:
 
 All retry operations must be idempotent:
 
-- **Parsing**: Skip already-parsed messages (check `message_key` exists)
+- **Parsing**: Skip already-parsed messages (check message document exists by `_id`)
 - **Chunking**: Skip duplicate chunks (DuplicateKeyError handling)
 - **Embedding**: Use upsert semantics (vectorstore `add_embedding`)
-- **Summarization**: Check for existing `summary_id` before generating
+- **Summarization**: Check for an existing summary (e.g., `threads.summary_id` referencing `summaries._id`) before generating
 
 See `documents/CONTRIBUTING.md` for idempotency patterns.
 

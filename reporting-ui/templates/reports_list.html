@@ -461,10 +461,10 @@
                     {% for report in reports %}
                     <tr>
                         <td>
-                            <a href="/reports/{{ report.summary_id }}" class="report-link">
-                                {{ report.summary_id[:8] }}...
+                            <a href="/reports/{{ report._id }}" class="report-link">
+                                {{ report._id[:8] }}...
                             </a>
-                            <button class="copy-btn" onclick="copyToClipboard('{{ report.summary_id }}', event)">Copy</button>
+                            <button class="copy-btn" onclick="copyToClipboard('{{ report._id }}', event)">Copy</button>
                         </td>
                         <td>
                             <div class="thread-id" title="{{ report.thread_id }}">

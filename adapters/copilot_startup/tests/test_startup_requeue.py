@@ -103,13 +103,13 @@ class TestStartupRequeue:
         # Mock incomplete chunks
         incomplete_chunks = [
             {
-                "chunk_key": "chunk-001",
-                "message_key": "msg-001",
+                "_id": "abcd1234abcd1234",
+                "message_doc_id": "aabbccddaabbccdd",
                 "embedding_generated": False,
             },
             {
-                "chunk_key": "chunk-002",
-                "message_key": "msg-001",
+                "_id": "abcd5678abcd5678",
+                "message_doc_id": "aabbccddaabbccdd",
                 "embedding_generated": False,
             },
         ]
@@ -128,10 +128,10 @@ class TestStartupRequeue:
             query={"embedding_generated": False},
             event_type="ChunksPrepared",
             routing_key="chunks.prepared",
-            id_field="chunk_key",
+            id_field="_id",
             build_event_data=lambda doc: {
-                "chunk_ids": [doc.get("chunk_key")],
-                "message_keys": [doc.get("message_key")],
+                "chunk_ids": [doc.get("_id")],
+                "message_doc_ids": [doc.get("message_doc_id")],
             },
         )
         
@@ -229,7 +229,7 @@ class TestStartupRequeue:
         
         # Mock 100 incomplete documents
         incomplete_docs = [
-            {"chunk_key": f"chunk-{i:03d}", "message_key": "msg-001"}
+            {"_id": f"{i:016x}", "message_doc_id": "aabbccddaabbccdd"}
             for i in range(100)
         ]
         
@@ -247,8 +247,8 @@ class TestStartupRequeue:
             query={"embedding_generated": False},
             event_type="ChunksPrepared",
             routing_key="chunks.prepared",
-            id_field="chunk_key",
-            build_event_data=lambda doc: {"chunk_ids": [doc.get("chunk_key")]},
+            id_field="_id",
+            build_event_data=lambda doc: {"chunk_ids": [doc.get("_id")]},
             limit=50,
         )
         

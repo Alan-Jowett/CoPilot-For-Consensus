@@ -129,7 +129,7 @@ class TestIngestionService:
             
             # Verify archive document structure
             archive = archives[0]
-            assert "archive_id" in archive
+            assert "_id" in archive
             assert archive["source"] == "test-source"
             assert archive["status"] == "pending"
             assert archive["message_count"] == 0

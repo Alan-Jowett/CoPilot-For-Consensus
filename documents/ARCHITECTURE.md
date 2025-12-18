@@ -287,7 +287,7 @@ Services communicate via these domain events:
    - Each event contains a single message ID in `parsed_message_ids` array
 
 3. **ChunksPrepared** (Chunking → Message Bus)
-  - Payload: `{message_keys, chunk_count, chunks_ready, timestamp}`
+  - Payload: `{archive_id, chunk_ids, chunk_count, chunks_ready, timestamp}`
 
 4. **EmbeddingsGenerated** (Embedding → Message Bus)
    - Payload: `{chunk_ids, embedding_model, vector_store_updated, timestamp}`

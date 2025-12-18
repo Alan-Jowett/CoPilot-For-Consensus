@@ -17,7 +17,7 @@ Stores metadata about ingested mailing list archives.
 
 | Field | Type | Description | Indexed |
 |-------|------|-------------|---------|
-| `archive_id` | String (SHA256 hash, 16 chars) | Deterministic hash of mbox file for reproducible archive ID | Primary Key |
+| `_id` | String (SHA256 hash, 16 chars) | Deterministic hash of mbox file (first 16 chars) — canonical primary key | Primary Key |
 | `file_hash` | String (SHA256 hash, 64 chars) | Full SHA256 hash of the mbox file for integrity verification | Yes |
 | `file_size_bytes` | Integer | Size of the original mbox file in bytes | No |
 | `source` | String | Source identifier (e.g., "ietf-quic") | Yes |
@@ -29,7 +29,7 @@ Stores metadata about ingested mailing list archives.
 | `status` | String | Processing status (pending, processed, failed) | Yes |
 
 **Indexes:**
-- Primary: `archive_id`
+- Primary: `_id`
 - Secondary: `source`, `file_hash`, `ingestion_date`, `status`
 
 ---
@@ -39,7 +39,7 @@ Stores parsed and normalized email messages.
 
 | Field | Type | Description | Indexed |
 |-------|------|-------------|---------|
-| `message_key` | String (SHA256 hash, 16 chars) | Deterministic hash of (archive_id\|message_id\|date\|sender\|subject) for global uniqueness | Primary Key |
+| `_id` | String (SHA256 hash, 16 chars) | Deterministic hash of (archive_id\|message_id\|date\|sender\|subject) — canonical primary key | Primary Key |
 | `message_id` | String | RFC 5322 Message-ID from email header | Yes |
 | `archive_id` | String (SHA256 hash, 16 chars) | Hash of the mbox file this message came from | Yes |
 | `thread_id` | String | Thread identifier (root message_id) | Yes |
@@ -59,13 +59,13 @@ Stores parsed and normalized email messages.
 | `created_at` | DateTime | Record creation timestamp | Yes |
 
 **Indexes:**
-- Primary: `message_key`
+- Primary: `_id`
 - Secondary: `archive_id`, `thread_id`, `date`, `in_reply_to`, `draft_mentions`, `created_at`
 
 **Example Document:**
 ```json
 {
-  "message_key": "a1b2c3d4e5f6789",
+  "_id": "a1b2c3d4e5f6789",
   "message_id": "<20231015123456.ABC123@example.com>",
   "archive_id": "c3d4e5f6789a1b2",
   "thread_id": "<20231015120000.XYZ789@example.com>",
@@ -87,10 +87,10 @@ Stores text chunks derived from messages for embedding generation.
 
 | Field | Type | Description | Indexed |
 |-------|------|-------------|---------|
-| `chunk_key` | String (SHA256 hash, 16 chars) | Deterministic hash of (message_key\|chunk_index) | Primary Key |
-| `message_key` | String (SHA256 hash, 16 chars) | Reference to parent message | Yes |
-| `message_id` | String | Source message Message-ID | Yes |
-| `thread_id` | String | Thread identifier | Yes |
+| `_id` | String (SHA256_16 hex, 16 chars) | Deterministic hash of (message_doc_id\|chunk_index) — canonical primary key | Primary Key |
+| `message_doc_id` | String (SHA256_16 hex, 16 chars) | Reference to `messages._id` (canonical message identifier) | Yes |
+| `message_id` | String | Source message Message-ID (RFC 5322 header) | Yes |
+| `thread_id` | String (SHA256_16 hex, 16 chars) | Thread identifier (`threads._id`) | Yes |
 | `chunk_index` | Integer | Sequential index within message (0-based) | No |
 | `text` | String | Chunk text content | No |
 | `token_count` | Integer | Approximate token count | No |
@@ -102,16 +102,16 @@ Stores text chunks derived from messages for embedding generation.
 | `embedding_generated` | Boolean | Whether embedding exists in vector store | Yes |
 
 **Indexes:**
-- Primary: `chunk_key`
-- Secondary: `message_key`, `message_id`, `thread_id`, `created_at`, `embedding_generated`
+- Primary: `_id`
+- Secondary: `message_doc_id`, `message_id`, `thread_id`, `created_at`, `embedding_generated`
 
 **Example Document:**
 ```json
 {
-  "chunk_key": "b9c8d7e6f5a4b3c",
-  "message_key": "a1b2c3d4e5f6789",
+  "_id": "b9c8d7e6f5a4b3c0",
+  "message_doc_id": "a1b2c3d4e5f6789a",
   "message_id": "<20231015123456.ABC123@example.com>",
-  "thread_id": "<20231015120000.XYZ789@example.com>",
+  "thread_id": "0f1e2d3c4b5a6978",
   "chunk_index": 0,
   "text": "I agree with the proposed approach for connection migration. The key concern is...",
   "token_count": 128,
@@ -135,7 +135,7 @@ Stores aggregated thread metadata for quick retrieval.
 
 | Field | Type | Description | Indexed |
 |-------|------|-------------|---------|
-| `thread_id` | String | Thread identifier (root message_id) | Primary Key |
+| `_id` | String | Thread identifier (root message_id) — canonical primary key | Primary Key |
 | `archive_id` | String (SHA256 hash, 16 chars) | Hash of the mbox file this thread came from | Yes |
 | `subject` | String | Thread subject (from root message) | No |
 | `participants` | Array[Object] | List of participants (name, email) | No |
@@ -145,11 +145,11 @@ Stores aggregated thread metadata for quick retrieval.
 | `draft_mentions` | Array[String] | All drafts mentioned in thread | Yes |
 | `has_consensus` | Boolean | Whether consensus was detected | Yes |
 | `consensus_type` | String | Type (agreement, dissent, mixed) | No |
-| `summary_id` | String (UUID) | Reference to generated summary | Yes |
+| `summary_id` | String | Reference to generated summary (references `summaries._id`) | Yes |
 | `created_at` | DateTime | Thread record creation | Yes |
 
 **Indexes:**
-- Primary: `thread_id`
+- Primary: `_id`
 - Secondary: `archive_id`, `first_message_date`, `last_message_date`, `draft_mentions`, `has_consensus`, `summary_id`, `created_at`
 
 ---
@@ -159,7 +159,7 @@ Stores generated summaries and reports.
 
 | Field | Type | Description | Indexed |
 |-------|------|-------------|---------|
-| `summary_id` | String (UUID) | Unique identifier for summary | Primary Key |
+| `_id` | String (SHA256 hash, 16 chars) | Deterministic identifier for summary — canonical primary key | Primary Key |
 | `thread_id` | String | Associated thread (null for multi-thread summaries) | Yes |
 | `summary_type` | String | Type (thread, weekly, consensus, draft-focused) | Yes |
 | `title` | String | Summary title | No |
@@ -171,7 +171,7 @@ Stores generated summaries and reports.
 | `metadata` | Object | Additional context (date range, participants) | No |
 
 **Indexes:**
-- Primary: `summary_id`
+- Primary: `_id`
 - Secondary: `thread_id`, `summary_type`, `generated_at`
 
 **Citation Object Structure:**
@@ -188,6 +188,12 @@ Stores generated summaries and reports.
 
 ## Vector Store Schema
 
+### Identifier Naming Rules
+- `_id`: Always the canonical deterministic hex primary key for that collection (16 hex chars from SHA256_16).
+- `<collection>_id`: Reference to another collection’s `_id` (e.g., `message_doc_id` → `messages._id`, `thread_id` → `threads._id`) and also 16 hex chars.
+- RFC headers keep their RFC names (`message_id`, `in_reply_to`, `references`); these are external identifiers and never double as primary keys.
+- Never overload RFC header names for our `_id` values; `_id` stays the Mongo/document key everywhere.
+
 ### Vector Collection: `message_embeddings`
 Stores embeddings with metadata for semantic search and retrieval-augmented generation (RAG).
 
@@ -195,9 +201,24 @@ Stores embeddings with metadata for semantic search and retrieval-augmented gene
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | String | Same as `chunk_id` from document DB |
+| `id` | String | Same as `chunks._id` from document DB |
 | `vector` | Array[Float] | Embedding vector (e.g., 384 or 1536 dimensions) |
 | `payload` | Object | Metadata payload (see below) |
+
+---
+
+### Identifier Semantics: Messages
+
+This section clarifies which identifiers are sourced from email RFCs versus internal, deterministic IDs used by the system. See the formal JSON Schema in [documents/schemas/documents/messages.schema.json](documents/schemas/documents/messages.schema.json).
+
+- _id: Internal deterministic ID. Computed as a SHA256-derived short hash (first 16 chars) from stable fields (e.g., archive_id | message_id | date | sender_email | subject). Used as the MongoDB `_id` and primary key.
+- message_id: RFC 5322 Message-ID header from the original email (external identifier). Not a hash; typically formatted like `<unique@domain>`.
+- archive_id: Internal deterministic ID for the source archive (e.g., mbox). Short SHA256 (first 16 chars) of the archive content/path; used to group messages by ingestion source.
+- thread_id: Internal reference to the thread’s canonical identifier (threads._id). Used for grouping related messages; not an RFC field.
+- in_reply_to: RFC 5322 In-Reply-To header referencing the parent message’s Message-ID.
+- references: RFC 5322 References header listing ancestor Message-IDs (ordered) forming the reply chain.
+
+Note: For consistency across collections, `_id` is the canonical primary key name everywhere (archives, messages, chunks, threads, summaries). All queries and references use `_id`.
 
 #### Payload Schema
 
@@ -248,9 +269,9 @@ The payload contains metadata that links the embedding back to the source messag
 ### Forward Linkage (Embedding → Message)
 
 Each vector in the vector store contains metadata that directly references:
-1. **`chunk_id`** → Links to `chunks` collection
-2. **`message_key`** → Links to `messages` collection
-3. **`thread_id`** → Links to `threads` collection
+1. **`chunk_id`** → Links to `chunks._id` in the document DB
+2. **`message_id`** → Links to `messages.message_id`
+3. **`thread_id`** → Links to `messages.thread_id` (i.e., `threads._id`)
 
 **Retrieval Flow:**
 ```
@@ -270,11 +291,11 @@ search_results = vector_store.search(
 chunk_ids = [r.payload["chunk_id"] for r in search_results]
 
 # 3. Retrieve full chunks from document DB
-chunks = db.chunks.find({"chunk_id": {"$in": chunk_ids}})
+chunks = db.chunks.find({"_id": {"$in": chunk_ids}})
 
 # 4. Retrieve full messages
-message_keys = [c["message_key"] for c in chunks]
-messages = db.messages.find({"message_key": {"$in": message_keys}})
+message_ids = [c["message_id"] for c in chunks]
+messages = db.messages.find({"message_id": {"$in": message_ids}})
 ```
 
 ### Reverse Linkage (Message → Embedding)
@@ -285,11 +306,11 @@ To find all embeddings for a given message:
 ```python
 # 1. Find all chunks for a message
 chunks = list(db.chunks.find({
-  "message_key": "<20231015123456.ABC123@example.com>"
+  "message_id": "<20231015123456.ABC123@example.com>"
 }))
 
 # 2. Extract chunk_ids
-chunk_ids = [c["chunk_id"] for c in chunks]
+chunk_ids = [c["_id"] for c in chunks]
 
 # 3. Retrieve embeddings from vector store
 embeddings = vector_store.retrieve(chunk_ids)
@@ -300,7 +321,7 @@ embeddings = vector_store.retrieve(chunk_ids)
 # Direct filter on vector store payload
 embeddings = vector_store.scroll(
   scroll_filter={
-    "message_key": "<20231015123456.ABC123@example.com>"
+    "message_id": "<20231015123456.ABC123@example.com>"
   }
 )
 ```
@@ -329,22 +350,22 @@ archives (1) ──< (N) messages
 ### Primary Relationships
 
 1. **Archive → Messages**: One archive contains many messages
-   - FK: `messages.archive_id` → `archives.archive_id`
+  - FK: `messages.archive_id` → `archives._id`
 
 2. **Message → Chunks**: One message splits into many chunks
-  - FK: `chunks.message_key` → `messages.message_key`
+  - FK: `chunks.message_id` → `messages.message_id`
 
 3. **Chunk → Embedding**: One chunk has one embedding (1:1)
-   - FK: `vector_store.id` = `chunks.chunk_id`
+  - FK: `vector_store.id` = `chunks._id`
 
 4. **Thread → Messages**: One thread aggregates many messages
-   - FK: `messages.thread_id` → `threads.thread_id`
+  - FK: `messages.thread_id` → `threads._id`
 
 5. **Thread → Summary**: One thread may have one summary
-   - FK: `threads.summary_id` → `summaries.summary_id`
+  - FK: `threads.summary_id` → `summaries._id`
 
 6. **Summary → Citations**: One summary references many chunks
-   - Embedded: `summaries.citations[].chunk_id` → `chunks.chunk_id`
+  - Embedded: `summaries.citations[].chunk_id` → `chunks._id`
 
 ---
 
@@ -365,9 +386,9 @@ results = vector_store.search(
 # 2. Enrich with full message context
 enriched_results = []
 for result in results:
-    chunk = db.chunks.find_one({"chunk_id": result.id})
+    chunk = db.chunks.find_one({"_id": result.id})
     message = db.messages.find_one({"message_id": chunk["message_id"]})
-    thread = db.threads.find_one({"thread_id": message["thread_id"]})
+    thread = db.threads.find_one({"_id": message["thread_id"]})
     
     enriched_results.append({
         "score": result.score,
@@ -387,11 +408,10 @@ for result in results:
 ```python
 # Option A: Via document DB
 messages = list(db.messages.find({
-    "thread_id": "<20231015120000.XYZ789@example.com>"
+  "thread_id": "<20231015120000.XYZ789@example.com>"
 }))
-message_keys = [m["message_key"] for m in messages]
-chunks = list(db.chunks.find({"message_key": {"$in": message_keys}}))
-embeddings = vector_store.retrieve([c["chunk_id"] for c in chunks])
+chunks = list(db.chunks.find({"message_id": {"$in": [m["message_id"] for m in messages]}}))
+embeddings = vector_store.retrieve([c["_id"] for c in chunks])
 
 # Option B: Direct vector store filter
 embeddings = vector_store.scroll(
@@ -404,14 +424,14 @@ embeddings = vector_store.scroll(
 **Use Case:** Verify summary citations link to source
 
 ```python
-summary = db.summaries.find_one({"summary_id": "..."})
+summary = db.summaries.find_one({"_id": "..."})
 
 for citation in summary["citations"]:
     # Retrieve chunk
-    chunk = db.chunks.find_one({"chunk_id": citation["chunk_id"]})
+    chunk = db.chunks.find_one({"_id": citation["chunk_id"]})
     
     # Retrieve original message
-    message = db.messages.find_one({"message_key": chunk["message_key"]})
+    message = db.messages.find_one({"message_id": chunk["message_id"]})
     
     # Verify quote appears in chunk
     is_valid = citation["quote"] in chunk["text"]
@@ -430,7 +450,7 @@ for citation in summary["citations"]:
 
 ```python
 # archives collection
-db.archives.create_index([("archive_id", 1)], unique=True)
+db.archives.create_index([("_id", 1)], unique=True)
 db.archives.create_index([("source", 1), ("ingestion_date", -1)])
 db.archives.create_index([("status", 1)])
 
@@ -442,19 +462,19 @@ db.messages.create_index([("draft_mentions", 1)])
 db.messages.create_index([("from.email", 1), ("date", -1)])
 
 # chunks collection
-db.chunks.create_index([("chunk_id", 1)], unique=True)
+db.chunks.create_index([("_id", 1)], unique=True)
 db.chunks.create_index([("message_id", 1), ("chunk_index", 1)])
 db.chunks.create_index([("thread_id", 1)])
 db.chunks.create_index([("embedding_generated", 1), ("created_at", 1)])
 
 # threads collection
-db.threads.create_index([("thread_id", 1)], unique=True)
+db.threads.create_index([("_id", 1)], unique=True)
 db.threads.create_index([("first_message_date", -1)])
 db.threads.create_index([("draft_mentions", 1)])
 db.threads.create_index([("has_consensus", 1), ("last_message_date", -1)])
 
 # summaries collection
-db.summaries.create_index([("summary_id", 1)], unique=True)
+db.summaries.create_index([("_id", 1)], unique=True)
 db.summaries.create_index([("thread_id", 1)])
 db.summaries.create_index([("summary_type", 1), ("generated_at", -1)])
 ```
@@ -708,7 +728,7 @@ Signals that an archive has been parsed and messages are stored.
   "data": {
     "archive_id": "b9c8d7e6f5a4b3c",
     "message_count": 150,
-    "message_keys": [
+    "message_doc_ids": [
       "b0909b070abce029",
       "3af08455db2c8691"
     ],
@@ -761,7 +781,7 @@ Signals that messages have been chunked and stored.
   "timestamp": "2023-10-15T14:40:00Z",
   "version": "1.0",
   "data": {
-    "message_keys": [
+    "message_doc_ids": [
       "<20231015123456.ABC123@example.com>"
     ],
     "chunk_count": 45,
@@ -790,7 +810,7 @@ Signals that chunking failed for a batch of messages.
   "timestamp": "2023-10-15T14:42:00Z",
   "version": "1.0",
   "data": {
-    "message_keys": [
+    "message_doc_ids": [
       "<20231015123456.ABC123@example.com>"
     ],
     "error_message": "Failed to retrieve messages from database",

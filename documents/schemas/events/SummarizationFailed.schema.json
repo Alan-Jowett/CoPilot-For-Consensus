@@ -11,7 +11,7 @@
         "data": {
           "type": "object",
           "properties": {
-            "thread_id": { "type": "string", "minLength": 1 },
+            "thread_id": { "type": "string", "pattern": "^[0-9a-f]{16,64}$" },
             "error_type": { "type": "string", "minLength": 1 },
             "error_message": { "type": "string", "minLength": 1 },
             "retry_count": { "type": "integer", "minimum": 0 }

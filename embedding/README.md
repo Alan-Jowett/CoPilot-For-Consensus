@@ -147,7 +147,7 @@ Published when embeddings are successfully generated and stored.
 See [EmbeddingsGenerated schema](../documents/SCHEMA.md#7-embeddingsgenerated) in SCHEMA.md for the complete payload definition.
 
 **Key Fields:**
-- `chunk_keys`: List of chunk hash identifiers that were embedded
+- `chunk_ids`: List of canonical chunk identifiers (_id) that were embedded
 - `embedding_count`: Total number of embeddings generated
 - `embedding_model`: Model identifier used for generation
 - `embedding_backend`: Backend used (sentencetransformers, azure, etc.)
@@ -166,7 +166,7 @@ Published when embedding generation fails.
 See [EmbeddingGenerationFailed schema](../documents/SCHEMA.md#8-embeddinggenerationfailed) in SCHEMA.md for the complete payload definition.
 
 **Key Fields:**
-- `chunk_keys`: List of chunk hash identifiers that failed
+- `chunk_ids`: List of canonical chunk identifiers (_id) that failed
 - `error_message`, `error_type`: Error details
 - `embedding_backend`: Backend that was attempted
 - `retry_count`: Number of retry attempts

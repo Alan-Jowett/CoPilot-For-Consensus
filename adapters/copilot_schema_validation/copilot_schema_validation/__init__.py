@@ -12,7 +12,12 @@ __version__ = "0.1.0"
 from .schema_provider import SchemaProvider
 from .file_schema_provider import FileSchemaProvider
 from .schema_validator import validate_json
-from .message_key_generator import generate_message_key, generate_chunk_key
+from .identifier_generator import (
+    generate_archive_id_from_bytes,
+    generate_message_doc_id,
+    generate_chunk_id,
+    generate_summary_id,
+)
 from .models import (
     BaseEvent,
     # Ingestion Service Events
@@ -45,9 +50,6 @@ __all__ = [
     "SchemaProvider",
     "FileSchemaProvider",
     "validate_json",
-    # Key generation
-    "generate_message_key",
-    "generate_chunk_key",
     # Event models
     "BaseEvent",
     "ArchiveIngestedEvent",
@@ -65,4 +67,9 @@ __all__ = [
     "ReportPublishedEvent",
     "ReportDeliveryFailedEvent",
     "ArchiveMetadata",
+    # Identifier generators
+    "generate_archive_id_from_bytes",
+    "generate_message_doc_id",
+    "generate_chunk_id",
+    "generate_summary_id",
 ]

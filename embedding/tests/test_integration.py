@@ -114,12 +114,10 @@ def test_end_to_end_embedding_generation(
     # Insert test chunks into document store
     chunks = [
         {
-            "_id": "chunk-000000000001",
-            "chunk_id": "chunk-000000000001",
-            "chunk_key": "chunkkey-000000000001",
+            "_id": "aaaa1111bbbb2222",
+            "message_doc_id": "abc123def4567890",
             "message_id": "<msg1@example.com>",
-            "message_key": "msgkey-000000000001",
-            "thread_id": "<thread@example.com>",
+            "thread_id": "1111222233334444",
             "archive_id": "archive-123",
             "chunk_index": 0,
             "text": "This is the first chunk of text for testing embeddings.",
@@ -135,12 +133,10 @@ def test_end_to_end_embedding_generation(
             "embedding_generated": False,
         },
         {
-            "_id": "chunk-000000000002",
-            "chunk_id": "chunk-000000000002",
-            "chunk_key": "chunkkey-000000000002",
+            "_id": "cccc3333dddd4444",
+            "message_doc_id": "abc123def4567890",
             "message_id": "<msg1@example.com>",
-            "message_key": "msgkey-000000000001",
-            "thread_id": "<thread@example.com>",
+            "thread_id": "1111222233334444",
             "archive_id": "archive-123",
             "chunk_index": 1,
             "text": "This is the second chunk with more content for embedding.",
@@ -156,12 +152,10 @@ def test_end_to_end_embedding_generation(
             "embedding_generated": False,
         },
         {
-            "_id": "chunk-000000000003",
-            "chunk_id": "chunk-000000000003",
-            "chunk_key": "chunkkey-000000000003",
+            "_id": "eeee5555ffff6666",
+            "message_doc_id": "fedcba9876543210",
             "message_id": "<msg2@example.com>",
-            "message_key": "msgkey-000000000002",
-            "thread_id": "<thread@example.com>",
+            "thread_id": "1111222233334444",
             "archive_id": "archive-123",
             "chunk_index": 0,
             "text": "Third chunk from a different message in the same thread.",
@@ -183,7 +177,7 @@ def test_end_to_end_embedding_generation(
     
     # Process chunks
     event_data = {
-        "chunk_ids": ["chunk-000000000001", "chunk-000000000002", "chunk-000000000003"],
+        "chunk_ids": ["aaaa1111bbbb2222", "cccc3333dddd4444", "eeee5555ffff6666"],
         "chunk_count": 3,
     }
     
@@ -218,9 +212,9 @@ def test_end_to_end_embedding_generation(
     
     assert len(results) == 2
     assert results[0].metadata["chunk_id"] in [
-        "chunk-000000000001",
-        "chunk-000000000002",
-        "chunk-000000000003",
+        "aaaa1111bbbb2222",
+        "cccc3333dddd4444",
+        "eeee5555ffff6666",
     ]
     assert "text" in results[0].metadata
     assert "sender" in results[0].metadata
@@ -235,14 +229,14 @@ def test_batch_processing_integration(
 ):
     """Test that batching works correctly with real adapters."""
     # Create 5 chunks (will be processed in batches of 2)
+    chunk_ids = [f"{i:01x}{'a' * 15}" for i in range(5)]  # Generate 16-hex IDs
+    msg_ids = [f"{i:01x}{'b' * 15}" for i in range(5)]  # Generate 16-hex message IDs
     chunks = [
         {
-            "_id": f"chunk-{i:014d}",
-            "chunk_id": f"chunk-{i:014d}",
-            "chunk_key": f"chunkkey-{i:014d}",
+            "_id": chunk_ids[i],
+            "message_doc_id": msg_ids[i],
             "message_id": f"<msg{i}@example.com>",
-            "message_key": f"msgkey-{i:014d}",
-            "thread_id": "<thread@example.com>",
+            "thread_id": "1111222233334444",
             "archive_id": "archive-123",
             "chunk_index": i,
             "text": f"Text for chunk {i}",
@@ -264,7 +258,7 @@ def test_batch_processing_integration(
         in_memory_document_store.insert_document("chunks", chunk)
     
     event_data = {
-        "chunk_ids": [f"chunk-{i:014d}" for i in range(5)],
+        "chunk_ids": chunk_ids,
     }
     
     embedding_service.process_chunks(event_data)
@@ -291,12 +285,10 @@ def test_metadata_preservation(
 ):
     """Test that metadata is correctly preserved in vector store."""
     chunk = {
-        "_id": "chunk-metadata-0001",
-        "chunk_id": "chunk-metadata-0001",
-        "chunk_key": "chunkkey-metadata-0001",
+        "_id": "aaaa1111bbbbcccc",
+        "message_doc_id": "abc123def4567890",
         "message_id": "<msg@example.com>",
-        "message_key": "msgkey-metadata-0001",
-        "thread_id": "<thread@example.com>",
+        "thread_id": "1111222233334444",
         "archive_id": "archive-123",
         "chunk_index": 0,
         "text": "Test chunk with metadata",
@@ -315,7 +307,7 @@ def test_metadata_preservation(
     in_memory_document_store.insert_document("chunks", chunk)
     
     event_data = {
-        "chunk_ids": ["chunk-metadata-0001"],
+        "chunk_ids": ["aaaa1111bbbbcccc"],
     }
     
     embedding_service.process_chunks(event_data)
@@ -328,9 +320,9 @@ def test_metadata_preservation(
     metadata = results[0].metadata
     
     # Verify all metadata fields are present
-    assert metadata["chunk_id"] == "chunk-metadata-0001"
+    assert metadata["chunk_id"] == "aaaa1111bbbbcccc"
     assert metadata["message_id"] == "<msg@example.com>"
-    assert metadata["thread_id"] == "<thread@example.com>"
+    assert metadata["thread_id"] == "1111222233334444"
     assert metadata["archive_id"] == "archive-123"
     assert metadata["chunk_index"] == 0
     assert metadata["text"] == "Test chunk with metadata"

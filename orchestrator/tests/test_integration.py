@@ -31,12 +31,20 @@ def create_query_with_in_support(original_query):
                 chunk_results = original_query(collection, {"chunk_id": chunk_id}, limit)
                 results.extend(chunk_results)
             return results[:limit]  # Respect limit
-        # Handle $in operator for message_keys
-        elif "message_key" in filter_dict and isinstance(filter_dict["message_key"], dict):
-            message_keys = filter_dict["message_key"].get("$in", [])
+        # Handle $in operator for _id (canonical document primary key)
+        if "_id" in filter_dict and isinstance(filter_dict["_id"], dict):
+            doc_ids = filter_dict["_id"].get("$in", [])
             results = []
-            for message_key in message_keys:
-                msg_results = original_query(collection, {"message_key": message_key}, limit)
+            for doc_id in doc_ids:
+                doc_results = original_query(collection, {"_id": doc_id}, limit)
+                results.extend(doc_results)
+            return results[:limit]
+        # Handle $in operator for message_doc_id (chunk foreign key reference)
+        elif "message_doc_id" in filter_dict and isinstance(filter_dict["message_doc_id"], dict):
+            message_doc_ids = filter_dict["message_doc_id"].get("$in", [])
+            results = []
+            for message_doc_id in message_doc_ids:
+                msg_results = original_query(collection, {"message_doc_id": message_doc_id}, limit)
                 results.extend(msg_results)
             return results[:limit]  # Respect limit
         else:
@@ -103,11 +111,10 @@ def test_end_to_end_orchestration(service, document_store):
     chunk_ids = []
     chunks = [
         {
-            "chunk_key": "c1a2b3c4d5e6f7a8",
-            "chunk_id": "c1a2b3c4d5e6f7a8",
-            "message_key": "m1a2b3c4d5e6f7a8",
+            "_id": "aaaa1111bbbb2222",
+            "message_doc_id": "abc123def4567890",
             "message_id": "<msg-1@example.com>",
-            "thread_id": thread_id,
+            "thread_id": "1111222233334444",
             "text": "This is a test chunk about QUIC protocol.",
             "chunk_index": 0,
             "token_count": 10,
@@ -115,11 +122,10 @@ def test_end_to_end_orchestration(service, document_store):
             "created_at": now,
         },
         {
-            "chunk_key": "c1a2b3c4d5e6f7b9",
-            "chunk_id": "c1a2b3c4d5e6f7b9",
-            "message_key": "m1a2b3c4d5e6f7b9",
+            "_id": "cccc3333dddd4444",
+            "message_doc_id": "fedcba9876543210",
             "message_id": "<msg-2@example.com>",
-            "thread_id": thread_id,
+            "thread_id": "1111222233334444",
             "text": "Discussion about connection migration in QUIC.",
             "chunk_index": 0,
             "token_count": 8,
@@ -129,16 +135,16 @@ def test_end_to_end_orchestration(service, document_store):
     ]
 
     for chunk in chunks:
-        chunk_ids.append(chunk["chunk_id"])
+        chunk_ids.append(chunk["_id"])
         document_store.insert_document("chunks", chunk)
 
     # Insert messages
     messages = [
         {
-            "message_key": "m1a2b3c4d5e6f7a8",
+            "_id": "abc123def4567890",
             "message_id": "<msg-1@example.com>",
             "archive_id": "a1b2c3d4e5f67890",
-            "thread_id": thread_id,
+            "thread_id": "1111222233334444",
             "body_normalized": "This is a test message about QUIC protocol.",
             "subject": "QUIC Protocol Discussion",
             "from": {"name": "Alice", "email": "alice@example.com"},
@@ -147,10 +153,10 @@ def test_end_to_end_orchestration(service, document_store):
             "created_at": now,
         },
         {
-            "message_key": "m1a2b3c4d5e6f7b9",
+            "_id": "fedcba9876543210",
             "message_id": "<msg-2@example.com>",
             "archive_id": "a1b2c3d4e5f67890",
-            "thread_id": thread_id,
+            "thread_id": "1111222233334444",
             "body_normalized": "Discussion about connection migration in QUIC.",
             "subject": "Re: QUIC Protocol Discussion",
             "from": {"name": "Bob", "email": "bob@example.com"},
@@ -205,58 +211,86 @@ def test_orchestration_with_multiple_threads(service, document_store):
     chunk_ids = []
     chunks = [
         {
-            "chunk_key": "c2a2b3c4d5e6f7a8",
-            "chunk_id": "c2a2b3c4d5e6f7a8",
-            "message_key": "m2a2b3c4d5e6f7a8",
+            "_id": "eeee5555ffff6666",
+            "message_doc_id": "aaa1111bbb222222",
             "message_id": "<msg-1@example.com>",
-            "thread_id": "<thread-1@example.com>",
+            "thread_id": "2222333344445555",
             "chunk_index": 0,
             "text": "Thread 1 content",
+            "token_count": 5,
             "embedding_generated": True,
             "created_at": now,
         },
         {
-            "chunk_key": "c2a2b3c4d5e6f7b9",
-            "chunk_id": "c2a2b3c4d5e6f7b9",
-            "message_key": "m2a2b3c4d5e6f7b9",
+            "_id": "aaaa7777bbbb8888",
+            "message_doc_id": "ccc3333ddd444444",
             "message_id": "<msg-2@example.com>",
-            "thread_id": "<thread-2@example.com>",
+            "thread_id": "6666777788889999",
             "chunk_index": 0,
             "text": "Thread 2 content",
+            "token_count": 5,
             "embedding_generated": True,
             "created_at": now,
         },
         {
-            "chunk_key": "c2a2b3c4d5e6f7c0",
-            "chunk_id": "c2a2b3c4d5e6f7c0",
-            "message_key": "m2a2b3c4d5e6f7c0",
+            "_id": "cccc9999ddddaaaa",
+            "message_doc_id": "eee5555fff666666",
             "message_id": "<msg-3@example.com>",
-            "thread_id": "<thread-1@example.com>",
+            "thread_id": "2222333344445555",
             "chunk_index": 0,
             "text": "More thread 1 content",
+            "token_count": 6,
             "embedding_generated": True,
             "created_at": now,
         },
     ]
 
     for chunk in chunks:
-        chunk_ids.append(chunk["chunk_id"])
+        chunk_ids.append(chunk["_id"])
         document_store.insert_document("chunks", chunk)
 
     # Insert corresponding messages
-    for i in range(1, 4):
-        document_store.insert_document("messages", {
-            "message_key": f"m2a2b3c4d5e6f7{i:02x}",
-            "message_id": f"<msg-{i}@example.com>",
+    messages = [
+        {
+            "_id": "aaa1111bbb222222",
+            "message_id": "<msg-1@example.com>",
             "archive_id": "a1b2c3d4e5f67890",
-            "thread_id": f"<thread-{1 if i != 2 else 2}@example.com>",
-            "body_normalized": f"Test message content {i}",
-            "subject": f"Test Subject {i}",
+            "thread_id": "2222333344445555",
+            "body_normalized": "Test message content 1",
+            "subject": "Test Subject 1",
             "created_at": now,
-            "from": {"email": f"user{i}@example.com"},
+            "from": {"email": "user1@example.com"},
             "date": "2023-10-15T12:00:00Z",
             "draft_mentions": [],
-        })
+        },
+        {
+            "_id": "ccc3333ddd444444",
+            "message_id": "<msg-2@example.com>",
+            "archive_id": "a1b2c3d4e5f67890",
+            "thread_id": "6666777788889999",
+            "body_normalized": "Test message content 2",
+            "subject": "Test Subject 2",
+            "created_at": now,
+            "from": {"email": "user2@example.com"},
+            "date": "2023-10-15T12:00:00Z",
+            "draft_mentions": [],
+        },
+        {
+            "_id": "eee5555fff666666",
+            "message_id": "<msg-3@example.com>",
+            "archive_id": "a1b2c3d4e5f67890",
+            "thread_id": "2222333344445555",
+            "body_normalized": "Test message content 3",
+            "subject": "Test Subject 3",
+            "created_at": now,
+            "from": {"email": "user3@example.com"},
+            "date": "2023-10-15T12:00:00Z",
+            "draft_mentions": [],
+        },
+    ]
+    
+    for msg in messages:
+        document_store.insert_document("messages", msg)
 
     # Process embeddings event
     event_data = {
