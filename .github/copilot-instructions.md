@@ -70,7 +70,7 @@ docker compose up -d
 docker compose ps
 
 # Optional: wait for key services to be healthy (mirrors CI strategy)
-for s in documentdb messagebus vectorstore ollama monitoring pushgateway grafana promtail parsing chunking embedding orchestrator summarization reporting reporting-ui; do
+for s in documentdb messagebus vectorstore ollama monitoring pushgateway grafana promtail parsing chunking embedding orchestrator summarization reporting ui; do
   echo "Waiting for $s ..."
   # Loki has no healthcheck; treat any "Up" as ready
   if [ "$s" = "loki" ]; then
@@ -90,7 +90,7 @@ docker compose up -d
 docker compose ps
 
 # Optional: wait for key services to be healthy (mirrors CI strategy)
-$services = @('documentdb','messagebus','vectorstore','ollama','monitoring','pushgateway','grafana','promtail','parsing','chunking','embedding','orchestrator','summarization','reporting','reporting-ui')
+$services = @('documentdb','messagebus','vectorstore','ollama','monitoring','pushgateway','grafana','promtail','parsing','chunking','embedding','orchestrator','summarization','reporting','ui')
 foreach ($s in $services) {
   Write-Host "Waiting for $s ..."
   if ($s -eq 'loki') {
@@ -250,9 +250,9 @@ if echo "$CHANGED_FILES" | grep -q "^adapters/"; then
     --junit-xml=test-results.xml \
     --cov=$(basename "$ADAPTER_PATH") --cov-report=lcov --cov-report=html --cov-report=term
   
-elif echo "$CHANGED_FILES" | grep -qE "^(chunking|embedding|parsing|orchestrator|summarization|reporting|reporting-ui|ingestion)/"; then
+elif echo "$CHANGED_FILES" | grep -qE "^(chunking|embedding|parsing|orchestrator|summarization|reporting|ingestion)/"; then
   # Service change: extract service name and run all tests (unit + integration)
-  SERVICE=$(echo "$CHANGED_FILES" | grep -oE "^(chunking|embedding|parsing|orchestrator|summarization|reporting|reporting-ui|ingestion)" | head -1)
+  SERVICE=$(echo "$CHANGED_FILES" | grep -oE "^(chunking|embedding|parsing|orchestrator|summarization|reporting|ingestion)" | head -1)
   
   echo "Running tests for service: $SERVICE"
   cd "$SERVICE"
@@ -276,7 +276,7 @@ $changedFiles = git diff origin/main --name-only
 
 # 2) Determine if it's an adapter or service change
 $adapterMatch = $changedFiles | Where-Object { $_ -match "^adapters/" } | Select-Object -First 1
-$serviceMatch = $changedFiles | Where-Object { $_ -match "^(chunking|embedding|parsing|orchestrator|summarization|reporting|reporting-ui|ingestion)/" } | Select-Object -First 1
+$serviceMatch = $changedFiles | Where-Object { $_ -match "^(chunking|embedding|parsing|orchestrator|summarization|reporting|ingestion)/" } | Select-Object -First 1
 
 if ($adapterMatch) {
   # Adapter change: extract adapter name and run unit tests (excluding integration)
@@ -365,7 +365,7 @@ echo "✓ Validators passed"
 
 # Application Services
 echo "Starting application services..."
-for svc in parsing chunking embedding orchestrator summarization reporting reporting-ui; do
+for svc in parsing chunking embedding orchestrator summarization reporting ui; do
   echo "  Starting $svc..."
   docker compose up -d $svc
   timeout 120s bash -c "until docker compose ps $svc --format '{{.Status}}' | grep -q '(healthy)'; do sleep 3; done" || { echo "❌ $svc failed"; docker compose logs $svc --tail=50; exit 1; }
@@ -399,7 +399,7 @@ echo "✓ End-to-end validation passed"
 
 # Health checks
 echo "Testing service endpoints..."
-for endpoint in "http://localhost:8080/" "http://localhost:8080/api/reports" "http://localhost:8083/health" "http://localhost:3000/api/health" "http://localhost:9090/-/healthy" "http://localhost:3100/ready"; do
+for endpoint in "http://localhost:8080/" "http://localhost:8080/api/reports" "http://localhost:8084/" "http://localhost:8084/api/reports" "http://localhost:3000/api/health" "http://localhost:9090/-/healthy" "http://localhost:3100/ready"; do
   echo "  Testing $endpoint..."
   curl -f "$endpoint" > /dev/null 2>&1 || { echo "❌ $endpoint failed"; exit 1; }
 done
@@ -476,7 +476,7 @@ Write-Host "✓ Validators passed" -ForegroundColor Green
 
 # Application Services
 Write-Host "Starting application services..."
-$services = @('parsing','chunking','embedding','orchestrator','summarization','reporting','reporting-ui')
+$services = @('parsing','chunking','embedding','orchestrator','summarization','reporting','ui')
 foreach ($svc in $services) {
   Write-Host "  Starting $svc..."
   docker compose up -d $svc
@@ -523,11 +523,11 @@ Write-Host "Testing service endpoints..."
 $endpoints = @(
   "http://localhost:8080/",
   "http://localhost:8080/api/reports",
-  "http://localhost:8081/",
-  "http://localhost:8083/health",
-  "http://localhost:8083/reports",
+  "http://localhost:8084/",
+  "http://localhost:8084/api/reports",
   "http://localhost:3000/api/health",
-  "http://localhost:9090/-/healthy"
+  "http://localhost:9090/-/healthy",
+  "http://localhost:3100/ready"
 )
 foreach ($endpoint in $endpoints) {
   Write-Host "  Testing $endpoint..."
@@ -853,11 +853,11 @@ docker compose run --rm db-init
 docker compose run --rm db-validate
 docker compose run --rm vectorstore-validate
 docker compose run --rm ollama-validate
-docker compose up -d parsing chunking embedding orchestrator summarization reporting reporting-ui
+docker compose up -d parsing chunking embedding orchestrator summarization reporting ui
 docker compose run --rm ingestion
 # quick health checks
 curl -f http://localhost:8080/      # reporting
-curl -f http://localhost:8083/health      # reporting-ui
+curl -f http://localhost:8084/      # web ui
 curl -f http://localhost:9090/-/healthy   # prometheus
 curl -f http://localhost:3100/ready       # loki
 docker compose down
@@ -872,11 +872,11 @@ docker compose run --rm db-init
 docker compose run --rm db-validate
 docker compose run --rm vectorstore-validate
 docker compose run --rm ollama-validate
-docker compose up -d parsing chunking embedding orchestrator summarization reporting reporting-ui
+docker compose up -d parsing chunking embedding orchestrator summarization reporting ui
 docker compose run --rm ingestion
 # quick health checks
 Invoke-WebRequest -UseBasicParsing http://localhost:8080/ | Out-Null
-Invoke-WebRequest -UseBasicParsing http://localhost:8083/health | Out-Null
+Invoke-WebRequest -UseBasicParsing http://localhost:8084/ | Out-Null
 Invoke-WebRequest -UseBasicParsing http://localhost:3000/api/health | Out-Null
 Invoke-WebRequest -UseBasicParsing http://localhost:9090/-/healthy | Out-Null
 Invoke-WebRequest -UseBasicParsing http://localhost:3100/ready | Out-Null

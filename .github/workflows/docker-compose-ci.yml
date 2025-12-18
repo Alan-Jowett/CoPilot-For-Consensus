@@ -172,11 +172,6 @@ jobs:
         docker compose up -d ui
         timeout 120s bash -c 'until docker compose ps ui --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for ui..."; sleep 3; done' || (docker compose logs ui --tail=50 && exit 1)
 
-    - name: Start reporting-ui
-      run: |
-        docker compose up -d reporting-ui
-        timeout 120s bash -c 'until docker compose ps reporting-ui --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for reporting-ui..."; sleep 3; done' || (docker compose logs reporting-ui --tail=50 && exit 1)
-
     - name: Check service status
       run: docker compose ps
 
@@ -270,29 +265,6 @@ jobs:
         echo "Testing ui proxied reports API..."
         json=$(curl -sf http://localhost:8084/api/reports)
         echo "$json" | python -c 'import json,sys; data=json.load(sys.stdin); cnt=data.get("count",0); print(f"UI proxied reports count: {cnt}"); exit(0 if cnt>0 else 1)'
-
-    - name: Test reporting-ui service health endpoint
-      run: |
-        echo "Testing reporting-ui service..."
-        max_attempts=10
-        attempt=1
-        while [ $attempt -le $max_attempts ]; do
-          if curl -f http://localhost:8083/health 2>/dev/null; then
-            echo "✓ Reporting-UI service is healthy"
-            exit 0
-          fi
-          echo "Attempt $attempt/$max_attempts: Reporting-UI service not responding yet..."
-          sleep 3
-          attempt=$((attempt + 1))
-        done
-        echo "❌ Reporting-UI service failed to respond after $max_attempts attempts"
-        docker compose logs reporting-ui --tail=50
-        exit 1
-
-    - name: Test reporting-ui reports page
-      run: |
-        echo "Testing reporting-ui reports page..."
-        curl -f http://localhost:8083/reports || (docker compose logs reporting-ui --tail=50 && exit 1)
 
     - name: Test Grafana health endpoint
       run: |

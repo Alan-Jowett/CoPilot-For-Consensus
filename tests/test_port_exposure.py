@@ -119,7 +119,7 @@ def main():
         'monitoring': 'localhost',
         'loki': 'localhost',
         'ingestion': 'localhost',
-        'reporting-ui': 'localhost',
+        'ui': 'localhost',
         
         # Internal-only services (no port mappings)
         'pushgateway': 'none',

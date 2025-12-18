@@ -666,31 +666,6 @@ services:
       start_period: 90s
     restart: unless-stopped
 
-  # WARNING: The reporting-ui service has NO authentication or authorization.
-  # Do NOT expose this service to untrusted networks or in production environments.
-  # This is intended for local development only. See reporting-ui/README.md for details.
-  reporting-ui:
-    image: copilot-reporting-ui:latest
-    build:
-      context: .
-      dockerfile: ./reporting-ui/Dockerfile
-    environment:
-      - SCHEMA_DIR=/app/documents/schemas/configs
-      - REPORTING_API_URL=http://reporting:8080
-      - HTTP_PORT=8083
-    ports:
-      - "127.0.0.1:8083:8083"
-    depends_on:
-      reporting:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8083/health')"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
-    restart: unless-stopped
-
   # React-based SPA (primary Web UI)
   ui:
     image: copilot-ui:latest
