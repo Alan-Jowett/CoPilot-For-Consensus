@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Report {{ report.summary_id[:8] }} - Copilot for Consensus</title>
+    <title>Report {{ report._id[:8] }} - Copilot for Consensus</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         body {
@@ -270,8 +270,8 @@
                 <div class="info-item">
                     <div class="info-label">Report ID</div>
                     <div class="info-value">
-                        {{ report.summary_id }}
-                        <button class="copy-btn" onclick="copyToClipboard('{{ report.summary_id }}')">Copy</button>
+                        {{ report._id }}
+                        <button class="copy-btn" onclick="copyToClipboard('{{ report._id }}')">Copy</button>
                     </div>
                 </div>
                 <div class="info-item">
