@@ -1,0 +1,104 @@
+/* SPDX-License-Identifier: MIT
+   Copyright (c) 2025 Copilot-for-Consensus contributors */
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #f5f5f5;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+h1 {
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.subtitle {
+  color: #666;
+  margin-bottom: 30px;
+}
+
+.filters {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+.filters h2 { margin-top: 0; margin-bottom: 15px; font-size: 18px; color: #333; }
+
+.filter-section { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #eee; }
+.filter-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.filter-section h3 { margin-top: 0; margin-bottom: 10px; font-size: 14px; color: #666; font-weight: 600; }
+
+.filter-row { display: flex; gap: 15px; align-items: end; flex-wrap: wrap; }
+.filter-group { flex: 1; min-width: 180px; }
+.filter-group.small { flex: 0 0 140px; }
+.filter-group label { display: block; margin-bottom: 5px; color: #666; font-size: 13px; font-weight: 500; }
+.filter-group input, .filter-group select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box; }
+.filter-group input[type="date"] { font-family: inherit; }
+
+.quick-dates { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 5px; }
+.quick-date-btn { padding: 4px 10px; background-color: #f0f0f0; color: #333; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; font-size: 12px; }
+.quick-date-btn:hover { background-color: #e0e0e0; }
+
+.button-group { display: flex; gap: 10px; }
+.filter-group button, .clear-btn { padding: 8px 20px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+.filter-group button:hover { background-color: #0056b3; }
+.clear-btn { background-color: #6c757d; }
+.clear-btn:hover { background-color: #5a6268; }
+
+.active-filters { background: #e7f3ff; padding: 12px 15px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #007bff; }
+.active-filters h3 { margin: 0 0 8px 0; font-size: 14px; color: #333; }
+.filter-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+.filter-tag { display: inline-flex; align-items: center; padding: 4px 10px; background-color: #007bff; color: white; border-radius: 12px; font-size: 12px; }
+.filter-tag .remove { margin-left: 6px; cursor: pointer; font-weight: bold; }
+
+.reports-table { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
+table { width: 100%; border-collapse: collapse; }
+th { background-color: #f8f9fa; padding: 12px; text-align: left; font-weight: 600; color: #333; border-bottom: 2px solid #dee2e6; }
+td { padding: 12px; border-bottom: 1px solid #eee; }
+tr:hover { background-color: #f8f9fa; }
+.report-link { color: #007bff; text-decoration: none; font-weight: 500; }
+.report-link:hover { text-decoration: underline; }
+.thread-id { font-family: monospace; font-size: 12px; color: #666; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.copy-btn { margin-left: 5px; padding: 2px 6px; font-size: 11px; background-color: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer; }
+.copy-btn:hover { background-color: #5a6268; }
+.timestamp { color: #666; font-size: 13px; }
+.no-reports { text-align: center; padding: 40px; color: #666; }
+.pagination { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: white; margin-top: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.pagination a, .pagination button { padding: 8px 16px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; border: none; cursor: pointer; }
+.pagination a:hover, .pagination button:hover { background-color: #0056b3; }
+.pagination .disabled { background-color: #ccc; pointer-events: none; }
+.summary-preview { max-width: 500px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #555; }
+.badge { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; background-color: #17a2b8; color: white; margin-right: 5px; }
+.badge.source { background-color: #28a745; }
+.badge.score { background-color: #ffc107; color: #333; }
+.metadata { font-size: 12px; color: #666; margin-top: 4px; }
+.help-text { font-size: 12px; color: #999; margin-top: 3px; }
+
+.back-link { color: #007bff; text-decoration: none; margin-bottom: 20px; display: inline-block; }
+.back-link:hover { text-decoration: underline; }
+.header-info, .metadata-section, .summary-section, .citations-section, .thread-info { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.summary-section h2, .citations-section h2 { color: #333; margin-top: 0; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+
+.info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+.info-item { border-bottom: 1px solid #eee; padding-bottom: 10px; }
+.info-item:last-child { border-bottom: none; }
+.info-label { font-size: 12px; color: #666; text-transform: uppercase; margin-bottom: 4px; }
+.info-value { font-size: 14px; color: #333; font-weight: 500; word-break: break-all; }
+.copy-btn-small { padding: 2px 6px; font-size: 10px; background-color: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer; }
+
+.markdown :is(h1,h2,h3,h4){ margin-top:1.5em; margin-bottom:.5em; }
+.markdown pre { background-color: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }
+.markdown code { background-color: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
