@@ -167,6 +167,11 @@ jobs:
         docker compose up -d reporting
         timeout 120s bash -c 'until docker compose ps reporting --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for reporting..."; sleep 3; done' || (docker compose logs reporting --tail=50 && exit 1)
 
+    - name: Start ui
+      run: |
+        docker compose up -d ui
+        timeout 120s bash -c 'until docker compose ps ui --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for ui..."; sleep 3; done' || (docker compose logs ui --tail=50 && exit 1)
+
     - name: Start reporting-ui
       run: |
         docker compose up -d reporting-ui
@@ -254,6 +259,17 @@ jobs:
         json=$(curl -s http://localhost:8080/api/reports)
         echo "$json" | python -c 'import json,sys; data=json.load(sys.stdin); cnt=data.get("count",0); print(f"Reports count: {cnt}"); exit(0 if cnt>0 else 1)'
         echo "✓ Reports validation passed"
+
+    - name: Test ui service root endpoint
+      run: |
+        echo "Testing ui service root..."
+        curl -f http://localhost:8084/ || (docker compose logs ui --tail=50 && exit 1)
+
+    - name: Test ui proxied reports API
+      run: |
+        echo "Testing ui proxied reports API..."
+        json=$(curl -sf http://localhost:8084/api/reports)
+        echo "$json" | python -c 'import json,sys; data=json.load(sys.stdin); cnt=data.get("count",0); print(f"UI proxied reports count: {cnt}"); exit(0 if cnt>0 else 1)'
 
     - name: Test reporting-ui service health endpoint
       run: |

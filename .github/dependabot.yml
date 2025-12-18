@@ -191,6 +191,13 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
 
+  # Monitor npm dependencies in React UI
+  - package-ecosystem: "npm"
+    directory: "/ui"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
   # Monitor Docker image updates in docker-compose
   - package-ecosystem: "docker"
     directory: "/"

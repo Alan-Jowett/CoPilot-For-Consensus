@@ -95,6 +95,14 @@ def generate_dependabot_config(packages: List[Tuple[str, str]]) -> str:
         content += f"      interval: \"weekly\"\n"
         content += f"    open-pull-requests-limit: 5\n\n"
 
+    # Add npm monitoring for the React UI
+    content += "  # Monitor npm dependencies in React UI\n"
+    content += "  - package-ecosystem: \"npm\"\n"
+    content += "    directory: \"/ui\"\n"
+    content += "    schedule:\n"
+    content += "      interval: \"weekly\"\n"
+    content += "    open-pull-requests-limit: 5\n\n"
+
     # Add Docker image monitoring for docker-compose
     content += "  # Monitor Docker image updates in docker-compose\n"
     content += "  - package-ecosystem: \"docker\"\n"

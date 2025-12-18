@@ -691,6 +691,26 @@ services:
       start_period: 60s
     restart: unless-stopped
 
+  # React-based SPA (primary Web UI)
+  ui:
+    image: copilot-ui:latest
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:8084:80"
+    depends_on:
+      reporting:
+        condition: service_healthy
+    healthcheck:
+      # File check is sufficient for static content; wget not available in nginx:alpine
+      test: ["CMD-SHELL", "test -f /usr/share/nginx/html/index.html || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
   summarization:
     image: copilot-summarization:latest
     build:
