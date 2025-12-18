@@ -384,3 +384,73 @@ class TestValidatingDocumentStore:
         
         # Verify underlying store was disconnected
         assert base.connected is False
+    
+    def test_aggregate_documents_delegates_to_underlying_store(self):
+        """Test that aggregate_documents is delegated to underlying store."""
+        base = InMemoryDocumentStore()
+        base.connect()
+        
+        # Insert test data
+        base.insert_document('messages', {
+            '_id': 'msg1',
+            'archive_id': 'archive1',
+            'body': 'test'
+        })
+        base.insert_document('messages', {
+            '_id': 'msg2',
+            'archive_id': 'archive1',
+            'body': 'test2'
+        })
+        base.insert_document('chunks', {
+            '_id': 'chunk1',
+            'message_doc_id': 'msg1'
+        })
+        
+        provider = MockSchemaProvider()
+        store = ValidatingDocumentStore(base, provider)
+        
+        # Execute aggregation through validating store
+        pipeline = [
+            {
+                "$match": {
+                    "_id": {"$exists": True},
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "chunks",
+                    "localField": "_id",
+                    "foreignField": "message_doc_id",
+                    "as": "chunks",
+                }
+            },
+            {
+                "$match": {
+                    "chunks": {"$eq": []},
+                }
+            },
+        ]
+        
+        results = store.aggregate_documents('messages', pipeline)
+        
+        # Should find msg2 which has no chunks
+        assert len(results) == 1
+        assert results[0]['_id'] == 'msg2'
+    
+    def test_aggregate_documents_raises_error_when_not_supported(self):
+        """Test that aggregate_documents raises AttributeError when underlying store doesn't support it."""
+        # Create a mock store without aggregate_documents method
+        class MockStoreWithoutAggregation:
+            def connect(self):
+                pass
+            
+            def disconnect(self):
+                pass
+        
+        base = MockStoreWithoutAggregation()
+        provider = MockSchemaProvider()
+        store = ValidatingDocumentStore(base, provider)
+        
+        # Should raise AttributeError when aggregate_documents is not supported
+        with pytest.raises(AttributeError, match="does not support aggregation"):
+            store.aggregate_documents('test', [])
