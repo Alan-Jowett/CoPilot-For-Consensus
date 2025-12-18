@@ -271,6 +271,8 @@ class TestRabbitMQSubscriber:
         subscriber._consuming = False
         
         # Simulate pika transport state assertion error
+        # Note: pika has a typo in the error message - "_initate" instead of "_initiate"
+        # This is the actual error message from pika, reproduced exactly
         transport_error = AssertionError(
             "_AsyncTransportBase._initate_abort() expected non-_STATE_COMPLETED", 4
         )
