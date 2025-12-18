@@ -20,7 +20,7 @@ from copilot_storage import create_document_store, ValidatingDocumentStore
 from copilot_metrics import create_metrics_collector
 from copilot_reporting import create_error_reporter
 from copilot_schema_validation import FileSchemaProvider
-from copilot_logging import create_logger
+from copilot_logging import create_logger, create_uvicorn_log_config
 
 from app import __version__
 from app.service import ParsingService
@@ -202,7 +202,10 @@ def main():
         
         # Start FastAPI server (blocking)
         logger.info(f"Starting FastAPI server on port {config.http_port}")
-        uvicorn.run(app, host="0.0.0.0", port=config.http_port)
+        
+        # Configure Uvicorn with structured JSON logging
+        log_config = create_uvicorn_log_config(service_name="parsing", log_level="INFO")
+        uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config)
         
     except KeyboardInterrupt:
         logger.info("Shutting down parsing service")
