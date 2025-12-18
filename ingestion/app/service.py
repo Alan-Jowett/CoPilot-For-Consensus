@@ -7,7 +7,7 @@ import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Dict, Any, Iterable, List
+from typing import Optional, Dict, Any, Iterable, List, Tuple
 
 from copilot_events import EventPublisher, ArchiveIngestedEvent, ArchiveIngestionFailedEvent, ArchiveMetadata
 from copilot_logging import Logger, create_logger
@@ -1151,7 +1151,7 @@ class IngestionService:
             self.logger.error("Failed to delete source", error=str(e), exc_info=True)
             raise ValueError(f"Failed to delete source: {str(e)}")
     
-    def trigger_ingestion(self, source_name: str) -> tuple[bool, str]:
+    def trigger_ingestion(self, source_name: str) -> Tuple[bool, str]:
         """Trigger manual ingestion for a source.
         
         Args:

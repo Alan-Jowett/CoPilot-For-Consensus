@@ -91,7 +91,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
                 "count": len(sources),
             }
         except Exception as e:
-            logger.error(f"Error listing sources: {e}", exc_info=True)
+            logger.error("Error listing sources: %s", e, exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
     
     @router.get("/api/sources/{source_name}", response_model=Dict[str, Any])
@@ -105,7 +105,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Error getting source {source_name}: {e}", exc_info=True)
+            logger.error("Error getting source %s: %s", source_name, e, exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
     
     @router.post("/api/sources", response_model=Dict[str, Any], status_code=201)
@@ -120,7 +120,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
-            logger.error(f"Error creating source: {e}", exc_info=True)
+            logger.error("Error creating source: %s", e, exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
     
     @router.put("/api/sources/{source_name}", response_model=Dict[str, Any])
@@ -149,7 +149,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
-            logger.error(f"Error updating source {source_name}: {e}", exc_info=True)
+            logger.error("Error updating source %s: %s", source_name, e, exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
     
     @router.delete("/api/sources/{source_name}", response_model=Dict[str, str])
@@ -164,7 +164,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Error deleting source {source_name}: {e}", exc_info=True)
+            logger.error("Error deleting source %s: %s", source_name, e, exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
     
     @router.post("/api/sources/{source_name}/trigger", response_model=TriggerResponse)
@@ -186,7 +186,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Error triggering ingestion for {source_name}: {e}", exc_info=True)
+            logger.error("Error triggering ingestion for %s: %s", source_name, e, exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
     
     @router.get("/api/sources/{source_name}/status", response_model=SourceStatus)
@@ -201,7 +201,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Error getting status for {source_name}: {e}", exc_info=True)
+            logger.error("Error getting status for %s: %s", source_name, e, exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
     
     return router
