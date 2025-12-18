@@ -149,13 +149,13 @@ class ValidatingEventPublisher(EventPublisher):
         # Delegate to underlying publisher
         self._publisher.publish(exchange, routing_key, event)
 
-    def connect(self) -> bool:
+    def connect(self) -> None:
         """Connect to the message bus.
-
-        Returns:
-            True if connection succeeded, False otherwise
+        
+        Raises:
+            Exception: If connection fails for any reason
         """
-        return self._publisher.connect()
+        self._publisher.connect()
 
     def disconnect(self) -> None:
         """Disconnect from the message bus."""

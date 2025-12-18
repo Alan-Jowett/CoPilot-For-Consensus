@@ -25,11 +25,11 @@ class EventPublisher(ABC):
         pass
 
     @abstractmethod
-    def connect(self) -> bool:
+    def connect(self) -> None:
         """Connect to the message bus.
         
-        Returns:
-            True if connection succeeded, False otherwise
+        Raises:
+            Exception: If connection fails for any reason
         """
         pass
 

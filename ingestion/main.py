@@ -150,7 +150,9 @@ def main():
         )
 
         # Connect publisher
-        if not base_publisher.connect():
+        try:
+            base_publisher.connect()
+        except Exception as e:
             if str(config.message_bus_type).lower() != "noop":
                 log.error(
                     "Failed to connect to message bus. Failing fast as message_bus_type is not noop.",

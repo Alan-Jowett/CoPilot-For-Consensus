@@ -28,15 +28,10 @@ class NoopSubscriber(EventSubscriber):
         self.routing_keys: Dict[str, str] = {}
         self._stop_event = threading.Event()
 
-    def connect(self) -> bool:
-        """Simulate connection to message bus.
-        
-        Returns:
-            bool: Always returns True
-        """
+    def connect(self) -> None:
+        """Simulate connection to message bus (always succeeds)."""
         self.connected = True
         logger.debug("NoopSubscriber connected")
-        return True
 
     def disconnect(self) -> None:
         """Simulate disconnection from message bus."""

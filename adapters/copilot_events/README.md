@@ -379,28 +379,31 @@ publisher = RabbitMQPublisher(
     host="messagebus",
     enable_publisher_confirms=True  # Default
 )
-publisher.connect()
+publisher.connect()  # Raises on failure
 
-# Declare queues before publishing
+# Declare queues before publishing (raises on failure)
 publisher.declare_queue(
     queue_name="archive.ingested",
     routing_key="archive.ingested",
     exchange="copilot.events"
 )
 
-# Now publish - guaranteed delivery
-success = publisher.publish(
+# Now publish - guaranteed delivery (raises on failure)
+publisher.publish(
     exchange="copilot.events",
     routing_key="archive.ingested",
     event={"event_type": "ArchiveIngested", "data": {...}}
 )
 
-# Or declare multiple queues at once
+# Or declare multiple queues at once (returns bool aggregate)
 queues = [
     {"queue_name": "archive.ingested", "routing_key": "archive.ingested"},
     {"queue_name": "json.parsed", "routing_key": "json.parsed"},
 ]
-publisher.declare_queues(queues)
+ok = publisher.declare_queues(queues)
+if not ok:
+    # One or more declarations failed; inspect logs or retry as needed
+    pass
 ```
 
 #### RabbitMQSubscriber

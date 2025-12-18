@@ -211,8 +211,7 @@ class TestValidatingEventPublisher:
         provider = MockSchemaProvider()
         publisher = ValidatingEventPublisher(base, provider)
         
-        result = publisher.connect()
-        assert result is True
+        publisher.connect()  # Should not raise
         assert base.connected is True
     
     def test_disconnect_delegates_to_underlying_publisher(self):

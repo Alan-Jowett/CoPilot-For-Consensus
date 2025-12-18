@@ -44,9 +44,8 @@ class TestNoopPublisher:
         """Test connecting to no-op publisher."""
         publisher = NoopPublisher()
         
-        result = publisher.connect()
+        publisher.connect()  # Should not raise
         
-        assert result is True
         assert publisher.connected is True
 
     def test_disconnect(self):

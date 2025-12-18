@@ -46,9 +46,10 @@ def rabbitmq_publisher():
     # Attempt to connect with retries
     max_retries = 5
     for i in range(max_retries):
-        if publisher.connect():
+        try:
+            publisher.connect()
             break
-        if i < max_retries - 1:
+        except Exception:
             time.sleep(2)
     else:
         pytest.skip("Could not connect to RabbitMQ - skipping integration tests")
@@ -376,13 +377,20 @@ class TestRabbitMQErrorHandling:
     """Test edge cases and error handling."""
 
     def test_publish_without_connection(self):
-        """Test that publishing fails gracefully without connection."""
+        """Test that publishing fails gracefully without connection.
+
+        With automatic reconnection enabled, publishing without a prior
+        connection may succeed in connecting and then fail due to routing
+        (unroutable). To exercise the connection error path, disable
+        reconnection by setting max_reconnect_attempts=0.
+        """
         config = get_rabbitmq_config()
         publisher = RabbitMQPublisher(
             host=config["host"],
             port=config["port"],
             username=config["username"],
             password=config["password"],
+            max_reconnect_attempts=0,
         )
         # Don't connect
         
@@ -408,16 +416,16 @@ class TestRabbitMQErrorHandling:
         )
         
         # Connect
-        success = publisher.connect()
-        if not success:
+        try:
+            publisher.connect()
+        except Exception:
             pytest.skip("Could not connect to RabbitMQ")
         
         # Disconnect
         publisher.disconnect()
         
         # Reconnect
-        success = publisher.connect()
-        assert success is True
+        publisher.connect()  # Should not raise
         
         # Cleanup
         publisher.disconnect()

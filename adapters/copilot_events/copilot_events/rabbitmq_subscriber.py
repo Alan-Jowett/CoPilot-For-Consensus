@@ -61,57 +61,53 @@ class RabbitMQSubscriber(EventSubscriber):
         self.callbacks: Dict[str, Callable[[Dict[str, Any]], None]] = {}
         self._consuming = False
 
-    def connect(self) -> bool:
+    def connect(self) -> None:
         """Connect to RabbitMQ server.
         
-        Returns:
-            bool: True if connection successful, False otherwise
+        Raises:
+            ImportError: If pika library is not installed
+            Exception: If connection or setup fails
         """
-        try:
-            import pika
-            
-            credentials = pika.PlainCredentials(self.username, self.password)
-            parameters = pika.ConnectionParameters(
-                host=self.host,
-                port=self.port,
-                credentials=credentials
+        import pika
+        
+        credentials = pika.PlainCredentials(self.username, self.password)
+        parameters = pika.ConnectionParameters(
+            host=self.host,
+            port=self.port,
+            credentials=credentials
+        )
+        
+        self.connection = pika.BlockingConnection(parameters)
+        self.channel = self.connection.channel()
+        
+        # Declare exchange
+        self.channel.exchange_declare(
+            exchange=self.exchange_name,
+            exchange_type=self.exchange_type,
+            durable=True
+        )
+        
+        # Declare queue
+        if self.queue_name:
+            # Named queue - must be durable with correct persistence flags
+            self.channel.queue_declare(
+                queue=self.queue_name,
+                durable=self.queue_durable,
+                auto_delete=False,
+                exclusive=False,
             )
-            
-            self.connection = pika.BlockingConnection(parameters)
-            self.channel = self.connection.channel()
-            
-            # Declare exchange
-            self.channel.exchange_declare(
-                exchange=self.exchange_name,
-                exchange_type=self.exchange_type,
-                durable=True
+        else:
+            # Let RabbitMQ generate a unique queue name (temporary queue)
+            result = self.channel.queue_declare(
+                queue='',
+                exclusive=True
             )
-            
-            # Declare queue
-            if self.queue_name:
-                # Named queue - must be durable with correct persistence flags
-                self.channel.queue_declare(
-                    queue=self.queue_name,
-                    durable=self.queue_durable,
-                    auto_delete=False,
-                    exclusive=False,
-                )
-            else:
-                # Let RabbitMQ generate a unique queue name (temporary queue)
-                result = self.channel.queue_declare(
-                    queue='',
-                    exclusive=True
-                )
-                self.queue_name = result.method.queue
-            
-            logger.info(
-                f"Connected to RabbitMQ: {self.host}:{self.port}, "
-                f"exchange={self.exchange_name}, queue={self.queue_name}"
-            )
-            return True
-        except Exception as e:
-            logger.error(f"Failed to connect to RabbitMQ: {e}")
-            return False
+            self.queue_name = result.method.queue
+        
+        logger.info(
+            f"Connected to RabbitMQ: {self.host}:{self.port}, "
+            f"exchange={self.exchange_name}, queue={self.queue_name}"
+        )
 
     def disconnect(self) -> None:
         """Disconnect from RabbitMQ server."""
