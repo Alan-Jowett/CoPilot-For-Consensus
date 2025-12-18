@@ -113,7 +113,6 @@ jobs:
             reporting:
               - 'reporting/**'
               - 'adapters/**'
-              - 'adapters/**'
             summarization:
               - 'summarization/**'
               - 'adapters/**'
