@@ -31,6 +31,156 @@ This system uses a **push model** for service metrics:
 - Services do NOT expose `/metrics` endpoints (only `/health` and `/stats` endpoints)
 - Infrastructure exporters (MongoDB, RabbitMQ, Qdrant, cAdvisor) use the traditional pull model with `/metrics` endpoints
 
+### Service Metrics Reference
+
+All service metrics use the `copilot_` namespace prefix. Services push metrics to Pushgateway after processing each batch/message.
+
+#### Parsing Service Metrics
+- `copilot_parsing_messages_parsed_total` (Counter) - Total messages successfully parsed
+  - Used by dashboard query: `rate(copilot_parsing_messages_parsed_total[5m])` for throughput
+- `copilot_parsing_archives_processed_total` (Counter) - Total archives processed
+  - Labels: `status` (`success` or `failed`)
+- `copilot_parsing_threads_created_total` (Counter) - Total email threads created
+- `copilot_parsing_duration_seconds` (Histogram) - Time taken to parse archives
+  - Used by dashboard query: `histogram_quantile(0.95, rate(copilot_parsing_duration_seconds_bucket[5m]))` for p95 latency
+- `copilot_parsing_failures_total` (Counter) - Total parsing failures
+  - Labels: `error_type` (e.g., `IOError`, `ParseError`)
+  - Used by dashboard query: `rate(copilot_parsing_failures_total[5m])` for error rate
+
+#### Chunking Service Metrics
+- `copilot_chunking_chunks_created_total` (Counter) - Total chunks created
+  - Used by dashboard query: `rate(copilot_chunking_chunks_created_total[5m])` for throughput
+- `copilot_chunking_messages_processed_total` (Counter) - Total messages chunked
+  - Labels: `status` (`success`)
+- `copilot_chunking_duration_seconds` (Histogram) - Time taken to chunk messages
+  - Used by dashboard query: `histogram_quantile(0.95, rate(copilot_chunking_duration_seconds_bucket[5m]))` for p95 latency
+- `copilot_chunking_chunk_size_tokens` (Histogram) - Distribution of chunk sizes in tokens
+- `copilot_chunking_failures_total` (Counter) - Total chunking failures
+  - Labels: `error_type` (e.g., `TokenizationError`)
+  - Used by dashboard query: `rate(copilot_chunking_failures_total[5m])` for error rate
+
+#### Embedding Service Metrics
+- `copilot_embedding_chunks_processed_total` (Counter) - Total chunks processed for embeddings
+- `copilot_embedding_generation_duration_seconds` (Histogram) - Time taken to generate embeddings
+  - Used by dashboard query: `histogram_quantile(0.95, rate(copilot_embedding_generation_duration_seconds_bucket[5m]))` for p95 latency
+- `copilot_embedding_failures_total` (Counter) - Total embedding generation failures
+  - Labels: `error_type` (e.g., `ModelError`, `ConnectionError`)
+  - Used by dashboard query: `rate(copilot_embedding_failures_total[5m])` for error rate
+
+#### Summarization Service Metrics
+- `copilot_summarization_latency_seconds` (Histogram) - Time taken to generate summaries
+  - Used by dashboard query: `histogram_quantile(0.95, rate(copilot_summarization_latency_seconds_bucket[5m]))` for p95 latency
+- `copilot_summarization_events_total` (Counter) - Total summarization events
+  - Labels: `event_type` (`requested`), `outcome` (`success`)
+- `copilot_summarization_llm_calls_total` (Counter) - Total LLM API calls
+  - Labels: `backend` (e.g., `openai`, `azure`), `model` (e.g., `gpt-4`)
+- `copilot_summarization_tokens_total` (Counter) - Total tokens processed
+  - Labels: `type` (`prompt` or `completion`)
+- `copilot_summarization_failures_total` (Counter) - Total summarization failures
+  - Labels: `error_type` (e.g., `LLMTimeout`, `APIError`)
+  - Used by dashboard query: `rate(copilot_summarization_failures_total[5m])` for error rate
+
+#### Orchestrator Service Metrics
+- `copilot_orchestrator_summary_triggered_total` (Counter) - Total summaries triggered
+  - Labels: `reason` (`chunks_changed`)
+- `copilot_orchestrator_summary_skipped_total` (Counter) - Total summaries skipped
+  - Labels: `reason` (`summary_already_exists`)
+- `copilot_orchestration_events_total` (Counter) - Total orchestration events
+  - Labels: `event_type` (`summarization_requested`, `orchestration_failed`), `outcome` (`success`, `failure`)
+- `copilot_orchestration_failures_total` (Counter) - Total orchestration failures
+  - Labels: `error_type` (e.g., `DocumentStoreError`)
+
+#### Infrastructure Metrics (from Exporters)
+- `qdrant_collection_vectors_count` (Gauge) - Number of vectors in Qdrant collection
+  - Labels: `collection` (e.g., `embeddings`)
+  - Used by dashboard for Vector Store Size panel
+- `rabbitmq_queue_messages_ready` (Gauge) - Messages waiting in RabbitMQ queue
+  - Labels: `queue` (e.g., `parsing`, `chunking`, `embedding`, `summarization`)
+  - Used by dashboard for Queue Depths panel
+- `mongodb_collstats_count`, `mongodb_collstats_storageSize` - MongoDB collection stats
+- `container_*` - cAdvisor container resource metrics
+
+### Troubleshooting Service Metrics Dashboard
+
+**Problem: "No data" in Service Metrics Dashboard panels**
+
+1. **Verify Pushgateway is running and being scraped**:
+   - Check Prometheus targets: http://localhost:9090/targets
+   - The `pushgateway` job should show as `UP`
+   - If down, start it: `docker compose up -d pushgateway`
+
+2. **Check if services are pushing metrics**:
+   - Open Pushgateway UI: http://localhost:9091
+   - Look for metrics with `copilot_` prefix
+   - If no metrics visible, services may not be pushing
+
+3. **Verify services are processing data**:
+   - Services only push metrics after processing messages/batches
+   - Check service logs: `docker compose logs -f parsing` (or chunking, embedding, etc.)
+   - Look for log entries like "Successfully parsed archive..." or "Chunking completed..."
+   - If services aren't processing, they won't push metrics
+
+4. **Test metric push manually**:
+   - Run ad-hoc query in Prometheus: http://localhost:9090
+   - Try: `copilot_parsing_messages_parsed_total`
+   - If this returns data, dashboard queries may need adjustment
+   - If this returns no data, services aren't pushing
+
+5. **Check for metric push errors in service logs**:
+   - Search logs for "Failed to push metrics"
+   - Linux/macOS: `docker compose logs parsing | grep "push metrics"`
+   - Windows PowerShell: `docker compose logs parsing | Select-String "push metrics"`
+   - Fix any connection errors to Pushgateway
+
+6. **Verify correct metric names**:
+   - Dashboard queries must match actual metric names
+   - Check the "Service Metrics Reference" section above for correct names
+   - Use Prometheus UI to explore available metrics: http://localhost:9090/graph
+
+**Problem: Specific panels show "No data"**
+
+- **Parsing Throughput**: Ensure parsing service has processed at least one archive
+- **Chunking Throughput**: Ensure chunking service has processed messages
+- **Embedding Latency**: Embedding service needs to generate at least one embedding batch
+- **Summarization Latency**: Summarization service needs to complete at least one summary
+- **Vector Store Size**: Requires Qdrant exporter to be running (`docker compose ps qdrant-exporter`)
+- **Queue Depths**: Requires RabbitMQ exporter to be running (`docker compose ps rabbitmq-exporter`)
+
+**Quick Fix Checklist**:
+
+Linux/macOS (bash):
+```bash
+# 1. Restart all monitoring services
+docker compose restart pushgateway monitoring grafana
+
+# 2. Restart service that's missing metrics
+docker compose restart parsing  # or chunking, embedding, summarization
+
+# 3. Trigger some processing to generate metrics
+# (Ingest test data - see "ingest test data" intent in .github/copilot-instructions.md)
+
+# 4. Wait 15-30 seconds for metrics to propagate
+
+# 5. Refresh Grafana dashboard
+```
+
+Windows (PowerShell):
+```powershell
+# 1. Restart all monitoring services
+docker compose restart pushgateway monitoring grafana
+
+# 2. Restart service that's missing metrics
+docker compose restart parsing  # or chunking, embedding, summarization
+
+# 3. Trigger some processing to generate metrics
+# (Ingest test data - see "ingest test data" intent in .github/copilot-instructions.md)
+
+# 4. Wait 15-30 seconds for metrics to propagate
+
+# 5. Refresh Grafana dashboard
+```
+
+
 ### Quick Checks
 - Open Prometheus UI → **Status > Targets** to verify all scrape targets are `UP`
 - Check Pushgateway UI at http://localhost:9091 to see pushed metrics from services
@@ -87,7 +237,15 @@ While services don't expose `/metrics`, they do provide:
 
 ### Available Dashboards
 - **Copilot System Health**: Overall service health and uptime
-- **Service Metrics**: Service-level performance metrics
+- **Service Metrics**: Service-level performance metrics (see section 3.1)
+  - Parsing Throughput: Messages parsed per second
+  - Chunking Throughput: Chunks created per second
+  - Embedding Latency: P50/P95 latency for embedding generation
+  - Summarization Latency: P50/P95 latency for summary generation
+  - Vector Store Size: Total vectors in Qdrant embeddings collection
+  - Queue Depths: Message counts in RabbitMQ queues per service
+  - Error Rates: Failed operations per service per second
+  - Processing Latency: P95 latency for parsing and chunking
 - **Queue Status**: RabbitMQ queue depths and message flow
 - **Failed Queues Overview**: Failed message monitoring and alerting
 - **Logs Overview**: Error and warning tracking across all services (Loki)

@@ -272,6 +272,8 @@ class EmbeddingService:
                 if self.metrics_collector:
                     self.metrics_collector.increment("embedding_chunks_processed_total", all_generated_count)
                     self.metrics_collector.observe("embedding_generation_duration_seconds", processing_time)
+                    # Push metrics to Pushgateway
+                    self.metrics_collector.safe_push()
                 
                 return
                 
@@ -296,6 +298,8 @@ class EmbeddingService:
                     
                     if self.metrics_collector:
                         self.metrics_collector.increment("embedding_failures_total", 1, tags={"error_type": error_type})
+                        # Push metrics to Pushgateway
+                        self.metrics_collector.safe_push()
                     
                     # Re-raise to trigger message requeue for guaranteed forward progress
                     raise
