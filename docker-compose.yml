@@ -698,8 +698,8 @@ services:
       context: ./ui
       dockerfile: Dockerfile
       args:
-        # Build-time configuration for the SPA to call the internal Reporting API
-        VITE_REPORTING_API_URL: http://reporting:8080
+        # Build-time configuration for the SPA (browser-accessible URL)
+        VITE_REPORTING_API_URL: http://localhost:8080
     ports:
       - "127.0.0.1:8084:80"
     depends_on:
