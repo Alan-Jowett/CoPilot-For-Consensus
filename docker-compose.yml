@@ -691,11 +691,11 @@ services:
       start_period: 60s
     restart: unless-stopped
 
-  # React-based SPA mirror of reporting-ui (local-only)
-  reporting-ui-react:
-    image: reporting-ui-react:latest
+  # React-based SPA (primary Web UI)
+  ui:
+    image: copilot-ui:latest
     build:
-      context: ./reporting-ui-react
+      context: ./ui
       dockerfile: Dockerfile
       args:
         # Build-time configuration for the SPA to call the internal Reporting API

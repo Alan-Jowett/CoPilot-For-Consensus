@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: MIT
   Copyright (c) 2025 Copilot-for-Consensus contributors -->
 
-# Reporting UI (React)
+# Web UI (React)
 
-A single page application that replicates the behavior of the Flask-based `reporting-ui` service using React + Vite.
+A single page application intended to be the primary UI for the project. It currently replicates the reporting functionality of the Flask-based `reporting-ui` service and will expand to include user management, ingestion source management, and browsing emails/threads.
 
 ## Features
 
