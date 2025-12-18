@@ -213,16 +213,33 @@ class ReportingService:
         }
         
         # Store summary
-        logger.info(f"Storing summary {report_id} for thread {thread_id}")
-        self.document_store.insert_document("summaries", summary_doc)
-        self.reports_stored += 1
+        # Idempotency: if the summary already exists, skip insert to avoid retries
+        try:
+            existing = self.document_store.query_documents(
+                "summaries",
+                filter_dict={"_id": report_id},
+                limit=1,
+            )
+            if existing:
+                logger.info(f"Summary {report_id} already stored; skipping insert")
+            else:
+                logger.info(f"Storing summary {report_id} for thread {thread_id}")
+                self.document_store.insert_document("summaries", summary_doc)
+                self.reports_stored += 1
+        except Exception as e:
+            # If insert races, treat duplicate key as success to allow ack and prevent requeue
+            if type(e).__name__ == "DuplicateKeyError" or "duplicate key error" in str(e):
+                logger.info(f"Summary {report_id} already exists (duplicate); treating as success")
+            else:
+                raise
         
         # Update thread document with summary_id to mark as complete
         logger.info(f"Updating thread {thread_id} with summary_id {report_id}")
+        # Threads use thread_id as document _id; update by ID
         self.document_store.update_document(
-            collection="threads",
-            filter_dict={"thread_id": thread_id},
-            update_data={"summary_id": report_id},
+            "threads",
+            thread_id,
+            {"summary_id": report_id},
         )
         
         # Attempt webhook notification if enabled
