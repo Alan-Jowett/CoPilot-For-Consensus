@@ -105,9 +105,9 @@ class TestIngestionService:
 
             source = make_source(name="test-source", url=test_file)
 
-            success = service.ingest_archive(source, max_retries=1)
+            # Should not raise exception on success
+            service.ingest_archive(source, max_retries=1)
 
-            assert success is True
             assert len(service.checksums) == 1
 
     def test_archives_collection_populated(self, service, temp_storage):
@@ -119,9 +119,8 @@ class TestIngestionService:
 
             source = make_source(name="test-source", url=test_file)
 
-            success = service.ingest_archive(source, max_retries=1)
-
-            assert success is True
+            # Should not raise exception on success
+            service.ingest_archive(source, max_retries=1)
             
             # Check that archives collection has one entry
             archives = service.document_store.query_documents("archives", {})
@@ -175,11 +174,11 @@ class TestIngestionService:
 
             source = make_source(name="test-source", url=test_file)
 
-            success1 = service.ingest_archive(source, max_retries=1)
-            assert success1 is True
+            # First ingestion should succeed
+            service.ingest_archive(source, max_retries=1)
 
-            success2 = service.ingest_archive(source, max_retries=1)
-            assert success2 is True
+            # Second ingestion should also succeed (skips duplicate files)
+            service.ingest_archive(source, max_retries=1)
 
             assert len(service.checksums) == 1
 
@@ -209,8 +208,9 @@ class TestIngestionService:
             results = service.ingest_all_enabled_sources()
 
             assert len(results) == 2
-            assert results["source1"] is True
-            assert results["source2"] is True
+            # Results now map to None (success) or Exception (failure)
+            assert results["source1"] is None  # Success
+            assert results["source2"] is None  # Success
 
     def test_ingestion_log_created(self, service, temp_storage):
         """Test that ingestion log is created."""
@@ -525,3 +525,68 @@ def test_publish_failure_event_raises_on_publisher_exception(tmp_path):
             retry_count=3,
             ingestion_started_at="2023-10-15T12:00:00Z",
         )
+
+
+def test_ingest_archive_raises_source_configuration_error(tmp_path):
+    """Test that ingest_archive raises SourceConfigurationError for invalid config."""
+    from app.exceptions import SourceConfigurationError
+    
+    config = make_config(storage_path=str(tmp_path))
+    publisher = NoopPublisher()
+    publisher.connect()
+    
+    service = IngestionService(config=config, publisher=publisher)
+    
+    # Invalid source dict missing required fields
+    invalid_source = {"name": "test"}  # Missing source_type and url
+    
+    with pytest.raises(SourceConfigurationError, match="missing required fields"):
+        service.ingest_archive(invalid_source, max_retries=1)
+
+
+def test_ingest_archive_raises_fetch_error(tmp_path):
+    """Test that ingest_archive raises FetchError when fetching fails."""
+    from app.exceptions import FetchError
+    
+    config = make_config(storage_path=str(tmp_path))
+    publisher = NoopPublisher()
+    publisher.connect()
+    
+    service = IngestionService(config=config, publisher=publisher)
+    
+    # Source with non-existent URL
+    source = make_source(name="test", url="file:///nonexistent/path/file.mbox")
+    
+    with pytest.raises(FetchError):
+        service.ingest_archive(source, max_retries=1)
+
+
+def test_ingest_all_enabled_sources_returns_exceptions(tmp_path):
+    """Test that ingest_all_enabled_sources returns exception objects for failures."""
+    from app.exceptions import FetchError
+    
+    config = make_config(storage_path=str(tmp_path))
+    publisher = NoopPublisher()
+    publisher.connect()
+    
+    service = IngestionService(config=config, publisher=publisher)
+    
+    with tempfile.TemporaryDirectory() as source_dir:
+        # Create one valid file
+        valid_file = os.path.join(source_dir, "valid.mbox")
+        with open(valid_file, "w") as f:
+            f.write("content")
+        
+        sources = [
+            make_source(name="valid-source", url=valid_file),
+            make_source(name="invalid-source", url="file:///nonexistent/file.mbox"),
+        ]
+        
+        config.sources = sources
+        results = service.ingest_all_enabled_sources()
+        
+        # Check that results contain one success and one failure
+        assert len(results) == 2
+        assert results["valid-source"] is None  # Success
+        assert isinstance(results["invalid-source"], Exception)  # Failure
+        assert isinstance(results["invalid-source"], FetchError)  # Specific exception type

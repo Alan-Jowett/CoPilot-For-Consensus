@@ -15,10 +15,9 @@ class TestMessageParser:
         """Test parsing an mbox file."""
         parser = MessageParser()
         
-        messages, errors = parser.parse_mbox(sample_mbox_file, "test-archive-1")
+        messages = parser.parse_mbox(sample_mbox_file, "test-archive-1")
         
         assert len(messages) == 2
-        assert len(errors) == 0
         
         # Check first message
         msg1 = messages[0]
@@ -37,25 +36,31 @@ class TestMessageParser:
 
     def test_parse_corrupted_mbox(self, corrupted_mbox_file):
         """Test parsing a corrupted mbox file."""
+        from app.exceptions import MessageParsingError
         parser = MessageParser()
         
-        messages, errors = parser.parse_mbox(corrupted_mbox_file, "test-archive-2")
-        
-        # Should handle gracefully - may have no messages or some errors
-        assert isinstance(messages, list)
-        assert isinstance(errors, list)
+        # Corrupted file may still parse some messages, or raise exception if all fail
+        try:
+            messages = parser.parse_mbox(corrupted_mbox_file, "test-archive-2")
+            # If it succeeds, should return a list
+            assert isinstance(messages, list)
+        except MessageParsingError:
+            # If all messages fail to parse, should raise exception
+            pass
 
     def test_parse_nonexistent_file(self):
         """Test parsing a nonexistent file."""
+        from app.exceptions import MboxFileError
         parser = MessageParser()
         
-        messages, errors = parser.parse_mbox("/nonexistent/file.mbox", "test-archive-3")
-        
-        assert len(messages) == 0
-        assert len(errors) > 0
+        # Should raise MboxFileError for non-existent file
+        import pytest
+        with pytest.raises(MboxFileError):
+            parser.parse_mbox("/nonexistent/file.mbox", "test-archive-3")
 
     def test_message_without_message_id(self, temp_dir):
         """Test handling message without Message-ID."""
+        from app.exceptions import RequiredFieldMissingError
         # Create mbox with message missing Message-ID
         mbox_path = os.path.join(temp_dir, "no_id.mbox")
         with open(mbox_path, "w") as f:
@@ -68,7 +73,9 @@ Body text
 """)
         
         parser = MessageParser()
-        messages, errors = parser.parse_mbox(mbox_path, "test-archive-4")
+        # Parse should succeed but skip the message without Message-ID
+        # It should not raise if there's just one bad message
+        messages = parser.parse_mbox(mbox_path, "test-archive-4")
         
         # Should skip message without Message-ID
         assert len(messages) == 0
@@ -77,7 +84,7 @@ Body text
         """Test header extraction."""
         parser = MessageParser()
         
-        messages, _ = parser.parse_mbox(sample_mbox_file, "test-archive-5")
+        messages = parser.parse_mbox(sample_mbox_file, "test-archive-5")
         
         msg = messages[0]
         assert msg["subject"] == "QUIC connection migration"
