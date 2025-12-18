@@ -309,6 +309,10 @@ class MongoDocumentStore(DocumentStore):
     ) -> List[Dict[str, Any]]:
         """Execute an aggregation pipeline on a collection.
         
+        **Note**: ObjectId values are recursively converted to strings for JSON
+        serialization compatibility. This handles ObjectIds in nested documents
+        (e.g., from $lookup stages).
+        
         Args:
             collection: Name of the collection
             pipeline: MongoDB aggregation pipeline (list of stage dictionaries)
@@ -329,9 +333,8 @@ class MongoDocumentStore(DocumentStore):
             
             results = []
             for doc in cursor:
-                # Convert ObjectId to string for serialization
-                if "_id" in doc:
-                    doc["_id"] = str(doc["_id"])
+                # Recursively convert all ObjectId instances to strings
+                self._convert_objectids_to_strings(doc)
                 results.append(doc)
             
             logger.debug(
@@ -343,3 +346,24 @@ class MongoDocumentStore(DocumentStore):
         except Exception as e:
             logger.error(f"MongoDocumentStore: aggregate_documents failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to aggregate documents from {collection}") from e
+
+    def _convert_objectids_to_strings(self, obj: Any) -> None:
+        """Recursively convert ObjectId instances to strings in-place.
+        
+        Args:
+            obj: Object to convert (dict, list, or primitive)
+        """
+        from bson import ObjectId
+        
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                if isinstance(value, ObjectId):
+                    obj[key] = str(value)
+                elif isinstance(value, (dict, list)):
+                    self._convert_objectids_to_strings(value)
+        elif isinstance(obj, list):
+            for i, item in enumerate(obj):
+                if isinstance(item, ObjectId):
+                    obj[i] = str(item)
+                elif isinstance(item, (dict, list)):
+                    self._convert_objectids_to_strings(item)

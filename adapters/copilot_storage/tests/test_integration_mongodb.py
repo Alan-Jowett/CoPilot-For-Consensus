@@ -366,3 +366,204 @@ class TestValidationAtAdapterLayer:
         assert retrieved is not None
         assert retrieved["completely"] == "invalid"
         assert retrieved["random"] == 12345
+
+
+@pytest.mark.integration
+class TestMongoDBAggregate:
+    """Integration tests for MongoDB aggregation functionality."""
+
+    def test_aggregate_simple_match(self, mongodb_store, clean_collection):
+        """Test aggregation with a simple $match stage."""
+        # Insert test documents
+        mongodb_store.insert_document(clean_collection, {"status": "pending", "value": 10})
+        mongodb_store.insert_document(clean_collection, {"status": "complete", "value": 20})
+        mongodb_store.insert_document(clean_collection, {"status": "pending", "value": 30})
+        
+        # Aggregate with $match
+        pipeline = [
+            {"$match": {"status": "pending"}}
+        ]
+        
+        results = mongodb_store.aggregate_documents(clean_collection, pipeline)
+        
+        assert len(results) == 2
+        assert all(doc["status"] == "pending" for doc in results)
+    
+    def test_aggregate_lookup(self, mongodb_store):
+        """Test aggregation with $lookup to join collections."""
+        messages_col = "test_messages"
+        chunks_col = "test_chunks"
+        
+        try:
+            # Clean up collections
+            if mongodb_store.database is not None:
+                mongodb_store.database[messages_col].drop()
+                mongodb_store.database[chunks_col].drop()
+            
+            # Insert messages
+            mongodb_store.insert_document(messages_col, {"message_key": "msg1", "text": "Hello"})
+            mongodb_store.insert_document(messages_col, {"message_key": "msg2", "text": "World"})
+            
+            # Insert chunks (only for msg1)
+            mongodb_store.insert_document(chunks_col, {"message_key": "msg1", "chunk_id": "chunk1"})
+            mongodb_store.insert_document(chunks_col, {"message_key": "msg1", "chunk_id": "chunk2"})
+            
+            # Aggregate with $lookup
+            pipeline = [
+                {
+                    "$lookup": {
+                        "from": chunks_col,
+                        "localField": "message_key",
+                        "foreignField": "message_key",
+                        "as": "chunks"
+                    }
+                }
+            ]
+            
+            results = mongodb_store.aggregate_documents(messages_col, pipeline)
+            
+            assert len(results) == 2
+            
+            # Find msg1 - should have 2 chunks
+            msg1 = next(r for r in results if r["message_key"] == "msg1")
+            assert len(msg1["chunks"]) == 2
+            
+            # Find msg2 - should have 0 chunks
+            msg2 = next(r for r in results if r["message_key"] == "msg2")
+            assert len(msg2["chunks"]) == 0
+            
+        finally:
+            # Clean up
+            if mongodb_store.database is not None:
+                mongodb_store.database[messages_col].drop()
+                mongodb_store.database[chunks_col].drop()
+    
+    def test_aggregate_complex_pipeline(self, mongodb_store):
+        """Test aggregation with complex pipeline similar to chunking requeue."""
+        messages_col = "test_messages_complex"
+        chunks_col = "test_chunks_complex"
+        
+        try:
+            # Clean up collections
+            if mongodb_store.database is not None:
+                mongodb_store.database[messages_col].drop()
+                mongodb_store.database[chunks_col].drop()
+            
+            # Insert messages
+            mongodb_store.insert_document(messages_col, {"message_key": "msg1", "archive_id": 1})
+            mongodb_store.insert_document(messages_col, {"message_key": "msg2", "archive_id": 1})
+            mongodb_store.insert_document(messages_col, {"message_key": "msg3", "archive_id": 2})
+            
+            # Insert chunks (only for msg1)
+            mongodb_store.insert_document(chunks_col, {"message_key": "msg1", "chunk_id": "chunk1"})
+            
+            # Find messages without chunks (chunking requeue logic)
+            pipeline = [
+                {
+                    "$match": {
+                        "message_key": {"$exists": True},
+                    }
+                },
+                {
+                    "$lookup": {
+                        "from": chunks_col,
+                        "localField": "message_key",
+                        "foreignField": "message_key",
+                        "as": "chunks",
+                    }
+                },
+                {
+                    "$match": {
+                        "chunks": {"$eq": []},
+                    }
+                },
+                {
+                    "$limit": 1000,
+                },
+            ]
+            
+            results = mongodb_store.aggregate_documents(messages_col, pipeline)
+            
+            # Should find msg2 and msg3 (no chunks)
+            assert len(results) == 2
+            message_keys = [r["message_key"] for r in results]
+            assert "msg1" not in message_keys
+            assert "msg2" in message_keys
+            assert "msg3" in message_keys
+            
+        finally:
+            # Clean up
+            if mongodb_store.database is not None:
+                mongodb_store.database[messages_col].drop()
+                mongodb_store.database[chunks_col].drop()
+    
+    def test_aggregate_objectid_serialization(self, mongodb_store):
+        """Test that ObjectIds are properly serialized to strings in aggregation results."""
+        messages_col = "test_messages_objectid"
+        refs_col = "test_refs_objectid"
+        
+        try:
+            # Clean up collections
+            if mongodb_store.database is not None:
+                mongodb_store.database[messages_col].drop()
+                mongodb_store.database[refs_col].drop()
+            
+            # Insert messages and references
+            msg_id = mongodb_store.insert_document(messages_col, {"message_key": "msg1", "text": "Test"})
+            mongodb_store.insert_document(refs_col, {"message_key": "msg1", "ref_id": "ref1"})
+            
+            # Aggregate with $lookup to bring in referenced documents
+            pipeline = [
+                {
+                    "$lookup": {
+                        "from": refs_col,
+                        "localField": "message_key",
+                        "foreignField": "message_key",
+                        "as": "refs"
+                    }
+                }
+            ]
+            
+            results = mongodb_store.aggregate_documents(messages_col, pipeline)
+            
+            assert len(results) == 1
+            result = results[0]
+            
+            # Verify ObjectIds are serialized to strings at all levels
+            assert isinstance(result["_id"], str)
+            assert len(result["refs"]) == 1
+            assert isinstance(result["refs"][0]["_id"], str)
+            
+            # Verify they can be JSON serialized
+            import json
+            json_str = json.dumps(result)
+            assert json_str is not None
+            
+        finally:
+            # Clean up
+            if mongodb_store.database is not None:
+                mongodb_store.database[messages_col].drop()
+                mongodb_store.database[refs_col].drop()
+    
+    def test_aggregate_empty_collection(self, mongodb_store, clean_collection):
+        """Test aggregation on an empty collection."""
+        pipeline = [{"$match": {"status": "pending"}}]
+        
+        results = mongodb_store.aggregate_documents(clean_collection, pipeline)
+        
+        assert results == []
+    
+    def test_aggregate_with_limit(self, mongodb_store, clean_collection):
+        """Test aggregation with $limit stage."""
+        # Insert multiple documents
+        for i in range(10):
+            mongodb_store.insert_document(clean_collection, {"index": i, "type": "test"})
+        
+        pipeline = [
+            {"$match": {"type": "test"}},
+            {"$limit": 3}
+        ]
+        
+        results = mongodb_store.aggregate_documents(clean_collection, pipeline)
+        
+        assert len(results) == 3

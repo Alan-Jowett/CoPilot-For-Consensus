@@ -174,6 +174,14 @@ class InMemoryDocumentStore(DocumentStore):
         This is a simplified implementation that supports common aggregation stages
         for testing purposes. It supports: $match, $lookup, $limit.
         
+        **Note**: This implementation is optimized for testing with small datasets.
+        Performance may degrade with large collections due to O(N*M) complexity in
+        $lookup operations.
+        
+        **Supported operators in $match**:
+        - $exists: Check if a field exists
+        - $eq: Equality comparison
+        
         Args:
             collection: Name of the collection
             pipeline: Aggregation pipeline (list of stage dictionaries)
@@ -223,6 +231,9 @@ class InMemoryDocumentStore(DocumentStore):
     ) -> List[Dict[str, Any]]:
         """Apply $match stage to filter documents.
         
+        Supports operators: $exists, $eq
+        For unsupported operators, a warning is logged and the condition is skipped.
+        
         Args:
             documents: List of documents to filter
             match_spec: Match specification
@@ -248,15 +259,20 @@ class InMemoryDocumentStore(DocumentStore):
                             if doc.get(key) != value:
                                 matches = False
                                 break
-                        # Add more operators as needed
+                        else:
+                            # Unsupported operator - log warning and skip
+                            logger.warning(
+                                f"InMemoryDocumentStore: unsupported operator '{op}' in $match, skipping"
+                            )
+                    
+                    # If any operator failed, exit the key loop early
+                    if not matches:
+                        break
                 else:
                     # Simple equality check
                     if doc.get(key) != condition:
                         matches = False
                         break
-                
-                if not matches:
-                    break
             
             if matches:
                 filtered.append(doc)
@@ -267,6 +283,10 @@ class InMemoryDocumentStore(DocumentStore):
         self, documents: List[Dict[str, Any]], lookup_spec: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
         """Apply $lookup stage to join with another collection.
+        
+        **Performance Note**: This implementation has O(N*M) complexity where N is
+        the number of input documents and M is the size of the foreign collection.
+        It is suitable for testing but may not perform well with large datasets.
         
         Args:
             documents: List of documents to enrich
