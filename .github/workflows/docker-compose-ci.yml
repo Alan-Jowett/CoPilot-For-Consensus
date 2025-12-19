@@ -103,6 +103,12 @@ jobs:
         docker compose up -d documentdb
         timeout 60s bash -c 'until docker compose ps documentdb --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for documentdb..."; sleep 3; done' || (docker compose logs documentdb --tail=50 && exit 1)
 
+    - name: Start mongodb-exporter
+      run: |
+        docker compose up -d mongodb-exporter
+        # mongodb-exporter has no healthcheck, so wait for it to be running
+        timeout 60s bash -c 'until docker compose ps mongodb-exporter --format "{{.Status}}" | grep -q "Up"; do echo "Waiting for mongodb-exporter..."; sleep 3; done' || (docker compose logs mongodb-exporter --tail=50 && exit 1)
+
     - name: Start messagebus
       run: |
         docker compose up -d messagebus
