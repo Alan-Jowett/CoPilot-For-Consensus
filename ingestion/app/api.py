@@ -124,12 +124,9 @@ def _validate_file_extension(filename: str) -> bool:
     Returns:
         True if extension is allowed
     """
-    # Handle .tar.gz and .tgz specially
-    if filename.endswith('.tar.gz') or filename.endswith('.tgz'):
-        return True
-    
-    ext = os.path.splitext(filename)[1].lower()
-    return ext in ALLOWED_EXTENSIONS
+    # Use the same extension splitting logic for consistency
+    _, ext = _split_extension(filename)
+    return ext.lower() in ALLOWED_EXTENSIONS
 
 
 def create_api_router(service: Any, logger: Logger) -> APIRouter:
