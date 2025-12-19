@@ -218,6 +218,22 @@ class TestAssignRoles:
                 admin_user_id="github:admin",
             )
 
+    def test_assign_roles_invalid_role(self, role_store, mock_store):
+        """Test assigning invalid roles raises error."""
+        existing_record = {
+            "user_id": "github:123",
+            "roles": [],
+            "status": "pending",
+        }
+        mock_store.query_documents.return_value = [existing_record]
+
+        with pytest.raises(ValueError, match="Invalid roles: super-admin"):
+            role_store.assign_roles(
+                user_id="github:123",
+                roles=["contributor", "super-admin"],
+                admin_user_id="github:admin",
+            )
+
 
 class TestRevokeRoles:
     """Test revoke_roles method."""
@@ -288,3 +304,19 @@ class TestRevokeRoles:
 
         # Roles should remain unchanged
         assert result["roles"] == ["contributor"]
+
+    def test_revoke_invalid_role(self, role_store, mock_store):
+        """Test revoking invalid roles raises error."""
+        existing_record = {
+            "user_id": "github:123",
+            "roles": ["contributor"],
+            "status": "approved",
+        }
+        mock_store.query_documents.return_value = [existing_record]
+
+        with pytest.raises(ValueError, match="Invalid roles: fake-role"):
+            role_store.revoke_roles(
+                user_id="github:123",
+                roles=["fake-role"],
+                admin_user_id="github:admin",
+            )

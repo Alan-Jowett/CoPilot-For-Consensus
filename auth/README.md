@@ -151,6 +151,8 @@ Readiness check endpoint.
 
 The following endpoints require authentication with an `admin` role. All require the `Authorization: Bearer <jwt>` header with a valid JWT containing the `admin` role.
 
+**Note on URLs:** Examples use `http://localhost:8090` for local development. When accessing from within the Docker Compose network, use `http://auth:8090` instead (where `auth` is the service name).
+
 #### `GET /admin/role-assignments/pending`
 
 List pending role assignment requests with filtering and pagination.

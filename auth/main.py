@@ -13,7 +13,7 @@ This service provides:
 import os
 import sys
 from contextlib import asynccontextmanager
-from typing import Any, List, Optional
+from typing import Any
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -370,7 +370,12 @@ def require_admin_role(request: Request) -> tuple[str, str | None]:
 
             except HTTPException:
                 raise
-            except Exception:
+            except Exception as e:
+                # Log unexpected validation errors for debugging
+                logger.warning(
+                    f"Token validation failed for audience {audience}: {type(e).__name__}: {e}",
+                    extra={"audience": audience, "error_type": type(e).__name__},
+                )
                 continue
 
         # Token didn't match any configured audience
@@ -530,6 +535,16 @@ async def assign_user_roles(
             admin_email=admin_email,
         )
 
+        logger.info(
+            f"Admin {admin_user_id} assigned roles to user {user_id}",
+            extra={
+                "event": "admin_assign_roles",
+                "admin_user_id": admin_user_id,
+                "target_user_id": user_id,
+                "roles": role_request.roles,
+            },
+        )
+
         metrics.increment(
             "admin_assign_roles_total",
             {
@@ -577,6 +592,16 @@ async def revoke_user_roles(
             roles=role_request.roles,
             admin_user_id=admin_user_id,
             admin_email=admin_email,
+        )
+
+        logger.info(
+            f"Admin {admin_user_id} revoked roles from user {user_id}",
+            extra={
+                "event": "admin_revoke_roles",
+                "admin_user_id": admin_user_id,
+                "target_user_id": user_id,
+                "roles": role_request.roles,
+            },
         )
 
         metrics.increment(

@@ -3,6 +3,7 @@
 
 """Integration tests for admin endpoints."""
 
+import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -298,8 +299,6 @@ class TestRevokeUserRoles:
         }
         mock_auth_service.role_store.revoke_roles.return_value = updated_record
 
-        import json
-
         response = client.request(
             "DELETE",
             "/admin/users/github:123/roles",
@@ -331,8 +330,6 @@ class TestRevokeUserRoles:
 
         mock_auth_service.role_store.revoke_roles.side_effect = ValueError("User record not found")
 
-        import json
-
         response = client.request(
             "DELETE",
             "/admin/users/github:999/roles",
@@ -352,8 +349,6 @@ class TestRevokeUserRoles:
             "email": "user@example.com",
             "roles": ["contributor"],
         }
-
-        import json
 
         response = client.request(
             "DELETE",

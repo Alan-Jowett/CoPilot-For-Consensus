@@ -28,6 +28,10 @@ logger = create_logger(logger_type="stdout", level="INFO", name="auth.role_store
 class RoleStore:
     """Persist and retrieve user role assignments."""
 
+    # Valid roles that can be assigned
+    # This is a security measure to prevent arbitrary role assignment
+    VALID_ROLES = {"admin", "contributor", "reviewer", "reader"}
+
     def __init__(self, config: object):
         self.collection = getattr(config, "role_store_collection", "user_roles")
 
@@ -159,8 +163,11 @@ class RoleStore:
             total_count = len(all_docs)
 
             # Get paginated results with sorting
-            # Note: copilot_storage doesn't expose sort/skip/limit directly,
-            # so we implement it in-memory for now
+            # LIMITATION: copilot_storage doesn't expose sort/skip/limit directly,
+            # so we implement it in-memory. This does not scale well for large datasets
+            # and could cause performance issues or memory exhaustion in production.
+            # For production use, consider implementing pagination at the database level
+            # or using a store adapter that supports native pagination.
             sorted_docs = sorted(all_docs, key=lambda x: x.get(sort_by, ""), reverse=(sort_order == -1))
             paginated_docs = sorted_docs[skip : skip + limit]
 
@@ -200,8 +207,13 @@ class RoleStore:
             Updated user role record
 
         Raises:
-            ValueError: If user record not found
+            ValueError: If user record not found or invalid roles provided
         """
+        # Validate roles
+        invalid_roles = [r for r in roles if r not in self.VALID_ROLES]
+        if invalid_roles:
+            raise ValueError(f"Invalid roles: {', '.join(invalid_roles)}. Valid roles are: {', '.join(sorted(self.VALID_ROLES))}")
+
         record = self._find_user_record(user_id)
 
         if not record:
@@ -261,8 +273,13 @@ class RoleStore:
             Updated user role record
 
         Raises:
-            ValueError: If user record not found
+            ValueError: If user record not found or invalid roles provided
         """
+        # Validate roles
+        invalid_roles = [r for r in roles if r not in self.VALID_ROLES]
+        if invalid_roles:
+            raise ValueError(f"Invalid roles: {', '.join(invalid_roles)}. Valid roles are: {', '.join(sorted(self.VALID_ROLES))}")
+
         record = self._find_user_record(user_id)
 
         if not record:
