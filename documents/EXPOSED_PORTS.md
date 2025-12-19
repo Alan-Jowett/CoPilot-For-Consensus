@@ -21,7 +21,7 @@ These ports are accessible from any network interface and may be reachable from 
 - **Service**: `grafana`
 - **Purpose**: Web UI for viewing metrics dashboards and logs
 - **Protocol**: HTTP
-- **Access**: http://localhost:3000
+- **Access**: http://localhost:8080/grafana/
 - **Credentials**: admin/admin (default, should be changed in production)
 - **Security Notes**: 
   - Primary monitoring interface for operators
@@ -139,36 +139,26 @@ These ports are bound to localhost and only accessible from the host machine. Th
   - Contains application logs (may include sensitive information)
   - Localhost binding prevents external log access
 
-### Port 8000 - Ingestion Service
+### Port 8080 - API Gateway
 
-- **Service**: `ingestion`
-- **Purpose**: HTTP API for triggering ingestion jobs
+- **Service**: `gateway`
+- **Purpose**: Single entrypoint reverse proxy for user-facing endpoints
 - **Protocol**: HTTP
-- **Access**: http://localhost:8000
-- **Endpoints**: `/health`, `/ingest` (if exposed)
+- **Access**: http://localhost:8080
+- **Routes**:
+  - `/API/` → reporting service (was direct port 8080)
+  - `/auth/` → auth service (was direct port 8090)
+  - `/ingestion/` → ingestion service (was direct port 8001)
+  - `/ui/` → web UI (was direct port 8084)
+  - `/grafana/` → Grafana (was direct port 3000)
 - **Use Cases**:
-  - Manual ingestion triggering for testing
-  - Health checks during development
+  - Unified entrypoint for local access
+  - Easier reverse-proxying / TLS termination
+  - Path-based routing for UI and APIs
 - **Security Notes**:
-  - **WARNING**: No authentication implemented
-  - Can trigger resource-intensive ingestion operations
-  - Localhost binding prevents unauthorized ingestion triggers
-
-### Port 8084 - Web UI
-
-- **Service**: `ui`
-- **Purpose**: React SPA for browsing reports and managing data
-- **Protocol**: HTTP
-- **Access**: http://localhost:8084
-- **Use Cases**:
-  - Human-readable report browsing
-  - Summary verification
-  - UI access to reporting API
-- **Security Notes**:
-  - **WARNING**: No authentication or authorization implemented
-  - **DO NOT** expose to untrusted networks
-  - Intended for local development and demonstration only
-  - Static assets served via nginx container
+  - Add authn/z at the gateway (e.g., OAuth2 proxy) for production
+  - Keep gateway as the only exposed user-facing port
+  - Downstream services no longer bind to host ports
 
 ## Internal-Only Services (No Port Mapping)
 
@@ -242,16 +232,15 @@ For production, consider removing all localhost-only port bindings and accessing
 docker compose ps --format '{{.Name}}\t{{.Ports}}'
 
 # Check what's listening on the host
-netstat -tuln | grep -E ':(3000|8080|27017|5672|15672|6333|11434|9090|3100|8000|8084)'
+netstat -tuln | grep -E ':(8080|27017|5672|15672|6333|11434|9090|3100)'
 # Or on Linux
-ss -tuln | grep -E ':(3000|8080|27017|5672|15672|6333|11434|9090|3100|8000|8084)'
+ss -tuln | grep -E ':(8080|27017|5672|15672|6333|11434|9090|3100)'
 ```
 
 ### Test Localhost Binding
 
 ```bash
 # These should succeed (from host machine)
-curl http://localhost:3000
 curl http://localhost:8080/health
 curl http://localhost:27017  # Will fail with MongoDB protocol error, but connection succeeds
 

@@ -142,7 +142,7 @@ retry_job_runs_total{status="success"}
 ```
 
 ### Step 6: Verify Dashboard Shows Data
-Open in browser: http://localhost:3000 (login: admin/admin)
+Open in browser: http://localhost:8080/grafana/ (login: admin/admin)
 
 Navigate to: Dashboards → Retry Policy Monitoring
 

@@ -13,7 +13,7 @@ This guide explains how to monitor and troubleshoot the services in this reposit
 - Stop: `docker compose down`
 
 ## 2) Observability Endpoints & Ports (default compose values)
-- Grafana: http://localhost:3000 (dashboards + Loki Explore; default creds: `admin` / `admin`)
+- Grafana: http://localhost:8080/grafana/ (dashboards + Loki Explore; default creds: `admin` / `admin`)
 - Prometheus: http://localhost:9090 (raw metrics, ad-hoc queries)
 - Loki HTTP API: http://localhost:3100 (log store)
 - Promtail (shipper): publishes container logs into Loki
@@ -201,7 +201,7 @@ While services don't expose `/metrics`, they do provide:
 - `/stats` — Detailed service statistics (where applicable)
 
 ## 4) Dashboards & Logs (Grafana + Loki)
-- Access Grafana at http://localhost:3000 (default creds: `admin` / `admin`)
+- Access Grafana at http://localhost:8080/grafana/ (default creds: `admin` / `admin`)
 - Available dashboards:
   - **Copilot System Health** - Overall service health and uptime
   - **Service Metrics** - Service-level performance metrics
@@ -690,7 +690,7 @@ Then restart: `docker compose restart retry-job`
   - **Overview** to watch publish/ack rates.
 
 ## 5.1) Qdrant Vectorstore Monitoring
-- **Grafana Dashboard**: http://localhost:3000 → **Qdrant Vectorstore Status** (UID: `copilot-vectorstore-status`)
+- **Grafana Dashboard**: http://localhost:8080/grafana/ → **Qdrant Vectorstore Status** (UID: `copilot-vectorstore-status`)
 - **Qdrant Web UI**: http://localhost:6333/dashboard (native Qdrant interface)
 - **Direct API**: http://localhost:6333 (REST API for collections, points, metrics)
 
@@ -739,7 +739,7 @@ curl -X POST http://localhost:6333/collections/embeddings/points/count \
 ```
 
 ## 5.2) MongoDB Document Store Monitoring
-- **Grafana Dashboard**: http://localhost:3000 → **MongoDB Document Store Status**
+- **Grafana Dashboard**: http://localhost:8080/grafana/ → **MongoDB Document Store Status**
 - **MongoDB Direct Access**: http://localhost:27017 (connection string: `mongodb://root:example@localhost:27017/admin`)
 - **Prometheus Metrics**: Multiple exporters provide comprehensive MongoDB monitoring
 
@@ -910,7 +910,7 @@ Use these signals to see whether a mail archive was ingested and where it is in 
 The **Pipeline Flow Visualization** dashboard provides a unified view for troubleshooting pipeline issues. Here are common scenarios:
 
 **Scenario 1: Chunking queue is growing (bottleneck detected)**
-1. Open the Pipeline Flow dashboard at http://localhost:3000
+1. Open the Pipeline Flow dashboard at http://localhost:8080/grafana/
 2. Look at the visual flow diagram (top row) - the "Chunking" box will be yellow (50-200 messages) or red (>200 messages)
 3. Check the "Message Rate by Stage" panel - if the "Chunking → Embedding" line is flat or declining while "Parsing → Chunking" is increasing, chunking is the bottleneck
 4. In the "Pipeline Bottleneck Alert" table, chunking will appear at the top with the highest queue depth
@@ -963,7 +963,7 @@ Failed message queues (`*.failed`) accumulate messages when services encounter u
 
 ### Quick Checks
 - **RabbitMQ UI**: http://localhost:15672 → **Queues** → filter by `.failed`
-- **Grafana Dashboard**: http://localhost:3000 → **Failed Queues Overview**
+- **Grafana Dashboard**: http://localhost:8080/grafana/ → **Failed Queues Overview**
 - **CLI Tool**: `python scripts/manage_failed_queues.py list`
 
 ### Common Operations
