@@ -9,6 +9,8 @@ This document provides practical examples for integrating the Auth service into 
 
 - [Overview](#overview)
 - [FastAPI Service Integration](#fastapi-service-integration)
+- [Role-Based Access Control](#role-based-access-control)
+- [Service-to-Service Authentication](#service-to-service-authentication)
 - [CLI Tool Integration](#cli-tool-integration)
 - [Web UI Integration](#web-ui-integration)
 - [Testing Authentication](#testing-authentication)
@@ -20,23 +22,27 @@ The Auth service provides:
 2. **JWT Token Minting**: Service-scoped JWTs with custom claims
 3. **JWT Validation**: Middleware for protecting service endpoints
 4. **JWKS Endpoint**: Public key distribution for distributed validation
+5. **Role-Based Access Control**: Enforce role requirements per endpoint
 
 ## FastAPI Service Integration
 
 ### Step 1: Add JWT Middleware
 
+All Copilot-for-Consensus microservices now use the `copilot_auth` adapter for authentication:
+
 ```python
 # main.py
-from fastapi import FastAPI
-from auth.app.middleware import create_jwt_middleware
+from fastapi import FastAPI, Request
+from copilot_auth import create_jwt_middleware
 
 app = FastAPI(title="My Service")
 
-# Add JWT middleware
+# Add JWT middleware with role-based access control
 jwt_middleware = create_jwt_middleware(
-    auth_service_url="http://auth:8090",
-    audience="my-service",
-    public_paths=["/health", "/docs", "/openapi.json"]
+    auth_service_url="http://auth:8090",  # Optional: defaults to AUTH_SERVICE_URL env var
+    audience="my-service",                 # Optional: defaults to SERVICE_NAME env var
+    required_roles=["reader"],             # Optional: roles required for protected endpoints
+    public_paths=["/health", "/docs", "/openapi.json"]  # Optional: public endpoints
 )
 app.add_middleware(jwt_middleware)
 
@@ -76,9 +82,78 @@ services:
     environment:
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_NAME=my-service
+    volumes:
+      - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
     depends_on:
       auth:
         condition: service_healthy
+```
+
+## Role-Based Access Control
+
+### Service Role Requirements
+
+Each microservice enforces specific role requirements:
+
+| Service | Required Role | Purpose |
+|---------|--------------|---------|
+| Reporting API | `reader` | Public read access to summaries and reports |
+| Orchestrator | `orchestrator` | Coordinate RAG workflow and summarization |
+| Chunking | `processor` | Internal processing service |
+| Embedding | `processor` | Internal processing service |
+| Parsing | `processor` | Internal processing service |
+| Summarization | `processor` | Internal processing service |
+| Ingestion API | `admin` | Administrative source management |
+
+### Example: Multiple Role Requirements
+
+```python
+# Require multiple roles
+jwt_middleware = create_jwt_middleware(
+    required_roles=["reader", "contributor"],
+    public_paths=["/health", "/docs"]
+)
+app.add_middleware(jwt_middleware)
+```
+
+### Example: Endpoint-Specific Role Checks
+
+```python
+from fastapi import HTTPException, Request
+
+@app.get("/api/admin/users")
+def admin_only_endpoint(request: Request):
+    """Endpoint requiring admin role."""
+    user_roles = request.state.user_roles
+    
+    if "admin" not in user_roles:
+        raise HTTPException(
+            status_code=403,
+            detail="Admin role required"
+        )
+    
+    return {"users": [...]}
+```
+
+## Service-to-Service Authentication
+
+For internal service-to-service calls, services can use service accounts or system tokens:
+
+```python
+import httpx
+
+# Service making authenticated request to another service
+async def call_reporting_api(token: str):
+    """Call reporting API with authentication."""
+    headers = {"Authorization": f"Bearer {token}"}
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            "http://reporting:8080/api/reports",
+            headers=headers
+        )
+        response.raise_for_status()
+        return response.json()
 ```
 
 ## CLI Tool Integration
