@@ -16,7 +16,7 @@ import yaml
 
 
 def load_compose_config():
-    """Load and parse docker-compose.yml"""
+    """Load and parse merged docker-compose configuration"""
     try:
         result = subprocess.run(
             ["docker", "compose", "config"],
@@ -26,7 +26,7 @@ def load_compose_config():
         )
         return yaml.safe_load(result.stdout)
     except subprocess.CalledProcessError as e:
-        print(f"✗ Failed to load docker-compose.yml: {e.stderr}")
+        print(f"✗ Failed to load docker-compose configuration: {e.stderr}")
         sys.exit(1)
     except yaml.YAMLError as e:
         print(f"✗ Failed to parse docker-compose config: {e}")
@@ -39,13 +39,17 @@ def check_messagebus_env_var(config):
     messagebus = services.get('messagebus', {})
     
     # Check if the environment variable is set in the command
-    command = messagebus.get('command', [])
-    if isinstance(command, list) and len(command) > 0:
-        command_str = command[0] if isinstance(command[0], str) else ''
+    # The command can be a string or a list, so normalize it to a string
+    command = messagebus.get('command', '')
+    if isinstance(command, list):
+        command_str = ' '.join(str(c) for c in command)
     else:
         command_str = str(command)
     
-    if 'PROMETHEUS_RETURN_PER_OBJECT_METRICS=true' in command_str:
+    # Look for the environment variable export statement with word boundaries
+    import re
+    pattern = r'\bPROMETHEUS_RETURN_PER_OBJECT_METRICS\s*=\s*true\b'
+    if re.search(pattern, command_str):
         return True, "PROMETHEUS_RETURN_PER_OBJECT_METRICS=true found in messagebus command"
     
     return False, "PROMETHEUS_RETURN_PER_OBJECT_METRICS not set to true in messagebus command"
