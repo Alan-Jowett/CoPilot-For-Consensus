@@ -66,11 +66,19 @@ class LocalFileSecretProvider(SecretProvider):
         Raises:
             SecretProviderError: If secret_name contains path traversal attempts
         """
-        # Prevent path traversal attacks
-        if ".." in secret_name or secret_name.startswith("/"):
-            raise SecretProviderError(f"Invalid secret name: {secret_name}")
+        # Construct potential path and resolve to absolute path
+        potential_path = (self.base_path / secret_name).resolve()
+        base_resolved = self.base_path.resolve()
         
-        return self.base_path / secret_name
+        # Ensure the resolved path is within the base directory
+        try:
+            potential_path.relative_to(base_resolved)
+        except ValueError as e:
+            raise SecretProviderError(
+                f"Invalid secret name (path traversal detected): {secret_name}"
+            ) from e
+        
+        return potential_path
     
     def get_secret(self, secret_name: str, version: Optional[str] = None) -> str:
         """Retrieve a secret by name.
@@ -88,7 +96,7 @@ class LocalFileSecretProvider(SecretProvider):
         """
         if version is not None:
             logger.warning(
-                f"Version parameter ignored for local provider (secret: {secret_name})"
+                f"Version parameter ignored for local provider (secret_name: {secret_name})"
             )
         
         secret_path = self._get_secret_path(secret_name)
@@ -103,7 +111,7 @@ class LocalFileSecretProvider(SecretProvider):
             with open(secret_path, "r", encoding="utf-8") as f:
                 content = f.read().strip()
             
-            logger.debug(f"Retrieved secret: {secret_name}")
+            logger.debug(f"Retrieved secret_name: {secret_name}")
             return content
         
         except OSError as e:
@@ -140,7 +148,7 @@ class LocalFileSecretProvider(SecretProvider):
             with open(secret_path, "rb") as f:
                 content = f.read()
             
-            logger.debug(f"Retrieved secret bytes: {secret_name}")
+            logger.debug(f"Retrieved secret_name (bytes): {secret_name}")
             return content
         
         except OSError as e:
