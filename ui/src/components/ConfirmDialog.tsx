@@ -20,7 +20,7 @@ interface ConfirmDialogProps {
  * Provides an accessible modal dialog for confirming destructive actions.
  * Features:
  * - Keyboard navigation (Escape to cancel, Enter to confirm)
- * - Focus management (traps focus within modal)
+ * - Focus management (focuses cancel button on open for safety)
  * - Screen reader support (ARIA attributes)
  * - Matches application design system
  * - Backdrop click to cancel
@@ -36,7 +36,7 @@ export function ConfirmDialog({
   confirmButtonClass = 'delete',
 }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
-  const confirmButtonRef = useRef<HTMLButtonElement>(null)
+  const cancelButtonRef = useRef<HTMLButtonElement>(null)
 
   // Handle keyboard events
   useEffect(() => {
@@ -55,10 +55,11 @@ export function ConfirmDialog({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onConfirm, onCancel])
 
-  // Focus management - focus the confirm button when modal opens
+  // Focus management - focus the cancel button when modal opens for safety
+  // This prevents accidental confirmations of destructive actions
   useEffect(() => {
-    if (isOpen && confirmButtonRef.current) {
-      confirmButtonRef.current.focus()
+    if (isOpen && cancelButtonRef.current) {
+      cancelButtonRef.current.focus()
     }
   }, [isOpen])
 
@@ -92,6 +93,7 @@ export function ConfirmDialog({
             type="button"
             className="modal-btn cancel-btn"
             onClick={onCancel}
+            ref={cancelButtonRef}
           >
             {cancelText}
           </button>
@@ -99,7 +101,6 @@ export function ConfirmDialog({
             type="button"
             className={`modal-btn ${confirmButtonClass}`}
             onClick={onConfirm}
-            ref={confirmButtonRef}
           >
             {confirmText}
           </button>
