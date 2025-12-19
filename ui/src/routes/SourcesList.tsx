@@ -57,7 +57,7 @@ export function SourcesList() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <div className="page-header">
         <div>
           <h1>Ingestion Sources</h1>
           <p className="subtitle">Manage email ingestion sources and configurations</p>

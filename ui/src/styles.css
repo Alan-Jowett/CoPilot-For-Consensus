@@ -345,3 +345,17 @@ tr:hover { background-color: var(--bg-hover); }
 .required { color: #dc3545; font-weight: bold; }
 .input-error { border-color: #dc3545 !important; background-color: #fff5f5; }
 .field-error { color: #dc3545; font-size: 12px; margin-top: 4px; }
+
+/* Page Layout */
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+
+/* Checkbox Label */
+.checkbox-label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.checkbox-label input[type="checkbox"] { width: auto; cursor: pointer; }
+
+/* Button Variants */
+.button-group { margin-top: 20px; }
+.cancel-btn { background-color: #6c757d; }
+.cancel-btn:hover { background-color: #5a6268; }
+
+>>>>>>> 265bfb7 (Address PR review feedback: extract inline styles, improve accessibility, fix navigation logic)

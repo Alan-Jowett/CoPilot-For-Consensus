@@ -51,9 +51,10 @@ export function SourceForm() {
       })
       .catch(e => {
         if (!cancelled) {
-          const message = e?.message === 'NOT_FOUND' 
-            ? 'Source not found' 
-            : (e instanceof Error ? e.message : 'Failed to load source')
+          const message =
+            e instanceof Error && e.message === 'NOT_FOUND'
+              ? 'Source not found'
+              : 'Failed to load source'
           setError(message)
         }
       })
@@ -257,6 +258,7 @@ export function SourceForm() {
                     value={form.username || ''}
                     onChange={e => setForm({ ...form, username: e.target.value })}
                     placeholder="user@example.com"
+                    autoComplete="username"
                     className={validationErrors.username ? 'input-error' : ''}
                   />
                   {validationErrors.username && <div className="field-error">{validationErrors.username}</div>}
@@ -271,6 +273,7 @@ export function SourceForm() {
                     value={form.password || ''}
                     onChange={e => setForm({ ...form, password: e.target.value })}
                     placeholder="••••••••"
+                    autoComplete="new-password"
                     className={validationErrors.password ? 'input-error' : ''}
                   />
                   {validationErrors.password && <div className="field-error">{validationErrors.password}</div>}
@@ -292,7 +295,7 @@ export function SourceForm() {
           )}
 
           <div className="filter-section">
-            <h3>Scheduling &amp; Options</h3>
+            <h3>Scheduling & Options</h3>
             <div className="filter-row">
               <div className="filter-group">
                 <label htmlFor="schedule">Schedule (Cron Expression)</label>
@@ -305,13 +308,12 @@ export function SourceForm() {
                 <div className="help-text">Leave empty for manual trigger only</div>
               </div>
               <div className="filter-group small">
-                <label htmlFor="enabled" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <label htmlFor="enabled" className="checkbox-label">
                   <input
                     type="checkbox"
                     id="enabled"
                     checked={form.enabled}
                     onChange={e => setForm({ ...form, enabled: e.target.checked })}
-                    style={{ width: 'auto', cursor: 'pointer' }}
                   />
                   <span>Enabled</span>
                 </label>
@@ -320,11 +322,11 @@ export function SourceForm() {
             </div>
           </div>
 
-          <div className="button-group" style={{ marginTop: '20px' }}>
+          <div className="button-group">
             <button type="submit" disabled={saving}>
               {saving ? 'Saving…' : (isEditMode ? 'Update Source' : 'Create Source')}
             </button>
-            <button type="button" className="clear-btn" onClick={() => navigate('/sources')}>
+            <button type="button" className="cancel-btn" onClick={() => navigate('/sources')}>
               Cancel
             </button>
           </div>
