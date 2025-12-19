@@ -1,15 +1,41 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
-import { Outlet } from 'react-router-dom'
+<<<<<<< HEAD
+import { Outlet, Link, useLocation } from 'react-router-dom'
 import { ThemeToggle } from '../components/ThemeToggle'
 
 export function AppLayout() {
+  const location = useLocation()
+  
+  const isActive = (path: string) => {
+    return location.pathname.startsWith(path)
+  }
+  
   return (
-    <div className="app-wrapper">
-      <div className="theme-toggle-container">
-        <ThemeToggle />
-      </div>
+    <div className="app-layout">
+      <nav className="app-nav">
+        <div className="nav-container">
+          <div className="nav-brand">
+            <h2>Copilot for Consensus</h2>
+          </div>
+          <div className="nav-links">
+            <Link 
+              to="/reports" 
+              className={isActive('/reports') ? 'nav-link active' : 'nav-link'}
+            >
+              📊 Reports
+            </Link>
+            <Link 
+              to="/sources" 
+              className={isActive('/sources') ? 'nav-link active' : 'nav-link'}
+            >
+              📥 Ingestion Sources
+            </Link>
+            <ThemeToggle />
+          </div>
+        </div>
+      </nav>
       <div className="container">
         <Outlet />
       </div>

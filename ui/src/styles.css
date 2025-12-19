@@ -312,3 +312,36 @@ tr:hover { background-color: var(--bg-hover); }
 .citation-actions { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-tertiary); }
 .citation-link { display: inline-block; padding: 6px 12px; background-color: var(--color-primary); color: white; text-decoration: none; border-radius: 4px; font-size: 12px; font-weight: 500; transition: background-color 0.2s; }
 .citation-link:hover { background-color: var(--color-primary-hover); }
+
+/* App Navigation */
+.app-layout { min-height: 100vh; display: flex; flex-direction: column; }
+.app-nav { background: var(--bg-secondary); box-shadow: var(--shadow-sm); margin-bottom: 20px; border-bottom: 1px solid var(--border-secondary); }
+.nav-container { max-width: 1400px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; }
+.nav-brand h2 { margin: 15px 0; color: var(--text-primary); font-size: 20px; }
+.nav-links { display: flex; gap: 20px; align-items: center; }
+.nav-link { display: inline-block; padding: 15px 10px; color: var(--text-secondary); text-decoration: none; font-weight: 500; border-bottom: 3px solid transparent; transition: color 0.2s, border-color 0.2s; }
+.nav-link:hover { color: var(--color-primary); }
+.nav-link.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+
+/* Success and Error Messages */
+.success-message { background: var(--color-success); opacity: 0.1; color: var(--color-success); padding: 12px 15px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid var(--color-success); }
+.error-message { background: #f8d7da; color: #721c24; padding: 12px 15px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #dc3545; }
+
+/* Action Buttons */
+.action-buttons { display: flex; gap: 5px; flex-wrap: wrap; }
+.action-btn { padding: 4px 10px; font-size: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; transition: background-color 0.2s; }
+.action-btn.edit { background-color: var(--color-primary); color: white; }
+.action-btn.edit:hover { background-color: var(--color-primary-hover); }
+.action-btn.trigger { background-color: var(--color-success); color: white; }
+.action-btn.trigger:hover { background-color: var(--color-success-hover); }
+.action-btn.delete { background-color: #dc3545; color: white; }
+.action-btn.delete:hover { background-color: #c82333; }
+
+/* Badge Variants */
+.badge.enabled { background-color: var(--color-success); }
+.badge.disabled { background-color: var(--color-secondary); }
+
+/* Form Validation */
+.required { color: #dc3545; font-weight: bold; }
+.input-error { border-color: #dc3545 !important; background-color: #fff5f5; }
+.field-error { color: #dc3545; font-size: 12px; margin-top: 4px; }
