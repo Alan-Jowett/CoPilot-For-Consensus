@@ -45,6 +45,10 @@
   --bg-citation: #fafafa;
   --bg-message: #fafafa;
   --bg-chunk: #f8f9fa;
+  
+  /* Additional colors */
+  --color-disabled: #cccccc;
+  --color-badge-text-dark: #333333;
 }
 
 /* Dark theme colors */
@@ -91,6 +95,10 @@
   --bg-citation: #252525;
   --bg-message: #252525;
   --bg-chunk: #242424;
+  
+  /* Additional colors */
+  --color-disabled: #666666;
+  --color-badge-text-dark: #1a1a1a;
 }
 
 /* Theme toggle styles */
@@ -205,11 +213,11 @@ tr:hover { background-color: var(--bg-hover); }
 .pagination { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: var(--bg-secondary); margin-top: 20px; border-radius: 8px; box-shadow: var(--shadow-sm); }
 .pagination a, .pagination button { padding: 8px 16px; background-color: var(--color-primary); color: white; text-decoration: none; border-radius: 4px; border: none; cursor: pointer; }
 .pagination a:hover, .pagination button:hover { background-color: var(--color-primary-hover); }
-.pagination .disabled { background-color: #ccc; pointer-events: none; }
+.pagination .disabled { background-color: var(--color-disabled); pointer-events: none; }
 .summary-preview { max-width: 500px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-tertiary); }
 .badge { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; background-color: var(--color-info); color: white; margin-right: 5px; }
 .badge.source { background-color: var(--color-success); }
-.badge.score { background-color: var(--color-warning); color: #333; }
+.badge.score { background-color: var(--color-warning); color: var(--color-badge-text-dark); }
 .metadata { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 .help-text { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
 
@@ -268,7 +276,7 @@ tr:hover { background-color: var(--bg-hover); }
 .message-meta { display: flex; flex-direction: column; gap: 4px; }
 .message-sender { font-weight: 600; color: var(--text-primary); font-size: 14px; }
 .message-date { font-size: 12px; color: var(--text-secondary); }
-.highlight-badge { background-color: var(--color-warning); color: #333; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.highlight-badge { background-color: var(--color-warning); color: var(--color-badge-text-dark); padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
 
 .message-subject { font-weight: 500; color: var(--text-tertiary); margin-bottom: 10px; font-size: 13px; }
 .message-body-preview { color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px; }

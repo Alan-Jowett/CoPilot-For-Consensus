@@ -14,10 +14,20 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
-    // Check localStorage first
-    const stored = localStorage.getItem('theme')
-    if (stored === 'light' || stored === 'dark') {
-      return stored
+    // Check if running in browser (not SSR)
+    if (typeof window === 'undefined') {
+      return 'light'
+    }
+    
+    try {
+      // Check localStorage first
+      const stored = localStorage.getItem('theme')
+      if (stored === 'light' || stored === 'dark') {
+        return stored
+      }
+    } catch (error) {
+      // localStorage might be unavailable (SecurityError, etc.)
+      console.warn('localStorage not available:', error)
     }
     
     // Fall back to system preference
@@ -34,7 +44,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // Also update color-scheme for native browser elements
     document.documentElement.style.colorScheme = theme
     // Save to localStorage
-    localStorage.setItem('theme', theme)
+    try {
+      localStorage.setItem('theme', theme)
+    } catch (error) {
+      // localStorage might be unavailable
+      console.warn('Failed to save theme to localStorage:', error)
+    }
   }, [theme])
 
   const toggleTheme = () => {
