@@ -453,4 +453,32 @@ class TestUploadEndpoint:
         assert filename1 != filename2
         assert "test" in filename2
         assert ".mbox" in filename2
+    
+    def test_upload_file_too_large(self, client):
+        """Test uploading a file exceeding size limit."""
+        # Create file content slightly larger than 100MB
+        file_size = 101 * 1024 * 1024  # 101MB
+        # Use a generator to avoid creating the full content in memory
+        file_content = b"x" * file_size
+        files = {"file": ("large.mbox", file_content, "application/mbox")}
+        
+        response = client.post("/api/uploads", files=files)
+        
+        assert response.status_code == 413
+        assert "too large" in response.json()["detail"].lower()
+    
+    def test_upload_tar_gz_compound_extension(self, client):
+        """Test uploading a file with compound extension (.tar.gz)."""
+        file_content = b"test archive content"
+        files = {"file": ("archive.tar.gz", file_content, "application/gzip")}
+        
+        response = client.post("/api/uploads", files=files)
+        
+        assert response.status_code == 201
+        data = response.json()
+        
+        # Verify compound extension is preserved
+        assert data["filename"].endswith(".tar.gz")
+        assert "archive" in data["filename"]
+
 

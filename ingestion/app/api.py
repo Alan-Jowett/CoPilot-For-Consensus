@@ -86,12 +86,33 @@ def _sanitize_filename(filename: str) -> str:
     if not filename or filename.startswith('.'):
         filename = f"upload_{filename}"
     
-    # Limit length
+    # Limit length, preserving compound extensions like .tar.gz
     if len(filename) > 255:
-        name, ext = os.path.splitext(filename)
+        name, ext = _split_extension(filename)
         filename = name[:255 - len(ext)] + ext
     
     return filename
+
+
+def _split_extension(filename: str) -> tuple:
+    """Split filename into name and extension, handling compound extensions.
+    
+    Args:
+        filename: Filename to split
+        
+    Returns:
+        Tuple of (name, extension) where extension includes compound extensions
+    """
+    lower_filename = filename.lower()
+    
+    # Check for compound extensions in priority order (longest first)
+    compound_exts = ['.tar.gz', '.tgz']
+    for ext in compound_exts:
+        if lower_filename.endswith(ext):
+            return (filename[:-len(ext)], ext)
+    
+    # Fall back to standard split for simple extensions
+    return os.path.splitext(filename)
 
 
 def _validate_file_extension(filename: str) -> bool:
@@ -261,18 +282,19 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
         Returns metadata including the server path to use when creating a source.
         """
         try:
-            # Validate file extension
+            # Validate presence of filename
             if not file.filename:
                 raise HTTPException(status_code=400, detail="Filename is required")
             
-            if not _validate_file_extension(file.filename):
+            # Sanitize filename first to ensure validation and storage use the same name
+            safe_filename = _sanitize_filename(file.filename)
+            
+            # Validate file extension on the sanitized filename
+            if not _validate_file_extension(safe_filename):
                 raise HTTPException(
                     status_code=400,
                     detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
                 )
-            
-            # Sanitize filename
-            safe_filename = _sanitize_filename(file.filename)
             
             # Create uploads directory in storage path
             uploads_dir = Path(service.config.storage_path) / "uploads"
@@ -281,7 +303,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
             # Generate unique filename if file already exists
             file_path = uploads_dir / safe_filename
             if file_path.exists():
-                name, ext = os.path.splitext(safe_filename)
+                name, ext = _split_extension(safe_filename)
                 counter = 1
                 while file_path.exists():
                     file_path = uploads_dir / f"{name}_{counter}{ext}"
