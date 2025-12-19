@@ -94,9 +94,10 @@ For detailed architecture documentation, design patterns, and service interactio
 | Orchestrator | Coordinates RAG workflow and summarization | - | Production |
 | Summarization | Creates summaries using configurable LLM backends | - | Production |
 | **User-Facing** | | | |
-| Reporting API | HTTP API for accessing summaries and insights | 8080 (public) | Production |
-| Web UI | React SPA for viewing reports | 8084 (localhost) | Production |
-| Auth Service | OIDC authentication with local JWT minting | 8090 (localhost) | MVP |
+| API Gateway | Reverse proxy unifying service endpoints | 8080 (public) | New |
+| Reporting API | HTTP API for accessing summaries and insights | via 8080 (/reporting) | Production |
+| Web UI | React SPA for viewing reports | via 8080 (/ui) | Production |
+| Auth Service | OIDC authentication with local JWT minting | via 8080 (/auth) | MVP |
 | **Infrastructure** | | | |
 | MongoDB | Document storage for messages and summaries | 27017 (localhost) | Production |
 | Qdrant | Vector database for semantic search | 6333 (localhost) | Production |
@@ -105,7 +106,7 @@ For detailed architecture documentation, design patterns, and service interactio
 | llama.cpp | Alternative LLM runtime with AMD GPU support | 8081 (localhost) | Optional |
 | **Observability** | | | |
 | Prometheus | Metrics collection and aggregation | 9090 (localhost) | Production |
-| Grafana | Monitoring dashboards and visualization | 3000 (public) | Production |
+| Grafana | Monitoring dashboards and visualization | via 8080 (/grafana) | Production |
 | Loki | Log aggregation | 3100 (localhost) | Production |
 | Promtail | Log scraping from Docker containers | - | Production |
 | Pushgateway | Metrics push gateway for batch jobs | - | Production |
@@ -158,7 +159,7 @@ The system includes a comprehensive observability stack for monitoring, logging,
   - Vector store size and performance
   - Failed queue monitoring
 
-Access Grafana at `http://localhost:3000` (default credentials: admin/admin)
+Access Grafana via the Gateway at `http://localhost:8080/grafana/` (default credentials: admin/admin).
 
 #### Logging (Loki + Promtail)
 - **Loki** aggregates logs from all services on port 3100
@@ -258,12 +259,12 @@ For the full list of exposed ports and security considerations, see [documents/E
    docker cp tests/fixtures/mailbox_sample/test-archive.mbox "$INGESTION_CONTAINER":/tmp/test-mailbox/test-archive.mbox
 
    # Create the source via REST API
-   curl -f -X POST http://localhost:8001/api/sources \
+  curl -f -X POST http://localhost:8080/ingestion/api/sources \
      -H "Content-Type: application/json" \
      -d '{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
 
    # Trigger ingestion via REST API
-   curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger
+  curl -f -X POST http://localhost:8080/ingestion/api/sources/test-mailbox/trigger
    ```
 
    **Option B: Using PowerShell helper (Windows):**
@@ -271,7 +272,7 @@ For the full list of exposed ports and security considerations, see [documents/E
    .\run_ingestion_test.ps1
    ```
 
-   After ingestion completes, summaries will be available via the Reporting API at http://localhost:8080/api/reports
+  After ingestion completes, summaries will be available via the Reporting API at http://localhost:8080/reporting/api/reports
 
 ### Viewing Logs
 

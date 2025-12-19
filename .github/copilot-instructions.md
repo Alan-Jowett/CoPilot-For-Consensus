@@ -70,7 +70,7 @@ docker compose up -d
 docker compose ps
 
 # Optional: wait for key services to be healthy (mirrors CI strategy)
-for s in documentdb messagebus vectorstore ollama monitoring pushgateway grafana promtail parsing chunking embedding orchestrator summarization reporting ui; do
+for s in documentdb messagebus vectorstore ollama monitoring pushgateway grafana promtail parsing chunking embedding orchestrator summarization reporting ui gateway; do
   echo "Waiting for $s ..."
   # Loki has no healthcheck; treat any "Up" as ready
   if [ "$s" = "loki" ]; then
@@ -90,7 +90,7 @@ docker compose up -d
 docker compose ps
 
 # Optional: wait for key services to be healthy (mirrors CI strategy)
-$services = @('documentdb','messagebus','vectorstore','ollama','monitoring','pushgateway','grafana','promtail','parsing','chunking','embedding','orchestrator','summarization','reporting','ui')
+$services = @('documentdb','messagebus','vectorstore','ollama','monitoring','pushgateway','grafana','promtail','parsing','chunking','embedding','orchestrator','summarization','reporting','ui','gateway')
 foreach ($s in $services) {
   Write-Host "Waiting for $s ..."
   if ($s -eq 'loki') {
@@ -108,47 +108,47 @@ Meaning: start the continuous ingestion service, copy the sample mailbox into th
 Linux/macOS (bash):
 
 ```bash
-# 1) Start ingestion service (exposes REST API on localhost:8001)
-docker compose up -d ingestion
+# 1) Start ingestion service (accessible via API Gateway at localhost:8080/ingestion; previously exposed directly on :8001)
+docker compose up -d ingestion gateway
 
 # 2) Copy the sample mailbox into the running container
 INGESTION_CONTAINER=$(docker compose ps -q ingestion)
 docker exec "$INGESTION_CONTAINER" mkdir -p /tmp/test-mailbox
 docker cp tests/fixtures/mailbox_sample/test-archive.mbox "$INGESTION_CONTAINER":/tmp/test-mailbox/test-archive.mbox
 
-# 3) Create the source via REST API (host port 8001 maps to container port 8080)
-curl -f -X POST http://localhost:8001/api/sources \
+# 3) Create the source via REST API (through gateway)
+curl -f -X POST http://localhost:8080/ingestion/api/sources \
   -H "Content-Type: application/json" \
   -d '{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
 
 # 4) Trigger ingestion via REST API
-curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger
+curl -f -X POST http://localhost:8080/ingestion/api/sources/test-mailbox/trigger
 ```
 
 Windows (PowerShell):
 
 ```powershell
-# 1) Start ingestion service
-docker compose up -d ingestion
+# 1) Start ingestion service (through gateway)
+docker compose up -d ingestion gateway
 
 # 2) Copy the sample mailbox into the running container
 $ingestion = docker compose ps -q ingestion
 docker exec $ingestion mkdir -p /tmp/test-mailbox
 docker cp tests/fixtures/mailbox_sample/test-archive.mbox "$ingestion`:/tmp/test-mailbox/test-archive.mbox"
 
-# 3) Create the source via REST API
+# 3) Create the source via REST API (through gateway)
 $payload = '{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
-curl -f -X POST http://localhost:8001/api/sources -H "Content-Type: application/json" -d $payload
+curl -f -X POST http://localhost:8080/ingestion/api/sources -H "Content-Type: application/json" -d $payload
 
 # 4) Trigger ingestion via REST API
-curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger
+curl -f -X POST http://localhost:8080/ingestion/api/sources/test-mailbox/trigger
 ```
 
 Quick verification (optional):
 
 ```powershell
-# Reporting API should return a non-zero count
-($r = Invoke-WebRequest -UseBasicParsing http://localhost:8080/api/reports).Content | ConvertFrom-Json | Select-Object -ExpandProperty count
+# Reporting API should return a non-zero count (via gateway /reporting prefix)
+($r = Invoke-WebRequest -UseBasicParsing http://localhost:8080/reporting/api/reports).Content | ConvertFrom-Json | Select-Object -ExpandProperty count
 ```
 
 #### "cleanup the project"
@@ -174,32 +174,32 @@ Meaning: create an IETF mailing list source via the ingestion REST API (no uploa
 Linux/macOS (bash):
 
 ```bash
-# 1) Start ingestion service (if not already running)
-docker compose up -d ingestion
+# 1) Start ingestion service (if not already running) and gateway
+docker compose up -d ingestion gateway
 
 # 2) Create the source via REST API
 TOPIC="ipsec"  # change to desired topic, e.g. "dnsop"
-curl -f -X POST http://localhost:8001/api/sources \
+curl -f -X POST http://localhost:8080/ingestion/api/sources \
   -H "Content-Type: application/json" \
   -d '{"name":"ietf-'"${TOPIC}"'","source_type":"rsync","url":"rsync.ietf.org::mailman-archive/'"${TOPIC}"'/","enabled":true}'
 
 # 3) Trigger ingestion via REST API
-curl -f -X POST http://localhost:8001/api/sources/ietf-${TOPIC}/trigger
+curl -f -X POST http://localhost:8080/ingestion/api/sources/ietf-${TOPIC}/trigger
 ```
 
 Windows (PowerShell):
 
 ```powershell
-# 1) Start ingestion service
-docker compose up -d ingestion
+# 1) Start ingestion service and gateway
+docker compose up -d ingestion gateway
 
 # 2) Create the source via REST API
 $topic = "ipsec"  # Change this to your desired topic
 $payload = "{`"name`":`"ietf-$topic`",`"source_type`":`"rsync`",`"url`":`"rsync.ietf.org::mailman-archive/$topic/`",`"enabled`":true}"
-curl -f -X POST http://localhost:8001/api/sources -H "Content-Type: application/json" -d $payload
+curl -f -X POST http://localhost:8080/ingestion/api/sources -H "Content-Type: application/json" -d $payload
 
 # 3) Trigger ingestion via REST API
-curl -f -X POST "http://localhost:8001/api/sources/ietf-$topic/trigger"
+curl -f -X POST "http://localhost:8080/ingestion/api/sources/ietf-$topic/trigger"
 ```
 
 Example usage:
@@ -371,7 +371,7 @@ payload='{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/t
 max_attempts=5
 attempt=1
 while [ $attempt -le $max_attempts ]; do
-  if curl -f -X POST http://localhost:8001/api/sources \
+  if curl -f -X POST http://localhost:8080/ingestion/api/sources \
     -H "Content-Type: application/json" \
     -d "$payload"; then
     echo "✓ Ingestion source created (attempt $attempt/$max_attempts)"
@@ -392,7 +392,7 @@ echo "Triggering ingestion via REST API..."
 max_attempts=5
 attempt=1
 while [ $attempt -le $max_attempts ]; do
-  if curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger; then
+  if curl -f -X POST http://localhost:8080/ingestion/api/sources/test-mailbox/trigger; then
     echo "✓ Ingestion triggered successfully (attempt $attempt/$max_attempts)"
     break
   fi
@@ -409,7 +409,7 @@ fi
 
 echo "Waiting for ingestion to complete..."
 sleep 10
-status=$(curl -s http://localhost:8001/api/sources/test-mailbox/status)
+status=$(curl -s http://localhost:8080/ingestion/api/sources/test-mailbox/status)
 echo "Ingestion status: $status"
 
 # End-to-end validation
@@ -426,7 +426,7 @@ echo "✓ End-to-end validation passed"
 
 # Health checks
 echo "Testing service endpoints..."
-for endpoint in "http://localhost:8080/" "http://localhost:8080/api/reports" "http://localhost:8084/" "http://localhost:8084/api/reports" "http://localhost:3000/api/health" "http://localhost:9090/-/healthy" "http://localhost:3100/ready"; do
+for endpoint in "http://localhost:8080/health" "http://localhost:8080/reporting/health" "http://localhost:8080/ui/" "http://localhost:8080/grafana/" "http://localhost:9090/-/healthy" "http://localhost:3100/ready"; do
   echo "  Testing $endpoint..."
   curl -f "$endpoint" > /dev/null 2>&1 || { echo "❌ $endpoint failed"; exit 1; }
 done
@@ -554,7 +554,7 @@ $payload = '{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbo
 $maxAttempts = 5
 $attempt = 1
 while ($attempt -le $maxAttempts) {
-  curl -f -X POST http://localhost:8001/api/sources -H "Content-Type: application/json" -d $payload
+  curl -f -X POST http://localhost:8080/ingestion/api/sources -H "Content-Type: application/json" -d $payload
   if ($LASTEXITCODE -eq 0) { Write-Host "✓ Ingestion source created (attempt $attempt/$maxAttempts)" -ForegroundColor Green; break }
   Write-Host "Attempt $attempt/$maxAttempts: Failed to create source, retrying..." -ForegroundColor Yellow
   Start-Sleep -Seconds 2
@@ -569,7 +569,7 @@ if ($attempt -gt $maxAttempts) {
 Write-Host "Triggering ingestion via REST API..."
 $attempt = 1
 while ($attempt -le $maxAttempts) {
-  curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger
+  curl -f -X POST http://localhost:8080/ingestion/api/sources/test-mailbox/trigger
   if ($LASTEXITCODE -eq 0) { Write-Host "✓ Ingestion triggered successfully (attempt $attempt/$maxAttempts)" -ForegroundColor Green; break }
   Write-Host "Attempt $attempt/$maxAttempts: Failed to trigger ingestion, retrying..." -ForegroundColor Yellow
   Start-Sleep -Seconds 2
@@ -583,7 +583,7 @@ if ($attempt -gt $maxAttempts) {
 
 Write-Host "Waiting for ingestion to complete..."
 Start-Sleep -Seconds 10
-$status = curl -s http://localhost:8001/api/sources/test-mailbox/status
+$status = curl -s http://localhost:8080/ingestion/api/sources/test-mailbox/status
 Write-Host "Ingestion status: $status"
 
 # End-to-end validation
@@ -601,11 +601,10 @@ Write-Host "✓ End-to-end validation passed" -ForegroundColor Green
 # Health checks
 Write-Host "Testing service endpoints..."
 $endpoints = @(
-  "http://localhost:8080/",
-  "http://localhost:8080/api/reports",
-  "http://localhost:8084/",
-  "http://localhost:8084/api/reports",
-  "http://localhost:3000/api/health",
+  "http://localhost:8080/health",
+  "http://localhost:8080/reporting/health",
+  "http://localhost:8080/ui/",
+  "http://localhost:8080/grafana/",
   "http://localhost:9090/-/healthy",
   "http://localhost:3100/ready"
 )

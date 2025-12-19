@@ -11,11 +11,17 @@ RUN if [ -f package-lock.json ]; then npm ci; \
 COPY . .
 ARG VITE_REPORTING_API_URL
 ENV VITE_REPORTING_API_URL=${VITE_REPORTING_API_URL}
+ARG VITE_BASE
+ENV VITE_BASE=${VITE_BASE:-/ui/}
 RUN npm run build
 
 FROM nginx:1.27-alpine AS runtime
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY <<'EOF' /etc/nginx/conf.d/default.conf
+# Use Docker's internal DNS server for dynamic hostname resolution
+resolver 127.0.0.11 valid=10s ipv6=off;
+resolver_timeout 5s;
+
 server {
   listen 80;
   server_name _;
@@ -25,12 +31,20 @@ server {
   client_max_body_size 100M;
 
   location / {
-    try_files $uri /index.html;
+    try_files $uri $uri/ /index.html;
   }
 
-  # Proxy API requests to the reporting service to avoid CORS
-  location /api/ {
-    proxy_pass http://reporting:8080/api/;
+  # NOTE: The proxy blocks below support standalone UI deployment (docker run ui:80).
+  # When accessed via the API Gateway at http://localhost:8080/ui/, the gateway routes
+  # requests to /reporting and /ingestion directly, so these UI proxy blocks are bypassed.
+  # These blocks enable direct UI testing (docker run -p 8084:80 ui) where the UI handles
+  # its own API proxying. In production, access via gateway is recommended.
+
+  # Proxy Reporting API requests (for standalone UI runs)
+  # Using variables forces nginx to resolve at request time, not startup
+  location /reporting/ {
+    set $reporting_upstream reporting:8080;
+    proxy_pass http://$reporting_upstream/;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -39,8 +53,10 @@ server {
   }
 
   # Proxy ingestion source management API requests
+  # Using variables forces nginx to resolve at request time, not startup
   location /ingestion/ {
-    proxy_pass http://ingestion:8001/;
+    set $ingestion_upstream ingestion:8001;
+    proxy_pass http://$ingestion_upstream/;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;

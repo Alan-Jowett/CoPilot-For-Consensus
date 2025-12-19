@@ -116,7 +116,7 @@ This design ensures the system can operate in air-gapped environments, resource-
     - Labels logs by service, container, and level
     - Forwards structured logs to Loki
 - **Access Points:**
-  - Grafana: http://localhost:3000
+  - Grafana: http://localhost:8080/grafana/
   - Prometheus: http://localhost:9090
 
 ### 11. Retry Policy & Failure Recovery

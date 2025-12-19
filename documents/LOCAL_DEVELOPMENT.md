@@ -93,10 +93,13 @@ docker compose run --rm ingestion
 
 ### 8. Access Dashboards
 
-#### User-Facing Services (Public Access)
-- **Reporting API**: http://localhost:8080
-- **Web UI**: http://localhost:8084
-- **Grafana**: http://localhost:3000 (admin/admin)
+#### User-Facing Services (via API Gateway on :8080)
+- **Gateway health**: http://localhost:8080/health
+- **Reporting API**: http://localhost:8080/reporting/
+- **Web UI**: http://localhost:8080/ui/
+- **Auth Service**: http://localhost:8080/auth/
+- **Ingestion API**: http://localhost:8080/ingestion/
+- **Grafana**: http://localhost:8080/grafana/ (admin/admin)
 
 #### Development & Debugging Services (Localhost-Only)
 - **Prometheus**: http://localhost:9090
@@ -276,16 +279,18 @@ docker compose run --rm ollama-validate
 docker compose up -d parsing chunking embedding orchestrator summarization reporting ui
 docker compose run --rm ingestion
 
-# Validate health endpoints
-curl -f http://localhost:8080/      # reporting
-curl -f http://localhost:8084/      # web ui
-curl -f http://localhost:3000/api/health  # grafana
-curl -f http://localhost:9090/-/healthy   # prometheus
+# Validate health endpoints (gateway)
+curl -f http://localhost:8080/health       # gateway
+curl -f http://localhost:8080/reporting/health   # reporting
+curl -f http://localhost:8080/ui/          # web ui
+curl -f http://localhost:8080/grafana/     # grafana
+curl -f http://localhost:9090/-/healthy    # prometheus
 
 # On Windows (PowerShell), use:
-# Invoke-WebRequest -UseBasicParsing http://localhost:8080/ | Out-Null
-# Invoke-WebRequest -UseBasicParsing http://localhost:8084/ | Out-Null
-# Invoke-WebRequest -UseBasicParsing http://localhost:3000/api/health | Out-Null
+# Invoke-WebRequest -UseBasicParsing http://localhost:8080/health | Out-Null
+# Invoke-WebRequest -UseBasicParsing http://localhost:8080/reporting/health | Out-Null
+# Invoke-WebRequest -UseBasicParsing http://localhost:8080/ui/ | Out-Null
+# Invoke-WebRequest -UseBasicParsing http://localhost:8080/grafana/ | Out-Null
 # Invoke-WebRequest -UseBasicParsing http://localhost:9090/-/healthy | Out-Null
 
 # Cleanup
@@ -312,7 +317,7 @@ docker compose logs -f --tail=100 parsing
 
 #### Centralized Logs (Loki + Grafana)
 
-1. Open Grafana: http://localhost:3000
+1. Open Grafana: http://localhost:8080/grafana/
 2. Navigate to **Explore**
 3. Select **Loki** datasource
 4. Query examples:
@@ -324,7 +329,7 @@ docker compose logs -f --tail=100 parsing
 
 #### Metrics (Prometheus + Grafana)
 
-1. Open Grafana: http://localhost:3000
+1. Open Grafana: http://localhost:8080/grafana/
 2. Pre-configured dashboards:
    - **System Overview**: Service health, uptime, throughput
    - **Ingestion Pipeline**: Messages parsed, chunks created, embeddings generated

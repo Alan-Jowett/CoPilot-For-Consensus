@@ -62,7 +62,7 @@ See event schemas in `documents/schemas/events/*Failed.schema.json` for exact fo
 4. Check **Ready** column for message count
 
 #### Via Grafana Dashboard
-1. Navigate to http://localhost:3000
+1. Navigate to http://localhost:8080/grafana/
 2. Select **Failed Queues Dashboard** (if configured)
 3. View metrics:
    - Message count per failed queue
@@ -254,7 +254,7 @@ Alerts are defined in `infra/prometheus/alerts/failed_queues.yml`:
 - Time since last failure per queue
 - Alert status indicators
 
-Access: http://localhost:3000 → **Dashboards** → **Failed Queues**
+Access: http://localhost:8080/grafana/ → **Dashboards** → **Failed Queues**
 
 ### Log Queries (Loki)
 

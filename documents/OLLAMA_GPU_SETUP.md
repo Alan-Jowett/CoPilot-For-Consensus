@@ -165,7 +165,7 @@ watch -n 1 docker exec ollama nvidia-smi
 
 ### Prometheus Metrics
 
-GPU metrics are automatically exposed by the cAdvisor service (port 8082) and scraped by Prometheus. View them in Grafana at http://localhost:3000.
+GPU metrics are automatically exposed by the cAdvisor service (port 8082) and scraped by Prometheus. View them in Grafana at http://localhost:8080/grafana/.
 
 Look for metrics like:
 - `container_accelerator_memory_used_bytes`

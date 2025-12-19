@@ -64,8 +64,14 @@ export interface ReportsListResponse {
   count: number
 }
 
-// If VITE_REPORTING_API_URL is not set, use same-origin and rely on Nginx proxy (/api -> reporting)
-const DEFAULT_API = ''
+// If VITE_REPORTING_API_URL is not set, use an environment-aware default base path:
+// - In Vite dev mode, default to same-origin root ('') for standalone UI development,
+//   allowing the UI's internal nginx to proxy requests to the reporting service.
+// - In production, default to same-origin gateway subpath ('/reporting'), assuming the UI
+//   is accessed via the API gateway that mounts reporting at /reporting.
+// - To override this assumption in non-gateway deployments, set VITE_REPORTING_API_URL
+//   at build time (e.g., VITE_REPORTING_API_URL=http://localhost:8080 npm run build).
+const DEFAULT_API = import.meta.env.DEV ? '' : '/reporting'
 const base = import.meta.env.VITE_REPORTING_API_URL || DEFAULT_API
 
 export function reportingApiBase(): string {

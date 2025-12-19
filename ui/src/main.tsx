@@ -20,7 +20,7 @@ const router = createBrowserRouter([
     path: '/',
     element: <AppLayout />,
     children: [
-      { index: true, element: <Navigate to="/reports" replace /> },
+      { index: true, element: <Navigate to="reports" replace /> },
       { path: 'reports', element: <ReportsList /> },
       { path: 'reports/:reportId', element: <ReportDetail /> },
       { path: 'threads/:threadId', element: <ThreadSummary /> },
@@ -31,7 +31,10 @@ const router = createBrowserRouter([
       { path: 'sources/edit/:sourceName', element: <SourceForm /> },
     ],
   },
-])
+], {
+  // Ensure routing works when the app is served under /ui/
+  basename: import.meta.env.BASE_URL,
+})
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

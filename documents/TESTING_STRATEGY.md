@@ -203,16 +203,18 @@ docker compose run --rm ollama-validate
 docker compose up -d parsing chunking embedding orchestrator summarization reporting ui
 docker compose run --rm ingestion
 
-# Validate health endpoints
-curl -f http://localhost:8080/      # reporting
-curl -f http://localhost:8084/      # web ui
-curl -f http://localhost:3000/api/health  # grafana
-curl -f http://localhost:9090/-/healthy   # prometheus
+# Validate health endpoints (via gateway)
+curl -f http://localhost:8080/health       # gateway
+curl -f http://localhost:8080/reporting/health   # reporting
+curl -f http://localhost:8080/ui/          # web ui
+curl -f http://localhost:8080/grafana/     # grafana
+curl -f http://localhost:9090/-/healthy    # prometheus
 
 # On Windows (PowerShell), use:
-# Invoke-WebRequest -UseBasicParsing http://localhost:8080/ | Out-Null
-# Invoke-WebRequest -UseBasicParsing http://localhost:8084/ | Out-Null
-# Invoke-WebRequest -UseBasicParsing http://localhost:3000/api/health | Out-Null
+# Invoke-WebRequest -UseBasicParsing http://localhost:8080/health | Out-Null
+# Invoke-WebRequest -UseBasicParsing http://localhost:8080/reporting/health | Out-Null
+# Invoke-WebRequest -UseBasicParsing http://localhost:8080/ui/ | Out-Null
+# Invoke-WebRequest -UseBasicParsing http://localhost:8080/grafana/ | Out-Null
 # Invoke-WebRequest -UseBasicParsing http://localhost:9090/-/healthy | Out-Null
 
 # Cleanup
