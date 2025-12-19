@@ -96,8 +96,8 @@ For detailed architecture documentation, design patterns, and service interactio
 | **User-Facing** | | | |
 | API Gateway | Reverse proxy unifying service endpoints | 8080 (public) | New |
 | Reporting API | HTTP API for accessing summaries and insights | via 8080 (/API) | Production |
-| Web UI | React SPA for viewing reports | 8084 (localhost) | Production |
-| Auth Service | OIDC authentication with local JWT minting | 8090 (localhost) | MVP |
+| Web UI | React SPA for viewing reports | via 8080 (/ui) | Production |
+| Auth Service | OIDC authentication with local JWT minting | via 8080 (/auth) | MVP |
 | **Infrastructure** | | | |
 | MongoDB | Document storage for messages and summaries | 27017 (localhost) | Production |
 | Qdrant | Vector database for semantic search | 6333 (localhost) | Production |
@@ -106,7 +106,7 @@ For detailed architecture documentation, design patterns, and service interactio
 | llama.cpp | Alternative LLM runtime with AMD GPU support | 8081 (localhost) | Optional |
 | **Observability** | | | |
 | Prometheus | Metrics collection and aggregation | 9090 (localhost) | Production |
-| Grafana | Monitoring dashboards and visualization | 3000 (public) | Production |
+| Grafana | Monitoring dashboards and visualization | via 8080 (/grafana) | Production |
 | Loki | Log aggregation | 3100 (localhost) | Production |
 | Promtail | Log scraping from Docker containers | - | Production |
 | Pushgateway | Metrics push gateway for batch jobs | - | Production |
