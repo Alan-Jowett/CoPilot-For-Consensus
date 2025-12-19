@@ -67,9 +67,9 @@ app = FastAPI(
 
 
 @app.get("/")
-async def root() -> dict[str, str]:
+async def root() -> dict[str, Any]:
     """Root endpoint redirects to health check."""
-    return health()
+    return await health()
 
 
 @app.get("/health")
