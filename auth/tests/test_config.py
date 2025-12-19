@@ -6,8 +6,6 @@
 from pathlib import Path
 import sys
 import tempfile
-
-import pytest
 from copilot_config import TypedConfig
 
 # Add parent directory to path for imports

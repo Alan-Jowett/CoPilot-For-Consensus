@@ -3,7 +3,6 @@
 
 """Local filesystem secret provider."""
 
-import os
 from pathlib import Path
 from typing import Optional
 

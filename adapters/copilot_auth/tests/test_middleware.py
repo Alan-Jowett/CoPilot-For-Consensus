@@ -4,12 +4,11 @@
 """Tests for JWT middleware."""
 
 import time
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
-from starlette.middleware.base import BaseHTTPMiddleware
 
 from copilot_auth.middleware import JWTMiddleware, create_jwt_middleware
 

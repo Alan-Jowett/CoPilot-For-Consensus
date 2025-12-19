@@ -19,7 +19,6 @@ from copilot_auth import (
 )
 from copilot_logging import create_logger
 
-from .config import load_auth_config
 from .role_store import RoleStore
 
 logger = create_logger(logger_type="stdout", level="INFO", name="auth.service")

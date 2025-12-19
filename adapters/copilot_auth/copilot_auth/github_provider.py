@@ -49,7 +49,6 @@ class GitHubIdentityProvider(OIDCProvider):
         # This provider will surface an explicit error if an ID token is expected, because
         # GitHub OAuth does not issue id_tokens. For GitHub Actions OIDC, you must configure
         # that separately (token.actions.githubusercontent.com).
-        discovery_url = None  # overriden in discover()
         
         super().__init__(
             client_id=client_id,

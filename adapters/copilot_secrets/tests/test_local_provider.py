@@ -6,7 +6,6 @@
 import pytest
 from pathlib import Path
 import tempfile
-import os
 
 from copilot_secrets import (
     LocalFileSecretProvider,

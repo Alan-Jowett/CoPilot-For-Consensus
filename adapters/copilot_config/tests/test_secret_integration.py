@@ -5,10 +5,7 @@
 
 import tempfile
 import json
-import os
 from pathlib import Path
-
-import pytest
 
 from copilot_config import (
     SchemaConfigLoader,

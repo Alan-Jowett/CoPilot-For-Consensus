@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
 # Docker Compose Structure
 
 The Docker Compose configuration is split into three files for better organization:

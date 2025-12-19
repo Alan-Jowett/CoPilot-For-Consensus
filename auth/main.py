@@ -13,7 +13,6 @@ This service provides:
 import os
 import sys
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Any
 
 # Add app directory to path
