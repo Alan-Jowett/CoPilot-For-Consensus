@@ -707,7 +707,7 @@ RabbitMQ metrics are automatically collected via the **built-in Prometheus plugi
 
 **Prometheus Queries**:
 ```promql
-# Queue depth (ready messages) by queue
+# Queue depth (ready messages) by queue (replace "parsing" with your queue name)
 rabbitmq_queue_messages_ready{queue="parsing"}
 
 # Total messages across all queues
@@ -732,7 +732,7 @@ sum(rabbitmq_consumers)
 
 - **Metrics endpoint not accessible**:
   1. Verify plugin is enabled: `docker compose exec messagebus rabbitmq-plugins list | grep prometheus`
-  2. Should show `[E*] rabbitmq_prometheus` (enabled and running)
+  2. Should show `[E*] rabbitmq_prometheus` (E=enabled, *=running)
   3. If disabled, check `infra/rabbitmq/enabled_plugins` file
 
 **Dashboard Integration**: RabbitMQ metrics are used in:
