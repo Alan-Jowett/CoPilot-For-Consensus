@@ -395,6 +395,8 @@ class OrchestrationService:
                     "orchestrator_summary_triggered_total",
                     tags={"reason": "chunks_changed"}
                 )
+                # Push metrics to Pushgateway
+                self.metrics_collector.safe_push()
 
             logger.info(f"Published SummarizationRequested for thread {thread_id} (expected summary_id={expected_summary_id[:16]})")
 
@@ -540,6 +542,8 @@ class OrchestrationService:
                     "orchestration_events_total",
                     tags={"event_type": "summarization_requested", "outcome": "success"}
                 )
+                # Push metrics to Pushgateway
+                self.metrics_collector.safe_push()
 
         except Exception as e:
             logger.error(f"Error publishing SummarizationRequested: {e}", exc_info=True)
@@ -582,6 +586,8 @@ class OrchestrationService:
                     "orchestration_failures_total",
                     tags={"error_type": error_type}
                 )
+                # Push metrics to Pushgateway
+                self.metrics_collector.safe_push()
 
         except Exception as e:
             logger.error(f"Error publishing OrchestrationFailed: {e}", exc_info=True)

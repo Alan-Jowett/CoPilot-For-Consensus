@@ -319,6 +319,8 @@ class SummarizationService:
                         summary.tokens_completion,
                         tags={"type": "completion"},
                     )
+                    # Push metrics to Pushgateway
+                    self.metrics_collector.safe_push()
                 
                 return
                 
@@ -376,6 +378,8 @@ class SummarizationService:
                             "summarization_failures_total",
                             tags={"error_type": error_type},
                         )
+                        # Push metrics to Pushgateway
+                        self.metrics_collector.safe_push()
 
     def _retrieve_context(self, thread_id: str, top_k: int) -> Dict[str, Any]:
         """Retrieve context for a thread from vector and document stores.

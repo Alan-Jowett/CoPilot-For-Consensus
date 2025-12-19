@@ -3,9 +3,12 @@
 
 """Metrics collection abstraction for observability."""
 
+import logging
 import os
 from abc import ABC, abstractmethod
 from typing import Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class MetricsCollector(ABC):
@@ -51,6 +54,22 @@ class MetricsCollector(ABC):
             tags: Optional dictionary of tags/labels for the metric
         """
         pass
+
+    def safe_push(self) -> None:
+        """Safely push metrics to backend if supported.
+        
+        This is a helper method that checks if the collector supports pushing
+        (e.g., PushGateway) and pushes metrics if available. If push fails,
+        logs a warning but does not raise an exception.
+        
+        This method is designed to be called after collecting metrics to ensure
+        they are sent to the monitoring backend without failing the service.
+        """
+        if hasattr(self, 'push') and callable(getattr(self, 'push')):
+            try:
+                self.push()  # type: ignore
+            except Exception as e:
+                logger.warning(f"Failed to push metrics: {e}")
 
 
 def create_metrics_collector(

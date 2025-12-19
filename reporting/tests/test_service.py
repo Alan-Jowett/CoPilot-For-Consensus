@@ -722,3 +722,307 @@ def test_search_reports_by_topic_with_vector_store():
     assert reports[0]["matching_chunks"] == 1
     assert "thread_metadata" in reports[0]
     assert "archive_metadata" in reports[0]
+
+
+def test_get_threads(reporting_service, mock_document_store):
+    """Test that get_threads retrieves threads with pagination."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "thread1", "subject": "Thread 1"},
+        {"_id": "thread2", "subject": "Thread 2"},
+        {"_id": "thread3", "subject": "Thread 3"},
+    ]
+    
+    threads = reporting_service.get_threads(limit=2, skip=0)
+    
+    assert len(threads) == 2
+    assert threads[0]["_id"] == "thread1"
+    assert threads[1]["_id"] == "thread2"
+    
+    # Verify query_documents is called with limit + skip
+    mock_document_store.query_documents.assert_called_once_with(
+        "threads",
+        filter_dict={},
+        limit=2,  # limit + skip = 2 + 0
+    )
+
+
+def test_get_threads_with_archive_filter(reporting_service, mock_document_store):
+    """Test that get_threads supports archive_id filtering."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "thread1", "archive_id": "archive1"},
+    ]
+    
+    threads = reporting_service.get_threads(archive_id="archive1")
+    
+    assert len(threads) == 1
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["filter_dict"]["archive_id"] == "archive1"
+
+
+def test_get_threads_with_skip(reporting_service, mock_document_store):
+    """Test that get_threads pagination with non-zero skip returns correct subset."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "thread0", "subject": "Thread 0"},
+        {"_id": "thread1", "subject": "Thread 1"},
+        {"_id": "thread2", "subject": "Thread 2"},
+        {"_id": "thread3", "subject": "Thread 3"},
+        {"_id": "thread4", "subject": "Thread 4"},
+    ]
+    
+    threads = reporting_service.get_threads(limit=2, skip=2)
+    
+    # Should return threads[2:4] which are thread2 and thread3
+    assert len(threads) == 2
+    assert threads[0]["_id"] == "thread2"
+    assert threads[1]["_id"] == "thread3"
+    
+    # Verify query_documents is called with limit + skip
+    mock_document_store.query_documents.assert_called_once_with(
+        "threads",
+        filter_dict={},
+        limit=4,  # limit + skip = 2 + 2
+    )
+
+
+def test_get_threads_skip_exceeds_results(reporting_service, mock_document_store):
+    """Test that get_threads returns empty list when skip exceeds available results."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "thread1", "subject": "Thread 1"},
+        {"_id": "thread2", "subject": "Thread 2"},
+        {"_id": "thread3", "subject": "Thread 3"},
+    ]
+    
+    threads = reporting_service.get_threads(limit=10, skip=5)
+    
+    # Should return empty list since skip=5 exceeds 3 results
+    assert len(threads) == 0
+    assert threads == []
+
+
+def test_get_thread_by_id(reporting_service, mock_document_store):
+    """Test that get_thread_by_id retrieves a specific thread."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "thread1", "subject": "Test Thread"},
+    ]
+    
+    thread = reporting_service.get_thread_by_id("thread1")
+    
+    assert thread is not None
+    assert thread["_id"] == "thread1"
+    mock_document_store.query_documents.assert_called_once_with(
+        "threads",
+        filter_dict={"_id": "thread1"},
+        limit=1,
+    )
+
+
+def test_get_thread_by_id_not_found(reporting_service, mock_document_store):
+    """Test that get_thread_by_id returns None when not found."""
+    mock_document_store.query_documents.return_value = []
+    
+    thread = reporting_service.get_thread_by_id("nonexistent")
+    
+    assert thread is None
+
+
+def test_get_messages(reporting_service, mock_document_store):
+    """Test that get_messages retrieves messages with pagination."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "msg1", "message_id": "<msg1@example.com>"},
+        {"_id": "msg2", "message_id": "<msg2@example.com>"},
+    ]
+    
+    messages = reporting_service.get_messages(limit=10, skip=0)
+    
+    assert len(messages) == 2
+    # Verify query_documents is called with limit + skip
+    mock_document_store.query_documents.assert_called_once_with(
+        "messages",
+        filter_dict={},
+        limit=10,  # limit + skip = 10 + 0
+    )
+
+
+def test_get_messages_with_thread_filter(reporting_service, mock_document_store):
+    """Test that get_messages supports thread_id filtering."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "msg1", "thread_id": "thread1"},
+    ]
+    
+    messages = reporting_service.get_messages(thread_id="thread1")
+    
+    assert len(messages) == 1
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["filter_dict"]["thread_id"] == "thread1"
+
+
+def test_get_messages_with_message_id_filter(reporting_service, mock_document_store):
+    """Test that get_messages supports message_id filtering."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "msg1", "message_id": "<msg1@example.com>"},
+    ]
+    
+    messages = reporting_service.get_messages(message_id="<msg1@example.com>")
+    
+    assert len(messages) == 1
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["filter_dict"]["message_id"] == "<msg1@example.com>"
+
+
+def test_get_messages_with_skip(reporting_service, mock_document_store):
+    """Test that get_messages pagination with non-zero skip returns correct subset."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "msg0", "message_id": "<msg0@example.com>"},
+        {"_id": "msg1", "message_id": "<msg1@example.com>"},
+        {"_id": "msg2", "message_id": "<msg2@example.com>"},
+        {"_id": "msg3", "message_id": "<msg3@example.com>"},
+    ]
+    
+    messages = reporting_service.get_messages(limit=2, skip=1)
+    
+    # Should return messages[1:3] which are msg1 and msg2
+    assert len(messages) == 2
+    assert messages[0]["_id"] == "msg1"
+    assert messages[1]["_id"] == "msg2"
+    
+    # Verify query_documents is called with limit + skip
+    mock_document_store.query_documents.assert_called_once_with(
+        "messages",
+        filter_dict={},
+        limit=3,  # limit + skip = 2 + 1
+    )
+
+
+def test_get_message_by_id(reporting_service, mock_document_store):
+    """Test that get_message_by_id retrieves a specific message."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "msg1", "message_id": "<msg1@example.com>", "body_normalized": "Test"},
+    ]
+    
+    message = reporting_service.get_message_by_id("msg1")
+    
+    assert message is not None
+    assert message["_id"] == "msg1"
+    mock_document_store.query_documents.assert_called_once_with(
+        "messages",
+        filter_dict={"_id": "msg1"},
+        limit=1,
+    )
+
+
+def test_get_message_by_id_not_found(reporting_service, mock_document_store):
+    """Test that get_message_by_id returns None when not found."""
+    mock_document_store.query_documents.return_value = []
+    
+    message = reporting_service.get_message_by_id("nonexistent")
+    
+    assert message is None
+
+
+def test_get_chunks(reporting_service, mock_document_store):
+    """Test that get_chunks retrieves chunks with pagination."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "chunk1", "text": "Chunk 1"},
+        {"_id": "chunk2", "text": "Chunk 2"},
+    ]
+    
+    chunks = reporting_service.get_chunks(limit=10, skip=0)
+    
+    assert len(chunks) == 2
+    # Verify query_documents is called with limit + skip
+    mock_document_store.query_documents.assert_called_once_with(
+        "chunks",
+        filter_dict={},
+        limit=10,  # limit + skip = 10 + 0
+    )
+
+
+def test_get_chunks_with_message_id_filter(reporting_service, mock_document_store):
+    """Test that get_chunks supports message_id filtering."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "chunk1", "message_id": "<msg1@example.com>"},
+    ]
+    
+    chunks = reporting_service.get_chunks(message_id="<msg1@example.com>")
+    
+    assert len(chunks) == 1
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["filter_dict"]["message_id"] == "<msg1@example.com>"
+
+
+def test_get_chunks_with_thread_filter(reporting_service, mock_document_store):
+    """Test that get_chunks supports thread_id filtering."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "chunk1", "thread_id": "thread1"},
+    ]
+    
+    chunks = reporting_service.get_chunks(thread_id="thread1")
+    
+    assert len(chunks) == 1
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["filter_dict"]["thread_id"] == "thread1"
+
+
+def test_get_chunks_with_message_doc_id_filter(reporting_service, mock_document_store):
+    """Test that get_chunks supports message_doc_id filtering."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "chunk1", "message_doc_id": "msg_doc_1"},
+    ]
+    
+    chunks = reporting_service.get_chunks(message_doc_id="msg_doc_1")
+    
+    assert len(chunks) == 1
+    call_args = mock_document_store.query_documents.call_args
+    assert call_args[1]["filter_dict"]["message_doc_id"] == "msg_doc_1"
+
+
+def test_get_chunks_with_skip(reporting_service, mock_document_store):
+    """Test that get_chunks pagination with non-zero skip returns correct subset."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "chunk0", "text": "Chunk 0"},
+        {"_id": "chunk1", "text": "Chunk 1"},
+        {"_id": "chunk2", "text": "Chunk 2"},
+        {"_id": "chunk3", "text": "Chunk 3"},
+        {"_id": "chunk4", "text": "Chunk 4"},
+    ]
+    
+    chunks = reporting_service.get_chunks(limit=3, skip=1)
+    
+    # Should return chunks[1:4] which are chunk1, chunk2, chunk3
+    assert len(chunks) == 3
+    assert chunks[0]["_id"] == "chunk1"
+    assert chunks[1]["_id"] == "chunk2"
+    assert chunks[2]["_id"] == "chunk3"
+    
+    # Verify query_documents is called with limit + skip
+    mock_document_store.query_documents.assert_called_once_with(
+        "chunks",
+        filter_dict={},
+        limit=4,  # limit + skip = 3 + 1
+    )
+
+
+def test_get_chunk_by_id(reporting_service, mock_document_store):
+    """Test that get_chunk_by_id retrieves a specific chunk."""
+    mock_document_store.query_documents.return_value = [
+        {"_id": "chunk1", "text": "Test chunk"},
+    ]
+    
+    chunk = reporting_service.get_chunk_by_id("chunk1")
+    
+    assert chunk is not None
+    assert chunk["_id"] == "chunk1"
+    mock_document_store.query_documents.assert_called_once_with(
+        "chunks",
+        filter_dict={"_id": "chunk1"},
+        limit=1,
+    )
+
+
+def test_get_chunk_by_id_not_found(reporting_service, mock_document_store):
+    """Test that get_chunk_by_id returns None when not found."""
+    mock_document_store.query_documents.return_value = []
+    
+    chunk = reporting_service.get_chunk_by_id("nonexistent")
+    
+    assert chunk is None

@@ -111,7 +111,7 @@ jobs:
           done
           
           # Run pylint on services
-          for service_dir in chunking embedding ingestion orchestrator parsing reporting reporting-ui summarization; do
+          for service_dir in chunking embedding ingestion orchestrator parsing reporting summarization; do
             if [ -d "$service_dir/app" ]; then
               echo "Checking $service_dir..."
               pylint "$service_dir/app/" \
@@ -136,7 +136,7 @@ jobs:
           done
           
           # Run mypy on services (may have more external dependencies)
-          for service_dir in chunking embedding ingestion orchestrator parsing reporting reporting-ui summarization; do
+          for service_dir in chunking embedding ingestion orchestrator parsing reporting summarization; do
             if [ -d "$service_dir/app" ]; then
               echo "Type checking $service_dir..."
               mypy "$service_dir/app/" --no-error-summary || echo "MyPy found issues in $service_dir"
@@ -161,7 +161,7 @@ jobs:
           done
           
           # Run pyright on services
-          for service_dir in chunking embedding ingestion orchestrator parsing reporting reporting-ui summarization; do
+          for service_dir in chunking embedding ingestion orchestrator parsing reporting summarization; do
             if [ -d "$service_dir/app" ]; then
               echo "Type checking $service_dir..."
               pyright "$service_dir/app/" --level error || echo "Pyright found issues in $service_dir"
@@ -229,7 +229,7 @@ jobs:
       - name: Install service dependencies (minimal)
         run: |
           # Install minimal dependencies for each service to enable imports
-          for service_dir in chunking embedding ingestion orchestrator parsing reporting reporting-ui summarization; do
+          for service_dir in chunking embedding ingestion orchestrator parsing reporting summarization; do
             if [ -f "$service_dir/requirements.txt" ]; then
               echo "Installing dependencies for $service_dir..."
               pip install -r "$service_dir/requirements.txt" || echo "Some dependencies for $service_dir failed to install"

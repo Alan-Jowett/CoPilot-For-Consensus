@@ -263,6 +263,8 @@ class ParsingService:
                     "parsing_duration_seconds",
                     duration,
                 )
+                # Push metrics to Pushgateway
+                self.metrics_collector.safe_push()
             
             # Publish JSONParsed events (one per message for fine-grained retry)
             self._publish_json_parsed_per_message(
@@ -295,6 +297,9 @@ class ParsingService:
                     "parsing_failures_total",
                     tags={"error_type": type(e).__name__},
                 )
+                # Push metrics to Pushgateway
+                self.metrics_collector.safe_push()
+
             
             # Report error
             if self.error_reporter:

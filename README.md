@@ -95,7 +95,7 @@ For detailed architecture documentation, design patterns, and service interactio
 | Summarization | Creates summaries using configurable LLM backends | - | Production |
 | **User-Facing** | | | |
 | Reporting API | HTTP API for accessing summaries and insights | 8080 (public) | Production |
-| Reporting UI | Web interface for viewing reports | 8083 (localhost) | Production |
+| Web UI | React SPA for viewing reports | 8084 (localhost) | Production |
 | **Infrastructure** | | | |
 | MongoDB | Document storage for messages and summaries | 27017 (localhost) | Production |
 | Qdrant | Vector database for semantic search | 6333 (localhost) | Production |
@@ -123,7 +123,7 @@ For detailed architecture documentation, design patterns, and service interactio
 
 #### User-Facing Services
 - **Reporting Service**: Provides HTTP API for accessing summaries and insights (port 8080)
-- **Reporting UI**: Web interface for viewing reports and insights (port 8083)
+- **Web UI**: React SPA for browsing reports and insights (port 8084)
 
 ### Infrastructure Components
 
@@ -223,7 +223,7 @@ docker compose logs db-init
 
 4. Access the services:
 - **Reporting API**: http://localhost:8080
-- **Reporting UI**: http://localhost:8083
+- **Web UI**: http://localhost:8084
 - **Grafana Dashboards**: http://localhost:3000 (admin/admin)
 
 For the full list of exposed ports and security considerations, see [documents/EXPOSED_PORTS.md](documents/EXPOSED_PORTS.md).
@@ -393,7 +393,7 @@ Each microservice has a comprehensive README:
 - [Orchestrator Service](./orchestrator/README.md)
 - [Summarization Service](./summarization/README.md)
 - [Reporting Service](./reporting/README.md)
-- [Reporting UI](./reporting-ui/README.md)
+- [Web UI](./ui/README.md)
 
 ### Adapter Documentation
 - **[adapters/README.md](./adapters/README.md)**: Overview of the adapter layer and available adapters

@@ -368,6 +368,8 @@ class ChunkingService:
                         "chunking_chunk_size_tokens",
                         avg_chunk_size
                     )
+                # Push metrics to Pushgateway
+                self.metrics_collector.safe_push()
             
             # Publish ChunksPrepared event
             self._publish_chunks_prepared(
@@ -392,6 +394,8 @@ class ChunkingService:
                     1,
                     {"error_type": type(e).__name__}
                 )
+                # Push metrics to Pushgateway
+                self.metrics_collector.safe_push()
             
             # Publish failure event
             self._publish_chunking_failed(

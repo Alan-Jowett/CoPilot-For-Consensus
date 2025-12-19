@@ -763,6 +763,166 @@ class ReportingService:
         )
         
         return results[0] if results else None
+    
+    def get_threads(
+        self,
+        limit: int = 10,
+        skip: int = 0,
+        archive_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get list of threads with optional filters.
+        
+        Args:
+            limit: Maximum number of results
+            skip: Number of results to skip
+            archive_id: Filter by archive ID (optional)
+            
+        Returns:
+            List of thread documents
+        """
+        filter_dict = {}
+        if archive_id:
+            filter_dict["archive_id"] = archive_id
+        
+        # TODO: Optimize pagination to use native skip in document store query
+        # Currently fetches limit + skip records and discards skip records in memory
+        # This matches existing pattern in get_reports but should be improved for scalability
+        threads = self.document_store.query_documents(
+            "threads",
+            filter_dict=filter_dict,
+            limit=limit + skip,
+        )
+        
+        # Apply skip and limit
+        return threads[skip:skip + limit]
+    
+    def get_thread_by_id(self, thread_id: str) -> Optional[Dict[str, Any]]:
+        """Get a specific thread by ID.
+        
+        Args:
+            thread_id: Thread identifier
+            
+        Returns:
+            Thread document or None
+        """
+        # Query by _id field which should match thread_id
+        results = self.document_store.query_documents(
+            "threads",
+            filter_dict={"_id": thread_id},
+            limit=1,
+        )
+        
+        return results[0] if results else None
+    
+    def get_messages(
+        self,
+        limit: int = 10,
+        skip: int = 0,
+        thread_id: Optional[str] = None,
+        message_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get list of messages with optional filters.
+        
+        Args:
+            limit: Maximum number of results
+            skip: Number of results to skip
+            thread_id: Filter by thread ID (optional)
+            message_id: Filter by RFC 5322 Message-ID (optional)
+            
+        Returns:
+            List of message documents
+        """
+        filter_dict = {}
+        if thread_id:
+            filter_dict["thread_id"] = thread_id
+        if message_id:
+            filter_dict["message_id"] = message_id
+        
+        # TODO: Optimize pagination to use native skip in document store query
+        # Currently fetches limit + skip records and discards skip records in memory
+        # This matches existing pattern in get_reports but should be improved for scalability
+        messages = self.document_store.query_documents(
+            "messages",
+            filter_dict=filter_dict,
+            limit=limit + skip,
+        )
+        
+        # Apply skip and limit
+        return messages[skip:skip + limit]
+    
+    def get_message_by_id(self, message_doc_id: str) -> Optional[Dict[str, Any]]:
+        """Get a specific message by its document ID.
+        
+        Args:
+            message_doc_id: Message document identifier (_id field)
+            
+        Returns:
+            Message document or None
+        """
+        results = self.document_store.query_documents(
+            "messages",
+            filter_dict={"_id": message_doc_id},
+            limit=1,
+        )
+        
+        return results[0] if results else None
+    
+    def get_chunks(
+        self,
+        limit: int = 10,
+        skip: int = 0,
+        message_id: Optional[str] = None,
+        thread_id: Optional[str] = None,
+        message_doc_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get list of chunks with optional filters.
+        
+        Args:
+            limit: Maximum number of results
+            skip: Number of results to skip
+            message_id: Filter by RFC 5322 Message-ID (optional)
+            thread_id: Filter by thread ID (optional)
+            message_doc_id: Filter by message document ID (optional)
+            
+        Returns:
+            List of chunk documents
+        """
+        filter_dict = {}
+        if message_id:
+            filter_dict["message_id"] = message_id
+        if thread_id:
+            filter_dict["thread_id"] = thread_id
+        if message_doc_id:
+            filter_dict["message_doc_id"] = message_doc_id
+        
+        # TODO: Optimize pagination to use native skip in document store query
+        # Currently fetches limit + skip records and discards skip records in memory
+        # This matches existing pattern in get_reports but should be improved for scalability
+        chunks = self.document_store.query_documents(
+            "chunks",
+            filter_dict=filter_dict,
+            limit=limit + skip,
+        )
+        
+        # Apply skip and limit
+        return chunks[skip:skip + limit]
+    
+    def get_chunk_by_id(self, chunk_id: str) -> Optional[Dict[str, Any]]:
+        """Get a specific chunk by ID.
+        
+        Args:
+            chunk_id: Chunk identifier (_id field)
+            
+        Returns:
+            Chunk document or None
+        """
+        results = self.document_store.query_documents(
+            "chunks",
+            filter_dict={"_id": chunk_id},
+            limit=1,
+        )
+        
+        return results[0] if results else None
 
     def get_stats(self) -> Dict[str, Any]:
         """Get service statistics.

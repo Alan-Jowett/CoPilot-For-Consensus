@@ -20,6 +20,22 @@
   "panels": [
     {
       "datasource": "Prometheus",
+      "type": "text",
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 11,
+      "options": {
+        "mode": "markdown",
+        "content": "# Retry Policy Monitoring\n\n**Status**: This dashboard shows metrics from the retry-job service, which runs every 15 minutes.\n\n**Expected Behavior**: \n- If you see \"No Data\", the retry-job may not have run yet, or there are no stuck/failed documents.\n- Metrics appear after the first successful retry-job execution.\n- Zero values are **normal** when the pipeline is healthy and processing without issues.\n\n**Troubleshooting** (Linux/macOS commands; see SERVICE_MONITORING.md for Windows PowerShell): \n1. Check if retry-job is running: `docker compose ps retry-job`\n2. View retry-job logs: `docker compose logs retry-job`\n3. Manually trigger: `docker compose run --rm retry-job python /app/scripts/retry_stuck_documents.py --once`\n\n**Documentation**: See [RETRY_POLICY.md](https://github.com/Alan-Jowett/CoPilot-For-Consensus/blob/main/documents/RETRY_POLICY.md)"
+      },
+      "title": "Dashboard Information"
+    },
+    {
+      "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -55,7 +71,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 0
+        "y": 4
       },
       "id": 1,
       "options": {
@@ -114,7 +130,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 0
+        "y": 4
       },
       "id": 2,
       "options": {
@@ -186,7 +202,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 8
+        "y": 12
       },
       "id": 3,
       "options": {
@@ -255,7 +271,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 8
+        "y": 12
       },
       "id": 4,
       "options": {
@@ -325,7 +341,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 16
+        "y": 20
       },
       "id": 5,
       "options": {
@@ -394,7 +410,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 16
+        "y": 20
       },
       "id": 6,
       "options": {
@@ -464,7 +480,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 24
+        "y": 28
       },
       "id": 7,
       "options": {
@@ -534,7 +550,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 24
+        "y": 28
       },
       "id": 8,
       "options": {
@@ -604,7 +620,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 32
+        "y": 36
       },
       "id": 9,
       "options": {
@@ -674,7 +690,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 32
+        "y": 36
       },
       "id": 10,
       "options": {
