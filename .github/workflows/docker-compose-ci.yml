@@ -175,30 +175,58 @@ jobs:
     - name: Check service status
       run: docker compose ps
 
-    - name: Upload test ingestion configuration
-      run: |
-        echo "Uploading test ingestion configuration..."
-        docker compose run --rm \
-          -v $PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro \
-          ingestion \
-          python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
-        echo "✓ Test configuration uploaded"
-
     - name: Start ingestion service
       run: |
         docker compose up -d ingestion
         timeout 120s bash -c 'until docker compose ps ingestion --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for ingestion service..."; sleep 3; done' || (docker compose logs ingestion --tail=50 && exit 1)
         echo "✓ Ingestion service started and healthy"
 
-    - name: Trigger ingestion via API
+    - name: Copy test mailbox into ingestion container
       run: |
-        echo "Triggering ingestion for test source via REST API..."
-        # The test configuration creates a source named "test-mailbox"
-        # Trigger ingestion for this source using the REST API
+        set -euo pipefail
+        INGESTION_CONTAINER=$(docker compose ps -q ingestion)
+        if [ -z "$INGESTION_CONTAINER" ]; then
+          echo "❌ Ingestion container not running"
+          exit 1
+        fi
+
+        docker exec "$INGESTION_CONTAINER" mkdir -p /tmp/test-mailbox
+        docker cp tests/fixtures/mailbox_sample/test-archive.mbox "$INGESTION_CONTAINER":/tmp/test-mailbox/test-archive.mbox
+        echo "✓ Test mailbox copied to ingestion container"
+
+    - name: Create ingestion source via API
+      run: |
+        set -euo pipefail
+        echo "Creating ingestion source via REST API..."
+        payload='{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
         max_attempts=5
         attempt=1
         while [ $attempt -le $max_attempts ]; do
-          if curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger 2>/dev/null; then
+          if curl -f -X POST http://localhost:8001/api/sources \
+            -H "Content-Type: application/json" \
+            -d "$payload"; then
+            echo "✓ Ingestion source created"
+            break
+          fi
+          echo "Attempt $attempt/$max_attempts: Failed to create source, retrying..."
+          sleep 2
+          attempt=$((attempt + 1))
+        done
+
+        if [ $attempt -gt $max_attempts ]; then
+          echo "❌ Failed to create ingestion source after $max_attempts attempts"
+          docker compose logs ingestion --tail=50
+          exit 1
+        fi
+
+    - name: Trigger ingestion via API
+      run: |
+        set -euo pipefail
+        echo "Triggering ingestion for test source via REST API..."
+        max_attempts=5
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+          if curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger; then
             echo "✓ Ingestion triggered successfully"
             break
           fi

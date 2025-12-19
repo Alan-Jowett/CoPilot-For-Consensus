@@ -124,6 +124,17 @@ def _source_from_mapping(source: Dict[str, Any]) -> SourceConfig:
     )
 
 
+def _sanitize_source_dict(source_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """Remove fields that should not be exposed or are not JSON serializable."""
+    sanitized = source_dict.copy()
+    sanitized.pop("_id", None)
+
+    if "password" in sanitized and sanitized["password"]:
+        sanitized["password"] = None
+
+    return sanitized
+
+
 def _enabled_sources(raw_sources: Iterable[Any]) -> List[SourceConfig]:
     """Normalize and filter enabled sources.
     
@@ -980,7 +991,7 @@ class IngestionService:
         result = []
         for source in sources:
             if isinstance(source, dict):
-                source_dict = source.copy()
+                source_dict = _sanitize_source_dict(source)
             else:
                 source_dict = {
                     "name": getattr(source, "name", None),
@@ -1061,11 +1072,7 @@ class IngestionService:
             self.logger.info("Source created", source_name=source_data["name"])
             
             # Return created source (without exposing password)
-            created = source_data.copy()
-            if "password" in created and created["password"]:
-                created["password"] = None
-            
-            return created
+            return _sanitize_source_dict(source_data)
         except Exception as e:
             self.logger.error("Failed to create source", error=str(e), exc_info=True)
             raise ValueError(f"Failed to create source: {str(e)}")
