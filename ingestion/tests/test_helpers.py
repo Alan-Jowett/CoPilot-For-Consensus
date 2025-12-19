@@ -5,6 +5,8 @@
 
 from typing import Dict, Any
 from types import SimpleNamespace
+import os
+import tempfile
 from copilot_schema_validation import FileSchemaProvider, validate_json
 
 
@@ -32,10 +34,12 @@ def make_config(**overrides):
 
 
 def make_source(**overrides) -> dict:
+    # Use the system temporary directory to avoid hardcoded paths
+    default_tmp_file = os.path.join(tempfile.gettempdir(), "test.mbox")
     source = {
         "name": overrides.pop("name", "test-source"),
         "source_type": overrides.pop("source_type", "local"),
-        "url": overrides.pop("url", "/tmp/test.mbox"),
+        "url": overrides.pop("url", default_tmp_file),
         "enabled": overrides.pop("enabled", True),
     }
     source.update(overrides)
