@@ -8,6 +8,8 @@ import { AppLayout } from './ui/AppLayout'
 import { ReportsList } from './routes/ReportsList'
 import { ReportDetail } from './routes/ReportDetail'
 import { ThreadSummary } from './routes/ThreadSummary'
+import { ThreadDetail } from './routes/ThreadDetail'
+import { MessageDetail } from './routes/MessageDetail'
 import './styles.css'
 
 const router = createBrowserRouter([
@@ -18,7 +20,9 @@ const router = createBrowserRouter([
       { index: true, element: <Navigate to="/reports" replace /> },
       { path: 'reports', element: <ReportsList /> },
       { path: 'reports/:reportId', element: <ReportDetail /> },
-      { path: 'threads/:threadId', element: <ThreadSummary /> },
+      { path: 'threads/:threadId', element: <ThreadDetail /> },
+      { path: 'threads/:threadId/summary', element: <ThreadSummary /> },
+      { path: 'messages/:messageDocId', element: <MessageDetail /> },
     ],
   },
 ])
