@@ -94,11 +94,6 @@ class LocalFileSecretProvider(SecretProvider):
             SecretNotFoundError: If the secret file does not exist
             SecretProviderError: If reading the file fails
         """
-        if version is not None:
-            logger.warning(
-                f"Version parameter ignored for local provider (secret_name: {secret_name})"
-            )
-        
         secret_path = self._get_secret_path(secret_name)
         
         if not secret_path.exists():
@@ -110,8 +105,6 @@ class LocalFileSecretProvider(SecretProvider):
         try:
             with open(secret_path, "r", encoding="utf-8") as f:
                 content = f.read().strip()
-            
-            logger.debug(f"Retrieved secret_name: {secret_name}")
             return content
         
         except OSError as e:
@@ -131,11 +124,6 @@ class LocalFileSecretProvider(SecretProvider):
             SecretNotFoundError: If the secret file does not exist
             SecretProviderError: If reading the file fails
         """
-        if version is not None:
-            logger.warning(
-                f"Version parameter ignored for local provider (secret: {secret_name})"
-            )
-        
         secret_path = self._get_secret_path(secret_name)
         
         if not secret_path.exists():
@@ -147,8 +135,6 @@ class LocalFileSecretProvider(SecretProvider):
         try:
             with open(secret_path, "rb") as f:
                 content = f.read()
-            
-            logger.debug(f"Retrieved secret_name (bytes): {secret_name}")
             return content
         
         except OSError as e:
