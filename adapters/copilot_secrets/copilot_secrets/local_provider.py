@@ -46,12 +46,12 @@ class LocalFileSecretProvider(SecretProvider):
         self.base_path = Path(base_path)
         
         if not self.base_path.exists():
-            raise SecretProviderError(f"Secret base path does not exist: {base_path}")
+            raise SecretProviderError("Secret base path does not exist")
         
         if not self.base_path.is_dir():
-            raise SecretProviderError(f"Secret base path is not a directory: {base_path}")
+            raise SecretProviderError("Secret base path is not a directory")
         
-        logger.info(f"Initialized local secret provider with base path: {base_path}")
+        logger.info("Initialized local secret provider")
     
     def _get_secret_path(self, secret_name: str) -> Path:
         """Get the filesystem path for a secret.
