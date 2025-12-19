@@ -83,13 +83,17 @@ services:
       - grafana_admin_user
       - grafana_admin_password
     entrypoint: ["/bin/sh", "-c"]
+    environment:
+      - GF_SERVER_ROOT_URL=http://localhost:8080/grafana/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
     command:
       - |-
         export GF_SECURITY_ADMIN_USER="$(cat /run/secrets/grafana_admin_user)"
         export GF_SECURITY_ADMIN_PASSWORD="$(cat /run/secrets/grafana_admin_password)"
         export GF_USERS_ALLOW_SIGN_UP=false
         # Serve Grafana from subpath /grafana via API Gateway
-        export GF_SERVER_ROOT_URL=${GF_SERVER_ROOT_URL:-http://localhost:8080/grafana}
+        # Ensure trailing slash for subpath to avoid redirect loops
+        export GF_SERVER_ROOT_URL=${GF_SERVER_ROOT_URL:-http://localhost:8080/grafana/}
         export GF_SERVER_SERVE_FROM_SUB_PATH=true
         exec /run.sh
     volumes:
