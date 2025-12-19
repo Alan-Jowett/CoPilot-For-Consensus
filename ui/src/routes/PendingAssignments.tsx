@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { fetchPendingRoleAssignments, PendingRoleAssignment } from '../api'
 
 export function PendingAssignments() {
@@ -16,7 +16,7 @@ export function PendingAssignments() {
     limit: 20,
   })
 
-  const loadAssignments = async () => {
+  const loadAssignments = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -29,12 +29,11 @@ export function PendingAssignments() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filters])
 
   useEffect(() => {
     loadAssignments()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.skip, filters.limit])
+  }, [loadAssignments])
 
   const handleFilterChange = (field: string, value: string) => {
     setFilters((prev) => ({ ...prev, [field]: value, skip: 0 }))
