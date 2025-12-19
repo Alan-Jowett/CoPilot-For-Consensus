@@ -1,0 +1,395 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+# Application Services
+# This file contains all application microservices.
+# Included by the top-level docker-compose.yml.
+
+services:
+  chunking:
+    image: copilot-chunking:latest
+    build:
+      context: .
+      dockerfile: ./chunking/Dockerfile
+    environment:
+      - SCHEMA_DIR=/app/documents/schemas/configs
+      - MESSAGE_BUS_TYPE=rabbitmq
+      - MESSAGE_BUS_HOST=messagebus
+      - MESSAGE_BUS_PORT=5672
+      - DOCUMENT_STORE_TYPE=mongodb
+      - DOCUMENT_DATABASE_HOST=documentdb
+      - DOCUMENT_DATABASE_PORT=27017
+      - DOCUMENT_DATABASE_NAME=copilot
+      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - ERROR_REPORTER_TYPE=console
+    secrets:
+      - message_bus_user
+      - message_bus_password
+      - document_database_user
+      - document_database_password
+    depends_on:
+      messagebus:
+        condition: service_healthy
+      documentdb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    restart: unless-stopped
+
+  embedding:
+    image: copilot-embedding:latest
+    build:
+      context: .
+      dockerfile: ./embedding/Dockerfile
+    environment:
+      - SCHEMA_DIR=/app/documents/schemas/configs
+      - MESSAGE_BUS_TYPE=rabbitmq
+      - MESSAGE_BUS_HOST=messagebus
+      - MESSAGE_BUS_PORT=5672
+      - DOCUMENT_STORE_TYPE=mongodb
+      - DOCUMENT_DATABASE_HOST=documentdb
+      - DOCUMENT_DATABASE_PORT=27017
+      - DOCUMENT_DATABASE_NAME=copilot
+      - VECTOR_STORE_TYPE=qdrant
+      - VECTOR_DB_HOST=vectorstore
+      - VECTOR_DB_PORT=6333
+      - EMBEDDING_BACKEND=${EMBEDDING_BACKEND:-sentencetransformers}
+      - OLLAMA_HOST=http://ollama:11434
+      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - ERROR_REPORTER_TYPE=console
+    secrets:
+      - message_bus_user
+      - message_bus_password
+      - document_database_user
+      - document_database_password
+    depends_on:
+      messagebus:
+        condition: service_healthy
+      documentdb:
+        condition: service_healthy
+      vectorstore:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    restart: unless-stopped
+
+  ingestion:
+    image: copilot-ingestion:latest
+    build:
+      context: .
+      dockerfile: ./ingestion/Dockerfile
+    environment:
+      - SCHEMA_DIR=/app/documents/schemas/configs
+      - STORAGE_PATH=/data/raw_archives
+      - MESSAGE_BUS_TYPE=rabbitmq
+      - MESSAGE_BUS_HOST=messagebus
+      - MESSAGE_BUS_PORT=5672
+      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - PROMETHEUS_PUSHGATEWAY=pushgateway:9091
+      - ERROR_REPORTER_TYPE=console
+      - DOCUMENT_STORE_TYPE=mongodb
+      - DOCUMENT_DATABASE_HOST=documentdb
+      - DOCUMENT_DATABASE_PORT=27017
+      - DOCUMENT_DATABASE_NAME=copilot
+    secrets:
+      - message_bus_user
+      - message_bus_password
+      - document_database_user
+      - document_database_password
+    volumes:
+      - raw_archives:/data/raw_archives
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      messagebus:
+        condition: service_healthy
+      monitoring:
+        condition: service_healthy
+      pushgateway:
+        condition: service_healthy
+      documentdb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: "no"
+
+  orchestrator:
+    image: copilot-orchestrator:latest
+    build:
+      context: .
+      dockerfile: ./orchestrator/Dockerfile
+    environment:
+      - SCHEMA_DIR=/app/documents/schemas/configs
+      - MESSAGE_BUS_TYPE=rabbitmq
+      - MESSAGE_BUS_HOST=messagebus
+      - MESSAGE_BUS_PORT=5672
+      - DOCUMENT_STORE_TYPE=mongodb
+      - DOCUMENT_DATABASE_HOST=documentdb
+      - DOCUMENT_DATABASE_PORT=27017
+      - DOCUMENT_DATABASE_NAME=copilot
+      - VECTOR_DB_HOST=vectorstore
+      - VECTOR_DB_PORT=6333
+      - LLM_BACKEND=${LLM_BACKEND:-local}
+      - OLLAMA_HOST=http://ollama:11434
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
+      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - ERROR_REPORTER_TYPE=console
+    secrets:
+      - message_bus_user
+      - message_bus_password
+      - document_database_user
+      - document_database_password
+      - azure_openai_key
+    depends_on:
+      messagebus:
+        condition: service_healthy
+      documentdb:
+        condition: service_healthy
+      vectorstore:
+        condition: service_healthy
+      vectorstore-validate:
+        condition: service_completed_successfully
+      ollama-validate:
+        condition: service_completed_successfully
+      ollama-model-loader:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    restart: unless-stopped
+
+  parsing:
+    image: copilot-parsing:latest
+    build:
+      context: .
+      dockerfile: ./parsing/Dockerfile
+    environment:
+      - SCHEMA_DIR=/app/documents/schemas/configs
+      - MESSAGE_BUS_TYPE=rabbitmq
+      - MESSAGE_BUS_HOST=messagebus
+      - MESSAGE_BUS_PORT=5672
+      - DOCUMENT_STORE_TYPE=mongodb
+      - DOCUMENT_DATABASE_HOST=documentdb
+      - DOCUMENT_DATABASE_PORT=27017
+      - DOCUMENT_DATABASE_NAME=copilot
+      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - ERROR_REPORTER_TYPE=console
+    secrets:
+      - message_bus_user
+      - message_bus_password
+      - document_database_user
+      - document_database_password
+    volumes:
+      - raw_archives:/data/raw_archives:ro
+    depends_on:
+      messagebus:
+        condition: service_healthy
+      documentdb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  reporting:
+    image: copilot-reporting:latest
+    build:
+      context: .
+      dockerfile: ./reporting/Dockerfile
+    environment:
+      - SCHEMA_DIR=/app/documents/schemas/configs
+      - MESSAGE_BUS_TYPE=rabbitmq
+      - MESSAGE_BUS_HOST=messagebus
+      - MESSAGE_BUS_PORT=5672
+      - DOCUMENT_STORE_TYPE=mongodb
+      - DOCUMENT_DATABASE_HOST=documentdb
+      - DOCUMENT_DATABASE_PORT=27017
+      - DOCUMENT_DATABASE_NAME=copilot
+      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - ERROR_REPORTER_TYPE=console
+      - HTTP_PORT=8080
+    secrets:
+      - message_bus_user
+      - message_bus_password
+      - document_database_user
+      - document_database_password
+    ports:
+      - "0.0.0.0:8080:8080"
+    depends_on:
+      messagebus:
+        condition: service_healthy
+      documentdb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    restart: unless-stopped
+
+  auth:
+    image: copilot-auth:latest
+    build:
+      context: .
+      dockerfile: ./auth/Dockerfile
+    environment:
+      - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8090}
+      - AUTH_AUDIENCES=${AUTH_AUDIENCES:-copilot-orchestrator,copilot-reporting}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-RS256}
+      - JWT_KEY_ID=${JWT_KEY_ID:-default}
+      - JWT_DEFAULT_EXPIRY=${JWT_DEFAULT_EXPIRY:-1800}
+      - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
+      - SECRETS_BASE_PATH=${SECRETS_BASE_PATH:-/run/secrets}
+      # OIDC Providers - OAuth secrets read via copilot_secrets from /run/secrets
+      - AUTH_GITHUB_REDIRECT_URI=${AUTH_GITHUB_REDIRECT_URI:-http://localhost:8090/callback}
+      - AUTH_GOOGLE_CLIENT_ID=${AUTH_GOOGLE_CLIENT_ID:-}
+      - AUTH_GOOGLE_REDIRECT_URI=${AUTH_GOOGLE_REDIRECT_URI:-http://localhost:8090/callback}
+      - AUTH_MS_CLIENT_ID=${AUTH_MS_CLIENT_ID:-}
+      - AUTH_MS_REDIRECT_URI=${AUTH_MS_REDIRECT_URI:-http://localhost:8090/callback}
+      - AUTH_MS_TENANT=${AUTH_MS_TENANT:-common}
+      # Security
+      - AUTH_REQUIRE_PKCE=${AUTH_REQUIRE_PKCE:-true}
+      - AUTH_REQUIRE_NONCE=${AUTH_REQUIRE_NONCE:-true}
+      - AUTH_MAX_SKEW_SECONDS=${AUTH_MAX_SKEW_SECONDS:-90}
+      - PORT=8090
+      - HOST=0.0.0.0
+      - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
+      - SECRETS_BASE_PATH=/run/secrets
+    ports:
+      - "127.0.0.1:8090:8090"
+    volumes:
+      - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
+      - ./adapters/copilot_logging:/app/adapters/copilot_logging:ro
+      - ./adapters/copilot_metrics:/app/adapters/copilot_metrics:ro
+    secrets:
+      - jwt_private_key
+      - jwt_public_key
+      - jwt_secret_key
+      - github_oauth_client_id
+      - github_oauth_client_secret
+      - google_oauth_client_secret
+      - microsoft_oauth_client_secret
+      - role_store_password
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # React-based SPA (primary Web UI)
+  ui:
+    image: copilot-ui:latest
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:8084:80"
+    depends_on:
+      reporting:
+        condition: service_healthy
+    healthcheck:
+      # File check is sufficient for static content; wget not available in nginx:alpine
+      test: ["CMD-SHELL", "test -f /usr/share/nginx/html/index.html || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  summarization:
+    image: copilot-summarization:latest
+    build:
+      context: .
+      dockerfile: ./summarization/Dockerfile
+    environment:
+      - SCHEMA_DIR=/app/documents/schemas/configs
+      - MESSAGE_BUS_TYPE=rabbitmq
+      - MESSAGE_BUS_HOST=messagebus
+      - MESSAGE_BUS_PORT=5672
+      - DOCUMENT_STORE_TYPE=mongodb
+      - DOCUMENT_DATABASE_HOST=documentdb
+      - DOCUMENT_DATABASE_PORT=27017
+      - DOCUMENT_DATABASE_NAME=copilot
+      - VECTOR_STORE_TYPE=qdrant
+      - VECTOR_DB_HOST=vectorstore
+      - VECTOR_DB_PORT=6333
+      - LLM_BACKEND=${LLM_BACKEND:-mock}
+      - LLM_MODEL=${LLM_MODEL:-mistral}
+      - OLLAMA_HOST=http://ollama:11434
+      - LLAMACPP_HOST=${LLAMACPP_HOST:-http://llama-cpp:8081}
+      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - ERROR_REPORTER_TYPE=console
+    secrets:
+      - message_bus_user
+      - message_bus_password
+      - document_database_user
+      - document_database_password
+    depends_on:
+      messagebus:
+        condition: service_healthy
+      documentdb:
+        condition: service_healthy
+      vectorstore:
+        condition: service_healthy
+      vectorstore-validate:
+        condition: service_completed_successfully
+      ollama-model-loader:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    restart: unless-stopped
+
+  retry-job:
+    image: copilot-retry-job:latest
+    build:
+      context: .
+      dockerfile: ./scripts/Dockerfile.retry-job
+    environment:
+      - MONGODB_HOST=documentdb
+      - MONGODB_PORT=27017
+      - MONGODB_DATABASE=${MONGO_APP_DB:-copilot}
+      - RABBITMQ_HOST=messagebus
+      - RABBITMQ_PORT=5672
+      - PUSHGATEWAY_URL=http://pushgateway:9091
+      - RETRY_JOB_INTERVAL_SECONDS=${RETRY_JOB_INTERVAL_SECONDS:-900}
+      - RETRY_JOB_BASE_DELAY_SECONDS=${RETRY_JOB_BASE_DELAY_SECONDS:-300}
+      - RETRY_JOB_MAX_DELAY_SECONDS=${RETRY_JOB_MAX_DELAY_SECONDS:-3600}
+      - RETRY_JOB_STUCK_THRESHOLD_HOURS=${RETRY_JOB_STUCK_THRESHOLD_HOURS:-24}
+    secrets:
+      - message_bus_user
+      - message_bus_password
+      - document_database_user
+      - document_database_password
+    depends_on:
+      documentdb:
+        condition: service_healthy
+      messagebus:
+        condition: service_healthy
+      pushgateway:
+        condition: service_healthy
+    restart: unless-stopped
