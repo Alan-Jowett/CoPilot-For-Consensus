@@ -36,15 +36,32 @@ class RoleStore:
         self.collection = getattr(config, "role_store_collection", "user_roles")
 
         # Get values from config with fallback to environment variables
-        # For password/username, read directly from environment since copilot_config
-        # may not load them based on the auth.json schema
+        # For password/username, read directly from Docker secrets if available
         import os
+        
+        # Helper to read from Docker secrets first, then environment variables
+        def get_secret_or_env(secret_name: str, env_var: str) -> str | None:
+            # Try reading from Docker secrets first (mounted at /run/secrets/)
+            secret_file = f"/run/secrets/{secret_name}"
+            if os.path.exists(secret_file):
+                try:
+                    with open(secret_file, 'r') as f:
+                        content = f.read().strip()
+                        if content:  # Only return if not empty
+                            return content
+                except Exception:
+                    pass
+            
+            # Fallback to environment variable
+            value = os.getenv(env_var)
+            # Only return if it's not empty string
+            return value if value else None
         
         store_kwargs = {
             "host": getattr(config, "role_store_host", None) or os.getenv("DOCUMENT_DATABASE_HOST"),
             "port": getattr(config, "role_store_port", None) or os.getenv("DOCUMENT_DATABASE_PORT"),
-            "username": getattr(config, "role_store_username", None) or os.getenv("DOCUMENT_DATABASE_USER"),
-            "password": getattr(config, "role_store_password", None) or os.getenv("DOCUMENT_DATABASE_PASSWORD"),
+            "username": getattr(config, "role_store_username", None) or get_secret_or_env("document_database_user", "DOCUMENT_DATABASE_USER"),
+            "password": getattr(config, "role_store_password", None) or get_secret_or_env("document_database_password", "DOCUMENT_DATABASE_PASSWORD"),
             "database": getattr(config, "role_store_database", None) or os.getenv("DOCUMENT_DATABASE_NAME", "auth"),
         }
 
