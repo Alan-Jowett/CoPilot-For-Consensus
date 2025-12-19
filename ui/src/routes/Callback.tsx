@@ -35,7 +35,7 @@ export function Callback() {
       localStorage.setItem('auth_token', token)
       setAuthToken(token)
       // Redirect to reports
-      window.location.href = `${import.meta.env.BASE_URL}reports`
+      window.location.href = '/ui/reports'
     } else if (code) {
       // Exchange authorization code for token
       exchangeCodeForToken(code)
@@ -67,7 +67,7 @@ export function Callback() {
       if (data.access_token) {
         localStorage.setItem('auth_token', data.access_token)
         setAuthToken(data.access_token)
-        window.location.href = `${import.meta.env.BASE_URL}reports`
+        window.location.href = '/ui/reports'
       } else {
         throw new Error('No token in response')
       }

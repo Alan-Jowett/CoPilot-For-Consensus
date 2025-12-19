@@ -19,29 +19,29 @@ import { Login } from './routes/Login'
 import { Callback } from './routes/Callback'
 import './styles.css'
 
-const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <AppLayout />,
-    children: [
-      { index: true, element: <Navigate to="reports" replace /> },
-      { path: 'reports', element: <ReportsList /> },
-      { path: 'reports/:reportId', element: <ReportDetail /> },
-      { path: 'threads/:threadId', element: <ThreadSummary /> },
-      { path: 'threads/:threadId/messages', element: <ThreadDetail /> },
-      { path: 'messages/:messageDocId', element: <MessageDetail /> },
-      { path: 'sources', element: <SourcesList /> },
-      { path: 'sources/new', element: <SourceForm /> },
-      { path: 'sources/edit/:sourceName', element: <SourceForm /> },
-      { path: 'admin', element: <AdminDashboard /> },
-    ],
-  },
-  { path: 'login', element: <Login /> },
-  { path: 'callback', element: <Callback /> },
-], {
-  // Ensure routing works when the app is served under /ui/
-  basename: import.meta.env.BASE_URL,
-})
+const router = createBrowserRouter(
+  [
+    {
+      path: '/',
+      element: <AppLayout />,
+      children: [
+        { index: true, element: <Navigate to="reports" replace /> },
+        { path: 'reports', element: <ReportsList /> },
+        { path: 'reports/:reportId', element: <ReportDetail /> },
+        { path: 'threads/:threadId', element: <ThreadSummary /> },
+        { path: 'threads/:threadId/messages', element: <ThreadDetail /> },
+        { path: 'messages/:messageDocId', element: <MessageDetail /> },
+        { path: 'sources', element: <SourcesList /> },
+        { path: 'sources/new', element: <SourceForm /> },
+        { path: 'sources/edit/:sourceName', element: <SourceForm /> },
+        { path: 'admin', element: <AdminDashboard /> },
+      ],
+    },
+    { path: 'login', element: <Login /> },
+    { path: 'callback', element: <Callback /> },
+  ],
+  { basename: '/ui' }
+)
 
 // Set up auth callbacks
 setUnauthorizedCallback(() => {
