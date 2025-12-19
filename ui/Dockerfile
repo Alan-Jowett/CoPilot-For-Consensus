@@ -18,6 +18,10 @@ RUN npm run build
 FROM nginx:1.27-alpine AS runtime
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY <<'EOF' /etc/nginx/conf.d/default.conf
+# Use Docker's internal DNS server for dynamic hostname resolution
+resolver 127.0.0.11 valid=10s ipv6=off;
+resolver_timeout 5s;
+
 server {
   listen 80;
   server_name _;
@@ -31,8 +35,10 @@ server {
   }
 
   # Proxy Reporting API requests (for standalone UI runs)
+  # Using variables forces nginx to resolve at request time, not startup
   location /reporting/ {
-    proxy_pass http://reporting:8080/;
+    set $reporting_upstream reporting:8080;
+    proxy_pass http://$reporting_upstream/;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -41,8 +47,10 @@ server {
   }
 
   # Proxy ingestion source management API requests
+  # Using variables forces nginx to resolve at request time, not startup
   location /ingestion/ {
-    proxy_pass http://ingestion:8001/;
+    set $ingestion_upstream ingestion:8001;
+    proxy_pass http://$ingestion_upstream/;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
