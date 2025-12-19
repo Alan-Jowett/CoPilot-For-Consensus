@@ -11,6 +11,8 @@ RUN if [ -f package-lock.json ]; then npm ci; \
 COPY . .
 ARG VITE_REPORTING_API_URL
 ENV VITE_REPORTING_API_URL=${VITE_REPORTING_API_URL}
+ARG VITE_BASE
+ENV VITE_BASE=${VITE_BASE:-/ui/}
 RUN npm run build
 
 FROM nginx:1.27-alpine AS runtime
@@ -23,6 +25,12 @@ server {
 
   location / {
     try_files $uri /index.html;
+  }
+
+  # Serve the app from subpath /ui/ when proxied via the gateway
+  location /ui/ {
+    alias /usr/share/nginx/html/;
+    try_files $uri $uri/ /index.html;
   }
 
   # Proxy Reporting API requests (for standalone UI runs)
