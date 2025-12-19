@@ -41,9 +41,9 @@ export interface Message {
   message_id: string
   thread_id: string
   subject?: string
-  sender?: string
+  from?: { name: string; email: string }
   date?: string
-  body?: string
+  body_normalized?: string
   headers?: Record<string, string>
   chunk_count?: number
 }

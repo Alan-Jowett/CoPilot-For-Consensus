@@ -55,7 +55,7 @@ export function MessageDetail() {
   return (
     <div>
       {message.thread_id && (
-        <Link to={`/threads/${message.thread_id}`} className="back-link">
+        <Link to={`/threads/${message.thread_id}/messages`} className="back-link">
           ← Back to Thread
         </Link>
       )}
@@ -70,10 +70,14 @@ export function MessageDetail() {
               <button className="copy-btn" onClick={() => copy(message.message_id)}>Copy</button>
             </div>
           </div>
-          {message.sender && (
+          {message.from && (
             <div className="info-item">
               <div className="info-label">From</div>
-              <div className="info-value">{message.sender}</div>
+              <div className="info-value">
+                {message.from.name && message.from.name.trim() 
+                  ? `${message.from.name} <${message.from.email}>`
+                  : message.from.email}
+              </div>
             </div>
           )}
           {message.date && (
@@ -94,7 +98,7 @@ export function MessageDetail() {
       <div className="message-body-section">
         <h2>Message Body</h2>
         <div className="message-body-content">
-          <ReactMarkdown>{message.body || 'No message body available.'}</ReactMarkdown>
+          <ReactMarkdown>{message.body_normalized || 'No message body available.'}</ReactMarkdown>
         </div>
       </div>
 

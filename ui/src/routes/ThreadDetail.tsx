@@ -32,7 +32,7 @@ export function ThreadDetail() {
         if (!cancelled) {
           setThread(threadData)
           setMessages(messagesData.messages)
-          setHasMore(messagesData.count >= limit)
+          setHasMore(messagesData.messages.length >= limit)
         }
       })
       .catch(e => {
@@ -56,6 +56,11 @@ export function ThreadDetail() {
       }
     }
   }, [highlightMessageId, messages])
+
+  // Check if highlighted message exists in current page
+  const highlightedMessageFound = highlightMessageId 
+    ? messages.some(msg => msg.message_id === highlightMessageId)
+    : true
 
   if (loading && !thread) return <div className="no-reports">Loading…</div>
   if (error === 'NOT_FOUND') return <div className="no-reports">Thread not found</div>
@@ -117,6 +122,11 @@ export function ThreadDetail() {
 
       <div className="messages-section">
         <h2>Messages ({messages.length})</h2>
+        {highlightMessageId && !highlightedMessageFound && (
+          <div className="highlight-warning">
+            ⚠️ The highlighted message may be on a different page. Use pagination to find it.
+          </div>
+        )}
         {messages.length === 0 ? (
           <div className="no-reports">No messages found in this thread.</div>
         ) : (
@@ -131,7 +141,7 @@ export function ThreadDetail() {
                 >
                   <div className="message-header">
                     <div className="message-meta">
-                      <span className="message-sender">{msg.sender || 'Unknown Sender'}</span>
+                      <span className="message-sender">{msg.from ? `${msg.from.name || msg.from.email}` : 'Unknown Sender'}</span>
                       {msg.date && (
                         <span className="message-date">
                           {new Date(msg.date).toLocaleString()}
@@ -148,8 +158,8 @@ export function ThreadDetail() {
                   )}
                   
                   <div className="message-body-preview">
-                    {(msg.body || '').substring(0, 300)}
-                    {(msg.body || '').length > 300 && '...'}
+                    {(msg.body_normalized || '').substring(0, 300)}
+                    {(msg.body_normalized || '').length > 300 && '...'}
                   </div>
                   
                   <div className="message-footer">

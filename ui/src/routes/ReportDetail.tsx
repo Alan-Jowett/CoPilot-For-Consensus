@@ -68,7 +68,7 @@ export function ReportDetail() {
         <div style={{ marginTop: '15px' }}>
           <Link 
             className="view-thread-btn" 
-            to={`/threads/${report.thread_id}`}
+            to={`/threads/${report.thread_id}/messages`}
           >
             💬 View Underlying Discussion
           </Link>
@@ -134,7 +134,7 @@ export function ReportDetail() {
                   <div className="citation-actions">
                     <Link 
                       className="citation-link" 
-                      to={`/threads/${report.thread_id}?highlight=${c.message_id}`}
+                      to={`/threads/${report.thread_id}/messages?highlight=${c.message_id}`}
                     >
                       📍 View in Thread
                     </Link>
