@@ -114,10 +114,16 @@ services:
     volumes:
       - ./infra/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
       - ./infra/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
-    environment:
-      - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER:-guest}
-      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS:-guest}
-      - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbitmq_management load_definitions "/etc/rabbitmq/definitions.json"
+    secrets:
+      - rabbitmq_user
+      - rabbitmq_pass
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |-
+        export RABBITMQ_DEFAULT_USER="$(cat /run/secrets/rabbitmq_user)"
+        export RABBITMQ_DEFAULT_PASS="$(cat /run/secrets/rabbitmq_pass)"
+        export RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS="-rabbitmq_management load_definitions /etc/rabbitmq/definitions.json"
+        exec docker-entrypoint.sh rabbitmq-server
     healthcheck:
       # Ensure the node is up AND the AMQP listener is accepting connections
       test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping && rabbitmq-diagnostics -q check_port_connectivity"]
@@ -129,13 +135,19 @@ services:
 
   rabbitmq-exporter:
     image: kbudde/rabbitmq-exporter:1.0.0-RC19@sha256:81d8a4124bc262433e054e9df03a7abb750be31c40d13c2344b2161eebf2a20e
-    environment:
-      - RABBIT_URL=http://messagebus:15672
-      - RABBIT_USER=${RABBITMQ_DEFAULT_USER:-guest}
-      - RABBIT_PASSWORD=${RABBITMQ_DEFAULT_PASS:-guest}
-      - PUBLISH_PORT=9419
-      - OUTPUT_FORMAT=JSON
-      - LOG_LEVEL=info
+    secrets:
+      - rabbitmq_user
+      - rabbitmq_pass
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |-
+        export RABBIT_USER="$(cat /run/secrets/rabbitmq_user)"
+        export RABBIT_PASSWORD="$(cat /run/secrets/rabbitmq_pass)"
+        export RABBIT_URL=http://messagebus:15672
+        export PUBLISH_PORT=9419
+        export OUTPUT_FORMAT=JSON
+        export LOG_LEVEL=info
+        exec /bin/rabbitmq_exporter
     depends_on:
       messagebus:
         condition: service_healthy
@@ -819,3 +831,9 @@ volumes:
   grafana_data:
   loki_data:
   llama_models:
+
+secrets:
+  rabbitmq_user:
+    file: ./secrets/rabbitmq_user
+  rabbitmq_pass:
+    file: ./secrets/rabbitmq_pass
