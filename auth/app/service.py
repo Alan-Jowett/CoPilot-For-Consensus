@@ -7,15 +7,15 @@ import asyncio
 import secrets
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from copilot_auth import (
-    create_identity_provider,
+    AuthenticationError,
+    GitHubIdentityProvider,
     IdentityProvider,
     JWTManager,
     OIDCProvider,
-    AuthenticationError,
-    GitHubIdentityProvider,
+    create_identity_provider,
 )
 from copilot_logging import create_logger
 
@@ -35,7 +35,7 @@ class AuthService:
         jwt_manager: JWT token manager
         stats: Service statistics
     """
-    
+
     def __init__(self, config):
         """Initialize the auth service.
         
@@ -43,9 +43,9 @@ class AuthService:
             config: Auth service configuration
         """
         self.config = config
-        self.providers: Dict[str, IdentityProvider] = {}
-        self.jwt_manager: Optional[JWTManager] = None
-        
+        self.providers: dict[str, IdentityProvider] = {}
+        self.jwt_manager: JWTManager | None = None
+
         # Statistics
         self.stats = {
             "logins_total": 0,
@@ -53,43 +53,43 @@ class AuthService:
             "tokens_validated": 0,
             "validation_failures": 0,
         }
-        
+
         # Session storage (for MVP, in-memory; production should use Redis)
-        self._sessions: Dict[str, Dict[str, Any]] = {}
+        self._sessions: dict[str, dict[str, Any]] = {}
         self._sessions_lock = asyncio.Lock()  # Protect concurrent access
         self._session_ttl_seconds = 600  # 10 minutes
         self._last_cleanup_time = time.time()
         self._cleanup_interval_seconds = 60  # Clean up every minute
 
         # Role store (backed by copilot_storage)
-        self.role_store: Optional[RoleStore] = None
-        
+        self.role_store: RoleStore | None = None
+
         # Initialize providers and JWT manager
         self._initialize()
-    
+
     def _initialize(self) -> None:
         """Initialize OIDC providers and JWT manager."""
         logger.info("Initializing Auth Service...")
-        
+
         # Get JWT keys from secrets store (via copilot_secrets adapter)
         private_key = getattr(self.config, 'jwt_private_key', None)
         public_key = getattr(self.config, 'jwt_public_key', None)
-        
+
         if not private_key or not public_key:
             logger.error(f"Keys not found: private={private_key is not None}, public={public_key is not None}")
             raise ValueError("JWT keys (jwt_private_key, jwt_public_key) not found in secrets store")
-        
+
         # Write keys to temp files for JWTManager
         import tempfile
         temp_dir = Path(tempfile.gettempdir()) / "auth_keys"
         temp_dir.mkdir(exist_ok=True)
-        
+
         private_key_path = temp_dir / "jwt_private.pem"
         public_key_path = temp_dir / "jwt_public.pem"
-        
+
         private_key_path.write_text(private_key)
         public_key_path.write_text(public_key)
-        
+
         self.jwt_manager = JWTManager(
             issuer=self.config.issuer,
             algorithm=self.config.jwt_algorithm,
@@ -102,12 +102,12 @@ class AuthService:
 
         # Initialize role store
         self.role_store = RoleStore(self.config)
-        
+
         # Initialize OIDC providers from config
         self._initialize_providers()
-        
+
         logger.info(f"Auth Service initialized with {len(self.providers)} providers")
-    
+
     def _initialize_providers(self) -> None:
         """Initialize OIDC providers from configuration."""
         # GitHub provider
@@ -127,7 +127,7 @@ class AuthService:
                 logger.info("Initialized provider: github")
             except Exception as e:
                 logger.error(f"Failed to initialize GitHub provider: {e}")
-        
+
         # Google provider
         if hasattr(self.config, 'google_client_id') and self.config.google_client_id:
             try:
@@ -144,7 +144,7 @@ class AuthService:
                 logger.info("Initialized provider: google")
             except Exception as e:
                 logger.error(f"Failed to initialize Google provider: {e}")
-        
+
         # Microsoft provider
         if hasattr(self.config, 'microsoft_client_id') and self.config.microsoft_client_id:
             try:
@@ -162,16 +162,16 @@ class AuthService:
                 logger.info("Initialized provider: microsoft")
             except Exception as e:
                 logger.error(f"Failed to initialize Microsoft provider: {e}")
-    
+
     def is_ready(self) -> bool:
         """Check if service is ready to handle requests."""
         return self.jwt_manager is not None and len(self.providers) > 0
-    
+
     async def initiate_login(
         self,
         provider: str,
         audience: str,
-        prompt: Optional[str] = None,
+        prompt: str | None = None,
     ) -> tuple[str, str, str]:
         """Initiate OIDC login flow.
         
@@ -188,17 +188,17 @@ class AuthService:
         """
         if provider not in self.providers:
             raise ValueError(f"Unknown provider: {provider}")
-        
+
         provider_instance = self.providers[provider]
-        
+
         if not isinstance(provider_instance, OIDCProvider):
             raise ValueError(f"Provider {provider} does not support OIDC login flow")
-        
+
         # Generate state, nonce, and PKCE verifier/challenge
         state = secrets.token_urlsafe(32)
         nonce = secrets.token_urlsafe(32)
         code_verifier, code_challenge = provider_instance.build_pkce_pair()
-        
+
         # Get authorization URL
         authorization_url, state, nonce = provider_instance.get_authorization_url(
             state=state,
@@ -207,7 +207,7 @@ class AuthService:
             code_challenge=code_challenge,
             code_challenge_method="S256",
         )
-        
+
         # Store session data (thread-safe)
         async with self._sessions_lock:
             self._sessions[state] = {
@@ -217,14 +217,14 @@ class AuthService:
                 "code_verifier": code_verifier,
                 "created_at": time.time(),
             }
-            
+
             # Opportunistically clean up expired sessions
             self._cleanup_expired_sessions()
-        
+
         self.stats["logins_total"] += 1
-        
+
         return authorization_url, state, nonce
-    
+
     async def handle_callback(
         self,
         code: str,
@@ -248,7 +248,7 @@ class AuthService:
             session = self._sessions.get(state)
             if not session:
                 raise ValueError("Invalid or expired state")
-            
+
             # Check if session has expired
             session_age = time.time() - session.get("created_at", 0)
             if session_age > self._session_ttl_seconds:
@@ -259,16 +259,16 @@ class AuthService:
             audience = session["audience"]
             nonce = session.get("nonce")
             code_verifier = session.get("code_verifier")
-        
+
         # Get provider instance
         if provider not in self.providers:
             raise ValueError(f"Unknown provider: {provider}")
-        
+
         provider_instance = self.providers[provider]
-        
+
         if not isinstance(provider_instance, OIDCProvider):
             raise ValueError(f"Provider {provider} does not support OIDC callback")
-        
+
         try:
             # Exchange code for tokens
             token_response = provider_instance.exchange_code_for_token(
@@ -351,15 +351,15 @@ class AuthService:
                     "amr": ["pwd"],  # Authentication method: password (OIDC)
                 }
             )
-            
+
             # Clean up session (thread-safe)
             async with self._sessions_lock:
                 del self._sessions[state]
-            
+
             self.stats["tokens_minted"] += 1
-            
+
             return local_jwt
-        
+
         except Exception as e:
             logger.error(f"Callback handling failed: {e}")
             raise
@@ -367,12 +367,12 @@ class AuthService:
             # Ensure session is not reusable (thread-safe)
             async with self._sessions_lock:
                 self._sessions.pop(state, None)
-    
+
     def validate_token(
         self,
         token: str,
         audience: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Validate a JWT token.
         
         Args:
@@ -391,23 +391,23 @@ class AuthService:
                 audience=audience,
                 max_skew_seconds=self.config.security.max_skew_seconds
             )
-            
+
             self.stats["tokens_validated"] += 1
-            
+
             return claims
-        
-        except Exception as e:
+
+        except Exception:
             self.stats["validation_failures"] += 1
             raise
-    
-    def get_jwks(self) -> Dict[str, Any]:
+
+    def get_jwks(self) -> dict[str, Any]:
         """Get JWKS for public key distribution.
         
         Returns:
             JWKS dictionary
         """
         return self.jwt_manager.get_jwks()
-    
+
     def _cleanup_expired_sessions(self) -> None:
         """Clean up expired sessions (called with lock held).
         
@@ -418,22 +418,22 @@ class AuthService:
         now = time.time()
         if now - self._last_cleanup_time < self._cleanup_interval_seconds:
             return
-        
+
         self._last_cleanup_time = now
-        
+
         # Find and remove expired sessions
         expired_states = [
             state for state, session in self._sessions.items()
             if now - session.get("created_at", 0) > self._session_ttl_seconds
         ]
-        
+
         for state in expired_states:
             del self._sessions[state]
-        
+
         if expired_states:
             logger.info(f"Cleaned up {len(expired_states)} expired sessions")
-    
-    def get_stats(self) -> Dict[str, Any]:
+
+    def get_stats(self) -> dict[str, Any]:
         """Get service statistics.
         
         Returns:

@@ -10,9 +10,10 @@ new users and optional auto-approval into default roles.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import Any
 
 from copilot_auth.models import User
 from copilot_auth.provider import AuthenticationError
@@ -20,7 +21,6 @@ from copilot_logging import create_logger
 from copilot_schema_validation import FileSchemaProvider
 from copilot_storage import DocumentStore, create_document_store
 from copilot_storage.validating_document_store import ValidatingDocumentStore
-
 
 logger = create_logger(logger_type="stdout", level="INFO", name="auth.role_store")
 
@@ -50,12 +50,7 @@ class RoleStore:
         schema_dir = getattr(config, "role_store_schema_dir", None)
         if schema_dir is None:
             # Default to repository schema location
-            schema_dir = (
-                Path(__file__).resolve().parents[1]
-                / "documents"
-                / "schemas"
-                / "role_store"
-            )
+            schema_dir = Path(__file__).resolve().parents[1] / "documents" / "schemas" / "role_store"
 
         schema_provider = FileSchemaProvider(Path(schema_dir))
 
@@ -75,7 +70,7 @@ class RoleStore:
         user: User,
         auto_approve_enabled: bool,
         auto_approve_roles: Iterable[str],
-    ) -> Tuple[List[str], str]:
+    ) -> tuple[list[str], str]:
         """Fetch or create role assignment for a user.
 
         Returns a tuple of (roles, status) where status is one of
@@ -93,7 +88,7 @@ class RoleStore:
             return roles, status
 
         # No record -> create one
-        roles: List[str] = []
+        roles: list[str] = []
         status = "pending"
 
         auto_roles = [r for r in auto_approve_roles if r]
@@ -108,7 +103,7 @@ class RoleStore:
         docs = self.store.query_documents(self.collection, {"user_id": user_id}, limit=1)
         return docs[0] if docs else None
 
-    def _insert_user_record(self, user: User, roles: List[str], status: str) -> None:
+    def _insert_user_record(self, user: User, roles: list[str], status: str) -> None:
         now = datetime.now(timezone.utc).isoformat()
         doc = {
             "user_id": user.id,
@@ -126,3 +121,187 @@ class RoleStore:
         except Exception as exc:  # pragma: no cover
             logger.error("Failed to insert user role record: %s", exc)
             raise AuthenticationError("Could not persist role assignment") from exc
+
+    # Admin methods
+    def list_pending_role_assignments(
+        self,
+        user_id: str | None = None,
+        role: str | None = None,
+        limit: int = 50,
+        skip: int = 0,
+        sort_by: str = "requested_at",
+        sort_order: int = -1,
+    ) -> tuple[list[dict[str, Any]], int]:
+        """List pending role assignment requests with filtering and pagination.
+
+        Args:
+            user_id: Optional filter by user ID
+            role: Optional filter by role (checks if role is in roles array)
+            limit: Maximum number of results to return (default: 50)
+            skip: Number of results to skip for pagination (default: 0)
+            sort_by: Field to sort by (default: requested_at)
+            sort_order: Sort order: -1 for descending, 1 for ascending (default: -1)
+
+        Returns:
+            Tuple of (list of pending assignments, total count)
+        """
+        query = {"status": "pending"}
+
+        if user_id:
+            query["user_id"] = user_id
+
+        if role:
+            query["roles"] = role
+
+        try:
+            # Get total count for pagination
+            all_docs = self.store.query_documents(self.collection, query)
+            total_count = len(all_docs)
+
+            # Get paginated results with sorting
+            # Note: copilot_storage doesn't expose sort/skip/limit directly,
+            # so we implement it in-memory for now
+            sorted_docs = sorted(all_docs, key=lambda x: x.get(sort_by, ""), reverse=(sort_order == -1))
+            paginated_docs = sorted_docs[skip : skip + limit]
+
+            return paginated_docs, total_count
+
+        except Exception as exc:
+            logger.error("Failed to list pending role assignments: %s", exc)
+            raise
+
+    def get_user_roles(self, user_id: str) -> dict[str, Any] | None:
+        """Get current roles assigned to a given user.
+
+        Args:
+            user_id: User identifier
+
+        Returns:
+            User role record or None if not found
+        """
+        return self._find_user_record(user_id)
+
+    def assign_roles(
+        self,
+        user_id: str,
+        roles: list[str],
+        admin_user_id: str,
+        admin_email: str | None = None,
+    ) -> dict[str, Any]:
+        """Assign roles to a user and update status to approved.
+
+        Args:
+            user_id: User identifier
+            roles: List of roles to assign
+            admin_user_id: ID of the admin performing the action
+            admin_email: Email of the admin performing the action
+
+        Returns:
+            Updated user role record
+
+        Raises:
+            ValueError: If user record not found
+        """
+        record = self._find_user_record(user_id)
+
+        if not record:
+            raise ValueError(f"User record not found: {user_id}")
+
+        now = datetime.now(timezone.utc).isoformat()
+
+        # Update roles and status
+        updated_doc = {
+            **record,
+            "roles": roles,
+            "status": "approved",
+            "updated_at": now,
+            "approved_by": admin_user_id,
+            "approved_at": now,
+        }
+
+        try:
+            # Update document
+            self.store.update_document(self.collection, {"user_id": user_id}, updated_doc)
+
+            # Log audit event
+            logger.info(
+                f"Roles assigned to user {user_id} by admin {admin_user_id}",
+                extra={
+                    "event": "roles_assigned",
+                    "user_id": user_id,
+                    "roles": roles,
+                    "admin_user_id": admin_user_id,
+                    "admin_email": admin_email,
+                    "timestamp": now,
+                },
+            )
+
+            return updated_doc
+
+        except Exception as exc:
+            logger.error("Failed to assign roles: %s", exc)
+            raise
+
+    def revoke_roles(
+        self,
+        user_id: str,
+        roles: list[str],
+        admin_user_id: str,
+        admin_email: str | None = None,
+    ) -> dict[str, Any]:
+        """Revoke roles from a user.
+
+        Args:
+            user_id: User identifier
+            roles: List of roles to revoke
+            admin_user_id: ID of the admin performing the action
+            admin_email: Email of the admin performing the action
+
+        Returns:
+            Updated user role record
+
+        Raises:
+            ValueError: If user record not found
+        """
+        record = self._find_user_record(user_id)
+
+        if not record:
+            raise ValueError(f"User record not found: {user_id}")
+
+        now = datetime.now(timezone.utc).isoformat()
+
+        # Remove specified roles
+        current_roles = record.get("roles", [])
+        updated_roles = [r for r in current_roles if r not in roles]
+
+        # Update document
+        updated_doc = {
+            **record,
+            "roles": updated_roles,
+            "updated_at": now,
+            "last_modified_by": admin_user_id,
+        }
+
+        try:
+            # Update document
+            self.store.update_document(self.collection, {"user_id": user_id}, updated_doc)
+
+            # Log audit event
+            logger.info(
+                f"Roles revoked from user {user_id} by admin {admin_user_id}",
+                extra={
+                    "event": "roles_revoked",
+                    "user_id": user_id,
+                    "revoked_roles": roles,
+                    "remaining_roles": updated_roles,
+                    "admin_user_id": admin_user_id,
+                    "admin_email": admin_email,
+                    "timestamp": now,
+                },
+            )
+
+            return updated_doc
+
+        except Exception as exc:
+            logger.error("Failed to revoke roles: %s", exc)
+            raise
