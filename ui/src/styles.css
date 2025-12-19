@@ -123,3 +123,58 @@ tr:hover { background-color: #f8f9fa; }
 .markdown :is(h1, h2, h3, h4){ margin-top:1.5em; margin-bottom:.5em; }
 .markdown pre { background-color: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }
 .markdown code { background-color: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+
+/* Thread Detail Styles */
+.thread-header { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.view-thread-btn, .view-summary-btn { display: inline-block; padding: 10px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; font-weight: 500; transition: background-color 0.2s; }
+.view-thread-btn:hover, .view-summary-btn:hover { background-color: #218838; }
+
+.messages-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.messages-section h2 { color: #333; margin-top: 0; border-bottom: 2px solid #28a745; padding-bottom: 10px; margin-bottom: 20px; }
+.messages-list { display: flex; flex-direction: column; gap: 15px; }
+.highlight-warning { background-color: #fff3cd; color: #856404; padding: 12px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #ffc107; }
+
+.message-card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; background-color: #fafafa; transition: box-shadow 0.2s, border-color 0.2s; }
+.message-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.message-card.highlighted { border-color: #ffc107; border-width: 2px; background-color: #fffbf0; }
+
+.message-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.message-meta { display: flex; flex-direction: column; gap: 4px; }
+.message-sender { font-weight: 600; color: #333; font-size: 14px; }
+.message-date { font-size: 12px; color: #666; }
+.highlight-badge { background-color: #ffc107; color: #333; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+
+.message-subject { font-weight: 500; color: #555; margin-bottom: 10px; font-size: 13px; }
+.message-body-preview { color: #666; line-height: 1.5; margin-bottom: 12px; }
+.message-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid #eee; }
+.view-message-link { color: #007bff; text-decoration: none; font-size: 13px; font-weight: 500; }
+.view-message-link:hover { text-decoration: underline; }
+.message-id-display { font-family: monospace; font-size: 11px; color: #999; display: flex; align-items: center; gap: 5px; }
+
+/* Message Detail Styles */
+.message-detail-header { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.message-body-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.message-body-section h2 { color: #333; margin-top: 0; border-bottom: 2px solid #007bff; padding-bottom: 10px; }
+.message-body-content { background-color: #f9f9f9; padding: 20px; border-radius: 6px; line-height: 1.7; color: #333; white-space: pre-wrap; word-wrap: break-word; }
+
+.chunks-section, .headers-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.chunks-section h2, .headers-section h2 { color: #333; margin-top: 0; border-bottom: 2px solid #17a2b8; padding-bottom: 10px; }
+.section-description { color: #666; font-size: 14px; margin-bottom: 15px; }
+
+.chunks-list { display: flex; flex-direction: column; gap: 12px; }
+.chunk-card { border: 1px solid #dee2e6; border-radius: 6px; padding: 14px; background-color: #f8f9fa; }
+.chunk-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.chunk-number { font-weight: 600; color: #17a2b8; font-size: 13px; }
+.chunk-id-badge { font-family: monospace; font-size: 10px; background-color: #e9ecef; padding: 3px 7px; border-radius: 3px; color: #495057; }
+.chunk-text { background-color: white; padding: 12px; border-left: 3px solid #17a2b8; border-radius: 4px; line-height: 1.6; color: #333; }
+.chunk-metadata { display: flex; gap: 15px; margin-top: 8px; font-size: 12px; color: #666; }
+
+.headers-list { display: flex; flex-direction: column; gap: 8px; }
+.header-item { display: flex; gap: 10px; padding: 8px; background-color: #f8f9fa; border-radius: 4px; }
+.header-key { font-weight: 600; color: #495057; min-width: 120px; font-size: 13px; }
+.header-value { color: #666; flex: 1; font-size: 13px; word-break: break-word; }
+
+/* Citation Actions */
+.citation-actions { margin-top: 10px; padding-top: 10px; border-top: 1px solid #e0e0e0; }
+.citation-link { display: inline-block; padding: 6px 12px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; font-size: 12px; font-weight: 500; transition: background-color 0.2s; }
+.citation-link:hover { background-color: #0056b3; }

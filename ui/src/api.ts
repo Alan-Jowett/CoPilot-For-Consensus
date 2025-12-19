@@ -24,6 +24,41 @@ export interface Report {
   }
 }
 
+export interface Thread {
+  _id: string
+  thread_id: string
+  subject?: string
+  participants?: string[]
+  message_count?: number
+  first_message_date?: string
+  last_message_date?: string
+  archive_id?: string
+  summary_id?: string
+}
+
+export interface Message {
+  _id: string
+  message_id: string
+  thread_id: string
+  subject?: string
+  from?: { name: string; email: string }
+  date?: string
+  body_normalized?: string
+  headers?: Record<string, string>
+  chunk_count?: number
+}
+
+export interface Chunk {
+  _id: string
+  chunk_id: string
+  message_id: string
+  message_doc_id?: string
+  thread_id: string
+  text: string
+  offset?: number
+  length?: number
+}
+
 export interface ReportsListResponse {
   reports: Report[]
   count: number
@@ -105,6 +140,41 @@ export async function fetchThreadSummary(threadId: string): Promise<Report> {
   const r = await fetch(`${base}/api/threads/${threadId}/summary`)
   if (r.status === 404) throw new Error('NOT_FOUND')
   if (!r.ok) throw new Error(`Thread summary fetch failed: ${r.status}`)
+  return r.json()
+}
+
+export async function fetchThread(threadId: string): Promise<Thread> {
+  const r = await fetch(`${base}/api/threads/${threadId}`)
+  if (r.status === 404) throw new Error('NOT_FOUND')
+  if (!r.ok) throw new Error(`Thread fetch failed: ${r.status}`)
+  return r.json()
+}
+
+export async function fetchThreadMessages(
+  threadId: string,
+  limit = 100,
+  skip = 0
+): Promise<{ messages: Message[]; count: number }> {
+  const params = toQuery({ thread_id: threadId, limit, skip })
+  const r = await fetch(`${base}/api/messages?${params}`)
+  if (!r.ok) throw new Error(`Messages fetch failed: ${r.status}`)
+  return r.json()
+}
+
+export async function fetchMessage(messageDocId: string): Promise<Message> {
+  const r = await fetch(`${base}/api/messages/${messageDocId}`)
+  if (r.status === 404) throw new Error('NOT_FOUND')
+  if (!r.ok) throw new Error(`Message fetch failed: ${r.status}`)
+  return r.json()
+}
+
+export async function fetchMessageChunks(
+  messageId: string,
+  limit = 100
+): Promise<{ chunks: Chunk[]; count: number }> {
+  const params = toQuery({ message_id: messageId, limit })
+  const r = await fetch(`${base}/api/chunks?${params}`)
+  if (!r.ok) throw new Error(`Chunks fetch failed: ${r.status}`)
   return r.json()
 }
 
