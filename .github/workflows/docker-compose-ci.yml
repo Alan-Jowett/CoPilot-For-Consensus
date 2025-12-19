@@ -320,6 +320,24 @@ jobs:
         echo "=== Orchestrator Service Logs ==="
         docker compose logs orchestrator --tail=100
 
+    - name: Test gateway health endpoint
+      run: |
+        echo "Testing gateway health..."
+        max_attempts=10
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+          if curl -f http://localhost:8080/health 2>/dev/null; then
+            echo "✓ Gateway is healthy"
+            exit 0
+          fi
+          echo "Attempt $attempt/$max_attempts: Gateway not responding yet..."
+          sleep 3
+          attempt=$((attempt + 1))
+        done
+        echo "❌ Gateway failed to respond after $max_attempts attempts"
+        docker compose logs gateway --tail=50
+        exit 1
+
     - name: Test reporting service health endpoint
       run: |
         echo "Testing reporting service (via gateway)..."
@@ -360,6 +378,18 @@ jobs:
       run: |
         echo "Testing reports API (via gateway)..."
         curl -f http://localhost:8080/reporting/api/reports || (docker compose logs reporting --tail=50 && exit 1)
+
+    - name: Test backward compatibility redirect (/API -> /reporting)
+      run: |
+        echo "Testing backward compatibility redirect..."
+        # The /API/ path should redirect (308) to /reporting/
+        response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/API/api/reports)
+        if [ "$response" = "308" ]; then
+          echo "✓ Backward compatibility redirect working (308)"
+        else
+          echo "❌ Expected 308 redirect, got: $response"
+          exit 1
+        fi
 
     - name: Validate reports are generated (end-to-end)
       run: |

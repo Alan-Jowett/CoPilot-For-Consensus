@@ -64,8 +64,10 @@ export interface ReportsListResponse {
   count: number
 }
 
-// If VITE_REPORTING_API_URL is not set, use same-origin gateway subpath (/reporting)
-const DEFAULT_API = '/reporting'
+// If VITE_REPORTING_API_URL is not set, use an environment-aware default:
+// - In Vite dev mode, default to same-origin root ('') for standalone UI development.
+// - In production, default to same-origin gateway subpath ('/reporting').
+const DEFAULT_API = import.meta.env.DEV ? '' : '/reporting'
 const base = import.meta.env.VITE_REPORTING_API_URL || DEFAULT_API
 
 export function reportingApiBase(): string {

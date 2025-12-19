@@ -108,7 +108,7 @@ Meaning: start the continuous ingestion service, copy the sample mailbox into th
 Linux/macOS (bash):
 
 ```bash
-# 1) Start ingestion service (proxied via API Gateway on localhost:8080/ingestion)
+# 1) Start ingestion service (accessible via API Gateway at localhost:8080/ingestion; previously exposed directly on :8001)
 docker compose up -d ingestion gateway
 
 # 2) Copy the sample mailbox into the running container

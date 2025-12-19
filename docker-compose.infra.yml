@@ -84,7 +84,7 @@ services:
       - grafana_admin_password
     entrypoint: ["/bin/sh", "-c"]
     environment:
-      - GF_SERVER_ROOT_URL=http://localhost:8080/grafana/
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:8080/grafana/}
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
     command:
       - |-
@@ -474,6 +474,10 @@ services:
     restart: "no"
 
   # API Gateway (NGINX) to unify microservice endpoints under a single port and URI namespace
+  # Note: Uses 'service_started' for dependencies to avoid circular dependencies.
+  # This means gateway can start before backends are healthy, which may cause
+  # 502/503 errors if clients access services before they're ready.
+  # CI workflow starts gateway after all services are healthy (recommended pattern).
   gateway:
     image: nginx:alpine
     ports:
