@@ -86,6 +86,8 @@ For detailed architecture documentation, design patterns, and service interactio
 
 | Service | Purpose | Port(s) | Status |
 |---------|---------|---------|--------|
+| **API Gateway** | | | |
+| API Gateway | NGINX reverse proxy - unified entry point for all services | 8080 (public) | Production |
 | **Processing Pipeline** | | | |
 | Ingestion | Fetches mailing list archives from remote sources | 8000 (localhost) | Production |
 | Parsing | Extracts and normalizes email messages from archives | - | Production |
@@ -94,8 +96,8 @@ For detailed architecture documentation, design patterns, and service interactio
 | Orchestrator | Coordinates RAG workflow and summarization | - | Production |
 | Summarization | Creates summaries using configurable LLM backends | - | Production |
 | **User-Facing** | | | |
-| Reporting API | HTTP API for accessing summaries and insights | 8080 (public) | Production |
-| Web UI | React SPA for viewing reports | 8084 (localhost) | Production |
+| Reporting API | HTTP API for accessing summaries and insights | 8090 (localhost), /api via gateway | Production |
+| Web UI | React SPA for viewing reports | 8084 (localhost), /ui via gateway | Production |
 | **Infrastructure** | | | |
 | MongoDB | Document storage for messages and summaries | 27017 (localhost) | Production |
 | Qdrant | Vector database for semantic search | 6333 (localhost) | Production |
@@ -103,13 +105,13 @@ For detailed architecture documentation, design patterns, and service interactio
 | Ollama | Local LLM runtime (offline capable) | 11434 (localhost) | Production |
 | llama.cpp | Alternative LLM runtime with AMD GPU support | 8081 (localhost) | Optional |
 | **Observability** | | | |
-| Prometheus | Metrics collection and aggregation | 9090 (localhost) | Production |
-| Grafana | Monitoring dashboards and visualization | 3000 (public) | Production |
+| Prometheus | Metrics collection and aggregation | 9090 (localhost), /prometheus via gateway | Production |
+| Grafana | Monitoring dashboards and visualization | 3000 (localhost), /grafana via gateway | Production |
 | Loki | Log aggregation | 3100 (localhost) | Production |
 | Promtail | Log scraping from Docker containers | - | Production |
 | Pushgateway | Metrics push gateway for batch jobs | - | Production |
 
-**Note**: Services marked as "public" (0.0.0.0) are accessible from outside the host. All other services are bound to localhost (127.0.0.1) for security. See [documents/EXPOSED_PORTS.md](./documents/EXPOSED_PORTS.md) for security details.
+**Note**: The API Gateway (port 8080) is the only public-facing service and provides unified access to all user-facing services via path-based routing. Individual services are bound to localhost (127.0.0.1) for security. See [documents/EXPOSED_PORTS.md](./documents/EXPOSED_PORTS.md) for security details.
 
 ### Microservices
 
@@ -221,10 +223,17 @@ docker compose up -d
 docker compose logs db-init
 ```
 
-4. Access the services:
-- **Reporting API**: http://localhost:8080
+4. Access the services via the unified API Gateway:
+- **API Gateway**: http://localhost:8080 (unified entry point)
+  - **Reporting API**: http://localhost:8080/api/
+  - **Web UI**: http://localhost:8080/ui/
+  - **Grafana Dashboards**: http://localhost:8080/grafana/ (admin/admin)
+  - **Prometheus**: http://localhost:8080/prometheus/ (optional, for debugging)
+
+For direct access to individual services (localhost only):
+- **Grafana**: http://localhost:3000
+- **Reporting API**: http://localhost:8090
 - **Web UI**: http://localhost:8084
-- **Grafana Dashboards**: http://localhost:3000 (admin/admin)
 
 For the full list of exposed ports and security considerations, see [documents/EXPOSED_PORTS.md](documents/EXPOSED_PORTS.md).
 

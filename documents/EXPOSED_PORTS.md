@@ -16,37 +16,64 @@ The Docker Compose configuration follows a **principle of least exposure**:
 
 These ports are accessible from any network interface and may be reachable from external networks depending on your firewall configuration.
 
-### Port 3000 - Grafana (Monitoring Dashboards)
+### Port 8080 - API Gateway (Unified Entry Point)
 
-- **Service**: `grafana`
-- **Purpose**: Web UI for viewing metrics dashboards and logs
-- **Protocol**: HTTP
-- **Access**: http://localhost:3000
-- **Credentials**: admin/admin (default, should be changed in production)
-- **Security Notes**: 
-  - Primary monitoring interface for operators
-  - Contains sensitive operational data
-  - Should be protected by authentication (configured by default)
-  - Consider using reverse proxy with TLS in production
-
-### Port 8080 - Reporting API
-
-- **Service**: `reporting`
-- **Purpose**: REST API for accessing document summaries, consensus reports, and thread metadata
+- **Service**: `gateway`
+- **Purpose**: NGINX reverse proxy providing unified access to all microservices
 - **Protocol**: HTTP
 - **Access**: http://localhost:8080
-- **Endpoints**: `/api/reports`, `/api/threads`, `/health`
+- **Routes**:
+  - `/` - Redirects to `/ui/`
+  - `/api/` - Reporting API (summaries, threads, metadata)
+  - `/ui/` - Web UI (React SPA)
+  - `/grafana/` - Grafana dashboards and monitoring
+  - `/prometheus/` - Prometheus metrics (optional, for debugging)
+  - `/rabbitmq/` - RabbitMQ management UI (optional, for debugging)
+  - `/health` - Gateway health check
 - **Security Notes**:
-  - **WARNING**: No authentication or authorization implemented
-  - **DO NOT** expose to untrusted networks or production environments without additional security
-  - Primary API for integration with external systems
-  - Consider API gateway with authentication for production deployments
+  - Single point of entry for all user-facing services
+  - Simplifies network security (only one public port to protect)
+  - **WARNING**: No authentication or authorization at gateway level
+  - **DO NOT** expose to untrusted networks without additional security
+  - Consider adding authentication middleware (OAuth, JWT) for production
+  - CORS headers configured for API endpoints
+  - TLS termination should be added for production deployments
 
 ## Localhost-Only Ports (127.0.0.1)
 
 These ports are bound to localhost and only accessible from the host machine. They are not reachable from external networks.
 
-### Port 27017 - MongoDB (Document Database)
+### Port 3000 - Grafana (Monitoring Dashboards)
+
+- **Service**: `grafana`
+- **Purpose**: Web UI for viewing metrics dashboards and logs
+- **Protocol**: HTTP
+- **Access**: 
+  - Direct: http://localhost:3000 (localhost only)
+  - Via Gateway: http://localhost:8080/grafana/
+- **Credentials**: admin/admin (default, should be changed in production)
+- **Security Notes**: 
+  - Now accessible via API gateway at `/grafana/` subpath
+  - Direct access bound to localhost for debugging
+  - Contains sensitive operational data
+  - Should be protected by authentication (configured by default)
+  - Configured with `GF_SERVER_ROOT_URL` and `GF_SERVER_SERVE_FROM_SUB_PATH` for gateway compatibility
+
+### Port 8090 - Reporting API (Direct Access)
+
+- **Service**: `reporting`
+- **Purpose**: REST API for accessing document summaries, consensus reports, and thread metadata
+- **Protocol**: HTTP
+- **Access**: 
+  - Direct: http://localhost:8090 (localhost only)
+  - Via Gateway: http://localhost:8080/api/
+- **Endpoints**: `/api/reports`, `/api/threads`, `/health`
+- **Security Notes**:
+  - Now accessible via API gateway at `/api/` path
+  - Direct access bound to localhost for debugging and testing
+  - **WARNING**: No authentication or authorization implemented
+  - **DO NOT** expose direct port to untrusted networks
+  - Use gateway for all external access
 
 - **Service**: `documentdb`
 - **Purpose**: MongoDB database for messages, threads, summaries, and metadata
@@ -154,21 +181,40 @@ These ports are bound to localhost and only accessible from the host machine. Th
   - Can trigger resource-intensive ingestion operations
   - Localhost binding prevents unauthorized ingestion triggers
 
-### Port 8084 - Web UI
+### Port 8084 - Web UI (Direct Access)
 
 - **Service**: `ui`
 - **Purpose**: React SPA for browsing reports and managing data
 - **Protocol**: HTTP
-- **Access**: http://localhost:8084
+- **Access**: 
+  - Direct: http://localhost:8084 (localhost only)
+  - Via Gateway: http://localhost:8080/ui/
 - **Use Cases**:
   - Human-readable report browsing
   - Summary verification
   - UI access to reporting API
 - **Security Notes**:
+  - Now accessible via API gateway at `/ui/` path
+  - Direct access bound to localhost for debugging
   - **WARNING**: No authentication or authorization implemented
-  - **DO NOT** expose to untrusted networks
-  - Intended for local development and demonstration only
+  - **DO NOT** expose direct port to untrusted networks
   - Static assets served via nginx container
+  - Use gateway for all external access
+
+### Port 27017 - MongoDB (Document Database)
+
+- **Service**: `documentdb`
+- **Purpose**: MongoDB database for messages, threads, summaries, and metadata
+- **Protocol**: MongoDB wire protocol
+- **Access**: mongodb://root:example@localhost:27017/admin
+- **Use Cases**: 
+  - Database administration via MongoDB Compass or mongosh
+  - Direct queries for debugging
+  - Data export/import operations
+- **Security Notes**:
+  - Contains all application data
+  - Credentials stored in environment variables
+  - Localhost binding prevents external database access
 
 ## Internal-Only Services (No Port Mapping)
 
@@ -205,18 +251,20 @@ When deploying to production environments:
 
 ### Network Security
 
-1. **Reverse Proxy**: Use nginx, Traefik, or cloud load balancers for TLS termination and authentication
-2. **Firewall Rules**: Restrict access to public ports (3000, 8080) using firewall rules
-3. **VPN/Bastion**: Access localhost-only ports via VPN or bastion host
-4. **Network Segmentation**: Isolate Docker networks from untrusted networks
+1. **API Gateway**: Already implemented with NGINX - provides single entry point for all services
+2. **Reverse Proxy**: Consider adding TLS termination to the gateway for production
+3. **Firewall Rules**: Restrict access to public port (8080) using firewall rules
+4. **VPN/Bastion**: Access localhost-only ports via VPN or bastion host
+5. **Network Segmentation**: Isolate Docker networks from untrusted networks
 
 ### Authentication & Authorization
 
-1. **Grafana**: Configure SSO, LDAP, or OAuth for authentication
-2. **Reporting API**: Implement API keys, JWT tokens, or OAuth
-3. **Reporting UI**: Add authentication layer (reverse proxy with auth, or application-level auth)
-4. **RabbitMQ**: Change default credentials, use TLS for AMQP connections
-5. **MongoDB**: Use strong passwords, enable authentication, consider TLS
+1. **API Gateway**: Add authentication middleware (OAuth, JWT, basic auth) at gateway level
+2. **Grafana**: Configure SSO, LDAP, or OAuth for authentication (accessible via `/grafana/`)
+3. **Reporting API**: Protected by gateway authentication (accessible via `/api/`)
+4. **Web UI**: Protected by gateway authentication (accessible via `/ui/`)
+5. **RabbitMQ**: Change default credentials, use TLS for AMQP connections
+6. **MongoDB**: Use strong passwords, enable authentication, consider TLS
 
 ### Monitoring & Auditing
 
@@ -242,22 +290,28 @@ For production, consider removing all localhost-only port bindings and accessing
 docker compose ps --format '{{.Name}}\t{{.Ports}}'
 
 # Check what's listening on the host
-netstat -tuln | grep -E ':(3000|8080|27017|5672|15672|6333|11434|9090|3100|8000|8084)'
+netstat -tuln | grep -E ':(8080|3000|8090|27017|5672|15672|6333|11434|9090|3100|8000|8084)'
 # Or on Linux
-ss -tuln | grep -E ':(3000|8080|27017|5672|15672|6333|11434|9090|3100|8000|8084)'
+ss -tuln | grep -E ':(8080|3000|8090|27017|5672|15672|6333|11434|9090|3100|8000|8084)'
 ```
 
 ### Test Localhost Binding
 
 ```bash
 # These should succeed (from host machine)
-curl http://localhost:3000
-curl http://localhost:8080/health
-curl http://localhost:27017  # Will fail with MongoDB protocol error, but connection succeeds
+curl http://localhost:8080/health     # Gateway health check
+curl http://localhost:8080/api/       # Reporting API via gateway
+curl http://localhost:8080/ui/        # Web UI via gateway
+curl http://localhost:8080/grafana/   # Grafana via gateway
+curl http://localhost:3000            # Grafana direct (localhost only)
+curl http://localhost:8090/health     # Reporting direct (localhost only)
+curl http://localhost:27017           # Will fail with MongoDB protocol error, but connection succeeds
 
 # These should fail from external machines (connection refused or timeout)
 curl http://<host-ip>:27017
 curl http://<host-ip>:5672
+curl http://<host-ip>:3000
+curl http://<host-ip>:8090
 ```
 
 ### Verify Internal Services
