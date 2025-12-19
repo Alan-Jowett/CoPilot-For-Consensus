@@ -147,8 +147,8 @@ curl -f -X POST http://localhost:8080/ingestion/api/sources/test-mailbox/trigger
 Quick verification (optional):
 
 ```powershell
-# Reporting API should return a non-zero count (via gateway /API prefix)
-($r = Invoke-WebRequest -UseBasicParsing http://localhost:8080/API/api/reports).Content | ConvertFrom-Json | Select-Object -ExpandProperty count
+# Reporting API should return a non-zero count (via gateway /reporting prefix)
+($r = Invoke-WebRequest -UseBasicParsing http://localhost:8080/reporting/api/reports).Content | ConvertFrom-Json | Select-Object -ExpandProperty count
 ```
 
 #### "cleanup the project"
@@ -371,7 +371,7 @@ payload='{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/t
 max_attempts=5
 attempt=1
 while [ $attempt -le $max_attempts ]; do
-  if curl -f -X POST http://localhost:8001/api/sources \
+  if curl -f -X POST http://localhost:8080/ingestion/api/sources \
     -H "Content-Type: application/json" \
     -d "$payload"; then
     echo "✓ Ingestion source created (attempt $attempt/$max_attempts)"
@@ -392,7 +392,7 @@ echo "Triggering ingestion via REST API..."
 max_attempts=5
 attempt=1
 while [ $attempt -le $max_attempts ]; do
-  if curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger; then
+  if curl -f -X POST http://localhost:8080/ingestion/api/sources/test-mailbox/trigger; then
     echo "✓ Ingestion triggered successfully (attempt $attempt/$max_attempts)"
     break
   fi
@@ -409,7 +409,7 @@ fi
 
 echo "Waiting for ingestion to complete..."
 sleep 10
-status=$(curl -s http://localhost:8001/api/sources/test-mailbox/status)
+status=$(curl -s http://localhost:8080/ingestion/api/sources/test-mailbox/status)
 echo "Ingestion status: $status"
 
 # End-to-end validation
@@ -426,7 +426,7 @@ echo "✓ End-to-end validation passed"
 
 # Health checks
 echo "Testing service endpoints..."
-for endpoint in "http://localhost:8080/health" "http://localhost:8080/API/health" "http://localhost:8080/ui/" "http://localhost:8080/grafana/" "http://localhost:9090/-/healthy" "http://localhost:3100/ready"; do
+for endpoint in "http://localhost:8080/health" "http://localhost:8080/reporting/health" "http://localhost:8080/ui/" "http://localhost:8080/grafana/" "http://localhost:9090/-/healthy" "http://localhost:3100/ready"; do
   echo "  Testing $endpoint..."
   curl -f "$endpoint" > /dev/null 2>&1 || { echo "❌ $endpoint failed"; exit 1; }
 done
@@ -554,7 +554,7 @@ $payload = '{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbo
 $maxAttempts = 5
 $attempt = 1
 while ($attempt -le $maxAttempts) {
-  curl -f -X POST http://localhost:8001/api/sources -H "Content-Type: application/json" -d $payload
+  curl -f -X POST http://localhost:8080/ingestion/api/sources -H "Content-Type: application/json" -d $payload
   if ($LASTEXITCODE -eq 0) { Write-Host "✓ Ingestion source created (attempt $attempt/$maxAttempts)" -ForegroundColor Green; break }
   Write-Host "Attempt $attempt/$maxAttempts: Failed to create source, retrying..." -ForegroundColor Yellow
   Start-Sleep -Seconds 2
@@ -569,7 +569,7 @@ if ($attempt -gt $maxAttempts) {
 Write-Host "Triggering ingestion via REST API..."
 $attempt = 1
 while ($attempt -le $maxAttempts) {
-  curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger
+  curl -f -X POST http://localhost:8080/ingestion/api/sources/test-mailbox/trigger
   if ($LASTEXITCODE -eq 0) { Write-Host "✓ Ingestion triggered successfully (attempt $attempt/$maxAttempts)" -ForegroundColor Green; break }
   Write-Host "Attempt $attempt/$maxAttempts: Failed to trigger ingestion, retrying..." -ForegroundColor Yellow
   Start-Sleep -Seconds 2
@@ -583,7 +583,7 @@ if ($attempt -gt $maxAttempts) {
 
 Write-Host "Waiting for ingestion to complete..."
 Start-Sleep -Seconds 10
-$status = curl -s http://localhost:8001/api/sources/test-mailbox/status
+$status = curl -s http://localhost:8080/ingestion/api/sources/test-mailbox/status
 Write-Host "Ingestion status: $status"
 
 # End-to-end validation
@@ -602,7 +602,7 @@ Write-Host "✓ End-to-end validation passed" -ForegroundColor Green
 Write-Host "Testing service endpoints..."
 $endpoints = @(
   "http://localhost:8080/health",
-  "http://localhost:8080/API/health",
+  "http://localhost:8080/reporting/health",
   "http://localhost:8080/ui/",
   "http://localhost:8080/grafana/",
   "http://localhost:9090/-/healthy",

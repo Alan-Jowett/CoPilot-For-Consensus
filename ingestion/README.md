@@ -16,9 +16,9 @@ pytest tests/ -v
 # Run service (continuous mode with REST API)
 HTTP_PORT=8080 python main.py
 
-# Access REST API
+# Access REST API (via gateway in Docker: http://localhost:8080/ingestion/...)
 curl http://localhost:8080/health
-curl http://localhost:8080/api/sources
+curl http://localhost:8080/ingestion/api/sources
 ```
 
 ## Features
@@ -74,25 +74,25 @@ The service exposes a REST API on port 8080 (configurable via `HTTP_PORT` enviro
 
 #### Source Management
 
-- `GET /api/sources` - List all sources (supports `?enabled_only=true`)
-- `GET /api/sources/{name}` - Get specific source details
-- `POST /api/sources` - Create a new source
-- `PUT /api/sources/{name}` - Update an existing source
-- `DELETE /api/sources/{name}` - Delete a source
+- `GET /ingestion/api/sources` - List all sources (supports `?enabled_only=true`)
+- `GET /ingestion/api/sources/{name}` - Get specific source details
+- `POST /ingestion/api/sources` - Create a new source
+- `PUT /ingestion/api/sources/{name}` - Update an existing source
+- `DELETE /ingestion/api/sources/{name}` - Delete a source
 
 #### Source Operations
 
-- `POST /api/sources/{name}/trigger` - Trigger manual ingestion for a source
-- `GET /api/sources/{name}/status` - Get source ingestion status
+- `POST /ingestion/api/sources/{name}/trigger` - Trigger manual ingestion for a source
+- `GET /ingestion/api/sources/{name}/status` - Get source ingestion status
 
 ### API Examples
 
 ```bash
 # List all sources
-curl http://localhost:8080/api/sources
+curl http://localhost:8080/ingestion/api/sources
 
 # Create a new source
-curl -X POST http://localhost:8080/api/sources \
+curl -X POST http://localhost:8080/ingestion/api/sources \
   -H "Content-Type: application/json" \
   -d '{
     "name": "ietf-quic",
@@ -102,13 +102,13 @@ curl -X POST http://localhost:8080/api/sources \
   }'
 
 # Trigger manual ingestion
-curl -X POST http://localhost:8080/api/sources/ietf-quic/trigger
+curl -X POST http://localhost:8080/ingestion/api/sources/ietf-quic/trigger
 
 # Get source status
-curl http://localhost:8080/api/sources/ietf-quic/status
+curl http://localhost:8080/ingestion/api/sources/ietf-quic/status
 
 # Update source
-curl -X PUT http://localhost:8080/api/sources/ietf-quic \
+curl -X PUT http://localhost:8080/ingestion/api/sources/ietf-quic \
   -H "Content-Type: application/json" \
   -d '{
     "name": "ietf-quic",
@@ -118,7 +118,7 @@ curl -X PUT http://localhost:8080/api/sources/ietf-quic \
   }'
 
 # Delete source
-curl -X DELETE http://localhost:8080/api/sources/ietf-quic
+curl -X DELETE http://localhost:8080/ingestion/api/sources/ietf-quic
 ```
 
 ## Configuration

@@ -95,7 +95,7 @@ docker compose run --rm ingestion
 
 #### User-Facing Services (via API Gateway on :8080)
 - **Gateway health**: http://localhost:8080/health
-- **Reporting API**: http://localhost:8080/API/
+- **Reporting API**: http://localhost:8080/reporting/
 - **Web UI**: http://localhost:8080/ui/
 - **Auth Service**: http://localhost:8080/auth/
 - **Ingestion API**: http://localhost:8080/ingestion/
@@ -281,14 +281,14 @@ docker compose run --rm ingestion
 
 # Validate health endpoints (gateway)
 curl -f http://localhost:8080/health       # gateway
-curl -f http://localhost:8080/API/health   # reporting
+curl -f http://localhost:8080/reporting/health   # reporting
 curl -f http://localhost:8080/ui/          # web ui
 curl -f http://localhost:8080/grafana/     # grafana
 curl -f http://localhost:9090/-/healthy    # prometheus
 
 # On Windows (PowerShell), use:
 # Invoke-WebRequest -UseBasicParsing http://localhost:8080/health | Out-Null
-# Invoke-WebRequest -UseBasicParsing http://localhost:8080/API/health | Out-Null
+# Invoke-WebRequest -UseBasicParsing http://localhost:8080/reporting/health | Out-Null
 # Invoke-WebRequest -UseBasicParsing http://localhost:8080/ui/ | Out-Null
 # Invoke-WebRequest -UseBasicParsing http://localhost:8080/grafana/ | Out-Null
 # Invoke-WebRequest -UseBasicParsing http://localhost:9090/-/healthy | Out-Null
