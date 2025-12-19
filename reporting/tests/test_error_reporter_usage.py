@@ -139,12 +139,11 @@ def test_error_reporter_called_on_nested_exception_in_process_summary(
 ):
     """Test that error_reporter.report() is called when publishing delivery failed event fails during process_summary."""
     # Create a publisher that fails only when publishing delivery failed events
-    class SelectiveFailingPublisher(Mock):
-        def publish(self, exchange, routing_key, event):
-            if routing_key == "report.delivery.failed":
-                raise Exception("Failed to publish delivery failed event")
-    
-    failing_publisher = SelectiveFailingPublisher()
+    failing_publisher = Mock()
+    failing_publisher.publish.side_effect = lambda exchange, routing_key, event: (
+        (_ for _ in ()).throw(Exception("Failed to publish delivery failed event"))
+        if routing_key == "report.delivery.failed" else None
+    )
     
     service = ReportingService(
         document_store=mock_document_store,
