@@ -695,10 +695,12 @@ RabbitMQ metrics are automatically collected via the **built-in Prometheus plugi
 
 **Metrics Endpoint**: The plugin exposes metrics at `http://messagebus:15692/metrics` (internal Docker network). Prometheus scrapes this endpoint every 15 seconds.
 
+**Per-Queue Metrics Configuration**: The messagebus service is configured with `PROMETHEUS_RETURN_PER_OBJECT_METRICS=true` to expose per-queue metrics with labels (e.g., `queue`, `vhost`). This allows Grafana dashboards to display individual queue depths and message rates.
+
 **Key RabbitMQ Metrics**:
-- `rabbitmq_queue_messages_ready` - Messages waiting in queue (ready to be consumed)
-- `rabbitmq_queue_messages_unacked` - Messages delivered but not yet acknowledged
-- `rabbitmq_queue_messages` - Total messages in queue (ready + unacked)
+- `rabbitmq_queue_messages_ready{queue="<queue_name>",vhost="/"}` - Messages waiting in queue (ready to be consumed) per queue
+- `rabbitmq_queue_messages_unacked{queue="<queue_name>",vhost="/"}` - Messages delivered but not yet acknowledged per queue
+- `rabbitmq_queue_messages{queue="<queue_name>",vhost="/"}` - Total messages in queue (ready + unacked) per queue
 - `rabbitmq_channel_messages_published_total` - Total messages published to channels
 - `rabbitmq_channel_messages_delivered_total` - Total messages delivered to consumers
 - `rabbitmq_connections` - Number of active connections
@@ -707,8 +709,11 @@ RabbitMQ metrics are automatically collected via the **built-in Prometheus plugi
 
 **Prometheus Queries**:
 ```promql
-# Queue depth (ready messages) by queue (replace "parsing" with your queue name)
-rabbitmq_queue_messages_ready{queue="parsing"}
+# Queue depth (ready messages) by specific queue
+rabbitmq_queue_messages_ready{queue="json.parsed"}
+
+# Queue depth for all queues
+rabbitmq_queue_messages_ready
 
 # Total messages across all queues
 sum(rabbitmq_queue_messages)
@@ -734,6 +739,13 @@ sum(rabbitmq_consumers)
   1. Verify plugin is enabled: `docker compose exec messagebus rabbitmq-plugins list | grep prometheus`
   2. Should show `[E*] rabbitmq_prometheus` (E=enabled, *=running)
   3. If disabled, check `infra/rabbitmq/enabled_plugins` file
+
+- **Per-queue metrics missing (no `queue` label)**:
+  1. Verify `PROMETHEUS_RETURN_PER_OBJECT_METRICS=true` is set in docker-compose.infra.yml messagebus service
+  2. Restart messagebus if the variable was just added: `docker compose restart messagebus`
+  3. Wait 15-30 seconds for metrics to populate
+  4. Check metrics endpoint directly: `curl http://localhost:15692/metrics | grep 'rabbitmq_queue_messages_ready{queue='`
+  5. Should see metrics with labels like: `rabbitmq_queue_messages_ready{queue="json.parsed",vhost="/"}`
 
 **Dashboard Integration**: RabbitMQ metrics are used in:
 - **Queue Status** dashboard - Queue depths, message rates, consumer counts
