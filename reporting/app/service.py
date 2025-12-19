@@ -4,6 +4,7 @@
 """Main reporting service implementation."""
 
 import hashlib
+import sys
 import time
 import uuid
 import requests
@@ -275,7 +276,7 @@ class ReportingService:
                         extra={"original_error": str(e), "publish_error": str(publish_error)},
                     )
                     if self.error_reporter:
-                        self.error_reporter.capture_exception()
+                        self.error_reporter.report(publish_error, context={"report_id": report_id, "original_error": str(e)})
                     # Re-raise original error to trigger requeue
                     raise e from publish_error
         
@@ -343,10 +344,10 @@ class ReportingService:
                 routing_key="report.published",
                 event=event.to_dict(),
             )
-        except Exception:
+        except Exception as e:
             logger.exception(f"Exception while publishing ReportPublished event for {report_id}")
             if self.error_reporter:
-                self.error_reporter.capture_exception()
+                self.error_reporter.report(e, context={"report_id": report_id, "event_type": "ReportPublished"})
             raise
         
         logger.info(f"Published ReportPublished event for {report_id}")
@@ -385,10 +386,10 @@ class ReportingService:
                 routing_key="report.delivery.failed",
                 event=event.to_dict(),
             )
-        except Exception:
+        except Exception as e:
             logger.exception(f"Exception while publishing ReportDeliveryFailed event for {report_id}")
             if self.error_reporter:
-                self.error_reporter.capture_exception()
+                self.error_reporter.report(e, context={"report_id": report_id, "event_type": "ReportDeliveryFailed"})
             raise
         
         logger.warning(f"Published ReportDeliveryFailed event for {report_id}")
