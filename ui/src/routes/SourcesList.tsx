@@ -170,7 +170,11 @@ export function SourcesList() {
       <ConfirmDialog
         isOpen={deleteDialogOpen}
         title="Delete Ingestion Source"
-        message={`Are you sure you want to delete source "${sourceToDelete}"? This action cannot be undone.`}
+        message={
+          sourceToDelete
+            ? `Are you sure you want to delete source "${sourceToDelete}"? This action cannot be undone.`
+            : 'Are you sure you want to delete this source? This action cannot be undone.'
+        }
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
         confirmText="Delete"
