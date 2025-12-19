@@ -15,18 +15,19 @@ services:
       documentdb:
         condition: service_healthy
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=${DOC_DB_ADMIN_USERNAME:-root}
-      - MONGO_INITDB_ROOT_PASSWORD=${DOC_DB_ADMIN_PASSWORD:-example}
       - MONGO_APP_DB=${MONGO_APP_DB:-copilot}
+    secrets:
+      - mongodb_root_username
+      - mongodb_root_password
     volumes:
       - ./infra/init:/init:ro
       - ./documents/schemas:/schemas:ro
     entrypoint: ["/bin/bash", "-c"]
     command:
       - >-
-        mongosh
-        "mongodb://${DOC_DB_ADMIN_USERNAME}:${DOC_DB_ADMIN_PASSWORD}@documentdb:27017/admin"
-        /init/mongo-init.js
+        MONGO_USER=$(cat /run/secrets/mongodb_root_username)
+        MONGO_PASS=$(cat /run/secrets/mongodb_root_password)
+        mongosh "mongodb://${MONGO_USER}:${MONGO_PASS}@documentdb:27017/admin" /init/mongo-init.js
     restart: "no"
 
   db-validate:
@@ -37,18 +38,19 @@ services:
       db-init:
         condition: service_completed_successfully
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=${DOC_DB_ADMIN_USERNAME:-root}
-      - MONGO_INITDB_ROOT_PASSWORD=${DOC_DB_ADMIN_PASSWORD:-example}
       - MONGO_APP_DB=${MONGO_APP_DB:-copilot}
+    secrets:
+      - mongodb_root_username
+      - mongodb_root_password
     volumes:
       - ./infra/test:/test:ro
       - ./documents/schemas:/schemas:ro
     entrypoint: ["/bin/bash", "-c"]
     command:
       - >-
-        mongosh
-        "mongodb://${DOC_DB_ADMIN_USERNAME}:${DOC_DB_ADMIN_PASSWORD}@documentdb:27017/admin"
-        /test/validate-mongo.js
+        MONGO_USER=$(cat /run/secrets/mongodb_root_username)
+        MONGO_PASS=$(cat /run/secrets/mongodb_root_password)
+        mongosh "mongodb://${MONGO_USER}:${MONGO_PASS}@documentdb:27017/admin" /test/validate-mongo.js
     restart: "no"
 
   documentdb:
@@ -57,9 +59,15 @@ services:
       - "127.0.0.1:27017:27017"
     volumes:
       - mongo_data:/data/db
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=${DOC_DB_ADMIN_USERNAME:-root}
-      - MONGO_INITDB_ROOT_PASSWORD=${DOC_DB_ADMIN_PASSWORD:-example}
+    secrets:
+      - mongodb_root_username
+      - mongodb_root_password
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |-
+        export MONGO_INITDB_ROOT_USERNAME="$(cat /run/secrets/mongodb_root_username)"
+        export MONGO_INITDB_ROOT_PASSWORD="$(cat /run/secrets/mongodb_root_password)"
+        exec docker-entrypoint.sh mongod
     healthcheck:
       test: ["CMD", "mongosh", "mongodb://localhost:27017/admin", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -72,10 +80,16 @@ services:
     image: grafana/grafana:latest@sha256:70d9599b186ce287be0d2c5ba9a78acb2e86c1a68c9c41449454d0fc3eeb84e8
     ports:
       - "0.0.0.0:3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
-      - GF_USERS_ALLOW_SIGN_UP=false
+    secrets:
+      - grafana_admin_user
+      - grafana_admin_password
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |-
+        export GF_SECURITY_ADMIN_USER="$(cat /run/secrets/grafana_admin_user)"
+        export GF_SECURITY_ADMIN_PASSWORD="$(cat /run/secrets/grafana_admin_password)"
+        export GF_USERS_ALLOW_SIGN_UP=false
+        exec /run.sh
     volumes:
       - grafana_data:/var/lib/grafana
       - ./infra/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
@@ -155,10 +169,16 @@ services:
 
   mongodb-exporter:
     image: percona/mongodb_exporter:0.40@sha256:d66daa6aff0513860d1577cee3b55ab82fde43394f8319d7b4674411b9153cce
-    environment:
-      - MONGODB_URI=mongodb://${DOC_DB_ADMIN_USERNAME:-root}:${DOC_DB_ADMIN_PASSWORD:-example}@documentdb:27017/admin
+    secrets:
+      - mongodb_root_username
+      - mongodb_root_password
+    entrypoint: ["/bin/sh", "-c"]
     command:
-      - '--collect-all'
+      - |-
+        MONGO_USER=$(cat /run/secrets/mongodb_root_username)
+        MONGO_PASS=$(cat /run/secrets/mongodb_root_password)
+        export MONGODB_URI="mongodb://${MONGO_USER}:${MONGO_PASS}@documentdb:27017/admin"
+        exec /mongodb_exporter --collect-all
     depends_on:
       documentdb:
         condition: service_healthy
@@ -316,16 +336,20 @@ services:
 
   mongo-doc-count-exporter:
     image: python:3.11-slim
+    secrets:
+      - mongodb_root_username
+      - mongodb_root_password
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >-
+        MONGO_USER=$(cat /run/secrets/mongodb_root_username) &&
+        MONGO_PASS=$(cat /run/secrets/mongodb_root_password) &&
+        export MONGO_URI="mongodb://${MONGO_USER}:${MONGO_PASS}@documentdb:27017/admin" &&
+        export MONGO_DB=copilot &&
+        export PORT=9500 &&
+        export SCRAPE_INTERVAL_SEC=5 &&
         pip install -q -r /app/scripts/requirements.txt &&
         python /app/scripts/mongo_doc_count_exporter.py
-    environment:
-      - MONGO_URI=mongodb://${DOC_DB_ADMIN_USERNAME:-root}:${DOC_DB_ADMIN_PASSWORD:-example}@documentdb:27017/admin
-      - MONGO_DB=copilot
-      - PORT=9500
-      - SCRAPE_INTERVAL_SEC=5
     volumes:
       - ./:/app:ro
     depends_on:
@@ -335,16 +359,20 @@ services:
 
   mongo-collstats-exporter:
     image: python:3.11-slim
+    secrets:
+      - mongodb_root_username
+      - mongodb_root_password
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >-
+        MONGO_USER=$(cat /run/secrets/mongodb_root_username) &&
+        MONGO_PASS=$(cat /run/secrets/mongodb_root_password) &&
+        export MONGO_URI="mongodb://${MONGO_USER}:${MONGO_PASS}@documentdb:27017/admin" &&
+        export MONGO_DB=copilot &&
+        export PORT=9503 &&
+        export SCRAPE_INTERVAL_SEC=5 &&
         pip install -q -r /app/scripts/requirements.txt &&
         python /app/scripts/mongo_collstats_exporter.py
-    environment:
-      - MONGO_URI=mongodb://${DOC_DB_ADMIN_USERNAME:-root}:${DOC_DB_ADMIN_PASSWORD:-example}@documentdb:27017/admin
-      - MONGO_DB=copilot
-      - PORT=9503
-      - SCRAPE_INTERVAL_SEC=5
     volumes:
       - ./:/app:ro
     depends_on:
@@ -354,16 +382,20 @@ services:
 
   document-processing-exporter:
     image: python:3.11-slim
+    secrets:
+      - mongodb_root_username
+      - mongodb_root_password
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >-
+        MONGO_USER=$(cat /run/secrets/mongodb_root_username) &&
+        MONGO_PASS=$(cat /run/secrets/mongodb_root_password) &&
+        export MONGO_URI="mongodb://${MONGO_USER}:${MONGO_PASS}@documentdb:27017/admin" &&
+        export MONGO_DB=copilot &&
+        export PORT=9502 &&
+        export SCRAPE_INTERVAL_SEC=5 &&
         pip install -q -r /app/scripts/requirements.txt &&
         python /app/scripts/document_processing_exporter.py
-    environment:
-      - MONGO_URI=mongodb://${DOC_DB_ADMIN_USERNAME:-root}:${DOC_DB_ADMIN_PASSWORD:-example}@documentdb:27017/admin
-      - MONGO_DB=copilot
-      - PORT=9502
-      - SCRAPE_INTERVAL_SEC=5
     volumes:
       - ./:/app:ro
     depends_on:
@@ -454,16 +486,17 @@ services:
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
-      - MESSAGE_BUS_USER=${RABBITMQ_DEFAULT_USER:-guest}
-      - MESSAGE_BUS_PASSWORD=${RABBITMQ_DEFAULT_PASS:-guest}
       - DOCUMENT_STORE_TYPE=mongodb
       - DOCUMENT_DATABASE_HOST=documentdb
       - DOCUMENT_DATABASE_PORT=27017
       - DOCUMENT_DATABASE_NAME=copilot
-      - DOCUMENT_DATABASE_USER=${DOC_DB_ADMIN_USERNAME:-root}
-      - DOCUMENT_DATABASE_PASSWORD=${DOC_DB_ADMIN_PASSWORD:-example}
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
+    secrets:
+      - message_bus_user
+      - message_bus_password
+      - document_database_user
+      - document_database_password
     depends_on:
       messagebus:
         condition: service_healthy
@@ -487,14 +520,10 @@ services:
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
-      - MESSAGE_BUS_USER=${RABBITMQ_DEFAULT_USER:-guest}
-      - MESSAGE_BUS_PASSWORD=${RABBITMQ_DEFAULT_PASS:-guest}
       - DOCUMENT_STORE_TYPE=mongodb
       - DOCUMENT_DATABASE_HOST=documentdb
       - DOCUMENT_DATABASE_PORT=27017
       - DOCUMENT_DATABASE_NAME=copilot
-      - DOCUMENT_DATABASE_USER=${DOC_DB_ADMIN_USERNAME:-root}
-      - DOCUMENT_DATABASE_PASSWORD=${DOC_DB_ADMIN_PASSWORD:-example}
       - VECTOR_STORE_TYPE=qdrant
       - VECTOR_DB_HOST=vectorstore
       - VECTOR_DB_PORT=6333
@@ -502,6 +531,11 @@ services:
       - OLLAMA_HOST=http://ollama:11434
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
+    secrets:
+      - message_bus_user
+      - message_bus_password
+      - document_database_user
+      - document_database_password
     depends_on:
       messagebus:
         condition: service_healthy
@@ -528,8 +562,6 @@ services:
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
-      - MESSAGE_BUS_USER=${RABBITMQ_DEFAULT_USER:-guest}
-      - MESSAGE_BUS_PASSWORD=${RABBITMQ_DEFAULT_PASS:-guest}
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - PROMETHEUS_PUSHGATEWAY=pushgateway:9091
       - ERROR_REPORTER_TYPE=console
@@ -537,11 +569,14 @@ services:
       - DOCUMENT_DATABASE_HOST=documentdb
       - DOCUMENT_DATABASE_PORT=27017
       - DOCUMENT_DATABASE_NAME=copilot
-      - DOCUMENT_DATABASE_USER=${DOC_DB_ADMIN_USERNAME:-root}
-      - DOCUMENT_DATABASE_PASSWORD=${DOC_DB_ADMIN_PASSWORD:-example}
       - HTTP_HOST=0.0.0.0
       - HTTP_PORT=8080
       - INGESTION_SCHEDULE_INTERVAL_SECONDS=21600
+    secrets:
+      - message_bus_user
+      - message_bus_password
+      - document_database_user
+      - document_database_password
     volumes:
       - raw_archives:/data/raw_archives
     ports:
@@ -573,22 +608,23 @@ services:
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
-      - MESSAGE_BUS_USER=${RABBITMQ_DEFAULT_USER:-guest}
-      - MESSAGE_BUS_PASSWORD=${RABBITMQ_DEFAULT_PASS:-guest}
       - DOCUMENT_STORE_TYPE=mongodb
       - DOCUMENT_DATABASE_HOST=documentdb
       - DOCUMENT_DATABASE_PORT=27017
       - DOCUMENT_DATABASE_NAME=copilot
-      - DOCUMENT_DATABASE_USER=${DOC_DB_ADMIN_USERNAME:-root}
-      - DOCUMENT_DATABASE_PASSWORD=${DOC_DB_ADMIN_PASSWORD:-example}
       - VECTOR_DB_HOST=vectorstore
       - VECTOR_DB_PORT=6333
       - LLM_BACKEND=${LLM_BACKEND:-local}
       - OLLAMA_HOST=http://ollama:11434
-      - AZURE_OPENAI_KEY=${AZURE_OPENAI_KEY:-}
       - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
+    secrets:
+      - message_bus_user
+      - message_bus_password
+      - document_database_user
+      - document_database_password
+      - azure_openai_key
     depends_on:
       messagebus:
         condition: service_healthy
@@ -620,16 +656,17 @@ services:
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
-      - MESSAGE_BUS_USER=${RABBITMQ_DEFAULT_USER:-guest}
-      - MESSAGE_BUS_PASSWORD=${RABBITMQ_DEFAULT_PASS:-guest}
       - DOCUMENT_STORE_TYPE=mongodb
       - DOCUMENT_DATABASE_HOST=documentdb
       - DOCUMENT_DATABASE_PORT=27017
       - DOCUMENT_DATABASE_NAME=copilot
-      - DOCUMENT_DATABASE_USER=${DOC_DB_ADMIN_USERNAME:-root}
-      - DOCUMENT_DATABASE_PASSWORD=${DOC_DB_ADMIN_PASSWORD:-example}
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
+    secrets:
+      - message_bus_user
+      - message_bus_password
+      - document_database_user
+      - document_database_password
     volumes:
       - raw_archives:/data/raw_archives:ro
     depends_on:
@@ -655,17 +692,18 @@ services:
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
-      - MESSAGE_BUS_USER=${RABBITMQ_DEFAULT_USER:-guest}
-      - MESSAGE_BUS_PASSWORD=${RABBITMQ_DEFAULT_PASS:-guest}
       - DOCUMENT_STORE_TYPE=mongodb
       - DOCUMENT_DATABASE_HOST=documentdb
       - DOCUMENT_DATABASE_PORT=27017
       - DOCUMENT_DATABASE_NAME=copilot
-      - DOCUMENT_DATABASE_USER=${DOC_DB_ADMIN_USERNAME:-root}
-      - DOCUMENT_DATABASE_PASSWORD=${DOC_DB_ADMIN_PASSWORD:-example}
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
       - HTTP_PORT=8080
+    secrets:
+      - message_bus_user
+      - message_bus_password
+      - document_database_user
+      - document_database_password
     ports:
       - "0.0.0.0:8080:8080"
     depends_on:
@@ -694,15 +732,11 @@ services:
       - JWT_DEFAULT_EXPIRY=${JWT_DEFAULT_EXPIRY:-1800}
       - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
       - SECRETS_BASE_PATH=${SECRETS_BASE_PATH:-/run/secrets}
-      # OIDC Providers (set in .env or environment)
-      - AUTH_GITHUB_CLIENT_ID=${AUTH_GITHUB_CLIENT_ID:-}
-      - AUTH_GITHUB_CLIENT_SECRET=${AUTH_GITHUB_CLIENT_SECRET:-}
+      # OIDC Providers - OAuth secrets read via copilot_secrets from /run/secrets
       - AUTH_GITHUB_REDIRECT_URI=${AUTH_GITHUB_REDIRECT_URI:-http://localhost:8090/callback}
       - AUTH_GOOGLE_CLIENT_ID=${AUTH_GOOGLE_CLIENT_ID:-}
-      - AUTH_GOOGLE_CLIENT_SECRET=${AUTH_GOOGLE_CLIENT_SECRET:-}
       - AUTH_GOOGLE_REDIRECT_URI=${AUTH_GOOGLE_REDIRECT_URI:-http://localhost:8090/callback}
       - AUTH_MS_CLIENT_ID=${AUTH_MS_CLIENT_ID:-}
-      - AUTH_MS_CLIENT_SECRET=${AUTH_MS_CLIENT_SECRET:-}
       - AUTH_MS_REDIRECT_URI=${AUTH_MS_REDIRECT_URI:-http://localhost:8090/callback}
       - AUTH_MS_TENANT=${AUTH_MS_TENANT:-common}
       # Security
@@ -719,7 +753,15 @@ services:
       - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
       - ./adapters/copilot_logging:/app/adapters/copilot_logging:ro
       - ./adapters/copilot_metrics:/app/adapters/copilot_metrics:ro
-      - ./secrets:/run/secrets:ro
+    secrets:
+      - jwt_private_key
+      - jwt_public_key
+      - jwt_secret_key
+      - github_oauth_client_id
+      - github_oauth_client_secret
+      - google_oauth_client_secret
+      - microsoft_oauth_client_secret
+      - role_store_password
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health')"]
       interval: 10s
@@ -758,14 +800,10 @@ services:
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
-      - MESSAGE_BUS_USER=${RABBITMQ_DEFAULT_USER:-guest}
-      - MESSAGE_BUS_PASSWORD=${RABBITMQ_DEFAULT_PASS:-guest}
       - DOCUMENT_STORE_TYPE=mongodb
       - DOCUMENT_DATABASE_HOST=documentdb
       - DOCUMENT_DATABASE_PORT=27017
       - DOCUMENT_DATABASE_NAME=copilot
-      - DOCUMENT_DATABASE_USER=${DOC_DB_ADMIN_USERNAME:-root}
-      - DOCUMENT_DATABASE_PASSWORD=${DOC_DB_ADMIN_PASSWORD:-example}
       - VECTOR_STORE_TYPE=qdrant
       - VECTOR_DB_HOST=vectorstore
       - VECTOR_DB_PORT=6333
@@ -775,6 +813,11 @@ services:
       - LLAMACPP_HOST=${LLAMACPP_HOST:-http://llama-cpp:8081}
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
+    secrets:
+      - message_bus_user
+      - message_bus_password
+      - document_database_user
+      - document_database_password
     depends_on:
       messagebus:
         condition: service_healthy
@@ -803,17 +846,18 @@ services:
       - MONGODB_HOST=documentdb
       - MONGODB_PORT=27017
       - MONGODB_DATABASE=${MONGO_APP_DB:-copilot}
-      - MONGODB_USERNAME=${DOC_DB_ADMIN_USERNAME:-root}
-      - MONGODB_PASSWORD=${DOC_DB_ADMIN_PASSWORD:-example}
       - RABBITMQ_HOST=messagebus
       - RABBITMQ_PORT=5672
-      - RABBITMQ_USERNAME=${RABBITMQ_DEFAULT_USER:-guest}
-      - RABBITMQ_PASSWORD=${RABBITMQ_DEFAULT_PASS:-guest}
       - PUSHGATEWAY_URL=http://pushgateway:9091
       - RETRY_JOB_INTERVAL_SECONDS=${RETRY_JOB_INTERVAL_SECONDS:-900}
       - RETRY_JOB_BASE_DELAY_SECONDS=${RETRY_JOB_BASE_DELAY_SECONDS:-300}
       - RETRY_JOB_MAX_DELAY_SECONDS=${RETRY_JOB_MAX_DELAY_SECONDS:-3600}
       - RETRY_JOB_STUCK_THRESHOLD_HOURS=${RETRY_JOB_STUCK_THRESHOLD_HOURS:-24}
+    secrets:
+      - message_bus_user
+      - message_bus_password
+      - document_database_user
+      - document_database_password
     depends_on:
       documentdb:
         condition: service_healthy
@@ -833,7 +877,54 @@ volumes:
   llama_models:
 
 secrets:
+  # Message bus credentials
   rabbitmq_user:
     file: ./secrets/rabbitmq_user
   rabbitmq_pass:
     file: ./secrets/rabbitmq_pass
+  message_bus_user:
+    file: ./secrets/message_bus_user
+  message_bus_password:
+    file: ./secrets/message_bus_password
+  
+  # Document database credentials
+  document_database_user:
+    file: ./secrets/document_database_user
+  document_database_password:
+    file: ./secrets/document_database_password
+  mongodb_root_username:
+    file: ./secrets/mongodb_root_username
+  mongodb_root_password:
+    file: ./secrets/mongodb_root_password
+  
+  # Grafana admin
+  grafana_admin_user:
+    file: ./secrets/grafana_admin_user
+  grafana_admin_password:
+    file: ./secrets/grafana_admin_password
+  
+  # Azure OpenAI
+  azure_openai_key:
+    file: ./secrets/azure_openai_key
+  
+  # Auth service JWT keys
+  jwt_private_key:
+    file: ./secrets/jwt_private_key
+  jwt_public_key:
+    file: ./secrets/jwt_public_key
+  jwt_secret_key:
+    file: ./secrets/jwt_secret_key
+  
+  # OAuth provider secrets
+  github_oauth_client_id:
+    file: ./secrets/github_oauth_client_id
+  github_oauth_client_secret:
+    file: ./secrets/github_oauth_client_secret
+  google_oauth_client_secret:
+    file: ./secrets/google_oauth_client_secret
+  microsoft_oauth_client_secret:
+    file: ./secrets/microsoft_oauth_client_secret
+  
+  # Auth role store
+  role_store_password:
+    file: ./secrets/role_store_password

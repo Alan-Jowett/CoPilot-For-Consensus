@@ -29,13 +29,40 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
-    - name: Create auth test secrets
+    - name: Create test secrets for CI
       run: |
         mkdir -p secrets
+        
+        # Message bus credentials
+        echo "guest" > secrets/message_bus_user
+        echo "guest" > secrets/message_bus_password
+        echo "guest" > secrets/rabbitmq_user
+        echo "guest" > secrets/rabbitmq_pass
+        
+        # MongoDB credentials
+        echo "root" > secrets/document_database_user
+        echo "example" > secrets/document_database_password
+        echo "root" > secrets/mongodb_root_username
+        echo "example" > secrets/mongodb_root_password
+        
+        # Grafana admin
+        echo "admin" > secrets/grafana_admin_user
+        echo "admin" > secrets/grafana_admin_password
+        
+        # Auth service secrets
         if [ ! -f secrets/jwt_private_key ]; then
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out secrets/jwt_private_key
           openssl rsa -pubout -in secrets/jwt_private_key -out secrets/jwt_public_key
         fi
+        echo "" > secrets/jwt_secret_key  # Empty for RS256
+        echo "" > secrets/github_oauth_client_id
+        echo "" > secrets/github_oauth_client_secret
+        echo "" > secrets/google_oauth_client_secret
+        echo "" > secrets/microsoft_oauth_client_secret
+        echo "example" > secrets/role_store_password
+        
+        # Azure OpenAI (empty for CI)
+        echo "" > secrets/azure_openai_key
 
     - name: Free up disk space
       run: |

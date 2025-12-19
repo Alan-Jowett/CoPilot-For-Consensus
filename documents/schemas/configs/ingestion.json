@@ -12,19 +12,19 @@
       "default": "/data/raw_archives",
       "description": "Path to store downloaded archives"
     },
-    "message_bus_host": {
+    "message_bus_user": {
       "type": "string",
-      "source": "env",
-      "env_var": "MESSAGE_BUS_HOST",
-      "default": "messagebus",
-      "description": "Message bus hostname"
+      "source": "secret",
+      "secret_name": "message_bus_user",
+      "required": false,
+      "description": "Username for message bus (secret)"
     },
-    "message_bus_port": {
-      "type": "int",
-      "source": "env",
-      "env_var": "MESSAGE_BUS_PORT",
-      "default": 5672,
-      "description": "Message bus port"
+    "message_bus_password": {
+      "type": "string",
+      "source": "secret",
+      "secret_name": "message_bus_password",
+      "required": false,
+      "description": "Password for message bus (secret)"
     },
     "message_bus_user": {
       "type": "string",
@@ -138,19 +138,19 @@
       "default": "production",
       "description": "Sentry environment"
     },
-    "doc_store_type": {
+    "doc_store_user": {
       "type": "string",
-      "source": "env",
-      "env_var": "DOCUMENT_STORE_TYPE",
-      "default": "mongodb",
-      "description": "Document store type (mongodb, inmemory)"
+      "source": "secret",
+      "secret_name": "document_database_user",
+      "required": false,
+      "description": "Username for document database (secret)"
     },
-    "doc_store_host": {
+    "doc_store_password": {
       "type": "string",
-      "source": "env",
-      "env_var": "DOCUMENT_DATABASE_HOST",
-      "default": "documentdb",
-      "description": "Document store hostname"
+      "source": "secret",
+      "secret_name": "document_database_password",
+      "required": false,
+      "description": "Password for document database (secret)"
     },
     "doc_store_port": {
       "type": "int",
