@@ -35,13 +35,23 @@ class RoleStore:
     def __init__(self, config: object):
         self.collection = getattr(config, "role_store_collection", "user_roles")
 
+        # Get values from config with fallback to environment variables
+        # For password/username, read directly from environment since copilot_config
+        # may not load them based on the auth.json schema
+        import os
+        
         store_kwargs = {
-            "host": getattr(config, "role_store_host", None),
-            "port": getattr(config, "role_store_port", None),
-            "username": getattr(config, "role_store_username", None),
-            "password": getattr(config, "role_store_password", None),
-            "database": getattr(config, "role_store_database", "auth"),
+            "host": getattr(config, "role_store_host", None) or os.getenv("DOCUMENT_DATABASE_HOST"),
+            "port": getattr(config, "role_store_port", None) or os.getenv("DOCUMENT_DATABASE_PORT"),
+            "username": getattr(config, "role_store_username", None) or os.getenv("DOCUMENT_DATABASE_USER"),
+            "password": getattr(config, "role_store_password", None) or os.getenv("DOCUMENT_DATABASE_PASSWORD"),
+            "database": getattr(config, "role_store_database", None) or os.getenv("DOCUMENT_DATABASE_NAME", "auth"),
         }
+
+        # Convert port to int if it's a string
+        if store_kwargs.get("port") is not None:
+            if isinstance(store_kwargs["port"], str):
+                store_kwargs["port"] = int(store_kwargs["port"])
 
         # Drop keys that are None or 0 (for port) to allow copilot_storage env defaults
         store_kwargs = {k: v for k, v in store_kwargs.items() if v is not None and (k != "port" or v != 0)}
