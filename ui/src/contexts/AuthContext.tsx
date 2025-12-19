@@ -18,8 +18,12 @@ let globalSetToken: ((token: string) => void) | null = null
 let globalOnUnauthorized: (() => void) | null = null
 
 export const setAuthToken = (token: string) => {
+  console.log('[AuthContext] setAuthToken called with:', token.substring(0, 50) + '...')
   if (globalSetToken) {
+    console.log('[AuthContext] Calling globalSetToken')
     globalSetToken(token)
+  } else {
+    console.error('[AuthContext] globalSetToken is not set!')
   }
 }
 
@@ -31,15 +35,19 @@ export const getUnauthorizedCallback = () => globalOnUnauthorized
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [token, setTokenInternal] = useState<string | null>(() => {
-    return localStorage.getItem('auth_token')
+    const stored = localStorage.getItem('auth_token')
+    console.log('[AuthContext] Initialized from localStorage:', !!stored)
+    return stored
   })
 
   // Store the setter globally so it can be called from api.ts
   useEffect(() => {
+    console.log('[AuthContext] Setting global setToken')
     globalSetToken = setTokenInternal
   }, [])
 
   useEffect(() => {
+    console.log('[AuthContext] Token changed:', !!token)
     if (token) {
       localStorage.setItem('auth_token', token)
     } else {
