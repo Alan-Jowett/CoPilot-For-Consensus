@@ -290,7 +290,7 @@ services:
       context: .
       dockerfile: ./auth/Dockerfile
     environment:
-      - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8090}
+      - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/ui}
       - AUTH_AUDIENCES=${AUTH_AUDIENCES:-copilot-orchestrator,copilot-reporting}
       - JWT_ALGORITHM=${JWT_ALGORITHM:-RS256}
       - JWT_KEY_ID=${JWT_KEY_ID:-default}
@@ -302,11 +302,11 @@ services:
       - DOCUMENT_DATABASE_PORT=27017
       - DOCUMENT_DATABASE_NAME=auth
       # OIDC Providers - OAuth secrets read via copilot_secrets from /run/secrets
-      - AUTH_GITHUB_REDIRECT_URI=${AUTH_GITHUB_REDIRECT_URI:-http://localhost:8090/callback}
+      - AUTH_GITHUB_REDIRECT_URI=${AUTH_GITHUB_REDIRECT_URI:-http://localhost:8080/ui/callback}
       - AUTH_GOOGLE_CLIENT_ID=${AUTH_GOOGLE_CLIENT_ID:-}
-      - AUTH_GOOGLE_REDIRECT_URI=${AUTH_GOOGLE_REDIRECT_URI:-http://localhost:8090/callback}
+      - AUTH_GOOGLE_REDIRECT_URI=${AUTH_GOOGLE_REDIRECT_URI:-http://localhost:8080/ui/callback}
       - AUTH_MS_CLIENT_ID=${AUTH_MS_CLIENT_ID:-}
-      - AUTH_MS_REDIRECT_URI=${AUTH_MS_REDIRECT_URI:-http://localhost:8090/callback}
+      - AUTH_MS_REDIRECT_URI=${AUTH_MS_REDIRECT_URI:-http://localhost:8080/ui/callback}
       - AUTH_MS_TENANT=${AUTH_MS_TENANT:-common}
       # Security
       - AUTH_REQUIRE_PKCE=${AUTH_REQUIRE_PKCE:-true}
