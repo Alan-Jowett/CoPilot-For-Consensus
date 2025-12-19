@@ -13,21 +13,23 @@ This service provides:
 import os
 import sys
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, List, Optional
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
 
 import uvicorn
-from app import __version__
-from app.config import load_auth_config
-from app.service import AuthService
-from copilot_logging import create_logger, create_uvicorn_log_config
-from copilot_metrics import create_metrics_collector
 from fastapi import FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
+
+from copilot_logging import create_logger, create_uvicorn_log_config
+from copilot_metrics import create_metrics_collector
+
+from app import __version__
+from app.config import load_auth_config
+from app.service import AuthService
 
 # Configure structured JSON logging
 logger = create_logger(logger_type="stdout", level="INFO", name="auth")
