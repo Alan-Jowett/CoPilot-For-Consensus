@@ -340,3 +340,89 @@ export async function uploadMailboxFile(
     xhr.send(formData)
   })
 }
+
+// Admin Role Management API
+
+export interface PendingRoleAssignment {
+  user_id: string
+  requested_roles: string[]
+  requested_at: string
+  status: string
+  user_email?: string
+  user_name?: string
+}
+
+export interface UserRoleRecord {
+  user_id: string
+  email?: string
+  name?: string
+  roles: string[]
+  status: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface PendingAssignmentsResponse {
+  assignments: PendingRoleAssignment[]
+  total: number
+  limit: number
+  skip: number
+}
+
+const AUTH_API_BASE = '/auth'
+
+export async function fetchPendingRoleAssignments(
+  params: {
+    user_id?: string
+    role?: string
+    limit?: number
+    skip?: number
+    sort_by?: string
+    sort_order?: number
+  } = {}
+): Promise<PendingAssignmentsResponse> {
+  const queryParams = toQuery({
+    user_id: params.user_id,
+    role: params.role,
+    limit: params.limit ?? 50,
+    skip: params.skip ?? 0,
+    sort_by: params.sort_by ?? 'requested_at',
+    sort_order: params.sort_order ?? -1,
+  })
+  const r = await fetch(`${AUTH_API_BASE}/admin/role-assignments/pending?${queryParams}`)
+  if (!r.ok) throw new Error(`Failed to fetch pending assignments: ${r.status}`)
+  return r.json()
+}
+
+export async function fetchUserRoles(userId: string): Promise<UserRoleRecord> {
+  const r = await fetch(`${AUTH_API_BASE}/admin/users/${encodeURIComponent(userId)}/roles`)
+  if (r.status === 404) throw new Error('NOT_FOUND')
+  if (!r.ok) throw new Error(`Failed to fetch user roles: ${r.status}`)
+  return r.json()
+}
+
+export async function assignUserRoles(userId: string, roles: string[]): Promise<UserRoleRecord> {
+  const r = await fetch(`${AUTH_API_BASE}/admin/users/${encodeURIComponent(userId)}/roles`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roles }),
+  })
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
+    throw new Error(error.detail || `Failed to assign roles: ${r.status}`)
+  }
+  return r.json()
+}
+
+export async function revokeUserRoles(userId: string, roles: string[]): Promise<UserRoleRecord> {
+  const r = await fetch(`${AUTH_API_BASE}/admin/users/${encodeURIComponent(userId)}/roles`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roles }),
+  })
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
+    throw new Error(error.detail || `Failed to revoke roles: ${r.status}`)
+  }
+  return r.json()
+}

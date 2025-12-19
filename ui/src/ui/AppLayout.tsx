@@ -34,6 +34,12 @@ export function AppLayout() {
             >
               📥 Ingestion Sources
             </Link>
+            <Link 
+              to="/admin" 
+              className={isActive('/admin') ? 'nav-link active' : 'nav-link'}
+            >
+              🔐 Admin
+            </Link>
             <ThemeToggle />
           </div>
         </div>
