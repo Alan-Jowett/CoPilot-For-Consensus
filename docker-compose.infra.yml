@@ -22,9 +22,10 @@ services:
       - ./documents/schemas:/schemas:ro
     entrypoint: ["/bin/bash", "-c"]
     command:
-      - >-
-        MONGO_USER=$$(cat /run/secrets/mongodb_root_username)
-        MONGO_PASS=$$(cat /run/secrets/mongodb_root_password)
+      - |-
+        set -e
+        MONGO_USER="$(cat /run/secrets/mongodb_root_username)"
+        MONGO_PASS="$(cat /run/secrets/mongodb_root_password)"
         mongosh "mongodb://$${MONGO_USER}:$${MONGO_PASS}@documentdb:27017/admin" /init/mongo-init.js
     restart: "no"
 
@@ -45,9 +46,10 @@ services:
       - ./documents/schemas:/schemas:ro
     entrypoint: ["/bin/bash", "-c"]
     command:
-      - >-
-        MONGO_USER=$$(cat /run/secrets/mongodb_root_username)
-        MONGO_PASS=$$(cat /run/secrets/mongodb_root_password)
+      - |-
+        set -e
+        MONGO_USER="$(cat /run/secrets/mongodb_root_username)"
+        MONGO_PASS="$(cat /run/secrets/mongodb_root_password)"
         mongosh "mongodb://$${MONGO_USER}:$${MONGO_PASS}@documentdb:27017/admin" /test/validate-mongo.js
     restart: "no"
 
@@ -227,12 +229,13 @@ services:
         condition: service_healthy
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - >-
+      - |-
         for i in $$(seq 1 40); do
-          code=$$(curl -s -o /dev/null -w "%{http_code}" http://ollama:11434/api/tags || echo 0);
-          if [ "$$code" -ge 200 ] && [ "$$code" -lt 500 ]; then echo "Ollama OK ($$code)"; exit 0; fi;
-          echo "Waiting for Ollama ($$code)"; sleep 3;
-        done; echo "Ollama validation failed"; exit 1
+          code=$$(curl -s -o /dev/null -w "%{http_code}" http://ollama:11434/api/tags || echo 0)
+          if [ "$$code" -ge 200 ] && [ "$$code" -lt 500 ]; then echo "Ollama OK ($$code)"; exit 0; fi
+          echo "Waiting for Ollama ($$code)"; sleep 3
+        done
+        echo "Ollama validation failed"; exit 1
     restart: "no"
 
   ollama-model-loader:
@@ -246,12 +249,12 @@ services:
       - ./ollama_models:/root/.ollama
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - >-
-        echo "Pulling mistral model...";
+      - |-
+        echo "Pulling mistral model..."
         for i in $$(seq 1 5); do
-          ollama pull mistral && echo "✓ Model loaded successfully" && exit 0;
-          echo "Attempt $$i failed, retrying..."; sleep 5;
-        done;
+          ollama pull mistral && echo "✓ Model loaded successfully" && exit 0
+          echo "Attempt $$i failed, retrying..."; sleep 5
+        done
         echo "Failed to pull model after 5 attempts"; exit 1
     restart: "no"
 
@@ -339,14 +342,15 @@ services:
       - mongodb_root_password
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - >-
-        MONGO_USER=$$(cat /run/secrets/mongodb_root_username) &&
-        MONGO_PASS=$$(cat /run/secrets/mongodb_root_password) &&
-        export MONGO_URI="mongodb://$${MONGO_USER}:$${MONGO_PASS}@documentdb:27017/admin" &&
-        export MONGO_DB=copilot &&
-        export PORT=9500 &&
-        export SCRAPE_INTERVAL_SEC=5 &&
-        pip install -q -r /app/scripts/requirements.txt &&
+      - |-
+        set -e
+        MONGO_USER="$(cat /run/secrets/mongodb_root_username)"
+        MONGO_PASS="$(cat /run/secrets/mongodb_root_password)"
+        export MONGO_URI="mongodb://$${MONGO_USER}:$${MONGO_PASS}@documentdb:27017/admin"
+        export MONGO_DB=copilot
+        export PORT=9500
+        export SCRAPE_INTERVAL_SEC=5
+        pip install -q -r /app/scripts/requirements.txt
         python /app/scripts/mongo_doc_count_exporter.py
     volumes:
       - ./:/app:ro
@@ -362,14 +366,15 @@ services:
       - mongodb_root_password
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - >-
-        MONGO_USER=$$(cat /run/secrets/mongodb_root_username) &&
-        MONGO_PASS=$$(cat /run/secrets/mongodb_root_password) &&
-        export MONGO_URI="mongodb://$${MONGO_USER}:$${MONGO_PASS}@documentdb:27017/admin" &&
-        export MONGO_DB=copilot &&
-        export PORT=9503 &&
-        export SCRAPE_INTERVAL_SEC=5 &&
-        pip install -q -r /app/scripts/requirements.txt &&
+      - |-
+        set -e
+        MONGO_USER="$(cat /run/secrets/mongodb_root_username)"
+        MONGO_PASS="$(cat /run/secrets/mongodb_root_password)"
+        export MONGO_URI="mongodb://$${MONGO_USER}:$${MONGO_PASS}@documentdb:27017/admin"
+        export MONGO_DB=copilot
+        export PORT=9503
+        export SCRAPE_INTERVAL_SEC=5
+        pip install -q -r /app/scripts/requirements.txt
         python /app/scripts/mongo_collstats_exporter.py
     volumes:
       - ./:/app:ro
@@ -385,14 +390,15 @@ services:
       - mongodb_root_password
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - >-
-        MONGO_USER=$$(cat /run/secrets/mongodb_root_username) &&
-        MONGO_PASS=$$(cat /run/secrets/mongodb_root_password) &&
-        export MONGO_URI="mongodb://$${MONGO_USER}:$${MONGO_PASS}@documentdb:27017/admin" &&
-        export MONGO_DB=copilot &&
-        export PORT=9502 &&
-        export SCRAPE_INTERVAL_SEC=5 &&
-        pip install -q -r /app/scripts/requirements.txt &&
+      - |-
+        set -e
+        MONGO_USER="$(cat /run/secrets/mongodb_root_username)"
+        MONGO_PASS="$(cat /run/secrets/mongodb_root_password)"
+        export MONGO_URI="mongodb://$${MONGO_USER}:$${MONGO_PASS}@documentdb:27017/admin"
+        export MONGO_DB=copilot
+        export PORT=9502
+        export SCRAPE_INTERVAL_SEC=5
+        pip install -q -r /app/scripts/requirements.txt
         python /app/scripts/document_processing_exporter.py
     volumes:
       - ./:/app:ro
@@ -429,8 +435,8 @@ services:
     image: python:3.11-slim
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - >-
-        pip install -q -r /app/scripts/requirements.txt &&
+      - |-
+        pip install -q -r /app/scripts/requirements.txt
         python /app/scripts/qdrant_exporter.py
     environment:
       - QDRANT_HOST=vectorstore
@@ -465,10 +471,11 @@ services:
         condition: service_healthy
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - >-
+      - |-
         for i in $$(seq 1 40); do
-          code=$$(curl -s -o /dev/null -w "%{http_code}" http://vectorstore:6333/collections || echo 0);
-          if [ "$$code" -ge 200 ] && [ "$$code" -lt 500 ]; then echo "Qdrant OK ($$code)"; exit 0; fi;
-          echo "Waiting for Qdrant ($$code)"; sleep 3;
-        done; echo "Qdrant validation failed"; exit 1
+          code=$$(curl -s -o /dev/null -w "%{http_code}" http://vectorstore:6333/collections || echo 0)
+          if [ "$$code" -ge 200 ] && [ "$$code" -lt 500 ]; then echo "Qdrant OK ($$code)"; exit 0; fi
+          echo "Waiting for Qdrant ($$code)"; sleep 3
+        done
+        echo "Qdrant validation failed"; exit 1
     restart: "no"
