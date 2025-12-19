@@ -212,6 +212,11 @@ jobs:
         docker compose up -d ui
         timeout 120s bash -c 'until docker compose ps ui --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for ui..."; sleep 3; done' || (docker compose logs ui --tail=50 && exit 1)
 
+    - name: Start gateway
+      run: |
+        docker compose up -d gateway
+        timeout 120s bash -c 'until docker compose ps gateway --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for gateway..."; sleep 3; done' || (docker compose logs gateway --tail=50 && exit 1)
+
     - name: Check service status
       run: docker compose ps
 
@@ -242,7 +247,7 @@ jobs:
         max_attempts=5
         attempt=1
         while [ $attempt -le $max_attempts ]; do
-          if curl -f -X POST http://localhost:8001/api/sources \
+          if curl -f -X POST http://localhost:8080/ingestion/api/sources \
             -H "Content-Type: application/json" \
             -d "$payload"; then
             echo "✓ Ingestion source created"
@@ -266,7 +271,7 @@ jobs:
         max_attempts=5
         attempt=1
         while [ $attempt -le $max_attempts ]; do
-          if curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger; then
+          if curl -f -X POST http://localhost:8080/ingestion/api/sources/test-mailbox/trigger; then
             echo "✓ Ingestion triggered successfully"
             break
           fi
@@ -286,7 +291,7 @@ jobs:
         sleep 10  # Give it time to process
         
         # Check ingestion status
-        status=$(curl -s http://localhost:8001/api/sources/test-mailbox/status)
+        status=$(curl -s http://localhost:8080/ingestion/api/sources/test-mailbox/status)
         echo "Ingestion status: $status"
         echo "✓ Ingestion process completed"
 
@@ -311,11 +316,11 @@ jobs:
 
     - name: Test reporting service health endpoint
       run: |
-        echo "Testing reporting service..."
+        echo "Testing reporting service (via gateway)..."
         max_attempts=10
         attempt=1
         while [ $attempt -le $max_attempts ]; do
-          if curl -f http://localhost:8080/ 2>/dev/null; then
+          if curl -f http://localhost:8080/reporting/health 2>/dev/null; then
             echo "✓ Reporting service is healthy"
             exit 0
           fi
@@ -329,11 +334,11 @@ jobs:
 
     - name: Test auth service health endpoint
       run: |
-        echo "Testing auth service..."
+        echo "Testing auth service (via gateway)..."
         max_attempts=10
         attempt=1
         while [ $attempt -le $max_attempts ]; do
-          if curl -f http://localhost:8090/health 2>/dev/null; then
+          if curl -f http://localhost:8080/auth/health 2>/dev/null; then
             echo "✓ Auth service is healthy"
             exit 0
           fi
@@ -345,10 +350,10 @@ jobs:
         docker compose logs auth --tail=50
         exit 1
 
-    - name: Test reporting API endpoint
+    - name: Test reporting API endpoint (via gateway)
       run: |
-        echo "Testing reports API..."
-        curl -f http://localhost:8080/api/reports || (docker compose logs reporting --tail=50 && exit 1)
+        echo "Testing reports API (via gateway)..."
+        curl -f http://localhost:8080/reporting/api/reports || (docker compose logs reporting --tail=50 && exit 1)
 
     - name: Validate reports are generated (end-to-end)
       run: |
@@ -358,21 +363,21 @@ jobs:
         echo "$json" | python -c 'import json,sys; data=json.load(sys.stdin); cnt=data.get("count",0); print(f"Reports count: {cnt}"); exit(0 if cnt>0 else 1)'
         echo "✓ Reports validation passed"
 
-    - name: Test ui service root endpoint
+    - name: Test ui service root endpoint (via gateway)
       run: |
-        echo "Testing ui service root..."
-        curl -f http://localhost:8084/ || (docker compose logs ui --tail=50 && exit 1)
+        echo "Testing ui service root (via gateway)..."
+        curl -f http://localhost:8080/ui/ || (docker compose logs ui --tail=50 && exit 1)
 
-    - name: Test ui proxied reports API
+    - name: Test reports API via gateway
       run: |
-        echo "Testing ui proxied reports API..."
-        json=$(curl -sf http://localhost:8084/api/reports)
-        echo "$json" | python -c 'import json,sys; data=json.load(sys.stdin); cnt=data.get("count",0); print(f"UI proxied reports count: {cnt}"); exit(0 if cnt>0 else 1)'
+        echo "Testing reports API via gateway..."
+        json=$(curl -sf http://localhost:8080/reporting/api/reports)
+        echo "$json" | python -c 'import json,sys; data=json.load(sys.stdin); cnt=data.get("count",0); print(f"Reports count: {cnt}"); exit(0 if cnt>0 else 1)'
 
-    - name: Test Grafana health endpoint
+    - name: Test Grafana health endpoint (via gateway)
       run: |
-        echo "Testing Grafana..."
-        curl -f http://localhost:3000/api/health || exit 1
+        echo "Testing Grafana (via gateway)..."
+        curl -f http://localhost:8080/grafana/api/health || exit 1
 
     - name: Test Prometheus health endpoint
       run: |

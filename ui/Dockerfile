@@ -25,9 +25,9 @@ server {
     try_files $uri /index.html;
   }
 
-  # Proxy API requests to the reporting service to avoid CORS
-  location /api/ {
-    proxy_pass http://reporting:8080/api/;
+  # Proxy Reporting API requests (for standalone UI runs)
+  location /reporting/ {
+    proxy_pass http://reporting:8080/;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
