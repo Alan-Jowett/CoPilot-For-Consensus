@@ -7,7 +7,7 @@ export interface Report {
   generated_at: string
   generated_by?: string
   content_markdown: string
-  citations: Array<{ message_id: string; chunk_id: string; quote?: string | null }>
+  citations: Array<{ message_id?: string; chunk_id?: string; quote?: string | null }>
   archive_metadata?: { source?: string | null } | null
   thread_metadata?: {
     participant_count?: number
@@ -38,7 +38,7 @@ export interface Thread {
 
 export interface Message {
   _id: string
-  message_id: string
+  message_id?: string
   thread_id: string
   subject?: string
   from?: { name: string; email: string }
@@ -50,7 +50,7 @@ export interface Message {
 
 export interface Chunk {
   _id: string
-  chunk_id: string
+  chunk_id?: string
   message_id: string
   message_doc_id?: string
   thread_id: string
@@ -180,4 +180,104 @@ export async function fetchMessageChunks(
 
 export function copy(text: string) {
   return navigator.clipboard.writeText(text)
+}
+
+// Ingestion Source Management API
+
+export interface IngestionSource {
+  name: string
+  source_type: string
+  url: string
+  port?: number
+  username?: string
+  password?: string
+  folder?: string
+  enabled: boolean
+  schedule?: string
+}
+
+export interface IngestionSourceStatus {
+  name: string
+  enabled: boolean
+  last_run_at?: string
+  last_run_status?: string
+  last_error?: string
+  next_run_at?: string
+  files_processed: number
+  files_skipped: number
+}
+
+export interface IngestionSourcesListResponse {
+  sources: IngestionSource[]
+  count: number
+}
+
+const INGESTION_API_BASE = '/ingestion'
+
+export async function fetchIngestionSources(enabledOnly = false): Promise<IngestionSourcesListResponse> {
+  const params = enabledOnly ? '?enabled_only=true' : ''
+  const r = await fetch(`${INGESTION_API_BASE}/api/sources${params}`)
+  if (!r.ok) throw new Error(`Failed to fetch sources: ${r.status}`)
+  return r.json()
+}
+
+export async function fetchIngestionSource(name: string): Promise<IngestionSource> {
+  const r = await fetch(`${INGESTION_API_BASE}/api/sources/${encodeURIComponent(name)}`)
+  if (r.status === 404) throw new Error('NOT_FOUND')
+  if (!r.ok) throw new Error(`Failed to fetch source: ${r.status}`)
+  return r.json()
+}
+
+export async function createIngestionSource(source: IngestionSource): Promise<{ message: string; source: IngestionSource }> {
+  const r = await fetch(`${INGESTION_API_BASE}/api/sources`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(source),
+  })
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
+    throw new Error(error.detail || `Failed to create source: ${r.status}`)
+  }
+  return r.json()
+}
+
+export async function updateIngestionSource(name: string, source: IngestionSource): Promise<{ message: string; source: IngestionSource }> {
+  const r = await fetch(`${INGESTION_API_BASE}/api/sources/${encodeURIComponent(name)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(source),
+  })
+  if (r.status === 404) throw new Error('NOT_FOUND')
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
+    throw new Error(error.detail || `Failed to update source: ${r.status}`)
+  }
+  return r.json()
+}
+
+export async function deleteIngestionSource(name: string): Promise<{ message: string }> {
+  const r = await fetch(`${INGESTION_API_BASE}/api/sources/${encodeURIComponent(name)}`, {
+    method: 'DELETE',
+  })
+  if (r.status === 404) throw new Error('NOT_FOUND')
+  if (!r.ok) throw new Error(`Failed to delete source: ${r.status}`)
+  return r.json()
+}
+
+export async function triggerIngestionSource(name: string): Promise<{ source_name: string; status: string; message: string; triggered_at: string }> {
+  const r = await fetch(`${INGESTION_API_BASE}/api/sources/${encodeURIComponent(name)}/trigger`, {
+    method: 'POST',
+  })
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
+    throw new Error(error.detail || `Failed to trigger ingestion: ${r.status}`)
+  }
+  return r.json()
+}
+
+export async function fetchIngestionSourceStatus(name: string): Promise<IngestionSourceStatus> {
+  const r = await fetch(`${INGESTION_API_BASE}/api/sources/${encodeURIComponent(name)}/status`)
+  if (r.status === 404) throw new Error('NOT_FOUND')
+  if (!r.ok) throw new Error(`Failed to fetch source status: ${r.status}`)
+  return r.json()
 }

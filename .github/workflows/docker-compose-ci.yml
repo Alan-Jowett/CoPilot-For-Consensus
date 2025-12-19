@@ -226,6 +226,12 @@ jobs:
         timeout 120s bash -c 'until docker compose ps ingestion --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for ingestion service..."; sleep 3; done' || (docker compose logs ingestion --tail=50 && exit 1)
         echo "✓ Ingestion service started and healthy"
 
+    # Start UI after ingestion to avoid nginx upstream resolution failures
+    - name: Start ui
+      run: |
+        docker compose up -d ui
+        timeout 120s bash -c 'until docker compose ps ui --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for ui..."; sleep 3; done' || (docker compose logs ui --tail=50 && exit 1)
+
     - name: Copy test mailbox into ingestion container
       run: |
         set -euo pipefail

@@ -66,8 +66,8 @@ export function MessageDetail() {
           <div className="info-item">
             <div className="info-label">Message ID</div>
             <div className="info-value">
-              {message.message_id}
-              <button className="copy-btn" onClick={() => copy(message.message_id)}>Copy</button>
+              {message.message_id || 'unknown'}
+              <button className="copy-btn" onClick={() => copy(message.message_id || 'unknown')}>Copy</button>
             </div>
           </div>
           {message.from && message.from.email && (
@@ -113,7 +113,7 @@ export function MessageDetail() {
               <div key={chunk._id} className="chunk-card">
                 <div className="chunk-header">
                   <span className="chunk-number">Chunk #{idx + 1}</span>
-                  <span className="chunk-id-badge">{chunk.chunk_id.substring(0, 16)}...</span>
+                  <span className="chunk-id-badge">{(chunk.chunk_id || 'unknown').substring(0, 16)}...</span>
                 </div>
                 <div className="chunk-text">{chunk.text}</div>
                 {(chunk.offset !== undefined || chunk.length !== undefined) && (
