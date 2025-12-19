@@ -144,7 +144,7 @@ All service metrics use the `copilot_` namespace prefix. Services push metrics t
 - **Embedding Latency**: Embedding service needs to generate at least one embedding batch
 - **Summarization Latency**: Summarization service needs to complete at least one summary
 - **Vector Store Size**: Requires Qdrant exporter to be running (`docker compose ps qdrant-exporter`)
-- **Queue Depths**: Requires RabbitMQ exporter to be running (`docker compose ps rabbitmq-exporter`)
+- **Queue Depths**: RabbitMQ metrics are collected via the built-in Prometheus plugin (enabled by default)
 
 **Quick Fix Checklist**:
 
@@ -689,6 +689,57 @@ Then restart: `docker compose restart retry-job`
   - **Connections/Channels** to ensure consumers are live.
   - **Overview** to watch publish/ack rates.
 
+### RabbitMQ Metrics Collection
+
+RabbitMQ metrics are automatically collected via the **built-in Prometheus plugin** (`rabbitmq_prometheus`), which is enabled by default in `infra/rabbitmq/enabled_plugins`.
+
+**Metrics Endpoint**: The plugin exposes metrics at `http://messagebus:15692/metrics` (internal Docker network). Prometheus scrapes this endpoint every 15 seconds.
+
+**Key RabbitMQ Metrics**:
+- `rabbitmq_queue_messages_ready` - Messages waiting in queue (ready to be consumed)
+- `rabbitmq_queue_messages_unacked` - Messages delivered but not yet acknowledged
+- `rabbitmq_queue_messages` - Total messages in queue (ready + unacked)
+- `rabbitmq_channel_messages_published_total` - Total messages published to channels
+- `rabbitmq_channel_messages_delivered_total` - Total messages delivered to consumers
+- `rabbitmq_connections` - Number of active connections
+- `rabbitmq_consumers` - Number of active consumers
+- `rabbitmq_alarms_*` - Resource alarms (memory, disk space, file descriptors)
+
+**Prometheus Queries**:
+```promql
+# Queue depth (ready messages) by queue
+rabbitmq_queue_messages_ready{queue="parsing"}
+
+# Total messages across all queues
+sum(rabbitmq_queue_messages)
+
+# Message publish rate
+rate(rabbitmq_channel_messages_published_total[5m])
+
+# Message consumption rate
+rate(rabbitmq_channel_messages_delivered_total[5m])
+
+# Active consumers
+sum(rabbitmq_consumers)
+```
+
+**Troubleshooting**:
+- **No RabbitMQ metrics in Prometheus**:
+  1. Verify RabbitMQ is healthy: `docker compose ps messagebus`
+  2. Check Prometheus targets: http://localhost:9090/targets (look for `rabbitmq` job)
+  3. The target should show as `UP` with URL `messagebus:15692`
+  4. Check RabbitMQ logs: `docker compose logs messagebus | grep prometheus`
+
+- **Metrics endpoint not accessible**:
+  1. Verify plugin is enabled: `docker compose exec messagebus rabbitmq-plugins list | grep prometheus`
+  2. Should show `[E*] rabbitmq_prometheus` (enabled and running)
+  3. If disabled, check `infra/rabbitmq/enabled_plugins` file
+
+**Dashboard Integration**: RabbitMQ metrics are used in:
+- **Queue Status** dashboard - Queue depths, message rates, consumer counts
+- **Service Metrics** dashboard - Queue Depths panel
+- **Pipeline Flow Visualization** dashboard - Message flow and bottleneck detection
+
 ## 5.1) Qdrant Vectorstore Monitoring
 - **Grafana Dashboard**: http://localhost:3000 → **Qdrant Vectorstore Status** (UID: `copilot-vectorstore-status`)
 - **Qdrant Web UI**: http://localhost:6333/dashboard (native Qdrant interface)
@@ -883,7 +934,7 @@ Use these signals to see whether a mail archive was ingested and where it is in 
   - **Metrics (Prometheus/Grafana):**
     - Throughput: `rate(messages_processed_total{stage="ingestion"}[5m])` and similar for other stages if emitted.
     - Errors: `rate(stage_errors_total{stage="parsing"}[5m])` for spikes.
-    - Queue depth via RabbitMQ exporter if enabled (e.g., `rabbitmq_queue_messages_ready{queue="ingestion"}`).
+    - Queue depth via RabbitMQ's built-in Prometheus plugin (e.g., `rabbitmq_queue_messages_ready{queue="ingestion"}`).
 
 - How to tell if an archive is ingested:
   - Ingestion logs show download and publish events for the archive key or filename.
