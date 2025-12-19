@@ -180,6 +180,7 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |-
+        set -e
         MONGO_USER=$$(cat /run/secrets/mongodb_root_username)
         MONGO_PASS=$$(cat /run/secrets/mongodb_root_password)
         export MONGODB_URI="mongodb://$${MONGO_USER}:$${MONGO_PASS}@documentdb:27017/admin"
