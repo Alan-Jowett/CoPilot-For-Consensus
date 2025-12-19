@@ -70,7 +70,7 @@ export function MessageDetail() {
               <button className="copy-btn" onClick={() => copy(message.message_id)}>Copy</button>
             </div>
           </div>
-          {message.from && (
+          {message.from && message.from.email && (
             <div className="info-item">
               <div className="info-label">From</div>
               <div className="info-value">

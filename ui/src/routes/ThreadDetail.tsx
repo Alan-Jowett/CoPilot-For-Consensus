@@ -141,7 +141,11 @@ export function ThreadDetail() {
                 >
                   <div className="message-header">
                     <div className="message-meta">
-                      <span className="message-sender">{msg.from ? `${msg.from.name || msg.from.email}` : 'Unknown Sender'}</span>
+                      <span className="message-sender">
+                        {msg.from && msg.from.email 
+                          ? (msg.from.name || msg.from.email)
+                          : 'Unknown Sender'}
+                      </span>
                       {msg.date && (
                         <span className="message-date">
                           {new Date(msg.date).toLocaleString()}
