@@ -554,7 +554,7 @@ $maxAttempts = 5
 $attempt = 1
 while ($attempt -le $maxAttempts) {
   curl -f -X POST http://localhost:8001/api/sources -H "Content-Type: application/json" -d $payload
-  if ($LASTEXITCODE -eq 0) { Write-Host "✓ Ingestion source created" -ForegroundColor Green; break }
+  if ($LASTEXITCODE -eq 0) { Write-Host "✓ Ingestion source created (attempt $attempt/$maxAttempts)" -ForegroundColor Green; break }
   Write-Host "Attempt $attempt/$maxAttempts: Failed to create source, retrying..." -ForegroundColor Yellow
   Start-Sleep -Seconds 2
   $attempt += 1
@@ -569,7 +569,7 @@ Write-Host "Triggering ingestion via REST API..."
 $attempt = 1
 while ($attempt -le $maxAttempts) {
   curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger
-  if ($LASTEXITCODE -eq 0) { Write-Host "✓ Ingestion triggered successfully" -ForegroundColor Green; break }
+  if ($LASTEXITCODE -eq 0) { Write-Host "✓ Ingestion triggered successfully (attempt $attempt/$maxAttempts)" -ForegroundColor Green; break }
   Write-Host "Attempt $attempt/$maxAttempts: Failed to trigger ingestion, retrying..." -ForegroundColor Yellow
   Start-Sleep -Seconds 2
   $attempt += 1
