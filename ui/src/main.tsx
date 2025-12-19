@@ -11,6 +11,8 @@ import { ReportDetail } from './routes/ReportDetail'
 import { ThreadSummary } from './routes/ThreadSummary'
 import { ThreadDetail } from './routes/ThreadDetail'
 import { MessageDetail } from './routes/MessageDetail'
+import { SourcesList } from './routes/SourcesList'
+import { SourceForm } from './routes/SourceForm'
 import './styles.css'
 
 const router = createBrowserRouter([
@@ -24,6 +26,9 @@ const router = createBrowserRouter([
       { path: 'threads/:threadId', element: <ThreadSummary /> },
       { path: 'threads/:threadId/messages', element: <ThreadDetail /> },
       { path: 'messages/:messageDocId', element: <MessageDetail /> },
+      { path: 'sources', element: <SourcesList /> },
+      { path: 'sources/new', element: <SourceForm /> },
+      { path: 'sources/edit/:sourceName', element: <SourceForm /> },
     ],
   },
 ])
