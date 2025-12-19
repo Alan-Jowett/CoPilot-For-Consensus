@@ -8,14 +8,14 @@ A single page application intended to be the primary UI for the project. It repl
 ## Features
 
 - Reports list with filters: date range, source, thread, participants/messages counts
-- Topic-based semantic search (uses `/api/reports/search`)
+- Topic-based semantic search (uses `/reporting/api/reports/search`)
 - Pagination for non-topic queries
 - Report detail with markdown rendering and citations
 - Thread summary page linking to full report
 
 ## Configuration
 
-- `VITE_REPORTING_API_URL` (optional): Base URL for the Reporting API. Defaults to same-origin (empty string) and relies on the Nginx `/api` proxy in Docker.
+- `VITE_REPORTING_API_URL` (optional): Base URL for the Reporting API. Defaults to same-origin (empty string) and relies on the Nginx `/reporting` proxy in Docker.
 
 ## Run Locally
 

@@ -95,7 +95,7 @@ For detailed architecture documentation, design patterns, and service interactio
 | Summarization | Creates summaries using configurable LLM backends | - | Production |
 | **User-Facing** | | | |
 | API Gateway | Reverse proxy unifying service endpoints | 8080 (public) | New |
-| Reporting API | HTTP API for accessing summaries and insights | via 8080 (/API) | Production |
+| Reporting API | HTTP API for accessing summaries and insights | via 8080 (/reporting) | Production |
 | Web UI | React SPA for viewing reports | via 8080 (/ui) | Production |
 | Auth Service | OIDC authentication with local JWT minting | via 8080 (/auth) | MVP |
 | **Infrastructure** | | | |
@@ -259,12 +259,12 @@ For the full list of exposed ports and security considerations, see [documents/E
    docker cp tests/fixtures/mailbox_sample/test-archive.mbox "$INGESTION_CONTAINER":/tmp/test-mailbox/test-archive.mbox
 
    # Create the source via REST API
-   curl -f -X POST http://localhost:8001/api/sources \
+  curl -f -X POST http://localhost:8080/ingestion/api/sources \
      -H "Content-Type: application/json" \
      -d '{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
 
    # Trigger ingestion via REST API
-   curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger
+  curl -f -X POST http://localhost:8080/ingestion/api/sources/test-mailbox/trigger
    ```
 
    **Option B: Using PowerShell helper (Windows):**
@@ -272,7 +272,7 @@ For the full list of exposed ports and security considerations, see [documents/E
    .\run_ingestion_test.ps1
    ```
 
-   After ingestion completes, summaries will be available via the Reporting API at http://localhost:8080/api/reports
+  After ingestion completes, summaries will be available via the Reporting API at http://localhost:8080/reporting/api/reports
 
 ### Viewing Logs
 

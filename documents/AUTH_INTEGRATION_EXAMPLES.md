@@ -439,7 +439,7 @@ const Reports = () => {
   useEffect(() => {
     const loadReports = async () => {
       try {
-        const response = await fetchWithAuth('http://localhost:8080/API/api/reports');
+        const response = await fetchWithAuth('http://localhost:8080/reporting/api/reports');
         const data = await response.json();
         setReports(data);
       } catch (error) {
@@ -486,7 +486,7 @@ curl -H "Authorization: Bearer $JWT_TOKEN" \
 
 # 5. Call protected API
 curl -H "Authorization: Bearer $JWT_TOKEN" \
-  http://localhost:8080/API/api/reports
+  http://localhost:8080/reporting/api/reports
 ```
 
 ### Automated Testing

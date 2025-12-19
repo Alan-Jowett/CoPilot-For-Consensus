@@ -35,7 +35,7 @@ These ports are accessible from any network interface and may be reachable from 
 - **Purpose**: REST API for accessing document summaries, consensus reports, and thread metadata
 - **Protocol**: HTTP
 - **Access**: http://localhost:8080
-- **Endpoints**: `/api/reports`, `/api/threads`, `/health`
+- **Endpoints**: `/reporting/api/reports`, `/reporting/api/threads`, `/reporting/health`
 - **Security Notes**:
   - **WARNING**: No authentication or authorization implemented
   - **DO NOT** expose to untrusted networks or production environments without additional security
@@ -146,7 +146,7 @@ These ports are bound to localhost and only accessible from the host machine. Th
 - **Protocol**: HTTP
 - **Access**: http://localhost:8080
 - **Routes**:
-  - `/API/` → reporting service (was direct port 8080)
+  - `/reporting/` → reporting service (was direct port 8080; `/API` now redirects)
   - `/auth/` → auth service (was direct port 8090)
   - `/ingestion/` → ingestion service (was direct port 8001)
   - `/ui/` → web UI (was direct port 8084)
