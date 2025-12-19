@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview --port 8083"
+    "preview": "vite preview"
   },
   "dependencies": {
     "react": "^19.2.3",
@@ -16,8 +16,8 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.1.2",
-    "@types/react": "^19.2.3",
-    "@types/react-dom": "^19.2.3",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.0",
     "typescript": "^5.6.2",
     "vite": "^7.3.0"
   }
