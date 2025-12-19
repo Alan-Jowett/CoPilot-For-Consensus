@@ -1,6 +1,40 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
+let authToken: string | null = null
+let onUnauthorized: (() => void) | null = null
+
+// Set the auth token and unauthorized callback
+export function setAuthToken(token: string | null) {
+  authToken = token
+}
+
+export function setUnauthorizedCallback(callback: (() => void) | null) {
+  onUnauthorized = callback
+}
+
+// Helper to make authenticated API requests
+async function fetchWithAuth(url: string, options: RequestInit = {}) {
+  const headers = new Headers(options.headers || {})
+  if (authToken) {
+    headers.set('Authorization', `Bearer ${authToken}`)
+  }
+
+  const response = await fetch(url, { ...options, headers })
+
+  // Handle 401 Unauthorized - redirect to login
+  if (response.status === 401) {
+    authToken = null
+    localStorage.removeItem('auth_token')
+    if (onUnauthorized) {
+      onUnauthorized()
+    }
+    throw new Error('UNAUTHORIZED')
+  }
+
+  return response
+}
+
 export interface Report {
   _id: string
   thread_id: string
@@ -79,7 +113,7 @@ export function reportingApiBase(): string {
 }
 
 export async function fetchSources(): Promise<string[]> {
-  const r = await fetch(`${base}/api/sources`)
+  const r = await fetchWithAuth(`${base}/api/sources`)
   if (!r.ok) throw new Error(`Sources fetch failed: ${r.status}`)
   const data = await r.json()
   return data.sources ?? []
@@ -122,35 +156,35 @@ export async function fetchReports(q: ReportsQuery): Promise<ReportsListResponse
   if (q.max_messages) params.max_messages = q.max_messages
 
   const url = `${base}/api/reports?${toQuery(params)}`
-  const r = await fetch(url)
+  const r = await fetchWithAuth(url)
   if (!r.ok) throw new Error(`Reports fetch failed: ${r.status}`)
   return r.json()
 }
 
 export async function searchReportsByTopic(topic: string, limit = 20): Promise<Report[]> {
   const params = toQuery({ topic, limit, min_score: 0.5 })
-  const r = await fetch(`${base}/api/reports/search?${params}`)
+  const r = await fetchWithAuth(`${base}/api/reports/search?${params}`)
   if (!r.ok) throw new Error(`Topic search failed: ${r.status}`)
   const data = await r.json()
   return data.reports ?? []
 }
 
 export async function fetchReport(id: string): Promise<Report> {
-  const r = await fetch(`${base}/api/reports/${id}`)
+  const r = await fetchWithAuth(`${base}/api/reports/${id}`)
   if (r.status === 404) throw new Error('NOT_FOUND')
   if (!r.ok) throw new Error(`Report fetch failed: ${r.status}`)
   return r.json()
 }
 
 export async function fetchThreadSummary(threadId: string): Promise<Report> {
-  const r = await fetch(`${base}/api/threads/${threadId}/summary`)
+  const r = await fetchWithAuth(`${base}/api/threads/${threadId}/summary`)
   if (r.status === 404) throw new Error('NOT_FOUND')
   if (!r.ok) throw new Error(`Thread summary fetch failed: ${r.status}`)
   return r.json()
 }
 
 export async function fetchThread(threadId: string): Promise<Thread> {
-  const r = await fetch(`${base}/api/threads/${threadId}`)
+  const r = await fetchWithAuth(`${base}/api/threads/${threadId}`)
   if (r.status === 404) throw new Error('NOT_FOUND')
   if (!r.ok) throw new Error(`Thread fetch failed: ${r.status}`)
   return r.json()
@@ -162,13 +196,13 @@ export async function fetchThreadMessages(
   skip = 0
 ): Promise<{ messages: Message[]; count: number }> {
   const params = toQuery({ thread_id: threadId, limit, skip })
-  const r = await fetch(`${base}/api/messages?${params}`)
+  const r = await fetchWithAuth(`${base}/api/messages?${params}`)
   if (!r.ok) throw new Error(`Messages fetch failed: ${r.status}`)
   return r.json()
 }
 
 export async function fetchMessage(messageDocId: string): Promise<Message> {
-  const r = await fetch(`${base}/api/messages/${messageDocId}`)
+  const r = await fetchWithAuth(`${base}/api/messages/${messageDocId}`)
   if (r.status === 404) throw new Error('NOT_FOUND')
   if (!r.ok) throw new Error(`Message fetch failed: ${r.status}`)
   return r.json()
@@ -179,7 +213,7 @@ export async function fetchMessageChunks(
   limit = 100
 ): Promise<{ chunks: Chunk[]; count: number }> {
   const params = toQuery({ message_id: messageId, limit })
-  const r = await fetch(`${base}/api/chunks?${params}`)
+  const r = await fetchWithAuth(`${base}/api/chunks?${params}`)
   if (!r.ok) throw new Error(`Chunks fetch failed: ${r.status}`)
   return r.json()
 }
@@ -222,20 +256,20 @@ const INGESTION_API_BASE = '/ingestion'
 
 export async function fetchIngestionSources(enabledOnly = false): Promise<IngestionSourcesListResponse> {
   const params = enabledOnly ? '?enabled_only=true' : ''
-  const r = await fetch(`${INGESTION_API_BASE}/api/sources${params}`)
+  const r = await fetchWithAuth(`${INGESTION_API_BASE}/api/sources${params}`)
   if (!r.ok) throw new Error(`Failed to fetch sources: ${r.status}`)
   return r.json()
 }
 
 export async function fetchIngestionSource(name: string): Promise<IngestionSource> {
-  const r = await fetch(`${INGESTION_API_BASE}/api/sources/${encodeURIComponent(name)}`)
+  const r = await fetchWithAuth(`${INGESTION_API_BASE}/api/sources/${encodeURIComponent(name)}`)
   if (r.status === 404) throw new Error('NOT_FOUND')
   if (!r.ok) throw new Error(`Failed to fetch source: ${r.status}`)
   return r.json()
 }
 
 export async function createIngestionSource(source: IngestionSource): Promise<{ message: string; source: IngestionSource }> {
-  const r = await fetch(`${INGESTION_API_BASE}/api/sources`, {
+  const r = await fetchWithAuth(`${INGESTION_API_BASE}/api/sources`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(source),
@@ -248,7 +282,7 @@ export async function createIngestionSource(source: IngestionSource): Promise<{ 
 }
 
 export async function updateIngestionSource(name: string, source: IngestionSource): Promise<{ message: string; source: IngestionSource }> {
-  const r = await fetch(`${INGESTION_API_BASE}/api/sources/${encodeURIComponent(name)}`, {
+  const r = await fetchWithAuth(`${INGESTION_API_BASE}/api/sources/${encodeURIComponent(name)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(source),
@@ -262,7 +296,7 @@ export async function updateIngestionSource(name: string, source: IngestionSourc
 }
 
 export async function deleteIngestionSource(name: string): Promise<{ message: string }> {
-  const r = await fetch(`${INGESTION_API_BASE}/api/sources/${encodeURIComponent(name)}`, {
+  const r = await fetchWithAuth(`${INGESTION_API_BASE}/api/sources/${encodeURIComponent(name)}`, {
     method: 'DELETE',
   })
   if (r.status === 404) throw new Error('NOT_FOUND')
@@ -271,7 +305,7 @@ export async function deleteIngestionSource(name: string): Promise<{ message: st
 }
 
 export async function triggerIngestionSource(name: string): Promise<{ source_name: string; status: string; message: string; triggered_at: string }> {
-  const r = await fetch(`${INGESTION_API_BASE}/api/sources/${encodeURIComponent(name)}/trigger`, {
+  const r = await fetchWithAuth(`${INGESTION_API_BASE}/api/sources/${encodeURIComponent(name)}/trigger`, {
     method: 'POST',
   })
   if (!r.ok) {
@@ -282,7 +316,7 @@ export async function triggerIngestionSource(name: string): Promise<{ source_nam
 }
 
 export async function fetchIngestionSourceStatus(name: string): Promise<IngestionSourceStatus> {
-  const r = await fetch(`${INGESTION_API_BASE}/api/sources/${encodeURIComponent(name)}/status`)
+  const r = await fetchWithAuth(`${INGESTION_API_BASE}/api/sources/${encodeURIComponent(name)}/status`)
   if (r.status === 404) throw new Error('NOT_FOUND')
   if (!r.ok) throw new Error(`Failed to fetch source status: ${r.status}`)
   return r.json()
@@ -324,6 +358,12 @@ export async function uploadMailboxFile(
         } catch (e) {
           reject(new Error('Failed to parse upload response'))
         }
+      } else if (xhr.status === 401) {
+        // Handle unauthorized - clear token and callback
+        authToken = null
+        localStorage.removeItem('auth_token')
+        if (onUnauthorized) onUnauthorized()
+        reject(new Error('UNAUTHORIZED'))
       } else {
         try {
           const error = JSON.parse(xhr.responseText)
@@ -343,6 +383,10 @@ export async function uploadMailboxFile(
     })
 
     xhr.open('POST', `${INGESTION_API_BASE}/api/uploads`)
+    // Add auth header if token exists
+    if (authToken) {
+      xhr.setRequestHeader('Authorization', `Bearer ${authToken}`)
+    }
     xhr.send(formData)
   })
 }
@@ -377,25 +421,6 @@ export interface PendingAssignmentsResponse {
 
 const AUTH_API_BASE = '/auth'
 
-// Helper to get auth token from storage
-// For security, this uses sessionStorage instead of localStorage.
-// sessionStorage is cleared when the browser session ends, reducing risk.
-function getAuthToken(): string | null {
-  return sessionStorage.getItem('auth_token')
-}
-
-// Helper to create headers with auth token
-function createAuthHeaders(): HeadersInit {
-  const token = getAuthToken()
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-  return headers
-}
-
 export async function fetchPendingRoleAssignments(
   params: {
     user_id?: string
@@ -414,34 +439,24 @@ export async function fetchPendingRoleAssignments(
     sort_by: params.sort_by ?? 'requested_at',
     sort_order: params.sort_order ?? -1,
   })
-  const r = await fetch(`${AUTH_API_BASE}/admin/role-assignments/pending?${queryParams}`, {
-    headers: createAuthHeaders(),
-  })
-  if (r.status === 401) throw new Error('Unauthorized - Please login with admin credentials')
-  if (r.status === 403) throw new Error('Forbidden - Admin role required')
+  const r = await fetchWithAuth(`${AUTH_API_BASE}/admin/role-assignments/pending?${queryParams}`)
   if (!r.ok) throw new Error(`Failed to fetch pending assignments: ${r.status}`)
   return r.json()
 }
 
 export async function fetchUserRoles(userId: string): Promise<UserRoleRecord> {
-  const r = await fetch(`${AUTH_API_BASE}/admin/users/${encodeURIComponent(userId)}/roles`, {
-    headers: createAuthHeaders(),
-  })
-  if (r.status === 401) throw new Error('Unauthorized - Please login with admin credentials')
-  if (r.status === 403) throw new Error('Forbidden - Admin role required')
+  const r = await fetchWithAuth(`${AUTH_API_BASE}/admin/users/${encodeURIComponent(userId)}/roles`)
   if (r.status === 404) throw new Error('User not found')
   if (!r.ok) throw new Error(`Failed to fetch user roles: ${r.status}`)
   return r.json()
 }
 
 export async function assignUserRoles(userId: string, roles: string[]): Promise<UserRoleRecord> {
-  const r = await fetch(`${AUTH_API_BASE}/admin/users/${encodeURIComponent(userId)}/roles`, {
+  const r = await fetchWithAuth(`${AUTH_API_BASE}/admin/users/${encodeURIComponent(userId)}/roles`, {
     method: 'POST',
-    headers: createAuthHeaders(),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ roles }),
   })
-  if (r.status === 401) throw new Error('Unauthorized - Please login with admin credentials')
-  if (r.status === 403) throw new Error('Forbidden - Admin role required')
   if (!r.ok) {
     const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
     throw new Error(error.detail || `Failed to assign roles: ${r.status}`)
@@ -450,13 +465,11 @@ export async function assignUserRoles(userId: string, roles: string[]): Promise<
 }
 
 export async function revokeUserRoles(userId: string, roles: string[]): Promise<UserRoleRecord> {
-  const r = await fetch(`${AUTH_API_BASE}/admin/users/${encodeURIComponent(userId)}/roles`, {
+  const r = await fetchWithAuth(`${AUTH_API_BASE}/admin/users/${encodeURIComponent(userId)}/roles`, {
     method: 'DELETE',
-    headers: createAuthHeaders(),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ roles }),
   })
-  if (r.status === 401) throw new Error('Unauthorized - Please login with admin credentials')
-  if (r.status === 403) throw new Error('Forbidden - Admin role required')
   if (!r.ok) {
     const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
     throw new Error(error.detail || `Failed to revoke roles: ${r.status}`)
