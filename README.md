@@ -94,7 +94,8 @@ For detailed architecture documentation, design patterns, and service interactio
 | Orchestrator | Coordinates RAG workflow and summarization | - | Production |
 | Summarization | Creates summaries using configurable LLM backends | - | Production |
 | **User-Facing** | | | |
-| Reporting API | HTTP API for accessing summaries and insights | 8080 (public) | Production |
+| API Gateway | Reverse proxy unifying service endpoints | 8080 (public) | New |
+| Reporting API | HTTP API for accessing summaries and insights | via 8080 (/API) | Production |
 | Web UI | React SPA for viewing reports | 8084 (localhost) | Production |
 | Auth Service | OIDC authentication with local JWT minting | 8090 (localhost) | MVP |
 | **Infrastructure** | | | |
@@ -158,7 +159,7 @@ The system includes a comprehensive observability stack for monitoring, logging,
   - Vector store size and performance
   - Failed queue monitoring
 
-Access Grafana at `http://localhost:3000` (default credentials: admin/admin)
+Access Grafana at `http://localhost:3000` (default credentials: admin/admin), or via the Gateway at `http://localhost:8080/grafana/`.
 
 #### Logging (Loki + Promtail)
 - **Loki** aggregates logs from all services on port 3100

@@ -233,8 +233,8 @@ services:
       - message_bus_password
       - document_database_user
       - document_database_password
-    ports:
-      - "0.0.0.0:8080:8080"
+    # Expose internally; external access is via the API Gateway on :8080
+    # Remove direct public mapping to avoid port conflict with gateway
     depends_on:
       messagebus:
         condition: service_healthy
