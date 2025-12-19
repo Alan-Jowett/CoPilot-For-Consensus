@@ -24,12 +24,6 @@ server {
   root /usr/share/nginx/html;
 
   location / {
-    try_files $uri /index.html;
-  }
-
-  # Serve the app from subpath /ui/ when proxied via the gateway
-  location /ui/ {
-    alias /usr/share/nginx/html/;
     try_files $uri $uri/ /index.html;
   }
 
