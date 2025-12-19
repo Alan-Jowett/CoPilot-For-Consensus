@@ -7,7 +7,7 @@ This guide walks you through setting up and testing GitHub, Google, and Microsof
 
 ## Prerequisites
 
-- Auth service running at `http://localhost:8090`
+- Auth service reachable via API Gateway at `http://localhost:8080/auth`
 - `./secrets/` directory exists with valid JWT keys:
   - `secrets/jwt_private_key` (RSA private key)
   - `secrets/jwt_public_key` (RSA public key)
@@ -29,8 +29,8 @@ Each provider requires:
 2. Click **New OAuth App**
 3. Fill in:
    - **Application Name**: `Copilot-for-Consensus-Local` (or your choice)
-   - **Homepage URL**: `http://localhost:8090`
-   - **Authorization callback URL**: `http://localhost:8090/callback`
+   - **Homepage URL**: `http://localhost:8080/auth`
+   - **Authorization callback URL**: `http://localhost:8080/auth/callback`
 4. Click **Create OAuth app**
 5. You'll see **Client ID** and **Client Secret**
    - Copy **Client ID** (you'll need it for env)
@@ -75,9 +75,9 @@ docker compose logs auth --tail=20
 
 ### Step 5: Test GitHub Login
 
-1. Open browser to: `http://localhost:8090/login?provider=github`
+1. Open browser to: `http://localhost:8080/auth/login?provider=github`
 2. You'll be redirected to GitHub to authorize
-3. After authorizing, GitHub redirects back to `http://localhost:8090/callback`
+3. After authorizing, GitHub redirects back to `http://localhost:8080/auth/callback`
 4. Auth service mints a JWT and responds with the token (check browser console or response body)
 
 ### Step 6: Verify JWT Token
@@ -99,7 +99,7 @@ print(json.dumps(decoded, indent=2))
 Expected fields:
 - `sub`: GitHub username
 - `aud`: Should match `AUTH_AUDIENCES` (default: copilot-orchestrator)
-- `iss`: Should match `AUTH_ISSUER` (default: http://localhost:8090)
+- `iss`: Should match `AUTH_ISSUER` (default: http://localhost:8080/auth)
 - `exp`: Token expiration timestamp
 
 ---
@@ -115,7 +115,7 @@ Expected fields:
 5. Choose application type: **Web application**
 6. Configure:
    - **Name**: `Copilot-for-Consensus-Local`
-   - **Authorized redirect URIs**: Add `http://localhost:8090/callback`
+   - **Authorized redirect URIs**: Add `http://localhost:8080/auth/callback`
 7. Click **Create**
 8. You'll see:
    - **Client ID**
@@ -153,10 +153,10 @@ docker compose logs auth --tail=20
 
 ### Step 5: Test Google Login
 
-1. Open browser to: `http://localhost:8090/login?provider=google`
+1. Open browser to: `http://localhost:8080/auth/login?provider=google`
 2. You'll be redirected to Google login
 3. Sign in and consent to scopes
-4. Google redirects back to `http://localhost:8090/callback`
+4. Google redirects back to `http://localhost:8080/auth/callback`
 5. Auth service returns JWT
 
 ### Step 6: Verify JWT
@@ -175,7 +175,7 @@ Same as GitHub (decode and check `sub`, `aud`, `iss`, `exp`).
 4. Configure:
    - **Name**: `Copilot-for-Consensus-Local`
    - **Supported account types**: Choose based on your needs (e.g., "Accounts in this organizational directory only" or "Multitenant")
-   - **Redirect URI**: Select **Web**, enter `http://localhost:8090/callback`
+   - **Redirect URI**: Select **Web**, enter `http://localhost:8080/auth/callback`
 5. Click **Register**
 6. You'll see **Application (client) ID**
    - Copy this (for env)
@@ -220,11 +220,11 @@ docker compose logs auth --tail=20
 
 ### Step 5: Test Microsoft Login
 
-1. Open browser to: `http://localhost:8090/login?provider=microsoft`
+1. Open browser to: `http://localhost:8080/auth/login?provider=microsoft`
 2. You'll be redirected to Microsoft login
 3. Sign in with your account
 4. Consent to scopes (if prompted)
-5. Microsoft redirects back to `http://localhost:8090/callback`
+5. Microsoft redirects back to `http://localhost:8080/auth/callback`
 6. Auth service returns JWT
 
 ### Step 6: Verify JWT
@@ -239,7 +239,7 @@ Create a `.env` file in the repo root (or update your existing one) with core OI
 
 ```env
 # Auth Service OIDC Configuration
-AUTH_ISSUER=http://localhost:8090
+AUTH_ISSUER=http://localhost:8080/auth
 AUTH_AUDIENCES=copilot-orchestrator,copilot-reporting
 JWT_ALGORITHM=RS256
 JWT_KEY_ID=default
@@ -249,14 +249,14 @@ AUTH_REQUIRE_NONCE=true
 AUTH_MAX_SKEW_SECONDS=90
 
 # GitHub OAuth
-AUTH_GITHUB_REDIRECT_URI=http://localhost:8090/callback
+AUTH_GITHUB_REDIRECT_URI=http://localhost:8080/auth/callback
 
 # Google OAuth
-AUTH_GOOGLE_REDIRECT_URI=http://localhost:8090/callback
+AUTH_GOOGLE_REDIRECT_URI=http://localhost:8080/auth/callback
 
 # Microsoft OAuth
 AUTH_MS_TENANT=common
-AUTH_MS_REDIRECT_URI=http://localhost:8090/callback
+AUTH_MS_REDIRECT_URI=http://localhost:8080/auth/callback
 
 # Secret Provider Configuration
 SECRET_PROVIDER_TYPE=local
@@ -295,9 +295,9 @@ All files are mounted as read-only to `/run/secrets` in the auth container.
 - [ ] All three client IDs and secrets stored in `./secrets/`
 - [ ] JWT keys present in `./secrets/`
 - [ ] Auth service rebuilt and running (`docker compose ps auth` shows healthy)
-- [ ] GitHub login flow tested: `http://localhost:8090/login?provider=github`
-- [ ] Google login flow tested: `http://localhost:8090/login?provider=google`
-- [ ] Microsoft login flow tested: `http://localhost:8090/login?provider=microsoft`
+- [ ] GitHub login flow tested: `http://localhost:8080/auth/login?provider=github`
+- [ ] Google login flow tested: `http://localhost:8080/auth/login?provider=google`
+- [ ] Microsoft login flow tested: `http://localhost:8080/auth/login?provider=microsoft`
 - [ ] All three flows return valid JWTs
 - [ ] Tokens decode correctly with correct `sub`, `aud`, `iss` claims
 
@@ -306,7 +306,7 @@ All files are mounted as read-only to `/run/secrets` in the auth container.
 ## Troubleshooting
 
 ### "Redirect URI mismatch"
-- Ensure the callback URL in your provider app registration **exactly** matches `http://localhost:8090/callback`
+- Ensure the callback URL in your provider app registration **exactly** matches `http://localhost:8080/auth/callback`
 - Whitespace matters!
 
 ### "Client ID or secret invalid"

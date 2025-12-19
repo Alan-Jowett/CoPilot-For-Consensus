@@ -97,7 +97,7 @@ from urllib.parse import urlencode
 
 def login(provider="github", audience="copilot-orchestrator"):
     """Initiate OAuth login flow."""
-    auth_url = os.getenv("AUTH_SERVICE_URL", "http://localhost:8090")
+    auth_url = os.getenv("AUTH_SERVICE_URL", "http://localhost:8080/auth")
     
     # Build login URL
     params = {
@@ -194,7 +194,7 @@ python cli_tool.py call /api/reports
 
 ```javascript
 // authService.js
-const AUTH_SERVICE_URL = process.env.REACT_APP_AUTH_SERVICE_URL || 'http://localhost:8090';
+const AUTH_SERVICE_URL = process.env.REACT_APP_AUTH_SERVICE_URL || 'http://localhost:8080/auth';
 const AUDIENCE = 'copilot-reporting';
 
 export const initiateLogin = (provider = 'github') => {
@@ -439,7 +439,7 @@ const Reports = () => {
   useEffect(() => {
     const loadReports = async () => {
       try {
-        const response = await fetchWithAuth('http://localhost:8080/api/reports');
+        const response = await fetchWithAuth('http://localhost:8080/API/api/reports');
         const data = await response.json();
         setReports(data);
       } catch (error) {
@@ -471,10 +471,10 @@ export default Reports;
 
 ```bash
 # 1. Get JWKS to verify service is running
-curl http://localhost:8090/keys
+curl http://localhost:8080/auth/keys
 
 # 2. Initiate login (this will redirect, so use -i to see headers)
-curl -i "http://localhost:8090/login?provider=github&aud=copilot-orchestrator"
+curl -i "http://localhost:8080/auth/login?provider=github&aud=copilot-orchestrator"
 
 # 3. After completing OAuth flow in browser, you'll get a JWT
 # Use it to call protected endpoints:
@@ -482,11 +482,11 @@ JWT_TOKEN="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImRlZmF1bHQifQ..."
 
 # 4. Get user info
 curl -H "Authorization: Bearer $JWT_TOKEN" \
-  http://localhost:8090/userinfo
+  http://localhost:8080/auth/userinfo
 
 # 5. Call protected API
 curl -H "Authorization: Bearer $JWT_TOKEN" \
-  http://localhost:8080/api/reports
+  http://localhost:8080/API/api/reports
 ```
 
 ### Automated Testing
@@ -498,7 +498,7 @@ import httpx
 
 @pytest.fixture
 def auth_service_url():
-    return "http://localhost:8090"
+  return "http://localhost:8080/auth"
 
 @pytest.fixture
 def test_token(auth_service_url):

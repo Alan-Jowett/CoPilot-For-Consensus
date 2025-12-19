@@ -59,7 +59,7 @@ Comprehensive dashboard with 10 panels:
 9. Archive Status Summary (table)
 10. Archive Processing & Failure Rates (rate chart)
 
-**Access**: http://localhost:3000 → "Document Processing Status"
+**Access**: http://localhost:8080/grafana/ → "Document Processing Status"
 **UID**: `copilot-document-processing-status`
 
 ### 5. Prometheus Alert Rules
@@ -140,7 +140,7 @@ docker compose up -d document-processing-exporter
 
 ### Access the Dashboard
 
-1. Open Grafana: http://localhost:3000 (admin/admin)
+1. Open Grafana: http://localhost:8080/grafana/ (admin/admin)
 2. Navigate to "Document Processing Status" dashboard
 3. Select time range (default: last 1 hour)
 4. Refresh automatically every 10 seconds
