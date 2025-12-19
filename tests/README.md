@@ -71,21 +71,23 @@ pytest tests/test_integration_message_flow.py -v -m integration
 > If you are using an older Docker installation, replace `docker compose` with `docker-compose` (with a hyphen) in all commands below.
 
 ```bash
-# 1. Start all services
+# 1. Start all services (includes the continuously running ingestion API)
 docker compose up -d
 
-# 2. Upload test configuration
-docker compose run --rm \
-  -v $PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro \
-  ingestion \
-  python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
+# 2. Copy the sample mailbox into the running ingestion container
+INGESTION_CONTAINER=$(docker compose ps -q ingestion)
+docker exec "$INGESTION_CONTAINER" mkdir -p /tmp/test-mailbox
+docker cp tests/fixtures/mailbox_sample/test-archive.mbox "$INGESTION_CONTAINER":/tmp/test-mailbox/test-archive.mbox
 
-# 3. Run ingestion
-docker compose run --rm \
-  -v $PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro \
-  ingestion
+# 3. Create the source via REST API
+curl -f -X POST http://localhost:8001/api/sources \
+  -H "Content-Type: application/json" \
+  -d '{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
 
-# 4. Validate results
+# 4. Trigger ingestion via REST API
+curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger
+
+# 5. Validate results
 docker compose run --rm \
   -v $PWD/tests:/app/tests:ro \
   -e MONGODB_HOST=documentdb \
