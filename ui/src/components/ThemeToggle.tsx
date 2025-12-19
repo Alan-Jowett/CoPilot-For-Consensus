@@ -3,6 +3,15 @@
 
 import { useTheme } from '../contexts/ThemeContext'
 
+/**
+ * Theme toggle button component.
+ *
+ * Uses the ThemeContext to switch between light and dark modes, exposing a
+ * single button that updates the current theme when clicked. The button
+ * includes ARIA labels and a title attribute describing the target theme
+ * for accessibility, and conditionally renders a sun or moon icon to
+ * visually indicate the active theme.
+ */
 export function ThemeToggle() {
   const { theme, toggleTheme } = useTheme()
 

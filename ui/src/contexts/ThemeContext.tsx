@@ -12,6 +12,21 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
+/**
+ * Theme provider component.
+ *
+ * Provides theme state management and persistence for the application. On
+ * initialization, the theme is determined by checking (in order):
+ * 1. localStorage for a saved preference ('light' or 'dark')
+ * 2. System color scheme preference via prefers-color-scheme media query
+ * 3. Default to 'light' theme
+ *
+ * The provider handles SSR environments by checking for window availability
+ * and wraps localStorage access in try-catch blocks to handle SecurityError
+ * and other restricted context exceptions. When the theme changes, it updates
+ * the document element's data-theme attribute, color-scheme style property,
+ * and persists the selection to localStorage for future sessions.
+ */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
     // Check if running in browser (not SSR)
@@ -63,6 +78,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   )
 }
 
+/**
+ * Custom hook to access the theme context.
+ *
+ * Returns the current theme state and a toggleTheme function to switch
+ * between light and dark modes. This hook must be used within a component
+ * that is a descendant of ThemeProvider, otherwise it will throw an error.
+ *
+ * @throws {Error} If used outside of a ThemeProvider
+ * @returns {ThemeContextType} The theme context value containing theme and toggleTheme
+ */
 export function useTheme() {
   const context = useContext(ThemeContext)
   if (context === undefined) {
