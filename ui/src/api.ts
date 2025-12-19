@@ -371,6 +371,24 @@ export interface PendingAssignmentsResponse {
 
 const AUTH_API_BASE = '/auth'
 
+// Helper to get auth token from storage
+// In a real implementation, this would integrate with the auth flow
+function getAuthToken(): string | null {
+  return localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
+}
+
+// Helper to create headers with auth token
+function createAuthHeaders(): HeadersInit {
+  const token = getAuthToken()
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  return headers
+}
+
 export async function fetchPendingRoleAssignments(
   params: {
     user_id?: string
@@ -389,13 +407,21 @@ export async function fetchPendingRoleAssignments(
     sort_by: params.sort_by ?? 'requested_at',
     sort_order: params.sort_order ?? -1,
   })
-  const r = await fetch(`${AUTH_API_BASE}/admin/role-assignments/pending?${queryParams}`)
+  const r = await fetch(`${AUTH_API_BASE}/admin/role-assignments/pending?${queryParams}`, {
+    headers: createAuthHeaders(),
+  })
+  if (r.status === 401) throw new Error('Unauthorized - Please login with admin credentials')
+  if (r.status === 403) throw new Error('Forbidden - Admin role required')
   if (!r.ok) throw new Error(`Failed to fetch pending assignments: ${r.status}`)
   return r.json()
 }
 
 export async function fetchUserRoles(userId: string): Promise<UserRoleRecord> {
-  const r = await fetch(`${AUTH_API_BASE}/admin/users/${encodeURIComponent(userId)}/roles`)
+  const r = await fetch(`${AUTH_API_BASE}/admin/users/${encodeURIComponent(userId)}/roles`, {
+    headers: createAuthHeaders(),
+  })
+  if (r.status === 401) throw new Error('Unauthorized - Please login with admin credentials')
+  if (r.status === 403) throw new Error('Forbidden - Admin role required')
   if (r.status === 404) throw new Error('NOT_FOUND')
   if (!r.ok) throw new Error(`Failed to fetch user roles: ${r.status}`)
   return r.json()
@@ -404,9 +430,11 @@ export async function fetchUserRoles(userId: string): Promise<UserRoleRecord> {
 export async function assignUserRoles(userId: string, roles: string[]): Promise<UserRoleRecord> {
   const r = await fetch(`${AUTH_API_BASE}/admin/users/${encodeURIComponent(userId)}/roles`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: createAuthHeaders(),
     body: JSON.stringify({ roles }),
   })
+  if (r.status === 401) throw new Error('Unauthorized - Please login with admin credentials')
+  if (r.status === 403) throw new Error('Forbidden - Admin role required')
   if (!r.ok) {
     const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
     throw new Error(error.detail || `Failed to assign roles: ${r.status}`)
@@ -417,9 +445,11 @@ export async function assignUserRoles(userId: string, roles: string[]): Promise<
 export async function revokeUserRoles(userId: string, roles: string[]): Promise<UserRoleRecord> {
   const r = await fetch(`${AUTH_API_BASE}/admin/users/${encodeURIComponent(userId)}/roles`, {
     method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
+    headers: createAuthHeaders(),
     body: JSON.stringify({ roles }),
   })
+  if (r.status === 401) throw new Error('Unauthorized - Please login with admin credentials')
+  if (r.status === 403) throw new Error('Forbidden - Admin role required')
   if (!r.ok) {
     const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
     throw new Error(error.detail || `Failed to revoke roles: ${r.status}`)
