@@ -365,7 +365,7 @@ jobs:
       run: |
         echo "Validating reports exist after end-to-end run..."
         # Fetch reports JSON and assert count > 0 (black-box via reporting API)
-        json=$(curl -s http://localhost:8080/api/reports)
+        json=$(curl -s http://localhost:8080/reporting/api/reports)
         echo "$json" | python -c 'import json,sys; data=json.load(sys.stdin); cnt=data.get("count",0); print(f"Reports count: {cnt}"); exit(0 if cnt>0 else 1)'
         echo "✓ Reports validation passed"
 
