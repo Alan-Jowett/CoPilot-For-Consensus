@@ -98,6 +98,7 @@ For detailed architecture documentation, design patterns, and service interactio
 | **User-Facing** | | | |
 | Reporting API | HTTP API for accessing summaries and insights | 8090 (localhost), /api via gateway | Production |
 | Web UI | React SPA for viewing reports | 8084 (localhost), /ui via gateway | Production |
+| Auth Service | OIDC authentication with local JWT minting | 8091 (localhost) | MVP |
 | **Infrastructure** | | | |
 | MongoDB | Document storage for messages and summaries | 27017 (localhost) | Production |
 | Qdrant | Vector database for semantic search | 6333 (localhost) | Production |
@@ -126,6 +127,11 @@ For detailed architecture documentation, design patterns, and service interactio
 #### User-Facing Services
 - **Reporting Service**: Provides HTTP API for accessing summaries and insights (port 8080)
 - **Web UI**: React SPA for browsing reports and insights (port 8084)
+- **Auth Service**: OIDC authentication with local JWT token minting (port 8090)
+  - Supports GitHub, Google, and Microsoft authentication
+  - Issues service-scoped JWTs with custom claims
+  - Provides JWKS endpoint for distributed token validation
+  - See [auth/README.md](./auth/README.md) for details
 
 ### Infrastructure Components
 
@@ -252,16 +258,21 @@ For the full list of exposed ports and security considerations, see [documents/E
 
    **Option A: Using test fixtures (recommended for first-time users):**
    ```bash
-   # Upload test ingestion configuration
-   docker compose run --rm \
-     -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
-     ingestion \
-     python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
-   
-   # Run the ingestion job
-   docker compose run --rm \
-     -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
-     ingestion
+   # Start the continuously running ingestion service (exposes REST API on 8001)
+   docker compose up -d ingestion
+
+   # Copy the sample mailbox into the running container
+   INGESTION_CONTAINER=$(docker compose ps -q ingestion)
+   docker exec "$INGESTION_CONTAINER" mkdir -p /tmp/test-mailbox
+   docker cp tests/fixtures/mailbox_sample/test-archive.mbox "$INGESTION_CONTAINER":/tmp/test-mailbox/test-archive.mbox
+
+   # Create the source via REST API
+   curl -f -X POST http://localhost:8001/api/sources \
+     -H "Content-Type: application/json" \
+     -d '{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
+
+   # Trigger ingestion via REST API
+   curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger
    ```
 
    **Option B: Using PowerShell helper (Windows):**
@@ -392,6 +403,7 @@ Comprehensive documentation is available throughout the repository:
 - **[documents/TESTING_STRATEGY.md](./documents/TESTING_STRATEGY.md)**: Integration testing strategy, test organization, and CI/CD integration
 - **[documents/CONVENTIONS.md](./documents/CONVENTIONS.md)**: Documentation conventions, style guide, and contribution standards
 - **[documents/EXPOSED_PORTS.md](./documents/EXPOSED_PORTS.md)**: Network ports reference, security considerations, and access control
+- **[documents/AUTH_INTEGRATION_EXAMPLES.md](./documents/AUTH_INTEGRATION_EXAMPLES.md)**: Authentication service integration examples and best practices
 
 ### Service Documentation
 Each microservice has a comprehensive README:
@@ -403,6 +415,7 @@ Each microservice has a comprehensive README:
 - [Summarization Service](./summarization/README.md)
 - [Reporting Service](./reporting/README.md)
 - [Web UI](./ui/README.md)
+- [Auth Service](./auth/README.md)
 
 ### Adapter Documentation
 - **[adapters/README.md](./adapters/README.md)**: Overview of the adapter layer and available adapters

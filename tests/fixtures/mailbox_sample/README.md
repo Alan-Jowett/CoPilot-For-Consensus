@@ -48,19 +48,21 @@ From the 10 messages in test-archive.mbox:
 To test the end-to-end flow locally:
 
 ```bash
-# Start infrastructure and services
+# Start infrastructure and services (includes the ingestion API)
 docker compose up -d
 
-# Upload test configuration
-docker compose run --rm \
-  -v $PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro \
-  ingestion \
-  python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
+# Copy the sample mailbox into the running ingestion container
+INGESTION_CONTAINER=$(docker compose ps -q ingestion)
+docker exec "$INGESTION_CONTAINER" mkdir -p /tmp/test-mailbox
+docker cp tests/fixtures/mailbox_sample/test-archive.mbox "$INGESTION_CONTAINER":/tmp/test-mailbox/test-archive.mbox
 
-# Run ingestion
-docker compose run --rm \
-  -v $PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro \
-  ingestion
+# Create the source via REST API
+curl -f -X POST http://localhost:8001/api/sources \
+  -H "Content-Type: application/json" \
+  -d '{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
+
+# Trigger ingestion via REST API
+curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger
 
 # Validate results
 docker compose run --rm \

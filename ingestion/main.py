@@ -1,18 +1,21 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Ingestion Service: Fetch mailing list archives from various sources."""
+"""Ingestion Service: Continuous service for managing and ingesting mailing list archives."""
 
 import os
 import sys
-import time
+import signal
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
+from fastapi import FastAPI
+import uvicorn
+
 from copilot_config import load_typed_config
 from copilot_events import create_publisher, ValidatingEventPublisher
-from copilot_logging import create_logger
+from copilot_logging import create_logger, create_uvicorn_log_config
 from copilot_schema_validation import FileSchemaProvider
 from copilot_metrics import create_metrics_collector
 from copilot_storage import (
@@ -23,10 +26,21 @@ from copilot_storage import (
 from copilot_config.providers import DocStoreConfigProvider
 
 from app import __version__
-from app.service import IngestionService, _enabled_sources
+from app.service import IngestionService
+from app.api import create_api_router
+from app.scheduler import IngestionScheduler
 
 # Bootstrap logger before configuration is loaded
 bootstrap_logger = create_logger(logger_type="stdout", level="INFO", name="ingestion-bootstrap")
+
+# Create FastAPI app
+app = FastAPI(title="Ingestion Service", version=__version__)
+
+# Global service instance and scheduler
+ingestion_service = None
+scheduler = None
+base_publisher = None
+base_document_store = None
 
 
 class _ConfigWithSources:
@@ -51,18 +65,71 @@ class _ConfigWithSources:
         return getattr(self._base_config, name)
 
 
+@app.get("/")
+def root():
+    """Root endpoint redirects to health check."""
+    return health()
+
+
+@app.get("/health")
+def health():
+    """Health check endpoint."""
+    global ingestion_service, scheduler
+    
+    stats = ingestion_service.get_stats() if ingestion_service is not None else {}
+    
+    return {
+        "status": "healthy",
+        "service": "ingestion",
+        "version": __version__,
+        "scheduler_running": scheduler.is_running() if scheduler else False,
+        "sources_configured": stats.get("sources_configured", 0),
+        "sources_enabled": stats.get("sources_enabled", 0),
+        "total_files_ingested": stats.get("total_files_ingested", 0),
+        "last_ingestion_at": stats.get("last_ingestion_at"),
+    }
+
+
+def signal_handler(signum, frame):
+    """Handle shutdown signals."""
+    global scheduler, base_publisher, base_document_store
+    logger = bootstrap_logger
+    
+    logger.info("Received shutdown signal", signal=signum)
+    
+    if scheduler:
+        scheduler.stop()
+    
+    # Cleanup resources
+    if base_publisher:
+        try:
+            base_publisher.disconnect()
+            logger.info("Publisher disconnected")
+        except Exception as e:
+            logger.warning("Failed to disconnect publisher", error=str(e))
+    
+    if base_document_store:
+        try:
+            base_document_store.disconnect()
+            logger.info("Document store disconnected")
+        except Exception as e:
+            logger.warning("Failed to disconnect document store", error=str(e))
+    
+    sys.exit(0)
+
+
 def main():
     """Main entry point for the ingestion service."""
+    global ingestion_service, scheduler, base_publisher, base_document_store
+    
     log = bootstrap_logger
-    log.info("Starting Ingestion Service", version=__version__)
+    log.info("Starting Ingestion Service (continuous mode)", version=__version__)
 
     try:
         # Load configuration using adapter (env + defaults validated by schema)
         config = load_typed_config("ingestion")
         
         # Load sources from document store (storage-backed config)
-        # Note: SchemaConfigLoader no longer supports storage-backed sources,
-        # so we load them explicitly here and pass separately to IngestionService.
         sources = []
         try:
             # Create a temporary document store to load sources
@@ -170,12 +237,11 @@ def main():
                 )
 
         # Wrap publisher with validation layer
-        # This ensures all published events are validated against their schemas
         schema_provider = FileSchemaProvider()
         publisher = ValidatingEventPublisher(
             publisher=base_publisher,
             schema_provider=schema_provider,
-            strict=True,  # Raise ValidationError if event doesn't match schema
+            strict=True,
         )
         log.info("Event publisher configured with schema validation")
 
@@ -219,7 +285,7 @@ def main():
         document_store = ValidatingDocumentStore(
             store=base_document_store,
             schema_provider=schema_provider,
-            strict=False,  # Log validation warnings but don't raise
+            strict=False,
         )
         log.info("Document store configured with schema validation")
 
@@ -227,79 +293,50 @@ def main():
         config_with_sources = _ConfigWithSources(config, sources)
 
         # Create ingestion service
-        service = IngestionService(
+        ingestion_service = IngestionService(
             config_with_sources,
             publisher,
             document_store=document_store,
             logger=log,
             metrics=metrics,
         )
+        ingestion_service.version = __version__
 
-        # Ingest from all enabled sources
+        # Mount API routes
+        api_router = create_api_router(ingestion_service, log)
+        app.include_router(api_router)
+        
+        log.info("API routes configured")
+
+        # Create and start scheduler for periodic ingestion
+        schedule_interval = int(os.getenv("INGESTION_SCHEDULE_INTERVAL_SECONDS", "21600"))  # Default: 6 hours
+        scheduler = IngestionScheduler(
+            service=ingestion_service,
+            interval_seconds=schedule_interval,
+            logger=log,
+        )
+        scheduler.start()
+        
         log.info(
-            "Starting ingestion for enabled sources",
-            enabled_source_count=len(_enabled_sources(sources)),
+            "Ingestion scheduler configured and started",
+            interval_seconds=schedule_interval,
         )
 
-        results = service.ingest_all_enabled_sources()
+        # Register signal handlers for graceful shutdown
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
 
-        # Log results
-        for source_name, exception in results.items():
-            if exception is None:
-                status = "SUCCESS"
-                log.info("Source ingestion summary", source_name=source_name, status=status)
-            else:
-                status = "FAILED"
-                log.error(
-                    "Source ingestion summary",
-                    source_name=source_name,
-                    status=status,
-                    error=str(exception),
-                    error_type=type(exception).__name__,
-                )
-
-        # Count successes (None values indicate success)
-        successful = sum(1 for exc in results.values() if exc is None)
-        log.info(
-            "Ingestion complete",
-            successful_sources=successful,
-            total_sources=len(results),
-        )
-
-        # Cleanup
-        base_publisher.disconnect()
-        base_document_store.disconnect()
-
-        # Push metrics to Pushgateway for short-lived jobs
-        is_pushgateway_backend = metrics_backend in ("prometheus_pushgateway", "pushgateway")
-        # Prefer explicit capability check over hasattr; see MetricsCollector.can_push
-        if is_pushgateway_backend and getattr(metrics, "can_push", False):
-            try:
-                metrics.push()
-                log.info(
-                    "Pushed metrics to Prometheus Pushgateway",
-                    metrics_backend=metrics_backend,
-                    gateway=getattr(metrics, "gateway", None),
-                    job=getattr(metrics, "job", None),
-                )
-            except Exception as e:
-                log.warning(
-                    "Failed to push metrics to Prometheus Pushgateway",
-                    metrics_backend=metrics_backend,
-                    error=str(e),
-                )
-
-        # Optional grace period so Prometheus can scrape metrics before exit
-        scrape_wait = int(os.getenv("METRICS_SCRAPE_WAIT_SECONDS", "0"))
-        if scrape_wait > 0 and not is_pushgateway_backend:
-            log.info("Waiting for Prometheus scrape window", seconds=scrape_wait)
-            time.sleep(scrape_wait)
-
-        # Exit with appropriate code
-        sys.exit(0 if successful == len(results) else 1)
+        # Start FastAPI server
+        http_port = int(os.getenv("HTTP_PORT", "8080"))
+        http_host = os.getenv("HTTP_HOST", "127.0.0.1")
+        log.info(f"Starting HTTP server on {http_host}:{http_port}...")
+        
+        # Configure Uvicorn with structured JSON logging
+        log_config = create_uvicorn_log_config(service_name="ingestion", log_level=config.log_level)
+        uvicorn.run(app, host=http_host, port=http_port, log_config=log_config)
 
     except Exception as e:
-        log.error("Fatal error in ingestion service", error=str(e))
+        log.error("Fatal error in ingestion service", error=str(e), exc_info=True)
         sys.exit(1)
 
 

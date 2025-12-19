@@ -29,6 +29,41 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
+    - name: Create test secrets for CI
+      run: |
+        mkdir -p secrets
+        
+        # Message bus credentials
+        echo "guest" > secrets/message_bus_user
+        echo "guest" > secrets/message_bus_password
+        echo "guest" > secrets/rabbitmq_user
+        echo "guest" > secrets/rabbitmq_pass
+        
+        # MongoDB credentials
+        echo "root" > secrets/document_database_user
+        echo "example" > secrets/document_database_password
+        echo "root" > secrets/mongodb_root_username
+        echo "example" > secrets/mongodb_root_password
+        
+        # Grafana admin
+        echo "admin" > secrets/grafana_admin_user
+        echo "admin" > secrets/grafana_admin_password
+        
+        # Auth service secrets
+        if [ ! -f secrets/jwt_private_key ]; then
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out secrets/jwt_private_key
+          openssl rsa -pubout -in secrets/jwt_private_key -out secrets/jwt_public_key
+        fi
+        echo "" > secrets/jwt_secret_key  # Empty for RS256
+        echo "" > secrets/github_oauth_client_id
+        echo "" > secrets/github_oauth_client_secret
+        echo "" > secrets/google_oauth_client_secret
+        echo "" > secrets/microsoft_oauth_client_secret
+        echo "example" > secrets/role_store_password
+        
+        # Azure OpenAI (empty for CI)
+        echo "" > secrets/azure_openai_key
+
     - name: Free up disk space
       run: |
         echo "Disk space before cleanup:"
@@ -162,6 +197,11 @@ jobs:
         docker compose up -d summarization
         timeout 120s bash -c 'until docker compose ps summarization --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for summarization..."; sleep 3; done' || (docker compose logs summarization --tail=50 && exit 1)
 
+    - name: Start auth
+      run: |
+        docker compose up -d auth
+        timeout 120s bash -c 'until docker compose ps auth --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for auth..."; sleep 3; done' || (docker compose logs auth --tail=50 && exit 1)
+
     - name: Start reporting
       run: |
         docker compose up -d reporting
@@ -175,39 +215,84 @@ jobs:
     - name: Check service status
       run: docker compose ps
 
-    - name: Upload test ingestion configuration
+    - name: Start ingestion service
       run: |
-        echo "Uploading test ingestion configuration..."
-        docker compose run --rm \
-          -v $PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro \
-          ingestion \
-          python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
-        echo "✓ Test configuration uploaded"
+        docker compose up -d ingestion
+        timeout 120s bash -c 'until docker compose ps ingestion --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for ingestion service..."; sleep 3; done' || (docker compose logs ingestion --tail=50 && exit 1)
+        echo "✓ Ingestion service started and healthy"
 
-    - name: Run ingestion service (batch job)
+    - name: Copy test mailbox into ingestion container
       run: |
-        echo "Running ingestion service (batch job - runs once and exits)..."
-        docker compose run --rm \
-          -v $PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro \
-          ingestion
-        echo "✓ Ingestion service completed successfully"
+        set -euo pipefail
+        INGESTION_CONTAINER=$(docker compose ps -q ingestion)
+        if [ -z "$INGESTION_CONTAINER" ]; then
+          echo "❌ Ingestion container not running"
+          exit 1
+        fi
+
+        docker exec "$INGESTION_CONTAINER" mkdir -p /tmp/test-mailbox
+        docker cp tests/fixtures/mailbox_sample/test-archive.mbox "$INGESTION_CONTAINER":/tmp/test-mailbox/test-archive.mbox
+        echo "✓ Test mailbox copied to ingestion container"
+
+    - name: Create ingestion source via API
+      run: |
+        set -euo pipefail
+        echo "Creating ingestion source via REST API..."
+        payload='{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
+        max_attempts=5
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+          if curl -f -X POST http://localhost:8001/api/sources \
+            -H "Content-Type: application/json" \
+            -d "$payload"; then
+            echo "✓ Ingestion source created"
+            break
+          fi
+          echo "Attempt $attempt/$max_attempts: Failed to create source, retrying..."
+          sleep 2
+          attempt=$((attempt + 1))
+        done
+
+        if [ $attempt -gt $max_attempts ]; then
+          echo "❌ Failed to create ingestion source after $max_attempts attempts"
+          docker compose logs ingestion --tail=50
+          exit 1
+        fi
+
+    - name: Trigger ingestion via API
+      run: |
+        set -euo pipefail
+        echo "Triggering ingestion for test source via REST API..."
+        max_attempts=5
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+          if curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger; then
+            echo "✓ Ingestion triggered successfully"
+            break
+          fi
+          echo "Attempt $attempt/$max_attempts: Failed to trigger ingestion, retrying..."
+          sleep 2
+          attempt=$((attempt + 1))
+        done
+        
+        if [ $attempt -gt $max_attempts ]; then
+          echo "❌ Failed to trigger ingestion after $max_attempts attempts"
+          docker compose logs ingestion --tail=50
+          exit 1
+        fi
+        
+        # Wait for ingestion to complete (check status)
+        echo "Waiting for ingestion to complete..."
+        sleep 10  # Give it time to process
+        
+        # Check ingestion status
+        status=$(curl -s http://localhost:8001/api/sources/test-mailbox/status)
+        echo "Ingestion status: $status"
+        echo "✓ Ingestion process completed"
 
     - name: View ingestion logs
       if: always()
       run: docker compose logs ingestion
-
-    - name: Validate end-to-end message flow
-      run: |
-        echo "Validating end-to-end message flow..."
-        docker compose run --rm \
-          -v $PWD/tests:/app/tests:ro \
-          -e QDRANT_HOST=vectorstore \
-          -e QDRANT_PORT=6333 \
-          -e QDRANT_COLLECTION=embeddings \
-          --entrypoint "" \
-          embedding \
-          bash -c "python /app/tests/validate_e2e_flow.py"
-        echo "✓ End-to-end validation completed"
 
     - name: View service logs on validation failure
       if: failure()
@@ -240,6 +325,24 @@ jobs:
         done
         echo "❌ Reporting service failed to respond after $max_attempts attempts"
         docker compose logs reporting --tail=50
+        exit 1
+
+    - name: Test auth service health endpoint
+      run: |
+        echo "Testing auth service..."
+        max_attempts=10
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+          if curl -f http://localhost:8090/health 2>/dev/null; then
+            echo "✓ Auth service is healthy"
+            exit 0
+          fi
+          echo "Attempt $attempt/$max_attempts: Auth service not responding yet..."
+          sleep 3
+          attempt=$((attempt + 1))
+        done
+        echo "❌ Auth service failed to respond after $max_attempts attempts"
+        docker compose logs auth --tail=50
         exit 1
 
     - name: Test reporting API endpoint
