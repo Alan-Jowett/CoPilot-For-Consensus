@@ -15,9 +15,11 @@ Requirements:
     - All services must be healthy (gateway, reporting, ui, grafana)
 """
 
+import subprocess
+import time
+
 import pytest
 import requests
-import time
 
 
 @pytest.fixture(scope="module")
@@ -29,8 +31,6 @@ def gateway_url():
 @pytest.fixture(scope="module")
 def wait_for_services():
     """Wait for services to be healthy before running tests."""
-    import subprocess
-    
     # Wait up to 30 seconds for gateway to be healthy
     for _ in range(30):
         try:
