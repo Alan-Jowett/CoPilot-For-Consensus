@@ -159,7 +159,7 @@ The system includes a comprehensive observability stack for monitoring, logging,
   - Vector store size and performance
   - Failed queue monitoring
 
-Access Grafana at `http://localhost:3000` (default credentials: admin/admin), or via the Gateway at `http://localhost:8080/grafana/`.
+Access Grafana via the Gateway at `http://localhost:8080/grafana/` (default credentials: admin/admin).
 
 #### Logging (Loki + Promtail)
 - **Loki** aggregates logs from all services on port 3100

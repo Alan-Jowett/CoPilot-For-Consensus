@@ -16,9 +16,13 @@ pytest tests/ -v
 # Run service (continuous mode with REST API)
 HTTP_PORT=8080 python main.py
 
-# Access REST API (via gateway in Docker: http://localhost:8080/ingestion/...)
-curl http://localhost:8080/health
+# Access REST API via gateway in Docker
+curl http://localhost:8080/ingestion/health
 curl http://localhost:8080/ingestion/api/sources
+
+# Access REST API when running standalone (no gateway)
+# curl http://localhost:8080/health
+# curl http://localhost:8080/api/sources
 ```
 
 ## Features

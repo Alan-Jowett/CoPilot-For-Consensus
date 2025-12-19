@@ -145,20 +145,29 @@ These ports are bound to localhost and only accessible from the host machine. Th
 - **Purpose**: Single entrypoint reverse proxy for user-facing endpoints
 - **Protocol**: HTTP
 - **Access**: http://localhost:8080
+- **Binding**: `0.0.0.0:8080` (exposed on all network interfaces)
 - **Routes**:
   - `/reporting/` → reporting service (was direct port 8080; `/API` now redirects)
   - `/auth/` → auth service (was direct port 8090)
-  - `/ingestion/` → ingestion service (was direct port 8001)
+  - `/ingestion/` → ingestion service (was direct port 8001; **requires authentication in production**)
   - `/ui/` → web UI (was direct port 8084)
   - `/grafana/` → Grafana (was direct port 3000)
 - **Use Cases**:
-  - Unified entrypoint for local access
-  - Easier reverse-proxying / TLS termination
+  - Unified entrypoint for local development and testing
+  - Easier reverse-proxying / TLS termination in production
   - Path-based routing for UI and APIs
 - **Security Notes**:
-  - Add authn/z at the gateway (e.g., OAuth2 proxy) for production
-  - Keep gateway as the only exposed user-facing port
-  - Downstream services no longer bind to host ports
+  - **IMPORTANT**: Currently bound to `0.0.0.0:8080`, making all proxied services accessible from any network interface (including external networks if firewall allows)
+  - For **production deployments**:
+    - Add authentication/authorization at the gateway (e.g., OAuth2 proxy, basic auth, or API keys)
+    - Use TLS termination with valid certificates
+    - Consider binding to `127.0.0.1:8080` and fronting with a secured reverse proxy
+    - Implement network policies/firewall rules to restrict access
+    - The `/ingestion/` endpoint is particularly sensitive as it accepts URL inputs that could be exploited for SSRF attacks
+  - For **local development**:
+    - Default `0.0.0.0` binding allows testing from other devices on the local network
+    - Be aware this exposes unauthenticated endpoints to your local network
+  - Downstream services no longer bind to host ports (internal network only)
 
 ## Internal-Only Services (No Port Mapping)
 
