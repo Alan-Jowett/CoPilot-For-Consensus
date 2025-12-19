@@ -468,15 +468,6 @@ tr:hover { background-color: var(--bg-hover); }
   transition: background-color 0.2s;
 }
 
-.modal-btn.cancel-btn {
-  background-color: var(--color-secondary);
-  color: white;
-}
-
-.modal-btn.cancel-btn:hover {
-  background-color: var(--color-secondary-hover);
-}
-
 .modal-btn.delete {
   background-color: var(--color-danger);
   color: white;

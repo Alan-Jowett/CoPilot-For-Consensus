@@ -73,12 +73,15 @@ export function ConfirmDialog({
     <div
       className="modal-overlay"
       onClick={handleBackdropClick}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="confirm-dialog-title"
-      aria-describedby="confirm-dialog-message"
     >
-      <div className="modal-content" ref={dialogRef}>
+      <div
+        className="modal-content"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
+        aria-describedby="confirm-dialog-message"
+      >
         <h2 id="confirm-dialog-title" className="modal-title">
           {title}
         </h2>
