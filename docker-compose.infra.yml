@@ -147,25 +147,28 @@ services:
       start_period: 30s
     restart: unless-stopped
 
-  rabbitmq-exporter:
-    image: kbudde/rabbitmq-exporter:1.0.0-RC19@sha256:81d8a4124bc262433e054e9df03a7abb750be31c40d13c2344b2161eebf2a20e
-    secrets:
-      - rabbitmq_user
-      - rabbitmq_pass
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |-
-        export RABBIT_USER="$(cat /run/secrets/rabbitmq_user)"
-        export RABBIT_PASSWORD="$(cat /run/secrets/rabbitmq_pass)"
-        export RABBIT_URL=http://messagebus:15672
-        export PUBLISH_PORT=9419
-        export OUTPUT_FORMAT=JSON
-        export LOG_LEVEL=info
-        exec /bin/rabbitmq_exporter
-    depends_on:
-      messagebus:
-        condition: service_healthy
-    restart: unless-stopped
+  # There is no good way to pass the RabbitMQ credentials to the official
+  # rabbitmq-exporter image, so this service is currently commented out.
+  # To enable it, uncomment the section below.
+  # rabbitmq-exporter:
+  #   image: kbudde/rabbitmq-exporter:1.0.0-RC19@sha256:81d8a4124bc262433e054e9df03a7abb750be31c40d13c2344b2161eebf2a20e
+  #   secrets:
+  #     - rabbitmq_user
+  #     - rabbitmq_pass
+  #   entrypoint: ["/bin/sh", "-c"]
+  #   command:
+  #     - |-
+  #       export RABBIT_USER="$(cat /run/secrets/rabbitmq_user)"
+  #       export RABBIT_PASSWORD="$(cat /run/secrets/rabbitmq_pass)"
+  #       export RABBIT_URL=http://messagebus:15672
+  #       export PUBLISH_PORT=9419
+  #       export OUTPUT_FORMAT=JSON
+  #       export LOG_LEVEL=info
+  #       exec /bin/rabbitmq_exporter
+  #   depends_on:
+  #     messagebus:
+  #       condition: service_healthy
+  #   restart: unless-stopped
 
   # There is no good way to pass the MongoDB credentials to the official
   # mongodb-exporter image, so this service is currently commented out.
