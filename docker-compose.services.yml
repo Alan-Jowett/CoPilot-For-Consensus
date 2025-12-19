@@ -136,8 +136,6 @@ services:
         condition: service_healthy
       auth:
         condition: service_healthy
-      documentdb:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
       interval: 10s
@@ -407,7 +405,6 @@ services:
         condition: service_completed_successfully
       auth:
         condition: service_healthy
-        condition: service_completed_successfully
       ollama-model-loader:
         condition: service_completed_successfully
     healthcheck:
