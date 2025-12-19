@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, MouseEvent } from 'react'
 
 interface ConfirmDialogProps {
   isOpen: boolean
@@ -61,7 +61,7 @@ export function ConfirmDialog({
   }, [isOpen])
 
   // Handle backdrop click
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleBackdropClick = (e: MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
       onCancel()
     }
