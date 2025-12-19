@@ -21,7 +21,6 @@ from copilot_metrics import create_metrics_collector
 from copilot_reporting import create_error_reporter
 from copilot_schema_validation import FileSchemaProvider
 from copilot_logging import create_logger, create_uvicorn_log_config
-from copilot_auth import create_jwt_middleware
 
 from app import __version__
 from app.service import ParsingService
@@ -100,11 +99,15 @@ def main():
         # Conditionally add JWT authentication middleware based on config
         if getattr(config, 'jwt_auth_enabled', True):
             logger.info("JWT authentication is enabled")
-            auth_middleware = create_jwt_middleware(
-                required_roles=["processor"],
-                public_paths=["/health", "/readyz", "/docs", "/openapi.json"],
-            )
-            app.add_middleware(auth_middleware)
+            try:
+                from copilot_auth import create_jwt_middleware
+                auth_middleware = create_jwt_middleware(
+                    required_roles=["processor"],
+                    public_paths=["/health", "/readyz", "/docs", "/openapi.json"],
+                )
+                app.add_middleware(auth_middleware)
+            except ImportError:
+                logger.warning("copilot_auth module not available - JWT authentication disabled")
         else:
             logger.warning("JWT authentication is DISABLED - all endpoints are public")
         

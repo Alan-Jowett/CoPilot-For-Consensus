@@ -24,7 +24,6 @@ from copilot_storage import (
     DocumentStoreConnectionError,
 )
 from copilot_config.providers import DocStoreConfigProvider
-from copilot_auth import create_jwt_middleware
 
 from app import __version__
 from app.service import IngestionService
@@ -133,11 +132,15 @@ def main():
         # Conditionally add JWT authentication middleware based on config
         if getattr(config, 'jwt_auth_enabled', True):
             log.info("JWT authentication is enabled")
-            auth_middleware = create_jwt_middleware(
-                required_roles=["admin"],
-                public_paths=["/", "/health", "/readyz", "/docs", "/openapi.json"],
-            )
-            app.add_middleware(auth_middleware)
+            try:
+                from copilot_auth import create_jwt_middleware
+                auth_middleware = create_jwt_middleware(
+                    required_roles=["admin"],
+                    public_paths=["/", "/health", "/readyz", "/docs", "/openapi.json"],
+                )
+                app.add_middleware(auth_middleware)
+            except ImportError:
+                log.warning("copilot_auth module not available - JWT authentication disabled")
         else:
             log.warning("JWT authentication is DISABLED - all endpoints are public")
         
