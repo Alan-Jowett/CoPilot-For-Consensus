@@ -21,6 +21,9 @@ server {
   server_name _;
   root /usr/share/nginx/html;
 
+  # Increase client body size limit for file uploads (100MB)
+  client_max_body_size 100M;
+
   location / {
     try_files $uri /index.html;
   }
@@ -43,6 +46,11 @@ server {
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+    
+    # Increase timeouts for large file uploads
+    proxy_read_timeout 300s;
+    proxy_send_timeout 300s;
+    proxy_connect_timeout 75s;
   }
 }
 EOF

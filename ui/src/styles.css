@@ -357,4 +357,30 @@ tr:hover { background-color: var(--bg-hover); }
 .cancel-btn { background-color: #6c757d; }
 .cancel-btn:hover { background-color: #5a6268; }
 
+/* Upload Progress */
+.upload-progress {
+  margin-top: 12px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: var(--border-secondary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: var(--color-primary);
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  text-align: center;
+}
+
 >>>>>>> 265bfb7 (Address PR review feedback: extract inline styles, improve accessibility, fix navigation logic)
