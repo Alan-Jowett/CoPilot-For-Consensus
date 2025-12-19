@@ -255,12 +255,9 @@ def test_protected_endpoint_wrong_audience(client_with_auth, test_keypair):
 
 def test_request_state_has_user_info(client_with_auth, valid_reader_token, mock_service, monkeypatch):
     """Test that JWT claims are added to request state."""
-    # Track request state
-    captured_state = {}
     
     def capture_get_reports(thread_id=None, limit=10, skip=0, **kwargs):
-        # This won't capture request state in this test setup
-        # But validates that the service method is called
+        """Test double to ensure ReportingService.get_reports is invoked."""
         return []
     
     mock_service.get_reports.side_effect = capture_get_reports

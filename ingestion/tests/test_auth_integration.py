@@ -28,14 +28,26 @@ def test_keypair():
     
     public_key = private_key.public_key()
     
-    return private_key, public_key
+    # Serialize keys
+    private_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption()
+    )
+    
+    public_pem = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    
+    return private_key, public_key, private_pem, public_pem
 
 
 @pytest.fixture
 def mock_jwks(test_keypair):
     """Create mock JWKS response."""
     from jwt.algorithms import RSAAlgorithm
-    _, public_key = test_keypair
+    _, public_key, _, _ = test_keypair
     
     jwk = RSAAlgorithm.to_jwk(public_key)
     jwk_dict = jwt.api_jwk.PyJWK(jwk).key
@@ -48,7 +60,7 @@ def mock_jwks(test_keypair):
 @pytest.fixture
 def valid_admin_token(test_keypair):
     """Generate valid JWT with admin role."""
-    private_key, _ = test_keypair
+    private_key, _, _, _ = test_keypair
     
     payload = {
         "sub": "test-admin",
@@ -72,7 +84,7 @@ def valid_admin_token(test_keypair):
 @pytest.fixture
 def invalid_role_token(test_keypair):
     """Generate JWT without admin role."""
-    private_key, _ = test_keypair
+    private_key, _, _, _ = test_keypair
     
     payload = {
         "sub": "test-user",

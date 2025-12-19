@@ -39,14 +39,14 @@ All microservices have been integrated with JWT authentication:
 
 | Service | Status | Required Role | Public Endpoints |
 |---------|--------|---------------|------------------|
-| Auth Service | ✅ Issuer | N/A | `/login`, `/callback`, `/keys`, `/health` |
-| Reporting API | ✅ Protected | `reader` | `/health`, `/`, `/docs` |
-| Orchestrator | ✅ Protected | `orchestrator` | `/health`, `/docs` |
-| Chunking | ✅ Protected | `processor` | `/health`, `/docs` |
-| Embedding | ✅ Protected | `processor` | `/health`, `/docs` |
-| Parsing | ✅ Protected | `processor` | `/health`, `/docs` |
-| Summarization | ✅ Protected | `processor` | `/health`, `/docs` |
-| Ingestion API | ✅ Protected | `admin` | `/health`, `/`, `/docs` |
+| Auth Service | ✅ Issuer | N/A | `/login`, `/callback`, `/keys`, `/health`, `/readyz`, `/docs`, `/openapi.json` |
+| Reporting API | ✅ Protected | `reader` | `/health`, `/`, `/readyz`, `/docs`, `/openapi.json` |
+| Orchestrator | ✅ Protected | `orchestrator` | `/health`, `/readyz`, `/docs`, `/openapi.json` |
+| Chunking | ✅ Protected | `processor` | `/health`, `/readyz`, `/docs`, `/openapi.json` |
+| Embedding | ✅ Protected | `processor` | `/health`, `/readyz`, `/docs`, `/openapi.json` |
+| Parsing | ✅ Protected | `processor` | `/health`, `/readyz`, `/docs`, `/openapi.json` |
+| Summarization | ✅ Protected | `processor` | `/health`, `/readyz`, `/docs`, `/openapi.json` |
+| Ingestion API | ✅ Protected | `admin` | `/health`, `/`, `/readyz`, `/docs`, `/openapi.json` |
 
 ## Role Definitions
 
