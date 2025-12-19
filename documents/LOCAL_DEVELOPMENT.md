@@ -113,6 +113,71 @@ For complete port documentation and security considerations, see [EXPOSED_PORTS.
 
 ***
 
+## TLS/HTTPS Configuration (Optional)
+
+The API Gateway supports TLS/HTTPS for secure communication. This is optional for local development but **recommended for production deployments**.
+
+### Quick Setup (Self-Signed Certificates for Testing)
+
+```bash
+# Generate self-signed certificates for local testing
+./infra/nginx/certs/generate-certs.sh
+
+# Start the gateway (HTTPS will be available on port 8443)
+docker compose up -d gateway
+
+# Access via HTTPS
+# Note: Your browser will show a security warning (expected for self-signed certificates)
+curl -k https://localhost:8443/health
+```
+
+### Production Setup (CA-Signed Certificates)
+
+For production deployments, use valid certificates from a Certificate Authority:
+
+```bash
+# 1. Obtain certificates (example using Let's Encrypt)
+sudo certbot certonly --standalone -d yourdomain.com
+
+# 2. Copy certificates to the gateway certs directory
+sudo cp /etc/letsencrypt/live/yourdomain.com/fullchain.pem ./infra/nginx/certs/server.crt
+sudo cp /etc/letsencrypt/live/yourdomain.com/privkey.pem ./infra/nginx/certs/server.key
+sudo chown $USER:$USER ./infra/nginx/certs/server.{crt,key}
+chmod 644 ./infra/nginx/certs/server.crt
+chmod 600 ./infra/nginx/certs/server.key
+
+# 3. Start the gateway
+docker compose up -d gateway
+
+# 4. Access via HTTPS (no browser warnings)
+curl https://yourdomain.com:8443/health
+```
+
+### Access URLs with TLS Enabled
+
+- **HTTPS (secure)**: https://localhost:8443/
+  - `/health` - Gateway health check
+  - `/ui/` - Web interface
+  - `/reporting/` - Reporting API
+  - `/auth/` - Authentication service
+  - `/ingestion/` - Ingestion API
+  - `/grafana/` - Grafana dashboards
+  
+- **HTTP (fallback)**: http://localhost:8080/
+  - Same endpoints available
+  - Recommended only for local development
+
+### TLS Configuration
+
+The gateway uses modern TLS configuration:
+- **Protocols**: TLS 1.2, TLS 1.3
+- **Cipher Suites**: Mozilla Intermediate profile (balanced security and compatibility)
+- **Security Headers**: HSTS, X-Frame-Options, X-Content-Type-Options, X-XSS-Protection
+
+For more details, see `./infra/nginx/certs/README.md`.
+
+***
+
 ## Detailed Setup
 
 ### Environment Configuration

@@ -62,6 +62,7 @@ This project aims to be:
 - **GPU Acceleration**: Optional NVIDIA (Ollama) or AMD (llama.cpp) GPU support for 10-100x faster inference
 - **Schema Validation**: JSON schema validation for all messages and events
 - **Health Checks**: Comprehensive health checks for all services
+- **TLS/HTTPS Support**: API Gateway supports TLS with configurable certificates for secure communication
 
 ***
 
@@ -94,10 +95,10 @@ For detailed architecture documentation, design patterns, and service interactio
 | Orchestrator | Coordinates RAG workflow and summarization | - | Production | Orchestrator |
 | Summarization | Creates summaries using configurable LLM backends | - | Production | Processor |
 | **User-Facing** | | | | |
-| API Gateway | Reverse proxy unifying service endpoints | 8080 (public) | New |
-| Reporting API | HTTP API for accessing summaries and insights | 8080 (public) | Production | Reader |
-| Web UI | React SPA for viewing reports | 8084 (localhost) | Production | Public |
-| Auth Service | OIDC authentication with local JWT minting | 8090 (localhost) | Production | Public |
+| API Gateway | Reverse proxy unifying service endpoints | 443 (HTTPS, public) | Production | - |
+| Reporting API | HTTP API for accessing summaries and insights | via 443 (/reporting) | Production | Reader |
+| Web UI | React SPA for viewing reports | via 443 (/ui) | Production | Public |
+| Auth Service | OIDC authentication with local JWT minting | via 443 (/auth) | Production | Public |
 | **Infrastructure** | | | |
 | MongoDB | Document storage for messages and summaries | 27017 (localhost) | Production |
 | Qdrant | Vector database for semantic search | 6333 (localhost) | Production |
