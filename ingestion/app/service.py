@@ -988,15 +988,16 @@ class IngestionService:
                     "url": getattr(source, "url", None),
                     "port": getattr(source, "port", None),
                     "username": getattr(source, "username", None),
-                    "password": "***" if getattr(source, "password", None) else None,
+                    # Do not expose passwords; represent as None when present
+                    "password": None,
                     "folder": getattr(source, "folder", None),
                     "enabled": getattr(source, "enabled", True),
                     "schedule": getattr(source, "schedule", None),
                 }
             
-            # Mask password
+            # Ensure password is not exposed
             if "password" in source_dict and source_dict["password"]:
-                source_dict["password"] = "***"
+                source_dict["password"] = None
             
             if enabled_only and not source_dict.get("enabled", True):
                 continue
@@ -1059,10 +1060,10 @@ class IngestionService:
             
             self.logger.info("Source created", source_name=source_data["name"])
             
-            # Return created source (with password masked)
+            # Return created source (without exposing password)
             created = source_data.copy()
             if "password" in created and created["password"]:
-                created["password"] = "***"
+                created["password"] = None
             
             return created
         except Exception as e:
@@ -1103,10 +1104,10 @@ class IngestionService:
             
             self.logger.info("Source updated", source_name=source_name)
             
-            # Return updated source (with password masked)
+            # Return updated source (without exposing password)
             updated = source_data.copy()
             if "password" in updated and updated["password"]:
-                updated["password"] = "***"
+                updated["password"] = None
             
             return updated
         except Exception as e:

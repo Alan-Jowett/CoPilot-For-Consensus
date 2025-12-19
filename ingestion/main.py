@@ -328,11 +328,12 @@ def main():
 
         # Start FastAPI server
         http_port = int(os.getenv("HTTP_PORT", "8080"))
-        log.info(f"Starting HTTP server on port {http_port}...")
+        http_host = os.getenv("HTTP_HOST", "127.0.0.1")
+        log.info(f"Starting HTTP server on {http_host}:{http_port}...")
         
         # Configure Uvicorn with structured JSON logging
         log_config = create_uvicorn_log_config(service_name="ingestion", log_level=config.log_level)
-        uvicorn.run(app, host="0.0.0.0", port=http_port, log_config=log_config)
+        uvicorn.run(app, host=http_host, port=http_port, log_config=log_config)
 
     except Exception as e:
         log.error("Fatal error in ingestion service", error=str(e), exc_info=True)
