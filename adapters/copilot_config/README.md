@@ -10,6 +10,7 @@ A shared Python library for configuration management across microservices in the
 - **Abstract ConfigProvider Interface**: Common interface for all configuration providers
 - **EnvConfigProvider**: Production-ready provider that reads from environment variables
 - **StaticConfigProvider**: Testing provider with hardcoded configuration values
+- **SecretConfigProvider**: Secure provider for sensitive data (API keys, JWT keys) backed by copilot_secrets
 - **DocStoreConfigProvider**: Provider that reads configuration from document stores
 - **StorageConfigProvider**: Dynamic configuration backed by copilot_storage document stores with TTL-based refresh
 - **Schema-Driven Configuration**: JSON schema-based configuration with validation
@@ -224,6 +225,90 @@ environment variables (defaults to `mongodb`):
 
 Install copilot_storage support with `pip install copilot-config[storage]`.
 
+### Secret Configuration (Secure Credential Management)
+
+The `SecretConfigProvider` integrates with `copilot_secrets` to securely manage sensitive configuration like API keys, JWT signing keys, and certificates.
+
+#### 1. Define Schema with Secret Sources
+
+```json
+{
+  "service_name": "auth",
+  "fields": {
+    "port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "PORT",
+      "default": 8000
+    },
+    "jwt_private_key": {
+      "type": "string",
+      "source": "secret",
+      "secret_name": "jwt_private_key",
+      "required": true,
+      "description": "RSA private key for JWT signing (PEM format)"
+    },
+    "oidc_client_secret": {
+      "type": "string",
+      "source": "secret",
+      "secret_name": "github_oauth_client_secret",
+      "required": true,
+      "description": "OAuth client secret for GitHub"
+    }
+  }
+}
+```
+
+#### 2. Load Configuration with Secrets
+
+```python
+from copilot_secrets import create_secret_provider
+from copilot_config import SecretConfigProvider, load_typed_config
+
+# Create secret provider (local files, Azure Key Vault, etc.)
+secrets = create_secret_provider("local", base_path="/run/secrets")
+
+# Wrap in config provider
+secret_config = SecretConfigProvider(secret_provider=secrets)
+
+# Load config with schema (uses both env and secrets)
+config = load_typed_config("auth", secret_provider=secret_config)
+
+# Access configuration
+print(f"Port: {config.port}")  # From environment
+print(f"JWT key loaded: {len(config.jwt_private_key)} bytes")  # From secrets
+```
+
+#### 3. Docker Compose Secret Mounting
+
+```yaml
+services:
+  auth:
+    build: ./auth
+    volumes:
+      - ./secrets:/run/secrets:ro  # Mount secrets read-only
+    environment:
+      PORT: 8000
+      SECRETS_BASE_PATH: /run/secrets
+```
+
+Secret files structure:
+```
+secrets/
+├── jwt_private_key          # PEM-encoded RSA private key
+├── jwt_public_key           # PEM-encoded RSA public key
+└── github_oauth_client_secret
+```
+
+Install secrets support with `pip install copilot-config[secrets]`.
+
+**Security Best Practices:**
+- Mount secret directories read-only (`:ro`)
+- Set file permissions to 0400 or 0600
+- Never log secret values
+- Use versioned secrets in production (Azure Key Vault, AWS Secrets Manager)
+- Rotate secrets regularly
+
 ## Architecture
 
 ### ConfigProvider Interface
@@ -253,6 +338,17 @@ Testing configuration provider implementation with:
 - Includes `set()` method for dynamic updates
 - Perfect for unit testing without environment variable side effects
 - Isolated from actual system environment
+
+#### SecretConfigProvider
+
+Secure configuration provider for sensitive data with:
+- Backed by `copilot_secrets` adapter
+- Supports local files, Azure Key Vault, AWS Secrets Manager, etc.
+- Binary secret support (certificates, encryption keys)
+- Path traversal protection
+- Returns defaults gracefully when secrets are missing
+- Zero logging of secret values
+- Compatible with Docker volumes and Kubernetes secrets
 
 #### DocStoreConfigProvider
 

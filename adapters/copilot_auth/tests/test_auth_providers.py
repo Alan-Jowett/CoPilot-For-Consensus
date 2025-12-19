@@ -4,6 +4,7 @@
 """Tests for identity providers."""
 
 import pytest
+from unittest.mock import patch
 
 from copilot_auth import (
     User,
@@ -130,7 +131,8 @@ class TestGitHubIdentityProvider:
         """Test provider initializes with required parameters."""
         provider = GitHubIdentityProvider(
             client_id="test-client-id",
-            client_secret="test-client-secret"
+            client_secret="test-client-secret",
+            redirect_uri="https://auth.example.com/callback"
         )
         
         assert isinstance(provider, IdentityProvider)
@@ -143,20 +145,30 @@ class TestGitHubIdentityProvider:
         provider = GitHubIdentityProvider(
             client_id="test-client-id",
             client_secret="test-client-secret",
+            redirect_uri="https://auth.example.com/callback",
             api_base_url="https://github.enterprise.com/api"
         )
         
         assert provider.api_base_url == "https://github.enterprise.com/api"
 
     def test_get_user_raises_not_implemented(self):
-        """Test get_user raises NotImplementedError (scaffold)."""
+        """Test get_user attempts to fetch user info and raises error on failure."""
+        import httpx
+        
         provider = GitHubIdentityProvider(
             client_id="test-client-id",
-            client_secret="test-client-secret"
+            client_secret="test-client-secret",
+            redirect_uri="https://auth.example.com/callback"
         )
         
-        with pytest.raises(NotImplementedError):
-            provider.get_user("test-token")
+        # Mock httpx to raise an error
+        with patch("httpx.get") as mock_get:
+            mock_get.side_effect = httpx.HTTPError("Network error")
+            
+            from copilot_auth.provider import ProviderError
+            
+            with pytest.raises(ProviderError):
+                provider.get_user("test-token")
 
 
 class TestDatatrackerIdentityProvider:

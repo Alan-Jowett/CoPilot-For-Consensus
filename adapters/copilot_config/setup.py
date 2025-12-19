@@ -32,6 +32,9 @@ setup(
         # No external dependencies - uses stdlib only
     ],
     extras_require={
+        "secrets": [
+            "copilot-secrets>=0.1.0",
+        ],
         "storage": [
             "copilot-storage>=0.1.0",
         ],

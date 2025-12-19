@@ -3,6 +3,7 @@
 
 """Typed configuration wrapper for services."""
 
+import os
 from typing import Any, Dict, Optional
 
 
@@ -105,6 +106,11 @@ def load_typed_config(
     It ensures all configuration is validated against the service schema,
     providing type safety and compile-time guarantees.
     
+    Automatically integrates with the secrets system:
+    - Reads secret_provider_type from service config (e.g., "local", "vault")
+    - Reads secrets_base_path from service config
+    - Creates secret provider based on config and transparently merges secrets
+    
     Args:
         service_name: Name of the service
         schema_dir: Directory containing schema files
@@ -123,6 +129,39 @@ def load_typed_config(
         'messagebus'
     """
     from .schema_loader import _load_config
+    from copilot_secrets import create_secret_provider
+    from .secret_provider import SecretConfigProvider
     
-    config_dict = _load_config(service_name, schema_dir=schema_dir, **kwargs)
+    # First pass: load config without secrets to read secret provider config from fields
+    initial_config = _load_config(service_name, schema_dir=schema_dir, **kwargs)
+    
+    # Read secret provider configuration from config fields
+    provider_type = initial_config.get("secret_provider_type", "local")
+    base_path = initial_config.get("secrets_base_path", "/run/secrets")
+    
+    secret_provider = None
+    if provider_type:
+        try:
+            secret_provider_instance = create_secret_provider(
+                provider_type=provider_type,
+                base_path=base_path,
+            )
+            secret_provider = SecretConfigProvider(secret_provider=secret_provider_instance)
+        except Exception as e:
+            # If secret provider fails, continue without it
+            import sys
+            print(f"[DEBUG typed_config] Failed to create secret provider: {e}", file=sys.stderr)
+            secret_provider = None
+    
+    # Second pass: reload config with secret provider if one was created
+    if secret_provider:
+        config_dict = _load_config(
+            service_name,
+            schema_dir=schema_dir,
+            secret_provider=secret_provider,
+            **kwargs
+        )
+    else:
+        config_dict = initial_config
+    
     return TypedConfig(config_dict)

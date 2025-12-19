@@ -19,3 +19,4 @@ ollama_models/
 **/htmlcov/**
 **/*.pyc
 **/.venv/**
+**/secrets/**

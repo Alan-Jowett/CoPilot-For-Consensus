@@ -9,7 +9,8 @@ An abstraction layer for identity and authentication providers in the Copilot-fo
 
 - **Abstract IdentityProvider Interface**: Common interface for all identity providers
 - **User Model**: Standardized user representation with roles and affiliations
-- **Multiple Provider Support**: GitHub OAuth, IETF Datatracker, and mock providers
+- **Multiple Provider Support**: GitHub OAuth, Google OIDC, Microsoft Entra ID, IETF Datatracker, and mock providers
+- **JWT Middleware**: FastAPI middleware for validating JWT tokens across services
 - **Factory Pattern**: Simple factory function for creating providers based on configuration
 - **Role-Based Access**: Support for role and affiliation checking
 - **Privacy-Conscious**: Designed with privacy and security in mind
@@ -145,7 +146,65 @@ user_dict = user.to_dict()
 
 ## Using in Services
 
-### Example: Protecting API Endpoints
+### JWT Middleware for FastAPI
+
+The JWT middleware validates tokens on all requests (except public paths) and enforces audience and role-based access control:
+
+```python
+from fastapi import FastAPI, Request
+from copilot_auth import create_jwt_middleware
+
+app = FastAPI()
+
+# Add JWT middleware with factory function
+middleware = create_jwt_middleware(
+    auth_service_url="http://auth:8090",
+    audience="orchestrator",
+    required_roles=["reader"],
+)
+app.add_middleware(middleware)
+
+# Or use environment variables
+# AUTH_SERVICE_URL=http://auth:8090
+# SERVICE_NAME=orchestrator
+app.add_middleware(create_jwt_middleware(required_roles=["reader"]))
+
+# Protected endpoint - middleware validates token automatically
+@app.get("/api/data")
+async def get_data(request: Request):
+    # JWT claims are available in request state
+    user_id = request.state.user_id
+    user_email = request.state.user_email
+    user_roles = request.state.user_roles
+    
+    return {
+        "data": "secret",
+        "user": user_id,
+        "roles": user_roles
+    }
+
+# Public endpoint - no token required
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+```
+
+**Middleware Configuration:**
+
+- `auth_service_url`: URL of auth service for JWKS retrieval (default: `AUTH_SERVICE_URL` env var)
+- `audience`: Expected audience claim (default: `SERVICE_NAME` env var)
+- `required_roles`: Optional list of required roles (default: none)
+- `public_paths`: List of paths that don't require auth (default: `/health`, `/readyz`, `/docs`, `/openapi.json`)
+
+**Request State Attributes:**
+
+After successful validation, the middleware adds these attributes to `request.state`:
+- `user_claims`: Full JWT claims dictionary
+- `user_id`: Subject (`sub` claim)
+- `user_email`: Email claim
+- `user_roles`: Roles claim (list)
+
+### Example: Protecting API Endpoints (Legacy Flask)
 
 ```python
 from flask import Flask, request, jsonify

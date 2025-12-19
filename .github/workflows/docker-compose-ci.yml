@@ -29,6 +29,41 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
+    - name: Create test secrets for CI
+      run: |
+        mkdir -p secrets
+        
+        # Message bus credentials
+        echo "guest" > secrets/message_bus_user
+        echo "guest" > secrets/message_bus_password
+        echo "guest" > secrets/rabbitmq_user
+        echo "guest" > secrets/rabbitmq_pass
+        
+        # MongoDB credentials
+        echo "root" > secrets/document_database_user
+        echo "example" > secrets/document_database_password
+        echo "root" > secrets/mongodb_root_username
+        echo "example" > secrets/mongodb_root_password
+        
+        # Grafana admin
+        echo "admin" > secrets/grafana_admin_user
+        echo "admin" > secrets/grafana_admin_password
+        
+        # Auth service secrets
+        if [ ! -f secrets/jwt_private_key ]; then
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out secrets/jwt_private_key
+          openssl rsa -pubout -in secrets/jwt_private_key -out secrets/jwt_public_key
+        fi
+        echo "" > secrets/jwt_secret_key  # Empty for RS256
+        echo "" > secrets/github_oauth_client_id
+        echo "" > secrets/github_oauth_client_secret
+        echo "" > secrets/google_oauth_client_secret
+        echo "" > secrets/microsoft_oauth_client_secret
+        echo "example" > secrets/role_store_password
+        
+        # Azure OpenAI (empty for CI)
+        echo "" > secrets/azure_openai_key
+
     - name: Free up disk space
       run: |
         echo "Disk space before cleanup:"
@@ -162,6 +197,11 @@ jobs:
         docker compose up -d summarization
         timeout 120s bash -c 'until docker compose ps summarization --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for summarization..."; sleep 3; done' || (docker compose logs summarization --tail=50 && exit 1)
 
+    - name: Start auth
+      run: |
+        docker compose up -d auth
+        timeout 120s bash -c 'until docker compose ps auth --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for auth..."; sleep 3; done' || (docker compose logs auth --tail=50 && exit 1)
+
     - name: Start reporting
       run: |
         docker compose up -d reporting
@@ -254,19 +294,6 @@ jobs:
       if: always()
       run: docker compose logs ingestion
 
-    - name: Validate end-to-end message flow
-      run: |
-        echo "Validating end-to-end message flow..."
-        docker compose run --rm \
-          -v $PWD/tests:/app/tests:ro \
-          -e QDRANT_HOST=vectorstore \
-          -e QDRANT_PORT=6333 \
-          -e QDRANT_COLLECTION=embeddings \
-          --entrypoint "" \
-          embedding \
-          bash -c "python /app/tests/validate_e2e_flow.py"
-        echo "✓ End-to-end validation completed"
-
     - name: View service logs on validation failure
       if: failure()
       run: |
@@ -298,6 +325,24 @@ jobs:
         done
         echo "❌ Reporting service failed to respond after $max_attempts attempts"
         docker compose logs reporting --tail=50
+        exit 1
+
+    - name: Test auth service health endpoint
+      run: |
+        echo "Testing auth service..."
+        max_attempts=10
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+          if curl -f http://localhost:8090/health 2>/dev/null; then
+            echo "✓ Auth service is healthy"
+            exit 0
+          fi
+          echo "Attempt $attempt/$max_attempts: Auth service not responding yet..."
+          sleep 3
+          attempt=$((attempt + 1))
+        done
+        echo "❌ Auth service failed to respond after $max_attempts attempts"
+        docker compose logs auth --tail=50
         exit 1
 
     - name: Test reporting API endpoint

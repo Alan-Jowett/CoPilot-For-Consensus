@@ -28,17 +28,17 @@
     },
     "message_bus_user": {
       "type": "string",
-      "source": "env",
-      "env_var": "MESSAGE_BUS_USER",
-      "default": "guest",
-      "description": "Message bus username"
+      "source": "secret",
+      "secret_name": "message_bus_user",
+      "required": false,
+      "description": "Message bus username (secret)"
     },
     "message_bus_password": {
       "type": "string",
-      "source": "env",
-      "env_var": "MESSAGE_BUS_PASSWORD",
-      "default": "guest",
-      "description": "Message bus password"
+      "source": "secret",
+      "secret_name": "message_bus_password",
+      "required": false,
+      "description": "Message bus password (secret)"
     },
     "doc_store_type": {
       "type": "string",
@@ -70,17 +70,17 @@
     },
     "doc_store_user": {
       "type": "string",
-      "source": "env",
-      "env_var": "DOCUMENT_DATABASE_USER",
-      "default": "",
-      "description": "Document store username"
+      "source": "secret",
+      "secret_name": "document_database_user",
+      "required": false,
+      "description": "Document store username (secret)"
     },
     "doc_store_password": {
       "type": "string",
-      "source": "env",
-      "env_var": "DOCUMENT_DATABASE_PASSWORD",
-      "default": "",
-      "description": "Document store password"
+      "source": "secret",
+      "secret_name": "document_database_password",
+      "required": false,
+      "description": "Document store password (secret)"
     },
     "top_k": {
       "type": "int",

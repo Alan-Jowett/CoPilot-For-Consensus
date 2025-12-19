@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+# Core dependencies
+copilot-logging>=0.1.0
+
+# Future cloud provider SDKs:
+# azure-keyvault-secrets>=4.7.0
+# boto3>=1.26.0  # AWS Secrets Manager
+# google-cloud-secret-manager>=2.16.0
