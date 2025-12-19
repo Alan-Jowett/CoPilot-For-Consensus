@@ -338,6 +338,24 @@ jobs:
         docker compose logs gateway --tail=50
         exit 1
 
+    - name: Test gateway health endpoint
+      run: |
+        echo "Testing API Gateway health..."
+        max_attempts=10
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+          if curl -f http://localhost:8080/health 2>/dev/null; then
+            echo "✓ API Gateway is healthy"
+            exit 0
+          fi
+          echo "Attempt $attempt/$max_attempts: Gateway not responding yet..."
+          sleep 3
+          attempt=$((attempt + 1))
+        done
+        echo "❌ Gateway failed to respond after $max_attempts attempts"
+        docker compose logs gateway --tail=50
+        exit 1
+
     - name: Test reporting service health endpoint
       run: |
         echo "Testing reporting service (via gateway)..."

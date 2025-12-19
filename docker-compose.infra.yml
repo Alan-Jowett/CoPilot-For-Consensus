@@ -477,6 +477,14 @@ services:
   # Note: Uses 'service_started' for dependencies to avoid circular dependencies.
   # This means gateway can start before backends are healthy, which may cause
   # 502/503 errors if clients access services before they're ready.
+  # The API gateway service provides a unified entry point for user-facing services.
+  # Gateway uses 'service_started' dependencies (not 'service_healthy') to prevent circular
+  # dependency issues where services might depend on the gateway. This means the gateway can
+  # start before backend services are fully ready, potentially causing temporary 502/503 errors.
+  # The recommended pattern (used in CI) is to start the gateway AFTER all backend services
+  # are healthy. For local development, backend services typically start quickly enough that
+  # this is not an issue. If you encounter 502 errors immediately after starting the stack,
+  # wait a few seconds for backend services to become healthy.
   # CI workflow starts gateway after all services are healthy (recommended pattern).
   gateway:
     image: nginx:alpine

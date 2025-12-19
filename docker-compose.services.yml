@@ -231,8 +231,9 @@ services:
       - message_bus_password
       - document_database_user
       - document_database_password
-    # Expose internally; external access is via the API Gateway on :8080
-    # Remove direct public mapping to avoid port conflict with gateway
+    # Reporting service listens on internal port 8080 within the Docker network
+    # External access is via the API Gateway's host port 8080 at the /reporting path
+    # No direct host port mapping here to avoid conflict with gateway's :8080
     depends_on:
       messagebus:
         condition: service_healthy

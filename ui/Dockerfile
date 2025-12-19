@@ -34,6 +34,12 @@ server {
     try_files $uri $uri/ /index.html;
   }
 
+  # NOTE: The proxy blocks below support standalone UI deployment (docker run ui:80).
+  # When accessed via the API Gateway at http://localhost:8080/ui/, the gateway routes
+  # requests to /reporting and /ingestion directly, so these UI proxy blocks are bypassed.
+  # These blocks enable direct UI testing (docker run -p 8084:80 ui) where the UI handles
+  # its own API proxying. In production, access via gateway is recommended.
+
   # Proxy Reporting API requests (for standalone UI runs)
   # Using variables forces nginx to resolve at request time, not startup
   location /reporting/ {
