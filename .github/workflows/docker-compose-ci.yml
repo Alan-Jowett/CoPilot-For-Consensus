@@ -18,6 +18,9 @@ env:
   # Use mock LLM backend in CI for fast, reliable tests
   # Real LLM (LocalLLMSummarizer) is tested in unit/integration tests
   LLM_BACKEND: mock
+  # Disable JWT authentication for integration testing (OAuth not available in CI)
+  # JWT auth is tested separately in unit/integration tests for each service
+  JWT_AUTH_ENABLED: "false"
 
 jobs:
   # Test docker-compose with cached images
@@ -249,24 +252,32 @@ jobs:
       run: |
         set -euo pipefail
         echo "Creating ingestion source via REST API..."
+        # Note: JWT_AUTH_ENABLED is set to "false" in CI env (see workflow env section)
+        # This allows unauthenticated API calls for integration testing
         payload='{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
         max_attempts=5
         attempt=1
         while [ $attempt -le $max_attempts ]; do
-          if curl -f -X POST http://localhost:8080/ingestion/api/sources \
+          response=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/ingestion/api/sources \
             -H "Content-Type: application/json" \
-            -d "$payload"; then
-            echo "✓ Ingestion source created"
+            -d "$payload")
+          http_code=$(echo "$response" | tail -1)
+          body=$(echo "$response" | head -1)
+          
+          if [ "$http_code" -eq 201 ] || [ "$http_code" -eq 200 ]; then
+            echo "✓ Ingestion source created (HTTP $http_code)"
             break
           fi
-          echo "Attempt $attempt/$max_attempts: Failed to create source, retrying..."
+          echo "Attempt $attempt/$max_attempts: Failed (HTTP $http_code)"
+          echo "Response: $body"
           sleep 2
           attempt=$((attempt + 1))
         done
 
         if [ $attempt -gt $max_attempts ]; then
           echo "❌ Failed to create ingestion source after $max_attempts attempts"
-          docker compose logs ingestion --tail=50
+          echo "Ingestion service logs:"
+          docker compose logs ingestion --tail=30
           exit 1
         fi
 
@@ -277,18 +288,21 @@ jobs:
         max_attempts=5
         attempt=1
         while [ $attempt -le $max_attempts ]; do
-          if curl -f -X POST http://localhost:8080/ingestion/api/sources/test-mailbox/trigger; then
-            echo "✓ Ingestion triggered successfully"
+          response=$(curl -s -w "\n%{http_code}" -X POST http://localhost:8080/ingestion/api/sources/test-mailbox/trigger)
+          http_code=$(echo "$response" | tail -1)
+          
+          if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 202 ]; then
+            echo "✓ Ingestion triggered successfully (HTTP $http_code)"
             break
           fi
-          echo "Attempt $attempt/$max_attempts: Failed to trigger ingestion, retrying..."
+          echo "Attempt $attempt/$max_attempts: Failed (HTTP $http_code), retrying..."
           sleep 2
           attempt=$((attempt + 1))
         done
         
         if [ $attempt -gt $max_attempts ]; then
           echo "❌ Failed to trigger ingestion after $max_attempts attempts"
-          docker compose logs ingestion --tail=50
+          docker compose logs ingestion --tail=30
           exit 1
         fi
         
