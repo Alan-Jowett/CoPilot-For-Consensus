@@ -81,7 +81,9 @@ export function Callback() {
       
       if (data.access_token) {
         console.log('[Callback] Storing token directly to localStorage')
-        // Store directly to localStorage first
+        // TODO: Security - Move to httpOnly cookies for production
+        // localStorage is vulnerable to XSS; use httpOnly Secure cookies instead
+        // For now, localStorage is acceptable for local development
         localStorage.setItem('auth_token', data.access_token)
         // Then notify the AuthContext
         console.log('[Callback] Calling setAuthToken()')
