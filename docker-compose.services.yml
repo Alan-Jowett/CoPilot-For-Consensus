@@ -108,8 +108,6 @@ services:
       - document_database_password
     volumes:
       - raw_archives:/data/raw_archives
-    ports:
-      - "0.0.0.0:8001:8001"
     depends_on:
       messagebus:
         condition: service_healthy
@@ -280,8 +278,6 @@ services:
       - HOST=0.0.0.0
       - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
       - SECRETS_BASE_PATH=/run/secrets
-    ports:
-      - "0.0.0.0:8090:8090"
     volumes:
       - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
       - ./adapters/copilot_logging:/app/adapters/copilot_logging:ro
@@ -314,8 +310,7 @@ services:
     build:
       context: ./ui
       dockerfile: Dockerfile
-    ports:
-      - "0.0.0.0:8084:80"
+    # No host port; UI served via API Gateway at /ui/
     depends_on:
       reporting:
         condition: service_healthy
