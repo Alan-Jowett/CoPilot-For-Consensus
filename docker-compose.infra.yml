@@ -141,6 +141,7 @@ services:
         export RABBITMQ_DEFAULT_USER="$(cat /run/secrets/rabbitmq_user)"
         export RABBITMQ_DEFAULT_PASS="$(cat /run/secrets/rabbitmq_pass)"
         export RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS='-rabbitmq_management load_definitions "/etc/rabbitmq/definitions.json"'
+        export PROMETHEUS_RETURN_PER_OBJECT_METRICS=true
         exec docker-entrypoint.sh rabbitmq-server
     healthcheck:
       # Ensure the node is up AND the AMQP listener is accepting connections
