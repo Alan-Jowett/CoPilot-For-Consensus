@@ -125,7 +125,7 @@ export function UserRolesList() {
           </div>
 
           {userRecord.updated_at && (
-            <div className="timestamp" style={{ marginTop: '15px' }}>
+            <div className="timestamp user-record-timestamp">
               Last updated: {new Date(userRecord.updated_at).toLocaleString()}
             </div>
           )}

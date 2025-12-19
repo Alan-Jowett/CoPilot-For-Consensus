@@ -422,7 +422,7 @@ export async function fetchUserRoles(userId: string): Promise<UserRoleRecord> {
   })
   if (r.status === 401) throw new Error('Unauthorized - Please login with admin credentials')
   if (r.status === 403) throw new Error('Forbidden - Admin role required')
-  if (r.status === 404) throw new Error('NOT_FOUND')
+  if (r.status === 404) throw new Error('User not found')
   if (!r.ok) throw new Error(`Failed to fetch user roles: ${r.status}`)
   return r.json()
 }

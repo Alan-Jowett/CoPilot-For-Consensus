@@ -109,7 +109,7 @@ export function RoleManagementModal({ userId, currentRoles, action, onClose }: R
             <div className="custom-role-input">
               <h3>Add Custom Role</h3>
               <div className="filter-row">
-                <div className="filter-group" style={{ flex: 1 }}>
+                <div className="filter-group custom-role-field">
                   <input
                     type="text"
                     value={customRole}

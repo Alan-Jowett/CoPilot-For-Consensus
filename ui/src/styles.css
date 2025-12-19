@@ -478,6 +478,10 @@ tr:hover { background-color: var(--bg-hover); }
   font-size: 16px;
 }
 
+.user-record-timestamp {
+  margin-top: 15px;
+}
+
 .role-badges {
   display: flex;
   gap: 8px;
@@ -582,6 +586,10 @@ tr:hover { background-color: var(--bg-hover); }
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.custom-role-field {
+  flex: 1;
 }
 
 .remove-role {
