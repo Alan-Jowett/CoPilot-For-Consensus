@@ -174,8 +174,8 @@ export function ThreadDetail() {
                       View Full Message →
                     </Link>
                     <span className="message-id-display">
-                      ID: {msg.message_id.substring(0, 20)}...
-                      <button className="copy-btn-small" onClick={() => copy(msg.message_id)}>Copy</button>
+                      ID: {(msg.message_id || 'unknown').substring(0, 20)}...
+                      <button className="copy-btn-small" onClick={() => copy(msg.message_id || 'unknown')}>Copy</button>
                     </span>
                   </div>
                 </div>

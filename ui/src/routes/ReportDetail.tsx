@@ -122,13 +122,13 @@ export function ReportDetail() {
                 <div className="citation-metadata">
                   <div className="metadata-row">
                     <span className="metadata-label">Message ID:</span>
-                    <span className="metadata-value citation-id">{c.message_id}</span>
-                    <button className="copy-btn-small" onClick={() => copy(c.message_id)} title="Copy message ID">Copy</button>
+                    <span className="metadata-value citation-id">{c.message_id || 'unknown'}</span>
+                    <button className="copy-btn-small" onClick={() => copy(c.message_id || 'unknown')} title="Copy message ID">Copy</button>
                   </div>
                   <div className="metadata-row">
                     <span className="metadata-label">Chunk ID:</span>
-                    <span className="metadata-value citation-id">{c.chunk_id}</span>
-                    <button className="copy-btn-small" onClick={() => copy(c.chunk_id)} title="Copy chunk ID">Copy</button>
+                    <span className="metadata-value citation-id">{c.chunk_id || 'unknown'}</span>
+                    <button className="copy-btn-small" onClick={() => copy(c.chunk_id || 'unknown')} title="Copy chunk ID">Copy</button>
                   </div>
                   {/* Add clickable link to view in thread context */}
                   <div className="citation-actions">

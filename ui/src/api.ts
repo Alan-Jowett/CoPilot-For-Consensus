@@ -7,7 +7,7 @@ export interface Report {
   generated_at: string
   generated_by?: string
   content_markdown: string
-  citations: Array<{ message_id: string; chunk_id: string; quote?: string | null }>
+  citations: Array<{ message_id?: string; chunk_id?: string; quote?: string | null }>
   archive_metadata?: { source?: string | null } | null
   thread_metadata?: {
     participant_count?: number
@@ -38,7 +38,7 @@ export interface Thread {
 
 export interface Message {
   _id: string
-  message_id: string
+  message_id?: string
   thread_id: string
   subject?: string
   from?: { name: string; email: string }
@@ -50,7 +50,7 @@ export interface Message {
 
 export interface Chunk {
   _id: string
-  chunk_id: string
+  chunk_id?: string
   message_id: string
   message_doc_id?: string
   thread_id: string
