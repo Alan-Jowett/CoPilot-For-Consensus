@@ -165,7 +165,7 @@ Configuration is provided via environment variables:
 ### OIDC Provider Configuration
 
 **GitHub:**
-- `AUTH_GITHUB_CLIENT_ID`: GitHub OAuth client ID
+- `github_oauth_client_id`: GitHub OAuth client ID (secret file)
 - `AUTH_GITHUB_CLIENT_SECRET`: GitHub OAuth client secret
 - `AUTH_GITHUB_REDIRECT_URI`: OAuth callback URL (default: `{issuer}/callback`)
 - `AUTH_GITHUB_API_BASE_URL`: GitHub API base URL (default: `https://api.github.com`)
@@ -222,7 +222,7 @@ Configuration is provided via environment variables:
    export JWT_PUBLIC_KEY_PATH="config/dev_jwt_public.pem"
    
    # Configure at least one provider (example: GitHub)
-   export AUTH_GITHUB_CLIENT_ID="your_github_client_id"
+  echo "your_github_client_id" > secrets/github_oauth_client_id
    export AUTH_GITHUB_CLIENT_SECRET="your_github_client_secret"
    ```
 
