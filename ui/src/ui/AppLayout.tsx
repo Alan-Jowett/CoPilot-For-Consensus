@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
-<<<<<<< HEAD
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { ThemeToggle } from '../components/ThemeToggle'
 
