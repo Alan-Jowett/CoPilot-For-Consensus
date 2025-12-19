@@ -85,12 +85,19 @@ export function Callback() {
         // localStorage is vulnerable to XSS; use httpOnly Secure cookies instead
         // For now, localStorage is acceptable for local development
         localStorage.setItem('auth_token', data.access_token)
+        console.log('[Callback] Token stored in localStorage, length:', localStorage.getItem('auth_token')?.length)
+        console.log('[Callback] Verify localStorage has token:', !!localStorage.getItem('auth_token'))
+        
         // Then notify the AuthContext
         console.log('[Callback] Calling setAuthToken()')
         setAuthToken(data.access_token)
-        // Then redirect
-        console.log('[Callback] Redirecting to /ui/reports')
-        window.location.href = '/ui/reports'
+        
+        // Then redirect after a short delay to allow logs to be read
+        console.log('[Callback] Will redirect to /ui/reports in 1 second (or enable "Preserve log" in DevTools)')
+        setTimeout(() => {
+          console.log('[Callback] NOW redirecting to /ui/reports')
+          window.location.href = '/ui/reports'
+        }, 1000)
       } else {
         throw new Error('No token in response')
       }
