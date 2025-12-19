@@ -170,25 +170,24 @@ services:
   #       condition: service_healthy
   #   restart: unless-stopped
 
-  # There is no good way to pass the MongoDB credentials to the official
-  # mongodb-exporter image, so this service is currently commented out.
-  # To enable it, uncomment the section below.
-  # mongodb-exporter:
-  #   image: percona/mongodb_exporter:0.40@sha256:d66daa6aff0513860d1577cee3b55ab82fde43394f8319d7b4674411b9153cce
-  #   secrets:
-  #     - mongodb_root_username
-  #     - mongodb_root_password
-  #   entrypoint: ["/bin/sh", "-c"]
-  #   command:
-  #     - |-
-  #       MONGO_USER=$$(cat /run/secrets/mongodb_root_username)
-  #       MONGO_PASS=$$(cat /run/secrets/mongodb_root_password)
-  #       export MONGODB_URI="mongodb://$${MONGO_USER}:$${MONGO_PASS}@documentdb:27017/admin"
-  #       exec /mongodb_exporter --collect-all
-  #   depends_on:
-  #     documentdb:
-  #       condition: service_healthy
-  #   restart: unless-stopped
+  mongodb-exporter:
+    build:
+      context: ./infra/mongodb-exporter
+      dockerfile: Dockerfile
+    secrets:
+      - mongodb_root_username
+      - mongodb_root_password
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |-
+        MONGO_USER=$$(cat /run/secrets/mongodb_root_username)
+        MONGO_PASS=$$(cat /run/secrets/mongodb_root_password)
+        export MONGODB_URI="mongodb://$${MONGO_USER}:$${MONGO_PASS}@documentdb:27017/admin"
+        exec /mongodb_exporter --collect-all
+    depends_on:
+      documentdb:
+        condition: service_healthy
+    restart: unless-stopped
 
   monitoring:
     image: prom/prometheus:latest@sha256:d936808bdea528155c0154a922cd42fd75716b8bb7ba302641350f9f3eaeba09
