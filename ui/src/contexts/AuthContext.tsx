@@ -49,8 +49,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = (provider: string = 'github') => {
     const audience = 'copilot-orchestrator'
-    const redirectUri = encodeURIComponent(`${window.location.origin}${import.meta.env.BASE_URL}callback`)
-    const loginUrl = `/auth/login?provider=${provider}&aud=${audience}`
+    const redirectUri = `${window.location.origin}${import.meta.env.BASE_URL}callback`
+    const loginUrl = `/auth/login?provider=${provider}&aud=${audience}&redirect_uri=${encodeURIComponent(redirectUri)}`
     window.location.href = loginUrl
   }
 
