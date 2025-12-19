@@ -7,7 +7,7 @@ export interface Report {
   generated_at: string
   generated_by?: string
   content_markdown: string
-  citations: Array<{ message_id: string; chunk_id: string; quote?: string | null }>
+  citations: Array<{ message_id?: string; chunk_id?: string; quote?: string | null }>
   archive_metadata?: { source?: string | null } | null
   thread_metadata?: {
     participant_count?: number
