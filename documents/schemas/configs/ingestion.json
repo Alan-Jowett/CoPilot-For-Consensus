@@ -26,26 +26,26 @@
       "required": false,
       "description": "Password for message bus (secret)"
     },
-    "message_bus_user": {
-      "type": "string",
-      "source": "env",
-      "env_var": "MESSAGE_BUS_USER",
-      "default": "guest",
-      "description": "Message bus username"
-    },
-    "message_bus_password": {
-      "type": "string",
-      "source": "env",
-      "env_var": "MESSAGE_BUS_PASSWORD",
-      "default": "guest",
-      "description": "Message bus password"
-    },
     "message_bus_type": {
       "type": "string",
       "source": "env",
       "env_var": "MESSAGE_BUS_TYPE",
       "default": "rabbitmq",
       "description": "Message bus type (rabbitmq, service_bus)"
+    },
+    "message_bus_host": {
+      "type": "string",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_HOST",
+      "default": "localhost",
+      "description": "Message bus host"
+    },
+    "message_bus_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_PORT",
+      "default": 5672,
+      "description": "Message bus port"
     },
     "ingestion_schedule_cron": {
       "type": "string",
@@ -151,6 +151,20 @@
       "secret_name": "document_database_password",
       "required": false,
       "description": "Password for document database (secret)"
+    },
+    "doc_store_type": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOCUMENT_STORE_TYPE",
+      "default": "mongodb",
+      "description": "Document store type (mongodb, inmemory)"
+    },
+    "doc_store_host": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOCUMENT_DATABASE_HOST",
+      "default": "localhost",
+      "description": "Document store host"
     },
     "doc_store_port": {
       "type": "int",
