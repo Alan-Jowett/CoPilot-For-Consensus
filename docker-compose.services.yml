@@ -22,15 +22,22 @@ services:
       - DOCUMENT_DATABASE_NAME=copilot
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
+      # Authentication configuration
+      - AUTH_SERVICE_URL=http://auth:8090
+      - SERVICE_NAME=copilot-chunking
     secrets:
       - message_bus_user
       - message_bus_password
       - document_database_user
       - document_database_password
+    volumes:
+      - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
     depends_on:
       messagebus:
         condition: service_healthy
       documentdb:
+        condition: service_healthy
+      auth:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -61,17 +68,24 @@ services:
       - OLLAMA_HOST=http://ollama:11434
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
+      # Authentication configuration
+      - AUTH_SERVICE_URL=http://auth:8090
+      - SERVICE_NAME=copilot-embedding
     secrets:
       - message_bus_user
       - message_bus_password
       - document_database_user
       - document_database_password
+    volumes:
+      - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
     depends_on:
       messagebus:
         condition: service_healthy
       documentdb:
         condition: service_healthy
       vectorstore:
+        condition: service_healthy
+      auth:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -101,6 +115,9 @@ services:
       - DOCUMENT_DATABASE_NAME=copilot
       - HTTP_HOST=0.0.0.0
       - HTTP_PORT=8001
+      # Authentication configuration
+      - AUTH_SERVICE_URL=http://auth:8090
+      - SERVICE_NAME=copilot-ingestion
     secrets:
       - message_bus_user
       - message_bus_password
@@ -114,6 +131,10 @@ services:
       monitoring:
         condition: service_healthy
       pushgateway:
+        condition: service_healthy
+      documentdb:
+        condition: service_healthy
+      auth:
         condition: service_healthy
       documentdb:
         condition: service_healthy
@@ -146,12 +167,17 @@ services:
       - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
+      # Authentication configuration
+      - AUTH_SERVICE_URL=http://auth:8090
+      - SERVICE_NAME=copilot-orchestrator
     secrets:
       - message_bus_user
       - message_bus_password
       - document_database_user
       - document_database_password
       - azure_openai_key
+    volumes:
+      - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
     depends_on:
       messagebus:
         condition: service_healthy
@@ -165,6 +191,8 @@ services:
         condition: service_completed_successfully
       ollama-model-loader:
         condition: service_completed_successfully
+      auth:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -189,6 +217,9 @@ services:
       - DOCUMENT_DATABASE_NAME=copilot
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
+      # Authentication configuration
+      - AUTH_SERVICE_URL=http://auth:8090
+      - SERVICE_NAME=copilot-parsing
     secrets:
       - message_bus_user
       - message_bus_password
@@ -196,10 +227,13 @@ services:
       - document_database_password
     volumes:
       - raw_archives:/data/raw_archives:ro
+      - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
     depends_on:
       messagebus:
         condition: service_healthy
       documentdb:
+        condition: service_healthy
+      auth:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -226,6 +260,9 @@ services:
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
       - HTTP_PORT=8080
+      # Authentication configuration
+      - AUTH_SERVICE_URL=http://auth:8090
+      - SERVICE_NAME=copilot-reporting
     secrets:
       - message_bus_user
       - message_bus_password
@@ -238,6 +275,8 @@ services:
       messagebus:
         condition: service_healthy
       documentdb:
+        condition: service_healthy
+      auth:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
@@ -347,11 +386,16 @@ services:
       - LLAMACPP_HOST=${LLAMACPP_HOST:-http://llama-cpp:8081}
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
+      # Authentication configuration
+      - AUTH_SERVICE_URL=http://auth:8090
+      - SERVICE_NAME=copilot-summarization
     secrets:
       - message_bus_user
       - message_bus_password
       - document_database_user
       - document_database_password
+    volumes:
+      - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
     depends_on:
       messagebus:
         condition: service_healthy
@@ -360,6 +404,9 @@ services:
       vectorstore:
         condition: service_healthy
       vectorstore-validate:
+        condition: service_completed_successfully
+      auth:
+        condition: service_healthy
         condition: service_completed_successfully
       ollama-model-loader:
         condition: service_completed_successfully

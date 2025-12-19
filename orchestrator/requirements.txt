@@ -11,5 +11,9 @@ python-dotenv==1.2.1
 # Monitoring
 prometheus-client==0.23.1
 
+# Authentication
+PyJWT==2.10.1
+cryptography==44.0.0
+
 # NOTE: Adapters are installed separately in CI and Docker builds
 

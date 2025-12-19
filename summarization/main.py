@@ -23,6 +23,7 @@ from copilot_metrics import create_metrics_collector
 from copilot_reporting import create_error_reporter
 from copilot_summarization import SummarizerFactory
 from copilot_logging import create_logger, create_uvicorn_log_config
+from copilot_auth import create_jwt_middleware
 
 from app import __version__
 from app.service import SummarizationService
@@ -32,6 +33,14 @@ logger = create_logger(logger_type="stdout", level="INFO", name="summarization")
 
 # Create FastAPI app
 app = FastAPI(title="Summarization Service", version=__version__)
+
+# Add JWT authentication middleware
+# Summarization service requires 'processor' role for protected endpoints
+auth_middleware = create_jwt_middleware(
+    required_roles=["processor"],
+    public_paths=["/health", "/readyz", "/docs", "/openapi.json"],
+)
+app.add_middleware(auth_middleware)
 
 # Global service instance
 summarization_service = None

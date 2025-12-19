@@ -24,6 +24,7 @@ from copilot_storage import (
     DocumentStoreConnectionError,
 )
 from copilot_config.providers import DocStoreConfigProvider
+from copilot_auth import create_jwt_middleware
 
 from app import __version__
 from app.service import IngestionService
@@ -35,6 +36,14 @@ bootstrap_logger = create_logger(logger_type="stdout", level="INFO", name="inges
 
 # Create FastAPI app
 app = FastAPI(title="Ingestion Service", version=__version__)
+
+# Add JWT authentication middleware
+# Ingestion service requires 'admin' role for protected endpoints (source management)
+auth_middleware = create_jwt_middleware(
+    required_roles=["admin"],
+    public_paths=["/", "/health", "/readyz", "/docs", "/openapi.json"],
+)
+app.add_middleware(auth_middleware)
 
 # Global service instance and scheduler
 ingestion_service = None

@@ -23,6 +23,7 @@ from copilot_embedding import create_embedding_provider
 from copilot_metrics import create_metrics_collector
 from copilot_reporting import create_error_reporter
 from copilot_logging import create_logger, create_uvicorn_log_config
+from copilot_auth import create_jwt_middleware
 
 from app import __version__
 from app.service import EmbeddingService
@@ -32,6 +33,14 @@ logger = create_logger(logger_type="stdout", level="INFO", name="embedding")
 
 # Create FastAPI app
 app = FastAPI(title="Embedding Service", version=__version__)
+
+# Add JWT authentication middleware
+# Embedding service requires 'processor' role for protected endpoints
+auth_middleware = create_jwt_middleware(
+    required_roles=["processor"],
+    public_paths=["/health", "/readyz", "/docs", "/openapi.json"],
+)
+app.add_middleware(auth_middleware)
 
 # Global service instance (consistent with other services in the codebase)
 embedding_service = None

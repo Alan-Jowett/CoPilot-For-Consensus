@@ -21,6 +21,7 @@ from copilot_schema_validation import FileSchemaProvider
 from copilot_metrics import create_metrics_collector
 from copilot_reporting import create_error_reporter
 from copilot_logging import create_logger, create_uvicorn_log_config
+from copilot_auth import create_jwt_middleware
 
 from app import __version__
 from app.service import OrchestrationService
@@ -30,6 +31,14 @@ logger = create_logger(logger_type="stdout", level="INFO", name="orchestrator")
 
 # Create FastAPI app
 app = FastAPI(title="Orchestration Service", version=__version__)
+
+# Add JWT authentication middleware
+# Orchestrator requires 'orchestrator' role for protected endpoints
+auth_middleware = create_jwt_middleware(
+    required_roles=["orchestrator"],
+    public_paths=["/health", "/readyz", "/docs", "/openapi.json"],
+)
+app.add_middleware(auth_middleware)
 
 # Global service instance
 orchestration_service = None
