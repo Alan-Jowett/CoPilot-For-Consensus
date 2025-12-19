@@ -17,16 +17,22 @@ export function setUnauthorizedCallback(callback: (() => void) | null) {
 // Helper to make authenticated API requests
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers || {})
-  if (authToken) {
-    headers.set('Authorization', `Bearer ${authToken}`)
+  
+  // Get the token from localStorage (most recent source of truth)
+  const token = localStorage.getItem('auth_token')
+  console.log('[fetchWithAuth] URL:', url, 'Has token:', !!token)
+  
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`)
   }
 
   const response = await fetch(url, { ...options, headers })
 
   // Handle 401 Unauthorized - redirect to login
   if (response.status === 401) {
-    authToken = null
+    console.log('[fetchWithAuth] Got 401, clearing token and redirecting to login')
     localStorage.removeItem('auth_token')
+    authToken = null
     const callback = getUnauthorizedCallback()
     if (callback) {
       callback()
