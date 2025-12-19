@@ -41,7 +41,7 @@ ADAPTER_DEPENDENCIES = {
     "copilot_storage": ["copilot_schema_validation"],
     "copilot_schema_validation": ["copilot_storage"],
     "copilot_events": ["copilot_schema_validation", "copilot_storage"],
-    "copilot_config": ["copilot_schema_validation", "copilot_storage"],
+    "copilot_config": ["copilot_schema_validation", "copilot_storage", "copilot_secrets"],
     "copilot_secrets": [],
     "copilot_chunking": ["copilot_schema_validation", "copilot_storage"],
     "copilot_logging": [],
