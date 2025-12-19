@@ -35,7 +35,7 @@ def load_auth_config():
     """
     config = load_typed_config("auth")
     logger.info("Auth configuration loaded successfully")
-    
+
     # Handle JWT key file setup for RS256
     # JWTManager needs file paths, so we write secrets to temp files
     if config.jwt_algorithm == "RS256":
@@ -43,12 +43,12 @@ def load_auth_config():
             # Write secrets to temp files
             temp_dir = Path(tempfile.gettempdir()) / "auth_keys"
             temp_dir.mkdir(parents=True, exist_ok=True)
-            
+
             private_key_path = temp_dir / "jwt_private.pem"
             public_key_path = temp_dir / "jwt_public.pem"
-            
+
             private_key_path.write_text(config.jwt_private_key)
             if hasattr(config, 'jwt_public_key') and config.jwt_public_key:
                 public_key_path.write_text(config.jwt_public_key)
-    
+
     return config

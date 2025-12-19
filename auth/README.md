@@ -147,6 +147,227 @@ Readiness check endpoint.
 }
 ```
 
+### Admin Endpoints
+
+The following endpoints require authentication with an `admin` role. All require the `Authorization: Bearer <jwt>` header with a valid JWT containing the `admin` role.
+
+**Note on URLs:** Examples use `http://localhost:8090` for local development. When accessing from within the Docker Compose network, use `http://auth:8090` instead (where `auth` is the service name).
+
+#### `GET /admin/role-assignments/pending`
+
+List pending role assignment requests with filtering and pagination.
+
+**Headers:**
+- `Authorization: Bearer <jwt>` (required, must have `admin` role)
+
+**Query Parameters:**
+- `user_id` (optional): Filter by user ID
+- `role` (optional): Filter by role
+- `limit` (optional, default: 50): Maximum results per page (1-100)
+- `skip` (optional, default: 0): Number of results to skip for pagination
+- `sort_by` (optional, default: requested_at): Field to sort by
+- `sort_order` (optional, default: -1): Sort order (-1 for descending, 1 for ascending)
+
+**Response:**
+```json
+{
+  "assignments": [
+    {
+      "user_id": "github:123",
+      "email": "user@example.com",
+      "name": "User Name",
+      "provider": "github",
+      "roles": [],
+      "status": "pending",
+      "requested_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  ],
+  "total": 10,
+  "limit": 50,
+  "skip": 0
+}
+```
+
+**Example:**
+```bash
+# List all pending assignments
+curl -H "Authorization: Bearer <admin-jwt>" \
+  "http://localhost:8090/admin/role-assignments/pending"
+
+# Filter by user ID
+curl -H "Authorization: Bearer <admin-jwt>" \
+  "http://localhost:8090/admin/role-assignments/pending?user_id=github:123"
+
+# Paginate results
+curl -H "Authorization: Bearer <admin-jwt>" \
+  "http://localhost:8090/admin/role-assignments/pending?limit=10&skip=20"
+```
+
+#### `GET /admin/users/{user_id}/roles`
+
+Get current roles assigned to a specific user.
+
+**Headers:**
+- `Authorization: Bearer <jwt>` (required, must have `admin` role)
+
+**Path Parameters:**
+- `user_id`: User identifier (e.g., `github:123`)
+
+**Response:**
+```json
+{
+  "user_id": "github:123",
+  "email": "user@example.com",
+  "name": "User Name",
+  "provider": "github",
+  "roles": ["contributor", "reviewer"],
+  "status": "approved",
+  "requested_at": "2025-01-01T00:00:00Z",
+  "updated_at": "2025-01-02T00:00:00Z",
+  "approved_by": "github:admin",
+  "approved_at": "2025-01-02T00:00:00Z"
+}
+```
+
+**Example:**
+```bash
+curl -H "Authorization: Bearer <admin-jwt>" \
+  "http://localhost:8090/admin/users/github:123/roles"
+```
+
+#### `POST /admin/users/{user_id}/roles`
+
+Assign roles to a user. Updates status to 'approved' and sets the specified roles.
+
+**Headers:**
+- `Authorization: Bearer <jwt>` (required, must have `admin` role)
+- `Content-Type: application/json`
+
+**Path Parameters:**
+- `user_id`: User identifier (e.g., `github:123`)
+
+**Request Body:**
+```json
+{
+  "roles": ["contributor", "reviewer"]
+}
+```
+
+**Response:**
+```json
+{
+  "user_id": "github:123",
+  "email": "user@example.com",
+  "name": "User Name",
+  "provider": "github",
+  "roles": ["contributor", "reviewer"],
+  "status": "approved",
+  "updated_at": "2025-01-02T12:00:00Z",
+  "approved_by": "github:admin",
+  "approved_at": "2025-01-02T12:00:00Z"
+}
+```
+
+**Example:**
+```bash
+curl -X POST \
+  -H "Authorization: Bearer <admin-jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{"roles": ["contributor", "reviewer"]}' \
+  "http://localhost:8090/admin/users/github:123/roles"
+```
+
+**Audit Logging:** All role assignments are logged with admin user information and timestamp.
+
+#### `DELETE /admin/users/{user_id}/roles`
+
+Revoke roles from a user. Removes the specified roles from the user's role list.
+
+**Headers:**
+- `Authorization: Bearer <jwt>` (required, must have `admin` role)
+- `Content-Type: application/json`
+
+**Path Parameters:**
+- `user_id`: User identifier (e.g., `github:123`)
+
+**Request Body:**
+```json
+{
+  "roles": ["reviewer"]
+}
+```
+
+**Response:**
+```json
+{
+  "user_id": "github:123",
+  "email": "user@example.com",
+  "name": "User Name",
+  "provider": "github",
+  "roles": ["contributor"],
+  "status": "approved",
+  "updated_at": "2025-01-02T13:00:00Z",
+  "last_modified_by": "github:admin"
+}
+```
+
+**Example:**
+```bash
+curl -X DELETE \
+  -H "Authorization: Bearer <admin-jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{"roles": ["reviewer"]}' \
+  "http://localhost:8090/admin/users/github:123/roles"
+```
+
+**Audit Logging:** All role revocations are logged with admin user information and timestamp.
+
+### Admin Workflows
+
+**Approving a Pending User:**
+
+1. List pending assignments:
+   ```bash
+   curl -H "Authorization: Bearer <admin-jwt>" \
+     "http://localhost:8090/admin/role-assignments/pending"
+   ```
+
+2. Review the user's information and assign appropriate roles:
+   ```bash
+   curl -X POST \
+     -H "Authorization: Bearer <admin-jwt>" \
+     -H "Content-Type: application/json" \
+     -d '{"roles": ["contributor"]}' \
+     "http://localhost:8090/admin/users/github:123/roles"
+   ```
+
+**Modifying User Roles:**
+
+1. Check current roles:
+   ```bash
+   curl -H "Authorization: Bearer <admin-jwt>" \
+     "http://localhost:8090/admin/users/github:123/roles"
+   ```
+
+2. Add additional roles:
+   ```bash
+   curl -X POST \
+     -H "Authorization: Bearer <admin-jwt>" \
+     -H "Content-Type: application/json" \
+     -d '{"roles": ["contributor", "reviewer", "admin"]}' \
+     "http://localhost:8090/admin/users/github:123/roles"
+   ```
+
+3. Or remove specific roles:
+   ```bash
+   curl -X DELETE \
+     -H "Authorization: Bearer <admin-jwt>" \
+     -H "Content-Type: application/json" \
+     -d '{"roles": ["admin"]}' \
+     "http://localhost:8090/admin/users/github:123/roles"
+   ```
+
 ## Configuration
 
 Configuration is provided via environment variables and secrets (mounted at `/run/secrets`).
