@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { fetchIngestionSources, deleteIngestionSource, triggerIngestionSource, IngestionSource } from '../api'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 
 export function SourcesList() {
   const navigate = useNavigate()
@@ -11,6 +12,8 @@ export function SourcesList() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [sourceToDelete, setSourceToDelete] = useState<string | null>(null)
 
   const loadSources = async () => {
     setLoading(true)
@@ -30,18 +33,32 @@ export function SourcesList() {
     loadSources()
   }, [])
 
-  const handleDelete = async (name: string) => {
-    if (!confirm(`Are you sure you want to delete source "${name}"?`)) return
+  const handleDeleteClick = (name: string) => {
+    setSourceToDelete(name)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!sourceToDelete) return
+    
+    setDeleteDialogOpen(false)
     
     try {
-      await deleteIngestionSource(name)
-      setSuccessMessage(`Source "${name}" deleted successfully`)
+      await deleteIngestionSource(sourceToDelete)
+      setSuccessMessage(`Source "${sourceToDelete}" deleted successfully`)
       setTimeout(() => setSuccessMessage(null), 3000)
       await loadSources()
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Failed to delete source'
       setError(message)
+    } finally {
+      setSourceToDelete(null)
     }
+  }
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false)
+    setSourceToDelete(null)
   }
 
   const handleTrigger = async (name: string) => {
@@ -136,7 +153,7 @@ export function SourcesList() {
                       </button>
                       <button
                         className="action-btn delete"
-                        onClick={() => handleDelete(source.name)}
+                        onClick={() => handleDeleteClick(source.name)}
                         title="Delete source"
                       >
                         🗑️ Delete
@@ -149,6 +166,17 @@ export function SourcesList() {
           </table>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={deleteDialogOpen}
+        title="Delete Ingestion Source"
+        message={`Are you sure you want to delete source "${sourceToDelete}"? This action cannot be undone.`}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmButtonClass="delete"
+      />
     </div>
   )
 }
