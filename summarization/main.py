@@ -34,14 +34,6 @@ logger = create_logger(logger_type="stdout", level="INFO", name="summarization")
 # Create FastAPI app
 app = FastAPI(title="Summarization Service", version=__version__)
 
-# Add JWT authentication middleware
-# Summarization service requires 'processor' role for protected endpoints
-auth_middleware = create_jwt_middleware(
-    required_roles=["processor"],
-    public_paths=["/health", "/readyz", "/docs", "/openapi.json"],
-)
-app.add_middleware(auth_middleware)
-
 # Global service instance
 summarization_service = None
 
@@ -104,6 +96,17 @@ def main():
     try:
         # Load configuration from schema with typed access
         config = load_typed_config("summarization")
+        
+        # Conditionally add JWT authentication middleware based on config
+        if getattr(config, 'jwt_auth_enabled', True):
+            logger.info("JWT authentication is enabled")
+            auth_middleware = create_jwt_middleware(
+                required_roles=["processor"],
+                public_paths=["/health", "/readyz", "/docs", "/openapi.json"],
+            )
+            app.add_middleware(auth_middleware)
+        else:
+            logger.warning("JWT authentication is DISABLED - all endpoints are public")
         
         # Create adapters
         logger.info("Creating message bus publisher...")

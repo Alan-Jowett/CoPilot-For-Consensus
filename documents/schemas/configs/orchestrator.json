@@ -144,6 +144,13 @@
       "env_var": "ERROR_REPORTER_TYPE",
       "default": "console",
       "description": "Error reporter type"
+    },
+    "jwt_auth_enabled": {
+      "type": "bool",
+      "source": "env",
+      "env_var": "JWT_AUTH_ENABLED",
+      "default": true,
+      "description": "Enable JWT authentication middleware"
     }
   }
 }

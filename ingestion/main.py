@@ -37,14 +37,6 @@ bootstrap_logger = create_logger(logger_type="stdout", level="INFO", name="inges
 # Create FastAPI app
 app = FastAPI(title="Ingestion Service", version=__version__)
 
-# Add JWT authentication middleware
-# Ingestion service requires 'admin' role for protected endpoints (source management)
-auth_middleware = create_jwt_middleware(
-    required_roles=["admin"],
-    public_paths=["/", "/health", "/readyz", "/docs", "/openapi.json"],
-)
-app.add_middleware(auth_middleware)
-
 # Global service instance and scheduler
 ingestion_service = None
 scheduler = None
@@ -137,6 +129,17 @@ def main():
     try:
         # Load configuration using adapter (env + defaults validated by schema)
         config = load_typed_config("ingestion")
+        
+        # Conditionally add JWT authentication middleware based on config
+        if getattr(config, 'jwt_auth_enabled', True):
+            log.info("JWT authentication is enabled")
+            auth_middleware = create_jwt_middleware(
+                required_roles=["admin"],
+                public_paths=["/", "/health", "/readyz", "/docs", "/openapi.json"],
+            )
+            app.add_middleware(auth_middleware)
+        else:
+            log.warning("JWT authentication is DISABLED - all endpoints are public")
         
         # Load sources from document store (storage-backed config)
         sources = []

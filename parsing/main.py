@@ -32,14 +32,6 @@ logger = create_logger(logger_type="stdout", level="INFO", name="parsing")
 # Create FastAPI app
 app = FastAPI(title="Parsing Service", version=__version__)
 
-# Add JWT authentication middleware
-# Parsing service requires 'processor' role for protected endpoints
-auth_middleware = create_jwt_middleware(
-    required_roles=["processor"],
-    public_paths=["/health", "/readyz", "/docs", "/openapi.json"],
-)
-app.add_middleware(auth_middleware)
-
 # Global service instance
 parsing_service = None
 
@@ -104,6 +96,17 @@ def main():
         # Load configuration using config adapter
         config = load_typed_config("parsing")
         logger.info("Configuration loaded successfully")
+        
+        # Conditionally add JWT authentication middleware based on config
+        if getattr(config, 'jwt_auth_enabled', True):
+            logger.info("JWT authentication is enabled")
+            auth_middleware = create_jwt_middleware(
+                required_roles=["processor"],
+                public_paths=["/health", "/readyz", "/docs", "/openapi.json"],
+            )
+            app.add_middleware(auth_middleware)
+        else:
+            logger.warning("JWT authentication is DISABLED - all endpoints are public")
         
         # Create event publisher with schema validation
         logger.info(f"Creating event publisher ({config.message_bus_type})")

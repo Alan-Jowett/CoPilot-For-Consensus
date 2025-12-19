@@ -221,6 +221,13 @@
       "env_var": "HTTP_PORT",
       "default": 8000,
       "description": "HTTP server port"
+    },
+    "jwt_auth_enabled": {
+      "type": "bool",
+      "source": "env",
+      "env_var": "JWT_AUTH_ENABLED",
+      "default": true,
+      "description": "Enable JWT authentication middleware"
     }
   }
 }

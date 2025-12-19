@@ -33,14 +33,6 @@ logger = create_logger(logger_type="stdout", level="INFO", name="reporting")
 # Create FastAPI app
 app = FastAPI(title="Reporting Service", version=__version__)
 
-# Add JWT authentication middleware
-# Reporting API requires 'reader' role for all protected endpoints
-auth_middleware = create_jwt_middleware(
-    required_roles=["reader"],
-    public_paths=["/", "/health", "/readyz", "/docs", "/openapi.json"],
-)
-app.add_middleware(auth_middleware)
-
 # Global service instance
 reporting_service = None
 
@@ -425,6 +417,17 @@ def main():
         # Load configuration using config adapter
         config = load_typed_config("reporting")
         logger.info("Configuration loaded successfully")
+        
+        # Conditionally add JWT authentication middleware based on config
+        if getattr(config, 'jwt_auth_enabled', True):
+            logger.info("JWT authentication is enabled")
+            auth_middleware = create_jwt_middleware(
+                required_roles=["reader"],
+                public_paths=["/", "/health", "/readyz", "/docs", "/openapi.json"],
+            )
+            app.add_middleware(auth_middleware)
+        else:
+            logger.warning("JWT authentication is DISABLED - all endpoints are public")
         
         # Create adapters
         logger.info("Creating message bus publisher...")

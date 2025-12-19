@@ -34,14 +34,6 @@ logger = create_logger(logger_type="stdout", level="INFO", name="embedding")
 # Create FastAPI app
 app = FastAPI(title="Embedding Service", version=__version__)
 
-# Add JWT authentication middleware
-# Embedding service requires 'processor' role for protected endpoints
-auth_middleware = create_jwt_middleware(
-    required_roles=["processor"],
-    public_paths=["/health", "/readyz", "/docs", "/openapi.json"],
-)
-app.add_middleware(auth_middleware)
-
 # Global service instance (consistent with other services in the codebase)
 embedding_service = None
 
@@ -107,6 +99,17 @@ def main():
         # Load configuration using config adapter
         config = load_typed_config("embedding")
         logger.info("Configuration loaded successfully")
+        
+        # Conditionally add JWT authentication middleware based on config
+        if getattr(config, 'jwt_auth_enabled', True):
+            logger.info("JWT authentication is enabled")
+            auth_middleware = create_jwt_middleware(
+                required_roles=["processor"],
+                public_paths=["/health", "/readyz", "/docs", "/openapi.json"],
+            )
+            app.add_middleware(auth_middleware)
+        else:
+            logger.warning("JWT authentication is DISABLED - all endpoints are public")
         
         # Create adapters
         logger.info("Creating message bus publisher...")

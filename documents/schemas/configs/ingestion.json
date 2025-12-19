@@ -194,6 +194,13 @@
       "default": "example",
       "description": "Document store password"
     },
+    "jwt_auth_enabled": {
+      "type": "bool",
+      "source": "env",
+      "env_var": "JWT_AUTH_ENABLED",
+      "default": true,
+      "description": "Enable JWT authentication middleware"
+    },
     "sources": {
       "type": "list",
       "source": "storage",
