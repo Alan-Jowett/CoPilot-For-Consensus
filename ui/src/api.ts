@@ -38,7 +38,7 @@ export interface Thread {
 
 export interface Message {
   _id: string
-  message_id: string
+  message_id?: string
   thread_id: string
   subject?: string
   from?: { name: string; email: string }
@@ -50,7 +50,7 @@ export interface Message {
 
 export interface Chunk {
   _id: string
-  chunk_id: string
+  chunk_id?: string
   message_id: string
   message_doc_id?: string
   thread_id: string
