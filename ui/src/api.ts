@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
-let authToken: string | null = null
-let onUnauthorized: (() => void) | null = null
+import { getUnauthorizedCallback } from './contexts/AuthContext'
 
-// Set the auth token and unauthorized callback
+let authToken: string | null = null
+
+// Set the auth token (called from AuthContext)
 export function setAuthToken(token: string | null) {
   authToken = token
 }
 
 export function setUnauthorizedCallback(callback: (() => void) | null) {
-  onUnauthorized = callback
+  // Note: This is handled in AuthContext now, but keeping for backward compatibility
 }
 
 // Helper to make authenticated API requests
@@ -26,8 +27,9 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
   if (response.status === 401) {
     authToken = null
     localStorage.removeItem('auth_token')
-    if (onUnauthorized) {
-      onUnauthorized()
+    const callback = getUnauthorizedCallback()
+    if (callback) {
+      callback()
     }
     throw new Error('UNAUTHORIZED')
   }
@@ -362,7 +364,8 @@ export async function uploadMailboxFile(
         // Handle unauthorized - clear token and callback
         authToken = null
         localStorage.removeItem('auth_token')
-        if (onUnauthorized) onUnauthorized()
+        const callback = getUnauthorizedCallback()
+        if (callback) callback()
         reject(new Error('UNAUTHORIZED'))
       } else {
         try {
