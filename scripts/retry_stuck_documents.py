@@ -37,6 +37,7 @@ import os
 import sys
 import time
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 from copilot_logging import create_logger
@@ -68,6 +69,20 @@ except ImportError:
     push_to_gateway = None  # type: ignore
 
 logger = create_logger(name=__name__)
+
+
+def _get_env_or_secret(env_var: str, secret_name: str) -> Optional[str]:
+    """Return env var if set, otherwise read from /run/secrets/<secret_name>."""
+    if env_var in os.environ and os.environ[env_var]:
+        return os.environ[env_var]
+    secret_path = Path("/run/secrets") / secret_name
+    try:
+        return secret_path.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        return None
+    except OSError as exc:  # pragma: no cover - hard to simulate
+        logger.warning("Failed to read secret %s: %s", secret_path, exc)
+        return None
 
 
 class RetryJobMetrics:
@@ -698,17 +713,22 @@ For full documentation, see documents/RETRY_POLICY.md
     if args.verbose:
         logger = create_logger(name=__name__, level="DEBUG")
     
+    mongodb_username = _get_env_or_secret("MONGODB_USERNAME", "document_database_user")
+    mongodb_password = _get_env_or_secret("MONGODB_PASSWORD", "document_database_password")
+    rabbitmq_username = _get_env_or_secret("RABBITMQ_USERNAME", "message_bus_user") or "guest"
+    rabbitmq_password = _get_env_or_secret("RABBITMQ_PASSWORD", "message_bus_password") or "guest"
+
     # Create retry job
     job = RetryStuckDocumentsJob(
         mongodb_host=os.getenv("MONGODB_HOST", "localhost"),
         mongodb_port=int(os.getenv("MONGODB_PORT", "27017")),
         mongodb_database=os.getenv("MONGODB_DATABASE", "copilot"),
-        mongodb_username=os.getenv("MONGODB_USERNAME"),
-        mongodb_password=os.getenv("MONGODB_PASSWORD"),
+        mongodb_username=mongodb_username,
+        mongodb_password=mongodb_password,
         rabbitmq_host=os.getenv("RABBITMQ_HOST", "localhost"),
         rabbitmq_port=int(os.getenv("RABBITMQ_PORT", "5672")),
-        rabbitmq_username=os.getenv("RABBITMQ_USERNAME", "guest"),
-        rabbitmq_password=os.getenv("RABBITMQ_PASSWORD", "guest"),
+        rabbitmq_username=rabbitmq_username,
+        rabbitmq_password=rabbitmq_password,
         pushgateway_url=os.getenv("PUSHGATEWAY_URL", "http://localhost:9091"),
         base_delay_seconds=args.base_delay,
         max_delay_seconds=args.max_delay,
