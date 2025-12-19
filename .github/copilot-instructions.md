@@ -137,7 +137,8 @@ docker exec $ingestion mkdir -p /tmp/test-mailbox
 docker cp tests/fixtures/mailbox_sample/test-archive.mbox "$ingestion`:/tmp/test-mailbox/test-archive.mbox"
 
 # 3) Create the source via REST API
-curl -f -X POST http://localhost:8001/api/sources -H "Content-Type: application/json" -d '{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
+$payload = '{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
+curl -f -X POST http://localhost:8001/api/sources -H "Content-Type: application/json" -d $payload
 
 # 4) Trigger ingestion via REST API
 curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger
