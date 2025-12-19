@@ -103,35 +103,46 @@ foreach ($s in $services) {
 
 #### "ingest test data"
 
-Meaning: (1) upload ONLY the test ingestion configuration at `tests/fixtures/mailbox_sample/ingestion-config.json` into DocumentDB via the ingestion utility, and (2) run the ingestion batch job. Do not use the generic PowerShell helper script here because it targets `ingestion/config.test.json`.
+Meaning: start the continuous ingestion service, copy the sample mailbox into the running container, create the source via the ingestion REST API, then trigger ingestion. Use the REST API instead of `upload_ingestion_sources.py`.
 
 Linux/macOS (bash):
 
 ```bash
-# 1) Upload test ingestion configuration (mailbox_sample)
-docker compose run --rm \
-  -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
-  ingestion \
-  python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
+# 1) Start ingestion service (exposes REST API on localhost:8001)
+docker compose up -d ingestion
 
-# 2) Run the ingestion batch job (runs once and exits)
-docker compose run --rm \
-  -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
-  ingestion
+# 2) Copy the sample mailbox into the running container
+INGESTION_CONTAINER=$(docker compose ps -q ingestion)
+docker exec "$INGESTION_CONTAINER" mkdir -p /tmp/test-mailbox
+docker cp tests/fixtures/mailbox_sample/test-archive.mbox "$INGESTION_CONTAINER":/tmp/test-mailbox/test-archive.mbox
+
+# 3) Create the source via REST API (host port 8001 maps to container port 8080)
+curl -f -X POST http://localhost:8001/api/sources \
+  -H "Content-Type: application/json" \
+  -d '{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
+
+# 4) Trigger ingestion via REST API
+curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger
 ```
 
 Windows (PowerShell):
 
 ```powershell
-# NOTE: Do NOT use upload_ingestion_config.ps1 for this intent; it uploads ingestion/config.test.json.
+# 1) Start ingestion service
+docker compose up -d ingestion
 
-# 1) Upload test ingestion configuration (mailbox_sample)
-$mount = (Get-Location).Path + "/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro"
-docker compose run --rm -v $mount ingestion `
-  python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
+# 2) Copy the sample mailbox into the running container
+$ingestion = docker compose ps -q ingestion
+docker exec $ingestion mkdir -p /tmp/test-mailbox
+docker cp tests/fixtures/mailbox_sample/test-archive.mbox "$ingestion`:/tmp/test-mailbox/test-archive.mbox"
 
-# 2) Run the ingestion batch job (runs once and exits)
-docker compose run --rm -v $mount ingestion
+# 3) Create the source via REST API
+curl -f -X POST http://localhost:8001/api/sources `
+  -H "Content-Type: application/json" `
+  -d '{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
+
+# 4) Trigger ingestion via REST API
+curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger
 ```
 
 Quick verification (optional):
@@ -159,65 +170,38 @@ docker compose down -v
 
 #### "ingest live data from ietf-<topic>"
 
-Meaning: (1) create an ingestion source for a real IETF mailing list archive at `rsync.ietf.org::mailman-archive/<topic>/`, upload it into DocumentDB via the ingestion utility, and (2) run the ingestion batch job. Example: "ingest live data from ietf-ipsec" creates a source named "ietf-ipsec" with URL "rsync.ietf.org::mailman-archive/ipsec/".
+Meaning: create an IETF mailing list source via the ingestion REST API (no upload script), then trigger ingestion. Example: "ingest live data from ietf-ipsec" creates a source named "ietf-ipsec" with URL "rsync.ietf.org::mailman-archive/ipsec/".
 
 Linux/macOS (bash):
 
 ```bash
-# 1) Create temporary ingestion config for the IETF source
+# 1) Start ingestion service (if not already running)
+docker compose up -d ingestion
+
+# 2) Create the source via REST API
 TOPIC="ipsec"  # change to desired topic, e.g. "dnsop"
-CONFIG_FILE="/tmp/ietf-${TOPIC}-config.json"
-cat > "$CONFIG_FILE" <<EOF
-{
-  "sources": [
-    {
-      "name": "ietf-${TOPIC}",
-      "source_type": "rsync",
-      "url": "rsync.ietf.org::mailman-archive/${TOPIC}/",
-      "enabled": true
-    }
-  ]
-}
-EOF
+curl -f -X POST http://localhost:8001/api/sources \
+  -H "Content-Type: application/json" \
+  -d '{"name":"ietf-'"${TOPIC}"'","source_type":"rsync","url":"rsync.ietf.org::mailman-archive/'"${TOPIC}"'/","enabled":true}'
 
-# 2) Upload the ingestion source to DocumentDB (mount the config file into the container)
-docker compose run --rm -v "$CONFIG_FILE":"$CONFIG_FILE":ro ingestion \
-  python /app/upload_ingestion_sources.py "$CONFIG_FILE"
-
-# 3) Run the ingestion batch job (runs once and exits)
-docker compose run --rm ingestion
-
-# 4) Clean up temporary config
-rm "$CONFIG_FILE"
+# 3) Trigger ingestion via REST API
+curl -f -X POST http://localhost:8001/api/sources/ietf-${TOPIC}/trigger
 ```
 
 Windows (PowerShell):
 
 ```powershell
-# 1) Create temporary ingestion config for the IETF source
+# 1) Start ingestion service
+docker compose up -d ingestion
+
+# 2) Create the source via REST API
 $topic = "ipsec"  # Change this to your desired topic
-$configFile = $env:TEMP + "\ietf-${topic}-config.json"
-$configContent = @{
-  sources = @(
-    @{
-      name = "ietf-${topic}"
-      source_type = "rsync"
-      url = "rsync.ietf.org::mailman-archive/${topic}/"
-      enabled = $true
-    }
-  )
-} | ConvertTo-Json -Depth 10
-Set-Content -Path $configFile -Value $configContent -Encoding UTF8
+curl -f -X POST http://localhost:8001/api/sources `
+  -H "Content-Type: application/json" `
+  -d "{`"name`":`"ietf-$topic`",`"source_type`":`"rsync`",`"url`":`"rsync.ietf.org::mailman-archive/$topic/`",`"enabled`":true}"
 
-# 2) Upload the ingestion source to DocumentDB (mount the config file into the container)
-docker compose run --rm -v "$configFile`:/app/config.json:ro" ingestion `
-  python /app/upload_ingestion_sources.py /app/config.json
-
-# 3) Run the ingestion batch job (runs once and exits)
-docker compose run --rm ingestion
-
-# 4) Clean up temporary config
-Remove-Item -Path $configFile -Force
+# 3) Trigger ingestion via REST API
+curl -f -X POST "http://localhost:8001/api/sources/ietf-$topic/trigger"
 ```
 
 Example usage:
@@ -373,17 +357,62 @@ done
 echo "✓ Application services healthy"
 
 # Ingestion
-echo "Uploading test ingestion configuration..."
-docker compose run --rm \
-  -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
-  ingestion \
-  python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json || { echo "❌ Upload failed"; exit 1; }
+echo "Starting ingestion service..."
+docker compose up -d ingestion
+(timeout 120s bash -c "until docker compose ps ingestion --format '{{.Status}}' | grep -q '(healthy)'; do echo 'Waiting for ingestion service...'; sleep 3; done" && echo "✓ Ingestion service healthy") || { docker compose logs ingestion --tail=50; exit 1; }
 
-echo "Running ingestion batch job..."
-docker compose run --rm \
-  -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
-  ingestion || { echo "❌ Ingestion failed"; exit 1; }
-echo "✓ Ingestion completed"
+echo "Copying test mailbox into ingestion container..."
+INGESTION_CONTAINER=$(docker compose ps -q ingestion)
+[ -n "$INGESTION_CONTAINER" ] || { echo "❌ Ingestion container not running"; exit 1; }
+docker exec "$INGESTION_CONTAINER" mkdir -p /tmp/test-mailbox
+docker cp tests/fixtures/mailbox_sample/test-archive.mbox "$INGESTION_CONTAINER":/tmp/test-mailbox/test-archive.mbox
+echo "✓ Test mailbox copied"
+
+echo "Creating ingestion source via REST API..."
+payload='{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
+max_attempts=5
+attempt=1
+while [ $attempt -le $max_attempts ]; do
+  if curl -f -X POST http://localhost:8001/api/sources \
+    -H "Content-Type: application/json" \
+    -d "$payload"; then
+    echo "✓ Ingestion source created"
+    break
+  fi
+  echo "Attempt $attempt/$max_attempts: Failed to create source, retrying..."
+  sleep 2
+  attempt=$((attempt + 1))
+done
+
+if [ $attempt -gt $max_attempts ]; then
+  echo "❌ Failed to create ingestion source after $max_attempts attempts"
+  docker compose logs ingestion --tail=50
+  exit 1
+fi
+
+echo "Triggering ingestion via REST API..."
+max_attempts=5
+attempt=1
+while [ $attempt -le $max_attempts ]; do
+  if curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger; then
+    echo "✓ Ingestion triggered successfully"
+    break
+  fi
+  echo "Attempt $attempt/$max_attempts: Failed to trigger ingestion, retrying..."
+  sleep 2
+  attempt=$((attempt + 1))
+done
+
+if [ $attempt -gt $max_attempts ]; then
+  echo "❌ Failed to trigger ingestion after $max_attempts attempts"
+  docker compose logs ingestion --tail=50
+  exit 1
+fi
+
+echo "Waiting for ingestion to complete..."
+sleep 10
+status=$(curl -s http://localhost:8001/api/sources/test-mailbox/status)
+echo "Ingestion status: $status"
 
 # End-to-end validation
 echo "Validating end-to-end message flow..."
@@ -497,14 +526,67 @@ foreach ($svc in $services) {
 Write-Host "✓ Application services healthy" -ForegroundColor Green
 
 # Ingestion
-Write-Host "Uploading test ingestion configuration..."
-$mount = (Get-Location).Path + "/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro"
-docker compose run --rm -v $mount ingestion `
-  python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
+Write-Host "Starting ingestion service..."
+docker compose up -d ingestion
+$maxWait = 120
+$elapsed = 0
+while ($elapsed -lt $maxWait) {
+  $status = docker compose ps ingestion --format '{{.Status}}'
+  if ($status -match '\(healthy\)') { break }
+  Write-Host "Waiting for ingestion service..."
+  Start-Sleep -Seconds 3
+  $elapsed += 3
+}
+if ($elapsed -ge $maxWait) {
+  Write-Host "❌ ingestion failed to become healthy" -ForegroundColor Red
+  docker compose logs ingestion --tail=50
+  exit 1
+}
+Write-Host "✓ Ingestion service healthy" -ForegroundColor Green
 
-Write-Host "Running ingestion batch job..."
-docker compose run --rm -v $mount ingestion
-Write-Host "✓ Ingestion completed" -ForegroundColor Green
+Write-Host "Copying test mailbox into ingestion container..."
+$ingestion = docker compose ps -q ingestion
+if (-not $ingestion) { Write-Host "❌ ingestion container not running" -ForegroundColor Red; exit 1 }
+docker exec $ingestion mkdir -p /tmp/test-mailbox
+docker cp tests/fixtures/mailbox_sample/test-archive.mbox "$ingestion`:/tmp/test-mailbox/test-archive.mbox"
+Write-Host "✓ Test mailbox copied" -ForegroundColor Green
+
+Write-Host "Creating ingestion source via REST API..."
+$payload = '{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
+$maxAttempts = 5
+$attempt = 1
+while ($attempt -le $maxAttempts) {
+  $result = curl -f -X POST http://localhost:8001/api/sources -H "Content-Type: application/json" -d $payload
+  if ($LASTEXITCODE -eq 0) { Write-Host "✓ Ingestion source created" -ForegroundColor Green; break }
+  Write-Host "Attempt $attempt/$maxAttempts: Failed to create source, retrying..." -ForegroundColor Yellow
+  Start-Sleep -Seconds 2
+  $attempt += 1
+}
+if ($attempt -gt $maxAttempts) {
+  Write-Host "❌ Failed to create ingestion source after $maxAttempts attempts" -ForegroundColor Red
+  docker compose logs ingestion --tail=50
+  exit 1
+}
+
+Write-Host "Triggering ingestion via REST API..."
+$attempt = 1
+while ($attempt -le $maxAttempts) {
+  $result = curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger
+  if ($LASTEXITCODE -eq 0) { Write-Host "✓ Ingestion triggered successfully" -ForegroundColor Green; break }
+  Write-Host "Attempt $attempt/$maxAttempts: Failed to trigger ingestion, retrying..." -ForegroundColor Yellow
+  Start-Sleep -Seconds 2
+  $attempt += 1
+}
+if ($attempt -gt $maxAttempts) {
+  Write-Host "❌ Failed to trigger ingestion after $maxAttempts attempts" -ForegroundColor Red
+  docker compose logs ingestion --tail=50
+  exit 1
+}
+
+Write-Host "Waiting for ingestion to complete..."
+Start-Sleep -Seconds 10
+$status = curl -s http://localhost:8001/api/sources/test-mailbox/status
+Write-Host "Ingestion status: $status"
 
 # End-to-end validation
 Write-Host "Validating end-to-end message flow..."

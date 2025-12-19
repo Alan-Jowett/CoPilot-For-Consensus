@@ -243,16 +243,21 @@ For the full list of exposed ports and security considerations, see [documents/E
 
    **Option A: Using test fixtures (recommended for first-time users):**
    ```bash
-   # Upload test ingestion configuration
-   docker compose run --rm \
-     -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
-     ingestion \
-     python /app/upload_ingestion_sources.py /app/tests/fixtures/mailbox_sample/ingestion-config.json
-   
-   # Run the ingestion job
-   docker compose run --rm \
-     -v "$PWD/tests/fixtures/mailbox_sample:/app/tests/fixtures/mailbox_sample:ro" \
-     ingestion
+   # Start the continuously running ingestion service (exposes REST API on 8001)
+   docker compose up -d ingestion
+
+   # Copy the sample mailbox into the running container
+   INGESTION_CONTAINER=$(docker compose ps -q ingestion)
+   docker exec "$INGESTION_CONTAINER" mkdir -p /tmp/test-mailbox
+   docker cp tests/fixtures/mailbox_sample/test-archive.mbox "$INGESTION_CONTAINER":/tmp/test-mailbox/test-archive.mbox
+
+   # Create the source via REST API
+   curl -f -X POST http://localhost:8001/api/sources \
+     -H "Content-Type: application/json" \
+     -d '{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
+
+   # Trigger ingestion via REST API
+   curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger
    ```
 
    **Option B: Using PowerShell helper (Windows):**
