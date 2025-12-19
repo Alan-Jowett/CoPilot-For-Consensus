@@ -72,8 +72,14 @@ curl http://localhost:3000/                # Grafana direct
 
 To validate the NGINX configuration syntax (note: will fail on upstream resolution without running services):
 
+**Linux/macOS (bash):**
 ```bash
 docker run --rm -v $PWD/infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro nginx:alpine nginx -t
+```
+
+**Windows (PowerShell):**
+```powershell
+docker run --rm -v ${PWD}/infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro nginx:alpine nginx -t
 ```
 
 To test with the full stack running:

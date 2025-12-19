@@ -44,12 +44,14 @@ def wait_for_services():
                 time.sleep(2)  # Extra buffer for stability
                 return
         except subprocess.CalledProcessError:
+            # The gateway container may not yet be created or started; ignore and retry.
             pass
         time.sleep(1)
     
     pytest.fail("Gateway service did not become healthy within timeout")
 
 
+@pytest.mark.integration
 class TestAPIGatewayRouting:
     """Test cases for API Gateway routing functionality."""
     
@@ -111,6 +113,7 @@ class TestAPIGatewayRouting:
         assert "Access-Control-Allow-Origin" in response.headers
 
 
+@pytest.mark.integration
 class TestDirectServiceAccess:
     """Test that direct service access still works on localhost."""
     

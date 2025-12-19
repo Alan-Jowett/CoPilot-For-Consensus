@@ -305,7 +305,7 @@ curl http://localhost:8080/ui/        # Web UI via gateway
 curl http://localhost:8080/grafana/   # Grafana via gateway
 curl http://localhost:3000            # Grafana direct (localhost only)
 curl http://localhost:8090/health     # Reporting direct (localhost only)
-curl http://localhost:27017           # Will fail with MongoDB protocol error, but connection succeeds
+curl http://localhost:27017           # Tests TCP connectivity to MongoDB; HTTP request will fail since MongoDB is not HTTP
 
 # These should fail from external machines (connection refused or timeout)
 curl http://<host-ip>:27017
