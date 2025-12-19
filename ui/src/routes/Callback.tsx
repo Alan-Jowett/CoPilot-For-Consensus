@@ -47,13 +47,14 @@ export function Callback() {
 
   const exchangeCodeForToken = async (code: string) => {
     try {
-      const response = await fetch('/auth/callback', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code }),
-      })
+      // The /callback endpoint is actually handled by the auth service at the gateway
+      // We need to fetch it with the code and state parameters
+      const state = searchParams.get('state')
+      if (!state) {
+        throw new Error('Missing state parameter')
+      }
+
+      const response = await fetch(`/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`)
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({
@@ -63,9 +64,9 @@ export function Callback() {
       }
 
       const data = await response.json()
-      if (data.token) {
-        localStorage.setItem('auth_token', data.token)
-        setAuthToken(data.token)
+      if (data.access_token) {
+        localStorage.setItem('auth_token', data.access_token)
+        setAuthToken(data.access_token)
         window.location.href = `${import.meta.env.BASE_URL}reports`
       } else {
         throw new Error('No token in response')
