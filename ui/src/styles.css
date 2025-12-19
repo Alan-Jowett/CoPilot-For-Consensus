@@ -392,8 +392,249 @@ tr:hover { background-color: var(--bg-hover); }
   text-align: center;
 }
 
-/* Confirmation Modal */
+/* Admin Dashboard Styles */
+.admin-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--border-primary);
+}
+
+.admin-tab {
+  padding: 12px 24px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--text-secondary);
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.admin-tab:hover {
+  color: var(--color-primary);
+}
+
+.admin-tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.admin-content {
+  margin-top: 20px;
+}
+
+/* User Record Card */
+.user-record-card {
+  background: var(--bg-secondary);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  margin-top: 20px;
+}
+
+.user-record-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid var(--border-primary);
+}
+
+.user-record-header h2 {
+  margin: 0 0 10px 0;
+  color: var(--text-primary);
+}
+
+.user-metadata {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.metadata-item {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.metadata-item strong {
+  color: var(--text-primary);
+  margin-right: 8px;
+}
+
+.user-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.user-roles-section {
+  margin-top: 20px;
+}
+
+.user-roles-section h3 {
+  margin: 0 0 10px 0;
+  color: var(--text-primary);
+  font-size: 16px;
+}
+
+.user-record-timestamp {
+  margin-top: 15px;
+}
+
+.role-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.role-badge {
+  padding: 6px 12px;
+  font-size: 13px;
+  background-color: var(--color-primary);
+  color: white;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+/* Modal Styles (Admin Role Management) */
 .modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 2px solid var(--border-primary);
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.modal-close:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-description {
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+.role-selection,
+.custom-role-input,
+.selected-roles {
+  margin-bottom: 20px;
+}
+
+.role-selection h3,
+.custom-role-input h3,
+.selected-roles h3 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.role-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.custom-role-field {
+  flex: 1;
+}
+
+.remove-role {
+  margin-left: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  opacity: 0.7;
+  background: transparent;
+  border: none;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+}
+
+.remove-role:hover {
+  opacity: 1;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 20px;
+  border-top: 2px solid var(--border-primary);
+}
+
+.badge.warning {
+  background-color: var(--color-warning);
+  color: var(--color-badge-text-dark);
+}
+
+/* Confirmation Modal Styles */
+.confirmation-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -416,7 +657,7 @@ tr:hover { background-color: var(--bg-hover); }
   }
 }
 
-.modal-content {
+.confirmation-modal-content {
   background-color: var(--bg-secondary);
   border-radius: 8px;
   padding: 24px;
@@ -476,3 +717,4 @@ tr:hover { background-color: var(--bg-hover); }
 .modal-btn.delete:hover {
   background-color: var(--color-danger-hover);
 }
+
