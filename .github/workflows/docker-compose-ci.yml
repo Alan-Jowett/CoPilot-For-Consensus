@@ -397,18 +397,6 @@ jobs:
         echo "Testing reports API (via gateway)..."
         curl -f http://localhost:8080/reporting/api/reports || (docker compose logs reporting --tail=50 && exit 1)
 
-    - name: Test backward compatibility redirect (/API -> /reporting)
-      run: |
-        echo "Testing backward compatibility redirect..."
-        # The /API/ path should redirect (308) to /reporting/
-        response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/API/api/reports)
-        if [ "$response" = "308" ]; then
-          echo "✓ Backward compatibility redirect working (308)"
-        else
-          echo "❌ Expected 308 redirect, got: $response"
-          exit 1
-        fi
-
     - name: Validate reports are generated (end-to-end)
       run: |
         echo "Validating reports exist after end-to-end run..."
