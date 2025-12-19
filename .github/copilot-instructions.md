@@ -137,9 +137,8 @@ docker exec $ingestion mkdir -p /tmp/test-mailbox
 docker cp tests/fixtures/mailbox_sample/test-archive.mbox "$ingestion`:/tmp/test-mailbox/test-archive.mbox"
 
 # 3) Create the source via REST API
-curl -f -X POST http://localhost:8001/api/sources `
-  -H "Content-Type: application/json" `
-  -d '{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
+$payload = '{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
+curl -f -X POST http://localhost:8001/api/sources -H "Content-Type: application/json" -d $payload
 
 # 4) Trigger ingestion via REST API
 curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger
@@ -196,9 +195,8 @@ docker compose up -d ingestion
 
 # 2) Create the source via REST API
 $topic = "ipsec"  # Change this to your desired topic
-curl -f -X POST http://localhost:8001/api/sources `
-  -H "Content-Type: application/json" `
-  -d "{`"name`":`"ietf-$topic`",`"source_type`":`"rsync`",`"url`":`"rsync.ietf.org::mailman-archive/$topic/`",`"enabled`":true}"
+$payload = "{`"name`":`"ietf-$topic`",`"source_type`":`"rsync`",`"url`":`"rsync.ietf.org::mailman-archive/$topic/`",`"enabled`":true}"
+curl -f -X POST http://localhost:8001/api/sources -H "Content-Type: application/json" -d $payload
 
 # 3) Trigger ingestion via REST API
 curl -f -X POST "http://localhost:8001/api/sources/ietf-$topic/trigger"
@@ -376,7 +374,7 @@ while [ $attempt -le $max_attempts ]; do
   if curl -f -X POST http://localhost:8001/api/sources \
     -H "Content-Type: application/json" \
     -d "$payload"; then
-    echo "✓ Ingestion source created"
+    echo "✓ Ingestion source created (attempt $attempt/$max_attempts)"
     break
   fi
   echo "Attempt $attempt/$max_attempts: Failed to create source, retrying..."
@@ -395,7 +393,7 @@ max_attempts=5
 attempt=1
 while [ $attempt -le $max_attempts ]; do
   if curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger; then
-    echo "✓ Ingestion triggered successfully"
+    echo "✓ Ingestion triggered successfully (attempt $attempt/$max_attempts)"
     break
   fi
   echo "Attempt $attempt/$max_attempts: Failed to trigger ingestion, retrying..."
@@ -556,8 +554,8 @@ $payload = '{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbo
 $maxAttempts = 5
 $attempt = 1
 while ($attempt -le $maxAttempts) {
-  $result = curl -f -X POST http://localhost:8001/api/sources -H "Content-Type: application/json" -d $payload
-  if ($LASTEXITCODE -eq 0) { Write-Host "✓ Ingestion source created" -ForegroundColor Green; break }
+  curl -f -X POST http://localhost:8001/api/sources -H "Content-Type: application/json" -d $payload
+  if ($LASTEXITCODE -eq 0) { Write-Host "✓ Ingestion source created (attempt $attempt/$maxAttempts)" -ForegroundColor Green; break }
   Write-Host "Attempt $attempt/$maxAttempts: Failed to create source, retrying..." -ForegroundColor Yellow
   Start-Sleep -Seconds 2
   $attempt += 1
@@ -571,8 +569,8 @@ if ($attempt -gt $maxAttempts) {
 Write-Host "Triggering ingestion via REST API..."
 $attempt = 1
 while ($attempt -le $maxAttempts) {
-  $result = curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger
-  if ($LASTEXITCODE -eq 0) { Write-Host "✓ Ingestion triggered successfully" -ForegroundColor Green; break }
+  curl -f -X POST http://localhost:8001/api/sources/test-mailbox/trigger
+  if ($LASTEXITCODE -eq 0) { Write-Host "✓ Ingestion triggered successfully (attempt $attempt/$maxAttempts)" -ForegroundColor Green; break }
   Write-Host "Attempt $attempt/$maxAttempts: Failed to trigger ingestion, retrying..." -ForegroundColor Yellow
   Start-Sleep -Seconds 2
   $attempt += 1
