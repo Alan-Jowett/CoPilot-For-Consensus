@@ -313,6 +313,87 @@ def jwks() -> JSONResponse:
     return JSONResponse(content=jwks_data)
 
 
+# Bootstrap endpoint for initial admin setup
+class InitialAdminRequest(BaseModel):
+    """Request model for creating initial admin during bootstrap."""
+
+    user_id: str = Field(..., description="User ID (e.g., github|username)")
+    email: str = Field(..., description="User email")
+    bootstrap_token: str = Field(..., description="Bootstrap token from BOOTSTRAP_TOKEN env var")
+
+
+@app.post("/bootstrap/admin")
+async def bootstrap_admin(request_body: InitialAdminRequest) -> JSONResponse:
+    """Create initial admin user during deployment/bootstrap.
+
+    This endpoint is ONLY available during initial setup when no admins exist.
+    It requires a BOOTSTRAP_TOKEN environment variable for security.
+
+    Args:
+        request_body: Request with user info and bootstrap token
+
+    Returns:
+        JSON with created user record
+
+    Security:
+        - Only works if no admins exist in the system
+        - Requires BOOTSTRAP_TOKEN environment variable to match
+        - Token should be generated at deployment time and then revoked
+    """
+    global auth_service
+
+    if not auth_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+
+    # Check if bootstrap token is configured
+    bootstrap_token = os.getenv("BOOTSTRAP_TOKEN", "")
+    if not bootstrap_token:
+        logger.warning("Bootstrap endpoint called but BOOTSTRAP_TOKEN not configured")
+        raise HTTPException(status_code=403, detail="Bootstrap not configured")
+
+    # Validate bootstrap token
+    if request_body.bootstrap_token != bootstrap_token:
+        logger.warning(f"Invalid bootstrap token provided")
+        metrics.increment("bootstrap_invalid_token_total")
+        raise HTTPException(status_code=403, detail="Invalid bootstrap token")
+
+    # Check if any admins already exist
+    try:
+        role_store = auth_service.role_store
+        admins = role_store.find_by_role("admin")
+        if admins:
+            logger.warning("Bootstrap attempted but admin users already exist")
+            raise HTTPException(
+                status_code=409,
+                detail="System already initialized with admin users. Use /admin/users/{user_id}/roles to manage roles.",
+            )
+    except Exception as e:
+        logger.error(f"Failed to check existing admins: {e}")
+        raise HTTPException(status_code=500, detail="Failed to verify system state")
+
+    # Create the initial admin user
+    try:
+        record = role_store.assign_roles(user_id=request_body.user_id, roles=["admin"], email=request_body.email)
+        logger.info(
+            "Initial admin user created via bootstrap",
+            extra={"user_id": request_body.user_id, "email": request_body.email},
+        )
+        metrics.increment("bootstrap_admin_created_total")
+        return JSONResponse(
+            content={
+                "user_id": record.get("_id"),
+                "email": record.get("email"),
+                "roles": record.get("roles", []),
+                "message": "Admin user created successfully. Bootstrap token should now be revoked.",
+            },
+            status_code=201,
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to create initial admin: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create admin user")
+
+
 # Pydantic models for admin API
 class RoleAssignmentRequest(BaseModel):
     """Request model for assigning roles."""
