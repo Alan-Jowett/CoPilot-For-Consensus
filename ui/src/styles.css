@@ -358,8 +358,13 @@ tr:hover { background-color: var(--bg-hover); }
 .checkbox-label input[type="checkbox"] { width: auto; cursor: pointer; }
 
 /* Button Variants */
-.cancel-btn { background-color: var(--color-secondary); }
-.cancel-btn:hover { background-color: var(--color-secondary-hover); }
+.cancel-btn {
+  background-color: var(--color-secondary);
+  color: white;
+}
+.cancel-btn:hover {
+  background-color: var(--color-secondary-hover);
+}
 
 /* Upload Progress */
 .upload-progress {

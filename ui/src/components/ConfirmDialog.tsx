@@ -19,7 +19,7 @@ interface ConfirmDialogProps {
  *
  * Provides an accessible modal dialog for confirming destructive actions.
  * Features:
- * - Keyboard navigation (Escape to cancel, Enter to confirm)
+ * - Keyboard navigation (Escape to cancel)
  * - Focus management (focuses cancel button on open for safety)
  * - Screen reader support (ARIA attributes)
  * - Matches application design system
@@ -45,15 +45,12 @@ export function ConfirmDialog({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onCancel()
-      } else if (e.key === 'Enter') {
-        e.preventDefault()
-        onConfirm()
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, onConfirm, onCancel])
+  }, [isOpen, onCancel])
 
   // Focus management - focus the cancel button when modal opens for safety
   // This prevents accidental confirmations of destructive actions
