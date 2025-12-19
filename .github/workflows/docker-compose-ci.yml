@@ -207,11 +207,6 @@ jobs:
         docker compose up -d reporting
         timeout 120s bash -c 'until docker compose ps reporting --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for reporting..."; sleep 3; done' || (docker compose logs reporting --tail=50 && exit 1)
 
-    - name: Start ui
-      run: |
-        docker compose up -d ui
-        timeout 120s bash -c 'until docker compose ps ui --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for ui..."; sleep 3; done' || (docker compose logs ui --tail=50 && exit 1)
-
     - name: Check service status
       run: docker compose ps
 
@@ -220,6 +215,12 @@ jobs:
         docker compose up -d ingestion
         timeout 120s bash -c 'until docker compose ps ingestion --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for ingestion service..."; sleep 3; done' || (docker compose logs ingestion --tail=50 && exit 1)
         echo "✓ Ingestion service started and healthy"
+
+    # Start UI after ingestion to avoid nginx upstream resolution failures
+    - name: Start ui
+      run: |
+        docker compose up -d ui
+        timeout 120s bash -c 'until docker compose ps ui --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for ui..."; sleep 3; done' || (docker compose logs ui --tail=50 && exit 1)
 
     - name: Copy test mailbox into ingestion container
       run: |
