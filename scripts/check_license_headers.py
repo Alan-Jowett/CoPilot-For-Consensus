@@ -23,7 +23,7 @@ DEFAULT_FILENAMES = {"Dockerfile"}
 DEFAULT_EXCLUDES = {
     ".git", "node_modules", "venv", ".venv", "env", ".env",
     "__pycache__", "build", "dist", ".pytest_cache", ".mypy_cache",
-    ".tox", ".eggs", "*.egg-info"
+    ".tox", ".eggs", "*.egg-info", "htmlcov"
 }
 
 

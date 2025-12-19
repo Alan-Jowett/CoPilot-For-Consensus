@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Admin Role Management UI
 
 This document describes the Admin Role Management UI features added to the SPA React client.

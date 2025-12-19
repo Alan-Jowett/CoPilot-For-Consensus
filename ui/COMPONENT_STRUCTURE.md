@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Admin Role Management UI - Component Structure
 
 This document describes the component architecture for the Admin Role Management UI.
