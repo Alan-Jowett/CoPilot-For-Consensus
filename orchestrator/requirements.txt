@@ -4,6 +4,7 @@
 # Web framework
 fastapi==0.125.0
 uvicorn==0.38.0
+httpx==0.28.1  # Required for FastAPI TestClient
 
 # Type hints
 python-dotenv==1.2.1
