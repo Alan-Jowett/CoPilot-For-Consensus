@@ -64,8 +64,8 @@ export interface ReportsListResponse {
   count: number
 }
 
-// If VITE_REPORTING_API_URL is not set, use same-origin and rely on Nginx proxy (/api -> reporting)
-const DEFAULT_API = ''
+// If VITE_REPORTING_API_URL is not set, use same-origin gateway subpath (/reporting)
+const DEFAULT_API = '/reporting'
 const base = import.meta.env.VITE_REPORTING_API_URL || DEFAULT_API
 
 export function reportingApiBase(): string {
