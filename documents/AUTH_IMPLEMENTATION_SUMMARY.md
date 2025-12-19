@@ -130,27 +130,29 @@ The Auth microservice provides **OIDC authentication** with **local JWT token mi
 
 ## Configuration
 
-### Environment Variables
+### Configuration
+
+Non-secret configuration stays in environment variables; all client IDs and secrets are stored as files in `./secrets` (mounted to `/run/secrets`).
 
 ```bash
-# Auth Service
+# Auth Service (env)
 AUTH_ISSUER=http://localhost:8090
 AUTH_AUDIENCES=copilot-orchestrator,copilot-reporting
 
-# JWT
+# JWT (env)
 JWT_ALGORITHM=RS256
 JWT_KEY_ID=default
 JWT_DEFAULT_EXPIRY=1800
 
-# OIDC Providers
-AUTH_GITHUB_CLIENT_ID=<your-client-id>
-AUTH_GITHUB_CLIENT_SECRET=<your-client-secret>
-AUTH_GOOGLE_CLIENT_ID=<your-client-id>
-AUTH_GOOGLE_CLIENT_SECRET=<your-client-secret>
-AUTH_MS_CLIENT_ID=<your-client-id>
-AUTH_MS_CLIENT_SECRET=<your-client-secret>
+# OIDC Providers (secrets files)
+secrets/github_oauth_client_id
+secrets/github_oauth_client_secret
+secrets/google_oauth_client_id
+secrets/google_oauth_client_secret
+secrets/microsoft_oauth_client_id
+secrets/microsoft_oauth_client_secret
 
-# Security
+# Security (env)
 AUTH_REQUIRE_PKCE=true
 AUTH_REQUIRE_NONCE=true
 AUTH_MAX_SKEW_SECONDS=90

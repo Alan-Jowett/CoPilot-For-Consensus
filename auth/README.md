@@ -149,7 +149,7 @@ Readiness check endpoint.
 
 ## Configuration
 
-Configuration is provided via environment variables:
+Configuration is provided via environment variables and secrets (mounted at `/run/secrets`).
 
 ### JWT Configuration
 
@@ -165,19 +165,19 @@ Configuration is provided via environment variables:
 ### OIDC Provider Configuration
 
 **GitHub:**
-- `github_oauth_client_id`: GitHub OAuth client ID (secret file)
-- `AUTH_GITHUB_CLIENT_SECRET`: GitHub OAuth client secret
+- `github_oauth_client_id`: GitHub OAuth client ID (secret file `secrets/github_oauth_client_id`)
+- `github_oauth_client_secret`: GitHub OAuth client secret (secret file `secrets/github_oauth_client_secret`)
 - `AUTH_GITHUB_REDIRECT_URI`: OAuth callback URL (default: `{issuer}/callback`)
 - `AUTH_GITHUB_API_BASE_URL`: GitHub API base URL (default: `https://api.github.com`)
 
 **Google:**
-- `AUTH_GOOGLE_CLIENT_ID`: Google OAuth client ID
-- `AUTH_GOOGLE_CLIENT_SECRET`: Google OAuth client secret
+- `google_oauth_client_id`: Google OAuth client ID (secret file `secrets/google_oauth_client_id`)
+- `google_oauth_client_secret`: Google OAuth client secret (secret file `secrets/google_oauth_client_secret`)
 - `AUTH_GOOGLE_REDIRECT_URI`: OAuth callback URL (default: `{issuer}/callback`)
 
 **Microsoft:**
-- `AUTH_MS_CLIENT_ID`: Microsoft OAuth client ID
-- `AUTH_MS_CLIENT_SECRET`: Microsoft OAuth client secret
+- `microsoft_oauth_client_id`: Microsoft OAuth client ID (secret file `secrets/microsoft_oauth_client_id`)
+- `microsoft_oauth_client_secret`: Microsoft OAuth client secret (secret file `secrets/microsoft_oauth_client_secret`)
 - `AUTH_MS_REDIRECT_URI`: OAuth callback URL (default: `{issuer}/callback`)
 - `AUTH_MS_TENANT`: Azure AD tenant ID (default: `common`)
 
@@ -213,7 +213,7 @@ Configuration is provided via environment variables:
    # This creates config/dev_jwt_private.pem and config/dev_jwt_public.pem
    ```
 
-3. **Set environment variables:**
+3. **Set configuration (env for non-secrets, files for secrets):**
    ```bash
    export AUTH_ISSUER="http://localhost:8090"
    export AUTH_AUDIENCES="copilot-orchestrator,copilot-reporting"
@@ -223,7 +223,7 @@ Configuration is provided via environment variables:
    
    # Configure at least one provider (example: GitHub)
   echo "your_github_client_id" > secrets/github_oauth_client_id
-   export AUTH_GITHUB_CLIENT_SECRET="your_github_client_secret"
+  echo "your_github_client_secret" > secrets/github_oauth_client_secret
    ```
 
 4. **Run the service:**
