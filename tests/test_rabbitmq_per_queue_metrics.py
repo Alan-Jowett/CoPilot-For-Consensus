@@ -10,6 +10,7 @@ This script validates:
 2. The rabbitmq_prometheus plugin is enabled in enabled_plugins
 """
 
+import re
 import subprocess
 import sys
 import yaml
@@ -47,7 +48,6 @@ def check_messagebus_env_var(config):
         command_str = str(command)
     
     # Look for the environment variable export statement with word boundaries
-    import re
     pattern = r'\bPROMETHEUS_RETURN_PER_OBJECT_METRICS\s*=\s*true\b'
     if re.search(pattern, command_str):
         return True, "PROMETHEUS_RETURN_PER_OBJECT_METRICS=true found in messagebus command"
