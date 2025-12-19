@@ -281,3 +281,62 @@ export async function fetchIngestionSourceStatus(name: string): Promise<Ingestio
   if (!r.ok) throw new Error(`Failed to fetch source status: ${r.status}`)
   return r.json()
 }
+
+export interface UploadResponse {
+  filename: string
+  server_path: string
+  size_bytes: number
+  uploaded_at: string
+  suggested_source_type: string
+}
+
+export async function uploadMailboxFile(
+  file: File,
+  onProgress?: (percent: number) => void
+): Promise<UploadResponse> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+
+    // Track upload progress
+    if (onProgress) {
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100)
+          onProgress(percent)
+        }
+      })
+    }
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 201) {
+        try {
+          const response = JSON.parse(xhr.responseText)
+          resolve(response)
+        } catch (e) {
+          reject(new Error('Failed to parse upload response'))
+        }
+      } else {
+        try {
+          const error = JSON.parse(xhr.responseText)
+          reject(new Error(error.detail || `Upload failed: ${xhr.status}`))
+        } catch (e) {
+          reject(new Error(`Upload failed: ${xhr.status}`))
+        }
+      }
+    })
+
+    xhr.addEventListener('error', () => {
+      reject(new Error('Upload failed: Network error'))
+    })
+
+    xhr.addEventListener('abort', () => {
+      reject(new Error('Upload cancelled'))
+    })
+
+    xhr.open('POST', `${INGESTION_API_BASE}/api/uploads`)
+    xhr.send(formData)
+  })
+}

@@ -366,3 +366,126 @@ class TestTriggerIngestionEndpoint:
         
         assert response.status_code == 400
         assert "disabled" in response.json()["detail"]
+
+
+class TestUploadEndpoint:
+    """Tests for file upload endpoint."""
+    
+    def test_upload_mbox_file(self, client):
+        """Test uploading a valid .mbox file."""
+        file_content = b"From: test@example.com\nSubject: Test\n\nBody"
+        files = {"file": ("test.mbox", file_content, "application/mbox")}
+        
+        response = client.post("/api/uploads", files=files)
+        
+        assert response.status_code == 201
+        data = response.json()
+        
+        assert "filename" in data
+        assert "server_path" in data
+        assert "size_bytes" in data
+        assert data["size_bytes"] == len(file_content)
+        assert data["suggested_source_type"] == "local"
+        assert data["filename"].endswith(".mbox")
+    
+    def test_upload_zip_file(self, client):
+        """Test uploading a .zip file."""
+        # Minimal ZIP file (empty archive)
+        zip_content = b"PK\x05\x06" + b"\x00" * 18
+        files = {"file": ("archive.zip", zip_content, "application/zip")}
+        
+        response = client.post("/api/uploads", files=files)
+        
+        assert response.status_code == 201
+        data = response.json()
+        assert data["filename"].endswith(".zip")
+    
+    def test_upload_invalid_extension(self, client):
+        """Test uploading file with invalid extension."""
+        file_content = b"test content"
+        files = {"file": ("test.txt", file_content, "text/plain")}
+        
+        response = client.post("/api/uploads", files=files)
+        
+        assert response.status_code == 400
+        assert "Invalid file type" in response.json()["detail"]
+    
+    def test_upload_empty_file(self, client):
+        """Test uploading an empty file."""
+        files = {"file": ("test.mbox", b"", "application/mbox")}
+        
+        response = client.post("/api/uploads", files=files)
+        
+        assert response.status_code == 400
+        assert "empty" in response.json()["detail"].lower()
+    
+    def test_upload_sanitizes_filename(self, client):
+        """Test that filenames are sanitized."""
+        file_content = b"test content"
+        # Filename with path traversal attempt
+        files = {"file": ("../../etc/passwd.mbox", file_content, "application/mbox")}
+        
+        response = client.post("/api/uploads", files=files)
+        
+        assert response.status_code == 201
+        data = response.json()
+        
+        # Filename should be sanitized
+        assert ".." not in data["filename"]
+        assert "/" not in data["filename"]
+    
+    def test_upload_duplicate_filename(self, client):
+        """Test uploading files with duplicate names."""
+        file_content = b"test content"
+        files = {"file": ("test.mbox", file_content, "application/mbox")}
+        
+        # Upload first file
+        response1 = client.post("/api/uploads", files=files)
+        assert response1.status_code == 201
+        filename1 = response1.json()["filename"]
+        
+        # Upload second file with same name
+        response2 = client.post("/api/uploads", files=files)
+        assert response2.status_code == 201
+        filename2 = response2.json()["filename"]
+        
+        # Filenames should be different (second should have counter)
+        assert filename1 != filename2
+        assert "test" in filename2
+        assert ".mbox" in filename2
+    
+    def test_upload_file_too_large(self, client, monkeypatch):
+        """Test uploading a file exceeding size limit."""
+        # Mock MAX_UPLOAD_SIZE to avoid allocating 101MB in tests
+        import app.api
+        original_max = app.api.MAX_UPLOAD_SIZE
+        monkeypatch.setattr(app.api, 'MAX_UPLOAD_SIZE', 1000)  # 1KB limit for testing
+        
+        try:
+            # Create file content larger than mocked limit
+            file_content = b"x" * 1500  # 1.5KB
+            files = {"file": ("large.mbox", file_content, "application/mbox")}
+            
+            response = client.post("/api/uploads", files=files)
+            
+            assert response.status_code == 413
+            assert "too large" in response.json()["detail"].lower()
+        finally:
+            # Restore original value
+            monkeypatch.setattr(app.api, 'MAX_UPLOAD_SIZE', original_max)
+    
+    def test_upload_tar_gz_compound_extension(self, client):
+        """Test uploading a file with compound extension (.tar.gz)."""
+        file_content = b"test archive content"
+        files = {"file": ("archive.tar.gz", file_content, "application/gzip")}
+        
+        response = client.post("/api/uploads", files=files)
+        
+        assert response.status_code == 201
+        data = response.json()
+        
+        # Verify compound extension is preserved
+        assert data["filename"].endswith(".tar.gz")
+        assert "archive" in data["filename"]
+
+

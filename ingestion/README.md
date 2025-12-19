@@ -85,13 +85,40 @@ The service exposes a REST API on port 8080 (configurable via `HTTP_PORT` enviro
 - `POST /api/sources/{name}/trigger` - Trigger manual ingestion for a source
 - `GET /api/sources/{name}/status` - Get source ingestion status
 
+#### File Upload
+
+- `POST /api/uploads` - Upload a mailbox file (.mbox, .zip, .tar, .tar.gz, .tgz up to 100MB)
+
 ### API Examples
 
 ```bash
 # List all sources
 curl http://localhost:8080/api/sources
 
-# Create a new source
+# Upload a mailbox file
+curl -X POST http://localhost:8080/api/uploads \
+  -F "file=@/path/to/local/archive.mbox"
+
+# Response includes server path to use when creating a source
+# {
+#   "filename": "archive.mbox",
+#   "server_path": "/data/raw_archives/uploads/archive.mbox",
+#   "size_bytes": 12345,
+#   "uploaded_at": "2025-12-19T20:30:00Z",
+#   "suggested_source_type": "local"
+# }
+
+# Create a new source using uploaded file
+curl -X POST http://localhost:8080/api/sources \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "uploaded-mailbox",
+    "source_type": "local",
+    "url": "/data/raw_archives/uploads/archive.mbox",
+    "enabled": true
+  }'
+
+# Create a new source with remote URL
 curl -X POST http://localhost:8080/api/sources \
   -H "Content-Type: application/json" \
   -d '{
@@ -169,6 +196,21 @@ Sources are managed via the REST API and stored in the document database. They c
     enabled: false
 ```
 
+## UI Upload Workflow
+
+The web UI provides a user-friendly file upload feature for local mailbox ingestion:
+
+1. Navigate to the "Sources" page in the web UI
+2. Click "Add New Source"
+3. Select "LOCAL" as the source type
+4. Click "Upload Mailbox File" and select a `.mbox`, `.zip`, or `.tar` file (up to 100MB)
+5. Watch the progress bar as the file uploads
+6. Once uploaded, the URL field is automatically populated with the server path
+7. Provide a source name and click "Create Source"
+8. Optionally click "Trigger" to start ingestion immediately
+
+This workflow eliminates the need for `docker cp` and makes local mailbox ingestion accessible to non-technical users.
+
 ## Events Published
 
 The service publishes events to RabbitMQ with automatic schema validation. All events are validated against their JSON schemas before being published, ensuring data consistency across the system. See [../documents/SCHEMA.md](../documents/SCHEMA.md) for complete schemas.
@@ -195,12 +237,17 @@ Archives are organized by source with metadata for deduplication:
 
 ```
 /data/raw_archives/
+├── uploads/                 # User-uploaded files
+│   ├── mailbox1.mbox
+│   └── archive.zip
 ├── ietf-quic/2023-10.mbox
 ├── ietf-tls/2023-10.mbox
 └── metadata/
     ├── checksums.json       # SHA256 hash index for deduplication
     └── ingestion_log.jsonl  # Audit log of all operations
 ```
+
+**Upload Directory**: Files uploaded via the UI or `/api/uploads` endpoint are stored in `/data/raw_archives/uploads/`. These files are available for reference when creating local sources.
 
 ## Testing
 

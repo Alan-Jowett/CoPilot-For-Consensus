@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { fetchIngestionSource, createIngestionSource, updateIngestionSource, IngestionSource } from '../api'
+import { fetchIngestionSource, createIngestionSource, updateIngestionSource, uploadMailboxFile, IngestionSource } from '../api'
 
 const SOURCE_TYPES = ['local', 'rsync', 'http', 'imap']
 
@@ -14,6 +14,8 @@ export function SourceForm() {
   
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
   
@@ -94,6 +96,30 @@ export function SourceForm() {
     
     setValidationErrors(errors)
     return Object.keys(errors).length === 0
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    setUploadProgress(0)
+    setError(null)
+
+    try {
+      const response = await uploadMailboxFile(file, (percent) => {
+        setUploadProgress(percent)
+      })
+
+      // Auto-fill the URL field with the server path
+      setForm({ ...form, url: response.server_path })
+      setUploadProgress(100)
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Upload failed'
+      setError(message)
+    } finally {
+      setUploading(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -204,6 +230,35 @@ export function SourceForm() {
 
           <div className="filter-section">
             <h3>Connection Details</h3>
+            
+            {form.source_type === 'local' && !isEditMode && (
+              <div className="filter-row">
+                <div className="filter-group">
+                  <label htmlFor="file_upload">
+                    Upload Mailbox File (Optional)
+                  </label>
+                  <input
+                    type="file"
+                    id="file_upload"
+                    accept=".mbox,.zip,.tar,.tar.gz,.tgz"
+                    onChange={handleFileUpload}
+                    disabled={uploading}
+                  />
+                  <div className="help-text">
+                    Upload a .mbox, .zip, or .tar file (max 100MB). The server path will be auto-filled.
+                  </div>
+                  {uploading && (
+                    <div className="upload-progress">
+                      <div className="progress-bar">
+                        <div className="progress-fill" style={{ width: `${uploadProgress}%` }} />
+                      </div>
+                      <div className="progress-text">{uploadProgress}%</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
             <div className="filter-row">
               <div className="filter-group">
                 <label htmlFor="url">

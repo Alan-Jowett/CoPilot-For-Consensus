@@ -3,9 +3,12 @@
 
 """REST API for ingestion source management."""
 
+import os
+import re
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File
 from pydantic import BaseModel, Field
 
 from copilot_logging import Logger
@@ -45,6 +48,85 @@ class TriggerResponse(BaseModel):
     status: str
     message: str
     triggered_at: str
+
+
+class UploadResponse(BaseModel):
+    """Response for file upload."""
+    
+    filename: str
+    server_path: str
+    size_bytes: int
+    uploaded_at: str
+    suggested_source_type: str = "local"
+
+
+# Maximum upload size in bytes (100 MB)
+MAX_UPLOAD_SIZE = 100 * 1024 * 1024
+
+# Allowed file extensions
+ALLOWED_EXTENSIONS = {".mbox", ".zip", ".tar", ".tar.gz", ".tgz"}
+
+
+def _sanitize_filename(filename: str) -> str:
+    """Sanitize filename to prevent path traversal and other security issues.
+    
+    Args:
+        filename: Original filename from upload
+        
+    Returns:
+        Sanitized filename safe for filesystem operations
+    """
+    # Remove path components
+    filename = os.path.basename(filename)
+    
+    # Remove any non-alphanumeric characters except dots, hyphens, and underscores
+    filename = re.sub(r'[^a-zA-Z0-9._-]', '_', filename)
+    
+    # Ensure filename is not empty and doesn't start with a dot
+    if not filename or filename.startswith('.'):
+        filename = f"upload_{filename}"
+    
+    # Limit length, preserving compound extensions like .tar.gz
+    if len(filename) > 255:
+        name, ext = _split_extension(filename)
+        filename = name[:255 - len(ext)] + ext
+    
+    return filename
+
+
+def _split_extension(filename: str) -> tuple:
+    """Split filename into name and extension, handling compound extensions.
+    
+    Args:
+        filename: Filename to split
+        
+    Returns:
+        Tuple of (name, extension) where extension includes compound extensions
+    """
+    lower_filename = filename.lower()
+    
+    # Check for compound extensions in priority order (longest first)
+    compound_exts = ['.tar.gz', '.tgz']
+    for ext in compound_exts:
+        if lower_filename.endswith(ext):
+            return (filename[:-len(ext)], ext)
+    
+    # Fall back to standard split for simple extensions
+    return os.path.splitext(filename)
+
+
+def _validate_file_extension(filename: str) -> bool:
+    """Check if file has an allowed extension.
+    
+    Args:
+        filename: Filename to check
+        
+    Returns:
+        True if extension is allowed
+    """
+    # Use the same extension splitting logic for consistency
+    _, ext = _split_extension(filename)
+    return ext.lower() in ALLOWED_EXTENSIONS
 
 
 def create_api_router(service: Any, logger: Logger) -> APIRouter:
@@ -188,5 +270,79 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
         except Exception as e:
             logger.error("Error getting status for %s: %s", source_name, e, exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
+    
+    @router.post("/api/uploads", response_model=UploadResponse, status_code=201)
+    async def upload_file(file: UploadFile = File(...)):
+        """Upload a mailbox file for ingestion.
+        
+        Accepts .mbox, .zip, .tar, .tar.gz, .tgz files up to 100MB.
+        Returns metadata including the server path to use when creating a source.
+        """
+        try:
+            # Validate presence of filename
+            if not file.filename:
+                raise HTTPException(status_code=400, detail="Filename is required")
+            
+            # Sanitize filename first to ensure validation and storage use the same name
+            safe_filename = _sanitize_filename(file.filename)
+            
+            # Validate file extension on the sanitized filename
+            if not _validate_file_extension(safe_filename):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
+                )
+            
+            # Create uploads directory in storage path
+            uploads_dir = Path(service.config.storage_path) / "uploads"
+            uploads_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Generate unique filename if file already exists
+            file_path = uploads_dir / safe_filename
+            if file_path.exists():
+                name, ext = _split_extension(safe_filename)
+                counter = 1
+                while file_path.exists():
+                    file_path = uploads_dir / f"{name}_{counter}{ext}"
+                    counter += 1
+            
+            # Read and validate file size
+            content = await file.read()
+            file_size = len(content)
+            
+            if file_size > MAX_UPLOAD_SIZE:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File too large. Maximum size: {MAX_UPLOAD_SIZE / (1024 * 1024):.0f}MB"
+                )
+            
+            if file_size == 0:
+                raise HTTPException(status_code=400, detail="File is empty")
+            
+            # Write file to disk
+            with open(file_path, "wb") as f:
+                f.write(content)
+            
+            uploaded_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            
+            logger.info(
+                "File uploaded successfully",
+                filename=file_path.name,
+                size_bytes=file_size,
+                path=str(file_path),
+            )
+            
+            return UploadResponse(
+                filename=file_path.name,
+                server_path=str(file_path),
+                size_bytes=file_size,
+                uploaded_at=uploaded_at,
+                suggested_source_type="local",
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error("Error uploading file: %s", e, exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
     
     return router
