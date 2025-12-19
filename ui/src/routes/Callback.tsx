@@ -12,6 +12,8 @@ export function Callback() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    console.log('[Callback] Component mounted, searchParams:', Object.fromEntries(searchParams))
+
     // Extract token from URL parameters
     // OAuth2 authorization servers typically redirect with:
     // - code parameter: authorization code to exchange for token
@@ -24,6 +26,8 @@ export function Callback() {
     const code = searchParams.get('code')
     const error_param = searchParams.get('error')
 
+    console.log('[Callback] Extracted: token=%s, code=%s, error=%s', !!token, !!code, error_param)
+
     if (error_param) {
       setError(`OAuth error: ${error_param}`)
       setLoading(false)
@@ -32,12 +36,14 @@ export function Callback() {
 
     if (token) {
       // Token received directly from auth service
+      console.log('[Callback] Token found in URL params, storing and redirecting')
       localStorage.setItem('auth_token', token)
       setAuthToken(token)
       // Redirect to reports
       window.location.href = '/ui/reports'
     } else if (code) {
       // Exchange authorization code for token
+      console.log('[Callback] Code found, exchanging for token')
       exchangeCodeForToken(code)
     } else {
       setError('No authorization token received')
@@ -54,8 +60,11 @@ export function Callback() {
         throw new Error('Missing state parameter')
       }
 
+      console.log('[Callback] Exchanging code for token, calling /auth/callback...')
       const response = await fetch(`/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`)
 
+      console.log('[Callback] Response status:', response.status)
+      
       if (!response.ok) {
         const error = await response.json().catch(() => ({
           detail: `Token exchange failed: ${response.status}`,
@@ -64,7 +73,10 @@ export function Callback() {
       }
 
       const data = await response.json()
+      console.log('[Callback] Got response:', { access_token: !!data.access_token, token_type: data.token_type })
+      
       if (data.access_token) {
+        console.log('[Callback] Storing token and redirecting to /ui/reports')
         localStorage.setItem('auth_token', data.access_token)
         setAuthToken(data.access_token)
         window.location.href = '/ui/reports'
@@ -72,6 +84,7 @@ export function Callback() {
         throw new Error('No token in response')
       }
     } catch (err) {
+      console.error('[Callback] Error:', err)
       setError(err instanceof Error ? err.message : 'Token exchange failed')
       setLoading(false)
     }
