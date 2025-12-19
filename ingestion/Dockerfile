@@ -18,6 +18,7 @@ WORKDIR /app
 # Install shared adapters in dependency order using centralized script
 COPY adapters/ /app/adapters/
 RUN python /app/adapters/scripts/install_adapters.py \
+    copilot_auth \
     copilot_archive_fetcher \
     copilot_config \
     copilot_events \
