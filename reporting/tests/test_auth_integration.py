@@ -264,7 +264,7 @@ def client_with_auth(mock_service, mock_jwks):
             except Exception as e:
                 return JSONResponse(
                     status_code=401,
-                    content={"detail": str(e)},
+                    content={"detail": "Authentication failed"},
                 )
             
             return await call_next(request)
