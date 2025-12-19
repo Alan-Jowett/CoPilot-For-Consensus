@@ -51,7 +51,7 @@ class RoleStore:
         if schema_dir is None:
             # Default to repository schema location
             schema_dir = (
-                Path(__file__).resolve().parents[2]
+                Path(__file__).resolve().parents[1]
                 / "documents"
                 / "schemas"
                 / "role_store"

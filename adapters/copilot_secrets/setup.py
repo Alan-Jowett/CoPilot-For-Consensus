@@ -25,7 +25,7 @@ setup(
         # "aws": ["boto3>=1.26.0"],
         # "gcp": ["google-cloud-secret-manager>=2.16.0"],
     },
-    python_requires=">=3.11",
+    python_requires=">=3.10",
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
