@@ -35,6 +35,8 @@
   --color-warning: #ffc107;
   --color-warning-bg: #fff3cd;
   --color-warning-text: #856404;
+  --color-danger: #dc3545;
+  --color-danger-hover: #c82333;
   
   /* Shadow */
   --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
@@ -85,6 +87,8 @@
   --color-warning: #ffd633;
   --color-warning-bg: #4a3f00;
   --color-warning-text: #ffeb99;
+  --color-danger: #f56565;
+  --color-danger-hover: #fc8181;
   
   /* Shadow */
   --shadow-sm: 0 2px 4px rgba(0,0,0,0.3);
@@ -334,8 +338,8 @@ tr:hover { background-color: var(--bg-hover); }
 .action-btn.edit:hover { background-color: var(--color-primary-hover); }
 .action-btn.trigger { background-color: var(--color-success); color: white; }
 .action-btn.trigger:hover { background-color: var(--color-success-hover); }
-.action-btn.delete { background-color: #dc3545; color: white; }
-.action-btn.delete:hover { background-color: #c82333; }
+.action-btn.delete { background-color: var(--color-danger); color: white; }
+.action-btn.delete:hover { background-color: var(--color-danger-hover); }
 
 /* Badge Variants */
 .badge.enabled { background-color: var(--color-success); }
@@ -354,8 +358,8 @@ tr:hover { background-color: var(--bg-hover); }
 .checkbox-label input[type="checkbox"] { width: auto; cursor: pointer; }
 
 /* Button Variants */
-.cancel-btn { background-color: #6c757d; }
-.cancel-btn:hover { background-color: #5a6268; }
+.cancel-btn { background-color: var(--color-secondary); }
+.cancel-btn:hover { background-color: var(--color-secondary-hover); }
 
 /* Upload Progress */
 .upload-progress {
@@ -469,10 +473,10 @@ tr:hover { background-color: var(--bg-hover); }
 }
 
 .modal-btn.delete {
-  background-color: #dc3545;
+  background-color: var(--color-danger);
   color: white;
 }
 
 .modal-btn.delete:hover {
-  background-color: #c82333;
+  background-color: var(--color-danger-hover);
 }

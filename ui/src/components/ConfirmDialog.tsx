@@ -97,7 +97,7 @@ export function ConfirmDialog({
           </button>
           <button
             type="button"
-            className={`modal-btn action-btn ${confirmButtonClass}`}
+            className={`modal-btn ${confirmButtonClass}`}
             onClick={onConfirm}
             ref={confirmButtonRef}
           >
