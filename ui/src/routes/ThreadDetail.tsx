@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { fetchThread, fetchThreadMessages, Thread, Message } from '../api'
+import { fetchThread, fetchThreadMessages, Thread, Message, copy } from '../api'
 
 export function ThreadDetail() {
   const { threadId } = useParams()
@@ -56,10 +56,6 @@ export function ThreadDetail() {
       }
     }
   }, [highlightMessageId, messages])
-
-  function copy(text: string) {
-    navigator.clipboard.writeText(text)
-  }
 
   if (loading && !thread) return <div className="no-reports">Loading…</div>
   if (error === 'NOT_FOUND') return <div className="no-reports">Thread not found</div>

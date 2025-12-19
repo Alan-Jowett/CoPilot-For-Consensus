@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { fetchMessage, fetchMessageChunks, Message, Chunk } from '../api'
+import { fetchMessage, fetchMessageChunks, Message, Chunk, copy } from '../api'
 import ReactMarkdown from 'react-markdown'
 
 export function MessageDetail() {
@@ -46,10 +46,6 @@ export function MessageDetail() {
     
     return () => { cancelled = true }
   }, [messageDocId])
-
-  function copy(text: string) {
-    navigator.clipboard.writeText(text)
-  }
 
   if (loading) return <div className="no-reports">Loading…</div>
   if (error === 'NOT_FOUND') return <div className="no-reports">Message not found</div>
