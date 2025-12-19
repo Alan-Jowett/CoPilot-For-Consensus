@@ -45,11 +45,13 @@ def test_keypair():
 @pytest.fixture
 def mock_jwks(test_keypair):
     """Create mock JWKS response."""
+    import json
     from jwt.algorithms import RSAAlgorithm
     _, public_key, _, _ = test_keypair
     
     jwk = RSAAlgorithm.to_jwk(public_key)
-    jwk_dict = jwt.api_jwk.PyJWK(jwk).key
+    # to_jwk returns a JSON string in PyJWT 2.x, need to parse it
+    jwk_dict = json.loads(jwk) if isinstance(jwk, str) else jwk
     jwk_dict['kid'] = 'test-key'
     jwk_dict['use'] = 'sig'
     
