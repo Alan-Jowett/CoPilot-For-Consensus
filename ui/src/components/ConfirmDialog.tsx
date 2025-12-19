@@ -49,23 +49,33 @@ export function ConfirmDialog({
         onCancel()
       } else if (e.key === 'Tab') {
         // Focus trap: cycle between cancel and confirm buttons
-        e.preventDefault()
         const activeElement = document.activeElement
+        const isCancelButton = activeElement === cancelButtonRef.current
+        const isConfirmButton = activeElement === confirmButtonRef.current
         
-        if (e.shiftKey) {
-          // Shift+Tab: reverse direction
-          if (activeElement === cancelButtonRef.current) {
-            confirmButtonRef.current?.focus()
+        // Only trap if focus is on one of our buttons
+        if (isCancelButton || isConfirmButton) {
+          e.preventDefault()
+          
+          if (e.shiftKey) {
+            // Shift+Tab: reverse direction
+            if (isCancelButton) {
+              confirmButtonRef.current?.focus()
+            } else {
+              cancelButtonRef.current?.focus()
+            }
           } else {
-            cancelButtonRef.current?.focus()
+            // Tab: forward direction
+            if (isConfirmButton) {
+              cancelButtonRef.current?.focus()
+            } else {
+              confirmButtonRef.current?.focus()
+            }
           }
         } else {
-          // Tab: forward direction
-          if (activeElement === confirmButtonRef.current) {
-            cancelButtonRef.current?.focus()
-          } else {
-            confirmButtonRef.current?.focus()
-          }
+          // If focus is elsewhere (shouldn't happen), move to cancel button
+          e.preventDefault()
+          cancelButtonRef.current?.focus()
         }
       }
     }
