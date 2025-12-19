@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { assignUserRoles, revokeUserRoles, UserRoleRecord } from '../api'
 
 interface RoleManagementModalProps {
@@ -12,6 +12,9 @@ interface RoleManagementModalProps {
 }
 
 const AVAILABLE_ROLES = ['admin', 'contributor', 'viewer', 'moderator']
+
+// Role name validation regex: alphanumeric, hyphens, underscores, 1-50 chars
+const ROLE_NAME_REGEX = /^[a-zA-Z0-9_-]{1,50}$/
 
 export function RoleManagementModal({ userId, currentRoles, action, onClose }: RoleManagementModalProps) {
   const [selectedRoles, setSelectedRoles] = useState<string[]>([])
@@ -31,11 +34,33 @@ export function RoleManagementModal({ userId, currentRoles, action, onClose }: R
 
   const handleAddCustomRole = () => {
     const trimmed = customRole.trim()
-    if (trimmed && !selectedRoles.includes(trimmed)) {
-      setSelectedRoles((prev) => [...prev, trimmed])
-      setCustomRole('')
+    if (!trimmed) {
+      setError('Role name cannot be empty')
+      return
     }
+    if (!ROLE_NAME_REGEX.test(trimmed)) {
+      setError('Role name must be 1-50 characters and contain only letters, numbers, hyphens, and underscores')
+      return
+    }
+    if (selectedRoles.includes(trimmed)) {
+      setError('Role already selected')
+      return
+    }
+    setSelectedRoles((prev) => [...prev, trimmed])
+    setCustomRole('')
+    setError(null)
   }
+
+  // Handle Escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [onClose])
 
   const handleSubmit = async () => {
     if (selectedRoles.length === 0) {
@@ -64,10 +89,18 @@ export function RoleManagementModal({ userId, currentRoles, action, onClose }: R
 
   return (
     <div className="modal-overlay" onClick={() => onClose()}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="role-management-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
-          <h2>{action === 'assign' ? '➕ Assign Roles' : '➖ Revoke Roles'}</h2>
-          <button className="modal-close" onClick={() => onClose()}>
+          <h2 id="role-management-modal-title">
+            {action === 'assign' ? '➕ Assign Roles' : '➖ Revoke Roles'}
+          </h2>
+          <button className="modal-close" onClick={() => onClose()} aria-label="Close modal">
             ✕
           </button>
         </div>
@@ -110,13 +143,21 @@ export function RoleManagementModal({ userId, currentRoles, action, onClose }: R
               <h3>Add Custom Role</h3>
               <div className="filter-row">
                 <div className="filter-group custom-role-field">
+                  <label htmlFor="custom-role-input" className="visually-hidden">
+                    Custom role name
+                  </label>
                   <input
+                    id="custom-role-input"
                     type="text"
                     value={customRole}
                     onChange={(e) => setCustomRole(e.target.value)}
                     placeholder="Enter custom role name"
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddCustomRole()}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddCustomRole()}
+                    aria-describedby="custom-role-help"
                   />
+                  <div id="custom-role-help" className="help-text">
+                    1-50 characters: letters, numbers, hyphens, underscores
+                  </div>
                 </div>
                 <button onClick={handleAddCustomRole} disabled={!customRole.trim()}>
                   Add
@@ -132,13 +173,15 @@ export function RoleManagementModal({ userId, currentRoles, action, onClose }: R
                 {selectedRoles.map((role) => (
                   <span key={role} className="badge role-badge">
                     {role}
-                    <span
+                    <button
+                      type="button"
                       className="remove-role"
                       onClick={() => handleRoleToggle(role)}
+                      aria-label={`Remove role ${role}`}
                       title="Remove"
                     >
                       ✕
-                    </span>
+                    </button>
                   </span>
                 ))}
               </div>

@@ -372,9 +372,10 @@ export interface PendingAssignmentsResponse {
 const AUTH_API_BASE = '/auth'
 
 // Helper to get auth token from storage
-// In a real implementation, this would integrate with the auth flow
+// For security, this uses sessionStorage instead of localStorage.
+// sessionStorage is cleared when the browser session ends, reducing risk.
 function getAuthToken(): string | null {
-  return localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
+  return sessionStorage.getItem('auth_token')
 }
 
 // Helper to create headers with auth token

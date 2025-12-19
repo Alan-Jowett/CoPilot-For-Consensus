@@ -33,6 +33,7 @@ export function PendingAssignments() {
 
   useEffect(() => {
     loadAssignments()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.skip, filters.limit])
 
   const handleFilterChange = (field: string, value: string) => {
@@ -61,8 +62,9 @@ export function PendingAssignments() {
         <h2>Filters</h2>
         <div className="filter-row">
           <div className="filter-group">
-            <label>User ID</label>
+            <label htmlFor="filter-user-id">User ID</label>
             <input
+              id="filter-user-id"
               type="text"
               value={filters.user_id}
               onChange={(e) => handleFilterChange('user_id', e.target.value)}
@@ -70,8 +72,9 @@ export function PendingAssignments() {
             />
           </div>
           <div className="filter-group">
-            <label>Role</label>
+            <label htmlFor="filter-role">Role</label>
             <input
+              id="filter-role"
               type="text"
               value={filters.role}
               onChange={(e) => handleFilterChange('role', e.target.value)}

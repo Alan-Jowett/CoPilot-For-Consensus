@@ -56,13 +56,14 @@ export function UserRolesList() {
         <h2>Search User</h2>
         <div className="filter-row">
           <div className="filter-group">
-            <label>User ID</label>
+            <label htmlFor="user-id-search">User ID</label>
             <input
+              id="user-id-search"
               type="text"
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
               placeholder="Enter user ID"
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
           </div>
           <button onClick={handleSearch}>Search</button>
