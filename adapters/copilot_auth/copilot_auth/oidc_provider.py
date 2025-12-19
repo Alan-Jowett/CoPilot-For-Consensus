@@ -179,13 +179,34 @@ class OIDCProvider(IdentityProvider):
                     "code": code,
                     **({"code_verifier": code_verifier} if code_verifier else {}),
                 },
+                headers={"Accept": "application/json"},
                 timeout=10.0,
             )
             response.raise_for_status()
-            return response.json()
+            
+            # Handle both JSON and form-encoded responses
+            content_type = response.headers.get("content-type", "")
+            if "application/json" in content_type:
+                return response.json()
+            elif "application/x-www-form-urlencoded" in content_type or response.text.startswith("access_token="):
+                # Parse form-encoded response (GitHub returns this by default)
+                import urllib.parse
+                parsed = urllib.parse.parse_qs(response.text)
+                # Convert from dict[str, list[str]] to dict[str, str]
+                return {k: v[0] if isinstance(v, list) else v for k, v in parsed.items()}
+            else:
+                # Try JSON first, fall back to form parsing
+                try:
+                    return response.json()
+                except ValueError:
+                    import urllib.parse
+                    parsed = urllib.parse.parse_qs(response.text)
+                    return {k: v[0] if isinstance(v, list) else v for k, v in parsed.items()}
         
         except httpx.HTTPStatusError as e:
-            raise AuthenticationError(f"Token exchange failed: {e}") from e
+            # Include response body for debugging
+            body = e.response.text[:500] if e.response else "No response"
+            raise AuthenticationError(f"Token exchange failed ({e.response.status_code}): {body}") from e
         except httpx.HTTPError as e:
             raise ProviderError(f"Token endpoint unavailable: {e}") from e
     

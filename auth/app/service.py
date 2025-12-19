@@ -15,10 +15,12 @@ from copilot_auth import (
     JWTManager,
     OIDCProvider,
     AuthenticationError,
+    GitHubIdentityProvider,
 )
 from copilot_logging import create_logger
 
 from .config import load_auth_config
+from .role_store import RoleStore
 
 logger = create_logger(logger_type="stdout", level="INFO", name="auth.service")
 
@@ -59,6 +61,9 @@ class AuthService:
         self._session_ttl_seconds = 600  # 10 minutes
         self._last_cleanup_time = time.time()
         self._cleanup_interval_seconds = 60  # Clean up every minute
+
+        # Role store (backed by copilot_storage)
+        self.role_store: Optional[RoleStore] = None
         
         # Initialize providers and JWT manager
         self._initialize()
@@ -95,6 +100,9 @@ class AuthService:
             key_id=self.config.jwt_key_id,
             default_expiry=self.config.jwt_default_expiry,
         )
+
+        # Initialize role store
+        self.role_store = RoleStore(self.config)
         
         # Initialize OIDC providers from config
         self._initialize_providers()
@@ -269,23 +277,72 @@ class AuthService:
                 code_verifier=code_verifier,
             )
 
-            # Require ID token and validate it (iss/aud/nonce/signature)
-            id_token = token_response.get("id_token")
-            if not id_token:
-                raise AuthenticationError("No id_token in response")
 
-            provider_instance.validate_id_token(id_token=id_token, nonce=nonce)
-            
-            # Get access token
+            # GitHub OAuth does not return id_tokens; handle via access_token + userinfo
+            id_token = token_response.get("id_token")
+
+            # Get access token (required for all flows)
             access_token = token_response.get("access_token")
             if not access_token:
                 raise AuthenticationError("No access token in response")
-            
-            # Get user info
-            user = provider_instance.get_user(access_token)
+
+            if id_token:
+                provider_instance.validate_id_token(id_token=id_token, nonce=nonce)
+                user = provider_instance.get_user(access_token)
+            elif isinstance(provider_instance, GitHubIdentityProvider):
+                user = provider_instance.get_user(access_token)
+            else:
+                raise AuthenticationError("No id_token in response")
+
             if not user:
                 raise AuthenticationError("Failed to retrieve user info")
-            
+
+            # Resolve roles dynamically from role store
+            auto_roles = getattr(self.config, "auto_approve_roles", "") or ""
+            auto_roles_list = [r.strip() for r in auto_roles.split(",") if r.strip()]
+            auto_enabled = bool(getattr(self.config, "auto_approve_enabled", False))
+
+            roles, status = (self.role_store.get_roles_for_user(
+                user=user,
+                auto_approve_enabled=auto_enabled,
+                auto_approve_roles=auto_roles_list,
+            ) if self.role_store else (user.roles, "approved"))
+
+            user.roles = roles
+            pending = status != "approved"
+
+            # Mint local JWT
+            local_jwt = self.jwt_manager.mint_token(
+                user=user,
+                audience=audience,
+                additional_claims={
+                    "provider": provider,
+                    "amr": ["pwd"],  # Authentication method: password (OIDC)
+                    "pending_access": pending,
+                    "role_status": status,
+                }
+            )
+            # GitHub OAuth does not return id_tokens; handle via access_token + userinfo
+            id_token = token_response.get("id_token")
+
+            # Get access token (required for all flows)
+            access_token = token_response.get("access_token")
+            if not access_token:
+                raise AuthenticationError("No access token in response")
+
+            if id_token:
+                provider_instance.validate_id_token(id_token=id_token, nonce=nonce)
+                # For OIDC providers with id_token, userinfo uses access token
+                user = provider_instance.get_user(access_token)
+            elif isinstance(provider_instance, GitHubIdentityProvider):
+                # GitHub: use access_token to fetch user profile
+                user = provider_instance.get_user(access_token)
+            else:
+                raise AuthenticationError("No id_token in response")
+
+            if not user:
+                raise AuthenticationError("Failed to retrieve user info")
+
             # Mint local JWT
             local_jwt = self.jwt_manager.mint_token(
                 user=user,

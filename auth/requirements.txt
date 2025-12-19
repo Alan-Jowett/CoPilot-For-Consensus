@@ -15,6 +15,8 @@ copilot-secrets>=0.1.0
 copilot-auth>=0.1.0
 copilot-logging>=0.1.0
 copilot-metrics>=0.1.0
+copilot-storage>=0.1.0
+copilot-schema-validation>=0.1.0
 prometheus-client>=0.19.0
 
 # HTTP client for OIDC
