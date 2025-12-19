@@ -4,7 +4,6 @@
 """Main reporting service implementation."""
 
 import hashlib
-import sys
 import time
 import uuid
 import requests
