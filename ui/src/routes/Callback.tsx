@@ -36,10 +36,14 @@ export function Callback() {
 
     if (token) {
       // Token received directly from auth service
-      console.log('[Callback] Token found in URL params, storing and redirecting')
+      console.log('[Callback] Token found in URL params, storing directly to localStorage')
+      // Store directly to localStorage first
       localStorage.setItem('auth_token', token)
+      // Then notify the AuthContext
+      console.log('[Callback] Calling setAuthToken()')
       setAuthToken(token)
       // Redirect to reports
+      console.log('[Callback] Redirecting to /ui/reports')
       window.location.href = '/ui/reports'
     } else if (code) {
       // Exchange authorization code for token
@@ -76,9 +80,14 @@ export function Callback() {
       console.log('[Callback] Got response:', { access_token: !!data.access_token, token_type: data.token_type })
       
       if (data.access_token) {
-        console.log('[Callback] Storing token and redirecting to /ui/reports')
+        console.log('[Callback] Storing token directly to localStorage')
+        // Store directly to localStorage first
         localStorage.setItem('auth_token', data.access_token)
+        // Then notify the AuthContext
+        console.log('[Callback] Calling setAuthToken()')
         setAuthToken(data.access_token)
+        // Then redirect
+        console.log('[Callback] Redirecting to /ui/reports')
         window.location.href = '/ui/reports'
       } else {
         throw new Error('No token in response')
