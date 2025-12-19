@@ -37,6 +37,7 @@ from typing import Callable, List, Optional
 import httpx
 import jwt
 from fastapi import HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from copilot_logging import create_logger
@@ -247,9 +248,9 @@ class JWTMiddleware(BaseHTTPMiddleware):
         # Extract Authorization header
         auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
-            raise HTTPException(
+            return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Missing or invalid Authorization header",
+                content={"detail": "Missing or invalid Authorization header"},
                 headers={"WWW-Authenticate": "Bearer"},
             )
         
@@ -273,18 +274,22 @@ class JWTMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
             return response
         
-        except HTTPException:
-            # Let HTTPExceptions propagate as-is (401, 403, etc.)
-            raise
+        except HTTPException as e:
+            # Convert HTTPException to JSONResponse
+            return JSONResponse(
+                status_code=e.status_code,
+                content={"detail": e.detail},
+                headers=e.headers or {},
+            )
         except httpx.HTTPError as e:
             # Network/connection errors to auth service
             logger.error(
                 f"Auth service communication error: {type(e).__name__}: {e}",
                 extra={"error_type": type(e).__name__, "auth_service_url": self.auth_service_url}
             )
-            raise HTTPException(
+            return JSONResponse(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Authentication service unavailable"
+                content={"detail": "Authentication service unavailable"}
             )
         except (jwt.DecodeError, ValueError) as e:
             # Token parsing/decoding errors
@@ -292,9 +297,9 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 f"Token parsing error: {type(e).__name__}: {e}",
                 extra={"error_type": type(e).__name__}
             )
-            raise HTTPException(
+            return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Malformed token"
+                content={"detail": "Malformed token"}
             )
         except Exception as e:
             # Unexpected errors - log full details for debugging
@@ -305,9 +310,9 @@ class JWTMiddleware(BaseHTTPMiddleware):
                     "traceback": traceback.format_exc()
                 }
             )
-            raise HTTPException(
+            return JSONResponse(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Authentication error"
+                content={"detail": "Authentication error"}
             )
 
 
