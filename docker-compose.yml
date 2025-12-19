@@ -716,11 +716,9 @@ services:
       start_period: 30s
     restart: unless-stopped
 
-  # WARNING: The reporting-ui service has NO authentication or authorization.
-  # Do NOT expose this service to untrusted networks or in production environments.
-  # This is intended for local development only. See reporting-ui/README.md for details.
-  reporting-ui:
-    image: copilot-reporting-ui:latest
+  # React-based SPA (primary Web UI)
+  ui:
+    image: copilot-ui:latest
     build:
       context: ./ui
       dockerfile: Dockerfile
