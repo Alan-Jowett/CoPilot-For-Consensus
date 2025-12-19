@@ -109,7 +109,7 @@ services:
     volumes:
       - raw_archives:/data/raw_archives
     ports:
-      - "127.0.0.1:8001:8001"
+      - "0.0.0.0:8001:8001"
     depends_on:
       messagebus:
         condition: service_healthy
@@ -281,7 +281,7 @@ services:
       - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
       - SECRETS_BASE_PATH=/run/secrets
     ports:
-      - "127.0.0.1:8090:8090"
+      - "0.0.0.0:8090:8090"
     volumes:
       - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
       - ./adapters/copilot_logging:/app/adapters/copilot_logging:ro
@@ -315,7 +315,7 @@ services:
       context: ./ui
       dockerfile: Dockerfile
     ports:
-      - "127.0.0.1:8084:80"
+      - "0.0.0.0:8084:80"
     depends_on:
       reporting:
         condition: service_healthy
