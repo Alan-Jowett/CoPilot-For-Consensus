@@ -93,8 +93,6 @@ services:
         export GF_USERS_ALLOW_SIGN_UP=false
         # Serve Grafana from subpath /grafana via API Gateway
         # Ensure trailing slash for subpath to avoid redirect loops
-        export GF_SERVER_ROOT_URL=${GF_SERVER_ROOT_URL:-http://localhost:8080/grafana/}
-        export GF_SERVER_SERVE_FROM_SUB_PATH=true
         exec /run.sh
     volumes:
       - grafana_data:/var/lib/grafana
