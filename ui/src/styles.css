@@ -186,7 +186,7 @@ h1 {
 .quick-date-btn { padding: 4px 10px; background-color: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-input); border-radius: 3px; cursor: pointer; font-size: 12px; }
 .quick-date-btn:hover { background-color: var(--bg-hover); }
 
-.button-group { display: flex; gap: 10px; }
+.button-group { display: flex; gap: 10px; margin-top: 20px; }
 .filter-group button, .clear-btn { padding: 8px 20px; background-color: var(--color-primary); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
 .filter-group button:hover { background-color: var(--color-primary-hover); }
 .clear-btn { background-color: var(--color-secondary); }
@@ -354,7 +354,6 @@ tr:hover { background-color: var(--bg-hover); }
 .checkbox-label input[type="checkbox"] { width: auto; cursor: pointer; }
 
 /* Button Variants */
-.button-group { margin-top: 20px; }
 .cancel-btn { background-color: #6c757d; }
 .cancel-btn:hover { background-color: #5a6268; }
 

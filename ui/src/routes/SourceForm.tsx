@@ -273,7 +273,7 @@ export function SourceForm() {
                     value={form.password || ''}
                     onChange={e => setForm({ ...form, password: e.target.value })}
                     placeholder="••••••••"
-                    autoComplete="new-password"
+                    autoComplete={isEditMode ? "current-password" : "new-password"}
                     className={validationErrors.password ? 'input-error' : ''}
                   />
                   {validationErrors.password && <div className="field-error">{validationErrors.password}</div>}
