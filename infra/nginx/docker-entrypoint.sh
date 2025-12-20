@@ -3,33 +3,47 @@
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
 # Custom entrypoint script for NGINX API Gateway
-# Conditionally enables HTTPS based on presence of TLS certificate secrets
+# Uses provided TLS certificates or generates self-signed ones
 
-set -e
-
-CERT_SECRET="/run/secrets/gateway_tls_cert"
-KEY_SECRET="/run/secrets/gateway_tls_key"
+CERT_PATH="/etc/nginx/certs/server.crt"
+KEY_PATH="/etc/nginx/certs/server.key"
 NGINX_CONF="/etc/nginx/nginx.conf"
 
-# Check if TLS certificates are available via Docker secrets
-if [ -f "$CERT_SECRET" ] && [ -f "$KEY_SECRET" ]; then
-    echo "TLS certificates found in secrets - HTTPS will be enabled on port 8443"
+# Create certs directory
+mkdir -p "$(dirname "$CERT_PATH")"
+
+# Check if TLS certificates are available (from bind mount or Docker secrets)
+if [ ! -f "$CERT_PATH" ] || [ ! -f "$KEY_PATH" ]; then
+    echo "TLS certificates not found - generating self-signed certificates..."
     
-    # Copy certificates from secrets to nginx certs directory
-    mkdir -p /etc/nginx/certs
-    cp "$CERT_SECRET" /etc/nginx/certs/server.crt
-    cp "$KEY_SECRET" /etc/nginx/certs/server.key
-    chmod 644 /etc/nginx/certs/server.crt
-    chmod 600 /etc/nginx/certs/server.key
+    # Generate self-signed certificate (valid for 365 days)
+    openssl req -x509 -newkey rsa:2048 \
+        -keyout "$KEY_PATH" \
+        -out "$CERT_PATH" \
+        -days 365 -nodes \
+        -subj "/C=US/ST=State/L=City/O=Copilot-for-Consensus/CN=localhost" 2>&1
     
-    # Update nginx.conf to uncomment the HTTPS server block
-    sed -i 's/# __TLS_START__/__TLS_START__/g; s/# __TLS_END__/__TLS_END__/g' "$NGINX_CONF"
-    sed -i '/__TLS_START__/,/__TLS_END__/s/^#//g' "$NGINX_CONF"
-    sed -i '/__TLS_START__/d; /__TLS_END__/d' "$NGINX_CONF"
+    if [ -f "$CERT_PATH" ] && [ -f "$KEY_PATH" ]; then
+        echo "✓ Self-signed certificates generated successfully"
+        echo "  Certificate: $CERT_PATH"
+        echo "  Private key: $KEY_PATH"
+    else
+        echo "ERROR: Failed to generate certificates"
+        exit 1
+    fi
 else
-    echo "TLS certificates not found - HTTPS disabled, serving HTTP only on port 8080"
-    echo "To enable HTTPS, provide 'gateway_tls_cert' and 'gateway_tls_key' secrets"
-    
-    # Remove the commented HTTPS server block from nginx.conf
-    sed -i '/__TLS_START__/,/__TLS_END__/d' "$NGINX_CONF"
+    echo "✓ TLS certificates found"
 fi
+
+# Set proper permissions (skip if read-only mount)
+# Try to chmod; if it fails, it's a read-only mount, which is fine
+chmod 600 "$KEY_PATH" 2>/dev/null || true
+chmod 644 "$CERT_PATH" 2>/dev/null || true
+
+# Configure nginx for HTTPS
+echo "Configuring nginx for HTTPS on port 8443..."
+sed -i 's/# __TLS_START__/__TLS_START__/g; s/# __TLS_END__/__TLS_END__/g' "$NGINX_CONF"
+sed -i '/__TLS_START__/,/__TLS_END__/s/^#//g' "$NGINX_CONF"
+sed -i '/__TLS_START__/d; /__TLS_END__/d' "$NGINX_CONF"
+
+echo "✓ Configuration complete - starting nginx"
