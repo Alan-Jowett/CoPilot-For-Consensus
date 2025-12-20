@@ -291,7 +291,7 @@ services:
       dockerfile: ./auth/Dockerfile
     environment:
       - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/ui}
-      - AUTH_AUDIENCES=${AUTH_AUDIENCES:-copilot-orchestrator,copilot-reporting}
+      - AUTH_AUDIENCES=${AUTH_AUDIENCES:-copilot-for-consensus}
       - JWT_ALGORITHM=${JWT_ALGORITHM:-RS256}
       - JWT_KEY_ID=${JWT_KEY_ID:-default}
       - JWT_DEFAULT_EXPIRY=${JWT_DEFAULT_EXPIRY:-1800}

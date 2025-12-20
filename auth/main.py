@@ -106,7 +106,7 @@ async def readyz() -> dict[str, str]:
 @app.get("/login")
 async def login(
     provider: str = Query(..., description="OIDC provider (github, google, microsoft)"),
-    aud: str = Query("copilot-orchestrator", description="Target audience for JWT"),
+    aud: str = Query("copilot-for-consensus", description="Target audience for JWT"),
     prompt: str = Query(None, description="OAuth prompt parameter"),
 ) -> Response:
     """Initiate OIDC login flow.
@@ -220,7 +220,7 @@ def token_exchange(request: Request) -> JSONResponse:
             "provider": "github",
             "grant_type": "urn:copilot-for-consensus:oidc_exchange",
             "id_token": "<oidc-id-token>",
-            "aud": "copilot-orchestrator"
+            "aud": "copilot-for-consensus"
         }
 
     Returns:
