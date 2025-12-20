@@ -47,7 +47,8 @@ def test_rabbitmq_definitions_completeness():
             
             # Find all routing_key parameters in publish/subscribe calls
             # Pattern: routing_key="some.key" or routing_key='some.key'
-            matches = re.findall(r'routing_key=["\']([\w.]+)["\']', content)
+            # Use [^"']+ to match any non-quote characters (handles hyphens, etc.)
+            matches = re.findall(r'routing_key=["\']([-\w.]+)["\']', content)
             used_routing_keys.update(matches)
     
     # Check that all used routing keys have corresponding queues
@@ -65,7 +66,13 @@ def test_rabbitmq_definitions_completeness():
     )
     
     # Check that all queues have bindings (no orphaned queues)
-    orphaned_queues = defined_queues - bound_routing_keys
+    # Extract the destination queues from bindings
+    bound_queue_names = {
+        b["destination"]
+        for b in definitions.get("bindings", [])
+        if b.get("source") == "copilot.events" and b.get("destination_type") == "queue"
+    }
+    orphaned_queues = defined_queues - bound_queue_names
     # Note: This is a warning, not a failure, as some queues might be intentionally unbound
     if orphaned_queues:
         print(f"Warning: Queues without bindings (might be intentional): {orphaned_queues}")
