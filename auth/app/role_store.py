@@ -349,3 +349,18 @@ class RoleStore:
         except Exception as exc:
             logger.error("Failed to revoke roles: %s", exc)
             raise
+    def find_by_role(self, role: str) -> list[dict[str, Any]]:
+        """Find all users with a specific role.
+
+        Args:
+            role: The role to search for
+
+        Returns:
+            List of user role records containing the specified role
+        """
+        try:
+            docs = self.store.query_documents(self.collection, {"roles": role})
+            return docs
+        except Exception as exc:
+            logger.error(f"Failed to find users by role {role}: {exc}")
+            return []

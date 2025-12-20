@@ -13,6 +13,7 @@ This service provides:
 import os
 import sys
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from typing import Any
 
 # Add app directory to path
@@ -367,13 +368,29 @@ async def bootstrap_admin(request_body: InitialAdminRequest) -> JSONResponse:
                 status_code=409,
                 detail="System already initialized with admin users. Use /admin/users/{user_id}/roles to manage roles.",
             )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to check existing admins: {e}")
         raise HTTPException(status_code=500, detail="Failed to verify system state")
 
     # Create the initial admin user
     try:
-        record = role_store.assign_roles(user_id=request_body.user_id, roles=["admin"], email=request_body.email)
+        # Create user record directly (not using assign_roles which requires admin_user_id)
+        now_str = datetime.now(timezone.utc).isoformat()
+        user_record = {
+            "user_id": request_body.user_id,
+            "provider": request_body.user_id.split(":", 1)[0] if ":" in request_body.user_id else "unknown",
+            "email": request_body.email,
+            "name": request_body.email.split("@")[0],
+            "roles": ["admin"],
+            "status": "approved",
+            "requested_at": now_str,
+            "updated_at": now_str,
+        }
+        
+        role_store.store.insert_document(role_store.collection, user_record)
+        
         logger.info(
             "Initial admin user created via bootstrap",
             extra={"user_id": request_body.user_id, "email": request_body.email},
@@ -381,9 +398,9 @@ async def bootstrap_admin(request_body: InitialAdminRequest) -> JSONResponse:
         metrics.increment("bootstrap_admin_created_total")
         return JSONResponse(
             content={
-                "user_id": record.get("_id"),
-                "email": record.get("email"),
-                "roles": record.get("roles", []),
+                "user_id": request_body.user_id,
+                "email": request_body.email,
+                "roles": ["admin"],
                 "message": "Admin user created successfully. Bootstrap token should now be revoked.",
             },
             status_code=201,

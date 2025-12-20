@@ -316,6 +316,8 @@ services:
       - HOST=0.0.0.0
       - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
       - SECRETS_BASE_PATH=/run/secrets
+      # Bootstrap token for initial admin setup (one-time use)
+      - BOOTSTRAP_TOKEN=${BOOTSTRAP_TOKEN:-}
     volumes:
       - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
       - ./adapters/copilot_logging:/app/adapters/copilot_logging:ro
