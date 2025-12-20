@@ -84,20 +84,20 @@ For detailed architecture documentation, design patterns, and service interactio
 
 ### Services Overview
 
-| Service | Purpose | Port(s) | Status |
-|---------|---------|---------|--------|
-| **Processing Pipeline** | | | |
-| Ingestion | Fetches mailing list archives from remote sources | 8000 (localhost) | Production |
-| Parsing | Extracts and normalizes email messages from archives | - | Production |
-| Chunking | Splits messages into semantic chunks for embedding | - | Production |
-| Embedding | Generates vector embeddings for semantic search | - | Production |
-| Orchestrator | Coordinates RAG workflow and summarization | - | Production |
-| Summarization | Creates summaries using configurable LLM backends | - | Production |
-| **User-Facing** | | | |
+| Service | Purpose | Port(s) | Status | Auth |
+|---------|---------|---------|--------|------|
+| **Processing Pipeline** | | | | |
+| Ingestion | Fetches mailing list archives from remote sources | 8001 (localhost) | Production | Admin |
+| Parsing | Extracts and normalizes email messages from archives | - | Production | Processor |
+| Chunking | Splits messages into semantic chunks for embedding | - | Production | Processor |
+| Embedding | Generates vector embeddings for semantic search | - | Production | Processor |
+| Orchestrator | Coordinates RAG workflow and summarization | - | Production | Orchestrator |
+| Summarization | Creates summaries using configurable LLM backends | - | Production | Processor |
+| **User-Facing** | | | | |
 | API Gateway | Reverse proxy unifying service endpoints | 8080 (public) | New |
-| Reporting API | HTTP API for accessing summaries and insights | via 8080 (/reporting) | Production |
-| Web UI | React SPA for viewing reports | via 8080 (/ui) | Production |
-| Auth Service | OIDC authentication with local JWT minting | via 8080 (/auth) | MVP |
+| Reporting API | HTTP API for accessing summaries and insights | 8080 (public) | Production | Reader |
+| Web UI | React SPA for viewing reports | 8084 (localhost) | Production | Public |
+| Auth Service | OIDC authentication with local JWT minting | 8090 (localhost) | Production | Public |
 | **Infrastructure** | | | |
 | MongoDB | Document storage for messages and summaries | 27017 (localhost) | Production |
 | Qdrant | Vector database for semantic search | 6333 (localhost) | Production |

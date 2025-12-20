@@ -35,13 +35,45 @@ class RoleStore:
     def __init__(self, config: object):
         self.collection = getattr(config, "role_store_collection", "user_roles")
 
+        # Get values from config with fallback to environment variables
+        # For password/username, read directly from Docker secrets if available
+        import os
+        
+        # Helper to read from Docker secrets first, then environment variables
+        def get_secret_or_env(secret_name: str, env_var: str) -> str | None:
+            # Try reading from Docker secrets first (mounted at /run/secrets/)
+            secret_file = f"/run/secrets/{secret_name}"
+            if os.path.exists(secret_file):
+                try:
+                    with open(secret_file, 'r') as f:
+                        content = f.read().strip()
+                        if content:  # Only return if not empty
+                            return content
+                except (OSError, IOError) as exc:
+                    logger.warning(
+                        "Failed to read Docker secret '%s' from %s: %s",
+                        secret_name,
+                        secret_file,
+                        exc,
+                    )
+            
+            # Fallback to environment variable
+            value = os.getenv(env_var)
+            # Only return if it's not empty string
+            return value if value else None
+        
         store_kwargs = {
-            "host": getattr(config, "role_store_host", None),
-            "port": getattr(config, "role_store_port", None),
-            "username": getattr(config, "role_store_username", None),
-            "password": getattr(config, "role_store_password", None),
-            "database": getattr(config, "role_store_database", "auth"),
+            "host": getattr(config, "role_store_host", None) or os.getenv("DOCUMENT_DATABASE_HOST"),
+            "port": getattr(config, "role_store_port", None) or os.getenv("DOCUMENT_DATABASE_PORT"),
+            "username": getattr(config, "role_store_username", None) or get_secret_or_env("document_database_user", "DOCUMENT_DATABASE_USER"),
+            "password": getattr(config, "role_store_password", None) or get_secret_or_env("document_database_password", "DOCUMENT_DATABASE_PASSWORD"),
+            "database": getattr(config, "role_store_database", None) or os.getenv("DOCUMENT_DATABASE_NAME", "auth"),
         }
+
+        # Convert port to int if it's a string
+        if store_kwargs.get("port") is not None:
+            if isinstance(store_kwargs["port"], str):
+                store_kwargs["port"] = int(store_kwargs["port"])
 
         # Drop keys that are None or 0 (for port) to allow copilot_storage env defaults
         store_kwargs = {k: v for k, v in store_kwargs.items() if v is not None and (k != "port" or v != 0)}
@@ -79,6 +111,9 @@ class RoleStore:
 
         Returns a tuple of (roles, status) where status is one of
         "approved", "pending", or "denied".
+        
+        Special behavior: If no admins exist in the system, the first user to log in
+        is automatically promoted to admin.
         """
 
         record = self._find_user_record(user.id)
@@ -95,10 +130,18 @@ class RoleStore:
         roles: list[str] = []
         status = "pending"
 
-        auto_roles = [r for r in auto_approve_roles if r]
-        if auto_approve_enabled and auto_roles:
-            roles = auto_roles
+        # Special case: auto-promote first user to admin if no admins exist
+        admins = self.find_by_role("admin")
+        if not admins:
+            roles = ["admin"]
             status = "approved"
+            logger.info(f"Auto-promoting first user {user.id} to admin role (no admins exist)")
+        else:
+            # Normal role assignment
+            auto_roles = [r for r in auto_approve_roles if r]
+            if auto_approve_enabled and auto_roles:
+                roles = auto_roles
+                status = "approved"
 
         self._insert_user_record(user=user, roles=roles, status=status)
         return roles, status
@@ -123,7 +166,7 @@ class RoleStore:
         try:
             self.store.insert_document(self.collection, doc)
         except Exception as exc:  # pragma: no cover
-            logger.error("Failed to insert user role record: %s", exc)
+            logger.exception(f"Failed to insert user role record: {exc}")
             raise AuthenticationError("Could not persist role assignment") from exc
 
     # Admin methods
@@ -174,7 +217,7 @@ class RoleStore:
             return paginated_docs, total_count
 
         except Exception as exc:
-            logger.error("Failed to list pending role assignments: %s", exc)
+            logger.exception(f"Failed to list pending role assignments: {exc}")
             raise
 
     def get_user_roles(self, user_id: str) -> dict[str, Any] | None:
@@ -217,14 +260,26 @@ class RoleStore:
         record = self._find_user_record(user_id)
 
         if not record:
-            raise ValueError(f"User record not found: {user_id}")
+            # If user record doesn't exist, create a minimal one
+            now = datetime.now(timezone.utc).isoformat()
+            record = {
+                "user_id": user_id,
+                "roles": [],
+                "status": "pending",
+                "created_at": now,
+            }
 
         now = datetime.now(timezone.utc).isoformat()
+
+        # Merge new roles with existing roles (avoid duplicates)
+        current_roles = record.get("roles", [])
+        merged_roles = list(set(current_roles + roles))  # Combine and deduplicate
+        merged_roles.sort()  # Sort for consistent ordering
 
         # Update roles and status
         updated_doc = {
             **record,
-            "roles": roles,
+            "roles": merged_roles,
             "status": "approved",
             "updated_at": now,
             "approved_by": admin_user_id,
@@ -232,8 +287,23 @@ class RoleStore:
         }
 
         try:
-            # Update document
-            self.store.update_document(self.collection, {"user_id": user_id}, updated_doc)
+            # Try to update, or insert if doesn't exist
+            from copilot_storage.document_store import DocumentNotFoundError
+            try:
+                # Update using the document's _id if available
+                if "_id" in record:
+                    # Remove _id from the update doc (don't pass it to validation)
+                    update_doc = {k: v for k, v in updated_doc.items() if k != "_id"}
+                    self.store.update_document(self.collection, record["_id"], update_doc)
+                else:
+                    # If no _id (new record), insert it
+                    insert_doc = {k: v for k, v in updated_doc.items() if k != "_id"}
+                    self.store.insert_document(self.collection, insert_doc)
+            except DocumentNotFoundError:
+                # Document doesn't exist, create it
+                # Remove _id if present (MongoDB will generate a new one)
+                insert_doc = {k: v for k, v in updated_doc.items() if k != "_id"}
+                self.store.insert_document(self.collection, insert_doc)
 
             # Log audit event
             logger.info(
@@ -251,8 +321,7 @@ class RoleStore:
             return updated_doc
 
         except Exception as exc:
-            logger.error("Failed to assign roles: %s", exc)
-            raise
+            logger.exception(f"Failed to assign roles: {exc}")
 
     def revoke_roles(
         self,
@@ -300,8 +369,21 @@ class RoleStore:
         }
 
         try:
-            # Update document
-            self.store.update_document(self.collection, {"user_id": user_id}, updated_doc)
+            # Try to update document
+            # First get the document by _id to ensure we can update it
+            if "_id" in record:
+                # Update using the document's _id
+                self.store.update_document(self.collection, record["_id"], updated_doc)
+            else:
+                # If no _id, try to update with query filter (may not work with all stores)
+                # This is a fallback for stores that support filter-based updates
+                from copilot_storage.document_store import DocumentNotFoundError
+                try:
+                    self.store.update_document(self.collection, {"user_id": user_id}, updated_doc)
+                except (DocumentNotFoundError, TypeError):
+                    # If update by query fails, this store requires _id
+                    # Shouldn't happen since record came from _find_user_record which queries
+                    raise ValueError(f"Cannot update document for user {user_id} without _id")
 
             # Log audit event
             logger.info(
@@ -320,5 +402,21 @@ class RoleStore:
             return updated_doc
 
         except Exception as exc:
-            logger.error("Failed to revoke roles: %s", exc)
+            logger.exception(f"Failed to revoke roles: {exc}")
             raise
+
+    def find_by_role(self, role: str) -> list[dict[str, Any]]:
+        """Find all users with a specific role.
+
+        Args:
+            role: The role to search for
+
+        Returns:
+            List of user role records containing the specified role
+        """
+        try:
+            docs = self.store.query_documents(self.collection, {"roles": role})
+            return docs
+        except Exception as exc:
+            logger.error(f"Failed to find users by role {role}: {exc}")
+            return []

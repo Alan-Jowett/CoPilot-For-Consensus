@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 def mock_auth_service():
     """Create a mock auth service."""
     service = MagicMock()
-    service.config.audiences = "copilot-orchestrator"
+    service.config.audiences = "copilot-for-consensus"
 
     # Mock role store
     role_store = MagicMock()

@@ -193,6 +193,13 @@
       "env_var": "VECTOR_STORE_BATCH_SIZE",
       "default": 100,
       "description": "Qdrant vector store upsert batch size"
+    },
+    "jwt_auth_enabled": {
+      "type": "bool",
+      "source": "env",
+      "env_var": "JWT_AUTH_ENABLED",
+      "default": true,
+      "description": "Enable JWT authentication middleware"
     }
   }
 }

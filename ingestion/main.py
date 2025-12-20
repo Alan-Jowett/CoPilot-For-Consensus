@@ -129,6 +129,24 @@ def main():
         # Load configuration using adapter (env + defaults validated by schema)
         config = load_typed_config("ingestion")
         
+        # Conditionally add JWT authentication middleware based on config
+        if getattr(config, 'jwt_auth_enabled', True):
+            log.info("JWT authentication is enabled")
+            try:
+                from copilot_auth import create_jwt_middleware
+                # Use shared audience for all services
+                audience = getattr(config, 'service_audience', 'copilot-for-consensus')
+                auth_middleware = create_jwt_middleware(
+                    audience=audience,
+                    required_roles=["admin"],
+                    public_paths=["/", "/health", "/readyz", "/docs", "/openapi.json"],
+                )
+                app.add_middleware(auth_middleware)
+            except ImportError:
+                log.warning("copilot_auth module not available - JWT authentication disabled")
+        else:
+            log.warning("JWT authentication is DISABLED - all endpoints are public")
+        
         # Load sources from document store (storage-backed config)
         sources = []
         try:

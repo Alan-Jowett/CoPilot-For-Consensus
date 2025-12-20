@@ -321,36 +321,6 @@ class AuthService:
                     "role_status": status,
                 }
             )
-            # GitHub OAuth does not return id_tokens; handle via access_token + userinfo
-            id_token = token_response.get("id_token")
-
-            # Get access token (required for all flows)
-            access_token = token_response.get("access_token")
-            if not access_token:
-                raise AuthenticationError("No access token in response")
-
-            if id_token:
-                provider_instance.validate_id_token(id_token=id_token, nonce=nonce)
-                # For OIDC providers with id_token, userinfo uses access token
-                user = provider_instance.get_user(access_token)
-            elif isinstance(provider_instance, GitHubIdentityProvider):
-                # GitHub: use access_token to fetch user profile
-                user = provider_instance.get_user(access_token)
-            else:
-                raise AuthenticationError("No id_token in response")
-
-            if not user:
-                raise AuthenticationError("Failed to retrieve user info")
-
-            # Mint local JWT
-            local_jwt = self.jwt_manager.mint_token(
-                user=user,
-                audience=audience,
-                additional_claims={
-                    "provider": provider,
-                    "amr": ["pwd"],  # Authentication method: password (OIDC)
-                }
-            )
 
             # Clean up session (thread-safe)
             async with self._sessions_lock:
@@ -389,7 +359,7 @@ class AuthService:
             claims = self.jwt_manager.validate_token(
                 token=token,
                 audience=audience,
-                max_skew_seconds=self.config.security.max_skew_seconds
+                max_skew_seconds=self.config.max_skew_seconds
             )
 
             self.stats["tokens_validated"] += 1

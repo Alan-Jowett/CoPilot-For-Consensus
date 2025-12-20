@@ -22,15 +22,23 @@ services:
       - DOCUMENT_DATABASE_NAME=copilot
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
+      # Authentication configuration
+      - AUTH_SERVICE_URL=http://auth:8090
+      - SERVICE_AUDIENCE=copilot-for-consensus
+      - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
       - message_bus_user
       - message_bus_password
       - document_database_user
       - document_database_password
+    volumes:
+      - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
     depends_on:
       messagebus:
         condition: service_healthy
       documentdb:
+        condition: service_healthy
+      auth:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -61,17 +69,25 @@ services:
       - OLLAMA_HOST=http://ollama:11434
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
+      # Authentication configuration
+      - AUTH_SERVICE_URL=http://auth:8090
+      - SERVICE_AUDIENCE=copilot-for-consensus
+      - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
       - message_bus_user
       - message_bus_password
       - document_database_user
       - document_database_password
+    volumes:
+      - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
     depends_on:
       messagebus:
         condition: service_healthy
       documentdb:
         condition: service_healthy
       vectorstore:
+        condition: service_healthy
+      auth:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -101,6 +117,10 @@ services:
       - DOCUMENT_DATABASE_NAME=copilot
       - HTTP_HOST=0.0.0.0
       - HTTP_PORT=8001
+      # Authentication configuration
+      - AUTH_SERVICE_URL=http://auth:8090
+      - SERVICE_AUDIENCE=copilot-for-consensus
+      - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
       - message_bus_user
       - message_bus_password
@@ -116,6 +136,8 @@ services:
       pushgateway:
         condition: service_healthy
       documentdb:
+        condition: service_healthy
+      auth:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
@@ -146,12 +168,18 @@ services:
       - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
+      # Authentication configuration
+      - AUTH_SERVICE_URL=http://auth:8090
+      - SERVICE_AUDIENCE=copilot-for-consensus
+      - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
       - message_bus_user
       - message_bus_password
       - document_database_user
       - document_database_password
       - azure_openai_key
+    volumes:
+      - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
     depends_on:
       messagebus:
         condition: service_healthy
@@ -165,6 +193,8 @@ services:
         condition: service_completed_successfully
       ollama-model-loader:
         condition: service_completed_successfully
+      auth:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -189,6 +219,10 @@ services:
       - DOCUMENT_DATABASE_NAME=copilot
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
+      # Authentication configuration
+      - AUTH_SERVICE_URL=http://auth:8090
+      - SERVICE_AUDIENCE=copilot-for-consensus
+      - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
       - message_bus_user
       - message_bus_password
@@ -196,10 +230,13 @@ services:
       - document_database_password
     volumes:
       - raw_archives:/data/raw_archives:ro
+      - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
     depends_on:
       messagebus:
         condition: service_healthy
       documentdb:
+        condition: service_healthy
+      auth:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
@@ -226,6 +263,10 @@ services:
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
       - HTTP_PORT=8080
+      # Authentication configuration
+      - AUTH_SERVICE_URL=http://auth:8090
+      - SERVICE_AUDIENCE=copilot-for-consensus
+      - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
       - message_bus_user
       - message_bus_password
@@ -238,6 +279,8 @@ services:
       messagebus:
         condition: service_healthy
       documentdb:
+        condition: service_healthy
+      auth:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
@@ -253,8 +296,8 @@ services:
       context: .
       dockerfile: ./auth/Dockerfile
     environment:
-      - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8090}
-      - AUTH_AUDIENCES=${AUTH_AUDIENCES:-copilot-orchestrator,copilot-reporting}
+      - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/ui}
+      - AUTH_AUDIENCES=${AUTH_AUDIENCES:-copilot-for-consensus}
       - JWT_ALGORITHM=${JWT_ALGORITHM:-RS256}
       - JWT_KEY_ID=${JWT_KEY_ID:-default}
       - JWT_DEFAULT_EXPIRY=${JWT_DEFAULT_EXPIRY:-1800}
@@ -265,11 +308,11 @@ services:
       - DOCUMENT_DATABASE_PORT=27017
       - DOCUMENT_DATABASE_NAME=auth
       # OIDC Providers - OAuth secrets read via copilot_secrets from /run/secrets
-      - AUTH_GITHUB_REDIRECT_URI=${AUTH_GITHUB_REDIRECT_URI:-http://localhost:8090/callback}
+      - AUTH_GITHUB_REDIRECT_URI=${AUTH_GITHUB_REDIRECT_URI:-http://localhost:8080/ui/callback}
       - AUTH_GOOGLE_CLIENT_ID=${AUTH_GOOGLE_CLIENT_ID:-}
-      - AUTH_GOOGLE_REDIRECT_URI=${AUTH_GOOGLE_REDIRECT_URI:-http://localhost:8090/callback}
+      - AUTH_GOOGLE_REDIRECT_URI=${AUTH_GOOGLE_REDIRECT_URI:-http://localhost:8080/ui/callback}
       - AUTH_MS_CLIENT_ID=${AUTH_MS_CLIENT_ID:-}
-      - AUTH_MS_REDIRECT_URI=${AUTH_MS_REDIRECT_URI:-http://localhost:8090/callback}
+      - AUTH_MS_REDIRECT_URI=${AUTH_MS_REDIRECT_URI:-http://localhost:8080/ui/callback}
       - AUTH_MS_TENANT=${AUTH_MS_TENANT:-common}
       # Security
       - AUTH_REQUIRE_PKCE=${AUTH_REQUIRE_PKCE:-true}
@@ -279,6 +322,8 @@ services:
       - HOST=0.0.0.0
       - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
       - SECRETS_BASE_PATH=/run/secrets
+      # Bootstrap token for initial admin setup (one-time use)
+      - BOOTSTRAP_TOKEN=${BOOTSTRAP_TOKEN:-}
     volumes:
       - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
       - ./adapters/copilot_logging:/app/adapters/copilot_logging:ro
@@ -347,11 +392,17 @@ services:
       - LLAMACPP_HOST=${LLAMACPP_HOST:-http://llama-cpp:8081}
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
+      # Authentication configuration
+      - AUTH_SERVICE_URL=http://auth:8090
+      - SERVICE_AUDIENCE=copilot-for-consensus
+      - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
       - message_bus_user
       - message_bus_password
       - document_database_user
       - document_database_password
+    volumes:
+      - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
     depends_on:
       messagebus:
         condition: service_healthy
@@ -361,6 +412,8 @@ services:
         condition: service_healthy
       vectorstore-validate:
         condition: service_completed_successfully
+      auth:
+        condition: service_healthy
       ollama-model-loader:
         condition: service_completed_successfully
     healthcheck:

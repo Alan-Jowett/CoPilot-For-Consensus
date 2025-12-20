@@ -249,6 +249,26 @@ pytest tests/ -v
 - `adapters/copilot_auth/copilot_auth/` - Enhanced adapter (5 new files, 2 modified)
 - `documents/` - New integration guide (1 file)
 
+## Phase 3: React UI Integration ✅
+
+**Files Created/Modified:**
+- `ui/src/routes/Callback.tsx` - OAuth callback handling, token extraction and storage
+- `ui/src/contexts/AuthContext.tsx` - Token state management and useAuth() hook
+- `ui/src/api.ts` - fetchWithAuth() for injecting Authorization headers
+- `ui/src/routes/Login.tsx` - Login UI with provider buttons
+- `docker-compose.services.yml` - Updated with OAuth redirect URIs pointing to `/ui/callback`
+
+**Features:**
+- OAuth2 authorization code flow (code exchange)
+- Token extraction from OAuth redirect
+- localStorage for token storage (dev) / TODO: migrate to httpOnly cookies
+- Automatic Authorization header injection in API calls
+- Automatic redirect to login on 401 Unauthorized
+- ConsoleLogging for debugging auth flow
+
+**Key Fix - API Token Injection:**
+Previously, the `setAuthToken()` function from AuthContext wasn't updating the `authToken` variable used in API calls, resulting in 401 errors. Fixed by having `fetchWithAuth()` read directly from localStorage instead of relying on state synchronization. See [AUTH_API_INTEGRATION_FIX.md](AUTH_API_INTEGRATION_FIX.md) for details.
+
 ## Next Steps
 
 1. **Integration Testing**: Add end-to-end OIDC flow tests
@@ -256,14 +276,22 @@ pytest tests/ -v
    - Implement Redis session storage
    - Add refresh token support
    - Integrate Azure Key Vault
+   - Migrate token storage from localStorage to httpOnly Secure cookies
 3. **Role Mapping**: Map roles from provider organizations/teams
 4. **Admin UI**: Build management interface for keys and providers
 5. **Monitoring**: Add detailed metrics and alerts for auth events
 6. **Documentation**: Add OIDC compliance validation tests
 
+## Related Documentation
+
+- [AUTH_API_INTEGRATION_FIX.md](AUTH_API_INTEGRATION_FIX.md) - Details on token injection fix
+- [OAUTH_TESTING_GUIDE.md](OAUTH_TESTING_GUIDE.md) - Complete testing guide
+- [AUTH_INTEGRATION_EXAMPLES.md](AUTH_INTEGRATION_EXAMPLES.md) - Code examples
+- [OIDC_LOCAL_TESTING.md](OIDC_LOCAL_TESTING.md) - Local testing setup
+
 ## Conclusion
 
-The Auth microservice MVP is complete and ready for local development and testing. It provides a solid foundation for secure, standards-based authentication in Copilot-for-Consensus while maintaining flexibility for future enhancements.
+The Auth microservice MVP is complete and ready for local development and testing. It provides a solid foundation for secure, standards-based authentication in Copilot-for-Consensus while maintaining flexibility for future enhancements. The React UI is now fully integrated with OAuth2 flows and API token injection working correctly.
 
 **Security Status:** ✅ Passed CodeQL (0 alerts), code review feedback addressed
 **Deployment Status:** ✅ Ready for local development

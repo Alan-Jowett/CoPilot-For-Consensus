@@ -144,6 +144,13 @@
       "env_var": "RETRY_MAX_ATTEMPTS",
       "default": 3,
       "description": "Maximum retry attempts"
+    },
+    "jwt_auth_enabled": {
+      "type": "bool",
+      "source": "env",
+      "env_var": "JWT_AUTH_ENABLED",
+      "default": true,
+      "description": "Enable JWT authentication middleware"
     }
   }
 }

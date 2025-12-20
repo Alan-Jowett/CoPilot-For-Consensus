@@ -99,6 +99,21 @@ def main():
         config = load_typed_config("embedding")
         logger.info("Configuration loaded successfully")
         
+        # Conditionally add JWT authentication middleware based on config
+        if getattr(config, 'jwt_auth_enabled', True):
+            logger.info("JWT authentication is enabled")
+            try:
+                from copilot_auth import create_jwt_middleware
+                auth_middleware = create_jwt_middleware(
+                    required_roles=["processor"],
+                    public_paths=["/health", "/readyz", "/docs", "/openapi.json"],
+                )
+                app.add_middleware(auth_middleware)
+            except ImportError:
+                logger.warning("copilot_auth module not available - JWT authentication disabled")
+        else:
+            logger.warning("JWT authentication is DISABLED - all endpoints are public")
+        
         # Create adapters
         logger.info("Creating message bus publisher...")
         publisher = create_publisher(
