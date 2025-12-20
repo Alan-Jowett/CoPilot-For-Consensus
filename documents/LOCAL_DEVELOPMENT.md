@@ -115,18 +115,22 @@ For complete port documentation and security considerations, see [EXPOSED_PORTS.
 
 ## TLS/HTTPS Configuration (Optional)
 
-The API Gateway supports TLS/HTTPS for secure communication. This is optional for local development but **recommended for production deployments**.
+The API Gateway supports TLS/HTTPS for secure communication using Docker secrets. This is optional for local development but **recommended for production deployments**.
 
 ### Quick Setup (Self-Signed Certificates for Testing)
 
 ```bash
-# Generate self-signed certificates for local testing
+# 1. Generate self-signed certificates
 ./infra/nginx/certs/generate-certs.sh
 
-# Start the gateway (HTTPS will be available on port 8443)
-docker compose up -d gateway
+# 2. Copy certificates to secrets directory
+cp ./infra/nginx/certs/server.crt ./secrets/gateway_tls_cert
+cp ./infra/nginx/certs/server.key ./secrets/gateway_tls_key
 
-# Access via HTTPS
+# 3. Rebuild and start the gateway (HTTPS will be enabled on port 8443)
+docker compose up -d --build gateway
+
+# 4. Access via HTTPS
 # Note: Your browser will show a security warning (expected for self-signed certificates)
 curl -k https://localhost:8443/health
 ```
@@ -139,19 +143,26 @@ For production deployments, use valid certificates from a Certificate Authority:
 # 1. Obtain certificates (example using Let's Encrypt)
 sudo certbot certonly --standalone -d yourdomain.com
 
-# 2. Copy certificates to the gateway certs directory
-sudo cp /etc/letsencrypt/live/yourdomain.com/fullchain.pem ./infra/nginx/certs/server.crt
-sudo cp /etc/letsencrypt/live/yourdomain.com/privkey.pem ./infra/nginx/certs/server.key
-sudo chown $USER:$USER ./infra/nginx/certs/server.{crt,key}
-chmod 644 ./infra/nginx/certs/server.crt
-chmod 600 ./infra/nginx/certs/server.key
+# 2. Copy certificates to secrets directory
+sudo cp /etc/letsencrypt/live/yourdomain.com/fullchain.pem ./secrets/gateway_tls_cert
+sudo cp /etc/letsencrypt/live/yourdomain.com/privkey.pem ./secrets/gateway_tls_key
+sudo chown $USER:$USER ./secrets/gateway_tls_*
+chmod 644 ./secrets/gateway_tls_cert
+chmod 600 ./secrets/gateway_tls_key
 
-# 3. Start the gateway
-docker compose up -d gateway
+# 3. Rebuild and start the gateway
+docker compose up -d --build gateway
 
 # 4. Access via HTTPS (no browser warnings)
 curl https://yourdomain.com:8443/health
 ```
+
+### How It Works
+
+The gateway uses Docker secrets for TLS certificates:
+- If `gateway_tls_cert` and `gateway_tls_key` secrets exist, HTTPS is automatically enabled
+- If secrets don't exist, only HTTP is available (port 8080)
+- No configuration changes needed - the gateway detects secrets at startup
 
 ### Access URLs with TLS Enabled
 
@@ -163,7 +174,7 @@ curl https://yourdomain.com:8443/health
   - `/ingestion/` - Ingestion API
   - `/grafana/` - Grafana dashboards
   
-- **HTTP (fallback)**: http://localhost:8080/
+- **HTTP (always available)**: http://localhost:8080/
   - Same endpoints available
   - Recommended only for local development
 
@@ -172,7 +183,7 @@ curl https://yourdomain.com:8443/health
 The gateway uses modern TLS configuration:
 - **Protocols**: TLS 1.2, TLS 1.3
 - **Cipher Suites**: Mozilla Intermediate profile (balanced security and compatibility)
-- **Security Headers**: HSTS, X-Frame-Options, X-Content-Type-Options, X-XSS-Protection
+- **Security Headers**: HSTS (30-day max-age), X-Frame-Options, X-Content-Type-Options
 
 For more details, see `./infra/nginx/certs/README.md`.
 

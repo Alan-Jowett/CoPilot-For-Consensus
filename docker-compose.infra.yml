@@ -488,16 +488,17 @@ services:
   # wait a few seconds for backend services to become healthy.
   # CI workflow starts gateway after all services are healthy (recommended pattern).
   gateway:
-    image: nginx:alpine
+    build:
+      context: ./infra/nginx
+      dockerfile: Dockerfile
+    image: copilot-gateway:latest
     ports:
       - "0.0.0.0:8080:8080"
-      # HTTPS port (8443) - only exposed if GATEWAY_TLS_ENABLED=true and certificates are present
+      # HTTPS port (8443) - conditionally enabled when TLS secrets are provided
       - "0.0.0.0:8443:8443"
-    volumes:
-      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      # TLS certificates (optional) - mount host certificates into container
-      # If certificates don't exist, HTTPS server will fail to start but HTTP will continue
-      - ./infra/nginx/certs:/etc/nginx/certs:ro
+    secrets:
+      - gateway_tls_cert
+      - gateway_tls_key
     depends_on:
       reporting:
         condition: service_healthy
