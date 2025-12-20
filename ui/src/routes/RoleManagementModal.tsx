@@ -11,7 +11,7 @@ interface RoleManagementModalProps {
   onClose: (updated?: UserRoleRecord) => void
 }
 
-const AVAILABLE_ROLES = ['admin', 'contributor', 'viewer', 'moderator']
+const AVAILABLE_ROLES = ['admin', 'contributor', 'reviewer', 'reader']
 
 // Role name validation regex: alphanumeric, hyphens, underscores, 1-50 chars
 const ROLE_NAME_REGEX = /^[a-zA-Z0-9_-]{1,50}$/

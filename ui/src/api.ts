@@ -392,9 +392,13 @@ export async function uploadMailboxFile(
     })
 
     xhr.open('POST', `${INGESTION_API_BASE}/api/uploads`)
-    // Add auth header if token exists
-    if (authToken) {
-      xhr.setRequestHeader('Authorization', `Bearer ${authToken}`)
+    // Add auth header if token exists (use localStorage as source of truth)
+    const token = localStorage.getItem('auth_token') || authToken
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+      console.log('[uploadMailboxFile] Added Authorization header')
+    } else {
+      console.warn('[uploadMailboxFile] No auth token found')
     }
     xhr.send(formData)
   })

@@ -161,7 +161,7 @@ class RoleStore:
         try:
             self.store.insert_document(self.collection, doc)
         except Exception as exc:  # pragma: no cover
-            logger.error("Failed to insert user role record: %s", exc)
+            logger.exception(f"Failed to insert user role record: {exc}")
             raise AuthenticationError("Could not persist role assignment") from exc
 
     # Admin methods
@@ -212,7 +212,7 @@ class RoleStore:
             return paginated_docs, total_count
 
         except Exception as exc:
-            logger.error("Failed to list pending role assignments: %s", exc)
+            logger.exception(f"Failed to list pending role assignments: {exc}")
             raise
 
     def get_user_roles(self, user_id: str) -> dict[str, Any] | None:
@@ -255,14 +255,26 @@ class RoleStore:
         record = self._find_user_record(user_id)
 
         if not record:
-            raise ValueError(f"User record not found: {user_id}")
+            # If user record doesn't exist, create a minimal one
+            now = datetime.now(timezone.utc).isoformat()
+            record = {
+                "user_id": user_id,
+                "roles": [],
+                "status": "pending",
+                "created_at": now,
+            }
 
         now = datetime.now(timezone.utc).isoformat()
+
+        # Merge new roles with existing roles (avoid duplicates)
+        current_roles = record.get("roles", [])
+        merged_roles = list(set(current_roles + roles))  # Combine and deduplicate
+        merged_roles.sort()  # Sort for consistent ordering
 
         # Update roles and status
         updated_doc = {
             **record,
-            "roles": roles,
+            "roles": merged_roles,
             "status": "approved",
             "updated_at": now,
             "approved_by": admin_user_id,
@@ -270,8 +282,15 @@ class RoleStore:
         }
 
         try:
-            # Update document
-            self.store.update_document(self.collection, {"user_id": user_id}, updated_doc)
+            # Try to update, or insert if doesn't exist
+            from copilot_storage.document_store import DocumentNotFoundError
+            try:
+                self.store.update_document(self.collection, {"user_id": user_id}, updated_doc)
+            except DocumentNotFoundError:
+                # Document doesn't exist, create it
+                # Remove _id if present (MongoDB will generate a new one)
+                insert_doc = {k: v for k, v in updated_doc.items() if k != "_id"}
+                self.store.insert_document(self.collection, insert_doc)
 
             # Log audit event
             logger.info(
@@ -289,8 +308,7 @@ class RoleStore:
             return updated_doc
 
         except Exception as exc:
-            logger.error("Failed to assign roles: %s", exc)
-            raise
+            logger.exception(f"Failed to assign roles: {exc}")
 
     def revoke_roles(
         self,
@@ -358,8 +376,9 @@ class RoleStore:
             return updated_doc
 
         except Exception as exc:
-            logger.error("Failed to revoke roles: %s", exc)
+            logger.exception(f"Failed to revoke roles: {exc}")
             raise
+
     def find_by_role(self, role: str) -> list[dict[str, Any]]:
         """Find all users with a specific role.
 

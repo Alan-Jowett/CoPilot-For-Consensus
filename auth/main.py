@@ -567,7 +567,7 @@ async def assign_user_roles(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.error(f"Failed to assign roles: {e}")
+        logger.exception(f"Failed to assign roles: {e}")
         raise HTTPException(status_code=500, detail="Failed to assign roles")
 
 
@@ -626,7 +626,7 @@ async def revoke_user_roles(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.error(f"Failed to revoke roles: {e}")
+        logger.exception(f"Failed to revoke roles: {e}")
         raise HTTPException(status_code=500, detail="Failed to revoke roles")
 
 
