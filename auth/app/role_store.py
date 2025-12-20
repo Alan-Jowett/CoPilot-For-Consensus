@@ -106,6 +106,9 @@ class RoleStore:
 
         Returns a tuple of (roles, status) where status is one of
         "approved", "pending", or "denied".
+        
+        Special behavior: If no admins exist in the system, the first user to log in
+        is automatically promoted to admin.
         """
 
         record = self._find_user_record(user.id)
@@ -122,10 +125,18 @@ class RoleStore:
         roles: list[str] = []
         status = "pending"
 
-        auto_roles = [r for r in auto_approve_roles if r]
-        if auto_approve_enabled and auto_roles:
-            roles = auto_roles
+        # Special case: auto-promote first user to admin if no admins exist
+        admins = self.find_by_role("admin")
+        if not admins:
+            roles = ["admin"]
             status = "approved"
+            logger.info(f"Auto-promoting first user {user.id} to admin role (no admins exist)")
+        else:
+            # Normal role assignment
+            auto_roles = [r for r in auto_approve_roles if r]
+            if auto_approve_enabled and auto_roles:
+                roles = auto_roles
+                status = "approved"
 
         self._insert_user_record(user=user, roles=roles, status=status)
         return roles, status
