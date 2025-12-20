@@ -279,15 +279,29 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
         Returns metadata including the server path to use when creating a source.
         """
         try:
+            logger.debug(
+                "Upload request received",
+                filename=file.filename,
+                content_type=file.content_type,
+                file_size_header=file.size,
+            )
+            
             # Validate presence of filename
             if not file.filename:
+                logger.warning("Upload rejected: no filename provided")
                 raise HTTPException(status_code=400, detail="Filename is required")
             
             # Sanitize filename first to ensure validation and storage use the same name
             safe_filename = _sanitize_filename(file.filename)
+            logger.debug("Filename sanitized", original=file.filename, sanitized=safe_filename)
             
             # Validate file extension on the sanitized filename
             if not _validate_file_extension(safe_filename):
+                logger.warning(
+                    "Upload rejected: invalid file extension",
+                    filename=safe_filename,
+                    allowed_extensions=list(ALLOWED_EXTENSIONS),
+                )
                 raise HTTPException(
                     status_code=400,
                     detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
@@ -295,33 +309,55 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
             
             # Create uploads directory in storage path
             uploads_dir = Path(service.config.storage_path) / "uploads"
+            logger.debug("Creating uploads directory", uploads_dir=str(uploads_dir))
             uploads_dir.mkdir(parents=True, exist_ok=True)
             
             # Generate unique filename if file already exists
             file_path = uploads_dir / safe_filename
             if file_path.exists():
+                logger.debug("File already exists, generating unique name", original_path=str(file_path))
                 name, ext = _split_extension(safe_filename)
                 counter = 1
                 while file_path.exists():
                     file_path = uploads_dir / f"{name}_{counter}{ext}"
                     counter += 1
+                logger.debug("Unique filename generated", final_path=str(file_path))
             
             # Read and validate file size
+            logger.debug("Reading file content")
             content = await file.read()
             file_size = len(content)
+            logger.debug("File content read", file_size=file_size)
             
             if file_size > MAX_UPLOAD_SIZE:
+                logger.warning(
+                    "Upload rejected: file too large",
+                    file_size=file_size,
+                    max_size=MAX_UPLOAD_SIZE,
+                )
                 raise HTTPException(
                     status_code=413,
                     detail=f"File too large. Maximum size: {MAX_UPLOAD_SIZE / (1024 * 1024):.0f}MB"
                 )
             
             if file_size == 0:
+                logger.warning("Upload rejected: empty file")
                 raise HTTPException(status_code=400, detail="File is empty")
             
             # Write file to disk
-            with open(file_path, "wb") as f:
-                f.write(content)
+            logger.debug("Writing file to disk", path=str(file_path))
+            try:
+                with open(file_path, "wb") as f:
+                    f.write(content)
+                logger.debug("File written successfully", path=str(file_path))
+            except IOError as e:
+                logger.error(
+                    "Failed to write file to disk",
+                    path=str(file_path),
+                    error=str(e),
+                    exc_info=True,
+                )
+                raise HTTPException(status_code=500, detail=f"Failed to write file: {str(e)}")
             
             uploaded_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
             
@@ -330,6 +366,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
                 filename=file_path.name,
                 size_bytes=file_size,
                 path=str(file_path),
+                uploaded_at=uploaded_at,
             )
             
             return UploadResponse(
@@ -340,9 +377,15 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
                 suggested_source_type="local",
             )
         except HTTPException:
+            logger.debug("HTTPException raised in upload_file", status_code=getattr(sys.exc_info()[1], 'status_code', 'unknown'))
             raise
         except Exception as e:
-            logger.error("Error uploading file: %s", e, exc_info=True)
+            logger.error(
+                "Error uploading file",
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
+            )
             raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
     
     return router

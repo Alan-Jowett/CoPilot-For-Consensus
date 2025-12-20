@@ -167,16 +167,34 @@ class JWTMiddleware(BaseHTTPMiddleware):
             HTTPException: If token is invalid
         """
         try:
+            logger.debug(
+                "Validating JWT token",
+                token_length=len(token),
+                expected_audience=self.audience,
+            )
+            
             # Decode header to get kid
             unverified_header = jwt.get_unverified_header(token)
+            logger.debug(
+                "JWT header decoded",
+                alg=unverified_header.get("alg"),
+                kid=unverified_header.get("kid"),
+                typ=unverified_header.get("typ"),
+            )
             
             # Get public key
             jwk = self._get_public_key(unverified_header)
             if not jwk:
+                logger.error(
+                    "Failed to find public key for token",
+                    kid=unverified_header.get("kid"),
+                )
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Unable to find matching public key"
                 )
+            
+            logger.debug("Public key found for token validation")
             
             # Decode and validate token
             # Note: For production, use PyJWT's built-in JWK support
@@ -192,19 +210,35 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 options={"verify_exp": True}
             )
             
+            logger.info(
+                "Token validated successfully",
+                sub=claims.get("sub"),
+                email=claims.get("email"),
+                roles=claims.get("roles", []),
+                aud=claims.get("aud"),
+                exp_timestamp=claims.get("exp"),
+            )
+            
             return claims
         
-        except jwt.ExpiredSignatureError:
+        except jwt.ExpiredSignatureError as e:
+            logger.warning("Token has expired", error=str(e))
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token has expired"
             )
-        except jwt.InvalidAudienceError:
+        except jwt.InvalidAudienceError as e:
+            logger.warning(
+                "Invalid token audience",
+                expected=self.audience,
+                error=str(e),
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Invalid audience. Expected: {self.audience}"
             )
         except jwt.InvalidTokenError as e:
+            logger.warning("Invalid token format or signature", error=str(e), exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Invalid token: {str(e)}"
@@ -220,16 +254,30 @@ class JWTMiddleware(BaseHTTPMiddleware):
             HTTPException: If user lacks required roles
         """
         if not self.required_roles:
+            logger.debug("No required roles configured, skipping role check")
             return
         
         user_roles = claims.get("roles", [])
+        logger.debug(
+            "Checking user roles",
+            user_roles=user_roles,
+            required_roles=self.required_roles,
+        )
         
         for required_role in self.required_roles:
             if required_role not in user_roles:
+                logger.warning(
+                    "User missing required role",
+                    required_role=required_role,
+                    user_roles=user_roles,
+                    sub=claims.get("sub"),
+                )
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=f"Missing required role: {required_role}"
                 )
+        
+        logger.debug("User has all required roles", user_roles=user_roles)
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Process request and validate JWT.
@@ -241,13 +289,27 @@ class JWTMiddleware(BaseHTTPMiddleware):
         Returns:
             Response from handler
         """
+        logger.debug(
+            "Incoming request",
+            method=request.method,
+            path=request.url.path,
+            has_auth_header="Authorization" in request.headers,
+        )
+        
         # Skip authentication for public paths
         if request.url.path in self.public_paths:
+            logger.debug("Public path, skipping authentication", path=request.url.path)
             return await call_next(request)
         
         # Extract Authorization header
         auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
+            logger.warning(
+                "Missing or invalid Authorization header",
+                path=request.url.path,
+                method=request.method,
+                has_auth_header=auth_header is not None,
+            )
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 content={"detail": "Missing or invalid Authorization header"},
@@ -256,6 +318,11 @@ class JWTMiddleware(BaseHTTPMiddleware):
         
         # Extract token
         token = auth_header[7:]  # Remove "Bearer " prefix
+        logger.debug(
+            "Bearer token extracted",
+            path=request.url.path,
+            token_length=len(token),
+        )
         
         # Validate token
         try:
@@ -270,11 +337,26 @@ class JWTMiddleware(BaseHTTPMiddleware):
             request.state.user_email = claims.get("email")
             request.state.user_roles = claims.get("roles", [])
             
+            logger.info(
+                "Request authenticated and authorized",
+                path=request.url.path,
+                method=request.method,
+                user_id=request.state.user_id,
+                user_roles=request.state.user_roles,
+            )
+            
             # Call next handler
             response = await call_next(request)
             return response
         
         except HTTPException as e:
+            logger.warning(
+                "Authentication/authorization failed",
+                path=request.url.path,
+                method=request.method,
+                status_code=e.status_code,
+                detail=e.detail,
+            )
             # Convert HTTPException to JSONResponse
             return JSONResponse(
                 status_code=e.status_code,
