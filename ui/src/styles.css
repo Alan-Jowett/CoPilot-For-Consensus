@@ -326,6 +326,8 @@ tr:hover { background-color: var(--bg-hover); }
 .nav-link { display: inline-block; padding: 15px 10px; color: var(--text-secondary); text-decoration: none; font-weight: 500; border-bottom: 3px solid transparent; transition: color 0.2s, border-color 0.2s; }
 .nav-link:hover { color: var(--color-primary); }
 .nav-link.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+.nav-logout-btn { padding: 8px 16px; background-color: var(--color-danger); color: white; border: none; border-radius: 4px; font-weight: 500; cursor: pointer; transition: background-color 0.2s; }
+.nav-logout-btn:hover { background-color: var(--color-danger-hover); }
 
 /* Success and Error Messages */
 .success-message { background: var(--color-success); opacity: 0.1; color: var(--color-success); padding: 12px 15px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid var(--color-success); }

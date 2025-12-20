@@ -4,6 +4,7 @@
 import React, { Component, ReactNode } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { ThemeToggle } from '../components/ThemeToggle'
+import { useAuth } from '../contexts/AuthContext'
 
 interface ErrorBoundaryState {
   hasError: boolean
@@ -55,6 +56,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
 
 function AppLayoutContent() {
   const location = useLocation()
+  const { logout } = useAuth()
   
   const isActive = (path: string) => {
     if (path === '/') {
@@ -90,6 +92,13 @@ function AppLayoutContent() {
               🔐 Admin
             </Link>
             <ThemeToggle />
+            <button 
+              onClick={logout}
+              className="nav-logout-btn"
+              title="Logout"
+            >
+              🚪 Logout
+            </button>
           </div>
         </div>
       </nav>
