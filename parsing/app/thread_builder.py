@@ -48,7 +48,13 @@ class ThreadBuilder:
         for message in messages:
             message_id = message["message_id"]
             root = self._find_thread_root(message_id, message_map, roots)
-            root_doc_id = message_map[root].get("_id", root)  # Use root message's canonical _id
+            if root not in message_map:
+                logger.warning("Root message %s not found; using current message _id as thread root", root)
+                # Fall back to the current message's canonical _id so thread_ids stay valid hex IDs
+                root_doc_id = message.get("_id", message_id)
+                roots.add(message_id)
+            else:
+                root_doc_id = message_map[root].get("_id", root)  # Use root message's canonical _id
             thread_assignments[message_id] = root_doc_id
             # Update the message's thread_id to root message's canonical _id
             message["thread_id"] = root_doc_id
