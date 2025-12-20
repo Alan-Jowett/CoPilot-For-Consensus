@@ -63,6 +63,14 @@ jobs:
         
         # Azure OpenAI (empty for CI)
         echo "" > secrets/azure_openai_key
+        
+        # Generate self-signed TLS certificates for gateway (HTTPS)
+        echo "Generating self-signed TLS certificates for gateway..."
+        openssl req -x509 -newkey rsa:2048 \
+          -keyout secrets/gateway_tls_key -out secrets/gateway_tls_cert \
+          -days 365 -nodes \
+          -subj "/C=US/ST=State/L=City/O=Copilot-for-Consensus/CN=localhost"
+        echo "✓ TLS certificates generated"
 
     - name: Free up disk space
       run: |
