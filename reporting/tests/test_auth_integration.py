@@ -219,7 +219,6 @@ def client_with_auth(mock_service, mock_jwks):
                 
                 # Get the test keypair from the fixture scope
                 # For mock tokens, we just validate the structure and claims
-                unverified_header = jwt.get_unverified_header(token)
                 claims = jwt.decode(
                     token,
                     options={"verify_signature": False},  # Skip sig verification for test
