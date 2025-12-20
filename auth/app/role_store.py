@@ -285,7 +285,15 @@ class RoleStore:
             # Try to update, or insert if doesn't exist
             from copilot_storage.document_store import DocumentNotFoundError
             try:
-                self.store.update_document(self.collection, {"user_id": user_id}, updated_doc)
+                # Update using the document's _id if available
+                if "_id" in record:
+                    # Remove _id from the update doc (don't pass it to validation)
+                    update_doc = {k: v for k, v in updated_doc.items() if k != "_id"}
+                    self.store.update_document(self.collection, record["_id"], update_doc)
+                else:
+                    # If no _id (new record), insert it
+                    insert_doc = {k: v for k, v in updated_doc.items() if k != "_id"}
+                    self.store.insert_document(self.collection, insert_doc)
             except DocumentNotFoundError:
                 # Document doesn't exist, create it
                 # Remove _id if present (MongoDB will generate a new one)
@@ -356,8 +364,21 @@ class RoleStore:
         }
 
         try:
-            # Update document
-            self.store.update_document(self.collection, {"user_id": user_id}, updated_doc)
+            # Try to update document
+            # First get the document by _id to ensure we can update it
+            if "_id" in record:
+                # Update using the document's _id
+                self.store.update_document(self.collection, record["_id"], updated_doc)
+            else:
+                # If no _id, try to update with query filter (may not work with all stores)
+                # This is a fallback for stores that support filter-based updates
+                from copilot_storage.document_store import DocumentNotFoundError
+                try:
+                    self.store.update_document(self.collection, {"user_id": user_id}, updated_doc)
+                except (DocumentNotFoundError, TypeError):
+                    # If update by query fails, this store requires _id
+                    # Shouldn't happen since record came from _find_user_record which queries
+                    raise ValueError(f"Cannot update document for user {user_id} without _id")
 
             # Log audit event
             logger.info(
