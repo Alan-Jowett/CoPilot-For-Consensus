@@ -25,6 +25,7 @@ services:
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
+      - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
       - message_bus_user
       - message_bus_password
@@ -71,6 +72,7 @@ services:
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
+      - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
       - message_bus_user
       - message_bus_password
@@ -118,6 +120,7 @@ services:
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
+      - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
       - message_bus_user
       - message_bus_password
@@ -168,6 +171,7 @@ services:
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
+      - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
       - message_bus_user
       - message_bus_password
@@ -218,6 +222,7 @@ services:
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
+      - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
       - message_bus_user
       - message_bus_password
@@ -261,6 +266,7 @@ services:
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
+      - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
       - message_bus_user
       - message_bus_password
@@ -389,6 +395,7 @@ services:
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
+      - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
       - message_bus_user
       - message_bus_password
