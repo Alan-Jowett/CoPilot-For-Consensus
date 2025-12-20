@@ -320,3 +320,122 @@ class TestRevokeRoles:
                 roles=["fake-role"],
                 admin_user_id="github:admin",
             )
+
+
+class TestSearchUsers:
+    """Test search_users method."""
+
+    def test_search_by_user_id_exact_match(self, role_store, mock_store):
+        """Test searching by user_id with exact match."""
+        user_record = {
+            "user_id": "github:123",
+            "email": "user@example.com",
+            "name": "Test User",
+            "roles": ["contributor"],
+            "status": "approved",
+        }
+        mock_store.query_documents.return_value = [user_record]
+
+        results = role_store.search_users(search_term="github:123", search_by="user_id")
+
+        assert len(results) == 1
+        assert results[0]["user_id"] == "github:123"
+        mock_store.query_documents.assert_called_once_with("user_roles", {"user_id": "github:123"})
+
+    def test_search_by_email_partial_match(self, role_store, mock_store):
+        """Test searching by email with partial, case-insensitive match."""
+        all_users = [
+            {
+                "user_id": "github:123",
+                "email": "alice@example.com",
+                "name": "Alice",
+                "roles": ["admin"],
+                "status": "approved",
+            },
+            {
+                "user_id": "github:456",
+                "email": "bob@example.com",
+                "name": "Bob",
+                "roles": ["contributor"],
+                "status": "approved",
+            },
+            {
+                "user_id": "github:789",
+                "email": "charlie@other.com",
+                "name": "Charlie",
+                "roles": ["reader"],
+                "status": "approved",
+            },
+        ]
+        mock_store.query_documents.return_value = all_users
+
+        results = role_store.search_users(search_term="example", search_by="email")
+
+        assert len(results) == 2
+        assert results[0]["email"] == "alice@example.com"
+        assert results[1]["email"] == "bob@example.com"
+        mock_store.query_documents.assert_called_once_with("user_roles", {})
+
+    def test_search_by_name_case_insensitive(self, role_store, mock_store):
+        """Test searching by name with case-insensitive partial match."""
+        all_users = [
+            {
+                "user_id": "github:123",
+                "email": "alice@example.com",
+                "name": "Alice Smith",
+                "roles": ["admin"],
+                "status": "approved",
+            },
+            {
+                "user_id": "github:456",
+                "email": "bob@example.com",
+                "name": "Bob Jones",
+                "roles": ["contributor"],
+                "status": "approved",
+            },
+        ]
+        mock_store.query_documents.return_value = all_users
+
+        results = role_store.search_users(search_term="alice", search_by="name")
+
+        assert len(results) == 1
+        assert results[0]["name"] == "Alice Smith"
+
+    def test_search_invalid_field(self, role_store, mock_store):
+        """Test searching by invalid field raises error."""
+        with pytest.raises(ValueError, match="Invalid search_by field"):
+            role_store.search_users(search_term="test", search_by="invalid_field")
+
+    def test_search_no_results(self, role_store, mock_store):
+        """Test searching returns empty list when no matches."""
+        mock_store.query_documents.return_value = []
+
+        results = role_store.search_users(search_term="nonexistent", search_by="email")
+
+        assert len(results) == 0
+
+    def test_search_handles_missing_field(self, role_store, mock_store):
+        """Test searching handles users with missing search field gracefully."""
+        all_users = [
+            {
+                "user_id": "github:123",
+                "email": "alice@example.com",
+                "name": "Alice",
+                "roles": ["admin"],
+                "status": "approved",
+            },
+            {
+                "user_id": "github:456",
+                # email field missing
+                "name": "Bob",
+                "roles": ["contributor"],
+                "status": "approved",
+            },
+        ]
+        mock_store.query_documents.return_value = all_users
+
+        results = role_store.search_users(search_term="alice", search_by="email")
+
+        # Should only find Alice, not crash on Bob's missing email
+        assert len(results) == 1
+        assert results[0]["user_id"] == "github:123"

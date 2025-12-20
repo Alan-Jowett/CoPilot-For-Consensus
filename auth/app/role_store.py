@@ -420,3 +420,45 @@ class RoleStore:
         except Exception as exc:
             logger.error(f"Failed to find users by role {role}: {exc}")
             return []
+
+    def search_users(
+        self,
+        search_term: str,
+        search_by: str = "user_id",
+    ) -> list[dict[str, Any]]:
+        """Search for users by various fields.
+
+        Args:
+            search_term: The search term to look for
+            search_by: Field to search by ('user_id', 'email', 'name')
+
+        Returns:
+            List of matching user role records
+
+        Raises:
+            ValueError: If search_by field is invalid
+        """
+        valid_fields = {"user_id", "email", "name"}
+        if search_by not in valid_fields:
+            raise ValueError(f"Invalid search_by field: {search_by}. Must be one of {valid_fields}")
+
+        try:
+            # For user_id, do exact match
+            if search_by == "user_id":
+                docs = self.store.query_documents(self.collection, {"user_id": search_term})
+            else:
+                # For email and name, we need to handle case-insensitive partial matching
+                # Since copilot_storage doesn't support regex queries directly,
+                # we'll fetch all documents and filter in memory
+                # This is not ideal for large datasets, but works for MVP
+                all_docs = self.store.query_documents(self.collection, {})
+                search_lower = search_term.lower()
+                docs = [
+                    doc for doc in all_docs
+                    if doc.get(search_by) and search_lower in doc.get(search_by, "").lower()
+                ]
+
+            return docs
+        except Exception as exc:
+            logger.error(f"Failed to search users by {search_by}={search_term}: {exc}")
+            return []

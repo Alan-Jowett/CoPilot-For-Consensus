@@ -2,35 +2,53 @@
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
 import { useState } from 'react'
-import { fetchUserRoles, UserRoleRecord } from '../api'
+import { searchUsers, UserRoleRecord } from '../api'
 import { RoleManagementModal } from './RoleManagementModal'
 
 export function UserRolesList() {
-  const [userId, setUserId] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [searchBy, setSearchBy] = useState<'user_id' | 'email' | 'name'>('email')
   const [userRecord, setUserRecord] = useState<UserRoleRecord | null>(null)
+  const [searchResults, setSearchResults] = useState<UserRoleRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [modalAction, setModalAction] = useState<'assign' | 'revoke'>('assign')
 
   const handleSearch = async () => {
-    if (!userId.trim()) {
-      setError('Please enter a user ID')
+    if (!searchTerm.trim()) {
+      setError(`Please enter a ${searchBy.replace('_', ' ')}`)
       return
     }
 
     setLoading(true)
     setError(null)
+    setSearchResults([])
+    setUserRecord(null)
     try {
-      const record = await fetchUserRoles(userId.trim())
-      setUserRecord(record)
+      const response = await searchUsers(searchTerm.trim(), searchBy)
+      if (response.users.length === 0) {
+        setError(`No users found matching "${searchTerm}"`)
+      } else if (response.users.length === 1) {
+        // If exactly one result, show it directly
+        setUserRecord(response.users[0])
+      } else {
+        // Multiple results, show list to choose from
+        setSearchResults(response.users)
+      }
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Failed to fetch user roles'
+      const message = e instanceof Error ? e.message : 'Failed to search users'
       setError(message)
       setUserRecord(null)
+      setSearchResults([])
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSelectUser = (user: UserRoleRecord) => {
+    setUserRecord(user)
+    setSearchResults([])
   }
 
   const handleAssignRoles = () => {
@@ -56,13 +74,27 @@ export function UserRolesList() {
         <h2>Search User</h2>
         <div className="filter-row">
           <div className="filter-group">
-            <label htmlFor="user-id-search">User ID</label>
+            <label htmlFor="search-by">Search By</label>
+            <select
+              id="search-by"
+              value={searchBy}
+              onChange={(e) => setSearchBy(e.target.value as 'user_id' | 'email' | 'name')}
+            >
+              <option value="email">Email</option>
+              <option value="name">Name</option>
+              <option value="user_id">User ID</option>
+            </select>
+          </div>
+          <div className="filter-group">
+            <label htmlFor="search-term">
+              {searchBy === 'user_id' ? 'User ID' : searchBy === 'email' ? 'Email' : 'Name'}
+            </label>
             <input
-              id="user-id-search"
+              id="search-term"
               type="text"
-              value={userId}
-              onChange={(e) => setUserId(e.target.value)}
-              placeholder="Enter user ID"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={`Enter ${searchBy.replace('_', ' ')}`}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
           </div>
@@ -73,6 +105,40 @@ export function UserRolesList() {
       {error && <div className="error-message">{error}</div>}
 
       {loading && <div className="no-reports">Loading…</div>}
+
+      {searchResults.length > 1 && (
+        <div className="search-results">
+          <h3>Search Results ({searchResults.length} users found)</h3>
+          <div className="user-results-list">
+            {searchResults.map((user) => (
+              <div
+                key={user.user_id}
+                className="user-result-item"
+                onClick={() => handleSelectUser(user)}
+                style={{ cursor: 'pointer', padding: '10px', border: '1px solid #ccc', marginBottom: '5px' }}
+              >
+                <div>
+                  <strong>{user.name || user.user_id}</strong>
+                </div>
+                {user.email && <div className="user-metadata">{user.email}</div>}
+                <div className="user-metadata">
+                  <span className="citation-id">{user.user_id}</span>
+                  {' • '}
+                  <span className={`badge ${user.status === 'approved' ? 'enabled' : 'warning'}`}>
+                    {user.status}
+                  </span>
+                  {user.roles.length > 0 && (
+                    <>
+                      {' • '}
+                      Roles: {user.roles.join(', ')}
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {userRecord && (
         <div className="user-record-card">

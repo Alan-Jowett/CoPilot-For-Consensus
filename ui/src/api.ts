@@ -464,6 +464,26 @@ export async function fetchUserRoles(userId: string): Promise<UserRoleRecord> {
   return r.json()
 }
 
+export interface UserSearchResponse {
+  users: UserRoleRecord[]
+  count: number
+  search_by: string
+  search_term: string
+}
+
+export async function searchUsers(
+  searchTerm: string,
+  searchBy: 'user_id' | 'email' | 'name' = 'email'
+): Promise<UserSearchResponse> {
+  const params = toQuery({ search_term: searchTerm, search_by: searchBy })
+  const r = await fetchWithAuth(`${AUTH_API_BASE}/admin/users/search?${params}`)
+  if (!r.ok) {
+    const error = await r.json().catch(() => ({ detail: `Request failed: ${r.status}` }))
+    throw new Error(error.detail || `Failed to search users: ${r.status}`)
+  }
+  return r.json()
+}
+
 export async function assignUserRoles(userId: string, roles: string[]): Promise<UserRoleRecord> {
   const r = await fetchWithAuth(`${AUTH_API_BASE}/admin/users/${encodeURIComponent(userId)}/roles`, {
     method: 'POST',
