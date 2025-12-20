@@ -350,7 +350,9 @@ def require_admin_role(request: Request) -> tuple[str, str | None]:
 
     # Extract token from Authorization header
     auth_header = request.headers.get("Authorization", "")
+    logger.info(f"Authorization header present: {bool(auth_header)}, starts with Bearer: {auth_header.startswith('Bearer ')}")
     if not auth_header.startswith("Bearer "):
+        logger.warning(f"Missing or invalid Authorization header. Header value: '{auth_header[:50]}...' if longer")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid Authorization header")
 
     token = auth_header[7:]  # Remove "Bearer " prefix
@@ -358,6 +360,7 @@ def require_admin_role(request: Request) -> tuple[str, str | None]:
     try:
         # Parse audiences from config
         configured_audiences = [aud.strip() for aud in auth_service.config.audiences.split(",")]
+        logger.info(f"Configured audiences: {configured_audiences}")
 
         # Try to validate against each configured audience
         for audience in configured_audiences:
@@ -380,9 +383,11 @@ def require_admin_role(request: Request) -> tuple[str, str | None]:
                     f"Token validation failed for audience {audience}: {type(e).__name__}: {e}",
                     extra={"audience": audience, "error_type": type(e).__name__},
                 )
+                logger.info(f"Token (first 50 chars): {token[:50]}...")
                 continue
 
         # Token didn't match any configured audience
+        logger.error(f"Token didn't match any configured audience. Audiences: {configured_audiences}, Token preview: {token[:50]}...")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
     except HTTPException:
