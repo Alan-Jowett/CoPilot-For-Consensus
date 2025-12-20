@@ -48,10 +48,12 @@ class ThreadBuilder:
         for message in messages:
             message_id = message["message_id"]
             root = self._find_thread_root(message_id, message_map, roots)
-            # If the root isn't present in the parsed set (e.g., missing parent), fall back to the raw ID.
+            # If the root isn't present in the parsed set (e.g., missing parent), fall back to this message's _id
             if root not in message_map:
-                logger.warning("Root message %s not found in parsed set; using raw ID", root)
-            root_doc_id = message_map.get(root, {}).get("_id", root)
+                logger.warning("Root message %s not found in parsed set; using current message's _id", root)
+                root_doc_id = message.get("_id", message_id)
+            else:
+                root_doc_id = message_map[root].get("_id", root)
             thread_assignments[message_id] = root_doc_id
             # Update the message's thread_id to root message's canonical _id
             message["thread_id"] = root_doc_id
