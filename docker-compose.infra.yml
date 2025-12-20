@@ -488,11 +488,17 @@ services:
   # wait a few seconds for backend services to become healthy.
   # CI workflow starts gateway after all services are healthy (recommended pattern).
   gateway:
-    image: nginx:alpine
+    build:
+      context: ./infra/nginx
+      dockerfile: Dockerfile
+    image: copilot-gateway:latest
     ports:
-      - "0.0.0.0:8080:8080"
+      # HTTPS on standard port 443 (mapped from internal 8443)
+      - "0.0.0.0:443:8443"
     volumes:
-      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # TLS certificates
+      - ./secrets/gateway_tls_cert:/etc/nginx/certs/server.crt:ro
+      - ./secrets/gateway_tls_key:/etc/nginx/certs/server.key:ro
     depends_on:
       reporting:
         condition: service_healthy

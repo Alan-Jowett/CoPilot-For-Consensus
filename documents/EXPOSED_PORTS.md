@@ -139,7 +139,7 @@ These ports are bound to localhost and only accessible from the host machine. Th
   - Contains application logs (may include sensitive information)
   - Localhost binding prevents external log access
 
-### Port 8080 - API Gateway
+### Port 8080 - API Gateway (HTTP)
 
 - **Service**: `gateway`
 - **Purpose**: Single entrypoint reverse proxy for user-facing endpoints
@@ -159,8 +159,8 @@ These ports are bound to localhost and only accessible from the host machine. Th
 - **Security Notes**:
   - **IMPORTANT**: Currently bound to `0.0.0.0:8080`, making all proxied services accessible from any network interface (including external networks if firewall allows)
   - For **production deployments**:
+    - **Use HTTPS (port 8443) with valid TLS certificates** (see Port 8443 section below)
     - Add authentication/authorization at the gateway (e.g., OAuth2 proxy, basic auth, or API keys)
-    - Use TLS termination with valid certificates
     - Consider binding to `127.0.0.1:8080` and fronting with a secured reverse proxy
     - Implement network policies/firewall rules to restrict access
     - The `/ingestion/` endpoint is particularly sensitive as it accepts URL inputs that could be exploited for SSRF attacks
@@ -168,6 +168,60 @@ These ports are bound to localhost and only accessible from the host machine. Th
     - Default `0.0.0.0` binding allows testing from other devices on the local network
     - Be aware this exposes unauthenticated endpoints to your local network
   - Downstream services no longer bind to host ports (internal network only)
+
+### Port 8443 - API Gateway (HTTPS)
+
+- **Service**: `gateway`
+- **Purpose**: Secure TLS/HTTPS endpoint for the API Gateway
+- **Protocol**: HTTPS (TLS 1.2+)
+- **Access**: https://localhost:8443
+- **Binding**: `0.0.0.0:8443` (exposed on all network interfaces, but only active when TLS secrets are provided)
+- **Routes**: Same as port 8080 (see above)
+- **TLS Configuration**:
+  - Uses Docker secrets (`gateway_tls_cert` and `gateway_tls_key`)
+  - Supports TLS 1.2 and TLS 1.3
+  - Modern cipher suite configuration following Mozilla Intermediate profile
+  - HSTS (Strict-Transport-Security) header with 30-day max-age
+- **Setup**:
+  - **Local Development/Testing**:
+    ```bash
+    # Generate self-signed certificates
+    ./infra/nginx/certs/generate-certs.sh
+    
+    # Copy to secrets directory
+    cp ./infra/nginx/certs/server.crt ./secrets/gateway_tls_cert
+    cp ./infra/nginx/certs/server.key ./secrets/gateway_tls_key
+    
+    # Rebuild and restart gateway
+    docker compose up -d --build gateway
+    ```
+  - **Production**:
+    ```bash
+    # 1. Obtain valid certificates from a CA (e.g., Let's Encrypt)
+    # 2. Place certificates in secrets directory
+    cp /path/to/fullchain.pem ./secrets/gateway_tls_cert
+    cp /path/to/privkey.pem ./secrets/gateway_tls_key
+    chmod 644 ./secrets/gateway_tls_cert
+    chmod 600 ./secrets/gateway_tls_key
+    
+    # 3. Rebuild and restart gateway
+    docker compose up -d --build gateway
+    ```
+- **Conditional Activation**:
+  - HTTPS is **only enabled** when both `gateway_tls_cert` and `gateway_tls_key` secrets are provided
+  - If secrets are not provided, gateway runs in HTTP-only mode (port 8080 only)
+  - The gateway automatically detects secrets at startup and configures HTTPS accordingly
+- **Use Cases**:
+  - **Recommended for all production deployments**
+  - Required for compliance with security best practices
+  - Protects credentials and sensitive data in transit
+  - Required for modern browsers when using secure cookies
+- **Security Notes**:
+  - Self-signed certificates will show browser warnings (expected for local development)
+  - Production deployments must use CA-signed certificates
+  - Certificates are provided via Docker secrets (never committed to version control)
+  - Keep private keys secure with appropriate file permissions (600)
+  - See `./infra/nginx/certs/README.md` for detailed TLS setup instructions
 
 ## Internal-Only Services (No Port Mapping)
 

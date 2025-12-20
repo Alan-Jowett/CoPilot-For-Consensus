@@ -66,6 +66,14 @@ jobs:
         
         # Azure OpenAI (empty for CI)
         echo "" > secrets/azure_openai_key
+        
+        # Generate self-signed TLS certificates for gateway (HTTPS)
+        echo "Generating self-signed TLS certificates for gateway..."
+        openssl req -x509 -newkey rsa:2048 \
+          -keyout secrets/gateway_tls_key -out secrets/gateway_tls_cert \
+          -days 365 -nodes \
+          -subj "/C=US/ST=State/L=City/O=Copilot-for-Consensus/CN=localhost"
+        echo "✓ TLS certificates generated"
 
     - name: Free up disk space
       run: |
@@ -266,7 +274,7 @@ jobs:
         attempt=1
         while [ $attempt -le $max_attempts ]; do
           # Try without auth first (if JWT_AUTH_ENABLED=false)
-          if curl -f -X POST http://localhost:8080/ingestion/api/sources \
+          if curl -k -f -X POST https://localhost/ingestion/api/sources \
             -H "Content-Type: application/json" \
             -d "$payload" 2>/dev/null; then
             echo "✓ Ingestion source created (no auth required)"
@@ -274,7 +282,7 @@ jobs:
           fi
           
           # If that fails, try with a mock auth header for compatibility
-          if curl -f -X POST http://localhost:8080/ingestion/api/sources \
+          if curl -k -f -X POST https://localhost/ingestion/api/sources \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer test-token" \
             -d "$payload" 2>/dev/null; then
@@ -301,13 +309,13 @@ jobs:
         attempt=1
         while [ $attempt -le $max_attempts ]; do
           # Try without auth first (if JWT_AUTH_ENABLED=false)
-          if curl -f -X POST http://localhost:8080/ingestion/api/sources/test-mailbox/trigger 2>/dev/null; then
+          if curl -k -f -X POST https://localhost/ingestion/api/sources/test-mailbox/trigger 2>/dev/null; then
             echo "✓ Ingestion triggered successfully (no auth required)"
             break
           fi
           
           # If that fails, try with a mock auth header for compatibility
-          if curl -f -X POST http://localhost:8080/ingestion/api/sources/test-mailbox/trigger \
+          if curl -k -f -X POST https://localhost/ingestion/api/sources/test-mailbox/trigger \
             -H "Authorization: Bearer test-token" 2>/dev/null; then
             echo "✓ Ingestion triggered successfully (with mock token)"
             break
@@ -329,7 +337,7 @@ jobs:
         sleep 10  # Give it time to process
         
         # Check ingestion status
-        status=$(curl -s http://localhost:8080/ingestion/api/sources/test-mailbox/status || echo "unknown")
+        status=$(curl -k -s https://localhost/ingestion/api/sources/test-mailbox/status || echo "unknown")
         echo "Ingestion status: $status"
         echo "✓ Ingestion process completed"
 
@@ -358,7 +366,7 @@ jobs:
         max_attempts=10
         attempt=1
         while [ $attempt -le $max_attempts ]; do
-          if curl -f http://localhost:8080/health 2>/dev/null; then
+          if curl -k -f https://localhost/health 2>/dev/null; then
             echo "✓ Gateway is healthy"
             exit 0
           fi
@@ -376,7 +384,7 @@ jobs:
         max_attempts=10
         attempt=1
         while [ $attempt -le $max_attempts ]; do
-          if curl -f http://localhost:8080/health 2>/dev/null; then
+          if curl -k -f https://localhost/health 2>/dev/null; then
             echo "✓ API Gateway is healthy"
             exit 0
           fi
@@ -394,7 +402,7 @@ jobs:
         max_attempts=10
         attempt=1
         while [ $attempt -le $max_attempts ]; do
-          if curl -f http://localhost:8080/reporting/health 2>/dev/null; then
+          if curl -k -f https://localhost/reporting/health 2>/dev/null; then
             echo "✓ Reporting service is healthy"
             exit 0
           fi
@@ -412,7 +420,7 @@ jobs:
         max_attempts=10
         attempt=1
         while [ $attempt -le $max_attempts ]; do
-          if curl -f http://localhost:8080/auth/health 2>/dev/null; then
+          if curl -k -f https://localhost/auth/health 2>/dev/null; then
             echo "✓ Auth service is healthy"
             exit 0
           fi
@@ -427,31 +435,31 @@ jobs:
     - name: Test reporting API endpoint (via gateway)
       run: |
         echo "Testing reports API (via gateway)..."
-        curl -f http://localhost:8080/reporting/api/reports || (docker compose logs reporting --tail=50 && exit 1)
+        curl -k -f https://localhost/reporting/api/reports || (docker compose logs reporting --tail=50 && exit 1)
 
     - name: Validate reports are generated (end-to-end)
       run: |
         echo "Validating reports exist after end-to-end run..."
         # Fetch reports JSON and assert count > 0 (black-box via reporting API)
-        json=$(curl -s http://localhost:8080/reporting/api/reports)
+        json=$(curl -k -s https://localhost/reporting/api/reports)
         echo "$json" | python -c 'import json,sys; data=json.load(sys.stdin); cnt=data.get("count",0); print(f"Reports count: {cnt}"); exit(0 if cnt>0 else 1)'
         echo "✓ Reports validation passed"
 
     - name: Test ui service root endpoint (via gateway)
       run: |
         echo "Testing ui service root (via gateway)..."
-        curl -f http://localhost:8080/ui/ || (docker compose logs ui --tail=50 && exit 1)
+        curl -k -f https://localhost/ui/ || (docker compose logs ui --tail=50 && exit 1)
 
     - name: Test reports API via gateway
       run: |
         echo "Testing reports API via gateway..."
-        json=$(curl -sf http://localhost:8080/reporting/api/reports)
+        json=$(curl -kf https://localhost/reporting/api/reports)
         echo "$json" | python -c 'import json,sys; data=json.load(sys.stdin); cnt=data.get("count",0); print(f"Reports count: {cnt}"); exit(0 if cnt>0 else 1)'
 
     - name: Test Grafana health endpoint (via gateway)
       run: |
         echo "Testing Grafana (via gateway)..."
-        curl -f http://localhost:8080/grafana/api/health || exit 1
+        curl -k -f https://localhost/grafana/api/health || exit 1
 
     - name: Test Prometheus health endpoint
       run: |

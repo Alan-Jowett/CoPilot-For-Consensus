@@ -1,0 +1,9 @@
+# Ignore all certificate files
+*.crt
+*.key
+*.pem
+*.csr
+
+# Allow README and example scripts
+!README.md
+!generate-certs.sh

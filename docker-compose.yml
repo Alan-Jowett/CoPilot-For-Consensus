@@ -76,3 +76,10 @@ secrets:
   # Auth role store
   role_store_password:
     file: ./secrets/role_store_password
+  
+  # API Gateway TLS certificates (optional)
+  # Provide these secrets to enable HTTPS on port 8443
+  gateway_tls_cert:
+    file: ./secrets/gateway_tls_cert
+  gateway_tls_key:
+    file: ./secrets/gateway_tls_key
