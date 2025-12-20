@@ -5,7 +5,6 @@
 
 import os
 import re
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -377,8 +376,8 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
                 uploaded_at=uploaded_at,
                 suggested_source_type="local",
             )
-        except HTTPException:
-            logger.debug("HTTPException raised in upload_file", status_code=getattr(sys.exc_info()[1], 'status_code', 'unknown'))
+        except HTTPException as http_exc:
+            logger.debug("HTTPException raised in upload_file", status_code=http_exc.status_code)
             raise
         except Exception as e:
             logger.error(
