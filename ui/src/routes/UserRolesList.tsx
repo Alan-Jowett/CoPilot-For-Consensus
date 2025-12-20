@@ -65,6 +65,11 @@ export function UserRolesList() {
     }
   }
 
+  // Helper function to get user display name
+  const getUserDisplayName = (user: UserRoleRecord) => {
+    return user.name?.trim() || user.user_id
+  }
+
   const handleAssignRoles = () => {
     setModalAction('assign')
     setShowModal(true)
@@ -120,6 +125,7 @@ export function UserRolesList() {
 
       {loading && <div className="no-reports">Loading…</div>}
 
+      {/* Show search results list only when multiple users match (single results are shown directly in userRecord below) */}
       {searchResults.length > 1 && (
         <div className="search-results">
           <h3>Search Results ({searchResults.length} users found)</h3>
@@ -131,7 +137,7 @@ export function UserRolesList() {
                 onClick={() => handleSelectUser(user)}
               >
                 <div>
-                  <strong>{user.name?.trim() || user.user_id}</strong>
+                  <strong>{getUserDisplayName(user)}</strong>
                 </div>
                 {user.email && <div className="user-metadata">{user.email}</div>}
                 <div className="user-metadata">
@@ -157,7 +163,7 @@ export function UserRolesList() {
         <div className="user-record-card">
           <div className="user-record-header">
             <div>
-              <h2>{userRecord.name || userRecord.user_id}</h2>
+              <h2>{getUserDisplayName(userRecord)}</h2>
               <div className="user-metadata">
                 <div className="metadata-item">
                   <strong>User ID:</strong> <span className="citation-id">{userRecord.user_id}</span>
