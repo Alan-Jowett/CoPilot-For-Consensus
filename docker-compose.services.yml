@@ -118,6 +118,7 @@ services:
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_NAME=copilot-ingestion
+      - JWT_AUTH_ENABLED=false
     secrets:
       - message_bus_user
       - message_bus_password
