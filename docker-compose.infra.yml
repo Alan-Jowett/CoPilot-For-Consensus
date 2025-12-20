@@ -493,12 +493,12 @@ services:
       dockerfile: Dockerfile
     image: copilot-gateway:latest
     ports:
-      - "0.0.0.0:8080:8080"
-      # HTTPS port (8443) - conditionally enabled when TLS secrets are provided
+      # HTTPS only (secure by default)
       - "0.0.0.0:8443:8443"
-    secrets:
-      - gateway_tls_cert
-      - gateway_tls_key
+    volumes:
+      # TLS certificates- must be provided in ./secrets/. Either self-signed or CA-signed.
+      - ./secrets/gateway_tls_cert:/etc/nginx/certs/server.crt:ro
+      - ./secrets/gateway_tls_key:/etc/nginx/certs/server.key:ro
     depends_on:
       reporting:
         condition: service_healthy
