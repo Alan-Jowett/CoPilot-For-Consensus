@@ -51,6 +51,20 @@ export function UserRolesList() {
     setSearchResults([])
   }
 
+  // Helper function to get label for search field
+  const getSearchFieldLabel = () => {
+    switch (searchBy) {
+      case 'user_id':
+        return 'User ID'
+      case 'email':
+        return 'Email'
+      case 'name':
+        return 'Name'
+      default:
+        return 'Search Term'
+    }
+  }
+
   const handleAssignRoles = () => {
     setModalAction('assign')
     setShowModal(true)
@@ -87,7 +101,7 @@ export function UserRolesList() {
           </div>
           <div className="filter-group">
             <label htmlFor="search-term">
-              {searchBy === 'user_id' ? 'User ID' : searchBy === 'email' ? 'Email' : 'Name'}
+              {getSearchFieldLabel()}
             </label>
             <input
               id="search-term"
@@ -115,10 +129,9 @@ export function UserRolesList() {
                 key={user.user_id}
                 className="user-result-item"
                 onClick={() => handleSelectUser(user)}
-                style={{ cursor: 'pointer', padding: '10px', border: '1px solid #ccc', marginBottom: '5px' }}
               >
                 <div>
-                  <strong>{user.name || user.user_id}</strong>
+                  <strong>{user.name?.trim() || user.user_id}</strong>
                 </div>
                 {user.email && <div className="user-metadata">{user.email}</div>}
                 <div className="user-metadata">
