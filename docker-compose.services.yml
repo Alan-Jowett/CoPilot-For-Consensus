@@ -24,7 +24,7 @@ services:
       - ERROR_REPORTER_TYPE=console
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
-      - SERVICE_NAME=copilot-chunking
+      - SERVICE_AUDIENCE=copilot-for-consensus
     secrets:
       - message_bus_user
       - message_bus_password
@@ -70,7 +70,7 @@ services:
       - ERROR_REPORTER_TYPE=console
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
-      - SERVICE_NAME=copilot-embedding
+      - SERVICE_AUDIENCE=copilot-for-consensus
     secrets:
       - message_bus_user
       - message_bus_password
@@ -117,8 +117,7 @@ services:
       - HTTP_PORT=8001
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
-      - SERVICE_NAME=copilot-ingestion
-      - JWT_AUTH_ENABLED=false
+      - SERVICE_AUDIENCE=copilot-for-consensus
     secrets:
       - message_bus_user
       - message_bus_password
@@ -168,7 +167,7 @@ services:
       - ERROR_REPORTER_TYPE=console
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
-      - SERVICE_NAME=copilot-orchestrator
+      - SERVICE_AUDIENCE=copilot-for-consensus
     secrets:
       - message_bus_user
       - message_bus_password
@@ -218,7 +217,7 @@ services:
       - ERROR_REPORTER_TYPE=console
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
-      - SERVICE_NAME=copilot-parsing
+      - SERVICE_AUDIENCE=copilot-for-consensus
     secrets:
       - message_bus_user
       - message_bus_password
@@ -261,7 +260,7 @@ services:
       - HTTP_PORT=8080
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
-      - SERVICE_NAME=copilot-reporting
+      - SERVICE_AUDIENCE=copilot-for-consensus
     secrets:
       - message_bus_user
       - message_bus_password
@@ -389,7 +388,7 @@ services:
       - ERROR_REPORTER_TYPE=console
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
-      - SERVICE_NAME=copilot-summarization
+      - SERVICE_AUDIENCE=copilot-for-consensus
     secrets:
       - message_bus_user
       - message_bus_password

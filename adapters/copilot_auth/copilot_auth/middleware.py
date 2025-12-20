@@ -326,7 +326,7 @@ def create_jwt_middleware(
     
     Args:
         auth_service_url: URL of auth service (default: from AUTH_SERVICE_URL env)
-        audience: Expected audience (default: from SERVICE_NAME env)
+        audience: Expected audience (default: from SERVICE_AUDIENCE env, or SERVICE_NAME for backward compatibility, or 'copilot-for-consensus')
         required_roles: Optional list of required roles
         public_paths: List of paths that don't require auth
     
@@ -346,7 +346,7 @@ def create_jwt_middleware(
     """
     # Get defaults from environment
     auth_url = auth_service_url or os.getenv("AUTH_SERVICE_URL", "http://auth:8090")
-    aud = audience or os.getenv("SERVICE_NAME", "copilot-service")
+    aud = audience or os.getenv("SERVICE_AUDIENCE", os.getenv("SERVICE_NAME", "copilot-for-consensus"))
     
     # Create configured middleware class
     class ConfiguredJWTMiddleware(JWTMiddleware):

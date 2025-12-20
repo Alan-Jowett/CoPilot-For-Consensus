@@ -134,7 +134,10 @@ def main():
             log.info("JWT authentication is enabled")
             try:
                 from copilot_auth import create_jwt_middleware
+                # Use shared audience for all services
+                audience = getattr(config, 'service_audience', 'copilot-for-consensus')
                 auth_middleware = create_jwt_middleware(
+                    audience=audience,
                     required_roles=["admin"],
                     public_paths=["/", "/health", "/readyz", "/docs", "/openapi.json"],
                 )

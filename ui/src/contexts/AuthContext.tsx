@@ -56,7 +56,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [token])
 
   const login = (provider: string = 'github') => {
-    const audience = 'copilot-orchestrator'
+    const audience = 'copilot-for-consensus'
     const redirectUri = `${window.location.origin}${import.meta.env.BASE_URL}callback`
     const loginUrl = `/auth/login?provider=${provider}&aud=${audience}&redirect_uri=${encodeURIComponent(redirectUri)}`
     window.location.href = loginUrl
