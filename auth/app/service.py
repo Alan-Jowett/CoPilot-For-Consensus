@@ -389,7 +389,7 @@ class AuthService:
             claims = self.jwt_manager.validate_token(
                 token=token,
                 audience=audience,
-                max_skew_seconds=self.config.security.max_skew_seconds
+                max_skew_seconds=self.config.max_skew_seconds
             )
 
             self.stats["tokens_validated"] += 1
