@@ -122,10 +122,6 @@ class OpenAISummarizer(Summarizer):
             logger.info("Successfully generated summary for thread %s (prompt_tokens=%d, completion_tokens=%d)",
                        thread.thread_id, tokens_prompt, tokens_completion)
         
-        except ImportError:
-            # OpenAI library not available
-            logger.error("OpenAI library not installed for thread %s", thread.thread_id)
-            raise
         except AttributeError as e:
             # API response structure unexpected
             logger.error("Unexpected API response structure for thread %s: %s", thread.thread_id, str(e))

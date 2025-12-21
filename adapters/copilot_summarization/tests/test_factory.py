@@ -84,6 +84,13 @@ class TestSummarizerFactory:
             )
             assert isinstance(summarizer, OpenAISummarizer)
             assert summarizer.deployment_name == "gpt-4-deployment"
+            
+            # Verify api_version was passed correctly to AzureOpenAI client
+            mock_azure_class.assert_called_once_with(
+                api_key="azure-key",
+                api_version="2023-12-01",
+                azure_endpoint="https://test.openai.azure.com"
+            )
     
     def test_create_azure_summarizer_missing_key(self):
         """Test that Azure summarizer requires API key."""
