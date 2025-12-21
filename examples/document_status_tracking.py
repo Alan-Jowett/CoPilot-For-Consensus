@@ -12,7 +12,7 @@ the Copilot-for-Consensus system.
 
 from copilot_schema_validation import DocumentStatus
 from datetime import datetime, timezone
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 
 def should_retry_document(document: Dict[str, Any], max_attempts: int = 3) -> bool:

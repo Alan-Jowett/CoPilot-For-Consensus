@@ -26,7 +26,7 @@ Stores metadata about ingested mailing list archives.
 | `ingestion_date` | DateTime | When the archive was ingested | Yes |
 | `message_count` | Integer | Number of messages in archive | No |
 | `file_path` | String | Storage path for raw archive | No |
-| `status` | String | Processing status (pending, processing, processed, failed, failed_max_retries) | Yes |
+| `status` | String | Processing status (pending, processing, completed, failed, failed_max_retries) | Yes |
 | `attemptCount` | Integer | Number of processing attempts for retry tracking | No |
 | `lastAttemptTime` | DateTime (nullable) | Timestamp of the last processing attempt | No |
 | `lastUpdated` | DateTime | Timestamp of last status or field update for observability and forward progress tracking | Yes |
@@ -35,6 +35,8 @@ Stores metadata about ingested mailing list archives.
 **Indexes:**
 - Primary: `_id`
 - Secondary: `source`, `file_hash`, `ingestion_date`, `status`, `lastUpdated`
+
+> **Note:** The `status` and `lastUpdated` fields are indexed for efficient querying, but they are not marked as required in the JSON schemas. These indexes are sparse and only cover documents where the corresponding fields are present. Queries or monitoring logic that filter on these fields should account for documents that may not have these fields populated yet (e.g., during migration or for legacy documents).
 
 ---
 
@@ -70,6 +72,8 @@ Stores parsed and normalized email messages.
 **Indexes:**
 - Primary: `_id`
 - Secondary: `archive_id`, `thread_id`, `date`, `in_reply_to`, `draft_mentions`, `created_at`, `status`, `lastUpdated`
+
+> **Note:** The `status` and `lastUpdated` fields are indexed for efficient querying, but they are not marked as required in the JSON schemas. These indexes are sparse and only cover documents where the corresponding fields are present. Queries or monitoring logic that filter on these fields should account for documents that may not have these fields populated yet (e.g., during migration or for legacy documents).
 
 **Example Document:**
 ```json
@@ -118,6 +122,8 @@ Stores text chunks derived from messages for embedding generation.
 **Indexes:**
 - Primary: `_id`
 - Secondary: `message_doc_id`, `message_id`, `thread_id`, `created_at`, `embedding_generated`, `status`, `lastUpdated`
+
+> **Note:** The `status` and `lastUpdated` fields are indexed for efficient querying, but they are not marked as required in the JSON schemas. These indexes are sparse and only cover documents where the corresponding fields are present. Queries or monitoring logic that filter on these fields should account for documents that may not have these fields populated yet (e.g., during migration or for legacy documents).
 
 **Example Document:**
 ```json
@@ -170,6 +176,8 @@ Stores aggregated thread metadata for quick retrieval.
 **Indexes:**
 - Primary: `_id`
 - Secondary: `archive_id`, `first_message_date`, `last_message_date`, `draft_mentions`, `has_consensus`, `summary_id`, `created_at`, `status`, `lastUpdated`
+
+> **Note:** The `status` and `lastUpdated` fields are indexed for efficient querying, but they are not marked as required in the JSON schemas. These indexes are sparse and only cover documents where the corresponding fields are present. Queries or monitoring logic that filter on these fields should account for documents that may not have these fields populated yet (e.g., during migration or for legacy documents).
 
 ---
 

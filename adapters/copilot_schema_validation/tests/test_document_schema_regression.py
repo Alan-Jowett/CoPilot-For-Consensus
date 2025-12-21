@@ -235,7 +235,7 @@ class TestArchiveSchemaRegression:
             "file_size_bytes": 1024,
             "source": "test-source",
             "ingestion_date": "2025-01-01T00:00:00Z",
-            "status": "processed",
+            "status": "completed",
             "custom_field": "custom_value"  # Additional property
         }
         
