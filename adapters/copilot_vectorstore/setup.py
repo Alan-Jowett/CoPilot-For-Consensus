@@ -47,5 +47,9 @@ setup(
         "qdrant": [
             "qdrant-client>=1.9.0",  # Qdrant for cloud/self-hosted vector search
         ],
+        "azure": [
+            "azure-search-documents>=11.4.0",  # Azure AI Search for vector search
+            "azure-identity>=1.15.0",  # For managed identity authentication
+        ],
     },
 )

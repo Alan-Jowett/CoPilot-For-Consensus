@@ -104,9 +104,37 @@ class TestCreateVectorStore:
             create_vector_store(backend="qdrant", dimension=384)
     
     def test_azure_backend_not_implemented(self):
-        """Test that Azure backend raises NotImplementedError."""
-        with pytest.raises(NotImplementedError, match="Azure"):
+        """Test that legacy 'azure' backend raises NotImplementedError with helpful message."""
+        with pytest.raises(NotImplementedError, match="azure_ai_search"):
             create_vector_store(backend="azure")
+    
+    def test_azure_ai_search_backend_requires_parameters(self):
+        """Test that Azure AI Search backend requires all parameters."""
+        # Should raise error about missing dimension
+        with pytest.raises(ValueError, match="dimension parameter is required"):
+            create_vector_store(backend="azure_ai_search")
+        
+        # Should raise error about missing endpoint
+        with pytest.raises(ValueError, match="endpoint parameter is required"):
+            create_vector_store(backend="azure_ai_search", dimension=384)
+        
+        # Should raise error about missing authentication
+        with pytest.raises(ValueError, match="Either api_key parameter or use_managed_identity"):
+            create_vector_store(
+                backend="azure_ai_search",
+                dimension=384,
+                endpoint="https://test.search.windows.net",
+                use_managed_identity=False
+            )
+        
+        # Should raise error about missing index_name
+        with pytest.raises(ValueError, match="index_name parameter is required"):
+            create_vector_store(
+                backend="azure_ai_search",
+                dimension=384,
+                endpoint="https://test.search.windows.net",
+                api_key="test-key"
+            )
     
     def test_unsupported_backend_raises_error(self):
         """Test that unsupported backend raises ValueError."""
