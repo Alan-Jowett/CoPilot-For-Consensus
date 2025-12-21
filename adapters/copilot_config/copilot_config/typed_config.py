@@ -27,13 +27,34 @@ class TypedConfig:
         AttributeError: TypedConfig does not support dict-style access
     """
 
-    def __init__(self, config_dict: Dict[str, Any]):
+    def __init__(self, config_dict: Dict[str, Any], schema_version: Optional[str] = None, 
+                 min_service_version: Optional[str] = None):
         """Initialize typed config wrapper.
         
         Args:
             config_dict: Configuration dictionary from _load_config()
+            schema_version: Schema version string (semver format)
+            min_service_version: Minimum service version required (semver format)
         """
         object.__setattr__(self, '_config', config_dict)
+        object.__setattr__(self, '_schema_version', schema_version)
+        object.__setattr__(self, '_min_service_version', min_service_version)
+    
+    def get_schema_version(self) -> Optional[str]:
+        """Get the schema version.
+        
+        Returns:
+            Schema version string or None
+        """
+        return object.__getattribute__(self, '_schema_version')
+    
+    def get_min_service_version(self) -> Optional[str]:
+        """Get the minimum service version.
+        
+        Returns:
+            Minimum service version string or None
+        """
+        return object.__getattribute__(self, '_min_service_version')
 
     def __getattr__(self, name: str) -> Any:
         """Get configuration value by attribute name only.
@@ -128,9 +149,41 @@ def load_typed_config(
         >>> print(config.message_bus_host)
         'messagebus'
     """
-    from .schema_loader import _load_config
-    from copilot_secrets import create_secret_provider
-    from .secret_provider import SecretConfigProvider
+    from .schema_loader import _load_config, ConfigSchema
+    import os
+    
+    # Try to import secrets support (optional)
+    try:
+        from copilot_secrets import create_secret_provider
+        from .secret_provider import SecretConfigProvider
+        secrets_available = True
+    except ImportError:
+        secrets_available = False
+    
+    # Load the schema to get version information
+    schema_dir_path = schema_dir
+    if schema_dir_path is None:
+        # First check environment variable
+        schema_dir_path = os.environ.get("SCHEMA_DIR")
+        
+        if schema_dir_path is None:
+            # Try common locations relative to current working directory
+            possible_dirs = [
+                os.path.join(os.getcwd(), "documents", "schemas", "configs"),
+                os.path.join(os.getcwd(), "..", "documents", "schemas", "configs"),
+            ]
+            
+            for d in possible_dirs:
+                if os.path.exists(d):
+                    schema_dir_path = d
+                    break
+            
+            # Default to documents/schemas/configs if nothing found
+            if schema_dir_path is None:
+                schema_dir_path = os.path.join(os.getcwd(), "documents", "schemas", "configs")
+    
+    schema_path = os.path.join(schema_dir_path, f"{service_name}.json")
+    schema = ConfigSchema.from_json_file(schema_path)
     
     # First pass: load config without secrets to read secret provider config from fields
     initial_config = _load_config(service_name, schema_dir=schema_dir, **kwargs)
@@ -140,7 +193,7 @@ def load_typed_config(
     base_path = initial_config.get("secrets_base_path", "/run/secrets")
     
     secret_provider = None
-    if provider_type:
+    if provider_type and secrets_available:
         try:
             secret_provider_instance = create_secret_provider(
                 provider_type=provider_type,
@@ -164,4 +217,8 @@ def load_typed_config(
     else:
         config_dict = initial_config
     
-    return TypedConfig(config_dict)
+    return TypedConfig(
+        config_dict,
+        schema_version=schema.schema_version,
+        min_service_version=schema.min_service_version
+    )

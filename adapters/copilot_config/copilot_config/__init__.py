@@ -29,6 +29,7 @@ from .typed_config import (
     TypedConfig,
     load_typed_config,  # The ONLY recommended way to load config
 )
+from .discovery import get_configuration_schema_response
 
 __all__ = [
     # Version
@@ -50,4 +51,6 @@ __all__ = [
     # Typed configuration (RECOMMENDED WAY)
     "TypedConfig",
     "load_typed_config",  # Only public config loading function
+    # Configuration discovery
+    "get_configuration_schema_response",
 ]

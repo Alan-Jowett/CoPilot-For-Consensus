@@ -11,6 +11,30 @@ from typing import Any, Dict, Optional
 from .config import ConfigProvider, EnvConfigProvider, StaticConfigProvider
 
 
+def _is_version_compatible(service_version: str, min_required_version: str) -> bool:
+    """Check if service version is compatible with minimum required version.
+    
+    Args:
+        service_version: Current service version (semver format)
+        min_required_version: Minimum required version (semver format)
+        
+    Returns:
+        True if service version >= min required version
+    """
+    def parse_version(version: str) -> tuple:
+        """Parse semver string into tuple of ints."""
+        try:
+            parts = version.split('.')
+            return tuple(int(p) for p in parts[:3])
+        except (ValueError, AttributeError):
+            return (0, 0, 0)
+    
+    service_parts = parse_version(service_version)
+    min_parts = parse_version(min_required_version)
+    
+    return service_parts >= min_parts
+
+
 class ConfigValidationError(Exception):
     """Exception raised when configuration validation fails."""
     pass
@@ -42,6 +66,8 @@ class ConfigSchema:
     service_name: str
     fields: Dict[str, FieldSpec] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
+    schema_version: Optional[str] = None
+    min_service_version: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ConfigSchema':
@@ -56,12 +82,20 @@ class ConfigSchema:
         service_name = data.get("service_name", "unknown")
         metadata = data.get("metadata", {})
         fields_data = data.get("fields", {})
+        schema_version = data.get("schema_version")
+        min_service_version = data.get("min_service_version")
         
         fields = {}
         for field_name, field_data in fields_data.items():
             fields[field_name] = cls._parse_field_spec(field_name, field_data)
         
-        return cls(service_name=service_name, fields=fields, metadata=metadata)
+        return cls(
+            service_name=service_name,
+            fields=fields,
+            metadata=metadata,
+            schema_version=schema_version,
+            min_service_version=min_service_version,
+        )
 
     @classmethod
     def _parse_field_spec(cls, name: str, data: Dict[str, Any]) -> FieldSpec:
@@ -360,6 +394,15 @@ def _load_config(
     # Load schema from disk
     schema_path = os.path.join(schema_dir, f"{service_name}.json")
     schema = ConfigSchema.from_json_file(schema_path)
+    
+    # Validate schema version if min_service_version is specified
+    if schema.min_service_version:
+        service_version = os.environ.get("SERVICE_VERSION", "0.0.0")
+        if not _is_version_compatible(service_version, schema.min_service_version):
+            raise ConfigSchemaError(
+                f"Service version {service_version} is not compatible with "
+                f"minimum required schema version {schema.min_service_version}"
+            )
     
     # Create loader (no document store coupling)
     loader = SchemaConfigLoader(
