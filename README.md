@@ -414,7 +414,6 @@ The system includes an authentication service that supports GitHub, Google, and 
   - **Immediately** disable auto-promotion (`AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=false`) and restart before exposing to untrusted users
 - A dedicated bootstrap-token mechanism is **planned but not yet implemented**
 - See [documents/AUTH_IMPLEMENTATION_SUMMARY.md](./documents/AUTH_IMPLEMENTATION_SUMMARY.md#security-considerations) for details
-
 **Note:** If you don't configure any providers, the login page will show buttons but clicking them will return an error indicating the provider is not configured.
 
 ### Demo vs Production Setup
