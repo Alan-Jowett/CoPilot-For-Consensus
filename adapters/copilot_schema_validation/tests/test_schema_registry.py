@@ -107,6 +107,28 @@ class TestSchemaRegistry:
         assert "ChunksPrepared" in schema_types
         assert "SummaryComplete" in schema_types
 
+    def test_load_schema_caching(self):
+        """Test that schemas are cached after first load."""
+        from copilot_schema_validation import schema_registry
+        
+        # Clear cache to start fresh
+        schema_registry._schema_cache.clear()
+        
+        # Load schema - should not be in cache
+        cache_key = "v1.ArchiveIngested"
+        assert cache_key not in schema_registry._schema_cache
+        
+        schema1 = load_schema("ArchiveIngested", "v1")
+        
+        # Now it should be in cache
+        assert cache_key in schema_registry._schema_cache
+        
+        # Load again - should return cached version
+        schema2 = load_schema("ArchiveIngested", "v1")
+        
+        # Should be the same object (cached)
+        assert schema1 is schema2
+
     def test_list_schemas_contains_documents(self):
         """Test that list_schemas includes document schemas."""
         schemas = list_schemas()
@@ -242,6 +264,11 @@ class TestSchemaRegistryWithMocks:
 
     def test_load_schema_invalid_json(self, tmp_path):
         """Test error handling when schema file contains invalid JSON."""
+        # Clear the schema cache to ensure fresh load
+        from copilot_schema_validation import schema_registry
+        schema_registry._schema_cache.clear()
+        schema_registry._get_schema_base_dir.cache_clear()
+        
         # Create a schema directory with invalid JSON
         schema_dir = tmp_path / "schemas" / "events"
         schema_dir.mkdir(parents=True)

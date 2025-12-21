@@ -15,10 +15,14 @@ Example:
 
 import json
 import logging
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+
+# Module-level cache for loaded schemas
+_schema_cache: Dict[str, dict] = {}
 
 # Schema registry mapping (type, version) pairs to relative schema file paths
 # All paths are relative to the repository's documents/schemas/ directory
@@ -52,8 +56,11 @@ SCHEMA_REGISTRY: Dict[str, str] = {
 }
 
 
+@lru_cache(maxsize=1)
 def _get_schema_base_dir() -> Path:
     """Get the base directory for schema files.
+    
+    This function is cached to avoid repeated directory tree walking.
     
     Returns:
         Path to the documents/schemas directory in the repository.
@@ -136,6 +143,8 @@ def get_schema_path(schema_type: str, version: str) -> str:
 def load_schema(schema_type: str, version: str) -> dict:
     """Load a JSON schema given its type and version.
     
+    Schemas are cached after first load to avoid repeated file I/O.
+    
     Args:
         schema_type: The schema type name (e.g., 'ArchiveIngested', 'Archive')
         version: The schema version (e.g., 'v1', 'v2')
@@ -153,12 +162,21 @@ def load_schema(schema_type: str, version: str) -> dict:
         >>> schema["title"]
         'ArchiveIngested Event'
     """
+    # Check cache first
+    cache_key = f"{version}.{schema_type}"
+    if cache_key in _schema_cache:
+        logger.debug(f"Returning cached schema: {schema_type} {version}")
+        return _schema_cache[cache_key]
+    
     schema_path = get_schema_path(schema_type, version)
     
     try:
         with open(schema_path, 'r', encoding='utf-8') as f:
             schema = json.load(f)
-        logger.debug(f"Loaded schema: {schema_type} v{version} from {schema_path}")
+        
+        # Cache the loaded schema
+        _schema_cache[cache_key] = schema
+        logger.debug(f"Loaded schema: {schema_type} {version} from {schema_path}")
         return schema
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON in schema file {schema_path}: {e}")
