@@ -11,11 +11,53 @@ Use this folder to store test secrets and credentials:
 - Database credentials
 - Other sensitive configuration
 
-Examples for testing OIDC:
-```bash
-echo "your-github-client-id" > secrets/github_oauth_client_id
-echo "your-github-client-secret" > secrets/github_oauth_client_secret
-```
+## Setting up OAuth Providers
+
+To enable authentication with GitHub, Google, or Microsoft, you need to create OAuth applications and store the credentials here.
+
+### Quick Setup
+
+For each provider you want to enable:
+
+1. **Copy the example files and fill in your credentials:**
+
+   ```bash
+   # GitHub
+   cp secrets/github_oauth_client_id.example secrets/github_oauth_client_id
+   cp secrets/github_oauth_client_secret.example secrets/github_oauth_client_secret
+   # Edit these files and replace with your actual credentials
+   
+   # Google
+   cp secrets/google_oauth_client_id.example secrets/google_oauth_client_id
+   cp secrets/google_oauth_client_secret.example secrets/google_oauth_client_secret
+   # Edit these files and replace with your actual credentials
+   
+   # Microsoft
+   cp secrets/microsoft_oauth_client_id.example secrets/microsoft_oauth_client_id
+   cp secrets/microsoft_oauth_client_secret.example secrets/microsoft_oauth_client_secret
+   # Edit these files and replace with your actual credentials
+   ```
+
+2. **Restart the auth service:**
+
+   ```bash
+   docker compose restart auth
+   ```
+
+3. **Verify which providers are configured:**
+
+   ```bash
+   curl http://localhost:8080/auth/providers
+   ```
+
+### Detailed Setup Instructions
+
+Each example file (`.example`) contains detailed instructions on how to create the OAuth application with that provider. For complete setup guides, see:
+
+- [documents/OIDC_LOCAL_TESTING.md](../documents/OIDC_LOCAL_TESTING.md) - Complete OAuth setup guide for all providers
+- [auth/README.md](../auth/README.md) - Auth service documentation
+
+## Other Secrets
 
 Examples for infrastructure:
 ```bash
@@ -23,4 +65,8 @@ echo "guest" > secrets/rabbitmq_user
 echo "guest" > secrets/rabbitmq_pass
 ```
 
-Secrets in this directory are NOT committed to version control (.gitignore entry).
+## Security Notes
+
+- Secrets in this directory are NOT committed to version control (.gitignore entry)
+- Example files (`.example`) ARE committed to help with setup
+- For production deployments, use a secure key vault (Azure Key Vault, AWS Secrets Manager, etc.) instead of file-based secrets
