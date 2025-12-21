@@ -32,24 +32,18 @@ class LocalLLMSummarizer(Summarizer):
         self,
         model: str = "mistral",
         base_url: str = "http://localhost:11434",
-        timeout: int = None
+        timeout: int = 120
     ):
         """Initialize local LLM summarizer.
         
         Args:
             model: Local model name
             base_url: Base URL for local inference endpoint (e.g., Ollama)
-            timeout: Request timeout in seconds (default: 600, configurable via OLLAMA_TIMEOUT env var)
+            timeout: Request timeout in seconds (default: 120)
             
         Raises:
             ValueError: If timeout is not a positive integer
         """
-        import os
-        
-        # Use environment variable if available, otherwise default to 600 seconds (10 minutes)
-        if timeout is None:
-            timeout = int(os.getenv("OLLAMA_TIMEOUT", "600"))
-        
         if not isinstance(timeout, int) or timeout <= 0:
             raise ValueError(f"timeout must be a positive integer, got {timeout!r}")
         
