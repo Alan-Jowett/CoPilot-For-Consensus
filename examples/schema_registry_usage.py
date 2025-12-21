@@ -38,6 +38,8 @@ def example_basic_usage():
     print(f"Schema ID: {schema.get('$id', 'N/A')}")
     
     # Example event that conforms to the schema
+    # Note: This is raw JSON, not a Pydantic model instance
+    # The version field must match the schema (string like "v1")
     valid_event = {
         "event_type": "ArchiveIngested",
         "event_id": "123e4567-e89b-12d3-a456-426614174000",
