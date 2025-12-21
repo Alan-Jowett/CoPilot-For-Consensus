@@ -30,6 +30,7 @@ setup(
     python_requires=">=3.10",
     install_requires=[
         "pymongo>=4.6.3",  # MongoDB client
+        "azure-cosmos>=4.5.0",  # Azure Cosmos DB client
     ],
     extras_require={
         "dev": [

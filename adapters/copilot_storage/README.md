@@ -9,6 +9,7 @@ A shared Python library for document storage across microservices in the Copilot
 
 - **Abstract Document Store Interface**: Common interface for NoSQL document storage backends
 - **MongoDB Implementation**: Production-ready MongoDB document store
+- **Azure Cosmos DB Implementation**: Production-ready Azure Cosmos DB document store
 - **In-Memory Document Store**: Testing document store that works in-memory
 - **Factory Pattern**: Simple factory function for creating document stores
 - **Schema Validation**: ValidatingDocumentStore wrapper for enforcing schema validation on document operations
@@ -87,6 +88,32 @@ if store.connect():
         "timestamp": "2025-01-01T00:00:00Z"
     })
     store.disconnect()
+```
+
+### Using Azure Cosmos DB Store
+
+```python
+import os
+from copilot_storage import create_document_store
+
+# Create Azure Cosmos DB store using environment variables for credentials
+store = create_document_store(
+    store_type="azurecosmos",
+    endpoint=os.getenv("COSMOS_ENDPOINT"),  # e.g., https://myaccount.documents.azure.com:443/
+    key=os.getenv("COSMOS_KEY"),
+    database="copilot_db",
+    container="documents",
+    partition_key="/collection"
+)
+
+# Connect and use
+store.connect()
+doc_id = store.insert_document("archives", {
+    "archive_id": "abc-123",
+    "status": "processed",
+    "timestamp": "2025-01-01T00:00:00Z"
+})
+store.disconnect()
 ```
 
 ### Validating Documents with Schema Validation
@@ -199,6 +226,33 @@ Production MongoDB implementation with:
 - Support for authentication
 - Standard MongoDB query syntax
 
+### AzureCosmosDocumentStore
+
+Production Azure Cosmos DB implementation with:
+- Azure Cosmos DB Core (SQL) API
+- Automatic partition key management (uses collection name as partition key)
+- Throttling and error handling
+- Support for account key or managed identity authentication
+- SQL query translation for common operations
+- Simplified aggregation pipeline support ($match, $limit)
+
+**Configuration via Environment Variables:**
+- `COSMOS_ENDPOINT`: Cosmos DB endpoint URL (required)
+- `COSMOS_KEY`: Cosmos DB account key (required)
+- `COSMOS_DATABASE`: Database name (default: "copilot")
+- `COSMOS_CONTAINER`: Container name (default: "documents")
+- `COSMOS_PARTITION_KEY`: Partition key path (default: "/collection")
+
+**Deployment Considerations:**
+- **Throughput**: Configure appropriate Request Units (RU/s) for your workload
+- **Indexing**: Customize indexing policy for query performance
+- **Partitioning**: Uses `/collection` as partition key for multi-collection support in a single container
+- **Consistency**: Choose consistency level based on requirements (default: Session)
+- **Backup**: Enable automatic backups for production environments
+- **Security**: Use Azure Managed Identity instead of account keys when possible
+
+See [examples/azure_cosmos_document_store_example.py](examples/azure_cosmos_document_store_example.py) for a complete demonstration.
+
 ### InMemoryDocumentStore
 
 Testing implementation with:
@@ -224,7 +278,15 @@ Schema validation wrapper that:
 ### Running Tests
 
 ```bash
+# Run all tests
 pytest tests/ -v
+
+# Run only unit tests (exclude integration tests)
+pytest tests/ -v -m "not integration"
+
+# Run integration tests for specific backends
+pytest tests/test_integration_mongodb.py -v  # MongoDB integration tests
+pytest tests/test_integration_azurecosmos.py -v  # Azure Cosmos DB integration tests
 ```
 
 ### Code Coverage
@@ -243,6 +305,7 @@ pylint copilot_storage/
 
 - Python 3.10+
 - pymongo (for MongoDB)
+- azure-cosmos (for Azure Cosmos DB)
 - copilot-schema-validation (optional: for ValidatingDocumentStore - install with `pip install copilot-storage[validation]`)
 
 ## License
