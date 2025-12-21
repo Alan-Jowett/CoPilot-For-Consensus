@@ -38,5 +38,10 @@ setup(
             "pylint>=3.0.0",
             "mypy>=1.0.0",
         ],
+        "azuremonitor": [
+            "azure-monitor-opentelemetry-exporter>=1.0.0b21",
+            "opentelemetry-api>=1.20.0",
+            "opentelemetry-sdk>=1.20.0",
+        ],
     },
 )

@@ -9,6 +9,7 @@ from typing import Optional
 from .logger import Logger
 from .stdout_logger import StdoutLogger
 from .silent_logger import SilentLogger
+from .azure_monitor_logger import AzureMonitorLogger
 
 
 def _default(value: Optional[str], env_var: str, fallback: str) -> str:
@@ -24,7 +25,7 @@ def create_logger(
     """Factory function to create a logger instance.
     
     Args:
-        logger_type: Type of logger to create. Options: "stdout", "silent". Defaults to LOG_TYPE env or "stdout".
+        logger_type: Type of logger to create. Options: "stdout", "silent", "azuremonitor". Defaults to LOG_TYPE env or "stdout".
         level: Logging level. Options: DEBUG, INFO, WARNING, ERROR. Defaults to LOG_LEVEL env or "INFO".
         name: Logger name for identification. Defaults to LOG_NAME env or "copilot".
         
@@ -43,6 +44,9 @@ def create_logger(
         >>> 
         >>> # Create silent logger for testing
         >>> logger = create_logger(logger_type="silent", level="INFO")
+        >>> 
+        >>> # Create Azure Monitor logger
+        >>> logger = create_logger(logger_type="azuremonitor", level="INFO", name="prod-service")
     """
     logger_type = _default(logger_type, "LOG_TYPE", "stdout").lower()
     level = _default(level, "LOG_LEVEL", "INFO").upper()
@@ -53,8 +57,10 @@ def create_logger(
         return StdoutLogger(level=level, name=name)
     elif logger_type == "silent":
         return SilentLogger(level=level, name=name)
+    elif logger_type == "azuremonitor":
+        return AzureMonitorLogger(level=level, name=name)
     else:
         raise ValueError(
             f"Unknown logger_type: {logger_type}. "
-            f"Must be one of: stdout, silent"
+            f"Must be one of: stdout, silent, azuremonitor"
         )
