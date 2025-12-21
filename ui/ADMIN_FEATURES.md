@@ -16,8 +16,13 @@ Located at `/admin`, the Admin Dashboard provides two main tabs:
 ### 2. User Roles Management
 
 #### Search User
-- Enter a user ID to look up a user's current roles
+- Search for users by:
+  - **Email**: Search by email address (partial match, case-insensitive)
+  - **Name**: Search by user's display name (partial match, case-insensitive)
+  - **User ID**: Search by exact user ID
+- Select search type from dropdown before entering search term
 - Displays user information including email, name, status, and assigned roles
+- For searches with multiple results, shows a list of matching users to select from
 
 #### Assign Roles
 - Click "Assign Roles" to open the role assignment modal
@@ -69,6 +74,7 @@ The UI provides clear error messages for common scenarios:
 The UI integrates with the following auth service endpoints:
 
 - `GET /auth/admin/role-assignments/pending` - List pending assignments
+- `GET /auth/admin/users/search` - Search for users by email, name, or user_id
 - `GET /auth/admin/users/{user_id}/roles` - Get user roles
 - `POST /auth/admin/users/{user_id}/roles` - Assign roles to user
 - `DELETE /auth/admin/users/{user_id}/roles` - Revoke roles from user
@@ -87,8 +93,9 @@ The Admin UI follows the existing design system:
 ## Future Enhancements
 
 Potential improvements for future iterations:
-- User list/directory for browsing all users
 - Bulk role assignment operations
 - Role assignment approval workflow
 - Audit log of role changes
 - Role-based access control visualization
+- Advanced search filters (e.g., by role, status, provider)
+- Export user list with roles

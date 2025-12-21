@@ -13,6 +13,7 @@ This service provides:
 import os
 import sys
 from contextlib import asynccontextmanager
+from enum import Enum
 from typing import Any
 
 # Add app directory to path
@@ -317,6 +318,13 @@ def jwks() -> JSONResponse:
 
 
 # Pydantic models for admin API
+class SearchByField(str, Enum):
+    """Enum for valid search fields."""
+    USER_ID = "user_id"
+    EMAIL = "email"
+    NAME = "name"
+
+
 class RoleAssignmentRequest(BaseModel):
     """Request model for assigning roles."""
 
@@ -462,6 +470,66 @@ async def list_pending_assignments(
     except Exception as e:
         logger.error(f"Failed to list pending assignments: {e}")
         raise HTTPException(status_code=500, detail="Failed to list pending assignments")
+
+
+@app.get("/admin/users/search")
+async def search_users(
+    request: Request,
+    search_term: str = Query(..., description="Search term (email, name, or user ID)"),
+    search_by: SearchByField = Query(SearchByField.EMAIL, description="Field to search by: user_id, email, or name"),
+) -> JSONResponse:
+    """Search for users by email, name, or user_id.
+
+    Requires admin role. Returns matching user records.
+
+    Args:
+        request: FastAPI request
+        search_term: The search term to look for
+        search_by: Field to search by (user_id, email, or name)
+
+    Returns:
+        JSON with matching user records
+    """
+    global auth_service
+
+    # Validate admin role
+    admin_user_id, admin_email = require_admin_role(request)
+
+    try:
+        users = auth_service.role_store.search_users(
+            search_term=search_term,
+            search_by=search_by.value,  # Use .value to get the string value from Enum
+        )
+
+        # Redact search term from logs to avoid exposing PII (email addresses, names)
+        logger.info(
+            f"Admin {admin_user_id} searched for users",
+            extra={
+                "event": "admin_search_users",
+                "admin_user_id": admin_user_id,
+                "search_by": search_by.value,
+                "result_count": len(users),
+                # search_term intentionally omitted to protect user privacy
+            },
+        )
+
+        metrics.increment("admin_search_users_total", {"admin": admin_user_id, "search_by": search_by.value})
+
+        return JSONResponse(
+            content={
+                "users": users,
+                "count": len(users),
+                "search_by": search_by.value,
+                "search_term": search_term,
+            }
+        )
+
+    except ValueError as e:
+        logger.warning(f"Invalid search request: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to search users: {e}")
+        raise HTTPException(status_code=500, detail="Failed to search users")
 
 
 @app.get("/admin/users/{user_id}/roles")
