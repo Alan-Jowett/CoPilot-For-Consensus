@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field
 from copilot_logging import create_logger, create_uvicorn_log_config
 from copilot_metrics import create_metrics_collector
 
-from app import __version__
+from app import __version__, SUPPORTED_PROVIDERS
 from app.config import load_auth_config
 from app.service import AuthService
 
@@ -101,6 +101,46 @@ async def readyz() -> dict[str, str]:
         raise HTTPException(status_code=503, detail="Service not ready")
 
     return {"status": "ready"}
+
+
+@app.get("/providers")
+async def list_providers() -> dict[str, Any]:
+    """List available authentication providers.
+    
+    Returns information about which providers are configured and ready to use.
+    
+    Returns:
+        JSON with list of configured providers and their status
+    
+    Example Response:
+        {
+            "providers": {
+                "github": {"configured": true},
+                "google": {"configured": false},
+                "microsoft": {"configured": false}
+            },
+            "configured_count": 1,
+            "total_supported": 3
+        }
+    """
+    global auth_service
+
+    if not auth_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+
+    configured_providers = list(auth_service.providers.keys())
+    
+    provider_status = {}
+    for provider in SUPPORTED_PROVIDERS:
+        provider_status[provider] = {
+            "configured": provider in configured_providers,
+        }
+    
+    return {
+        "providers": provider_status,
+        "configured_count": len(configured_providers),
+        "total_supported": len(SUPPORTED_PROVIDERS),
+    }
 
 
 @app.get("/login")

@@ -339,6 +339,74 @@ Query centralized logs in Grafana:
 
 For more troubleshooting, see [documents/LOCAL_DEVELOPMENT.md](./documents/LOCAL_DEVELOPMENT.md).
 
+### Authentication Setup
+
+The system includes an authentication service that supports GitHub, Google, and Microsoft login providers. By default, only the providers you configure will be available.
+
+**To enable authentication providers:**
+
+1. **Generate JWT signing keys** (required for all providers):
+   ```bash
+   python auth/generate_keys.py
+   # This creates secrets/jwt_private_key and secrets/jwt_public_key
+   ```
+
+2. **Configure provider credentials** in the `./secrets/` directory:
+
+   **For GitHub:**
+   - Create an OAuth app at https://github.com/settings/developers
+   - Set callback URL: `http://localhost:8080/ui/callback`
+   - Store credentials:
+     1. Copy the example files:
+        ```bash
+        cp secrets/github_oauth_client_id.example secrets/github_oauth_client_id
+        cp secrets/github_oauth_client_secret.example secrets/github_oauth_client_secret
+        ```
+     2. Edit the copied files and replace the placeholder values with your actual GitHub OAuth credentials
+     3. Save the files
+
+   **For Google:**
+   - Create OAuth credentials at https://console.cloud.google.com/
+   - Set authorized redirect URI: `http://localhost:8080/ui/callback`
+   - Store credentials:
+     1. Copy the example files:
+        ```bash
+        cp secrets/google_oauth_client_id.example secrets/google_oauth_client_id
+        cp secrets/google_oauth_client_secret.example secrets/google_oauth_client_secret
+        ```
+     2. Edit the copied files and replace the placeholder values with your actual Google OAuth credentials
+     3. Save the files
+
+   **For Microsoft:**
+   - Create an app registration at https://entra.microsoft.com/
+   - Set redirect URI: `http://localhost:8080/ui/callback`
+   - Store credentials:
+     1. Copy the example files:
+        ```bash
+        cp secrets/microsoft_oauth_client_id.example secrets/microsoft_oauth_client_id
+        cp secrets/microsoft_oauth_client_secret.example secrets/microsoft_oauth_client_secret
+        ```
+     2. Edit the copied files and replace the placeholder values with your actual Microsoft OAuth credentials
+     3. Save the files
+   
+   **Note:** On Windows, use `Copy-Item` instead of `cp` in PowerShell.
+
+3. **Restart the auth service** to pick up the new credentials:
+   ```bash
+   docker compose restart auth
+   ```
+
+4. **Verify provider availability**:
+   ```bash
+   curl http://localhost:8080/auth/providers
+   ```
+
+**For detailed setup instructions, including production deployment with HTTPS, see:**
+- [documents/OIDC_LOCAL_TESTING.md](./documents/OIDC_LOCAL_TESTING.md) - Complete OAuth setup guide
+- [auth/README.md](./auth/README.md) - Auth service documentation
+
+**Note:** If you don't configure any providers, the login page will show buttons but clicking them will return an error indicating the provider is not configured.
+
 ### Demo vs Production Setup
 
 **Current setup is optimized for local development and integration testing:**

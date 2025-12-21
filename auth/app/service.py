@@ -20,6 +20,7 @@ from copilot_auth import (
 from copilot_logging import create_logger
 
 from .role_store import RoleStore
+from . import SUPPORTED_PROVIDERS, OAUTH_PROVIDERS
 
 logger = create_logger(logger_type="stdout", level="INFO", name="auth.service")
 
@@ -184,10 +185,22 @@ class AuthService:
             Tuple of (authorization_url, state, nonce)
         
         Raises:
-            ValueError: If provider is unknown
+            ValueError: If provider is unknown or not configured
         """
         if provider not in self.providers:
-            raise ValueError(f"Unknown provider: {provider}")
+            configured_providers = list(self.providers.keys())
+            if provider in OAUTH_PROVIDERS:
+                raise ValueError(
+                    f"Provider '{provider}' is not configured. "
+                    f"Please configure OAuth credentials for {provider}. "
+                    f"See documentation for setup instructions. "
+                    f"Currently configured providers: {', '.join(configured_providers) if configured_providers else 'none'}"
+                )
+            raise ValueError(
+                f"Unknown provider: {provider}. "
+                f"Supported providers: {', '.join(SUPPORTED_PROVIDERS)}. "
+                f"Currently configured: {', '.join(configured_providers) if configured_providers else 'none'}"
+            )
 
         provider_instance = self.providers[provider]
 
