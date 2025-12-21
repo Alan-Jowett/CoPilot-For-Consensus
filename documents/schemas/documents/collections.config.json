@@ -2,7 +2,7 @@
   "collections": [
     {
       "name": "archives",
-      "schema": "/schemas/documents/archives.schema.json",
+      "schema": "/schemas/documents/v1/archives.schema.json",
       "indexes": [
         { "keys": { "source": 1 }, "options": { "name": "source_idx" } },
         { "keys": { "ingestion_date": 1 }, "options": { "name": "ingestion_date_idx" } },
@@ -11,7 +11,7 @@
     },
     {
       "name": "messages",
-      "schema": "/schemas/documents/messages.schema.json",
+      "schema": "/schemas/documents/v1/messages.schema.json",
       "indexes": [
         { "keys": { "message_id": 1 }, "options": { "name": "message_id_idx" } },
         { "keys": { "archive_id": 1 }, "options": { "name": "archive_id_idx" } },
@@ -24,7 +24,7 @@
     },
     {
       "name": "chunks",
-      "schema": "/schemas/documents/chunks.schema.json",
+      "schema": "/schemas/documents/v1/chunks.schema.json",
       "indexes": [
         { "keys": { "message_id": 1 }, "options": { "name": "message_id_idx" } },
         { "keys": { "thread_id": 1 }, "options": { "name": "thread_id_idx" } },
@@ -34,7 +34,7 @@
     },
     {
       "name": "threads",
-      "schema": "/schemas/documents/threads.schema.json",
+      "schema": "/schemas/documents/v1/threads.schema.json",
       "indexes": [
         { "keys": { "archive_id": 1 }, "options": { "name": "archive_id_idx" } },
         { "keys": { "first_message_date": 1 }, "options": { "name": "first_message_date_idx" } },
@@ -47,7 +47,7 @@
     },
     {
       "name": "summaries",
-      "schema": "/schemas/documents/summaries.schema.json",
+      "schema": "/schemas/documents/v1/summaries.schema.json",
       "indexes": [
         { "keys": { "thread_id": 1 }, "options": { "name": "thread_id_idx" } },
         { "keys": { "summary_type": 1 }, "options": { "name": "summary_type_idx" } },
