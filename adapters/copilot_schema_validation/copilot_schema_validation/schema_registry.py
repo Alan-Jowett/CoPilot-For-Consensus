@@ -85,7 +85,7 @@ def get_schema_path(schema_type: str, version: str) -> str:
     """Get the file path for a schema given its type and version.
     
     Args:
-        schema_type: The schema type name (e.g., 'ArchiveIngested', 'Draft')
+        schema_type: The schema type name (e.g., 'ArchiveIngested', 'Archive')
         version: The schema version (e.g., 'v1', 'v2')
         
     Returns:
@@ -126,7 +126,7 @@ def load_schema(schema_type: str, version: str) -> dict:
     """Load a JSON schema given its type and version.
     
     Args:
-        schema_type: The schema type name (e.g., 'ArchiveIngested', 'Draft')
+        schema_type: The schema type name (e.g., 'ArchiveIngested', 'Archive')
         version: The schema version (e.g., 'v1', 'v2')
         
     Returns:
