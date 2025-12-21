@@ -51,9 +51,17 @@ class ThreadBuilder:
             # If the root isn't present in the parsed set (e.g., missing parent), fall back to this message's _id
             if root not in message_map:
                 logger.warning("Root message %s not found in parsed set; using current message's _id", root)
-                root_doc_id = message.get("_id", message_id)
+                if "_id" not in message:
+                    raise KeyError(
+                        "Message missing '_id' field; all messages must have an '_id' before threading."
+                    )
+                root_doc_id = message["_id"]
             else:
-                root_doc_id = message_map[root].get("_id", root)
+                if "_id" not in message_map[root]:
+                    raise KeyError(
+                        "Root message missing '_id' field; all messages must have an '_id' before threading."
+                    )
+                root_doc_id = message_map[root]["_id"]
             thread_assignments[message_id] = root_doc_id
             # Update the message's thread_id to root message's canonical _id
             message["thread_id"] = root_doc_id
