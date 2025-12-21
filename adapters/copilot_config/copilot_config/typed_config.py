@@ -27,8 +27,13 @@ class TypedConfig:
         AttributeError: TypedConfig does not support dict-style access
     """
 
-    def __init__(self, config_dict: Dict[str, Any], schema_version: Optional[str] = None, 
-                 min_service_version: Optional[str] = None):
+    def __init__(
+        self,
+        config_dict: Dict[str, Any],
+        *,
+        schema_version: Optional[str] = None,
+        min_service_version: Optional[str] = None
+    ):
         """Initialize typed config wrapper.
         
         Args:

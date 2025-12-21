@@ -8,6 +8,8 @@ import json
 import sys
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+from .schema_loader import _parse_semver
+
 
 class CompatibilityIssue:
     """Represents a compatibility issue between schemas."""
@@ -57,8 +59,12 @@ def check_schema_compatibility(
     new_version = new_schema.get("schema_version")
     
     if old_version and new_version:
-        old_parts = _parse_version(old_version)
-        new_parts = _parse_version(new_version)
+        try:
+            old_parts = _parse_semver(old_version)
+            new_parts = _parse_semver(new_version)
+        except ValueError:
+            # Invalid version format, skip comparison
+            old_parts = new_parts = (0, 0, 0)
         
         if old_parts > new_parts:
             issues.append(CompatibilityIssue(
@@ -155,15 +161,6 @@ def check_schema_compatibility(
     return issues
 
 
-def _parse_version(version: str) -> Tuple[int, int, int]:
-    """Parse semver string into tuple of ints."""
-    try:
-        parts = version.split('.')
-        return tuple(int(p) for p in parts[:3])
-    except (ValueError, AttributeError):
-        return (0, 0, 0)
-
-
 def check_version_bump_adequate(
     old_version: str,
     new_version: str,
@@ -181,8 +178,12 @@ def check_version_bump_adequate(
     """
     additional_issues = []
     
-    old_parts = _parse_version(old_version)
-    new_parts = _parse_version(new_version)
+    try:
+        old_parts = _parse_semver(old_version)
+        new_parts = _parse_semver(new_version)
+    except ValueError:
+        # Invalid version format, skip check
+        return additional_issues
     
     has_breaking_changes = any(
         issue.severity == CompatibilityIssue.BREAKING

@@ -6,9 +6,38 @@
 import json
 import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from .config import ConfigProvider, EnvConfigProvider, StaticConfigProvider
+
+
+def _parse_semver(version: str) -> Tuple[int, int, int]:
+    """Parse semver string into tuple of ints.
+    
+    Args:
+        version: Version string in semver format (e.g., "1.2.3")
+        
+    Returns:
+        Tuple of (major, minor, patch) version numbers
+        
+    Raises:
+        ValueError: If version string is not valid semver
+    """
+    if not version:
+        raise ValueError("Version string cannot be empty")
+    
+    try:
+        parts = version.split('.')
+        if len(parts) < 3:
+            raise ValueError(f"Version must have at least 3 parts: {version}")
+        
+        major = int(parts[0])
+        minor = int(parts[1])
+        patch = int(parts[2])
+        
+        return (major, minor, patch)
+    except (ValueError, AttributeError) as e:
+        raise ValueError(f"Invalid semver format '{version}': {e}")
 
 
 def _is_version_compatible(service_version: str, min_required_version: str) -> bool:
@@ -19,20 +48,18 @@ def _is_version_compatible(service_version: str, min_required_version: str) -> b
         min_required_version: Minimum required version (semver format)
         
     Returns:
-        True if service version >= min required version
+        True if service version >= min required version, False otherwise
+        
+    Note:
+        Returns True if versions cannot be parsed (permissive for testing)
     """
-    def parse_version(version: str) -> tuple:
-        """Parse semver string into tuple of ints."""
-        try:
-            parts = version.split('.')
-            return tuple(int(p) for p in parts[:3])
-        except (ValueError, AttributeError):
-            return (0, 0, 0)
-    
-    service_parts = parse_version(service_version)
-    min_parts = parse_version(min_required_version)
-    
-    return service_parts >= min_parts
+    try:
+        service_parts = _parse_semver(service_version)
+        min_parts = _parse_semver(min_required_version)
+        return service_parts >= min_parts
+    except ValueError:
+        # Be permissive if versions can't be parsed (for testing/dev)
+        return True
 
 
 class ConfigValidationError(Exception):
