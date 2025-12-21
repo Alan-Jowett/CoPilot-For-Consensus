@@ -21,6 +21,7 @@ For each provider you want to enable:
 
 1. **Copy the example files and fill in your credentials:**
 
+   **Linux/macOS (bash):**
    ```bash
    # GitHub
    cp secrets/github_oauth_client_id.example secrets/github_oauth_client_id
@@ -35,6 +36,24 @@ For each provider you want to enable:
    # Microsoft
    cp secrets/microsoft_oauth_client_id.example secrets/microsoft_oauth_client_id
    cp secrets/microsoft_oauth_client_secret.example secrets/microsoft_oauth_client_secret
+   # Edit these files and replace with your actual credentials
+   ```
+
+   **Windows (PowerShell):**
+   ```powershell
+   # GitHub
+   Copy-Item secrets/github_oauth_client_id.example secrets/github_oauth_client_id
+   Copy-Item secrets/github_oauth_client_secret.example secrets/github_oauth_client_secret
+   # Edit these files and replace with your actual credentials
+   
+   # Google
+   Copy-Item secrets/google_oauth_client_id.example secrets/google_oauth_client_id
+   Copy-Item secrets/google_oauth_client_secret.example secrets/google_oauth_client_secret
+   # Edit these files and replace with your actual credentials
+   
+   # Microsoft
+   Copy-Item secrets/microsoft_oauth_client_id.example secrets/microsoft_oauth_client_id
+   Copy-Item secrets/microsoft_oauth_client_secret.example secrets/microsoft_oauth_client_secret
    # Edit these files and replace with your actual credentials
    ```
 

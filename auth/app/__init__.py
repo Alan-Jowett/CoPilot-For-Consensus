@@ -8,6 +8,7 @@ __version__ = "0.1.0"
 # Supported authentication providers
 SUPPORTED_PROVIDERS = ["github", "google", "microsoft"]
 
-# Providers that specifically need OAuth configuration guidance
-OAUTH_PROVIDERS = ["google", "microsoft"]
+# Providers that need OAuth configuration guidance
+# All providers require OAuth credentials (client ID and secret)
+OAUTH_PROVIDERS = ["github", "google", "microsoft"]
 

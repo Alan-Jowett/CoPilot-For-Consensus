@@ -147,6 +147,45 @@ Readiness check endpoint.
 }
 ```
 
+### `GET /providers`
+
+List available authentication providers and their configuration status.
+
+Returns information about which OAuth providers (GitHub, Google, Microsoft) are currently configured and available for authentication.
+
+**Response:**
+```json
+{
+  "providers": {
+    "github": {
+      "configured": true,
+      "available": true
+    },
+    "google": {
+      "configured": false,
+      "available": false
+    },
+    "microsoft": {
+      "configured": false,
+      "available": false
+    }
+  },
+  "configured_count": 1,
+  "total_supported": 3
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:8090/providers
+```
+
+**Use Case:**
+This endpoint is useful for:
+- Verifying which providers are configured during setup
+- Debugging authentication issues
+- UI applications to show only available login buttons
+
 ### Admin Endpoints
 
 The following endpoints require authentication with an `admin` role. All require the `Authorization: Bearer <jwt>` header with a valid JWT containing the `admin` role.
