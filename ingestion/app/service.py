@@ -357,15 +357,22 @@ class IngestionService:
         # Files from a source are stored in: {storage_path}/{source_name}/*
         # Normalize the base source path so comparisons work across platforms
         source_root = os.path.normpath(os.path.join(self.config.storage_path, source_name))
-        # Add trailing separator to ensure exact directory matching
-        source_path_prefix = source_root + os.sep
         
         hashes_to_delete = []
         for file_hash, metadata in self.checksums.items():
             file_path = metadata.get("file_path", "")
+            if not file_path:
+                continue
             normalized_file_path = os.path.normpath(file_path)
-            # Check if this file belongs to the source (directory or exact root path)
-            if normalized_file_path == source_root or normalized_file_path.startswith(source_path_prefix):
+            
+            # Check if this file belongs to the source
+            # Use path comparison that checks if file is in the source directory
+            # by verifying the normalized path is equal to or starts with source_root followed by separator
+            if normalized_file_path == source_root:
+                # Exact match - the file is the source root itself
+                hashes_to_delete.append(file_hash)
+            elif normalized_file_path.startswith(source_root + os.sep):
+                # File is in a subdirectory of source_root
                 hashes_to_delete.append(file_hash)
         
         # Delete the identified hashes
