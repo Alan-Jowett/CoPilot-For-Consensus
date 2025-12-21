@@ -6,11 +6,56 @@
 import json
 
 from copilot_schema_validation import (
+    DocumentStatus,
     ArchiveIngestedEvent,
     ArchiveIngestionFailedEvent,
     JSONParsedEvent,
     ParsingFailedEvent,
 )
+
+
+class TestDocumentStatus:
+    """Tests for DocumentStatus enum."""
+
+    def test_status_values(self):
+        """Test that all status values are defined correctly."""
+        assert DocumentStatus.PENDING.value == "pending"
+        assert DocumentStatus.PROCESSING.value == "processing"
+        assert DocumentStatus.COMPLETED.value == "completed"
+        assert DocumentStatus.FAILED.value == "failed"
+        assert DocumentStatus.FAILED_MAX_RETRIES.value == "failed_max_retries"
+
+    def test_status_enum_members(self):
+        """Test that all expected enum members exist."""
+        expected_members = {
+            "PENDING",
+            "PROCESSING",
+            "COMPLETED",
+            "FAILED",
+            "FAILED_MAX_RETRIES",
+        }
+        actual_members = {member.name for member in DocumentStatus}
+        assert actual_members == expected_members
+
+    def test_status_from_string(self):
+        """Test creating status from string value."""
+        assert DocumentStatus("pending") == DocumentStatus.PENDING
+        assert DocumentStatus("processing") == DocumentStatus.PROCESSING
+        assert DocumentStatus("completed") == DocumentStatus.COMPLETED
+        assert DocumentStatus("failed") == DocumentStatus.FAILED
+        assert DocumentStatus("failed_max_retries") == DocumentStatus.FAILED_MAX_RETRIES
+
+    def test_status_comparison(self):
+        """Test that status values can be compared to strings."""
+        status = DocumentStatus.PENDING
+        assert status == "pending"
+        assert status != "processing"
+
+    def test_status_in_list(self):
+        """Test using status enum in collections."""
+        statuses = [DocumentStatus.PENDING, DocumentStatus.PROCESSING]
+        assert DocumentStatus.PENDING in statuses
+        assert DocumentStatus.COMPLETED not in statuses
 
 
 class TestArchiveIngestedEvent:

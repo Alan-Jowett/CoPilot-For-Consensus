@@ -5,12 +5,35 @@
 
 This module defines all event types used in the Copilot-for-Consensus event-driven
 architecture. All events inherit from BaseEvent and follow a consistent structure.
+
+It also defines common enums used across document schemas for consistency.
 """
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Dict, Any, Optional, List
 from uuid import uuid4
+
+
+class DocumentStatus(str, Enum):
+    """Processing status for documents to track forward progress.
+    
+    This enum is used across multiple document collections (archives, messages,
+    chunks, threads) to track processing state and enable retry logic.
+    
+    Values:
+        PENDING: Document is waiting to be processed
+        PROCESSING: Document is currently being processed
+        COMPLETED: Document processing completed successfully
+        FAILED: Document processing failed (retryable)
+        FAILED_MAX_RETRIES: Document failed after maximum retry attempts (terminal state)
+    """
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    FAILED_MAX_RETRIES = "failed_max_retries"
 
 
 @dataclass

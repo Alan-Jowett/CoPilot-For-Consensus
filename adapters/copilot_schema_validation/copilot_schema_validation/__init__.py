@@ -27,6 +27,9 @@ from .identifier_generator import (
     generate_summary_id,
 )
 from .models import (
+    # Enums
+    DocumentStatus,
+    # Event base class
     BaseEvent,
     # Ingestion Service Events
     ArchiveIngestedEvent,
@@ -65,6 +68,8 @@ __all__ = [
     "validate_registry",
     "get_schema_metadata",
     "SCHEMA_REGISTRY",
+    # Enums
+    "DocumentStatus",
     # Event models
     "BaseEvent",
     "ArchiveIngestedEvent",

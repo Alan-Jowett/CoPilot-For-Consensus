@@ -41,6 +41,18 @@
         { "type": "null" }
       ],
       "description": "Timestamp of the last processing attempt"
+    },
+    "lastUpdated": { 
+      "type": "string", 
+      "format": "date-time",
+      "description": "Timestamp of last status or field update for observability and forward progress tracking"
+    },
+    "workerId": {
+      "anyOf": [
+        { "type": "string", "minLength": 1 },
+        { "type": "null" }
+      ],
+      "description": "Optional identifier of the worker/service instance processing this document for debugging and observability"
     }
   },
   "required": ["_id", "file_hash", "file_size_bytes", "source", "ingestion_date", "status"]
