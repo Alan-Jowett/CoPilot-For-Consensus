@@ -51,6 +51,14 @@ export function UserRolesList() {
     setSearchResults([])
   }
 
+  // Handle keyboard navigation for search results
+  const handleResultKeyDown = (e: React.KeyboardEvent, user: UserRoleRecord) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      handleSelectUser(user)
+    }
+  }
+
   // Helper function to get label for search field
   const getSearchFieldLabel = () => {
     switch (searchBy) {
@@ -135,6 +143,10 @@ export function UserRolesList() {
                 key={user.user_id}
                 className="user-result-item"
                 onClick={() => handleSelectUser(user)}
+                onKeyDown={(e) => handleResultKeyDown(e, user)}
+                role="button"
+                tabIndex={0}
+                aria-label={`Select user ${getUserDisplayName(user)}`}
               >
                 <div>
                   <strong>{getUserDisplayName(user)}</strong>

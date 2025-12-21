@@ -531,6 +531,11 @@ tr:hover { background-color: var(--bg-hover); }
   box-shadow: var(--shadow-sm);
 }
 
+.user-result-item:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .user-result-item strong {
   color: var(--text-primary);
   font-size: 14px;
