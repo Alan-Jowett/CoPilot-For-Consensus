@@ -425,6 +425,12 @@ The system includes an authentication service that supports GitHub, Google, and 
 - **Security**: Enable TLS, authentication, and network policies (see [SECURITY.md](./SECURITY.md))
 - **Scaling**: Deploy services independently with Kubernetes or Azure Container Apps
 
+**Azure Deployment:**
+- We provide an **Azure Resource Manager (ARM) template** for automated deployment to Azure
+- All services deploy as **Azure Container Apps** with managed identities
+- See **[infra/azure/README.md](./infra/azure/README.md)** for complete deployment guide
+- One-click deployment with proper RBAC, networking, and observability
+
 See [documents/ARCHITECTURE.md](./documents/ARCHITECTURE.md) for detailed production architecture guidance.
 
 ***

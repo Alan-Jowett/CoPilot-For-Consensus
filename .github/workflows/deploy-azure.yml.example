@@ -1,0 +1,151 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Deploy to Azure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      image_tag:
+        description: 'Container image tag to deploy'
+        required: true
+        default: 'latest'
+        type: string
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/azure/**'
+      - '.github/workflows/deploy-azure.yml'
+
+permissions:
+  id-token: write  # Required for OIDC authentication
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to Azure Container Apps
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Azure Login (OIDC)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      
+      - name: Set deployment variables
+        id: vars
+        run: |
+          ENV="${{ github.event.inputs.environment || 'dev' }}"
+          IMAGE_TAG="${{ github.event.inputs.image_tag || 'latest' }}"
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          DEPLOYMENT_NAME="copilot-deployment-${ENV}-${TIMESTAMP}"
+          
+          echo "environment=${ENV}" >> $GITHUB_OUTPUT
+          echo "image_tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "deployment_name=${DEPLOYMENT_NAME}" >> $GITHUB_OUTPUT
+      
+      - name: Create resource group if not exists
+        run: |
+          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP }}"
+          LOCATION="${{ secrets.AZURE_LOCATION || 'eastus' }}"
+          
+          if ! az group show --name "$RESOURCE_GROUP" &> /dev/null; then
+            echo "Creating resource group: $RESOURCE_GROUP"
+            az group create --name "$RESOURCE_GROUP" --location "$LOCATION"
+          else
+            echo "Resource group already exists: $RESOURCE_GROUP"
+          fi
+      
+      - name: Validate ARM template
+        run: |
+          az deployment group validate \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --template-file infra/azure/azuredeploy.json \
+            --parameters \
+              projectName="${{ secrets.AZURE_PROJECT_NAME || 'copilot' }}" \
+              environment="${{ steps.vars.outputs.environment }}" \
+              containerImageTag="${{ steps.vars.outputs.image_tag }}" \
+              location="${{ secrets.AZURE_LOCATION || 'eastus' }}" \
+              mongoDbConnectionString="${{ secrets.MONGODB_CONNECTION_STRING }}" \
+              serviceBusConnectionString="${{ secrets.SERVICEBUS_CONNECTION_STRING }}" \
+              storageAccountConnectionString="${{ secrets.STORAGE_CONNECTION_STRING }}" \
+              azureOpenAIEndpoint="${{ secrets.AZURE_OPENAI_ENDPOINT }}" \
+              azureOpenAIKey="${{ secrets.AZURE_OPENAI_KEY }}" \
+              llmBackend="${{ secrets.LLM_BACKEND || 'azure' }}"
+      
+      - name: Deploy to Azure
+        id: deploy
+        run: |
+          az deployment group create \
+            --name "${{ steps.vars.outputs.deployment_name }}" \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --template-file infra/azure/azuredeploy.json \
+            --parameters \
+              projectName="${{ secrets.AZURE_PROJECT_NAME || 'copilot' }}" \
+              environment="${{ steps.vars.outputs.environment }}" \
+              containerImageTag="${{ steps.vars.outputs.image_tag }}" \
+              location="${{ secrets.AZURE_LOCATION || 'eastus' }}" \
+              mongoDbConnectionString="${{ secrets.MONGODB_CONNECTION_STRING }}" \
+              serviceBusConnectionString="${{ secrets.SERVICEBUS_CONNECTION_STRING }}" \
+              storageAccountConnectionString="${{ secrets.STORAGE_CONNECTION_STRING }}" \
+              azureOpenAIEndpoint="${{ secrets.AZURE_OPENAI_ENDPOINT }}" \
+              azureOpenAIKey="${{ secrets.AZURE_OPENAI_KEY }}" \
+              llmBackend="${{ secrets.LLM_BACKEND || 'azure' }}" \
+            --output json > deployment-output.json
+          
+          # Extract outputs
+          GATEWAY_URL=$(jq -r '.properties.outputs.gatewayUrl.value' deployment-output.json)
+          echo "gateway_url=${GATEWAY_URL}" >> $GITHUB_OUTPUT
+      
+      - name: Show deployment outputs
+        run: |
+          echo "### Deployment Completed Successfully! 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ steps.vars.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag:** ${{ steps.vars.outputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Gateway URL:** https://${{ steps.deploy.outputs.gateway_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Deployment Details" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          jq '.properties.outputs' deployment-output.json >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+      
+      - name: Test deployment health
+        run: |
+          GATEWAY_URL="${{ steps.deploy.outputs.gateway_url }}"
+          
+          echo "Testing health endpoints..."
+          
+          # Wait for services to be ready (up to 5 minutes)
+          for i in {1..30}; do
+            if curl -f -s -o /dev/null "https://${GATEWAY_URL}/reporting/health"; then
+              echo "✅ Reporting service is healthy"
+              break
+            fi
+            echo "Waiting for services to be ready... (attempt $i/30)"
+            sleep 10
+          done
+          
+          # Test additional endpoints
+          curl -f "https://${GATEWAY_URL}/auth/health" || echo "⚠️ Auth service not responding"
+          curl -f "https://${GATEWAY_URL}/ingestion/health" || echo "⚠️ Ingestion service not responding"
+      
+      - name: Azure Logout
+        if: always()
+        run: az logout
