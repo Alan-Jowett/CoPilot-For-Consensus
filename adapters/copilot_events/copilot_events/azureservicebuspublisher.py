@@ -109,6 +109,34 @@ class AzureServiceBusPublisher(EventPublisher):
         except Exception as e:
             logger.error(f"Error disconnecting from Azure Service Bus: {e}")
 
+    def _determine_publish_target(
+        self, exchange: str, routing_key: str
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Determine the target queue or topic for publishing.
+        
+        Topic takes precedence over queue. If both queue_name and topic_name
+        are configured, the topic is used. Otherwise, the exchange parameter
+        is used as the topic name, or the routing_key is used as the queue name.
+        
+        Args:
+            exchange: Exchange name (used as topic name if topic_name not set)
+            routing_key: Routing key (used as queue name if queue_name not set)
+            
+        Returns:
+            Tuple of (topic_name, queue_name). One will be None.
+        """
+        # Topic takes precedence if topic_name is configured
+        if self.topic_name:
+            return (self.topic_name, None)
+        
+        # If queue_name is configured, use it
+        if self.queue_name:
+            return (None, self.queue_name)
+        
+        # Fall back to using exchange as topic or routing_key as queue
+        # Prefer topic (exchange) over queue (routing_key) for consistency with RabbitMQ
+        return (exchange, None)
+
     def publish(self, exchange: str, routing_key: str, event: Dict[str, Any]) -> None:
         """Publish an event to Azure Service Bus.
         
@@ -156,9 +184,8 @@ class AzureServiceBusPublisher(EventPublisher):
                 "exchange": exchange,
             }
             
-            # Determine target: topic takes precedence over queue
-            target_topic = self.topic_name or exchange if not self.queue_name else None
-            target_queue = self.queue_name or routing_key if not target_topic else None
+            # Determine target: topic or queue
+            target_topic, target_queue = self._determine_publish_target(exchange, routing_key)
             
             if target_topic:
                 # Publish to topic

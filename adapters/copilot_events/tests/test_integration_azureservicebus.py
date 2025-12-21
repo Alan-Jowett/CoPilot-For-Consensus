@@ -35,7 +35,14 @@ TEST_TIMEOUT_SECONDS = 30  # seconds to wait for test completion
 
 
 def get_azureservicebus_config():
-    """Get Azure Service Bus configuration from environment variables."""
+    """Get Azure Service Bus configuration from environment variables.
+    
+    Configuration precedence:
+    - If AZURE_SERVICEBUS_CONNECTION_STRING is set, it takes precedence
+    - Otherwise, AZURE_SERVICEBUS_NAMESPACE is used with managed identity
+    - This allows easy switching between development (connection string)
+      and production (managed identity) configurations
+    """
     connection_string = os.getenv("AZURE_SERVICEBUS_CONNECTION_STRING")
     namespace = os.getenv("AZURE_SERVICEBUS_NAMESPACE")
     

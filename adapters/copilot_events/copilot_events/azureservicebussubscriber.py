@@ -5,6 +5,7 @@
 
 import json
 import logging
+import threading
 from typing import Callable, Dict, Any, Optional
 
 try:
@@ -90,7 +91,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
         self.client: Optional[ServiceBusClient] = None
         self._credential = None
         self.callbacks: Dict[str, Callable[[Dict[str, Any]], None]] = {}
-        self._consuming = False
+        self._consuming = threading.Event()  # Thread-safe flag for consumption control
 
     def connect(self) -> None:
         """Connect to Azure Service Bus.
@@ -179,7 +180,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
         if ServiceBusReceiveMode is None:
             raise RuntimeError("azure-servicebus library is not installed")
         
-        self._consuming = True
+        self._consuming.set()
         logger.info("Started consuming events")
         
         try:
@@ -205,7 +206,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
             
             with receiver:
                 # Continuously receive and process messages
-                while self._consuming:
+                while self._consuming.is_set():
                     try:
                         # Receive messages with timeout
                         messages = receiver.receive_messages(
@@ -229,7 +230,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
                         logger.info("Received keyboard interrupt, stopping consumption")
                         break
                     except Exception as e:
-                        if self._consuming:
+                        if self._consuming.is_set():
                             logger.error(f"Error receiving messages: {e}")
                         # Continue processing unless explicitly stopped
                         
@@ -237,13 +238,13 @@ class AzureServiceBusSubscriber(EventSubscriber):
             logger.error(f"Error in start_consuming: {e}")
             raise
         finally:
-            self._consuming = False
+            self._consuming.clear()
             logger.info("Stopped consuming events")
 
     def stop_consuming(self) -> None:
         """Stop consuming events gracefully."""
-        if self._consuming:
-            self._consuming = False
+        if self._consuming.is_set():
+            self._consuming.clear()
             logger.info("Stopping event consumption")
 
     def _process_message(self, msg, receiver) -> None:
