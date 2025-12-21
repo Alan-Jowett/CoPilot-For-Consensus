@@ -4,7 +4,7 @@
 """Shared test fixtures for copilot_summarization tests."""
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 
 @pytest.fixture

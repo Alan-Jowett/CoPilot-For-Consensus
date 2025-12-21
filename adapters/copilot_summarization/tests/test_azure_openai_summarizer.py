@@ -50,6 +50,9 @@ class TestAzureOpenAISummarizer:
                 base_url="https://test.openai.azure.com/"
             )
             
+            # Verify summarizer was created as Azure instance
+            assert summarizer.is_azure is True
+            
             # Verify default API version was used
             mock_azure_class.assert_called_once_with(
                 api_key="test-azure-key",

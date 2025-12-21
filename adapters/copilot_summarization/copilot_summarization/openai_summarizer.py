@@ -107,19 +107,13 @@ class OpenAISummarizer(Summarizer):
             prompt += f"Message {i+1}:\n{message}\n\n"
         
         try:
-            # Call OpenAI or Azure OpenAI API
-            if self.is_azure:
-                response = self.client.chat.completions.create(
-                    model=self.deployment_name,
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=thread.context_window_tokens
-                )
-            else:
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=thread.context_window_tokens
-                )
+            # Select model based on backend and call OpenAI or Azure OpenAI API
+            model_for_call = self.deployment_name if self.is_azure else self.model
+            response = self.client.chat.completions.create(
+                model=model_for_call,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=thread.context_window_tokens
+            )
             
             summary_text = response.choices[0].message.content
             tokens_prompt = response.usage.prompt_tokens
@@ -127,8 +121,19 @@ class OpenAISummarizer(Summarizer):
             
             logger.info("Successfully generated summary for thread %s (prompt_tokens=%d, completion_tokens=%d)",
                        thread.thread_id, tokens_prompt, tokens_completion)
-            
+        
+        except ImportError:
+            # OpenAI library not available
+            logger.error("OpenAI library not installed for thread %s", thread.thread_id)
+            raise
+        except AttributeError as e:
+            # API response structure unexpected
+            logger.error("Unexpected API response structure for thread %s: %s", thread.thread_id, str(e))
+            raise
         except Exception as e:
+            # Catch all other exceptions (network errors, API errors, etc.)
+            # The OpenAI library raises various exceptions that we let propagate
+            # so callers can handle them appropriately (e.g., retry logic)
             logger.error("Failed to generate summary for thread %s: %s", thread.thread_id, str(e))
             raise
         

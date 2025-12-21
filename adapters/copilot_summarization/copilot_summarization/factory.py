@@ -8,21 +8,18 @@ import logging
 from typing import Optional
 try:
     from summarizer import Summarizer
-    from openai_summarizer import OpenAISummarizer
+    from openai_summarizer import OpenAISummarizer, DEFAULT_AZURE_API_VERSION
     from mock_summarizer import MockSummarizer
     from local_llm_summarizer import LocalLLMSummarizer
     from llamacpp_summarizer import LlamaCppSummarizer
 except ImportError:
     from .summarizer import Summarizer
-    from .openai_summarizer import OpenAISummarizer
+    from .openai_summarizer import OpenAISummarizer, DEFAULT_AZURE_API_VERSION
     from .mock_summarizer import MockSummarizer
     from .local_llm_summarizer import LocalLLMSummarizer
     from .llamacpp_summarizer import LlamaCppSummarizer
 
 logger = logging.getLogger(__name__)
-
-# Default API version for Azure OpenAI
-DEFAULT_AZURE_API_VERSION = "2023-12-01"
 
 class SummarizerFactory:
     """Factory for creating summarizer instances.

@@ -5,7 +5,7 @@
 
 import os
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from copilot_summarization.factory import SummarizerFactory
 from copilot_summarization.openai_summarizer import OpenAISummarizer
