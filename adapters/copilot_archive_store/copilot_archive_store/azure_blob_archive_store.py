@@ -10,14 +10,13 @@ from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 import logging
 
-from azure.storage.blob import BlobServiceClient, ContainerClient, BlobClient
+from azure.storage.blob import BlobServiceClient, ContainerClient
 from azure.core.exceptions import ResourceNotFoundError, AzureError
 
 from .archive_store import (
     ArchiveStore,
     ArchiveStoreError,
     ArchiveStoreConnectionError,
-    ArchiveNotFoundError,
 )
 
 logger = logging.getLogger(__name__)
@@ -25,17 +24,17 @@ logger = logging.getLogger(__name__)
 
 class AzureBlobArchiveStore(ArchiveStore):
     """Azure Blob Storage-based archive storage.
-    
+
     This implementation stores archives in Azure Blob Storage, enabling
     cloud-native deployments with scalability and high availability.
-    
+
     Configuration is via environment variables:
     - AZURE_STORAGE_ACCOUNT: Storage account name
     - AZURE_STORAGE_KEY: Storage account key (primary or secondary)
     - AZURE_STORAGE_SAS_TOKEN: SAS token (alternative to key)
     - AZURE_STORAGE_CONTAINER: Container name for archives
     - AZURE_STORAGE_PREFIX: Optional path prefix for organizing blobs
-    
+
     Metadata is stored as blob metadata and in a central JSON blob for
     efficient listing operations.
     """
@@ -50,7 +49,7 @@ class AzureBlobArchiveStore(ArchiveStore):
         connection_string: str = None,
     ):
         """Initialize Azure Blob archive store.
-        
+
         Args:
             account_name: Azure storage account name.
                          Defaults to AZURE_STORAGE_ACCOUNT env var
@@ -116,24 +115,24 @@ class AzureBlobArchiveStore(ArchiveStore):
             self.container_client: ContainerClient = (
                 self.blob_service_client.get_container_client(self.container_name)
             )
-            
+
             # Create container if it doesn't exist
             try:
                 self.container_client.create_container()
-                logger.info(f"Created container: {self.container_name}")
+                logger.info("Created container: %s", self.container_name)
             except Exception as e:
                 # Container might already exist, which is fine
                 if "ContainerAlreadyExists" not in str(e):
-                    logger.debug(f"Container check: {e}")
+                    logger.debug("Container check: %s", e)
 
         except Exception as e:
             raise ArchiveStoreConnectionError(
                 f"Failed to connect to Azure Blob Storage: {e}"
-            )
+            ) from e
 
         # Metadata index blob name
         self.metadata_blob_name = f"{self.prefix}metadata/archives_index.json"
-        
+
         # Load metadata index
         self._metadata: Dict[str, Dict[str, Any]] = {}
         self._load_metadata()
@@ -145,7 +144,7 @@ class AzureBlobArchiveStore(ArchiveStore):
             download_stream = blob_client.download_blob()
             metadata_json = download_stream.readall().decode("utf-8")
             self._metadata = json.loads(metadata_json)
-            logger.debug(f"Loaded metadata index with {len(self._metadata)} entries")
+            logger.debug("Loaded metadata index with %d entries", len(self._metadata))
         except ResourceNotFoundError:
             # Metadata blob doesn't exist yet (first run)
             self._metadata = {}
@@ -153,7 +152,7 @@ class AzureBlobArchiveStore(ArchiveStore):
         except Exception as e:
             # Start with empty metadata if load fails
             self._metadata = {}
-            logger.warning(f"Failed to load archive metadata: {e}")
+            logger.warning("Failed to load archive metadata: %s", e)
 
     def _save_metadata(self) -> None:
         """Save metadata index to Azure Blob Storage."""
@@ -163,9 +162,9 @@ class AzureBlobArchiveStore(ArchiveStore):
             blob_client.upload_blob(
                 metadata_json.encode("utf-8"), overwrite=True
             )
-            logger.debug(f"Saved metadata index with {len(self._metadata)} entries")
+            logger.debug("Saved metadata index with %d entries", len(self._metadata))
         except Exception as e:
-            raise ArchiveStoreError(f"Failed to save metadata: {e}")
+            raise ArchiveStoreError(f"Failed to save metadata: {e}") from e
 
     def _calculate_hash(self, content: bytes) -> str:
         """Calculate SHA256 hash of content."""
@@ -177,15 +176,15 @@ class AzureBlobArchiveStore(ArchiveStore):
 
     def store_archive(self, source_name: str, file_path: str, content: bytes) -> str:
         """Store archive content in Azure Blob Storage.
-        
+
         Args:
             source_name: Name of the source
             file_path: Original file path or name
             content: Raw archive content
-            
+
         Returns:
             Archive ID (first 16 chars of content hash)
-            
+
         Raises:
             ArchiveStoreError: If storage operation fails
         """
@@ -193,29 +192,29 @@ class AzureBlobArchiveStore(ArchiveStore):
             # Calculate content hash for deduplication and ID generation
             content_hash = self._calculate_hash(content)
             archive_id = content_hash[:16]
-            
+
             # Extract filename from file_path
             filename = os.path.basename(file_path)
-            
+
             # Generate blob name
             blob_name = self._get_blob_name(source_name, filename)
-            
+
             # Store blob with metadata
             blob_client = self.container_client.get_blob_client(blob_name)
-            
+
             blob_metadata = {
                 "archive_id": archive_id,
                 "source_name": source_name,
                 "original_path": file_path,
                 "content_hash": content_hash,
             }
-            
+
             blob_client.upload_blob(
                 content,
                 overwrite=True,
                 metadata=blob_metadata
             )
-            
+
             # Update metadata index
             self._metadata[archive_id] = {
                 "archive_id": archive_id,
@@ -227,24 +226,24 @@ class AzureBlobArchiveStore(ArchiveStore):
                 "stored_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             }
             self._save_metadata()
-            
-            logger.info(f"Stored archive {archive_id} for {source_name}")
+
+            logger.info("Stored archive %s for %s", archive_id, source_name)
             return archive_id
-            
+
         except AzureError as e:
-            raise ArchiveStoreError(f"Failed to store archive in Azure: {e}")
+            raise ArchiveStoreError(f"Failed to store archive in Azure: {e}") from e
         except Exception as e:
-            raise ArchiveStoreError(f"Failed to store archive: {e}")
+            raise ArchiveStoreError(f"Failed to store archive: {e}") from e
 
     def get_archive(self, archive_id: str) -> Optional[bytes]:
         """Retrieve archive content from Azure Blob Storage.
-        
+
         Args:
             archive_id: Unique archive identifier
-            
+
         Returns:
             Archive content as bytes, or None if not found
-            
+
         Raises:
             ArchiveStoreError: If retrieval operation fails
         """
@@ -252,34 +251,34 @@ class AzureBlobArchiveStore(ArchiveStore):
             metadata = self._metadata.get(archive_id)
             if not metadata:
                 return None
-            
+
             blob_name = metadata["blob_name"]
             blob_client = self.container_client.get_blob_client(blob_name)
-            
+
             try:
                 download_stream = blob_client.download_blob()
                 content = download_stream.readall()
-                logger.debug(f"Retrieved archive {archive_id}")
+                logger.debug("Retrieved archive %s", archive_id)
                 return content
             except ResourceNotFoundError:
                 # Metadata exists but blob is missing
-                logger.warning(f"Archive {archive_id} metadata exists but blob not found")
+                logger.warning("Archive %s metadata exists but blob not found", archive_id)
                 return None
-                
+
         except AzureError as e:
-            raise ArchiveStoreError(f"Failed to retrieve archive from Azure: {e}")
+            raise ArchiveStoreError(f"Failed to retrieve archive from Azure: {e}") from e
         except Exception as e:
-            raise ArchiveStoreError(f"Failed to retrieve archive: {e}")
+            raise ArchiveStoreError(f"Failed to retrieve archive: {e}") from e
 
     def get_archive_by_hash(self, content_hash: str) -> Optional[str]:
         """Retrieve archive ID by content hash for deduplication.
-        
+
         Args:
             content_hash: SHA256 hash of the archive content
-            
+
         Returns:
             Archive ID if found, None otherwise
-            
+
         Raises:
             ArchiveStoreError: If query operation fails
         """
@@ -290,13 +289,13 @@ class AzureBlobArchiveStore(ArchiveStore):
 
     def archive_exists(self, archive_id: str) -> bool:
         """Check if archive exists in Azure Blob Storage.
-        
+
         Args:
             archive_id: Unique archive identifier
-            
+
         Returns:
             True if archive exists (both metadata and blob), False otherwise
-            
+
         Raises:
             ArchiveStoreError: If check operation fails
         """
@@ -304,27 +303,29 @@ class AzureBlobArchiveStore(ArchiveStore):
             metadata = self._metadata.get(archive_id)
             if not metadata:
                 return False
-            
+
             blob_name = metadata["blob_name"]
             blob_client = self.container_client.get_blob_client(blob_name)
-            
+
             # Check if blob exists
             return blob_client.exists()
-            
+
         except AzureError as e:
-            raise ArchiveStoreError(f"Failed to check archive existence in Azure: {e}")
+            raise ArchiveStoreError(
+                f"Failed to check archive existence in Azure: {e}"
+            ) from e
         except Exception as e:
-            raise ArchiveStoreError(f"Failed to check archive existence: {e}")
+            raise ArchiveStoreError(f"Failed to check archive existence: {e}") from e
 
     def delete_archive(self, archive_id: str) -> bool:
         """Delete archive from Azure Blob Storage.
-        
+
         Args:
             archive_id: Unique archive identifier
-            
+
         Returns:
             True if archive was deleted, False if not found
-            
+
         Raises:
             ArchiveStoreError: If deletion operation fails
         """
@@ -332,37 +333,37 @@ class AzureBlobArchiveStore(ArchiveStore):
             metadata = self._metadata.get(archive_id)
             if not metadata:
                 return False
-            
+
             blob_name = metadata["blob_name"]
             blob_client = self.container_client.get_blob_client(blob_name)
-            
+
             # Delete blob (ignore if not found)
             try:
                 blob_client.delete_blob()
-                logger.info(f"Deleted archive blob {archive_id}")
+                logger.info("Deleted archive blob %s", archive_id)
             except ResourceNotFoundError:
-                logger.warning(f"Archive blob {archive_id} not found during deletion")
-            
+                logger.warning("Archive blob %s not found during deletion", archive_id)
+
             # Remove from metadata
             del self._metadata[archive_id]
             self._save_metadata()
-            
+
             return True
-            
+
         except AzureError as e:
-            raise ArchiveStoreError(f"Failed to delete archive from Azure: {e}")
+            raise ArchiveStoreError(f"Failed to delete archive from Azure: {e}") from e
         except Exception as e:
-            raise ArchiveStoreError(f"Failed to delete archive: {e}")
+            raise ArchiveStoreError(f"Failed to delete archive: {e}") from e
 
     def list_archives(self, source_name: str) -> List[Dict[str, Any]]:
         """List all archives for a given source.
-        
+
         Args:
             source_name: Name of the source
-            
+
         Returns:
             List of archive metadata dictionaries
-            
+
         Raises:
             ArchiveStoreError: If list operation fails
         """
