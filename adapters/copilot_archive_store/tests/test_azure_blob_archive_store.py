@@ -359,12 +359,12 @@ class TestAzureBlobArchiveStore:
         # Delete it
         deleted = store.delete_archive(archive_id)
         assert deleted is True
-        
+
         # Verify delete was called
         mock_archive_blob.delete_blob.assert_called_once()
-        
-        # Should no longer exist in metadata
-        assert archive_id not in store._metadata
+
+        # Should no longer exist using public API
+        assert store.archive_exists(archive_id) is False
 
     def test_delete_archive_not_found(self, store):
         """Test deleting non-existent archive returns False."""

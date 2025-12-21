@@ -57,12 +57,18 @@ class TestAzureBlobArchiveStoreIntegration:
         
         store = AzureBlobArchiveStore(prefix=test_prefix)
         yield store
-        
+
         # Cleanup: Delete all test archives
         # (Optional - comment out if you want to inspect test data)
         try:
-            for archive in list(store._metadata.keys()):
-                store.delete_archive(archive)
+            # List all archives and delete them using public API
+            for source_name in ["integration-test-source", "lifecycle-test",
+                                "dedup-source-1", "dedup-source-2", "hash-test",
+                                "multi-archive-test", "large-test", "persistence-test",
+                                "special-chars-test"]:
+                archives = store.list_archives(source_name)
+                for archive in archives:
+                    store.delete_archive(archive["archive_id"])
         except Exception as e:
             print(f"Cleanup warning: {e}")
 

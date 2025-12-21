@@ -223,7 +223,7 @@ class AzureBlobArchiveStore(ArchiveStore):
                 "original_path": file_path,
                 "content_hash": content_hash,
                 "size_bytes": len(content),
-                "stored_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "stored_at": datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
             }
             self._save_metadata()
 
@@ -371,7 +371,7 @@ class AzureBlobArchiveStore(ArchiveStore):
             {
                 "archive_id": metadata["archive_id"],
                 "source_name": metadata["source_name"],
-                "file_path": metadata["blob_name"],
+                "file_path": metadata["original_path"],
                 "content_hash": metadata["content_hash"],
                 "size_bytes": metadata["size_bytes"],
                 "stored_at": metadata["stored_at"],
