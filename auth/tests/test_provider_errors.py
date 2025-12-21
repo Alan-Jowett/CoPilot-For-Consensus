@@ -41,6 +41,7 @@ class TestProviderErrors:
         """Create an auth service with no providers configured."""
         # Mock JWT key paths to avoid file system access
         def mock_write_text(self, content):
+            """Mock Path.write_text to avoid filesystem writes in tests."""
             pass
         
         monkeypatch.setattr(Path, "write_text", mock_write_text)
@@ -121,6 +122,7 @@ class TestProviderErrors:
         
         # Mock to avoid actual provider initialization
         def mock_write_text(self, content):
+            """Mock Path.write_text to avoid filesystem writes in tests."""
             pass
         
         monkeypatch.setattr(Path, "write_text", mock_write_text)
@@ -128,6 +130,7 @@ class TestProviderErrors:
         
         # Mock JWTManager
         class MockJWTManager:
+            """Mock JWT manager for testing - avoids cryptographic operations."""
             def __init__(self, **kwargs):
                 pass
         
@@ -138,6 +141,7 @@ class TestProviderErrors:
         # Mock create_identity_provider to return a mock provider
         original_create = service.create_identity_provider
         def mock_create(**kwargs):
+            """Mock identity provider factory to avoid real OAuth initialization."""
             mock_provider = MagicMock()
             mock_provider.discover = MagicMock()
             return mock_provider

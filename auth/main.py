@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field
 from copilot_logging import create_logger, create_uvicorn_log_config
 from copilot_metrics import create_metrics_collector
 
-from app import __version__
+from app import __version__, SUPPORTED_PROVIDERS
 from app.config import load_auth_config
 from app.service import AuthService
 
@@ -118,10 +118,9 @@ async def list_providers() -> dict[str, Any]:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
     configured_providers = list(auth_service.providers.keys())
-    all_providers = ["github", "google", "microsoft"]
     
     provider_status = {}
-    for provider in all_providers:
+    for provider in SUPPORTED_PROVIDERS:
         provider_status[provider] = {
             "configured": provider in configured_providers,
             "available": provider in configured_providers,
@@ -130,7 +129,7 @@ async def list_providers() -> dict[str, Any]:
     return {
         "providers": provider_status,
         "configured_count": len(configured_providers),
-        "total_supported": len(all_providers),
+        "total_supported": len(SUPPORTED_PROVIDERS),
     }
 
 

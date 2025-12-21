@@ -42,29 +42,21 @@ def mock_auth_service_all_providers():
     return service
 
 
-@pytest.fixture
-def client_with_service(request):
+def create_client(service):
     """Create test client with specified mock auth service."""
-    # Get the service from the test parameter
-    service_param = request.param
-    
     with patch("sys.path", [str(Path(__file__).parent.parent)] + sys.path):
         import main
-        main.auth_service = service_param
+        main.auth_service = service
         return TestClient(main.app)
 
 
 class TestProvidersEndpoint:
     """Test GET /providers endpoint."""
 
-    @pytest.mark.parametrize(
-        "client_with_service",
-        [pytest.lazy_fixture("mock_auth_service_no_providers")],
-        indirect=True
-    )
-    def test_providers_endpoint_no_providers(self, client_with_service):
+    def test_providers_endpoint_no_providers(self, mock_auth_service_no_providers):
         """Test /providers endpoint when no providers are configured."""
-        response = client_with_service.get("/providers")
+        client = create_client(mock_auth_service_no_providers)
+        response = client.get("/providers")
         
         assert response.status_code == 200
         data = response.json()
@@ -87,14 +79,10 @@ class TestProvidersEndpoint:
         assert data["providers"]["google"]["configured"] is False
         assert data["providers"]["microsoft"]["configured"] is False
 
-    @pytest.mark.parametrize(
-        "client_with_service",
-        [pytest.lazy_fixture("mock_auth_service_github_only")],
-        indirect=True
-    )
-    def test_providers_endpoint_github_only(self, client_with_service):
+    def test_providers_endpoint_github_only(self, mock_auth_service_github_only):
         """Test /providers endpoint when only GitHub is configured."""
-        response = client_with_service.get("/providers")
+        client = create_client(mock_auth_service_github_only)
+        response = client.get("/providers")
         
         assert response.status_code == 200
         data = response.json()
@@ -113,14 +101,10 @@ class TestProvidersEndpoint:
         assert data["providers"]["microsoft"]["configured"] is False
         assert data["providers"]["microsoft"]["available"] is False
 
-    @pytest.mark.parametrize(
-        "client_with_service",
-        [pytest.lazy_fixture("mock_auth_service_all_providers")],
-        indirect=True
-    )
-    def test_providers_endpoint_all_configured(self, client_with_service):
+    def test_providers_endpoint_all_configured(self, mock_auth_service_all_providers):
         """Test /providers endpoint when all providers are configured."""
-        response = client_with_service.get("/providers")
+        client = create_client(mock_auth_service_all_providers)
+        response = client.get("/providers")
         
         assert response.status_code == 200
         data = response.json()
