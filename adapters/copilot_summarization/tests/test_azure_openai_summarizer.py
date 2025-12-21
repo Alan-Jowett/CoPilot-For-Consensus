@@ -118,11 +118,8 @@ class TestAzureOpenAISummarizer:
             assert summary.latency_ms >= 0
     
     def test_azure_openai_summarize_error_handling(self, mock_openai_module):
-        """Test Azure OpenAI summarize error handling."""
+        """Test Azure OpenAI summarize error handling with various exception types."""
         mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
-        
-        # Mock API error
-        mock_client.chat.completions.create = Mock(side_effect=Exception("API Error"))
         
         with patch.dict('sys.modules', {'openai': mock_module}):
             summarizer = OpenAISummarizer(
@@ -137,8 +134,20 @@ class TestAzureOpenAISummarizer:
                 messages=["Message 1 content"]
             )
             
-            # Verify that exception is propagated
-            with pytest.raises(Exception, match="API Error"):
+            # Test IndexError/AttributeError from malformed API response (empty choices)
+            mock_client.chat.completions.create = Mock(return_value=Mock(choices=[]))
+            with pytest.raises((IndexError, AttributeError)):
+                summarizer.summarize(thread)
+            
+            # Test AttributeError from missing response attributes
+            mock_response = Mock(spec=[])  # Mock with no attributes
+            mock_client.chat.completions.create = Mock(return_value=mock_response)
+            with pytest.raises(AttributeError):
+                summarizer.summarize(thread)
+            
+            # Test generic exception propagation (network errors, API errors, etc.)
+            mock_client.chat.completions.create = Mock(side_effect=RuntimeError("Network timeout"))
+            with pytest.raises(RuntimeError, match="Network timeout"):
                 summarizer.summarize(thread)
     
     def test_azure_openai_initialization_without_library(self):

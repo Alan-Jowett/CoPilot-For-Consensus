@@ -82,6 +82,14 @@ class OpenAISummarizer(Summarizer):
         else:
             logger.info("Initialized OpenAISummarizer with OpenAI model: %s", model)
             self.client = OpenAI(api_key=api_key)
+    
+    @property
+    def effective_model(self) -> str:
+        """Return the effective model name for API calls.
+        
+        Returns deployment_name for Azure, model for standard OpenAI.
+        """
+        return self.deployment_name if self.is_azure else self.model
         
     def summarize(self, thread: Thread) -> Summary:
         """Generate a summary using OpenAI API.
@@ -107,10 +115,8 @@ class OpenAISummarizer(Summarizer):
             prompt += f"Message {i+1}:\n{message}\n\n"
         
         try:
-            # Select model based on backend and call OpenAI or Azure OpenAI API
-            model_for_call = self.deployment_name if self.is_azure else self.model
             response = self.client.chat.completions.create(
-                model=model_for_call,
+                model=self.effective_model,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=thread.context_window_tokens
             )
@@ -135,18 +141,22 @@ class OpenAISummarizer(Summarizer):
         
         latency_ms = int((time.time() - start_time) * 1000)
         
-        # Create citations (placeholder - would need to parse from summary)
+        # TODO: Implement citation extraction from summary_text
+        # Citation extraction requires:
+        # 1. Define a structured format for citations in the LLM prompt
+        # 2. Parse summary_text to extract citation markers and references
+        # 3. Map extracted citations to Citation objects with message_id, chunk_id, offset
+        # For now, return empty list so consumers can rely on citations field always being present
         citations = []
         
         backend = "azure" if self.is_azure else "openai"
-        model_name = self.deployment_name if self.is_azure else self.model
         
         return Summary(
             thread_id=thread.thread_id,
             summary_markdown=summary_text,
             citations=citations,
             llm_backend=backend,
-            llm_model=model_name,
+            llm_model=self.effective_model,
             tokens_prompt=tokens_prompt,
             tokens_completion=tokens_completion,
             latency_ms=latency_ms
