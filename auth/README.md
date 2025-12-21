@@ -448,6 +448,7 @@ Configuration is provided via environment variables and secrets (mounted at `/ru
 - `AUTH_REQUIRE_NONCE`: Require nonce for OIDC (default: `true`)
 - `AUTH_MAX_SKEW_SECONDS`: Maximum clock skew tolerance (default: `90`)
 - `AUTH_ENABLE_DPOP`: Enable DPoP proof-of-possession (default: `false`)
+- `AUTH_DISABLE_FIRST_USER_AUTO_PROMOTION`: Disable auto-promotion of first user to admin (default: `true`, **recommended for production**)
 
 ## Local Development
 
@@ -556,6 +557,7 @@ pytest tests/ -v
 - **HTTPS Only**: Always use HTTPS for auth endpoints in production
 - **State/Nonce Validation**: Implemented for CSRF protection
 - **Audience Validation**: Always validate `aud` claim in consuming services
+- **First User Auto-Promotion**: **SECURITY RISK** - The system can auto-promote the first user to admin when no admins exist. This is **disabled by default** (`AUTH_DISABLE_FIRST_USER_AUTO_PROMOTION=true`) to prevent attackers from gaining admin access by authenticating first. Only enable (`false`) in isolated development/testing environments. For production, use bootstrap tokens to assign the initial admin role. See [AUTH_IMPLEMENTATION_SUMMARY.md](../documents/AUTH_IMPLEMENTATION_SUMMARY.md#security-considerations) for details.
 
 ## Production Deployment
 
@@ -568,6 +570,7 @@ For production deployments:
 5. **Configure rate limiting** on auth endpoints
 6. **Monitor metrics** via Prometheus/Grafana
 7. **Audit logs** for all authentication events
+8. **Keep auto-promotion disabled** (`AUTH_DISABLE_FIRST_USER_AUTO_PROMOTION=true`) and use bootstrap tokens for initial admin setup
 
 ## Future Enhancements
 

@@ -74,6 +74,24 @@ When adding new GitHub Actions to workflows:
 
 ---
 
+## Authentication Security
+
+### First User Auto-Promotion
+
+**Risk:** The authentication system includes a feature that can auto-promote the first user to admin when no admins exist. If enabled in production, an attacker could authenticate first and gain admin privileges.
+
+**Mitigation (Default):** Auto-promotion is **disabled by default** via `AUTH_DISABLE_FIRST_USER_AUTO_PROMOTION=true`.
+
+**Production Recommendations:**
+- Keep auto-promotion disabled (default setting)
+- Use bootstrap tokens to assign the initial admin role
+- Only enable auto-promotion in completely isolated development/testing environments
+- Monitor all admin role assignments through audit logs
+
+**See also:** [documents/AUTH_IMPLEMENTATION_SUMMARY.md](./documents/AUTH_IMPLEMENTATION_SUMMARY.md#security-considerations) for detailed security considerations.
+
+---
+
 ## License Headers
 
 All source files must include the appropriate license header:
