@@ -1225,13 +1225,14 @@ class IngestionService:
                     source_name=source_name,
                     checksums_deleted=deleted_count,
                 )
-                # Save checksums after deletion
+                # Save checksums after deletion to persist the change immediately
                 self.save_checksums()
             
             # Convert to SourceConfig
             source_cfg = _source_from_mapping(source)
             
             # Run ingestion
+            # Note: ingest_archive will save checksums again after adding new ones
             self.ingest_archive(source_cfg)
             
             return True, f"Ingestion triggered successfully for '{source_name}'"
