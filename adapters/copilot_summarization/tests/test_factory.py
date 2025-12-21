@@ -5,6 +5,8 @@
 
 import os
 import pytest
+from unittest.mock import Mock, patch
+
 from copilot_summarization.factory import SummarizerFactory
 from copilot_summarization.openai_summarizer import OpenAISummarizer
 from copilot_summarization.mock_summarizer import MockSummarizer
@@ -28,14 +30,23 @@ class TestSummarizerFactory:
     
     def test_create_openai_summarizer(self):
         """Test creating an OpenAI summarizer."""
-        summarizer = SummarizerFactory.create_summarizer(
-            provider="openai",
-            api_key="test-key",
-            model="gpt-4"
-        )
-        assert isinstance(summarizer, OpenAISummarizer)
-        assert summarizer.api_key == "test-key"
-        assert summarizer.model == "gpt-4"
+        # Mock the openai module
+        mock_openai_module = Mock()
+        mock_openai_class = Mock()
+        mock_client = Mock()
+        mock_openai_class.return_value = mock_client
+        mock_openai_module.OpenAI = mock_openai_class
+        mock_openai_module.AzureOpenAI = Mock()
+        
+        with patch.dict('sys.modules', {'openai': mock_openai_module}):
+            summarizer = SummarizerFactory.create_summarizer(
+                provider="openai",
+                api_key="test-key",
+                model="gpt-4"
+            )
+            assert isinstance(summarizer, OpenAISummarizer)
+            assert summarizer.api_key == "test-key"
+            assert summarizer.model == "gpt-4"
     
     def test_create_openai_summarizer_missing_key(self):
         """Test that OpenAI summarizer requires API key."""
@@ -49,16 +60,48 @@ class TestSummarizerFactory:
     
     def test_create_azure_summarizer(self):
         """Test creating an Azure OpenAI summarizer."""
-        summarizer = SummarizerFactory.create_summarizer(
-            provider="azure",
-            api_key="azure-key",
-            base_url="https://test.openai.azure.com",
-            model="gpt-4"
-        )
-        assert isinstance(summarizer, OpenAISummarizer)
-        assert summarizer.api_key == "azure-key"
-        assert summarizer.base_url == "https://test.openai.azure.com"
-        assert summarizer.model == "gpt-4"
+        # Mock the openai module
+        mock_openai_module = Mock()
+        mock_azure_class = Mock()
+        mock_client = Mock()
+        mock_azure_class.return_value = mock_client
+        mock_openai_module.OpenAI = Mock()
+        mock_openai_module.AzureOpenAI = mock_azure_class
+        
+        with patch.dict('sys.modules', {'openai': mock_openai_module}):
+            summarizer = SummarizerFactory.create_summarizer(
+                provider="azure",
+                api_key="azure-key",
+                base_url="https://test.openai.azure.com",
+                model="gpt-4"
+            )
+            assert isinstance(summarizer, OpenAISummarizer)
+            assert summarizer.api_key == "azure-key"
+            assert summarizer.base_url == "https://test.openai.azure.com"
+            assert summarizer.model == "gpt-4"
+            assert summarizer.is_azure is True
+    
+    def test_create_azure_summarizer_with_deployment_name(self):
+        """Test creating an Azure OpenAI summarizer with deployment name."""
+        # Mock the openai module
+        mock_openai_module = Mock()
+        mock_azure_class = Mock()
+        mock_client = Mock()
+        mock_azure_class.return_value = mock_client
+        mock_openai_module.OpenAI = Mock()
+        mock_openai_module.AzureOpenAI = mock_azure_class
+        
+        with patch.dict('sys.modules', {'openai': mock_openai_module}):
+            summarizer = SummarizerFactory.create_summarizer(
+                provider="azure",
+                api_key="azure-key",
+                base_url="https://test.openai.azure.com",
+                model="gpt-4",
+                deployment_name="gpt-4-deployment",
+                api_version="2023-12-01"
+            )
+            assert isinstance(summarizer, OpenAISummarizer)
+            assert summarizer.deployment_name == "gpt-4-deployment"
     
     def test_create_azure_summarizer_missing_key(self):
         """Test that Azure summarizer requires API key."""

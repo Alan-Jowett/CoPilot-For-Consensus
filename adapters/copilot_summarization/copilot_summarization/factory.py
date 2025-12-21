@@ -99,10 +99,16 @@ class SummarizerFactory:
                     "Specify a model name (e.g., 'gpt-3.5-turbo', 'gpt-4')"
                 )
             
+            # Extract Azure-specific parameters
+            api_version = kwargs.get("api_version", "2023-12-01")
+            deployment_name = kwargs.get("deployment_name")
+            
             return OpenAISummarizer(
                 api_key=api_key,
                 model=model,
-                base_url=base_url
+                base_url=base_url,
+                api_version=api_version,
+                deployment_name=deployment_name
             )
             
         elif provider == "local":

@@ -26,13 +26,17 @@ class OpenAISummarizer(Summarizer):
         api_key: OpenAI API key
         model: Model to use (e.g., "gpt-4", "gpt-3.5-turbo")
         base_url: Optional base URL for Azure OpenAI or custom endpoints
+        api_version: API version for Azure OpenAI
+        deployment_name: Deployment name for Azure OpenAI
     """
     
     def __init__(
         self,
         api_key: str,
         model: str = "gpt-3.5-turbo",
-        base_url: Optional[str] = None
+        base_url: Optional[str] = None,
+        api_version: Optional[str] = None,
+        deployment_name: Optional[str] = None
     ):
         """Initialize OpenAI summarizer.
         
@@ -40,11 +44,33 @@ class OpenAISummarizer(Summarizer):
             api_key: OpenAI API key
             model: Model to use for summarization
             base_url: Optional base URL for Azure OpenAI
+            api_version: API version for Azure OpenAI (e.g., "2023-12-01")
+            deployment_name: Deployment name for Azure OpenAI
         """
+        try:
+            from openai import OpenAI, AzureOpenAI
+        except ImportError:
+            raise ImportError(
+                "openai is required for OpenAISummarizer. "
+                "Install it with: pip install openai"
+            )
+        
         self.api_key = api_key
         self.model = model
         self.base_url = base_url
-        logger.info("Initialized OpenAISummarizer with model: %s", model)
+        self.is_azure = base_url is not None
+        
+        if self.is_azure:
+            logger.info("Initialized OpenAISummarizer with Azure OpenAI deployment: %s", deployment_name or model)
+            self.client = AzureOpenAI(
+                api_key=api_key,
+                api_version=api_version or "2023-12-01",
+                azure_endpoint=base_url
+            )
+            self.deployment_name = deployment_name or model
+        else:
+            logger.info("Initialized OpenAISummarizer with OpenAI model: %s", model)
+            self.client = OpenAI(api_key=api_key)
         
     def summarize(self, thread: Thread) -> Summary:
         """Generate a summary using OpenAI API.
@@ -60,44 +86,55 @@ class OpenAISummarizer(Summarizer):
         """
         start_time = time.time()
         
-        # TODO: Implement actual OpenAI API call
-        # This is a placeholder implementation that should be replaced
-        # with actual OpenAI API integration using the openai library
-        
-        logger.info("Summarizing thread %s with OpenAI", thread.thread_id)
+        logger.info("Summarizing thread %s with %s", 
+                   thread.thread_id, 
+                   "Azure OpenAI" if self.is_azure else "OpenAI")
         
         # Construct prompt
         prompt = f"{thread.prompt_template}\n\n"
         for i, message in enumerate(thread.messages[:thread.top_k]):
             prompt += f"Message {i+1}:\n{message}\n\n"
         
-        # Placeholder for API call
-        # In real implementation, this would call OpenAI API:
-        # import openai
-        # response = openai.ChatCompletion.create(
-        #     model=self.model,
-        #     messages=[{"role": "user", "content": prompt}],
-        #     max_tokens=thread.context_window_tokens
-        # )
-        # summary_text = response.choices[0].message.content
-        # tokens_prompt = response.usage.prompt_tokens
-        # tokens_completion = response.usage.completion_tokens
-        
-        summary_text = f"[OpenAI Summary Placeholder for thread {thread.thread_id}]"
-        tokens_prompt = len(prompt.split())
-        tokens_completion = len(summary_text.split())
+        try:
+            # Call OpenAI or Azure OpenAI API
+            if self.is_azure:
+                response = self.client.chat.completions.create(
+                    model=self.deployment_name,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=thread.context_window_tokens
+                )
+            else:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=thread.context_window_tokens
+                )
+            
+            summary_text = response.choices[0].message.content
+            tokens_prompt = response.usage.prompt_tokens
+            tokens_completion = response.usage.completion_tokens
+            
+            logger.info("Successfully generated summary for thread %s (prompt_tokens=%d, completion_tokens=%d)",
+                       thread.thread_id, tokens_prompt, tokens_completion)
+            
+        except Exception as e:
+            logger.error("Failed to generate summary for thread %s: %s", thread.thread_id, str(e))
+            raise
         
         latency_ms = int((time.time() - start_time) * 1000)
         
-        # Create citations (placeholder)
+        # Create citations (placeholder - would need to parse from summary)
         citations = []
+        
+        backend = "azure" if self.is_azure else "openai"
+        model_name = self.deployment_name if self.is_azure else self.model
         
         return Summary(
             thread_id=thread.thread_id,
             summary_markdown=summary_text,
             citations=citations,
-            llm_backend="openai",
-            llm_model=self.model,
+            llm_backend=backend,
+            llm_model=model_name,
             tokens_prompt=tokens_prompt,
             tokens_completion=tokens_completion,
             latency_ms=latency_ms
