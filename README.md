@@ -212,13 +212,31 @@ See [adapters/README.md](./adapters/README.md) for detailed adapter documentatio
 
 ### Running the Stack
 
+#### Using Pre-built Docker Images
+
+Pre-built Docker images are automatically published to [GitHub Container Registry (GHCR)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/pkgs/container/copilot-for-consensus) on every successful CI run to the `main` branch. Images are tagged with:
+- `latest`: Most recent build from main
+- `<commit-sha>`: Specific commit SHA for reproducible deployments
+
+To use pre-built images, update your `docker-compose.yml` to reference GHCR images:
+```yaml
+services:
+  parsing:
+    image: ghcr.io/alan-jowett/copilot-for-consensus/parsing:latest
+  chunking:
+    image: ghcr.io/alan-jowett/copilot-for-consensus/chunking:latest
+  # ... and so on for other services
+```
+
+#### Building Locally
+
 1. Clone the repository:
 ```bash
 git clone https://github.com/Alan-Jowett/CoPilot-For-Consensus.git
 cd CoPilot-For-Consensus
 ```
 
-2. Start all services:
+2. Start all services (will build images locally if not found):
 ```bash
 docker compose up -d
 ```
