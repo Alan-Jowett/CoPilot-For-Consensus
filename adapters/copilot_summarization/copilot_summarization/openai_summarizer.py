@@ -128,8 +128,8 @@ class OpenAISummarizer(Summarizer):
             logger.info("Successfully generated summary for thread %s (prompt_tokens=%d, completion_tokens=%d)",
                        thread.thread_id, tokens_prompt, tokens_completion)
         
-        except AttributeError as e:
-            # API response structure unexpected
+        except (IndexError, AttributeError) as e:
+            # API response structure unexpected (empty choices or missing attributes)
             logger.error("Unexpected API response structure for thread %s: %s", thread.thread_id, str(e))
             raise
         except Exception as e:
