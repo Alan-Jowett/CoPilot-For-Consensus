@@ -355,7 +355,8 @@ class IngestionService:
         """
         # Find all checksums that have file paths belonging to this source
         # Files from a source are stored in: {storage_path}/{source_name}/*
-        source_path_prefix = os.path.join(self.config.storage_path, source_name)
+        # Add trailing separator to ensure exact directory matching
+        source_path_prefix = os.path.join(self.config.storage_path, source_name) + os.sep
         
         hashes_to_delete = []
         for file_hash, metadata in self.checksums.items():

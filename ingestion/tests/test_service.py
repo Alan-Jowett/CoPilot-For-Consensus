@@ -359,6 +359,39 @@ class TestIngestionService:
         assert deleted_count == 0
         assert len(service.checksums) == 1
     
+    def test_delete_checksums_only_deletes_exact_source_match(self, service):
+        """Test that delete_checksums_for_source doesn't match similar source names."""
+        storage_path = service.config.storage_path
+        
+        # Add checksums for sources with similar names
+        service.add_checksum(
+            "hash1", "archive1",
+            os.path.join(storage_path, "source1", "file1.mbox"),
+            "2023-01-01T00:00:00Z"
+        )
+        service.add_checksum(
+            "hash2", "archive2",
+            os.path.join(storage_path, "source10", "file2.mbox"),
+            "2023-01-01T00:00:00Z"
+        )
+        service.add_checksum(
+            "hash3", "archive3",
+            os.path.join(storage_path, "source1-backup", "file3.mbox"),
+            "2023-01-01T00:00:00Z"
+        )
+        
+        assert len(service.checksums) == 3
+        
+        # Delete checksums for source1 only
+        deleted_count = service.delete_checksums_for_source("source1")
+        
+        # Should only delete hash1, not hash2 or hash3
+        assert deleted_count == 1
+        assert len(service.checksums) == 2
+        assert not service.is_file_already_ingested("hash1")
+        assert service.is_file_already_ingested("hash2")
+        assert service.is_file_already_ingested("hash3")
+    
     def test_trigger_ingestion_deletes_checksums(self, service, temp_storage):
         """Test that trigger_ingestion deletes checksums before re-ingestion."""
         from copilot_storage import InMemoryDocumentStore
