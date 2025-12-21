@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
 # Schema Registry
 
 This document lists all registered schemas in the Copilot-for-Consensus system.

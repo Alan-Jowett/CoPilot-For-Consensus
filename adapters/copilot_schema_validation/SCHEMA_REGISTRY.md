@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
 # Schema Registry
 
 The Schema Registry provides centralized management and versioned access to all JSON schemas in the Copilot-for-Consensus system.
