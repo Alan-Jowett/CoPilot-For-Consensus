@@ -10,7 +10,7 @@ evolution, and clearer contributor documentation.
 Example:
     >>> from copilot_schema_validation.schema_registry import get_schema_path, load_schema
     >>> path = get_schema_path("ArchiveIngested", "v1")
-    >>> schema = load_schema("Draft", "v1")
+    >>> schema = load_schema("Archive", "v1")
 """
 
 import json
