@@ -113,9 +113,10 @@ class RoleStore:
         Returns a tuple of (roles, status) where status is one of
         "approved", "pending", or "denied".
         
-        Special behavior: If no admins exist in the system and auto-promotion is enabled
-        (disable_first_user_auto_promotion=False), the first user to log in is automatically
-        promoted to admin. This is disabled by default for production security.
+        Special behavior: If this is a NEW USER (no existing record) and no admins exist 
+        in the system and auto-promotion is enabled (disable_first_user_auto_promotion=False),
+        the user is automatically promoted to admin. This is disabled by default for production 
+        security. Existing users with records are never affected by this setting.
         
         Args:
             user: User object with id, email, name
