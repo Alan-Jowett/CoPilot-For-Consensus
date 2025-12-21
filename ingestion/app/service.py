@@ -342,6 +342,41 @@ class IngestionService:
             "first_seen": first_seen,
         }
 
+    def delete_checksums_for_source(self, source_name: str) -> int:
+        """Delete all checksums associated with a source.
+        
+        This allows re-ingestion of previously processed files from the source.
+        
+        Args:
+            source_name: Name of the source
+            
+        Returns:
+            Number of checksums deleted
+        """
+        # Find all checksums that have file paths belonging to this source
+        # Files from a source are stored in: {storage_path}/{source_name}/*
+        source_path_prefix = os.path.join(self.config.storage_path, source_name)
+        
+        hashes_to_delete = []
+        for file_hash, metadata in self.checksums.items():
+            file_path = metadata.get("file_path", "")
+            # Check if this file belongs to the source
+            if file_path.startswith(source_path_prefix):
+                hashes_to_delete.append(file_hash)
+        
+        # Delete the identified hashes
+        for file_hash in hashes_to_delete:
+            del self.checksums[file_hash]
+        
+        if hashes_to_delete:
+            self.logger.info(
+                "Deleted checksums for source",
+                source_name=source_name,
+                count=len(hashes_to_delete),
+            )
+        
+        return len(hashes_to_delete)
+
     def ingest_archive(
         self,
         source: object,
@@ -1162,6 +1197,10 @@ class IngestionService:
     def trigger_ingestion(self, source_name: str) -> Tuple[bool, str]:
         """Trigger manual ingestion for a source.
         
+        When explicitly triggered, this method deletes any existing checksums
+        for the source to force re-ingestion of all files, even if they were
+        previously processed.
+        
         Args:
             source_name: Name of the source to ingest
             
@@ -1177,6 +1216,17 @@ class IngestionService:
             return False, f"Source '{source_name}' is disabled"
         
         try:
+            # Delete existing checksums to force re-ingestion
+            deleted_count = self.delete_checksums_for_source(source_name)
+            if deleted_count > 0:
+                self.logger.info(
+                    "Trigger ingestion: deleted checksums to force re-ingestion",
+                    source_name=source_name,
+                    checksums_deleted=deleted_count,
+                )
+                # Save checksums after deletion
+                self.save_checksums()
+            
             # Convert to SourceConfig
             source_cfg = _source_from_mapping(source)
             

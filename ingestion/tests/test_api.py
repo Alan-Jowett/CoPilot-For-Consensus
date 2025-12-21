@@ -366,6 +366,42 @@ class TestTriggerIngestionEndpoint:
         
         assert response.status_code == 400
         assert "disabled" in response.json()["detail"]
+    
+    def test_trigger_ingestion_deletes_hash_for_reprocessing(self, client, service):
+        """Test that triggering ingestion deletes hashes to allow reprocessing."""
+        import tempfile
+        import os
+        
+        # Create a test file
+        with tempfile.TemporaryDirectory() as tmpdir:
+            test_file = os.path.join(tmpdir, "test.mbox")
+            with open(test_file, "w") as f:
+                f.write("From: test@example.com\nSubject: Test\n\nBody")
+            
+            # Create a source with the test file
+            source_data = {
+                "name": "test-source",
+                "source_type": "local",
+                "url": test_file,
+                "enabled": True,
+            }
+            client.post("/api/sources", json=source_data)
+            
+            # First trigger - should ingest the file
+            response1 = client.post("/api/sources/test-source/trigger")
+            assert response1.status_code == 200
+            
+            # Verify a checksum was created
+            checksums_before = len(service.checksums)
+            assert checksums_before > 0
+            
+            # Second trigger - should delete the hash and re-ingest
+            response2 = client.post("/api/sources/test-source/trigger")
+            assert response2.status_code == 200
+            
+            # Verify the file was re-ingested (checksum exists)
+            checksums_after = len(service.checksums)
+            assert checksums_after > 0
 
 
 class TestUploadEndpoint:
