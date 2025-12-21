@@ -302,7 +302,7 @@ jobs:
     - name: Test Grafana Dashboard Validation Script
       run: |
         echo "Running unit tests for Grafana dashboard validation script..."
-        pip install -q requests
+        pip install -q -r scripts/requirements.txt
         python -m unittest scripts/test_validate_grafana_dashboards.py -v
         echo "✓ All tests passed"
 

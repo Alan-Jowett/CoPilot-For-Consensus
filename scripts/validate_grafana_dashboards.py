@@ -83,6 +83,7 @@ class GrafanaValidator:
         sys.stdout.flush()
         # Use up to 20 retries (or max_retries if smaller) for auth check
         max_auth_retries = min(self.max_retries, 20)
+        response = None
         for attempt in range(1, max_auth_retries + 1):
             try:
                 response = self.session.get(
@@ -102,7 +103,7 @@ class GrafanaValidator:
                     try:
                         error_body = response.json()
                         print(f"    Auth failed (401): {error_body}")
-                    except:
+                    except json.JSONDecodeError:
                         print(f"    Authentication not ready yet (401), waiting...")
                     sys.stdout.flush()
                 else:
@@ -119,12 +120,12 @@ class GrafanaValidator:
                 time.sleep(self.retry_delay)
 
         print(f"✗ API authentication failed after {max_auth_retries} attempts")
-        if 'response' in locals():
+        if response is not None:
             print(f"  Last response status: {response.status_code}")
             try:
                 print(f"  Response body: {response.text[:200]}")
-            except:
-                pass
+            except Exception as e:
+                print(f"  Response body could not be printed: {e}")
         sys.stdout.flush()
         return False
 
@@ -314,8 +315,6 @@ class GrafanaValidator:
         This performs actual query execution via Grafana's /api/ds/query endpoint
         to verify panels return data and don't have query errors.
         """
-        panel_title = panel.get("title", "Untitled")
-        
         # Check if panel has targets (queries)
         targets = panel.get("targets", [])
         if not targets:
@@ -327,13 +326,33 @@ class GrafanaValidator:
         if not datasource:
             return True, "Panel has no datasource (may use dashboard default)"
         
-        # Extract datasource UID
+        # Extract datasource UID and type
+        # Datasource may be provided as a name (e.g., "Prometheus") or as a UID.
+        # Attempt to resolve it via the Grafana API; fall back to assuming it is a UID
+        # if resolution is not possible.
         if isinstance(datasource, dict):
             ds_uid = datasource.get("uid")
             ds_type = datasource.get("type")
         elif isinstance(datasource, str):
-            ds_uid = datasource
+            # Try to resolve datasource name to UID
+            ds_uid = None
             ds_type = None
+            try:
+                datasources = self.get_datasources()
+                for ds in datasources:
+                    name = ds.get("name")
+                    uid = ds.get("uid")
+                    dtype = ds.get("type")
+                    if datasource == name or datasource == uid:
+                        ds_uid = uid
+                        ds_type = dtype
+                        break
+            except Exception:
+                pass
+            
+            # If we could not resolve the reference, treat the string as a UID
+            if ds_uid is None:
+                ds_uid = datasource
         else:
             return True, "Could not determine datasource"
         
@@ -354,7 +373,6 @@ class GrafanaValidator:
         
         # Construct query payload for Grafana's query API
         # Use a simple time range (last 5 minutes)
-        import time
         now = int(time.time())
         from_time = now - 300  # 5 minutes ago
         
@@ -363,7 +381,7 @@ class GrafanaValidator:
                 {
                     "refId": first_target.get("refId", "A"),
                     "expr": query_expr,
-                    "datasource": {"type": "prometheus", "uid": ds_uid},
+                    "datasource": {"type": ds_type or "prometheus", "uid": ds_uid},
                     "intervalMs": 15000,
                     "maxDataPoints": 100,
                 }
@@ -439,7 +457,13 @@ class GrafanaValidator:
         return True, f"Basic structure valid (has query expr)"
 
     def validate_panel_queries(self) -> bool:
-        """Validate that dashboard panels execute queries and return data."""
+        """Execute and validate dashboard panel queries.
+
+        This method performs live query execution for panels via
+        :meth:`execute_panel_query` and verifies that queries return data.
+        Structural-only checks are handled by :meth:`validate_panel_structure`,
+        which is retained primarily for backward compatibility.
+        """
         print("\n=== Validating Panel Queries (Executing Queries) ===")
 
         grafana_dashboards = self.get_dashboards()
@@ -484,15 +508,7 @@ class GrafanaValidator:
                 is_valid, status_msg = self.execute_panel_query(panel, ds_uid, db_title)
 
                 if is_valid:
-                    if "no data" in status_msg.lower():
-                        panels_no_data += 1
-                        print(
-                            f"⚠ Dashboard '{db_title}' -> "
-                            f"Panel '{panel_title}': {status_msg}"
-                        )
-                        sys.stdout.flush()
-                        all_valid = False
-                    elif "skip" in status_msg.lower() or "non-query" in status_msg.lower():
+                    if "skip" in status_msg.lower() or "non-query" in status_msg.lower():
                         skipped_panels += 1
                         # Don't print skipped panels to reduce noise
                     else:
@@ -504,10 +520,18 @@ class GrafanaValidator:
                         sys.stdout.flush()
                     validated_panels += 1
                 else:
-                    print(
-                        f"✗ Dashboard '{db_title}' -> "
-                        f"Panel '{panel_title}': {status_msg}"
-                    )
+                    # Query execution failed or returned no data
+                    if "no data" in status_msg.lower():
+                        panels_no_data += 1
+                        print(
+                            f"⚠ Dashboard '{db_title}' -> "
+                            f"Panel '{panel_title}': {status_msg}"
+                        )
+                    else:
+                        print(
+                            f"✗ Dashboard '{db_title}' -> "
+                            f"Panel '{panel_title}': {status_msg}"
+                        )
                     sys.stdout.flush()
                     all_valid = False
 

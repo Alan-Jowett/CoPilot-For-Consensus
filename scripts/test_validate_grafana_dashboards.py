@@ -12,6 +12,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
+import requests
+
 # Import the module under test
 # Note: This assumes tests run from the scripts directory or pytest is used with proper path setup
 try:
@@ -126,7 +128,6 @@ class TestGrafanaValidator(unittest.TestCase):
         mock_session_class.return_value = mock_session
         
         # Simulate connection failure
-        import requests
         mock_session.get.side_effect = requests.exceptions.ConnectionError("Connection failed")
 
         validator = GrafanaValidator(max_retries=2, retry_delay=0.1)
