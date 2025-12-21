@@ -241,7 +241,7 @@ cd CoPilot-For-Consensus
 docker compose up -d
 ```
 
-**Note:** Docker Compose will build images locally using the Dockerfiles. To use pre-built images from GHCR instead, modify the image references in `docker-compose.services.yml` as shown above.
+**Note:** By default, Docker Compose uses `docker-compose.yml` together with `docker-compose.services.yml` and will build images locally from the Dockerfiles. To use pre-built images from GHCR instead of building locally, either update the `image:` references in `docker-compose.services.yml` as shown above, or (recommended) create a `docker-compose.override.yml` that overrides the relevant services with your desired `image:` tags.
 
 3. Initialize the database:
 ```bash
