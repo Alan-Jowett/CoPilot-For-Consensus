@@ -12,7 +12,7 @@ It also defines common enums used across document schemas for consistency.
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from uuid import uuid4
 
 
