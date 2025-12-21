@@ -548,7 +548,7 @@ class TestAzureCosmosDocumentStore:
         # Verify SQL query was constructed
         call_args = mock_container.query_items.call_args
         query = call_args.kwargs["query"]
-        assert "c.status = @match0" in query
+        assert "c.status = @param0" in query
 
     def test_aggregate_documents_with_exists(self):
         """Test aggregation with $exists operator."""

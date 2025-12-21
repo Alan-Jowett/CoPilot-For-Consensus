@@ -392,6 +392,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             query = "SELECT * FROM c WHERE c.collection = @collection"
             parameters = [{"name": "@collection", "value": collection}]
             limit_value = None
+            param_counter = 0  # Track unique parameter names
             
             for stage in pipeline:
                 stage_name = list(stage.keys())[0]
@@ -399,7 +400,7 @@ class AzureCosmosDocumentStore(DocumentStore):
                 
                 if stage_name == "$match":
                     # Add match conditions to WHERE clause
-                    for idx, (key, condition) in enumerate(stage_spec.items()):
+                    for key, condition in stage_spec.items():
                         if isinstance(condition, dict):
                             # Handle operators
                             for op, value in condition.items():
@@ -409,7 +410,8 @@ class AzureCosmosDocumentStore(DocumentStore):
                                     else:
                                         query += f" AND NOT IS_DEFINED(c.{key})"
                                 elif op == "$eq":
-                                    param_name = f"@match{idx}"
+                                    param_name = f"@param{param_counter}"
+                                    param_counter += 1
                                     query += f" AND c.{key} = {param_name}"
                                     parameters.append({"name": param_name, "value": value})
                                 else:
@@ -418,7 +420,8 @@ class AzureCosmosDocumentStore(DocumentStore):
                                     )
                         else:
                             # Simple equality check
-                            param_name = f"@match{idx}"
+                            param_name = f"@param{param_counter}"
+                            param_counter += 1
                             query += f" AND c.{key} = {param_name}"
                             parameters.append({"name": param_name, "value": condition})
                 
