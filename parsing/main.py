@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from fastapi import FastAPI
 import uvicorn
 
-from copilot_config import load_typed_config
+from copilot_config import load_typed_config, get_configuration_schema_response
 from copilot_events import create_publisher, create_subscriber, ValidatingEventPublisher, ValidatingEventSubscriber
 from copilot_storage import create_document_store, ValidatingDocumentStore
 from copilot_metrics import create_metrics_collector
@@ -62,6 +62,34 @@ def stats():
         return {"error": "Service not initialized"}
     
     return parsing_service.get_stats()
+
+
+@app.get("/.well-known/configuration-schema")
+def configuration_schema():
+    """Configuration schema discovery endpoint.
+    
+    Returns the configuration schema for this service, including:
+    - Service name and version
+    - Schema version
+    - Minimum service version required
+    - Full configuration schema
+    """
+    try:
+        response = get_configuration_schema_response(
+            service_name="parsing",
+            service_version=__version__,
+        )
+        return response
+    except FileNotFoundError as e:
+        return {
+            "error": "Schema not found",
+            "message": str(e),
+        }
+    except Exception as e:
+        return {
+            "error": "Failed to load schema",
+            "message": str(e),
+        }
 
 
 def start_subscriber_thread(service: ParsingService):

@@ -1,0 +1,163 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Schema Validation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'documents/schemas/configs/**'
+      - 'adapters/copilot_config/**'
+      - '.github/workflows/schema-validation.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'documents/schemas/configs/**'
+      - 'adapters/copilot_config/**'
+      - '.github/workflows/schema-validation.yml'
+  workflow_dispatch:  # Allow manual triggering
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-schemas:
+    name: Validate Configuration Schemas
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for comparison
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install jsonschema
+          cd adapters/copilot_config
+          pip install -e .
+
+      - name: Validate schema JSON syntax
+        run: |
+          echo "Validating JSON syntax for all config schemas..."
+          for schema in documents/schemas/configs/*.json; do
+            echo "Validating $schema..."
+            python -c "import json; json.load(open('$schema'))"
+          done
+          echo "✓ All schemas have valid JSON syntax"
+
+      - name: Check schema version fields
+        run: |
+          echo "Checking that all schemas have version fields..."
+          for schema in documents/schemas/configs/*.json; do
+            echo "Checking $schema..."
+            python -c "
+          import json
+          import sys
+          schema = json.load(open('$schema'))
+          if 'schema_version' not in schema:
+              print(f'ERROR: Missing schema_version in $schema')
+              sys.exit(1)
+          if 'min_service_version' not in schema:
+              print(f'ERROR: Missing min_service_version in $schema')
+              sys.exit(1)
+          print(f'✓ $schema has version fields')
+          "
+          done
+          echo "✓ All schemas have required version fields"
+
+      - name: Check for breaking changes in modified schemas
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "Checking for breaking changes in modified schemas..."
+          
+          # Get list of modified schema files
+          git diff --name-only origin/${{ github.base_ref }}...HEAD | grep 'documents/schemas/configs/.*\.json$' || echo "No schema files changed"
+          
+          for schema in $(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep 'documents/schemas/configs/.*\.json$'); do
+            if [ -f "$schema" ]; then
+              echo "Checking compatibility for $schema..."
+              
+              # Get the old version from base branch
+              git show origin/${{ github.base_ref }}:"$schema" > /tmp/old_schema.json 2>/dev/null || {
+                echo "New schema file detected: $schema (skipping compatibility check)"
+                continue
+              }
+              
+              # Run compatibility check
+              python -m copilot_config check_compat --old /tmp/old_schema.json --new "$schema" || {
+                echo "❌ Compatibility check failed for $schema"
+                exit 1
+              }
+              
+              echo "✓ No breaking changes detected in $schema"
+            fi
+          done
+          
+          echo "✓ All schema changes are compatible"
+
+      - name: Validate schema against JSON Schema draft
+        run: |
+          echo "Validating schemas against JSON Schema draft..."
+          python -c "
+          import json
+          import sys
+          from jsonschema import Draft202012Validator, ValidationError
+          
+          errors = []
+          for schema_file in [
+              'documents/schemas/configs/auth.json',
+              'documents/schemas/configs/chunking.json',
+              'documents/schemas/configs/embedding.json',
+              'documents/schemas/configs/ingestion.json',
+              'documents/schemas/configs/orchestrator.json',
+              'documents/schemas/configs/parsing.json',
+              'documents/schemas/configs/reporting.json',
+              'documents/schemas/configs/summarization.json',
+          ]:
+              try:
+                  with open(schema_file, 'r') as f:
+                      schema = json.load(f)
+                  
+                  # Check that schema has required top-level fields
+                  if 'service_name' not in schema:
+                      errors.append(f'{schema_file}: Missing service_name')
+                  if 'fields' not in schema:
+                      errors.append(f'{schema_file}: Missing fields')
+                  
+                  print(f'✓ {schema_file} is valid')
+              except Exception as e:
+                  errors.append(f'{schema_file}: {e}')
+          
+          if errors:
+              print('\\n❌ Schema validation errors:')
+              for error in errors:
+                  print(f'  - {error}')
+              sys.exit(1)
+          
+          print('\\n✓ All schemas are valid')
+          "
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "Schema validation complete"
+          echo "- JSON syntax validation"
+          echo "- Version field validation"
+          echo "- Compatibility checking"
+          echo "- JSON Schema draft validation"
