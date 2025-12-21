@@ -236,10 +236,12 @@ git clone https://github.com/Alan-Jowett/CoPilot-For-Consensus.git
 cd CoPilot-For-Consensus
 ```
 
-2. Start all services (will build images locally if not found):
+2. Start all services:
 ```bash
 docker compose up -d
 ```
+
+**Note:** Docker Compose will build images locally using the Dockerfiles. To use pre-built images from GHCR instead, modify the image references in `docker-compose.services.yml` as shown above.
 
 3. Initialize the database:
 ```bash
