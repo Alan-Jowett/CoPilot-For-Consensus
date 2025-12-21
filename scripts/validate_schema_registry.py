@@ -107,11 +107,22 @@ def markdown_command() -> int:
     """
     schemas = list_schemas()
     
-    # Group schemas by category
-    events = [s for s in schemas if "events/" in s[2]]
-    documents = [s for s in schemas if "documents/" in s[2]]
-    role_store = [s for s in schemas if "role_store/" in s[2]]
-    others = [s for s in schemas if s not in events + documents + role_store]
+    # Group schemas by category in a single pass
+    events = []
+    documents = []
+    role_store = []
+    others = []
+    
+    for schema in schemas:
+        path = schema[2]
+        if "events/" in path:
+            events.append(schema)
+        elif "documents/" in path:
+            documents.append(schema)
+        elif "role_store/" in path:
+            role_store.append(schema)
+        else:
+            others.append(schema)
     
     print("# Schema Registry")
     print()

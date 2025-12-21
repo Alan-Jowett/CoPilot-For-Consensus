@@ -61,17 +61,28 @@ def _get_schema_base_dir() -> Path:
     Raises:
         FileNotFoundError: If the schema directory cannot be found.
     """
-    # Try multiple candidate locations relative to this file
-    candidate_bases = [
-        Path(__file__).resolve().parents[3],  # repo root (adapters/copilot_schema_validation/copilot_schema_validation/schema_registry.py)
-        Path(__file__).resolve().parents[4],  # in case of editable install with nested structure
-    ]
+    # Start from the current file and walk up to find the repo root
+    # Look for markers like .git, README.md, or pyproject.toml
+    current = Path(__file__).resolve().parent
     
-    for base in candidate_bases:
-        schema_dir = base / "documents" / "schemas"
+    # Walk up the directory tree looking for the schema directory
+    for _ in range(10):  # Limit search depth to avoid infinite loops
+        schema_dir = current / "documents" / "schemas"
         if schema_dir.exists() and schema_dir.is_dir():
             logger.debug(f"Found schema directory at: {schema_dir}")
             return schema_dir
+        
+        # Check if we've reached the repo root by looking for common markers
+        if (current / ".git").exists() or (current / "pyproject.toml").exists():
+            schema_dir = current / "documents" / "schemas"
+            if schema_dir.exists() and schema_dir.is_dir():
+                return schema_dir
+        
+        # Move up one level
+        parent = current.parent
+        if parent == current:  # Reached filesystem root
+            break
+        current = parent
     
     error_msg = (
         f"Schema directory not found. Tried: "

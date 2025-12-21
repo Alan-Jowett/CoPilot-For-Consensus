@@ -127,20 +127,15 @@ class TestSchemaRegistry:
         assert valid, f"Registry validation failed with errors: {errors}"
         assert len(errors) == 0
 
-    def test_validate_registry_with_missing_file(self):
+    def test_validate_registry_with_missing_file(self, monkeypatch):
         """Test registry validation detects missing schema files."""
-        # Create a temporary registry with a missing file
-        original_registry = SCHEMA_REGISTRY.copy()
-        SCHEMA_REGISTRY["v99.FakeSchema"] = "events/fake-schema.schema.json"
+        # Use monkeypatch to temporarily add a fake schema to the registry
+        monkeypatch.setitem(SCHEMA_REGISTRY, "v99.FakeSchema", "events/fake-schema.schema.json")
         
-        try:
-            valid, errors = validate_registry()
-            assert not valid
-            assert len(errors) > 0
-            assert any("FakeSchema" in error for error in errors)
-        finally:
-            # Restore original registry
-            del SCHEMA_REGISTRY["v99.FakeSchema"]
+        valid, errors = validate_registry()
+        assert not valid
+        assert len(errors) > 0
+        assert any("FakeSchema" in error for error in errors)
 
     def test_get_schema_metadata_success(self):
         """Test getting schema metadata."""
