@@ -41,5 +41,9 @@ setup(
         "prometheus": [
             "prometheus-client>=0.19.0",  # Prometheus metrics client
         ],
+        "azure": [
+            "azure-monitor-opentelemetry-exporter>=1.0.0",  # Azure Monitor exporter for OpenTelemetry
+            "opentelemetry-sdk>=1.20.0",  # OpenTelemetry SDK for metrics
+        ],
     },
 )

@@ -43,6 +43,12 @@ METRICS_BACKEND=noop
 
 # For production with Prometheus
 METRICS_BACKEND=prometheus
+
+# For production with Prometheus Pushgateway
+METRICS_BACKEND=pushgateway
+
+# For Azure-native deployments
+METRICS_BACKEND=azure_monitor
 ```
 
 Or specify backend explicitly in code:
@@ -322,11 +328,184 @@ If you see warnings about high cardinality:
 - Use status codes instead of full URLs
 - Group similar values into categories
 
+## Azure Monitor Integration
+
+### AzureMonitorMetricsCollector
+
+The Azure Monitor collector integrates with Azure Monitor (Application Insights) using OpenTelemetry for Azure-native observability in production deployments.
+
+**Installation:**
+
+```bash
+pip install copilot-metrics[azure]
+# Or manually:
+pip install azure-monitor-opentelemetry-exporter opentelemetry-sdk
+```
+
+**Configuration:**
+
+Azure Monitor requires a connection string or instrumentation key. Configure via environment variables:
+
+```bash
+# Recommended: Use connection string (includes endpoint and instrumentation key)
+export AZURE_MONITOR_CONNECTION_STRING="InstrumentationKey=<your-key>;IngestionEndpoint=https://..."
+
+# Alternative: Use instrumentation key only (legacy)
+export AZURE_MONITOR_INSTRUMENTATION_KEY="<your-instrumentation-key>"
+
+# Optional: Customize metric namespace (default: "copilot")
+export AZURE_MONITOR_METRIC_NAMESPACE="myapp"
+
+# Optional: Customize export interval in milliseconds (default: 60000)
+export AZURE_MONITOR_EXPORT_INTERVAL_MILLIS="30000"
+
+# Set the metrics backend
+export METRICS_BACKEND="azure_monitor"
+```
+
+**Getting Connection String:**
+
+1. Create an Application Insights resource in Azure Portal
+2. Navigate to your Application Insights resource
+3. Copy the "Connection String" from the Overview page
+
+**Usage:**
+
+```python
+from copilot_metrics import create_metrics_collector
+
+# Auto-detect from environment
+metrics = create_metrics_collector()  # Uses METRICS_BACKEND env var
+
+# Or explicitly create Azure Monitor collector
+metrics = create_metrics_collector(backend="azure_monitor")
+
+# Or create directly with parameters
+from copilot_metrics import AzureMonitorMetricsCollector
+
+metrics = AzureMonitorMetricsCollector(
+    connection_string="InstrumentationKey=...",
+    namespace="copilot",
+    export_interval_millis=60000
+)
+
+# Collect metrics (same API as other collectors)
+metrics.increment("requests_total", tags={"service": "ingestion", "status": "success"})
+metrics.observe("request_duration_seconds", 0.123, tags={"endpoint": "/api"})
+metrics.gauge("active_connections", 42)
+
+# Gracefully shutdown on application exit
+metrics.shutdown()
+```
+
+**Azure Monitor Features:**
+
+- **Asynchronous Export**: Metrics are batched and exported periodically (default: every 60 seconds)
+- **Dimensions**: Tags/labels are mapped to Azure Monitor custom dimensions
+- **OpenTelemetry Standard**: Uses OpenTelemetry SDK for portability
+- **Resource Attributes**: Service name and namespace are included as resource attributes
+
+**Local Development:**
+
+For local development without Azure credentials, use the NoOp collector:
+
+```bash
+export METRICS_BACKEND="noop"
+```
+
+**Viewing Metrics in Azure:**
+
+1. Navigate to your Application Insights resource in Azure Portal
+2. Go to "Metrics" section
+3. Select "Custom" metric namespace
+4. Choose your metric (e.g., `copilot.requests_total`)
+5. Add filters using dimensions (tags)
+
+**Example Queries in Application Insights:**
+
+```kusto
+// View all custom metrics
+customMetrics
+| where name startswith "copilot."
+| summarize sum(value) by name, bin(timestamp, 5m)
+
+// Filter by dimensions
+customMetrics
+| where name == "copilot.requests_total"
+| where customDimensions.service == "ingestion"
+| summarize requests = sum(value) by status=tostring(customDimensions.status)
+```
+
+**Best Practices for Azure Monitor:**
+
+- Use consistent tag names across services for better correlation
+- Keep dimension cardinality reasonable (avoid high-cardinality values like user IDs)
+- Use meaningful metric names with units (e.g., `request_duration_seconds`)
+- Monitor your Application Insights quota and pricing
+- Call `shutdown()` on application termination to flush remaining metrics
+
+**Docker/Kubernetes Deployment:**
+
+```yaml
+# docker-compose.yml
+services:
+  myservice:
+    environment:
+      - METRICS_BACKEND=azure_monitor
+      - AZURE_MONITOR_CONNECTION_STRING=${AZURE_MONITOR_CONNECTION_STRING}
+      - AZURE_MONITOR_METRIC_NAMESPACE=copilot
+```
+
+```yaml
+# Kubernetes ConfigMap/Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: azure-monitor-config
+type: Opaque
+stringData:
+  connection-string: "InstrumentationKey=..."
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: metrics-config
+data:
+  METRICS_BACKEND: "azure_monitor"
+  AZURE_MONITOR_METRIC_NAMESPACE: "copilot"
+```
+
+**Identity and Permissions:**
+
+Azure Monitor uses the connection string for authentication. No additional Azure RBAC permissions are required. The connection string includes the instrumentation key which grants write access to the Application Insights resource.
+
+For enhanced security in production:
+- Store connection strings in Azure Key Vault
+- Use managed identities where possible
+- Rotate instrumentation keys periodically
+- Restrict network access to Application Insights endpoints
+
+**Troubleshooting:**
+
+1. **Metrics not appearing in Azure Portal:**
+   - Check connection string is correct
+   - Verify export interval has elapsed (default: 60 seconds)
+   - Check Application Insights quota and throttling limits
+   - Look for errors in application logs
+
+2. **High latency or performance impact:**
+   - Increase export interval: `AZURE_MONITOR_EXPORT_INTERVAL_MILLIS=120000`
+   - Ensure async export is working (should not block application)
+
+3. **Missing dimensions:**
+   - Verify tags are provided as dictionaries
+   - Check dimension names are valid (alphanumeric, underscore)
+   - Note: Observable gauges have limited dimension support
+
 ## Future Extensions
 
 Potential future backends:
 
-- **OpenTelemetry**: Modern observability standard
 - **StatsD**: For DataDog, Graphite integration  
 - **CloudWatch**: AWS native metrics
 - **Custom backends**: Implement `MetricsCollector` interface

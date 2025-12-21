@@ -28,6 +28,14 @@ except ImportError:
     _pushgateway_available = False
     # Available through factory when prometheus_client is installed
 
+# Lazy import for AzureMonitorMetricsCollector
+try:
+    from .azure_monitor_metrics import AzureMonitorMetricsCollector
+    _azure_monitor_available = True
+except ImportError:
+    _azure_monitor_available = False
+    # Available through factory when azure-monitor packages are installed
+
 __all__ = [
     # Version
     "__version__",
@@ -43,3 +51,6 @@ if _prometheus_available:
 
 if _pushgateway_available:
     __all__.append("PrometheusPushGatewayMetricsCollector")
+
+if _azure_monitor_available:
+    __all__.append("AzureMonitorMetricsCollector")
