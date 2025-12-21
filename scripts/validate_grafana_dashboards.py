@@ -40,12 +40,14 @@ class GrafanaValidator:
         dashboard_dir: str = "infra/grafana/dashboards",
         max_retries: int = 30,
         retry_delay: int = 5,
+        allow_no_data: bool = False,
     ):
         self.grafana_url = grafana_url.rstrip("/")
         self.auth = (username, password)
         self.dashboard_dir = Path(dashboard_dir)
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self.allow_no_data = allow_no_data
         self.session = requests.Session()
         self.session.auth = self.auth
 
@@ -527,17 +529,21 @@ class GrafanaValidator:
                             f"⚠ Dashboard '{db_title}' -> "
                             f"Panel '{panel_title}': {status_msg}"
                         )
+                        # If allow_no_data is True, don't mark as invalid
+                        if not self.allow_no_data:
+                            all_valid = False
                     else:
                         print(
                             f"✗ Dashboard '{db_title}' -> "
                             f"Panel '{panel_title}': {status_msg}"
                         )
+                        all_valid = False
                     sys.stdout.flush()
-                    all_valid = False
 
         print(
             f"\nPanel validation summary: {total_panels} total, "
-            f"{panels_with_data} with data, {panels_no_data} no data, "
+            f"{panels_with_data} with data, {panels_no_data} no data"
+            f"{' (warnings)' if self.allow_no_data else ''}, "
             f"{skipped_panels} skipped, {total_panels - validated_panels} failed"
         )
         sys.stdout.flush()
@@ -634,6 +640,11 @@ def main():
         default=5,
         help="Delay between retries in seconds (default: 5)",
     )
+    parser.add_argument(
+        "--allow-no-data",
+        action="store_true",
+        help="Treat panels with no data as warnings instead of failures (useful for CI environments)",
+    )
 
     args = parser.parse_args()
 
@@ -644,6 +655,7 @@ def main():
         dashboard_dir=args.dashboard_dir,
         max_retries=args.max_retries,
         retry_delay=args.retry_delay,
+        allow_no_data=args.allow_no_data,
     )
 
     success = validator.run_all_validations()

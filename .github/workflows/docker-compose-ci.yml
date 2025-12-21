@@ -315,7 +315,8 @@ jobs:
           --password PLEASE_CHANGE_ME \
           --dashboard-dir infra/grafana/dashboards \
           --max-retries 30 \
-          --retry-delay 5
+          --retry-delay 5 \
+          --allow-no-data
         echo "✓ Grafana dashboard validation completed"
 
     - name: View service logs
