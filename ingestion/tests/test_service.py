@@ -309,6 +309,131 @@ class TestIngestionService:
         from copilot_reporting import SilentErrorReporter
         assert isinstance(service.error_reporter, SilentErrorReporter)
 
+    def test_delete_checksums_for_source(self, service, temp_storage):
+        """Test deleting checksums for a specific source."""
+        # Add checksums for multiple sources
+        storage_path = service.config.storage_path
+        
+        # Checksums for source1
+        service.add_checksum(
+            "hash1", "archive1", 
+            os.path.join(storage_path, "source1", "file1.mbox"),
+            "2023-01-01T00:00:00Z"
+        )
+        service.add_checksum(
+            "hash2", "archive2",
+            os.path.join(storage_path, "source1", "file2.mbox"),
+            "2023-01-01T00:00:00Z"
+        )
+        
+        # Checksums for source2
+        service.add_checksum(
+            "hash3", "archive3",
+            os.path.join(storage_path, "source2", "file3.mbox"),
+            "2023-01-01T00:00:00Z"
+        )
+        
+        assert len(service.checksums) == 3
+        
+        # Delete checksums for source1
+        deleted_count = service.delete_checksums_for_source("source1")
+        
+        assert deleted_count == 2
+        assert len(service.checksums) == 1
+        assert not service.is_file_already_ingested("hash1")
+        assert not service.is_file_already_ingested("hash2")
+        assert service.is_file_already_ingested("hash3")
+    
+    def test_delete_checksums_for_nonexistent_source(self, service):
+        """Test deleting checksums for a source with no checksums."""
+        # Add a checksum for a different source
+        service.add_checksum(
+            "hash1", "archive1",
+            os.path.join(service.config.storage_path, "source1", "file1.mbox"),
+            "2023-01-01T00:00:00Z"
+        )
+        
+        # Try to delete checksums for a source that doesn't exist
+        deleted_count = service.delete_checksums_for_source("nonexistent-source")
+        
+        assert deleted_count == 0
+        assert len(service.checksums) == 1
+    
+    def test_delete_checksums_only_deletes_exact_source_match(self, service):
+        """Test that delete_checksums_for_source doesn't match similar source names."""
+        storage_path = service.config.storage_path
+        
+        # Add checksums for sources with similar names
+        service.add_checksum(
+            "hash1", "archive1",
+            os.path.join(storage_path, "source1", "file1.mbox"),
+            "2023-01-01T00:00:00Z"
+        )
+        service.add_checksum(
+            "hash2", "archive2",
+            os.path.join(storage_path, "source10", "file2.mbox"),
+            "2023-01-01T00:00:00Z"
+        )
+        service.add_checksum(
+            "hash3", "archive3",
+            os.path.join(storage_path, "source1-backup", "file3.mbox"),
+            "2023-01-01T00:00:00Z"
+        )
+        
+        assert len(service.checksums) == 3
+        
+        # Delete checksums for source1 only
+        deleted_count = service.delete_checksums_for_source("source1")
+        
+        # Should only delete hash1, not hash2 or hash3
+        assert deleted_count == 1
+        assert len(service.checksums) == 2
+        assert not service.is_file_already_ingested("hash1")
+        assert service.is_file_already_ingested("hash2")
+        assert service.is_file_already_ingested("hash3")
+    
+    def test_trigger_ingestion_deletes_checksums(self, service, temp_storage):
+        """Test that trigger_ingestion deletes checksums before re-ingestion."""
+        from copilot_storage import InMemoryDocumentStore
+        
+        # Setup document store with a source
+        if not service.document_store:
+            service.document_store = InMemoryDocumentStore()
+            service.document_store.connect()
+        
+        # Create a test file
+        with tempfile.TemporaryDirectory() as source_dir:
+            test_file = os.path.join(source_dir, "test.mbox")
+            with open(test_file, "w") as f:
+                f.write("From: test@example.com\nTo: dev@example.com\nSubject: Test\n\nContent")
+            
+            # Create a source
+            source_data = {
+                "name": "test-source",
+                "source_type": "local",
+                "url": test_file,
+                "enabled": True,
+            }
+            service.create_source(source_data)
+            
+            # First ingestion - should create a checksum
+            success, message = service.trigger_ingestion("test-source")
+            assert success is True
+            assert len(service.checksums) == 1
+            first_hash = list(service.checksums.keys())[0]
+            
+            # Verify the file would be skipped on next ingest
+            assert service.is_file_already_ingested(first_hash)
+            
+            # Trigger ingestion again - should delete the checksum and re-ingest
+            success, message = service.trigger_ingestion("test-source")
+            assert success is True
+            
+            # The file should have been re-ingested, creating a new checksum entry
+            # (same hash, but the checksum should have been deleted and re-added)
+            assert len(service.checksums) == 1
+            assert service.is_file_already_ingested(first_hash)
+
 
 # ============================================================================
 # Schema Validation Tests

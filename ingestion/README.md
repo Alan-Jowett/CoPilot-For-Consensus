@@ -87,6 +87,7 @@ The service exposes a REST API on port 8080 (configurable via `HTTP_PORT` enviro
 #### Source Operations
 
 - `POST /ingestion/api/sources/{name}/trigger` - Trigger manual ingestion for a source
+  - **Hash Override:** Explicitly triggering ingestion will delete any existing checksums for the source, forcing re-ingestion of all files even if they were previously processed. This allows manual re-processing of content when needed.
 - `GET /ingestion/api/sources/{name}/status` - Get source ingestion status
 
 #### File Upload
@@ -133,6 +134,7 @@ curl -X POST http://localhost:8080/ingestion/api/sources \
   }'
 
 # Trigger manual ingestion
+# Note: This will delete existing checksums for the source and force re-ingestion
 curl -X POST http://localhost:8080/ingestion/api/sources/ietf-quic/trigger
 
 # Get source status

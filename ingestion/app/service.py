@@ -342,6 +342,53 @@ class IngestionService:
             "first_seen": first_seen,
         }
 
+    def delete_checksums_for_source(self, source_name: str) -> int:
+        """Delete all checksums associated with a source.
+        
+        This allows re-ingestion of previously processed files from the source.
+        
+        Args:
+            source_name: Name of the source
+            
+        Returns:
+            Number of checksums deleted
+        """
+        # Find all checksums that have file paths belonging to this source
+        # Files from a source are stored in: {storage_path}/{source_name}/*
+        # Normalize the base source path so comparisons work across platforms
+        source_root = os.path.normpath(os.path.join(self.config.storage_path, source_name))
+        
+        hashes_to_delete = []
+        for file_hash, metadata in self.checksums.items():
+            file_path = metadata.get("file_path", "")
+            # Skip empty or whitespace-only paths
+            if not file_path or not file_path.strip():
+                continue
+            normalized_file_path = os.path.normpath(file_path)
+            
+            # Check if this file belongs to the source
+            # Use path comparison that checks if file is in the source directory
+            # by verifying the normalized path is equal to or starts with source_root followed by separator
+            if normalized_file_path == source_root:
+                # Exact match - the file is the source root itself
+                hashes_to_delete.append(file_hash)
+            elif normalized_file_path.startswith(source_root + os.sep):
+                # File is in a subdirectory of source_root
+                hashes_to_delete.append(file_hash)
+        
+        # Delete the identified hashes
+        for file_hash in hashes_to_delete:
+            del self.checksums[file_hash]
+        
+        if hashes_to_delete:
+            self.logger.info(
+                "Deleted checksums for source",
+                source_name=source_name,
+                count=len(hashes_to_delete),
+            )
+        
+        return len(hashes_to_delete)
+
     def ingest_archive(
         self,
         source: object,
@@ -1162,6 +1209,10 @@ class IngestionService:
     def trigger_ingestion(self, source_name: str) -> Tuple[bool, str]:
         """Trigger manual ingestion for a source.
         
+        When explicitly triggered, this method deletes any existing checksums
+        for the source to force re-ingestion of all files, even if they were
+        previously processed.
+        
         Args:
             source_name: Name of the source to ingest
             
@@ -1177,10 +1228,22 @@ class IngestionService:
             return False, f"Source '{source_name}' is disabled"
         
         try:
+            # Delete existing checksums to force re-ingestion
+            deleted_count = self.delete_checksums_for_source(source_name)
+            if deleted_count > 0:
+                self.logger.info(
+                    "Trigger ingestion: deleted checksums to force re-ingestion",
+                    source_name=source_name,
+                    checksums_deleted=deleted_count,
+                )
+                # Save checksums after deletion to persist the change immediately
+                self.save_checksums()
+            
             # Convert to SourceConfig
             source_cfg = _source_from_mapping(source)
             
             # Run ingestion
+            # Note: ingest_archive will save checksums again after adding new ones
             self.ingest_archive(source_cfg)
             
             return True, f"Ingestion triggered successfully for '{source_name}'"
