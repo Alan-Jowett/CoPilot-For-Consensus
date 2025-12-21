@@ -105,6 +105,16 @@ openai_provider = OpenAIEmbeddingProvider(
     model="text-embedding-ada-002"
 )
 embedding = openai_provider.embed("Your text")
+
+# Azure OpenAI
+azure_provider = OpenAIEmbeddingProvider(
+    api_key="your-azure-key",
+    model="text-embedding-ada-002",
+    api_base="https://your-resource.openai.azure.com/",
+    api_version="2023-05-15",
+    deployment_name="embedding-deployment"
+)
+embedding = azure_provider.embed("Your text")
 ```
 
 ## Interface
