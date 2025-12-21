@@ -15,6 +15,8 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Default API version for Azure OpenAI
+DEFAULT_AZURE_API_VERSION = "2023-12-01"
 
 class OpenAISummarizer(Summarizer):
     """OpenAI GPT-based summarization engine.
@@ -41,11 +43,20 @@ class OpenAISummarizer(Summarizer):
         """Initialize OpenAI summarizer.
         
         Args:
-            api_key: OpenAI API key
+            api_key: OpenAI API key (or Azure OpenAI key)
             model: Model to use for summarization
-            base_url: Optional base URL for Azure OpenAI
-            api_version: API version for Azure OpenAI (e.g., "2023-12-01")
-            deployment_name: Deployment name for Azure OpenAI
+            base_url: Optional base URL. If provided, Azure OpenAI client is used.
+                     For standard OpenAI, leave as None.
+            api_version: API version for Azure OpenAI (e.g., "2023-12-01").
+                        Only used when base_url is provided.
+            deployment_name: Deployment name for Azure OpenAI.
+                           Only used when base_url is provided.
+                           Defaults to model name if not specified.
+        
+        Note:
+            Azure mode is automatically detected based on the presence of base_url.
+            When base_url is provided, the Azure OpenAI client is used with the
+            specified (or default) api_version and deployment_name.
         """
         try:
             from openai import OpenAI, AzureOpenAI
@@ -64,7 +75,7 @@ class OpenAISummarizer(Summarizer):
             logger.info("Initialized OpenAISummarizer with Azure OpenAI deployment: %s", deployment_name or model)
             self.client = AzureOpenAI(
                 api_key=api_key,
-                api_version=api_version or "2023-12-01",
+                api_version=api_version or DEFAULT_AZURE_API_VERSION,
                 azure_endpoint=base_url
             )
             self.deployment_name = deployment_name or model

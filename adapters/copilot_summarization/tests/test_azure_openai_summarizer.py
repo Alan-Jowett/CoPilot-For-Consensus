@@ -4,7 +4,7 @@
 """Tests for Azure OpenAI Summarizer."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 from copilot_summarization.openai_summarizer import OpenAISummarizer
 from copilot_summarization.models import Thread
@@ -13,17 +13,11 @@ from copilot_summarization.models import Thread
 class TestAzureOpenAISummarizer:
     """Tests for Azure OpenAI summarizer implementation."""
     
-    def test_azure_openai_summarizer_creation(self):
+    def test_azure_openai_summarizer_creation(self, mock_openai_module):
         """Test creating an Azure OpenAI summarizer."""
-        # Mock the openai module
-        mock_openai_module = Mock()
-        mock_azure_class = Mock()
-        mock_client = Mock()
-        mock_azure_class.return_value = mock_client
-        mock_openai_module.OpenAI = Mock()
-        mock_openai_module.AzureOpenAI = mock_azure_class
+        mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
         
-        with patch.dict('sys.modules', {'openai': mock_openai_module}):
+        with patch.dict('sys.modules', {'openai': mock_module}):
             summarizer = OpenAISummarizer(
                 api_key="test-azure-key",
                 model="gpt-4",
@@ -45,17 +39,11 @@ class TestAzureOpenAISummarizer:
                 azure_endpoint="https://test.openai.azure.com/"
             )
     
-    def test_azure_openai_summarizer_default_api_version(self):
+    def test_azure_openai_summarizer_default_api_version(self, mock_openai_module):
         """Test that Azure OpenAI summarizer uses default API version."""
-        # Mock the openai module
-        mock_openai_module = Mock()
-        mock_azure_class = Mock()
-        mock_client = Mock()
-        mock_azure_class.return_value = mock_client
-        mock_openai_module.OpenAI = Mock()
-        mock_openai_module.AzureOpenAI = mock_azure_class
+        mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
         
-        with patch.dict('sys.modules', {'openai': mock_openai_module}):
+        with patch.dict('sys.modules', {'openai': mock_module}):
             summarizer = OpenAISummarizer(
                 api_key="test-azure-key",
                 model="gpt-4",
@@ -69,17 +57,11 @@ class TestAzureOpenAISummarizer:
                 azure_endpoint="https://test.openai.azure.com/"
             )
     
-    def test_azure_openai_summarizer_deployment_name_defaults_to_model(self):
+    def test_azure_openai_summarizer_deployment_name_defaults_to_model(self, mock_openai_module):
         """Test that deployment_name defaults to model if not provided."""
-        # Mock the openai module
-        mock_openai_module = Mock()
-        mock_azure_class = Mock()
-        mock_client = Mock()
-        mock_azure_class.return_value = mock_client
-        mock_openai_module.OpenAI = Mock()
-        mock_openai_module.AzureOpenAI = mock_azure_class
+        mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
         
-        with patch.dict('sys.modules', {'openai': mock_openai_module}):
+        with patch.dict('sys.modules', {'openai': mock_module}):
             summarizer = OpenAISummarizer(
                 api_key="test-azure-key",
                 model="gpt-4",
@@ -88,12 +70,9 @@ class TestAzureOpenAISummarizer:
             
             assert summarizer.deployment_name == "gpt-4"
     
-    def test_azure_openai_summarize(self):
+    def test_azure_openai_summarize(self, mock_openai_module):
         """Test Azure OpenAI summarize with real API call structure."""
-        # Mock the openai module
-        mock_openai_module = Mock()
-        mock_azure_class = Mock()
-        mock_client = Mock()
+        mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
         
         # Mock the API response
         mock_response = Mock()
@@ -101,11 +80,8 @@ class TestAzureOpenAISummarizer:
         mock_response.usage = Mock(prompt_tokens=100, completion_tokens=20)
         
         mock_client.chat.completions.create = Mock(return_value=mock_response)
-        mock_azure_class.return_value = mock_client
-        mock_openai_module.OpenAI = Mock()
-        mock_openai_module.AzureOpenAI = mock_azure_class
         
-        with patch.dict('sys.modules', {'openai': mock_openai_module}):
+        with patch.dict('sys.modules', {'openai': mock_module}):
             summarizer = OpenAISummarizer(
                 api_key="test-azure-key",
                 model="gpt-4",
@@ -138,20 +114,14 @@ class TestAzureOpenAISummarizer:
             assert summary.tokens_completion == 20
             assert summary.latency_ms >= 0
     
-    def test_azure_openai_summarize_error_handling(self):
+    def test_azure_openai_summarize_error_handling(self, mock_openai_module):
         """Test Azure OpenAI summarize error handling."""
-        # Mock the openai module
-        mock_openai_module = Mock()
-        mock_azure_class = Mock()
-        mock_client = Mock()
+        mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
         
         # Mock API error
         mock_client.chat.completions.create = Mock(side_effect=Exception("API Error"))
-        mock_azure_class.return_value = mock_client
-        mock_openai_module.OpenAI = Mock()
-        mock_openai_module.AzureOpenAI = mock_azure_class
         
-        with patch.dict('sys.modules', {'openai': mock_openai_module}):
+        with patch.dict('sys.modules', {'openai': mock_module}):
             summarizer = OpenAISummarizer(
                 api_key="test-azure-key",
                 model="gpt-4",

@@ -28,17 +28,11 @@ class TestSummarizerFactory:
         with pytest.raises(ValueError, match="provider parameter is required"):
             SummarizerFactory.create_summarizer()
     
-    def test_create_openai_summarizer(self):
+    def test_create_openai_summarizer(self, mock_openai_module):
         """Test creating an OpenAI summarizer."""
-        # Mock the openai module
-        mock_openai_module = Mock()
-        mock_openai_class = Mock()
-        mock_client = Mock()
-        mock_openai_class.return_value = mock_client
-        mock_openai_module.OpenAI = mock_openai_class
-        mock_openai_module.AzureOpenAI = Mock()
+        mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
         
-        with patch.dict('sys.modules', {'openai': mock_openai_module}):
+        with patch.dict('sys.modules', {'openai': mock_module}):
             summarizer = SummarizerFactory.create_summarizer(
                 provider="openai",
                 api_key="test-key",
@@ -58,17 +52,11 @@ class TestSummarizerFactory:
         with pytest.raises(ValueError, match="model parameter is required"):
             SummarizerFactory.create_summarizer(provider="openai", api_key="test-key")
     
-    def test_create_azure_summarizer(self):
+    def test_create_azure_summarizer(self, mock_openai_module):
         """Test creating an Azure OpenAI summarizer."""
-        # Mock the openai module
-        mock_openai_module = Mock()
-        mock_azure_class = Mock()
-        mock_client = Mock()
-        mock_azure_class.return_value = mock_client
-        mock_openai_module.OpenAI = Mock()
-        mock_openai_module.AzureOpenAI = mock_azure_class
+        mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
         
-        with patch.dict('sys.modules', {'openai': mock_openai_module}):
+        with patch.dict('sys.modules', {'openai': mock_module}):
             summarizer = SummarizerFactory.create_summarizer(
                 provider="azure",
                 api_key="azure-key",
@@ -81,17 +69,11 @@ class TestSummarizerFactory:
             assert summarizer.model == "gpt-4"
             assert summarizer.is_azure is True
     
-    def test_create_azure_summarizer_with_deployment_name(self):
+    def test_create_azure_summarizer_with_deployment_name(self, mock_openai_module):
         """Test creating an Azure OpenAI summarizer with deployment name."""
-        # Mock the openai module
-        mock_openai_module = Mock()
-        mock_azure_class = Mock()
-        mock_client = Mock()
-        mock_azure_class.return_value = mock_client
-        mock_openai_module.OpenAI = Mock()
-        mock_openai_module.AzureOpenAI = mock_azure_class
+        mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
         
-        with patch.dict('sys.modules', {'openai': mock_openai_module}):
+        with patch.dict('sys.modules', {'openai': mock_module}):
             summarizer = SummarizerFactory.create_summarizer(
                 provider="azure",
                 api_key="azure-key",

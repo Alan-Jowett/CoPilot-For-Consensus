@@ -21,6 +21,8 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Default API version for Azure OpenAI
+DEFAULT_AZURE_API_VERSION = "2023-12-01"
 
 class SummarizerFactory:
     """Factory for creating summarizer instances.
@@ -100,7 +102,7 @@ class SummarizerFactory:
                 )
             
             # Extract Azure-specific parameters
-            api_version = kwargs.get("api_version", "2023-12-01")
+            api_version = kwargs.get("api_version", DEFAULT_AZURE_API_VERSION)
             deployment_name = kwargs.get("deployment_name")
             
             return OpenAISummarizer(

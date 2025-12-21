@@ -13,34 +13,22 @@ from copilot_summarization.models import Thread
 class TestOpenAISummarizer:
     """Tests for OpenAISummarizer implementation."""
     
-    def test_openai_summarizer_creation(self):
+    def test_openai_summarizer_creation(self, mock_openai_module):
         """Test creating an OpenAI summarizer."""
-        # Mock the openai module
-        mock_openai_module = Mock()
-        mock_openai_class = Mock()
-        mock_client = Mock()
-        mock_openai_class.return_value = mock_client
-        mock_openai_module.OpenAI = mock_openai_class
-        mock_openai_module.AzureOpenAI = Mock()
+        mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
         
-        with patch.dict('sys.modules', {'openai': mock_openai_module}):
+        with patch.dict('sys.modules', {'openai': mock_module}):
             summarizer = OpenAISummarizer(api_key="test-key")
             assert summarizer.api_key == "test-key"
             assert summarizer.model == "gpt-3.5-turbo"
             assert summarizer.base_url is None
             assert summarizer.is_azure is False
     
-    def test_openai_summarizer_custom_model(self):
+    def test_openai_summarizer_custom_model(self, mock_openai_module):
         """Test creating an OpenAI summarizer with custom model."""
-        # Mock the openai module
-        mock_openai_module = Mock()
-        mock_openai_class = Mock()
-        mock_client = Mock()
-        mock_openai_class.return_value = mock_client
-        mock_openai_module.OpenAI = mock_openai_class
-        mock_openai_module.AzureOpenAI = Mock()
+        mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
         
-        with patch.dict('sys.modules', {'openai': mock_openai_module}):
+        with patch.dict('sys.modules', {'openai': mock_module}):
             summarizer = OpenAISummarizer(
                 api_key="test-key",
                 model="gpt-4"
@@ -48,12 +36,9 @@ class TestOpenAISummarizer:
             assert summarizer.model == "gpt-4"
             assert summarizer.is_azure is False
     
-    def test_openai_summarize(self):
+    def test_openai_summarize(self, mock_openai_module):
         """Test OpenAI summarize with real API call structure."""
-        # Mock the openai module
-        mock_openai_module = Mock()
-        mock_openai_class = Mock()
-        mock_client = Mock()
+        mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
         
         # Mock the API response
         mock_response = Mock()
@@ -61,11 +46,8 @@ class TestOpenAISummarizer:
         mock_response.usage = Mock(prompt_tokens=50, completion_tokens=15)
         
         mock_client.chat.completions.create = Mock(return_value=mock_response)
-        mock_openai_class.return_value = mock_client
-        mock_openai_module.OpenAI = mock_openai_class
-        mock_openai_module.AzureOpenAI = Mock()
         
-        with patch.dict('sys.modules', {'openai': mock_openai_module}):
+        with patch.dict('sys.modules', {'openai': mock_module}):
             summarizer = OpenAISummarizer(api_key="test-key", model="gpt-4")
             
             thread = Thread(
