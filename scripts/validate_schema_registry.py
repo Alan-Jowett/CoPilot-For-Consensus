@@ -81,6 +81,10 @@ def list_command(format: str = "table") -> int:
     
     else:  # table format
         # Calculate column widths
+        if not schemas:
+            print("No schemas found")
+            return 0
+        
         max_type_len = max(len(t) for t, _, _ in schemas)
         max_version_len = max(len(v) for t, v, _ in schemas)
         max_path_len = max(len(p) for _, _, p in schemas)
@@ -236,7 +240,7 @@ Examples:
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
     
     # Validate command
-    validate_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "validate",
         help="Validate that all registered schemas exist and are valid"
     )
@@ -254,7 +258,7 @@ Examples:
     )
     
     # Markdown command
-    markdown_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "markdown",
         help="Generate markdown documentation of schemas"
     )

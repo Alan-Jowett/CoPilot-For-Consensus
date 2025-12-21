@@ -108,7 +108,9 @@ def example_list_schemas():
     print("\nEvent Schemas:")
     for schema_type, version, path in events[:5]:  # Show first 5
         print(f"  - {schema_type:30} {version:5} {path}")
-    print(f"  ... and {len(events) - 5} more")
+    remaining_events = len(events) - 5
+    if remaining_events > 0:
+        print(f"  ... and {remaining_events} more")
     
     print("\nDocument Schemas:")
     for schema_type, version, path in documents:
@@ -131,7 +133,7 @@ def example_schema_paths():
     
     for schema_type, version in schemas_to_check:
         path = get_schema_path(schema_type, version)
-        print(f"\n{schema_type} (v{version}):")
+        print(f"\n{schema_type} ({version}):")
         print(f"  Path: {path}")
         print(f"  Exists: {Path(path).exists()}")
     
@@ -195,7 +197,7 @@ def example_error_handling():
     # Try to load a non-existent schema
     print("\nAttempting to load non-existent schema...")
     try:
-        schema = load_schema("NonExistentType", "v99")
+        load_schema("NonExistentType", "v99")
     except KeyError as e:
         print(f"✓ Expected error caught: {str(e)[:80]}...")
     
