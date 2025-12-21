@@ -22,13 +22,14 @@ import hashlib
 
 # Test if azure-storage-blob is available
 try:
-    from azure.storage.blob import BlobServiceClient
+    import importlib
+    importlib.import_module("azure.storage.blob")
     AZURE_AVAILABLE = True
 except ImportError:
     AZURE_AVAILABLE = False
 
 if AZURE_AVAILABLE:
-    from copilot_archive_store import AzureBlobArchiveStore, ArchiveStoreError
+    from copilot_archive_store import AzureBlobArchiveStore
 
 
 def has_azure_credentials() -> bool:
@@ -54,21 +55,40 @@ class TestAzureBlobArchiveStoreIntegration:
         # Use a test-specific prefix to isolate test data
         prefix = os.getenv("AZURE_STORAGE_PREFIX", "")
         test_prefix = f"{prefix}integration-tests/" if prefix else "integration-tests/"
-        
+
         store = AzureBlobArchiveStore(prefix=test_prefix)
         yield store
 
-        # Cleanup: Delete all test archives
-        # (Optional - comment out if you want to inspect test data)
+        # Cleanup: Delete all test blobs created under the test prefix
+        # This avoids relying on a hardcoded list of source names
         try:
-            # List all archives and delete them using public API
-            for source_name in ["integration-test-source", "lifecycle-test",
-                                "dedup-source-1", "dedup-source-2", "hash-test",
-                                "multi-archive-test", "large-test", "persistence-test",
-                                "special-chars-test"]:
-                archives = store.list_archives(source_name)
-                for archive in archives:
-                    store.delete_archive(archive["archive_id"])
+            from azure.storage.blob import BlobServiceClient
+
+            # Recreate connection to avoid using the store's potentially stale state
+            if os.getenv("AZURE_STORAGE_CONNECTION_STRING"):
+                service_client = BlobServiceClient.from_connection_string(
+                    os.environ["AZURE_STORAGE_CONNECTION_STRING"]
+                )
+            else:
+                account_name = os.environ["AZURE_STORAGE_ACCOUNT"]
+                if os.getenv("AZURE_STORAGE_KEY"):
+                    credential = os.environ["AZURE_STORAGE_KEY"]
+                else:
+                    credential = os.environ["AZURE_STORAGE_SAS_TOKEN"]
+                service_client = BlobServiceClient(
+                    account_url=f"https://{account_name}.blob.core.windows.net",
+                    credential=credential,
+                )
+
+            container_name = os.getenv("AZURE_STORAGE_CONTAINER", "archives")
+            container_client = service_client.get_container_client(container_name)
+
+            # Delete all blobs that start with the test prefix
+            blobs_to_delete = list(container_client.list_blobs(name_starts_with=test_prefix))
+            for blob in blobs_to_delete:
+                container_client.delete_blob(blob.name)
+            if blobs_to_delete:
+                print(f"Cleaned up {len(blobs_to_delete)} test blobs")
         except Exception as e:
             print(f"Cleanup warning: {e}")
 

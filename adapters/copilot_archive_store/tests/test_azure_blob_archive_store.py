@@ -4,20 +4,17 @@
 """Unit tests for AzureBlobArchiveStore with mocked Azure SDK."""
 
 import pytest
-import json
-from unittest.mock import Mock, MagicMock, patch, call
-from io import BytesIO
+from unittest.mock import MagicMock, patch
 
 # Test if azure-storage-blob is available
 try:
-    from azure.storage.blob import BlobServiceClient
     from azure.core.exceptions import ResourceNotFoundError
     AZURE_AVAILABLE = True
 except ImportError:
     AZURE_AVAILABLE = False
 
 if AZURE_AVAILABLE:
-    from copilot_archive_store import AzureBlobArchiveStore, ArchiveStoreError
+    from copilot_archive_store import AzureBlobArchiveStore
 
 
 @pytest.mark.skipif(not AZURE_AVAILABLE, reason="azure-storage-blob not installed")

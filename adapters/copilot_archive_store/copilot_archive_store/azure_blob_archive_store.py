@@ -133,8 +133,10 @@ class AzureBlobArchiveStore(ArchiveStore):
         # Metadata index blob name
         self.metadata_blob_name = f"{self.prefix}metadata/archives_index.json"
 
-        # Load metadata index
+        # Load metadata index and store ETag for concurrency control
         self._metadata: Dict[str, Dict[str, Any]] = {}
+        self._metadata_etag: Optional[str] = None
+        self._hash_index: Dict[str, str] = {}  # content_hash -> archive_id mapping
         self._load_metadata()
 
     def _load_metadata(self) -> None:
@@ -144,24 +146,59 @@ class AzureBlobArchiveStore(ArchiveStore):
             download_stream = blob_client.download_blob()
             metadata_json = download_stream.readall().decode("utf-8")
             self._metadata = json.loads(metadata_json)
+            # Store ETag for optimistic concurrency control
+            self._metadata_etag = download_stream.properties.etag
+            # Build hash index for O(1) lookups
+            self._hash_index = {
+                metadata["content_hash"]: archive_id
+                for archive_id, metadata in self._metadata.items()
+                if "content_hash" in metadata
+            }
             logger.debug("Loaded metadata index with %d entries", len(self._metadata))
         except ResourceNotFoundError:
             # Metadata blob doesn't exist yet (first run)
             self._metadata = {}
+            self._metadata_etag = None
+            self._hash_index = {}
             logger.info("No existing metadata index found, starting fresh")
         except Exception as e:
             # Start with empty metadata if load fails
             self._metadata = {}
+            self._metadata_etag = None
+            self._hash_index = {}
             logger.warning("Failed to load archive metadata: %s", e)
 
     def _save_metadata(self) -> None:
-        """Save metadata index to Azure Blob Storage."""
+        """Save metadata index to Azure Blob Storage with optimistic concurrency control.
+
+        Uses ETag-based optimistic concurrency to prevent lost updates when multiple
+        instances write simultaneously. If a conflict is detected, the operation fails
+        and the caller should reload metadata and retry.
+        """
+        from azure.core import MatchConditions
+
         try:
             metadata_json = json.dumps(self._metadata, indent=2)
             blob_client = self.container_client.get_blob_client(self.metadata_blob_name)
-            blob_client.upload_blob(
-                metadata_json.encode("utf-8"), overwrite=True
-            )
+
+            # Use ETag for optimistic concurrency control
+            if self._metadata_etag:
+                # If we have an ETag, only update if it matches (no one else updated)
+                result = blob_client.upload_blob(
+                    metadata_json.encode("utf-8"),
+                    overwrite=True,
+                    etag=self._metadata_etag,
+                    match_condition=MatchConditions.IfNotModified
+                )
+            else:
+                # First write, no ETag yet
+                result = blob_client.upload_blob(
+                    metadata_json.encode("utf-8"), overwrite=True
+                )
+
+            # Update ETag after successful write (if result is a dict)
+            if result and isinstance(result, dict):
+                self._metadata_etag = result.get('etag')
             logger.debug("Saved metadata index with %d entries", len(self._metadata))
         except Exception as e:
             raise ArchiveStoreError(f"Failed to save metadata: {e}") from e
@@ -215,7 +252,7 @@ class AzureBlobArchiveStore(ArchiveStore):
                 metadata=blob_metadata
             )
 
-            # Update metadata index
+            # Update metadata index and hash index
             self._metadata[archive_id] = {
                 "archive_id": archive_id,
                 "source_name": source_name,
@@ -223,8 +260,9 @@ class AzureBlobArchiveStore(ArchiveStore):
                 "original_path": file_path,
                 "content_hash": content_hash,
                 "size_bytes": len(content),
-                "stored_at": datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                "stored_at": datetime.now(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z"),
             }
+            self._hash_index[content_hash] = archive_id
             self._save_metadata()
 
             logger.info("Stored archive %s for %s", archive_id, source_name)
@@ -273,6 +311,8 @@ class AzureBlobArchiveStore(ArchiveStore):
     def get_archive_by_hash(self, content_hash: str) -> Optional[str]:
         """Retrieve archive ID by content hash for deduplication.
 
+        Uses an in-memory hash index for O(1) lookup performance.
+
         Args:
             content_hash: SHA256 hash of the archive content
 
@@ -282,10 +322,7 @@ class AzureBlobArchiveStore(ArchiveStore):
         Raises:
             ArchiveStoreError: If query operation fails
         """
-        for archive_id, metadata in self._metadata.items():
-            if metadata.get("content_hash") == content_hash:
-                return archive_id
-        return None
+        return self._hash_index.get(content_hash)
 
     def archive_exists(self, archive_id: str) -> bool:
         """Check if archive exists in Azure Blob Storage.
@@ -344,8 +381,11 @@ class AzureBlobArchiveStore(ArchiveStore):
             except ResourceNotFoundError:
                 logger.warning("Archive blob %s not found during deletion", archive_id)
 
-            # Remove from metadata
+            # Remove from metadata and hash index
+            content_hash = self._metadata[archive_id].get("content_hash")
             del self._metadata[archive_id]
+            if content_hash and content_hash in self._hash_index:
+                del self._hash_index[content_hash]
             self._save_metadata()
 
             return True
