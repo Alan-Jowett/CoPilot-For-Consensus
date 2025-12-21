@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/documents/archives.schema.json",
+  "version": "v1",
+  "title": "archives collection",
+  "type": "object",
+  "properties": {
+    "_id": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 16,
+      "pattern": "^[A-Fa-f0-9]{16}$",
+      "description": "Canonical primary key: deterministic SHA256 (first 16 chars) of mbox file contents"
+    },
+    "file_hash": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[A-Fa-f0-9]{64}$",
+      "description": "Full SHA256 hash of the mbox file for complete audit trail and integrity verification"
+    },
+    "file_size_bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Size of the original mbox file in bytes"
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_url": {
+      "type": "string",
+      "minLength": 1
+    },
+    "format": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ingestion_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "message_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "file_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "processing",
+        "processed",
+        "failed",
+        "failed_max_retries"
+      ]
+    },
+    "attemptCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of processing attempts for retry tracking"
+    },
+    "lastAttemptTime": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Timestamp of the last processing attempt"
+    }
+  },
+  "required": [
+    "_id",
+    "file_hash",
+    "file_size_bytes",
+    "source",
+    "ingestion_date",
+    "status"
+  ]
+}

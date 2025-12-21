@@ -34,7 +34,7 @@ pending → processed
 - **`processed`**: Successfully parsed (all messages extracted)
 - **`failed`**: Parsing failed after retries
 
-**Schema:** See [`documents/schemas/documents/archives.schema.json`](./schemas/documents/archives.schema.json)
+**Schema:** See [`documents/schemas/documents/v1/archives.schema.json`](./schemas/documents/v1/archives.schema.json)
 
 ```json
 {
@@ -73,7 +73,7 @@ The `chunks` collection uses `embedding_generated` to track embedding state:
 embedding_generated: false → true
 ```
 
-**Schema:** See [`documents/schemas/documents/chunks.schema.json`](./schemas/documents/chunks.schema.json)
+**Schema:** See [`documents/schemas/documents/v1/chunks.schema.json`](./schemas/documents/v1/chunks.schema.json)
 
 ```json
 {
@@ -905,8 +905,8 @@ class MyService:
 - [CONTRIBUTING.md](./CONTRIBUTING.md) - Contributor guidelines
 
 ### Schemas
-- [archives.schema.json](./schemas/documents/archives.schema.json) - Archive status field
-- [chunks.schema.json](./schemas/documents/chunks.schema.json) - Chunk embedding_generated field
+- [archives.schema.json](./schemas/documents/v1/archives.schema.json) - Archive status field
+- [chunks.schema.json](./schemas/documents/v1/chunks.schema.json) - Chunk embedding_generated field
 - [*Failed.schema.json](./schemas/events/) - Failed event schemas
 
 ### Code Examples
