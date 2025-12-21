@@ -8,19 +8,18 @@ import logging
 from typing import Optional
 try:
     from summarizer import Summarizer
-    from openai_summarizer import OpenAISummarizer
+    from openai_summarizer import OpenAISummarizer, DEFAULT_AZURE_API_VERSION
     from mock_summarizer import MockSummarizer
     from local_llm_summarizer import LocalLLMSummarizer
     from llamacpp_summarizer import LlamaCppSummarizer
 except ImportError:
     from .summarizer import Summarizer
-    from .openai_summarizer import OpenAISummarizer
+    from .openai_summarizer import OpenAISummarizer, DEFAULT_AZURE_API_VERSION
     from .mock_summarizer import MockSummarizer
     from .local_llm_summarizer import LocalLLMSummarizer
     from .llamacpp_summarizer import LlamaCppSummarizer
 
 logger = logging.getLogger(__name__)
-
 
 class SummarizerFactory:
     """Factory for creating summarizer instances.
@@ -99,10 +98,16 @@ class SummarizerFactory:
                     "Specify a model name (e.g., 'gpt-3.5-turbo', 'gpt-4')"
                 )
             
+            # Extract Azure-specific parameters
+            api_version = kwargs.get("api_version", DEFAULT_AZURE_API_VERSION)
+            deployment_name = kwargs.get("deployment_name")
+            
             return OpenAISummarizer(
                 api_key=api_key,
                 model=model,
-                base_url=base_url
+                base_url=base_url,
+                api_version=api_version,
+                deployment_name=deployment_name
             )
             
         elif provider == "local":

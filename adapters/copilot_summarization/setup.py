@@ -40,5 +40,8 @@ setup(
             "pylint>=3.0.0",
             "mypy>=1.0.0",
         ],
+        "openai": [
+            "openai>=1.0.0",
+        ],
     },
 )
