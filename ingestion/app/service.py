@@ -361,7 +361,8 @@ class IngestionService:
         hashes_to_delete = []
         for file_hash, metadata in self.checksums.items():
             file_path = metadata.get("file_path", "")
-            if not file_path:
+            # Skip empty or whitespace-only paths
+            if not file_path or not file_path.strip():
                 continue
             normalized_file_path = os.path.normpath(file_path)
             
