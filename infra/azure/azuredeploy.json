@@ -371,7 +371,7 @@
       "identity": {
         "type": "UserAssigned",
         "userAssignedIdentities": {
-          "[if(parameters('createNewIdentities'), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-{1}-identity', parameters('projectName'), variables('services')[copyIndex()].name)), if(contains(parameters('existingIdentityResourceIds'), variables('services')[copyIndex()].name), parameters('existingIdentityResourceIds')[variables('services')[copyIndex()].name], ''))]": {}
+          "[if(parameters('createNewIdentities'), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-{1}-identity', parameters('projectName'), variables('services')[copyIndex()].name)), parameters('existingIdentityResourceIds')[variables('services')[copyIndex()].name])]": {}
         }
       },
       "properties": {

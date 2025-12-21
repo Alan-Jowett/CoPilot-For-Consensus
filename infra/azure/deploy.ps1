@@ -187,6 +187,9 @@ function Start-Deployment {
             -location $Location `
             -Verbose
         
+        # NOTE: Parameters specified on the command line override those in the parameters file.
+        # This allows script arguments (projectName, environment, etc.) to take precedence.
+        
         Write-Info "Deployment completed successfully!"
         
         # Show deployment outputs

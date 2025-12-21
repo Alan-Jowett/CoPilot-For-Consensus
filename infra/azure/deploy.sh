@@ -183,6 +183,9 @@ main() {
     print_info "Starting deployment..."
     DEPLOYMENT_NAME="${PROJECT_NAME}-deployment-$(date +%Y%m%d-%H%M%S)"
     
+    # Deploy template
+    # NOTE: Parameters specified on the command line override those in the parameters file.
+    # This allows script arguments (projectName, environment, etc.) to take precedence.
     if az deployment group create \
         --name "$DEPLOYMENT_NAME" \
         --resource-group "$RESOURCE_GROUP" \
