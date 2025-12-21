@@ -186,19 +186,39 @@ class AzureAISearchVectorStore(VectorStore):
             ),
         ]
         
-        # Configure vector search
-        vector_search = self._VectorSearch(
-            algorithms=[
-                self._HnswAlgorithmConfiguration(
-                    name="hnsw-algorithm",
-                    parameters={
-                        "m": 4,
-                        "efConstruction": 400,
-                        "efSearch": 500,
-                        "metric": "cosine",
-                    }
+        # Configure vector search with HNSW algorithm
+        # Note: HnswAlgorithmConfiguration may have different constructor signatures
+        # depending on the azure-search-documents version. This uses a common pattern.
+        try:
+            hnsw_config = self._HnswAlgorithmConfiguration(
+                name="hnsw-algorithm",
+                parameters={
+                    "m": 4,
+                    "efConstruction": 400,
+                    "efSearch": 500,
+                    "metric": "cosine",
+                }
+            )
+        except TypeError:
+            # If parameters as dict doesn't work, try as kwargs
+            try:
+                from azure.search.documents.indexes.models import HnswParameters
+                hnsw_params = HnswParameters(
+                    m=4,
+                    ef_construction=400,
+                    ef_search=500,
+                    metric="cosine",
                 )
-            ],
+                hnsw_config = self._HnswAlgorithmConfiguration(
+                    name="hnsw-algorithm",
+                    parameters=hnsw_params
+                )
+            except (ImportError, TypeError):
+                # Fallback to basic configuration
+                hnsw_config = self._HnswAlgorithmConfiguration(name="hnsw-algorithm")
+        
+        vector_search = self._VectorSearch(
+            algorithms=[hnsw_config],
             profiles=[
                 self._VectorSearchProfile(
                     name="vector-profile",
