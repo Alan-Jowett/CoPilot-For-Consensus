@@ -158,16 +158,13 @@ Returns information about which OAuth providers (GitHub, Google, Microsoft) are 
 {
   "providers": {
     "github": {
-      "configured": true,
-      "available": true
+      "configured": true
     },
     "google": {
-      "configured": false,
-      "available": false
+      "configured": false
     },
     "microsoft": {
-      "configured": false,
-      "available": false
+      "configured": false
     }
   },
   "configured_count": 1,
@@ -177,6 +174,10 @@ Returns information about which OAuth providers (GitHub, Google, Microsoft) are 
 
 **Example:**
 ```bash
+# Via API Gateway (recommended for typical deployments)
+curl http://localhost:8080/auth/providers
+
+# Direct access (for development/debugging)
 curl http://localhost:8090/providers
 ```
 

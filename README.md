@@ -337,52 +337,39 @@ The system includes an authentication service that supports GitHub, Google, and 
    - Create an OAuth app at https://github.com/settings/developers
    - Set callback URL: `http://localhost:8080/ui/callback`
    - Store credentials:
-   
-     Linux/macOS:
-     ```bash
-     echo "your_github_client_id" > secrets/github_oauth_client_id
-     echo "your_github_client_secret" > secrets/github_oauth_client_secret
-     ```
-     
-     Windows PowerShell:
-     ```powershell
-     "your_github_client_id" | Out-File -FilePath secrets/github_oauth_client_id -NoNewline -Encoding utf8
-     "your_github_client_secret" | Out-File -FilePath secrets/github_oauth_client_secret -NoNewline -Encoding utf8
-     ```
+     1. Copy the example files:
+        ```bash
+        cp secrets/github_oauth_client_id.example secrets/github_oauth_client_id
+        cp secrets/github_oauth_client_secret.example secrets/github_oauth_client_secret
+        ```
+     2. Edit the copied files and replace the placeholder values with your actual GitHub OAuth credentials
+     3. Save the files
 
    **For Google:**
    - Create OAuth credentials at https://console.cloud.google.com/
    - Set authorized redirect URI: `http://localhost:8080/ui/callback`
    - Store credentials:
-   
-     Linux/macOS:
-     ```bash
-     echo "your_google_client_id" > secrets/google_oauth_client_id
-     echo "your_google_client_secret" > secrets/google_oauth_client_secret
-     ```
-     
-     Windows PowerShell:
-     ```powershell
-     "your_google_client_id" | Out-File -FilePath secrets/google_oauth_client_id -NoNewline -Encoding utf8
-     "your_google_client_secret" | Out-File -FilePath secrets/google_oauth_client_secret -NoNewline -Encoding utf8
-     ```
+     1. Copy the example files:
+        ```bash
+        cp secrets/google_oauth_client_id.example secrets/google_oauth_client_id
+        cp secrets/google_oauth_client_secret.example secrets/google_oauth_client_secret
+        ```
+     2. Edit the copied files and replace the placeholder values with your actual Google OAuth credentials
+     3. Save the files
 
    **For Microsoft:**
    - Create an app registration at https://entra.microsoft.com/
    - Set redirect URI: `http://localhost:8080/ui/callback`
    - Store credentials:
+     1. Copy the example files:
+        ```bash
+        cp secrets/microsoft_oauth_client_id.example secrets/microsoft_oauth_client_id
+        cp secrets/microsoft_oauth_client_secret.example secrets/microsoft_oauth_client_secret
+        ```
+     2. Edit the copied files and replace the placeholder values with your actual Microsoft OAuth credentials
+     3. Save the files
    
-     Linux/macOS:
-     ```bash
-     echo "your_microsoft_client_id" > secrets/microsoft_oauth_client_id
-     echo "your_microsoft_client_secret" > secrets/microsoft_oauth_client_secret
-     ```
-     
-     Windows PowerShell:
-     ```powershell
-     "your_microsoft_client_id" | Out-File -FilePath secrets/microsoft_oauth_client_id -NoNewline -Encoding utf8
-     "your_microsoft_client_secret" | Out-File -FilePath secrets/microsoft_oauth_client_secret -NoNewline -Encoding utf8
-     ```
+   **Note:** On Windows, use `Copy-Item` instead of `cp` in PowerShell.
 
 3. **Restart the auth service** to pick up the new credentials:
    ```bash

@@ -111,6 +111,17 @@ async def list_providers() -> dict[str, Any]:
     
     Returns:
         JSON with list of configured providers and their status
+    
+    Example Response:
+        {
+            "providers": {
+                "github": {"configured": true},
+                "google": {"configured": false},
+                "microsoft": {"configured": false}
+            },
+            "configured_count": 1,
+            "total_supported": 3
+        }
     """
     global auth_service
 
@@ -123,7 +134,6 @@ async def list_providers() -> dict[str, Any]:
     for provider in SUPPORTED_PROVIDERS:
         provider_status[provider] = {
             "configured": provider in configured_providers,
-            "available": provider in configured_providers,
         }
     
     return {

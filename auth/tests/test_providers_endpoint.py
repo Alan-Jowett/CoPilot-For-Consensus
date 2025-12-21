@@ -93,13 +93,10 @@ class TestProvidersEndpoint:
         
         # Check GitHub is configured, others are not
         assert data["providers"]["github"]["configured"] is True
-        assert data["providers"]["github"]["available"] is True
         
         assert data["providers"]["google"]["configured"] is False
-        assert data["providers"]["google"]["available"] is False
         
         assert data["providers"]["microsoft"]["configured"] is False
-        assert data["providers"]["microsoft"]["available"] is False
 
     def test_providers_endpoint_all_configured(self, mock_auth_service_all_providers):
         """Test /providers endpoint when all providers are configured."""
