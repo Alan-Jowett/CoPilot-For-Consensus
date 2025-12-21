@@ -31,12 +31,23 @@ class AzureBlobArchiveStore(ArchiveStore):
     Configuration is via environment variables:
     - AZURE_STORAGE_ACCOUNT: Storage account name
     - AZURE_STORAGE_KEY: Storage account key (primary or secondary)
-    - AZURE_STORAGE_SAS_TOKEN: SAS token (alternative to key)
+    - AZURE_STORAGE_SAS_TOKEN: SAS token (alternative to key, without leading '?')
     - AZURE_STORAGE_CONTAINER: Container name for archives
     - AZURE_STORAGE_PREFIX: Optional path prefix for organizing blobs
 
-    Metadata is stored as blob metadata and in a central JSON blob for
-    efficient listing operations.
+    Storage Strategy:
+    - Archives are stored as blobs organized by source_name/filename
+    - Content-addressable IDs enable deduplication at the metadata level
+    - Same content stored multiple times reuses the same archive_id but creates
+      separate blobs to maintain source/filename context
+    - A central JSON metadata blob provides efficient listing and querying
+
+    Performance Considerations:
+    - Metadata index is loaded into memory on initialization for fast access
+    - Hash index provides O(1) content hash lookups
+    - For very large deployments (millions of archives), consider using
+      Azure Table Storage or Cosmos DB for metadata indexing
+    - ETag-based optimistic concurrency prevents lost updates in multi-instance deployments
     """
 
     def __init__(
