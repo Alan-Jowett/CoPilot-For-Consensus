@@ -194,7 +194,7 @@ if __name__ == "__main__":
     
     # Example 5: All status values
     print("\n5. All DocumentStatus enum values:")
-    for status in DocumentStatus:
+    for status in list(DocumentStatus):
         print(f"   - {status.name:20s} = {status.value}")
     
     print("\n" + "=" * 60)
