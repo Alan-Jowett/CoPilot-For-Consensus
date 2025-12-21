@@ -355,14 +355,17 @@ class IngestionService:
         """
         # Find all checksums that have file paths belonging to this source
         # Files from a source are stored in: {storage_path}/{source_name}/*
+        # Normalize the base source path so comparisons work across platforms
+        source_root = os.path.normpath(os.path.join(self.config.storage_path, source_name))
         # Add trailing separator to ensure exact directory matching
-        source_path_prefix = os.path.join(self.config.storage_path, source_name) + os.sep
+        source_path_prefix = source_root + os.sep
         
         hashes_to_delete = []
         for file_hash, metadata in self.checksums.items():
             file_path = metadata.get("file_path", "")
-            # Check if this file belongs to the source
-            if file_path.startswith(source_path_prefix):
+            normalized_file_path = os.path.normpath(file_path)
+            # Check if this file belongs to the source (directory or exact root path)
+            if normalized_file_path == source_root or normalized_file_path.startswith(source_path_prefix):
                 hashes_to_delete.append(file_hash)
         
         # Delete the identified hashes
