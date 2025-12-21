@@ -44,7 +44,7 @@ setup(
             "motor>=3.3.0",     # Async MongoDB driver
         ],
         "azure": [
-            "azure-storage-blob>=12.19.0",  # Azure Blob Storage (future)
+            "azure-storage-blob>=12.19.0",  # Azure Blob Storage SDK
         ],
         "s3": [
             "boto3>=1.28.0",  # AWS S3 (future)

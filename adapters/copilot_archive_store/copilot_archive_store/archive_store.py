@@ -175,8 +175,8 @@ def create_archive_store(store_type: str = None, **kwargs) -> ArchiveStore:
         from .mongodb_archive_store import MongoDBArchiveStore
         return MongoDBArchiveStore(**kwargs)
     elif store_type == "azure_blob":
-        # Future implementation
-        raise NotImplementedError("Azure Blob Storage backend not yet implemented")
+        from .azure_blob_archive_store import AzureBlobArchiveStore
+        return AzureBlobArchiveStore(**kwargs)
     elif store_type == "s3":
         # Future implementation
         raise NotImplementedError("S3 backend not yet implemented")

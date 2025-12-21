@@ -12,8 +12,8 @@ The `copilot-archive-store` adapter provides an abstraction layer for storing an
 ### Supported Backends
 
 - **Local Volume** (Default): Filesystem-based storage for single-node deployments
+- **Azure Blob Storage**: Cloud storage for Azure deployments with scalability and high availability
 - **MongoDB GridFS** (Planned): Database-backed storage for multi-node clusters
-- **Azure Blob Storage** (Future): Cloud storage for Azure deployments
 - **AWS S3** (Future): Cloud storage for AWS deployments
 
 ## Installation
@@ -22,6 +22,12 @@ The `copilot-archive-store` adapter provides an abstraction layer for storing an
 
 ```bash
 pip install -e /app/adapters/copilot_archive_store
+```
+
+### With Azure Blob Storage Support
+
+```bash
+pip install -e "/app/adapters/copilot_archive_store[azure]"
 ```
 
 ### With MongoDB Support
@@ -61,6 +67,42 @@ content = store.get_archive(archive_id)
 
 # List archives for a source
 archives = store.list_archives("ietf-wg-example")
+```
+
+### Azure Blob Storage
+
+```python
+from copilot_archive_store import create_archive_store
+
+# Create Azure Blob Storage-backed store
+store = create_archive_store(
+    "azure_blob",
+    account_name="mystorageaccount",
+    account_key="base64encodedkey==",
+    container_name="archives",
+    prefix="my-deployment"  # optional
+)
+
+# Or use SAS token instead of account key
+store = create_archive_store(
+    "azure_blob",
+    account_name="mystorageaccount",
+    sas_token="?sv=2022-11-02&ss=b&srt=sco...",
+    container_name="archives"
+)
+
+# Or use connection string
+store = create_archive_store(
+    "azure_blob",
+    connection_string="DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;"
+)
+
+# Use the same API as local storage
+archive_id = store.store_archive(
+    source_name="ietf-wg-example",
+    file_path="archive.mbox",
+    content=archive_bytes
+)
 ```
 
 ### MongoDB GridFS Storage (Planned)
@@ -103,6 +145,18 @@ store = create_archive_store()
 |---------------------|---------|-------------|
 | `ARCHIVE_STORE_TYPE` | `local` | Storage backend type |
 | `ARCHIVE_STORE_PATH` | `/data/raw_archives` | Base directory for archives |
+
+### Azure Blob Storage Backend
+
+| Environment Variable | Default | Description |
+|---------------------|---------|-------------|
+| `ARCHIVE_STORE_TYPE` | - | Set to `azure_blob` |
+| `AZURE_STORAGE_ACCOUNT` | - | Azure storage account name (required) |
+| `AZURE_STORAGE_KEY` | - | Storage account access key (required if not using SAS token) |
+| `AZURE_STORAGE_SAS_TOKEN` | - | SAS token (alternative to account key) |
+| `AZURE_STORAGE_CONNECTION_STRING` | - | Full connection string (alternative to account/key) |
+| `AZURE_STORAGE_CONTAINER` | `archives` | Container name for archives |
+| `AZURE_STORAGE_PREFIX` | `` | Optional path prefix for organizing blobs |
 
 ### MongoDB Backend (Planned)
 
@@ -192,6 +246,86 @@ copilot_archive_store/
 3. Register in `create_archive_store()` factory
 4. Add dependencies to `setup.py` extras
 5. Write tests
+
+## Azure Blob Storage Backend
+
+### Features
+
+- **Cloud-native scalability**: Leverage Azure's globally distributed storage
+- **High availability**: Built-in redundancy and durability
+- **Content-addressable storage**: Automatic deduplication using SHA256 hashes
+- **Flexible authentication**: Support for account keys, SAS tokens, or connection strings
+- **Organized storage**: Optional prefix support for multi-tenant deployments
+- **Metadata indexing**: Efficient listing and lookup operations
+
+### Configuration Examples
+
+#### Using Environment Variables
+
+```bash
+export ARCHIVE_STORE_TYPE=azure_blob
+export AZURE_STORAGE_ACCOUNT=mystorageaccount
+export AZURE_STORAGE_KEY=base64encodedkey==
+export AZURE_STORAGE_CONTAINER=copilot-archives
+export AZURE_STORAGE_PREFIX=production/
+```
+
+```python
+from copilot_archive_store import create_archive_store
+
+# Auto-configure from environment
+store = create_archive_store()
+```
+
+#### Using SAS Token (Recommended for Limited Access)
+
+```python
+from copilot_archive_store import create_archive_store
+
+store = create_archive_store(
+    "azure_blob",
+    account_name="mystorageaccount",
+    sas_token="?sv=2022-11-02&ss=b&srt=sco&sp=rwdlac&se=2025-12-31T23:59:59Z&st=2024-01-01T00:00:00Z&spr=https&sig=...",
+    container_name="archives"
+)
+```
+
+#### Using Connection String
+
+```python
+store = create_archive_store(
+    "azure_blob",
+    connection_string="DefaultEndpointsProtocol=https;AccountName=mystorageaccount;AccountKey=key==;EndpointSuffix=core.windows.net"
+)
+```
+
+### Storage Organization
+
+Archives are stored with the following blob structure:
+
+```
+container-name/
+├── [prefix/]metadata/
+│   └── archives_index.json       # Metadata index for fast lookups
+└── [prefix/]source-name/
+    ├── archive1.mbox              # Actual archive files
+    └── archive2.mbox
+```
+
+### Best Practices
+
+1. **Use SAS tokens** for production deployments to limit access scope
+2. **Set a prefix** for multi-tenant or multi-environment deployments
+3. **Enable Azure Storage logging** for audit trails
+4. **Use lifecycle management** policies to archive or delete old blobs
+5. **Consider managed identities** for Azure-hosted deployments (future enhancement)
+
+### Future Enhancements
+
+- Managed identity support via `azure.identity`
+- Azure Storage lifecycle management integration
+- Blob versioning support
+- Azure Key Vault integration for credentials
 
 ## License
 

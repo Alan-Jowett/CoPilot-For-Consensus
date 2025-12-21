@@ -23,6 +23,13 @@ from .archive_store import (
 from .local_volume_archive_store import LocalVolumeArchiveStore
 from .accessor import ArchiveAccessor, create_archive_accessor
 
+# Optional imports - only available if dependencies are installed
+try:
+    from .azure_blob_archive_store import AzureBlobArchiveStore
+    _has_azure = True
+except ImportError:
+    _has_azure = False
+
 __all__ = [
     # Version
     "__version__",
@@ -39,3 +46,7 @@ __all__ = [
     "ArchiveStoreConnectionError",
     "ArchiveNotFoundError",
 ]
+
+# Add optional exports if dependencies are available
+if _has_azure:
+    __all__.append("AzureBlobArchiveStore")
