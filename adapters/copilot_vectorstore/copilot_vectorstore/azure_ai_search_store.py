@@ -3,12 +3,19 @@
 
 """Azure AI Search-based vector store implementation."""
 
+import json
 import logging
 from typing import List, Dict, Any, Optional
 
 from .interface import VectorStore, SearchResult
 
 logger = logging.getLogger(__name__)
+
+# HNSW algorithm configuration constants
+# These control the trade-off between search quality and performance
+HNSW_M = 4  # Number of bi-directional links per node (higher = better recall, more memory)
+HNSW_EF_CONSTRUCTION = 400  # Size of dynamic candidate list during construction (higher = better index quality, slower construction)
+HNSW_EF_SEARCH = 500  # Size of dynamic candidate list during search (higher = better recall, slower search)
 
 
 class AzureAISearchVectorStore(VectorStore):
@@ -193,9 +200,9 @@ class AzureAISearchVectorStore(VectorStore):
             hnsw_config = self._HnswAlgorithmConfiguration(
                 name="hnsw-algorithm",
                 parameters={
-                    "m": 4,
-                    "efConstruction": 400,
-                    "efSearch": 500,
+                    "m": HNSW_M,
+                    "efConstruction": HNSW_EF_CONSTRUCTION,
+                    "efSearch": HNSW_EF_SEARCH,
                     "metric": "cosine",
                 }
             )
@@ -204,9 +211,9 @@ class AzureAISearchVectorStore(VectorStore):
             try:
                 from azure.search.documents.indexes.models import HnswParameters
                 hnsw_params = HnswParameters(
-                    m=4,
-                    ef_construction=400,
-                    ef_search=500,
+                    m=HNSW_M,
+                    ef_construction=HNSW_EF_CONSTRUCTION,
+                    ef_search=HNSW_EF_SEARCH,
                     metric="cosine",
                 )
                 hnsw_config = self._HnswAlgorithmConfiguration(
@@ -256,8 +263,6 @@ class AzureAISearchVectorStore(VectorStore):
                 f"expected dimension ({self._vector_size})"
             )
         
-        import json
-        
         # Prepare document for indexing
         document = {
             "id": id,
@@ -299,8 +304,6 @@ class AzureAISearchVectorStore(VectorStore):
         if len(set(ids)) != len(ids):
             raise ValueError("Duplicate IDs found in the batch")
         
-        import json
-        
         # Prepare documents for batch indexing
         documents = [
             {
@@ -335,7 +338,6 @@ class AzureAISearchVectorStore(VectorStore):
             )
         
         from azure.search.documents.models import VectorizedQuery
-        import json
         
         # Create vector query
         vector_query = VectorizedQuery(
@@ -421,7 +423,11 @@ class AzureAISearchVectorStore(VectorStore):
             include_total_count=True,
             top=0,  # Don't return actual documents, just count
         )
-        return results.get_count() or 0
+        count = results.get_count()
+        if count is None:
+            logger.warning("Azure AI Search returned None for count, returning 0. This may indicate an indexing issue.")
+            return 0
+        return count
     
     def get(self, id: str) -> SearchResult:
         """Retrieve a specific embedding by ID.
@@ -441,8 +447,6 @@ class AzureAISearchVectorStore(VectorStore):
             if "not found" in str(e).lower():
                 raise KeyError(f"ID '{id}' not found in vector store") from e
             raise
-        
-        import json
         
         # Parse metadata
         metadata = {}
