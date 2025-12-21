@@ -85,8 +85,8 @@ def _get_schema_base_dir() -> Path:
         current = parent
     
     error_msg = (
-        f"Schema directory not found. Tried: "
-        f"{[str(base / 'documents' / 'schemas') for base in candidate_bases]}"
+        f"Schema directory not found. Searched up from {Path(__file__).resolve().parent} "
+        f"but could not find documents/schemas directory."
     )
     logger.error(error_msg)
     raise FileNotFoundError(error_msg)
