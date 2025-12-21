@@ -45,15 +45,23 @@ def create_publisher(
     port: int = 5672,
     username: str = "guest",
     password: str = "guest",
+    **kwargs
 ) -> EventPublisher:
     """Factory function to create an event publisher.
     
     Args:
-        message_bus_type: Type of message bus ("rabbitmq" or "noop")
-        host: Message bus host
-        port: Message bus port
-        username: Message bus username
-        password: Message bus password
+        message_bus_type: Type of message bus ("rabbitmq", "azureservicebus", or "noop")
+        host: Message bus host (for RabbitMQ)
+        port: Message bus port (for RabbitMQ)
+        username: Message bus username (for RabbitMQ)
+        password: Message bus password (for RabbitMQ)
+        **kwargs: Additional publisher-specific arguments
+            For Azure Service Bus:
+                - connection_string: Azure Service Bus connection string
+                - fully_qualified_namespace: Namespace hostname (for managed identity)
+                - queue_name: Default queue name
+                - topic_name: Default topic name
+                - use_managed_identity: Use Azure managed identity (default: False)
         
     Returns:
         EventPublisher instance
@@ -69,6 +77,9 @@ def create_publisher(
             username=username,
             password=password,
         )
+    elif message_bus_type == "azureservicebus":
+        from .azureservicebuspublisher import AzureServiceBusPublisher
+        return AzureServiceBusPublisher(**kwargs)
     elif message_bus_type == "noop":
         from .noop_publisher import NoopPublisher
         return NoopPublisher()
