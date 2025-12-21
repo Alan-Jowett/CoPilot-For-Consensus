@@ -103,6 +103,37 @@ async def readyz() -> dict[str, str]:
     return {"status": "ready"}
 
 
+@app.get("/providers")
+async def list_providers() -> dict[str, Any]:
+    """List available authentication providers.
+    
+    Returns information about which providers are configured and ready to use.
+    
+    Returns:
+        JSON with list of configured providers and their status
+    """
+    global auth_service
+
+    if not auth_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+
+    configured_providers = list(auth_service.providers.keys())
+    all_providers = ["github", "google", "microsoft"]
+    
+    provider_status = {}
+    for provider in all_providers:
+        provider_status[provider] = {
+            "configured": provider in configured_providers,
+            "available": provider in configured_providers,
+        }
+    
+    return {
+        "providers": provider_status,
+        "configured_count": len(configured_providers),
+        "total_supported": len(all_providers),
+    }
+
+
 @app.get("/login")
 async def login(
     provider: str = Query(..., description="OIDC provider (github, google, microsoft)"),
