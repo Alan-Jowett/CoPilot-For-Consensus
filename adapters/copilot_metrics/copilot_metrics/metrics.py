@@ -79,7 +79,7 @@ def create_metrics_collector(
     """Factory function to create a metrics collector based on backend type.
     
     Args:
-        backend: Type of metrics backend ("prometheus", "noop", or None to auto-detect from env)
+        backend: Type of metrics backend ("prometheus", "azure_monitor", "noop", or None to auto-detect from env)
         **kwargs: Additional backend-specific arguments
         
     Returns:
@@ -99,6 +99,9 @@ def create_metrics_collector(
     elif backend in ("prometheus_pushgateway", "pushgateway"):
         from .pushgateway_metrics import PrometheusPushGatewayMetricsCollector
         return PrometheusPushGatewayMetricsCollector(**kwargs)
+    elif backend in ("azure_monitor", "azuremonitor"):
+        from .azure_monitor_metrics import AzureMonitorMetricsCollector
+        return AzureMonitorMetricsCollector(**kwargs)
     elif backend == "noop":
         from .noop_metrics import NoOpMetricsCollector
         return NoOpMetricsCollector(**kwargs)

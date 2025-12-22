@@ -15,6 +15,23 @@ from copilot_metrics import (
 )
 
 
+@pytest.fixture
+def mock_azure_exporter(monkeypatch):
+    """Fixture to mock Azure Monitor exporter for tests."""
+    # Only mock if Azure packages are available
+    try:
+        import azure.monitor.opentelemetry.exporter as am_exporter
+        
+        class MockExporter:
+            def __init__(self, connection_string):
+                self.connection_string = connection_string
+        
+        monkeypatch.setattr(am_exporter, "AzureMonitorMetricExporter", MockExporter)
+        return MockExporter
+    except ImportError:
+        return None
+
+
 class TestMetricsFactory:
     """Tests for create_metrics_collector factory function."""
 
@@ -362,3 +379,208 @@ class TestMetricsIntegration:
         
         # Verify latest value
         assert collector.get_gauge_value("active_threads") == 7.0
+
+
+class TestAzureMonitorMetricsCollector:
+    """Tests for AzureMonitorMetricsCollector."""
+
+    @pytest.mark.skipif(
+        sys.modules.get('azure.monitor.opentelemetry.exporter') is not None
+        and sys.modules.get('opentelemetry') is not None,
+        reason="Azure Monitor packages are installed; test requires them to be missing"
+    )
+    def test_requires_azure_monitor_packages(self):
+        """Test that AzureMonitorMetricsCollector raises ImportError when packages are missing.
+
+        This test only runs in environments where Azure Monitor packages are NOT installed.
+        """
+        from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
+
+        with pytest.raises(ImportError, match="Azure Monitor OpenTelemetry packages are required"):
+            AzureMonitorMetricsCollector(connection_string="InstrumentationKey=test-key")
+
+    @pytest.mark.skipif(
+        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
+        or sys.modules.get('opentelemetry') is None,
+        reason="Azure Monitor packages not installed"
+    )
+    def test_initialization_requires_connection_string(self):
+        """Test that initialization fails without connection string."""
+        from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
+        
+        with pytest.raises(ValueError, match="Azure Monitor connection string is required"):
+            AzureMonitorMetricsCollector()
+
+    @pytest.mark.skipif(
+        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
+        or sys.modules.get('opentelemetry') is None,
+        reason="Azure Monitor packages not installed"
+    )
+    def test_initialization_with_connection_string(self, mock_azure_exporter):
+        """Test successful initialization with connection string."""
+        from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
+        
+        collector = AzureMonitorMetricsCollector(
+            connection_string="InstrumentationKey=test-key",
+            namespace="test"
+        )
+        
+        assert collector.connection_string == "InstrumentationKey=test-key"
+        assert collector.namespace == "test"
+
+    @pytest.mark.skipif(
+        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
+        or sys.modules.get('opentelemetry') is None,
+        reason="Azure Monitor packages not installed"
+    )
+    def test_initialization_from_env_connection_string(self, mock_azure_exporter, monkeypatch):
+        """Test initialization from AZURE_MONITOR_CONNECTION_STRING environment variable."""
+        from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
+        
+        monkeypatch.setenv("AZURE_MONITOR_CONNECTION_STRING", "InstrumentationKey=env-key")
+        
+        collector = AzureMonitorMetricsCollector()
+        
+        assert collector.connection_string == "InstrumentationKey=env-key"
+
+    @pytest.mark.skipif(
+        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
+        or sys.modules.get('opentelemetry') is None,
+        reason="Azure Monitor packages not installed"
+    )
+    def test_initialization_from_instrumentation_key(self, mock_azure_exporter, monkeypatch):
+        """Test initialization from AZURE_MONITOR_INSTRUMENTATION_KEY (legacy)."""
+        from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
+        
+        monkeypatch.setenv("AZURE_MONITOR_INSTRUMENTATION_KEY", "legacy-key")
+        monkeypatch.delenv("AZURE_MONITOR_CONNECTION_STRING", raising=False)
+        
+        collector = AzureMonitorMetricsCollector()
+        
+        assert collector.connection_string == "InstrumentationKey=legacy-key"
+
+    @pytest.mark.skipif(
+        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
+        or sys.modules.get('opentelemetry') is None,
+        reason="Azure Monitor packages not installed"
+    )
+    def test_increment_counter_with_azure_monitor(self, mock_azure_exporter):
+        """Test incrementing counter with Azure Monitor backend."""
+        from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
+        
+        collector = AzureMonitorMetricsCollector(
+            connection_string="InstrumentationKey=test-key",
+            namespace="test"
+        )
+        
+        # These should not raise exceptions
+        collector.increment("requests_total", value=1.0)
+        collector.increment("requests_total", value=2.0, tags={"method": "GET"})
+        
+        # Verify metrics are tracked
+        assert "requests_total" in collector._counters
+
+    @pytest.mark.skipif(
+        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
+        or sys.modules.get('opentelemetry') is None,
+        reason="Azure Monitor packages not installed"
+    )
+    def test_observe_histogram_with_azure_monitor(self, mock_azure_exporter):
+        """Test observing histogram with Azure Monitor backend."""
+        from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
+        
+        collector = AzureMonitorMetricsCollector(
+            connection_string="InstrumentationKey=test-key",
+            namespace="test"
+        )
+        
+        collector.observe("request_duration", 0.1)
+        collector.observe("request_duration", 0.2, tags={"endpoint": "/api"})
+        
+        # Verify metrics are tracked
+        assert "request_duration" in collector._histograms
+
+    @pytest.mark.skipif(
+        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
+        or sys.modules.get('opentelemetry') is None,
+        reason="Azure Monitor packages not installed"
+    )
+    def test_set_gauge_with_azure_monitor(self, mock_azure_exporter):
+        """Test setting gauge with Azure Monitor backend."""
+        from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
+        
+        collector = AzureMonitorMetricsCollector(
+            connection_string="InstrumentationKey=test-key",
+            namespace="test"
+        )
+        
+        collector.gauge("queue_depth", 10.0)
+        collector.gauge("queue_depth", 15.0)
+        
+        # Verify gauge is tracked
+        assert "queue_depth" in collector._gauges
+        assert "test.queue_depth" in collector._gauge_values
+        assert collector._gauge_values["test.queue_depth"] == 15.0
+
+    @pytest.mark.skipif(
+        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
+        or sys.modules.get('opentelemetry') is None,
+        reason="Azure Monitor packages not installed"
+    )
+    def test_graceful_handling_with_none_meter(self, mock_azure_exporter):
+        """Test graceful handling when meter is None (no raise_on_error)."""
+        from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
+        
+        collector = AzureMonitorMetricsCollector(
+            connection_string="InstrumentationKey=test-key",
+            namespace="test",
+            raise_on_error=False
+        )
+        
+        # Force an error by making _meter None
+        collector._meter = None
+        
+        # When meter is None, metric operations are silently bypassed without recording errors
+        collector.increment("test_counter", 1.0)
+        assert collector.get_errors_count() == 0  # No error recorded for None meter
+
+    @pytest.mark.skipif(
+        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
+        or sys.modules.get('opentelemetry') is None,
+        reason="Azure Monitor packages not installed"
+    )
+    def test_shutdown(self, mock_azure_exporter):
+        """Test collector shutdown."""
+        from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
+        
+        collector = AzureMonitorMetricsCollector(
+            connection_string="InstrumentationKey=test-key",
+            namespace="test"
+        )
+        
+        # Should not raise
+        collector.shutdown()
+
+    def test_factory_creates_azure_monitor_collector(self, mock_azure_exporter, monkeypatch):
+        """Test that factory can create Azure Monitor collector."""
+        monkeypatch.setenv("AZURE_MONITOR_CONNECTION_STRING", "InstrumentationKey=test-key")
+        
+        # Test with backend parameter
+        try:
+            collector = create_metrics_collector(backend="azure_monitor")
+            # If Azure packages are installed, verify it's the right type
+            from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
+            assert isinstance(collector, AzureMonitorMetricsCollector)
+            assert collector.connection_string == "InstrumentationKey=test-key"
+        except ImportError:
+            # Expected if Azure packages not installed - test passes
+            pass
+        
+        # Test with alternative backend name
+        try:
+            collector = create_metrics_collector(backend="azuremonitor")
+            from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
+            assert isinstance(collector, AzureMonitorMetricsCollector)
+        except ImportError:
+            # Expected if Azure packages not installed - test passes
+            pass
