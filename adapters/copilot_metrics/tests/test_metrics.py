@@ -15,6 +15,23 @@ from copilot_metrics import (
 )
 
 
+@pytest.fixture
+def mock_azure_exporter(monkeypatch):
+    """Fixture to mock Azure Monitor exporter for tests."""
+    # Only mock if Azure packages are available
+    try:
+        import azure.monitor.opentelemetry.exporter as am_exporter
+        
+        class MockExporter:
+            def __init__(self, connection_string):
+                self.connection_string = connection_string
+        
+        monkeypatch.setattr(am_exporter, "AzureMonitorMetricExporter", MockExporter)
+        return MockExporter
+    except ImportError:
+        return None
+
+
 class TestMetricsFactory:
     """Tests for create_metrics_collector factory function."""
 
@@ -399,18 +416,9 @@ class TestAzureMonitorMetricsCollector:
         or sys.modules.get('opentelemetry') is None,
         reason="Azure Monitor packages not installed"
     )
-    def test_initialization_with_connection_string(self, monkeypatch):
+    def test_initialization_with_connection_string(self, mock_azure_exporter):
         """Test successful initialization with connection string."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
-        
-        # Mock the Azure Monitor exporter to avoid actual connection
-        import azure.monitor.opentelemetry.exporter as am_exporter
-        
-        class MockExporter:
-            def __init__(self, connection_string):
-                self.connection_string = connection_string
-        
-        monkeypatch.setattr(am_exporter, "AzureMonitorMetricExporter", MockExporter)
         
         collector = AzureMonitorMetricsCollector(
             connection_string="InstrumentationKey=test-key",
@@ -564,8 +572,8 @@ class TestAzureMonitorMetricsCollector:
         or sys.modules.get('opentelemetry') is None,
         reason="Azure Monitor packages not installed"
     )
-    def test_error_handling_with_raise_on_error(self, monkeypatch):
-        """Test error handling when raise_on_error is True."""
+    def test_graceful_handling_with_none_meter(self, mock_azure_exporter):
+        """Test graceful handling when meter is None (no raise_on_error)."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
         
         # Mock the exporter
@@ -618,21 +626,24 @@ class TestAzureMonitorMetricsCollector:
 
     def test_factory_creates_azure_monitor_collector(self, monkeypatch):
         """Test that factory can create Azure Monitor collector."""
-        # Mock Azure Monitor availability
         monkeypatch.setenv("AZURE_MONITOR_CONNECTION_STRING", "InstrumentationKey=test-key")
         
         # Test with backend parameter
         try:
             collector = create_metrics_collector(backend="azure_monitor")
-            # If Azure packages are installed, should get AzureMonitorMetricsCollector
-            # If not, should raise ImportError
+            # If Azure packages are installed, verify it's the right type
+            from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
+            assert isinstance(collector, AzureMonitorMetricsCollector)
+            assert collector.connection_string == "InstrumentationKey=test-key"
         except ImportError:
-            # Expected if Azure packages not installed
+            # Expected if Azure packages not installed - test passes
             pass
         
         # Test with alternative backend name
         try:
             collector = create_metrics_collector(backend="azuremonitor")
+            from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
+            assert isinstance(collector, AzureMonitorMetricsCollector)
         except ImportError:
-            # Expected if Azure packages not installed
+            # Expected if Azure packages not installed - test passes
             pass
