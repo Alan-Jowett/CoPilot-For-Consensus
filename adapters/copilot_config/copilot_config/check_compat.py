@@ -6,7 +6,7 @@
 import argparse
 import json
 import sys
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional
 
 from .schema_loader import _parse_semver
 

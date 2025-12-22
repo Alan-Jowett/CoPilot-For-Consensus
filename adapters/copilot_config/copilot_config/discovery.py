@@ -7,7 +7,7 @@ import json
 import os
 from typing import Any, Dict, Optional
 
-from .schema_loader import ConfigSchema
+from .schema_loader import ConfigSchema, _resolve_schema_directory
 
 
 def get_configuration_schema_response(
@@ -41,25 +41,7 @@ def get_configuration_schema_response(
         }
     """
     # Determine schema directory
-    if schema_dir is None:
-        # First check environment variable
-        schema_dir = os.environ.get("SCHEMA_DIR")
-        
-        if schema_dir is None:
-            # Try common locations relative to current working directory
-            possible_dirs = [
-                os.path.join(os.getcwd(), "documents", "schemas", "configs"),
-                os.path.join(os.getcwd(), "..", "documents", "schemas", "configs"),
-            ]
-            
-            for d in possible_dirs:
-                if os.path.exists(d):
-                    schema_dir = d
-                    break
-            
-            # Default to documents/schemas/configs if nothing found
-            if schema_dir is None:
-                schema_dir = os.path.join(os.getcwd(), "documents", "schemas", "configs")
+    schema_dir = _resolve_schema_directory(schema_dir)
     
     # Load schema file
     schema_path = os.path.join(schema_dir, f"{service_name}.json")

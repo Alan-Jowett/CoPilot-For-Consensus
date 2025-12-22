@@ -11,6 +11,37 @@ from typing import Any, Dict, Optional, Tuple
 from .config import ConfigProvider, EnvConfigProvider, StaticConfigProvider
 
 
+def _resolve_schema_directory(schema_dir: Optional[str] = None) -> str:
+    """Resolve schema directory path.
+    
+    Args:
+        schema_dir: Optional explicit schema directory path
+        
+    Returns:
+        Resolved schema directory path
+    """
+    if schema_dir is not None:
+        return schema_dir
+    
+    # First check environment variable
+    schema_dir_env = os.environ.get("SCHEMA_DIR")
+    if schema_dir_env is not None:
+        return schema_dir_env
+    
+    # Try common locations relative to current working directory
+    possible_dirs = [
+        os.path.join(os.getcwd(), "documents", "schemas", "configs"),
+        os.path.join(os.getcwd(), "..", "documents", "schemas", "configs"),
+    ]
+    
+    for d in possible_dirs:
+        if os.path.exists(d):
+            return d
+    
+    # Default to documents/schemas/configs if nothing found
+    return os.path.join(os.getcwd(), "documents", "schemas", "configs")
+
+
 def _parse_semver(version: str) -> Tuple[int, int, int]:
     """Parse semver string into tuple of ints.
     

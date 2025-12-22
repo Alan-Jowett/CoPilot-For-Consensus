@@ -144,10 +144,14 @@ def configuration_schema():
             service_version=__version__,
         )
         return response
-    except FileNotFoundError as e:
-        return {"error": "Schema not found", "message": str(e)}
+    except FileNotFoundError:
+        # Log the full error server-side
+        logger.error("Schema file not found for service")
+        raise HTTPException(status_code=404, detail="Schema not found")
     except Exception as e:
-        return {"error": "Failed to load schema", "message": str(e)}
+        # Log the full error and stack trace server-side
+        logger.error(f"Failed to load configuration schema: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to load schema")
 ```
 
 ### Use Cases

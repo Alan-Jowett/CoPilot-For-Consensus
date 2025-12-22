@@ -92,12 +92,13 @@ jobs:
                       schema = json.load(f)
                   if 'schema_version' not in schema:
                       errors.append(f'ERROR: Missing schema_version in {schema_file}')
-                  if 'min_service_version' not in schema:
+                   if 'min_service_version' not in schema:
                       errors.append(f'ERROR: Missing min_service_version in {schema_file}')
                   if 'schema_version' in schema and 'min_service_version' in schema:
                       print(f'✓ {schema_file} has version fields')
               except Exception as e:
-                  errors.append(f'ERROR: Failed to check {schema_file}: {e}')
+                  print(f'ERROR: Failed to check {schema_file}: {e}')
+                  sys.exit(1)
           
           if errors:
               for error in errors:

@@ -3,9 +3,6 @@
 
 """Tests for schema compatibility checker."""
 
-import json
-import pytest
-
 from copilot_config.check_compat import (
     CompatibilityIssue,
     check_schema_compatibility,

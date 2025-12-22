@@ -154,7 +154,7 @@ def load_typed_config(
         >>> print(config.message_bus_host)
         'messagebus'
     """
-    from .schema_loader import _load_config, ConfigSchema
+    from .schema_loader import _load_config, ConfigSchema, _resolve_schema_directory
     import os
     
     # Try to import secrets support (optional)
@@ -166,27 +166,7 @@ def load_typed_config(
         secrets_available = False
     
     # Load the schema to get version information
-    schema_dir_path = schema_dir
-    if schema_dir_path is None:
-        # First check environment variable
-        schema_dir_path = os.environ.get("SCHEMA_DIR")
-        
-        if schema_dir_path is None:
-            # Try common locations relative to current working directory
-            possible_dirs = [
-                os.path.join(os.getcwd(), "documents", "schemas", "configs"),
-                os.path.join(os.getcwd(), "..", "documents", "schemas", "configs"),
-            ]
-            
-            for d in possible_dirs:
-                if os.path.exists(d):
-                    schema_dir_path = d
-                    break
-            
-            # Default to documents/schemas/configs if nothing found
-            if schema_dir_path is None:
-                schema_dir_path = os.path.join(os.getcwd(), "documents", "schemas", "configs")
-    
+    schema_dir_path = _resolve_schema_directory(schema_dir)
     schema_path = os.path.join(schema_dir_path, f"{service_name}.json")
     schema = ConfigSchema.from_json_file(schema_path)
     
