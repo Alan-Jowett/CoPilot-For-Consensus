@@ -61,4 +61,4 @@ class TestFactory:
         vault_name = "test-vault"
         provider = create_secret_provider("azure", vault_name=vault_name)
         assert isinstance(provider, AzureKeyVaultProvider)
-        assert "test-vault.vault.azure.net" in provider.vault_url
+        assert provider.vault_url == f"https://{vault_name}.vault.azure.net/"
