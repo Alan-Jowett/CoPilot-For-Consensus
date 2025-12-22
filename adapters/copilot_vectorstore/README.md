@@ -274,8 +274,6 @@ The Azure AI Search adapter automatically creates an index with the following co
 
 The index is created automatically on first use if it doesn't exist. If the index exists, the adapter validates that the vector dimensions match.
 
-```
-
 ## Architecture
 
 ### VectorStore Interface

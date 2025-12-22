@@ -3,20 +3,17 @@
 
 """Integration tests for Azure AI Search vector store against a real Azure AI Search instance."""
 
+import importlib.util
 import os
 import pytest
 import time
 
 from copilot_vectorstore import create_vector_store
 
-# Check if azure-search-documents is available
-AZURE_AVAILABLE = False
+# Check if azure-search-documents is available without importing it
 try:
-    import azure.search.documents
-    import azure.search.documents.indexes
-    AZURE_AVAILABLE = True
-except ImportError:
-    # azure-search-documents is optional; when missing, keep AZURE_AVAILABLE False
+    AZURE_AVAILABLE = importlib.util.find_spec("azure.search.documents") is not None
+except (ImportError, ModuleNotFoundError):
     AZURE_AVAILABLE = False
 
 
