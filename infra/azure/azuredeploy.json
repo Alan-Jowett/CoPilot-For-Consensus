@@ -275,7 +275,7 @@
     "roleDefinitions": {
       "KeyVaultSecretsUser": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]",
       "StorageBlobDataContributor": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
-      "CosmosDbDataContributor": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '00000000-0000-0000-0000-000000000002')]"
+      "CosmosDbDataContributor": "00000000-0000-0000-0000-000000000002"
     }
   },
   "resources": [
@@ -654,7 +654,7 @@
       "apiVersion": "2023-04-15",
       "name": "[format('{0}/{1}', parameters('cosmosDbAccountName'), guid(resourceGroup().id, variables('services')[copyIndex()].name, 'CosmosDbDataContributor'))]",
       "properties": {
-        "roleDefinitionId": "[format('/subscriptions/{0}/resourceGroups/{1}/providers/Microsoft.DocumentDB/databaseAccounts/{2}/sqlRoleDefinitions/{3}', subscription().subscriptionId, resourceGroup().name, parameters('cosmosDbAccountName'), variables('roleDefinitions').CosmosDbDataContributor)]",
+        "roleDefinitionId": "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlRoleDefinitions', parameters('cosmosDbAccountName'), variables('roleDefinitions').CosmosDbDataContributor)]",
         "principalId": "[if(parameters('createNewIdentities'), reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-{1}-identity', parameters('projectName'), variables('services')[copyIndex()].name))).principalId, reference(parameters('existingIdentityResourceIds')[variables('services')[copyIndex()].name], '2023-01-31').principalId)]",
         "scope": "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))]"
       },
