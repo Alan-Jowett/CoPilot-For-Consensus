@@ -3,18 +3,17 @@
 
 """Unit tests for AzureAISearchVectorStore implementation."""
 
-import importlib.util
 import pytest
 from unittest.mock import Mock, patch
 
-# Check if azure-search-documents is available
+# Check if azure-search-documents SDK is available
 try:
-    AZURE_AVAILABLE = importlib.util.find_spec("azure.search.documents") is not None
-except (ImportError, ModuleNotFoundError):
-    AZURE_AVAILABLE = False
-
-if AZURE_AVAILABLE:
+    import azure.search.documents
+    import azure.search.documents.indexes
     from copilot_vectorstore import AzureAISearchVectorStore
+    AZURE_AVAILABLE = True
+except ImportError:
+    AZURE_AVAILABLE = False
 
 
 @pytest.mark.skipif(not AZURE_AVAILABLE, reason="Azure Search Documents not installed")
