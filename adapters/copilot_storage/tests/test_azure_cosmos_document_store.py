@@ -4,7 +4,7 @@
 """Tests for Azure Cosmos DB document store."""
 
 import pytest
-from unittest.mock import MagicMock, patch, Mock
+from unittest.mock import MagicMock, patch
 
 from copilot_storage import (
     create_document_store,

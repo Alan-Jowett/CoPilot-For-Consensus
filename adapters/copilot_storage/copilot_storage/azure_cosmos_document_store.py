@@ -4,6 +4,7 @@
 """Azure Cosmos DB document store implementation."""
 
 import logging
+import uuid
 from typing import Dict, Any, List, Optional
 
 from .document_store import (
@@ -55,8 +56,12 @@ class AzureCosmosDocumentStore(DocumentStore):
         Raises:
             DocumentStoreConnectionError: If connection fails
         """
+        if not COSMOS_AVAILABLE:
+            logger.error("AzureCosmosDocumentStore: azure-cosmos not installed")
+            raise DocumentStoreConnectionError("azure-cosmos not installed")
+        
         try:
-            from azure.cosmos import CosmosClient, exceptions
+            from azure.cosmos import CosmosClient
             from azure.core.exceptions import AzureError
         except ImportError as e:
             logger.error("AzureCosmosDocumentStore: azure-cosmos not installed")
@@ -76,7 +81,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             try:
                 self.database = self.client.create_database_if_not_exists(id=self.database_name)
                 logger.info(f"AzureCosmosDocumentStore: using database '{self.database_name}'")
-            except exceptions.CosmosHttpResponseError as e:
+            except cosmos_exceptions.CosmosHttpResponseError as e:
                 logger.error(f"AzureCosmosDocumentStore: failed to create/access database - {e}")
                 raise DocumentStoreConnectionError(f"Failed to create/access database '{self.database_name}'") from e
             
@@ -87,13 +92,13 @@ class AzureCosmosDocumentStore(DocumentStore):
                     partition_key={"paths": [self.partition_key], "kind": "Hash"}
                 )
                 logger.info(f"AzureCosmosDocumentStore: using container '{self.container_name}' with partition key '{self.partition_key}'")
-            except exceptions.CosmosHttpResponseError as e:
+            except cosmos_exceptions.CosmosHttpResponseError as e:
                 logger.error(f"AzureCosmosDocumentStore: failed to create/access container - {e}")
                 raise DocumentStoreConnectionError(f"Failed to create/access container '{self.container_name}'") from e
             
             logger.info(f"AzureCosmosDocumentStore: connected to {self.endpoint}/{self.database_name}/{self.container_name}")
             
-        except (exceptions.CosmosHttpResponseError, AzureError) as e:
+        except (cosmos_exceptions.CosmosHttpResponseError, AzureError) as e:
             logger.error(f"AzureCosmosDocumentStore: connection failed - {e}", exc_info=True)
             raise DocumentStoreConnectionError(f"Failed to connect to Cosmos DB at {self.endpoint}") from e
         except Exception as e:
@@ -132,9 +137,6 @@ class AzureCosmosDocumentStore(DocumentStore):
             raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
         
         try:
-            from azure.cosmos import exceptions
-            import uuid
-            
             # Generate ID if not provided
             doc_id = doc.get("id", str(uuid.uuid4()))
             
@@ -144,15 +146,15 @@ class AzureCosmosDocumentStore(DocumentStore):
             doc_copy["collection"] = collection  # Add collection field for partitioning
             
             # Insert document
-            created_doc = self.container.create_item(body=doc_copy)
+            self.container.create_item(body=doc_copy)
             logger.debug(f"AzureCosmosDocumentStore: inserted document {doc_id} into {collection}")
             
             return doc_id
             
-        except exceptions.CosmosResourceExistsError as e:
+        except cosmos_exceptions.CosmosResourceExistsError as e:
             logger.error(f"AzureCosmosDocumentStore: document with id {doc_id} already exists - {e}")
             raise DocumentStoreError(f"Document with id {doc_id} already exists in collection {collection}") from e
-        except exceptions.CosmosHttpResponseError as e:
+        except cosmos_exceptions.CosmosHttpResponseError as e:
             if e.status_code == 429:
                 logger.warning(f"AzureCosmosDocumentStore: throttled during insert - {e}")
                 raise DocumentStoreError(f"Throttled during insert: {str(e)}") from e
@@ -180,8 +182,6 @@ class AzureCosmosDocumentStore(DocumentStore):
             raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
         
         try:
-            from azure.cosmos import exceptions
-            
             # Read document using partition key
             doc = self.container.read_item(
                 item=doc_id,
@@ -191,10 +191,10 @@ class AzureCosmosDocumentStore(DocumentStore):
             logger.debug(f"AzureCosmosDocumentStore: retrieved document {doc_id} from {collection}")
             return doc
             
-        except exceptions.CosmosResourceNotFoundError:
+        except cosmos_exceptions.CosmosResourceNotFoundError:
             logger.debug(f"AzureCosmosDocumentStore: document {doc_id} not found in {collection}")
             return None
-        except exceptions.CosmosHttpResponseError as e:
+        except cosmos_exceptions.CosmosHttpResponseError as e:
             if e.status_code == 429:
                 logger.warning(f"AzureCosmosDocumentStore: throttled during get - {e}")
                 raise DocumentStoreError(f"Throttled during get: {str(e)}") from e
@@ -225,8 +225,6 @@ class AzureCosmosDocumentStore(DocumentStore):
             raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
         
         try:
-            from azure.cosmos import exceptions
-            
             # Build SQL query for Cosmos DB
             query = "SELECT * FROM c WHERE c.collection = @collection"
             parameters = [{"name": "@collection", "value": collection}]
@@ -254,7 +252,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             )
             return items
             
-        except exceptions.CosmosHttpResponseError as e:
+        except cosmos_exceptions.CosmosHttpResponseError as e:
             if e.status_code == 429:
                 logger.warning(f"AzureCosmosDocumentStore: throttled during query - {e}")
                 raise DocumentStoreError(f"Throttled during query: {str(e)}") from e
@@ -283,15 +281,13 @@ class AzureCosmosDocumentStore(DocumentStore):
             raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
         
         try:
-            from azure.cosmos import exceptions
-            
             # Read the existing document
             try:
                 existing_doc = self.container.read_item(
                     item=doc_id,
                     partition_key=collection
                 )
-            except exceptions.CosmosResourceNotFoundError:
+            except cosmos_exceptions.CosmosResourceNotFoundError:
                 logger.debug(f"AzureCosmosDocumentStore: document {doc_id} not found in {collection}")
                 raise DocumentNotFoundError(f"Document {doc_id} not found in collection {collection}")
             
@@ -311,7 +307,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             
         except DocumentNotFoundError:
             raise
-        except exceptions.CosmosHttpResponseError as e:
+        except cosmos_exceptions.CosmosHttpResponseError as e:
             if e.status_code == 429:
                 logger.warning(f"AzureCosmosDocumentStore: throttled during update - {e}")
                 raise DocumentStoreError(f"Throttled during update: {str(e)}") from e
@@ -337,8 +333,6 @@ class AzureCosmosDocumentStore(DocumentStore):
             raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
         
         try:
-            from azure.cosmos import exceptions
-            
             # Delete document
             self.container.delete_item(
                 item=doc_id,
@@ -347,10 +341,10 @@ class AzureCosmosDocumentStore(DocumentStore):
             
             logger.debug(f"AzureCosmosDocumentStore: deleted document {doc_id} from {collection}")
             
-        except exceptions.CosmosResourceNotFoundError:
+        except cosmos_exceptions.CosmosResourceNotFoundError:
             logger.debug(f"AzureCosmosDocumentStore: document {doc_id} not found in {collection}")
             raise DocumentNotFoundError(f"Document {doc_id} not found in collection {collection}")
-        except exceptions.CosmosHttpResponseError as e:
+        except cosmos_exceptions.CosmosHttpResponseError as e:
             if e.status_code == 429:
                 logger.warning(f"AzureCosmosDocumentStore: throttled during delete - {e}")
                 raise DocumentStoreError(f"Throttled during delete: {str(e)}") from e
@@ -386,8 +380,6 @@ class AzureCosmosDocumentStore(DocumentStore):
             raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
         
         try:
-            from azure.cosmos import exceptions
-            
             # Build SQL query from pipeline
             query = "SELECT * FROM c WHERE c.collection = @collection"
             parameters = [{"name": "@collection", "value": collection}]
@@ -458,7 +450,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             )
             return items
             
-        except exceptions.CosmosHttpResponseError as e:
+        except cosmos_exceptions.CosmosHttpResponseError as e:
             if e.status_code == 429:
                 logger.warning(f"AzureCosmosDocumentStore: throttled during aggregation - {e}")
                 raise DocumentStoreError(f"Throttled during aggregation: {str(e)}") from e

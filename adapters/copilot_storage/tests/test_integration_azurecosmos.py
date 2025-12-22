@@ -165,7 +165,7 @@ class TestAzureCosmosIntegration:
         
         # Query with limit
         results = azurecosmos_store.query_documents(clean_collection, {"type": "test"}, limit=5)
-        assert len(results) <= 5
+        assert len(results) == 5
 
     def test_update_document(self, azurecosmos_store, clean_collection):
         """Test updating a document."""
@@ -250,7 +250,7 @@ class TestAzureCosmosIntegration:
     def test_document_with_special_characters(self, azurecosmos_store, clean_collection):
         """Test documents with special characters."""
         doc = {
-            "name": "User with 特殊字符 and émojis 🎉",
+            "name": "User with 特殊字符 and emojis 🎉",
             "email": "test@example.com",
             "description": "Line 1\nLine 2\tTabbed",
         }
