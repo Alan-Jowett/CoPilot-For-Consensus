@@ -215,6 +215,63 @@ pytest tests/ -v
 6. **Token Revocation**: No revocation list implemented
 7. **Admin UI**: No UI for key rotation or provider management
 
+## Security Considerations
+
+### First User Auto-Promotion Risk
+
+**Issue:** The role management system can auto-promote the first user who authenticates to the `admin` role when no admins exist in the system. This creates a deployment risk in production environments.
+
+**Risk:** An attacker who creates an account (via OIDC login) before the legitimate system administrator could gain admin privileges, allowing them to:
+- Modify role assignments for other users
+- Access all reporting and ingestion endpoints
+- Potentially exfiltrate or modify data
+
+**Mitigation:**
+
+The auto-promotion behavior is controlled by the `AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED` configuration option:
+
+- **Default (Secure)**: `AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=false` (recommended for production)
+  - Auto-promotion is **disabled** by default
+  - Prevents the race condition where an attacker could authenticate first
+
+- **Development/Testing**: `AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=true`
+  - Auto-promotion is **enabled** for convenience in isolated development environments
+  - First user to authenticate automatically receives admin role
+  - Should **NEVER** be used in production or any environment accessible by untrusted users
+
+**Production Deployment Recommendations:**
+
+1. **Keep auto-promotion disabled** (default setting)
+2. **Initial admin bootstrap (current approach, until dedicated bootstrap mechanism is implemented):**
+   - Perform initial setup in a **strictly isolated** environment (e.g., private network, maintenance window, or fresh deployment not yet exposed to untrusted users)
+   - Temporarily set `AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=true` and restart the Auth service
+   - Have the intended administrator authenticate once; they will receive the admin role via the one-time auto-promotion mechanism
+   - **Immediately** set `AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=false` again and restart the Auth service before exposing it to any untrusted users
+   - Be aware that during this temporary window there is a **race condition**: the first successful authentication becomes admin. **Isolation is mandatory.**
+3. **Planned improvement – Bootstrap Tokens (not yet implemented):**
+   - A future enhancement will introduce explicit bootstrap tokens (e.g., `/auth/bootstrap/*` APIs) to assign the initial admin without relying on temporary auto-promotion
+   - Once available, production deployments should prefer bootstrap tokens over the temporary auto-promotion procedure described above
+4. **Environment Isolation**: Only enable auto-promotion in completely isolated development/testing environments
+5. **Monitoring**: Log all admin role assignments for audit purposes (already implemented)
+
+**Configuration:**
+
+```bash
+# .env file
+# Disable auto-promotion (secure default, recommended for production)
+AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=false
+
+# Enable auto-promotion (ONLY for isolated development/testing or controlled initial setup)
+# AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=true
+```
+
+**Implementation Details:**
+
+- Configuration is defined in `documents/schemas/configs/auth.json`
+- Behavior is implemented in `auth/app/role_store.py` (`get_roles_for_user` method)
+- Service reads configuration in `auth/app/service.py` and passes to role store
+- Default value is `false` (secure) if not specified
+
 **Recommended for Production:**
 
 1. Use HTTPS for all auth endpoints

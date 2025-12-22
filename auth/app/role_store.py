@@ -106,14 +106,25 @@ class RoleStore:
         user: User,
         auto_approve_enabled: bool,
         auto_approve_roles: Iterable[str],
+        first_user_auto_promotion_enabled: bool = False,
     ) -> tuple[list[str], str]:
         """Fetch or create role assignment for a user.
 
         Returns a tuple of (roles, status) where status is one of
         "approved", "pending", or "denied".
         
-        Special behavior: If no admins exist in the system, the first user to log in
-        is automatically promoted to admin.
+        Special behavior: If this is a NEW USER (no existing record) and no admins exist 
+        in the system and auto-promotion is enabled (first_user_auto_promotion_enabled=True),
+        the user is automatically promoted to admin. This is disabled by default for production 
+        security. Existing users with records are never affected by this setting.
+        
+        Args:
+            user: User object with id, email, name
+            auto_approve_enabled: Whether to auto-approve new users with default roles
+            auto_approve_roles: List of roles to assign when auto-approving
+            first_user_auto_promotion_enabled: If True, enables auto-promotion of first user
+                to admin. Disabled by default (False) for production security. Set to True
+                only in development/testing environments.
         """
 
         record = self._find_user_record(user.id)
@@ -131,13 +142,16 @@ class RoleStore:
         status = "pending"
 
         # Special case: auto-promote first user to admin if no admins exist
-        admins = self.find_by_role("admin")
-        if not admins:
-            roles = ["admin"]
-            status = "approved"
-            logger.info(f"Auto-promoting first user {user.id} to admin role (no admins exist)")
-        else:
-            # Normal role assignment
+        # Only if explicitly enabled (disabled by default for production security)
+        if first_user_auto_promotion_enabled:
+            admins = self.find_by_role("admin")
+            if not admins:
+                roles = ["admin"]
+                status = "approved"
+                logger.info(f"Auto-promoting first user {user.id} to admin role (no admins exist)")
+        
+        # If auto-promotion didn't happen, check normal auto-approval
+        if not roles:
             auto_roles = [r for r in auto_approve_roles if r]
             if auto_approve_enabled and auto_roles:
                 roles = auto_roles

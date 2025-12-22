@@ -313,11 +313,13 @@ class AuthService:
             auto_roles = getattr(self.config, "auto_approve_roles", "") or ""
             auto_roles_list = [r.strip() for r in auto_roles.split(",") if r.strip()]
             auto_enabled = bool(getattr(self.config, "auto_approve_enabled", False))
+            first_user_promotion_enabled = bool(getattr(self.config, "first_user_auto_promotion_enabled", False))
 
             roles, status = (self.role_store.get_roles_for_user(
                 user=user,
                 auto_approve_enabled=auto_enabled,
                 auto_approve_roles=auto_roles_list,
+                first_user_auto_promotion_enabled=first_user_promotion_enabled,
             ) if self.role_store else (user.roles, "approved"))
 
             user.roles = roles
