@@ -57,6 +57,19 @@ class AzureCosmosDocumentStore(DocumentStore):
         self.database = None
         self.container = None
 
+    def _is_valid_field_name(self, field_name: str) -> bool:
+        """Validate that a field name contains only safe characters.
+        
+        Args:
+            field_name: Field name to validate
+            
+        Returns:
+            True if field name is safe, False otherwise
+        """
+        import re
+        # Allow alphanumeric characters, underscores, and dots (for nested fields)
+        return bool(re.match(r'^[a-zA-Z0-9_.]+$', field_name))
+
     def connect(self) -> None:
         """Connect to Azure Cosmos DB.
         
@@ -234,12 +247,16 @@ class AzureCosmosDocumentStore(DocumentStore):
             
             # Add filter conditions
             for idx, (key, value) in enumerate(filter_dict.items()):
+                # Validate field name to prevent SQL injection
+                if not self._is_valid_field_name(key):
+                    logger.warning(f"AzureCosmosDocumentStore: skipping invalid field name '{key}'")
+                    continue
                 param_name = f"@param{idx}"
                 query += f" AND c.{key} = {param_name}"
                 parameters.append({"name": param_name, "value": value})
             
             # Add limit
-            query += f" OFFSET 0 LIMIT {limit}"
+            query += f" LIMIT {limit}"
             
             # Execute query
             items = list(self.container.query_items(
@@ -396,6 +413,11 @@ class AzureCosmosDocumentStore(DocumentStore):
                 if stage_name == "$match":
                     # Add match conditions to WHERE clause
                     for key, condition in stage_spec.items():
+                        # Validate field name to prevent SQL injection
+                        if not self._is_valid_field_name(key):
+                            logger.warning(f"AzureCosmosDocumentStore: skipping invalid field name '{key}'")
+                            continue
+                        
                         if isinstance(condition, dict):
                             # Handle operators
                             for op, value in condition.items():

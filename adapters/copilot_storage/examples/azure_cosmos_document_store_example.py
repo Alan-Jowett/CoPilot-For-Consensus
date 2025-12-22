@@ -31,8 +31,17 @@ def main():
     print("-" * 60)
     
     # Get configuration from environment variables
-    endpoint = os.getenv("COSMOS_ENDPOINT", "https://your-account.documents.azure.com:443/")
-    key = os.getenv("COSMOS_KEY", "your-cosmos-db-key")
+    endpoint = os.getenv("COSMOS_ENDPOINT")
+    key = os.getenv("COSMOS_KEY")
+    
+    if not endpoint or not key:
+        print("✗ Azure Cosmos DB credentials are not configured.")
+        print()
+        print("Please set the following environment variables before running this example:")
+        print("  - COSMOS_ENDPOINT: Your Cosmos DB endpoint URL")
+        print("  - COSMOS_KEY: Your Cosmos DB account key")
+        print()
+        return
     
     # Create the store using the factory
     try:

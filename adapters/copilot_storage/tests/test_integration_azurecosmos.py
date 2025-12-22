@@ -37,17 +37,19 @@ def azurecosmos_store():
     
     store = create_document_store(store_type="azurecosmos", **config)
     
-    # Attempt to connect with retries
+    # Attempt to connect with retries using exponential backoff
     max_retries = 3
+    base_delay_seconds = 2
     for i in range(max_retries):
         try:
             store.connect()
             break
-        except Exception:
+        except Exception as e:
             if i < max_retries - 1:
-                time.sleep(2)
+                # Exponential backoff: 2, 4, 8 seconds
+                time.sleep(base_delay_seconds * (2 ** i))
             else:
-                pytest.skip("Could not connect to Azure Cosmos DB - skipping integration tests")
+                pytest.skip(f"Could not connect to Azure Cosmos DB - skipping integration tests: {str(e)}")
     
     yield store
     
@@ -67,8 +69,10 @@ def clean_collection(azurecosmos_store):
             items = azurecosmos_store.query_documents(collection_name, {}, limit=1000)
             for item in items:
                 azurecosmos_store.delete_document(collection_name, item["id"])
-        except Exception:
-            pass  # Ignore errors during cleanup
+        except Exception as e:
+            # Log but don't fail - collection might not exist yet
+            logger = __import__('logging').getLogger(__name__)
+            logger.debug(f"Cleanup before test failed (may be expected): {e}")
     
     yield collection_name
     
@@ -78,8 +82,10 @@ def clean_collection(azurecosmos_store):
             items = azurecosmos_store.query_documents(collection_name, {}, limit=1000)
             for item in items:
                 azurecosmos_store.delete_document(collection_name, item["id"])
-        except Exception:
-            pass  # Ignore errors during cleanup
+        except Exception as e:
+            # Log but don't fail test due to cleanup issues
+            logger = __import__('logging').getLogger(__name__)
+            logger.debug(f"Cleanup after test failed: {e}")
 
 
 @pytest.mark.integration
@@ -137,7 +143,8 @@ class TestAzureCosmosIntegration:
         azurecosmos_store.insert_document(clean_collection, {"name": "Bob", "age": 25, "city": "LA"})
         azurecosmos_store.insert_document(clean_collection, {"name": "Charlie", "age": 30, "city": "NYC"})
         
-        # Give Cosmos DB time to index
+        # Wait for Cosmos DB indexing (eventual consistency model)
+        # Note: This is necessary as Cosmos DB uses eventual consistency for secondary indexes
         time.sleep(1)
         
         # Query by age
@@ -160,7 +167,7 @@ class TestAzureCosmosIntegration:
         for i in range(10):
             azurecosmos_store.insert_document(clean_collection, {"index": i, "type": "test"})
         
-        # Give Cosmos DB time to index
+        # Wait for Cosmos DB indexing (eventual consistency model)
         time.sleep(1)
         
         # Query with limit
@@ -306,7 +313,7 @@ class TestAzureCosmosAggregate:
         azurecosmos_store.insert_document(clean_collection, {"status": "complete", "value": 20})
         azurecosmos_store.insert_document(clean_collection, {"status": "pending", "value": 30})
         
-        # Give Cosmos DB time to index
+        # Wait for Cosmos DB indexing (eventual consistency model)
         time.sleep(1)
         
         # Aggregate with $match
@@ -325,7 +332,7 @@ class TestAzureCosmosAggregate:
         for i in range(10):
             azurecosmos_store.insert_document(clean_collection, {"index": i, "type": "test"})
         
-        # Give Cosmos DB time to index
+        # Wait for Cosmos DB indexing (eventual consistency model)
         time.sleep(1)
         
         pipeline = [
@@ -344,7 +351,7 @@ class TestAzureCosmosAggregate:
         azurecosmos_store.insert_document(clean_collection, {"message_key": "msg2"})
         azurecosmos_store.insert_document(clean_collection, {"message_key": "msg3", "archive_id": 2})
         
-        # Give Cosmos DB time to index
+        # Wait for Cosmos DB indexing (eventual consistency model)
         time.sleep(1)
         
         pipeline = [
