@@ -39,7 +39,7 @@ setup(
             "mypy>=1.0.0",
         ],
         "azuremonitor": [
-            "azure-monitor-opentelemetry-exporter>=1.0.0b21",
+            "azure-monitor-opentelemetry-exporter>=1.0.0b21",  # Note: Currently in beta, no stable 1.0.0 release yet
             "opentelemetry-api>=1.20.0",
             "opentelemetry-sdk>=1.20.0",
         ],

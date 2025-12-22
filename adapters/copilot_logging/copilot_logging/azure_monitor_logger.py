@@ -109,8 +109,10 @@ class AzureMonitorLogger(Logger):
             # Set up OpenTelemetry logger provider (check if already set)
             try:
                 logger_provider = get_logger_provider()
-                # If we get a ProxyLoggerProvider, we need to set a real one
-                if not hasattr(logger_provider, 'add_log_record_processor'):
+                # Check if we have a real provider or just a proxy
+                # ProxyLoggerProvider doesn't have add_log_record_processor method
+                provider_type = type(logger_provider).__name__
+                if provider_type == 'ProxyLoggerProvider' or not hasattr(logger_provider, 'add_log_record_processor'):
                     logger_provider = LoggerProvider()
                     set_logger_provider(logger_provider)
             except Exception:
@@ -190,16 +192,24 @@ class AzureMonitorLogger(Logger):
         except ImportError as e:
             # Azure Monitor SDK not available, fallback to console
             print(
-                f"WARNING: Azure Monitor SDK not available ({e}). "
+                f"WARNING: Azure Monitor SDK not available ({type(e).__name__}: {e}). "
                 "Install with: pip install azure-monitor-opentelemetry-exporter. "
                 "Falling back to console logging.",
                 flush=True
             )
             self._configure_fallback()
-        except Exception as e:
-            # Configuration failed, fallback to console
+        except ValueError as e:
+            # Configuration error (e.g., missing connection string)
             print(
-                f"WARNING: Failed to configure Azure Monitor ({e}). "
+                f"WARNING: Azure Monitor configuration error ({e}). "
+                "Falling back to console logging.",
+                flush=True
+            )
+            self._configure_fallback()
+        except Exception as e:
+            # Unexpected error during configuration, fallback to console
+            print(
+                f"WARNING: Failed to configure Azure Monitor ({type(e).__name__}: {e}). "
                 "Falling back to console logging.",
                 flush=True
             )
@@ -352,6 +362,12 @@ class AzureMonitorLogger(Logger):
         if self._logger_provider is not None and hasattr(self._logger_provider, 'shutdown'):
             try:
                 self._logger_provider.shutdown()  # type: ignore
-            except Exception:
-                # Ignore shutdown errors
-                pass
+            except Exception as exc:
+                # Log shutdown errors but keep shutdown non-fatal
+                try:
+                    logging.getLogger(__name__).error(
+                        "AzureMonitorLogger shutdown() failed: %r", exc, exc_info=True
+                    )
+                except Exception:
+                    # As a last resort, ignore logging failures during shutdown
+                    pass
