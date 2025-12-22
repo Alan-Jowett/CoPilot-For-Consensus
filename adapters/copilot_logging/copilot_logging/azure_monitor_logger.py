@@ -94,14 +94,12 @@ class AzureMonitorLogger(Logger):
             from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
             from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
             
-            # Build connection string
+            # Build connection string (constructor ensures one of these is set)
             if connection_string:
                 conn_str = connection_string
-            elif instrumentation_key:
+            else:
                 # Legacy format - construct connection string from instrumentation key
                 conn_str = f"InstrumentationKey={instrumentation_key}"
-            else:
-                raise ValueError("Either connection_string or instrumentation_key must be provided")
             
             # Configure Azure Monitor log exporter
             exporter = AzureMonitorLogExporter(connection_string=conn_str)
