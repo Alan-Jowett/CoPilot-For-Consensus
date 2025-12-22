@@ -26,6 +26,7 @@ The ARM template (`azuredeploy.json`) automates the deployment of the entire Cop
 
 - **Azure Container Apps** for all microservices (ingestion, parsing, chunking, embedding, orchestrator, summarization, reporting, auth, UI, gateway)
 - **User-Assigned Managed Identities** for each service with least-privilege access
+- **Azure Service Bus** passwordless authentication via managed identities (optional, recommended for production)
 - **Azure Key Vault** for secrets management
 - **Azure Storage Account** for blob storage
 - **Application Insights** for monitoring and diagnostics
@@ -309,6 +310,8 @@ Uses Azure Managed Identity for passwordless authentication via RBAC roles. **Re
 
 **Pros:** No secrets to manage, improved security, aligns with Azure best practices  
 **Cons:** Requires existing Service Bus namespace with appropriate RBAC permissions
+
+> **⚠️ Important**: When using managed identity mode, application services must be updated to read and use the `MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE` and `MESSAGE_BUS_USE_MANAGED_IDENTITY` environment variables. See [SERVICE_BUS_INTEGRATION_GUIDE.md](SERVICE_BUS_INTEGRATION_GUIDE.md) for detailed implementation instructions.
 
 **To get your Service Bus resource ID:**
 ```bash
