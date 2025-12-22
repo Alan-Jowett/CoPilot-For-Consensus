@@ -390,9 +390,6 @@
       "properties": {
         "resource": {
           "id": "[parameters('cosmosDbDatabaseName')]"
-        },
-        "options": {
-          "throughput": "[parameters('cosmosDbThroughput')]"
         }
       },
       "dependsOn": [
@@ -426,6 +423,9 @@
               }
             ]
           }
+        },
+        "options": {
+          "throughput": "[parameters('cosmosDbThroughput')]"
         }
       },
       "dependsOn": [
