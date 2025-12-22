@@ -8,8 +8,8 @@ from unittest.mock import Mock, patch
 
 # Check if azure-search-documents SDK is available
 try:
-    import azure.search.documents
-    import azure.search.documents.indexes
+    from azure.search.documents import SearchClient
+    from azure.search.documents.indexes import SearchIndexClient
     from copilot_vectorstore import AzureAISearchVectorStore
     AZURE_AVAILABLE = True
 except ImportError:
