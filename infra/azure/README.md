@@ -52,7 +52,10 @@ The ARM template (`azuredeploy.json`) automates the deployment of the entire Cop
 - **Azure Cosmos DB for MongoDB** or **Azure Database for MongoDB** (or provide external MongoDB connection string)
 - **Azure Service Bus** namespace (Standard or Premium tier)
 - **Azure OpenAI** service (if using `llmBackend: azure`)
-- **Container images** available in GitHub Container Registry (GHCR) at `ghcr.io/alan-jowett/copilot-for-consensus`
+- **Container images** published to a GitHub Container Registry (GHCR) that your deployment can pull from. You can either:
+  - Use the existing images published by the repository owner at `ghcr.io/alan-jowett/copilot-for-consensus` (this is the default used by the ARM template).
+  - Publish your own images to your GHCR namespace using the [`publish-docker-images.yml`](../../.github/workflows/publish-docker-images.yml) workflow and set the `containerRegistryName` ARM template parameter to your registry.
+  - Allow your CI to publish images automatically by running the Docker Compose CI workflow ([`docker-compose-ci.yml`](../../.github/workflows/docker-compose-ci.yml)) to successful completion on the branch or tag you are deploying.
 
 ### Network Requirements
 
