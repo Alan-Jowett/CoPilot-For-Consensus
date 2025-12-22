@@ -85,19 +85,30 @@ class AzureKeyVaultProvider(SecretProvider):
 
     def close(self) -> None:
         """Release any resources held by this provider."""
+        # Close the SecretClient first
+        client = getattr(self, "client", None)
+        if client is not None:
+            try:
+                close_method = getattr(client, "close", None)
+                if callable(close_method):
+                    close_method()
+            except (AttributeError, TypeError, RuntimeError):
+                # Suppress expected errors during cleanup
+                pass
+        
+        # Then close the credential
         credential = getattr(self, "_credential", None)
-        if credential is None:
-            return
-        try:
-            close_method = getattr(credential, "close", None)
-            if callable(close_method):
-                close_method()
-        except (AttributeError, TypeError, RuntimeError):
-            # Suppress expected errors during cleanup to avoid impacting application shutdown
-            # AttributeError: close method not available
-            # TypeError: close is not callable
-            # RuntimeError: cleanup during shutdown
-            pass
+        if credential is not None:
+            try:
+                close_method = getattr(credential, "close", None)
+                if callable(close_method):
+                    close_method()
+            except (AttributeError, TypeError, RuntimeError):
+                # Suppress expected errors during cleanup to avoid impacting application shutdown
+                # AttributeError: close method not available
+                # TypeError: close is not callable
+                # RuntimeError: cleanup during shutdown
+                pass
 
     def __del__(self) -> None:
         """Best-effort cleanup of underlying Azure credential when garbage collected."""

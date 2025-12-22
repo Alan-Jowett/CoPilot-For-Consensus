@@ -265,6 +265,99 @@ class TestAzureKeyVaultProvider:
         # Reset for other tests
         mock_default_credential.side_effect = None
 
+    def test_close_method(self):
+        """Test that close method properly closes both client and credential."""
+        vault_url = "https://test-vault.vault.azure.net/"
+        mock_client = Mock()
+        mock_credential = Mock()
+        mock_secret_client.return_value = mock_client
+        mock_default_credential.return_value = mock_credential
+
+        provider = AzureKeyVaultProvider(vault_url=vault_url)
+        
+        # Add close methods to mocks
+        mock_client.close = Mock()
+        mock_credential.close = Mock()
+        
+        # Call close
+        provider.close()
+        
+        # Verify both close methods were called
+        mock_client.close.assert_called_once()
+        mock_credential.close.assert_called_once()
+
+    def test_close_method_handles_missing_close(self):
+        """Test that close method handles objects without close method."""
+        vault_url = "https://test-vault.vault.azure.net/"
+        mock_client = Mock()
+        mock_credential = Mock()
+        mock_secret_client.return_value = mock_client
+        mock_default_credential.return_value = mock_credential
+
+        # Remove close method from mocks
+        del mock_client.close
+        del mock_credential.close
+
+        provider = AzureKeyVaultProvider(vault_url=vault_url)
+        
+        # Should not raise any exception
+        provider.close()
+
+    def test_close_method_handles_exceptions(self):
+        """Test that close method suppresses exceptions during cleanup."""
+        vault_url = "https://test-vault.vault.azure.net/"
+        mock_client = Mock()
+        mock_credential = Mock()
+        mock_secret_client.return_value = mock_client
+        mock_default_credential.return_value = mock_credential
+
+        provider = AzureKeyVaultProvider(vault_url=vault_url)
+        
+        # Make close methods raise exceptions
+        mock_client.close = Mock(side_effect=RuntimeError("Close failed"))
+        mock_credential.close = Mock(side_effect=RuntimeError("Close failed"))
+        
+        # Should not raise any exception
+        provider.close()
+
+    def test_del_method(self):
+        """Test that __del__ method calls close without raising exceptions."""
+        vault_url = "https://test-vault.vault.azure.net/"
+        mock_client = Mock()
+        mock_credential = Mock()
+        mock_secret_client.return_value = mock_client
+        mock_default_credential.return_value = mock_credential
+
+        provider = AzureKeyVaultProvider(vault_url=vault_url)
+        
+        # Add close methods to mocks
+        mock_client.close = Mock()
+        mock_credential.close = Mock()
+        
+        # Explicitly call __del__
+        provider.__del__()
+        
+        # Verify close was attempted
+        mock_client.close.assert_called_once()
+        mock_credential.close.assert_called_once()
+
+    def test_del_method_handles_exceptions(self):
+        """Test that __del__ method suppresses exceptions during cleanup."""
+        vault_url = "https://test-vault.vault.azure.net/"
+        mock_client = Mock()
+        mock_credential = Mock()
+        mock_secret_client.return_value = mock_client
+        mock_default_credential.return_value = mock_credential
+
+        provider = AzureKeyVaultProvider(vault_url=vault_url)
+        
+        # Make close raise an exception
+        mock_client.close = Mock(side_effect=RuntimeError("Close failed"))
+        mock_credential.close = Mock(side_effect=RuntimeError("Close failed"))
+        
+        # Should not raise any exception
+        provider.__del__()
+
 
 class TestAzureKeyVaultProviderIntegration:
     """Integration-style tests with more realistic mocking."""
