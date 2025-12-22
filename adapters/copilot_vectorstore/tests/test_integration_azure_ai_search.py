@@ -7,7 +7,7 @@ import os
 import pytest
 import time
 
-from copilot_vectorstore import create_vector_store, SearchResult
+from copilot_vectorstore import create_vector_store
 
 # Check if azure-search-documents is available
 AZURE_AVAILABLE = False
@@ -16,7 +16,8 @@ try:
     import azure.search.documents.indexes
     AZURE_AVAILABLE = True
 except ImportError:
-    pass
+    # azure-search-documents is optional; when missing, keep AZURE_AVAILABLE False
+    AZURE_AVAILABLE = False
 
 
 def get_azure_config():
@@ -258,10 +259,12 @@ class TestAzureAISearchIntegration:
         
         result = clean_store.get("doc1")
         
-        # Check all metadata fields
+        # Check all metadata fields including complex types
         assert result.metadata["text"] == metadata["text"]
         assert result.metadata["source"] == metadata["source"]
         assert result.metadata["score"] == metadata["score"]
+        assert result.metadata["tags"] == metadata["tags"]
+        assert result.metadata["nested"] == metadata["nested"]
     
     def test_query_empty_store(self, clean_store):
         """Test querying an empty store returns empty results."""

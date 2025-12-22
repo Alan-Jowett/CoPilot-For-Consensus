@@ -32,6 +32,19 @@ pip install -e adapters/copilot_vectorstore/
 pip install faiss-cpu  # or faiss-gpu for GPU support
 ```
 
+### With Qdrant Support
+
+```bash
+pip install -e adapters/copilot_vectorstore/
+pip install qdrant-client
+```
+
+Or use the extras:
+
+```bash
+pip install -e "adapters/copilot_vectorstore/[qdrant]"
+```
+
 ### With Azure AI Search Support
 
 ```bash

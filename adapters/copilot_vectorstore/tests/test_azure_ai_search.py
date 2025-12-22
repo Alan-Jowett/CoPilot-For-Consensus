@@ -4,7 +4,7 @@
 """Unit tests for AzureAISearchVectorStore implementation."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 # Check if azure-search-documents is available
 try:

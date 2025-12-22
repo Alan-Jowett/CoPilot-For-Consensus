@@ -147,6 +147,12 @@ class AzureAISearchVectorStore(VectorStore):
     def _ensure_index(self) -> None:
         """Ensure the search index exists, create it if not."""
         try:
+            from azure.core.exceptions import ResourceNotFoundError
+        except ImportError:
+            # Fallback if azure.core.exceptions is not available
+            ResourceNotFoundError = None
+        
+        try:
             # Check if index exists
             existing_index = self._index_client.get_index(self._index_name)
             logger.info(f"Using existing index '{self._index_name}'")
@@ -163,7 +169,12 @@ class AzureAISearchVectorStore(VectorStore):
                         f"expected {self._vector_size}, found {vector_field.vector_search_dimensions}"
                     )
         except Exception as e:
-            if "not found" in str(e).lower() or "does not exist" in str(e).lower():
+            # Check for ResourceNotFoundError first, then fall back to string matching
+            is_not_found = (
+                (ResourceNotFoundError and isinstance(e, ResourceNotFoundError)) or
+                "not found" in str(e).lower() or "does not exist" in str(e).lower()
+            )
+            if is_not_found:
                 # Create new index
                 logger.info(f"Creating new index '{self._index_name}'")
                 self._create_index()
@@ -222,6 +233,14 @@ class AzureAISearchVectorStore(VectorStore):
                 )
             except (ImportError, TypeError):
                 # Fallback to basic configuration
+                logger.warning(
+                    "Falling back to basic HNSW configuration for index '%s'; "
+                    "custom HNSW parameters could not be applied. This may "
+                    "reduce vector search quality. Check your "
+                    "azure-search-documents SDK version and constructor "
+                    "compatibility.",
+                    self._index_name,
+                )
                 hnsw_config = self._HnswAlgorithmConfiguration(name="hnsw-algorithm")
         
         vector_search = self._VectorSearch(
@@ -365,8 +384,14 @@ class AzureAISearchVectorStore(VectorStore):
                 except json.JSONDecodeError:
                     logger.warning(f"Failed to parse metadata for document {result.get('id')}")
             
-            # Get vector (may not be returned in some cases)
-            vector = result.get("embedding", query_vector)
+            # Get stored vector; this must be returned by Azure AI Search
+            vector = result.get("embedding")
+            if vector is None:
+                logger.warning(
+                    f"Search result for document {result.get('id')} did not include 'embedding' field. "
+                    "Using query vector as fallback. Ensure select parameter includes 'embedding'."
+                )
+                vector = query_vector
             
             search_results.append(SearchResult(
                 id=result["id"],
@@ -386,11 +411,21 @@ class AzureAISearchVectorStore(VectorStore):
         Raises:
             KeyError: If id doesn't exist
         """
+        try:
+            from azure.core.exceptions import ResourceNotFoundError
+        except ImportError:
+            ResourceNotFoundError = None
+        
         # Check if document exists
         try:
-            result = self._search_client.get_document(key=id)
+            self._search_client.get_document(key=id)
         except Exception as e:
-            if "not found" in str(e).lower():
+            # Check for ResourceNotFoundError first, then fall back to string matching
+            is_not_found = (
+                (ResourceNotFoundError and isinstance(e, ResourceNotFoundError)) or
+                "not found" in str(e).lower()
+            )
+            if is_not_found:
                 raise KeyError(f"ID '{id}' not found in vector store") from e
             raise
         
@@ -442,9 +477,19 @@ class AzureAISearchVectorStore(VectorStore):
             KeyError: If id doesn't exist
         """
         try:
+            from azure.core.exceptions import ResourceNotFoundError
+        except ImportError:
+            ResourceNotFoundError = None
+        
+        try:
             result = self._search_client.get_document(key=id)
         except Exception as e:
-            if "not found" in str(e).lower():
+            # Check for ResourceNotFoundError first, then fall back to string matching
+            is_not_found = (
+                (ResourceNotFoundError and isinstance(e, ResourceNotFoundError)) or
+                "not found" in str(e).lower()
+            )
+            if is_not_found:
                 raise KeyError(f"ID '{id}' not found in vector store") from e
             raise
         
