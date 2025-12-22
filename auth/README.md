@@ -557,7 +557,7 @@ pytest tests/ -v
 - **HTTPS Only**: Always use HTTPS for auth endpoints in production
 - **State/Nonce Validation**: Implemented for CSRF protection
 - **Audience Validation**: Always validate `aud` claim in consuming services
-- **First User Auto-Promotion**: **SECURITY RISK** - The system can auto-promote the first user to admin when no admins exist. This is **disabled by default** (`AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=false`) to prevent attackers from gaining admin access by authenticating first. Only enable (`true`) in isolated development/testing environments. For production, use bootstrap tokens to assign the initial admin role. See [AUTH_IMPLEMENTATION_SUMMARY.md](../documents/AUTH_IMPLEMENTATION_SUMMARY.md#security-considerations) for details.
+- **First User Auto-Promotion**: **SECURITY RISK** - The system can auto-promote the first user to admin when no admins exist. This is **disabled by default** (`AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=false`) to prevent attackers from gaining admin access by authenticating first. For production, create the initial admin in a strictly isolated environment with temporary auto-promotion enabled, then immediately disable it. A dedicated bootstrap token mechanism is planned but not yet implemented. See [AUTH_IMPLEMENTATION_SUMMARY.md](../documents/AUTH_IMPLEMENTATION_SUMMARY.md#security-considerations) for details.
 
 ## Production Deployment
 
@@ -570,7 +570,7 @@ For production deployments:
 5. **Configure rate limiting** on auth endpoints
 6. **Monitor metrics** via Prometheus/Grafana
 7. **Audit logs** for all authentication events
-8. **Keep auto-promotion disabled** (`AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=false`) and use bootstrap tokens for initial admin setup
+8. **Initial admin setup**: Create the first admin in a strictly isolated environment with temporary auto-promotion enabled, then immediately disable it. Bootstrap token mechanism is planned but not yet implemented.
 
 ## Future Enhancements
 

@@ -84,9 +84,13 @@ When adding new GitHub Actions to workflows:
 
 **Production Recommendations:**
 - Keep auto-promotion disabled (default setting)
-- Use bootstrap tokens to assign the initial admin role
-- Only enable auto-promotion in completely isolated development/testing environments
+- Create the initial admin in a controlled, strictly isolated environment:
+  - Perform setup in a private network or during a maintenance window before exposing to untrusted users
+  - Temporarily enable auto-promotion (`AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=true`)
+  - Have the intended administrator authenticate once to receive admin role
+  - **Immediately** disable auto-promotion (`AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=false`) and restart before exposing to any untrusted users
 - Monitor all admin role assignments through audit logs
+- **Note**: A dedicated bootstrap token mechanism is planned but not yet implemented. Until available, the controlled temporary enablement procedure above is the recommended approach.
 
 **See also:** [documents/AUTH_IMPLEMENTATION_SUMMARY.md](./documents/AUTH_IMPLEMENTATION_SUMMARY.md#security-considerations) for detailed security considerations.
 

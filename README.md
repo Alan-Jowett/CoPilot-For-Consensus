@@ -407,8 +407,12 @@ The system includes an authentication service that supports GitHub, Google, and 
 
 **Security Note - First User Admin Access:**
 - By default, auto-promotion of the first user to admin is **disabled** for security
-- For production deployments, assign the initial admin using bootstrap tokens
-- Only enable auto-promotion (`AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=true`) in isolated development/testing
+- For production deployments, the initial admin must be created in a controlled manner:
+  - Perform initial setup in a **strictly isolated** environment (private network, maintenance window)
+  - Temporarily enable auto-promotion (`AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=true`)
+  - Have the intended administrator authenticate once to receive admin role
+  - **Immediately** disable auto-promotion (`AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=false`) and restart before exposing to untrusted users
+- A dedicated bootstrap-token mechanism is **planned but not yet implemented**
 - See [documents/AUTH_IMPLEMENTATION_SUMMARY.md](./documents/AUTH_IMPLEMENTATION_SUMMARY.md#security-considerations) for details
 
 **Note:** If you don't configure any providers, the login page will show buttons but clicking them will return an error indicating the provider is not configured.

@@ -232,7 +232,6 @@ The auto-promotion behavior is controlled by the `AUTH_FIRST_USER_AUTO_PROMOTION
 
 - **Default (Secure)**: `AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=false` (recommended for production)
   - Auto-promotion is **disabled** by default
-  - Initial admin user must be assigned using bootstrap tokens or admin API
   - Prevents the race condition where an attacker could authenticate first
 
 - **Development/Testing**: `AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=true`
@@ -243,12 +242,17 @@ The auto-promotion behavior is controlled by the `AUTH_FIRST_USER_AUTO_PROMOTION
 **Production Deployment Recommendations:**
 
 1. **Keep auto-promotion disabled** (default setting)
-2. **Use Bootstrap Tokens** to assign the initial admin role:
-   - Generate a bootstrap token before deployment
-   - Use the token to assign admin role to the first legitimate user
-   - Revoke or expire the bootstrap token after initial setup
-3. **Environment Isolation**: Only enable auto-promotion in completely isolated development/testing environments
-4. **Monitoring**: Log all admin role assignments for audit purposes (already implemented)
+2. **Initial admin bootstrap (current approach, until dedicated bootstrap mechanism is implemented):**
+   - Perform initial setup in a **strictly isolated** environment (e.g., private network, maintenance window, or fresh deployment not yet exposed to untrusted users)
+   - Temporarily set `AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=true` and restart the Auth service
+   - Have the intended administrator authenticate once; they will receive the admin role via the one-time auto-promotion mechanism
+   - **Immediately** set `AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=false` again and restart the Auth service before exposing it to any untrusted users
+   - Be aware that during this temporary window there is a **race condition**: the first successful authentication becomes admin. **Isolation is mandatory.**
+3. **Planned improvement – Bootstrap Tokens (not yet implemented):**
+   - A future enhancement will introduce explicit bootstrap tokens (e.g., `/auth/bootstrap/*` APIs) to assign the initial admin without relying on temporary auto-promotion
+   - Once available, production deployments should prefer bootstrap tokens over the temporary auto-promotion procedure described above
+4. **Environment Isolation**: Only enable auto-promotion in completely isolated development/testing environments
+5. **Monitoring**: Log all admin role assignments for audit purposes (already implemented)
 
 **Configuration:**
 
@@ -257,7 +261,7 @@ The auto-promotion behavior is controlled by the `AUTH_FIRST_USER_AUTO_PROMOTION
 # Disable auto-promotion (secure default, recommended for production)
 AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=false
 
-# Enable auto-promotion (ONLY for isolated development/testing)
+# Enable auto-promotion (ONLY for isolated development/testing or controlled initial setup)
 # AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=true
 ```
 
