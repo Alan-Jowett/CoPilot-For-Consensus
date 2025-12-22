@@ -3,7 +3,6 @@
 
 """Tests for Azure Monitor logger implementation."""
 
-import os
 import pytest
 from unittest.mock import MagicMock
 
@@ -128,14 +127,19 @@ class TestAzureMonitorLoggerLogging:
         assert call_args[0][0] == 40  # ERROR level
         assert call_args[0][1] == "Test error message"
 
-    def test_debug_logging(self, fallback_logger):
+    def test_debug_logging(self, monkeypatch):
         """Test logging debug-level messages."""
-        # Create logger with DEBUG level
-        fallback_logger.level = "DEBUG"
-        fallback_logger.debug("Test debug message")
+        # Ensure we are in fallback mode (no Azure Monitor configuration).
+        monkeypatch.delenv("AZURE_MONITOR_CONNECTION_STRING", raising=False)
+        monkeypatch.delenv("AZURE_MONITOR_INSTRUMENTATION_KEY", raising=False)
         
-        fallback_logger._stdlib_logger.log.assert_called_once()
-        call_args = fallback_logger._stdlib_logger.log.call_args
+        # Create a dedicated logger instance configured for DEBUG level
+        debug_logger = AzureMonitorLogger(level="DEBUG", name="test-debug")
+        debug_logger._stdlib_logger = MagicMock()
+        debug_logger.debug("Test debug message")
+        
+        debug_logger._stdlib_logger.log.assert_called_once()
+        call_args = debug_logger._stdlib_logger.log.call_args
         assert call_args[0][0] == 10  # DEBUG level
         assert call_args[0][1] == "Test debug message"
 
@@ -186,20 +190,29 @@ class TestAzureMonitorLoggerLogging:
         assert call_args[1]['exc_info'] is True
         assert call_args[0][0] == 40  # ERROR level
 
-    def test_log_level_filtering(self, fallback_logger):
+    def test_log_level_filtering(self, monkeypatch):
         """Test that logs below the configured level are not sent."""
-        fallback_logger.level = "WARNING"
-        
-        fallback_logger.debug("Debug message")  # Should not be logged
-        fallback_logger.info("Info message")    # Should not be logged
-        
-        # No calls should have been made
-        fallback_logger._stdlib_logger.log.assert_not_called()
-        
-        fallback_logger.warning("Warning message")  # Should be logged
-        
-        # Now one call should have been made
-        fallback_logger._stdlib_logger.log.assert_called_once()
+        # Ensure we are in fallback mode (no Azure Monitor configuration).
+        monkeypatch.delenv("AZURE_MONITOR_CONNECTION_STRING", raising=False)
+        monkeypatch.delenv("AZURE_MONITOR_INSTRUMENTATION_KEY", raising=False)
+
+        # Create a fresh logger configured at WARNING level so level filtering
+        # is set up through the normal construction path.
+        logger = create_logger(logger_type="azuremonitor", level="WARNING", name="test-filter-unique")
+
+        # Attach a mock stdlib logger to observe which messages are emitted.
+        logger._stdlib_logger = MagicMock()
+
+        logger.debug("Debug message")  # Should not be logged
+        logger.info("Info message")    # Should not be logged
+
+        # No calls should have been made for below-threshold messages.
+        logger._stdlib_logger.log.assert_not_called()
+
+        logger.warning("Warning message")  # Should be logged
+
+        # Now one call should have been made.
+        logger._stdlib_logger.log.assert_called_once()
 
     def test_multiple_logs(self, fallback_logger):
         """Test multiple log messages."""
@@ -303,3 +316,30 @@ class TestAzureMonitorLoggerEdgeCases:
         logger.info(long_message)
         
         logger._stdlib_logger.log.assert_called_once()
+    
+    def test_shutdown_method(self, monkeypatch):
+        """Test that shutdown method works correctly."""
+        monkeypatch.delenv("AZURE_MONITOR_CONNECTION_STRING", raising=False)
+        
+        logger = AzureMonitorLogger(level="INFO")
+        
+        # Should not raise an exception
+        logger.shutdown()
+        
+        # Shutdown should be idempotent
+        logger.shutdown()
+    
+    def test_duplicate_handler_prevention(self, monkeypatch):
+        """Test that creating multiple logger instances doesn't create duplicate handlers."""
+        monkeypatch.delenv("AZURE_MONITOR_CONNECTION_STRING", raising=False)
+        
+        # Create first logger
+        logger1 = AzureMonitorLogger(level="INFO", name="test-dup")
+        initial_handler_count = len(logger1._stdlib_logger.handlers)
+        
+        # Create second logger with same name
+        logger2 = AzureMonitorLogger(level="INFO", name="test-dup")
+        final_handler_count = len(logger2._stdlib_logger.handlers)
+        
+        # Should have same number of handlers (no duplicates)
+        assert final_handler_count == initial_handler_count

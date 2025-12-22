@@ -51,6 +51,7 @@ class AzureMonitorLogger(Logger):
         self.level = level.upper()
         self.name = name or "copilot"
         self._fallback_mode = False
+        self._logger_provider = None  # Store reference for shutdown
         
         # Map string levels to Python logging levels
         self._level_map = {
@@ -86,11 +87,11 @@ class AzureMonitorLogger(Logger):
             instrumentation_key: Azure Monitor instrumentation key (legacy)
         """
         try:
-            from azure.monitor.opentelemetry.exporter import AzureMonitorLogExporter
+            from azure.monitor.opentelemetry.exporter import AzureMonitorLogExporter, AzureMonitorTraceExporter
             from opentelemetry import trace
             from opentelemetry.sdk.trace import TracerProvider
             from opentelemetry.sdk.trace.export import BatchSpanProcessor
-            from opentelemetry._logs import set_logger_provider
+            from opentelemetry._logs import set_logger_provider, get_logger_provider
             from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
             from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
             
@@ -106,41 +107,84 @@ class AzureMonitorLogger(Logger):
             # Configure Azure Monitor log exporter
             exporter = AzureMonitorLogExporter(connection_string=conn_str)
             
-            # Set up OpenTelemetry logger provider
-            logger_provider = LoggerProvider()
-            set_logger_provider(logger_provider)
+            # Set up OpenTelemetry logger provider (check if already set)
+            try:
+                logger_provider = get_logger_provider()
+                # If we get a ProxyLoggerProvider, we need to set a real one
+                if not hasattr(logger_provider, 'add_log_record_processor'):
+                    logger_provider = LoggerProvider()
+                    set_logger_provider(logger_provider)
+            except Exception:
+                logger_provider = LoggerProvider()
+                set_logger_provider(logger_provider)
+            
+            # Store reference for shutdown
+            self._logger_provider = logger_provider
             
             # Add batch processor for efficient log transmission
-            logger_provider.add_log_record_processor(
+            logger_provider.add_log_record_processor(  # type: ignore
                 BatchLogRecordProcessor(exporter)
             )
             
-            # Set up trace provider for distributed tracing
-            trace.set_tracer_provider(TracerProvider())
-            trace.get_tracer_provider().add_span_processor(  # type: ignore
-                BatchSpanProcessor(
-                    AzureMonitorLogExporter(connection_string=conn_str)
-                )
-            )
+            # Set up trace provider for distributed tracing (check if already configured)
+            tracer_provider = trace.get_tracer_provider()
+            if hasattr(tracer_provider, "add_span_processor"):
+                # Use existing tracer provider
+                try:
+                    trace_exporter = AzureMonitorTraceExporter(connection_string=conn_str)
+                    tracer_provider.add_span_processor(  # type: ignore
+                        BatchSpanProcessor(trace_exporter)
+                    )
+                except Exception:
+                    # AzureMonitorTraceExporter might not be available, skip trace setup
+                    pass
+            else:
+                # No tracer provider configured, set up a new one
+                try:
+                    trace_exporter = AzureMonitorTraceExporter(connection_string=conn_str)
+                    tracer_provider = TracerProvider()
+                    trace.set_tracer_provider(tracer_provider)
+                    tracer_provider.add_span_processor(
+                        BatchSpanProcessor(trace_exporter)
+                    )
+                except Exception:
+                    # AzureMonitorTraceExporter might not be available, skip trace setup
+                    pass
             
             # Create logging handler
             handler = LoggingHandler()
             
             # Configure Python logging to use Azure Monitor
             self._stdlib_logger = logging.getLogger(self.name)
-            self._stdlib_logger.setLevel(self._level_map[self.level])
-            self._stdlib_logger.addHandler(handler)
+            self._stdlib_logger.setLevel(logging.NOTSET)  # Filtering done in _log method
+            
+            # Check if handler already exists to avoid duplicates
+            has_azure_handler = any(
+                isinstance(h, LoggingHandler) for h in self._stdlib_logger.handlers
+            )
+            if not has_azure_handler:
+                self._stdlib_logger.addHandler(handler)
             
             # Add console handler for local debugging (optional)
             if os.getenv("AZURE_MONITOR_CONSOLE_LOG", "false").lower() == "true":
-                console_handler = logging.StreamHandler()
+                # Check if console handler already exists
+                console_handler = None
+                for existing_handler in self._stdlib_logger.handlers:
+                    if isinstance(existing_handler, logging.StreamHandler) and \
+                       not isinstance(existing_handler, LoggingHandler):
+                        console_handler = existing_handler
+                        break
+                
+                if console_handler is None:
+                    console_handler = logging.StreamHandler()
+                    self._stdlib_logger.addHandler(console_handler)
+                
                 console_handler.setLevel(self._level_map[self.level])
                 formatter = logging.Formatter(
                     '{"timestamp": "%(asctime)s", "level": "%(levelname)s", '
                     '"logger": "%(name)s", "message": "%(message)s"}'
                 )
                 console_handler.setFormatter(formatter)
-                self._stdlib_logger.addHandler(console_handler)
             
             self._fallback_mode = False
             
@@ -166,17 +210,28 @@ class AzureMonitorLogger(Logger):
         """Configure fallback console logging when Azure Monitor is unavailable."""
         self._fallback_mode = True
         self._stdlib_logger = logging.getLogger(self.name)
-        self._stdlib_logger.setLevel(self._level_map[self.level])
+        self._stdlib_logger.setLevel(logging.NOTSET)  # Filtering done in _log method
         
-        # Add console handler with JSON formatting
-        console_handler = logging.StreamHandler()
+        # Check if fallback console handler already exists
+        console_handler = None
+        for handler in self._stdlib_logger.handlers:
+            if getattr(handler, "_azure_monitor_fallback", False):
+                console_handler = handler
+                break
+        
+        # Create and attach a new fallback handler only if one does not already exist
+        if console_handler is None:
+            console_handler = logging.StreamHandler()
+            # Mark this handler so we can detect and reuse it later
+            setattr(console_handler, "_azure_monitor_fallback", True)
+            self._stdlib_logger.addHandler(console_handler)
+        
         console_handler.setLevel(self._level_map[self.level])
         formatter = logging.Formatter(
             '{"timestamp": "%(asctime)s", "level": "%(levelname)s", '
             '"logger": "%(name)s", "message": "%(message)s", "fallback": true}'
         )
         console_handler.setFormatter(formatter)
-        self._stdlib_logger.addHandler(console_handler)
         
         # Log warning about fallback mode
         self._stdlib_logger.warning(
@@ -212,9 +267,6 @@ class AzureMonitorLogger(Logger):
         
         if trace_id:
             extra["trace_id"] = trace_id
-        
-        # Add timestamp in ISO format
-        extra["timestamp"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         
         # Log via stdlib logger (which forwards to Azure Monitor or console)
         self._stdlib_logger.log(
@@ -290,3 +342,17 @@ class AzureMonitorLogger(Logger):
             True if using fallback console logging, False if using Azure Monitor
         """
         return self._fallback_mode
+    
+    def shutdown(self) -> None:
+        """Shutdown the logger and flush any pending logs.
+        
+        This method ensures that all buffered logs are sent to Azure Monitor
+        before the application exits. Call this method during application shutdown
+        to prevent data loss.
+        """
+        if self._logger_provider is not None and hasattr(self._logger_provider, 'shutdown'):
+            try:
+                self._logger_provider.shutdown()  # type: ignore
+            except Exception:
+                # Ignore shutdown errors
+                pass

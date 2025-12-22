@@ -152,7 +152,7 @@ logger.info(
 - Compatible with Azure Monitor dashboards, alerts, and queries
 
 **Environment Variables:**
-- `AZURE_MONITOR_CONNECTION_STRING`: Connection string for Azure Monitor (required)
+- `AZURE_MONITOR_CONNECTION_STRING`: Connection string for Azure Monitor (required to enable Azure Monitor logging; if unset, logs are written to console only)
 - `AZURE_MONITOR_INSTRUMENTATION_KEY`: Legacy instrumentation key (deprecated, use connection string)
 - `AZURE_MONITOR_CONSOLE_LOG`: Set to "true" to also log to console for local debugging (optional)
 

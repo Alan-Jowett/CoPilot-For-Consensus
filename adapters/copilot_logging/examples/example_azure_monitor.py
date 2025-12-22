@@ -8,7 +8,6 @@ This script demonstrates how to use the Azure Monitor logger for
 cloud-native observability with distributed tracing support.
 """
 
-import os
 from copilot_logging import create_logger
 
 
@@ -102,7 +101,7 @@ def main():
     
     try:
         # Simulate an error
-        result = 1 / 0
+        1 / 0
     except ZeroDivisionError:
         logger.exception(
             "Division by zero error",
