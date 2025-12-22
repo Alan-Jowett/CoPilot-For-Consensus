@@ -114,25 +114,28 @@ jobs:
           echo "Checking for breaking changes in modified schemas..."
           
           # Get list of modified schema files
-          git diff --name-only origin/${{ github.base_ref }}...HEAD | grep 'documents/schemas/configs/.*\.json$' || echo "No schema files changed"
+          modified_schemas=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep 'documents/schemas/configs/.*\.json$' || true)
           
-          for schema in $(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep 'documents/schemas/configs/.*\.json$'); do
+          if [ -z "$modified_schemas" ]; then
+            echo "No schema files changed"
+            exit 0
+          fi
+          
+          for schema in $modified_schemas; do
             if [ -f "$schema" ]; then
               echo "Checking compatibility for $schema..."
               
               # Get the old version from base branch
-              git show origin/${{ github.base_ref }}:"$schema" > /tmp/old_schema.json 2>/dev/null || {
+              if git show origin/${{ github.base_ref }}:"$schema" > /tmp/old_schema.json 2>/dev/null; then
+                # Run compatibility check
+                if ! python -m copilot_config check_compat --old /tmp/old_schema.json --new "$schema"; then
+                  echo "❌ Compatibility check failed for $schema"
+                  exit 1
+                fi
+                echo "✓ No breaking changes detected in $schema"
+              else
                 echo "New schema file detected: $schema (skipping compatibility check)"
-                continue
-              }
-              
-              # Run compatibility check
-              python -m copilot_config check_compat --old /tmp/old_schema.json --new "$schema" || {
-                echo "❌ Compatibility check failed for $schema"
-                exit 1
-              }
-              
-              echo "✓ No breaking changes detected in $schema"
+              fi
             fi
           done
           
