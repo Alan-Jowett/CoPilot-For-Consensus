@@ -625,3 +625,120 @@ class TestAzureCosmosDocumentStore:
         # Should not raise an error, just log warning
         results = store.aggregate_documents("messages", pipeline)
         assert isinstance(results, list)
+
+
+class TestAzureCosmosDocumentStoreValidation:
+    """Tests for AzureCosmosDocumentStore validation methods."""
+    
+    def test_is_valid_field_name_valid_simple(self):
+        """Test field name validation with valid simple names."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+        
+        assert store._is_valid_field_name("name")
+        assert store._is_valid_field_name("age")
+        assert store._is_valid_field_name("user_id")
+        assert store._is_valid_field_name("firstName")
+        assert store._is_valid_field_name("id123")
+    
+    def test_is_valid_field_name_valid_nested(self):
+        """Test field name validation with valid nested names."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+        
+        assert store._is_valid_field_name("user.email")
+        assert store._is_valid_field_name("address.city")
+        assert store._is_valid_field_name("profile.settings.theme")
+    
+    def test_is_valid_field_name_invalid_empty(self):
+        """Test field name validation rejects empty strings."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+        
+        assert not store._is_valid_field_name("")
+    
+    def test_is_valid_field_name_invalid_special_chars(self):
+        """Test field name validation rejects special characters."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+        
+        assert not store._is_valid_field_name("name; DROP TABLE")
+        assert not store._is_valid_field_name("user@email")
+        assert not store._is_valid_field_name("name-with-dash")
+        assert not store._is_valid_field_name("field with space")
+        assert not store._is_valid_field_name("field'with'quotes")
+    
+    def test_is_valid_field_name_invalid_empty_components(self):
+        """Test field name validation rejects empty components in nested paths."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+        
+        assert not store._is_valid_field_name("user..email")
+        assert not store._is_valid_field_name(".email")
+        assert not store._is_valid_field_name("user.")
+    
+    def test_is_valid_field_name_sql_injection_attempts(self):
+        """Test field name validation rejects SQL injection attempts."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+        
+        assert not store._is_valid_field_name("'; DROP TABLE users; --")
+        assert not store._is_valid_field_name("1=1 OR name")
+        assert not store._is_valid_field_name("field; SELECT *")
+    
+    def test_is_valid_document_id_valid(self):
+        """Test document ID validation with valid IDs."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+        
+        assert store._is_valid_document_id("abc123")
+        assert store._is_valid_document_id("user-001")
+        assert store._is_valid_document_id("doc_id_123")
+        assert store._is_valid_document_id("simple")
+    
+    def test_is_valid_document_id_invalid_chars(self):
+        """Test document ID validation rejects invalid characters."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+        
+        assert not store._is_valid_document_id("doc/id")
+        assert not store._is_valid_document_id("doc\\id")
+        assert not store._is_valid_document_id("doc#id")
+        assert not store._is_valid_document_id("doc?id")
+    
+    def test_is_valid_document_id_invalid_empty(self):
+        """Test document ID validation rejects empty or None."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+        
+        assert not store._is_valid_document_id("")
+        assert not store._is_valid_document_id(None)
+    
+    def test_is_valid_document_id_control_chars(self):
+        """Test document ID validation rejects control characters."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+        
+        assert not store._is_valid_document_id("doc\x00id")
+        assert not store._is_valid_document_id("doc\nid")
+        assert not store._is_valid_document_id("doc\tid")

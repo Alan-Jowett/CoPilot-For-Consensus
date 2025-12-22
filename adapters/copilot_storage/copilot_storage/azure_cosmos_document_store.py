@@ -3,6 +3,7 @@
 
 """Azure Cosmos DB document store implementation."""
 
+import copy
 import logging
 import re
 import uuid
@@ -61,14 +62,52 @@ class AzureCosmosDocumentStore(DocumentStore):
     def _is_valid_field_name(self, field_name: str) -> bool:
         """Validate that a field name contains only safe characters.
         
+        This helper supports nested field access via dots (e.g., ``user.email``),
+        but validates each component between dots individually to avoid
+        bypassing validation with crafted nested paths.
+        
         Args:
             field_name: Field name to validate
             
         Returns:
             True if field name is safe, False otherwise
         """
-        # Allow alphanumeric characters, underscores, and dots (for nested fields)
-        return bool(re.match(r'^[a-zA-Z0-9_.]+$', field_name))
+        # First, ensure the overall string only contains allowed characters
+        if not re.match(r'^[a-zA-Z0-9_.]+$', field_name):
+            return False
+        
+        # Then, validate each component between dots to prevent empty segments
+        # or other invalid patterns (e.g., "user..email")
+        components = field_name.split(".")
+        if any(not component or not re.match(r'^[a-zA-Z0-9_]+$', component) for component in components):
+            return False
+        
+        return True
+    
+    def _is_valid_document_id(self, doc_id: str) -> bool:
+        """Validate that a document ID meets Cosmos DB requirements.
+        
+        Cosmos DB document IDs cannot contain: '/', '\', '#', '?', or control characters.
+        
+        Args:
+            doc_id: Document ID to validate
+            
+        Returns:
+            True if document ID is valid, False otherwise
+        """
+        if not doc_id or not isinstance(doc_id, str):
+            return False
+        
+        # Check for invalid characters
+        invalid_chars = ['/', '\\', '#', '?']
+        if any(char in doc_id for char in invalid_chars):
+            return False
+        
+        # Check for control characters
+        if any(ord(char) < 32 for char in doc_id):
+            return False
+        
+        return True
 
     def connect(self) -> None:
         """Connect to Azure Cosmos DB.
@@ -156,8 +195,14 @@ class AzureCosmosDocumentStore(DocumentStore):
             # Generate ID if not provided
             doc_id = doc.get("id", str(uuid.uuid4()))
             
-            # Create a copy to avoid modifying the original
-            doc_copy = dict(doc)
+            # Validate document ID meets Cosmos DB requirements
+            if not self._is_valid_document_id(doc_id):
+                raise DocumentStoreError(
+                    f"Invalid document ID '{doc_id}': IDs cannot contain '/', '\\', '#', '?', or control characters"
+                )
+            
+            # Create a deep copy to avoid modifying the original (including nested structures)
+            doc_copy = copy.deepcopy(doc)
             doc_copy["id"] = doc_id
             doc_copy["collection"] = collection  # Add collection field for partitioning
             
@@ -255,7 +300,9 @@ class AzureCosmosDocumentStore(DocumentStore):
                 query += f" AND c.{key} = {param_name}"
                 parameters.append({"name": param_name, "value": value})
             
-            # Add limit
+            # Add limit (validate to prevent SQL injection)
+            if not isinstance(limit, int) or limit < 1:
+                raise DocumentStoreError(f"Invalid limit value '{limit}': must be a positive integer")
             query += f" LIMIT {limit}"
             
             # Execute query
@@ -311,16 +358,18 @@ class AzureCosmosDocumentStore(DocumentStore):
                 logger.debug(f"AzureCosmosDocumentStore: document {doc_id} not found in {collection}")
                 raise DocumentNotFoundError(f"Document {doc_id} not found in collection {collection}")
             
-            # Apply patch
-            existing_doc.update(patch)
+            # Apply patch to a copy to avoid mutating the original document in-place
+            merged_doc = dict(existing_doc)
+            if patch:
+                merged_doc.update(patch)
             
             # Ensure collection field is not modified
-            existing_doc["collection"] = collection
+            merged_doc["collection"] = collection
             
             # Replace document
             self.container.replace_item(
                 item=doc_id,
-                body=existing_doc
+                body=merged_doc
             )
             
             logger.debug(f"AzureCosmosDocumentStore: updated document {doc_id} in {collection}")
