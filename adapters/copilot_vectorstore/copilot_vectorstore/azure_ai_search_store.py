@@ -469,7 +469,10 @@ class AzureAISearchVectorStore(VectorStore):
         )
         count = results.get_count()
         if count is None:
-            logger.warning("Azure AI Search returned None for count, returning 0. This may indicate an indexing issue.")
+            logger.warning(
+                "Azure AI Search returned None for count, returning 0. "
+                "This may indicate a count retrieval issue or search service problem."
+            )
             return 0
         return count
     
