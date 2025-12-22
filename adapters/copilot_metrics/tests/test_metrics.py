@@ -385,8 +385,8 @@ class TestAzureMonitorMetricsCollector:
     """Tests for AzureMonitorMetricsCollector."""
 
     @pytest.mark.skipif(
-        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
-        or sys.modules.get('opentelemetry') is None,
+        sys.modules.get('azure.monitor.opentelemetry.exporter') is not None
+        and sys.modules.get('opentelemetry') is not None,
         reason="Azure Monitor packages are installed; test requires them to be missing"
     )
     def test_requires_azure_monitor_packages(self):
@@ -433,20 +433,11 @@ class TestAzureMonitorMetricsCollector:
         or sys.modules.get('opentelemetry') is None,
         reason="Azure Monitor packages not installed"
     )
-    def test_initialization_from_env_connection_string(self, monkeypatch):
+    def test_initialization_from_env_connection_string(self, mock_azure_exporter, monkeypatch):
         """Test initialization from AZURE_MONITOR_CONNECTION_STRING environment variable."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
         
         monkeypatch.setenv("AZURE_MONITOR_CONNECTION_STRING", "InstrumentationKey=env-key")
-        
-        # Mock the exporter
-        import azure.monitor.opentelemetry.exporter as am_exporter
-        
-        class MockExporter:
-            def __init__(self, connection_string):
-                self.connection_string = connection_string
-        
-        monkeypatch.setattr(am_exporter, "AzureMonitorMetricExporter", MockExporter)
         
         collector = AzureMonitorMetricsCollector()
         
@@ -457,21 +448,12 @@ class TestAzureMonitorMetricsCollector:
         or sys.modules.get('opentelemetry') is None,
         reason="Azure Monitor packages not installed"
     )
-    def test_initialization_from_instrumentation_key(self, monkeypatch):
+    def test_initialization_from_instrumentation_key(self, mock_azure_exporter, monkeypatch):
         """Test initialization from AZURE_MONITOR_INSTRUMENTATION_KEY (legacy)."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
         
         monkeypatch.setenv("AZURE_MONITOR_INSTRUMENTATION_KEY", "legacy-key")
         monkeypatch.delenv("AZURE_MONITOR_CONNECTION_STRING", raising=False)
-        
-        # Mock the exporter
-        import azure.monitor.opentelemetry.exporter as am_exporter
-        
-        class MockExporter:
-            def __init__(self, connection_string):
-                self.connection_string = connection_string
-        
-        monkeypatch.setattr(am_exporter, "AzureMonitorMetricExporter", MockExporter)
         
         collector = AzureMonitorMetricsCollector()
         
@@ -482,18 +464,9 @@ class TestAzureMonitorMetricsCollector:
         or sys.modules.get('opentelemetry') is None,
         reason="Azure Monitor packages not installed"
     )
-    def test_increment_counter_with_azure_monitor(self, monkeypatch):
+    def test_increment_counter_with_azure_monitor(self, mock_azure_exporter):
         """Test incrementing counter with Azure Monitor backend."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
-        
-        # Mock the exporter and OpenTelemetry components
-        import azure.monitor.opentelemetry.exporter as am_exporter
-        
-        class MockExporter:
-            def __init__(self, connection_string):
-                pass
-        
-        monkeypatch.setattr(am_exporter, "AzureMonitorMetricExporter", MockExporter)
         
         collector = AzureMonitorMetricsCollector(
             connection_string="InstrumentationKey=test-key",
@@ -512,18 +485,9 @@ class TestAzureMonitorMetricsCollector:
         or sys.modules.get('opentelemetry') is None,
         reason="Azure Monitor packages not installed"
     )
-    def test_observe_histogram_with_azure_monitor(self, monkeypatch):
+    def test_observe_histogram_with_azure_monitor(self, mock_azure_exporter):
         """Test observing histogram with Azure Monitor backend."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
-        
-        # Mock the exporter
-        import azure.monitor.opentelemetry.exporter as am_exporter
-        
-        class MockExporter:
-            def __init__(self, connection_string):
-                pass
-        
-        monkeypatch.setattr(am_exporter, "AzureMonitorMetricExporter", MockExporter)
         
         collector = AzureMonitorMetricsCollector(
             connection_string="InstrumentationKey=test-key",
@@ -541,18 +505,9 @@ class TestAzureMonitorMetricsCollector:
         or sys.modules.get('opentelemetry') is None,
         reason="Azure Monitor packages not installed"
     )
-    def test_set_gauge_with_azure_monitor(self, monkeypatch):
+    def test_set_gauge_with_azure_monitor(self, mock_azure_exporter):
         """Test setting gauge with Azure Monitor backend."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
-        
-        # Mock the exporter
-        import azure.monitor.opentelemetry.exporter as am_exporter
-        
-        class MockExporter:
-            def __init__(self, connection_string):
-                pass
-        
-        monkeypatch.setattr(am_exporter, "AzureMonitorMetricExporter", MockExporter)
         
         collector = AzureMonitorMetricsCollector(
             connection_string="InstrumentationKey=test-key",
@@ -594,18 +549,9 @@ class TestAzureMonitorMetricsCollector:
         or sys.modules.get('opentelemetry') is None,
         reason="Azure Monitor packages not installed"
     )
-    def test_shutdown(self, monkeypatch):
+    def test_shutdown(self, mock_azure_exporter):
         """Test collector shutdown."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
-        
-        # Mock the exporter
-        import azure.monitor.opentelemetry.exporter as am_exporter
-        
-        class MockExporter:
-            def __init__(self, connection_string):
-                pass
-        
-        monkeypatch.setattr(am_exporter, "AzureMonitorMetricExporter", MockExporter)
         
         collector = AzureMonitorMetricsCollector(
             connection_string="InstrumentationKey=test-key",
