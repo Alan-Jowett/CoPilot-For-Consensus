@@ -11,7 +11,7 @@ import threading
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 import uvicorn
 
 from copilot_config import load_typed_config, get_configuration_schema_response
@@ -80,16 +80,11 @@ def configuration_schema():
             service_version=__version__,
         )
         return response
-    except FileNotFoundError as e:
-        return {
-            "error": "Schema not found",
-            "message": str(e),
-        }
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Schema not found")
     except Exception as e:
-        return {
-            "error": "Failed to load schema",
-            "message": str(e),
-        }
+        logger.error(f"Failed to load configuration schema: {e}")
+        raise HTTPException(status_code=500, detail="Failed to load schema")
 
 
 def start_subscriber_thread(service: ParsingService):

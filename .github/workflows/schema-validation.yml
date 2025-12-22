@@ -55,11 +55,26 @@ jobs:
       - name: Validate schema JSON syntax
         run: |
           echo "Validating JSON syntax for all config schemas..."
-          for schema in documents/schemas/configs/*.json; do
-            echo "Validating $schema..."
-            python -c "import json; json.load(open('$schema'))"
-          done
-          echo "✓ All schemas have valid JSON syntax"
+          python - <<'PYTHON_VALIDATE_JSON'
+          import glob
+          import json
+          import sys
+          
+          errors = []
+          for schema_path in glob.glob('documents/schemas/configs/*.json'):
+              print(f"Validating {schema_path}...")
+              try:
+                  with open(schema_path, 'r', encoding='utf-8') as f:
+                      json.load(f)
+              except Exception as exc:
+                  print(f"ERROR: Failed to parse {schema_path}: {exc}")
+                  errors.append(schema_path)
+          
+          if errors:
+              sys.exit(1)
+          
+          print("✓ All schemas have valid JSON syntax")
+          PYTHON_VALIDATE_JSON
 
       - name: Check schema version fields
         run: |
@@ -79,7 +94,7 @@ jobs:
                       errors.append(f'ERROR: Missing schema_version in {schema_file}')
                   if 'min_service_version' not in schema:
                       errors.append(f'ERROR: Missing min_service_version in {schema_file}')
-                  if not errors:
+                  if 'schema_version' in schema and 'min_service_version' in schema:
                       print(f'✓ {schema_file} has version fields')
               except Exception as e:
                   errors.append(f'ERROR: Failed to check {schema_file}: {e}')

@@ -26,18 +26,31 @@ def _parse_semver(version: str) -> Tuple[int, int, int]:
     if not version:
         raise ValueError("Version string cannot be empty")
     
+    # Ensure we can split the version string; this also validates the type
     try:
-        parts = version.split('.')
-        if len(parts) < 3:
-            raise ValueError(f"Version must have at least 3 parts: {version}")
-        
-        major = int(parts[0])
-        minor = int(parts[1])
-        patch = int(parts[2])
-        
-        return (major, minor, patch)
-    except (ValueError, AttributeError) as e:
-        raise ValueError(f"Invalid semver format '{version}': {e}")
+        parts = version.split(".")
+    except AttributeError as exc:
+        raise ValueError(
+            f"Version must be a string in 'major.minor.patch' format, got {type(version).__name__!r}"
+        ) from exc
+    
+    if len(parts) < 3:
+        raise ValueError(
+            f"Version must have at least 3 components in 'major.minor.patch' format: {version!r}"
+        )
+    
+    labels = ("major", "minor", "patch")
+    numeric_parts = []
+    for index, label in enumerate(labels):
+        part = parts[index]
+        if not part.isdigit():
+            raise ValueError(
+                f"Version {label} component must be an integer, got {part!r} in {version!r}"
+            )
+        numeric_parts.append(int(part))
+    
+    major, minor, patch = numeric_parts
+    return (major, minor, patch)
 
 
 def _is_version_compatible(service_version: str, min_required_version: str) -> bool:
