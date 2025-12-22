@@ -28,6 +28,7 @@ __version__ = "0.1.0"
 from .logger import Logger
 from .stdout_logger import StdoutLogger
 from .silent_logger import SilentLogger
+from .azure_monitor_logger import AzureMonitorLogger
 from .factory import create_logger
 from .uvicorn_config import create_uvicorn_log_config
 
@@ -39,6 +40,7 @@ __all__ = [
     # Implementations
     "StdoutLogger",
     "SilentLogger",
+    "AzureMonitorLogger",
     # Factory
     "create_logger",
     # Uvicorn integration
