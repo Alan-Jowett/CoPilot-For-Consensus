@@ -133,6 +133,7 @@ class TestAzureKeyVaultProvider:
         result = provider.get_secret("api-key", version="v2")
 
         assert result == "versioned-secret-value"
+        mock_client.get_secret.assert_called_once_with("api-key", version="v2")
 
     def test_get_secret_not_found(self):
         """Test retrieval of non-existent secret."""
@@ -210,9 +211,9 @@ class TestAzureKeyVaultProvider:
         mock_client = Mock()
         mock_secret_client.return_value = mock_client
 
-        mock_secret = Mock()
-        mock_secret.properties.enabled = True
-        mock_client.get_secret.return_value = mock_secret
+        mock_props = Mock()
+        mock_props.enabled = True
+        mock_client.get_secret_properties.return_value = mock_props
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
 
@@ -224,9 +225,9 @@ class TestAzureKeyVaultProvider:
         mock_client = Mock()
         mock_secret_client.return_value = mock_client
 
-        mock_secret = Mock()
-        mock_secret.properties.enabled = False
-        mock_client.get_secret.return_value = mock_secret
+        mock_props = Mock()
+        mock_props.enabled = False
+        mock_client.get_secret_properties.return_value = mock_props
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
 
@@ -237,7 +238,7 @@ class TestAzureKeyVaultProvider:
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
         mock_secret_client.return_value = mock_client
-        mock_client.get_secret.side_effect = mock_resource_not_found("Not found")
+        mock_client.get_secret_properties.side_effect = mock_resource_not_found("Not found")
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
 
@@ -248,7 +249,7 @@ class TestAzureKeyVaultProvider:
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
         mock_secret_client.return_value = mock_client
-        mock_client.get_secret.side_effect = Exception("Network error")
+        mock_client.get_secret_properties.side_effect = Exception("Network error")
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
 
@@ -274,20 +275,30 @@ class TestAzureKeyVaultProviderIntegration:
         mock_client = Mock()
         mock_secret_client.return_value = mock_client
 
-        # Setup mock responses
+        # Setup mock responses for get_secret
         def get_secret_side_effect(name, version=None):
             secrets = {
-                "api-key": Mock(value="key123", properties=Mock(enabled=True)),
+                "api-key": Mock(value="key123"),
                 "jwt-private-key": Mock(
-                    value="-----BEGIN PRIVATE KEY-----\ndata\n-----END PRIVATE KEY-----",
-                    properties=Mock(enabled=True)
+                    value="-----BEGIN PRIVATE KEY-----\ndata\n-----END PRIVATE KEY-----"
                 ),
             }
             if name in secrets:
                 return secrets[name]
             raise mock_resource_not_found(f"Secret {name} not found")
 
+        # Setup mock responses for get_secret_properties
+        def get_secret_properties_side_effect(name):
+            properties = {
+                "api-key": Mock(enabled=True),
+                "jwt-private-key": Mock(enabled=True),
+            }
+            if name in properties:
+                return properties[name]
+            raise mock_resource_not_found(f"Secret {name} not found")
+
         mock_client.get_secret.side_effect = get_secret_side_effect
+        mock_client.get_secret_properties.side_effect = get_secret_properties_side_effect
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
 
