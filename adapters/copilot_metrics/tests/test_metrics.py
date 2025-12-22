@@ -540,7 +540,7 @@ class TestAzureMonitorMetricsCollector:
         # Force an error by making _meter None
         collector._meter = None
         
-        # This should not raise since we handle None meter gracefully
+        # When meter is None, metric operations are silently bypassed without recording errors
         collector.increment("test_counter", 1.0)
         assert collector.get_errors_count() == 0  # No error recorded for None meter
 
@@ -561,7 +561,7 @@ class TestAzureMonitorMetricsCollector:
         # Should not raise
         collector.shutdown()
 
-    def test_factory_creates_azure_monitor_collector(self, monkeypatch):
+    def test_factory_creates_azure_monitor_collector(self, mock_azure_exporter, monkeypatch):
         """Test that factory can create Azure Monitor collector."""
         monkeypatch.setenv("AZURE_MONITOR_CONNECTION_STRING", "InstrumentationKey=test-key")
         

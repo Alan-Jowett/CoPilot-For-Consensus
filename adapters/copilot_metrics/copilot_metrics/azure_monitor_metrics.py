@@ -103,6 +103,12 @@ class AzureMonitorMetricsCollector(MetricsCollector):
                     export_interval_millis
                 )
 
+        # Initialize cache dictionaries first to ensure object is always in consistent state
+        self._counters: Dict[str, Any] = {}
+        self._histograms: Dict[str, Any] = {}
+        self._gauges: Dict[str, Any] = {}
+        self._gauge_values: Dict[str, float] = {}
+
         # Create Azure Monitor exporter
         try:
             exporter = AzureMonitorMetricExporter(connection_string=self.connection_string)
@@ -121,21 +127,14 @@ class AzureMonitorMetricsCollector(MetricsCollector):
                 }
             )
 
-            # Create and set meter provider
-            provider = MeterProvider(resource=resource, metric_readers=[reader])
-            otel_metrics.set_meter_provider(provider)
+            # Create meter provider (instance-local to avoid global state conflicts)
+            self._provider = MeterProvider(resource=resource, metric_readers=[reader])
 
-            # Get meter for creating instruments
-            self._meter = otel_metrics.get_meter(
+            # Get meter for creating instruments from the instance-local provider
+            self._meter = self._provider.get_meter(
                 name=f"{self.namespace}.metrics",
                 version="0.1.0",
             )
-
-            # Cache for metric instruments
-            self._counters: Dict[str, Any] = {}
-            self._histograms: Dict[str, Any] = {}
-            self._gauges: Dict[str, Any] = {}
-            self._gauge_values: Dict[str, float] = {}
 
             logger.info(
                 "AzureMonitorMetricsCollector initialized with namespace '%s' "
@@ -150,6 +149,7 @@ class AzureMonitorMetricsCollector(MetricsCollector):
                 raise
             # In non-raising mode, continue but metrics won't work
             self._meter = None
+            self._provider = None
 
     def _get_or_create_counter(self, name: str) -> Optional[Any]:
         """Get or create an OpenTelemetry counter.
@@ -213,8 +213,9 @@ class AzureMonitorMetricsCollector(MetricsCollector):
             self._gauge_values[gauge_key] = 0.0
 
             # Create callback that returns the current value
-            def gauge_callback() -> Any:
-                return [(self._gauge_values[gauge_key], {})]
+            # Capture gauge_key by value to avoid closure bug
+            def gauge_callback(key: str = gauge_key) -> Any:
+                return [(self._gauge_values[key], {})]
 
             self._gauges[name] = self._meter.create_observable_gauge(
                 name=gauge_key,
@@ -318,8 +319,15 @@ class AzureMonitorMetricsCollector(MetricsCollector):
             logger.warning("Azure Monitor packages not available, skipping shutdown")
             return
 
+        # Use instance-specific provider to avoid affecting global state
+        provider = getattr(self, "_provider", None)
+        if provider is None:
+            logger.warning(
+                "No instance-specific meter provider found; skipping shutdown"
+            )
+            return
+
         try:
-            provider = otel_metrics.get_meter_provider()
             if hasattr(provider, 'shutdown'):
                 provider.shutdown()
                 logger.info("Azure Monitor metrics collector shut down successfully")
