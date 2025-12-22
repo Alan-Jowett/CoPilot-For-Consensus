@@ -265,6 +265,31 @@ class TestAzureKeyVaultProvider:
         # Reset for other tests
         mock_default_credential.side_effect = None
 
+    def test_missing_azure_sdk_dependencies(self):
+        """Test that appropriate error is raised when Azure SDK is not installed."""
+        # Save current azure modules
+        saved_modules = {}
+        azure_keys = [k for k in sys.modules.keys() if k.startswith('azure')]
+        for key in azure_keys:
+            saved_modules[key] = sys.modules.pop(key)
+        
+        try:
+            # Make imports fail by removing azure from sys.modules
+            # Import the module fresh which will trigger the ImportError
+            with patch.dict(sys.modules, {k: None for k in azure_keys}):
+                # Force reimport by removing cached module
+                if 'copilot_secrets.azurekeyvault_provider' in sys.modules:
+                    del sys.modules['copilot_secrets.azurekeyvault_provider']
+                
+                # This should raise SecretProviderError with installation instructions
+                from copilot_secrets.azurekeyvault_provider import AzureKeyVaultProvider as AKVReload
+                
+                with pytest.raises(SecretProviderError, match="Azure SDK dependencies.*not installed"):
+                    AKVReload(vault_url="https://test.vault.azure.net/")
+        finally:
+            # Restore azure modules
+            sys.modules.update(saved_modules)
+
     def test_close_method(self):
         """Test that close method properly closes both client and credential."""
         vault_url = "https://test-vault.vault.azure.net/"
