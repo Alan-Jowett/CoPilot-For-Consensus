@@ -20,32 +20,11 @@
     "containerImageTag": {
       "value": "latest"
     },
-    "cosmosDbAccountName": {
-      "value": "copilot-cosmos"
-    },
-    "cosmosDbDatabaseName": {
-      "value": "copilot"
-    },
-    "cosmosDbContainerName": {
-      "value": "documents"
-    },
-    "cosmosDbPartitionKey": {
-      "value": "/collection"
-    },
-    "cosmosDbThroughput": {
-      "value": 400
-    },
-    "useManagedIdentityForServiceBus": {
-      "value": false
+    "mongoDbConnectionString": {
+      "value": "REPLACE_WITH_YOUR_MONGODB_CONNECTION_STRING"
     },
     "serviceBusConnectionString": {
       "value": "REPLACE_WITH_YOUR_SERVICEBUS_CONNECTION_STRING"
-    },
-    "serviceBusNamespace": {
-      "value": ""
-    },
-    "serviceBusResourceId": {
-      "value": ""
     },
     "storageAccountConnectionString": {
       "value": "REPLACE_WITH_YOUR_STORAGE_CONNECTION_STRING"

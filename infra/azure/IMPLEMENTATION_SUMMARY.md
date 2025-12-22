@@ -88,7 +88,6 @@ The ARM template deploys:
 - **Container Apps Environment**: Managed environment for all apps with VNet integration
 - **Virtual Network**: Isolated network with subnet for Container Apps
 - **User-Assigned Managed Identities**: One per service (10 total)
-- **Azure Cosmos DB**: Core (SQL) API for document storage with native adapter
 - **Azure Key Vault**: Secrets management with RBAC
 - **Azure Storage Account**: Blob storage for archives
 - **Application Insights**: Telemetry and monitoring
@@ -98,7 +97,6 @@ The ARM template deploys:
 - **RBAC Role Assignments**:
   - Key Vault Secrets User (all services)
   - Storage Blob Data Contributor (all services)
-  - Cosmos DB Data Contributor (all services)
   - Azure Service Bus Data Sender/Receiver (messaging services)
 - **Network Isolation**: VNet-integrated Container Apps
 - **Secrets Management**: Key Vault for all sensitive data
@@ -109,7 +107,6 @@ The ARM template deploys:
 ✅ **ARM template defines all required Azure resources**
 - Container Apps for all 10 services
 - Managed identities, Key Vault, Storage, networking
-- Cosmos DB with Core (SQL) API and native adapter
 - Application Insights, Log Analytics
 
 ✅ **Each service is provisioned with its own user-assigned managed identity**
@@ -119,7 +116,6 @@ The ARM template deploys:
 ✅ **Role assignments are declared in the template**
 - Key Vault Secrets User for all services
 - Storage Blob Data Contributor for all services
-- Cosmos DB Data Contributor for all services
 - RBAC-based, least-privilege access
 
 ✅ **Template supports parameterization**
@@ -153,17 +149,15 @@ The ARM template deploys:
 - Container registry and image tags
 - LLM backend selection (local/azure/mock)
 - Azure OpenAI endpoint and key (for azure backend)
-- Cosmos DB account, database, container, and partition key
-- Service Bus, Storage connection strings
+- MongoDB, Service Bus, Storage connection strings
 - VNet address spaces
 - Create new vs. use existing managed identities
 
 ### Flexibility
-- Provisions Cosmos DB with Core (SQL) API directly
+- Works with external dependencies (Cosmos DB, Service Bus, etc.)
 - Supports both new and existing managed identities
 - Configurable resource naming and location
 - Environment-specific deployments
-- Native Azure adapter for optimal performance
 
 ### Security
 - Managed identities throughout (no secrets in code)
@@ -210,12 +204,11 @@ The ARM template deploys:
 
 ## Dependencies (External)
 
-The ARM template provisions Cosmos DB automatically and assumes these external resources exist:
-1. **Azure Service Bus** namespace (Standard tier or higher)
-2. **Azure Storage Account** (for archive storage)
-3. **Azure OpenAI** service (if using `llmBackend: azure`)
-
-**Note**: MongoDB/Cosmos DB MongoDB API is no longer required. The template provisions Cosmos DB with Core (SQL) API.
+The ARM template assumes these resources exist (or connection strings provided):
+1. **Azure Cosmos DB for MongoDB** or **MongoDB connection string**
+2. **Azure Service Bus** namespace (Standard tier or higher)
+3. **Azure Storage Account** (created internally if not provided)
+4. **Azure OpenAI** service (if using `llmBackend: azure`)
 
 Instructions for creating these are provided in the README.
 
@@ -226,7 +219,7 @@ Instructions for creating these are provided in the README.
 Breakdown:
 - Container Apps Environment: ~$50
 - Container Apps (10 services): ~$200-400
-- Cosmos DB Core (SQL) API (400 RU/s): ~$24
+- Cosmos DB (400 RU/s): ~$25
 - Service Bus (Standard): ~$10
 - Storage (100GB): ~$2
 - Application Insights (5GB): ~$10
@@ -239,9 +232,9 @@ Production costs scale with usage (autoscaling, higher throughput, etc.).
 ## Next Steps
 
 1. **User Configuration**:
-   - Create external dependencies (Service Bus, OpenAI)
+   - Create external dependencies (Cosmos DB, Service Bus, OpenAI)
    - Update `azuredeploy.parameters.json` with connection strings
-   - Run deployment script (Cosmos DB is provisioned automatically)
+   - Run deployment script
 
 2. **Post-Deployment**:
    - Configure OAuth providers in Key Vault
@@ -249,13 +242,7 @@ Production costs scale with usage (autoscaling, higher throughput, etc.).
    - Test services via gateway URL
    - Set up monitoring alerts
 
-3. **Migration from MongoDB** (if applicable):
-   - Export existing MongoDB data
-   - Re-ingest documents or use data migration tools
-   - Update application configuration to use native Cosmos DB adapter
-   - See README.md for detailed migration guide
-
-4. **CI/CD Integration** (Optional):
+3. **CI/CD Integration** (Optional):
    - Copy `.github/workflows/deploy-azure.yml.example` to `.github/workflows/`
    - Configure GitHub secrets (connection strings, resource group, etc.)
    - Enable automated deployments
