@@ -654,7 +654,7 @@
       "apiVersion": "2023-04-15",
       "name": "[format('{0}/{1}', parameters('cosmosDbAccountName'), guid(resourceGroup().id, variables('services')[copyIndex()].name, 'CosmosDbDataContributor'))]",
       "properties": {
-        "roleDefinitionId": "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlRoleDefinitions', parameters('cosmosDbAccountName'), variables('roleDefinitions').CosmosDbDataContributor)]",
+        "roleDefinitionId": "[concat(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName')), '/sqlRoleDefinitions/', variables('roleDefinitions').CosmosDbDataContributor)]",
         "principalId": "[if(parameters('createNewIdentities'), reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-{1}-identity', parameters('projectName'), variables('services')[copyIndex()].name))).principalId, reference(parameters('existingIdentityResourceIds')[variables('services')[copyIndex()].name], '2023-01-31').principalId)]",
         "scope": "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))]"
       },
