@@ -3,6 +3,7 @@
 
 """Integration tests for Azure Cosmos DB document store against a real Cosmos DB instance."""
 
+import logging
 import os
 import pytest
 import time
@@ -13,6 +14,8 @@ from copilot_storage import (
     DocumentStoreNotConnectedError,
     DocumentNotFoundError,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def get_azurecosmos_config():
@@ -71,7 +74,6 @@ def clean_collection(azurecosmos_store):
                 azurecosmos_store.delete_document(collection_name, item["id"])
         except Exception as e:
             # Log but don't fail - collection might not exist yet
-            logger = __import__('logging').getLogger(__name__)
             logger.debug(f"Cleanup before test failed (may be expected): {e}")
     
     yield collection_name
@@ -84,7 +86,6 @@ def clean_collection(azurecosmos_store):
                 azurecosmos_store.delete_document(collection_name, item["id"])
         except Exception as e:
             # Log but don't fail test due to cleanup issues
-            logger = __import__('logging').getLogger(__name__)
             logger.debug(f"Cleanup after test failed: {e}")
 
 

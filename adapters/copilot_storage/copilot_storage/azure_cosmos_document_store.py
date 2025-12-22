@@ -459,7 +459,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             
             # Add limit if specified
             if limit_value is not None:
-                query += f" OFFSET 0 LIMIT {limit_value}"
+                query += f" LIMIT {limit_value}"
             
             # Execute query
             items = list(self.container.query_items(
