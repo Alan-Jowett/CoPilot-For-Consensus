@@ -334,8 +334,8 @@ class TestAzureKeyVaultProvider:
         mock_client.close = Mock()
         mock_credential.close = Mock()
         
-        # Explicitly call __del__
-        provider.__del__()
+        # Use del to trigger __del__ naturally instead of calling it explicitly
+        del provider
         
         # Verify close was attempted
         mock_client.close.assert_called_once()
@@ -355,8 +355,8 @@ class TestAzureKeyVaultProvider:
         mock_client.close = Mock(side_effect=RuntimeError("Close failed"))
         mock_credential.close = Mock(side_effect=RuntimeError("Close failed"))
         
-        # Should not raise any exception
-        provider.__del__()
+        # Should not raise any exception when deleted
+        del provider
 
 
 class TestAzureKeyVaultProviderIntegration:

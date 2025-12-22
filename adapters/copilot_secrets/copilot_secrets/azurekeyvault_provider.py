@@ -44,6 +44,7 @@ class AzureKeyVaultProvider(SecretProvider):
     Attributes:
         vault_url: Azure Key Vault URL
         client: SecretClient instance for accessing Key Vault
+        _credential: DefaultAzureCredential instance used for authentication
     """
 
     def __init__(self, vault_url: Optional[str] = None, vault_name: Optional[str] = None):
