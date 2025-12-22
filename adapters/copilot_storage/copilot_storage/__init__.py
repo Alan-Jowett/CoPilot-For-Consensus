@@ -19,6 +19,7 @@ from .document_store import (
 )
 from .mongo_document_store import MongoDocumentStore
 from .inmemory_document_store import InMemoryDocumentStore
+from .azure_cosmos_document_store import AzureCosmosDocumentStore
 from .validating_document_store import ValidatingDocumentStore, DocumentValidationError
 
 __all__ = [
@@ -28,6 +29,7 @@ __all__ = [
     "DocumentStore",
     "MongoDocumentStore",
     "InMemoryDocumentStore",
+    "AzureCosmosDocumentStore",
     "create_document_store",
     "ValidatingDocumentStore",
     # Exceptions

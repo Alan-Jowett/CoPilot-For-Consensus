@@ -128,10 +128,10 @@ def create_document_store(
     """Factory function to create a document store.
     
     Args:
-        store_type: Type of document store ("mongodb", "inmemory"). 
+        store_type: Type of document store ("mongodb", "azurecosmos", "inmemory"). 
                    If None, reads from DOCUMENT_STORE_TYPE environment variable (defaults to "inmemory")
-        **kwargs: Additional store-specific arguments. For MongoDB, if not provided, 
-                 will read from MONGO_* environment variables.
+        **kwargs: Additional store-specific arguments. For MongoDB and Azure Cosmos, if not provided, 
+                 will read from corresponding environment variables.
         
     Returns:
         DocumentStore instance
@@ -192,6 +192,49 @@ def create_document_store(
                 mongo_kwargs[key] = value
         
         return MongoDocumentStore(**mongo_kwargs)
+    elif store_type == "azurecosmos":
+        from .azure_cosmos_document_store import AzureCosmosDocumentStore
+        
+        # Build kwargs with environment variable fallback for individual parameters
+        # Explicit parameters take precedence over environment variables
+        cosmos_kwargs = {}
+        
+        # Endpoint - use provided value or environment variable
+        if "endpoint" in kwargs:
+            cosmos_kwargs["endpoint"] = kwargs["endpoint"]
+        else:
+            cosmos_kwargs["endpoint"] = os.getenv("COSMOS_ENDPOINT")
+        
+        # Key - use provided value or environment variable
+        if "key" in kwargs:
+            cosmos_kwargs["key"] = kwargs["key"]
+        else:
+            cosmos_kwargs["key"] = os.getenv("COSMOS_KEY")
+        
+        # Database - use provided value or environment variable
+        if "database" in kwargs:
+            cosmos_kwargs["database"] = kwargs["database"]
+        else:
+            cosmos_kwargs["database"] = os.getenv("COSMOS_DATABASE", "copilot")
+        
+        # Container - use provided value or environment variable
+        if "container" in kwargs:
+            cosmos_kwargs["container"] = kwargs["container"]
+        else:
+            cosmos_kwargs["container"] = os.getenv("COSMOS_CONTAINER", "documents")
+        
+        # Partition key - use provided value or environment variable
+        if "partition_key" in kwargs:
+            cosmos_kwargs["partition_key"] = kwargs["partition_key"]
+        else:
+            cosmos_kwargs["partition_key"] = os.getenv("COSMOS_PARTITION_KEY", "/collection")
+        
+        # Pass any other kwargs that aren't Cosmos-specific
+        for key, value in kwargs.items():
+            if key not in ("endpoint", "key", "database", "container", "partition_key"):
+                cosmos_kwargs[key] = value
+        
+        return AzureCosmosDocumentStore(**cosmos_kwargs)
     elif store_type == "inmemory":
         from .inmemory_document_store import InMemoryDocumentStore
         return InMemoryDocumentStore()
