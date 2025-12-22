@@ -83,7 +83,7 @@ def configuration_schema():
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Schema not found")
     except Exception as e:
-        logger.error(f"Failed to load configuration schema: {e}")
+        logger.error(f"Failed to load configuration schema: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to load schema")
 
 

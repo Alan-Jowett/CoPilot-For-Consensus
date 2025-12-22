@@ -226,9 +226,9 @@ def main():
     
     # Load schemas
     try:
-        with open(args.old, "r") as f:
+        with open(args.old, "r", encoding="utf-8") as f:
             old_schema = json.load(f)
-        with open(args.new, "r") as f:
+        with open(args.new, "r", encoding="utf-8") as f:
             new_schema = json.load(f)
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)

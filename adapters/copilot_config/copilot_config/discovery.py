@@ -50,7 +50,7 @@ def get_configuration_schema_response(
         raise FileNotFoundError(f"Schema file not found: {schema_path}")
     
     # Read the raw schema file
-    with open(schema_path, "r") as f:
+    with open(schema_path, "r", encoding="utf-8") as f:
         schema_data = json.load(f)
     
     # Parse schema for version info
