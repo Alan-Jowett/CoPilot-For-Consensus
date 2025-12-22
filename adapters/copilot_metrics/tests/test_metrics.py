@@ -576,19 +576,10 @@ class TestAzureMonitorMetricsCollector:
         """Test graceful handling when meter is None (no raise_on_error)."""
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
         
-        # Mock the exporter
-        import azure.monitor.opentelemetry.exporter as am_exporter
-        
-        class MockExporter:
-            def __init__(self, connection_string):
-                pass
-        
-        monkeypatch.setattr(am_exporter, "AzureMonitorMetricExporter", MockExporter)
-        
         collector = AzureMonitorMetricsCollector(
             connection_string="InstrumentationKey=test-key",
             namespace="test",
-            raise_on_error=True
+            raise_on_error=False
         )
         
         # Force an error by making _meter None
