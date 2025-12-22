@@ -228,14 +228,14 @@ pytest tests/ -v
 
 **Mitigation:**
 
-The auto-promotion behavior is controlled by the `AUTH_DISABLE_FIRST_USER_AUTO_PROMOTION` configuration option:
+The auto-promotion behavior is controlled by the `AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED` configuration option:
 
-- **Default (Secure)**: `AUTH_DISABLE_FIRST_USER_AUTO_PROMOTION=true` (recommended for production)
+- **Default (Secure)**: `AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=false` (recommended for production)
   - Auto-promotion is **disabled** by default
   - Initial admin user must be assigned using bootstrap tokens or admin API
   - Prevents the race condition where an attacker could authenticate first
 
-- **Development/Testing**: `AUTH_DISABLE_FIRST_USER_AUTO_PROMOTION=false`
+- **Development/Testing**: `AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=true`
   - Auto-promotion is **enabled** for convenience in isolated development environments
   - First user to authenticate automatically receives admin role
   - Should **NEVER** be used in production or any environment accessible by untrusted users
@@ -255,10 +255,10 @@ The auto-promotion behavior is controlled by the `AUTH_DISABLE_FIRST_USER_AUTO_P
 ```bash
 # .env file
 # Disable auto-promotion (secure default, recommended for production)
-AUTH_DISABLE_FIRST_USER_AUTO_PROMOTION=true
+AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=false
 
 # Enable auto-promotion (ONLY for isolated development/testing)
-# AUTH_DISABLE_FIRST_USER_AUTO_PROMOTION=false
+# AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=true
 ```
 
 **Implementation Details:**
@@ -266,7 +266,7 @@ AUTH_DISABLE_FIRST_USER_AUTO_PROMOTION=true
 - Configuration is defined in `documents/schemas/configs/auth.json`
 - Behavior is implemented in `auth/app/role_store.py` (`get_roles_for_user` method)
 - Service reads configuration in `auth/app/service.py` and passes to role store
-- Default value is `true` (secure) if not specified
+- Default value is `false` (secure) if not specified
 
 **Recommended for Production:**
 

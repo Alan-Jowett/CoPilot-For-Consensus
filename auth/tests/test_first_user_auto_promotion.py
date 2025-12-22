@@ -66,7 +66,7 @@ class TestFirstUserAutoPromotion:
     """Test first user auto-promotion configuration."""
 
     def test_auto_promotion_disabled_by_default(self, role_store, mock_store, mock_user):
-        """Test that auto-promotion is disabled when disable_first_user_auto_promotion=True (default)."""
+        """Test that auto-promotion is disabled when first_user_auto_promotion_enabled=False (default)."""
         # Mock: No existing users (empty database)
         mock_store.query_documents.return_value = []
 
@@ -75,7 +75,7 @@ class TestFirstUserAutoPromotion:
             user=mock_user,
             auto_approve_enabled=False,
             auto_approve_roles=[],
-            disable_first_user_auto_promotion=True,  # Default secure setting
+            first_user_auto_promotion_enabled=False,  # Default secure setting
         )
 
         # Should NOT auto-promote to admin
@@ -99,7 +99,7 @@ class TestFirstUserAutoPromotion:
             user=mock_user,
             auto_approve_enabled=False,
             auto_approve_roles=[],
-            disable_first_user_auto_promotion=False,  # Enable for dev/testing
+            first_user_auto_promotion_enabled=True,  # Enable for dev/testing
         )
 
         # Should auto-promote to admin
@@ -137,7 +137,7 @@ class TestFirstUserAutoPromotion:
             user=mock_user,
             auto_approve_enabled=False,
             auto_approve_roles=[],
-            disable_first_user_auto_promotion=False,  # Enable auto-promotion
+            first_user_auto_promotion_enabled=True,  # Enabled
         )
 
         # Should NOT auto-promote since admin already exists
@@ -159,7 +159,7 @@ class TestFirstUserAutoPromotion:
             user=mock_user,
             auto_approve_enabled=False,
             auto_approve_roles=[],
-            disable_first_user_auto_promotion=True,
+            first_user_auto_promotion_enabled=False,
         )
 
         # Should return existing roles (not affected by auto-promotion setting)
@@ -169,17 +169,17 @@ class TestFirstUserAutoPromotion:
         # Should not insert a new record
         mock_store.insert_document.assert_not_called()
 
-    def test_auto_approve_takes_precedence_when_no_admin(self, role_store, mock_store, mock_user):
-        """Test that auto-promotion is skipped when auto-approve provides roles."""
+    def test_auto_approve_works_when_auto_promotion_disabled(self, role_store, mock_store, mock_user):
+        """Test that auto-approve works when first-user auto-promotion is disabled."""
         # Mock: No existing users
         mock_store.query_documents.return_value = []
 
-        # Call with both auto-promotion disabled AND auto-approve enabled
+        # Call with auto-promotion disabled AND auto-approve enabled
         roles, status = role_store.get_roles_for_user(
             user=mock_user,
             auto_approve_enabled=True,
             auto_approve_roles=["contributor", "reviewer"],
-            disable_first_user_auto_promotion=True,  # Disabled
+            first_user_auto_promotion_enabled=False,  # Disabled
         )
 
         # Should use auto-approve roles, not admin
@@ -210,7 +210,7 @@ class TestFirstUserAutoPromotion:
             user=mock_user,
             auto_approve_enabled=True,
             auto_approve_roles=["reader"],
-            disable_first_user_auto_promotion=False,  # Enabled but admin exists
+            first_user_auto_promotion_enabled=True,  # Enabled but admin exists
         )
 
         # Should use auto-approve since admin already exists
@@ -232,7 +232,7 @@ class TestFirstUserAutoPromotion:
             user=mock_user,
             auto_approve_enabled=False,
             auto_approve_roles=[],
-            disable_first_user_auto_promotion=False,  # Enabled
+            first_user_auto_promotion_enabled=True,  # Enabled
         )
 
         # Should remain denied (not auto-promoted)

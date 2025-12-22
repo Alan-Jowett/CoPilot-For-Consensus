@@ -80,7 +80,7 @@ When adding new GitHub Actions to workflows:
 
 **Risk:** The authentication system includes a feature that can auto-promote the first user to admin when no admins exist. If enabled in production, an attacker could authenticate first and gain admin privileges.
 
-**Mitigation (Default):** Auto-promotion is **disabled by default** via `AUTH_DISABLE_FIRST_USER_AUTO_PROMOTION=true`.
+**Mitigation (Default):** Auto-promotion is **disabled by default** via `AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=false`.
 
 **Production Recommendations:**
 - Keep auto-promotion disabled (default setting)
