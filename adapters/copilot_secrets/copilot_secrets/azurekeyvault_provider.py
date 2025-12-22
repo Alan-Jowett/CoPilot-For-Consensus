@@ -92,16 +92,20 @@ class AzureKeyVaultProvider(SecretProvider):
             close_method = getattr(credential, "close", None)
             if callable(close_method):
                 close_method()
-        except Exception:
-            # Suppress errors during cleanup to avoid impacting application shutdown
-            logger.debug("Error while closing Azure credential", exc_info=True)
+        except (AttributeError, TypeError, RuntimeError):
+            # Suppress expected errors during cleanup to avoid impacting application shutdown
+            # AttributeError: close method not available
+            # TypeError: close is not callable
+            # RuntimeError: cleanup during shutdown
+            pass
 
     def __del__(self) -> None:
         """Best-effort cleanup of underlying Azure credential when garbage collected."""
         try:
             self.close()
-        except Exception:
-            # Avoid raising exceptions during interpreter shutdown
+        except (AttributeError, TypeError, RuntimeError):
+            # Suppress expected errors during interpreter shutdown
+            # Do not use logging here as logger may not be available
             pass
 
     def _determine_vault_url(self, vault_url: Optional[str], vault_name: Optional[str]) -> str:
