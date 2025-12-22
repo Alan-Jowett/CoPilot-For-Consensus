@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
 # Configuration Management
 
 This document describes the configuration management system for Copilot-for-Consensus microservices, including schema versioning, discovery, and evolution.
