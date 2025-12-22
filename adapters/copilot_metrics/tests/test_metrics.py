@@ -368,17 +368,17 @@ class TestAzureMonitorMetricsCollector:
     """Tests for AzureMonitorMetricsCollector."""
 
     @pytest.mark.skipif(
-        sys.modules.get('azure.monitor.opentelemetry.exporter') is not None
-        or sys.modules.get('opentelemetry') is not None,
+        sys.modules.get('azure.monitor.opentelemetry.exporter') is None
+        or sys.modules.get('opentelemetry') is None,
         reason="Azure Monitor packages are installed; test requires them to be missing"
     )
     def test_requires_azure_monitor_packages(self):
         """Test that AzureMonitorMetricsCollector raises ImportError when packages are missing.
-        
+
         This test only runs in environments where Azure Monitor packages are NOT installed.
         """
         from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
-        
+
         with pytest.raises(ImportError, match="Azure Monitor OpenTelemetry packages are required"):
             AzureMonitorMetricsCollector(connection_string="InstrumentationKey=test-key")
 

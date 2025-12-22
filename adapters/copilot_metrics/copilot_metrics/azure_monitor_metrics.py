@@ -5,7 +5,7 @@
 
 import logging
 import os
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 from .metrics import MetricsCollector
 
@@ -132,9 +132,9 @@ class AzureMonitorMetricsCollector(MetricsCollector):
             )
 
             # Cache for metric instruments
-            self._counters: Dict[str, 'otel_metrics.Counter'] = {}
-            self._histograms: Dict[str, 'otel_metrics.Histogram'] = {}
-            self._gauges: Dict[str, 'otel_metrics.ObservableGauge'] = {}
+            self._counters: Dict[str, Any] = {}
+            self._histograms: Dict[str, Any] = {}
+            self._gauges: Dict[str, Any] = {}
             self._gauge_values: Dict[str, float] = {}
 
             logger.info(
@@ -151,7 +151,7 @@ class AzureMonitorMetricsCollector(MetricsCollector):
             # In non-raising mode, continue but metrics won't work
             self._meter = None
 
-    def _get_or_create_counter(self, name: str) -> Optional['otel_metrics.Counter']:
+    def _get_or_create_counter(self, name: str) -> Optional[Any]:
         """Get or create an OpenTelemetry counter.
 
         Args:
@@ -171,7 +171,7 @@ class AzureMonitorMetricsCollector(MetricsCollector):
 
         return self._counters[name]
 
-    def _get_or_create_histogram(self, name: str) -> Optional['otel_metrics.Histogram']:
+    def _get_or_create_histogram(self, name: str) -> Optional[Any]:
         """Get or create an OpenTelemetry histogram.
 
         Args:
@@ -191,7 +191,7 @@ class AzureMonitorMetricsCollector(MetricsCollector):
 
         return self._histograms[name]
 
-    def _get_or_create_gauge(self, name: str) -> Optional['otel_metrics.ObservableGauge']:
+    def _get_or_create_gauge(self, name: str) -> Optional[Any]:
         """Get or create an OpenTelemetry observable gauge.
 
         Note: OpenTelemetry gauges are observable (callback-based), so we store
