@@ -4,6 +4,7 @@
 """Azure Cosmos DB document store implementation."""
 
 import logging
+import re
 import uuid
 from typing import Dict, Any, List, Optional
 
@@ -66,7 +67,6 @@ class AzureCosmosDocumentStore(DocumentStore):
         Returns:
             True if field name is safe, False otherwise
         """
-        import re
         # Allow alphanumeric characters, underscores, and dots (for nested fields)
         return bool(re.match(r'^[a-zA-Z0-9_.]+$', field_name))
 
