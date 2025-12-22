@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "projectName": {
+      "value": "copilot"
+    },
+    "environment": {
+      "value": "dev"
+    },
+    "location": {
+      "value": "eastus"
+    },
+    "deploymentMode": {
+      "value": "admin"
+    },
+    "containerRegistryName": {
+      "value": "ghcr.io/alan-jowett/copilot-for-consensus"
+    },
+    "containerImageTag": {
+      "value": "latest"
+    },
+    "mongoDbConnectionString": {
+      "value": "REPLACE_WITH_YOUR_MONGODB_CONNECTION_STRING"
+    },
+    "serviceBusConnectionString": {
+      "value": "REPLACE_WITH_YOUR_SERVICEBUS_CONNECTION_STRING"
+    },
+    "storageAccountConnectionString": {
+      "value": "REPLACE_WITH_YOUR_STORAGE_CONNECTION_STRING"
+    },
+    "createNewIdentities": {
+      "value": true
+    },
+    "llmBackend": {
+      "value": "azure"
+    },
+    "azureOpenAIEndpoint": {
+      "value": "REPLACE_WITH_YOUR_AZURE_OPENAI_ENDPOINT"
+    },
+    "azureOpenAIKey": {
+      "value": "REPLACE_WITH_YOUR_AZURE_OPENAI_KEY"
+    }
+  }
+}
