@@ -144,7 +144,7 @@ class TestAzureKeyVaultProvider:
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
 
-        with pytest.raises(SecretNotFoundError, match="Secret not found: missing-key"):
+        with pytest.raises(SecretNotFoundError, match="Key not found: missing-key"):
             provider.get_secret("missing-key")
 
     def test_get_secret_with_null_value(self):
@@ -171,7 +171,7 @@ class TestAzureKeyVaultProvider:
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
 
-        with pytest.raises(SecretProviderError, match="Failed to retrieve secret"):
+        with pytest.raises(SecretProviderError, match="Failed to retrieve key"):
             provider.get_secret("api-key")
 
     def test_get_secret_bytes_success(self):

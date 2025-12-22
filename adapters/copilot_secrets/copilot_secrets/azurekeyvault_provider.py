@@ -190,7 +190,7 @@ class AzureKeyVaultProvider(SecretProvider):
                 secret = self.client.get_secret(secret_name)
 
             if secret.value is None:
-                raise SecretNotFoundError(f"Secret '{secret_name}' has no value")
+                raise SecretNotFoundError(f"Key '{secret_name}' has no value")
 
             return secret.value
 
@@ -198,10 +198,10 @@ class AzureKeyVaultProvider(SecretProvider):
             # Re-raise SecretNotFoundError without wrapping
             raise
         except ResourceNotFoundError as e:
-            raise SecretNotFoundError(f"Secret not found: {secret_name}") from e
+            raise SecretNotFoundError(f"Key not found: {secret_name}") from e
         except Exception as e:
             # Handle Azure SDK network and service errors, and any other unexpected errors
-            raise SecretProviderError(f"Failed to retrieve secret '{secret_name}': {e}") from e
+            raise SecretProviderError(f"Failed to retrieve key '{secret_name}': {e}") from e
 
     def get_secret_bytes(self, secret_name: str, version: Optional[str] = None) -> bytes:
         """Retrieve a secret as raw bytes from Azure Key Vault.
@@ -249,5 +249,6 @@ class AzureKeyVaultProvider(SecretProvider):
             return False
         except Exception as e:
             # Log Azure SDK errors and unexpected errors but return False for robustness
-            logger.warning(f"Error checking if secret '{secret_name}' exists: {e}")
+            # Note: Only logging the key name (metadata), not the sensitive value
+            logger.warning(f"Error checking if key '{secret_name}' exists in vault: {e}")
             return False
