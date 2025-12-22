@@ -12,7 +12,7 @@ A modular abstraction layer for vector storage backends, enabling flexible switc
   - `InMemoryVectorStore`: Simple in-memory storage for testing and development
   - `FAISSVectorStore`: Production-ready FAISS backend for efficient similarity search
   - `QdrantVectorStore`: Qdrant cloud/self-hosted vector database with persistence
-  - `AzureVectorStore`: (Planned) Azure Cognitive Search integration
+  - `AzureAISearchVectorStore`: Azure AI Search (formerly Azure Cognitive Search) for cloud-native vector search
 - **Factory Pattern**: Easy backend selection via config or environment variables
 - **Type-Safe**: Full type hints for better IDE support and error detection
 - **Well-Tested**: Comprehensive test coverage for all implementations
@@ -39,11 +39,30 @@ pip install -e adapters/copilot_vectorstore/
 pip install qdrant-client
 ```
 
+Or use the extras:
+
+```bash
+pip install -e "adapters/copilot_vectorstore/[qdrant]"
+```
+
+### With Azure AI Search Support
+
+```bash
+pip install -e adapters/copilot_vectorstore/
+pip install azure-search-documents azure-identity
+```
+
+Or use the extras:
+
+```bash
+pip install -e "adapters/copilot_vectorstore/[azure]"
+```
+
 ### Development Installation
 
 ```bash
 pip install -e "adapters/copilot_vectorstore/[dev]"
-pip install faiss-cpu numpy qdrant-client
+pip install faiss-cpu numpy qdrant-client azure-search-documents azure-identity
 ```
 
 ## Quick Start
@@ -119,7 +138,7 @@ store.clear()
 
 ### Environment Variables
 
-- `VECTOR_STORE_BACKEND`: Backend to use (`inmemory`, `faiss`, `qdrant`, `azure`)
+- `VECTOR_STORE_BACKEND`: Backend to use (`inmemory`, `faiss`, `qdrant`, `azure_ai_search`)
   - Default: `faiss`
 
 #### Qdrant Configuration
@@ -130,6 +149,12 @@ store.clear()
 - `QDRANT_COLLECTION`: Collection name (default: `embeddings`)
 - `QDRANT_DISTANCE`: Distance metric - `cosine` or `euclid` (default: `cosine`)
 - `QDRANT_BATCH_SIZE`: Batch size for upsert operations (default: `100`)
+
+#### Azure AI Search Configuration
+
+- `AZURE_SEARCH_ENDPOINT`: Azure AI Search service endpoint
+- `AZURE_SEARCH_API_KEY`: Azure AI Search API key (not required if using managed identity)
+- `AZURE_SEARCH_INDEX_NAME`: Name of the search index (default: `embeddings`)
 
 ### Backend-Specific Options
 
@@ -155,6 +180,7 @@ store = create_vector_store(
     port=6333,
     collection_name="embeddings",
     distance="cosine",  # or "euclid"
+    upsert_batch_size=100,
 )
 
 # Qdrant Cloud with API key
@@ -165,15 +191,88 @@ store = create_vector_store(
     port=6333,
     api_key="your-api-key",
     collection_name="production_embeddings",
+    distance="cosine",
+    upsert_batch_size=100,
+)
+```
+
+#### Azure AI Search
+
+```python
+# Using API key authentication
+store = create_vector_store(
+    backend="azure_ai_search",
+    dimension=384,
+    endpoint="https://your-service.search.windows.net",
+    api_key="your-api-key",
+    index_name="embeddings",
 )
 
-# Using environment variables
-os.environ["QDRANT_HOST"] = "qdrant.example.com"
-os.environ["QDRANT_PORT"] = "6333"
-os.environ["QDRANT_API_KEY"] = "secret"
-os.environ["QDRANT_COLLECTION"] = "my_collection"
-store = create_vector_store(backend="qdrant", dimension=384)
+# Using managed identity (Azure VM, Azure Functions, etc.)
+store = create_vector_store(
+    backend="azure_ai_search",
+    dimension=768,
+    endpoint="https://your-service.search.windows.net",
+    use_managed_identity=True,
+    index_name="production_embeddings",
+)
 ```
+
+### Azure AI Search Configuration
+
+#### Environment Variables
+
+- `AZURE_SEARCH_ENDPOINT`: Azure AI Search service endpoint (e.g., `https://myservice.search.windows.net`)
+- `AZURE_SEARCH_API_KEY`: Azure AI Search API key (not required if using managed identity)
+- `AZURE_SEARCH_INDEX_NAME`: Name of the search index (default: `embeddings`)
+
+#### Example with Environment Variables
+
+```python
+import os
+from copilot_vectorstore import create_vector_store
+
+os.environ["AZURE_SEARCH_ENDPOINT"] = "https://myservice.search.windows.net"
+os.environ["AZURE_SEARCH_API_KEY"] = "your-api-key"
+os.environ["AZURE_SEARCH_INDEX_NAME"] = "my_embeddings"
+
+store = create_vector_store(
+    backend="azure_ai_search",
+    dimension=384,
+    endpoint=os.environ["AZURE_SEARCH_ENDPOINT"],
+    api_key=os.environ["AZURE_SEARCH_API_KEY"],
+    index_name=os.environ["AZURE_SEARCH_INDEX_NAME"],
+)
+```
+
+#### Managed Identity Authentication
+
+When running on Azure (VM, App Service, Functions, AKS), you can use managed identity:
+
+```python
+store = create_vector_store(
+    backend="azure_ai_search",
+    dimension=384,
+    endpoint="https://your-service.search.windows.net",
+    index_name="embeddings",
+    use_managed_identity=True,
+)
+```
+
+**Prerequisites:**
+- Enable managed identity for your Azure resource
+- Grant the identity "Search Index Data Contributor" and "Search Service Contributor" roles on the Azure AI Search service
+
+#### Index Configuration
+
+The Azure AI Search adapter automatically creates an index with the following configuration:
+
+- **Vector Algorithm**: HNSW (Hierarchical Navigable Small World) for efficient similarity search
+- **Distance Metric**: Cosine similarity
+- **Vector Field**: `embedding` field with configurable dimensions
+- **Metadata Field**: JSON-serialized metadata for filtering and retrieval
+
+The index is created automatically on first use if it doesn't exist. If the index exists, the adapter validates that the vector dimensions match.
 
 ## Architecture
 

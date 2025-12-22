@@ -23,11 +23,17 @@ try:
 except ImportError:
     QdrantVectorStore = None
 
+try:
+    from .azure_ai_search_store import AzureAISearchVectorStore
+except ImportError:
+    AzureAISearchVectorStore = None
+
 __all__ = [
     "VectorStore",
     "SearchResult",
     "InMemoryVectorStore",
     "FAISSVectorStore",
     "QdrantVectorStore",
+    "AzureAISearchVectorStore",
     "create_vector_store",
 ]

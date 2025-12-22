@@ -11,6 +11,7 @@ from .interface import VectorStore
 from .inmemory import InMemoryVectorStore
 from .faiss_store import FAISSVectorStore
 from .qdrant_store import QdrantVectorStore
+from .azure_ai_search_store import AzureAISearchVectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +26,8 @@ def create_vector_store(
     All parameters must be provided explicitly - no defaults are applied.
     
     Args:
-        backend: Backend type (required). Options: "inmemory", "faiss", "qdrant", "azure"
-        dimension: Dimension of embedding vectors. Required for faiss and qdrant backends.
+        backend: Backend type (required). Options: "inmemory", "faiss", "qdrant", "azure_ai_search"
+        dimension: Dimension of embedding vectors. Required for faiss, qdrant, and azure_ai_search backends.
         **kwargs: Additional backend-specific configuration options
         
     Returns:
@@ -54,7 +55,7 @@ def create_vector_store(
     if not backend:
         raise ValueError(
             "backend parameter is required. "
-            "Must be one of: inmemory, faiss, qdrant, azure"
+            "Must be one of: inmemory, faiss, qdrant, azure_ai_search"
         )
     
     backend = backend.lower()
@@ -155,15 +156,53 @@ def create_vector_store(
             upsert_batch_size=upsert_batch_size,
         )
     
+    elif backend == "azure_ai_search":
+        if dimension is None:
+            raise ValueError(
+                "dimension parameter is required for Azure AI Search backend. "
+                "Specify the embedding dimension (e.g., 384, 768)"
+            )
+        
+        # Get Azure AI Search configuration
+        endpoint = kwargs.get("endpoint")
+        if not endpoint:
+            raise ValueError(
+                "endpoint parameter is required for Azure AI Search backend. "
+                "Specify the Azure AI Search endpoint (e.g., 'https://myservice.search.windows.net')"
+            )
+        
+        api_key = kwargs.get("api_key")  # Optional if using managed identity
+        use_managed_identity = kwargs.get("use_managed_identity", False)
+        
+        if not use_managed_identity and not api_key:
+            raise ValueError(
+                "Either api_key parameter or use_managed_identity=True is required for Azure AI Search backend."
+            )
+        
+        index_name = kwargs.get("index_name")
+        if not index_name:
+            raise ValueError(
+                "index_name parameter is required for Azure AI Search backend. "
+                "Specify the index name (e.g., 'embeddings')"
+            )
+        
+        return AzureAISearchVectorStore(
+            endpoint=endpoint,
+            api_key=api_key,
+            index_name=index_name,
+            vector_size=dimension,
+            use_managed_identity=use_managed_identity,
+        )
+    
     elif backend == "azure":
-        # Scaffold for future implementation
+        # Legacy alias for backward compatibility
         raise NotImplementedError(
-            "Azure Cognitive Search backend is not yet implemented. "
-            "Contributions welcome! See the VectorStore interface for requirements."
+            "Backend 'azure' has been renamed to 'azure_ai_search'. "
+            "Please use backend='azure_ai_search' instead."
         )
     
     else:
         raise ValueError(
             f"Unsupported vector store backend: '{backend}'. "
-            f"Supported backends: inmemory, faiss, qdrant (planned), azure (planned)"
+            f"Supported backends: inmemory, faiss, qdrant, azure_ai_search"
         )
