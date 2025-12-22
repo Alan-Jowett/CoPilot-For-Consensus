@@ -32,6 +32,8 @@ setup(
     install_requires=[
         "pika>=1.3.0",  # RabbitMQ client
         "copilot-schema-validation>=0.1.0",  # Event models and validation
+        "azure-servicebus>=7.11.0",  # Azure Service Bus client
+        "azure-identity>=1.12.0",  # Azure authentication for managed identity
     ],
     extras_require={
         "dev": [

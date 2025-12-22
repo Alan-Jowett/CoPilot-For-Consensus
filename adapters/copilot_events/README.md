@@ -29,6 +29,7 @@ A shared Python library for event publishing and subscribing across microservice
 - **Abstract Publisher Interface**: Common interface for all event publishers
 - **Abstract Subscriber Interface**: Common interface for all event subscribers
 - **RabbitMQ Implementation**: Production-ready RabbitMQ publisher and subscriber with persistent messages and guaranteed delivery
+- **Azure Service Bus Implementation**: Production-ready Azure Service Bus publisher and subscriber with support for queues, topics, and managed identity
 - **No-op Implementation**: Testing publisher and subscriber that work in-memory
 - **Event Models**: Common event data structures for system-wide consistency
 - **Factory Pattern**: Simple factory functions for creating publishers and subscribers
@@ -140,6 +141,21 @@ publisher = create_publisher(
     port=5672,
     username="guest",
     password="guest"
+)
+
+# Create Azure Service Bus publisher (with connection string)
+publisher = create_publisher(
+    message_bus_type="azureservicebus",
+    connection_string="Endpoint=sb://namespace.servicebus.windows.net/;...",
+    queue_name="copilot-events"
+)
+
+# Create Azure Service Bus publisher (with managed identity)
+publisher = create_publisher(
+    message_bus_type="azureservicebus",
+    fully_qualified_namespace="namespace.servicebus.windows.net",
+    topic_name="copilot-events",
+    use_managed_identity=True
 )
 
 # Connect and publish
@@ -423,6 +439,150 @@ Named queues are declared with:
 - `auto_delete=False`: Queue persists when no consumers
 - `exclusive=False`: Queue can be accessed by multiple connections
 
+#### AzureServiceBusPublisher
+
+Azure Service Bus publisher implementation with:
+- Support for both queues and topics
+- Connection string or managed identity authentication
+- Persistent messages by default
+- JSON serialization
+- Comprehensive logging and error handling
+
+**Authentication Options:**
+
+The AzureServiceBusPublisher supports two authentication methods:
+
+1. **Connection String**: Simple authentication using Azure Service Bus connection string
+2. **Managed Identity**: Azure Active Directory authentication using `DefaultAzureCredential`
+
+**Usage with Connection String:**
+
+```python
+from copilot_events import AzureServiceBusPublisher
+
+# Create publisher with connection string
+publisher = AzureServiceBusPublisher(
+    connection_string="Endpoint=sb://namespace.servicebus.windows.net/;SharedAccessKeyName=...;SharedAccessKey=...",
+    queue_name="copilot-events"
+)
+publisher.connect()
+
+# Publish event to queue
+publisher.publish(
+    exchange="copilot.events",
+    routing_key="archive.ingested",
+    event={"event_type": "ArchiveIngested", "data": {...}}
+)
+
+publisher.disconnect()
+```
+
+**Usage with Managed Identity:**
+
+```python
+from copilot_events import AzureServiceBusPublisher
+
+# Create publisher with managed identity (recommended for production)
+publisher = AzureServiceBusPublisher(
+    fully_qualified_namespace="namespace.servicebus.windows.net",
+    topic_name="copilot-events",
+    use_managed_identity=True
+)
+publisher.connect()
+
+# Publish event to topic
+publisher.publish(
+    exchange="copilot.events",
+    routing_key="archive.ingested",
+    event={"event_type": "ArchiveIngested", "data": {...}}
+)
+
+publisher.disconnect()
+```
+
+**Environment Variables for Configuration:**
+
+```bash
+# For connection string authentication
+AZURE_SERVICEBUS_CONNECTION_STRING="Endpoint=sb://namespace.servicebus.windows.net/;..."
+AZURE_SERVICEBUS_QUEUE_NAME="copilot-events"
+
+# For managed identity authentication (in Azure environments)
+AZURE_SERVICEBUS_NAMESPACE="namespace.servicebus.windows.net"
+AZURE_SERVICEBUS_TOPIC_NAME="copilot-events"
+```
+
+#### AzureServiceBusSubscriber
+
+Azure Service Bus subscriber implementation with:
+- Support for both queues and topic subscriptions
+- Connection string or managed identity authentication
+- Manual or automatic message acknowledgment
+- Callback-based event dispatch
+- Error handling with message abandonment for retry
+
+**Authentication Options:**
+
+Same as the publisher, supporting both connection string and managed identity.
+
+**Usage with Queue:**
+
+```python
+from copilot_events import AzureServiceBusSubscriber
+
+# Create subscriber for queue
+subscriber = AzureServiceBusSubscriber(
+    connection_string="Endpoint=sb://namespace.servicebus.windows.net/;...",
+    queue_name="copilot-events",
+    auto_complete=False,  # Manual acknowledgment
+    max_wait_time=5
+)
+
+subscriber.connect()
+
+# Register callback
+def handle_event(event):
+    print(f"Received: {event['event_type']}")
+
+subscriber.subscribe("ArchiveIngested", handle_event)
+
+# Start consuming (blocks)
+try:
+    subscriber.start_consuming()
+except KeyboardInterrupt:
+    subscriber.stop_consuming()
+    subscriber.disconnect()
+```
+
+**Usage with Topic Subscription:**
+
+```python
+from copilot_events import AzureServiceBusSubscriber
+
+# Create subscriber for topic/subscription
+subscriber = AzureServiceBusSubscriber(
+    fully_qualified_namespace="namespace.servicebus.windows.net",
+    topic_name="copilot-events",
+    subscription_name="parsing-service",
+    use_managed_identity=True,
+    auto_complete=False
+)
+
+subscriber.connect()
+subscriber.subscribe("JSONParsed", handle_json_parsed)
+subscriber.start_consuming()
+```
+
+**Managed Identity Setup:**
+
+For managed identity to work in Azure:
+1. Enable managed identity on your Azure resource (VM, App Service, Container Instance, etc.)
+2. Grant the managed identity the appropriate roles:
+   - `Azure Service Bus Data Sender` for publishing
+   - `Azure Service Bus Data Receiver` for subscribing
+3. Use `fully_qualified_namespace` parameter instead of `connection_string`
+4. Set `use_managed_identity=True`
+
 #### NoopPublisher
 
 Testing publisher implementation with:
@@ -531,6 +691,8 @@ pylint copilot_events/
 
 - Python 3.10+
 - pika (for RabbitMQ)
+- azure-servicebus (for Azure Service Bus)
+- azure-identity (for Azure managed identity authentication)
 - copilot-schema-validation (for ValidatingEventPublisher)
 
 ## License

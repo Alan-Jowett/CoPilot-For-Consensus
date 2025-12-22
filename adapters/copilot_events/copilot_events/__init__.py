@@ -11,9 +11,11 @@ __version__ = "0.1.0"
 
 from .publisher import EventPublisher, create_publisher
 from .rabbitmq_publisher import RabbitMQPublisher
+from .azureservicebuspublisher import AzureServiceBusPublisher
 from .noop_publisher import NoopPublisher
 from .subscriber import EventSubscriber
 from .rabbitmq_subscriber import RabbitMQSubscriber
+from .azureservicebussubscriber import AzureServiceBusSubscriber
 from .noop_subscriber import NoopSubscriber
 from .validating_publisher import ValidatingEventPublisher, ValidationError
 from .validating_subscriber import ValidatingEventSubscriber, SubscriberValidationError
@@ -56,12 +58,21 @@ def create_subscriber(
     """Create an event subscriber based on message bus type.
     
     Args:
-        message_bus_type: Type of message bus ("rabbitmq", "noop")
+        message_bus_type: Type of message bus ("rabbitmq", "azureservicebus", or "noop")
         host: Message bus hostname (required for rabbitmq)
-        port: Message bus port (optional)
-        username: Authentication username (optional)
-        password: Authentication password (optional)
+        port: Message bus port (optional for rabbitmq)
+        username: Authentication username (optional for rabbitmq)
+        password: Authentication password (optional for rabbitmq)
         **kwargs: Additional subscriber-specific arguments
+            For Azure Service Bus:
+                - connection_string: Azure Service Bus connection string
+                - fully_qualified_namespace: Namespace hostname (for managed identity)
+                - queue_name: Queue name to receive from
+                - topic_name: Topic name (for topic/subscription messaging)
+                - subscription_name: Subscription name (required if topic_name is provided)
+                - use_managed_identity: Use Azure managed identity (default: False)
+                - auto_complete: Auto-complete messages (default: False)
+                - max_wait_time: Max wait time for messages in seconds (default: 5)
         
     Returns:
         EventSubscriber instance
@@ -79,6 +90,9 @@ def create_subscriber(
             password=password or "guest",
             **kwargs
         )
+    elif message_bus_type == "azureservicebus":
+        from .azureservicebussubscriber import AzureServiceBusSubscriber
+        return AzureServiceBusSubscriber(**kwargs)
     elif message_bus_type == "noop":
         return NoopSubscriber()
     else:
@@ -91,6 +105,7 @@ __all__ = [
     # Publishers
     "EventPublisher",
     "RabbitMQPublisher",
+    "AzureServiceBusPublisher",
     "NoopPublisher",
     "create_publisher",
     "ValidatingEventPublisher",
@@ -98,6 +113,7 @@ __all__ = [
     # Subscribers
     "EventSubscriber",
     "RabbitMQSubscriber",
+    "AzureServiceBusSubscriber",
     "NoopSubscriber",
     "create_subscriber",
     "ValidatingEventSubscriber",
