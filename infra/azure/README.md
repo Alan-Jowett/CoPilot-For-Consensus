@@ -105,7 +105,9 @@ The deployment creates the following Azure resources:
 Each Container App has its own user-assigned managed identity with RBAC permissions to access only the resources it needs:
 - **Key Vault**: Secrets User role (read secrets)
 - **Storage Account**: Blob Data Contributor role (read/write blobs)
-- **Service Bus**: Data Sender/Receiver roles (send/receive messages)
+- **Service Bus** (when using managed identity mode): Data Sender/Receiver roles (send/receive messages)
+  - Ingestion: Data Sender only
+  - Parsing, Chunking, Embedding, Orchestrator, Summarization, Reporting: Data Sender + Data Receiver
 - **Azure OpenAI**: Cognitive Services User role (use OpenAI endpoints)
 
 ## Deployment Modes
@@ -139,14 +141,33 @@ cd CoPilot-For-Consensus/infra/azure
 
 ### 2. Configure Parameters
 
-Edit `azuredeploy.parameters.json` to set your configuration:
+Edit `azuredeploy.parameters.json` to set your configuration.
+
+**Option A: Using Service Bus Connection String (Traditional)**
 
 ```json
 {
   "projectName": { "value": "copilot" },
   "environment": { "value": "dev" },
   "mongoDbConnectionString": { "value": "YOUR_MONGODB_CONNECTION_STRING" },
+  "useManagedIdentityForServiceBus": { "value": false },
   "serviceBusConnectionString": { "value": "YOUR_SERVICEBUS_CONNECTION_STRING" },
+  "storageAccountConnectionString": { "value": "YOUR_STORAGE_CONNECTION_STRING" },
+  "azureOpenAIEndpoint": { "value": "YOUR_AZURE_OPENAI_ENDPOINT" },
+  "azureOpenAIKey": { "value": "YOUR_AZURE_OPENAI_KEY" }
+}
+```
+
+**Option B: Using Service Bus Managed Identity (Recommended)**
+
+```json
+{
+  "projectName": { "value": "copilot" },
+  "environment": { "value": "dev" },
+  "mongoDbConnectionString": { "value": "YOUR_MONGODB_CONNECTION_STRING" },
+  "useManagedIdentityForServiceBus": { "value": true },
+  "serviceBusNamespace": { "value": "copilot-servicebus.servicebus.windows.net" },
+  "serviceBusResourceId": { "value": "/subscriptions/{sub-id}/resourceGroups/copilot-rg/providers/Microsoft.ServiceBus/namespaces/copilot-servicebus" },
   "storageAccountConnectionString": { "value": "YOUR_STORAGE_CONNECTION_STRING" },
   "azureOpenAIEndpoint": { "value": "YOUR_AZURE_OPENAI_ENDPOINT" },
   "azureOpenAIKey": { "value": "YOUR_AZURE_OPENAI_KEY" }
@@ -218,8 +239,18 @@ az deployment group create \
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `mongoDbConnectionString` | securestring | MongoDB or Cosmos DB connection string |
-| `serviceBusConnectionString` | securestring | Azure Service Bus connection string |
 | `storageAccountConnectionString` | securestring | Azure Storage connection string |
+
+**For Service Bus Connection String Mode** (default, `useManagedIdentityForServiceBus: false`):
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `serviceBusConnectionString` | securestring | Azure Service Bus connection string |
+
+**For Service Bus Managed Identity Mode** (`useManagedIdentityForServiceBus: true`):
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `serviceBusNamespace` | string | Azure Service Bus fully qualified namespace (e.g., `mynamespace.servicebus.windows.net`) |
+| `serviceBusResourceId` | string | Azure Service Bus namespace resource ID for RBAC role assignments |
 
 ### Optional Parameters
 
@@ -233,11 +264,59 @@ az deployment group create \
 | `containerImageTag` | string | `latest` | Container image tag |
 | `createNewIdentities` | bool | `true` | Create new managed identities or use existing |
 | `existingIdentityResourceIds` | object | `{}` | Existing identity resource IDs (if createNewIdentities is false) |
+| `useManagedIdentityForServiceBus` | bool | `false` | Use managed identity for passwordless Service Bus authentication |
 | `llmBackend` | string | `azure` | LLM backend: local, azure, or mock |
 | `azureOpenAIEndpoint` | string | `` | Azure OpenAI endpoint URL (required if llmBackend is azure) |
 | `azureOpenAIKey` | securestring | `` | Azure OpenAI API key (required if llmBackend is azure) |
 | `vnetAddressPrefix` | string | `10.0.0.0/16` | Virtual network address prefix |
 | `subnetAddressPrefix` | string | `10.0.0.0/23` | Container Apps subnet prefix |
+
+### Service Bus Authentication Modes
+
+The template supports two authentication modes for Azure Service Bus:
+
+#### 1. Connection String Mode (Default)
+
+Uses a shared access signature (SAS) connection string. This is the traditional approach.
+
+**Configuration:**
+```json
+{
+  "useManagedIdentityForServiceBus": { "value": false },
+  "serviceBusConnectionString": { "value": "Endpoint=sb://...;SharedAccessKeyName=...;SharedAccessKey=..." }
+}
+```
+
+**Pros:** Simple to set up, works immediately  
+**Cons:** Requires managing and rotating secrets
+
+#### 2. Managed Identity Mode (Passwordless)
+
+Uses Azure Managed Identity for passwordless authentication via RBAC roles. **Recommended for production.**
+
+**Configuration:**
+```json
+{
+  "useManagedIdentityForServiceBus": { "value": true },
+  "serviceBusNamespace": { "value": "mynamespace.servicebus.windows.net" },
+  "serviceBusResourceId": { "value": "/subscriptions/{sub-id}/resourceGroups/{rg}/providers/Microsoft.ServiceBus/namespaces/{namespace}" }
+}
+```
+
+**RBAC Roles Assigned:**
+- **Ingestion service:** Azure Service Bus Data Sender
+- **Parsing, Chunking, Embedding, Orchestrator, Summarization, Reporting services:** Azure Service Bus Data Sender + Data Receiver
+
+**Pros:** No secrets to manage, improved security, aligns with Azure best practices  
+**Cons:** Requires existing Service Bus namespace with appropriate RBAC permissions
+
+**To get your Service Bus resource ID:**
+```bash
+az servicebus namespace show \
+  --name <namespace-name> \
+  --resource-group <resource-group> \
+  --query id -o tsv
+```
 
 ### Using Existing Managed Identities
 
@@ -292,6 +371,8 @@ az cosmosdb keys list \
 
 #### 1.2 Create Azure Service Bus
 
+**Option A: Using Connection String (Traditional)**
+
 ```bash
 # Create Service Bus namespace (Standard tier minimum)
 az servicebus namespace create \
@@ -307,6 +388,33 @@ az servicebus namespace authorization-rule keys list \
   --name RootManageSharedAccessKey \
   --query primaryConnectionString -o tsv
 ```
+
+**Option B: Using Managed Identity (Recommended for Production)**
+
+```bash
+# Create Service Bus namespace (Standard tier minimum)
+az servicebus namespace create \
+  --name copilot-servicebus \
+  --resource-group copilot-rg \
+  --location eastus \
+  --sku Standard
+
+# Get the resource ID for the ARM template
+az servicebus namespace show \
+  --name copilot-servicebus \
+  --resource-group copilot-rg \
+  --query id -o tsv
+
+# Get the fully qualified namespace for the ARM template
+az servicebus namespace show \
+  --name copilot-servicebus \
+  --resource-group copilot-rg \
+  --query serviceBusEndpoint -o tsv | sed 's|https://||' | sed 's|:443/||'
+```
+
+When using managed identity mode, the ARM template will automatically assign the following RBAC roles:
+- **Azure Service Bus Data Sender** (role ID: `69a216fc-b8fb-44d4-bc22-1f3c7cd27a98`) - for services that produce messages
+- **Azure Service Bus Data Receiver** (role ID: `4f6d3b9b-027b-4f4c-9142-0e5a2a2247e0`) - for services that consume messages
 
 #### 1.3 Create Azure Storage Account (for archives)
 
@@ -572,14 +680,16 @@ Use the [Azure Pricing Calculator](https://azure.microsoft.com/en-us/pricing/cal
 ### 1. Use Managed Identities
 
 - ✅ All services use user-assigned managed identities
-- ✅ No connection strings or passwords in application code
+- ✅ No connection strings or passwords in application code (when using managed identity mode)
 - ✅ RBAC-based access to Azure resources
+- ✅ **Recommended**: Enable `useManagedIdentityForServiceBus: true` for passwordless Service Bus authentication
 
 ### 2. Secure Secrets in Key Vault
 
 - ✅ All secrets stored in Azure Key Vault
 - ✅ Key Vault uses RBAC (not access policies)
 - ✅ Soft delete enabled for accidental deletion protection
+- ⚠️ **Note**: When using managed identity for Service Bus, the connection string is not needed and not stored
 
 ### 3. Network Security
 
@@ -606,10 +716,13 @@ az security pricing create \
 ### 6. Least Privilege RBAC
 
 Each managed identity has only the permissions it needs:
-- **ingestion**: Blob Data Contributor, Service Bus Data Sender
-- **parsing**: Blob Data Reader, Service Bus Data Sender/Receiver
-- **auth**: Key Vault Secrets User
-- **reporting**: Blob Data Reader
+- **ingestion**: Blob Data Contributor, Service Bus Data Sender (when managed identity enabled)
+- **parsing, chunking, embedding, orchestrator, summarization, reporting**: Blob Data Contributor, Service Bus Data Sender/Receiver (when managed identity enabled)
+- **auth, ui, gateway**: Key Vault Secrets User (no Service Bus access)
+
+**Service Bus RBAC Roles** (when `useManagedIdentityForServiceBus: true`):
+- **Azure Service Bus Data Sender**: Allows sending messages to queues/topics
+- **Azure Service Bus Data Receiver**: Allows receiving messages from queues/subscriptions
 
 ### 7. Keep Containers Updated
 
