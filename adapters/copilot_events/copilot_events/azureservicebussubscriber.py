@@ -10,12 +10,10 @@ from typing import Callable, Dict, Any, Optional
 
 try:
     from azure.servicebus import ServiceBusClient, ServiceBusReceiveMode
-    from azure.servicebus.exceptions import ServiceBusError
     from azure.identity import DefaultAzureCredential
 except ImportError:
     ServiceBusClient = None  # type: ignore
     ServiceBusReceiveMode = None  # type: ignore
-    ServiceBusError = None  # type: ignore
     DefaultAzureCredential = None  # type: ignore
 
 from .subscriber import EventSubscriber

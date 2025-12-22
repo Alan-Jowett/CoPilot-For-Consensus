@@ -5,7 +5,7 @@
 
 import json
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 
 try:
     from azure.servicebus import ServiceBusClient, ServiceBusMessage
@@ -111,7 +111,7 @@ class AzureServiceBusPublisher(EventPublisher):
 
     def _determine_publish_target(
         self, exchange: str, routing_key: str
-    ) -> tuple[Optional[str], Optional[str]]:
+    ) -> Tuple[Optional[str], Optional[str]]:
         """Determine the target queue or topic for publishing.
         
         Topic takes precedence over queue. If both queue_name and topic_name
@@ -207,9 +207,10 @@ class AzureServiceBusPublisher(EventPublisher):
                 logger.error(error_msg)
                 raise ValueError(error_msg)
                 
-        except ServiceBusError as e:
-            logger.error(f"Azure Service Bus error while publishing: {e}")
-            raise
         except Exception as e:
-            logger.error(f"Failed to publish event: {e}")
+            # Check if it's a ServiceBusError (if the module is available)
+            if ServiceBusError and isinstance(e, ServiceBusError):
+                logger.error(f"Azure Service Bus error while publishing: {e}")
+            else:
+                logger.error(f"Failed to publish event: {e}")
             raise
