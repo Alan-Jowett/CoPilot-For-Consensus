@@ -9,6 +9,13 @@ from typing import List, Dict, Any, Optional
 
 from .interface import VectorStore, SearchResult
 
+# Try to import Azure SDK exception types at module level
+try:
+    from azure.core.exceptions import ResourceNotFoundError
+except ImportError:
+    # Fallback if azure.core.exceptions is not available
+    ResourceNotFoundError = None  # type: ignore
+
 logger = logging.getLogger(__name__)
 
 # HNSW algorithm configuration constants
@@ -147,12 +154,6 @@ class AzureAISearchVectorStore(VectorStore):
     def _ensure_index(self) -> None:
         """Ensure the search index exists, create it if not."""
         try:
-            from azure.core.exceptions import ResourceNotFoundError
-        except ImportError:
-            # Fallback if azure.core.exceptions is not available
-            ResourceNotFoundError = None
-        
-        try:
             # Check if index exists
             existing_index = self._index_client.get_index(self._index_name)
             logger.info(f"Using existing index '{self._index_name}'")
@@ -169,7 +170,8 @@ class AzureAISearchVectorStore(VectorStore):
                         f"expected {self._vector_size}, found {vector_field.vector_search_dimensions}"
                     )
         except Exception as e:
-            # Check for ResourceNotFoundError first, then fall back to string matching
+            # Check for ResourceNotFoundError first (requires azure-search-documents >= 11.0),
+            # then fall back to string matching for older SDK versions or other clients
             is_not_found = (
                 (ResourceNotFoundError and isinstance(e, ResourceNotFoundError)) or
                 "not found" in str(e).lower() or "does not exist" in str(e).lower()
@@ -205,40 +207,51 @@ class AzureAISearchVectorStore(VectorStore):
         ]
         
         # Configure vector search with HNSW algorithm
-        # Note: HnswAlgorithmConfiguration may have different constructor signatures
-        # depending on the azure-search-documents version. This uses a common pattern.
+        # Note: HnswAlgorithmConfiguration has different constructor signatures
+        # depending on the azure-search-documents SDK version. We try multiple
+        # approaches to maximize compatibility:
+        # 1. Modern SDK (>= 11.4.0): HnswParameters with snake_case kwargs
+        # 2. Legacy SDK: dict-based parameters with camelCase keys (REST API format)
+        # 3. Fallback: basic configuration without custom parameters
+        
+        hnsw_config: Any
         try:
+            # Preferred: Modern azure-search-documents SDK (>= 11.4.0) with
+            # HnswParameters class using snake_case keyword arguments
+            from azure.search.documents.indexes.models import HnswParameters
+            hnsw_params = HnswParameters(
+                m=HNSW_M,
+                ef_construction=HNSW_EF_CONSTRUCTION,
+                ef_search=HNSW_EF_SEARCH,
+                metric="cosine",
+            )
             hnsw_config = self._HnswAlgorithmConfiguration(
                 name="hnsw-algorithm",
-                parameters={
-                    "m": HNSW_M,
-                    "efConstruction": HNSW_EF_CONSTRUCTION,
-                    "efSearch": HNSW_EF_SEARCH,
-                    "metric": "cosine",
-                }
+                parameters=hnsw_params
             )
-        except TypeError:
-            # If parameters as dict doesn't work, try as kwargs
+        except (ImportError, TypeError):
+            # Legacy: Older SDK versions may accept dict with camelCase keys
+            # matching the Azure REST API schema ("efConstruction", "efSearch")
             try:
-                from azure.search.documents.indexes.models import HnswParameters
-                hnsw_params = HnswParameters(
-                    m=HNSW_M,
-                    ef_construction=HNSW_EF_CONSTRUCTION,
-                    ef_search=HNSW_EF_SEARCH,
-                    metric="cosine",
-                )
                 hnsw_config = self._HnswAlgorithmConfiguration(
                     name="hnsw-algorithm",
-                    parameters=hnsw_params
+                    parameters={
+                        "m": HNSW_M,
+                        "efConstruction": HNSW_EF_CONSTRUCTION,
+                        "efSearch": HNSW_EF_SEARCH,
+                        "metric": "cosine",
+                    }
                 )
-            except (ImportError, TypeError):
+            except TypeError:
                 # Fallback to basic configuration
                 logger.warning(
                     "Falling back to basic HNSW configuration for index '%s'; "
-                    "custom HNSW parameters could not be applied. This may "
-                    "reduce vector search quality. Check your "
-                    "azure-search-documents SDK version and constructor "
-                    "compatibility.",
+                    "custom HNSW parameters could not be applied because your "
+                    "installed azure-search-documents SDK version does not "
+                    "support the expected HnswAlgorithmConfiguration/HnswParameters "
+                    "constructor signatures. This may reduce vector search quality. "
+                    "Consider upgrading to azure-search-documents >= 11.4.0 or "
+                    "review the SDK documentation for the correct configuration API.",
                     self._index_name,
                 )
                 hnsw_config = self._HnswAlgorithmConfiguration(name="hnsw-algorithm")
@@ -411,16 +424,12 @@ class AzureAISearchVectorStore(VectorStore):
         Raises:
             KeyError: If id doesn't exist
         """
-        try:
-            from azure.core.exceptions import ResourceNotFoundError
-        except ImportError:
-            ResourceNotFoundError = None
-        
         # Check if document exists
         try:
             self._search_client.get_document(key=id)
         except Exception as e:
-            # Check for ResourceNotFoundError first, then fall back to string matching
+            # Check for ResourceNotFoundError first (requires azure-search-documents >= 11.0),
+            # then fall back to string matching for older SDK versions or other clients
             is_not_found = (
                 (ResourceNotFoundError and isinstance(e, ResourceNotFoundError)) or
                 "not found" in str(e).lower()
@@ -477,14 +486,10 @@ class AzureAISearchVectorStore(VectorStore):
             KeyError: If id doesn't exist
         """
         try:
-            from azure.core.exceptions import ResourceNotFoundError
-        except ImportError:
-            ResourceNotFoundError = None
-        
-        try:
             result = self._search_client.get_document(key=id)
         except Exception as e:
-            # Check for ResourceNotFoundError first, then fall back to string matching
+            # Check for ResourceNotFoundError first (requires azure-search-documents >= 11.0),
+            # then fall back to string matching for older SDK versions or other clients
             is_not_found = (
                 (ResourceNotFoundError and isinstance(e, ResourceNotFoundError)) or
                 "not found" in str(e).lower()
