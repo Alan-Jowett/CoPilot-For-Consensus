@@ -481,7 +481,7 @@ Azure Monitor uses the connection string for authentication. No additional Azure
 
 For enhanced security in production:
 - Store connection strings in Azure Key Vault
-- Use managed identities where possible
+- Use managed identities to access Azure Key Vault and retrieve the connection string (note: the Azure Monitor metrics backend itself currently authenticates via connection string only, not managed identity)
 - Rotate instrumentation keys periodically
 - Restrict network access to Application Insights endpoints
 

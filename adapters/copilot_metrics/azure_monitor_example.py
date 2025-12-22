@@ -108,11 +108,11 @@ def main():
         )
 
     except ImportError as e:
-        logger.error(f"Azure Monitor packages not installed: {e}")
+        logger.error("Azure Monitor packages not installed: %s", e)
         logger.info("Install with: pip install copilot-metrics[azure]")
         sys.exit(1)
     except Exception as e:
-        logger.error(f"Error: {e}")
+        logger.error("Error: %s", e)
         sys.exit(1)
 
 

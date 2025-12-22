@@ -213,7 +213,7 @@ class AzureMonitorMetricsCollector(MetricsCollector):
             self._gauge_values[gauge_key] = 0.0
 
             # Create callback that returns the current value
-            def gauge_callback(options):  # pylint: disable=unused-argument
+            def gauge_callback() -> Any:
                 return [(self._gauge_values[gauge_key], {})]
 
             self._gauges[name] = self._meter.create_observable_gauge(
@@ -314,6 +314,10 @@ class AzureMonitorMetricsCollector(MetricsCollector):
         This method should be called when shutting down the application to ensure
         all metrics are exported before termination.
         """
+        if not AZURE_MONITOR_AVAILABLE or otel_metrics is None:
+            logger.warning("Azure Monitor packages not available, skipping shutdown")
+            return
+
         try:
             provider = otel_metrics.get_meter_provider()
             if hasattr(provider, 'shutdown'):
