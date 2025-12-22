@@ -137,14 +137,12 @@ class AzureMonitorMetricsCollector(MetricsCollector):
             )
 
             logger.info(
-                "AzureMonitorMetricsCollector initialized with namespace '%s' "
-                "and export interval %sms",
-                self.namespace,
-                export_interval_millis
+                f"AzureMonitorMetricsCollector initialized with namespace '{self.namespace}' "
+                f"and export interval {export_interval_millis}ms"
             )
 
         except Exception as e:
-            logger.error("Failed to initialize Azure Monitor metrics collector: %s", e)
+            logger.error(f"Failed to initialize Azure Monitor metrics collector: {e}")
             if self.raise_on_error:
                 raise
             # In non-raising mode, continue but metrics won't work
@@ -238,11 +236,10 @@ class AzureMonitorMetricsCollector(MetricsCollector):
             if counter is not None:
                 attributes = tags or {}
                 counter.add(value, attributes=attributes)
-                logger.debug("AzureMonitorMetricsCollector: increment %s by %s with tags %s",
-                            name, value, tags)
+                logger.debug(f"AzureMonitorMetricsCollector: increment {name} by {value} with tags {tags}")
         except Exception as e:
             self._metrics_errors_count += 1
-            logger.error("Failed to increment counter %s: %s", name, e)
+            logger.error(f"Failed to increment counter {name}: {e}")
             if self.raise_on_error:
                 raise
 
@@ -259,11 +256,10 @@ class AzureMonitorMetricsCollector(MetricsCollector):
             if histogram is not None:
                 attributes = tags or {}
                 histogram.record(value, attributes=attributes)
-                logger.debug("AzureMonitorMetricsCollector: observe %s value %s with tags %s",
-                            name, value, tags)
+                logger.debug(f"AzureMonitorMetricsCollector: observe {name} value {value} with tags {tags}")
         except Exception as e:
             self._metrics_errors_count += 1
-            logger.error("Failed to observe histogram %s: %s", name, e)
+            logger.error(f"Failed to observe histogram {name}: {e}")
             if self.raise_on_error:
                 raise
 
@@ -286,20 +282,31 @@ class AzureMonitorMetricsCollector(MetricsCollector):
                 # Store the latest value for the callback to report
                 gauge_key = f"{self.namespace}.{name}"
                 self._gauge_values[gauge_key] = value
-                logger.debug("AzureMonitorMetricsCollector: gauge %s set to %s with tags %s",
-                            name, value, tags)
+                logger.debug(f"AzureMonitorMetricsCollector: gauge {name} set to {value} with tags {tags}")
 
                 if tags:
                     logger.warning(
-                        "Tags/dimensions are not fully supported for gauge '%s' "
-                        "with observable gauges in OpenTelemetry",
-                        name
+                        f"Tags/dimensions are not fully supported for gauge '{name}' "
+                        "with observable gauges in OpenTelemetry"
                     )
         except Exception as e:
             self._metrics_errors_count += 1
-            logger.error("Failed to set gauge %s: %s", name, e)
+            logger.error(f"Failed to set gauge {name}: {e}")
             if self.raise_on_error:
                 raise
+
+    def get_gauge_value(self, name: str, tags: Optional[Dict[str, str]] = None) -> Optional[float]:
+        """Get the most recent value of a gauge metric.
+        
+        Args:
+            name: Name of the gauge metric
+            tags: Optional tags to filter by (not used in Azure Monitor implementation)
+            
+        Returns:
+            Most recent gauge value, or None if not found
+        """
+        gauge_key = f"{self.namespace}.{name}"
+        return self._gauge_values.get(gauge_key)
 
     def get_errors_count(self) -> int:
         """Get the count of metrics collection errors.
@@ -332,4 +339,4 @@ class AzureMonitorMetricsCollector(MetricsCollector):
                 provider.shutdown()
                 logger.info("Azure Monitor metrics collector shut down successfully")
         except Exception as e:
-            logger.error("Error during Azure Monitor metrics collector shutdown: %s", e)
+            logger.error(f"Error during Azure Monitor metrics collector shutdown: {e}")
