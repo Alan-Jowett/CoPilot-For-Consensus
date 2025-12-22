@@ -17,6 +17,13 @@ from .document_store import (
 
 logger = logging.getLogger(__name__)
 
+# Import azure.cosmos at module level to avoid repeated imports in methods
+try:
+    from azure.cosmos import exceptions as cosmos_exceptions
+except ImportError:
+    # Will be handled in connect() method
+    cosmos_exceptions = None
+
 
 class AzureCosmosDocumentStore(DocumentStore):
     """Azure Cosmos DB document store implementation using Core (SQL) API."""
@@ -56,10 +63,6 @@ class AzureCosmosDocumentStore(DocumentStore):
         Raises:
             DocumentStoreConnectionError: If connection fails
         """
-        if not COSMOS_AVAILABLE:
-            logger.error("AzureCosmosDocumentStore: azure-cosmos not installed")
-            raise DocumentStoreConnectionError("azure-cosmos not installed")
-        
         try:
             from azure.cosmos import CosmosClient
             from azure.core.exceptions import AzureError
