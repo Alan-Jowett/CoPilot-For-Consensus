@@ -145,10 +145,9 @@ def fetch_data(url):
     return response.json()
 
 # ✅ Good - Proper type hints
-from typing import Dict, Any
 import requests
 
-def fetch_data(url: str) -> Dict[str, Any]:
+def fetch_data(url: str) -> dict[str, Any]:
     response = requests.get(url)
     return response.json()
 ```
@@ -156,11 +155,13 @@ def fetch_data(url: str) -> Dict[str, Any]:
 **4. Optional Member Access**
 ```python
 # ❌ Bad - Accessing optional without checking
-def get_user_name(user: Optional[User]) -> str:
+from typing import Optional
+
+def get_user_name(user: User | None) -> str:
     return user.name  # Error: 'user' may be None
 
 # ✅ Good - Check for None first
-def get_user_name(user: Optional[User]) -> str:
+def get_user_name(user: User | None) -> str:
     if user is None:
         return "Unknown"
     return user.name

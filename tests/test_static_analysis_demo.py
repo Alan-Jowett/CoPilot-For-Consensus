@@ -74,5 +74,5 @@ def test_type_safe_function() -> None:
 
 # Example 4: Optional without None check (Pyright)
 # def test_optional_without_check():
-#     value: Optional[str] = None
+#     value: str | None = None
 #     return len(value)  # Error: value may be None
