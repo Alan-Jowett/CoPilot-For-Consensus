@@ -10,7 +10,7 @@ from typing import Optional, Dict, Any
 @dataclass
 class DraftDiff:
     """Represents a diff between two versions of a draft.
-    
+
     Attributes:
         draft_name: Name of the draft (e.g., "draft-ietf-quic-transport")
         version_a: Version A identifier (e.g., "01", "02")
@@ -29,10 +29,10 @@ class DraftDiff:
     source: str
     url: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation.
-        
+
         Returns:
             Dictionary representation of the draft diff
         """

@@ -17,14 +17,14 @@ except ImportError:
 @pytest.mark.skipif(not QDRANT_AVAILABLE, reason="Qdrant client not installed")
 class TestQdrantVectorStore:
     """Unit tests for QdrantVectorStore."""
-    
+
     @patch('qdrant_client.QdrantClient')
     def test_initialization(self, mock_client_class):
         """Test that store initializes with correct parameters."""
         mock_client = Mock()
         mock_client_class.return_value = mock_client
         mock_client.get_collections.return_value = Mock(collections=[])
-        
+
         QdrantVectorStore(
             host="testhost",
             port=6334,
@@ -32,7 +32,7 @@ class TestQdrantVectorStore:
             vector_size=128,
             distance="cosine",
         )
-        
+
         # Verify client was created with correct parameters
         mock_client_class.assert_called_once_with(
             host="testhost",
@@ -40,25 +40,25 @@ class TestQdrantVectorStore:
             api_key=None,
             timeout=30,
         )
-        
+
         # Verify collection creation was attempted
         mock_client.get_collections.assert_called()
-    
+
     @patch('qdrant_client.QdrantClient')
     def test_invalid_distance_raises_error(self, mock_client_class):
         """Test that invalid distance metric raises ValueError."""
         with pytest.raises(ValueError, match="Invalid distance metric"):
             QdrantVectorStore(distance="invalid")
-    
+
     @patch('qdrant_client.QdrantClient')
     def test_invalid_vector_size_raises_error(self, mock_client_class):
         """Test that invalid vector size raises ValueError."""
         with pytest.raises(ValueError, match="Vector size must be positive"):
             QdrantVectorStore(vector_size=0)
-        
+
         with pytest.raises(ValueError, match="Vector size must be positive"):
             QdrantVectorStore(vector_size=-10)
-    
+
     @patch('qdrant_client.QdrantClient')
     def test_add_embedding_validates_dimension(self, mock_client_class):
         """Test that add_embedding validates vector dimension."""
@@ -66,13 +66,13 @@ class TestQdrantVectorStore:
         mock_client_class.return_value = mock_client
         mock_client.get_collections.return_value = Mock(collections=[])
         mock_client.retrieve.return_value = []
-        
+
         store = QdrantVectorStore(vector_size=3)
-        
+
         # Should raise error for wrong dimension
         with pytest.raises(ValueError, match="Vector dimension"):
             store.add_embedding("doc1", [1.0, 0.0], {"text": "hello"})
-    
+
     @patch('qdrant_client.QdrantClient')
     def test_add_embedding_success(self, mock_client_class):
         """Test successful add_embedding."""
@@ -80,26 +80,26 @@ class TestQdrantVectorStore:
         mock_client_class.return_value = mock_client
         mock_client.get_collections.return_value = Mock(collections=[])
         mock_client.retrieve.return_value = []
-        
+
         store = QdrantVectorStore(vector_size=3)
-        
+
         store.add_embedding("doc1", [1.0, 0.0, 0.0], {"text": "hello"})
-        
+
         # Verify upsert was called
         mock_client.upsert.assert_called_once()
         call_args = mock_client.upsert.call_args
         assert call_args[1]['collection_name'] == 'embeddings'
         assert len(call_args[1]['points']) == 1
-    
+
     @patch('qdrant_client.QdrantClient')
     def test_add_embeddings_validates_lengths(self, mock_client_class):
         """Test that add_embeddings validates input lengths."""
         mock_client = Mock()
         mock_client_class.return_value = mock_client
         mock_client.get_collections.return_value = Mock(collections=[])
-        
+
         store = QdrantVectorStore(vector_size=3)
-        
+
         # Should raise error for mismatched lengths
         with pytest.raises(ValueError, match="same length"):
             store.add_embeddings(
@@ -107,7 +107,7 @@ class TestQdrantVectorStore:
                 vectors=[[1.0, 0.0, 0.0]],
                 metadatas=[{"text": "hello"}]
             )
-    
+
     @patch('qdrant_client.QdrantClient')
     def test_add_embeddings_validates_dimensions(self, mock_client_class):
         """Test that add_embeddings validates vector dimensions."""
@@ -115,9 +115,9 @@ class TestQdrantVectorStore:
         mock_client_class.return_value = mock_client
         mock_client.get_collections.return_value = Mock(collections=[])
         mock_client.retrieve.return_value = []
-        
+
         store = QdrantVectorStore(vector_size=3)
-        
+
         # Should raise error for wrong dimension
         with pytest.raises(ValueError, match="dimension"):
             store.add_embeddings(
@@ -125,16 +125,16 @@ class TestQdrantVectorStore:
                 vectors=[[1.0, 0.0, 0.0], [1.0, 0.0]],  # Second vector wrong size
                 metadatas=[{}, {}]
             )
-    
+
     @patch('qdrant_client.QdrantClient')
     def test_add_embeddings_detects_duplicates(self, mock_client_class):
         """Test that add_embeddings detects duplicate IDs in batch."""
         mock_client = Mock()
         mock_client_class.return_value = mock_client
         mock_client.get_collections.return_value = Mock(collections=[])
-        
+
         store = QdrantVectorStore(vector_size=3)
-        
+
         # Should raise error for duplicate IDs
         with pytest.raises(ValueError, match="Duplicate IDs"):
             store.add_embeddings(
@@ -142,47 +142,47 @@ class TestQdrantVectorStore:
                 vectors=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
                 metadatas=[{}, {}]
             )
-    
+
     @patch('qdrant_client.QdrantClient')
     def test_query_validates_dimension(self, mock_client_class):
         """Test that query validates vector dimension."""
         mock_client = Mock()
         mock_client_class.return_value = mock_client
         mock_client.get_collections.return_value = Mock(collections=[])
-        
+
         store = QdrantVectorStore(vector_size=3)
-        
+
         # Should raise error for wrong dimension
         with pytest.raises(ValueError, match="Query vector dimension"):
             store.query([1.0, 0.0], top_k=5)
-    
+
     @patch('qdrant_client.QdrantClient')
     def test_query_returns_results(self, mock_client_class):
         """Test that query returns properly formatted results."""
         mock_client = Mock()
         mock_client_class.return_value = mock_client
         mock_client.get_collections.return_value = Mock(collections=[])
-        
+
         # Mock search results
         mock_result = Mock()
         mock_result.id = "a1b2c3d4e5f67890"
         mock_result.score = 0.95
         mock_result.vector = [1.0, 0.0, 0.0]
         mock_result.payload = {"text": "hello", "_original_id": "doc1"}
-        
+
         # Mock the query_points response
         mock_response = Mock()
         mock_response.points = [mock_result]
         mock_client.query_points.return_value = mock_response
-        
+
         store = QdrantVectorStore(vector_size=3)
         results = store.query([1.0, 0.0, 0.0], top_k=5)
-        
+
         assert len(results) == 1
         assert results[0].id == "doc1"  # Should extract original ID from payload
         assert results[0].score == 0.95
         assert results[0].metadata == {"text": "hello"}
-    
+
     @patch('qdrant_client.QdrantClient')
     def test_delete_nonexistent_raises_error(self, mock_client_class):
         """Test that deleting nonexistent ID raises KeyError."""
@@ -190,12 +190,12 @@ class TestQdrantVectorStore:
         mock_client_class.return_value = mock_client
         mock_client.get_collections.return_value = Mock(collections=[])
         mock_client.retrieve.return_value = []
-        
+
         store = QdrantVectorStore(vector_size=3)
-        
+
         with pytest.raises(KeyError, match="not found"):
             store.delete("nonexistent")
-    
+
     @patch('qdrant_client.QdrantClient')
     def test_get_nonexistent_raises_error(self, mock_client_class):
         """Test that getting nonexistent ID raises KeyError."""
@@ -203,39 +203,39 @@ class TestQdrantVectorStore:
         mock_client_class.return_value = mock_client
         mock_client.get_collections.return_value = Mock(collections=[])
         mock_client.retrieve.return_value = []
-        
+
         store = QdrantVectorStore(vector_size=3)
-        
+
         with pytest.raises(KeyError, match="not found"):
             store.get("nonexistent")
-    
+
     @patch('qdrant_client.QdrantClient')
     def test_count_returns_collection_size(self, mock_client_class):
         """Test that count returns the correct number of points."""
         mock_client = Mock()
         mock_client_class.return_value = mock_client
         mock_client.get_collections.return_value = Mock(collections=[])
-        
+
         # Mock collection info
         mock_collection_info = Mock()
         mock_collection_info.points_count = 42
         mock_client.get_collection.return_value = mock_collection_info
-        
+
         store = QdrantVectorStore(vector_size=3)
         count = store.count()
-        
+
         assert count == 42
-    
+
     @patch('qdrant_client.QdrantClient')
     def test_clear_recreates_collection(self, mock_client_class):
         """Test that clear deletes and recreates the collection."""
         mock_client = Mock()
         mock_client_class.return_value = mock_client
         mock_client.get_collections.return_value = Mock(collections=[])
-        
+
         store = QdrantVectorStore(vector_size=3, collection_name="test_collection")
         store.clear()
-        
+
         # Verify delete was called
         mock_client.delete_collection.assert_called_with(collection_name="test_collection")
 
@@ -245,13 +245,13 @@ class TestQdrantVectorStore:
         mock_client = Mock()
         mock_client_class.return_value = mock_client
         mock_client.get_collections.return_value = Mock(collections=[])
-        
+
         store = QdrantVectorStore(vector_size=3)
-        
+
         # Add same ID twice - should not raise an error (upsert semantics)
         store.add_embedding("doc1", [1.0, 0.0, 0.0], {"text": "hello"})
         store.add_embedding("doc1", [0.0, 1.0, 0.0], {"text": "world"})
-        
+
         # Verify upsert was called twice
         assert mock_client.upsert.call_count == 2
 

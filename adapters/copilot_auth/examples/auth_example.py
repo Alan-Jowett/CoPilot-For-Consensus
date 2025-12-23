@@ -35,7 +35,7 @@ if hasattr(provider, 'add_user'):
             affiliations=["IETF"]
         )
     )
-    
+
     # Add a working group chair
     provider.add_user(
         "token-chair",
@@ -51,16 +51,16 @@ if hasattr(provider, 'add_user'):
 
 def get_authenticated_user():
     """Extract and validate authentication token from request.
-    
+
     Returns:
         User object if authenticated, None otherwise
     """
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         return None
-    
+
     token = auth_header[7:]  # Remove "Bearer " prefix
-    
+
     try:
         return provider.get_user(token)
     except AuthenticationError:
@@ -74,17 +74,17 @@ def require_role(role: str):
             user = get_authenticated_user()
             if not user:
                 return jsonify({"error": "Authentication required"}), 401
-            
+
             if not user.has_role(role):
                 return jsonify({
                     "error": f"Role '{role}' required",
                     "user_roles": user.roles
                 }), 403
-            
+
             # Add user to kwargs so endpoint can use it
             kwargs['user'] = user
             return f(*args, **kwargs)
-        
+
         wrapper.__name__ = f.__name__
         return wrapper
     return decorator
@@ -102,7 +102,7 @@ def get_profile():
     user = get_authenticated_user()
     if not user:
         return jsonify({"error": "Authentication required"}), 401
-    
+
     return jsonify({
         "profile": user.to_dict(),
         "message": f"Welcome, {user.name}!"
@@ -128,7 +128,7 @@ def get_summaries(user):
 def create_report(user):
     """Create a report (requires chair role)."""
     data = request.get_json() or {}
-    
+
     return jsonify({
         "report_id": "report-123",
         "title": data.get("title", "Untitled Report"),
@@ -143,13 +143,13 @@ def get_wg_members():
     user = get_authenticated_user()
     if not user:
         return jsonify({"error": "Authentication required"}), 401
-    
+
     if not user.has_affiliation("IETF"):
         return jsonify({
             "error": "IETF affiliation required",
             "user_affiliations": user.affiliations
         }), 403
-    
+
     return jsonify({
         "members": [
             {"name": "Alice", "role": "chair"},
@@ -184,7 +184,7 @@ if __name__ == "__main__":
     print("   curl -H 'Authorization: Bearer invalid-token' \\")
     print("        http://localhost:5000/api/profile")
     print("\n" + "="*60 + "\n")
-    
+
     # Note: debug=True is for example purposes only
     # In production, use a production WSGI server like gunicorn
     app.run(host="0.0.0.0", port=5000, debug=False)

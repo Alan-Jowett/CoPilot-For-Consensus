@@ -200,9 +200,9 @@
     "applicationInsightsName": "[format('{0}-insights-{1}', parameters('projectName'), variables('uniqueSuffix'))]",
     "keyVaultName": "[format('{0}kv{1}', parameters('projectName'), variables('uniqueSuffix'))]",
     "storageAccountName": "[format('{0}st{1}', replace(parameters('projectName'), '-', ''), variables('uniqueSuffix'))]",
-    
+
     "validateServiceBusResourceIdFormat": "[if(parameters('useManagedIdentityForServiceBus'), if(equals(length(split(parameters('serviceBusResourceId'), '/')), 9), true(), json('null')), true())]",
-    
+
     "services": [
       {
         "name": "ingestion",
@@ -295,7 +295,7 @@
         "port": 8080
       }
     ],
-    
+
     "roleDefinitions": {
       "KeyVaultSecretsUser": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]",
       "StorageBlobDataContributor": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
@@ -303,7 +303,7 @@
       "ServiceBusDataReceiver": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4f6d3b9b-027b-4f4c-9142-0e5a2a2247e0')]",
       "CosmosDbDataContributor": "00000000-0000-0000-0000-000000000002"
     },
-    
+
     "serviceBusRoleAssignments": [
       {
         "serviceName": "ingestion",
@@ -334,7 +334,7 @@
         "roles": ["ServiceBusDataSender", "ServiceBusDataReceiver"]
       }
     ],
-    
+
     "servicesUsingMessageBus": ["ingestion", "parsing", "chunking", "embedding", "orchestrator", "summarization", "reporting"]
   },
   "resources": [

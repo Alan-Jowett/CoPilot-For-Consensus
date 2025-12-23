@@ -13,18 +13,18 @@ logger = logging.getLogger(__name__)
 
 class NoOpMetricsCollector(MetricsCollector):
     """No-op metrics collector that stores metrics in memory without external dependencies.
-    
+
     Useful for:
     - Testing and local development
     - Environments where metrics collection is not needed
     - Debugging metrics instrumentation
-    
+
     Stores all metrics calls in memory for testing/inspection purposes.
     """
 
     def __init__(self, **kwargs):
         """Initialize no-op metrics collector.
-        
+
         Args:
             **kwargs: Ignored (for compatibility with factory method)
         """
@@ -34,7 +34,7 @@ class NoOpMetricsCollector(MetricsCollector):
 
     def increment(self, name: str, value: float = 1.0, tags: Optional[Dict[str, str]] = None) -> None:
         """Store counter increment in memory.
-        
+
         Args:
             name: Name of the counter metric
             value: Amount to increment by (default: 1.0)
@@ -45,7 +45,7 @@ class NoOpMetricsCollector(MetricsCollector):
 
     def observe(self, name: str, value: float, tags: Optional[Dict[str, str]] = None) -> None:
         """Store observation in memory.
-        
+
         Args:
             name: Name of the histogram/summary metric
             value: Value to observe
@@ -56,7 +56,7 @@ class NoOpMetricsCollector(MetricsCollector):
 
     def gauge(self, name: str, value: float, tags: Optional[Dict[str, str]] = None) -> None:
         """Store gauge value in memory.
-        
+
         Args:
             name: Name of the gauge metric
             value: Value to set the gauge to
@@ -73,11 +73,11 @@ class NoOpMetricsCollector(MetricsCollector):
 
     def get_counter_total(self, name: str, tags: Optional[Dict[str, str]] = None) -> float:
         """Get total value of a counter metric.
-        
+
         Args:
             name: Name of the counter metric
             tags: Optional tags to filter by (if None, sums all matching names)
-            
+
         Returns:
             Total counter value
         """
@@ -90,11 +90,11 @@ class NoOpMetricsCollector(MetricsCollector):
 
     def get_observations(self, name: str, tags: Optional[Dict[str, str]] = None) -> List[float]:
         """Get all observed values for a metric.
-        
+
         Args:
             name: Name of the histogram/summary metric
             tags: Optional tags to filter by
-            
+
         Returns:
             List of observed values
         """
@@ -105,11 +105,11 @@ class NoOpMetricsCollector(MetricsCollector):
 
     def get_gauge_value(self, name: str, tags: Optional[Dict[str, str]] = None) -> Optional[float]:
         """Get the most recent value of a gauge metric.
-        
+
         Args:
             name: Name of the gauge metric
             tags: Optional tags to filter by
-            
+
         Returns:
             Most recent gauge value, or None if not found
         """

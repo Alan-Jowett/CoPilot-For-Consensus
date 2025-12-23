@@ -120,7 +120,7 @@ The Embedding Service subscribes to the following events. See [SCHEMA.md](../doc
 
 Consumes events from the Chunking Service when text chunks are ready.
 
-**Exchange:** `copilot.events`  
+**Exchange:** `copilot.events`
 **Routing Key:** `chunks.prepared`
 
 See [ChunksPrepared schema](../documents/SCHEMA.md#5-chunksprepared) in SCHEMA.md for the complete payload definition.
@@ -141,7 +141,7 @@ The Embedding Service publishes the following events. See [SCHEMA.md](../documen
 
 Published when embeddings are successfully generated and stored.
 
-**Exchange:** `copilot.events`  
+**Exchange:** `copilot.events`
 **Routing Key:** `embeddings.generated`
 
 See [EmbeddingsGenerated schema](../documents/SCHEMA.md#7-embeddingsgenerated) in SCHEMA.md for the complete payload definition.
@@ -160,7 +160,7 @@ See [EmbeddingsGenerated schema](../documents/SCHEMA.md#7-embeddingsgenerated) i
 
 Published when embedding generation fails.
 
-**Exchange:** `copilot.events`  
+**Exchange:** `copilot.events`
 **Routing Key:** `embeddings.failed`
 
 See [EmbeddingGenerationFailed schema](../documents/SCHEMA.md#8-embeddinggenerationfailed) in SCHEMA.md for the complete payload definition.
@@ -289,16 +289,16 @@ Each embedding is stored with rich metadata:
 async def generate_embeddings(chunks: List[Dict]) -> List[Dict]:
     """
     Generate embeddings for a batch of chunks.
-    
+
     Args:
         chunks: List of chunk documents from database
-        
+
     Returns:
         List of embedding objects with vectors and metadata
     """
     # 1. Extract text content
     texts = [chunk["text"] for chunk in chunks]
-    
+
     # 2. Generate embeddings based on backend
     if embedding_config.backend == "sentencetransformers":
         vectors = generate_local_embeddings(texts)
@@ -308,7 +308,7 @@ async def generate_embeddings(chunks: List[Dict]) -> List[Dict]:
         vectors = await generate_ollama_embeddings(texts)
     else:
         raise ValueError(f"Unknown backend: {embedding_config.backend}")
-    
+
     # 3. Create embedding objects with metadata
     embeddings = []
     for chunk, vector in zip(chunks, vectors):
@@ -334,7 +334,7 @@ async def generate_embeddings(chunks: List[Dict]) -> List[Dict]:
             }
         }
         embeddings.append(embedding)
-    
+
     return embeddings
 
 
@@ -343,14 +343,14 @@ def generate_local_embeddings(texts: List[str]) -> List[List[float]]:
     Generate embeddings using local SentenceTransformers model.
     """
     from sentence_transformers import SentenceTransformer
-    
+
     # Load model (cached after first load)
     model = SentenceTransformer(
         embedding_config.model,
         device=embedding_config.device,
         cache_folder=embedding_config.cache_dir
     )
-    
+
     # Generate embeddings
     embeddings = model.encode(
         texts,
@@ -358,7 +358,7 @@ def generate_local_embeddings(texts: List[str]) -> List[List[float]]:
         show_progress_bar=False,
         normalize_embeddings=True
     )
-    
+
     return embeddings.tolist()
 
 
@@ -367,19 +367,19 @@ async def generate_azure_embeddings(texts: List[str]) -> List[List[float]]:
     Generate embeddings using Azure OpenAI.
     """
     from openai import AzureOpenAI
-    
+
     client = AzureOpenAI(
         api_key=embedding_config.azure_key,
         api_version="2024-02-01",
         azure_endpoint=embedding_config.azure_endpoint
     )
-    
+
     # Batch requests (Azure supports up to 2048 inputs)
     response = await client.embeddings.create(
         input=texts,
         model=embedding_config.azure_deployment
     )
-    
+
     return [item.embedding for item in response.data]
 
 
@@ -388,7 +388,7 @@ async def generate_ollama_embeddings(texts: List[str]) -> List[List[float]]:
     Generate embeddings using Ollama server.
     """
     import httpx
-    
+
     embeddings = []
     async with httpx.AsyncClient() as client:
         for text in texts:
@@ -401,7 +401,7 @@ async def generate_ollama_embeddings(texts: List[str]) -> List[List[float]]:
             )
             response.raise_for_status()
             embeddings.append(response.json()["embedding"])
-    
+
     return embeddings
 ```
 
@@ -417,41 +417,41 @@ async def process_chunks_prepared_event(event: ChunksPreparedEvent):
         chunks = list(db.chunks.find({
             "chunk_id": {"$in": event.data.chunk_ids}
         }))
-        
+
         if not chunks:
             logger.warning(f"No chunks found for IDs: {event.data.chunk_ids}")
             return
-        
+
         # 2. Generate embeddings in batches
         all_embeddings = []
         for i in range(0, len(chunks), embedding_config.batch_size):
             batch = chunks[i:i + embedding_config.batch_size]
             embeddings = await generate_embeddings(batch)
             all_embeddings.extend(embeddings)
-            
+
             logger.info(f"Generated {len(embeddings)} embeddings")
-        
+
         # 3. Store embeddings in vector store
         vector_store.upsert(
             collection_name=embedding_config.collection,
             points=all_embeddings
         )
-        
+
         # 4. Update chunk status in document database
         db.chunks.update_many(
             {"chunk_id": {"$in": event.data.chunk_ids}},
             {"$set": {"embedding_generated": True}}
         )
-        
+
         # 5. Publish EmbeddingsGenerated event
         await publish_embeddings_generated_event(
             chunk_ids=event.data.chunk_ids,
             model=embedding_config.model,
             backend=embedding_config.backend
         )
-        
+
         logger.info(f"Successfully generated {len(all_embeddings)} embeddings")
-        
+
     except Exception as e:
         logger.error(f"Embedding generation failed: {e}")
         await publish_embedding_generation_failed_event(

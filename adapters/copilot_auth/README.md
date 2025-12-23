@@ -176,7 +176,7 @@ async def get_data(request: Request):
     user_id = request.state.user_id
     user_email = request.state.user_email
     user_roles = request.state.user_roles
-    
+
     return {
         "data": "secret",
         "user": user_id,
@@ -219,24 +219,24 @@ def get_summaries():
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         return jsonify({"error": "Missing or invalid authorization"}), 401
-    
+
     token = auth_header[7:]  # Remove "Bearer " prefix
-    
+
     try:
         user = provider.get_user(token)
         if not user:
             return jsonify({"error": "Invalid token"}), 401
-        
+
         # Check if user has required role
         if not user.has_role("contributor"):
             return jsonify({"error": "Insufficient permissions"}), 403
-        
+
         # Return summaries (personalized based on user)
         return jsonify({
             "summaries": [],
             "user": user.to_dict()
         })
-    
+
     except AuthenticationError as e:
         return jsonify({"error": str(e)}), 401
 ```

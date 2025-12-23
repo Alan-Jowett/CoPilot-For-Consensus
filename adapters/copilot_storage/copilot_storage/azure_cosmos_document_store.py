@@ -40,7 +40,7 @@ class AzureCosmosDocumentStore(DocumentStore):
         **kwargs
     ):
         """Initialize Azure Cosmos DB document store.
-        
+
         Args:
             endpoint: Cosmos DB endpoint URL (e.g., https://myaccount.documents.azure.com:443/)
             key: Cosmos DB account key or managed identity credentials
@@ -61,57 +61,57 @@ class AzureCosmosDocumentStore(DocumentStore):
 
     def _is_valid_field_name(self, field_name: str) -> bool:
         """Validate that a field name contains only safe characters.
-        
+
         This helper supports nested field access via dots (e.g., ``user.email``),
         but validates each component between dots individually to avoid
         bypassing validation with crafted nested paths.
-        
+
         Args:
             field_name: Field name to validate
-            
+
         Returns:
             True if field name is safe, False otherwise
         """
         # First, ensure the overall string only contains allowed characters
         if not re.match(r'^[a-zA-Z0-9_.]+$', field_name):
             return False
-        
+
         # Then, validate each component between dots to prevent empty segments
         # or other invalid patterns (e.g., "user..email")
         components = field_name.split(".")
         if any(not component or not re.match(r'^[a-zA-Z0-9_]+$', component) for component in components):
             return False
-        
+
         return True
-    
+
     def _is_valid_document_id(self, doc_id: str) -> bool:
         """Validate that a document ID meets Cosmos DB requirements.
-        
+
         Cosmos DB document IDs cannot contain: '/', '\', '#', '?', or control characters.
-        
+
         Args:
             doc_id: Document ID to validate
-            
+
         Returns:
             True if document ID is valid, False otherwise
         """
         if not doc_id or not isinstance(doc_id, str):
             return False
-        
+
         # Check for invalid characters
         invalid_chars = ['/', '\\', '#', '?']
         if any(char in doc_id for char in invalid_chars):
             return False
-        
+
         # Check for control characters
         if any(ord(char) < 32 for char in doc_id):
             return False
-        
+
         return True
 
     def connect(self) -> None:
         """Connect to Azure Cosmos DB.
-        
+
         Raises:
             DocumentStoreConnectionError: If connection fails
         """
@@ -124,14 +124,14 @@ class AzureCosmosDocumentStore(DocumentStore):
 
         if not self.endpoint:
             raise DocumentStoreConnectionError("Cosmos DB endpoint is required")
-        
+
         if not self.key:
             raise DocumentStoreConnectionError("Cosmos DB key is required")
 
         try:
             # Create Cosmos client
             self.client = CosmosClient(self.endpoint, self.key, **self.client_options)
-            
+
             # Get or create database
             try:
                 self.database = self.client.create_database_if_not_exists(id=self.database_name)
@@ -139,7 +139,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             except cosmos_exceptions.CosmosHttpResponseError as e:
                 logger.error(f"AzureCosmosDocumentStore: failed to create/access database - {e}")
                 raise DocumentStoreConnectionError(f"Failed to create/access database '{self.database_name}'") from e
-            
+
             # Get or create container with partition key
             try:
                 self.container = self.database.create_container_if_not_exists(
@@ -150,9 +150,9 @@ class AzureCosmosDocumentStore(DocumentStore):
             except cosmos_exceptions.CosmosHttpResponseError as e:
                 logger.error(f"AzureCosmosDocumentStore: failed to create/access container - {e}")
                 raise DocumentStoreConnectionError(f"Failed to create/access container '{self.container_name}'") from e
-            
+
             logger.info(f"AzureCosmosDocumentStore: connected to {self.endpoint}/{self.database_name}/{self.container_name}")
-            
+
         except (cosmos_exceptions.CosmosHttpResponseError, AzureError) as e:
             logger.error(f"AzureCosmosDocumentStore: connection failed - {e}", exc_info=True)
             raise DocumentStoreConnectionError(f"Failed to connect to Cosmos DB at {self.endpoint}") from e
@@ -162,7 +162,7 @@ class AzureCosmosDocumentStore(DocumentStore):
 
     def disconnect(self) -> None:
         """Disconnect from Azure Cosmos DB.
-        
+
         Note: CosmosClient doesn't require explicit disconnect, but we reset references.
         """
         if self.client:
@@ -173,45 +173,45 @@ class AzureCosmosDocumentStore(DocumentStore):
 
     def insert_document(self, collection: str, doc: Dict[str, Any]) -> str:
         """Insert a document into the specified collection.
-        
+
         In Cosmos DB, we store all collections in a single container, using the
         'collection' field as the logical collection name and partition key.
-        
+
         Args:
             collection: Name of the logical collection
             doc: Document data as dictionary
-            
+
         Returns:
             Document ID as string
-            
+
         Raises:
             DocumentStoreNotConnectedError: If not connected to Cosmos DB
             DocumentStoreError: If insertion fails
         """
         if self.container is None:
             raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
-        
+
         try:
             # Generate ID if not provided
             doc_id = doc.get("id", str(uuid.uuid4()))
-            
+
             # Validate document ID meets Cosmos DB requirements
             if not self._is_valid_document_id(doc_id):
                 raise DocumentStoreError(
                     f"Invalid document ID '{doc_id}': IDs cannot contain '/', '\\', '#', '?', or control characters"
                 )
-            
+
             # Create a deep copy to avoid modifying the original (including nested structures)
             doc_copy = copy.deepcopy(doc)
             doc_copy["id"] = doc_id
             doc_copy["collection"] = collection  # Add collection field for partitioning
-            
+
             # Insert document
             self.container.create_item(body=doc_copy)
             logger.debug(f"AzureCosmosDocumentStore: inserted document {doc_id} into {collection}")
-            
+
             return doc_id
-            
+
         except cosmos_exceptions.CosmosResourceExistsError as e:
             logger.error(f"AzureCosmosDocumentStore: document with id {doc_id} already exists - {e}")
             raise DocumentStoreError(f"Document with id {doc_id} already exists in collection {collection}") from e
@@ -227,31 +227,31 @@ class AzureCosmosDocumentStore(DocumentStore):
 
     def get_document(self, collection: str, doc_id: str) -> Optional[Dict[str, Any]]:
         """Retrieve a document by its ID.
-        
+
         Args:
             collection: Name of the logical collection
             doc_id: Document ID
-            
+
         Returns:
             Document data as dictionary, or None if not found
-            
+
         Raises:
             DocumentStoreNotConnectedError: If not connected to Cosmos DB
             DocumentStoreError: If query operation fails
         """
         if self.container is None:
             raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
-        
+
         try:
             # Read document using partition key
             doc = self.container.read_item(
                 item=doc_id,
                 partition_key=collection
             )
-            
+
             logger.debug(f"AzureCosmosDocumentStore: retrieved document {doc_id} from {collection}")
             return doc
-            
+
         except cosmos_exceptions.CosmosResourceNotFoundError:
             logger.debug(f"AzureCosmosDocumentStore: document {doc_id} not found in {collection}")
             return None
@@ -269,27 +269,27 @@ class AzureCosmosDocumentStore(DocumentStore):
         self, collection: str, filter_dict: Dict[str, Any], limit: int = 100
     ) -> List[Dict[str, Any]]:
         """Query documents matching the filter criteria.
-        
+
         Args:
             collection: Name of the logical collection
             filter_dict: Filter criteria as dictionary (simple equality checks)
             limit: Maximum number of documents to return
-            
+
         Returns:
             List of matching documents (empty list if no matches)
-            
+
         Raises:
             DocumentStoreNotConnectedError: If not connected to Cosmos DB
             DocumentStoreError: If query operation fails
         """
         if self.container is None:
             raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
-        
+
         try:
             # Build SQL query for Cosmos DB
             query = "SELECT * FROM c WHERE c.collection = @collection"
             parameters = [{"name": "@collection", "value": collection}]
-            
+
             # Add filter conditions
             for idx, (key, value) in enumerate(filter_dict.items()):
                 # Validate field name to prevent SQL injection
@@ -299,12 +299,12 @@ class AzureCosmosDocumentStore(DocumentStore):
                 param_name = f"@param{idx}"
                 query += f" AND c.{key} = {param_name}"
                 parameters.append({"name": param_name, "value": value})
-            
+
             # Add limit (validate to prevent SQL injection)
             if not isinstance(limit, int) or limit < 1:
                 raise DocumentStoreError(f"Invalid limit value '{limit}': must be a positive integer")
             query += f" LIMIT {limit}"
-            
+
             # Execute query
             items = list(self.container.query_items(
                 query=query,
@@ -312,13 +312,13 @@ class AzureCosmosDocumentStore(DocumentStore):
                 enable_cross_partition_query=False,
                 partition_key=collection
             ))
-            
+
             logger.debug(
                 f"AzureCosmosDocumentStore: query on {collection} with {filter_dict} "
                 f"returned {len(items)} documents"
             )
             return items
-            
+
         except cosmos_exceptions.CosmosHttpResponseError as e:
             if e.status_code == 429:
                 logger.warning(f"AzureCosmosDocumentStore: throttled during query - {e}")
@@ -333,12 +333,12 @@ class AzureCosmosDocumentStore(DocumentStore):
         self, collection: str, doc_id: str, patch: Dict[str, Any]
     ) -> None:
         """Update a document with the provided patch.
-        
+
         Args:
             collection: Name of the logical collection
             doc_id: Document ID
             patch: Update data as dictionary
-            
+
         Raises:
             DocumentStoreNotConnectedError: If not connected to Cosmos DB
             DocumentNotFoundError: If document does not exist
@@ -346,7 +346,7 @@ class AzureCosmosDocumentStore(DocumentStore):
         """
         if self.container is None:
             raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
-        
+
         try:
             # Read the existing document
             try:
@@ -357,23 +357,23 @@ class AzureCosmosDocumentStore(DocumentStore):
             except cosmos_exceptions.CosmosResourceNotFoundError:
                 logger.debug(f"AzureCosmosDocumentStore: document {doc_id} not found in {collection}")
                 raise DocumentNotFoundError(f"Document {doc_id} not found in collection {collection}")
-            
+
             # Apply patch to a copy to avoid mutating the original document in-place
             merged_doc = dict(existing_doc)
             if patch:
                 merged_doc.update(patch)
-            
+
             # Ensure collection field is not modified
             merged_doc["collection"] = collection
-            
+
             # Replace document
             self.container.replace_item(
                 item=doc_id,
                 body=merged_doc
             )
-            
+
             logger.debug(f"AzureCosmosDocumentStore: updated document {doc_id} in {collection}")
-            
+
         except DocumentNotFoundError:
             raise
         except cosmos_exceptions.CosmosHttpResponseError as e:
@@ -388,11 +388,11 @@ class AzureCosmosDocumentStore(DocumentStore):
 
     def delete_document(self, collection: str, doc_id: str) -> None:
         """Delete a document by its ID.
-        
+
         Args:
             collection: Name of the logical collection
             doc_id: Document ID
-            
+
         Raises:
             DocumentStoreNotConnectedError: If not connected to Cosmos DB
             DocumentNotFoundError: If document does not exist
@@ -400,16 +400,16 @@ class AzureCosmosDocumentStore(DocumentStore):
         """
         if self.container is None:
             raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
-        
+
         try:
             # Delete document
             self.container.delete_item(
                 item=doc_id,
                 partition_key=collection
             )
-            
+
             logger.debug(f"AzureCosmosDocumentStore: deleted document {doc_id} from {collection}")
-            
+
         except cosmos_exceptions.CosmosResourceNotFoundError:
             logger.debug(f"AzureCosmosDocumentStore: document {doc_id} not found in {collection}")
             raise DocumentNotFoundError(f"Document {doc_id} not found in collection {collection}")
@@ -427,38 +427,38 @@ class AzureCosmosDocumentStore(DocumentStore):
         self, collection: str, pipeline: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
         """Execute an aggregation pipeline on a collection.
-        
+
         Note: This is a simplified implementation that supports common aggregation stages
         for compatibility with MongoDB-style pipelines. Cosmos DB uses SQL queries, so
         we translate simple pipelines to SQL.
-        
+
         Supported stages: $match, $limit
-        
+
         Args:
             collection: Name of the logical collection
             pipeline: Aggregation pipeline (list of stage dictionaries)
-            
+
         Returns:
             List of aggregation results
-            
+
         Raises:
             DocumentStoreNotConnectedError: If not connected to Cosmos DB
             DocumentStoreError: If aggregation operation fails
         """
         if self.container is None:
             raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
-        
+
         try:
             # Build SQL query from pipeline
             query = "SELECT * FROM c WHERE c.collection = @collection"
             parameters = [{"name": "@collection", "value": collection}]
             limit_value = None
             param_counter = 0  # Track unique parameter names
-            
+
             for stage in pipeline:
                 stage_name = list(stage.keys())[0]
                 stage_spec = stage[stage_name]
-                
+
                 if stage_name == "$match":
                     # Add match conditions to WHERE clause
                     for key, condition in stage_spec.items():
@@ -466,7 +466,7 @@ class AzureCosmosDocumentStore(DocumentStore):
                         if not self._is_valid_field_name(key):
                             logger.warning(f"AzureCosmosDocumentStore: skipping invalid field name '{key}'")
                             continue
-                        
+
                         if isinstance(condition, dict):
                             # Handle operators
                             for op, value in condition.items():
@@ -490,26 +490,26 @@ class AzureCosmosDocumentStore(DocumentStore):
                             param_counter += 1
                             query += f" AND c.{key} = {param_name}"
                             parameters.append({"name": param_name, "value": condition})
-                
+
                 elif stage_name == "$limit":
                     limit_value = stage_spec
-                
+
                 elif stage_name == "$lookup":
                     # Cosmos DB doesn't support joins like MongoDB
                     # This would require multiple queries and client-side joining
                     logger.warning(
                         f"AzureCosmosDocumentStore: $lookup not supported, skipping"
                     )
-                
+
                 else:
                     logger.warning(
                         f"AzureCosmosDocumentStore: aggregation stage '{stage_name}' not implemented, skipping"
                     )
-            
+
             # Add limit if specified
             if limit_value is not None:
                 query += f" LIMIT {limit_value}"
-            
+
             # Execute query
             items = list(self.container.query_items(
                 query=query,
@@ -517,13 +517,13 @@ class AzureCosmosDocumentStore(DocumentStore):
                 enable_cross_partition_query=False,
                 partition_key=collection
             ))
-            
+
             logger.debug(
                 f"AzureCosmosDocumentStore: aggregation on {collection} "
                 f"returned {len(items)} documents"
             )
             return items
-            
+
         except cosmos_exceptions.CosmosHttpResponseError as e:
             if e.status_code == 429:
                 logger.warning(f"AzureCosmosDocumentStore: throttled during aggregation - {e}")

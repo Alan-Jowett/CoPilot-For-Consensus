@@ -69,7 +69,7 @@ class TestIngestionIntegration:
         """Test complete end-to-end ingestion workflow."""
         from pathlib import Path
         from copilot_storage import InMemoryDocumentStore
-        
+
         # Create configuration
         config = make_config(
             storage_path=temp_environment["storage_path"],
@@ -88,7 +88,7 @@ class TestIngestionIntegration:
             schema_provider=schema_provider,
             strict=True,
         )
-        
+
         # Create in-memory document store for testing
         document_store = InMemoryDocumentStore()
         document_store.connect()
@@ -107,7 +107,7 @@ class TestIngestionIntegration:
         # Verify archives collection was populated
         archives = document_store.query_documents("archives", {})
         assert len(archives) == 3
-        
+
         # Verify each archive has correct structure
         for archive in archives:
             assert "_id" in archive

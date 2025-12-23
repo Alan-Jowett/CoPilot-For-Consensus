@@ -16,11 +16,11 @@ logger = logging.getLogger(__name__)
 def fetch_and_process_archive(config_dict: dict, output_dir: str) -> dict:
     """
     Example function showing how to use archive fetcher in ingestion service.
-    
+
     Args:
         config_dict: Dictionary with source configuration
         output_dir: Directory to store fetched files
-        
+
     Returns:
         Dictionary with fetch results
     """
@@ -36,15 +36,15 @@ def fetch_and_process_archive(config_dict: dict, output_dir: str) -> dict:
             password=config_dict.get("password"),
             folder=config_dict.get("folder"),
         )
-        
+
         logger.info(f"Fetching archive from source: {config.name} ({config.source_type})")
-        
+
         # Create appropriate fetcher using factory pattern
         fetcher = create_fetcher(config)
-        
+
         # Fetch the archive
         success, files, error = fetcher.fetch(output_dir)
-        
+
         if success:
             logger.info(f"Successfully fetched {len(files)} files from {config.name}")
             return {
@@ -61,7 +61,7 @@ def fetch_and_process_archive(config_dict: dict, output_dir: str) -> dict:
                 "source_name": config.name,
                 "error": error,
             }
-            
+
     except UnsupportedSourceTypeError as e:
         logger.error(f"Unsupported source type: {e}")
         return {
@@ -78,7 +78,7 @@ def fetch_and_process_archive(config_dict: dict, output_dir: str) -> dict:
 
 def main():
     """Example: Process multiple archive sources."""
-    
+
     # Example configuration sources
     sources = [
         {
@@ -97,23 +97,23 @@ def main():
             "url": "rsync://mirror.example.com/data/",
         },
     ]
-    
+
     output_dir = "/tmp/archives"
     results = []
-    
+
     for source_config in sources:
         result = fetch_and_process_archive(source_config, output_dir)
         results.append(result)
-        
+
         if result["success"]:
             print(f"✓ {result['source_name']}: {result['file_count']} files fetched")
         else:
             print(f"✗ {result['source_name']}: {result['error']}")
-    
+
     # Summary
     successful = sum(1 for r in results if r.get("success"))
     print(f"\nSummary: {successful}/{len(results)} sources fetched successfully")
-    
+
     return results
 
 

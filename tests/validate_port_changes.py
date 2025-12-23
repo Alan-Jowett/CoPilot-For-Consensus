@@ -67,66 +67,66 @@ def main():
     """Main validation function"""
     print("Validating Docker Compose port exposure changes...\n")
     print("NOTE: This test requires the Docker Compose stack to be running.\n")
-    
+
     passed = 0
     failed = 0
-    
+
     # Test public services (should be accessible from host on 0.0.0.0)
     print("=" * 60)
     print("Testing PUBLIC services (0.0.0.0)...")
     print("=" * 60)
-    
+
     public_services = [
         ("http://localhost:3000/api/health", "Grafana"),
         ("http://localhost:8080/health", "Reporting API"),
     ]
-    
+
     for url, name in public_services:
         if check_service_accessible(url, name):
             passed += 1
         else:
             failed += 1
-    
+
     # Test localhost-only services (should be accessible from host on 127.0.0.1)
     print("\n" + "=" * 60)
     print("Testing LOCALHOST-ONLY services (127.0.0.1)...")
     print("=" * 60)
-    
+
     localhost_services = [
         ("http://localhost:9090/-/healthy", "Prometheus"),
         ("http://localhost:3100/ready", "Loki"),
         ("http://localhost:8084/", "Web UI"),
         # Note: Can't easily test TCP services like MongoDB, RabbitMQ, Qdrant, Ollama via HTTP
     ]
-    
+
     for url, name in localhost_services:
         if check_service_accessible(url, name):
             passed += 1
         else:
             failed += 1
-    
+
     # Test that internal services are accessible via Docker network
     print("\n" + "=" * 60)
     print("Testing INTERNAL service communication (Docker network)...")
     print("=" * 60)
-    
+
     internal_services = [
         ("pushgateway:9091", "Pushgateway", "http://pushgateway:9091/-/ready"),
         ("messagebus:15672", "RabbitMQ Management", "http://messagebus:15672/api/health"),
         ("vectorstore:6333", "Qdrant", "http://vectorstore:6333/healthz"),
     ]
-    
+
     for _, name, url in internal_services:
         if check_internal_service_via_docker(name, url):
             passed += 1
         else:
             failed += 1
-    
+
     # Summary
     print("\n" + "=" * 60)
     print(f"Validation Results: {passed} passed, {failed} failed")
     print("=" * 60)
-    
+
     if failed > 0:
         print("\n✗ Some validation checks failed")
         print("This may indicate:")

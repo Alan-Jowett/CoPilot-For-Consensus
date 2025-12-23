@@ -10,11 +10,11 @@ from .archive_store import ArchiveStore
 
 class MongoDBArchiveStore(ArchiveStore):
     """MongoDB GridFS-based archive storage (planned implementation).
-    
+
     This will store archives using MongoDB GridFS for files larger than 16MB,
     and regular collections for smaller files. Enables multi-node deployments
     without shared volumes.
-    
+
     Note: This is a stub implementation. Full implementation is planned.
     """
 

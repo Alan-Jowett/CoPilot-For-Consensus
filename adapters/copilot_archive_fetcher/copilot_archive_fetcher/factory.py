@@ -14,13 +14,13 @@ from .exceptions import UnsupportedSourceTypeError
 
 def create_fetcher(source: SourceConfig) -> ArchiveFetcher:
     """Factory function to create an archive fetcher.
-    
+
     Args:
         source: Source configuration
-        
+
     Returns:
         ArchiveFetcher instance
-        
+
     Raises:
         UnsupportedSourceTypeError: If source type is not supported
     """

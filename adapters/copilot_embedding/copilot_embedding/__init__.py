@@ -11,11 +11,11 @@ plugging in different backends without changing downstream logic.
 
 Example:
     >>> from copilot_embedding import create_embedding_provider
-    >>> 
+    >>>
     >>> # Create a provider with environment-based configuration
     >>> provider = create_embedding_provider()
     >>> embedding = provider.embed("Your text here")
-    >>> 
+    >>>
     >>> # Create a mock provider for testing
     >>> test_provider = create_embedding_provider(backend="mock", dimension=128)
     >>> embedding = test_provider.embed("Test text")

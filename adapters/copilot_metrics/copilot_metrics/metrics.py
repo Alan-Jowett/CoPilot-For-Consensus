@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class MetricsCollector(ABC):
     """Abstract base class for metrics collectors.
-    
+
     Provides a pluggable interface for collecting metrics across different
     observability backends (Prometheus, OpenTelemetry, StatsD, etc.).
     """
@@ -21,7 +21,7 @@ class MetricsCollector(ABC):
     @abstractmethod
     def increment(self, name: str, value: float = 1.0, tags: Optional[Dict[str, str]] = None) -> None:
         """Increment a counter metric.
-        
+
         Args:
             name: Name of the counter metric
             value: Amount to increment by (default: 1.0)
@@ -32,9 +32,9 @@ class MetricsCollector(ABC):
     @abstractmethod
     def observe(self, name: str, value: float, tags: Optional[Dict[str, str]] = None) -> None:
         """Observe a value for histogram/summary metrics.
-        
+
         Useful for measuring durations, sizes, or other distributions.
-        
+
         Args:
             name: Name of the histogram/summary metric
             value: Value to observe
@@ -45,9 +45,9 @@ class MetricsCollector(ABC):
     @abstractmethod
     def gauge(self, name: str, value: float, tags: Optional[Dict[str, str]] = None) -> None:
         """Set a gauge metric to a specific value.
-        
+
         Gauges represent values that can go up or down (e.g., queue depth, memory usage).
-        
+
         Args:
             name: Name of the gauge metric
             value: Value to set the gauge to
@@ -57,11 +57,11 @@ class MetricsCollector(ABC):
 
     def safe_push(self) -> None:
         """Safely push metrics to backend if supported.
-        
+
         This is a helper method that checks if the collector supports pushing
         (e.g., PushGateway) and pushes metrics if available. If push fails,
         logs a warning but does not raise an exception.
-        
+
         This method is designed to be called after collecting metrics to ensure
         they are sent to the monitoring backend without failing the service.
         """
@@ -77,22 +77,22 @@ def create_metrics_collector(
     **kwargs
 ) -> MetricsCollector:
     """Factory function to create a metrics collector based on backend type.
-    
+
     Args:
         backend: Type of metrics backend ("prometheus", "azure_monitor", "noop", or None to auto-detect from env)
         **kwargs: Additional backend-specific arguments
-        
+
     Returns:
         MetricsCollector instance
-        
+
     Raises:
         ValueError: If backend type is unknown
     """
     if backend is None:
         backend = os.getenv("METRICS_BACKEND", "noop")
-    
+
     backend = backend.lower()
-    
+
     if backend == "prometheus":
         from .prometheus_metrics import PrometheusMetricsCollector
         return PrometheusMetricsCollector(**kwargs)

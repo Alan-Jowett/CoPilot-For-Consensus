@@ -3,7 +3,7 @@
 
 """Copilot-for-Consensus Schema Validation Adapter.
 
-A shared library for JSON schema validation and event models across microservices 
+A shared library for JSON schema validation and event models across microservices
 in the Copilot-for-Consensus system.
 """
 

@@ -17,21 +17,21 @@ from .models import User
 
 class IdentityProvider(ABC):
     """Abstract base class for identity providers.
-    
+
     All identity providers must implement the get_user method to retrieve
     user information based on an authentication token.
     """
-    
+
     @abstractmethod
     def get_user(self, token: str) -> Optional[User]:
         """Retrieve user information from an authentication token.
-        
+
         Args:
             token: Authentication token (format depends on provider)
-            
+
         Returns:
             User object if token is valid, None otherwise
-            
+
         Raises:
             AuthenticationError: If authentication fails due to invalid token
             ProviderError: If the provider service is unavailable

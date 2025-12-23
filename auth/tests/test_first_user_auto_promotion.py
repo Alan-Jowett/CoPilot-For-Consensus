@@ -81,7 +81,7 @@ class TestFirstUserAutoPromotion:
         # Should NOT auto-promote to admin
         assert roles == []
         assert status == "pending"
-        
+
         # Verify insert was called with pending status
         mock_store.insert_document.assert_called_once()
         insert_args = mock_store.insert_document.call_args[0]
@@ -105,7 +105,7 @@ class TestFirstUserAutoPromotion:
         # Should auto-promote to admin
         assert roles == ["admin"]
         assert status == "approved"
-        
+
         # Verify insert was called with admin role
         mock_store.insert_document.assert_called_once()
         insert_args = mock_store.insert_document.call_args[0]
@@ -121,7 +121,7 @@ class TestFirstUserAutoPromotion:
             "roles": ["admin"],
             "status": "approved",
         }
-        
+
         # First call returns no user record, second call returns existing admin
         def mock_query(collection, query, limit=None):
             if query.get("user_id") == mock_user.id:
@@ -129,7 +129,7 @@ class TestFirstUserAutoPromotion:
             elif "roles" in query and query["roles"] == "admin":
                 return [existing_admin]  # Admin already exists
             return []
-        
+
         mock_store.query_documents.side_effect = mock_query
 
         # Call with auto-promotion enabled
@@ -165,7 +165,7 @@ class TestFirstUserAutoPromotion:
         # Should return existing roles (not affected by auto-promotion setting)
         assert roles == ["contributor"]
         assert status == "approved"
-        
+
         # Should not insert a new record
         mock_store.insert_document.assert_not_called()
 
@@ -194,7 +194,7 @@ class TestFirstUserAutoPromotion:
             "roles": ["admin"],
             "status": "approved",
         }
-        
+
         # Setup query to return no user record but existing admin
         def mock_query(collection, query, limit=None):
             if query.get("user_id") == mock_user.id:
@@ -202,7 +202,7 @@ class TestFirstUserAutoPromotion:
             elif "roles" in query and query["roles"] == "admin":
                 return [existing_admin]
             return []
-        
+
         mock_store.query_documents.side_effect = mock_query
 
         # Call with auto-promotion enabled AND auto-approve enabled

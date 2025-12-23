@@ -99,7 +99,7 @@ class AzureKeyVaultProvider(SecretProvider):
             except (AttributeError, TypeError, RuntimeError):
                 # Suppress expected errors during cleanup
                 pass
-        
+
         # Then close the credential
         credential = getattr(self, "_credential", None)
         if credential is not None:

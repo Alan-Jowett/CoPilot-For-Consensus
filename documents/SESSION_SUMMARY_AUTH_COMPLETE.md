@@ -34,10 +34,10 @@ Successfully implemented end-to-end OAuth2 + JWT authentication system with comp
 // To reading directly from localStorage (the authoritative source)
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers || {})
-  
+
   // Get the token from localStorage (most recent source of truth)
   const token = localStorage.getItem('auth_token')
-  
+
   if (token) {
     headers.set('Authorization', `Bearer ${token}`)  // Now actually sends the token!
   }

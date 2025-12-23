@@ -10,7 +10,7 @@ from typing import List
 @dataclass
 class Citation:
     """Citation linking summary to source material.
-    
+
     Attributes:
         message_id: ID of the source message
         chunk_id: ID of the chunk within the message
@@ -24,7 +24,7 @@ class Citation:
 @dataclass
 class Thread:
     """Thread data to be summarized.
-    
+
     Attributes:
         thread_id: Unique identifier for the thread
         messages: List of message contents in the thread
@@ -42,7 +42,7 @@ class Thread:
 @dataclass
 class Summary:
     """Summary generated for a thread.
-    
+
     Attributes:
         thread_id: Thread that was summarized
         summary_markdown: Generated summary in Markdown format

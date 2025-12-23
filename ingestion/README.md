@@ -178,13 +178,13 @@ curl -X DELETE http://localhost:8080/ingestion/api/sources/ietf-quic
 ### Source Configuration
 
 Sources are managed via the REST API and stored in the document database. They can also be pre-configured in the database.
-    
+
   # HTTP/HTTPS source
   - name: "archive-http"
     type: "http"
     url: "https://example.com/archives.mbox"
     enabled: true
-    
+
   # IMAP source
   - name: "mail-archive"
     type: "imap"
@@ -194,7 +194,7 @@ Sources are managed via the REST API and stored in the document database. They c
     password: "${IMAP_PASSWORD}"
     folder: "INBOX"
     enabled: true
-    
+
   # Local filesystem (testing)
   - name: "local-test"
     type: "local"

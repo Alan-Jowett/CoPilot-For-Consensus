@@ -45,10 +45,10 @@ def document_store():
     # Create base in-memory store
     base_store = InMemoryDocumentStore()
     base_store.connect()
-    
+
     # Override query_documents to support $in operator
     base_store.query_documents = create_query_with_in_support(base_store.query_documents)
-    
+
     # Wrap with validation using document schemas
     schema_dir = Path(__file__).parent.parent.parent / "documents" / "schemas" / "documents"
     schema_provider = FileSchemaProvider(schema_dir=schema_dir)
@@ -56,5 +56,5 @@ def document_store():
         store=base_store,
         schema_provider=schema_provider
     )
-    
+
     return validating_store

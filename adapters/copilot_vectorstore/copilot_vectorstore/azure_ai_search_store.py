@@ -27,10 +27,10 @@ HNSW_EF_SEARCH = 500  # Size of dynamic candidate list during search (higher = b
 
 class AzureAISearchVectorStore(VectorStore):
     """Azure AI Search-based vector store implementation.
-    
+
     This implementation uses Azure AI Search (formerly Azure Cognitive Search)
     for vector similarity search with support for metadata filtering and persistence.
-    
+
     Args:
         endpoint: Azure AI Search service endpoint URL
         api_key: Azure AI Search API key (or use managed identity)
@@ -38,7 +38,7 @@ class AzureAISearchVectorStore(VectorStore):
         vector_size: Dimension of embedding vectors
         use_managed_identity: Whether to use managed identity for authentication
     """
-    
+
     def __init__(
         self,
         endpoint: str,
@@ -48,14 +48,14 @@ class AzureAISearchVectorStore(VectorStore):
         use_managed_identity: bool = False,
     ):
         """Initialize an Azure AI Search vector store.
-        
+
         Args:
             endpoint: Azure AI Search service endpoint URL
             api_key: Azure AI Search API key (required unless using managed identity)
             index_name: Name of the search index to use
             vector_size: Dimension of embedding vectors
             use_managed_identity: Whether to use managed identity for authentication
-            
+
         Raises:
             ImportError: If azure-search-documents is not installed
             ValueError: If endpoint is invalid or authentication is not provided
@@ -79,29 +79,29 @@ class AzureAISearchVectorStore(VectorStore):
                 "azure-search-documents is not installed. "
                 "Install it with: pip install azure-search-documents"
             ) from e
-        
+
         if not endpoint:
             raise ValueError("endpoint parameter is required")
-        
+
         if not endpoint.startswith("https://"):
             raise ValueError(
                 f"Invalid endpoint '{endpoint}'. Must start with 'https://'"
             )
-        
+
         if not use_managed_identity and not api_key:
             raise ValueError(
                 "Either api_key must be provided or use_managed_identity must be True"
             )
-        
+
         if vector_size <= 0:
             raise ValueError(f"Vector size must be positive, got {vector_size}")
-        
+
         self._endpoint = endpoint
         self._api_key = api_key
         self._index_name = index_name
         self._vector_size = vector_size
         self._use_managed_identity = use_managed_identity
-        
+
         # Store imports for later use
         self._SearchClient = SearchClient
         self._SearchIndexClient = SearchIndexClient
@@ -113,7 +113,7 @@ class AzureAISearchVectorStore(VectorStore):
         self._HnswAlgorithmConfiguration = HnswAlgorithmConfiguration
         self._VectorSearchProfile = VectorSearchProfile
         self._AzureKeyCredential = AzureKeyCredential
-        
+
         # Initialize credentials
         if use_managed_identity:
             try:
@@ -126,7 +126,7 @@ class AzureAISearchVectorStore(VectorStore):
                 ) from e
         else:
             self._credential = AzureKeyCredential(api_key)
-        
+
         # Initialize clients
         try:
             self._index_client = SearchIndexClient(
@@ -142,22 +142,22 @@ class AzureAISearchVectorStore(VectorStore):
             raise RuntimeError(
                 f"Failed to connect to Azure AI Search at {endpoint}. Error: {e}"
             ) from e
-        
+
         # Ensure index exists
         self._ensure_index()
-        
+
         logger.info(
             f"Initialized Azure AI Search vector store: endpoint={endpoint}, "
             f"index={index_name}, vector_size={vector_size}"
         )
-    
+
     def _ensure_index(self) -> None:
         """Ensure the search index exists, create it if not."""
         try:
             # Check if index exists
             existing_index = self._index_client.get_index(self._index_name)
             logger.info(f"Using existing index '{self._index_name}'")
-            
+
             # Validate vector field configuration
             vector_field = next(
                 (f for f in existing_index.fields if f.name == "embedding"),
@@ -182,7 +182,7 @@ class AzureAISearchVectorStore(VectorStore):
                 self._create_index()
             else:
                 raise
-    
+
     def _create_index(self) -> None:
         """Create a new search index with vector search configuration."""
         fields = [
@@ -205,7 +205,7 @@ class AzureAISearchVectorStore(VectorStore):
                 filterable=True,
             ),
         ]
-        
+
         # Configure vector search with HNSW algorithm
         # Note: HnswAlgorithmConfiguration has different constructor signatures
         # depending on the azure-search-documents SDK version. We try multiple
@@ -213,7 +213,7 @@ class AzureAISearchVectorStore(VectorStore):
         # 1. Modern SDK (>= 11.4.0): HnswParameters with snake_case kwargs
         # 2. Legacy SDK: dict-based parameters with camelCase keys (REST API format)
         # 3. Fallback: basic configuration without custom parameters
-        
+
         hnsw_config: Any
         try:
             # Preferred: Modern azure-search-documents SDK (>= 11.4.0) with
@@ -255,7 +255,7 @@ class AzureAISearchVectorStore(VectorStore):
                     self._index_name,
                 )
                 hnsw_config = self._HnswAlgorithmConfiguration(name="hnsw-algorithm")
-        
+
         vector_search = self._VectorSearch(
             algorithms=[hnsw_config],
             profiles=[
@@ -265,27 +265,27 @@ class AzureAISearchVectorStore(VectorStore):
                 )
             ],
         )
-        
+
         index = self._SearchIndex(
             name=self._index_name,
             fields=fields,
             vector_search=vector_search,
         )
-        
+
         self._index_client.create_index(index)
         logger.info(f"Created index '{self._index_name}'")
-    
+
     def add_embedding(self, id: str, vector: List[float], metadata: Dict[str, Any]) -> None:
         """Add a single embedding to the vector store.
-        
+
         Idempotent operation: if the ID already exists, it will be updated with the new
         vector and metadata (upsert semantics).
-        
+
         Args:
             id: Unique identifier for this embedding
             vector: The embedding vector
             metadata: Additional metadata to store with the embedding
-            
+
         Raises:
             ValueError: If vector dimension doesn't match
         """
@@ -294,36 +294,36 @@ class AzureAISearchVectorStore(VectorStore):
                 f"Vector dimension ({len(vector)}) doesn't match "
                 f"expected dimension ({self._vector_size})"
             )
-        
+
         # Prepare document for indexing
         document = {
             "id": id,
             "embedding": vector,
             "metadata": json.dumps(metadata),
         }
-        
+
         # Upload document (upsert semantics)
         self._search_client.upload_documents(documents=[document])
         logger.debug(f"Upserted embedding with ID: {id}")
-    
-    def add_embeddings(self, ids: List[str], vectors: List[List[float]], 
+
+    def add_embeddings(self, ids: List[str], vectors: List[List[float]],
                       metadatas: List[Dict[str, Any]]) -> None:
         """Add multiple embeddings to the vector store in batch.
-        
+
         Idempotent operation: if any IDs already exist, they will be updated with the new
         vectors and metadata (upsert semantics).
-        
+
         Args:
             ids: List of unique identifiers
             vectors: List of embedding vectors
             metadatas: List of metadata dictionaries
-            
+
         Raises:
             ValueError: If lengths don't match or vector dimensions are wrong
         """
         if not (len(ids) == len(vectors) == len(metadatas)):
             raise ValueError("ids, vectors, and metadatas must have the same length")
-        
+
         # Validate vector dimensions
         for i, vector in enumerate(vectors):
             if len(vector) != self._vector_size:
@@ -331,11 +331,11 @@ class AzureAISearchVectorStore(VectorStore):
                     f"Vector at index {i} has dimension {len(vector)}, "
                     f"expected {self._vector_size}"
                 )
-        
+
         # Check for duplicate IDs in the batch
         if len(set(ids)) != len(ids):
             raise ValueError("Duplicate IDs found in the batch")
-        
+
         # Prepare documents for batch indexing
         documents = [
             {
@@ -345,21 +345,21 @@ class AzureAISearchVectorStore(VectorStore):
             }
             for id_val, vector, metadata in zip(ids, vectors, metadatas)
         ]
-        
+
         # Upload documents in batch (upsert semantics)
         self._search_client.upload_documents(documents=documents)
         logger.debug(f"Upserted {len(documents)} embeddings")
-    
+
     def query(self, query_vector: List[float], top_k: int = 10) -> List[SearchResult]:
         """Query the vector store for similar embeddings.
-        
+
         Args:
             query_vector: The query embedding vector
             top_k: Number of top results to return
-            
+
         Returns:
             List of SearchResult objects ordered by similarity (highest first)
-            
+
         Raises:
             ValueError: If query_vector dimension doesn't match stored vectors
         """
@@ -368,16 +368,16 @@ class AzureAISearchVectorStore(VectorStore):
                 f"Query vector dimension ({len(query_vector)}) doesn't match "
                 f"expected dimension ({self._vector_size})"
             )
-        
+
         from azure.search.documents.models import VectorizedQuery
-        
+
         # Create vector query
         vector_query = VectorizedQuery(
             vector=query_vector,
             k_nearest_neighbors=top_k,
             fields="embedding"
         )
-        
+
         # Execute search
         results = self._search_client.search(
             search_text=None,
@@ -385,7 +385,7 @@ class AzureAISearchVectorStore(VectorStore):
             select=["id", "embedding", "metadata"],
             top=top_k,
         )
-        
+
         # Convert to SearchResult objects
         search_results = []
         for result in results:
@@ -396,7 +396,7 @@ class AzureAISearchVectorStore(VectorStore):
                     metadata = json.loads(result["metadata"])
                 except json.JSONDecodeError:
                     logger.warning(f"Failed to parse metadata for document {result.get('id')}")
-            
+
             # Get stored vector; this must be returned by Azure AI Search
             vector = result.get("embedding")
             if vector is None:
@@ -405,22 +405,22 @@ class AzureAISearchVectorStore(VectorStore):
                     "Using query vector as fallback. Ensure select parameter includes 'embedding'."
                 )
                 vector = query_vector
-            
+
             search_results.append(SearchResult(
                 id=result["id"],
                 score=float(result["@search.score"]),
                 vector=vector,
                 metadata=metadata,
             ))
-        
+
         return search_results
-    
+
     def delete(self, id: str) -> None:
         """Delete an embedding from the vector store.
-        
+
         Args:
             id: Unique identifier of the embedding to delete
-            
+
         Raises:
             KeyError: If id doesn't exist
         """
@@ -437,11 +437,11 @@ class AzureAISearchVectorStore(VectorStore):
             if is_not_found:
                 raise KeyError(f"ID '{id}' not found in vector store") from e
             raise
-        
+
         # Delete the document
         self._search_client.delete_documents(documents=[{"id": id}])
         logger.debug(f"Deleted embedding with ID: {id}")
-    
+
     def clear(self) -> None:
         """Remove all embeddings from the vector store."""
         # Delete and recreate the index
@@ -450,13 +450,13 @@ class AzureAISearchVectorStore(VectorStore):
             logger.info(f"Deleted index '{self._index_name}'")
         except Exception as e:
             logger.warning(f"Failed to delete index: {e}")
-        
+
         # Recreate the index
         self._create_index()
-    
+
     def count(self) -> int:
         """Get the number of embeddings in the vector store.
-        
+
         Returns:
             Number of embeddings currently stored
         """
@@ -475,16 +475,16 @@ class AzureAISearchVectorStore(VectorStore):
             )
             return 0
         return count
-    
+
     def get(self, id: str) -> SearchResult:
         """Retrieve a specific embedding by ID.
-        
+
         Args:
             id: Unique identifier of the embedding
-            
+
         Returns:
             SearchResult containing the embedding and metadata
-            
+
         Raises:
             KeyError: If id doesn't exist
         """
@@ -500,7 +500,7 @@ class AzureAISearchVectorStore(VectorStore):
             if is_not_found:
                 raise KeyError(f"ID '{id}' not found in vector store") from e
             raise
-        
+
         # Parse metadata
         metadata = {}
         if "metadata" in result and result["metadata"]:
@@ -508,7 +508,7 @@ class AzureAISearchVectorStore(VectorStore):
                 metadata = json.loads(result["metadata"])
             except json.JSONDecodeError:
                 logger.warning(f"Failed to parse metadata for document {id}")
-        
+
         return SearchResult(
             id=id,
             score=1.0,  # Perfect match with itself

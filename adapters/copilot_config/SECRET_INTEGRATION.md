@@ -203,13 +203,13 @@ For unit tests, create a fake secret provider:
 class FakeSecretProvider:
     def __init__(self, secrets: dict):
         self._secrets = secrets
-    
+
     def get_secret(self, name: str) -> str:
         return self._secrets.get(name, "")
-    
+
     def get_secret_bytes(self, name: str) -> bytes:
         return self.get_secret(name).encode()
-    
+
     def secret_exists(self, name: str) -> bool:
         return name in self._secrets
 
@@ -265,7 +265,7 @@ secrets = create_secret_provider(
    ```python
    # Bad
    logger.info(f"JWT key: {config.jwt_private_key}")
-   
+
    # Good
    logger.info("JWT key loaded successfully")
    ```
@@ -296,7 +296,7 @@ jwt_key = os.getenv("JWT_PRIVATE_KEY")  # Secret in environment!
    ```python
    from copilot_config import load_typed_config, SecretConfigProvider
    from copilot_secrets import create_secret_provider
-   
+
    secrets = create_secret_provider("local", base_path="/run/secrets")
    secret_config = SecretConfigProvider(secret_provider=secrets)
    config = load_typed_config("auth", secret_provider=secret_config)

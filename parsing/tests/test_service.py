@@ -19,18 +19,18 @@ from .test_helpers import assert_valid_event_schema
 
 class MockPublisher:
     """Mock publisher that tracks published events."""
-    
+
     def __init__(self):
         self.published_events = []
         self.connected = False
-    
+
     def connect(self):
         self.connected = True
         return True
-    
+
     def disconnect(self):
         self.connected = False
-    
+
     def publish(self, exchange, routing_key, event):
         self.published_events.append({
             "exchange": exchange,
@@ -99,20 +99,20 @@ class TestParsingService:
             "archive_id": "test-archive-1",
             "file_path": sample_mbox_file,
         }
-        
+
         service.process_archive(archive_data)
-        
+
         # Check stats
         stats = service.get_stats()
         assert stats["archives_processed"] == 1
         assert stats["messages_parsed"] == 2
         assert stats["threads_created"] == 1
         assert stats["last_processing_time_seconds"] > 0
-        
+
         # Check document store
         messages = service.document_store.query_documents("messages", {})
         assert len(messages) == 2
-        
+
         threads = service.document_store.query_documents("threads", {})
         assert len(threads) == 1
 
@@ -122,10 +122,10 @@ class TestParsingService:
             "archive_id": "test-archive-2",
             "file_path": corrupted_mbox_file,
         }
-        
+
         # Should handle gracefully
         service.process_archive(archive_data)
-        
+
         # No messages should be parsed from corrupted file
         messages = service.document_store.query_documents("messages", {})
         assert len(messages) == 0
@@ -136,10 +136,10 @@ class TestParsingService:
             "archive_id": "test-archive-3",
             "file_path": "/nonexistent/file.mbox",
         }
-        
+
         # Should handle gracefully without crashing
         service.process_archive(archive_data)
-        
+
         # No messages should be stored
         messages = service.document_store.query_documents("messages", {})
         assert len(messages) == 0
@@ -150,12 +150,12 @@ class TestParsingService:
             "archive_id": "test-archive-4",
             "file_path": sample_mbox_file,
         }
-        
+
         service.process_archive(archive_data)
-        
+
         # Retrieve messages
         messages = service.document_store.query_documents("messages", {})
-        
+
         # Check required fields
         for msg in messages:
             assert "message_id" in msg
@@ -174,15 +174,15 @@ class TestParsingService:
             "archive_id": "test-archive-5",
             "file_path": sample_mbox_file,
         }
-        
+
         service.process_archive(archive_data)
-        
+
         # Retrieve threads
         threads = service.document_store.query_documents("threads", {})
-        
+
         assert len(threads) == 1
         thread = threads[0]
-        
+
         # Check required fields
         assert "thread_id" in thread
         assert "archive_id" in thread
@@ -202,16 +202,16 @@ class TestParsingService:
             "archive_id": "test-archive-6",
             "file_path": sample_mbox_file,
         }
-        
+
         service.process_archive(archive_data)
-        
+
         # Check messages for draft mentions
         messages = service.document_store.query_documents("messages", {})
-        
+
         draft_mentions_found = []
         for msg in messages:
             draft_mentions_found.extend(msg["draft_mentions"])
-        
+
         # Should have detected drafts from the sample messages
         assert len(draft_mentions_found) > 0
         assert any("draft-ietf-quic-transport" in d for d in draft_mentions_found)
@@ -223,16 +223,16 @@ class TestParsingService:
             "archive_id": "test-archive-7",
             "file_path": sample_mbox_file,
         }
-        
+
         service.process_archive(archive_data)
-        
+
         # Retrieve messages
         messages = service.document_store.query_documents("messages", {})
-        
+
         # Both messages should be in the same thread
         thread_ids = [msg["thread_id"] for msg in messages]
         assert len(set(thread_ids)) == 1  # All same thread
-        
+
         # The thread_id should be the root message's canonical _id
         root_msg = [m for m in messages if not m.get("in_reply_to")][0]
         assert all(tid == root_msg["_id"] for tid in thread_ids)
@@ -244,14 +244,14 @@ class TestParsingService:
         assert stats["archives_processed"] == 0
         assert stats["messages_parsed"] == 0
         assert stats["threads_created"] == 0
-        
+
         # Process archive
         archive_data = {
             "archive_id": "test-archive-8",
             "file_path": sample_mbox_file,
         }
         service.process_archive(archive_data)
-        
+
         # Updated stats
         stats = service.get_stats()
         assert stats["archives_processed"] == 1
@@ -345,24 +345,24 @@ class TestParsingService:
         """Test that JSONParsed events are published (one per message) on successful parsing."""
         mock_publisher = MockPublisher()
         mock_publisher.connect()
-        
+
         service = ParsingService(
             document_store=document_store,
             publisher=mock_publisher,
             subscriber=subscriber,
         )
-        
+
         archive_data = {
             "archive_id": "test-archive-9",
             "file_path": sample_mbox_file,
         }
-        
+
         service.process_archive(archive_data)
-        
+
         # Verify JSONParsed events were published (one per message)
         # sample_mbox_file contains 2 messages
         assert len(mock_publisher.published_events) == 2
-        
+
         # Check first event
         event1 = mock_publisher.published_events[0]
         assert event1["exchange"] == "copilot.events"
@@ -371,7 +371,7 @@ class TestParsingService:
         assert event1["event"]["data"]["archive_id"] == "test-archive-9"
         assert event1["event"]["data"]["message_count"] == 1  # Single message per event
         assert len(event1["event"]["data"]["message_doc_ids"]) == 1
-        
+
         # Check second event
         event2 = mock_publisher.published_events[1]
         assert event2["exchange"] == "copilot.events"
@@ -380,7 +380,7 @@ class TestParsingService:
         assert event2["event"]["data"]["archive_id"] == "test-archive-9"
         assert event2["event"]["data"]["message_count"] == 1  # Single message per event
         assert len(event2["event"]["data"]["message_doc_ids"]) == 1
-        
+
         # Verify messages are different
         assert event1["event"]["data"]["message_doc_ids"][0] != event2["event"]["data"]["message_doc_ids"][0]
 
@@ -388,20 +388,20 @@ class TestParsingService:
         """Test that ParsingFailed event is published on parsing failure."""
         mock_publisher = MockPublisher()
         mock_publisher.connect()
-        
+
         service = ParsingService(
             document_store=document_store,
             publisher=mock_publisher,
             subscriber=subscriber,
         )
-        
+
         archive_data = {
             "archive_id": "test-archive-10",
             "file_path": "/nonexistent/file.mbox",
         }
-        
+
         service.process_archive(archive_data)
-        
+
         # Verify ParsingFailed event was published
         assert len(mock_publisher.published_events) == 1
         event = mock_publisher.published_events[0]
@@ -417,16 +417,16 @@ class TestParsingService:
         # Create a mock subscriber to track subscription
         mock_subscriber = Mock()
         mock_subscriber.connect.return_value = True
-        
+
         service = ParsingService(
             document_store=document_store,
             publisher=publisher,
             subscriber=mock_subscriber,
         )
-        
+
         # Start the service
         service.start()
-        
+
         # Verify subscription was called
         mock_subscriber.subscribe.assert_called_once()
         call_args = mock_subscriber.subscribe.call_args
@@ -441,7 +441,7 @@ class TestParsingService:
             publisher=publisher,
             subscriber=subscriber,
         )
-        
+
         # Simulate receiving an event
         event = {
             "event_type": "ArchiveIngested",
@@ -450,9 +450,9 @@ class TestParsingService:
                 "file_path": sample_mbox_file,
             }
         }
-        
+
         service._handle_archive_ingested(event)
-        
+
         # Verify the archive was processed
         stats = service.get_stats()
         assert stats["archives_processed"] == 1
@@ -470,28 +470,28 @@ def test_json_parsed_event_schema_validation(document_store, sample_mbox_file):
     publisher.connect()
     subscriber = NoopSubscriber()
     subscriber.connect()
-    
+
     service = ParsingService(
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
     )
-    
+
     archive_data = {
         "archive_id": "aaaaaaaaaaaaaaaa",
         "file_path": sample_mbox_file,
     }
-    
+
     service.process_archive(archive_data)
-    
+
     # Get published events
     json_parsed_events = [
         e for e in publisher.published_events
         if e["event"]["event_type"] == "JSONParsed"
     ]
-    
+
     assert len(json_parsed_events) >= 1
-    
+
     # Validate each event
     for event_record in json_parsed_events:
         assert_valid_event_schema(event_record["event"])
@@ -503,29 +503,29 @@ def test_parsing_failed_event_schema_validation(document_store):
     publisher.connect()
     subscriber = NoopSubscriber()
     subscriber.connect()
-    
+
     service = ParsingService(
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
     )
-    
+
     # Try to process a non-existent file
     archive_data = {
         "archive_id": "bbbbbbbbbbbbbbbb",
         "file_path": "/nonexistent/file.mbox",
     }
-    
+
     service.process_archive(archive_data)
-    
+
     # Get published events
     failure_events = [
         e for e in publisher.published_events
         if e["event"]["event_type"] == "ParsingFailed"
     ]
-    
+
     assert len(failure_events) >= 1
-    
+
     # Validate each event
     for event_record in failure_events:
         assert_valid_event_schema(event_record["event"])
@@ -542,13 +542,13 @@ def test_consume_archive_ingested_event(document_store, sample_mbox_file):
     publisher.connect()
     subscriber = NoopSubscriber()
     subscriber.connect()
-    
+
     service = ParsingService(
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
     )
-    
+
     # Simulate receiving an ArchiveIngested event
     event = {
         "event_type": "ArchiveIngested",
@@ -567,18 +567,18 @@ def test_consume_archive_ingested_event(document_store, sample_mbox_file):
             "ingestion_completed_at": "2023-10-15T12:01:00Z",
         }
     }
-    
+
     # Validate incoming event
     assert_valid_event_schema(event)
-    
+
     # Process the event
     service._handle_archive_ingested(event)
-    
+
     # Verify processing succeeded
     stats = service.get_stats()
     assert stats["archives_processed"] == 1
     assert stats["messages_parsed"] == 2
-    
+
     # Verify JSONParsed event was published
     json_parsed_events = [
         e for e in publisher.published_events
@@ -596,13 +596,13 @@ def test_handle_malformed_event_missing_data(document_store):
     """Test handling event with missing data field."""
     publisher = MockPublisher()
     subscriber = NoopSubscriber()
-    
+
     service = ParsingService(
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
     )
-    
+
     # Event missing 'data' field
     event = {
         "event_type": "ArchiveIngested",
@@ -610,7 +610,7 @@ def test_handle_malformed_event_missing_data(document_store):
         "timestamp": "2023-10-15T12:00:00Z",
         "version": "1.0",
     }
-    
+
     # Service should raise an exception for missing data field
     with pytest.raises(KeyError):
         service._handle_archive_ingested(event)
@@ -620,13 +620,13 @@ def test_handle_event_missing_required_fields(document_store):
     """Test handling event with missing required fields in data."""
     publisher = MockPublisher()
     subscriber = NoopSubscriber()
-    
+
     service = ParsingService(
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
     )
-    
+
     # Event missing required 'file_path' field
     event = {
         "event_type": "ArchiveIngested",
@@ -637,7 +637,7 @@ def test_handle_event_missing_required_fields(document_store):
             "archive_id": "test-archive",
         }
     }
-    
+
     # Service should raise an exception for missing required fields
     with pytest.raises((KeyError, FileNotFoundError)):
         service._handle_archive_ingested(event)
@@ -649,16 +649,16 @@ def test_publish_json_parsed_with_publisher_failure(document_store):
         """Publisher that raises exception to indicate failure."""
         def publish(self, exchange, routing_key, event):
             raise Exception("Publish failed")
-    
+
     publisher = FailingPublisher()
     subscriber = NoopSubscriber()
-    
+
     service = ParsingService(
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
     )
-    
+
     # Should raise exception when publisher fails on any message
     parsed_messages = [
         {"message_id": "msg-1", "_id": "mk-1", "thread_id": "thread-1"},
@@ -667,7 +667,7 @@ def test_publish_json_parsed_with_publisher_failure(document_store):
     threads = [
         {"thread_id": "thread-1"},
     ]
-    
+
     with pytest.raises(Exception) as exc_info:
         service._publish_json_parsed_per_message(
             archive_id="test-archive",
@@ -675,7 +675,7 @@ def test_publish_json_parsed_with_publisher_failure(document_store):
             threads=threads,
             duration=1.5
         )
-    
+
     assert "Publish failed" in str(exc_info.value)
 
 
@@ -685,16 +685,16 @@ def test_publish_parsing_failed_with_publisher_failure(document_store):
         """Publisher that raises exception to indicate failure."""
         def publish(self, exchange, routing_key, event):
             raise Exception("Publish failed")
-    
+
     publisher = FailingPublisher()
     subscriber = NoopSubscriber()
-    
+
     service = ParsingService(
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
     )
-    
+
     # Should raise exception when publisher fails
     with pytest.raises(Exception) as exc_info:
         service._publish_parsing_failed(
@@ -704,7 +704,7 @@ def test_publish_parsing_failed_with_publisher_failure(document_store):
             error_type="ValueError",
             messages_parsed_before_failure=5
         )
-    
+
     assert "Publish failed" in str(exc_info.value)
 
 
@@ -716,16 +716,16 @@ def test_handle_archive_ingested_with_publish_json_parsed_failure(document_store
             if routing_key == "json.parsed":
                 raise Exception("Publish failed")
             return True
-    
+
     publisher = FailingPublisher()
     subscriber = NoopSubscriber()
-    
+
     service = ParsingService(
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
     )
-    
+
     event = {
         "event_type": "ArchiveIngested",
         "event_id": "test-123",
@@ -736,7 +736,7 @@ def test_handle_archive_ingested_with_publish_json_parsed_failure(document_store
             "file_path": sample_mbox_file,
         }
     }
-    
+
     # Should raise exception when publisher fails on json.parsed event
     with pytest.raises(Exception):
         service._handle_archive_ingested(event)
@@ -750,16 +750,16 @@ def test_handle_archive_ingested_with_publish_parsing_failed_failure(document_st
             if routing_key == "parsing.failed":
                 raise Exception("Publish failed")
             return True
-    
+
     publisher = FailingPublisher()
     subscriber = NoopSubscriber()
-    
+
     service = ParsingService(
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
     )
-    
+
     event = {
         "event_type": "ArchiveIngested",
         "event_id": "test-124",
@@ -770,7 +770,7 @@ def test_handle_archive_ingested_with_publish_parsing_failed_failure(document_st
             "file_path": "/nonexistent/path.mbox",  # This will cause processing to fail
         }
     }
-    
+
     # Should raise exception when publisher fails on parsing.failed event
     with pytest.raises(Exception):
         service._handle_archive_ingested(event)
@@ -780,16 +780,16 @@ def test_publish_json_parsed_raises_on_missing_message_id(document_store):
     """Test that _publish_json_parsed_per_message raises on messages without message_id."""
     mock_publisher = MockPublisher()
     mock_publisher.connect()
-    
+
     subscriber = NoopSubscriber()
     subscriber.connect()
-    
+
     service = ParsingService(
         document_store=document_store,
         publisher=mock_publisher,
         subscriber=subscriber,
     )
-    
+
     # Create messages with one missing _id
     parsed_messages = [
         {"message_id": "msg-1", "_id": "mk-1", "thread_id": "thread-1"},
@@ -797,7 +797,7 @@ def test_publish_json_parsed_raises_on_missing_message_id(document_store):
         {"message_id": "msg-3", "_id": "mk-3", "thread_id": "thread-1"},
     ]
     threads = [{"thread_id": "thread-1"}]
-    
+
     # Should raise exception due to invalid message
     with pytest.raises(ValueError) as exc_info:
         service._publish_json_parsed_per_message(
@@ -806,7 +806,7 @@ def test_publish_json_parsed_raises_on_missing_message_id(document_store):
             threads=threads,
             duration=1.5
         )
-    
+
     assert "_id" in str(exc_info.value)
     # Should have attempted to publish for the valid messages before the error
     assert len(mock_publisher.published_events) >= 1

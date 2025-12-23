@@ -43,7 +43,7 @@ class SummarizationService:
         error_reporter: Optional[ErrorReporter] = None,
     ):
         """Initialize summarization service.
-        
+
         Args:
             document_store: Document store for retrieving message metadata
             vector_store: Vector store for retrieving relevant chunks
@@ -70,7 +70,7 @@ class SummarizationService:
         self.retry_backoff_seconds = retry_backoff_seconds
         self.metrics_collector = metrics_collector
         self.error_reporter = error_reporter
-        
+
         # Stats
         self.summaries_generated = 0
         self.summarization_failures = 0
@@ -78,16 +78,16 @@ class SummarizationService:
 
     def start(self, enable_startup_requeue: bool = True):
         """Start the summarization service and subscribe to events.
-        
+
         Args:
             enable_startup_requeue: Whether to requeue incomplete documents on startup (default: True)
         """
         logger.info("Starting Summarization Service")
-        
+
         # Requeue incomplete threads on startup
         if enable_startup_requeue:
             self._requeue_incomplete_threads()
-        
+
         # Subscribe to SummarizationRequested events
         self.subscriber.subscribe(
             event_type="SummarizationRequested",
@@ -95,23 +95,23 @@ class SummarizationService:
             routing_key="summarization.requested",
             callback=self._handle_summarization_requested,
         )
-        
+
         logger.info("Subscribed to summarization.requested events")
         logger.info("Summarization service is ready")
-    
+
     def _requeue_incomplete_threads(self):
         """Requeue threads without summaries on startup for forward progress."""
         try:
             from copilot_startup import StartupRequeue
-            
+
             logger.info("Scanning for threads without summaries to requeue on startup...")
-            
+
             requeue = StartupRequeue(
                 document_store=self.document_store,
                 publisher=self.publisher,
                 metrics_collector=self.metrics_collector,
             )
-            
+
             # Requeue threads that don't have summaries yet
             count = requeue.requeue_incomplete(
                 collection="threads",
@@ -125,9 +125,9 @@ class SummarizationService:
                 },
                 limit=500,
             )
-            
+
             logger.info(f"Startup requeue: {count} threads without summaries requeued")
-            
+
         except ImportError:
             logger.warning("copilot_startup module not available, skipping startup requeue")
         except Exception as e:
@@ -136,24 +136,24 @@ class SummarizationService:
 
     def _handle_summarization_requested(self, event: Dict[str, Any]):
         """Handle SummarizationRequested event.
-        
+
         This is an event handler for message queue consumption. Exceptions are
         logged and re-raised to allow message requeue for transient failures
         (e.g., database unavailable). Only exceptions due to bad event data
         should be caught and not re-raised.
-        
+
         Args:
             event: Event dictionary
         """
         try:
             # Parse event
             summarization_requested = SummarizationRequestedEvent(data=event.get("data", {}))
-            
+
             logger.info(f"Received SummarizationRequested event for {len(summarization_requested.data.get('thread_ids', []))} threads")
-            
+
             # Process each thread
             self.process_summarization(summarization_requested.data)
-            
+
         except Exception as e:
             logger.error(f"Error handling SummarizationRequested event: {e}", exc_info=True)
             if self.error_reporter:
@@ -162,10 +162,10 @@ class SummarizationService:
 
     def process_summarization(self, event_data: Dict[str, Any]):
         """Process summarization request for threads.
-        
+
         Args:
             event_data: Data from SummarizationRequested event
-            
+
         Raises:
             KeyError: If required fields are missing from event_data
             TypeError: If thread_ids is not a list
@@ -175,19 +175,19 @@ class SummarizationService:
             error_msg = "thread_ids field missing from event data"
             logger.error(error_msg)
             raise KeyError(error_msg)
-            
+
         thread_ids = event_data["thread_ids"]
-        
+
         # Validate thread_ids is iterable (list/array)
         if not isinstance(thread_ids, list):
             error_msg = f"thread_ids must be a list, got {type(thread_ids).__name__}"
             logger.error(error_msg)
             raise TypeError(error_msg)
-            
+
         top_k = event_data.get("top_k", self.top_k)
         context_window_tokens = event_data.get("context_window_tokens", 3000)
         prompt_template = event_data.get("prompt_template", "Summarize the following discussion thread:")
-        
+
         for thread_id in thread_ids:
             self._process_thread(
                 thread_id=thread_id,
@@ -204,12 +204,12 @@ class SummarizationService:
         prompt_template: str,
     ):
         """Process a single thread for summarization.
-        
+
         Generates a summary for the requested thread. The orchestrator service is
         responsible for deciding whether a summary needs to be generated or regenerated.
         This service executes the summarization request without checking for existing
         summaries, allowing the orchestrator to control regeneration policy.
-        
+
         Args:
             thread_id: Thread identifier
             top_k: Number of chunks to retrieve
@@ -218,14 +218,14 @@ class SummarizationService:
         """
         start_time = time.time()
         retry_count = 0
-        
+
         while retry_count < self.retry_max_attempts:
             try:
                 logger.info(f"Processing thread {thread_id} (attempt {retry_count + 1})")
-                
+
                 # Retrieve context
                 context = self._retrieve_context(thread_id, top_k)
-                
+
                 if not context or not context.get("messages"):
                     logger.warning(f"No context retrieved for thread {thread_id}")
                     self._publish_summarization_failed(
@@ -235,7 +235,7 @@ class SummarizationService:
                         retry_count=retry_count,
                     )
                     return
-                
+
                 # Build thread object
                 thread = Thread(
                     thread_id=thread_id,
@@ -244,10 +244,10 @@ class SummarizationService:
                     context_window_tokens=context_window_tokens,
                     prompt_template=prompt_template,
                 )
-                
+
                 # Generate summary
                 summary = self.summarizer.summarize(thread)
-                
+
                 # Generate citations from chunks (since LLMs can hallucinate, we use actual chunks)
                 # Create a citation for each chunk that was used as context
                 chunks = context.get("chunks", [])
@@ -259,23 +259,23 @@ class SummarizationService:
                     )
                     for chunk in chunks
                 ]
-                
+
                 # Format citations
                 formatted_citations = self._format_citations(
                     citations_from_chunks,
                     chunks,
                 )
-                
+
                 # Generate deterministic summary ID based on thread and chunks
                 summary_id = self._generate_summary_id(thread_id, formatted_citations)
-                
+
                 # Calculate duration
                 duration = time.time() - start_time
                 self.last_processing_time = duration
-                
+
                 # Update stats
                 self.summaries_generated += 1
-                
+
                 # Publish success event
                 self._publish_summary_complete(
                     summary_id=summary_id,
@@ -288,13 +288,13 @@ class SummarizationService:
                     tokens_completion=summary.tokens_completion,
                     latency_ms=summary.latency_ms,
                 )
-                
+
                 logger.info(
                     f"Successfully summarized thread {thread_id} "
                     f"(tokens: {summary.tokens_prompt}+{summary.tokens_completion}, "
                     f"latency: {summary.latency_ms}ms)"
                 )
-                
+
                 # Collect metrics
                 if self.metrics_collector:
                     self.metrics_collector.increment(
@@ -321,9 +321,9 @@ class SummarizationService:
                     )
                     # Push metrics to Pushgateway
                     self.metrics_collector.safe_push()
-                
+
                 return
-                
+
             except Exception as e:
                 retry_count += 1
                 logger.error(
@@ -331,7 +331,7 @@ class SummarizationService:
                     f"(attempt {retry_count}/{self.retry_max_attempts}): {e}",
                     exc_info=True,
                 )
-                
+
                 if retry_count < self.retry_max_attempts:
                     # Exponential backoff with maximum cap
                     backoff = min(
@@ -343,10 +343,10 @@ class SummarizationService:
                 else:
                     # Max retries exceeded
                     self.summarization_failures += 1
-                    
+
                     error_type = type(e).__name__
                     error_message = str(e)
-                    
+
                     try:
                         self._publish_summarization_failed(
                             thread_id=thread_id,
@@ -366,13 +366,13 @@ class SummarizationService:
                             self.error_reporter.report(publish_error, context={"thread_id": thread_id, "publish_failed": True})
                         # Re-raise the original exception to trigger message requeue
                         raise e from publish_error
-                    
+
                     if self.error_reporter:
                         self.error_reporter.report(
                             e,
                             context={"thread_id": thread_id, "retry_count": retry_count},
                         )
-                    
+
                     if self.metrics_collector:
                         self.metrics_collector.increment(
                             "summarization_failures_total",
@@ -383,11 +383,11 @@ class SummarizationService:
 
     def _retrieve_context(self, thread_id: str, top_k: int) -> Dict[str, Any]:
         """Retrieve context for a thread from vector and document stores.
-        
+
         Args:
             thread_id: Thread identifier
             top_k: Number of chunks to retrieve
-            
+
         Returns:
             Dictionary with 'messages' and 'chunks' keys
         """
@@ -396,18 +396,18 @@ class SummarizationService:
             collection="messages",
             filter_dict={"thread_id": thread_id},
         )
-        
+
         if not messages:
             logger.warning(f"No messages found for thread {thread_id}")
             return {"messages": [], "chunks": []}
-        
+
         # Extract message text for context
         message_texts = []
         for msg in messages:
             body = msg.get("body_normalized", "")
             if body:
                 message_texts.append(body)
-        
+
         # Query chunks from vector store (top-k most relevant)
         # For now, we'll use message texts directly
         # In a real implementation, you'd query the vector store with a query embedding
@@ -419,7 +419,7 @@ class SummarizationService:
                 "text": msg.get("body_normalized", ""),
                 "offset": 0,
             })
-        
+
         return {
             "messages": message_texts[:top_k],
             "chunks": chunks,
@@ -431,11 +431,11 @@ class SummarizationService:
         chunks: List[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
         """Format citations for output.
-        
+
         Args:
             citations: List of Citation objects
             chunks: List of chunk dictionaries with metadata
-            
+
         Returns:
             List of formatted citation dictionaries
         """
@@ -445,19 +445,19 @@ class SummarizationService:
             for chunk in chunks
             if chunk.get("_id") is not None
         }
-        
+
         formatted = []
-        
+
         # Limit to citation_count
         for citation in citations[:self.citation_count]:
             # Find the corresponding chunk to get the text
             chunk = chunk_map.get(citation.chunk_id, {})
             # citation.chunk_id now contains the _id value
             text = chunk.get("text", "")
-            
+
             # Truncate text to configured snippet length
             snippet = text[:self.citation_text_max_length]
-            
+
             formatted.append({
                 "_id": chunk.get("_id"),
                 "message_id": citation.message_id,
@@ -465,30 +465,30 @@ class SummarizationService:
                 "offset": citation.offset,
                 "text": snippet,
             })
-        
+
         return formatted
 
     def _generate_summary_id(self, thread_id: str, citations: List[Dict[str, Any]]) -> str:
         """Generate deterministic summary ID from thread and chunk IDs.
-        
+
         Creates a SHA256 hash of the thread_id combined with sorted chunk_ids
         from citations. This ensures:
         - Same thread + same chunks = same summary_id (deduplication)
         - Different chunks = different summary_id (allows regeneration)
-        
+
         Args:
             thread_id: Thread identifier
             citations: List of citation dictionaries containing chunk_id
-            
+
         Returns:
             Hex string of SHA256 hash (64 characters)
         """
         # Extract and sort chunk IDs to ensure consistent ordering, ignoring missing/empty IDs
         chunk_ids = sorted({c.get("_id") for c in citations if c.get("_id")})
-        
+
         # Combine thread_id and canonical _ids into a single string
         id_input = f"{thread_id}:{','.join(chunk_ids)}"
-        
+
         # Generate SHA256 hash
         hash_obj = hashlib.sha256(id_input.encode("utf-8"))
         return hash_obj.hexdigest()
@@ -506,7 +506,7 @@ class SummarizationService:
         latency_ms: int,
     ):
         """Publish SummaryComplete event.
-        
+
         Args:
             summary_id: Deterministic summary identifier
             thread_id: Thread identifier
@@ -531,7 +531,7 @@ class SummarizationService:
                 "latency_ms": latency_ms,
             }
         )
-        
+
         try:
             self.publisher.publish(
                 exchange="copilot.events",
@@ -543,7 +543,7 @@ class SummarizationService:
             if self.error_reporter:
                 self.error_reporter.report(e, context={"thread_id": thread_id})
             raise
-        
+
         logger.info(f"Published SummaryComplete event for thread {thread_id}")
 
     def _publish_summarization_failed(
@@ -554,7 +554,7 @@ class SummarizationService:
         retry_count: int,
     ):
         """Publish SummarizationFailed event.
-        
+
         Args:
             thread_id: Thread identifier
             error_type: Type of error
@@ -569,7 +569,7 @@ class SummarizationService:
                 "retry_count": retry_count,
             }
         )
-        
+
         try:
             self.publisher.publish(
                 exchange="copilot.events",
@@ -581,7 +581,7 @@ class SummarizationService:
             if self.error_reporter:
                 self.error_reporter.report(e, context={"thread_id": thread_id, "error_type": error_type})
             raise
-        
+
         logger.warning(
             f"Published SummarizationFailed event for thread {thread_id}: "
             f"{error_type} - {error_message}"
@@ -589,7 +589,7 @@ class SummarizationService:
 
     def get_stats(self) -> Dict[str, Any]:
         """Get service statistics.
-        
+
         Returns:
             Dictionary of statistics
         """

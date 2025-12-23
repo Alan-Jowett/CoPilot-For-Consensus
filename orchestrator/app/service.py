@@ -75,7 +75,7 @@ class OrchestrationService:
 
     def start(self, enable_startup_requeue: bool = True):
         """Start the orchestration service and subscribe to events.
-        
+
         Args:
             enable_startup_requeue: Whether to requeue incomplete documents on startup (default: True)
         """
@@ -95,20 +95,20 @@ class OrchestrationService:
 
         logger.info("Subscribed to embeddings.generated events")
         logger.info("Orchestration service is ready")
-    
+
     def _requeue_incomplete_threads(self):
         """Requeue threads ready for summarization on startup for forward progress."""
         try:
             from copilot_startup import StartupRequeue
-            
+
             logger.info("Scanning for threads ready for summarization to requeue on startup...")
-            
+
             requeue = StartupRequeue(
                 document_store=self.document_store,
                 publisher=self.publisher,
                 metrics_collector=self.metrics_collector,
             )
-            
+
             # Find threads that don't have summaries and have all chunks embedded
             # This requires verifying embeddings are complete before triggering summarization
             try:
@@ -118,22 +118,22 @@ class OrchestrationService:
                     filter_dict={"summary_id": None},
                     limit=500,
                 )
-                
+
                 if not threads:
                     logger.info("No threads without summaries found")
                     return
-                
+
                 # Collect all thread IDs to batch-fetch chunks for all threads at once
                 thread_ids = [
                     thread.get("thread_id")
                     for thread in threads
                     if thread.get("thread_id") is not None
                 ]
-                
+
                 if not thread_ids:
                     logger.info("No valid thread IDs found for threads without summaries")
                     return
-                
+
                 # Batch query: fetch chunks for all relevant threads in a single call
                 logger.debug(
                     f"Batch querying chunks for {len(thread_ids)} threads to check embedding status"
@@ -143,7 +143,7 @@ class OrchestrationService:
                     filter_dict={"thread_id": {"$in": thread_ids}},
                     limit=len(thread_ids) * 1000,
                 )
-                
+
                 # Group chunks by thread_id for efficient per-thread checks
                 chunks_by_thread = {}
                 for chunk in chunks:
@@ -151,7 +151,7 @@ class OrchestrationService:
                     if chunk_thread_id is None:
                         continue
                     chunks_by_thread.setdefault(chunk_thread_id, []).append(chunk)
-                
+
                 # For each thread, verify all chunks have embeddings
                 ready_threads = []
                 for thread in threads:
@@ -159,42 +159,42 @@ class OrchestrationService:
                     if thread_id is None:
                         logger.debug(f"Skipping thread without thread_id: {thread}")
                         continue
-                    
+
                     thread_chunks = chunks_by_thread.get(thread_id, [])
-                    
+
                     if not thread_chunks:
                         logger.debug(f"Thread {thread_id} has no chunks, skipping")
                         continue
-                    
+
                     # Check if all chunks have embeddings
                     all_embedded = all(
                         chunk.get("embedding_generated", False) for chunk in thread_chunks
                     )
-                    
+
                     if all_embedded:
                         ready_threads.append(thread)
                     else:
                         logger.debug(
                             f"Thread {thread_id} has {len(thread_chunks)} chunks but not all have embeddings"
                         )
-                
+
                 if not ready_threads:
                     logger.info("No threads with complete embeddings found")
                     return
-                
+
                 logger.info(f"Found {len(ready_threads)} threads ready for summarization")
-                
+
                 # Requeue each ready thread
                 requeued = 0
                 for thread in ready_threads:
                     thread_id = thread.get("thread_id")
                     archive_id = thread.get("archive_id")
-                    
+
                     event_data = {
                         "thread_ids": [thread_id],
                         "archive_id": archive_id,
                     }
-                    
+
                     try:
                         self.publisher.publish(
                             event_type="SummarizationRequested",
@@ -206,16 +206,16 @@ class OrchestrationService:
                         logger.debug(f"Requeued thread {thread_id} for summarization")
                     except Exception as e:
                         logger.error(f"Failed to requeue thread {thread_id}: {e}")
-                
+
                 if self.metrics_collector:
                     self.metrics_collector.increment(
                         "startup_requeue_documents_total",
                         requeued,
                         tags={"collection": "threads"}
                     )
-                
+
                 logger.info(f"Startup requeue: {requeued} threads ready for summarization requeued")
-                
+
             except Exception as e:
                 logger.error(f"Error querying for ready threads: {e}", exc_info=True)
                 if self.metrics_collector:
@@ -224,7 +224,7 @@ class OrchestrationService:
                         1,
                         tags={"collection": "threads", "error_type": type(e).__name__}
                     )
-            
+
         except ImportError:
             logger.warning("copilot_startup module not available, skipping startup requeue")
         except Exception as e:
@@ -233,7 +233,7 @@ class OrchestrationService:
 
     def _handle_embeddings_generated(self, event: Dict[str, Any]):
         """Handle EmbeddingsGenerated event.
-        
+
         This is an event handler for message queue consumption. Exceptions are
         logged and re-raised to allow message requeue for transient failures
         (e.g., database unavailable). Only exceptions due to bad event data
@@ -266,7 +266,7 @@ class OrchestrationService:
 
         Args:
             event_data: Data from EmbeddingsGenerated event
-            
+
         Raises:
             ValueError: If required fields are missing
             TypeError: If fields have invalid types
@@ -276,20 +276,20 @@ class OrchestrationService:
             error_msg = "chunk_ids field missing from event data"
             logger.error(error_msg)
             raise ValueError(error_msg)
-        
+
         chunk_ids = event_data["chunk_ids"]
-        
+
         # Validate chunk_ids is a list
         if not isinstance(chunk_ids, list):
             error_msg = f"chunk_ids must be a list, got {type(chunk_ids).__name__}"
             logger.error(error_msg)
             raise TypeError(error_msg)
-        
+
         # Empty list is valid - nothing to process
         if not chunk_ids:
             logger.info("Empty chunk list in EmbeddingsGenerated event, nothing to process")
             return
-        
+
         start_time = time.time()
 
         try:
@@ -352,7 +352,7 @@ class OrchestrationService:
 
     def _orchestrate_thread(self, thread_id: str):
         """Orchestrate summarization for a single thread.
-        
+
         Checks if a summary already exists for the same set of chunks. Only triggers
         summarization if the chunks have changed (different top-k selection) to avoid
         duplicate work and ensure summaries are regenerated when content changes.
@@ -373,7 +373,7 @@ class OrchestrationService:
             # Calculate expected summary_id based on chunks that would be used
             chunks = context.get("chunks", [])
             expected_summary_id = self._calculate_summary_id(thread_id, chunks)
-            
+
             # Check if a summary already exists with this exact set of chunks
             if self._summary_exists(expected_summary_id):
                 logger.info(f"Summary already exists for thread {thread_id} with current chunks (summary_id={expected_summary_id[:16]}), skipping")
@@ -403,56 +403,56 @@ class OrchestrationService:
         except Exception as e:
             logger.error(f"Error in _orchestrate_thread for {thread_id}: {e}", exc_info=True)
             raise
-    
+
     def _calculate_summary_id(self, thread_id: str, chunks: List[Dict[str, Any]]) -> str:
         """Calculate deterministic summary ID from thread and chunks.
-        
+
         Uses the same algorithm as the summarization service to predict what
         the summary_id will be. This allows checking if a summary already exists
         before triggering regeneration.
-        
+
         Args:
             thread_id: Thread identifier
             chunks: List of chunk documents that will be used for summarization
-            
+
         Returns:
             Hex string of SHA256 hash (64 characters)
         """
         # Extract and sort chunk IDs (_id field) to ensure consistent ordering
         chunk_ids = sorted({chunk.get("_id") for chunk in chunks if chunk.get("_id")})
-        
+
         # Combine thread_id and canonical _ids into a single string (matches summarization service)
         id_input = f"{thread_id}:{','.join(chunk_ids)}"
-        
+
         # Generate SHA256 hash
         hash_obj = hashlib.sha256(id_input.encode("utf-8"))
         return hash_obj.hexdigest()
-    
+
     def _summary_exists(self, summary_id: str) -> bool:
         """Check if a summary exists for the given summary_id.
-        
+
         Queries the summaries collection using the truncated 16-char ID that
         matches the reporting service's storage format.
-        
+
         Args:
             summary_id: Full 64-character SHA256 summary_id
-            
+
         Returns:
             True if summary exists, False otherwise
         """
         try:
             # Generate 16-char ID (matches reporting service's truncation logic)
             truncated_id = hashlib.sha256(summary_id.encode()).hexdigest()[:16]
-            
+
             # Check if summary document exists
             summaries = self.document_store.query_documents(
                 "summaries",
                 {"_id": truncated_id},
                 limit=1
             )
-            
+
             return len(summaries) > 0
-            
+
         except Exception as e:
             logger.error(f"Error checking if summary exists: {e}", exc_info=True)
             # On error, assume summary doesn't exist to avoid blocking summarization

@@ -8,10 +8,10 @@ Used by both GitHub Actions CI and Docker builds.
 Usage:
     # Install all adapters:
     python adapters/scripts/install_adapters.py
-    
+
     # Install specific adapters only:
     python adapters/scripts/install_adapters.py copilot_config copilot_storage copilot_events
-    
+
     # Install with --no-dev flag (no dev dependencies):
     python adapters/scripts/install_adapters.py --no-dev
 """
@@ -79,7 +79,7 @@ def get_adapter_dirs():
     """Get all valid adapter directories, sorted by dependency order."""
     adapters_dir = get_adapters_dir()
     all_adapters = get_all_adapter_names()
-    
+
     # Sort with priority adapters first, then alphabetically
     sorted_adapters = []
     for adapter in PRIORITY_ADAPTERS:
@@ -87,37 +87,37 @@ def get_adapter_dirs():
             sorted_adapters.append(adapter)
             all_adapters.remove(adapter)
     sorted_adapters.extend(sorted(all_adapters))
-    
+
     return [adapters_dir / adapter for adapter in sorted_adapters]
 
 def resolve_dependencies(requested_adapters):
     """Resolve all dependencies for requested adapters in install order.
-    
+
     Args:
         requested_adapters: List of adapter names to install
-        
+
     Returns:
         List of adapter names in dependency order
     """
     resolved = []
     visited = set()
-    
+
     def visit(adapter):
         if adapter in visited:
             return
         visited.add(adapter)
-        
+
         # Visit dependencies first
         for dep in ADAPTER_DEPENDENCIES.get(adapter, []):
             visit(dep)
-        
+
         if adapter not in resolved:
             resolved.append(adapter)
-    
+
     # Visit each requested adapter
     for adapter in requested_adapters:
         visit(adapter)
-    
+
     # Sort resolved list by priority order
     priority_sorted = []
     for adapter in PRIORITY_ADAPTERS:
@@ -125,7 +125,7 @@ def resolve_dependencies(requested_adapters):
             priority_sorted.append(adapter)
             resolved.remove(adapter)
     priority_sorted.extend(sorted(resolved))
-    
+
     return priority_sorted
 
 def install_adapter(adapter_path):
@@ -149,10 +149,10 @@ def main():
 Examples:
   # Install all adapters
   python install_adapters.py
-  
+
   # Install specific adapters (with dependencies)
   python install_adapters.py copilot_config copilot_storage copilot_events
-  
+
   # Install without dev dependencies
   python install_adapters.py --no-dev
         """
@@ -167,24 +167,24 @@ Examples:
         action="store_true",
         help="Skip development dependencies (ignored, for compatibility)"
     )
-    
+
     args = parser.parse_args()
-    
+
     adapters_dir = get_adapters_dir()
-    
+
     # Determine which adapters to install
     if args.adapters:
         # User specified adapters - resolve dependencies
         requested = args.adapters
         print(f"Requested adapters: {', '.join(requested)}")
-        
+
         # Resolve dependencies
         to_install = resolve_dependencies(requested)
         print(f"Installing with dependencies: {', '.join(to_install)}")
-        
+
         # Convert to paths
         adapter_paths = [adapters_dir / adapter for adapter in to_install]
-        
+
         # Verify all exist
         missing = [p for p in adapter_paths if not p.exists()]
         if missing:
@@ -194,22 +194,22 @@ Examples:
         # Install all adapters
         adapter_paths = get_adapter_dirs()
         print(f"Installing all {len(adapter_paths)} adapters")
-    
+
     if not adapter_paths:
         print("WARNING: No adapters found to install")
         return 0
-    
+
     print(f"Install order: {', '.join(a.name for a in adapter_paths)}")
-    
+
     failed = []
     for adapter_path in adapter_paths:
         if not install_adapter(adapter_path):
             failed.append(adapter_path.name)
-    
+
     if failed:
         print(f"\nERROR: Failed to install adapters: {', '.join(failed)}", file=sys.stderr)
         return 1
-    
+
     print(f"\nSuccessfully installed {len(adapter_paths)} adapters")
     return 0
 

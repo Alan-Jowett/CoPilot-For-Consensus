@@ -22,7 +22,7 @@ def document_store():
     # Create base in-memory store
     base_store = InMemoryDocumentStore()
     base_store.connect()
-    
+
     # Wrap with validation using document schemas
     schema_dir = Path(__file__).parent.parent.parent / "documents" / "schemas" / "documents"
     schema_provider = FileSchemaProvider(schema_dir=schema_dir)
@@ -30,7 +30,7 @@ def document_store():
         store=base_store,
         schema_provider=schema_provider
     )
-    
+
     return validating_store
 
 
@@ -54,7 +54,7 @@ Date: Mon, 01 Jan 2024 12:00:00 +0000
 I think we should consider the approach outlined in draft-ietf-quic-transport-34.
 This addresses the connection migration concerns.
 
--- 
+--
 Alice Developer
 Example Corp
 

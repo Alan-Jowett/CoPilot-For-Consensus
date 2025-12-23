@@ -18,10 +18,10 @@ def in_memory_document_store():
     """Create an in-memory document store with schema validation for testing."""
     from datetime import datetime, timezone
     import uuid
-    
+
     # Create base in-memory store
     base_store = InMemoryDocumentStore()
-    
+
     # Wrap with validation using document schemas
     schema_dir = Path(__file__).parent.parent.parent / "documents" / "schemas" / "documents"
     schema_provider = FileSchemaProvider(schema_dir=schema_dir)
@@ -29,9 +29,9 @@ def in_memory_document_store():
         store=base_store,
         schema_provider=schema_provider
     )
-    
+
     now = datetime.now(timezone.utc).isoformat()
-    
+
     # Seed with test data
     validating_store.insert_document(
         collection="messages",
@@ -61,7 +61,7 @@ def in_memory_document_store():
             "created_at": now,
         },
     )
-    
+
     return validating_store
 
 
@@ -125,18 +125,18 @@ def test_end_to_end_summarization(integration_service, mock_publisher):
         context_window_tokens=3000,
         prompt_template="Summarize the following discussion:",
     )
-    
+
     # Verify success event was published
     assert mock_publisher.publish.call_count == 1
     publish_call = mock_publisher.publish.call_args
     assert publish_call[1]["routing_key"] == "summary.complete"
-    
+
     # Verify event data
     message = publish_call[1]["event"]
     assert message["data"]["thread_id"] == "1111222233334444"
     assert "summary_markdown" in message["data"]
     assert message["data"]["llm_backend"] == "mock"
-    
+
     # Verify stats
     assert integration_service.summaries_generated == 1
     assert integration_service.summarization_failures == 0
@@ -152,17 +152,17 @@ def test_summarization_with_missing_thread(integration_service, mock_publisher):
         context_window_tokens=3000,
         prompt_template="Summarize:",
     )
-    
+
     # Verify failure event was published
     assert mock_publisher.publish.call_count == 1
     publish_call = mock_publisher.publish.call_args
     assert publish_call[1]["routing_key"] == "summarization.failed"
-    
+
     # Verify error details
     message = publish_call[1]["event"]
     assert message["data"]["thread_id"] == "9999999999999999"
     assert message["data"]["error_type"] == "NoContextError"
-    
+
     # Verify stats
     assert integration_service.summaries_generated == 0
 
@@ -176,16 +176,16 @@ def test_multiple_thread_summarization(integration_service, mock_publisher):
         "context_window_tokens": 3000,
         "prompt_template": "Summarize:",
     }
-    
+
     integration_service.process_summarization(event_data)
-    
+
     # Verify success event was published
     success_calls = [
         call for call in mock_publisher.publish.call_args_list
         if call[1]["routing_key"] == "summary.complete"
     ]
     assert len(success_calls) == 1
-    
+
     # Verify stats
     assert integration_service.summaries_generated == 1
 
@@ -194,12 +194,12 @@ def test_multiple_thread_summarization(integration_service, mock_publisher):
 def test_context_retrieval_integration(integration_service):
     """Test context retrieval with real document store."""
     context = integration_service._retrieve_context("1111222233334444", top_k=10)
-    
+
     # Verify context was retrieved
     assert len(context["messages"]) == 2
     assert "This is a test message" in context["messages"][0]
     assert "I agree with the points" in context["messages"][1]
-    
+
     # Verify chunks
     assert len(context["chunks"]) == 2
     assert context["chunks"][0]["message_id"] == "<msg1@example.com>"
@@ -212,7 +212,7 @@ def test_service_stats_integration(integration_service):
     stats = integration_service.get_stats()
     assert stats["summaries_generated"] == 0
     assert stats["summarization_failures"] == 0
-    
+
     # Process a thread
     integration_service._process_thread(
         thread_id="1111222233334444",
@@ -220,7 +220,7 @@ def test_service_stats_integration(integration_service):
         context_window_tokens=3000,
         prompt_template="Summarize:",
     )
-    
+
     # Updated stats
     stats = integration_service.get_stats()
     assert stats["summaries_generated"] == 1
@@ -237,7 +237,7 @@ def test_local_llm_real_content_flows_through(
     mock_subscriber,
 ):
     """Test that real Ollama content (not placeholder) flows through the pipeline.
-    
+
     Note: This test is skipped because the LocalLLMSummarizer implementation is
     thoroughly tested in adapters/copilot_summarization/tests/test_local_llm_summarizer.py.
     Mocking the requests module in the integration test context with module reloading

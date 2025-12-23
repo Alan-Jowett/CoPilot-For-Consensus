@@ -19,7 +19,7 @@ class RsyncFetcher(ArchiveFetcher):
 
     def __init__(self, source: SourceConfig):
         """Initialize rsync fetcher.
-        
+
         Args:
             source: Source configuration
         """
@@ -27,10 +27,10 @@ class RsyncFetcher(ArchiveFetcher):
 
     def fetch(self, output_dir: str) -> Tuple[bool, Optional[list], Optional[str]]:
         """Fetch archives via rsync.
-        
+
         Args:
             output_dir: Directory to store the fetched archives
-            
+
         Returns:
             Tuple of (success, list_of_file_paths, error_message)
         """

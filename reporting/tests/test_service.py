@@ -210,10 +210,10 @@ def test_process_summary_raises_when_publish_delivery_failed_fails(
 def test_service_start_subscribes_to_events(reporting_service, mock_subscriber):
     """Test that service subscribes to summary.complete events on start."""
     reporting_service.start()
-    
+
     mock_subscriber.subscribe.assert_called_once()
     call_args = mock_subscriber.subscribe.call_args
-    
+
     assert call_args[1]["exchange"] == "copilot.events"
     assert call_args[1]["routing_key"] == "summary.complete"
     assert call_args[1]["callback"] is not None
@@ -227,17 +227,17 @@ def test_process_summary_stores_document(
         sample_summary_complete_event["data"],
         sample_summary_complete_event
     )
-    
+
     assert report_id is not None
     assert reporting_service.reports_stored == 1
-    
+
     # Verify document was inserted
     mock_document_store.insert_document.assert_called_once()
     call_args = mock_document_store.insert_document.call_args
-    
+
     assert call_args[0][0] == "summaries"  # Collection name
     doc = call_args[0][1]
-    
+
     assert doc["summary_id"] == report_id
     assert doc["thread_id"] == "<thread_123@example.com>"
     assert doc["summary_type"] == "thread"
@@ -258,15 +258,15 @@ def test_process_summary_publishes_report_published_event(
         sample_summary_complete_event["data"],
         sample_summary_complete_event
     )
-    
+
     # Should publish one event (ReportPublished)
     assert mock_publisher.publish.call_count == 1
-    
+
     # Verify the event
     call_args = mock_publisher.publish.call_args
     assert call_args[1]["exchange"] == "copilot.events"
     assert call_args[1]["routing_key"] == "report.published"
-    
+
     event = call_args[1]["event"]
     assert event["event_type"] == "ReportPublished"
     assert event["data"]["report_id"] == report_id
@@ -287,27 +287,27 @@ def test_process_summary_with_webhook_enabled(
         webhook_url="http://example.com/webhook",
         notify_enabled=True,
     )
-    
+
     with patch("app.service.requests.post") as mock_post:
         mock_post.return_value.status_code = 200
-        
+
         report_id = service.process_summary(
             sample_summary_complete_event["data"],
             sample_summary_complete_event
         )
-        
+
         # Verify webhook was called
         mock_post.assert_called_once()
         call_args = mock_post.call_args
-        
+
         assert call_args[0][0] == "http://example.com/webhook"
         assert "report_id" in call_args[1]["json"]
         assert call_args[1]["json"]["report_id"] == report_id
-        
+
         # Verify stats updated
         assert service.notifications_sent == 1
         assert service.notifications_failed == 0
-        
+
         # Verify ReportPublished event shows notified=True
         publish_call = mock_publisher.publish.call_args
         event = publish_call[1]["event"]
@@ -326,29 +326,29 @@ def test_process_summary_webhook_failure_publishes_delivery_failed(
         webhook_url="http://example.com/webhook",
         notify_enabled=True,
     )
-    
+
     with patch("app.service.requests.post") as mock_post:
         mock_post.side_effect = Exception("Connection timeout")
-        
+
         report_id = service.process_summary(
             sample_summary_complete_event["data"],
             sample_summary_complete_event
         )
-        
+
         # Verify stats updated
         assert service.notifications_sent == 0
         assert service.notifications_failed == 1
-        
+
         # Should publish two events: ReportPublished and ReportDeliveryFailed
         assert mock_publisher.publish.call_count == 2
-        
+
         # Check ReportDeliveryFailed event
         delivery_failed_call = None
         for call_obj in mock_publisher.publish.call_args_list:
             if call_obj[1]["routing_key"] == "report.delivery.failed":
                 delivery_failed_call = call_obj
                 break
-        
+
         assert delivery_failed_call is not None
         event = delivery_failed_call[1]["event"]
         assert event["event_type"] == "ReportDeliveryFailed"
@@ -363,9 +363,9 @@ def test_get_reports_queries_document_store(reporting_service, mock_document_sto
         {"summary_id": "rpt1", "thread_id": "thread1"},
         {"summary_id": "rpt2", "thread_id": "thread2"},
     ]
-    
+
     reports = reporting_service.get_reports()
-    
+
     assert len(reports) == 2
     # Service fetches limit + skip + METADATA_FILTER_BUFFER_SIZE (100)
     mock_document_store.query_documents.assert_called_once_with(
@@ -380,9 +380,9 @@ def test_get_reports_with_thread_filter(reporting_service, mock_document_store):
     mock_document_store.query_documents.return_value = [
         {"summary_id": "rpt1", "thread_id": "thread1"},
     ]
-    
+
     reports = reporting_service.get_reports(thread_id="thread1")
-    
+
     assert len(reports) == 1
     # Service fetches limit + skip + METADATA_FILTER_BUFFER_SIZE (100)
     mock_document_store.query_documents.assert_called_once_with(
@@ -397,9 +397,9 @@ def test_get_report_by_id(reporting_service, mock_document_store):
     mock_document_store.query_documents.return_value = [
         {"summary_id": "rpt1", "thread_id": "thread1"},
     ]
-    
+
     report = reporting_service.get_report_by_id("rpt1")
-    
+
     assert report is not None
     assert report["summary_id"] == "rpt1"
     mock_document_store.query_documents.assert_called_once_with(
@@ -412,9 +412,9 @@ def test_get_report_by_id(reporting_service, mock_document_store):
 def test_get_report_by_id_not_found(reporting_service, mock_document_store):
     """Test that get_report_by_id returns None when not found."""
     mock_document_store.query_documents.return_value = []
-    
+
     report = reporting_service.get_report_by_id("nonexistent")
-    
+
     assert report is None
 
 
@@ -423,9 +423,9 @@ def test_get_thread_summary(reporting_service, mock_document_store):
     mock_document_store.query_documents.return_value = [
         {"summary_id": "rpt1", "thread_id": "thread1"},
     ]
-    
+
     summary = reporting_service.get_thread_summary("thread1")
-    
+
     assert summary is not None
     assert summary["thread_id"] == "thread1"
     mock_document_store.query_documents.assert_called_once_with(
@@ -441,9 +441,9 @@ def test_get_stats(reporting_service):
     reporting_service.notifications_sent = 3
     reporting_service.notifications_failed = 1
     reporting_service.last_processing_time = 1.5
-    
+
     stats = reporting_service.get_stats()
-    
+
     assert stats["reports_stored"] == 5
     assert stats["notifications_sent"] == 3
     assert stats["notifications_failed"] == 1
@@ -455,13 +455,13 @@ def test_handle_summary_complete_with_metrics(
 ):
     """Test that _handle_summary_complete records metrics."""
     reporting_service_with_metrics._handle_summary_complete(sample_summary_complete_event)
-    
+
     # Should increment success metric
     mock_metrics.increment.assert_any_call(
         "reporting_events_total",
         tags={"event_type": "summary_complete", "outcome": "success"}
     )
-    
+
     # Should observe latency
     assert mock_metrics.observe.call_count >= 1
     latency_call = mock_metrics.observe.call_args_list[0]
@@ -478,23 +478,23 @@ def test_handle_summary_complete_error_handling(
     """Test that _handle_summary_complete handles errors properly."""
     # Make insert_document raise an exception
     mock_document_store.insert_document.side_effect = Exception("DB Error")
-    
+
     # Should raise the exception for message requeue
     with pytest.raises(Exception, match="DB Error"):
         reporting_service_with_metrics._handle_summary_complete(sample_summary_complete_event)
-    
+
     # Should increment error metric
     mock_metrics.increment.assert_any_call(
         "reporting_events_total",
         tags={"event_type": "summary_complete", "outcome": "error"}
     )
-    
+
     # Should increment failure metric
     mock_metrics.increment.assert_any_call(
         "reporting_failures_total",
         tags={"error_type": "Exception"}
     )
-    
+
     # Should report error
     mock_error_reporter.report.assert_called_once()
 
@@ -506,11 +506,11 @@ def test_publisher_uses_event_parameter_for_published(reporting_service, mock_pu
         sample_summary_complete_event["data"],
         sample_summary_complete_event
     )
-    
+
     # Verify publish was called with event parameter
     assert mock_publisher.publish.call_count == 1
     call_args = mock_publisher.publish.call_args
-    
+
     # Check that event is in kwargs
     assert "event" in call_args[1], "publisher.publish must use 'event' parameter"
     assert "message" not in call_args[1], "publisher.publish should not use deprecated 'message' parameter"
@@ -526,11 +526,11 @@ def test_publisher_uses_event_parameter_for_delivery_failed(reporting_service, m
         error_message="Connection timeout",
         error_type="TimeoutError"
     )
-    
+
     # Verify publish was called with event parameter
     mock_publisher.publish.assert_called_once()
     call_args = mock_publisher.publish.call_args
-    
+
     # Check that event is in kwargs
     assert "event" in call_args[1], "publisher.publish must use 'event' parameter"
     assert "message" not in call_args[1], "publisher.publish should not use deprecated 'message' parameter"
@@ -540,14 +540,14 @@ def test_query_documents_uses_filter_dict_parameter(reporting_service, mock_docu
     """Test that query_documents is called with filter_dict parameter, not query."""
     # Setup mock
     mock_document_store.query_documents.return_value = []
-    
+
     # Call get_reports which uses query_documents
     reporting_service.get_reports(thread_id="<thread@example.com>")
-    
+
     # Verify query_documents was called with filter_dict parameter
     mock_document_store.query_documents.assert_called_once()
     call_args = mock_document_store.query_documents.call_args
-    
+
     # Check that filter_dict is in kwargs
     assert "filter_dict" in call_args[1], "query_documents must use 'filter_dict' parameter"
     assert "query" not in call_args[1], "query_documents should not use deprecated 'query' parameter"
@@ -558,16 +558,16 @@ def test_get_reports_with_date_filters(reporting_service, mock_document_store):
     mock_document_store.query_documents.return_value = [
         {"summary_id": "rpt1", "thread_id": "thread1", "generated_at": "2025-01-15T12:00:00Z"},
     ]
-    
+
     reports = reporting_service.get_reports(
         start_date="2025-01-01T00:00:00Z",
         end_date="2025-01-31T23:59:59Z",
     )
-    
+
     assert len(reports) == 1
     call_args = mock_document_store.query_documents.call_args
     filter_dict = call_args[1]["filter_dict"]
-    
+
     # Check that date filters are applied
     assert "generated_at" in filter_dict
     assert "$gte" in filter_dict["generated_at"]
@@ -604,15 +604,15 @@ def test_get_reports_with_metadata_filters(reporting_service, mock_document_stor
                 }
             ]
         return []
-    
+
     mock_document_store.query_documents.side_effect = mock_query
-    
+
     reports = reporting_service.get_reports(
         min_participants=2,
         max_messages=15,
         source="test-source",
     )
-    
+
     # Should return enriched report with metadata
     assert len(reports) == 1
     assert "thread_metadata" in reports[0]
@@ -629,9 +629,9 @@ def test_get_available_sources(reporting_service, mock_document_store):
         {"archive_id": "arch2", "source": "source-b"},
         {"archive_id": "arch3", "source": "source-a"},  # Duplicate
     ]
-    
+
     sources = reporting_service.get_available_sources()
-    
+
     assert len(sources) == 2
     assert "source-a" in sources
     assert "source-b" in sources
@@ -653,17 +653,17 @@ def test_search_reports_by_topic_with_vector_store():
     mock_sub = Mock()
     mock_vector_store = Mock()
     mock_embedding_provider = Mock()
-    
+
     # Setup embedding provider
     mock_embedding_provider.embed.return_value = [0.1] * 384
-    
+
     # Setup vector store to return search results
     mock_search_result = Mock()
     mock_search_result.id = "chunk1"
     mock_search_result.score = 0.85
     mock_search_result.metadata = {"thread_id": "thread1"}
     mock_vector_store.query.return_value = [mock_search_result]
-    
+
     # Setup document store to return thread summary
     def mock_query(collection, filter_dict, limit):
         if collection == "summaries" and filter_dict.get("thread_id") == "thread1":
@@ -695,9 +695,9 @@ def test_search_reports_by_topic_with_vector_store():
                 }
             ]
         return []
-    
+
     mock_doc_store.query_documents.side_effect = mock_query
-    
+
     # Create service with vector store
     service = ReportingService(
         document_store=mock_doc_store,
@@ -706,16 +706,16 @@ def test_search_reports_by_topic_with_vector_store():
         vector_store=mock_vector_store,
         embedding_provider=mock_embedding_provider,
     )
-    
+
     # Search by topic
     reports = service.search_reports_by_topic("test topic", limit=10, min_score=0.5)
-    
+
     # Verify embedding was generated
     mock_embedding_provider.embed.assert_called_once_with("test topic")
-    
+
     # Verify vector store was queried
     mock_vector_store.query.assert_called_once()
-    
+
     # Verify results are enriched with relevance score
     assert len(reports) == 1
     assert reports[0]["relevance_score"] == 0.85
@@ -731,13 +731,13 @@ def test_get_threads(reporting_service, mock_document_store):
         {"_id": "thread2", "subject": "Thread 2"},
         {"_id": "thread3", "subject": "Thread 3"},
     ]
-    
+
     threads = reporting_service.get_threads(limit=2, skip=0)
-    
+
     assert len(threads) == 2
     assert threads[0]["_id"] == "thread1"
     assert threads[1]["_id"] == "thread2"
-    
+
     # Verify query_documents is called with limit + skip
     mock_document_store.query_documents.assert_called_once_with(
         "threads",
@@ -751,9 +751,9 @@ def test_get_threads_with_archive_filter(reporting_service, mock_document_store)
     mock_document_store.query_documents.return_value = [
         {"_id": "thread1", "archive_id": "archive1"},
     ]
-    
+
     threads = reporting_service.get_threads(archive_id="archive1")
-    
+
     assert len(threads) == 1
     call_args = mock_document_store.query_documents.call_args
     assert call_args[1]["filter_dict"]["archive_id"] == "archive1"
@@ -768,14 +768,14 @@ def test_get_threads_with_skip(reporting_service, mock_document_store):
         {"_id": "thread3", "subject": "Thread 3"},
         {"_id": "thread4", "subject": "Thread 4"},
     ]
-    
+
     threads = reporting_service.get_threads(limit=2, skip=2)
-    
+
     # Should return threads[2:4] which are thread2 and thread3
     assert len(threads) == 2
     assert threads[0]["_id"] == "thread2"
     assert threads[1]["_id"] == "thread3"
-    
+
     # Verify query_documents is called with limit + skip
     mock_document_store.query_documents.assert_called_once_with(
         "threads",
@@ -791,9 +791,9 @@ def test_get_threads_skip_exceeds_results(reporting_service, mock_document_store
         {"_id": "thread2", "subject": "Thread 2"},
         {"_id": "thread3", "subject": "Thread 3"},
     ]
-    
+
     threads = reporting_service.get_threads(limit=10, skip=5)
-    
+
     # Should return empty list since skip=5 exceeds 3 results
     assert len(threads) == 0
     assert threads == []
@@ -804,9 +804,9 @@ def test_get_thread_by_id(reporting_service, mock_document_store):
     mock_document_store.query_documents.return_value = [
         {"_id": "thread1", "subject": "Test Thread"},
     ]
-    
+
     thread = reporting_service.get_thread_by_id("thread1")
-    
+
     assert thread is not None
     assert thread["_id"] == "thread1"
     mock_document_store.query_documents.assert_called_once_with(
@@ -819,9 +819,9 @@ def test_get_thread_by_id(reporting_service, mock_document_store):
 def test_get_thread_by_id_not_found(reporting_service, mock_document_store):
     """Test that get_thread_by_id returns None when not found."""
     mock_document_store.query_documents.return_value = []
-    
+
     thread = reporting_service.get_thread_by_id("nonexistent")
-    
+
     assert thread is None
 
 
@@ -831,9 +831,9 @@ def test_get_messages(reporting_service, mock_document_store):
         {"_id": "msg1", "message_id": "<msg1@example.com>"},
         {"_id": "msg2", "message_id": "<msg2@example.com>"},
     ]
-    
+
     messages = reporting_service.get_messages(limit=10, skip=0)
-    
+
     assert len(messages) == 2
     # Verify query_documents is called with limit + skip
     mock_document_store.query_documents.assert_called_once_with(
@@ -848,9 +848,9 @@ def test_get_messages_with_thread_filter(reporting_service, mock_document_store)
     mock_document_store.query_documents.return_value = [
         {"_id": "msg1", "thread_id": "thread1"},
     ]
-    
+
     messages = reporting_service.get_messages(thread_id="thread1")
-    
+
     assert len(messages) == 1
     call_args = mock_document_store.query_documents.call_args
     assert call_args[1]["filter_dict"]["thread_id"] == "thread1"
@@ -861,9 +861,9 @@ def test_get_messages_with_message_id_filter(reporting_service, mock_document_st
     mock_document_store.query_documents.return_value = [
         {"_id": "msg1", "message_id": "<msg1@example.com>"},
     ]
-    
+
     messages = reporting_service.get_messages(message_id="<msg1@example.com>")
-    
+
     assert len(messages) == 1
     call_args = mock_document_store.query_documents.call_args
     assert call_args[1]["filter_dict"]["message_id"] == "<msg1@example.com>"
@@ -877,14 +877,14 @@ def test_get_messages_with_skip(reporting_service, mock_document_store):
         {"_id": "msg2", "message_id": "<msg2@example.com>"},
         {"_id": "msg3", "message_id": "<msg3@example.com>"},
     ]
-    
+
     messages = reporting_service.get_messages(limit=2, skip=1)
-    
+
     # Should return messages[1:3] which are msg1 and msg2
     assert len(messages) == 2
     assert messages[0]["_id"] == "msg1"
     assert messages[1]["_id"] == "msg2"
-    
+
     # Verify query_documents is called with limit + skip
     mock_document_store.query_documents.assert_called_once_with(
         "messages",
@@ -898,9 +898,9 @@ def test_get_message_by_id(reporting_service, mock_document_store):
     mock_document_store.query_documents.return_value = [
         {"_id": "msg1", "message_id": "<msg1@example.com>", "body_normalized": "Test"},
     ]
-    
+
     message = reporting_service.get_message_by_id("msg1")
-    
+
     assert message is not None
     assert message["_id"] == "msg1"
     mock_document_store.query_documents.assert_called_once_with(
@@ -913,9 +913,9 @@ def test_get_message_by_id(reporting_service, mock_document_store):
 def test_get_message_by_id_not_found(reporting_service, mock_document_store):
     """Test that get_message_by_id returns None when not found."""
     mock_document_store.query_documents.return_value = []
-    
+
     message = reporting_service.get_message_by_id("nonexistent")
-    
+
     assert message is None
 
 
@@ -925,9 +925,9 @@ def test_get_chunks(reporting_service, mock_document_store):
         {"_id": "chunk1", "text": "Chunk 1"},
         {"_id": "chunk2", "text": "Chunk 2"},
     ]
-    
+
     chunks = reporting_service.get_chunks(limit=10, skip=0)
-    
+
     assert len(chunks) == 2
     # Verify query_documents is called with limit + skip
     mock_document_store.query_documents.assert_called_once_with(
@@ -942,9 +942,9 @@ def test_get_chunks_with_message_id_filter(reporting_service, mock_document_stor
     mock_document_store.query_documents.return_value = [
         {"_id": "chunk1", "message_id": "<msg1@example.com>"},
     ]
-    
+
     chunks = reporting_service.get_chunks(message_id="<msg1@example.com>")
-    
+
     assert len(chunks) == 1
     call_args = mock_document_store.query_documents.call_args
     assert call_args[1]["filter_dict"]["message_id"] == "<msg1@example.com>"
@@ -955,9 +955,9 @@ def test_get_chunks_with_thread_filter(reporting_service, mock_document_store):
     mock_document_store.query_documents.return_value = [
         {"_id": "chunk1", "thread_id": "thread1"},
     ]
-    
+
     chunks = reporting_service.get_chunks(thread_id="thread1")
-    
+
     assert len(chunks) == 1
     call_args = mock_document_store.query_documents.call_args
     assert call_args[1]["filter_dict"]["thread_id"] == "thread1"
@@ -968,9 +968,9 @@ def test_get_chunks_with_message_doc_id_filter(reporting_service, mock_document_
     mock_document_store.query_documents.return_value = [
         {"_id": "chunk1", "message_doc_id": "msg_doc_1"},
     ]
-    
+
     chunks = reporting_service.get_chunks(message_doc_id="msg_doc_1")
-    
+
     assert len(chunks) == 1
     call_args = mock_document_store.query_documents.call_args
     assert call_args[1]["filter_dict"]["message_doc_id"] == "msg_doc_1"
@@ -985,15 +985,15 @@ def test_get_chunks_with_skip(reporting_service, mock_document_store):
         {"_id": "chunk3", "text": "Chunk 3"},
         {"_id": "chunk4", "text": "Chunk 4"},
     ]
-    
+
     chunks = reporting_service.get_chunks(limit=3, skip=1)
-    
+
     # Should return chunks[1:4] which are chunk1, chunk2, chunk3
     assert len(chunks) == 3
     assert chunks[0]["_id"] == "chunk1"
     assert chunks[1]["_id"] == "chunk2"
     assert chunks[2]["_id"] == "chunk3"
-    
+
     # Verify query_documents is called with limit + skip
     mock_document_store.query_documents.assert_called_once_with(
         "chunks",
@@ -1007,9 +1007,9 @@ def test_get_chunk_by_id(reporting_service, mock_document_store):
     mock_document_store.query_documents.return_value = [
         {"_id": "chunk1", "text": "Test chunk"},
     ]
-    
+
     chunk = reporting_service.get_chunk_by_id("chunk1")
-    
+
     assert chunk is not None
     assert chunk["_id"] == "chunk1"
     mock_document_store.query_documents.assert_called_once_with(
@@ -1022,7 +1022,7 @@ def test_get_chunk_by_id(reporting_service, mock_document_store):
 def test_get_chunk_by_id_not_found(reporting_service, mock_document_store):
     """Test that get_chunk_by_id returns None when not found."""
     mock_document_store.query_documents.return_value = []
-    
+
     chunk = reporting_service.get_chunk_by_id("nonexistent")
-    
+
     assert chunk is None

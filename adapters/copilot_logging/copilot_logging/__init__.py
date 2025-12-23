@@ -12,11 +12,11 @@ and debugging.
 
 Example:
     >>> from copilot_logging import create_logger
-    >>> 
+    >>>
     >>> # Create a logger with structured JSON output
     >>> logger = create_logger(logger_type="stdout", level="INFO")
     >>> logger.info("Service started", service="ingestion", version="1.0.0")
-    >>> 
+    >>>
     >>> # Create a silent logger for testing
     >>> test_logger = create_logger(logger_type="silent")
     >>> test_logger.info("Test message")

@@ -93,7 +93,7 @@ def get_collections() -> List[str]:
         resp = session.get(f"{QDRANT_BASE_URL}/collections", timeout=(3, 10))
         resp.raise_for_status()
         data = resp.json()
-        
+
         # Qdrant returns {"result": {"collections": [{"name": "..."}, ...]}}
         if "result" in data and "collections" in data["result"]:
             return [c["name"] for c in data["result"]["collections"]]
@@ -112,7 +112,7 @@ def get_collection_info(collection_name: str) -> Dict[str, Any]:
         )
         resp.raise_for_status()
         data = resp.json()
-        
+
         # Qdrant returns {"result": {...collection info...}}
         if "result" in data:
             return data["result"]
@@ -131,23 +131,23 @@ def extract_metrics_from_collection_info(info: Dict[str, Any], collection_name: 
         "segments_count": 0,
         "disk_data_size": 0,
     }
-    
+
     if not info:
         return metrics
-    
+
     # Points count (total vectors)
     if "points_count" in info:
         metrics["points_count"] = info["points_count"]
         metrics["vectors_count"] = info["points_count"]
-    
+
     # Indexed vectors count
     if "indexed_vectors_count" in info:
         metrics["indexed_vectors_count"] = info["indexed_vectors_count"]
-    
+
     # Segments count
     if "segments_count" in info:
         metrics["segments_count"] = info["segments_count"]
-    
+
     # Storage size - check for Qdrant 1.8+ location first
     size_found = False
     if "status" in info:
@@ -159,12 +159,12 @@ def extract_metrics_from_collection_info(info: Dict[str, Any], collection_name: 
                     metrics["disk_data_size"] = status[key]
                     size_found = True
                     break
-    
+
     if not size_found and metrics["vectors_count"] > 0:
         # Log when size is missing for non-empty collections
         collection_info = f" for collection '{collection_name}'" if collection_name else ""
         print(f"Warning: disk_data_size not available{collection_info} (Qdrant version may not expose this)")
-    
+
     return metrics
 
 
@@ -173,11 +173,11 @@ def scrape_qdrant_metrics():
     start_time = time.time()
     success = False
     collections_scraped = 0
-    
+
     try:
         # Get all collections
         collections = get_collections()
-        
+
         # Distinguish between no collections (valid) vs fetch failure
         # If we got an empty list, check if it's because of an error or truly empty
         if not collections:
@@ -201,7 +201,7 @@ def scrape_qdrant_metrics():
                 info = get_collection_info(collection_name)
                 if info:  # Only count if we got valid info
                     metrics = extract_metrics_from_collection_info(info, collection_name)
-                    
+
                     # Update Prometheus metrics
                     vector_count_gauge.labels(collection=collection_name).set(
                         metrics["vectors_count"]
@@ -215,7 +215,7 @@ def scrape_qdrant_metrics():
                     collection_size_bytes.labels(collection=collection_name).set(
                         metrics["disk_data_size"]
                     )
-                    
+
                     print(
                         f"Collection '{collection_name}': "
                         f"{metrics['vectors_count']} vectors, "
@@ -224,14 +224,14 @@ def scrape_qdrant_metrics():
                         f"{metrics['disk_data_size']} bytes"
                     )
                     collections_scraped += 1
-            
+
             # Only mark as success if we scraped at least one collection
             if collections_scraped > 0:
                 success = True
                 qdrant_scrape_success.set(1)
             else:
                 qdrant_scrape_success.set(0)
-        
+
         # Try to get cluster/node telemetry if available
         try:
             telemetry_resp = session.get(f"{QDRANT_BASE_URL}/telemetry", timeout=(3, 10))
@@ -242,7 +242,7 @@ def scrape_qdrant_metrics():
                 if "result" in telemetry:
                     result = telemetry["result"]
                     mem_bytes = None
-                    
+
                     # Try primary location: result.app.mem_rss
                     if "app" in result and "mem_rss" in result["app"]:
                         mem_bytes = result["app"]["mem_rss"]
@@ -253,7 +253,7 @@ def scrape_qdrant_metrics():
                             mem_bytes = system["mem_rss"]
                         elif "memory_used_bytes" in system:
                             mem_bytes = system["memory_used_bytes"]
-                    
+
                     if mem_bytes is not None:
                         qdrant_memory_usage_bytes.set(mem_bytes)
                     else:
@@ -261,13 +261,13 @@ def scrape_qdrant_metrics():
         except Exception as e:
             # Telemetry endpoint might not be available in all versions
             print(f"Telemetry not available: {e}")
-        
+
     except Exception as e:
         print(f"Error during scrape: {e}")
         qdrant_scrape_errors_total.inc()
         qdrant_scrape_success.set(0)
         success = False
-    
+
     finally:
         duration = time.time() - start_time
         qdrant_scrape_duration_seconds.observe(duration)
@@ -279,11 +279,11 @@ def main():
     print(f"Starting Qdrant exporter on port {PORT}")
     print(f"Qdrant URL: {QDRANT_BASE_URL}")
     print(f"Scrape interval: {INTERVAL}s")
-    
+
     # Start Prometheus HTTP server
     start_http_server(PORT)
     print(f"Metrics endpoint available at http://0.0.0.0:{PORT}/metrics")
-    
+
     # Main scrape loop
     while True:
         scrape_qdrant_metrics()

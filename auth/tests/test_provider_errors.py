@@ -43,25 +43,25 @@ class TestProviderErrors:
         def mock_write_text(self, content):
             """Mock Path.write_text to avoid filesystem writes in tests."""
             pass
-        
+
         monkeypatch.setattr(Path, "write_text", mock_write_text)
         monkeypatch.setattr(Path, "mkdir", lambda self, **kwargs: None)
-        
+
         # Mock JWTManager since we don't need it for these tests
         class MockJWTManager:
             def __init__(self, **kwargs):
                 pass
-        
+
         from app import service
         original_jwt_manager = service.JWTManager
         service.JWTManager = MockJWTManager
-        
+
         # Create service
         auth_svc = AuthService(config=mock_config)
-        
+
         # Restore original
         service.JWTManager = original_jwt_manager
-        
+
         return auth_svc
 
     @pytest.mark.asyncio
@@ -72,7 +72,7 @@ class TestProviderErrors:
                 provider="google",
                 audience="test-audience"
             )
-        
+
         error_msg = str(exc_info.value)
         assert "google" in error_msg.lower()
         assert "not configured" in error_msg.lower()
@@ -87,7 +87,7 @@ class TestProviderErrors:
                 provider="microsoft",
                 audience="test-audience"
             )
-        
+
         error_msg = str(exc_info.value)
         assert "microsoft" in error_msg.lower()
         assert "not configured" in error_msg.lower()
@@ -101,7 +101,7 @@ class TestProviderErrors:
                 provider="unknown-provider",
                 audience="test-audience"
             )
-        
+
         error_msg = str(exc_info.value)
         assert "unknown provider" in error_msg.lower()
         assert "supported providers" in error_msg.lower()
@@ -119,25 +119,25 @@ class TestProviderErrors:
         """Create an auth service with only GitHub configured."""
         mock_config.github_client_id = "test_client_id"
         mock_config.github_client_secret = "test_client_secret"
-        
+
         # Mock to avoid actual provider initialization
         def mock_write_text(self, content):
             """Mock Path.write_text to avoid filesystem writes in tests."""
             pass
-        
+
         monkeypatch.setattr(Path, "write_text", mock_write_text)
         monkeypatch.setattr(Path, "mkdir", lambda self, **kwargs: None)
-        
+
         # Mock JWTManager
         class MockJWTManager:
             """Mock JWT manager for testing - avoids cryptographic operations."""
             def __init__(self, **kwargs):
                 pass
-        
+
         from app import service
         original_jwt_manager = service.JWTManager
         service.JWTManager = MockJWTManager
-        
+
         # Mock create_identity_provider to return a mock provider
         original_create = service.create_identity_provider
         def mock_create(**kwargs):
@@ -146,14 +146,14 @@ class TestProviderErrors:
             mock_provider.discover = MagicMock()
             return mock_provider
         service.create_identity_provider = mock_create
-        
+
         # Create service
         auth_svc = AuthService(config=mock_config)
-        
+
         # Restore originals
         service.JWTManager = original_jwt_manager
         service.create_identity_provider = original_create
-        
+
         return auth_svc
 
     @pytest.mark.asyncio
@@ -164,7 +164,7 @@ class TestProviderErrors:
                 provider="google",
                 audience="test-audience"
             )
-        
+
         error_msg = str(exc_info.value)
         # Should mention that GitHub is configured
         assert "github" in error_msg.lower()

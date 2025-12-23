@@ -3,8 +3,8 @@
 
 """Integration test for the document-store-backed schema provider - REMOVED.
 
-DocumentStoreSchemaProvider has been removed to break the circular dependency 
-between copilot_schema_validation and copilot_storage. The application now uses 
+DocumentStoreSchemaProvider has been removed to break the circular dependency
+between copilot_schema_validation and copilot_storage. The application now uses
 only FileSchemaProvider to load schemas from the file system.
 
 This file is retained for reference but all tests have been removed.

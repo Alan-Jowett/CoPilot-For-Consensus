@@ -10,7 +10,7 @@ from .error_reporter import ErrorReporter
 
 class SilentErrorReporter(ErrorReporter):
     """Silent error reporter that stores errors in memory for testing.
-    
+
     This implementation is useful for unit tests where you want to verify
     error reporting behavior without producing actual logs or side effects.
     """
@@ -22,7 +22,7 @@ class SilentErrorReporter(ErrorReporter):
 
     def report(self, error: Exception, context: Optional[Dict[str, Any]] = None) -> None:
         """Report an exception with optional context.
-        
+
         Args:
             error: The exception to report
             context: Optional dictionary with additional context
@@ -41,7 +41,7 @@ class SilentErrorReporter(ErrorReporter):
         context: Optional[Dict[str, Any]] = None
     ) -> None:
         """Capture a message without an exception.
-        
+
         Args:
             message: The message to capture
             level: Severity level (debug, info, warning, error, critical)
@@ -55,10 +55,10 @@ class SilentErrorReporter(ErrorReporter):
 
     def get_errors(self, error_type: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get all reported errors, optionally filtered by type.
-        
+
         Args:
             error_type: Optional error type to filter by
-            
+
         Returns:
             List of reported error dictionaries
         """
@@ -68,10 +68,10 @@ class SilentErrorReporter(ErrorReporter):
 
     def get_messages(self, level: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get all captured messages, optionally filtered by level.
-        
+
         Args:
             level: Optional level to filter by
-            
+
         Returns:
             List of captured message dictionaries
         """
@@ -86,7 +86,7 @@ class SilentErrorReporter(ErrorReporter):
 
     def has_errors(self) -> bool:
         """Check if any errors have been reported.
-        
+
         Returns:
             True if errors have been reported, False otherwise
         """
@@ -94,10 +94,10 @@ class SilentErrorReporter(ErrorReporter):
 
     def has_messages(self, level: Optional[str] = None) -> bool:
         """Check if any messages have been captured.
-        
+
         Args:
             level: Optional level to filter by
-            
+
         Returns:
             True if messages have been captured, False otherwise
         """

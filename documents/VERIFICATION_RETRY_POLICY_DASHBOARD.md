@@ -36,12 +36,12 @@ def run_once(self):
     """Run retry job once."""
     logger.info("Starting retry job execution")
     start_time = time.time()
-    
+
     # Initialize all gauges to 0 to ensure metrics exist even on failure
     for collection_name in self.COLLECTION_CONFIGS.keys():
         self.metrics.stuck_documents.labels(collection=collection_name).set(0)
         self.metrics.failed_documents.labels(collection=collection_name).set(0)
-    
+
     # ... rest of the method
 ```
 
@@ -165,7 +165,7 @@ Wait 15-30 minutes and check that:
 **Expected**: All gauges show 0, which is correct and healthy
 
 ### Test Case 2: Fresh System Startup
-**Expected**: 
+**Expected**:
 - First 15 minutes: Dashboard may show "No Data" (informational panel explains this)
 - After 15 minutes: All panels show data (zeros for healthy state)
 

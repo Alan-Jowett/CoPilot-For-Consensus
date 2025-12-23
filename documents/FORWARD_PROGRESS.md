@@ -188,14 +188,14 @@ def _update_chunk_status_by_doc_ids(self, doc_ids: List[str]):
 # adapters/copilot_vectorstore/copilot_vectorstore/interface.py
 def add_embedding(self, id: str, vector: List[float], metadata: Dict[str, Any]):
     """Add a single embedding to the vector store.
-    
+
     Raises:
         ValueError: If id already exists or vector is invalid
     """
-    
+
 def add_embeddings(self, ids: List[str], vectors: List[List[float]], metadatas: List[Dict[str, Any]]):
     """Add multiple embeddings in batch.
-    
+
     Raises:
         ValueError: If lengths don't match or any id already exists
     """
@@ -247,11 +247,11 @@ def _generate_thread_summary(self, thread_id: str, chunks: List[Dict[str, Any]])
         query={"thread_id": thread_id},
         limit=1
     )
-    
+
     if existing:
         logger.info(f"Summary for thread {thread_id} already exists, skipping generation")
         return existing[0]
-    
+
     # Generate new summary
     summary = self.summarizer.summarize(chunks)
     # ... store summary
@@ -270,13 +270,13 @@ def _generate_thread_summary(self, thread_id: str, chunks: List[Dict[str, Any]])
 ```python
 def test_idempotent_processing(service, mock_store):
     """Verify processing same input twice succeeds without errors."""
-    
+
     # Process once
     service.process_event(test_event)
-    
+
     # Process again - should succeed without errors
     service.process_event(test_event)
-    
+
     # Verify output is consistent (same data, not duplicated)
     results = mock_store.query_documents("output_collection")
     assert len(results) == expected_count  # Not doubled
@@ -311,27 +311,27 @@ Services use RabbitMQ's **nack with requeue** mechanism for transient failures.
 # All services follow this pattern
 def _handle_event(self, event: Dict[str, Any]):
     """Handle event from message queue.
-    
+
     This is an event handler for message queue consumption. Exceptions are
     logged and re-raised to allow message requeue for transient failures
     (e.g., database unavailable). Only exceptions due to bad event data
     should be caught and not re-raised.
-    
+
     Args:
         event: Event dictionary
     """
     try:
         # Parse and validate event
         parsed_event = EventClass(data=event.get("data", {}))
-        
+
         # Process the event
         self.process_data(parsed_event.data)
-        
+
     except Exception as e:
         logger.error(f"Error handling event: {e}", exc_info=True)
         if self.error_reporter:
             self.error_reporter.report(e, context={"event": event})
-        
+
         # Re-raise to trigger message requeue for transient failures
         raise
 ```
@@ -351,7 +351,7 @@ def _on_message(self, channel, method, properties, body):
     try:
         event = json.loads(body.decode('utf-8'))
         callback = self.callbacks.get(event.get('event_type'))
-        
+
         if callback:
             try:
                 callback(event)
@@ -367,7 +367,7 @@ def _on_message(self, channel, method, properties, body):
                         requeue=True  # Re-deliver to same queue
                     )
                 return
-                
+
     except json.JSONDecodeError as e:
         logger.error(f"Failed to decode JSON: {e}")
         # Malformed message - ack to remove from queue
@@ -443,31 +443,31 @@ while retry_count < self.max_retries:
     try:
         # Attempt operation
         result = self._do_work(data)
-        
+
         # Success - publish event and return
         self._publish_success_event(result)
         return
-        
+
     except Exception as e:
         retry_count += 1
         error_msg = str(e)
         error_type = type(e).__name__
-        
+
         logger.error(
             f"Operation failed (attempt {retry_count}/{self.max_retries}): {error_msg}",
             exc_info=True
         )
-        
+
         if retry_count >= self.max_retries:
             # Max retries exceeded - publish failure event and re-raise
             self._publish_failure_event(data, error_msg, error_type, retry_count)
-            
+
             if self.error_reporter:
                 self.error_reporter.report(e, context={"data": data, "retry_count": retry_count})
-            
+
             if self.metrics_collector:
                 self.metrics_collector.increment("failures_total", 1, tags={"error_type": error_type})
-            
+
             # Re-raise to trigger message requeue
             raise
         else:
@@ -521,30 +521,30 @@ while retry_count < self.max_retries:
 ```python
 def test_retry_with_exponential_backoff(service, mock_store):
     """Verify service retries with exponential backoff."""
-    
+
     # Mock transient failures
     mock_store.insert_document.side_effect = [
         ConnectionError("DB unavailable"),  # Attempt 1
         ConnectionError("DB unavailable"),  # Attempt 2
         "success",                          # Attempt 3
     ]
-    
+
     # Should succeed after retries
     service.process_event(test_event)
-    
+
     # Verify retry count
     assert mock_store.insert_document.call_count == 3
 
 def test_max_retries_exceeded_raises(service, mock_store):
     """Verify exception is raised after max retries."""
-    
+
     # Mock persistent failure
     mock_store.insert_document.side_effect = ConnectionError("DB down")
-    
+
     # Should raise after max_retries attempts
     with pytest.raises(ConnectionError):
         service.process_event(test_event)
-    
+
     # Verify failure event published
     assert_failure_event_published(service.publisher)
 ```
@@ -607,7 +607,7 @@ try:
 except Exception as e:
     if self.error_reporter:
         self.error_reporter.report(
-            e, 
+            e,
             context={"event": event, "retry_count": retry_count}
         )
     raise
@@ -768,97 +768,97 @@ class MyService:
     def start(self):
         """Start the service and subscribe to events."""
         logger.info("Starting My Service")
-        
+
         self.subscriber.subscribe(
             event_type="TriggerEvent",
             callback=self._handle_event,
             routing_key="trigger.event",
             exchange="copilot.events",
         )
-        
+
         logger.info("My service is ready")
 
     def _handle_event(self, event: Dict[str, Any]):
         """Handle event from message queue.
-        
+
         This is an event handler for message queue consumption. Exceptions are
         logged and re-raised to allow message requeue for transient failures
         (e.g., database unavailable). Only exceptions due to bad event data
         should be caught and not re-raised.
-        
+
         Args:
             event: Event dictionary
         """
         try:
             # Parse event
             data = event.get("data", {})
-            
+
             # Process with retry
             self._process_with_retry(data)
-            
+
         except Exception as e:
             logger.error(f"Error handling event: {e}", exc_info=True)
             if self.error_reporter:
                 self.error_reporter.report(e, context={"event": event})
-            
+
             # Re-raise to trigger message requeue
             raise
 
     def _process_with_retry(self, data: Dict[str, Any]):
         """Process data with retry logic."""
         retry_count = 0
-        
+
         while retry_count < self.max_retries:
             try:
                 start_time = time.time()
-                
+
                 # Check for existing result (idempotency)
                 existing = self._check_existing(data)
                 if existing:
                     logger.info("Result already exists, skipping")
                     self._publish_success_event(existing)
                     return
-                
+
                 # Do work
                 result = self._do_work(data)
-                
+
                 # Store result (with idempotency handling)
                 try:
                     self.document_store.insert_document("results", result)
                 except DuplicateKeyError:
                     logger.debug(f"Result {result.get('id')} already exists")
-                
+
                 # Publish success
                 duration = time.time() - start_time
                 self._publish_success_event(result)
-                
+
                 # Metrics
                 if self.metrics_collector:
                     self.metrics_collector.increment("items_processed_total", 1)
                     self.metrics_collector.observe("processing_duration_seconds", duration)
-                
+
                 return
-                
+
             except Exception as e:
                 retry_count += 1
                 error_msg = str(e)
                 error_type = type(e).__name__
-                
+
                 logger.error(
                     f"Processing failed (attempt {retry_count}/{self.max_retries}): {error_msg}",
                     exc_info=True
                 )
-                
+
                 if retry_count >= self.max_retries:
                     # Publish failure event
                     self._publish_failure_event(data, error_msg, error_type, retry_count)
-                    
+
                     if self.error_reporter:
                         self.error_reporter.report(e, context={"data": data, "retry_count": retry_count})
-                    
+
                     if self.metrics_collector:
                         self.metrics_collector.increment("failures_total", 1, tags={"error_type": error_type})
-                    
+
                     # Re-raise to trigger message requeue to failed queue
                     raise
                 else:
@@ -884,10 +884,10 @@ class MyService:
         pass
 
     def _publish_failure_event(
-        self, 
-        data: Dict[str, Any], 
-        error_msg: str, 
-        error_type: str, 
+        self,
+        data: Dict[str, Any],
+        error_msg: str,
+        error_type: str,
         retry_count: int
     ):
         """Publish failure event."""

@@ -18,7 +18,7 @@ class JSONFormatter(logging.Formatter):
 
     def __init__(self, logger_name: str = "uvicorn"):
         """Initialize JSON formatter.
-        
+
         Args:
             logger_name: Name to use in the logger field of JSON output
         """
@@ -27,10 +27,10 @@ class JSONFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as JSON.
-        
+
         Args:
             record: Log record to format
-            
+
         Returns:
             JSON-formatted log string
         """
@@ -42,7 +42,7 @@ class JSONFormatter(logging.Formatter):
             "logger": self.logger_name,
             "message": record.getMessage(),
         }
-        
+
         # Add extra fields from record.__dict__ if present
         # Standard LogRecord attributes to exclude
         standard_attrs = {
@@ -51,38 +51,38 @@ class JSONFormatter(logging.Formatter):
             'processName', 'relativeCreated', 'thread', 'threadName', 'exc_info',
             'exc_text', 'stack_info', 'getMessage', 'taskName'
         }
-        
+
         extra_fields = {
             key: value for key, value in record.__dict__.items()
             if key not in standard_attrs and not key.startswith('_')
         }
-        
+
         if extra_fields:
             log_entry["extra"] = extra_fields
-        
+
         return json.dumps(log_entry, default=str)
 
 
 def create_uvicorn_log_config(service_name: str, log_level: str = "INFO") -> Dict[str, Any]:
     """Create Uvicorn logging configuration with structured JSON output.
-    
+
     This configuration:
     - Uses structured JSON logging for all Uvicorn logs
     - Sets access logs to DEBUG level to reduce noise
     - Uses the configured log_level for error logs (same as the main uvicorn logger)
     - Integrates with copilot_logging format
-    
+
     Args:
         service_name: Name of the service for log identification
         log_level: Default log level (DEBUG, INFO, WARNING, ERROR)
-        
+
     Returns:
         Dictionary compatible with Uvicorn's log_config parameter
-        
+
     Example:
         >>> from copilot_logging import create_uvicorn_log_config
         >>> import uvicorn
-        >>> 
+        >>>
         >>> log_config = create_uvicorn_log_config("parsing", "INFO")
         >>> uvicorn.run(app, host="0.0.0.0", port=8000, log_config=log_config)
     """

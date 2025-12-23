@@ -3,8 +3,8 @@
 
 """Centralized schema registry for resolving versioned event and document schemas.
 
-This module provides a centralized mapping of (type, version) pairs to their 
-corresponding JSON Schema file paths. This enables dynamic validation, schema 
+This module provides a centralized mapping of (type, version) pairs to their
+corresponding JSON Schema file paths. This enables dynamic validation, schema
 evolution, and clearer contributor documentation.
 
 Example:
@@ -43,14 +43,14 @@ SCHEMA_REGISTRY: Dict[str, str] = {
     "v1.ReportPublished": "events/ReportPublished.schema.json",
     "v1.ReportDeliveryFailed": "events/ReportDeliveryFailed.schema.json",
     "v1.EventEnvelope": "events/event-envelope.schema.json",
-    
+
     # Document schemas (v1)
     "v1.Archive": "documents/archives.schema.json",
     "v1.Message": "documents/messages.schema.json",
     "v1.Thread": "documents/threads.schema.json",
     "v1.Chunk": "documents/chunks.schema.json",
     "v1.Summary": "documents/summaries.schema.json",
-    
+
     # Role store schemas (v1)
     "v1.UserRoles": "role_store/user_roles.schema.json",
 }
@@ -59,38 +59,38 @@ SCHEMA_REGISTRY: Dict[str, str] = {
 @lru_cache(maxsize=1)
 def _get_schema_base_dir() -> Path:
     """Get the base directory for schema files.
-    
+
     This function is cached to avoid repeated directory tree walking.
-    
+
     Returns:
         Path to the documents/schemas directory in the repository.
-        
+
     Raises:
         FileNotFoundError: If the schema directory cannot be found.
     """
     # Start from the current file and walk up to find the repo root
     # Look for markers like .git, README.md, or pyproject.toml
     current = Path(__file__).resolve().parent
-    
+
     # Walk up the directory tree looking for the schema directory
     for _ in range(10):  # Limit search depth to avoid infinite loops
         schema_dir = current / "documents" / "schemas"
         if schema_dir.exists() and schema_dir.is_dir():
             logger.debug(f"Found schema directory at: {schema_dir}")
             return schema_dir
-        
+
         # Check if we've reached the repo root by looking for common markers
         if (current / ".git").exists() or (current / "pyproject.toml").exists():
             schema_dir = current / "documents" / "schemas"
             if schema_dir.exists() and schema_dir.is_dir():
                 return schema_dir
-        
+
         # Move up one level
         parent = current.parent
         if parent == current:  # Reached filesystem root
             break
         current = parent
-    
+
     error_msg = (
         f"Schema directory not found. Searched up from {Path(__file__).resolve().parent} "
         f"but could not find documents/schemas directory."
@@ -101,62 +101,62 @@ def _get_schema_base_dir() -> Path:
 
 def get_schema_path(schema_type: str, version: str) -> str:
     """Get the file path for a schema given its type and version.
-    
+
     Args:
         schema_type: The schema type name (e.g., 'ArchiveIngested', 'Archive')
         version: The schema version (e.g., 'v1', 'v2')
-        
+
     Returns:
         Absolute path to the schema file as a string.
-        
+
     Raises:
         KeyError: If the (type, version) combination is not registered.
         FileNotFoundError: If the schema file does not exist on disk.
-        
+
     Example:
         >>> path = get_schema_path("ArchiveIngested", "v1")
         >>> path.endswith("events/ArchiveIngested.schema.json")
         True
     """
     registry_key = f"{version}.{schema_type}"
-    
+
     if registry_key not in SCHEMA_REGISTRY:
         available = ", ".join(sorted(SCHEMA_REGISTRY.keys()))
         raise KeyError(
             f"Schema not registered: {registry_key}. "
             f"Available schemas: {available}"
         )
-    
+
     relative_path = SCHEMA_REGISTRY[registry_key]
     schema_base_dir = _get_schema_base_dir()
     full_path = schema_base_dir / relative_path
-    
+
     if not full_path.exists():
         raise FileNotFoundError(
             f"Schema file not found: {full_path}. "
             f"Registry points to: {relative_path}"
         )
-    
+
     return str(full_path)
 
 
 def load_schema(schema_type: str, version: str) -> dict:
     """Load a JSON schema given its type and version.
-    
+
     Schemas are cached after first load to avoid repeated file I/O.
-    
+
     Args:
         schema_type: The schema type name (e.g., 'ArchiveIngested', 'Archive')
         version: The schema version (e.g., 'v1', 'v2')
-        
+
     Returns:
         The loaded JSON schema as a dictionary.
-        
+
     Raises:
         KeyError: If the (type, version) combination is not registered.
         FileNotFoundError: If the schema file does not exist on disk.
         json.JSONDecodeError: If the schema file contains invalid JSON.
-        
+
     Example:
         >>> schema = load_schema("ArchiveIngested", "v1")
         >>> schema["title"]
@@ -167,13 +167,13 @@ def load_schema(schema_type: str, version: str) -> dict:
     if cache_key in _schema_cache:
         logger.debug(f"Returning cached schema: {schema_type} {version}")
         return _schema_cache[cache_key]
-    
+
     schema_path = get_schema_path(schema_type, version)
-    
+
     try:
         with open(schema_path, 'r', encoding='utf-8') as f:
             schema = json.load(f)
-        
+
         # Cache the loaded schema
         _schema_cache[cache_key] = schema
         logger.debug(f"Loaded schema: {schema_type} {version} from {schema_path}")
@@ -188,11 +188,11 @@ def load_schema(schema_type: str, version: str) -> dict:
 
 def list_schemas() -> List[Tuple[str, str, str]]:
     """List all registered schemas.
-    
+
     Returns:
-        List of tuples containing (type, version, relative_path) for each 
+        List of tuples containing (type, version, relative_path) for each
         registered schema, sorted by type then version.
-        
+
     Example:
         >>> schemas = list_schemas()
         >>> len(schemas) > 0
@@ -205,18 +205,18 @@ def list_schemas() -> List[Tuple[str, str, str]]:
         # Split the key into version and type
         version, schema_type = key.split(".", 1)
         result.append((schema_type, version, path))
-    
+
     # Sort by type, then version
     return sorted(result, key=lambda x: (x[0], x[1]))
 
 
 def validate_registry() -> Tuple[bool, List[str]]:
     """Validate that all registered schemas exist on disk.
-    
+
     Returns:
-        Tuple of (all_valid, errors) where all_valid is True if all schemas 
+        Tuple of (all_valid, errors) where all_valid is True if all schemas
         exist, and errors is a list of error messages for missing schemas.
-        
+
     Example:
         >>> valid, errors = validate_registry()
         >>> valid
@@ -226,7 +226,7 @@ def validate_registry() -> Tuple[bool, List[str]]:
     """
     errors = []
     schema_base_dir = _get_schema_base_dir()
-    
+
     for registry_key, relative_path in SCHEMA_REGISTRY.items():
         full_path = schema_base_dir / relative_path
         if not full_path.exists():
@@ -251,20 +251,20 @@ def validate_registry() -> Tuple[bool, List[str]]:
                 errors.append(
                     f"Error reading schema file for {registry_key}: {full_path} - {e}"
                 )
-    
+
     return len(errors) == 0, errors
 
 
 def get_schema_metadata(schema_type: str, version: str) -> Optional[Dict[str, str]]:
     """Get metadata about a registered schema without loading the full content.
-    
+
     Args:
         schema_type: The schema type name
         version: The schema version
-        
+
     Returns:
         Dictionary with metadata (path, exists, type, version) or None if not registered.
-        
+
     Example:
         >>> meta = get_schema_metadata("ArchiveIngested", "v1")
         >>> meta['type']
@@ -273,12 +273,12 @@ def get_schema_metadata(schema_type: str, version: str) -> Optional[Dict[str, st
         'v1'
     """
     registry_key = f"{version}.{schema_type}"
-    
+
     if registry_key not in SCHEMA_REGISTRY:
         return None
-    
+
     relative_path = SCHEMA_REGISTRY[registry_key]
-    
+
     try:
         schema_base_dir = _get_schema_base_dir()
         full_path = schema_base_dir / relative_path
@@ -286,7 +286,7 @@ def get_schema_metadata(schema_type: str, version: str) -> Optional[Dict[str, st
     except FileNotFoundError:
         exists = False
         full_path = None
-    
+
     return {
         "type": schema_type,
         "version": version,

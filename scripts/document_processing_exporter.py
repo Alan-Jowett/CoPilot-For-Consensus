@@ -110,19 +110,19 @@ def get_chunks_embedding_status(db) -> Dict[str, int]:
 def get_document_age_metrics(db, collection_name: str, status_field: str = "status") -> Dict[str, float]:
     """
     Calculate average age of documents by status (time since last update).
-    
+
     Args:
         db: MongoDB database
         collection_name: Name of collection to query
         status_field: Field name for status (default: "status")
-    
+
     Returns:
         Dictionary with status as key and average age in seconds as value
     """
     try:
         # Find documents with updated_at or created_at timestamps
         now = datetime.now(timezone.utc)
-        
+
         # Try to use updated_at if available, otherwise created_at
         pipeline = [
             {
@@ -145,10 +145,10 @@ def get_document_age_metrics(db, collection_name: str, status_field: str = "stat
                 }
             }
         ]
-        
+
         results = db[collection_name].aggregate(pipeline)
         age_metrics = {}
-        
+
         for result in results:
             status = result["_id"] if result["_id"] else "unknown"
             if result["avg_timestamp"]:
@@ -157,7 +157,7 @@ def get_document_age_metrics(db, collection_name: str, status_field: str = "stat
                 avg_dt = datetime.fromtimestamp(avg_timestamp_sec, tz=timezone.utc)
                 age_seconds = (now - avg_dt).total_seconds()
                 age_metrics[status] = max(0, age_seconds)  # Ensure non-negative
-        
+
         return age_metrics
     except PyMongoError as e:
         print(f"Error calculating document age for {collection_name}: {e}")
@@ -167,14 +167,14 @@ def get_document_age_metrics(db, collection_name: str, status_field: str = "stat
 def get_processing_duration_metrics(db, collection_name: str) -> float:
     """
     Calculate average processing duration for completed documents.
-    
+
     For documents with both created_at and updated_at timestamps,
     calculate the difference.
-    
+
     Args:
         db: MongoDB database
         collection_name: Name of collection to query
-    
+
     Returns:
         Average processing duration in seconds, or 0 if no data
     """
@@ -203,7 +203,7 @@ def get_processing_duration_metrics(db, collection_name: str) -> float:
                 }
             }
         ]
-        
+
         results = list(db[collection_name].aggregate(pipeline))
         if results and results[0]["avg_duration_ms"]:
             # Convert milliseconds to seconds
@@ -217,11 +217,11 @@ def get_processing_duration_metrics(db, collection_name: str) -> float:
 def get_attempt_count_metrics(db, collection_name: str) -> float:
     """
     Calculate average attempt count for documents.
-    
+
     Args:
         db: MongoDB database
         collection_name: Name of collection to query
-    
+
     Returns:
         Average attempt count, or 0 if field doesn't exist
     """
@@ -239,7 +239,7 @@ def get_attempt_count_metrics(db, collection_name: str) -> float:
                 }
             }
         ]
-        
+
         results = list(db[collection_name].aggregate(pipeline))
         if results and results[0]["avg_attempts"] is not None:
             return results[0]["avg_attempts"]
@@ -252,7 +252,7 @@ def get_attempt_count_metrics(db, collection_name: str) -> float:
 def collect_metrics(client: MongoClient):
     """Collect all document processing metrics."""
     db = client[DB_NAME]
-    
+
     try:
         # Archive status counts
         archive_status = get_archive_status_counts(db)
@@ -262,7 +262,7 @@ def collect_metrics(client: MongoClient):
                 collection="archives",
                 status=status
             ).set(count)
-        
+
         # Ensure all expected statuses are represented (set to 0 if not present)
         for status in ["pending", "processed", "failed"]:
             if status not in archive_status:
@@ -271,7 +271,7 @@ def collect_metrics(client: MongoClient):
                     collection="archives",
                     status=status
                 ).set(0)
-        
+
         # Chunk embedding status
         chunk_embedding = get_chunks_embedding_status(db)
         for status, count in chunk_embedding.items():
@@ -279,7 +279,7 @@ def collect_metrics(client: MongoClient):
                 database=DB_NAME,
                 embedding_generated=status
             ).set(count)
-        
+
         # Document age metrics for archives
         archive_ages = get_document_age_metrics(db, "archives", "status")
         for status, age in archive_ages.items():
@@ -288,7 +288,7 @@ def collect_metrics(client: MongoClient):
                 collection="archives",
                 status=status
             ).set(age)
-        
+
         # Processing duration for archives
         archive_duration = get_processing_duration_metrics(db, "archives")
         if archive_duration > 0:
@@ -296,7 +296,7 @@ def collect_metrics(client: MongoClient):
                 database=DB_NAME,
                 collection="archives"
             ).set(archive_duration)
-        
+
         # Attempt count metrics (if the field exists)
         for collection_name in ["archives", "messages", "chunks"]:
             avg_attempts = get_attempt_count_metrics(db, collection_name)
@@ -305,10 +305,10 @@ def collect_metrics(client: MongoClient):
                     database=DB_NAME,
                     collection=collection_name
                 ).set(avg_attempts)
-        
+
         # Reset error counter on success
         exporter_scrape_errors_total.set(0)
-        
+
     except Exception as e:
         print(f"Error collecting metrics: {e}")
         exporter_scrape_errors_total.inc()
@@ -320,12 +320,12 @@ def main():
     print(f"MongoDB: {MONGO_URI}")
     print(f"Database: {DB_NAME}")
     print(f"Scrape interval: {INTERVAL}s")
-    
+
     start_http_server(PORT)
     client = MongoClient(MONGO_URI, directConnection=True)
-    
+
     print("Exporter started successfully")
-    
+
     while True:
         collect_metrics(client)
         time.sleep(INTERVAL)

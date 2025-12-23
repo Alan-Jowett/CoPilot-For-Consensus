@@ -333,7 +333,7 @@ The **Container Resource Usage** dashboard provides comprehensive visibility int
 - **Query Patterns**: Uses Docker Compose labels (`container_label_com_docker_compose_project` and `container_label_com_docker_compose_service`) for robust filtering across environments
 
 ### Troubleshooting
-- **No data in dashboard**: 
+- **No data in dashboard**:
   1. Verify cAdvisor is running: `docker compose ps cadvisor`
   2. If not running, start it: `docker compose up -d cadvisor`
 - **Missing metrics**: Check Prometheus targets (http://localhost:9090/targets) - cadvisor should be UP
@@ -359,7 +359,7 @@ The **Retry Policy Monitoring** dashboard (UID: `retry-policy`) tracks the autom
    - Explains expected behavior and provides quick troubleshooting commands
    - Always visible to help users understand the "no data" state
 
-2. **Stuck Documents (Current)**: 
+2. **Stuck Documents (Current)**:
    - Gauge showing documents with `status=pending/processing` and `lastAttemptTime > 24 hours`
    - Zero is healthy; values >50 trigger warnings
    - Breakdown by collection (archives, messages, chunks, threads)
@@ -442,24 +442,24 @@ retry_job_errors_total
 
 **Diagnosis**:
 1. Check if retry-job is running:
-   
+
    Linux/macOS (bash):
    ```bash
    docker compose ps retry-job
    ```
-   
+
    Windows (PowerShell):
    ```powershell
    docker compose ps retry-job
    ```
 
 2. View retry-job logs:
-   
+
    Linux/macOS (bash):
    ```bash
    docker compose logs retry-job
    ```
-   
+
    Windows (PowerShell):
    ```powershell
    docker compose logs retry-job
@@ -471,12 +471,12 @@ retry_job_errors_total
 
 **Solutions**:
 - If retry-job isn't running:
-  
+
   Linux/macOS (bash):
   ```bash
   docker compose up -d retry-job
   ```
-  
+
   Windows (PowerShell):
   ```powershell
   docker compose up -d retry-job
@@ -485,12 +485,12 @@ retry_job_errors_total
 - If retry-job is failing: Check logs for connection errors to MongoDB or RabbitMQ
 
 - If you need metrics immediately: Manually trigger the job:
-  
+
   Linux/macOS (bash):
   ```bash
   docker compose run --rm retry-job python /app/scripts/retry_stuck_documents.py --once
   ```
-  
+
   Windows (PowerShell):
   ```powershell
   docker compose run --rm retry-job python /app/scripts/retry_stuck_documents.py --once
@@ -503,12 +503,12 @@ retry_job_errors_total
 **Diagnosis**:
 1. Check which collection has stuck documents (dashboard shows breakdown)
 2. Review service health for that stage:
-   
+
    Linux/macOS (bash):
    ```bash
    docker compose logs <service> | grep ERROR
    ```
-   
+
    Windows (PowerShell):
    ```powershell
    docker compose logs <service> | Select-String -Pattern "ERROR"
@@ -516,12 +516,12 @@ retry_job_errors_total
 
 3. Check RabbitMQ queue depth: http://localhost:15672
 4. Verify MongoDB connectivity:
-   
+
    Linux/macOS (bash):
    ```bash
    docker compose ps documentdb
    ```
-   
+
    Windows (PowerShell):
    ```powershell
    docker compose ps documentdb
@@ -529,12 +529,12 @@ retry_job_errors_total
 
 **Actions**:
 1. If service is down: Restart it:
-   
+
    Linux/macOS (bash):
    ```bash
    docker compose restart <service>
    ```
-   
+
    Windows (PowerShell):
    ```powershell
    docker compose restart <service>
@@ -551,14 +551,14 @@ retry_job_errors_total
 **Diagnosis**:
 1. Check which collection has failures (dashboard shows breakdown)
 2. Investigate error patterns:
-   
+
    Linux/macOS (bash):
    ```bash
    docker compose exec documentdb mongosh -u root -p example --authenticationDatabase admin
    use copilot
    db.archives.find({status: "failed_max_retries"}).limit(10)
    ```
-   
+
    Windows (PowerShell):
    ```powershell
    docker compose exec documentdb mongosh -u root -p example --authenticationDatabase admin
@@ -568,12 +568,12 @@ retry_job_errors_total
    ```
 
 3. Review failed queue messages:
-   
+
    Linux/macOS (bash):
    ```bash
    python scripts/manage_failed_queues.py inspect parsing.failed --limit 10
    ```
-   
+
    Windows (PowerShell):
    ```powershell
    python scripts/manage_failed_queues.py inspect parsing.failed --limit 10
@@ -590,12 +590,12 @@ retry_job_errors_total
 
 **Diagnosis**:
 1. Check retry-job logs for errors:
-   
+
    Linux/macOS (bash):
    ```bash
    docker compose logs retry-job | tail -100
    ```
-   
+
    Windows (PowerShell):
    ```powershell
    docker compose logs retry-job | Select-Object -Last 100
@@ -608,12 +608,12 @@ retry_job_errors_total
 
 **Actions**:
 1. Verify all dependencies are healthy:
-   
+
    Linux/macOS (bash):
    ```bash
    docker compose ps
    ```
-   
+
    Windows (PowerShell):
    ```powershell
    docker compose ps
@@ -621,24 +621,24 @@ retry_job_errors_total
 
 2. Check network connectivity between services
 3. Restart retry-job:
-   
+
    Linux/macOS (bash):
    ```bash
    docker compose restart retry-job
    ```
-   
+
    Windows (PowerShell):
    ```powershell
    docker compose restart retry-job
    ```
 
 4. Run manually with verbose logging:
-   
+
    Linux/macOS (bash):
    ```bash
    docker compose run --rm retry-job python /app/scripts/retry_stuck_documents.py --once --verbose
    ```
-   
+
    Windows (PowerShell):
    ```powershell
    docker compose run --rm retry-job python /app/scripts/retry_stuck_documents.py --once --verbose
@@ -859,13 +859,13 @@ mongodb_connections{state="current"}
 mongodb_op_latencies_latency
 ```
 
-**Dashboard Tips**: 
+**Dashboard Tips**:
 - Use the **MongoDB Document Store Status** dashboard for comprehensive monitoring
 - The "Storage Size by Collection" panel shows disk space usage per collection
 - Check operation counters to identify high-traffic collections
 
 ### Troubleshooting
-- **No storage size data**: 
+- **No storage size data**:
   1. Verify mongo-collstats-exporter is running: `docker compose ps mongo-collstats-exporter`
   2. If not running, start it: `docker compose up -d mongo-collstats-exporter`
   3. Check exporter logs: `docker compose logs mongo-collstats-exporter`
@@ -875,12 +875,12 @@ mongodb_op_latencies_latency
   2. Verify `mongo-doc-count` and `mongo-collstats` jobs are UP
   3. Ensure documentdb is healthy: `docker compose ps documentdb`
 
-- **High storage usage**: 
+- **High storage usage**:
   1. Check storage by collection: `mongodb_collstats_storageSize{db="copilot"}`
   2. Identify largest collections and review data retention policies
   3. Consider collection compaction or archival for old data
 
-- **Slow queries**: 
+- **Slow queries**:
   1. Review query latency metrics: `mongodb_op_latencies_latency`
   2. Check for missing indexes on frequently queried fields
   3. Use MongoDB explain plans to optimize slow queries
@@ -992,7 +992,7 @@ The **Pipeline Flow Visualization** dashboard provides a unified view for troubl
 1. Check the "End-to-End Throughput" stat panel - if it's near zero or very low, the pipeline is stalled
 2. Look at the "Stage Processing Latency (P95)" panel - if any stage shows abnormally high latency (>10s), that's the culprit
 3. Even if queues are empty, high latency indicates slow processing
-4. **Action**: 
+4. **Action**:
    - For high parsing latency: check if documents are unusually large or complex
    - For high embedding latency: check Ollama service health and model loading times
    - For high summarization latency: check LLM service availability and response times
@@ -1094,7 +1094,7 @@ The exporter exposes the following metrics for monitoring document processing:
 - **`copilot_document_status_count{collection, status}`**: Count of documents by collection and status
   - Collections: `archives`, `messages`, `chunks`, `threads`
   - Status values: `pending`, `processing`, `processed`, `failed`
-  
+
 - **`copilot_document_processing_duration_seconds{collection}`**: Average processing duration (time between creation and completion)
   - Useful for identifying performance degradation
   - Default threshold: Warning at 300s (5 min), Critical at 600s (10 min)
@@ -1135,8 +1135,8 @@ Use these queries for ad-hoc investigation:
 copilot_document_status_count{collection="archives"}
 
 # Failure rate (percentage)
-(copilot_document_status_count{collection="archives",status="failed"} 
- / (copilot_document_status_count{collection="archives",status="failed"} 
+(copilot_document_status_count{collection="archives",status="failed"}
+ / (copilot_document_status_count{collection="archives",status="failed"}
     + copilot_document_status_count{collection="archives",status="processed"})) * 100
 
 # Documents pending longer than 30 minutes
@@ -1146,8 +1146,8 @@ copilot_document_age_seconds{collection="archives",status="pending"} > 1800
 copilot_document_age_seconds{collection="archives",status!="processed"}
 
 # Embedding completion rate
-copilot_chunks_embedding_status_count{embedding_generated="True"} 
-/ (copilot_chunks_embedding_status_count{embedding_generated="True"} 
+copilot_chunks_embedding_status_count{embedding_generated="True"}
+/ (copilot_chunks_embedding_status_count{embedding_generated="True"}
    + copilot_chunks_embedding_status_count{embedding_generated="False"})
 
 # Processing rate (documents/second over 5 minutes)
@@ -1308,7 +1308,7 @@ db.chunks.aggregate([
   2. If not running, start it: `docker compose up -d document-processing-exporter`
   3. Check exporter logs: `docker compose logs document-processing-exporter`
 
-- **Missing metrics**: 
+- **Missing metrics**:
   1. Check Prometheus targets (http://localhost:9090/targets) - `document-processing` should be UP
   2. Verify MongoDB connectivity from exporter
   3. Ensure collections have documents with expected fields

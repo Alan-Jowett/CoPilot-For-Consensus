@@ -18,7 +18,7 @@ export function MessageDetail() {
     let cancelled = false
     setLoading(true)
     setError(null)
-    
+
     fetchMessage(messageDocId)
       .then(async (msgData) => {
         if (!cancelled) {
@@ -43,7 +43,7 @@ export function MessageDetail() {
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
-    
+
     return () => { cancelled = true }
   }, [messageDocId])
 
@@ -74,7 +74,7 @@ export function MessageDetail() {
             <div className="info-item">
               <div className="info-label">From</div>
               <div className="info-value">
-                {message.from.name && message.from.name.trim() 
+                {message.from.name && message.from.name.trim()
                   ? `${message.from.name} <${message.from.email}>`
                   : message.from.email}
               </div>

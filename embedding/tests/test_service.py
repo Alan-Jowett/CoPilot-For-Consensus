@@ -90,7 +90,7 @@ def test_service_initialization(embedding_service):
 def test_service_start(embedding_service, mock_subscriber):
     """Test that the service subscribes to events on start."""
     embedding_service.start()
-    
+
     # Verify subscription was called
     mock_subscriber.subscribe.assert_called_once()
     call_args = mock_subscriber.subscribe.call_args
@@ -155,17 +155,17 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
             }
         },
     ]
-    
+
     mock_document_store.query_documents.return_value = chunks
-    
+
     event_data = {
         "chunk_ids": chunk_ids,
         "chunk_count": 3,
     }
-    
+
     # Process chunks
     embedding_service.process_chunks(event_data)
-    
+
     # Verify document store was queried
     mock_document_store.query_documents.assert_called_once_with(
         collection="chunks",
@@ -174,29 +174,29 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
             "embedding_generated": False,
         }
     )
-    
+
     # Verify embeddings were generated for each chunk
     assert mock_embedding_provider.embed.call_count == 3
-    
+
     # Verify embeddings were stored
     mock_vector_store.add_embeddings.assert_called_once()
     call_args = mock_vector_store.add_embeddings.call_args
     stored_ids = call_args[0][0]
     stored_vectors = call_args[0][1]
     stored_metadata = call_args[0][2]
-    
+
     assert len(stored_ids) == 3
     assert stored_ids == chunk_ids
     assert len(stored_vectors) == 3
     assert len(stored_metadata) == 3
-    
+
     # Verify metadata structure
     assert stored_metadata[0]["chunk_id"] == "chunk-1"
     assert stored_metadata[0]["message_id"] == "<msg1@example.com>"
     assert stored_metadata[0]["text"] == "This is chunk 1 text."
     assert stored_metadata[0]["embedding_model"] == "all-MiniLM-L6-v2"
     assert stored_metadata[0]["embedding_backend"] == "sentencetransformers"
-    
+
     # Verify chunk status was updated using MongoDB _id (not chunk_id)
     assert mock_document_store.update_document.call_count == 3
     # Verify the update calls were made using MongoDB _id for each chunk
@@ -205,13 +205,13 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
     # Expected _id values from test chunks
     expected_mongo_ids = ["chunk-1", "chunk-2", "chunk-3"]
     assert set(updated_doc_ids) == set(expected_mongo_ids)
-    
+
     # Verify success event was published
     mock_publisher.publish.assert_called_once()
     publish_call = mock_publisher.publish.call_args
     assert publish_call[1]["exchange"] == "copilot.events"
     assert publish_call[1]["routing_key"] == "embeddings.generated"
-    
+
     event = publish_call[1]["event"]
     assert event["event_type"] == "EmbeddingsGenerated"
     assert event["data"]["chunk_ids"] == chunk_ids
@@ -220,7 +220,7 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
     assert event["data"]["embedding_backend"] == "sentencetransformers"
     assert event["data"]["embedding_dimension"] == 384
     assert event["data"]["vector_store_updated"] is True
-    
+
     # Verify stats were updated
     assert embedding_service.chunks_processed == 3
     assert embedding_service.embeddings_generated_total == 3
@@ -246,9 +246,9 @@ def test_process_chunks_empty_chunk_ids(embedding_service, mock_document_store):
     event_data = {
         "chunk_ids": [],
     }
-    
+
     embedding_service.process_chunks(event_data)
-    
+
     # Should return early without querying database
     mock_document_store.query_documents.assert_not_called()
 
@@ -292,13 +292,13 @@ def test_process_chunks_missing_mongo_id_raises_error(embedding_service, mock_do
             }
         }
     ]
-    
+
     mock_document_store.query_documents.return_value = chunks
-    
+
     event_data = {
         "chunk_ids": chunk_ids,
     }
-    
+
     # Should raise ValueError immediately to prevent embeddings without status update
     with pytest.raises(ValueError, match="missing MongoDB _id field"):
         embedding_service.process_chunks(event_data)
@@ -326,28 +326,28 @@ def test_process_chunks_retry_on_failure(embedding_service, mock_document_store,
             }
         }
     ]
-    
+
     mock_document_store.query_documents.return_value = chunks
-    
+
     # Make vector store fail on first call, succeed on second
     mock_vector_store.add_embeddings.side_effect = [
         Exception("Vector store error"),
         None,  # Success on retry
     ]
-    
+
     event_data = {
         "chunk_ids": chunk_ids,
     }
-    
+
     # Set lower retry settings for faster test
     embedding_service.max_retries = 3
     embedding_service.retry_backoff_seconds = 0.1
-    
+
     embedding_service.process_chunks(event_data)
-    
+
     # Verify vector store was called twice (initial + 1 retry)
     assert mock_vector_store.add_embeddings.call_count == 2
-    
+
     # Verify success event was published (after retry)
     success_calls = [call for call in mock_publisher.publish.call_args_list if call[1]["routing_key"] == "embeddings.generated"]
     assert len(success_calls) == 1, "Should publish exactly one success event after retry"
@@ -375,30 +375,30 @@ def test_process_chunks_max_retries_exceeded(embedding_service, mock_document_st
             }
         }
     ]
-    
+
     mock_document_store.query_documents.return_value = chunks
     mock_vector_store.add_embeddings.side_effect = Exception("Persistent error")
-    
+
     event_data = {
         "chunk_ids": chunk_ids,
     }
-    
+
     # Set lower retry settings for faster test
     embedding_service.max_retries = 2
     embedding_service.retry_backoff_seconds = 0.1
-    
+
     # Should raise exception after max retries to trigger message requeue
     with pytest.raises(Exception, match="Persistent error"):
         embedding_service.process_chunks(event_data)
-    
+
     # Verify vector store was called max_retries times
     assert mock_vector_store.add_embeddings.call_count == 2
-    
+
     # Verify failure event was published before re-raising
     mock_publisher.publish.assert_called()
     publish_call = mock_publisher.publish.call_args
     assert publish_call[1]["routing_key"] == "embedding.generation.failed"
-    
+
     event = publish_call[1]["event"]
     assert event["event_type"] == "EmbeddingGenerationFailed"
     assert event["data"]["chunk_ids"] == chunk_ids
@@ -410,9 +410,9 @@ def test_get_stats(embedding_service):
     embedding_service.chunks_processed = 10
     embedding_service.embeddings_generated_total = 10
     embedding_service.last_processing_time = 5.5
-    
+
     stats = embedding_service.get_stats()
-    
+
     assert stats["chunks_processed"] == 10
     assert stats["embeddings_generated_total"] == 10
     assert stats["last_processing_time_seconds"] == 5.5
@@ -447,19 +447,19 @@ def test_batch_processing(embedding_service, mock_document_store, mock_vector_st
         }
         for i in range(100)
     ]
-    
+
     mock_document_store.query_documents.return_value = chunks
     embedding_service.batch_size = 32
-    
+
     event_data = {
         "chunk_ids": chunk_ids,
     }
-    
+
     embedding_service.process_chunks(event_data)
-    
+
     # Verify all chunks were processed
     assert mock_embedding_provider.embed.call_count == 100
-    
+
     # Verify vector store was called multiple times (once per batch)
     # 100 chunks / 32 batch_size = 4 batches (32, 32, 32, 4)
     assert mock_vector_store.add_embeddings.call_count == 4
@@ -477,7 +477,7 @@ def test_handle_chunks_prepared_raises_on_missing_chunk_ids(embedding_service):
             # Missing chunk_ids field - should trigger re-raise
         }
     }
-    
+
     # Service should raise an exception for missing chunk_ids field
     with pytest.raises(ValueError):
         embedding_service._handle_chunks_prepared(event)
@@ -495,7 +495,7 @@ def test_handle_chunks_prepared_raises_on_invalid_chunk_ids_type(embedding_servi
             "chunk_count": 1,
         }
     }
-    
+
     # Service should raise an exception for invalid type
     with pytest.raises(TypeError):
         embedding_service._handle_chunks_prepared(event)
@@ -510,7 +510,7 @@ def test_event_handler_raises_on_missing_data_field(embedding_service):
         "version": "1.0",
         # Missing data field
     }
-    
+
     # Event handler should re-raise to trigger message requeue
     with pytest.raises(Exception):
         embedding_service._handle_chunks_prepared(event)
@@ -520,7 +520,7 @@ def test_event_handler_raises_on_process_chunks_error(embedding_service, mock_do
     """Test that event handler re-raises exceptions from process_chunks."""
     # Mock document store to raise an error
     mock_document_store.query_documents.side_effect = Exception("Database connection lost")
-    
+
     event = {
         "event_type": "ChunksPrepared",
         "event_id": "test-123",
@@ -531,11 +531,11 @@ def test_event_handler_raises_on_process_chunks_error(embedding_service, mock_do
             "chunk_count": 1,
         }
     }
-    
+
     # Set lower retry count for faster test
     embedding_service.max_retries = 1
     embedding_service.retry_backoff_seconds = 0.01
-    
+
     # Event handler should re-raise the exception after max retries
     with pytest.raises(Exception, match="Database connection lost"):
         embedding_service._handle_chunks_prepared(event)
@@ -545,7 +545,7 @@ def test_publish_embeddings_generated_raises_on_publish_error(embedding_service,
     """Test that _publish_embeddings_generated raises exception on publish errors."""
     # Setup mock to raise an exception
     mock_publisher.publish = Mock(side_effect=Exception("RabbitMQ connection lost"))
-    
+
     # Verify exception is raised, not swallowed
     with pytest.raises(Exception, match="RabbitMQ connection lost"):
         embedding_service._publish_embeddings_generated(
@@ -559,7 +559,7 @@ def test_publish_embedding_failed_raises_on_publish_error(embedding_service, moc
     """Test that _publish_embedding_failed raises exception on publish errors."""
     # Setup mock to raise an exception
     mock_publisher.publish = Mock(side_effect=Exception("RabbitMQ connection lost"))
-    
+
     # Verify exception is raised, not swallowed
     with pytest.raises(Exception, match="RabbitMQ connection lost"):
         embedding_service._publish_embedding_failed(
@@ -602,7 +602,7 @@ def test_idempotent_embedding_generation(
     mock_publisher,
 ):
     """Test that duplicate embedding generation is idempotent (safe retry).
-    
+
     The vectorstore now uses upsert semantics, so duplicate embeddings should
     not cause errors. The chunk status update should also be safe to retry.
     """
@@ -627,40 +627,40 @@ def test_idempotent_embedding_generation(
         }
         for i in range(3)
     ]
-    
+
     mock_document_store.query_documents.return_value = chunks
-    
+
     event_data = {
         "chunk_ids": ["chunk-0", "chunk-1", "chunk-2"],
         "chunk_count": 3,
     }
-    
+
     # First processing - should succeed
     embedding_service.process_chunks(event_data)
-    
+
     # Verify embeddings were generated and stored
     assert mock_embedding_provider.embed.call_count == 3
     assert mock_vector_store.add_embeddings.call_count == 1
     assert mock_document_store.update_document.call_count == 3
-    
+
     # Reset mocks to track second call
     mock_embedding_provider.embed.reset_mock()
     mock_vector_store.add_embeddings.reset_mock()
     mock_document_store.update_document.reset_mock()
     mock_publisher.publish.reset_mock()
-    
+
     # Second processing (retry scenario) - should also succeed due to upsert
     embedding_service.process_chunks(event_data)
-    
+
     # Verify the retry succeeded (idempotent behavior)
     assert mock_embedding_provider.embed.call_count == 3
     assert mock_vector_store.add_embeddings.call_count == 1
     # Status updates are safe to retry (idempotent)
     assert mock_document_store.update_document.call_count == 3
-    
+
     # Both attempts should publish success events
     assert mock_publisher.publish.call_count == 1
-    
+
     # Verify stats reflect both processing attempts
     assert embedding_service.chunks_processed == 6  # 3 + 3
     assert embedding_service.embeddings_generated_total == 6  # 3 + 3
@@ -671,10 +671,10 @@ def test_vector_store_documents_total_metric_recorded(
 ):
     """Test that vector_store_documents_total metric is recorded when embeddings are stored."""
     from copilot_metrics import NoOpMetricsCollector
-    
+
     # Create a metrics collector
     metrics_collector = NoOpMetricsCollector()
-    
+
     # Create service with metrics collector
     embedding_service = EmbeddingService(
         document_store=mock_document_store,
@@ -688,7 +688,7 @@ def test_vector_store_documents_total_metric_recorded(
         embedding_dimension=384,
         batch_size=32,
     )
-    
+
     # Setup mock data
     chunk_ids = ["chunk-1", "chunk-2", "chunk-3"]
     chunks = [
@@ -744,17 +744,17 @@ def test_vector_store_documents_total_metric_recorded(
             }
         },
     ]
-    
+
     mock_document_store.query_documents.return_value = chunks
-    
+
     event_data = {
         "chunk_ids": chunk_ids,
         "chunk_count": 3,
     }
-    
+
     # Process chunks
     embedding_service.process_chunks(event_data)
-    
+
     # Verify vector_store_documents_total metric was recorded
     assert metrics_collector.get_counter_total("vector_store_documents_total") == 3.0
 

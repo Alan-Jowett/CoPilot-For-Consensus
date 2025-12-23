@@ -31,7 +31,7 @@ class NoopPublisher(EventPublisher):
 
     def publish(self, exchange: str, routing_key: str, event: Dict[str, Any]) -> None:
         """Store event without publishing to a real message bus.
-        
+
         Args:
             exchange: Exchange name
             routing_key: Routing key
@@ -54,10 +54,10 @@ class NoopPublisher(EventPublisher):
 
     def get_events(self, event_type: str = None) -> List[Dict[str, Any]]:
         """Get stored events, optionally filtered by event type.
-        
+
         Args:
             event_type: Optional event type to filter by
-            
+
         Returns:
             List of published events
         """

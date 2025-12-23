@@ -37,12 +37,12 @@ class FileSchemaProvider(SchemaProvider):
             error_msg = f"Schema directory does not exist: {self.schema_dir}"
             logger.error(error_msg)
             raise FileNotFoundError(error_msg)
-        
+
         if not self.schema_dir.is_dir():
             error_msg = f"Schema path is not a directory: {self.schema_dir}"
             logger.error(error_msg)
             raise NotADirectoryError(error_msg)
-        
+
         logger.info(f"Loading schemas from: {self.schema_dir}")
         self._schema_cache: Dict[str, Dict] = {}
 

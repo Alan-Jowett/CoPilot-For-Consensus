@@ -16,7 +16,7 @@ class TestSourceConfig:
             source_type="http",
             url="https://example.com/archive.zip"
         )
-        
+
         assert config.name == "test-source"
         assert config.source_type == "http"
         assert config.url == "https://example.com/archive.zip"
@@ -36,7 +36,7 @@ class TestSourceConfig:
             password="secret",
             folder="INBOX"
         )
-        
+
         assert config.name == "imap-source"
         assert config.source_type == "imap"
         assert config.url == "imap.example.com"
@@ -52,7 +52,7 @@ class TestSourceConfig:
             source_type="rsync",
             url="rsync://example.com/archive/"
         )
-        
+
         assert config.source_type == "rsync"
         assert config.url == "rsync://example.com/archive/"
 
@@ -63,6 +63,6 @@ class TestSourceConfig:
             source_type="local",
             url="/path/to/local/archive"
         )
-        
+
         assert config.source_type == "local"
         assert config.url == "/path/to/local/archive"

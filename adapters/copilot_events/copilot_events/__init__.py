@@ -56,7 +56,7 @@ def create_subscriber(
     **kwargs
 ) -> EventSubscriber:
     """Create an event subscriber based on message bus type.
-    
+
     Args:
         message_bus_type: Type of message bus ("rabbitmq", "azureservicebus", or "noop")
         host: Message bus hostname (required for rabbitmq)
@@ -73,10 +73,10 @@ def create_subscriber(
                 - use_managed_identity: Use Azure managed identity (default: False)
                 - auto_complete: Auto-complete messages (default: False)
                 - max_wait_time: Max wait time for messages in seconds (default: 5)
-        
+
     Returns:
         EventSubscriber instance
-        
+
     Raises:
         ValueError: If message_bus_type is unknown
     """

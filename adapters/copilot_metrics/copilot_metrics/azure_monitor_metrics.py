@@ -297,11 +297,11 @@ class AzureMonitorMetricsCollector(MetricsCollector):
 
     def get_gauge_value(self, name: str, tags: Optional[Dict[str, str]] = None) -> Optional[float]:
         """Get the most recent value of a gauge metric.
-        
+
         Args:
             name: Name of the gauge metric
             tags: Optional tags to filter by (not used in Azure Monitor implementation)
-            
+
         Returns:
             Most recent gauge value, or None if not found
         """

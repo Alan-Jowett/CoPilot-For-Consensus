@@ -17,14 +17,14 @@ class StdoutLogger(Logger):
 
     def __init__(self, level: str = "INFO", name: Optional[str] = None):
         """Initialize stdout logger.
-        
+
         Args:
             level: Logging level (DEBUG, INFO, WARNING, ERROR)
             name: Optional logger name for identification
         """
         self.level = level.upper()
         self.name = name or "copilot"
-        
+
         # Map string levels to Python logging levels
         self._level_map = {
             "DEBUG": logging.DEBUG,
@@ -32,7 +32,7 @@ class StdoutLogger(Logger):
             "WARNING": logging.WARNING,
             "ERROR": logging.ERROR,
         }
-        
+
         # Validate level
         if self.level not in self._level_map:
             raise ValueError(f"Invalid log level: {level}. Must be one of {list(self._level_map.keys())}")
@@ -44,7 +44,7 @@ class StdoutLogger(Logger):
 
     def _log(self, level: str, message: str, **kwargs: Any) -> None:
         """Internal method to format and output log message.
-        
+
         Args:
             level: Log level
             message: The log message
@@ -53,7 +53,7 @@ class StdoutLogger(Logger):
         # Check if we should log at this level for stdout output
         if self._level_map[level] < self._level_map[self.level]:
             return
-        
+
         # Extract exc_info (bool or tuple) to pass correctly to stdlib logger
         exc_info = kwargs.pop("exc_info", None)
 
@@ -64,11 +64,11 @@ class StdoutLogger(Logger):
             "logger": self.name,
             "message": message,
         }
-        
+
         # Add any extra fields
         if kwargs:
             log_entry["extra"] = kwargs
-        
+
         # Output as JSON
         try:
             json_output = json.dumps(log_entry, default=str)
@@ -83,7 +83,7 @@ class StdoutLogger(Logger):
 
     def info(self, message: str, **kwargs: Any) -> None:
         """Log an info-level message.
-        
+
         Args:
             message: The log message
             **kwargs: Additional structured data to log
@@ -92,7 +92,7 @@ class StdoutLogger(Logger):
 
     def warning(self, message: str, **kwargs: Any) -> None:
         """Log a warning-level message.
-        
+
         Args:
             message: The log message
             **kwargs: Additional structured data to log
@@ -101,7 +101,7 @@ class StdoutLogger(Logger):
 
     def error(self, message: str, **kwargs: Any) -> None:
         """Log an error-level message.
-        
+
         Args:
             message: The log message
             **kwargs: Additional structured data to log
@@ -115,7 +115,7 @@ class StdoutLogger(Logger):
 
     def debug(self, message: str, **kwargs: Any) -> None:
         """Log a debug-level message.
-        
+
         Args:
             message: The log message
             **kwargs: Additional structured data to log

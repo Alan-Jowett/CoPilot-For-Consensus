@@ -33,7 +33,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (typeof window === 'undefined') {
       return 'light'
     }
-    
+
     try {
       // Check localStorage first
       const stored = localStorage.getItem('theme')
@@ -44,12 +44,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       // localStorage might be unavailable (SecurityError, etc.)
       console.warn('localStorage not available:', error)
     }
-    
+
     // Fall back to system preference
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       return 'dark'
     }
-    
+
     return 'light'
   })
 

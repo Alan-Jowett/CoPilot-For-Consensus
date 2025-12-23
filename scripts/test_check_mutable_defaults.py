@@ -24,7 +24,7 @@ def test_detect_list_literal():
         f.write('def bad_func(items=[]):\n    pass\n')
         f.flush()
         filepath = Path(f.name)
-    
+
     try:
         issues = find_mutable_defaults(filepath)
         assert len(issues) == 1
@@ -41,7 +41,7 @@ def test_detect_dict_literal():
         f.write('def bad_func(config={}):\n    pass\n')
         f.flush()
         filepath = Path(f.name)
-    
+
     try:
         issues = find_mutable_defaults(filepath)
         assert len(issues) == 1
@@ -57,7 +57,7 @@ def test_detect_set_literal():
         f.write('def bad_func(tags={1, 2, 3}):\n    pass\n')
         f.flush()
         filepath = Path(f.name)
-    
+
     try:
         issues = find_mutable_defaults(filepath)
         assert len(issues) == 1
@@ -73,7 +73,7 @@ def test_detect_list_call():
         f.write('def bad_func(items=list()):\n    pass\n')
         f.flush()
         filepath = Path(f.name)
-    
+
     try:
         issues = find_mutable_defaults(filepath)
         assert len(issues) == 1
@@ -89,7 +89,7 @@ def test_detect_dict_call():
         f.write('def bad_func(config=dict()):\n    pass\n')
         f.flush()
         filepath = Path(f.name)
-    
+
     try:
         issues = find_mutable_defaults(filepath)
         assert len(issues) == 1
@@ -105,7 +105,7 @@ def test_detect_set_call():
         f.write('def bad_func(tags=set()):\n    pass\n')
         f.flush()
         filepath = Path(f.name)
-    
+
     try:
         issues = find_mutable_defaults(filepath)
         assert len(issues) == 1
@@ -121,7 +121,7 @@ def test_ignore_none_defaults():
         f.write('def good_func(items=None):\n    pass\n')
         f.flush()
         filepath = Path(f.name)
-    
+
     try:
         issues = find_mutable_defaults(filepath)
         assert len(issues) == 0
@@ -135,7 +135,7 @@ def test_ignore_immutable_defaults():
         f.write('def good_func(value=42, name="test", flag=True):\n    pass\n')
         f.flush()
         filepath = Path(f.name)
-    
+
     try:
         issues = find_mutable_defaults(filepath)
         assert len(issues) == 0
@@ -149,7 +149,7 @@ def test_detect_async_functions():
         f.write('async def bad_func(items=[]):\n    pass\n')
         f.flush()
         filepath = Path(f.name)
-    
+
     try:
         issues = find_mutable_defaults(filepath)
         assert len(issues) == 1
@@ -164,7 +164,7 @@ def test_detect_keyword_only_args():
         f.write('def bad_func(*, items=[]):\n    pass\n')
         f.flush()
         filepath = Path(f.name)
-    
+
     try:
         issues = find_mutable_defaults(filepath)
         assert len(issues) == 1
@@ -188,7 +188,7 @@ def func3(tags=set()):
 ''')
         f.flush()
         filepath = Path(f.name)
-    
+
     try:
         issues = find_mutable_defaults(filepath)
         assert len(issues) == 3
@@ -202,21 +202,21 @@ def test_scan_directory():
     """Test scanning a directory for issues."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
-        
+
         # Create a file with issues
         (tmppath / 'bad.py').write_text('def bad_func(items=[]):\n    pass\n')
-        
+
         # Create a file without issues
         (tmppath / 'good.py').write_text('def good_func(items=None):\n    pass\n')
-        
+
         # Create a file in a subdirectory
         subdir = tmppath / 'subdir'
         subdir.mkdir()
         (subdir / 'nested.py').write_text('def nested_bad(config={}):\n    pass\n')
-        
+
         issues = scan_directory(tmppath, set())
         assert len(issues) == 2
-        
+
         # Check that both files were found
         files = {str(issue[0].name) for issue in issues}
         assert 'bad.py' in files
@@ -227,18 +227,18 @@ def test_exclude_patterns():
     """Test that excluded directories are skipped."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
-        
+
         # Create a file in a normal directory
         (tmppath / 'normal.py').write_text('def bad_func(items=[]):\n    pass\n')
-        
+
         # Create a file in an excluded directory
         excluded_dir = tmppath / 'node_modules'
         excluded_dir.mkdir()
         (excluded_dir / 'excluded.py').write_text('def bad_func(items=[]):\n    pass\n')
-        
+
         excludes = {'node_modules'}
         issues = scan_directory(tmppath, excludes)
-        
+
         # Should only find the issue in normal.py
         assert len(issues) == 1
         assert issues[0][0].name == 'normal.py'
@@ -254,7 +254,7 @@ class MyClass:
 ''')
         f.flush()
         filepath = Path(f.name)
-    
+
     try:
         issues = find_mutable_defaults(filepath)
         assert len(issues) == 1
@@ -274,7 +274,7 @@ def outer():
 ''')
         f.flush()
         filepath = Path(f.name)
-    
+
     try:
         issues = find_mutable_defaults(filepath)
         assert len(issues) == 1
@@ -290,7 +290,7 @@ def test_detect_constructor_with_args():
         f.write('def bad_func(items=list([1, 2, 3])):\n    pass\n')
         f.flush()
         filepath = Path(f.name)
-    
+
     try:
         issues = find_mutable_defaults(filepath)
         assert len(issues) == 1

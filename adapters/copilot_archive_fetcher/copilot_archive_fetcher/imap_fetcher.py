@@ -19,7 +19,7 @@ class IMAPFetcher(ArchiveFetcher):
 
     def __init__(self, source: SourceConfig):
         """Initialize IMAP fetcher.
-        
+
         Args:
             source: Source configuration
         """
@@ -27,10 +27,10 @@ class IMAPFetcher(ArchiveFetcher):
 
     def fetch(self, output_dir: str) -> Tuple[bool, Optional[list], Optional[str]]:
         """Fetch emails via IMAP.
-        
+
         Args:
             output_dir: Directory to store the fetched mbox file
-            
+
         Returns:
             Tuple of (success, list_of_file_paths, error_message)
         """

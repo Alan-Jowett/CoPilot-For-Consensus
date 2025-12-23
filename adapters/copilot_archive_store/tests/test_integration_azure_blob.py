@@ -38,7 +38,7 @@ def has_azure_credentials() -> bool:
     has_account = bool(os.getenv("AZURE_STORAGE_ACCOUNT"))
     has_key = bool(os.getenv("AZURE_STORAGE_KEY"))
     has_sas = bool(os.getenv("AZURE_STORAGE_SAS_TOKEN"))
-    
+
     return has_connection_string or (has_account and (has_key or has_sas))
 
 
@@ -95,17 +95,17 @@ class TestAzureBlobArchiveStoreIntegration:
     def test_store_and_retrieve_archive(self, store):
         """Test storing and retrieving an archive in Azure."""
         content = b"Integration test archive content"
-        
+
         # Store archive
         archive_id = store.store_archive(
             source_name="integration-test-source",
             file_path="test-archive.mbox",
             content=content
         )
-        
+
         assert archive_id is not None
         assert len(archive_id) == 16
-        
+
         # Retrieve archive
         retrieved = store.get_archive(archive_id)
         assert retrieved == content
@@ -113,26 +113,26 @@ class TestAzureBlobArchiveStoreIntegration:
     def test_archive_lifecycle(self, store):
         """Test complete lifecycle: store, check, list, delete."""
         content = b"Lifecycle test content"
-        
+
         # Store
         archive_id = store.store_archive(
             source_name="lifecycle-test",
             file_path="lifecycle.mbox",
             content=content
         )
-        
+
         # Check exists
         assert store.archive_exists(archive_id) is True
-        
+
         # List
         archives = store.list_archives("lifecycle-test")
         assert len(archives) == 1
         assert archives[0]["archive_id"] == archive_id
-        
+
         # Delete
         deleted = store.delete_archive(archive_id)
         assert deleted is True
-        
+
         # Verify deleted
         assert store.archive_exists(archive_id) is False
         assert store.get_archive(archive_id) is None
@@ -140,27 +140,27 @@ class TestAzureBlobArchiveStoreIntegration:
     def test_deduplication_in_azure(self, store):
         """Test content deduplication in Azure."""
         content = b"Duplicate content test"
-        
+
         # Store same content twice with different metadata
         id1 = store.store_archive(
             source_name="dedup-source-1",
             file_path="file1.mbox",
             content=content
         )
-        
+
         id2 = store.store_archive(
             source_name="dedup-source-2",
             file_path="file2.mbox",
             content=content
         )
-        
+
         # Should have same ID due to content-addressable storage
         assert id1 == id2
-        
+
         # Both sources should list the archive
         archives1 = store.list_archives("dedup-source-1")
         archives2 = store.list_archives("dedup-source-2")
-        
+
         assert len(archives1) == 1
         assert len(archives2) == 1
 
@@ -168,14 +168,14 @@ class TestAzureBlobArchiveStoreIntegration:
         """Test looking up archive by content hash."""
         content = b"Hash lookup test content"
         content_hash = hashlib.sha256(content).hexdigest()
-        
+
         # Store archive
         archive_id = store.store_archive(
             source_name="hash-test",
             file_path="hash-test.mbox",
             content=content
         )
-        
+
         # Look up by hash
         found_id = store.get_archive_by_hash(content_hash)
         assert found_id == archive_id
@@ -183,23 +183,23 @@ class TestAzureBlobArchiveStoreIntegration:
     def test_multiple_archives_same_source(self, store):
         """Test storing and listing multiple archives for the same source."""
         source_name = "multi-archive-test"
-        
+
         # Store multiple archives
         archives_data = [
             (b"Archive 1 content", "archive1.mbox"),
             (b"Archive 2 content", "archive2.mbox"),
             (b"Archive 3 content", "archive3.mbox"),
         ]
-        
+
         stored_ids = []
         for content, filename in archives_data:
             archive_id = store.store_archive(source_name, filename, content)
             stored_ids.append(archive_id)
-        
+
         # List all archives for source
         archives = store.list_archives(source_name)
         assert len(archives) == 3
-        
+
         # Verify all IDs are present
         listed_ids = {a["archive_id"] for a in archives}
         assert set(stored_ids) == listed_ids
@@ -208,19 +208,19 @@ class TestAzureBlobArchiveStoreIntegration:
         """Test storing and retrieving a larger archive (>1MB)."""
         # Create 2MB of test data
         content = b"X" * (2 * 1024 * 1024)
-        
+
         # Store
         archive_id = store.store_archive(
             source_name="large-test",
             file_path="large-archive.mbox",
             content=content
         )
-        
+
         # Retrieve and verify
         retrieved = store.get_archive(archive_id)
         assert len(retrieved) == len(content)
         assert retrieved == content
-        
+
         # Verify metadata
         archives = store.list_archives("large-test")
         assert len(archives) == 1
@@ -229,22 +229,22 @@ class TestAzureBlobArchiveStoreIntegration:
     def test_metadata_persistence(self, store):
         """Test that metadata persists across store instances."""
         content = b"Persistence test content"
-        
+
         # Store archive
         archive_id = store.store_archive(
             source_name="persistence-test",
             file_path="persist.mbox",
             content=content
         )
-        
+
         # Create new store instance (should load existing metadata)
         prefix = store.prefix
         store2 = AzureBlobArchiveStore(prefix=prefix)
-        
+
         # Should be able to retrieve archive using new instance
         retrieved = store2.get_archive(archive_id)
         assert retrieved == content
-        
+
         # Should appear in listings
         archives = store2.list_archives("persistence-test")
         assert len(archives) >= 1
@@ -253,7 +253,7 @@ class TestAzureBlobArchiveStoreIntegration:
     def test_special_characters_in_filenames(self, store):
         """Test handling filenames with special characters."""
         content = b"Special chars test"
-        
+
         # Test various special characters that might appear in filenames
         filenames = [
             "archive with spaces.mbox",
@@ -261,14 +261,14 @@ class TestAzureBlobArchiveStoreIntegration:
             "archive_with_underscores.mbox",
             "archive.multiple.dots.mbox",
         ]
-        
+
         for filename in filenames:
             archive_id = store.store_archive(
                 source_name="special-chars-test",
                 file_path=filename,
                 content=content + filename.encode()
             )
-            
+
             # Should be able to retrieve
             retrieved = store.get_archive(archive_id)
             assert retrieved is not None

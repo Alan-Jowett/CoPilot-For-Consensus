@@ -17,7 +17,7 @@ class TestDiscoveryEndpoint:
         """Test getting schema response for discovery endpoint."""
         schema_dir = tmp_path / "schemas"
         schema_dir.mkdir()
-        
+
         schema_file = schema_dir / "test-service.json"
         schema_data = {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -36,14 +36,14 @@ class TestDiscoveryEndpoint:
             },
         }
         schema_file.write_text(json.dumps(schema_data), encoding="utf-8")
-        
+
         # Test with explicit service version
         response = get_configuration_schema_response(
             "test-service",
             schema_dir=str(schema_dir),
             service_version="0.5.0",
         )
-        
+
         assert response["service_name"] == "test-service"
         assert response["service_version"] == "0.5.0"
         assert response["schema_version"] == "1.0.0"
@@ -55,7 +55,7 @@ class TestDiscoveryEndpoint:
         """Test getting schema response with version from environment."""
         schema_dir = tmp_path / "schemas"
         schema_dir.mkdir()
-        
+
         schema_file = schema_dir / "test-service.json"
         schema_data = {
             "service_name": "test-service",
@@ -69,15 +69,15 @@ class TestDiscoveryEndpoint:
             },
         }
         schema_file.write_text(json.dumps(schema_data), encoding="utf-8")
-        
+
         os.environ["SERVICE_VERSION"] = "1.2.3"
-        
+
         try:
             response = get_configuration_schema_response(
                 "test-service",
                 schema_dir=str(schema_dir),
             )
-            
+
             assert response["service_version"] == "1.2.3"
         finally:
             if "SERVICE_VERSION" in os.environ:
@@ -87,7 +87,7 @@ class TestDiscoveryEndpoint:
         """Test that missing schema file raises error."""
         schema_dir = tmp_path / "schemas"
         schema_dir.mkdir()
-        
+
         with pytest.raises(FileNotFoundError, match="Schema file not found"):
             get_configuration_schema_response(
                 "nonexistent-service",
@@ -98,7 +98,7 @@ class TestDiscoveryEndpoint:
         """Test that response includes full schema data."""
         schema_dir = tmp_path / "schemas"
         schema_dir.mkdir()
-        
+
         schema_file = schema_dir / "test-service.json"
         schema_data = {
             "service_name": "test-service",
@@ -117,12 +117,12 @@ class TestDiscoveryEndpoint:
             },
         }
         schema_file.write_text(json.dumps(schema_data), encoding="utf-8")
-        
+
         response = get_configuration_schema_response(
             "test-service",
             schema_dir=str(schema_dir),
         )
-        
+
         # Verify full schema is included
         assert "schema" in response
         assert "fields" in response["schema"]

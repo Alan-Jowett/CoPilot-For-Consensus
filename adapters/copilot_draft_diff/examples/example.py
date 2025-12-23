@@ -16,13 +16,13 @@ def example_basic_usage():
     print("=" * 60)
     print("Example 1: Basic usage with mock provider")
     print("=" * 60)
-    
+
     # Create a mock provider
     provider = create_diff_provider("mock")
-    
+
     # Fetch a diff
     diff = provider.getdiff("draft-ietf-quic-transport", "01", "02")
-    
+
     print(f"Draft: {diff.draft_name}")
     print(f"Versions: {diff.version_a} -> {diff.version_b}")
     print(f"Format: {diff.format}")
@@ -37,9 +37,9 @@ def example_different_formats():
     print("=" * 60)
     print("Example 2: Different output formats")
     print("=" * 60)
-    
+
     formats = ["text", "html", "markdown"]
-    
+
     for fmt in formats:
         print(f"\n--- Format: {fmt} ---")
         provider = create_diff_provider("mock", {"default_format": fmt})
@@ -53,7 +53,7 @@ def example_predefined_mock():
     print("=" * 60)
     print("Example 3: Predefined mock diffs")
     print("=" * 60)
-    
+
     # Create a custom predefined diff
     custom_diff = DraftDiff(
         draft_name="draft-custom",
@@ -72,17 +72,17 @@ Changes:
         url="custom://draft-custom/03..04",
         metadata={"lines_added": 42, "lines_removed": 10}
     )
-    
+
     # Create provider with predefined diff
     provider = MockDiffProvider(
         mock_diffs={
             ("draft-custom", "03", "04"): custom_diff
         }
     )
-    
+
     # Fetch the predefined diff
     diff = provider.getdiff("draft-custom", "03", "04")
-    
+
     print(f"Draft: {diff.draft_name}")
     print(f"Versions: {diff.version_a} -> {diff.version_b}")
     print(f"Metadata: {diff.metadata}")
@@ -95,13 +95,13 @@ def example_to_dict():
     print("=" * 60)
     print("Example 4: Converting to dictionary")
     print("=" * 60)
-    
+
     provider = create_diff_provider("mock")
     diff = provider.getdiff("draft-test", "05", "06")
-    
+
     # Convert to dictionary (useful for JSON serialization)
     diff_dict = diff.to_dict()
-    
+
     print("Dictionary representation:")
     for key, value in diff_dict.items():
         if key == "content":
@@ -116,12 +116,12 @@ def main():
     print("\nDraft Diff Provider Examples")
     print("=" * 60)
     print()
-    
+
     example_basic_usage()
     example_different_formats()
     example_predefined_mock()
     example_to_dict()
-    
+
     print("=" * 60)
     print("Examples completed!")
     print("=" * 60)

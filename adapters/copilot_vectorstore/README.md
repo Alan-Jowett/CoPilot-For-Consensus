@@ -8,7 +8,7 @@ A modular abstraction layer for vector storage backends, enabling flexible switc
 ## Features
 
 - **Abstract Interface**: Common API for all vector store backends
-- **Multiple Backends**: 
+- **Multiple Backends**:
   - `InMemoryVectorStore`: Simple in-memory storage for testing and development
   - `FAISSVectorStore`: Production-ready FAISS backend for efficient similarity search
   - `QdrantVectorStore`: Qdrant cloud/self-hosted vector database with persistence
@@ -284,23 +284,23 @@ All backends implement the `VectorStore` abstract base class:
 class VectorStore(ABC):
     @abstractmethod
     def add_embedding(self, id: str, vector: List[float], metadata: Dict[str, Any]) -> None
-    
+
     @abstractmethod
-    def add_embeddings(self, ids: List[str], vectors: List[List[float]], 
+    def add_embeddings(self, ids: List[str], vectors: List[List[float]],
                       metadatas: List[Dict[str, Any]]) -> None
-    
+
     @abstractmethod
     def query(self, query_vector: List[float], top_k: int = 10) -> List[SearchResult]
-    
+
     @abstractmethod
     def delete(self, id: str) -> None
-    
+
     @abstractmethod
     def clear(self) -> None
-    
+
     @abstractmethod
     def count(self) -> int
-    
+
     @abstractmethod
     def get(self, id: str) -> SearchResult
 ```
@@ -328,7 +328,7 @@ from copilot_vectorstore import create_vector_store
 class EmbeddingService:
     def __init__(self):
         self.vector_store = create_vector_store(dimension=384)
-    
+
     def store_embeddings(self, chunks, embeddings):
         self.vector_store.add_embeddings(
             ids=[chunk.id for chunk in chunks],
@@ -345,7 +345,7 @@ from copilot_vectorstore import create_vector_store
 class SummarizationService:
     def __init__(self):
         self.vector_store = create_vector_store(dimension=384)
-    
+
     def get_relevant_context(self, query_embedding, top_k=10):
         results = self.vector_store.query(
             query_vector=query_embedding,
@@ -390,11 +390,11 @@ class YourBackendVectorStore(VectorStore):
     def __init__(self, **config):
         # Initialize your backend
         pass
-    
+
     def add_embedding(self, id: str, vector: List[float], metadata: Dict[str, Any]) -> None:
         # Implementation
         pass
-    
+
     # ... implement all abstract methods
 ```
 

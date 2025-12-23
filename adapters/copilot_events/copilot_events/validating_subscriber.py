@@ -156,7 +156,7 @@ class ValidatingEventSubscriber(EventSubscriber):
 
     def connect(self) -> None:
         """Connect to the message bus.
-        
+
         Raises:
             Exception: If connection fails for any reason
         """

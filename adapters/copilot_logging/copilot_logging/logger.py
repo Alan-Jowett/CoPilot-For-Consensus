@@ -13,7 +13,7 @@ class Logger(ABC):
     @abstractmethod
     def info(self, message: str, **kwargs: Any) -> None:
         """Log an info-level message.
-        
+
         Args:
             message: The log message
             **kwargs: Additional structured data to log
@@ -23,7 +23,7 @@ class Logger(ABC):
     @abstractmethod
     def warning(self, message: str, **kwargs: Any) -> None:
         """Log a warning-level message.
-        
+
         Args:
             message: The log message
             **kwargs: Additional structured data to log
@@ -33,7 +33,7 @@ class Logger(ABC):
     @abstractmethod
     def error(self, message: str, **kwargs: Any) -> None:
         """Log an error-level message.
-        
+
         Args:
             message: The log message
             **kwargs: Additional structured data to log
@@ -43,7 +43,7 @@ class Logger(ABC):
     @abstractmethod
     def debug(self, message: str, **kwargs: Any) -> None:
         """Log a debug-level message.
-        
+
         Args:
             message: The log message
             **kwargs: Additional structured data to log

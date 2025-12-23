@@ -116,7 +116,7 @@ python scripts/manage_failed_queues.py export parsing.failed --output failed_mes
 1. **Check error_type**: Categorize as transient vs. permanent
 2. **Review service logs**: Query Loki for context around `failed_at` timestamp
    ```
-   {container="parsing"} |= "archive_id_here" 
+   {container="parsing"} |= "archive_id_here"
    ```
 3. **Check upstream data**: Verify source data integrity (archives, chunks, etc.)
 4. **Reproduce locally**: Use message payload to replay processing
@@ -266,9 +266,9 @@ Access: http://localhost:8080/grafana/ → **Dashboards** → **Failed Queues**
 {container="parsing"} | json | error_type="NetworkTimeout"
 
 # Failed messages in time range
-{container="embedding"} 
-  |= "EmbeddingGenerationFailed" 
-  | json 
+{container="embedding"}
+  |= "EmbeddingGenerationFailed"
+  | json
   | line_format "{{.failed_at}} {{.error_message}}"
 ```
 

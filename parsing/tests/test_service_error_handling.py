@@ -176,7 +176,7 @@ def test_store_threads_transient_errors_are_reraised(caplog):
         pass
 
     store = FakeDocumentStore({
-        "threads": [TransientError("db down")] 
+        "threads": [TransientError("db down")]
     })
     service = make_service_with_store(store)
 

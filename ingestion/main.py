@@ -45,7 +45,7 @@ base_document_store = None
 
 class _ConfigWithSources:
     """Wrapper that adds sources to the loaded config without modifying it."""
-    
+
     def __init__(self, base_config: object, sources: list):
         self._base_config = base_config
         self.sources = sources
@@ -58,7 +58,7 @@ class _ConfigWithSources:
             raise AttributeError(
                 f"Cannot modify configuration. '{name}' is read-only."
             )
-    
+
     def __getattr__(self, name: str) -> object:
         if name in ("_base_config", "sources"):
             return object.__getattribute__(self, name)
@@ -75,9 +75,9 @@ def root():
 def health():
     """Health check endpoint."""
     global ingestion_service, scheduler
-    
+
     stats = ingestion_service.get_stats() if ingestion_service is not None else {}
-    
+
     return {
         "status": "healthy",
         "service": "ingestion",
@@ -94,12 +94,12 @@ def signal_handler(signum, frame):
     """Handle shutdown signals."""
     global scheduler, base_publisher, base_document_store
     logger = bootstrap_logger
-    
+
     logger.info("Received shutdown signal", signal=signum)
-    
+
     if scheduler:
         scheduler.stop()
-    
+
     # Cleanup resources
     if base_publisher:
         try:
@@ -107,28 +107,28 @@ def signal_handler(signum, frame):
             logger.info("Publisher disconnected")
         except Exception as e:
             logger.warning("Failed to disconnect publisher", error=str(e))
-    
+
     if base_document_store:
         try:
             base_document_store.disconnect()
             logger.info("Document store disconnected")
         except Exception as e:
             logger.warning("Failed to disconnect document store", error=str(e))
-    
+
     sys.exit(0)
 
 
 def main():
     """Main entry point for the ingestion service."""
     global ingestion_service, scheduler, base_publisher, base_document_store
-    
+
     log = bootstrap_logger
     log.info("Starting Ingestion Service (continuous mode)", version=__version__)
 
     try:
         # Load configuration using adapter (env + defaults validated by schema)
         config = load_typed_config("ingestion")
-        
+
         # Conditionally add JWT authentication middleware based on config
         if getattr(config, 'jwt_auth_enabled', True):
             log.info("JWT authentication is enabled")
@@ -146,7 +146,7 @@ def main():
                 log.warning("copilot_auth module not available - JWT authentication disabled")
         else:
             log.warning("JWT authentication is DISABLED - all endpoints are public")
-        
+
         # Load sources from document store (storage-backed config)
         sources = []
         try:
@@ -160,10 +160,10 @@ def main():
                 password=config.doc_store_password,
             )
             temp_store.connect()
-            
+
             doc_store_provider = DocStoreConfigProvider(temp_store)
             sources = doc_store_provider.query_documents_from_collection("sources") or []
-            
+
             temp_store.disconnect()
             log.info(
                 "Sources loaded from document store",
@@ -323,7 +323,7 @@ def main():
         # Mount API routes
         api_router = create_api_router(ingestion_service, log)
         app.include_router(api_router)
-        
+
         log.info("API routes configured")
 
         # Create and start scheduler for periodic ingestion
@@ -334,7 +334,7 @@ def main():
             logger=log,
         )
         scheduler.start()
-        
+
         log.info(
             "Ingestion scheduler configured and started",
             interval_seconds=schedule_interval,
@@ -348,7 +348,7 @@ def main():
         http_port = int(os.getenv("HTTP_PORT", "8080"))
         http_host = os.getenv("HTTP_HOST", "127.0.0.1")
         log.info(f"Starting HTTP server on {http_host}:{http_port}...")
-        
+
         # Configure Uvicorn with structured JSON logging
         log_config = create_uvicorn_log_config(service_name="ingestion", log_level=config.log_level)
         uvicorn.run(app, host=http_host, port=http_port, log_config=log_config)

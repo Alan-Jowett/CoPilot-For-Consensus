@@ -34,7 +34,7 @@ class AzureServiceBusPublisher(EventPublisher):
         use_managed_identity: bool = False,
     ):
         """Initialize Azure Service Bus publisher.
-        
+
         Args:
             connection_string: Azure Service Bus connection string
             fully_qualified_namespace: Namespace hostname (e.g., "namespace.servicebus.windows.net")
@@ -42,7 +42,7 @@ class AzureServiceBusPublisher(EventPublisher):
             queue_name: Default queue name (for queue-based messaging)
             topic_name: Default topic name (for topic/subscription-based messaging)
             use_managed_identity: Use Azure managed identity for authentication
-            
+
         Raises:
             ValueError: If neither connection_string nor fully_qualified_namespace is provided
             ValueError: If use_managed_identity is True but fully_qualified_namespace is not provided
@@ -51,34 +51,34 @@ class AzureServiceBusPublisher(EventPublisher):
             raise ValueError(
                 "Either connection_string or fully_qualified_namespace must be provided"
             )
-        
+
         if use_managed_identity and not fully_qualified_namespace:
             raise ValueError(
                 "fully_qualified_namespace is required when using managed identity"
             )
-        
+
         self.connection_string = connection_string
         self.fully_qualified_namespace = fully_qualified_namespace
         self.queue_name = queue_name
         self.topic_name = topic_name
         self.use_managed_identity = use_managed_identity
-        
+
         self.client: Optional[ServiceBusClient] = None
         self._credential = None
 
     def connect(self) -> None:
         """Connect to Azure Service Bus.
-        
+
         Raises:
             ImportError: If azure-servicebus or azure-identity library is not installed
             Exception: If connection fails
         """
         if ServiceBusClient is None:
             raise ImportError("azure-servicebus library is not installed")
-        
+
         if self.use_managed_identity and DefaultAzureCredential is None:
             raise ImportError("azure-identity library is not installed")
-        
+
         try:
             if self.use_managed_identity:
                 logger.info("Connecting to Azure Service Bus using managed identity")
@@ -92,9 +92,9 @@ class AzureServiceBusPublisher(EventPublisher):
                 self.client = ServiceBusClient.from_connection_string(
                     conn_str=self.connection_string
                 )
-            
+
             logger.info("Connected to Azure Service Bus")
-            
+
         except Exception as e:
             logger.error(f"Failed to connect to Azure Service Bus: {e}")
             raise
@@ -113,43 +113,43 @@ class AzureServiceBusPublisher(EventPublisher):
         self, exchange: str, routing_key: str
     ) -> Tuple[Optional[str], Optional[str]]:
         """Determine the target queue or topic for publishing.
-        
+
         Topic takes precedence over queue. If both queue_name and topic_name
         are configured, the topic is used. Otherwise, the exchange parameter
         is used as the topic name, or the routing_key is used as the queue name.
-        
+
         Args:
             exchange: Exchange name (used as topic name if topic_name not set)
             routing_key: Routing key (used as queue name if queue_name not set)
-            
+
         Returns:
             Tuple of (topic_name, queue_name). One will be None.
         """
         # Topic takes precedence if topic_name is configured
         if self.topic_name:
             return (self.topic_name, None)
-        
+
         # If queue_name is configured, use it
         if self.queue_name:
             return (None, self.queue_name)
-        
+
         # Fall back to using exchange as topic or routing_key as queue
         # Prefer topic (exchange) over queue (routing_key) for consistency with RabbitMQ
         return (exchange, None)
 
     def publish(self, exchange: str, routing_key: str, event: Dict[str, Any]) -> None:
         """Publish an event to Azure Service Bus.
-        
+
         For Azure Service Bus compatibility:
         - exchange parameter maps to topic name (if topic_name is set)
         - routing_key parameter maps to queue name (if queue_name is set) or is used as message label
         - If both topic and queue are configured, topic takes precedence
-        
+
         Args:
             exchange: Exchange name (used as topic name if topic_name not set)
             routing_key: Routing key (used as queue name if queue_name not set, or as message label)
             event: Event data as dictionary
-            
+
         Raises:
             ConnectionError: If not connected to Azure Service Bus
             RuntimeError: If azure-servicebus library is not installed
@@ -160,33 +160,33 @@ class AzureServiceBusPublisher(EventPublisher):
             error_msg = "azure-servicebus library is not installed"
             logger.error(error_msg)
             raise RuntimeError(error_msg)
-        
+
         if not self.client:
             error_msg = "Not connected to Azure Service Bus"
             logger.error(error_msg)
             raise ConnectionError(error_msg)
-        
+
         try:
             # Serialize event to JSON
             message_body = json.dumps(event)
-            
+
             # Create Service Bus message with application properties for routing
             message = ServiceBusMessage(
                 body=message_body,
                 content_type="application/json",
                 subject=routing_key,  # Use subject for message filtering in subscriptions
             )
-            
+
             # Add custom properties for compatibility with event-driven patterns
             message.application_properties = {
                 "event_type": event.get("event_type", ""),
                 "routing_key": routing_key,
                 "exchange": exchange,
             }
-            
+
             # Determine target: topic or queue
             target_topic, target_queue = self._determine_publish_target(exchange, routing_key)
-            
+
             if target_topic:
                 # Publish to topic
                 with self.client.get_topic_sender(topic_name=target_topic) as sender:
@@ -206,7 +206,7 @@ class AzureServiceBusPublisher(EventPublisher):
                 error_msg = "No topic or queue configured for publishing"
                 logger.error(error_msg)
                 raise ValueError(error_msg)
-                
+
         except Exception as e:
             # Check if it's a ServiceBusError (if the module is available)
             if ServiceBusError and isinstance(e, ServiceBusError):

@@ -61,7 +61,7 @@ export async function searchUsers(
 Enhanced UI with:
 - **Search Type Dropdown**: Select between Email, Name, or User ID
 - **Dynamic Label**: Input label changes based on selected search type
-- **Multiple Results Handling**: 
+- **Multiple Results Handling**:
   - Single result: Display directly
   - Multiple results: Show clickable list to select user
   - No results: Display helpful message

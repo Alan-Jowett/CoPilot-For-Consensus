@@ -16,12 +16,12 @@ from uuid import uuid4
 @dataclass
 class BaseEvent:
     """Base class for all event types.
-    
+
     All events follow the event envelope format with common fields.
     Subclasses set event_type to their specific event name.
-    
+
     Schema: documents/schemas/events/event-envelope.schema.json
-    
+
     Attributes:
         event_type: Type of event (set by subclass)
         event_id: Unique event identifier (UUID)
@@ -44,7 +44,7 @@ class BaseEvent:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert event to dictionary for serialization.
-        
+
         Returns:
             Dictionary representation of the event
         """
@@ -64,13 +64,13 @@ class BaseEvent:
 @dataclass
 class ArchiveIngestedEvent(BaseEvent):
     """Event published when an archive is successfully ingested.
-    
+
     Schema: documents/schemas/events/ArchiveIngested.schema.json
-    
+
     Published by: Ingestion Service
     Consumed by: Parsing Service
     Routing Key: archive.ingested
-    
+
     Data fields:
         archive_id: Unique identifier for the archive
         source_name: Source identifier (e.g., "ietf-quic")
@@ -88,12 +88,12 @@ class ArchiveIngestedEvent(BaseEvent):
 @dataclass
 class ArchiveIngestionFailedEvent(BaseEvent):
     """Event published when archive ingestion fails.
-    
+
     Schema: documents/schemas/events/ArchiveIngestionFailed.schema.json
-    
+
     Published by: Ingestion Service
     Routing Key: archive.ingestion.failed
-    
+
     Data fields:
         source_name: Source identifier
         source_type: Archive source type
@@ -115,13 +115,13 @@ class ArchiveIngestionFailedEvent(BaseEvent):
 @dataclass
 class JSONParsedEvent(BaseEvent):
     """Event published when an archive has been successfully parsed.
-    
+
     Schema: documents/schemas/events/JSONParsed.schema.json
-    
+
     Published by: Parsing Service
     Consumed by: Chunking Service, Orchestration Service
     Routing Key: json.parsed
-    
+
     Data fields:
         archive_id: Archive that was parsed (archives._id)
         message_count: Number of messages parsed
@@ -136,12 +136,12 @@ class JSONParsedEvent(BaseEvent):
 @dataclass
 class ParsingFailedEvent(BaseEvent):
     """Event published when archive parsing fails.
-    
+
     Schema: documents/schemas/events/ParsingFailed.schema.json
-    
+
     Published by: Parsing Service
     Routing Key: parsing.failed
-    
+
     Data fields:
         archive_id: Archive that failed to parse
         file_path: Path to the archive file
@@ -161,13 +161,13 @@ class ParsingFailedEvent(BaseEvent):
 @dataclass
 class ChunksPreparedEvent(BaseEvent):
     """Event published when messages have been chunked.
-    
+
     Schema: documents/schemas/events/ChunksPrepared.schema.json
-    
+
     Published by: Chunking Service
     Consumed by: Embedding Service
     Routing Key: chunks.prepared
-    
+
     Data fields:
         message_doc_ids: Message document identifiers chunked (messages._id)
         chunk_count: Total number of chunks created
@@ -182,12 +182,12 @@ class ChunksPreparedEvent(BaseEvent):
 @dataclass
 class ChunkingFailedEvent(BaseEvent):
     """Event published when chunking fails.
-    
+
     Schema: documents/schemas/events/ChunkingFailed.schema.json
-    
+
     Published by: Chunking Service
     Routing Key: chunks.failed
-    
+
     Data fields:
         message_doc_ids: Message document identifiers that failed (messages._id)
         error_message: Human-readable error description
@@ -205,13 +205,13 @@ class ChunkingFailedEvent(BaseEvent):
 @dataclass
 class EmbeddingsGeneratedEvent(BaseEvent):
     """Event published when embeddings have been generated.
-    
+
     Schema: documents/schemas/events/EmbeddingsGenerated.schema.json
-    
+
     Published by: Embedding Service
     Consumed by: Orchestration Service
     Routing Key: embeddings.generated
-    
+
     Data fields:
         chunk_ids: Chunk document identifiers embedded (chunks._id)
         embedding_count: Number of embeddings generated
@@ -228,12 +228,12 @@ class EmbeddingsGeneratedEvent(BaseEvent):
 @dataclass
 class EmbeddingGenerationFailedEvent(BaseEvent):
     """Event published when embedding generation fails.
-    
+
     Schema: documents/schemas/events/EmbeddingGenerationFailed.schema.json
-    
+
     Published by: Embedding Service
     Routing Key: embeddings.failed
-    
+
     Data fields:
         chunk_ids: Chunks that failed to be embedded
         error_message: Human-readable error description
@@ -252,13 +252,13 @@ class EmbeddingGenerationFailedEvent(BaseEvent):
 @dataclass
 class SummarizationRequestedEvent(BaseEvent):
     """Event published when summarization is requested.
-    
+
     Schema: documents/schemas/events/SummarizationRequested.schema.json
-    
+
     Published by: Orchestration Service
     Consumed by: Summarization Service
     Routing Key: summarization.requested
-    
+
     Data fields:
         thread_ids: Thread identifiers to summarize (threads._id)
         top_k: Number of top relevant chunks to retrieve
@@ -273,12 +273,12 @@ class SummarizationRequestedEvent(BaseEvent):
 @dataclass
 class OrchestrationFailedEvent(BaseEvent):
     """Event published when orchestration fails.
-    
+
     Schema: documents/schemas/events/OrchestrationFailed.schema.json
-    
+
     Published by: Orchestration Service
     Routing Key: orchestration.failed
-    
+
     Data fields:
         thread_ids: Threads that failed (threads._id)
         error_type: Error classification
@@ -295,13 +295,13 @@ class OrchestrationFailedEvent(BaseEvent):
 @dataclass
 class SummaryCompleteEvent(BaseEvent):
     """Event published when a summary has been generated.
-    
+
     Schema: documents/schemas/events/SummaryComplete.schema.json
-    
+
     Published by: Summarization Service
     Consumed by: Reporting Service
     Routing Key: summary.complete
-    
+
     Data fields:
         summary_id: Summary identifier (summaries._id)
         thread_id: Thread that was summarized (threads._id)
@@ -319,12 +319,12 @@ class SummaryCompleteEvent(BaseEvent):
 @dataclass
 class SummarizationFailedEvent(BaseEvent):
     """Event published when summarization fails.
-    
+
     Schema: documents/schemas/events/SummarizationFailed.schema.json
-    
+
     Published by: Summarization Service
     Routing Key: summarization.failed
-    
+
     Data fields:
         thread_id: Thread that failed summarization (threads._id)
         error_type: Error classification (e.g., "LLMTimeout")
@@ -341,12 +341,12 @@ class SummarizationFailedEvent(BaseEvent):
 @dataclass
 class ReportPublishedEvent(BaseEvent):
     """Event published when a report is published.
-    
+
     Schema: documents/schemas/events/ReportPublished.schema.json
-    
+
     Published by: Reporting Service
     Routing Key: report.published
-    
+
     Data fields:
         thread_id: Thread the report is for (threads._id)
         report_id: Unique report identifier
@@ -361,12 +361,12 @@ class ReportPublishedEvent(BaseEvent):
 @dataclass
 class ReportDeliveryFailedEvent(BaseEvent):
     """Event published when report delivery fails.
-    
+
     Schema: documents/schemas/events/ReportDeliveryFailed.schema.json
-    
+
     Published by: Reporting Service
     Routing Key: report.delivery_failed
-    
+
     Data fields:
         report_id: Report that failed delivery
         thread_id: Associated thread (threads._id)
@@ -385,10 +385,10 @@ class ReportDeliveryFailedEvent(BaseEvent):
 @dataclass
 class ArchiveMetadata:
     """Metadata for an archived file during ingestion.
-    
+
     This is an internal data model used by the Ingestion Service to track
     information about ingested archives.
-    
+
     Attributes:
         archive_id: Unique identifier for the archive
         source_name: Source identifier (e.g., "ietf-quic")
@@ -414,7 +414,7 @@ class ArchiveMetadata:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert metadata to dictionary.
-        
+
         Returns:
             Dictionary representation of metadata
         """

@@ -13,7 +13,7 @@ This directory contains examples demonstrating the validation tools and patterns
 
 Demonstrates how to use Pydantic for runtime validation of:
 - Message bus event payloads
-- API request/response bodies  
+- API request/response bodies
 - Configuration files
 - External API responses
 

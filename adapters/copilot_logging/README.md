@@ -199,23 +199,23 @@ from copilot_logging import create_logger
 
 def test_my_function():
     logger = create_logger(logger_type="silent")
-    
+
     # Your code that logs
     my_function(logger)
-    
+
     # Verify logging behavior
     assert logger.has_log("Expected message")
     assert len(logger.get_logs(level="ERROR")) == 0
-    
+
     # Get specific logs
     info_logs = logger.get_logs(level="INFO")
     assert len(info_logs) == 2
-    
+
     # Check for specific log with extra data
     logs = logger.get_logs()
     assert any(
-        log["message"] == "User login" and 
-        log["extra"]["user_id"] == 123 
+        log["message"] == "User login" and
+        log["extra"]["user_id"] == 123
         for log in logs
     )
 ```
@@ -257,9 +257,9 @@ def main():
         level=os.getenv("LOG_LEVEL", "INFO"),
         name="ingestion-service"
     )
-    
+
     logger.info("Starting service", version="1.0.0")
-    
+
     try:
         # Your service logic
         process_data(logger)
@@ -300,11 +300,11 @@ def health():
 
 def main():
     logger.info("Starting FastAPI server on port 8000")
-    
+
     # Configure Uvicorn with structured JSON logging
     # Health check logs will be at DEBUG level
     log_config = create_uvicorn_log_config(service_name="parsing", log_level="INFO")
-    
+
     # Start server with custom log configuration
     uvicorn.run(app, host="0.0.0.0", port=8000, log_config=log_config)
 

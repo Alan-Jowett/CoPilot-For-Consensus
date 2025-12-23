@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class RabbitMQSubscriber(EventSubscriber):
     """RabbitMQ implementation of EventSubscriber.
-    
+
     Subscribes to events from a RabbitMQ exchange and dispatches them
     to registered callbacks based on event type.
     """
@@ -34,7 +34,7 @@ class RabbitMQSubscriber(EventSubscriber):
         auto_ack: bool = False,
     ):
         """Initialize RabbitMQ subscriber.
-        
+
         Args:
             host: RabbitMQ server hostname
             port: RabbitMQ server port
@@ -55,7 +55,7 @@ class RabbitMQSubscriber(EventSubscriber):
         self.queue_name = queue_name
         self.queue_durable = queue_durable
         self.auto_ack = auto_ack
-        
+
         self.connection = None
         self.channel = None
         self.callbacks: Dict[str, Callable[[Dict[str, Any]], None]] = {}
@@ -63,30 +63,30 @@ class RabbitMQSubscriber(EventSubscriber):
 
     def connect(self) -> None:
         """Connect to RabbitMQ server.
-        
+
         Raises:
             ImportError: If pika library is not installed
             Exception: If connection or setup fails
         """
         import pika
-        
+
         credentials = pika.PlainCredentials(self.username, self.password)
         parameters = pika.ConnectionParameters(
             host=self.host,
             port=self.port,
             credentials=credentials
         )
-        
+
         self.connection = pika.BlockingConnection(parameters)
         self.channel = self.connection.channel()
-        
+
         # Declare exchange
         self.channel.exchange_declare(
             exchange=self.exchange_name,
             exchange_type=self.exchange_type,
             durable=True
         )
-        
+
         # Declare queue
         if self.queue_name:
             # Named queue - must be durable with correct persistence flags
@@ -103,7 +103,7 @@ class RabbitMQSubscriber(EventSubscriber):
                 exclusive=True
             )
             self.queue_name = result.method.queue
-        
+
         logger.info(
             f"Connected to RabbitMQ: {self.host}:{self.port}, "
             f"exchange={self.exchange_name}, queue={self.queue_name}"
@@ -126,7 +126,7 @@ class RabbitMQSubscriber(EventSubscriber):
         exchange: str = None,
     ) -> None:
         """Subscribe to events of a specific type.
-        
+
         Args:
             event_type: Type of event to subscribe to
             callback: Function to call when an event is received
@@ -134,15 +134,15 @@ class RabbitMQSubscriber(EventSubscriber):
         """
         if not self.channel:
             raise RuntimeError("Not connected. Call connect() first.")
-        
+
         # Register callback
         self.callbacks[event_type] = callback
-        
+
         # Determine routing key
         if routing_key is None:
             # Convert event_type to routing key (e.g., "ArchiveIngested" -> "archive.ingested")
             routing_key = self._event_type_to_routing_key(event_type)
-        
+
         # Choose exchange (allow override for compatibility/testing)
         target_exchange = exchange or self.exchange_name
 
@@ -152,7 +152,7 @@ class RabbitMQSubscriber(EventSubscriber):
             queue=self.queue_name,
             routing_key=routing_key
         )
-        
+
         logger.info(
             f"Subscribed to {event_type} events on exchange {target_exchange} "
             f"with routing key: {routing_key}"
@@ -160,7 +160,7 @@ class RabbitMQSubscriber(EventSubscriber):
 
     def start_consuming(self) -> None:
         """Start consuming events from the queue.
-        
+
         Raises:
             RuntimeError: If not connected to RabbitMQ
             AssertionError: Re-raised for non-transport-related assertions
@@ -168,16 +168,16 @@ class RabbitMQSubscriber(EventSubscriber):
         """
         if not self.channel:
             raise RuntimeError("Not connected. Call connect() first.")
-        
+
         self.channel.basic_consume(
             queue=self.queue_name,
             on_message_callback=self._on_message,
             auto_ack=self.auto_ack
         )
-        
+
         self._consuming = True
         logger.info("Started consuming events")
-        
+
         try:
             self.channel.start_consuming()
         except KeyboardInterrupt:
@@ -203,7 +203,7 @@ class RabbitMQSubscriber(EventSubscriber):
 
     def stop_consuming(self) -> None:
         """Stop consuming events gracefully.
-        
+
         Handles potential exceptions during stop to prevent
         shutdown race conditions.
         """
@@ -226,7 +226,7 @@ class RabbitMQSubscriber(EventSubscriber):
 
     def _on_message(self, channel, method, properties, body) -> None:
         """Handle incoming message from RabbitMQ.
-        
+
         Args:
             channel: Channel object
             method: Method frame with delivery info
@@ -237,19 +237,19 @@ class RabbitMQSubscriber(EventSubscriber):
             # Decode and parse message
             message_str = body.decode('utf-8')
             event = json.loads(message_str)
-            
+
             # Extract event type
             event_type = event.get('event_type')
-            
+
             if not event_type:
                 logger.warning("Received event without event_type field")
                 if not self.auto_ack:
                     channel.basic_ack(delivery_tag=method.delivery_tag)
                 return
-            
+
             # Find and call registered callback
             callback = self.callbacks.get(event_type)
-            
+
             if callback:
                 try:
                     callback(event)
@@ -265,11 +265,11 @@ class RabbitMQSubscriber(EventSubscriber):
                     return
             else:
                 logger.debug(f"No callback registered for {event_type}")
-            
+
             # Acknowledge message if not auto-ack
             if not self.auto_ack:
                 channel.basic_ack(delivery_tag=method.delivery_tag)
-                
+
         except json.JSONDecodeError as e:
             logger.error(f"Failed to decode event JSON: {e}")
             # Ack malformed messages so they don't block the queue
@@ -285,10 +285,10 @@ class RabbitMQSubscriber(EventSubscriber):
 
     def _event_type_to_routing_key(self, event_type: str) -> str:
         """Convert event type to routing key.
-        
+
         Args:
             event_type: Event type in PascalCase (e.g., "ArchiveIngested")
-            
+
         Returns:
             Routing key in dot notation (e.g., "archive.ingested")
         """

@@ -30,7 +30,7 @@ class MessageParser:
         draft_detector: Optional[DraftDetector] = None,
     ):
         """Initialize message parser.
-        
+
         Args:
             normalizer: Text normalizer instance (creates default if None)
             draft_detector: Draft detector instance (creates default if None)
@@ -40,14 +40,14 @@ class MessageParser:
 
     def parse_mbox(self, mbox_path: str, archive_id: str) -> List[Dict[str, Any]]:
         """Parse an mbox file and extract all messages.
-        
+
         Args:
             mbox_path: Path to the mbox file
             archive_id: Archive identifier for tracking
-            
+
         Returns:
             List of parsed message dictionaries
-            
+
         Raises:
             MboxFileError: If the mbox file cannot be opened or read
             MessageParsingError: If critical parsing errors occur (aggregated)
@@ -57,7 +57,7 @@ class MessageParser:
 
         try:
             mbox = mailbox.mbox(mbox_path)
-            
+
             for idx, message in enumerate(mbox):
                 try:
                     parsed = self.parse_message(message, archive_id)
@@ -74,9 +74,9 @@ class MessageParser:
                     logger.warning(error_msg)
                     errors.append(error_msg)
                     continue
-            
+
             logger.info(f"Parsed {len(parsed_messages)} messages from {mbox_path}")
-            
+
             # If we have messages but also errors, just log warnings (already done above)
             # If we have NO messages and errors, that might indicate a serious problem
             if not parsed_messages and errors:
@@ -84,7 +84,7 @@ class MessageParser:
                 raise MessageParsingError(
                     f"Failed to parse any messages from {mbox_path}. Errors: {'; '.join(errors[:5])}"
                 )
-            
+
         except MessageParsingError:
             # Re-raise message parsing errors
             raise
@@ -93,19 +93,19 @@ class MessageParser:
             error_msg = f"Failed to open or read mbox file {mbox_path}: {str(e)}"
             logger.error(error_msg)
             raise MboxFileError(error_msg, file_path=mbox_path) from e
-        
+
         return parsed_messages
 
     def parse_message(self, message: email.message.Message, archive_id: str) -> Dict[str, Any]:
         """Parse a single email message.
-        
+
         Args:
             message: Email message object
             archive_id: Archive identifier
-            
+
         Returns:
             Parsed message dictionary
-            
+
         Raises:
             RequiredFieldMissingError: If Message-ID header is missing
         """
@@ -119,23 +119,23 @@ class MessageParser:
         references = self._parse_references(message.get("References", ""))
         subject = self._decode_header(message.get("Subject", ""))
         date = self._parse_date(message.get("Date"))
-        
+
         # Extract addresses
         from_addr = self._parse_address(message.get("From", ""))
         to_addrs = self._parse_address_list(message.get("To", ""))
         cc_addrs = self._parse_address_list(message.get("CC", ""))
-        
+
         # Extract body
         body_raw = self._extract_body(message)
         body_normalized = self.normalizer.normalize(body_raw)
-        
+
         # Detect draft mentions
         draft_mentions = self.draft_detector.detect(body_normalized)
-        
+
         # Determine thread_id (use in_reply_to if available, otherwise message_id)
         # This will be refined later by thread_builder
         thread_id = in_reply_to if in_reply_to else message_id
-        
+
         # Build parsed message
         parsed = {
             "message_id": message_id,
@@ -154,15 +154,15 @@ class MessageParser:
             "draft_mentions": draft_mentions,
             "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
-        
+
         return parsed
 
     def _extract_message_id(self, message: email.message.Message) -> Optional[str]:
         """Extract and clean Message-ID header.
-        
+
         Args:
             message: Email message
-            
+
         Returns:
             Clean message ID without angle brackets, or None if missing
         """
@@ -174,10 +174,10 @@ class MessageParser:
 
     def _extract_in_reply_to(self, message: email.message.Message) -> Optional[str]:
         """Extract In-Reply-To header.
-        
+
         Args:
             message: Email message
-            
+
         Returns:
             Clean in-reply-to ID or None
         """
@@ -188,32 +188,32 @@ class MessageParser:
 
     def _parse_references(self, references_str: str) -> List[str]:
         """Parse References header into list of message IDs.
-        
+
         Args:
             references_str: References header value
-            
+
         Returns:
             List of message IDs
         """
         if not references_str:
             return []
-        
+
         # Split on whitespace and remove angle brackets
         refs = references_str.split()
         return [ref.strip("<>") for ref in refs if ref]
 
     def _decode_header(self, header_value: str) -> str:
         """Decode email header value.
-        
+
         Args:
             header_value: Raw header value
-            
+
         Returns:
             Decoded header string
         """
         if not header_value:
             return ""
-        
+
         try:
             decoded_parts = email.header.decode_header(header_value)
             parts = []
@@ -229,16 +229,16 @@ class MessageParser:
 
     def _parse_date(self, date_str: Optional[str]) -> Optional[str]:
         """Parse email date header to ISO 8601 format.
-        
+
         Args:
             date_str: Date header value
-            
+
         Returns:
             ISO 8601 formatted date string or None
         """
         if not date_str:
             return None
-        
+
         try:
             dt = parsedate_to_datetime(date_str)
             # Convert to UTC and format as ISO 8601
@@ -250,21 +250,21 @@ class MessageParser:
 
     def _parse_address(self, addr_str: str) -> Optional[Dict[str, str]]:
         """Parse email address.
-        
+
         Args:
             addr_str: Email address string (e.g., "Name <email@example.com>")
-            
+
         Returns:
             Dictionary with 'name' and 'email' keys, or None if invalid
         """
         if not addr_str:
             return None
-        
+
         try:
             # Decode the address string first
             addr_str = self._decode_header(addr_str)
             name, email_addr = parseaddr(addr_str)
-            
+
             if email_addr:
                 return {
                     "name": name or "",
@@ -272,46 +272,46 @@ class MessageParser:
                 }
         except Exception as e:
             logger.debug(f"Failed to parse address '{addr_str}': {e}")
-        
+
         return None
 
     def _parse_address_list(self, addr_list_str: str) -> List[Dict[str, str]]:
         """Parse comma-separated list of email addresses.
-        
+
         Args:
             addr_list_str: Comma-separated email addresses
-            
+
         Returns:
             List of address dictionaries
         """
         if not addr_list_str:
             return []
-        
+
         addresses = []
         # Split on commas, but be careful with commas in quoted names
         for addr_str in addr_list_str.split(','):
             addr = self._parse_address(addr_str.strip())
             if addr:
                 addresses.append(addr)
-        
+
         return addresses
 
     def _extract_body(self, message: email.message.Message) -> str:
         """Extract body text from email message.
-        
+
         Args:
             message: Email message
-            
+
         Returns:
             Body text (plain text preferred, HTML as fallback)
         """
         body = ""
-        
+
         if message.is_multipart():
             # Prefer plain text over HTML
             for part in message.walk():
                 content_type = part.get_content_type()
-                
+
                 if content_type == "text/plain":
                     try:
                         payload = part.get_payload(decode=True)
@@ -321,12 +321,12 @@ class MessageParser:
                             break
                     except Exception as e:
                         logger.debug(f"Failed to decode text/plain part: {e}")
-            
+
             # If no plain text found, try HTML
             if not body:
                 for part in message.walk():
                     content_type = part.get_content_type()
-                    
+
                     if content_type == "text/html":
                         try:
                             payload = part.get_payload(decode=True)
@@ -349,20 +349,20 @@ class MessageParser:
             except Exception as e:
                 logger.debug(f"Failed to decode message body: {e}")
                 body = str(message.get_payload())
-        
+
         return body
 
     def _extract_extra_headers(self, message: email.message.Message) -> Dict[str, str]:
         """Extract additional headers for metadata.
-        
+
         Args:
             message: Email message
-            
+
         Returns:
             Dictionary of extra headers
         """
         headers = {}
-        
+
         # Headers we want to preserve
         preserve_headers = [
             "X-Mailer",
@@ -373,10 +373,10 @@ class MessageParser:
             "X-Priority",
             "Importance",
         ]
-        
+
         for header in preserve_headers:
             value = message.get(header)
             if value:
                 headers[header.lower()] = self._decode_header(value)
-        
+
         return headers

@@ -37,12 +37,12 @@ def load_compose_config():
 def check_port_binding(service_name, ports, expected_binding):
     """
     Check if service ports match expected binding
-    
+
     Args:
         service_name: Name of the service
         ports: Port configuration from docker-compose
         expected_binding: Expected binding ('public', 'localhost', or 'none')
-    
+
     Returns:
         tuple: (passed, message)
     """
@@ -51,13 +51,13 @@ def check_port_binding(service_name, ports, expected_binding):
             return (True, f"✓ {service_name}: No port mappings (internal-only)")
         else:
             return (False, f"✗ {service_name}: Expected no ports, but found {ports}")
-    
+
     if ports is None or len(ports) == 0:
         return (False, f"✗ {service_name}: Expected ports but none found")
-    
+
     all_correct = True
     messages = []
-    
+
     for port_spec in ports:
         # Parse port specification
         # Format can be "8080:8080", "127.0.0.1:8080:8080", or object with 'published' and 'target'
@@ -77,7 +77,7 @@ def check_port_binding(service_name, ports, expected_binding):
                 messages.append(f"  ⚠ {service_name}: Invalid port format: {port_spec}")
                 all_correct = False
                 continue
-        
+
         # Check binding
         if expected_binding == 'public':
             if host_ip and host_ip != '0.0.0.0':
@@ -91,7 +91,7 @@ def check_port_binding(service_name, ports, expected_binding):
                 all_correct = False
             else:
                 messages.append(f"  ✓ {service_name}: Port {published} correctly bound to localhost")
-    
+
     if all_correct:
         return (True, f"✓ {service_name}: All ports correctly configured\n" + "\n".join(messages))
     else:
@@ -101,16 +101,16 @@ def check_port_binding(service_name, ports, expected_binding):
 def main():
     """Main test function"""
     print("Testing Docker Compose port exposure configuration...\n")
-    
+
     config = load_compose_config()
     services = config.get('services', {})
-    
+
     # Define expected port bindings for each service
     expectations = {
         # Public services (accessible from any interface)
         'grafana': 'public',
         'reporting': 'public',
-        
+
         # Localhost-only services (accessible only from host)
         'documentdb': 'localhost',
         'messagebus': 'localhost',
@@ -120,7 +120,7 @@ def main():
         'loki': 'localhost',
         'ingestion': 'localhost',
         'ui': 'localhost',
-        
+
         # Internal-only services (no port mappings)
         'pushgateway': 'none',
         'mongodb-exporter': 'none',
@@ -128,7 +128,7 @@ def main():
         'document-processing-exporter': 'none',
         'qdrant-exporter': 'none',
         'cadvisor': 'none',
-        
+
         # Processing services (no port mappings)
         'parsing': 'none',
         'chunking': 'none',
@@ -136,32 +136,32 @@ def main():
         'orchestrator': 'none',
         'summarization': 'none',
     }
-    
+
     passed = 0
     failed = 0
-    
+
     for service_name, expected_binding in expectations.items():
         if service_name not in services:
             print(f"⚠ {service_name}: Service not found in docker-compose.yml")
             continue
-        
+
         service_config = services[service_name]
         ports = service_config.get('ports', None)
-        
+
         success, message = check_port_binding(service_name, ports, expected_binding)
         print(message)
-        
+
         if success:
             passed += 1
         else:
             failed += 1
         print()
-    
+
     # Summary
     print("=" * 60)
     print(f"Results: {passed} passed, {failed} failed")
     print("=" * 60)
-    
+
     if failed > 0:
         print("\n✗ Some port binding tests failed")
         sys.exit(1)

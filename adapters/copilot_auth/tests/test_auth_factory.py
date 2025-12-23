@@ -19,7 +19,7 @@ class TestCreateIdentityProvider:
     def test_create_mock_provider(self):
         """Test creating a mock provider."""
         provider = create_identity_provider("mock")
-        
+
         assert isinstance(provider, MockIdentityProvider)
 
     def test_create_github_provider_with_parameters(self):
@@ -31,7 +31,7 @@ class TestCreateIdentityProvider:
             redirect_uri="https://auth.example.com/callback",
             api_base_url="https://api.github.com"
         )
-        
+
         assert isinstance(provider, GitHubIdentityProvider)
         assert provider.client_id == "test-client-id"
         assert provider.client_secret == "test-client-secret"
@@ -46,7 +46,7 @@ class TestCreateIdentityProvider:
             redirect_uri="https://auth.example.com/callback",
             api_base_url="https://github.enterprise.com/api"
         )
-        
+
         assert isinstance(provider, GitHubIdentityProvider)
         assert provider.api_base_url == "https://github.enterprise.com/api"
 
@@ -85,7 +85,7 @@ class TestCreateIdentityProvider:
         """Test that factory doesn't read from environment automatically."""
         monkeypatch.setenv("GITHUB_CLIENT_ID", "env-client-id")
         monkeypatch.setenv("GITHUB_CLIENT_SECRET", "env-client-secret")
-        
+
         # Should still raise error because parameters must be explicit
         with pytest.raises(ValueError, match="client_id parameter is required"):
             create_identity_provider("github")
@@ -94,7 +94,7 @@ class TestCreateIdentityProvider:
         """Test creating a GitHub provider without credentials raises error."""
         monkeypatch.delenv("GITHUB_CLIENT_ID", raising=False)
         monkeypatch.delenv("GITHUB_CLIENT_SECRET", raising=False)
-        
+
         with pytest.raises(ValueError, match="client_id parameter is required"):
             create_identity_provider("github", api_base_url="https://api.github.com")
 
@@ -104,7 +104,7 @@ class TestCreateIdentityProvider:
             "datatracker",
             api_base_url="https://datatracker.ietf.org/api"
         )
-        
+
         assert isinstance(provider, DatatrackerIdentityProvider)
         assert provider.api_base_url == "https://datatracker.ietf.org/api"
 
@@ -119,14 +119,14 @@ class TestCreateIdentityProvider:
             "datatracker",
             api_base_url="https://test.datatracker.ietf.org/api"
         )
-        
+
         assert isinstance(provider, DatatrackerIdentityProvider)
         assert provider.api_base_url == "https://test.datatracker.ietf.org/api"
 
     def test_create_datatracker_provider_from_environment(self, monkeypatch):
         """Test that factory doesn't read from environment automatically."""
         monkeypatch.setenv("DATATRACKER_API_BASE_URL", "https://custom.datatracker.ietf.org/api")
-        
+
         # Should still raise error because parameters must be explicit
         with pytest.raises(ValueError, match="api_base_url parameter is required"):
             create_identity_provider("datatracker")
@@ -139,7 +139,7 @@ class TestCreateIdentityProvider:
     def test_create_provider_with_default_from_environment(self, monkeypatch):
         """Test that factory doesn't read provider type from environment."""
         monkeypatch.setenv("IDENTITY_PROVIDER", "mock")
-        
+
         # Should still raise error because provider_type must be explicit
         with pytest.raises(ValueError, match="provider_type parameter is required"):
             create_identity_provider()
@@ -147,7 +147,7 @@ class TestCreateIdentityProvider:
     def test_create_provider_defaults_to_mock_without_environment(self, monkeypatch):
         """Test that provider_type parameter is required even without environment."""
         monkeypatch.delenv("IDENTITY_PROVIDER", raising=False)
-        
+
         with pytest.raises(ValueError, match="provider_type parameter is required"):
             create_identity_provider()
 
@@ -161,7 +161,7 @@ class TestCreateIdentityProvider:
         provider1 = create_identity_provider("MOCK")
         provider2 = create_identity_provider("Mock")
         provider3 = create_identity_provider("mock")
-        
+
         assert isinstance(provider1, MockIdentityProvider)
         assert isinstance(provider2, MockIdentityProvider)
         assert isinstance(provider3, MockIdentityProvider)

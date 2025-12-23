@@ -135,14 +135,14 @@ from copilot_consensus import create_consensus_detector
 class SummarizationService:
     def __init__(self):
         self.consensus_detector = create_consensus_detector()
-    
+
     def summarize_thread(self, thread):
         # Detect consensus
         consensus = self.consensus_detector.detect(thread)
-        
+
         # Use consensus information in summary
         summary = self._generate_summary(thread)
-        
+
         return {
             "summary": summary,
             "consensus_level": consensus.level.value,
@@ -167,10 +167,10 @@ def test_my_service():
         level=ConsensusLevel.STRONG_CONSENSUS,
         confidence=0.95
     )
-    
+
     service = MyService(consensus_detector=mock_detector)
     result = service.process_thread(thread)
-    
+
     assert result["consensus_level"] == "strong_consensus"
 ```
 
@@ -184,12 +184,12 @@ from copilot_consensus import ConsensusDetector, ConsensusSignal, ConsensusLevel
 class CustomConsensusDetector(ConsensusDetector):
     def __init__(self, custom_param):
         self.custom_param = custom_param
-    
+
     def detect(self, thread):
         # Implement your detection logic
         level = ConsensusLevel.CONSENSUS
         confidence = 0.8
-        
+
         return ConsensusSignal(
             level=level,
             confidence=confidence,

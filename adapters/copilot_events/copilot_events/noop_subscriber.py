@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class NoopSubscriber(EventSubscriber):
     """No-op implementation of EventSubscriber for testing.
-    
+
     Stores subscriptions and allows manual event injection for testing
     event handlers without requiring a real message bus.
     """
@@ -47,7 +47,7 @@ class NoopSubscriber(EventSubscriber):
         exchange: str = None,
     ) -> None:
         """Register a callback for an event type.
-        
+
         Args:
             event_type: Type of event to subscribe to
             callback: Function to call when event is received
@@ -60,10 +60,10 @@ class NoopSubscriber(EventSubscriber):
 
     def start_consuming(self) -> None:
         """Mark subscriber as consuming and block until stop_consuming() is called.
-        
+
         This mimics the blocking behavior of RabbitMQ subscriber. The thread will
         block here until stop_consuming() is called from another thread.
-        
+
         Note: NoopSubscriber doesn't actually consume from a queue. Use inject_event()
         to manually trigger callbacks for testing.
         """
@@ -84,22 +84,22 @@ class NoopSubscriber(EventSubscriber):
 
     def inject_event(self, event: Dict[str, Any]) -> None:
         """Manually inject an event to trigger callbacks.
-        
+
         This is useful for testing event handlers without a real message bus.
-        
+
         Args:
             event: Event dictionary with at least 'event_type' field
-            
+
         Raises:
             ValueError: If event doesn't have 'event_type' field
         """
         event_type = event.get('event_type')
-        
+
         if not event_type:
             raise ValueError("Event must have 'event_type' field")
-        
+
         callback = self.callbacks.get(event_type)
-        
+
         if callback:
             callback(event)
             logger.debug(f"NoopSubscriber injected {event_type} event")
@@ -108,7 +108,7 @@ class NoopSubscriber(EventSubscriber):
 
     def get_subscriptions(self) -> List[str]:
         """Get list of subscribed event types.
-        
+
         Returns:
             List of event types that have registered callbacks
         """

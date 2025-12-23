@@ -30,18 +30,18 @@ print_error() {
 # Function to check prerequisites
 check_prerequisites() {
     print_info "Checking prerequisites..."
-    
+
     if ! command -v az &> /dev/null; then
         print_error "Azure CLI is not installed. Please install from https://docs.microsoft.com/en-us/cli/azure/install-azure-cli"
         exit 1
     fi
-    
+
     # Check if logged in to Azure
     if ! az account show &> /dev/null; then
         print_error "Not logged in to Azure. Please run 'az login' first."
         exit 1
     fi
-    
+
     print_info "Prerequisites check passed."
 }
 
@@ -144,7 +144,7 @@ fi
 # Main deployment
 main() {
     check_prerequisites
-    
+
     print_info "Deployment Configuration:"
     print_info "  Resource Group: $RESOURCE_GROUP"
     print_info "  Location: $LOCATION"
@@ -152,7 +152,7 @@ main() {
     print_info "  Environment: $ENVIRONMENT"
     print_info "  Image Tag: $IMAGE_TAG"
     print_info "  Parameters File: $PARAMETERS_FILE"
-    
+
     # Create resource group if it doesn't exist
     print_info "Checking if resource group exists..."
     if ! az group show --name "$RESOURCE_GROUP" &> /dev/null; then
@@ -161,7 +161,7 @@ main() {
     else
         print_info "Resource group already exists: $RESOURCE_GROUP"
     fi
-    
+
     # Validate template
     print_info "Validating ARM template..."
     if ! az deployment group validate \
@@ -173,16 +173,16 @@ main() {
         exit 1
     fi
     print_info "Template validation passed."
-    
+
     if [ "$VALIDATE_ONLY" = true ]; then
         print_info "Validation complete. Skipping deployment (--validate-only specified)."
         exit 0
     fi
-    
+
     # Deploy template
     print_info "Starting deployment..."
     DEPLOYMENT_NAME="${PROJECT_NAME}-deployment-$(date +%Y%m%d-%H%M%S)"
-    
+
     # Deploy template
     # NOTE: Parameters specified on the command line override those in the parameters file.
     # This allows script arguments (projectName, environment, etc.) to take precedence.
@@ -192,16 +192,16 @@ main() {
         --template-file "$SCRIPT_DIR/azuredeploy.json" \
         --parameters "@$SCRIPT_DIR/$PARAMETERS_FILE" \
         --parameters projectName="$PROJECT_NAME" environment="$ENVIRONMENT" containerImageTag="$IMAGE_TAG" location="$LOCATION"; then
-        
+
         print_info "Deployment completed successfully!"
-        
+
         # Show deployment outputs
         print_info "Retrieving deployment outputs..."
         az deployment group show \
             --name "$DEPLOYMENT_NAME" \
             --resource-group "$RESOURCE_GROUP" \
             --query properties.outputs
-        
+
         print_info ""
         print_info "Next steps:"
         print_info "1. Verify the deployment in Azure Portal"

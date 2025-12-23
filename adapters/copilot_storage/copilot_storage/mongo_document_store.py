@@ -7,7 +7,7 @@ import logging
 from typing import Dict, Any, List, Optional
 
 from .document_store import (
-    DocumentStore, 
+    DocumentStore,
     DocumentStoreNotConnectedError,
     DocumentStoreConnectionError,
     DocumentNotFoundError,
@@ -30,7 +30,7 @@ class MongoDocumentStore(DocumentStore):
         **kwargs
     ):
         """Initialize MongoDB document store.
-        
+
         Args:
             host: MongoDB host
             port: MongoDB port
@@ -50,7 +50,7 @@ class MongoDocumentStore(DocumentStore):
 
     def connect(self) -> None:
         """Connect to MongoDB.
-        
+
         Raises:
             DocumentStoreConnectionError: If connection fails
         """
@@ -60,14 +60,14 @@ class MongoDocumentStore(DocumentStore):
         except ImportError as e:
             logger.error("MongoDocumentStore: pymongo not installed")
             raise DocumentStoreConnectionError("pymongo not installed") from e
-        
+
         try:
             # Build connection using separate auth parameters (more secure than URI)
             connection_params = {
                 "host": self.host,
                 "port": self.port,
             }
-            
+
             # Add authentication if provided
             if self.username and self.password:
                 connection_params["username"] = self.username
@@ -75,21 +75,21 @@ class MongoDocumentStore(DocumentStore):
                 # Use admin database for authentication by default if not specified
                 if "authSource" not in self.client_options:
                     connection_params["authSource"] = "admin"
-            
+
             # Merge additional client options
             connection_params.update(self.client_options)
-            
+
             # Create client with options
             self.client = MongoClient(**connection_params)
-            
+
             # Test connection
             self.client.admin.command('ping')
-            
+
             # Get database
             self.database = self.client[self.database_name]
-            
+
             logger.info("MongoDocumentStore: connected to %s:%s/%s", self.host, self.port, self.database_name)
-            
+
         except ConnectionFailure as e:
             logger.error("MongoDocumentStore: connection failed - %s", e, exc_info=True)
             raise DocumentStoreConnectionError(f"Failed to connect to MongoDB at {self.host}:{self.port}") from e
@@ -107,20 +107,20 @@ class MongoDocumentStore(DocumentStore):
 
     def insert_document(self, collection: str, doc: Dict[str, Any]) -> str:
         """Insert a document into the specified collection.
-        
+
         Args:
             collection: Name of the collection
             doc: Document data as dictionary
-            
+
         Returns:
             Document ID as string
-            
+
         Raises:
             DocumentStoreNotConnectedError: If not connected to MongoDB
         """
         if self.database is None:
             raise DocumentStoreNotConnectedError("Not connected to MongoDB")
-        
+
         try:
             coll = self.database[collection]
             result = coll.insert_one(doc)
@@ -133,46 +133,46 @@ class MongoDocumentStore(DocumentStore):
 
     def get_document(self, collection: str, doc_id: str) -> Optional[Dict[str, Any]]:
         """Retrieve a document by its ID.
-        
+
         Args:
             collection: Name of the collection
             doc_id: Document ID
-            
+
         Returns:
             Document data as dictionary, or None if not found
-            
+
         Raises:
             DocumentStoreNotConnectedError: If not connected to MongoDB
             DocumentStoreError: If query operation fails
         """
         if self.database is None:
             raise DocumentStoreNotConnectedError("Not connected to MongoDB")
-        
+
         try:
             from bson import ObjectId
             from bson.errors import InvalidId
-            
+
             coll = self.database[collection]
-            
+
             # Try to convert to ObjectId if possible
             try:
                 query = {"_id": ObjectId(doc_id)}
             except (TypeError, ValueError, InvalidId):
                 # Use as string if not a valid ObjectId
                 query = {"_id": doc_id}
-            
+
             doc = coll.find_one(query)
-            
+
             if doc:
                 # Convert ObjectId to string for serialization
                 if "_id" in doc:
                     doc["_id"] = str(doc["_id"])
                 logger.debug(f"MongoDocumentStore: retrieved document {doc_id} from {collection}")
                 return doc
-            
+
             logger.debug(f"MongoDocumentStore: document {doc_id} not found in {collection}")
             return None
-            
+
         except Exception as e:
             logger.error(f"MongoDocumentStore: get_document failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to retrieve document {doc_id} from {collection}") from e
@@ -181,39 +181,39 @@ class MongoDocumentStore(DocumentStore):
         self, collection: str, filter_dict: Dict[str, Any], limit: int = 100
     ) -> List[Dict[str, Any]]:
         """Query documents matching the filter criteria.
-        
+
         Args:
             collection: Name of the collection
             filter_dict: Filter criteria as dictionary (MongoDB query format)
             limit: Maximum number of documents to return
-            
+
         Returns:
             List of matching documents (empty list if no matches)
-            
+
         Raises:
             DocumentStoreNotConnectedError: If not connected to MongoDB
             DocumentStoreError: If query operation fails
         """
         if self.database is None:
             raise DocumentStoreNotConnectedError("Not connected to MongoDB")
-        
+
         try:
             coll = self.database[collection]
             cursor = coll.find(filter_dict).limit(limit)
-            
+
             results = []
             for doc in cursor:
                 # Convert ObjectId to string for serialization
                 if "_id" in doc:
                     doc["_id"] = str(doc["_id"])
                 results.append(doc)
-            
+
             logger.debug(
                 f"MongoDocumentStore: query on {collection} with {filter_dict} "
                 f"returned {len(results)} documents"
             )
             return results
-            
+
         except Exception as e:
             logger.error(f"MongoDocumentStore: query_documents failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to query documents from {collection}") from e
@@ -222,12 +222,12 @@ class MongoDocumentStore(DocumentStore):
         self, collection: str, doc_id: str, patch: Dict[str, Any]
     ) -> None:
         """Update a document with the provided patch.
-        
+
         Args:
             collection: Name of the collection
             doc_id: Document ID
             patch: Update data as dictionary
-            
+
         Raises:
             DocumentStoreNotConnectedError: If not connected to MongoDB
             DocumentNotFoundError: If document does not exist
@@ -235,28 +235,28 @@ class MongoDocumentStore(DocumentStore):
         """
         if self.database is None:
             raise DocumentStoreNotConnectedError("Not connected to MongoDB")
-        
+
         try:
             from bson import ObjectId
             from bson.errors import InvalidId
-            
+
             coll = self.database[collection]
-            
+
             # Try to convert to ObjectId if possible
             try:
                 query = {"_id": ObjectId(doc_id)}
             except (TypeError, ValueError, InvalidId):
                 query = {"_id": doc_id}
-            
+
             # Use $set operator for patch updates
             result = coll.update_one(query, {"$set": patch})
-            
+
             if result.matched_count == 0:
                 logger.debug(f"MongoDocumentStore: document {doc_id} not found in {collection}")
                 raise DocumentNotFoundError(f"Document {doc_id} not found in collection {collection}")
-            
+
             logger.debug(f"MongoDocumentStore: updated document {doc_id} in {collection}")
-            
+
         except (DocumentStoreNotConnectedError, DocumentNotFoundError):
             raise
         except Exception as e:
@@ -265,11 +265,11 @@ class MongoDocumentStore(DocumentStore):
 
     def delete_document(self, collection: str, doc_id: str) -> None:
         """Delete a document by its ID.
-        
+
         Args:
             collection: Name of the collection
             doc_id: Document ID
-            
+
         Raises:
             DocumentStoreNotConnectedError: If not connected to MongoDB
             DocumentNotFoundError: If document does not exist
@@ -277,27 +277,27 @@ class MongoDocumentStore(DocumentStore):
         """
         if self.database is None:
             raise DocumentStoreNotConnectedError("Not connected to MongoDB")
-        
+
         try:
             from bson import ObjectId
             from bson.errors import InvalidId
-            
+
             coll = self.database[collection]
-            
+
             # Try to convert to ObjectId if possible
             try:
                 query = {"_id": ObjectId(doc_id)}
             except (TypeError, ValueError, InvalidId):
                 query = {"_id": doc_id}
-            
+
             result = coll.delete_one(query)
-            
+
             if result.deleted_count == 0:
                 logger.debug(f"MongoDocumentStore: document {doc_id} not found in {collection}")
                 raise DocumentNotFoundError(f"Document {doc_id} not found in collection {collection}")
-            
+
             logger.debug(f"MongoDocumentStore: deleted document {doc_id} from {collection}")
-            
+
         except (DocumentStoreNotConnectedError, DocumentNotFoundError):
             raise
         except Exception as e:
@@ -308,53 +308,53 @@ class MongoDocumentStore(DocumentStore):
         self, collection: str, pipeline: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
         """Execute an aggregation pipeline on a collection.
-        
+
         **Note**: ObjectId values are recursively converted to strings for JSON
         serialization compatibility. This handles ObjectIds in nested documents
         (e.g., from $lookup stages).
-        
+
         Args:
             collection: Name of the collection
             pipeline: MongoDB aggregation pipeline (list of stage dictionaries)
-            
+
         Returns:
             List of aggregation results
-            
+
         Raises:
             DocumentStoreNotConnectedError: If not connected to MongoDB
             DocumentStoreError: If aggregation operation fails
         """
         if self.database is None:
             raise DocumentStoreNotConnectedError("Not connected to MongoDB")
-        
+
         try:
             coll = self.database[collection]
             cursor = coll.aggregate(pipeline)
-            
+
             results = []
             for doc in cursor:
                 # Recursively convert all ObjectId instances to strings
                 self._convert_objectids_to_strings(doc)
                 results.append(doc)
-            
+
             logger.debug(
                 f"MongoDocumentStore: aggregation on {collection} "
                 f"returned {len(results)} documents"
             )
             return results
-            
+
         except Exception as e:
             logger.error(f"MongoDocumentStore: aggregate_documents failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to aggregate documents from {collection}") from e
 
     def _convert_objectids_to_strings(self, obj: Any) -> None:
         """Recursively convert ObjectId instances to strings in-place.
-        
+
         Args:
             obj: Object to convert (dict, list, or primitive)
         """
         from bson import ObjectId
-        
+
         if isinstance(obj, dict):
             for key, value in obj.items():
                 if isinstance(value, ObjectId):

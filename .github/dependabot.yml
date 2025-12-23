@@ -3,7 +3,7 @@
 
 # Dependabot configuration for tracking and updating dependencies
 # Documentation: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-# 
+#
 # THIS FILE IS AUTO-GENERATED - DO NOT EDIT MANUALLY
 # Run `python scripts/update-dependabot.py` to regenerate
 

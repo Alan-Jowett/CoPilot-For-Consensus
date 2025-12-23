@@ -53,7 +53,7 @@ def protected_endpoint(request: Request):
     user_id = request.state.user_id
     user_email = request.state.user_email
     user_roles = request.state.user_roles
-    
+
     return {
         "message": "Access granted",
         "user": {
@@ -125,13 +125,13 @@ from fastapi import HTTPException, Request
 def admin_only_endpoint(request: Request):
     """Endpoint requiring admin role."""
     user_roles = request.state.user_roles
-    
+
     if "admin" not in user_roles:
         raise HTTPException(
             status_code=403,
             detail="Admin role required"
         )
-    
+
     return {"users": [...]}
 ```
 
@@ -146,7 +146,7 @@ import httpx
 async def call_reporting_api(token: str):
     """Call reporting API with authentication."""
     headers = {"Authorization": f"Bearer {token}"}
-    
+
     async with httpx.AsyncClient() as client:
         response = await client.get(
             "http://reporting:8080/api/reports",
@@ -173,35 +173,35 @@ from urllib.parse import urlencode
 def login(provider="github", audience="copilot-orchestrator"):
     """Initiate OAuth login flow."""
     auth_url = os.getenv("AUTH_SERVICE_URL", "http://localhost:8080/auth")
-    
+
     # Build login URL
     params = {
         "provider": provider,
         "aud": audience
     }
     login_url = f"{auth_url}/login?{urlencode(params)}"
-    
+
     print(f"Opening browser for {provider} login...")
     print(f"Login URL: {login_url}")
-    
+
     # Open browser
     webbrowser.open(login_url)
-    
+
     # In a real CLI, you'd:
     # 1. Start a local HTTP server to receive callback
     # 2. Parse the callback and extract the JWT
     # 3. Store the JWT in a config file or keychain
-    
+
     # For this example, user manually copies token
     print("\nAfter logging in, copy the 'access_token' from the JSON response")
     token = input("Paste your JWT token here: ").strip()
-    
+
     # Save token
     token_file = os.path.expanduser("~/.copilot/token")
     os.makedirs(os.path.dirname(token_file), exist_ok=True)
     with open(token_file, "w") as f:
         f.write(token)
-    
+
     print(f"Token saved to {token_file}")
     return token
 
@@ -212,22 +212,22 @@ def api_call(endpoint, audience="copilot-orchestrator"):
     if not os.path.exists(token_file):
         print("Not logged in. Run: python cli_tool.py login")
         sys.exit(1)
-    
+
     with open(token_file, "r") as f:
         token = f.read().strip()
-    
+
     # Make API call
     api_url = os.getenv("API_URL", "http://localhost:8080")
-    
+
     response = httpx.get(
         f"{api_url}{endpoint}",
         headers={"Authorization": f"Bearer {token}"}
     )
-    
+
     if response.status_code == 401:
         print("Token expired or invalid. Please login again.")
         sys.exit(1)
-    
+
     response.raise_for_status()
     return response.json()
 
@@ -235,13 +235,13 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python cli_tool.py [login|call]")
         sys.exit(1)
-    
+
     command = sys.argv[1]
-    
+
     if command == "login":
         provider = sys.argv[2] if len(sys.argv) > 2 else "github"
         login(provider=provider)
-    
+
     elif command == "call":
         endpoint = sys.argv[2] if len(sys.argv) > 2 else "/api/reports"
         data = api_call(endpoint)
@@ -275,12 +275,12 @@ const AUDIENCE = 'copilot-reporting';
 export const initiateLogin = (provider = 'github') => {
   // Store return URL for post-login redirect
   sessionStorage.setItem('auth_return_url', window.location.pathname);
-  
+
   const params = new URLSearchParams({
     provider: provider,
     aud: AUDIENCE,
   });
-  
+
   // Redirect to auth service
   window.location.href = `${AUTH_SERVICE_URL}/login?${params}`;
 };
@@ -288,25 +288,25 @@ export const initiateLogin = (provider = 'github') => {
 export const handleCallback = async () => {
   /**
    * SECURE callback handler.
-   * 
+   *
    * The auth service should redirect to your callback page with:
    * - state parameter (validated)
    * - code parameter (exchanged server-side)
-   * 
+   *
    * Your backend should:
    * 1. Exchange code for token server-side
    * 2. Store token in httpOnly cookie
    * 3. Redirect to application
    */
-  
+
   const urlParams = new URLSearchParams(window.location.search);
   const code = urlParams.get('code');
   const state = urlParams.get('state');
-  
+
   if (!code || !state) {
     throw new Error('Invalid callback - missing code or state');
   }
-  
+
   // Exchange code for token via your backend
   const response = await fetch('/api/auth/callback', {
     method: 'POST',
@@ -316,11 +316,11 @@ export const handleCallback = async () => {
     credentials: 'include', // Include cookies
     body: JSON.stringify({ code, state }),
   });
-  
+
   if (!response.ok) {
     throw new Error('Authentication failed');
   }
-  
+
   // Token is now stored in httpOnly cookie by backend
   // Redirect to original URL
   const returnUrl = sessionStorage.getItem('auth_return_url') || '/';
@@ -334,7 +334,7 @@ export const logout = async () => {
     method: 'POST',
     credentials: 'include',
   });
-  
+
   window.location.href = '/login';
 };
 
@@ -347,13 +347,13 @@ export const fetchWithAuth = async (url, options = {}) => {
     ...options,
     credentials: 'include', // Send cookies
   });
-  
+
   if (response.status === 401) {
     // Token expired or invalid - redirect to login
     window.location.href = '/login';
     throw new Error('Authentication required');
   }
-  
+
   return response;
 };
 
@@ -362,7 +362,7 @@ export const handleCallbackWithSessionStorage = async () => {
   const urlParams = new URLSearchParams(window.location.search);
   const code = urlParams.get('code');
   const state = urlParams.get('state');
-  
+
   // Exchange code for token via backend
   const response = await fetch('/api/auth/callback', {
     method: 'POST',
@@ -371,19 +371,19 @@ export const handleCallbackWithSessionStorage = async () => {
     },
     body: JSON.stringify({ code, state }),
   });
-  
+
   if (!response.ok) {
     throw new Error('Authentication failed');
   }
-  
+
   const data = await response.json();
-  
+
   // Store in sessionStorage (cleared on tab close, safer than localStorage)
   sessionStorage.setItem('jwt_token', data.access_token);
-  
+
   // Clean URL (remove code/state from history)
   window.history.replaceState({}, document.title, window.location.pathname);
-  
+
   // Redirect to app
   const returnUrl = sessionStorage.getItem('auth_return_url') || '/';
   sessionStorage.removeItem('auth_return_url');
@@ -392,28 +392,28 @@ export const handleCallbackWithSessionStorage = async () => {
 
 export const fetchWithSessionStorage = async (url, options = {}) => {
   const token = sessionStorage.getItem('jwt_token');
-  
+
   if (!token) {
     window.location.href = '/login';
     throw new Error('Not authenticated');
   }
-  
+
   const headers = {
     ...options.headers,
     'Authorization': `Bearer ${token}`,
   };
-  
+
   const response = await fetch(url, {
     ...options,
     headers,
   });
-  
+
   if (response.status === 401) {
     sessionStorage.removeItem('jwt_token');
     window.location.href = '/login';
     throw new Error('Authentication expired');
   }
-  
+
   return response;
 };
 ```
@@ -424,16 +424,16 @@ export const fetchWithSessionStorage = async (url, options = {}) => {
 // server/routes/auth.js
 app.post('/api/auth/callback', async (req, res) => {
   const { code, state } = req.body;
-  
+
   // Exchange code for token with auth service
   const tokenResponse = await fetch(`${AUTH_SERVICE_URL}/callback?code=${code}&state=${state}`);
-  
+
   if (!tokenResponse.ok) {
     return res.status(401).json({ error: 'Authentication failed' });
   }
-  
+
   const { access_token, expires_in } = await tokenResponse.json();
-  
+
   // Store token in httpOnly cookie (SECURE)
   res.cookie('jwt_token', access_token, {
     httpOnly: true,  // Not accessible to JavaScript
@@ -441,7 +441,7 @@ app.post('/api/auth/callback', async (req, res) => {
     sameSite: 'strict', // CSRF protection
     maxAge: expires_in * 1000, // Match token expiry
   });
-  
+
   res.json({ success: true });
 });
 
@@ -453,21 +453,21 @@ app.post('/api/auth/logout', (req, res) => {
 // Middleware to extract token from cookie and validate
 app.use('/api/*', async (req, res, next) => {
   const token = req.cookies.jwt_token;
-  
+
   if (!token) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
-  
+
   // Validate token with auth service or verify locally with JWKS
   try {
     const userInfo = await fetch(`${AUTH_SERVICE_URL}/userinfo`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    
+
     if (!userInfo.ok) {
       return res.status(401).json({ error: 'Invalid token' });
     }
-    
+
     req.user = await userInfo.json();
     next();
   } catch (error) {
@@ -510,7 +510,7 @@ import { fetchWithAuth } from './authService';
 
 const Reports = () => {
   const [reports, setReports] = useState([]);
-  
+
   useEffect(() => {
     const loadReports = async () => {
       try {
@@ -521,10 +521,10 @@ const Reports = () => {
         console.error('Failed to load reports:', error);
       }
     };
-    
+
     loadReports();
   }, []);
-  
+
   return (
     <div>
       <h1>Reports</h1>
@@ -596,7 +596,7 @@ def test_userinfo_with_valid_token(auth_service_url, test_token):
         f"{auth_service_url}/userinfo",
         headers={"Authorization": f"Bearer {test_token}"}
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["email"] == "test@example.com"
@@ -611,7 +611,7 @@ def test_jwks_endpoint(auth_service_url):
     """Test JWKS endpoint."""
     response = httpx.get(f"{auth_service_url}/keys")
     assert response.status_code == 200
-    
+
     data = response.json()
     assert "keys" in data
     assert len(data["keys"]) > 0

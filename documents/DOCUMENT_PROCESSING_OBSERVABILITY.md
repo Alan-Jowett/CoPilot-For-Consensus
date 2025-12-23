@@ -154,13 +154,13 @@ In Prometheus (http://localhost:9090):
 copilot_document_status_count{collection="archives"}
 
 # Failure rate
-copilot_document_status_count{collection="archives",status="failed"} 
-/ (copilot_document_status_count{collection="archives",status="failed"} 
+copilot_document_status_count{collection="archives",status="failed"}
+/ (copilot_document_status_count{collection="archives",status="failed"}
    + copilot_document_status_count{collection="archives",status="processed"})
 
 # Embedding completion
-copilot_chunks_embedding_status_count{embedding_generated="True"} 
-/ (copilot_chunks_embedding_status_count{embedding_generated="True"} 
+copilot_chunks_embedding_status_count{embedding_generated="True"}
+/ (copilot_chunks_embedding_status_count{embedding_generated="True"}
    + copilot_chunks_embedding_status_count{embedding_generated="False"})
 ```
 
@@ -174,7 +174,7 @@ View active alerts:
 
 ### Scenario 1: High Failure Rate Alert Fires
 
-**Symptoms**: 
+**Symptoms**:
 - `HighDocumentFailureRate` alert active
 - Dashboard shows increasing failed count
 

@@ -18,7 +18,7 @@ class TestSubscriberValidationError:
         """Test SubscriberValidationError initialization."""
         errors = ["Field 'event_type' is missing", "Field 'timestamp' is invalid"]
         exc = SubscriberValidationError("TestEvent", errors)
-        
+
         assert exc.event_type == "TestEvent"
         assert exc.errors == errors
         assert "TestEvent" in str(exc)
@@ -32,7 +32,7 @@ class TestValidatingEventSubscriber:
         """Test initialization with default parameters."""
         mock_subscriber = Mock()
         subscriber = ValidatingEventSubscriber(subscriber=mock_subscriber)
-        
+
         assert subscriber._subscriber == mock_subscriber
         assert subscriber._schema_provider is None
         assert subscriber._strict is True
@@ -47,7 +47,7 @@ class TestValidatingEventSubscriber:
             schema_provider=mock_provider,
             strict=False,
         )
-        
+
         assert subscriber._schema_provider == mock_provider
         assert subscriber._strict is False
 
@@ -58,10 +58,10 @@ class TestValidatingEventSubscriber:
             subscriber=mock_subscriber,
             schema_provider=None,
         )
-        
+
         event = {"event_type": "TestEvent", "data": {}}
         is_valid, errors = subscriber._validate_event(event)
-        
+
         assert is_valid is True
         assert errors == []
 
@@ -73,10 +73,10 @@ class TestValidatingEventSubscriber:
             subscriber=mock_subscriber,
             schema_provider=mock_provider,
         )
-        
+
         event = {"data": {}}
         is_valid, errors = subscriber._validate_event(event)
-        
+
         assert is_valid is False
         assert "event_type" in errors[0]
 
@@ -86,18 +86,18 @@ class TestValidatingEventSubscriber:
         mock_provider = Mock()
         mock_schema = {"type": "object"}
         mock_provider.get_schema.return_value = mock_schema
-        
+
         subscriber = ValidatingEventSubscriber(
             subscriber=mock_subscriber,
             schema_provider=mock_provider,
         )
-        
+
         with patch("copilot_schema_validation.validate_json") as mock_validate:
             mock_validate.return_value = (True, [])
             event = {"event_type": "TestEvent", "data": {}}
-            
+
             is_valid, errors = subscriber._validate_event(event)
-            
+
             assert is_valid is True
             assert errors == []
             mock_validate.assert_called_once_with(
@@ -110,18 +110,18 @@ class TestValidatingEventSubscriber:
         mock_provider = Mock()
         mock_schema = {"type": "object", "required": ["data"]}
         mock_provider.get_schema.return_value = mock_schema
-        
+
         subscriber = ValidatingEventSubscriber(
             subscriber=mock_subscriber,
             schema_provider=mock_provider,
         )
-        
+
         with patch("copilot_schema_validation.validate_json") as mock_validate:
             mock_validate.return_value = (False, ["Missing required field: data"])
             event = {"event_type": "TestEvent"}
-            
+
             is_valid, errors = subscriber._validate_event(event)
-            
+
             assert is_valid is False
             assert "Missing required field: data" in errors
 
@@ -130,16 +130,16 @@ class TestValidatingEventSubscriber:
         mock_subscriber = Mock()
         mock_provider = Mock()
         mock_provider.get_schema.return_value = None
-        
+
         subscriber = ValidatingEventSubscriber(
             subscriber=mock_subscriber,
             schema_provider=mock_provider,
             strict=True,
         )
-        
+
         event = {"event_type": "UnknownEvent"}
         is_valid, errors = subscriber._validate_event(event)
-        
+
         assert is_valid is False
         assert "No schema found" in errors[0]
 
@@ -148,16 +148,16 @@ class TestValidatingEventSubscriber:
         mock_subscriber = Mock()
         mock_provider = Mock()
         mock_provider.get_schema.return_value = None
-        
+
         subscriber = ValidatingEventSubscriber(
             subscriber=mock_subscriber,
             schema_provider=mock_provider,
             strict=False,
         )
-        
+
         event = {"event_type": "UnknownEvent"}
         is_valid, errors = subscriber._validate_event(event)
-        
+
         assert is_valid is True
         assert errors == []
 
@@ -167,21 +167,21 @@ class TestValidatingEventSubscriber:
         mock_provider = Mock()
         mock_schema = {"type": "object"}
         mock_provider.get_schema.return_value = mock_schema
-        
+
         subscriber = ValidatingEventSubscriber(
             subscriber=mock_subscriber,
             schema_provider=mock_provider,
             strict=True,
         )
-        
+
         mock_callback = Mock()
         event = {"event_type": "TestEvent", "data": {"id": 1}}
-        
+
         with patch("copilot_schema_validation.validate_json") as mock_validate:
             mock_validate.return_value = (True, [])
             wrapper = subscriber._validating_callback_wrapper("TestEvent", mock_callback)
             wrapper(event)
-            
+
             mock_callback.assert_called_once_with(event)
 
     def test_validating_callback_wrapper_invalid_event_strict(self):
@@ -190,23 +190,23 @@ class TestValidatingEventSubscriber:
         mock_provider = Mock()
         mock_schema = {"type": "object"}
         mock_provider.get_schema.return_value = mock_schema
-        
+
         subscriber = ValidatingEventSubscriber(
             subscriber=mock_subscriber,
             schema_provider=mock_provider,
             strict=True,
         )
-        
+
         mock_callback = Mock()
         event = {"event_type": "TestEvent"}
-        
+
         with patch("copilot_schema_validation.validate_json") as mock_validate:
             mock_validate.return_value = (False, ["Invalid field"])
             wrapper = subscriber._validating_callback_wrapper("TestEvent", mock_callback)
-            
+
             with pytest.raises(SubscriberValidationError) as exc_info:
                 wrapper(event)
-            
+
             assert exc_info.value.event_type == "TestEvent"
             assert exc_info.value.errors == ["Invalid field"]
             mock_callback.assert_not_called()
@@ -217,21 +217,21 @@ class TestValidatingEventSubscriber:
         mock_provider = Mock()
         mock_schema = {"type": "object"}
         mock_provider.get_schema.return_value = mock_schema
-        
+
         subscriber = ValidatingEventSubscriber(
             subscriber=mock_subscriber,
             schema_provider=mock_provider,
             strict=False,
         )
-        
+
         mock_callback = Mock()
         event = {"event_type": "TestEvent"}
-        
+
         with patch("copilot_schema_validation.validate_json") as mock_validate:
             mock_validate.return_value = (False, ["Invalid field"])
             wrapper = subscriber._validating_callback_wrapper("TestEvent", mock_callback)
             wrapper(event)
-            
+
             # Callback should not be called
             mock_callback.assert_not_called()
 
@@ -241,24 +241,24 @@ class TestValidatingEventSubscriber:
         mock_provider = Mock()
         mock_schema = {"type": "object"}
         mock_provider.get_schema.return_value = mock_schema
-        
+
         subscriber = ValidatingEventSubscriber(
             subscriber=mock_subscriber,
             schema_provider=mock_provider,
             strict=True,
         )
-        
+
         mock_callback = Mock()
         mock_callback.side_effect = ValueError("Processing error")
         event = {"event_type": "TestEvent", "data": {}}
-        
+
         with patch("copilot_schema_validation.validate_json") as mock_validate:
             mock_validate.return_value = (True, [])
             wrapper = subscriber._validating_callback_wrapper("TestEvent", mock_callback)
-            
+
             with pytest.raises(ValueError) as exc_info:
                 wrapper(event)
-            
+
             assert "Processing error" in str(exc_info.value)
             mock_callback.assert_called_once_with(event)
 
@@ -266,41 +266,41 @@ class TestValidatingEventSubscriber:
         """Test successful connection."""
         mock_subscriber = Mock()
         mock_subscriber.connect.return_value = True
-        
+
         subscriber = ValidatingEventSubscriber(subscriber=mock_subscriber)
         # Should not raise
         subscriber.connect()
-        
+
         mock_subscriber.connect.assert_called_once()
 
     def test_connect_returns_none(self):
         """Test connect with None return (also success)."""
         mock_subscriber = Mock()
         mock_subscriber.connect.return_value = None
-        
+
         subscriber = ValidatingEventSubscriber(subscriber=mock_subscriber)
         # Should not raise
         subscriber.connect()
-        
+
         mock_subscriber.connect.assert_called_once()
 
     def test_connect_failure(self):
         """Test failed connection raises exception."""
         mock_subscriber = Mock()
         mock_subscriber.connect.side_effect = Exception("Connection failed")
-        
+
         subscriber = ValidatingEventSubscriber(subscriber=mock_subscriber)
-        
+
         with pytest.raises(Exception, match="Connection failed"):
             subscriber.connect()
 
     def test_disconnect(self):
         """Test disconnection."""
         mock_subscriber = Mock()
-        
+
         subscriber = ValidatingEventSubscriber(subscriber=mock_subscriber)
         subscriber.disconnect()
-        
+
         mock_subscriber.disconnect.assert_called_once()
 
     def test_subscribe(self):
@@ -309,14 +309,14 @@ class TestValidatingEventSubscriber:
         mock_provider = Mock()
         mock_schema = {"type": "object"}
         mock_provider.get_schema.return_value = mock_schema
-        
+
         subscriber = ValidatingEventSubscriber(
             subscriber=mock_subscriber,
             schema_provider=mock_provider,
         )
-        
+
         mock_callback = Mock()
-        
+
         with patch("copilot_schema_validation.validate_json") as mock_validate:
             mock_validate.return_value = (True, [])
             subscriber.subscribe(
@@ -324,11 +324,11 @@ class TestValidatingEventSubscriber:
                 callback=mock_callback,
                 routing_key="test.*",
             )
-            
+
             # Check that callback was stored
             assert "TestEvent" in subscriber._callbacks
             assert subscriber._callbacks["TestEvent"] == mock_callback
-            
+
             # Check that underlying subscriber was called
             mock_subscriber.subscribe.assert_called_once()
             call_kwargs = mock_subscriber.subscribe.call_args[1]
@@ -338,19 +338,19 @@ class TestValidatingEventSubscriber:
     def test_start_consuming(self):
         """Test starting event consumption."""
         mock_subscriber = Mock()
-        
+
         subscriber = ValidatingEventSubscriber(subscriber=mock_subscriber)
         subscriber.start_consuming()
-        
+
         mock_subscriber.start_consuming.assert_called_once()
 
     def test_stop_consuming(self):
         """Test stopping event consumption."""
         mock_subscriber = Mock()
-        
+
         subscriber = ValidatingEventSubscriber(subscriber=mock_subscriber)
         subscriber.stop_consuming()
-        
+
         mock_subscriber.stop_consuming.assert_called_once()
 
     def test_integration_full_flow(self):
@@ -359,16 +359,16 @@ class TestValidatingEventSubscriber:
         mock_provider = Mock()
         mock_schema = {"type": "object"}
         mock_provider.get_schema.return_value = mock_schema
-        
+
         subscriber = ValidatingEventSubscriber(
             subscriber=mock_subscriber,
             schema_provider=mock_provider,
             strict=True,
         )
-        
+
         mock_callback = Mock()
         event = {"event_type": "TestEvent", "data": {"id": 1}}
-        
+
         # Subscribe to event
         with patch("copilot_schema_validation.validate_json") as mock_validate:
             mock_validate.return_value = (True, [])
@@ -376,12 +376,12 @@ class TestValidatingEventSubscriber:
                 event_type="TestEvent",
                 callback=mock_callback,
             )
-            
+
             # Get the wrapped callback that was passed to the underlying subscriber
             wrapped_callback = mock_subscriber.subscribe.call_args[1]["callback"]
-            
+
             # Call the wrapped callback with a valid event
             wrapped_callback(event)
-            
+
             # Original callback should be called
             mock_callback.assert_called_once_with(event)

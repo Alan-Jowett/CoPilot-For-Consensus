@@ -12,22 +12,22 @@ except ImportError:
 
 class Summarizer(ABC):
     """Abstract base class for LLM-based summarization engines.
-    
+
     This interface allows switching between different LLM providers
     (OpenAI, Azure OpenAI, Claude, local models) without changing
     the summarization logic.
     """
-    
+
     @abstractmethod
     def summarize(self, thread: Thread) -> Summary:
         """Generate a summary for the given thread.
-        
+
         Args:
             thread: Thread data to summarize
-            
+
         Returns:
             Summary object containing the generated summary and metadata
-            
+
         Raises:
             Exception: If summarization fails
         """

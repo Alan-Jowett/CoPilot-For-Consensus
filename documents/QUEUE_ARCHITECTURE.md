@@ -15,7 +15,7 @@ The system uses a **topic exchange** (`copilot.events`) with routing keys to dis
 
 Services create queues using their service name pattern:
 - `archive.ingested` - Consumed by parsing service
-- `json.parsed` - Consumed by chunking service  
+- `json.parsed` - Consumed by chunking service
 - `embedding-service` - Created by embedding service (consumes `chunks.prepared` events)
 - `orchestrator-service` - Created by orchestrator service (consumes `embeddings.generated` events)
 - `summarization.requested` - Consumed by summarization service
@@ -123,7 +123,7 @@ These are **intentionally not pre-declared** in definitions.json to prevent unbo
 
 **Cause:** Service queue name doesn't match or isn't bound to the correct routing key.
 
-**Solution:** 
+**Solution:**
 1. Check service code for `queue_name` parameter in `create_subscriber()`
 2. Verify queue binding in `.subscribe()` matches the published routing_key
 3. Check RabbitMQ management UI to confirm binding exists

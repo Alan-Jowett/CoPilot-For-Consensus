@@ -70,7 +70,7 @@ def start_subscriber_thread(service: OrchestrationService):
 
     Args:
         service: Orchestration service instance
-        
+
     Raises:
         Exception: Re-raises any exception to fail fast
     """
@@ -96,7 +96,7 @@ def main():
         # Load configuration using config adapter
         config = load_typed_config("orchestrator")
         logger.info("Configuration loaded successfully")
-        
+
         # Conditionally add JWT authentication middleware based on config
         if getattr(config, 'jwt_auth_enabled', True):
             logger.info("JWT authentication is enabled")
@@ -157,7 +157,7 @@ def main():
         except DocumentStoreConnectionError as e:
             logger.error(f"Failed to connect to document store: {e}")
             raise
-        
+
         # Wrap with schema validation
         logger.info("Wrapping document store with schema validation...")
         document_schema_provider = FileSchemaProvider(
@@ -172,7 +172,7 @@ def main():
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")
         metrics_collector = create_metrics_collector()
-        
+
         # Create error reporter - fail fast on errors
         logger.info("Creating error reporter...")
         error_reporter = create_error_reporter()
@@ -203,7 +203,7 @@ def main():
 
         # Start FastAPI server
         logger.info(f"Starting HTTP server on port {config.http_port}...")
-        
+
         # Configure Uvicorn with structured JSON logging
         log_config = create_uvicorn_log_config(service_name="orchestrator", log_level="INFO")
         uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config)

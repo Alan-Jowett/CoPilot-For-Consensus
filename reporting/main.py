@@ -46,9 +46,9 @@ def root():
 def health():
     """Health check endpoint."""
     global reporting_service
-    
+
     stats = reporting_service.get_stats() if reporting_service is not None else {}
-    
+
     return {
         "status": "healthy",
         "service": "reporting",
@@ -64,10 +64,10 @@ def health():
 def get_stats():
     """Get reporting statistics."""
     global reporting_service
-    
+
     if not reporting_service:
         return {"error": "Service not initialized"}
-    
+
     return reporting_service.get_stats()
 
 
@@ -86,10 +86,10 @@ def get_reports(
 ):
     """Get list of reports with optional filters."""
     global reporting_service
-    
+
     if not reporting_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     try:
         reports = reporting_service.get_reports(
             thread_id=thread_id,
@@ -103,14 +103,14 @@ def get_reports(
             min_messages=min_messages,
             max_messages=max_messages,
         )
-        
+
         return {
             "reports": reports,
             "count": len(reports),
             "limit": limit,
             "skip": skip,
         }
-        
+
     except Exception as e:
         logger.error(f"Error fetching reports: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -124,24 +124,24 @@ def search_reports_by_topic(
 ):
     """Search reports by topic using embedding-based similarity."""
     global reporting_service
-    
+
     if not reporting_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     try:
         reports = reporting_service.search_reports_by_topic(
             topic=topic,
             limit=limit,
             min_score=min_score,
         )
-        
+
         return {
             "reports": reports,
             "count": len(reports),
             "topic": topic,
             "min_score": min_score,
         }
-        
+
     except ValueError as e:
         # Topic search may not be configured
         raise HTTPException(status_code=400, detail=str(e))
@@ -154,18 +154,18 @@ def search_reports_by_topic(
 def get_report(report_id: str):
     """Get a specific report by ID."""
     global reporting_service
-    
+
     if not reporting_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     try:
         report = reporting_service.get_report_by_id(report_id)
-        
+
         if not report:
             raise HTTPException(status_code=404, detail="Report not found")
-        
+
         return report
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -177,18 +177,18 @@ def get_report(report_id: str):
 def get_thread_summary(thread_id: str):
     """Get the latest summary for a thread."""
     global reporting_service
-    
+
     if not reporting_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     try:
         summary = reporting_service.get_thread_summary(thread_id)
-        
+
         if not summary:
             raise HTTPException(status_code=404, detail="Summary not found for thread")
-        
+
         return summary
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -200,18 +200,18 @@ def get_thread_summary(thread_id: str):
 def get_available_sources():
     """Get list of available archive sources."""
     global reporting_service
-    
+
     if not reporting_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     try:
         sources = reporting_service.get_available_sources()
-        
+
         return {
             "sources": sources,
             "count": len(sources),
         }
-        
+
     except Exception as e:
         logger.error(f"Error fetching available sources: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -225,24 +225,24 @@ def get_threads(
 ):
     """Get list of threads with optional filters."""
     global reporting_service
-    
+
     if not reporting_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     try:
         threads = reporting_service.get_threads(
             limit=limit,
             skip=skip,
             archive_id=archive_id,
         )
-        
+
         return {
             "threads": threads,
             "count": len(threads),
             "limit": limit,
             "skip": skip,
         }
-        
+
     except Exception as e:
         logger.error(f"Error fetching threads: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -252,18 +252,18 @@ def get_threads(
 def get_thread(thread_id: str):
     """Get a specific thread by ID."""
     global reporting_service
-    
+
     if not reporting_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     try:
         thread = reporting_service.get_thread_by_id(thread_id)
-        
+
         if not thread:
             raise HTTPException(status_code=404, detail="Thread not found")
-        
+
         return thread
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -280,10 +280,10 @@ def get_messages(
 ):
     """Get list of messages with optional filters."""
     global reporting_service
-    
+
     if not reporting_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     try:
         messages = reporting_service.get_messages(
             limit=limit,
@@ -291,14 +291,14 @@ def get_messages(
             thread_id=thread_id,
             message_id=message_id,
         )
-        
+
         return {
             "messages": messages,
             "count": len(messages),
             "limit": limit,
             "skip": skip,
         }
-        
+
     except Exception as e:
         logger.error(f"Error fetching messages: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -308,18 +308,18 @@ def get_messages(
 def get_message(message_doc_id: str):
     """Get a specific message by its document ID."""
     global reporting_service
-    
+
     if not reporting_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     try:
         message = reporting_service.get_message_by_id(message_doc_id)
-        
+
         if not message:
             raise HTTPException(status_code=404, detail="Message not found")
-        
+
         return message
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -337,10 +337,10 @@ def get_chunks(
 ):
     """Get list of chunks with optional filters."""
     global reporting_service
-    
+
     if not reporting_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     try:
         chunks = reporting_service.get_chunks(
             limit=limit,
@@ -349,14 +349,14 @@ def get_chunks(
             thread_id=thread_id,
             message_doc_id=message_doc_id,
         )
-        
+
         return {
             "chunks": chunks,
             "count": len(chunks),
             "limit": limit,
             "skip": skip,
         }
-        
+
     except Exception as e:
         logger.error(f"Error fetching chunks: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -366,18 +366,18 @@ def get_chunks(
 def get_chunk(chunk_id: str):
     """Get a specific chunk by ID."""
     global reporting_service
-    
+
     if not reporting_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     try:
         chunk = reporting_service.get_chunk_by_id(chunk_id)
-        
+
         if not chunk:
             raise HTTPException(status_code=404, detail="Chunk not found")
-        
+
         return chunk
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -387,10 +387,10 @@ def get_chunk(chunk_id: str):
 
 def start_subscriber_thread(service: ReportingService):
     """Start the event subscriber in a separate thread.
-    
+
     Args:
         service: Reporting service instance
-        
+
     Raises:
         Exception: Re-raises any exception to fail fast
     """
@@ -409,14 +409,14 @@ def start_subscriber_thread(service: ReportingService):
 def main():
     """Main entry point for the reporting service."""
     global reporting_service
-    
+
     logger.info(f"Starting Reporting Service (version {__version__})")
-    
+
     try:
         # Load configuration using config adapter
         config = load_typed_config("reporting")
         logger.info("Configuration loaded successfully")
-        
+
         # Conditionally add JWT authentication middleware based on config
         if getattr(config, 'jwt_auth_enabled', True):
             logger.info("JWT authentication is enabled")
@@ -431,7 +431,7 @@ def main():
                 logger.warning("copilot_auth module not available - JWT authentication disabled")
         else:
             logger.warning("JWT authentication is DISABLED - all endpoints are public")
-        
+
         # Create adapters
         logger.info("Creating message bus publisher...")
         publisher = create_publisher(
@@ -449,7 +449,7 @@ def main():
                 raise ConnectionError("Publisher failed to connect to message bus")
             else:
                 logger.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
-        
+
         logger.info("Creating message bus subscriber...")
         subscriber = create_subscriber(
             message_bus_type=config.message_bus_type,
@@ -464,7 +464,7 @@ def main():
         except Exception as e:
             logger.error(f"Failed to connect subscriber to message bus: {e}")
             raise ConnectionError("Subscriber failed to connect to message bus")
-        
+
         logger.info("Creating document store...")
         base_document_store = create_document_store(
             store_type=config.doc_store_type,
@@ -478,7 +478,7 @@ def main():
         # connect() raises on failure; None return indicates success
         base_document_store.connect()
         logger.info("Document store connected successfully")
-        
+
         # Wrap with schema validation
         logger.info("Wrapping document store with schema validation...")
         document_schema_provider = FileSchemaProvider(
@@ -489,19 +489,19 @@ def main():
             schema_provider=document_schema_provider,
             strict=True,
         )
-        
+
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")
         metrics_collector = create_metrics_collector()
-        
+
         # Create error reporter - fail fast on errors
         logger.info("Creating error reporter...")
         error_reporter = create_error_reporter()
-        
+
         # Create optional vector store and embedding provider for topic search
         vector_store = None
         embedding_provider = None
-        
+
         # Check if we have vector store configuration
         if hasattr(config, 'vector_store_type') and config.vector_store_type:
             try:
@@ -514,7 +514,7 @@ def main():
                     collection_name=getattr(config, 'vector_store_collection', 'embeddings'),
                 )
                 logger.info("Vector store created successfully")
-                
+
                 logger.info("Creating embedding provider for topic search...")
                 from copilot_embedding import create_embedding_provider
                 embedding_provider = create_embedding_provider(
@@ -530,7 +530,7 @@ def main():
                 embedding_provider = None
         else:
             logger.info("Vector store not configured - topic search will not be available")
-        
+
         # Create reporting service
         reporting_service = ReportingService(
             document_store=document_store,
@@ -544,11 +544,11 @@ def main():
             vector_store=vector_store,
             embedding_provider=embedding_provider,
         )
-        
+
         logger.info(f"Webhook notifications: {'enabled' if config.notify_enabled else 'disabled'}")
         if config.notify_enabled and config.notify_webhook_url:
             logger.info(f"Webhook URL: {config.notify_webhook_url}")
-        
+
         # Start subscriber in a separate thread (non-daemon to fail fast)
         subscriber_thread = threading.Thread(
             target=start_subscriber_thread,
@@ -557,14 +557,14 @@ def main():
         )
         subscriber_thread.start()
         logger.info("Subscriber thread started")
-        
+
         # Start FastAPI server
         logger.info(f"Starting HTTP server on port {config.http_port}...")
-        
+
         # Configure Uvicorn with structured JSON logging
         log_config = create_uvicorn_log_config(service_name="reporting", log_level="INFO")
         uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config)
-        
+
     except Exception as e:
         logger.error(f"Failed to start reporting service: {e}", exc_info=True)
         sys.exit(1)

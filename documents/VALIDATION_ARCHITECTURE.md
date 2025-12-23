@@ -196,12 +196,12 @@ def test_mongodb_has_no_collection_validators(mongodb_store, clean_collection):
     """Verify that MongoDB collections do not have validators."""
     # Insert test document to create collection
     mongodb_store.insert_document(clean_collection, {"test": "data"})
-    
+
     # Get collection info
     collection_infos = list(mongodb_store.database.list_collections(
         filter={"name": clean_collection}
     ))
-    
+
     # Verify no validator is present
     if collection_infos:
         collection_info = collection_infos[0]

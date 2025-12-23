@@ -4,26 +4,26 @@
 /* Light theme colors (default) */
 :root {
   color-scheme: light;
-  
+
   /* Background colors */
   --bg-primary: #f5f5f5;
   --bg-secondary: #ffffff;
   --bg-tertiary: #f8f9fa;
   --bg-hover: #f8f9fa;
   --bg-code: #f4f4f4;
-  
+
   /* Text colors */
   --text-primary: #333333;
   --text-secondary: #666666;
   --text-tertiary: #555555;
   --text-muted: #999999;
-  
+
   /* Border colors */
   --border-primary: #eeeeee;
   --border-secondary: #dee2e6;
   --border-tertiary: #e0e0e0;
   --border-input: #dddddd;
-  
+
   /* Brand colors */
   --color-primary: #007bff;
   --color-primary-hover: #0056b3;
@@ -37,17 +37,17 @@
   --color-warning-text: #856404;
   --color-danger: #dc3545;
   --color-danger-hover: #c82333;
-  
+
   /* Shadow */
   --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
   --shadow-md: 0 2px 8px rgba(0,0,0,0.1);
-  
+
   /* Special backgrounds */
   --bg-active-filter: #e7f3ff;
   --bg-citation: #fafafa;
   --bg-message: #fafafa;
   --bg-chunk: #f8f9fa;
-  
+
   /* Additional colors */
   --color-disabled: #cccccc;
   --color-badge-text-dark: #333333;
@@ -56,26 +56,26 @@
 /* Dark theme colors */
 [data-theme="dark"] {
   color-scheme: dark;
-  
+
   /* Background colors */
   --bg-primary: #1a1a1a;
   --bg-secondary: #2d2d2d;
   --bg-tertiary: #242424;
   --bg-hover: #3a3a3a;
   --bg-code: #1e1e1e;
-  
+
   /* Text colors */
   --text-primary: #e0e0e0;
   --text-secondary: #b0b0b0;
   --text-tertiary: #c0c0c0;
   --text-muted: #808080;
-  
+
   /* Border colors */
   --border-primary: #404040;
   --border-secondary: #4a4a4a;
   --border-tertiary: #505050;
   --border-input: #505050;
-  
+
   /* Brand colors - slightly adjusted for dark mode */
   --color-primary: #4da3ff;
   --color-primary-hover: #6db5ff;
@@ -89,17 +89,17 @@
   --color-warning-text: #ffeb99;
   --color-danger: #f56565;
   --color-danger-hover: #fc8181;
-  
+
   /* Shadow */
   --shadow-sm: 0 2px 4px rgba(0,0,0,0.3);
   --shadow-md: 0 2px 8px rgba(0,0,0,0.3);
-  
+
   /* Special backgrounds */
   --bg-active-filter: #1f3344;
   --bg-citation: #252525;
   --bg-message: #252525;
   --bg-chunk: #242424;
-  
+
   /* Additional colors */
   --color-disabled: #666666;
   --color-badge-text-dark: #1a1a1a;

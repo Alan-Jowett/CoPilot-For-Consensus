@@ -43,15 +43,15 @@ def test_add_embedding_stores_original_id_in_payload(mock_client_class):
     mock_client_class.return_value = mock_client
     mock_client.get_collections.return_value = Mock(collections=[])
     mock_client.retrieve.return_value = []
-    
+
     store = QdrantVectorStore(vector_size=3)
     original_id = "chunk-sha256-abc123"
     store.add_embedding(original_id, [1.0, 0.0, 0.0], {"text": "test"})
-    
+
     # Extract the point passed to upsert
     call_args = mock_client.upsert.call_args
     point = call_args[1]['points'][0]
-    
+
     # Verify UUID was used for point ID
     assert point.id != original_id
     # Verify original ID is in payload
@@ -66,7 +66,7 @@ def test_add_embeddings_batch_uses_uuids_for_upsert(mock_client_class):
     mock_client = Mock()
     mock_client_class.return_value = mock_client
     mock_client.get_collections.return_value = Mock(collections=[])
-    
+
     store = QdrantVectorStore(vector_size=3)
     original_ids = ["chunk-1", "chunk-2"]
     store.add_embeddings(
@@ -74,14 +74,14 @@ def test_add_embeddings_batch_uses_uuids_for_upsert(mock_client_class):
         vectors=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
         metadatas=[{"x": 1}, {"x": 2}]
     )
-    
+
     # Verify upsert was called with UUID point IDs and original IDs in payload
     upsert_call = mock_client.upsert.call_args
     points = upsert_call[1]['points']
-    
+
     # Should have 2 points
     assert len(points) == 2
-    
+
     # Each point should have UUID as ID and original ID in payload
     for i, point in enumerate(points):
         # UUID should differ from original ID

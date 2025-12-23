@@ -19,13 +19,13 @@ from copilot_embedding import MockEmbeddingProvider
 def in_memory_document_store():
     """Create an in-memory document store with MongoDB-like query support."""
     import copy
-    
+
     base_store = InMemoryDocumentStore()
     base_store.connect()
-    
+
     # Wrap query_documents to support $in operator
     original_query = base_store.query_documents
-    
+
     def query_with_in_support(collection: str, filter_dict: Dict[str, Any], limit: int = 100):
         # Check if filter uses $in operator
         for key, value in filter_dict.items():
@@ -41,15 +41,15 @@ def in_memory_document_store():
                 return results
         # Fallback to original implementation for simple queries
         return original_query(collection, filter_dict, limit)
-    
+
     base_store.query_documents = query_with_in_support
-    
+
     # Wrap with validation
     schema_provider = FileSchemaProvider(
         schema_dir=Path(__file__).parent.parent.parent / "documents" / "schemas" / "documents"
     )
     store = ValidatingDocumentStore(store=base_store, schema_provider=schema_provider)
-    
+
     return store
 
 
@@ -171,45 +171,45 @@ def test_end_to_end_embedding_generation(
             "embedding_generated": False,
         },
     ]
-    
+
     for chunk in chunks:
         in_memory_document_store.insert_document("chunks", chunk)
-    
+
     # Process chunks
     event_data = {
         "chunk_ids": ["aaaa1111bbbb2222", "cccc3333dddd4444", "eeee5555ffff6666"],
         "chunk_count": 3,
     }
-    
+
     embedding_service.process_chunks(event_data)
-    
+
     # Verify embeddings were stored in vector store
     assert in_memory_vector_store.count() == 3
-    
+
     # Verify chunk status was updated
     updated_chunks = in_memory_document_store.query_documents(
         collection="chunks",
         filter_dict={"embedding_generated": True}
     )
-    
+
     assert len(updated_chunks) == 3
     for chunk in updated_chunks:
         assert chunk["embedding_generated"] is True
-    
+
     # Verify success event was published
     mock_publisher.publish.assert_called()
     publish_call = mock_publisher.publish.call_args
     assert publish_call[1]["routing_key"] == "embeddings.generated"
-    
+
     event = publish_call[1]["event"]
     assert event["event_type"] == "EmbeddingsGenerated"
     assert len(event["data"]["chunk_ids"]) == 3
     assert event["data"]["embedding_count"] == 3
-    
+
     # Verify embeddings can be queried
     query_vector = [0.1] * 384
     results = in_memory_vector_store.query(query_vector, top_k=2)
-    
+
     assert len(results) == 2
     assert results[0].metadata["chunk_id"] in [
         "aaaa1111bbbb2222",
@@ -253,25 +253,25 @@ def test_batch_processing_integration(
         }
         for i in range(5)
     ]
-    
+
     for chunk in chunks:
         in_memory_document_store.insert_document("chunks", chunk)
-    
+
     event_data = {
         "chunk_ids": chunk_ids,
     }
-    
+
     embedding_service.process_chunks(event_data)
-    
+
     # Verify all chunks were embedded
     assert in_memory_vector_store.count() == 5
-    
+
     # Verify all chunks have embedding_generated=True
     updated_chunks = in_memory_document_store.query_documents(
         collection="chunks",
         filter_dict={"embedding_generated": True}
     )
-    
+
     assert len(updated_chunks) == 5
     for chunk in updated_chunks:
         assert chunk["embedding_generated"] is True
@@ -303,22 +303,22 @@ def test_metadata_preservation(
         "created_at": "2023-10-15T14:30:00Z",
         "embedding_generated": False,
     }
-    
+
     in_memory_document_store.insert_document("chunks", chunk)
-    
+
     event_data = {
         "chunk_ids": ["aaaa1111bbbbcccc"],
     }
-    
+
     embedding_service.process_chunks(event_data)
-    
+
     # Query the embedding from vector store
     query_vector = [0.1] * 384
     results = in_memory_vector_store.query(query_vector, top_k=1)
-    
+
     assert len(results) == 1
     metadata = results[0].metadata
-    
+
     # Verify all metadata fields are present
     assert metadata["chunk_id"] == "aaaa1111bbbbcccc"
     assert metadata["message_id"] == "<msg@example.com>"

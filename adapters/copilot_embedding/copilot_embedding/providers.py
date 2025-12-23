@@ -16,10 +16,10 @@ class EmbeddingProvider(ABC):
     @abstractmethod
     def embed(self, text: str) -> List[float]:
         """Generate embeddings for the given text.
-        
+
         Args:
             text: Input text to embed
-            
+
         Returns:
             List of floats representing the embedding vector
         """
@@ -31,7 +31,7 @@ class MockEmbeddingProvider(EmbeddingProvider):
 
     def __init__(self, dimension: int = 384):
         """Initialize mock provider.
-        
+
         Args:
             dimension: Dimension of the embedding vector
         """
@@ -40,13 +40,13 @@ class MockEmbeddingProvider(EmbeddingProvider):
 
     def embed(self, text: str) -> List[float]:
         """Generate mock embeddings based on text hash.
-        
+
         Args:
             text: Input text to embed
-            
+
         Returns:
             List of floats representing the mock embedding vector
-            
+
         Raises:
             ValueError: If text is None or empty
         """
@@ -56,7 +56,7 @@ class MockEmbeddingProvider(EmbeddingProvider):
             raise ValueError(f"Text must be a string, got {type(text).__name__}")
         if not text.strip():
             raise ValueError("Text cannot be empty or whitespace-only")
-            
+
         # Generate deterministic mock embeddings based on text hash
         # Uses modulo arithmetic to create different values for each dimension
         # Formula ensures values are in [0, 1] range and deterministic for same text
@@ -74,7 +74,7 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
         cache_dir: Optional[str] = None
     ):
         """Initialize SentenceTransformer provider.
-        
+
         Args:
             model_name: Name of the SentenceTransformer model
             device: Device to run inference on (cpu, cuda, mps)
@@ -87,11 +87,11 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
                 "sentence-transformers is required for SentenceTransformerEmbeddingProvider. "
                 "Install it with: pip install sentence-transformers"
             )
-        
+
         self.model_name = model_name
         self.device = device
         self.cache_dir = cache_dir
-        
+
         logger.info(f"Loading SentenceTransformer model: {model_name} on device: {device}")
         self.model = SentenceTransformer(
             model_name,
@@ -102,13 +102,13 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
 
     def embed(self, text: str) -> List[float]:
         """Generate embeddings using SentenceTransformer.
-        
+
         Args:
             text: Input text to embed
-            
+
         Returns:
             List of floats representing the embedding vector
-            
+
         Raises:
             ValueError: If text is None or empty
         """
@@ -118,7 +118,7 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
             raise ValueError(f"Text must be a string, got {type(text).__name__}")
         if not text.strip():
             raise ValueError("Text cannot be empty or whitespace-only")
-            
+
         embedding = self.model.encode(text, convert_to_numpy=True)
         return embedding.tolist()
 
@@ -135,7 +135,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         deployment_name: Optional[str] = None
     ):
         """Initialize OpenAI embedding provider.
-        
+
         Args:
             api_key: OpenAI or Azure OpenAI API key
             model: Model name (for OpenAI) or deployment name (for Azure)
@@ -150,10 +150,10 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
                 "openai is required for OpenAIEmbeddingProvider. "
                 "Install it with: pip install openai"
             )
-        
+
         self.model = model
         self.is_azure = api_base is not None
-        
+
         if self.is_azure:
             logger.info(f"Initializing Azure OpenAI embedding provider with deployment: {deployment_name or model}")
             self.client = AzureOpenAI(
@@ -168,13 +168,13 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
 
     def embed(self, text: str) -> List[float]:
         """Generate embeddings using OpenAI API.
-        
+
         Args:
             text: Input text to embed
-            
+
         Returns:
             List of floats representing the embedding vector
-            
+
         Raises:
             ValueError: If text is None or empty
         """
@@ -184,7 +184,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             raise ValueError(f"Text must be a string, got {type(text).__name__}")
         if not text.strip():
             raise ValueError("Text cannot be empty or whitespace-only")
-            
+
         if self.is_azure:
             response = self.client.embeddings.create(
                 input=text,
@@ -195,13 +195,13 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
                 input=text,
                 model=self.model
             )
-        
+
         return response.data[0].embedding
 
 
 class HuggingFaceEmbeddingProvider(EmbeddingProvider):
     """HuggingFace embedding provider for Transformers models."""
-    
+
     # Default maximum sequence length for tokenization
     DEFAULT_MAX_LENGTH = 512
 
@@ -213,7 +213,7 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
         max_length: int = DEFAULT_MAX_LENGTH
     ):
         """Initialize HuggingFace embedding provider.
-        
+
         Args:
             model_name: Name of the HuggingFace model
             device: Device to run inference on (cpu, cuda, mps)
@@ -228,13 +228,13 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
                 "transformers and torch are required for HuggingFaceEmbeddingProvider. "
                 "Install them with: pip install transformers torch"
             )
-        
+
         self.model_name = model_name
         self.device = device
         self.cache_dir = cache_dir
         self.max_length = max_length
         self.torch = torch
-        
+
         logger.info(f"Loading HuggingFace model: {model_name} on device: {device}")
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name,
@@ -248,16 +248,16 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
 
     def embed(self, text: str) -> List[float]:
         """Generate embeddings using HuggingFace Transformers.
-        
+
         Args:
             text: Input text to embed
-            
+
         Returns:
             List of floats representing the embedding vector
-            
+
         Raises:
             ValueError: If text is None or empty
-            
+
         Note:
             This method performs CPU-to-GPU and GPU-to-CPU transfers on each call.
             For high-frequency embedding generation, consider batch processing for
@@ -269,7 +269,7 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
             raise ValueError(f"Text must be a string, got {type(text).__name__}")
         if not text.strip():
             raise ValueError("Text cannot be empty or whitespace-only")
-            
+
         # Tokenize and encode
         inputs = self.tokenizer(
             text,
@@ -278,12 +278,12 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
             truncation=True,
             max_length=self.max_length
         ).to(self.device)
-        
+
         # Generate embeddings
         with self.torch.no_grad():
             outputs = self.model(**inputs)
-        
+
         # Use mean pooling on token embeddings
         embeddings = outputs.last_hidden_state.mean(dim=1)
-        
+
         return embeddings.cpu().numpy()[0].tolist()

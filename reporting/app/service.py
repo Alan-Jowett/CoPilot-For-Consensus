@@ -53,7 +53,7 @@ class ReportingService:
         embedding_provider: Optional["EmbeddingProvider"] = None,
     ):
         """Initialize reporting service.
-        
+
         Args:
             document_store: Document store for persisting summaries
             publisher: Event publisher for publishing events
@@ -76,7 +76,7 @@ class ReportingService:
         self.webhook_summary_max_length = webhook_summary_max_length
         self.vector_store = vector_store
         self.embedding_provider = embedding_provider
-        
+
         # Stats
         self.reports_stored = 0
         self.notifications_sent = 0
@@ -86,7 +86,7 @@ class ReportingService:
     def start(self):
         """Start the reporting service and subscribe to events."""
         logger.info("Starting Reporting Service")
-        
+
         # Subscribe to SummaryComplete events
         self.subscriber.subscribe(
             event_type="SummaryComplete",
@@ -94,48 +94,48 @@ class ReportingService:
             routing_key="summary.complete",
             callback=self._handle_summary_complete,
         )
-        
+
         logger.info("Subscribed to summary.complete events")
         logger.info("Reporting service is ready")
 
     def _handle_summary_complete(self, event: Dict[str, Any]):
         """Handle SummaryComplete event.
-        
+
         This is an event handler for message queue consumption. Exceptions are
         logged and re-raised to allow message requeue for transient failures
         (e.g., database unavailable). Only exceptions due to bad event data
         should be caught and not re-raised.
-        
+
         Args:
             event: Event dictionary
         """
         start_time = time.time()
-        
+
         try:
             # Parse event
             summary_complete = SummaryCompleteEvent(data=event.get("data", {}))
-            
+
             logger.info(f"Received SummaryComplete event: {summary_complete.data.get('thread_id')}")
-            
+
             # Process the summary
             self.process_summary(summary_complete.data, event)
-            
+
             # Record processing time
             self.last_processing_time = time.time() - start_time
-            
+
             # Record metrics
             if self.metrics_collector:
                 self.metrics_collector.increment("reporting_events_total", tags={"event_type": "summary_complete", "outcome": "success"})
                 self.metrics_collector.observe("reporting_latency_seconds", self.last_processing_time)
-            
+
         except Exception as e:
             logger.error(f"Error handling SummaryComplete event: {e}", exc_info=True)
-            
+
             # Record metrics
             if self.metrics_collector:
                 self.metrics_collector.increment("reporting_events_total", tags={"event_type": "summary_complete", "outcome": "error"})
                 self.metrics_collector.increment("reporting_failures_total", tags={"error_type": type(e).__name__})
-            
+
             # Report error
             if self.error_reporter:
                 self.error_reporter.report(e, context={"event": event})
@@ -143,18 +143,18 @@ class ReportingService:
 
     def process_summary(self, event_data: Dict[str, Any], full_event: Dict[str, Any]) -> str:
         """Process and store a summary.
-        
+
         Args:
             event_data: Data from SummaryComplete event
             full_event: Full event envelope
-            
+
         Returns:
             Report ID
         """
         # Extract data from event
         original_summary_id = event_data.get("summary_id")  # SHA-256 hash from summarization service
         thread_id = event_data.get("thread_id")
-        
+
         # Generate a 16-character hex ID for summaries._id (matching schema requirements)
         # Use a truncated hash of the original summary_id for determinism
         if original_summary_id:
@@ -171,7 +171,7 @@ class ReportingService:
                     "event_id": full_event.get("event_id") or full_event.get("id"),
                 },
             )
-        
+
         summary_markdown = event_data.get("summary_markdown", "")
         citations = event_data.get("citations", [])
         llm_backend = event_data.get("llm_backend", "")
@@ -179,7 +179,7 @@ class ReportingService:
         tokens_prompt = event_data.get("tokens_prompt", 0)
         tokens_completion = event_data.get("tokens_completion", 0)
         latency_ms = event_data.get("latency_ms", 0)
-        
+
         # Create summary document
         now = datetime.now(timezone.utc).isoformat()
         summary_doc = {
@@ -212,7 +212,7 @@ class ReportingService:
                 "original_citations": citations,
             },
         }
-        
+
         # Store summary
         # Idempotency: if the summary already exists, skip insert to avoid retries
         try:
@@ -233,7 +233,7 @@ class ReportingService:
                 logger.info(f"Summary {report_id} already exists (duplicate); treating as success")
             else:
                 raise
-        
+
         # Update thread document with summary_id to mark as complete
         logger.info(f"Updating thread {thread_id} with summary_id {report_id}")
         # Threads use thread_id as document _id; update by ID
@@ -242,29 +242,29 @@ class ReportingService:
             thread_id,
             {"summary_id": report_id},
         )
-        
+
         # Attempt webhook notification if enabled
         notified = False
         delivery_channels = []
-        
+
         if self.notify_enabled and self.webhook_url:
             try:
                 self._send_webhook_notification(report_id, thread_id, summary_markdown)
                 notified = True
                 delivery_channels.append("webhook")
                 self.notifications_sent += 1
-                
+
                 if self.metrics_collector:
                     self.metrics_collector.increment("reporting_delivery_total", tags={"channel": "webhook", "status": "success"})
-                    
+
             except Exception as e:
                 # Webhook notifications are best-effort - log and publish failure event but continue
                 logger.warning(f"Failed to send webhook notification: {e}", exc_info=True)
                 self.notifications_failed += 1
-                
+
                 if self.metrics_collector:
                     self.metrics_collector.increment("reporting_delivery_total", tags={"channel": "webhook", "status": "failed"})
-                
+
                 # Publish ReportDeliveryFailed event
                 try:
                     self._publish_delivery_failed(report_id, thread_id, "webhook", str(e), type(e).__name__)
@@ -278,20 +278,20 @@ class ReportingService:
                         self.error_reporter.report(publish_error, context={"report_id": report_id, "original_error": str(e)})
                     # Re-raise original error to trigger requeue
                     raise e from publish_error
-        
+
         # Publish ReportPublished event
         self._publish_report_published(report_id, thread_id, notified, delivery_channels)
-        
+
         return report_id
 
     def _send_webhook_notification(self, report_id: str, thread_id: str, summary: str):
         """Send webhook notification.
-        
+
         Args:
             report_id: Report identifier
             thread_id: Thread identifier
             summary: Summary markdown content
-            
+
         Raises:
             Exception: If webhook delivery fails
         """
@@ -301,14 +301,14 @@ class ReportingService:
             "summary": summary[:self.webhook_summary_max_length],  # Truncate for webhook
             "url": f"/api/reports/{report_id}",
         }
-        
+
         response = requests.post(
             self.webhook_url,
             json=payload,
             timeout=10,
         )
         response.raise_for_status()
-        
+
         logger.info(f"Webhook notification sent for report {report_id}")
 
     def _publish_report_published(
@@ -319,7 +319,7 @@ class ReportingService:
         delivery_channels: List[str],
     ):
         """Publish ReportPublished event.
-        
+
         Args:
             report_id: Report identifier
             thread_id: Thread identifier
@@ -336,7 +336,7 @@ class ReportingService:
                 "summary_url": f"/api/reports/{report_id}",
             }
         )
-        
+
         try:
             self.publisher.publish(
                 exchange="copilot.events",
@@ -348,7 +348,7 @@ class ReportingService:
             if self.error_reporter:
                 self.error_reporter.report(e, context={"report_id": report_id, "event_type": "ReportPublished"})
             raise
-        
+
         logger.info(f"Published ReportPublished event for {report_id}")
 
     def _publish_delivery_failed(
@@ -360,7 +360,7 @@ class ReportingService:
         error_type: str,
     ):
         """Publish ReportDeliveryFailed event.
-        
+
         Args:
             report_id: Report identifier
             thread_id: Thread identifier
@@ -378,7 +378,7 @@ class ReportingService:
                 "retry_count": 0,
             }
         )
-        
+
         try:
             self.publisher.publish(
                 exchange="copilot.events",
@@ -390,7 +390,7 @@ class ReportingService:
             if self.error_reporter:
                 self.error_reporter.report(e, context={"report_id": report_id, "event_type": "ReportDeliveryFailed"})
             raise
-        
+
         logger.warning(f"Published ReportDeliveryFailed event for {report_id}")
 
     def get_reports(
@@ -407,7 +407,7 @@ class ReportingService:
         max_messages: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """Get list of reports with optional filters.
-        
+
         Args:
             thread_id: Filter by thread ID (optional)
             limit: Maximum number of results
@@ -419,7 +419,7 @@ class ReportingService:
             max_participants: Filter by maximum participant count (optional)
             min_messages: Filter by minimum message count (optional)
             max_messages: Filter by maximum message count (optional)
-            
+
         Returns:
             List of report documents with enriched metadata
         """
@@ -427,7 +427,7 @@ class ReportingService:
         filter_dict = {}
         if thread_id:
             filter_dict["thread_id"] = thread_id
-        
+
         # Add date filters
         if start_date or end_date:
             date_filter = {}
@@ -437,19 +437,19 @@ class ReportingService:
                 date_filter["$lte"] = end_date
             if date_filter:
                 filter_dict["generated_at"] = date_filter
-        
+
         # Fetch summaries (fetch more for skip and filtering)
         summaries = self.document_store.query_documents(
             "summaries",
             filter_dict=filter_dict,
             limit=limit + skip + METADATA_FILTER_BUFFER_SIZE,
         )
-        
+
         # If we have filters that require thread/archive data, enrich the results
         if source or min_participants is not None or max_participants is not None or \
            min_messages is not None or max_messages is not None:
             enriched_summaries = []
-            
+
             # Batch fetch all threads to avoid N+1 query problem
             # Collect unique thread IDs from summaries
             thread_ids = []
@@ -457,7 +457,7 @@ class ReportingService:
                 thread_id_val = summary.get("thread_id")
                 if thread_id_val:
                     thread_ids.append(thread_id_val)
-            
+
             # Batch query all threads
             threads_map = {}
             if thread_ids:
@@ -467,14 +467,14 @@ class ReportingService:
                     limit=len(thread_ids),
                 )
                 threads_map = {t.get("thread_id"): t for t in threads if t.get("thread_id")}
-            
+
             # Collect unique archive IDs for batch fetching
             archive_ids = set()
             for thread in threads_map.values():
                 archive_id = thread.get("archive_id")
                 if archive_id:
                     archive_ids.add(archive_id)
-            
+
             # Batch query all archives
             archives_map = {}
             if archive_ids:
@@ -484,47 +484,47 @@ class ReportingService:
                     limit=len(archive_ids),
                 )
                 archives_map = {a.get("archive_id"): a for a in archives if a.get("archive_id")}
-            
+
             # Now process summaries with pre-fetched data
             for summary in summaries:
                 thread_id_val = summary.get("thread_id")
                 if not thread_id_val:
                     continue
-                
+
                 # Get thread metadata from pre-fetched map
                 thread = threads_map.get(thread_id_val)
                 if not thread:
                     continue
-                
+
                 # Calculate counts once for reuse
                 participants = thread.get("participants", [])
                 participant_count = len(participants)
                 message_count = thread.get("message_count", 0)
                 archive_id = thread.get("archive_id")
-                
+
                 # Apply thread-based filters
                 if min_participants is not None:
                     if participant_count < min_participants:
                         continue
-                
+
                 if max_participants is not None:
                     if participant_count > max_participants:
                         continue
-                
+
                 if min_messages is not None:
                     if message_count < min_messages:
                         continue
-                
+
                 if max_messages is not None:
                     if message_count > max_messages:
                         continue
-                
+
                 # Apply source filter using pre-fetched archive
                 archive = archives_map.get(archive_id) if archive_id else None
                 if source:
                     if not archive or archive.get("source") != source:
                         continue
-                
+
                 # Enrich summary with thread and archive metadata
                 summary["thread_metadata"] = {
                     "subject": thread.get("subject", ""),
@@ -534,27 +534,27 @@ class ReportingService:
                     "first_message_date": thread.get("first_message_date"),
                     "last_message_date": thread.get("last_message_date"),
                 }
-                
+
                 if archive:
                     summary["archive_metadata"] = {
                         "source": archive.get("source", ""),
                         "source_url": archive.get("source_url", ""),
                         "ingestion_date": archive.get("ingestion_date"),
                     }
-                
+
                 enriched_summaries.append(summary)
-            
+
             summaries = enriched_summaries
-        
+
         # Apply skip and limit
         return summaries[skip:skip + limit]
-    
+
     def _get_thread_by_id(self, thread_id: str) -> Optional[Dict[str, Any]]:
         """Get thread metadata by ID.
-        
+
         Args:
             thread_id: Thread identifier
-            
+
         Returns:
             Thread document or None
         """
@@ -568,13 +568,13 @@ class ReportingService:
         except Exception as e:
             logger.warning(f"Failed to fetch thread {thread_id}: {e}")
             return None
-    
+
     def _get_archive_by_id(self, archive_id: str) -> Optional[Dict[str, Any]]:
         """Get archive metadata by ID.
-        
+
         Args:
             archive_id: Archive identifier
-            
+
         Returns:
             Archive document or None
         """
@@ -588,7 +588,7 @@ class ReportingService:
         except Exception as e:
             logger.warning(f"Failed to fetch archive {archive_id}: {e}")
             return None
-    
+
     def search_reports_by_topic(
         self,
         topic: str,
@@ -596,45 +596,45 @@ class ReportingService:
         min_score: float = 0.5,
     ) -> List[Dict[str, Any]]:
         """Search reports by topic using embedding-based similarity.
-        
+
         Args:
             topic: Topic or query text to search for
             limit: Maximum number of results
             min_score: Minimum similarity score (0.0 to 1.0)
-            
+
         Returns:
             List of report documents with relevance scores
-            
+
         Raises:
             ValueError: If vector store or embedding provider not configured
         """
         if not self.vector_store or not self.embedding_provider:
             raise ValueError("Topic search requires vector store and embedding provider")
-        
+
         # Generate embedding for the topic query
         try:
             topic_embedding = self.embedding_provider.embed(topic)
         except Exception as e:
             logger.error(f"Failed to generate embedding for topic: {e}", exc_info=True)
             raise ValueError(f"Failed to generate topic embedding: {e}")
-        
+
         # Search vector store for similar chunks
         try:
             search_results = self.vector_store.query(topic_embedding, top_k=limit * 3)
         except Exception as e:
             logger.error(f"Failed to query vector store: {e}", exc_info=True)
             raise ValueError(f"Vector store query failed: {e}")
-        
+
         # Extract chunk IDs and group by thread
         thread_scores = {}
         for result in search_results:
             if result.score < min_score:
                 continue
-            
+
             chunk_id = result.id
             metadata = result.metadata
             thread_id = metadata.get("thread_id")
-            
+
             if thread_id:
                 if thread_id not in thread_scores:
                     thread_scores[thread_id] = {
@@ -652,14 +652,14 @@ class ReportingService:
                     ) / (thread_scores[thread_id]["chunk_count"] + 1)
                     thread_scores[thread_id]["chunk_count"] += 1
                     thread_scores[thread_id]["chunks"].append(chunk_id)
-        
+
         # Sort threads by relevance (max score)
         sorted_threads = sorted(
             thread_scores.items(),
             key=lambda x: x[1]["max_score"],
             reverse=True,
         )[:limit]
-        
+
         # Fetch summaries for the top threads
         enriched_reports = []
         for thread_id, scores in sorted_threads:
@@ -668,7 +668,7 @@ class ReportingService:
                 summary["relevance_score"] = scores["max_score"]
                 summary["avg_relevance_score"] = scores["avg_score"]
                 summary["matching_chunks"] = scores["chunk_count"]
-                
+
                 # Enrich with thread metadata
                 thread = self._get_thread_by_id(thread_id)
                 if thread:
@@ -680,7 +680,7 @@ class ReportingService:
                         "first_message_date": thread.get("first_message_date"),
                         "last_message_date": thread.get("last_message_date"),
                     }
-                    
+
                     # Enrich with archive metadata
                     archive_id = thread.get("archive_id")
                     if archive_id:
@@ -691,14 +691,14 @@ class ReportingService:
                                 "source_url": archive.get("source_url", ""),
                                 "ingestion_date": archive.get("ingestion_date"),
                             }
-                
+
                 enriched_reports.append(summary)
-        
+
         return enriched_reports
-    
+
     def get_available_sources(self) -> List[str]:
         """Get list of available archive sources.
-        
+
         Returns:
             List of unique source names
         """
@@ -711,14 +711,14 @@ class ReportingService:
                 filter_dict={},
                 limit=10000,
             )
-            
+
             # Extract unique sources
             sources = set()
             for archive in archives:
                 source = archive.get("source")
                 if source:
                     sources.add(source)
-            
+
             return sorted(list(sources))
         except Exception as e:
             logger.error(f"Failed to fetch available sources: {e}", exc_info=True)
@@ -726,10 +726,10 @@ class ReportingService:
 
     def get_report_by_id(self, report_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific report by ID.
-        
+
         Args:
             report_id: Report identifier
-            
+
         Returns:
             Report document or None
         """
@@ -739,20 +739,20 @@ class ReportingService:
             filter_dict={"summary_id": report_id},
             limit=1,
         )
-        
+
         return results[0] if results else None
 
     def get_thread_summary(self, thread_id: str) -> Optional[Dict[str, Any]]:
         """Get the latest summary for a thread.
-        
+
         Note: Without ordering support in DocumentStore, this returns the first
         matching document. In practice, MongoDB may return documents in insertion
         order, but this is not guaranteed. For true "latest" behavior, consider
         fetching all and sorting by generated_at timestamp.
-        
+
         Args:
             thread_id: Thread identifier
-            
+
         Returns:
             Latest report document for thread or None
         """
@@ -761,9 +761,9 @@ class ReportingService:
             filter_dict={"thread_id": thread_id},
             limit=1,
         )
-        
+
         return results[0] if results else None
-    
+
     def get_threads(
         self,
         limit: int = 10,
@@ -771,19 +771,19 @@ class ReportingService:
         archive_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Get list of threads with optional filters.
-        
+
         Args:
             limit: Maximum number of results
             skip: Number of results to skip
             archive_id: Filter by archive ID (optional)
-            
+
         Returns:
             List of thread documents
         """
         filter_dict = {}
         if archive_id:
             filter_dict["archive_id"] = archive_id
-        
+
         # TODO: Optimize pagination to use native skip in document store query
         # Currently fetches limit + skip records and discards skip records in memory
         # This matches existing pattern in get_reports but should be improved for scalability
@@ -792,16 +792,16 @@ class ReportingService:
             filter_dict=filter_dict,
             limit=limit + skip,
         )
-        
+
         # Apply skip and limit
         return threads[skip:skip + limit]
-    
+
     def get_thread_by_id(self, thread_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific thread by ID.
-        
+
         Args:
             thread_id: Thread identifier
-            
+
         Returns:
             Thread document or None
         """
@@ -811,9 +811,9 @@ class ReportingService:
             filter_dict={"_id": thread_id},
             limit=1,
         )
-        
+
         return results[0] if results else None
-    
+
     def get_messages(
         self,
         limit: int = 10,
@@ -822,13 +822,13 @@ class ReportingService:
         message_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Get list of messages with optional filters.
-        
+
         Args:
             limit: Maximum number of results
             skip: Number of results to skip
             thread_id: Filter by thread ID (optional)
             message_id: Filter by RFC 5322 Message-ID (optional)
-            
+
         Returns:
             List of message documents
         """
@@ -837,7 +837,7 @@ class ReportingService:
             filter_dict["thread_id"] = thread_id
         if message_id:
             filter_dict["message_id"] = message_id
-        
+
         # TODO: Optimize pagination to use native skip in document store query
         # Currently fetches limit + skip records and discards skip records in memory
         # This matches existing pattern in get_reports but should be improved for scalability
@@ -846,16 +846,16 @@ class ReportingService:
             filter_dict=filter_dict,
             limit=limit + skip,
         )
-        
+
         # Apply skip and limit
         return messages[skip:skip + limit]
-    
+
     def get_message_by_id(self, message_doc_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific message by its document ID.
-        
+
         Args:
             message_doc_id: Message document identifier (_id field)
-            
+
         Returns:
             Message document or None
         """
@@ -864,9 +864,9 @@ class ReportingService:
             filter_dict={"_id": message_doc_id},
             limit=1,
         )
-        
+
         return results[0] if results else None
-    
+
     def get_chunks(
         self,
         limit: int = 10,
@@ -876,14 +876,14 @@ class ReportingService:
         message_doc_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Get list of chunks with optional filters.
-        
+
         Args:
             limit: Maximum number of results
             skip: Number of results to skip
             message_id: Filter by RFC 5322 Message-ID (optional)
             thread_id: Filter by thread ID (optional)
             message_doc_id: Filter by message document ID (optional)
-            
+
         Returns:
             List of chunk documents
         """
@@ -894,7 +894,7 @@ class ReportingService:
             filter_dict["thread_id"] = thread_id
         if message_doc_id:
             filter_dict["message_doc_id"] = message_doc_id
-        
+
         # TODO: Optimize pagination to use native skip in document store query
         # Currently fetches limit + skip records and discards skip records in memory
         # This matches existing pattern in get_reports but should be improved for scalability
@@ -903,16 +903,16 @@ class ReportingService:
             filter_dict=filter_dict,
             limit=limit + skip,
         )
-        
+
         # Apply skip and limit
         return chunks[skip:skip + limit]
-    
+
     def get_chunk_by_id(self, chunk_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific chunk by ID.
-        
+
         Args:
             chunk_id: Chunk identifier (_id field)
-            
+
         Returns:
             Chunk document or None
         """
@@ -921,12 +921,12 @@ class ReportingService:
             filter_dict={"_id": chunk_id},
             limit=1,
         )
-        
+
         return results[0] if results else None
 
     def get_stats(self) -> Dict[str, Any]:
         """Get service statistics.
-        
+
         Returns:
             Dictionary of statistics
         """

@@ -25,17 +25,17 @@ def create_error_reporter(
     **kwargs
 ) -> ErrorReporter:
     """Create an error reporter based on type.
-    
+
     Args:
         reporter_type: Type of reporter ("console", "silent", "sentry")
         logger_name: Logger name for console reporter (optional)
         dsn: Sentry DSN for sentry reporter (optional)
         environment: Environment name for sentry reporter (optional)
         **kwargs: Additional reporter-specific arguments
-        
+
     Returns:
         ErrorReporter instance
-        
+
     Raises:
         ValueError: If reporter_type is unknown
     """

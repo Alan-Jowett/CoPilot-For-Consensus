@@ -9,7 +9,7 @@ from typing import Callable, Dict, Any
 
 class EventSubscriber(ABC):
     """Abstract base class for event subscribers.
-    
+
     Provides a common interface for subscribing to and consuming events
     from the message bus. Implementations should handle the specifics
     of connecting to and consuming from the message bus.
@@ -18,7 +18,7 @@ class EventSubscriber(ABC):
     @abstractmethod
     def connect(self) -> None:
         """Connect to the message bus.
-        
+
         Raises:
             Exception: If connection fails for any reason
         """
@@ -38,7 +38,7 @@ class EventSubscriber(ABC):
         exchange: str = None,
     ) -> None:
         """Subscribe to events of a specific type.
-        
+
         Args:
             event_type: Type of event to subscribe to (e.g., "ArchiveIngested")
             callback: Function to call when an event is received
@@ -51,7 +51,7 @@ class EventSubscriber(ABC):
     @abstractmethod
     def start_consuming(self) -> None:
         """Start consuming events.
-        
+
         This method should block and process events as they arrive,
         calling the registered callbacks.
         """

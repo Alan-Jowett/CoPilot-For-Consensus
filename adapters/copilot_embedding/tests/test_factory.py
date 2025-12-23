@@ -22,7 +22,7 @@ class TestCreateEmbeddingProvider:
     def test_create_mock_provider(self):
         """Test creating mock provider."""
         provider = create_embedding_provider(backend="mock", dimension=128)
-        
+
         assert isinstance(provider, MockEmbeddingProvider)
         assert provider.dimension == 128
 
@@ -45,14 +45,14 @@ class TestCreateEmbeddingProvider:
         mock_st_class = Mock()
         mock_st_class.return_value = Mock()
         mock_st_module.SentenceTransformer = mock_st_class
-        
+
         with patch.dict('sys.modules', {'sentence_transformers': mock_st_module}):
             provider = create_embedding_provider(
                 backend="sentencetransformers",
                 model="custom-model",
                 device="cpu"
             )
-            
+
             assert isinstance(provider, SentenceTransformerEmbeddingProvider)
             assert provider.model_name == "custom-model"
 
@@ -73,7 +73,7 @@ class TestCreateEmbeddingProvider:
         mock_st_class = Mock()
         mock_st_class.return_value = Mock()
         mock_st_module.SentenceTransformer = mock_st_class
-        
+
         with patch.dict('sys.modules', {'sentence_transformers': mock_st_module}):
             with patch.dict(os.environ, {
                 "EMBEDDING_BACKEND": "sentencetransformers",
@@ -92,14 +92,14 @@ class TestCreateEmbeddingProvider:
         mock_openai_class.return_value = Mock()
         mock_openai_module.OpenAI = mock_openai_class
         mock_openai_module.AzureOpenAI = Mock()
-        
+
         with patch.dict('sys.modules', {'openai': mock_openai_module}):
             provider = create_embedding_provider(
                 backend="openai",
                 api_key="test-key",
                 model="custom-model"
             )
-            
+
             assert isinstance(provider, OpenAIEmbeddingProvider)
             assert provider.model == "custom-model"
             assert provider.is_azure is False
@@ -117,7 +117,7 @@ class TestCreateEmbeddingProvider:
         mock_openai_class.return_value = Mock()
         mock_openai_module.OpenAI = mock_openai_class
         mock_openai_module.AzureOpenAI = Mock()
-        
+
         with patch.dict('sys.modules', {'openai': mock_openai_module}):
             with patch.dict(os.environ, {
                 "EMBEDDING_BACKEND": "openai",
@@ -141,7 +141,7 @@ class TestCreateEmbeddingProvider:
         mock_azure_class.return_value = Mock()
         mock_openai_module.OpenAI = Mock()
         mock_openai_module.AzureOpenAI = mock_azure_class
-        
+
         with patch.dict('sys.modules', {'openai': mock_openai_module}):
             provider = create_embedding_provider(
                 backend="azure",
@@ -149,7 +149,7 @@ class TestCreateEmbeddingProvider:
                 api_base="https://test.openai.azure.com/",
                 deployment_name="test-deployment"
             )
-            
+
             assert isinstance(provider, OpenAIEmbeddingProvider)
             assert provider.is_azure is True
             assert provider.deployment_name == "test-deployment"
@@ -162,7 +162,7 @@ class TestCreateEmbeddingProvider:
         mock_azure_class.return_value = Mock()
         mock_openai_module.OpenAI = Mock()
         mock_openai_module.AzureOpenAI = mock_azure_class
-        
+
         with patch.dict('sys.modules', {'openai': mock_openai_module}):
             with patch.dict(os.environ, {
                 "EMBEDDING_BACKEND": "azure",
@@ -214,14 +214,14 @@ class TestCreateEmbeddingProvider:
         mock_transformers_module.AutoTokenizer = mock_tokenizer_class
         mock_transformers_module.AutoModel = mock_model_class
         mock_torch_module = Mock()
-        
+
         with patch.dict('sys.modules', {'transformers': mock_transformers_module, 'torch': mock_torch_module}):
             provider = create_embedding_provider(
                 backend="huggingface",
                 model="custom-model",
                 device="cpu"
             )
-            
+
             assert isinstance(provider, HuggingFaceEmbeddingProvider)
             assert provider.model_name == "custom-model"
 
@@ -238,7 +238,7 @@ class TestCreateEmbeddingProvider:
         mock_transformers_module.AutoTokenizer = mock_tokenizer_class
         mock_transformers_module.AutoModel = mock_model_class
         mock_torch_module = Mock()
-        
+
         with patch.dict('sys.modules', {'transformers': mock_transformers_module, 'torch': mock_torch_module}):
             with patch.dict(os.environ, {
                 "EMBEDDING_BACKEND": "huggingface",
@@ -264,7 +264,7 @@ class TestCreateEmbeddingProvider:
         provider1 = create_embedding_provider(backend="MOCK", dimension=384)
         provider2 = create_embedding_provider(backend="Mock", dimension=384)
         provider3 = create_embedding_provider(backend="mock", dimension=384)
-        
+
         assert isinstance(provider1, MockEmbeddingProvider)
         assert isinstance(provider2, MockEmbeddingProvider)
         assert isinstance(provider3, MockEmbeddingProvider)

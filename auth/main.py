@@ -106,12 +106,12 @@ async def readyz() -> dict[str, str]:
 @app.get("/providers")
 async def list_providers() -> dict[str, Any]:
     """List available authentication providers.
-    
+
     Returns information about which providers are configured and ready to use.
-    
+
     Returns:
         JSON with list of configured providers and their status
-    
+
     Example Response:
         {
             "providers": {
@@ -129,13 +129,13 @@ async def list_providers() -> dict[str, Any]:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
     configured_providers = list(auth_service.providers.keys())
-    
+
     provider_status = {}
     for provider in SUPPORTED_PROVIDERS:
         provider_status[provider] = {
             "configured": provider in configured_providers,
         }
-    
+
     return {
         "providers": provider_status,
         "configured_count": len(configured_providers),

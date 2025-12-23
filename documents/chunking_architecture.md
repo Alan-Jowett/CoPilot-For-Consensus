@@ -227,7 +227,7 @@ The factory method selects the appropriate strategy based on configuration:
 def create_chunker(strategy: str, **params) -> ThreadChunker:
     """
     Factory method for creating chunkers.
-    
+
     Strategy mapping:
     - "token_window" → TokenWindowChunker
     - "fixed_size"   → FixedSizeChunker

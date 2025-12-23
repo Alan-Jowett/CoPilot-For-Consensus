@@ -18,7 +18,7 @@ class TestThreadBuilder:
     def test_build_single_message_thread(self):
         """Test building a thread from a single message."""
         builder = ThreadBuilder()
-        
+
         msg1_id = _generate_test_id("msg1@example.com")
         messages = [
             {
@@ -32,9 +32,9 @@ class TestThreadBuilder:
                 "draft_mentions": ["RFC 9000"],
             }
         ]
-        
+
         threads = builder.build_threads(messages)
-        
+
         assert len(threads) == 1
         thread = threads[0]
         assert thread["thread_id"] == msg1_id
@@ -46,7 +46,7 @@ class TestThreadBuilder:
     def test_build_multi_message_thread(self):
         """Test building a thread from multiple messages."""
         builder = ThreadBuilder()
-        
+
         msg1_id = _generate_test_id("msg1@example.com")
         msg2_id = _generate_test_id("msg2@example.com")
         msg3_id = _generate_test_id("msg3@example.com")
@@ -82,9 +82,9 @@ class TestThreadBuilder:
                 "draft_mentions": [],
             },
         ]
-        
+
         threads = builder.build_threads(messages)
-        
+
         assert len(threads) == 1
         thread = threads[0]
         assert thread["thread_id"] == msg1_id
@@ -95,7 +95,7 @@ class TestThreadBuilder:
     def test_build_multiple_threads(self):
         """Test building multiple separate threads."""
         builder = ThreadBuilder()
-        
+
         msg1_id = _generate_test_id("msg1@example.com")
         msg2_id = _generate_test_id("msg2@example.com")
         messages = [
@@ -120,9 +120,9 @@ class TestThreadBuilder:
                 "draft_mentions": [],
             },
         ]
-        
+
         threads = builder.build_threads(messages)
-        
+
         assert len(threads) == 2
         thread_ids = {t["thread_id"] for t in threads}
         assert thread_ids == {msg1_id, msg2_id}
@@ -130,7 +130,7 @@ class TestThreadBuilder:
     def test_thread_date_range(self):
         """Test thread date range calculation."""
         builder = ThreadBuilder()
-        
+
         msg1_id = _generate_test_id("msg1@example.com")
         msg2_id = _generate_test_id("msg2@example.com")
         messages = [
@@ -155,9 +155,9 @@ class TestThreadBuilder:
                 "draft_mentions": [],
             },
         ]
-        
+
         threads = builder.build_threads(messages)
-        
+
         thread = threads[0]
         assert thread["first_message_date"] == "2024-01-01T12:00:00Z"
         assert thread["last_message_date"] == "2024-01-03T12:00:00Z"
@@ -165,7 +165,7 @@ class TestThreadBuilder:
     def test_participant_deduplication(self):
         """Test that participants are deduplicated by email."""
         builder = ThreadBuilder()
-        
+
         msg1_id = _generate_test_id("msg1@example.com")
         msg2_id = _generate_test_id("msg2@example.com")
         messages = [
@@ -190,9 +190,9 @@ class TestThreadBuilder:
                 "draft_mentions": [],
             },
         ]
-        
+
         threads = builder.build_threads(messages)
-        
+
         thread = threads[0]
         # Should only have one participant despite two messages from same email
         assert len(thread["participants"]) == 1
@@ -201,7 +201,7 @@ class TestThreadBuilder:
     def test_draft_mention_aggregation(self):
         """Test draft mention aggregation across messages."""
         builder = ThreadBuilder()
-        
+
         msg1_id = _generate_test_id("msg1@example.com")
         msg2_id = _generate_test_id("msg2@example.com")
         messages = [
@@ -226,9 +226,9 @@ class TestThreadBuilder:
                 "draft_mentions": ["RFC 9001", "draft-ietf-quic-transport-34"],
             },
         ]
-        
+
         threads = builder.build_threads(messages)
-        
+
         thread = threads[0]
         # Should have unique draft mentions
         assert len(thread["draft_mentions"]) == 3
@@ -237,19 +237,19 @@ class TestThreadBuilder:
     def test_empty_messages_list(self):
         """Test with empty messages list."""
         builder = ThreadBuilder()
-        
+
         threads = builder.build_threads([])
-        
+
         assert len(threads) == 0
 
     def test_missing_root_message(self):
         """Test handling of message with missing root (in_reply_to not in parsed set).
-        
+
         When a message refers to a parent via in_reply_to that isn't in the parsed set,
         the message should be assigned its own _id as the thread root.
         """
         builder = ThreadBuilder()
-        
+
         msg1_id = _generate_test_id("msg1@example.com")
         messages = [
             {
@@ -263,9 +263,9 @@ class TestThreadBuilder:
                 "draft_mentions": [],
             },
         ]
-        
+
         threads = builder.build_threads(messages)
-        
+
         assert len(threads) == 1
         thread = threads[0]
         # Should use this message's own _id as the thread root
@@ -275,7 +275,7 @@ class TestThreadBuilder:
     def test_subject_cleaning(self):
         """Test subject line cleaning."""
         builder = ThreadBuilder()
-        
+
         msg1_id = _generate_test_id("msg1@example.com")
         messages = [
             {
@@ -289,9 +289,9 @@ class TestThreadBuilder:
                 "draft_mentions": [],
             },
         ]
-        
+
         threads = builder.build_threads(messages)
-        
+
         thread = threads[0]
         # Subject should be cleaned (Re:, [QUIC], FWD: removed)
         assert "Re:" not in thread["subject"]

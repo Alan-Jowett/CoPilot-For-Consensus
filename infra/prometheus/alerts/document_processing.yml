@@ -17,9 +17,9 @@ groups:
       - alert: HighDocumentFailureRate
         expr: |
           (
-            copilot_document_status_count{collection="archives",status="failed"} 
-            / 
-            (copilot_document_status_count{collection="archives",status="failed"} 
+            copilot_document_status_count{collection="archives",status="failed"}
+            /
+            (copilot_document_status_count{collection="archives",status="failed"}
              + copilot_document_status_count{collection="archives",status="processed"})
           ) > 0.1
         for: 15m
@@ -31,17 +31,17 @@ groups:
           description: |
             Archive processing failure rate is {{ $value | humanizePercentage }}.
             This exceeds the 10% threshold and indicates systematic processing issues.
-            
+
             Current failed count: {{ with query "copilot_document_status_count{collection=\"archives\",status=\"failed\"}" }}{{ . | first | value }}{{ end }}
-            
+
             Action:
               1. Check parsing service logs: docker compose logs parsing
               2. Verify MongoDB connectivity and disk space
               3. Check parsing service logs and MongoDB for detailed error information
               4. Inspect failed archives in MongoDB: db.archives.find({status: "failed"})
-            
+
             Dashboard: Grafana > Document Processing Status
-      
+
       # Alert when documents are stuck in pending state for too long
       - alert: DocumentsStuckPending
         expr: copilot_document_age_seconds{collection="archives",status="pending"} > 3600
@@ -54,17 +54,17 @@ groups:
           description: |
             Average age of pending archives is {{ $value | humanizeDuration }}.
             Documents may be stuck waiting for processing.
-            
+
             Pending count: {{ with query "copilot_document_status_count{collection=\"archives\",status=\"pending\"}" }}{{ . | first | value }}{{ end }}
-            
+
             Action:
               1. Check parsing service health: docker compose ps parsing
               2. Check RabbitMQ ingestion queue: http://localhost:15672
               3. Verify parsing service is consuming messages
               4. Check for error patterns in logs: docker compose logs parsing | grep -i error
-            
+
             Dashboard: Grafana > Pipeline Flow Visualization
-      
+
       # Alert when processing duration exceeds threshold
       - alert: LongDocumentProcessingDuration
         expr: copilot_document_processing_duration_seconds{collection="archives"} > 600
@@ -77,22 +77,22 @@ groups:
           description: |
             Average archive processing time is {{ $value | humanizeDuration }}, exceeding the 10-minute threshold.
             This may indicate performance degradation or resource constraints.
-            
+
             Action:
               1. Check service resource usage: Grafana > Container Resource Usage dashboard
               2. Monitor MongoDB performance: Grafana > MongoDB Document Store Status
               3. Check for large/complex archives causing slowdowns
               4. Consider scaling parsing service if sustained high load
-            
+
             Dashboard: Grafana > Document Processing Status
-      
+
       # Alert when embedding completion rate is low
       - alert: LowEmbeddingCompletionRate
         expr: |
           (
-            copilot_chunks_embedding_status_count{embedding_generated="True"} 
-            / 
-            (copilot_chunks_embedding_status_count{embedding_generated="True"} 
+            copilot_chunks_embedding_status_count{embedding_generated="True"}
+            /
+            (copilot_chunks_embedding_status_count{embedding_generated="True"}
              + copilot_chunks_embedding_status_count{embedding_generated="False"})
           ) < 0.8
         for: 20m
@@ -104,18 +104,18 @@ groups:
           description: |
             Only {{ $value | humanizePercentage }} of chunks have embeddings generated.
             This indicates the embedding service may be falling behind or experiencing issues.
-            
+
             Chunks without embeddings: {{ with query "copilot_chunks_embedding_status_count{embedding_generated=\"False\"}" }}{{ . | first | value }}{{ end }}
-            
+
             Action:
               1. Check embedding service health: docker compose ps embedding
               2. Verify Qdrant vectorstore is accessible: curl http://localhost:6333/collections
               3. Check Ollama service status: docker compose ps ollama
               4. Review embedding service logs: docker compose logs embedding
               5. Consider scaling embedding service if queue is backed up
-            
+
             Dashboard: Grafana > Document Processing Status
-      
+
       # Alert when attempt count is high (indicates retries)
       - alert: HighDocumentAttemptCount
         expr: copilot_document_attempt_count{collection="archives"} > 2.5
@@ -128,15 +128,15 @@ groups:
           description: |
             Average document attempt count is {{ $value }}, indicating frequent retries.
             This suggests transient failures or resource contention.
-            
+
             Action:
               1. Check service logs for retry patterns
               2. Check for intermittent connectivity issues with dependencies
               3. Monitor RabbitMQ for message redeliveries
               4. Check service health and restart cycles
-            
+
             Dashboard: Grafana > Document Processing Status
-      
+
       # Alert when failed documents are accumulating rapidly
       - alert: FailedDocumentsAccumulating
         expr: rate(copilot_document_status_count{collection="archives",status="failed"}[5m]) > 0.5
@@ -149,16 +149,16 @@ groups:
           description: |
             Failed archives are increasing at {{ $value | humanize }} documents/second.
             This indicates an ongoing systematic failure requiring immediate attention.
-            
+
             Action:
               1. URGENT: Check parsing service for errors
               2. Verify all dependencies are healthy (MongoDB, RabbitMQ)
               3. Review recent configuration or deployment changes
               4. Consider disabling ingestion until issue is resolved
               5. Escalate to on-call engineer if not resolved in 30 minutes
-            
+
             Dashboard: Grafana > Document Processing Status
-      
+
       # Alert when documents haven't been updated in extended period (truly stuck)
       - alert: DocumentsStuckProcessing
         expr: copilot_document_age_seconds{collection="archives",status="processing"} > 7200
@@ -171,12 +171,12 @@ groups:
           description: |
             Documents have been in processing state for {{ $value | humanizeDuration }} without updates.
             This indicates worker crashes, deadlocks, or hung processes.
-            
+
             Action:
               1. Identify stuck documents: db.archives.find({status: "processing", updated_at: {$lt: new Date(Date.now() - 7200000)}})
               2. Check for worker crashes or restarts
               3. Review service logs for deadlocks or exceptions
               4. Consider manually resetting stuck documents to pending
               5. Restart affected services if necessary
-            
+
             Dashboard: Grafana > Document Processing Status

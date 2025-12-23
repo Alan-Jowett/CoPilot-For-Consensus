@@ -84,7 +84,7 @@ class TestSchemaRegistry:
         """Test listing all registered schemas."""
         schemas = list_schemas()
         assert len(schemas) > 0
-        
+
         # Check structure
         for schema_type, version, path in schemas:
             assert isinstance(schema_type, str)
@@ -92,7 +92,7 @@ class TestSchemaRegistry:
             assert isinstance(path, str)
             assert version.startswith("v")
             assert path.endswith(".schema.json")
-        
+
         # Check that results are sorted
         types_and_versions = [(t, v) for t, v, _ in schemas]
         assert types_and_versions == sorted(types_and_versions)
@@ -101,7 +101,7 @@ class TestSchemaRegistry:
         """Test that list_schemas includes event schemas."""
         schemas = list_schemas()
         schema_types = [t for t, _, _ in schemas]
-        
+
         # Check for some known event types
         assert "ArchiveIngested" in schema_types
         assert "ChunksPrepared" in schema_types
@@ -110,22 +110,22 @@ class TestSchemaRegistry:
     def test_load_schema_caching(self):
         """Test that schemas are cached after first load."""
         from copilot_schema_validation import schema_registry
-        
+
         # Clear cache to start fresh
         schema_registry._schema_cache.clear()
-        
+
         # Load schema - should not be in cache
         cache_key = "v1.ArchiveIngested"
         assert cache_key not in schema_registry._schema_cache
-        
+
         schema1 = load_schema("ArchiveIngested", "v1")
-        
+
         # Now it should be in cache
         assert cache_key in schema_registry._schema_cache
-        
+
         # Load again - should return cached version
         schema2 = load_schema("ArchiveIngested", "v1")
-        
+
         # Should be the same object (cached)
         assert schema1 is schema2
 
@@ -133,7 +133,7 @@ class TestSchemaRegistry:
         """Test that list_schemas includes document schemas."""
         schemas = list_schemas()
         schema_types = [t for t, _, _ in schemas]
-        
+
         # Check for some known document types
         assert "Archive" in schema_types
         assert "Message" in schema_types
@@ -153,7 +153,7 @@ class TestSchemaRegistry:
         """Test registry validation detects missing schema files."""
         # Use monkeypatch to temporarily add a fake schema to the registry
         monkeypatch.setitem(SCHEMA_REGISTRY, "v99.FakeSchema", "events/fake-schema.schema.json")
-        
+
         valid, errors = validate_registry()
         assert not valid
         assert len(errors) > 0
@@ -178,7 +178,7 @@ class TestSchemaRegistry:
         """Test that metadata contains all expected fields."""
         meta = get_schema_metadata("Archive", "v1")
         assert meta is not None
-        
+
         expected_fields = {"type", "version", "relative_path", "absolute_path", "exists"}
         assert set(meta.keys()) == expected_fields
 
@@ -211,7 +211,7 @@ class TestSchemaRegistry:
     def test_schema_paths_are_consistent(self):
         """Test that schema paths in registry match actual file locations."""
         base_dir = _get_schema_base_dir()
-        
+
         for key, relative_path in SCHEMA_REGISTRY.items():
             full_path = base_dir / relative_path
             assert full_path.exists(), f"Schema file not found for {key}: {full_path}"
@@ -239,7 +239,7 @@ class TestSchemaRegistryWithMocks:
         # Mock the schema base directory to point to an empty directory
         with patch('copilot_schema_validation.schema_registry._get_schema_base_dir') as mock_base:
             mock_base.return_value = tmp_path
-            
+
             # Even though it's registered, the file doesn't exist
             with pytest.raises(FileNotFoundError, match="Schema file not found"):
                 get_schema_path("ArchiveIngested", "v1")
@@ -253,7 +253,7 @@ class TestSchemaRegistryWithMocks:
             mock_path.return_value.resolve.return_value.parents = [mock_instance, mock_instance]
             mock_path.return_value = mock_instance
             mock_path.__file__ = __file__
-            
+
             # This should work with the real implementation
             # Just test that it doesn't crash
             try:
@@ -268,16 +268,16 @@ class TestSchemaRegistryWithMocks:
         from copilot_schema_validation import schema_registry
         schema_registry._schema_cache.clear()
         schema_registry._get_schema_base_dir.cache_clear()
-        
+
         # Create a schema directory with invalid JSON
         schema_dir = tmp_path / "schemas" / "events"
         schema_dir.mkdir(parents=True)
-        
+
         invalid_schema = schema_dir / "ArchiveIngested.schema.json"
         invalid_schema.write_text("{ invalid json }", encoding="utf-8")
-        
+
         with patch('copilot_schema_validation.schema_registry._get_schema_base_dir') as mock_base:
             mock_base.return_value = tmp_path / "schemas"
-            
+
             with pytest.raises(json.JSONDecodeError):
                 load_schema("ArchiveIngested", "v1")

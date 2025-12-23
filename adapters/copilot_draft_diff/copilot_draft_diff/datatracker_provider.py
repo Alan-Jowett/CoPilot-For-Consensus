@@ -9,36 +9,36 @@ from .models import DraftDiff
 
 class DatatrackerDiffProvider(DraftDiffProvider):
     """Provider for fetching draft diffs from IETF Datatracker.
-    
+
     This is the default backend for fetching diffs from the official
     IETF Datatracker service at https://datatracker.ietf.org/
-    
+
     Attributes:
         base_url: Base URL for the Datatracker service
         diff_format: Default format for diffs (html, text)
     """
-    
+
     def __init__(self, base_url: str = "https://datatracker.ietf.org", diff_format: str = "html"):
         """Initialize Datatracker diff provider.
-        
+
         Args:
             base_url: Base URL for Datatracker service
             diff_format: Default format for diffs (html, text)
         """
         self.base_url = base_url.rstrip("/")
         self.diff_format = diff_format
-    
+
     def getdiff(self, draft_name: str, version_a: str, version_b: str) -> DraftDiff:
         """Fetch a diff between two versions of a draft from Datatracker.
-        
+
         Args:
             draft_name: Name of the draft (e.g., "draft-ietf-quic-transport")
             version_a: Version A identifier (e.g., "01", "02")
             version_b: Version B identifier (e.g., "02", "03")
-            
+
         Returns:
             DraftDiff object containing the diff content and metadata
-            
+
         Raises:
             ValueError: If draft_name is invalid or versions don't exist
             ConnectionError: If unable to fetch diff from Datatracker

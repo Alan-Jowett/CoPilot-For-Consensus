@@ -303,7 +303,7 @@ export LLAMA_CTX_SIZE=8192
    # Ubuntu/Debian (Mesa/AMDGPU)
    sudo apt update
    sudo apt install mesa-vulkan-drivers vulkan-tools
-   
+
    # For ROCm (discrete GPUs)
    # Follow: https://rocm.docs.amd.com/en/latest/deploy/linux/quick_start.html
    ```

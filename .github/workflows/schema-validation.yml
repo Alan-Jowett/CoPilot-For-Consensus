@@ -32,7 +32,7 @@ jobs:
     name: Validate Configuration Schemas
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -59,7 +59,7 @@ jobs:
           import glob
           import json
           import sys
-          
+
           errors = []
           for schema_path in glob.glob('documents/schemas/configs/*.json'):
               print(f"Validating {schema_path}...")
@@ -69,10 +69,10 @@ jobs:
               except Exception as exc:
                   print(f"ERROR: Failed to parse {schema_path}: {exc}")
                   errors.append(schema_path)
-          
+
           if errors:
               sys.exit(1)
-          
+
           print("✓ All schemas have valid JSON syntax")
           PYTHON_VALIDATE_JSON
 
@@ -83,7 +83,7 @@ jobs:
           import json
           import sys
           import glob
-          
+
           errors = []
           for schema_file in glob.glob('documents/schemas/configs/*.json'):
               print(f"Checking {schema_file}...")
@@ -99,12 +99,12 @@ jobs:
               except Exception as e:
                   print(f'ERROR: Failed to check {schema_file}: {e}')
                   sys.exit(1)
-          
+
           if errors:
               for error in errors:
                   print(error)
               sys.exit(1)
-          
+
           print("✓ All schemas have required version fields")
           PYTHON_SCRIPT
 
@@ -112,19 +112,19 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           echo "Checking for breaking changes in modified schemas..."
-          
+
           # Get list of modified schema files
           modified_schemas=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep 'documents/schemas/configs/.*\.json$' || true)
-          
+
           if [ -z "$modified_schemas" ]; then
             echo "No schema files changed"
             exit 0
           fi
-          
+
           for schema in $modified_schemas; do
             if [ -f "$schema" ]; then
               echo "Checking compatibility for $schema..."
-              
+
               # Get the old version from base branch
               if git show origin/${{ github.base_ref }}:"$schema" > /tmp/old_schema.json 2>/dev/null; then
                 # Run compatibility check
@@ -138,7 +138,7 @@ jobs:
               fi
             fi
           done
-          
+
           echo "✓ All schema changes are compatible"
 
       - name: Validate schema against JSON Schema draft
@@ -148,7 +148,7 @@ jobs:
           import json
           import sys
           from jsonschema import Draft202012Validator, ValidationError
-          
+
           errors = []
           for schema_file in [
               'documents/schemas/configs/auth.json',
@@ -163,23 +163,23 @@ jobs:
               try:
                   with open(schema_file, 'r') as f:
                       schema = json.load(f)
-                  
+
                   # Check that schema has required top-level fields
                   if 'service_name' not in schema:
                       errors.append(f'{schema_file}: Missing service_name')
                   if 'fields' not in schema:
                       errors.append(f'{schema_file}: Missing fields')
-                  
+
                   print(f'✓ {schema_file} is valid')
               except Exception as e:
                   errors.append(f'{schema_file}: {e}')
-          
+
           if errors:
               print('\\n❌ Schema validation errors:')
               for error in errors:
                   print(f'  - {error}')
               sys.exit(1)
-          
+
           print('\\n✓ All schemas are valid')
           "
 

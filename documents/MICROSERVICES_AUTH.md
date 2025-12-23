@@ -149,7 +149,7 @@ async def get_data(request: Request):
     user_email = request.state.user_email    # Email claim
     user_roles = request.state.user_roles    # Roles claim (list)
     user_claims = request.state.user_claims  # Full JWT claims dict
-    
+
     # Use for authorization or auditing
     logger.info(f"User {user_email} accessed data", user_id=user_id)
     return {"data": "..."}
@@ -309,7 +309,7 @@ curl "http://localhost:8090/login?provider=github&aud=copilot-reporting"
 
 **Cause**: User lacks necessary role
 
-**Solution**: 
+**Solution**:
 1. Check user's roles: `curl -H "Authorization: Bearer $TOKEN" http://localhost:8090/userinfo`
 2. Assign role via role management (future feature)
 3. Use service account with appropriate roles
