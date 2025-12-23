@@ -92,7 +92,7 @@ class TestSchemaVersioning:
                 },
             },
         }
-        schema_file.write_text(json.dumps(schema_data))
+        schema_file.write_text(json.dumps(schema_data), encoding="utf-8")
         
         # Set service version to incompatible version
         os.environ["SERVICE_VERSION"] = "1.0.0"
@@ -124,7 +124,7 @@ class TestSchemaVersioning:
                 },
             },
         }
-        schema_file.write_text(json.dumps(schema_data))
+        schema_file.write_text(json.dumps(schema_data), encoding="utf-8")
         
         # Set service version to compatible version
         os.environ["SERVICE_VERSION"] = "1.0.0"
@@ -163,7 +163,7 @@ class TestTypedConfigVersioning:
                 },
             },
         }
-        schema_file.write_text(json.dumps(schema_data))
+        schema_file.write_text(json.dumps(schema_data), encoding="utf-8")
         
         os.environ["TEST_FIELD"] = "test_value"
         os.environ["SERVICE_VERSION"] = "1.0.0"

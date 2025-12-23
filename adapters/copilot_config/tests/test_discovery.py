@@ -35,7 +35,7 @@ class TestDiscoveryEndpoint:
                 },
             },
         }
-        schema_file.write_text(json.dumps(schema_data))
+        schema_file.write_text(json.dumps(schema_data), encoding="utf-8")
         
         # Test with explicit service version
         response = get_configuration_schema_response(
@@ -68,7 +68,7 @@ class TestDiscoveryEndpoint:
                 },
             },
         }
-        schema_file.write_text(json.dumps(schema_data))
+        schema_file.write_text(json.dumps(schema_data), encoding="utf-8")
         
         os.environ["SERVICE_VERSION"] = "1.2.3"
         
@@ -116,7 +116,7 @@ class TestDiscoveryEndpoint:
                 },
             },
         }
-        schema_file.write_text(json.dumps(schema_data))
+        schema_file.write_text(json.dumps(schema_data), encoding="utf-8")
         
         response = get_configuration_schema_response(
             "test-service",
