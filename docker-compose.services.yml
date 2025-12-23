@@ -12,6 +12,7 @@ services:
       context: .
       dockerfile: ./chunking/Dockerfile
     environment:
+      - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/documents/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
@@ -54,6 +55,7 @@ services:
       context: .
       dockerfile: ./embedding/Dockerfile
     environment:
+      - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/documents/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
@@ -103,6 +105,7 @@ services:
       context: .
       dockerfile: ./ingestion/Dockerfile
     environment:
+      - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/documents/schemas/configs
       - STORAGE_PATH=/data/raw_archives
       - MESSAGE_BUS_TYPE=rabbitmq
@@ -153,6 +156,7 @@ services:
       context: .
       dockerfile: ./orchestrator/Dockerfile
     environment:
+      - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/documents/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
@@ -209,6 +213,7 @@ services:
       context: .
       dockerfile: ./parsing/Dockerfile
     environment:
+      - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/documents/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
@@ -252,6 +257,7 @@ services:
       context: .
       dockerfile: ./reporting/Dockerfile
     environment:
+      - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/documents/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
@@ -296,6 +302,7 @@ services:
       context: .
       dockerfile: ./auth/Dockerfile
     environment:
+      - SERVICE_VERSION=0.1.0
       - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/ui}
       - AUTH_AUDIENCES=${AUTH_AUDIENCES:-copilot-for-consensus}
       - JWT_ALGORITHM=${JWT_ALGORITHM:-RS256}
@@ -375,6 +382,7 @@ services:
       context: .
       dockerfile: ./summarization/Dockerfile
     environment:
+      - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/documents/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
