@@ -392,7 +392,6 @@ $endpoint -replace 'https://','' -replace ':443/',''
 When using managed identity mode, the ARM template will automatically assign the following RBAC roles:
 - **Azure Service Bus Data Sender** (role ID: `69a216fc-b8fb-44d4-bc22-1f3c7cd27a98`) - for services that produce messages
 - **Azure Service Bus Data Receiver** (role ID: `4f6d3b9b-027b-4f4c-9142-0e5a2a2247e0`) - for services that consume messages
-```
 
 #### 1.2 Azure Storage Account (for archives)
 

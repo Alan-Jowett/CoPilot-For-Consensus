@@ -201,8 +201,6 @@
     "keyVaultName": "[format('{0}kv{1}', parameters('projectName'), variables('uniqueSuffix'))]",
     "storageAccountName": "[format('{0}st{1}', replace(parameters('projectName'), '-', ''), variables('uniqueSuffix'))]",
     
-    "validateManagedIdentityParams": "[if(parameters('useManagedIdentityForServiceBus'), if(and(not(equals(parameters('serviceBusNamespace'), '')), not(equals(parameters('serviceBusResourceId'), ''))), true(), json('null')), true())]",
-    "validateConnectionStringParams": "[if(not(parameters('useManagedIdentityForServiceBus')), if(not(equals(parameters('serviceBusConnectionString'), '')), true(), json('null')), true())]",
     "validateServiceBusResourceIdFormat": "[if(parameters('useManagedIdentityForServiceBus'), if(equals(length(split(parameters('serviceBusResourceId'), '/')), 9), true(), json('null')), true())]",
     
     "services": [
