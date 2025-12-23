@@ -15,11 +15,13 @@ Example:
 from .exceptions import SecretError, SecretNotFoundError, SecretProviderError
 from .provider import SecretProvider
 from .local_provider import LocalFileSecretProvider
+from .azurekeyvault_provider import AzureKeyVaultProvider
 from .factory import create_secret_provider
 
 __all__ = [
     "SecretProvider",
     "LocalFileSecretProvider",
+    "AzureKeyVaultProvider",
     "create_secret_provider",
     "SecretError",
     "SecretNotFoundError",

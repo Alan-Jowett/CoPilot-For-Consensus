@@ -4,7 +4,11 @@
 # Core dependencies
 copilot-logging>=0.1.0
 
-# Future cloud provider SDKs:
+# Azure Key Vault support (optional)
+# Install with: pip install copilot-secrets[azure]
 # azure-keyvault-secrets>=4.7.0
+# azure-identity>=1.12.0
+
+# Future cloud provider SDKs:
 # boto3>=1.26.0  # AWS Secrets Manager
 # google-cloud-secret-manager>=2.16.0

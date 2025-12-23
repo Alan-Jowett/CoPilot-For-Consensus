@@ -7,6 +7,7 @@ from typing import Any, Dict
 
 from .provider import SecretProvider
 from .local_provider import LocalFileSecretProvider
+from .azurekeyvault_provider import AzureKeyVaultProvider
 from .exceptions import SecretProviderError
 
 
@@ -28,7 +29,7 @@ def create_secret_provider(provider_type: str, **kwargs: Any) -> SecretProvider:
     """
     providers: Dict[str, type] = {
         "local": LocalFileSecretProvider,
-        # Future: "azure": AzureKeyVaultProvider,
+        "azure": AzureKeyVaultProvider,
         # Future: "aws": AWSSecretsManagerProvider,
         # Future: "gcp": GCPSecretManagerProvider,
     }

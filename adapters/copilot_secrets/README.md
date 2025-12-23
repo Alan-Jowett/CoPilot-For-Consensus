@@ -16,7 +16,11 @@ Secret management adapter for retrieving sensitive configuration data like API k
 ## Installation
 
 ```bash
+# Base installation
 pip install -e .
+
+# With Azure Key Vault support
+pip install -e ".[azure]"
 ```
 
 ## Usage
@@ -69,6 +73,128 @@ secrets = create_secret_provider("local", base_path=base_path)
 jwt_key = secrets.get_secret("jwt_private_key")
 ```
 
+### Azure Key Vault Provider
+
+Store and retrieve secrets from Azure Key Vault with managed identity support:
+
+```python
+from copilot_secrets import create_secret_provider
+
+# Using vault name (simplest for Azure-hosted services)
+provider = create_secret_provider("azure", vault_name="my-production-vault")
+
+# Or using full vault URL
+provider = create_secret_provider(
+    "azure", 
+    vault_url="https://my-vault.vault.azure.net/"
+)
+
+# Retrieve secrets
+api_key = provider.get_secret("api-key")
+jwt_private_key = provider.get_secret("jwt-private-key")
+
+# Retrieve specific version
+old_key = provider.get_secret("api-key", version="abc123def456")
+
+# Check if secret exists
+if provider.secret_exists("optional-feature-key"):
+    feature_key = provider.get_secret("optional-feature-key")
+```
+
+#### Configuration via Environment Variables
+
+```python
+import os
+from copilot_secrets import create_secret_provider
+
+# Option 1: Set vault name
+os.environ["AZURE_KEY_VAULT_NAME"] = "my-vault"
+provider = create_secret_provider("azure")
+
+# Option 2: Set full vault URI
+os.environ["AZURE_KEY_VAULT_URI"] = "https://my-vault.vault.azure.net/"
+provider = create_secret_provider("azure")
+```
+
+#### Authentication Methods
+
+The Azure provider uses `DefaultAzureCredential` from `azure-identity`, which tries multiple authentication methods in order:
+
+1. **Managed Identity** (recommended for production)
+   - Works automatically on Azure App Service, Azure Functions, Azure VMs, Azure Container Instances
+   - No credentials needed in code or environment
+   
+2. **Environment Variables** (for local development or CI/CD)
+   ```bash
+   export AZURE_TENANT_ID="your-tenant-id"
+   export AZURE_CLIENT_ID="your-client-id"
+   export AZURE_CLIENT_SECRET="your-client-secret"
+   ```
+
+3. **Azure CLI** (for local development)
+   ```bash
+   az login
+   # Then run your application
+   ```
+
+4. **Visual Studio Code** (for local development)
+   - Azure Account extension automatically provides credentials
+
+#### Docker/Kubernetes Deployment
+
+```yaml
+# docker-compose.yml
+services:
+  myservice:
+    image: myservice:latest
+    environment:
+      AZURE_KEY_VAULT_NAME: my-production-vault
+      # For managed identity on Azure, no additional config needed
+      
+      # For local dev with service principal:
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET}
+```
+
+#### Azure Key Vault Setup
+
+1. **Create a Key Vault:**
+   ```bash
+   az keyvault create \
+     --name my-vault \
+     --resource-group my-rg \
+     --location eastus
+   ```
+
+2. **Add secrets:**
+   ```bash
+   az keyvault secret set \
+     --vault-name my-vault \
+     --name api-key \
+     --value "my-secret-api-key"
+   ```
+
+3. **Grant access to managed identity:**
+   ```bash
+   # For App Service or Azure Function
+   az keyvault set-policy \
+     --name my-vault \
+     --object-id $(az webapp identity show \
+       --name my-app \
+       --resource-group my-rg \
+       --query principalId -o tsv) \
+     --secret-permissions get list
+   ```
+
+4. **Grant access to service principal (for local dev):**
+   ```bash
+   az keyvault set-policy \
+     --name my-vault \
+     --spn $AZURE_CLIENT_ID \
+     --secret-permissions get list
+   ```
+
 ### Secret File Structure
 
 ```
@@ -113,7 +239,6 @@ class SecretProvider(ABC):
 
 Planned implementations:
 
-- **Azure Key Vault**: `create_secret_provider("azure", vault_url="https://...")`
 - **AWS Secrets Manager**: `create_secret_provider("aws", region="us-east-1")`
 - **GCP Secret Manager**: `create_secret_provider("gcp", project_id="...")`
 
@@ -171,6 +296,12 @@ jwt_manager = JWTManager(
 3. **No Logging**: Secret values are never logged by the provider
 4. **Volume Mounts**: Use read-only mounts (`:ro`) when mounting secret directories
 5. **Kubernetes Secrets**: Compatible with `kubectl create secret generic` mounted secrets
+6. **Azure Key Vault**: 
+   - Use managed identities instead of service principals when possible
+   - Enable soft-delete and purge protection on Key Vaults
+   - Use Azure RBAC or access policies to grant least-privilege access
+   - Rotate secrets regularly and use versioning
+   - Monitor access with Azure Monitor and Azure Key Vault logs
 
 ## License
 

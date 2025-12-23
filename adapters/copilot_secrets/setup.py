@@ -20,8 +20,11 @@ setup(
             "pytest>=7.0.0",
             "pytest-cov>=4.0.0",
         ],
+        "azure": [
+            "azure-keyvault-secrets>=4.7.0",
+            "azure-identity>=1.12.0",
+        ],
         # Future cloud provider extras:
-        # "azure": ["azure-keyvault-secrets>=4.7.0", "azure-identity>=1.12.0"],
         # "aws": ["boto3>=1.26.0"],
         # "gcp": ["google-cloud-secret-manager>=2.16.0"],
     },
