@@ -6,9 +6,104 @@
 import json
 import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from .config import ConfigProvider, EnvConfigProvider, StaticConfigProvider
+
+
+def _resolve_schema_directory(schema_dir: Optional[str] = None) -> str:
+    """Resolve schema directory path.
+    
+    Args:
+        schema_dir: Optional explicit schema directory path
+        
+    Returns:
+        Resolved schema directory path
+    """
+    if schema_dir is not None:
+        return schema_dir
+    
+    # First check environment variable
+    schema_dir_env = os.environ.get("SCHEMA_DIR")
+    if schema_dir_env is not None:
+        return schema_dir_env
+    
+    # Try common locations relative to current working directory
+    possible_dirs = [
+        os.path.join(os.getcwd(), "documents", "schemas", "configs"),
+        os.path.join(os.getcwd(), "..", "documents", "schemas", "configs"),
+    ]
+    
+    for d in possible_dirs:
+        if os.path.exists(d):
+            return d
+    
+    # Default to documents/schemas/configs if nothing found
+    return os.path.join(os.getcwd(), "documents", "schemas", "configs")
+
+
+def _parse_semver(version: str) -> Tuple[int, int, int]:
+    """Parse semver string into tuple of ints.
+    
+    Args:
+        version: Version string in semver format (e.g., "1.2.3")
+        
+    Returns:
+        Tuple of (major, minor, patch) version numbers
+        
+    Raises:
+        ValueError: If version string is not valid semver
+    """
+    if not version:
+        raise ValueError("Version string cannot be empty")
+    
+    # Ensure we can split the version string; this also validates the type
+    try:
+        parts = version.split(".")
+    except AttributeError as exc:
+        raise ValueError(
+            f"Version must be a string in 'major.minor.patch' format, got {type(version).__name__!r}"
+        ) from exc
+    
+    if len(parts) < 3:
+        raise ValueError(
+            f"Version must have at least 3 components in 'major.minor.patch' format: {version!r}"
+        )
+    
+    labels = ("major", "minor", "patch")
+    numeric_parts = []
+    for index, label in enumerate(labels):
+        part = parts[index]
+        if not part.isdigit():
+            raise ValueError(
+                f"Version {label} component must be an integer, got {part!r} in {version!r}"
+            )
+        numeric_parts.append(int(part))
+    
+    major, minor, patch = numeric_parts
+    return (major, minor, patch)
+
+
+def _is_version_compatible(service_version: str, min_required_version: str) -> bool:
+    """Check if service version is compatible with minimum required version.
+    
+    Args:
+        service_version: Current service version (semver format)
+        min_required_version: Minimum required version (semver format)
+        
+    Returns:
+        True if service version >= min required version, False otherwise
+        
+    Note:
+        Returns True if versions cannot be parsed (permissive for testing)
+    """
+    try:
+        service_parts = _parse_semver(service_version)
+        min_parts = _parse_semver(min_required_version)
+        return service_parts >= min_parts
+    except ValueError:
+        # Be permissive if versions can't be parsed (for testing/dev)
+        return True
 
 
 class ConfigValidationError(Exception):
@@ -42,6 +137,8 @@ class ConfigSchema:
     service_name: str
     fields: Dict[str, FieldSpec] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
+    schema_version: Optional[str] = None
+    min_service_version: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ConfigSchema':
@@ -56,12 +153,20 @@ class ConfigSchema:
         service_name = data.get("service_name", "unknown")
         metadata = data.get("metadata", {})
         fields_data = data.get("fields", {})
+        schema_version = data.get("schema_version")
+        min_service_version = data.get("min_service_version")
         
         fields = {}
         for field_name, field_data in fields_data.items():
             fields[field_name] = cls._parse_field_spec(field_name, field_data)
         
-        return cls(service_name=service_name, fields=fields, metadata=metadata)
+        return cls(
+            service_name=service_name,
+            fields=fields,
+            metadata=metadata,
+            schema_version=schema_version,
+            min_service_version=min_service_version,
+        )
 
     @classmethod
     def _parse_field_spec(cls, name: str, data: Dict[str, Any]) -> FieldSpec:
@@ -312,6 +417,7 @@ def _load_config(
     env_provider: Optional[ConfigProvider] = None,
     static_provider: Optional[StaticConfigProvider] = None,
     secret_provider: Optional[ConfigProvider] = None,
+    schema: Optional['ConfigSchema'] = None,
 ) -> Dict[str, Any]:
     """Load and validate configuration for a service (internal function).
     
@@ -328,6 +434,7 @@ def _load_config(
         env_provider: Optional custom environment provider
         static_provider: Optional static provider
         secret_provider: Optional secret provider (from copilot_secrets)
+        schema: Optional pre-loaded ConfigSchema (avoids redundant I/O if already loaded)
         
     Returns:
         Validated configuration dictionary
@@ -336,30 +443,41 @@ def _load_config(
         ConfigSchemaError: If schema is missing or invalid
         ConfigValidationError: If configuration validation fails
     """
-    # Determine schema directory
-    if schema_dir is None:
-        # First check environment variable
-        schema_dir = os.environ.get("SCHEMA_DIR")
-        
+    # Load schema from disk if not provided
+    if schema is None:
+        # Determine schema directory
         if schema_dir is None:
-            # Try common locations relative to current working directory
-            possible_dirs = [
-                os.path.join(os.getcwd(), "documents", "schemas", "configs"),
-                os.path.join(os.getcwd(), "..", "documents", "schemas", "configs"),
-            ]
+            # First check environment variable
+            schema_dir = os.environ.get("SCHEMA_DIR")
             
-            for d in possible_dirs:
-                if os.path.exists(d):
-                    schema_dir = d
-                    break
-            
-            # Default to documents/schemas/configs if nothing found
             if schema_dir is None:
-                schema_dir = os.path.join(os.getcwd(), "documents", "schemas", "configs")
+                # Try common locations relative to current working directory
+                possible_dirs = [
+                    os.path.join(os.getcwd(), "documents", "schemas", "configs"),
+                    os.path.join(os.getcwd(), "..", "documents", "schemas", "configs"),
+                ]
+                
+                for d in possible_dirs:
+                    if os.path.exists(d):
+                        schema_dir = d
+                        break
+                
+                # Default to documents/schemas/configs if nothing found
+                if schema_dir is None:
+                    schema_dir = os.path.join(os.getcwd(), "documents", "schemas", "configs")
+        
+        # Load schema from disk
+        schema_path = os.path.join(schema_dir, f"{service_name}.json")
+        schema = ConfigSchema.from_json_file(schema_path)
     
-    # Load schema from disk
-    schema_path = os.path.join(schema_dir, f"{service_name}.json")
-    schema = ConfigSchema.from_json_file(schema_path)
+    # Validate schema version if min_service_version is specified
+    if schema.min_service_version:
+        service_version = os.environ.get("SERVICE_VERSION", "0.0.0")
+        if not _is_version_compatible(service_version, schema.min_service_version):
+            raise ConfigSchemaError(
+                f"Service version {service_version} is not compatible with "
+                f"minimum required schema version {schema.min_service_version}"
+            )
     
     # Create loader (no document store coupling)
     loader = SchemaConfigLoader(
