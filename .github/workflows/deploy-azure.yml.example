@@ -82,7 +82,9 @@ jobs:
               environment="${{ steps.vars.outputs.environment }}" \
               containerImageTag="${{ steps.vars.outputs.image_tag }}" \
               location="${{ secrets.AZURE_LOCATION || 'eastus' }}" \
-              mongoDbConnectionString="${{ secrets.MONGODB_CONNECTION_STRING }}" \
+              cosmosDbAccountName="${{ secrets.COSMOSDB_ACCOUNT_NAME || 'copilot-cosmos' }}" \
+              cosmosDbDatabaseName="${{ secrets.COSMOSDB_DATABASE_NAME || 'copilot' }}" \
+              cosmosDbContainerName="${{ secrets.COSMOSDB_CONTAINER_NAME || 'documents' }}" \
               serviceBusConnectionString="${{ secrets.SERVICEBUS_CONNECTION_STRING }}" \
               storageAccountConnectionString="${{ secrets.STORAGE_CONNECTION_STRING }}" \
               azureOpenAIEndpoint="${{ secrets.AZURE_OPENAI_ENDPOINT }}" \
@@ -101,7 +103,9 @@ jobs:
               environment="${{ steps.vars.outputs.environment }}" \
               containerImageTag="${{ steps.vars.outputs.image_tag }}" \
               location="${{ secrets.AZURE_LOCATION || 'eastus' }}" \
-              mongoDbConnectionString="${{ secrets.MONGODB_CONNECTION_STRING }}" \
+              cosmosDbAccountName="${{ secrets.COSMOSDB_ACCOUNT_NAME || 'copilot-cosmos' }}" \
+              cosmosDbDatabaseName="${{ secrets.COSMOSDB_DATABASE_NAME || 'copilot' }}" \
+              cosmosDbContainerName="${{ secrets.COSMOSDB_CONTAINER_NAME || 'documents' }}" \
               serviceBusConnectionString="${{ secrets.SERVICEBUS_CONNECTION_STRING }}" \
               storageAccountConnectionString="${{ secrets.STORAGE_CONNECTION_STRING }}" \
               azureOpenAIEndpoint="${{ secrets.AZURE_OPENAI_ENDPOINT }}" \

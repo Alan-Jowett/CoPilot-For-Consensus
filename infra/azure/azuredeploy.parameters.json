@@ -20,8 +20,20 @@
     "containerImageTag": {
       "value": "latest"
     },
-    "mongoDbConnectionString": {
-      "value": "REPLACE_WITH_YOUR_MONGODB_CONNECTION_STRING"
+    "cosmosDbAccountName": {
+      "value": "copilot-cosmos"
+    },
+    "cosmosDbDatabaseName": {
+      "value": "copilot"
+    },
+    "cosmosDbContainerName": {
+      "value": "documents"
+    },
+    "cosmosDbPartitionKey": {
+      "value": "/collection"
+    },
+    "cosmosDbThroughput": {
+      "value": 400
     },
     "useManagedIdentityForServiceBus": {
       "value": false
