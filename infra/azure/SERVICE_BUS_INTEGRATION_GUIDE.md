@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
 # Service Bus Managed Identity Integration Guide
 
 This guide explains how to update services to use Azure Managed Identity for Service Bus authentication when deployed with the ARM template's `useManagedIdentityForServiceBus` parameter set to `true`.
