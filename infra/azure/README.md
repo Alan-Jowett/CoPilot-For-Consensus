@@ -408,11 +408,16 @@ az servicebus namespace show \
   --resource-group copilot-rg \
   --query id -o tsv
 
-# Get the fully qualified namespace for the ARM template
+# Get the fully qualified namespace for the ARM template (Linux/macOS)
 az servicebus namespace show \
   --name copilot-servicebus \
   --resource-group copilot-rg \
   --query serviceBusEndpoint -o tsv | sed 's|https://||' | sed 's|:443/||'
+
+# Get the fully qualified namespace for the ARM template (Windows PowerShell)
+# Use string manipulation to extract hostname
+$endpoint = az servicebus namespace show --name copilot-servicebus --resource-group copilot-rg --query serviceBusEndpoint -o tsv
+$endpoint -replace 'https://','' -replace ':443/',''
 ```
 
 When using managed identity mode, the ARM template will automatically assign the following RBAC roles:

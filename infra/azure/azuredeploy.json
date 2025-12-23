@@ -84,7 +84,7 @@
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "Azure Service Bus namespace resource ID (e.g., '/subscriptions/{sub-id}/resourceGroups/{rg}/providers/Microsoft.ServiceBus/namespaces/{namespace}'). Required when useManagedIdentityForServiceBus is true for RBAC role assignments."
+        "description": "Azure Service Bus namespace resource ID in format: '/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.ServiceBus/namespaces/{namespace-name}'. Required when useManagedIdentityForServiceBus is true for RBAC role assignments."
       }
     },
     "serviceBusConnectionString": {
@@ -169,6 +169,10 @@
     "applicationInsightsName": "[format('{0}-insights-{1}', parameters('projectName'), variables('uniqueSuffix'))]",
     "keyVaultName": "[format('{0}kv{1}', parameters('projectName'), variables('uniqueSuffix'))]",
     "storageAccountName": "[format('{0}st{1}', replace(parameters('projectName'), '-', ''), variables('uniqueSuffix'))]",
+    
+    "validateManagedIdentityParams": "[if(parameters('useManagedIdentityForServiceBus'), if(and(not(equals(parameters('serviceBusNamespace'), '')), not(equals(parameters('serviceBusResourceId'), ''))), true(), json('null')), true())]",
+    "validateConnectionStringParams": "[if(not(parameters('useManagedIdentityForServiceBus')), if(not(equals(parameters('serviceBusConnectionString'), '')), true(), json('null')), true())]",
+    "validateServiceBusResourceIdFormat": "[if(parameters('useManagedIdentityForServiceBus'), if(equals(length(split(parameters('serviceBusResourceId'), '/')), 9), true(), json('null')), true())]",
     
     "services": [
       {
@@ -299,7 +303,9 @@
         "serviceName": "reporting",
         "roles": ["ServiceBusDataSender", "ServiceBusDataReceiver"]
       }
-    ]
+    ],
+    
+    "servicesUsingMessageBus": ["ingestion", "parsing", "chunking", "embedding", "orchestrator", "summarization", "reporting"]
   },
   "resources": [
     {
@@ -445,7 +451,7 @@
                 "cpu": "[json(variables('services')[copyIndex()].cpu)]",
                 "memory": "[variables('services')[copyIndex()].memory]"
               },
-              "env": "[concat(createArray(createObject('name', 'MESSAGE_BUS_TYPE', 'value', 'azureservicebus')), if(parameters('useManagedIdentityForServiceBus'), createArray(createObject('name', 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE', 'value', parameters('serviceBusNamespace')), createObject('name', 'MESSAGE_BUS_USE_MANAGED_IDENTITY', 'value', 'true')), createArray(createObject('name', 'MESSAGE_BUS_CONNECTION_STRING', 'secretRef', 'servicebus-connection-string'))), createArray(createObject('name', 'DOCUMENT_STORE_TYPE', 'value', 'mongodb'), createObject('name', 'DOCUMENT_DATABASE_CONNECTION_STRING', 'secretRef', 'mongodb-connection-string'), createObject('name', 'STORAGE_CONNECTION_STRING', 'secretRef', 'storage-connection-string'), createObject('name', 'LLM_BACKEND', 'value', parameters('llmBackend')), createObject('name', 'AZURE_OPENAI_ENDPOINT', 'value', parameters('azureOpenAIEndpoint')), createObject('name', 'AZURE_OPENAI_KEY', 'secretRef', 'azure-openai-key'), createObject('name', 'APPLICATIONINSIGHTS_CONNECTION_STRING', 'value', reference(resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))).ConnectionString), createObject('name', 'KEY_VAULT_URI', 'value', reference(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))).vaultUri), createObject('name', 'METRICS_BACKEND', 'value', 'applicationinsights'), createObject('name', 'ERROR_REPORTER_TYPE', 'value', 'applicationinsights')))]"
+              "env": "[concat(if(contains(variables('servicesUsingMessageBus'), variables('services')[copyIndex()].name), concat(createArray(createObject('name', 'MESSAGE_BUS_TYPE', 'value', 'azureservicebus')), if(parameters('useManagedIdentityForServiceBus'), createArray(createObject('name', 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE', 'value', parameters('serviceBusNamespace')), createObject('name', 'MESSAGE_BUS_USE_MANAGED_IDENTITY', 'value', 'true')), createArray(createObject('name', 'MESSAGE_BUS_CONNECTION_STRING', 'secretRef', 'servicebus-connection-string')))), createArray()), createArray(createObject('name', 'DOCUMENT_STORE_TYPE', 'value', 'mongodb'), createObject('name', 'DOCUMENT_DATABASE_CONNECTION_STRING', 'secretRef', 'mongodb-connection-string'), createObject('name', 'STORAGE_CONNECTION_STRING', 'secretRef', 'storage-connection-string'), createObject('name', 'LLM_BACKEND', 'value', parameters('llmBackend')), createObject('name', 'AZURE_OPENAI_ENDPOINT', 'value', parameters('azureOpenAIEndpoint')), createObject('name', 'AZURE_OPENAI_KEY', 'secretRef', 'azure-openai-key'), createObject('name', 'APPLICATIONINSIGHTS_CONNECTION_STRING', 'value', reference(resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))).ConnectionString), createObject('name', 'KEY_VAULT_URI', 'value', reference(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))).vaultUri), createObject('name', 'METRICS_BACKEND', 'value', 'applicationinsights'), createObject('name', 'ERROR_REPORTER_TYPE', 'value', 'applicationinsights')))]"
             }
           ],
           "scale": {
@@ -516,7 +522,7 @@
       ]
     },
     {
-      "condition": "[parameters('useManagedIdentityForServiceBus')]",
+      "condition": "[and(parameters('useManagedIdentityForServiceBus'), variables('validateServiceBusResourceIdFormat'))]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
       "name": "[format('serviceBusRoleAssignments-{0}', variables('serviceBusRoleAssignments')[copyIndex()].serviceName)]",
