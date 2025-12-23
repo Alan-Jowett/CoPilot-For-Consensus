@@ -94,7 +94,7 @@
       "minValue": 400,
       "maxValue": 1000000,
       "metadata": {
-        "description": "Cosmos DB database throughput in RU/s (Request Units per second)"
+        "description": "Cosmos DB container throughput in RU/s (Request Units per second)"
       }
     },
     "serviceBusConnectionString": {

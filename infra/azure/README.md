@@ -347,7 +347,7 @@ az cognitiveservices account keys list \
 - **Partition Key**: `/collection` (configurable via `cosmosDbPartitionKey` parameter)
 - **Throughput**: 400 RU/s (configurable via `cosmosDbThroughput` parameter)
 
-The template uses managed identities for Cosmos DB access, eliminating the need for connection strings.
+The template uses managed identities with RBAC role assignments for Cosmos DB data plane access. Currently, the template provisions with account key authentication for the data plane, but configures RBAC roles to support future migration to passwordless authentication using DefaultAzureCredential.
 
 ### Step 2: Update Parameters File
 
@@ -646,10 +646,12 @@ If you are upgrading from a previous deployment that used MongoDB/Cosmos DB Mong
    - Ensure document schema is compatible with the native adapter
    - The native adapter expects documents with a `collection` field for partitioning
 
-4. **Update Application Configuration**:
-   - Remove `DOCUMENT_DATABASE_CONNECTION_STRING` environment variable
-   - Add `COSMOS_ENDPOINT`, `COSMOS_KEY`, `COSMOS_DATABASE`, `COSMOS_CONTAINER` variables
-   - Change `DOCUMENT_STORE_TYPE` from `mongodb` to `azurecosmos`
+4. **Update Deployment Parameters and Application Configuration**:
+   - Update your `azuredeploy.parameters.json`:
+     - Remove the `mongoDbConnectionString` parameter and its value
+     - Add the new Cosmos DB parameters (`cosmosDbAccountName`, `cosmosDbDatabaseName`, `cosmosDbContainerName`, etc.) as required by the updated template
+   - Redeploy using the new ARM template; this will stop referencing the old `mongodb-connection-string` secret
+   - The application configuration change from `DOCUMENT_STORE_TYPE=mongodb` to `DOCUMENT_STORE_TYPE=azurecosmos` is handled automatically by the template
 
 5. **Verify Migration**:
    ```bash
