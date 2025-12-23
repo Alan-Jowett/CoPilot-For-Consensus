@@ -782,3 +782,4 @@ For issues or questions:
 
 **License**: MIT  
 **Copyright**: © 2025 Copilot-for-Consensus contributors
+
