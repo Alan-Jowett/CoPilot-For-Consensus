@@ -53,20 +53,20 @@ class LocalFileSecretProvider(SecretProvider):
         
         logger.info("Initialized local secret provider")
     
-    def _get_secret_path(self, secret_name: str) -> Path:
+    def _get_secret_path(self, key_name: str) -> Path:
         """Get the filesystem path for a secret.
         
         Args:
-            secret_name: Name of the secret
+            key_name: Name of the secret
         
         Returns:
             Path to the secret file
         
         Raises:
-            SecretProviderError: If secret_name contains path traversal attempts
+            SecretProviderError: If key_name contains path traversal attempts
         """
         # Construct potential path and resolve to absolute path
-        potential_path = (self.base_path / secret_name).resolve()
+        potential_path = (self.base_path / key_name).resolve()
         base_resolved = self.base_path.resolve()
         
         # Ensure the resolved path is within the base directory
@@ -74,16 +74,16 @@ class LocalFileSecretProvider(SecretProvider):
             potential_path.relative_to(base_resolved)
         except ValueError as e:
             raise SecretProviderError(
-                f"Invalid secret name (path traversal detected): {secret_name}"
+                f"Invalid secret name (path traversal detected): {key_name}"
             ) from e
         
         return potential_path
     
-    def get_secret(self, secret_name: str, version: Optional[str] = None) -> str:
+    def get_secret(self, key_name: str, version: Optional[str] = None) -> str:
         """Retrieve a secret by name.
         
         Args:
-            secret_name: Name of the secret (filename in base_path)
+            key_name: Name of the secret (filename in base_path)
             version: Ignored for local filesystem provider
         
         Returns:
@@ -93,13 +93,13 @@ class LocalFileSecretProvider(SecretProvider):
             SecretNotFoundError: If the secret file does not exist
             SecretProviderError: If reading the file fails
         """
-        secret_path = self._get_secret_path(secret_name)
+        secret_path = self._get_secret_path(key_name)
         
         if not secret_path.exists():
-            raise SecretNotFoundError(f"Secret not found: {secret_name}")
+            raise SecretNotFoundError(f"Secret not found: {key_name}")
         
         if not secret_path.is_file():
-            raise SecretProviderError(f"Secret path is not a file: {secret_name}")
+            raise SecretProviderError(f"Secret path is not a file: {key_name}")
         
         try:
             with open(secret_path, "r", encoding="utf-8") as f:
@@ -107,13 +107,13 @@ class LocalFileSecretProvider(SecretProvider):
             return content
         
         except OSError as e:
-            raise SecretProviderError(f"Failed to read secret {secret_name}: {e}") from e
+            raise SecretProviderError(f"Failed to read secret {key_name}: {e}") from e
     
-    def get_secret_bytes(self, secret_name: str, version: Optional[str] = None) -> bytes:
+    def get_secret_bytes(self, key_name: str, version: Optional[str] = None) -> bytes:
         """Retrieve a secret as raw bytes.
         
         Args:
-            secret_name: Name of the secret (filename in base_path)
+            key_name: Name of the secret (filename in base_path)
             version: Ignored for local filesystem provider
         
         Returns:
@@ -123,13 +123,13 @@ class LocalFileSecretProvider(SecretProvider):
             SecretNotFoundError: If the secret file does not exist
             SecretProviderError: If reading the file fails
         """
-        secret_path = self._get_secret_path(secret_name)
+        secret_path = self._get_secret_path(key_name)
         
         if not secret_path.exists():
-            raise SecretNotFoundError(f"Secret not found: {secret_name}")
+            raise SecretNotFoundError(f"Secret not found: {key_name}")
         
         if not secret_path.is_file():
-            raise SecretProviderError(f"Secret path is not a file: {secret_name}")
+            raise SecretProviderError(f"Secret path is not a file: {key_name}")
         
         try:
             with open(secret_path, "rb") as f:
@@ -137,19 +137,19 @@ class LocalFileSecretProvider(SecretProvider):
             return content
         
         except OSError as e:
-            raise SecretProviderError(f"Failed to read secret {secret_name}: {e}") from e
+            raise SecretProviderError(f"Failed to read secret {key_name}: {e}") from e
     
-    def secret_exists(self, secret_name: str) -> bool:
+    def secret_exists(self, key_name: str) -> bool:
         """Check if a secret exists.
         
         Args:
-            secret_name: Name of the secret
+            key_name: Name of the secret
         
         Returns:
             True if secret file exists and is readable, False otherwise
         """
         try:
-            secret_path = self._get_secret_path(secret_name)
+            secret_path = self._get_secret_path(key_name)
             return secret_path.is_file()
         except SecretProviderError:
             return False
