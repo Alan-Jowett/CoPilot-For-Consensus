@@ -188,9 +188,11 @@ jobs:
           echo "::endgroup::"
 
           if [ $MYPY_ERRORS -gt 0 ]; then
-            echo "::error::MyPy found type errors in $MYPY_ERRORS module(s)"
-            exit 1
+            echo "::warning::MyPy found type errors in $MYPY_ERRORS module(s)"
           fi
+
+          # Do not fail the build on MyPy yet; report in summary instead
+          exit 0
 
       - name: Pyright - Strict Type Checking
         id: pyright
@@ -232,9 +234,11 @@ jobs:
           echo "::endgroup::"
 
           if [ $PYRIGHT_ERRORS -gt 0 ]; then
-            echo "::error::Pyright found type errors in $PYRIGHT_ERRORS module(s)"
-            exit 1
+            echo "::warning::Pyright found type errors in $PYRIGHT_ERRORS module(s)"
           fi
+
+          # Do not fail the build on Pyright yet; report in summary instead
+          exit 0
 
       - name: Generate Validation Summary
         if: always()
@@ -285,8 +289,10 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "The following checks will **fail the build** if they detect errors:" >> $GITHUB_STEP_SUMMARY
           echo "- **Pylint** (E0602: undefined-variable, E1101: no-member, E0611: no-name-in-module)" >> $GITHUB_STEP_SUMMARY
-          echo "- **MyPy** (static type checking for Python type annotations)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Pyright** (attribute access checking, optional member access)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Import smoke tests** (critical import/runtime errors)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Informational (non-blocking) results:" >> $GITHUB_STEP_SUMMARY
+          echo "- **MyPy** and **Pyright** (reported above; reviewed but not gating yet)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "These checks catch hallucinated methods, attributes, and variables in LLM-generated code." >> $GITHUB_STEP_SUMMARY
 

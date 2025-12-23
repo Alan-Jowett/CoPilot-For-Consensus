@@ -51,10 +51,7 @@ class RoleStore:
                             return content
                 except OSError as exc:
                     logger.warning(
-                        "Failed to read Docker secret '%s' from %s: %s",
-                        secret_name,
-                        secret_file,
-                        exc,
+                        f"Failed to read Docker secret '{secret_name}' from {secret_file}: {exc}"
                     )
 
             # Fallback to environment variable

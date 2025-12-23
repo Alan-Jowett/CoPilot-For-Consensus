@@ -231,9 +231,9 @@ class AzureKeyVaultProvider(SecretProvider):
         from azure.core.exceptions import AzureError, ResourceNotFoundError
 
         try:
-            # Use get_secret_properties to check existence without retrieving value
-            props = self.client.get_secret_properties(key_name)
-            return props is not None and props.enabled
+            # Fetch secret metadata; get_secret returns value + properties
+            secret = self.client.get_secret(key_name)
+            return bool(secret and getattr(secret.properties, "enabled", True))
 
         except ResourceNotFoundError:
             # Secret does not exist
