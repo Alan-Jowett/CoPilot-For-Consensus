@@ -67,7 +67,7 @@ class MetricsCollector(ABC):
         """
         if hasattr(self, 'push') and callable(getattr(self, 'push')):
             try:
-                self.push()  # type: ignore
+                self.push()  # type: ignore[attr-defined]  # pylint: disable=no-member
             except Exception as e:
                 logger.warning(f"Failed to push metrics: {e}")
 
