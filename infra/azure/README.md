@@ -221,8 +221,18 @@ az deployment group create \
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `serviceBusConnectionString` | securestring | Azure Service Bus connection string |
 | `storageAccountConnectionString` | securestring | Azure Storage connection string |
+
+**For Service Bus Connection String Mode** (default, `useManagedIdentityForServiceBus: false`):
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `serviceBusConnectionString` | securestring | Azure Service Bus connection string |
+
+**For Service Bus Managed Identity Mode** (`useManagedIdentityForServiceBus: true`):
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `serviceBusNamespace` | string | Azure Service Bus fully qualified namespace (e.g., `mynamespace.servicebus.windows.net`) |
+| `serviceBusResourceId` | string | Azure Service Bus namespace resource ID for RBAC role assignments |
 
 **Note**: Cosmos DB is now provisioned automatically by the ARM template. You no longer need to provide connection strings for the document database.
 
@@ -241,6 +251,7 @@ az deployment group create \
 | `cosmosDbContainerName` | string | `documents` | Cosmos DB container name |
 | `cosmosDbPartitionKey` | string | `/collection` | Cosmos DB partition key path |
 | `cosmosDbThroughput` | int | `400` | Cosmos DB throughput in RU/s (400-1000000) |
+| `useManagedIdentityForServiceBus` | bool | `false` | Use managed identity for passwordless Service Bus authentication |
 | `createNewIdentities` | bool | `true` | Create new managed identities or use existing |
 | `existingIdentityResourceIds` | object | `{}` | Existing identity resource IDs (if createNewIdentities is false) |
 | `llmBackend` | string | `azure` | LLM backend: local, azure, or mock |
@@ -248,6 +259,55 @@ az deployment group create \
 | `azureOpenAIKey` | securestring | `` | Azure OpenAI API key (required if llmBackend is azure) |
 | `vnetAddressPrefix` | string | `10.0.0.0/16` | Virtual network address prefix |
 | `subnetAddressPrefix` | string | `10.0.0.0/23` | Container Apps subnet prefix |
+
+### Service Bus Authentication Modes
+
+The template supports two authentication modes for Azure Service Bus:
+
+#### 1. Connection String Mode (Default)
+
+Uses a shared access signature (SAS) connection string. This is the traditional approach.
+
+**Configuration:**
+```json
+{
+  "useManagedIdentityForServiceBus": { "value": false },
+  "serviceBusConnectionString": { "value": "Endpoint=sb://...;SharedAccessKeyName=...;SharedAccessKey=..." }
+}
+```
+
+**Pros:** Simple to set up, works immediately  
+**Cons:** Requires managing and rotating secrets
+
+#### 2. Managed Identity Mode (Passwordless)
+
+Uses Azure Managed Identity for passwordless authentication via RBAC roles. **Recommended for production.**
+
+**Configuration:**
+```json
+{
+  "useManagedIdentityForServiceBus": { "value": true },
+  "serviceBusNamespace": { "value": "mynamespace.servicebus.windows.net" },
+  "serviceBusResourceId": { "value": "/subscriptions/{sub-id}/resourceGroups/{rg}/providers/Microsoft.ServiceBus/namespaces/{namespace}" }
+}
+```
+
+**RBAC Roles Assigned:**
+- **Ingestion service:** Azure Service Bus Data Sender
+- **Parsing, Chunking, Embedding, Orchestrator, Summarization, Reporting services:** Azure Service Bus Data Sender + Data Receiver
+
+**Pros:** No secrets to manage, improved security, aligns with Azure best practices  
+**Cons:** Requires existing Service Bus namespace with appropriate RBAC permissions
+
+> **⚠️ Important**: When using managed identity mode, application services must be updated to read and use the `MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE` and `MESSAGE_BUS_USE_MANAGED_IDENTITY` environment variables. See [SERVICE_BUS_INTEGRATION_GUIDE.md](SERVICE_BUS_INTEGRATION_GUIDE.md) for detailed implementation instructions.
+
+**To get your Service Bus resource ID:**
+```bash
+az servicebus namespace show \
+  --name <namespace-name> \
+  --resource-group <resource-group> \
+  --query id -o tsv
+```
 
 ### Using Existing Managed Identities
 
@@ -283,6 +343,8 @@ Before deploying, create these external Azure resources (or use existing ones):
 
 #### 1.1 Azure Service Bus
 
+**Option A: Using Connection String (Traditional)**
+
 ```bash
 # Create Service Bus namespace (Standard tier minimum)
 az servicebus namespace create \
@@ -298,6 +360,38 @@ az servicebus namespace authorization-rule keys list \
   --name RootManageSharedAccessKey \
   --query primaryConnectionString -o tsv
 ```
+
+**Option B: Using Managed Identity (Recommended for Production)**
+
+```bash
+# Create Service Bus namespace (Standard tier minimum)
+az servicebus namespace create \
+  --name copilot-servicebus \
+  --resource-group copilot-rg \
+  --location eastus \
+  --sku Standard
+
+# Get the resource ID for the ARM template
+az servicebus namespace show \
+  --name copilot-servicebus \
+  --resource-group copilot-rg \
+  --query id -o tsv
+
+# Get the fully qualified namespace for the ARM template (Linux/macOS)
+az servicebus namespace show \
+  --name copilot-servicebus \
+  --resource-group copilot-rg \
+  --query serviceBusEndpoint -o tsv | sed 's|https://||' | sed 's|:443/||'
+
+# Get the fully qualified namespace for the ARM template (Windows PowerShell)
+# Use string manipulation to extract hostname
+$endpoint = az servicebus namespace show --name copilot-servicebus --resource-group copilot-rg --query serviceBusEndpoint -o tsv
+$endpoint -replace 'https://','' -replace ':443/',''
+```
+
+When using managed identity mode, the ARM template will automatically assign the following RBAC roles:
+- **Azure Service Bus Data Sender** (role ID: `69a216fc-b8fb-44d4-bc22-1f3c7cd27a98`) - for services that produce messages
+- **Azure Service Bus Data Receiver** (role ID: `4f6d3b9b-027b-4f4c-9142-0e5a2a2247e0`) - for services that consume messages
 
 #### 1.2 Azure Storage Account (for archives)
 
@@ -687,3 +781,4 @@ For issues or questions:
 
 **License**: MIT  
 **Copyright**: © 2025 Copilot-for-Consensus contributors
+

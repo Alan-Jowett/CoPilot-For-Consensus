@@ -35,8 +35,17 @@
     "cosmosDbThroughput": {
       "value": 400
     },
+    "useManagedIdentityForServiceBus": {
+      "value": false
+    },
     "serviceBusConnectionString": {
       "value": "REPLACE_WITH_YOUR_SERVICEBUS_CONNECTION_STRING"
+    },
+    "serviceBusNamespace": {
+      "value": ""
+    },
+    "serviceBusResourceId": {
+      "value": ""
     },
     "storageAccountConnectionString": {
       "value": "REPLACE_WITH_YOUR_STORAGE_CONNECTION_STRING"
