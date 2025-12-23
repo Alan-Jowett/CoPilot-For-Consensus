@@ -119,6 +119,7 @@ jobs = 0  # Use all available CPUs
 [tool.pylint.messages_control]
 # Enable critical checks for missing attributes and members
 enable = [
+    "E0602",  # undefined-variable: Used when an undefined variable is accessed
     "E1101",  # no-member: Used when a variable is accessed for a nonexistent member
     "E0611",  # no-name-in-module: Used when a name cannot be found in a module
     "E1102",  # not-callable: Used when an object being called has been inferred to a non-callable object
