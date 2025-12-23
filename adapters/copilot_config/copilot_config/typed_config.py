@@ -171,7 +171,8 @@ def load_typed_config(
     schema = ConfigSchema.from_json_file(schema_path)
     
     # First pass: load config without secrets to read secret provider config from fields
-    initial_config = _load_config(service_name, schema_dir=schema_dir, **kwargs)
+    # Pass pre-loaded schema to avoid redundant I/O
+    initial_config = _load_config(service_name, schema_dir=schema_dir, schema=schema, **kwargs)
     
     # Read secret provider configuration from config fields
     provider_type = initial_config.get("secret_provider_type", "local")
@@ -197,6 +198,7 @@ def load_typed_config(
             service_name,
             schema_dir=schema_dir,
             secret_provider=secret_provider,
+            schema=schema,
             **kwargs
         )
     else:

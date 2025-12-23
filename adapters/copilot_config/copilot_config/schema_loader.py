@@ -417,6 +417,7 @@ def _load_config(
     env_provider: Optional[ConfigProvider] = None,
     static_provider: Optional[StaticConfigProvider] = None,
     secret_provider: Optional[ConfigProvider] = None,
+    schema: Optional['ConfigSchema'] = None,
 ) -> Dict[str, Any]:
     """Load and validate configuration for a service (internal function).
     
@@ -433,6 +434,7 @@ def _load_config(
         env_provider: Optional custom environment provider
         static_provider: Optional static provider
         secret_provider: Optional secret provider (from copilot_secrets)
+        schema: Optional pre-loaded ConfigSchema (avoids redundant I/O if already loaded)
         
     Returns:
         Validated configuration dictionary
@@ -441,30 +443,32 @@ def _load_config(
         ConfigSchemaError: If schema is missing or invalid
         ConfigValidationError: If configuration validation fails
     """
-    # Determine schema directory
-    if schema_dir is None:
-        # First check environment variable
-        schema_dir = os.environ.get("SCHEMA_DIR")
-        
+    # Load schema from disk if not provided
+    if schema is None:
+        # Determine schema directory
         if schema_dir is None:
-            # Try common locations relative to current working directory
-            possible_dirs = [
-                os.path.join(os.getcwd(), "documents", "schemas", "configs"),
-                os.path.join(os.getcwd(), "..", "documents", "schemas", "configs"),
-            ]
+            # First check environment variable
+            schema_dir = os.environ.get("SCHEMA_DIR")
             
-            for d in possible_dirs:
-                if os.path.exists(d):
-                    schema_dir = d
-                    break
-            
-            # Default to documents/schemas/configs if nothing found
             if schema_dir is None:
-                schema_dir = os.path.join(os.getcwd(), "documents", "schemas", "configs")
-    
-    # Load schema from disk
-    schema_path = os.path.join(schema_dir, f"{service_name}.json")
-    schema = ConfigSchema.from_json_file(schema_path)
+                # Try common locations relative to current working directory
+                possible_dirs = [
+                    os.path.join(os.getcwd(), "documents", "schemas", "configs"),
+                    os.path.join(os.getcwd(), "..", "documents", "schemas", "configs"),
+                ]
+                
+                for d in possible_dirs:
+                    if os.path.exists(d):
+                        schema_dir = d
+                        break
+                
+                # Default to documents/schemas/configs if nothing found
+                if schema_dir is None:
+                    schema_dir = os.path.join(os.getcwd(), "documents", "schemas", "configs")
+        
+        # Load schema from disk
+        schema_path = os.path.join(schema_dir, f"{service_name}.json")
+        schema = ConfigSchema.from_json_file(schema_path)
     
     # Validate schema version if min_service_version is specified
     if schema.min_service_version:
