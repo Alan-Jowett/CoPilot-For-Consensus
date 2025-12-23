@@ -61,7 +61,7 @@ class AzureKeyVaultProvider(SecretProvider):
             SecretProviderError: If vault URL cannot be determined or authentication fails
         """
         try:
-            from azure.core.exceptions import ClientAuthenticationError
+            from azure.core.exceptions import ClientAuthenticationError, AzureError, ResourceNotFoundError
             from azure.identity import DefaultAzureCredential
             from azure.keyvault.secrets import SecretClient
         except ImportError as e:
@@ -83,16 +83,9 @@ class AzureKeyVaultProvider(SecretProvider):
             raise SecretProviderError(f"Failed to authenticate with Azure Key Vault: {e}") from e
         except ValueError as e:
             raise SecretProviderError(f"Invalid Azure Key Vault URL '{self.vault_url}': {e}") from e
-        except Exception as e:
-            # Import AzureError to catch other Azure SDK exceptions
-            try:
-                from azure.core.exceptions import AzureError
-                if isinstance(e, AzureError):
-                    raise SecretProviderError(f"Azure Key Vault client error: {e}") from e
-            except ImportError:
-                pass
-            # Re-raise unexpected non-Azure errors
-            raise
+        except AzureError as e:
+            # Catch other Azure SDK exceptions (network, service errors, etc.)
+            raise SecretProviderError(f"Azure Key Vault client error: {e}") from e
 
     def close(self) -> None:
         """Release any resources held by this provider."""
@@ -182,9 +175,9 @@ class AzureKeyVaultProvider(SecretProvider):
             SecretNotFoundError: If the secret does not exist
             SecretProviderError: If retrieval fails
         """
-        try:
-            from azure.core.exceptions import ResourceNotFoundError, AzureError
+        from azure.core.exceptions import ResourceNotFoundError, AzureError
 
+        try:
             if version:
                 secret = self.client.get_secret(key_name, version=version)
             else:
@@ -202,6 +195,9 @@ class AzureKeyVaultProvider(SecretProvider):
             raise SecretNotFoundError(f"Key not found: {key_name}") from e
         except AzureError as e:
             # Handle Azure SDK network, service, and authentication errors
+            raise SecretProviderError(f"Failed to retrieve key '{key_name}': {e}") from e
+        except Exception as e:
+            # Wrap any unexpected exceptions in SecretProviderError
             raise SecretProviderError(f"Failed to retrieve key '{key_name}': {e}") from e
 
     def get_secret_bytes(self, key_name: str, version: Optional[str] = None) -> bytes:
@@ -233,9 +229,9 @@ class AzureKeyVaultProvider(SecretProvider):
         Returns:
             True if secret exists and is enabled, False otherwise
         """
-        try:
-            from azure.core.exceptions import ResourceNotFoundError, AzureError
+        from azure.core.exceptions import ResourceNotFoundError, AzureError
 
+        try:
             # Use get_secret_properties to check existence without retrieving value
             props = self.client.get_secret_properties(key_name)
             return props is not None and props.enabled
