@@ -189,6 +189,23 @@ jobs:
         docker compose logs ollama-validate --tail=20 || true
 
     # Application Services
+    # Start auth service first (other services may depend on it)
+    - name: Start auth
+      run: |
+        echo "Starting auth service..."
+        docker compose up -d auth
+        echo "Waiting for auth service to become healthy..."
+        timeout 120s bash -c 'until docker compose ps auth --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for auth..."; sleep 3; done' || {
+          echo "❌ Auth service failed to become healthy"
+          echo "=== Auth Service Status ==="
+          docker compose ps auth
+          echo ""
+          echo "=== Auth Service Logs (last 100 lines) ==="
+          docker compose logs auth --tail=100
+          exit 1
+        }
+        echo "✓ Auth service is healthy"
+
     - name: Start parsing
       run: |
         docker compose up -d parsing
@@ -214,10 +231,7 @@ jobs:
         docker compose up -d summarization
         timeout 120s bash -c 'until docker compose ps summarization --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for summarization..."; sleep 3; done' || (docker compose logs summarization --tail=50 && exit 1)
 
-    - name: Start auth
-      run: |
-        docker compose up -d auth
-        timeout 120s bash -c 'until docker compose ps auth --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for auth..."; sleep 3; done' || (docker compose logs auth --tail=50 && exit 1)
+
 
     - name: Start reporting
       run: |
