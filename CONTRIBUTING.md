@@ -86,7 +86,7 @@ This project uses comprehensive static analysis to catch attribute errors, missi
 | Tool     | Purpose                                      | What It Catches |
 |----------|----------------------------------------------|-----------------|
 | **Ruff** | Fast Python linter for syntax and style     | Import errors, undefined names (F821), unused imports |
-| **MyPy** | Static type checker with strict mode       | Type mismatches, missing return types, incorrect signatures |
+| **MyPy** | Static type checker for Python types        | Type mismatches, missing return types, incorrect signatures |
 | **Pyright** | Advanced type checker                     | Attribute errors, optional member access, missing fields |
 | **Pylint** | Linting focused on attribute and member access | Undefined variables (E0602), nonexistent members (E1101) |
 
@@ -146,6 +146,7 @@ def fetch_data(url):
 
 # ✅ Good - Proper type hints
 import requests
+from typing import Any
 
 def fetch_data(url: str) -> dict[str, Any]:
     response = requests.get(url)
@@ -155,7 +156,10 @@ def fetch_data(url: str) -> dict[str, Any]:
 **4. Optional Member Access**
 ```python
 # ❌ Bad - Accessing optional without checking
-from typing import Optional
+from typing import Protocol
+
+class User(Protocol):
+    name: str
 
 def get_user_name(user: User | None) -> str:
     return user.name  # Error: 'user' may be None
