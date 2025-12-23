@@ -4,29 +4,30 @@
 """Factory functions for creating logger instances."""
 
 import os
-from typing import Optional
 
-from .logger import Logger
-from .stdout_logger import StdoutLogger
-from .silent_logger import SilentLogger
 from .azure_monitor_logger import AzureMonitorLogger
+from .logger import Logger
+from .silent_logger import SilentLogger
+from .stdout_logger import StdoutLogger
 
 
-def _default(value: Optional[str], env_var: str, fallback: str) -> str:
+def _default(value: str | None, env_var: str, fallback: str) -> str:
     """Helper to pick an explicit value, then env var, then fallback."""
     return (value or os.getenv(env_var) or fallback)
 
 
 def create_logger(
-    logger_type: Optional[str] = None,
-    level: Optional[str] = None,
-    name: Optional[str] = None,
+    logger_type: str | None = None,
+    level: str | None = None,
+    name: str | None = None,
 ) -> Logger:
     """Factory function to create a logger instance.
 
     Args:
-        logger_type: Type of logger to create. Options: "stdout", "silent", "azuremonitor". Defaults to LOG_TYPE env or "stdout".
-        level: Logging level. Options: DEBUG, INFO, WARNING, ERROR. Defaults to LOG_LEVEL env or "INFO".
+        logger_type: Type of logger to create. Options: "stdout", "silent",
+            "azuremonitor". Defaults to LOG_TYPE env or "stdout".
+        level: Logging level. Options: DEBUG, INFO, WARNING, ERROR.
+            Defaults to LOG_LEVEL env or "INFO".
         name: Logger name for identification. Defaults to LOG_NAME env or "copilot".
 
     Returns:

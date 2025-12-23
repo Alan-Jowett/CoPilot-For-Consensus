@@ -3,14 +3,13 @@
 
 """Integration tests for the orchestration service."""
 
-import pytest
 from pathlib import Path
 
-from copilot_events import NoopPublisher, NoopSubscriber
-from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
-from copilot_schema_validation import FileSchemaProvider
-
+import pytest
 from app.service import OrchestrationService
+from copilot_events import NoopPublisher, NoopSubscriber
+from copilot_schema_validation import FileSchemaProvider
+from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
 
 
 def create_query_with_in_support(original_query):
@@ -101,10 +100,8 @@ def service(document_store, publisher, subscriber):
 def test_end_to_end_orchestration(service, document_store):
     """Test end-to-end orchestration flow."""
     from datetime import datetime, timezone
-    import uuid
 
     # Setup test data in document store
-    thread_id = "<thread-1@example.com>"
     now = datetime.now(timezone.utc).isoformat()
 
     # Insert chunks
@@ -203,7 +200,6 @@ def test_orchestration_with_no_chunks(service, document_store):
 def test_orchestration_with_multiple_threads(service, document_store):
     """Test orchestration with chunks from multiple threads."""
     from datetime import datetime, timezone
-    import uuid
 
     now = datetime.now(timezone.utc).isoformat()
 

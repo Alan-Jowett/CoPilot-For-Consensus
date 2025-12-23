@@ -9,7 +9,7 @@ architecture. All events inherit from BaseEvent and follow a consistent structur
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List
+from typing import Any
 from uuid import uuid4
 
 
@@ -30,10 +30,10 @@ class BaseEvent:
         data: Event-specific payload
     """
     event_type: str
-    event_id: Optional[str] = None
-    timestamp: Optional[str] = None
+    event_id: str | None = None
+    timestamp: str | None = None
     version: str = "1.0"
-    data: Dict[str, Any] = field(default_factory=dict)
+    data: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Generate default values for event_id and timestamp."""
@@ -42,7 +42,7 @@ class BaseEvent:
         if self.timestamp is None:
             self.timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert event to dictionary for serialization.
 
         Returns:
@@ -412,7 +412,7 @@ class ArchiveMetadata:
     ingestion_completed_at: str
     status: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert metadata to dictionary.
 
         Returns:

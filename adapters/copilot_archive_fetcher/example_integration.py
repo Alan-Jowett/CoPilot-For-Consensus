@@ -4,10 +4,11 @@
 """Example usage of copilot-archive-fetcher in ingestion pipeline."""
 
 import logging
+
 from copilot_archive_fetcher import (
-    create_fetcher,
     SourceConfig,
     UnsupportedSourceTypeError,
+    create_fetcher,
 )
 
 logger = logging.getLogger(__name__)

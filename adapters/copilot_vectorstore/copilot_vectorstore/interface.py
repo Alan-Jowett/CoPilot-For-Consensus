@@ -5,7 +5,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Dict, Any
+from typing import Any
 
 
 @dataclass
@@ -20,8 +20,8 @@ class SearchResult:
     """
     id: str
     score: float
-    vector: List[float]
-    metadata: Dict[str, Any]
+    vector: list[float]
+    metadata: dict[str, Any]
 
 
 class VectorStore(ABC):
@@ -33,7 +33,7 @@ class VectorStore(ABC):
     """
 
     @abstractmethod
-    def add_embedding(self, id: str, vector: List[float], metadata: Dict[str, Any]) -> None:
+    def add_embedding(self, id: str, vector: list[float], metadata: dict[str, Any]) -> None:
         """Add a single embedding to the vector store.
 
         Idempotent operation: if the ID already exists, implementations should use
@@ -50,8 +50,8 @@ class VectorStore(ABC):
         pass
 
     @abstractmethod
-    def add_embeddings(self, ids: List[str], vectors: List[List[float]],
-                      metadatas: List[Dict[str, Any]]) -> None:
+    def add_embeddings(self, ids: list[str], vectors: list[list[float]],
+                      metadatas: list[dict[str, Any]]) -> None:
         """Add multiple embeddings to the vector store in batch.
 
         Idempotent operation: if any IDs already exist, implementations should use
@@ -69,7 +69,7 @@ class VectorStore(ABC):
         pass
 
     @abstractmethod
-    def query(self, query_vector: List[float], top_k: int = 10) -> List[SearchResult]:
+    def query(self, query_vector: list[float], top_k: int = 10) -> list[SearchResult]:
         """Query the vector store for similar embeddings.
 
         Args:

@@ -13,11 +13,11 @@ These tests verify the retry job logic including:
 - Metrics emission
 """
 
-import unittest
-from unittest.mock import MagicMock, patch
-from datetime import datetime, timezone, timedelta
-import sys
 import os
+import sys
+import unittest
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
 
 # Add scripts directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))

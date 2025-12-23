@@ -4,11 +4,11 @@
 """Integration tests for RabbitMQ publisher and subscriber against a real RabbitMQ instance."""
 
 import os
-import time
 import threading
-import pytest
+import time
 import uuid
 
+import pytest
 from copilot_events import (
     RabbitMQPublisher,
     RabbitMQSubscriber,

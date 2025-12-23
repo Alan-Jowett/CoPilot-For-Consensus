@@ -16,9 +16,9 @@ Usage:
     python adapters/scripts/install_adapters.py --no-dev
 """
 
-import sys
-import subprocess
 import argparse
+import subprocess
+import sys
 from pathlib import Path
 
 # Dependency order - install these first, then others

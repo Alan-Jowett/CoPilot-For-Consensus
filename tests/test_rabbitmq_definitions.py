@@ -119,8 +119,8 @@ def test_rabbitmq_definitions_structure():
     # Check binding configuration
     bindings = definitions["bindings"]
     for binding in bindings:
-        assert binding["source"] == "copilot.events", f"Binding should use copilot.events exchange"
-        assert binding["destination_type"] == "queue", f"Binding should target a queue"
+        assert binding["source"] == "copilot.events", "Binding should use copilot.events exchange"
+        assert binding["destination_type"] == "queue", "Binding should target a queue"
 
         # Verify the bound queue exists
         queue_name = binding["destination"]
@@ -134,7 +134,7 @@ def test_rabbitmq_definitions_structure():
             f"Routing key '{routing_key}' should match queue name '{queue_name}' (convention)"
         )
 
-    print(f"✓ RabbitMQ definitions structure is valid")
+    print("✓ RabbitMQ definitions structure is valid")
     print(f"✓ Found {len(queues)} queues, {len(bindings)} bindings")
 
 

@@ -3,7 +3,7 @@
 
 """Tests for data models."""
 
-from copilot_summarization.models import Thread, Summary, Citation
+from copilot_summarization.models import Citation, Summary, Thread
 
 
 class TestCitation:

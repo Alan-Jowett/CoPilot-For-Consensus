@@ -4,8 +4,8 @@
 """Tests for configuration providers."""
 
 import os
-import pytest
 
+import pytest
 from copilot_config import (
     ConfigProvider,
     EnvConfigProvider,

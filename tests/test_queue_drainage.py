@@ -11,9 +11,9 @@ This test validates that the fix for lingering queue entries works correctly:
 
 import os
 import time
+
 import pytest
 import requests
-from typing import Dict, List
 
 
 def get_rabbitmq_api_url() -> str:
@@ -57,7 +57,7 @@ def get_rabbitmq_credentials() -> tuple:
     return (username, password)
 
 
-def get_queue_stats() -> List[Dict]:
+def get_queue_stats() -> list[dict]:
     """Fetch queue statistics from RabbitMQ management API.
 
     Returns:
@@ -74,7 +74,7 @@ def get_queue_stats() -> List[Dict]:
         pytest.skip("Cannot connect to RabbitMQ management API")
 
 
-def get_queue_by_name(queue_name: str) -> Dict:
+def get_queue_by_name(queue_name: str) -> dict:
     """Get specific queue statistics by name.
 
     Args:

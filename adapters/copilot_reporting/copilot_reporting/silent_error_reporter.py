@@ -3,7 +3,7 @@
 
 """Silent error reporter implementation for testing."""
 
-from typing import Optional, Dict, Any, List
+from typing import Any
 
 from .error_reporter import ErrorReporter
 
@@ -17,10 +17,10 @@ class SilentErrorReporter(ErrorReporter):
 
     def __init__(self):
         """Initialize silent error reporter."""
-        self.reported_errors: List[Dict[str, Any]] = []
-        self.captured_messages: List[Dict[str, Any]] = []
+        self.reported_errors: list[dict[str, Any]] = []
+        self.captured_messages: list[dict[str, Any]] = []
 
-    def report(self, error: Exception, context: Optional[Dict[str, Any]] = None) -> None:
+    def report(self, error: Exception, context: dict[str, Any] | None = None) -> None:
         """Report an exception with optional context.
 
         Args:
@@ -38,7 +38,7 @@ class SilentErrorReporter(ErrorReporter):
         self,
         message: str,
         level: str = "error",
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ) -> None:
         """Capture a message without an exception.
 
@@ -53,7 +53,7 @@ class SilentErrorReporter(ErrorReporter):
             "context": context or {},
         })
 
-    def get_errors(self, error_type: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_errors(self, error_type: str | None = None) -> list[dict[str, Any]]:
         """Get all reported errors, optionally filtered by type.
 
         Args:
@@ -66,7 +66,7 @@ class SilentErrorReporter(ErrorReporter):
             return [e for e in self.reported_errors if e["error_type"] == error_type]
         return self.reported_errors
 
-    def get_messages(self, level: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_messages(self, level: str | None = None) -> list[dict[str, Any]]:
         """Get all captured messages, optionally filtered by level.
 
         Args:
@@ -92,7 +92,7 @@ class SilentErrorReporter(ErrorReporter):
         """
         return len(self.reported_errors) > 0
 
-    def has_messages(self, level: Optional[str] = None) -> bool:
+    def has_messages(self, level: str | None = None) -> bool:
         """Check if any messages have been captured.
 
         Args:

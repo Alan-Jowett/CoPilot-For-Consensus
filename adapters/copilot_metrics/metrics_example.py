@@ -9,11 +9,11 @@ for observability and monitoring.
 """
 
 import logging
-import time
 import random
-from typing import Dict, Any
+import time
+from typing import Any
 
-from copilot_metrics import create_metrics_collector, MetricsCollector
+from copilot_metrics import MetricsCollector, create_metrics_collector
 
 logging.basicConfig(
     level=logging.INFO,
@@ -40,7 +40,7 @@ class ExampleService:
         # Track active items count
         self._active_items = 0
 
-    def process_item(self, item_id: str, item_type: str) -> Dict[str, Any]:
+    def process_item(self, item_id: str, item_type: str) -> dict[str, Any]:
         """Process an item and emit metrics.
 
         Args:
@@ -117,7 +117,7 @@ class ExampleService:
             self._active_items -= 1
             self.metrics.gauge("active_items", float(self._active_items))
 
-    def _simulate_processing(self, item_id: str, item_type: str) -> Dict[str, Any]:
+    def _simulate_processing(self, item_id: str, item_type: str) -> dict[str, Any]:
         """Simulate processing work (replace with real logic in production).
 
         Args:
@@ -159,7 +159,7 @@ class ExampleService:
 
         return depth
 
-    def handle_request(self, method: str, endpoint: str) -> Dict[str, Any]:
+    def handle_request(self, method: str, endpoint: str) -> dict[str, Any]:
         """Handle an HTTP request and track metrics.
 
         Args:

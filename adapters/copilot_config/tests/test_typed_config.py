@@ -4,9 +4,9 @@
 """Tests for typed configuration wrapper."""
 
 import json
-import pytest
 
-from copilot_config import TypedConfig, load_typed_config, EnvConfigProvider
+import pytest
+from copilot_config import EnvConfigProvider, TypedConfig, load_typed_config
 
 
 class TestTypedConfig:

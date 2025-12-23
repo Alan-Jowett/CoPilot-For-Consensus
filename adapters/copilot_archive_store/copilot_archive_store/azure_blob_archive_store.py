@@ -3,20 +3,20 @@
 
 """Azure Blob Storage-based archive store implementation."""
 
-import os
 import hashlib
 import json
-from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
 import logging
+import os
+from datetime import datetime, timezone
+from typing import Any
 
+from azure.core.exceptions import AzureError, ResourceNotFoundError
 from azure.storage.blob import BlobServiceClient, ContainerClient
-from azure.core.exceptions import ResourceNotFoundError, AzureError
 
 from .archive_store import (
     ArchiveStore,
-    ArchiveStoreError,
     ArchiveStoreConnectionError,
+    ArchiveStoreError,
 )
 
 logger = logging.getLogger(__name__)
@@ -145,9 +145,9 @@ class AzureBlobArchiveStore(ArchiveStore):
         self.metadata_blob_name = f"{self.prefix}metadata/archives_index.json"
 
         # Load metadata index and store ETag for concurrency control
-        self._metadata: Dict[str, Dict[str, Any]] = {}
-        self._metadata_etag: Optional[str] = None
-        self._hash_index: Dict[str, str] = {}  # content_hash -> archive_id mapping
+        self._metadata: dict[str, dict[str, Any]] = {}
+        self._metadata_etag: str | None = None
+        self._hash_index: dict[str, str] = {}  # content_hash -> archive_id mapping
         self._load_metadata()
 
     def _load_metadata(self) -> None:
@@ -284,7 +284,7 @@ class AzureBlobArchiveStore(ArchiveStore):
         except Exception as e:
             raise ArchiveStoreError(f"Failed to store archive: {e}") from e
 
-    def get_archive(self, archive_id: str) -> Optional[bytes]:
+    def get_archive(self, archive_id: str) -> bytes | None:
         """Retrieve archive content from Azure Blob Storage.
 
         Args:
@@ -319,7 +319,7 @@ class AzureBlobArchiveStore(ArchiveStore):
         except Exception as e:
             raise ArchiveStoreError(f"Failed to retrieve archive: {e}") from e
 
-    def get_archive_by_hash(self, content_hash: str) -> Optional[str]:
+    def get_archive_by_hash(self, content_hash: str) -> str | None:
         """Retrieve archive ID by content hash for deduplication.
 
         Uses an in-memory hash index for O(1) lookup performance.
@@ -406,7 +406,7 @@ class AzureBlobArchiveStore(ArchiveStore):
         except Exception as e:
             raise ArchiveStoreError(f"Failed to delete archive: {e}") from e
 
-    def list_archives(self, source_name: str) -> List[Dict[str, Any]]:
+    def list_archives(self, source_name: str) -> list[dict[str, Any]]:
         """List all archives for a given source.
 
         Args:

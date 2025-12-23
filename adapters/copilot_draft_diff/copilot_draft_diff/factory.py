@@ -3,11 +3,11 @@
 
 """Factory for creating draft diff providers."""
 
-import os
-from typing import Optional, Dict, Any
-from .provider import DraftDiffProvider
+from typing import Any
+
 from .datatracker_provider import DatatrackerDiffProvider
 from .mock_provider import MockDiffProvider
+from .provider import DraftDiffProvider
 
 
 class DiffProviderFactory:
@@ -25,7 +25,7 @@ class DiffProviderFactory:
     }
 
     @classmethod
-    def create(cls, provider_type: Optional[str] = None, config: Optional[Dict[str, Any]] = None) -> DraftDiffProvider:
+    def create(cls, provider_type: str | None = None, config: dict[str, Any] | None = None) -> DraftDiffProvider:
         """Create a draft diff provider instance.
 
         Args:
@@ -78,8 +78,8 @@ class DiffProviderFactory:
         cls._providers[name] = provider_class
 
 
-def create_diff_provider(provider_type: Optional[str] = None,
-                        config: Optional[Dict[str, Any]] = None) -> DraftDiffProvider:
+def create_diff_provider(provider_type: str | None = None,
+                        config: dict[str, Any] | None = None) -> DraftDiffProvider:
     """Convenience function to create a draft diff provider.
 
     Args:

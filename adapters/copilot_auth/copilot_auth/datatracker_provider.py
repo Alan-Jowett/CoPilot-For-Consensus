@@ -7,7 +7,6 @@ This module provides authentication via IETF Datatracker, allowing users
 to authenticate using their Datatracker credentials.
 """
 
-from typing import Optional
 
 from .models import User
 from .provider import IdentityProvider
@@ -31,7 +30,7 @@ class DatatrackerIdentityProvider(IdentityProvider):
         """
         self.api_base_url = api_base_url
 
-    def get_user(self, token: str) -> Optional[User]:
+    def get_user(self, token: str) -> User | None:
         """Retrieve user information from a Datatracker authentication token.
 
         This is a scaffold implementation. To complete:

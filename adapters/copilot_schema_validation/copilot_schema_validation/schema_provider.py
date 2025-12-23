@@ -8,13 +8,13 @@ from different sources (files, MongoDB).
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
+
 
 class SchemaProvider(ABC):
     """Abstract base class for schema providers."""
 
     @abstractmethod
-    def get_schema(self, event_type: str) -> Optional[Dict]:
+    def get_schema(self, event_type: str) -> dict | None:
         """Retrieve the JSON schema for a given event type.
 
         Args:

@@ -5,22 +5,21 @@
 
 import time
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List
+from typing import Any
 
-from pymongo.errors import DuplicateKeyError
-
+from copilot_chunking import Thread, ThreadChunker
 from copilot_events import (
+    ChunkingFailedEvent,
+    ChunksPreparedEvent,
     EventPublisher,
     EventSubscriber,
     JSONParsedEvent,
-    ChunksPreparedEvent,
-    ChunkingFailedEvent,
 )
-from copilot_storage import DocumentStore
+from copilot_logging import create_logger
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
-from copilot_chunking import Thread, ThreadChunker
-from copilot_logging import create_logger
+from copilot_storage import DocumentStore
+from pymongo.errors import DuplicateKeyError
 
 logger = create_logger(name="chunking")
 
@@ -34,8 +33,8 @@ class ChunkingService:
         publisher: EventPublisher,
         subscriber: EventSubscriber,
         chunker: ThreadChunker,
-        metrics_collector: Optional[MetricsCollector] = None,
-        error_reporter: Optional[ErrorReporter] = None,
+        metrics_collector: MetricsCollector | None = None,
+        error_reporter: ErrorReporter | None = None,
     ):
         """Initialize chunking service.
 
@@ -89,7 +88,7 @@ class ChunkingService:
 
             logger.info("Scanning for parsed messages without chunks to requeue on startup...")
 
-            requeue = StartupRequeue(
+            StartupRequeue(
                 document_store=self.document_store,
                 publisher=self.publisher,
                 metrics_collector=self.metrics_collector,
@@ -195,7 +194,7 @@ class ChunkingService:
             logger.error(f"Startup requeue failed: {e}", exc_info=True)
             # Don't fail service startup on requeue errors
 
-    def _handle_json_parsed(self, event: Dict[str, Any]):
+    def _handle_json_parsed(self, event: dict[str, Any]):
         """Handle JSONParsed event.
 
         This is an event handler for message queue consumption. Exceptions are
@@ -221,7 +220,7 @@ class ChunkingService:
                 self.error_reporter.report(e, context={"event": event})
             raise  # Re-raise to trigger message requeue for transient failures
 
-    def process_messages(self, event_data: Dict[str, Any]):
+    def process_messages(self, event_data: dict[str, Any]):
         """Process messages and create chunks.
 
         Args:
@@ -409,7 +408,7 @@ class ChunkingService:
             if self.error_reporter:
                 self.error_reporter.report(e, context={"message_doc_ids": message_doc_ids})
 
-    def _chunk_message(self, message: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _chunk_message(self, message: dict[str, Any]) -> list[dict[str, Any]]:
         """Chunk a single message.
 
         Args:
@@ -480,8 +479,8 @@ class ChunkingService:
 
     def _publish_chunks_prepared(
         self,
-        message_doc_ids: List[str],
-        chunk_ids: List[str],
+        message_doc_ids: list[str],
+        chunk_ids: list[str],
         chunk_count: int,
         avg_chunk_size: float,
     ):
@@ -519,7 +518,7 @@ class ChunkingService:
 
     def _publish_chunking_failed(
         self,
-        message_doc_ids: List[str],
+        message_doc_ids: list[str],
         error_message: str,
         error_type: str,
         retry_count: int,
@@ -555,7 +554,7 @@ class ChunkingService:
             logger.error(f"Failed to publish ChunkingFailed event: {e}", exc_info=True)
             raise
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get service statistics.
 
         Returns:

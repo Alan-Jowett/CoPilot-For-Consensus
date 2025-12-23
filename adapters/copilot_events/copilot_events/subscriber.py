@@ -4,7 +4,8 @@
 """Event subscriber base class."""
 
 from abc import ABC, abstractmethod
-from typing import Callable, Dict, Any
+from collections.abc import Callable
+from typing import Any
 
 
 class EventSubscriber(ABC):
@@ -33,7 +34,7 @@ class EventSubscriber(ABC):
     def subscribe(
         self,
         event_type: str,
-        callback: Callable[[Dict[str, Any]], None],
+        callback: Callable[[dict[str, Any]], None],
         routing_key: str = None,
         exchange: str = None,
     ) -> None:

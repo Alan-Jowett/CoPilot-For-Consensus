@@ -3,9 +3,9 @@
 
 """Unit tests for the orchestration service."""
 
-import pytest
 from unittest.mock import Mock
 
+import pytest
 from app.service import OrchestrationService
 
 
@@ -459,11 +459,6 @@ def test_idempotent_orchestration(
     call_count[0] = 0
 
     # Second call: even if summary exists, should still process (allowing regeneration)
-    existing_summary = {
-        "summary_id": "summary-123",
-        "thread_id": thread_id,
-        "summary_type": "thread",
-    }
 
     def query_side_effect_with_summary(collection, filter_dict, **kwargs):
         call_count[0] += 1

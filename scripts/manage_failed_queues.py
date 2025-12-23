@@ -20,7 +20,7 @@ import json
 import os
 import sys
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional
+from typing import Any
 
 from copilot_logging import create_logger
 
@@ -91,7 +91,7 @@ class FailedQueueManager:
             self.connection.close()
             logger.info("Disconnected from RabbitMQ")
 
-    def list_failed_queues(self) -> List[Dict[str, Any]]:
+    def list_failed_queues(self) -> list[dict[str, Any]]:
         """List all failed queues and their message counts.
 
         Returns:
@@ -121,7 +121,7 @@ class FailedQueueManager:
         queue_name: str,
         limit: int = 10,
         requeue: bool = True,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Retrieve messages from a queue for inspection.
 
         Inspection is non-destructive by default - messages are always requeued
@@ -176,7 +176,7 @@ class FailedQueueManager:
         self,
         queue_name: str,
         output_file: str,
-        limit: Optional[int] = None,
+        limit: int | None = None,
     ) -> int:
         """Export all messages from a queue to a JSON file.
 
@@ -222,8 +222,8 @@ class FailedQueueManager:
     def requeue_messages(
         self,
         queue_name: str,
-        target_queue: Optional[str] = None,
-        limit: Optional[int] = None,
+        target_queue: str | None = None,
+        limit: int | None = None,
         dry_run: bool = False,
     ) -> int:
         """Requeue messages from failed queue to target queue.
@@ -293,7 +293,7 @@ class FailedQueueManager:
     def purge_messages(
         self,
         queue_name: str,
-        limit: Optional[int] = None,
+        limit: int | None = None,
         dry_run: bool = False,
     ) -> int:
         """Purge messages from a failed queue.

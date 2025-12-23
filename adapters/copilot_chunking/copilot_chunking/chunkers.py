@@ -10,7 +10,8 @@ threads before embedding or summarization.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Dict, Any, Optional
+from typing import Any
+
 from copilot_schema_validation import generate_chunk_id
 
 
@@ -33,11 +34,11 @@ class Chunk:
     text: str
     chunk_index: int
     token_count: int
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     message_doc_id: str
     thread_id: str
-    start_offset: Optional[int] = None
-    end_offset: Optional[int] = None
+    start_offset: int | None = None
+    end_offset: int | None = None
 
 
 @dataclass
@@ -54,10 +55,10 @@ class Thread:
     """
     thread_id: str
     text: str
-    metadata: Dict[str, Any]
-    message_doc_id: Optional[str] = None
-    message_id: Optional[str] = None
-    messages: Optional[List[Dict[str, Any]]] = None
+    metadata: dict[str, Any]
+    message_doc_id: str | None = None
+    message_id: str | None = None
+    messages: list[dict[str, Any]] | None = None
 
 
 class ThreadChunker(ABC):
@@ -69,7 +70,7 @@ class ThreadChunker(ABC):
     """
 
     @abstractmethod
-    def chunk(self, thread: Thread) -> List[Chunk]:
+    def chunk(self, thread: Thread) -> list[Chunk]:
         """Chunk a thread into smaller pieces.
 
         Args:
@@ -117,7 +118,7 @@ class TokenWindowChunker(ThreadChunker):
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
 
-    def chunk(self, thread: Thread) -> List[Chunk]:
+    def chunk(self, thread: Thread) -> list[Chunk]:
         """Chunk a thread using a sliding token window.
 
         Args:
@@ -200,7 +201,7 @@ class FixedSizeChunker(ThreadChunker):
             raise ValueError("messages_per_chunk must be at least 1")
         self.messages_per_chunk = messages_per_chunk
 
-    def chunk(self, thread: Thread) -> List[Chunk]:
+    def chunk(self, thread: Thread) -> list[Chunk]:
         """Chunk a thread by grouping N messages together.
 
         Args:
@@ -248,7 +249,7 @@ class FixedSizeChunker(ThreadChunker):
 
         return chunks
 
-    def _chunk_messages(self, thread: Thread) -> List[Chunk]:
+    def _chunk_messages(self, thread: Thread) -> list[Chunk]:
         """Chunk using explicit message list.
 
         Args:
@@ -332,7 +333,7 @@ class SemanticChunker(ThreadChunker):
         self.target_chunk_size = target_chunk_size
         self.split_on_speaker = split_on_speaker
 
-    def chunk(self, thread: Thread) -> List[Chunk]:
+    def chunk(self, thread: Thread) -> list[Chunk]:
         """Chunk a thread on sentence boundaries.
 
         This is a basic implementation that splits on sentence boundaries
@@ -402,7 +403,7 @@ class SemanticChunker(ThreadChunker):
 
         return chunks
 
-    def _split_sentences(self, text: str) -> List[str]:
+    def _split_sentences(self, text: str) -> list[str]:
         """Split text into sentences.
 
         This is a simple implementation. A production version would use
@@ -423,9 +424,9 @@ class SemanticChunker(ThreadChunker):
 
 def create_chunker(
     strategy: str,
-    chunk_size: Optional[int] = None,
-    overlap: Optional[int] = None,
-    messages_per_chunk: Optional[int] = None,
+    chunk_size: int | None = None,
+    overlap: int | None = None,
+    messages_per_chunk: int | None = None,
     **kwargs
 ) -> ThreadChunker:
     """Factory method to create a chunker based on strategy name.

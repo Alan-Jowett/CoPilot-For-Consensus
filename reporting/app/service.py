@@ -5,27 +5,26 @@
 
 import hashlib
 import time
-import uuid
-import requests
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
+import requests
 from copilot_events import (
     EventPublisher,
     EventSubscriber,
-    SummaryCompleteEvent,
-    ReportPublishedEvent,
     ReportDeliveryFailedEvent,
+    ReportPublishedEvent,
+    SummaryCompleteEvent,
 )
-from copilot_storage import DocumentStore
+from copilot_logging import create_logger
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
-from copilot_logging import create_logger
+from copilot_storage import DocumentStore
 
 # Optional dependencies for search/filtering features
 if TYPE_CHECKING:
-    from copilot_vectorstore import VectorStore
     from copilot_embedding import EmbeddingProvider
+    from copilot_vectorstore import VectorStore
 
 logger = create_logger(name="reporting")
 
@@ -44,9 +43,9 @@ class ReportingService:
         document_store: DocumentStore,
         publisher: EventPublisher,
         subscriber: EventSubscriber,
-        metrics_collector: Optional[MetricsCollector] = None,
-        error_reporter: Optional[ErrorReporter] = None,
-        webhook_url: Optional[str] = None,
+        metrics_collector: MetricsCollector | None = None,
+        error_reporter: ErrorReporter | None = None,
+        webhook_url: str | None = None,
         notify_enabled: bool = False,
         webhook_summary_max_length: int = 500,
         vector_store: Optional["VectorStore"] = None,
@@ -98,7 +97,7 @@ class ReportingService:
         logger.info("Subscribed to summary.complete events")
         logger.info("Reporting service is ready")
 
-    def _handle_summary_complete(self, event: Dict[str, Any]):
+    def _handle_summary_complete(self, event: dict[str, Any]):
         """Handle SummaryComplete event.
 
         This is an event handler for message queue consumption. Exceptions are
@@ -141,7 +140,7 @@ class ReportingService:
                 self.error_reporter.report(e, context={"event": event})
             raise  # Re-raise to trigger message requeue for transient failures
 
-    def process_summary(self, event_data: Dict[str, Any], full_event: Dict[str, Any]) -> str:
+    def process_summary(self, event_data: dict[str, Any], full_event: dict[str, Any]) -> str:
         """Process and store a summary.
 
         Args:
@@ -316,7 +315,7 @@ class ReportingService:
         report_id: str,
         thread_id: str,
         notified: bool,
-        delivery_channels: List[str],
+        delivery_channels: list[str],
     ):
         """Publish ReportPublished event.
 
@@ -395,17 +394,17 @@ class ReportingService:
 
     def get_reports(
         self,
-        thread_id: Optional[str] = None,
+        thread_id: str | None = None,
         limit: int = 10,
         skip: int = 0,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        source: Optional[str] = None,
-        min_participants: Optional[int] = None,
-        max_participants: Optional[int] = None,
-        min_messages: Optional[int] = None,
-        max_messages: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        start_date: str | None = None,
+        end_date: str | None = None,
+        source: str | None = None,
+        min_participants: int | None = None,
+        max_participants: int | None = None,
+        min_messages: int | None = None,
+        max_messages: int | None = None,
+    ) -> list[dict[str, Any]]:
         """Get list of reports with optional filters.
 
         Args:
@@ -549,7 +548,7 @@ class ReportingService:
         # Apply skip and limit
         return summaries[skip:skip + limit]
 
-    def _get_thread_by_id(self, thread_id: str) -> Optional[Dict[str, Any]]:
+    def _get_thread_by_id(self, thread_id: str) -> dict[str, Any] | None:
         """Get thread metadata by ID.
 
         Args:
@@ -569,7 +568,7 @@ class ReportingService:
             logger.warning(f"Failed to fetch thread {thread_id}: {e}")
             return None
 
-    def _get_archive_by_id(self, archive_id: str) -> Optional[Dict[str, Any]]:
+    def _get_archive_by_id(self, archive_id: str) -> dict[str, Any] | None:
         """Get archive metadata by ID.
 
         Args:
@@ -594,7 +593,7 @@ class ReportingService:
         topic: str,
         limit: int = 10,
         min_score: float = 0.5,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Search reports by topic using embedding-based similarity.
 
         Args:
@@ -696,7 +695,7 @@ class ReportingService:
 
         return enriched_reports
 
-    def get_available_sources(self) -> List[str]:
+    def get_available_sources(self) -> list[str]:
         """Get list of available archive sources.
 
         Returns:
@@ -724,7 +723,7 @@ class ReportingService:
             logger.error(f"Failed to fetch available sources: {e}", exc_info=True)
             return []
 
-    def get_report_by_id(self, report_id: str) -> Optional[Dict[str, Any]]:
+    def get_report_by_id(self, report_id: str) -> dict[str, Any] | None:
         """Get a specific report by ID.
 
         Args:
@@ -742,7 +741,7 @@ class ReportingService:
 
         return results[0] if results else None
 
-    def get_thread_summary(self, thread_id: str) -> Optional[Dict[str, Any]]:
+    def get_thread_summary(self, thread_id: str) -> dict[str, Any] | None:
         """Get the latest summary for a thread.
 
         Note: Without ordering support in DocumentStore, this returns the first
@@ -768,8 +767,8 @@ class ReportingService:
         self,
         limit: int = 10,
         skip: int = 0,
-        archive_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        archive_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Get list of threads with optional filters.
 
         Args:
@@ -796,7 +795,7 @@ class ReportingService:
         # Apply skip and limit
         return threads[skip:skip + limit]
 
-    def get_thread_by_id(self, thread_id: str) -> Optional[Dict[str, Any]]:
+    def get_thread_by_id(self, thread_id: str) -> dict[str, Any] | None:
         """Get a specific thread by ID.
 
         Args:
@@ -818,9 +817,9 @@ class ReportingService:
         self,
         limit: int = 10,
         skip: int = 0,
-        thread_id: Optional[str] = None,
-        message_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        thread_id: str | None = None,
+        message_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Get list of messages with optional filters.
 
         Args:
@@ -850,7 +849,7 @@ class ReportingService:
         # Apply skip and limit
         return messages[skip:skip + limit]
 
-    def get_message_by_id(self, message_doc_id: str) -> Optional[Dict[str, Any]]:
+    def get_message_by_id(self, message_doc_id: str) -> dict[str, Any] | None:
         """Get a specific message by its document ID.
 
         Args:
@@ -871,10 +870,10 @@ class ReportingService:
         self,
         limit: int = 10,
         skip: int = 0,
-        message_id: Optional[str] = None,
-        thread_id: Optional[str] = None,
-        message_doc_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        message_id: str | None = None,
+        thread_id: str | None = None,
+        message_doc_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         """Get list of chunks with optional filters.
 
         Args:
@@ -907,7 +906,7 @@ class ReportingService:
         # Apply skip and limit
         return chunks[skip:skip + limit]
 
-    def get_chunk_by_id(self, chunk_id: str) -> Optional[Dict[str, Any]]:
+    def get_chunk_by_id(self, chunk_id: str) -> dict[str, Any] | None:
         """Get a specific chunk by ID.
 
         Args:
@@ -924,7 +923,7 @@ class ReportingService:
 
         return results[0] if results else None
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get service statistics.
 
         Returns:

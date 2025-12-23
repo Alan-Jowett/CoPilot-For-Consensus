@@ -3,10 +3,11 @@
 
 """In-memory vector store implementation for testing."""
 
-import numpy as np
-from typing import List, Dict, Any
+from typing import Any
 
-from .interface import VectorStore, SearchResult
+import numpy as np
+
+from .interface import SearchResult, VectorStore
 
 
 class InMemoryVectorStore(VectorStore):
@@ -21,10 +22,10 @@ class InMemoryVectorStore(VectorStore):
 
     def __init__(self):
         """Initialize an empty in-memory vector store."""
-        self._vectors: Dict[str, np.ndarray] = {}
-        self._metadata: Dict[str, Dict[str, Any]] = {}
+        self._vectors: dict[str, np.ndarray] = {}
+        self._metadata: dict[str, dict[str, Any]] = {}
 
-    def add_embedding(self, id: str, vector: List[float], metadata: Dict[str, Any]) -> None:
+    def add_embedding(self, id: str, vector: list[float], metadata: dict[str, Any]) -> None:
         """Add a single embedding to the vector store.
 
         Args:
@@ -44,8 +45,8 @@ class InMemoryVectorStore(VectorStore):
         self._vectors[id] = np.array(vector, dtype=np.float32)
         self._metadata[id] = metadata.copy()
 
-    def add_embeddings(self, ids: List[str], vectors: List[List[float]],
-                      metadatas: List[Dict[str, Any]]) -> None:
+    def add_embeddings(self, ids: list[str], vectors: list[list[float]],
+                      metadatas: list[dict[str, Any]]) -> None:
         """Add multiple embeddings to the vector store in batch.
 
         Args:
@@ -68,7 +69,7 @@ class InMemoryVectorStore(VectorStore):
         for id, vector, metadata in zip(ids, vectors, metadatas):
             self.add_embedding(id, vector, metadata)
 
-    def query(self, query_vector: List[float], top_k: int = 10) -> List[SearchResult]:
+    def query(self, query_vector: list[float], top_k: int = 10) -> list[SearchResult]:
         """Query the vector store for similar embeddings.
 
         Uses cosine similarity for ranking results.

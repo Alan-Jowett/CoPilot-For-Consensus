@@ -4,16 +4,15 @@
 """Unit tests for ingestion API endpoints."""
 
 import pytest
-from fastapi.testclient import TestClient
-from fastapi import FastAPI
-
+from app.api import create_api_router
+from app.service import IngestionService
 from copilot_events import NoopPublisher
-from copilot_storage import InMemoryDocumentStore
 from copilot_logging import create_logger
 from copilot_metrics import NoOpMetricsCollector
+from copilot_storage import InMemoryDocumentStore
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
-from app.service import IngestionService
-from app.api import create_api_router
 from .test_helpers import make_config
 
 
@@ -369,8 +368,8 @@ class TestTriggerIngestionEndpoint:
 
     def test_trigger_ingestion_deletes_hash_for_reprocessing(self, client, service):
         """Test that triggering ingestion deletes hashes to allow reprocessing."""
-        import tempfile
         import os
+        import tempfile
 
         # Create a test file
         with tempfile.TemporaryDirectory() as tmpdir:

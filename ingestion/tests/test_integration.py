@@ -6,12 +6,12 @@
 import json
 import os
 import tempfile
-import pytest
 
+import pytest
+from app.service import IngestionService
 from copilot_events import NoopPublisher, ValidatingEventPublisher
 from copilot_schema_validation import FileSchemaProvider
 
-from app.service import IngestionService
 from .test_helpers import make_config, make_source
 
 
@@ -50,9 +50,9 @@ class TestIngestionIntegration:
                     f.write(f"To: {source_name}@example.com\n")
                     f.write(f"Subject: Test Message {j}\n")
                     f.write(f"Date: Mon, 01 Jan 2023 {j:02d}:00:00 +0000\n")
-                    f.write(f"\n")
+                    f.write("\n")
                     f.write(f"This is test message {j}\n")
-                    f.write(f"\n")
+                    f.write("\n")
 
             sources.append(
                 make_source(
@@ -68,6 +68,7 @@ class TestIngestionIntegration:
     def test_end_to_end_ingestion(self, temp_environment, test_sources):
         """Test complete end-to-end ingestion workflow."""
         from pathlib import Path
+
         from copilot_storage import InMemoryDocumentStore
 
         # Create configuration
@@ -123,7 +124,7 @@ class TestIngestionIntegration:
         )
         assert os.path.exists(checksums_path)
 
-        with open(checksums_path, "r") as f:
+        with open(checksums_path) as f:
             checksums = json.load(f)
             assert len(checksums) == 3
 
@@ -133,7 +134,7 @@ class TestIngestionIntegration:
         )
         assert os.path.exists(log_path)
 
-        with open(log_path, "r") as f:
+        with open(log_path) as f:
             lines = f.readlines()
             assert len(lines) == 3
 
@@ -237,7 +238,7 @@ class TestIngestionIntegration:
             temp_environment["storage_path"], "metadata", "ingestion_log.jsonl"
         )
 
-        with open(log_path, "r") as f:
+        with open(log_path) as f:
             for line in f:
                 entry = json.loads(line)
 

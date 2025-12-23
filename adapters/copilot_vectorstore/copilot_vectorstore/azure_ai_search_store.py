@@ -5,9 +5,9 @@
 
 import json
 import logging
-from typing import List, Dict, Any, Optional
+from typing import Any
 
-from .interface import VectorStore, SearchResult
+from .interface import SearchResult, VectorStore
 
 # Try to import Azure SDK exception types at module level
 try:
@@ -21,8 +21,10 @@ logger = logging.getLogger(__name__)
 # HNSW algorithm configuration constants
 # These control the trade-off between search quality and performance
 HNSW_M = 4  # Number of bi-directional links per node (higher = better recall, more memory)
-HNSW_EF_CONSTRUCTION = 400  # Size of dynamic candidate list during construction (higher = better index quality, slower construction)
-HNSW_EF_SEARCH = 500  # Size of dynamic candidate list during search (higher = better recall, slower search)
+# Size of dynamic candidate list during construction (higher = better index quality)
+HNSW_EF_CONSTRUCTION = 400
+# Size of dynamic candidate list during search (higher = better recall, slower search)
+HNSW_EF_SEARCH = 500
 
 
 class AzureAISearchVectorStore(VectorStore):
@@ -42,7 +44,7 @@ class AzureAISearchVectorStore(VectorStore):
     def __init__(
         self,
         endpoint: str,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         index_name: str = "embeddings",
         vector_size: int = 384,
         use_managed_identity: bool = False,
@@ -62,18 +64,18 @@ class AzureAISearchVectorStore(VectorStore):
             RuntimeError: If cannot connect to Azure AI Search
         """
         try:
+            from azure.core.credentials import AzureKeyCredential
             from azure.search.documents import SearchClient
             from azure.search.documents.indexes import SearchIndexClient
             from azure.search.documents.indexes.models import (
+                HnswAlgorithmConfiguration,
+                SearchField,
+                SearchFieldDataType,
                 SearchIndex,
                 SimpleField,
-                SearchFieldDataType,
-                SearchField,
                 VectorSearch,
-                HnswAlgorithmConfiguration,
                 VectorSearchProfile,
             )
-            from azure.core.credentials import AzureKeyCredential
         except ImportError as e:
             raise ImportError(
                 "azure-search-documents is not installed. "
@@ -275,7 +277,7 @@ class AzureAISearchVectorStore(VectorStore):
         self._index_client.create_index(index)
         logger.info(f"Created index '{self._index_name}'")
 
-    def add_embedding(self, id: str, vector: List[float], metadata: Dict[str, Any]) -> None:
+    def add_embedding(self, id: str, vector: list[float], metadata: dict[str, Any]) -> None:
         """Add a single embedding to the vector store.
 
         Idempotent operation: if the ID already exists, it will be updated with the new
@@ -306,8 +308,8 @@ class AzureAISearchVectorStore(VectorStore):
         self._search_client.upload_documents(documents=[document])
         logger.debug(f"Upserted embedding with ID: {id}")
 
-    def add_embeddings(self, ids: List[str], vectors: List[List[float]],
-                      metadatas: List[Dict[str, Any]]) -> None:
+    def add_embeddings(self, ids: list[str], vectors: list[list[float]],
+                      metadatas: list[dict[str, Any]]) -> None:
         """Add multiple embeddings to the vector store in batch.
 
         Idempotent operation: if any IDs already exist, they will be updated with the new
@@ -350,7 +352,7 @@ class AzureAISearchVectorStore(VectorStore):
         self._search_client.upload_documents(documents=documents)
         logger.debug(f"Upserted {len(documents)} embeddings")
 
-    def query(self, query_vector: List[float], top_k: int = 10) -> List[SearchResult]:
+    def query(self, query_vector: list[float], top_k: int = 10) -> list[SearchResult]:
         """Query the vector store for similar embeddings.
 
         Args:

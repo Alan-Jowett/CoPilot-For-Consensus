@@ -3,9 +3,9 @@
 
 """Unit tests for the reporting service."""
 
-import pytest
 from unittest.mock import Mock, patch
 
+import pytest
 from app.service import ReportingService
 
 

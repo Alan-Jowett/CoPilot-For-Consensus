@@ -3,11 +3,12 @@
 
 """Unit tests for the chunking service."""
 
-import pytest
 from unittest.mock import Mock
 
+import pytest
 from app.service import ChunkingService
 from copilot_chunking import TokenWindowChunker
+
 from .test_helpers import assert_valid_event_schema
 
 
@@ -360,9 +361,9 @@ def test_consume_json_parsed_event():
     mock_store.insert_document = Mock(return_value="chunk_123")
     mock_store.query_documents = Mock(return_value=[])
 
-    mock_publisher = Mock()
-    mock_subscriber = Mock()
-    mock_chunker = TokenWindowChunker(chunk_size=384, overlap=50)
+    Mock()
+    Mock()
+    TokenWindowChunker(chunk_size=384, overlap=50)
 
     # Simulate receiving a JSONParsed event
     event = {
@@ -515,7 +516,6 @@ def test_publish_chunking_failed_raises_on_publish_error(chunking_service, mock_
 def test_event_handler_raises_on_errors(chunking_service):
     """Test that event handler re-raises exceptions to trigger message requeue."""
     # Create a mock that raises during event parsing (before process_messages)
-    from copilot_events import JSONParsedEvent
 
     # This will cause the event handler to fail during event parsing
     event = {

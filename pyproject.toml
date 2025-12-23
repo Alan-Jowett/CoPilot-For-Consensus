@@ -50,8 +50,11 @@ unfixable = []
 [tool.ruff.lint.per-file-ignores]
 # Ignore import order in __init__.py files
 "__init__.py" = ["F401", "E402"]
-# Ignore unused arguments in test files
-"test_*.py" = ["ARG001", "ARG002"]
+# Ignore unused arguments and long lines in test files
+"test_*.py" = ["ARG001", "ARG002", "ARG005", "E501"]
+"**/tests/**" = ["ARG001", "ARG002", "ARG005", "E501"]
+# Ignore conftest.py fixture patterns
+"conftest.py" = ["ARG001", "ARG002", "ARG005"]
 
 [tool.mypy]
 # Strict mode enables all optional error checking flags
@@ -78,6 +81,15 @@ module = [
     "uvicorn.*",
     "fastapi.*",
     "pydantic.*",
+    "azure.*",
+    "sentence_transformers.*",
+    "openai.*",
+    "transformers.*",
+    "torch.*",
+    "faiss.*",
+    "sentry_sdk.*",
+    "opentelemetry.*",
+    "imapclient.*",
 ]
 ignore_missing_imports = true
 

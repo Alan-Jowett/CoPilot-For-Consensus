@@ -3,15 +3,13 @@
 
 """llama.cpp summarization implementation with AMD GPU support."""
 
-import time
 import logging
+import time
+
 import requests
-try:
-    from summarizer import Summarizer
-    from models import Thread, Summary
-except ImportError:
-    from .summarizer import Summarizer
-    from .models import Thread, Summary
+
+from .models import Summary, Thread
+from .summarizer import Summarizer
 
 logger = logging.getLogger(__name__)
 

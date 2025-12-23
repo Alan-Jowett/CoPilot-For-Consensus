@@ -8,7 +8,7 @@ This script demonstrates how to use the draft diff provider abstraction layer
 to fetch and display draft diffs from different sources.
 """
 
-from copilot_draft_diff import create_diff_provider, MockDiffProvider, DraftDiff
+from copilot_draft_diff import DraftDiff, MockDiffProvider, create_diff_provider
 
 
 def example_basic_usage():

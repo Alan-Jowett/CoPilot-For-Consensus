@@ -4,14 +4,14 @@
 """Tests for error reporters."""
 
 import logging
-import pytest
 
+import pytest
 from copilot_reporting import (
-    create_error_reporter,
-    ErrorReporter,
     ConsoleErrorReporter,
-    SilentErrorReporter,
+    ErrorReporter,
     SentryErrorReporter,
+    SilentErrorReporter,
+    create_error_reporter,
 )
 
 

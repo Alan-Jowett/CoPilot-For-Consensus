@@ -4,8 +4,7 @@
 """Tests for event publishers."""
 
 import pytest
-
-from copilot_events import create_publisher, EventPublisher, RabbitMQPublisher, NoopPublisher
+from copilot_events import EventPublisher, NoopPublisher, RabbitMQPublisher, create_publisher
 
 
 class TestPublisherFactory:

@@ -33,12 +33,12 @@ Example:
 __version__ = "0.1.0"
 
 from .chunkers import (
-    ThreadChunker,
-    TokenWindowChunker,
+    Chunk,
     FixedSizeChunker,
     SemanticChunker,
-    Chunk,
     Thread,
+    ThreadChunker,
+    TokenWindowChunker,
     create_chunker,
 )
 

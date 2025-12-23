@@ -15,13 +15,12 @@ Pydantic provides:
 - IDE autocomplete and type checking support
 """
 
-from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
 from enum import Enum
+from typing import Any, Literal
 
 try:
-    from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
-    from pydantic import ValidationError
+    from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 except ImportError:
     print("Pydantic not installed. Install with: pip install pydantic")
     raise
@@ -53,18 +52,18 @@ class MessageEvent(BaseModel):
     event_type: EventType
     document_id: str = Field(..., min_length=1, description="Document identifier")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class ChunksPreparedEvent(MessageEvent):
     """Event emitted when chunks are prepared."""
     event_type: Literal[EventType.CHUNKS_PREPARED] = EventType.CHUNKS_PREPARED
     chunk_count: int = Field(..., gt=0, description="Number of chunks created")
-    chunk_ids: List[str] = Field(..., min_length=1)
+    chunk_ids: list[str] = Field(..., min_length=1)
 
     @field_validator('chunk_ids')
     @classmethod
-    def validate_chunk_ids(cls, v: List[str], info) -> List[str]:
+    def validate_chunk_ids(cls, v: list[str], info) -> list[str]:
         """Ensure chunk_ids count matches chunk_count."""
         chunk_count = info.data.get('chunk_count')
         if chunk_count is not None and len(v) != chunk_count:
@@ -94,17 +93,17 @@ class DocumentSummary(BaseModel):
     )
 
     document_id: str
-    thread_id: Optional[str] = None
+    thread_id: str | None = None
     subject: str = Field(..., min_length=1)
     summary: str = Field(..., min_length=1)
-    consensus_level: Optional[str] = Field(None, pattern="^(high|medium|low|none)$")
+    consensus_level: str | None = Field(None, pattern="^(high|medium|low|none)$")
     created_at: datetime
     updated_at: datetime
 
 
 class PaginatedResponse(BaseModel):
     """Generic paginated response model."""
-    items: List[DocumentSummary]
+    items: list[DocumentSummary]
     total: int = Field(..., ge=0)
     page: int = Field(..., ge=1)
     page_size: int = Field(..., ge=1, le=100)
@@ -127,8 +126,8 @@ class DatabaseConfig(BaseModel):
     host: str = Field(..., min_length=1)
     port: int = Field(..., ge=1, le=65535)
     database: str = Field(..., min_length=1)
-    username: Optional[str] = None
-    password: Optional[str] = None
+    username: str | None = None
+    password: str | None = None
 
     @property
     def connection_string(self) -> str:

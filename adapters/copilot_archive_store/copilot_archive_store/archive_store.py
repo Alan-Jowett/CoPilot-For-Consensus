@@ -4,7 +4,7 @@
 """Abstract archive store interface for archive storage backends."""
 
 from abc import ABC, abstractmethod
-from typing import Optional, List, Dict, Any
+from typing import Any
 
 
 class ArchiveStoreError(Exception):
@@ -53,7 +53,7 @@ class ArchiveStore(ABC):
         pass
 
     @abstractmethod
-    def get_archive(self, archive_id: str) -> Optional[bytes]:
+    def get_archive(self, archive_id: str) -> bytes | None:
         """Retrieve archive content by ID.
 
         Args:
@@ -68,7 +68,7 @@ class ArchiveStore(ABC):
         pass
 
     @abstractmethod
-    def get_archive_by_hash(self, content_hash: str) -> Optional[str]:
+    def get_archive_by_hash(self, content_hash: str) -> str | None:
         """Retrieve archive ID by content hash for deduplication.
 
         This method enables content-addressable storage and deduplication.
@@ -116,7 +116,7 @@ class ArchiveStore(ABC):
         pass
 
     @abstractmethod
-    def list_archives(self, source_name: str) -> List[Dict[str, Any]]:
+    def list_archives(self, source_name: str) -> list[dict[str, Any]]:
         """List all archives for a given source.
 
         Args:

@@ -3,20 +3,20 @@
 
 """Email message parsing from mbox format."""
 
-import mailbox
 import email
 import logging
+import mailbox
 from datetime import datetime, timezone
 from email.utils import parseaddr, parsedate_to_datetime
-from typing import Dict, Any, List, Optional
+from typing import Any
 
-from .normalizer import TextNormalizer
 from .draft_detector import DraftDetector
 from .exceptions import (
-    MessageParsingError,
     MboxFileError,
+    MessageParsingError,
     RequiredFieldMissingError,
 )
+from .normalizer import TextNormalizer
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +26,8 @@ class MessageParser:
 
     def __init__(
         self,
-        normalizer: Optional[TextNormalizer] = None,
-        draft_detector: Optional[DraftDetector] = None,
+        normalizer: TextNormalizer | None = None,
+        draft_detector: DraftDetector | None = None,
     ):
         """Initialize message parser.
 
@@ -38,7 +38,7 @@ class MessageParser:
         self.normalizer = normalizer or TextNormalizer()
         self.draft_detector = draft_detector or DraftDetector()
 
-    def parse_mbox(self, mbox_path: str, archive_id: str) -> List[Dict[str, Any]]:
+    def parse_mbox(self, mbox_path: str, archive_id: str) -> list[dict[str, Any]]:
         """Parse an mbox file and extract all messages.
 
         Args:
@@ -96,7 +96,7 @@ class MessageParser:
 
         return parsed_messages
 
-    def parse_message(self, message: email.message.Message, archive_id: str) -> Dict[str, Any]:
+    def parse_message(self, message: email.message.Message, archive_id: str) -> dict[str, Any]:
         """Parse a single email message.
 
         Args:
@@ -157,7 +157,7 @@ class MessageParser:
 
         return parsed
 
-    def _extract_message_id(self, message: email.message.Message) -> Optional[str]:
+    def _extract_message_id(self, message: email.message.Message) -> str | None:
         """Extract and clean Message-ID header.
 
         Args:
@@ -172,7 +172,7 @@ class MessageParser:
             return message_id.strip("<>")
         return None
 
-    def _extract_in_reply_to(self, message: email.message.Message) -> Optional[str]:
+    def _extract_in_reply_to(self, message: email.message.Message) -> str | None:
         """Extract In-Reply-To header.
 
         Args:
@@ -186,7 +186,7 @@ class MessageParser:
             return in_reply_to.strip("<>")
         return None
 
-    def _parse_references(self, references_str: str) -> List[str]:
+    def _parse_references(self, references_str: str) -> list[str]:
         """Parse References header into list of message IDs.
 
         Args:
@@ -227,7 +227,7 @@ class MessageParser:
             logger.debug(f"Failed to decode header: {e}")
             return str(header_value)
 
-    def _parse_date(self, date_str: Optional[str]) -> Optional[str]:
+    def _parse_date(self, date_str: str | None) -> str | None:
         """Parse email date header to ISO 8601 format.
 
         Args:
@@ -248,7 +248,7 @@ class MessageParser:
             logger.debug(f"Failed to parse date '{date_str}': {e}")
             return None
 
-    def _parse_address(self, addr_str: str) -> Optional[Dict[str, str]]:
+    def _parse_address(self, addr_str: str) -> dict[str, str] | None:
         """Parse email address.
 
         Args:
@@ -275,7 +275,7 @@ class MessageParser:
 
         return None
 
-    def _parse_address_list(self, addr_list_str: str) -> List[Dict[str, str]]:
+    def _parse_address_list(self, addr_list_str: str) -> list[dict[str, str]]:
         """Parse comma-separated list of email addresses.
 
         Args:
@@ -352,7 +352,7 @@ class MessageParser:
 
         return body
 
-    def _extract_extra_headers(self, message: email.message.Message) -> Dict[str, str]:
+    def _extract_extra_headers(self, message: email.message.Message) -> dict[str, str]:
         """Extract additional headers for metadata.
 
         Args:

@@ -18,11 +18,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from copilot_config import (
-    load_typed_config,
-    ConfigValidationError,
     ConfigSchemaError,
+    ConfigValidationError,
     EnvConfigProvider,
+    load_typed_config,
 )
+
 
 # Find the schemas directory
 def get_schema_dir():
@@ -53,7 +54,7 @@ def example_basic_loading():
         # Load configuration from schema (type-safe)
         config = load_typed_config("chunking", schema_dir=SCHEMA_DIR)
 
-        print(f"✓ Configuration loaded successfully!")
+        print("✓ Configuration loaded successfully!")
         print(f"  Message Bus Host: {config.message_bus_host}")
         print(f"  Message Bus Port: {config.message_bus_port}")
         print(f"  Document Store Type: {config.doc_store_type}")
@@ -83,7 +84,7 @@ def example_typed_config():
             schema_dir=SCHEMA_DIR
         )
 
-        print(f"✓ Typed configuration loaded!")
+        print("✓ Typed configuration loaded!")
 
         # Access via attributes only (dict-style not supported for verification)
         print(f"  Message Bus Host: {config.message_bus_host}")
@@ -118,14 +119,14 @@ def example_validation_errors():
             schema_dir=SCHEMA_DIR,
             env_provider=env_provider
         )
-        print(f"✓ Configuration loaded successfully!")
-        print(f"  Note: Required fields with defaults don't cause validation errors")
+        print("✓ Configuration loaded successfully!")
+        print("  Note: Required fields with defaults don't cause validation errors")
         print(f"  Message Bus Host (from default): {config.message_bus_host}")
         print(f"  Message Bus Port (from env): {config.message_bus_port}")
         print()
 
     except ConfigValidationError as e:
-        print(f"✗ Validation error (unexpected):")
+        print("✗ Validation error (unexpected):")
         print(f"  {e}")
         print()
 
@@ -149,7 +150,7 @@ def example_default_values():
             env_provider=env_provider
         )
 
-        print(f"✓ Configuration loaded with defaults!")
+        print("✓ Configuration loaded with defaults!")
         print(f"  Message Bus Host (provided): {config.message_bus_host}")
         print(f"  Message Bus Port (default): {config.message_bus_port}")
         print(f"  Chunk Size (default): {config.chunk_size}")
@@ -184,7 +185,7 @@ def example_type_conversion():
             env_provider=env_provider
         )
 
-        print(f"✓ Type conversion successful!")
+        print("✓ Type conversion successful!")
         print(f"  Message Bus Port: {config.message_bus_port} (type: {type(config.message_bus_port).__name__})")
         print(f"  Document Store Port: {config.doc_store_port} (type: {type(config.doc_store_port).__name__})")
         print(f"  Chunk Size: {config.chunk_size} (type: {type(config.chunk_size).__name__})")

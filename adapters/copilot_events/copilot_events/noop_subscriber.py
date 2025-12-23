@@ -5,10 +5,10 @@
 
 import logging
 import threading
-from typing import Callable, Dict, Any, List
+from collections.abc import Callable
+from typing import Any
 
 from .subscriber import EventSubscriber
-
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +24,8 @@ class NoopSubscriber(EventSubscriber):
         """Initialize noop subscriber."""
         self.connected = False
         self.consuming = False
-        self.callbacks: Dict[str, Callable[[Dict[str, Any]], None]] = {}
-        self.routing_keys: Dict[str, str] = {}
+        self.callbacks: dict[str, Callable[[dict[str, Any]], None]] = {}
+        self.routing_keys: dict[str, str] = {}
         self._stop_event = threading.Event()
 
     def connect(self) -> None:
@@ -42,7 +42,7 @@ class NoopSubscriber(EventSubscriber):
     def subscribe(
         self,
         event_type: str,
-        callback: Callable[[Dict[str, Any]], None],
+        callback: Callable[[dict[str, Any]], None],
         routing_key: str = None,
         exchange: str = None,
     ) -> None:
@@ -82,7 +82,7 @@ class NoopSubscriber(EventSubscriber):
         self._stop_event.set()
         logger.debug("NoopSubscriber stopped consuming")
 
-    def inject_event(self, event: Dict[str, Any]) -> None:
+    def inject_event(self, event: dict[str, Any]) -> None:
         """Manually inject an event to trigger callbacks.
 
         This is useful for testing event handlers without a real message bus.
@@ -106,7 +106,7 @@ class NoopSubscriber(EventSubscriber):
         else:
             logger.debug(f"No callback for {event_type}")
 
-    def get_subscriptions(self) -> List[str]:
+    def get_subscriptions(self) -> list[str]:
         """Get list of subscribed event types.
 
         Returns:

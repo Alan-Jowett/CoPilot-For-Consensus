@@ -21,16 +21,14 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 
 import uvicorn
+from app import SUPPORTED_PROVIDERS, __version__
+from app.config import load_auth_config
+from app.service import AuthService
+from copilot_logging import create_logger, create_uvicorn_log_config
+from copilot_metrics import create_metrics_collector
 from fastapi import FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
-
-from copilot_logging import create_logger, create_uvicorn_log_config
-from copilot_metrics import create_metrics_collector
-
-from app import __version__, SUPPORTED_PROVIDERS
-from app.config import load_auth_config
-from app.service import AuthService
 
 # Configure structured JSON logging
 logger = create_logger(logger_type="stdout", level="INFO", name="auth")
@@ -397,9 +395,12 @@ def require_admin_role(request: Request) -> tuple[str, str | None]:
 
     # Extract token from Authorization header
     auth_header = request.headers.get("Authorization", "")
-    logger.info(f"Authorization header present: {bool(auth_header)}, starts with Bearer: {auth_header.startswith('Bearer ')}")
+    logger.info(
+        f"Authorization header present: {bool(auth_header)}, "
+        f"starts with Bearer: {auth_header.startswith('Bearer ')}"
+    )
     if not auth_header.startswith("Bearer "):
-        logger.warning(f"Missing or invalid Authorization header. Header value: '{auth_header[:50]}...' if longer")
+        logger.warning("Missing or invalid Authorization header")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid Authorization header")
 
     token = auth_header[7:]  # Remove "Bearer " prefix
@@ -434,7 +435,10 @@ def require_admin_role(request: Request) -> tuple[str, str | None]:
                 continue
 
         # Token didn't match any configured audience
-        logger.error(f"Token didn't match any configured audience. Audiences: {configured_audiences}, Token preview: {token[:50]}...")
+        logger.error(
+            f"Token didn't match any configured audience. "
+            f"Audiences: {configured_audiences}, Token preview: {token[:50]}..."
+        )
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
     except HTTPException:

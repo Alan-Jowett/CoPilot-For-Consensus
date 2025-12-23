@@ -13,6 +13,7 @@ This script validates:
 
 import subprocess
 import sys
+
 import yaml
 
 
@@ -64,7 +65,7 @@ def check_port_binding(service_name, ports, expected_binding):
         if isinstance(port_spec, dict):
             published = str(port_spec.get('published', ''))
             target = str(port_spec.get('target', ''))
-            mode = port_spec.get('mode', 'ingress')
+            port_spec.get('mode', 'ingress')
             host_ip = port_spec.get('host_ip', '')
         else:
             parts = str(port_spec).split(':')

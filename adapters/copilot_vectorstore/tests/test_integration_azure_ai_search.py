@@ -4,9 +4,9 @@
 """Integration tests for Azure AI Search vector store against a real Azure AI Search instance."""
 
 import os
-import pytest
 import time
 
+import pytest
 from copilot_vectorstore import create_vector_store
 
 # Check if azure-search-documents is available

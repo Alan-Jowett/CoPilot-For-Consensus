@@ -13,9 +13,9 @@ simple mock schema provider for demonstration purposes.
 """
 
 from copilot_events import (
-    create_publisher,
     ValidatingEventPublisher,
     ValidationError,
+    create_publisher,
 )
 
 
@@ -122,9 +122,9 @@ def main():
         )
         print("✓ Event published successfully")
     except ValidationError as e:
-        print(f"✗ Validation failed (as expected):")
+        print("✗ Validation failed (as expected):")
         print(f"   Event Type: {e.event_type}")
-        print(f"   Errors:")
+        print("   Errors:")
         for error in e.errors[:3]:  # Show first 3 errors
             print(f"     - {error}")
     print()

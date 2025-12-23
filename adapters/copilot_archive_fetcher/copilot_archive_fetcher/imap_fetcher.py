@@ -4,9 +4,8 @@
 """IMAP archive fetcher implementation."""
 
 import logging
-import os
 import mailbox as mbox_module
-from typing import Optional, Tuple
+import os
 
 from .base import ArchiveFetcher
 from .models import SourceConfig
@@ -25,7 +24,7 @@ class IMAPFetcher(ArchiveFetcher):
         """
         self.source = source
 
-    def fetch(self, output_dir: str) -> Tuple[bool, Optional[list], Optional[str]]:
+    def fetch(self, output_dir: str) -> tuple[bool, list | None, str | None]:
         """Fetch emails via IMAP.
 
         Args:
@@ -47,7 +46,10 @@ class IMAPFetcher(ArchiveFetcher):
 
             # Validate required credentials
             if not username or not password:
-                error_msg = "IMAP credentials missing: 'username' and 'password' are required in the source configuration."
+                error_msg = (
+                    "IMAP credentials missing: 'username' and 'password' "
+                    "are required in the source configuration."
+                )
                 logger.error(error_msg)
                 return False, None, error_msg
 
@@ -97,9 +99,9 @@ class IMAPFetcher(ArchiveFetcher):
                     os.remove(file_path)
                 except Exception as cleanup_error:
                     logger.warning(
-                        "Failed to clean up partial mbox after fetch errors",
-                        error=str(cleanup_error),
-                        file_path=file_path,
+                        "Failed to clean up partial mbox after fetch errors: %s (file_path=%s)",
+                        str(cleanup_error),
+                        file_path,
                     )
                 return False, None, error_msg
 

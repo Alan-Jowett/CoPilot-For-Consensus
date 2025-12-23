@@ -6,7 +6,6 @@
 import logging
 import os
 import shutil
-from typing import Optional, Tuple
 
 from .base import ArchiveFetcher
 from .models import SourceConfig
@@ -25,7 +24,7 @@ class LocalFetcher(ArchiveFetcher):
         """
         self.source = source
 
-    def fetch(self, output_dir: str) -> Tuple[bool, Optional[list], Optional[str]]:
+    def fetch(self, output_dir: str) -> tuple[bool, list | None, str | None]:
         """Copy archive from local filesystem.
 
         Args:

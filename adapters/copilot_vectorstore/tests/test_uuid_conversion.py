@@ -5,7 +5,8 @@
 
 import uuid
 from unittest.mock import Mock, patch
-from copilot_vectorstore.qdrant_store import _string_to_uuid, QdrantVectorStore
+
+from copilot_vectorstore.qdrant_store import QdrantVectorStore, _string_to_uuid
 
 
 def test_string_to_uuid_deterministic():

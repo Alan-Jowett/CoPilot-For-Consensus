@@ -4,12 +4,13 @@
 """Startup requeue utility for incomplete documents."""
 
 import logging
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Dict, Any, Callable, Optional
+from typing import Any
 
-from copilot_storage import DocumentStore
 from copilot_events import EventPublisher
 from copilot_metrics import MetricsCollector
+from copilot_storage import DocumentStore
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class StartupRequeue:
         self,
         document_store: DocumentStore,
         publisher: EventPublisher,
-        metrics_collector: Optional[MetricsCollector] = None,
+        metrics_collector: MetricsCollector | None = None,
     ):
         """Initialize startup requeue utility.
 
@@ -42,11 +43,11 @@ class StartupRequeue:
     def requeue_incomplete(
         self,
         collection: str,
-        query: Dict[str, Any],
+        query: dict[str, Any],
         event_type: str,
         routing_key: str,
         id_field: str,
-        build_event_data: Callable[[Dict[str, Any]], Dict[str, Any]],
+        build_event_data: Callable[[dict[str, Any]], dict[str, Any]],
         limit: int = 1000,
     ) -> int:
         """Requeue incomplete documents from a collection.

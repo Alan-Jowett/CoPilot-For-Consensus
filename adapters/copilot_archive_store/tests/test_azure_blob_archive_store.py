@@ -3,8 +3,9 @@
 
 """Unit tests for AzureBlobArchiveStore with mocked Azure SDK."""
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Test if azure-storage-blob is available
 try:

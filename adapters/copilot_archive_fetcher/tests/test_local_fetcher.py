@@ -5,6 +5,7 @@
 
 import os
 import tempfile
+
 from copilot_archive_fetcher import LocalFetcher, SourceConfig
 
 

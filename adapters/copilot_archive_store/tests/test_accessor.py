@@ -3,15 +3,15 @@
 
 """Unit tests for ArchiveAccessor."""
 
-import pytest
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
 
+import pytest
 from copilot_archive_store import (
     ArchiveAccessor,
-    create_archive_accessor,
     LocalVolumeArchiveStore,
+    create_archive_accessor,
 )
 
 

@@ -14,13 +14,13 @@ their JSON schemas, demonstrating that schema validation can be integrated
 into service tests.
 """
 
-import pytest
-from typing import Dict, Any
+from typing import Any
 
+import pytest
 from copilot_schema_validation import FileSchemaProvider, validate_json
 
 
-def validate_event(event: Dict[str, Any]) -> None:
+def validate_event(event: dict[str, Any]) -> None:
     """Validate an event against its JSON schema."""
     event_type = event.get("event_type")
     assert event_type, "Event missing event_type field"

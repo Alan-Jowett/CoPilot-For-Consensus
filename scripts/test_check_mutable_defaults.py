@@ -7,10 +7,10 @@ Unit tests for check_mutable_defaults.py
 
 Tests the mutable defaults checker functionality.
 """
+import os
+import sys
 import tempfile
 from pathlib import Path
-import sys
-import os
 
 # Add scripts directory to path
 sys.path.insert(0, os.path.dirname(__file__))

@@ -5,12 +5,12 @@
 
 import pytest
 from copilot_chunking import (
-    ThreadChunker,
-    TokenWindowChunker,
+    Chunk,
     FixedSizeChunker,
     SemanticChunker,
-    Chunk,
     Thread,
+    ThreadChunker,
+    TokenWindowChunker,
     create_chunker,
 )
 

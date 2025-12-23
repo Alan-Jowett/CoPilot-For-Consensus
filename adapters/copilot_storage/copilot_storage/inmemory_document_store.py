@@ -6,13 +6,10 @@
 import copy
 import logging
 import uuid
-from typing import Dict, Any, List, Optional
 from collections import defaultdict
+from typing import Any
 
-from .document_store import (
-    DocumentStore,
-    DocumentNotFoundError
-)
+from .document_store import DocumentNotFoundError, DocumentStore
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +19,7 @@ class InMemoryDocumentStore(DocumentStore):
 
     def __init__(self):
         """Initialize in-memory document store."""
-        self.collections: Dict[str, Dict[str, Dict[str, Any]]] = defaultdict(dict)
+        self.collections: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
         self.connected = False
 
     def connect(self) -> None:
@@ -38,7 +35,7 @@ class InMemoryDocumentStore(DocumentStore):
         self.connected = False
         logger.debug("InMemoryDocumentStore: disconnected")
 
-    def insert_document(self, collection: str, doc: Dict[str, Any]) -> str:
+    def insert_document(self, collection: str, doc: dict[str, Any]) -> str:
         """Insert a document into the specified collection.
 
         Args:
@@ -60,7 +57,7 @@ class InMemoryDocumentStore(DocumentStore):
 
         return doc_id
 
-    def get_document(self, collection: str, doc_id: str) -> Optional[Dict[str, Any]]:
+    def get_document(self, collection: str, doc_id: str) -> dict[str, Any] | None:
         """Retrieve a document by its ID.
 
         Args:
@@ -79,8 +76,8 @@ class InMemoryDocumentStore(DocumentStore):
         return None
 
     def query_documents(
-        self, collection: str, filter_dict: Dict[str, Any], limit: int = 100
-    ) -> List[Dict[str, Any]]:
+        self, collection: str, filter_dict: dict[str, Any], limit: int = 100
+    ) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
         Args:
@@ -113,7 +110,7 @@ class InMemoryDocumentStore(DocumentStore):
         return results
 
     def update_document(
-        self, collection: str, doc_id: str, patch: Dict[str, Any]
+        self, collection: str, doc_id: str, patch: dict[str, Any]
     ) -> None:
         """Update a document with the provided patch.
 
@@ -167,8 +164,8 @@ class InMemoryDocumentStore(DocumentStore):
         logger.debug("InMemoryDocumentStore: cleared all collections")
 
     def aggregate_documents(
-        self, collection: str, pipeline: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, collection: str, pipeline: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Execute a simplified aggregation pipeline on a collection.
 
         This is a simplified implementation that supports common aggregation stages
@@ -227,8 +224,8 @@ class InMemoryDocumentStore(DocumentStore):
         return results
 
     def _apply_match(
-        self, documents: List[Dict[str, Any]], match_spec: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, documents: list[dict[str, Any]], match_spec: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Apply $match stage to filter documents.
 
         Supports operators: $exists, $eq
@@ -280,8 +277,8 @@ class InMemoryDocumentStore(DocumentStore):
         return filtered
 
     def _apply_lookup(
-        self, documents: List[Dict[str, Any]], lookup_spec: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
+        self, documents: list[dict[str, Any]], lookup_spec: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Apply $lookup stage to join with another collection.
 
         **Performance Note**: This implementation has O(N*M) complexity where N is

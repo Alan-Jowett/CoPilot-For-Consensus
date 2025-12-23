@@ -3,12 +3,11 @@
 
 """Tests for draft diff provider factory."""
 
-import os
 import pytest
-from copilot_draft_diff.factory import DiffProviderFactory, create_diff_provider
-from copilot_draft_diff.provider import DraftDiffProvider
 from copilot_draft_diff.datatracker_provider import DatatrackerDiffProvider
+from copilot_draft_diff.factory import DiffProviderFactory, create_diff_provider
 from copilot_draft_diff.mock_provider import MockDiffProvider
+from copilot_draft_diff.provider import DraftDiffProvider
 
 
 class TestDiffProviderFactory:

@@ -3,16 +3,16 @@
 
 """Tests for identity providers."""
 
-import pytest
 from unittest.mock import patch
 
+import pytest
 from copilot_auth import (
-    User,
+    AuthenticationError,
+    DatatrackerIdentityProvider,
+    GitHubIdentityProvider,
     IdentityProvider,
     MockIdentityProvider,
-    GitHubIdentityProvider,
-    DatatrackerIdentityProvider,
-    AuthenticationError,
+    User,
 )
 
 

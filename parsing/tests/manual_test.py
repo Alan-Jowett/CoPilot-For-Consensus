@@ -4,16 +4,16 @@
 
 """Manual end-to-end test for parsing service."""
 
-import sys
 import os
+import sys
 
 # Add app to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from app.service import ParsingService
 from copilot_events import NoopPublisher, NoopSubscriber
 from copilot_storage import InMemoryDocumentStore
 
-from app.service import ParsingService
 
 def main():
     """Test parsing service with sample mbox."""

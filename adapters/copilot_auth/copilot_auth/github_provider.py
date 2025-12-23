@@ -7,7 +7,7 @@ This module provides authentication via GitHub OAuth, allowing users to
 authenticate using their GitHub accounts.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 import httpx
 
@@ -101,7 +101,7 @@ class GitHubIdentityProvider(OIDCProvider):
             # Organizations are optional, return empty list on error
             return []
 
-    def _map_userinfo_to_user(self, userinfo: Dict[str, Any], provider_id: str) -> User:
+    def _map_userinfo_to_user(self, userinfo: dict[str, Any], provider_id: str) -> User:
         """Map GitHub userinfo to User model.
 
         Args:
@@ -139,7 +139,7 @@ class GitHubIdentityProvider(OIDCProvider):
             affiliations=affiliations,
         )
 
-    def get_user(self, token: str) -> Optional[User]:
+    def get_user(self, token: str) -> User | None:
         """Retrieve user information from a GitHub OAuth token.
 
         Args:

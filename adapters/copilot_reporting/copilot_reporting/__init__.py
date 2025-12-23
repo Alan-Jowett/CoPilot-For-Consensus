@@ -9,18 +9,18 @@ in the Copilot-for-Consensus system.
 
 from typing import Optional
 
-from .error_reporter import ErrorReporter
 from .console_error_reporter import ConsoleErrorReporter
-from .silent_error_reporter import SilentErrorReporter
+from .error_reporter import ErrorReporter
 from .sentry_error_reporter import SentryErrorReporter
+from .silent_error_reporter import SilentErrorReporter
 
 __version__ = "0.1.0"
 
 
 def create_error_reporter(
     reporter_type: str = "console",
-    logger_name: Optional[str] = None,
-    dsn: Optional[str] = None,
+    logger_name: str | None = None,
+    dsn: str | None = None,
     environment: str = "production",
     **kwargs
 ) -> ErrorReporter:

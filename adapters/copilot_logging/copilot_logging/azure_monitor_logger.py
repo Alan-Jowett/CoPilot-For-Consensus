@@ -5,7 +5,7 @@
 
 import logging
 import os
-from typing import Any, Optional
+from typing import Any
 
 from .logger import Logger
 
@@ -40,7 +40,7 @@ class AzureMonitorLogger(Logger):
         >>> logger.info("Service started")  # Logs to console with warning
     """
 
-    def __init__(self, level: str = "INFO", name: Optional[str] = None):
+    def __init__(self, level: str = "INFO", name: str | None = None):
         """Initialize Azure Monitor logger.
 
         Args:
@@ -76,8 +76,8 @@ class AzureMonitorLogger(Logger):
 
     def _configure_azure_monitor(
         self,
-        connection_string: Optional[str],
-        instrumentation_key: Optional[str]
+        connection_string: str | None,
+        instrumentation_key: str | None
     ) -> None:
         """Configure Azure Monitor exporter.
 
@@ -88,11 +88,11 @@ class AzureMonitorLogger(Logger):
         try:
             from azure.monitor.opentelemetry.exporter import AzureMonitorLogExporter, AzureMonitorTraceExporter
             from opentelemetry import trace
-            from opentelemetry.sdk.trace import TracerProvider
-            from opentelemetry.sdk.trace.export import BatchSpanProcessor
-            from opentelemetry._logs import set_logger_provider, get_logger_provider
+            from opentelemetry._logs import get_logger_provider, set_logger_provider
             from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
             from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+            from opentelemetry.sdk.trace import TracerProvider
+            from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
             # Build connection string (constructor ensures one of these is set)
             if connection_string:

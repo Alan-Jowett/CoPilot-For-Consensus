@@ -3,8 +3,9 @@
 
 """Tests for RabbitMQ reconnection logic."""
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 try:
     import pika

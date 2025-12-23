@@ -3,7 +3,7 @@
 
 """Sentry error reporter implementation (scaffold for future use)."""
 
-from typing import Optional, Dict, Any
+from typing import Any
 
 from .error_reporter import ErrorReporter
 
@@ -19,7 +19,7 @@ class SentryErrorReporter(ErrorReporter):
         reporter.report(exception, context={"user_id": "123"})
     """
 
-    def __init__(self, dsn: Optional[str] = None, environment: str = "production"):
+    def __init__(self, dsn: str | None = None, environment: str = "production"):
         """Initialize Sentry error reporter.
 
         Args:
@@ -54,7 +54,7 @@ class SentryErrorReporter(ErrorReporter):
                 "Install it with: pip install sentry-sdk"
             )
 
-    def report(self, error: Exception, context: Optional[Dict[str, Any]] = None) -> None:
+    def report(self, error: Exception, context: dict[str, Any] | None = None) -> None:
         """Report an exception with optional context.
 
         Args:
@@ -89,7 +89,7 @@ class SentryErrorReporter(ErrorReporter):
         self,
         message: str,
         level: str = "error",
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ) -> None:
         """Capture a message without an exception.
 

@@ -4,7 +4,7 @@
 """Abstract error reporter interface for structured error reporting."""
 
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
+from typing import Any
 
 
 class ErrorReporter(ABC):
@@ -16,7 +16,7 @@ class ErrorReporter(ABC):
     """
 
     @abstractmethod
-    def report(self, error: Exception, context: Optional[Dict[str, Any]] = None) -> None:
+    def report(self, error: Exception, context: dict[str, Any] | None = None) -> None:
         """Report an exception with optional context.
 
         Args:
@@ -30,7 +30,7 @@ class ErrorReporter(ABC):
         self,
         message: str,
         level: str = "error",
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ) -> None:
         """Capture a message without an exception.
 

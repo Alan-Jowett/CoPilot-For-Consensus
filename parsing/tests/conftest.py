@@ -7,10 +7,10 @@ import os
 import sys
 import tempfile
 from pathlib import Path
-import pytest
 
-from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
+import pytest
 from copilot_schema_validation import FileSchemaProvider
+from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
 
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))

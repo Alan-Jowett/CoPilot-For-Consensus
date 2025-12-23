@@ -5,25 +5,23 @@
 
 import os
 import sys
-from pathlib import Path
 import threading
+from pathlib import Path
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
-from fastapi import FastAPI, HTTPException
 import uvicorn
-
-from copilot_config import load_typed_config, get_configuration_schema_response
-from copilot_events import create_publisher, create_subscriber, ValidatingEventPublisher, ValidatingEventSubscriber
-from copilot_storage import create_document_store, ValidatingDocumentStore
+from app import __version__
+from app.service import ParsingService
+from copilot_config import get_configuration_schema_response, load_typed_config
+from copilot_events import ValidatingEventPublisher, ValidatingEventSubscriber, create_publisher, create_subscriber
+from copilot_logging import create_logger, create_uvicorn_log_config
 from copilot_metrics import create_metrics_collector
 from copilot_reporting import create_error_reporter
 from copilot_schema_validation import FileSchemaProvider
-from copilot_logging import create_logger, create_uvicorn_log_config
-
-from app import __version__
-from app.service import ParsingService
+from copilot_storage import ValidatingDocumentStore, create_document_store
+from fastapi import FastAPI, HTTPException
 
 # Configure structured JSON logging
 logger = create_logger(logger_type="stdout", level="INFO", name="parsing")

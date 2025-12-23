@@ -3,8 +3,7 @@
 
 """Additional configuration providers for schema-driven configuration."""
 
-import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .base import ConfigProvider
 
@@ -25,7 +24,7 @@ class DocStoreConfigProvider(ConfigProvider):
         """
         self._doc_store = doc_store
         self._collection = collection
-        self._cache: Optional[Dict[str, Any]] = None
+        self._cache: dict[str, Any] | None = None
 
     def is_connected(self) -> bool:
         """Check if the document store is connected.

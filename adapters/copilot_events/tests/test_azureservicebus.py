@@ -4,14 +4,13 @@
 """Tests for Azure Service Bus publishers and subscribers."""
 
 import pytest
-
 from copilot_events import (
-    create_publisher,
-    create_subscriber,
     AzureServiceBusPublisher,
     AzureServiceBusSubscriber,
     EventPublisher,
     EventSubscriber,
+    create_publisher,
+    create_subscriber,
 )
 
 

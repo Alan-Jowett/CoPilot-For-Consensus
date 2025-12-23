@@ -4,7 +4,7 @@
 """Abstract document store interface for NoSQL backends."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
+from typing import Any
 
 
 class DocumentStoreError(Exception):
@@ -45,7 +45,7 @@ class DocumentStore(ABC):
         pass
 
     @abstractmethod
-    def insert_document(self, collection: str, doc: Dict[str, Any]) -> str:
+    def insert_document(self, collection: str, doc: dict[str, Any]) -> str:
         """Insert a document into the specified collection.
 
         Args:
@@ -61,7 +61,7 @@ class DocumentStore(ABC):
         pass
 
     @abstractmethod
-    def get_document(self, collection: str, doc_id: str) -> Optional[Dict[str, Any]]:
+    def get_document(self, collection: str, doc_id: str) -> dict[str, Any] | None:
         """Retrieve a document by its ID.
 
         Args:
@@ -75,8 +75,8 @@ class DocumentStore(ABC):
 
     @abstractmethod
     def query_documents(
-        self, collection: str, filter_dict: Dict[str, Any], limit: int = 100
-    ) -> List[Dict[str, Any]]:
+        self, collection: str, filter_dict: dict[str, Any], limit: int = 100
+    ) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
         Args:
@@ -91,7 +91,7 @@ class DocumentStore(ABC):
 
     @abstractmethod
     def update_document(
-        self, collection: str, doc_id: str, patch: Dict[str, Any]
+        self, collection: str, doc_id: str, patch: dict[str, Any]
     ) -> None:
         """Update a document with the provided patch.
 

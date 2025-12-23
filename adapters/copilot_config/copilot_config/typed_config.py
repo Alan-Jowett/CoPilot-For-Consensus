@@ -4,7 +4,7 @@
 """Typed configuration wrapper for services."""
 
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class TypedConfig:
@@ -29,10 +29,10 @@ class TypedConfig:
 
     def __init__(
         self,
-        config_dict: Dict[str, Any],
+        config_dict: dict[str, Any],
         *,
-        schema_version: Optional[str] = None,
-        min_service_version: Optional[str] = None
+        schema_version: str | None = None,
+        min_service_version: str | None = None
     ):
         """Initialize typed config wrapper.
 
@@ -45,7 +45,7 @@ class TypedConfig:
         object.__setattr__(self, '_schema_version', schema_version)
         object.__setattr__(self, '_min_service_version', min_service_version)
 
-    def get_schema_version(self) -> Optional[str]:
+    def get_schema_version(self) -> str | None:
         """Get the schema version.
 
         Returns:
@@ -53,7 +53,7 @@ class TypedConfig:
         """
         return object.__getattribute__(self, '_schema_version')
 
-    def get_min_service_version(self) -> Optional[str]:
+    def get_min_service_version(self) -> str | None:
         """Get the minimum service version.
 
         Returns:
@@ -123,7 +123,7 @@ class TypedConfig:
 
 def load_typed_config(
     service_name: str,
-    schema_dir: Optional[str] = None,
+    schema_dir: str | None = None,
     **kwargs
 ) -> TypedConfig:
     """Load and validate configuration, returning a typed config object.
@@ -154,12 +154,12 @@ def load_typed_config(
         >>> print(config.message_bus_host)
         'messagebus'
     """
-    from .schema_loader import _load_config, ConfigSchema, _resolve_schema_directory
-    import os
+    from .schema_loader import ConfigSchema, _load_config, _resolve_schema_directory
 
     # Try to import secrets support (optional)
     try:
         from copilot_secrets import create_secret_provider
+
         from .secret_provider import SecretConfigProvider
         secrets_available = True
     except ImportError:

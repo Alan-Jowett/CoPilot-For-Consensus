@@ -3,10 +3,11 @@
 
 """Tests for startup dependency validation in chunking service."""
 
-import pytest
-import sys
 import os
+import sys
 from unittest.mock import Mock, patch
+
+import pytest
 
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))

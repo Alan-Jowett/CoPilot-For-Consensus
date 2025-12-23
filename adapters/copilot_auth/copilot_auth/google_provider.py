@@ -7,7 +7,7 @@ This module provides authentication via Google OAuth/OIDC, allowing users to
 authenticate using their Google accounts.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from .models import User
 from .oidc_provider import OIDCProvider
@@ -48,7 +48,7 @@ class GoogleIdentityProvider(OIDCProvider):
             scopes=["openid", "profile", "email"],
         )
 
-    def _map_userinfo_to_user(self, userinfo: Dict[str, Any], provider_id: str) -> User:
+    def _map_userinfo_to_user(self, userinfo: dict[str, Any], provider_id: str) -> User:
         """Map Google userinfo to User model.
 
         Args:

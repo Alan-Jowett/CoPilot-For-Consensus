@@ -6,10 +6,10 @@
 import json
 import logging
 import re
-from typing import Callable, Dict, Any
+from collections.abc import Callable
+from typing import Any
 
 from .subscriber import EventSubscriber
-
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class RabbitMQSubscriber(EventSubscriber):
 
         self.connection = None
         self.channel = None
-        self.callbacks: Dict[str, Callable[[Dict[str, Any]], None]] = {}
+        self.callbacks: dict[str, Callable[[dict[str, Any]], None]] = {}
         self._consuming = False
 
     def connect(self) -> None:
@@ -121,7 +121,7 @@ class RabbitMQSubscriber(EventSubscriber):
     def subscribe(
         self,
         event_type: str,
-        callback: Callable[[Dict[str, Any]], None],
+        callback: Callable[[dict[str, Any]], None],
         routing_key: str = None,
         exchange: str = None,
     ) -> None:

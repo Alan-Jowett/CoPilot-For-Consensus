@@ -7,14 +7,15 @@ This example shows how to integrate the authentication abstraction layer
 into a Flask application for role-based access control.
 """
 
-from flask import Flask, request, jsonify
-import sys
 import os
+import sys
+
+from flask import Flask, jsonify, request
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from copilot_auth import create_identity_provider, User, AuthenticationError
+from copilot_auth import AuthenticationError, User, create_identity_provider
 
 # Create Flask app
 app = Flask(__name__)

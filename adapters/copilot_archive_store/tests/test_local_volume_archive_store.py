@@ -3,12 +3,12 @@
 
 """Unit tests for LocalVolumeArchiveStore."""
 
-import pytest
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
 
-from copilot_archive_store import LocalVolumeArchiveStore, ArchiveStoreError
+import pytest
+from copilot_archive_store import LocalVolumeArchiveStore
 
 
 @pytest.fixture

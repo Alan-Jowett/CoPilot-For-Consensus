@@ -3,12 +3,12 @@
 
 """Factory for creating secret providers."""
 
-from typing import Any, Dict
+from typing import Any
 
-from .provider import SecretProvider
-from .local_provider import LocalFileSecretProvider
 from .azurekeyvault_provider import AzureKeyVaultProvider
 from .exceptions import SecretProviderError
+from .local_provider import LocalFileSecretProvider
+from .provider import SecretProvider
 
 
 def create_secret_provider(provider_type: str, **kwargs: Any) -> SecretProvider:
@@ -27,7 +27,7 @@ def create_secret_provider(provider_type: str, **kwargs: Any) -> SecretProvider:
     Example:
         >>> provider = create_secret_provider("local", base_path="/app/secrets")
     """
-    providers: Dict[str, type] = {
+    providers: dict[str, type] = {
         "local": LocalFileSecretProvider,
         "azure": AzureKeyVaultProvider,
         # Future: "aws": AWSSecretsManagerProvider,

@@ -4,10 +4,10 @@
 """Integration tests for Qdrant vector store against a real Qdrant instance."""
 
 import os
-import pytest
 import time
 
-from copilot_vectorstore import create_vector_store, SearchResult
+import pytest
+from copilot_vectorstore import SearchResult, create_vector_store
 
 # Check if qdrant-client is available
 QDRANT_AVAILABLE = False

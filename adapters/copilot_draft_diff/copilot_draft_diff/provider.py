@@ -4,6 +4,7 @@
 """Abstract base class for draft diff providers."""
 
 from abc import ABC, abstractmethod
+
 from .models import DraftDiff
 
 

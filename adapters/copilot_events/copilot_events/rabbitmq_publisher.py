@@ -6,7 +6,7 @@
 import json
 import logging
 import time
-from typing import Dict, Any, List, Optional
+from typing import Any
 
 try:
     import pika
@@ -197,8 +197,8 @@ class RabbitMQPublisher(EventPublisher):
     def declare_queue(
         self,
         queue_name: str,
-        routing_key: Optional[str] = None,
-        exchange: Optional[str] = None,
+        routing_key: str | None = None,
+        exchange: str | None = None,
     ) -> None:
         """Declare a durable queue and bind it to an exchange.
 
@@ -248,7 +248,7 @@ class RabbitMQPublisher(EventPublisher):
             logger.error(f"Failed to declare queue '{queue_name}': {e}")
             raise
 
-    def declare_queues(self, queues: List[Dict[str, Optional[str]]]) -> bool:
+    def declare_queues(self, queues: list[dict[str, str | None]]) -> bool:
         """Declare multiple queues at once.
 
         Args:
@@ -279,7 +279,7 @@ class RabbitMQPublisher(EventPublisher):
 
         return success
 
-    def publish(self, exchange: str, routing_key: str, event: Dict[str, Any]) -> None:
+    def publish(self, exchange: str, routing_key: str, event: dict[str, Any]) -> None:
         """Publish an event to RabbitMQ with message persistence and automatic reconnection.
 
         Messages are published with:

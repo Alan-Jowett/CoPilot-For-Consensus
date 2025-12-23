@@ -3,11 +3,12 @@
 
 """FAISS-based vector store implementation."""
 
-import numpy as np
-from typing import List, Dict, Any, Optional
 import logging
+from typing import Any
 
-from .interface import VectorStore, SearchResult
+import numpy as np
+
+from .interface import SearchResult, VectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class FAISSVectorStore(VectorStore):
     """
 
     def __init__(self, dimension: int, index_type: str = "flat",
-                 persist_path: Optional[str] = None):
+                 persist_path: str | None = None):
         """Initialize a FAISS vector store.
 
         Args:
@@ -58,10 +59,10 @@ class FAISSVectorStore(VectorStore):
         self._faiss = faiss
 
         # Maintain mapping from FAISS index to our IDs and metadata
-        self._id_to_idx: Dict[str, int] = {}
-        self._idx_to_id: Dict[int, str] = {}
-        self._metadata: Dict[str, Dict[str, Any]] = {}
-        self._vectors: Dict[str, np.ndarray] = {}
+        self._id_to_idx: dict[str, int] = {}
+        self._idx_to_id: dict[int, str] = {}
+        self._metadata: dict[str, dict[str, Any]] = {}
+        self._vectors: dict[str, np.ndarray] = {}
         self._next_idx = 0
 
         # Initialize FAISS index
@@ -88,7 +89,7 @@ class FAISSVectorStore(VectorStore):
             index.train(np.random.rand(1000, self._dimension).astype('float32'))
             return index
 
-    def add_embedding(self, id: str, vector: List[float], metadata: Dict[str, Any]) -> None:
+    def add_embedding(self, id: str, vector: list[float], metadata: dict[str, Any]) -> None:
         """Add a single embedding to the vector store.
 
         Args:
@@ -121,8 +122,8 @@ class FAISSVectorStore(VectorStore):
         self._vectors[id] = vec_array.flatten()
         self._next_idx += 1
 
-    def add_embeddings(self, ids: List[str], vectors: List[List[float]],
-                      metadatas: List[Dict[str, Any]]) -> None:
+    def add_embeddings(self, ids: list[str], vectors: list[list[float]],
+                      metadatas: list[dict[str, Any]]) -> None:
         """Add multiple embeddings to the vector store in batch.
 
         Args:
@@ -163,7 +164,7 @@ class FAISSVectorStore(VectorStore):
 
         self._next_idx += len(ids)
 
-    def query(self, query_vector: List[float], top_k: int = 10) -> List[SearchResult]:
+    def query(self, query_vector: list[float], top_k: int = 10) -> list[SearchResult]:
         """Query the vector store for similar embeddings.
 
         Uses L2 distance for similarity (lower distance = more similar).
@@ -284,7 +285,7 @@ class FAISSVectorStore(VectorStore):
             metadata=self._metadata[id].copy()
         )
 
-    def save(self, path: Optional[str] = None) -> None:
+    def save(self, path: str | None = None) -> None:
         """Save the FAISS index to disk.
 
         WARNING: This method only saves the FAISS index itself. The metadata
@@ -309,7 +310,7 @@ class FAISSVectorStore(VectorStore):
             "Loading this index without rebuilding metadata will cause errors."
         )
 
-    def load(self, path: Optional[str] = None) -> None:
+    def load(self, path: str | None = None) -> None:
         """Load a FAISS index from disk.
 
         WARNING: This method only loads the FAISS index. Metadata mappings are NOT

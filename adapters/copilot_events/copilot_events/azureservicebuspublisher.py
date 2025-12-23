@@ -5,12 +5,12 @@
 
 import json
 import logging
-from typing import Dict, Any, Optional, Tuple
+from typing import Any
 
 try:
+    from azure.identity import DefaultAzureCredential
     from azure.servicebus import ServiceBusClient, ServiceBusMessage
     from azure.servicebus.exceptions import ServiceBusError
-    from azure.identity import DefaultAzureCredential
 except ImportError:
     ServiceBusClient = None  # type: ignore
     ServiceBusMessage = None  # type: ignore
@@ -27,10 +27,10 @@ class AzureServiceBusPublisher(EventPublisher):
 
     def __init__(
         self,
-        connection_string: Optional[str] = None,
-        fully_qualified_namespace: Optional[str] = None,
-        queue_name: Optional[str] = None,
-        topic_name: Optional[str] = None,
+        connection_string: str | None = None,
+        fully_qualified_namespace: str | None = None,
+        queue_name: str | None = None,
+        topic_name: str | None = None,
         use_managed_identity: bool = False,
     ):
         """Initialize Azure Service Bus publisher.
@@ -63,7 +63,7 @@ class AzureServiceBusPublisher(EventPublisher):
         self.topic_name = topic_name
         self.use_managed_identity = use_managed_identity
 
-        self.client: Optional[ServiceBusClient] = None
+        self.client: ServiceBusClient | None = None
         self._credential = None
 
     def connect(self) -> None:
@@ -111,7 +111,7 @@ class AzureServiceBusPublisher(EventPublisher):
 
     def _determine_publish_target(
         self, exchange: str, routing_key: str
-    ) -> Tuple[Optional[str], Optional[str]]:
+    ) -> tuple[str | None, str | None]:
         """Determine the target queue or topic for publishing.
 
         Topic takes precedence over queue. If both queue_name and topic_name
@@ -137,7 +137,7 @@ class AzureServiceBusPublisher(EventPublisher):
         # Prefer topic (exchange) over queue (routing_key) for consistency with RabbitMQ
         return (exchange, None)
 
-    def publish(self, exchange: str, routing_key: str, event: Dict[str, Any]) -> None:
+    def publish(self, exchange: str, routing_key: str, event: dict[str, Any]) -> None:
         """Publish an event to Azure Service Bus.
 
         For Azure Service Bus compatibility:

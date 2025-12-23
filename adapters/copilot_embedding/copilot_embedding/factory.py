@@ -3,24 +3,22 @@
 
 """Factory for creating embedding providers based on configuration."""
 
-import os
 import logging
-from typing import Optional
 
 from .providers import (
     EmbeddingProvider,
-    MockEmbeddingProvider,
-    SentenceTransformerEmbeddingProvider,
-    OpenAIEmbeddingProvider,
     HuggingFaceEmbeddingProvider,
+    MockEmbeddingProvider,
+    OpenAIEmbeddingProvider,
+    SentenceTransformerEmbeddingProvider,
 )
 
 logger = logging.getLogger(__name__)
 
 
 def create_embedding_provider(
-    backend: Optional[str] = None,
-    model: Optional[str] = None,
+    backend: str | None = None,
+    model: str | None = None,
     **kwargs
 ) -> EmbeddingProvider:
     """Create an embedding provider based on configuration.

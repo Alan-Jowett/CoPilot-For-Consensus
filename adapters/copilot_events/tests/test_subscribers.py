@@ -4,11 +4,10 @@
 """Tests for event subscribers."""
 
 import pytest
-
 from copilot_events import (
-    create_subscriber,
-    RabbitMQSubscriber,
     NoopSubscriber,
+    RabbitMQSubscriber,
+    create_subscriber,
 )
 
 

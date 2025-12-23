@@ -3,15 +3,15 @@
 
 """Tests for embedding providers."""
 
-import pytest
 from unittest.mock import Mock, patch
 
+import pytest
 from copilot_embedding.providers import (
     EmbeddingProvider,
-    MockEmbeddingProvider,
-    SentenceTransformerEmbeddingProvider,
-    OpenAIEmbeddingProvider,
     HuggingFaceEmbeddingProvider,
+    MockEmbeddingProvider,
+    OpenAIEmbeddingProvider,
+    SentenceTransformerEmbeddingProvider,
 )
 
 

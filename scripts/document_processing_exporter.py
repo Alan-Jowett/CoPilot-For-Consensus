@@ -21,12 +21,10 @@ Environment Variables:
 import os
 import time
 from datetime import datetime, timezone
-from typing import Dict, List, Any
 
-from prometheus_client import Gauge, Histogram, start_http_server
+from prometheus_client import Gauge, start_http_server
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
-
 
 # Configuration
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb://root:example@documentdb:27017/admin")
@@ -73,7 +71,7 @@ exporter_scrape_errors_total = Gauge(
 )
 
 
-def get_archive_status_counts(db) -> Dict[str, int]:
+def get_archive_status_counts(db) -> dict[str, int]:
     """Get counts of archives by status."""
     try:
         pipeline = [
@@ -90,7 +88,7 @@ def get_archive_status_counts(db) -> Dict[str, int]:
         return {}
 
 
-def get_chunks_embedding_status(db) -> Dict[str, int]:
+def get_chunks_embedding_status(db) -> dict[str, int]:
     """Get counts of chunks by embedding generation status."""
     try:
         pipeline = [
@@ -107,7 +105,7 @@ def get_chunks_embedding_status(db) -> Dict[str, int]:
         return {}
 
 
-def get_document_age_metrics(db, collection_name: str, status_field: str = "status") -> Dict[str, float]:
+def get_document_age_metrics(db, collection_name: str, status_field: str = "status") -> dict[str, float]:
     """
     Calculate average age of documents by status (time since last update).
 

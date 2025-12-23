@@ -3,18 +3,18 @@
 
 """Tests for consensus detection."""
 
-from datetime import datetime, timezone, timedelta
-import pytest
+from datetime import datetime, timedelta, timezone
 
+import pytest
 from copilot_consensus import (
-    Thread,
-    Message,
     ConsensusDetector,
-    ConsensusSignal,
     ConsensusLevel,
+    ConsensusSignal,
     HeuristicConsensusDetector,
-    MockConsensusDetector,
+    Message,
     MLConsensusDetector,
+    MockConsensusDetector,
+    Thread,
     create_consensus_detector,
 )
 

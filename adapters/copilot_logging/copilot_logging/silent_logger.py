@@ -3,7 +3,7 @@
 
 """Silent logger implementation for testing."""
 
-from typing import Any, List, Dict, Optional
+from typing import Any
 
 from .logger import Logger
 
@@ -15,7 +15,7 @@ class SilentLogger(Logger):
     Note: SilentLogger does not filter logs by level - all logs are captured for testing.
     """
 
-    def __init__(self, level: str = "INFO", name: Optional[str] = None):
+    def __init__(self, level: str = "INFO", name: str | None = None):
         """Initialize silent logger.
 
         Args:
@@ -24,7 +24,7 @@ class SilentLogger(Logger):
         """
         self.level = level.upper() if level else "INFO"
         self.name = name or "copilot"
-        self.logs: List[Dict[str, Any]] = []
+        self.logs: list[dict[str, Any]] = []
 
     def _log(self, level: str, message: str, **kwargs: Any) -> None:
         """Internal method to store log message.
@@ -84,7 +84,7 @@ class SilentLogger(Logger):
         """Clear all stored log messages (useful for testing)."""
         self.logs.clear()
 
-    def get_logs(self, level: str = None) -> List[Dict[str, Any]]:
+    def get_logs(self, level: str = None) -> list[dict[str, Any]]:
         """Get stored log messages, optionally filtered by level.
 
         Args:

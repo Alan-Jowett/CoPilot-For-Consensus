@@ -9,13 +9,12 @@ successfully imported, catching AttributeError, NameError, and other
 import-time issues before they reach production.
 """
 
-import sys
 import importlib
 import pkgutil
+import sys
 from pathlib import Path
-from typing import List
-import pytest
 
+import pytest
 
 # Define all service and adapter module paths relative to repository root
 SERVICE_PATHS = [
@@ -79,7 +78,7 @@ def add_adapters_to_path() -> None:
             sys.path.insert(0, str(adapter_dir))
 
 
-def discover_submodules(package_name: str) -> List[str]:
+def discover_submodules(package_name: str) -> list[str]:
     """
     Discover all submodules within a package.
 
@@ -285,7 +284,7 @@ def test_no_warnings_on_import() -> None:
         # Check for DeprecationWarnings or other concerning warnings
         concerning_warnings = [
             warning for warning in w
-            if issubclass(warning.category, (DeprecationWarning, FutureWarning))
+            if issubclass(warning.category, DeprecationWarning | FutureWarning)
         ]
 
         if concerning_warnings:

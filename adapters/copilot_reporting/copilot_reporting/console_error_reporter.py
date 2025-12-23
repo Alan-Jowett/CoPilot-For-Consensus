@@ -5,7 +5,7 @@
 
 import logging
 import traceback
-from typing import Optional, Dict, Any
+from typing import Any
 
 from .error_reporter import ErrorReporter
 
@@ -19,7 +19,7 @@ class ConsoleErrorReporter(ErrorReporter):
     error information to the console using Python's logging system.
     """
 
-    def __init__(self, logger_name: Optional[str] = None):
+    def __init__(self, logger_name: str | None = None):
         """Initialize console error reporter.
 
         Args:
@@ -27,7 +27,7 @@ class ConsoleErrorReporter(ErrorReporter):
         """
         self.logger = logging.getLogger(logger_name) if logger_name else logger
 
-    def report(self, error: Exception, context: Optional[Dict[str, Any]] = None) -> None:
+    def report(self, error: Exception, context: dict[str, Any] | None = None) -> None:
         """Report an exception with optional context.
 
         Args:
@@ -51,7 +51,7 @@ class ConsoleErrorReporter(ErrorReporter):
         self,
         message: str,
         level: str = "error",
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ) -> None:
         """Capture a message without an exception.
 

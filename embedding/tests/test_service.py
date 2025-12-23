@@ -3,9 +3,9 @@
 
 """Unit tests for the embedding service."""
 
-import pytest
 from unittest.mock import Mock
 
+import pytest
 from app.service import EmbeddingService
 
 

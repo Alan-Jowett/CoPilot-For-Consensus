@@ -7,11 +7,10 @@ This module provides JWT token generation and validation functionality,
 supporting both RSA and HMAC signing algorithms with key rotation.
 """
 
-import json
 import secrets
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import jwt
 from cryptography.hazmat.backends import default_backend
@@ -40,10 +39,10 @@ class JWTManager:
         self,
         issuer: str,
         algorithm: str = "RS256",
-        private_key_path: Optional[Path] = None,
-        public_key_path: Optional[Path] = None,
-        secret_key: Optional[str] = None,
-        key_id: Optional[str] = None,
+        private_key_path: Path | None = None,
+        public_key_path: Path | None = None,
+        secret_key: str | None = None,
+        key_id: str | None = None,
         default_expiry: int = 1800,  # 30 minutes
     ):
         """Initialize JWT manager.
@@ -133,8 +132,8 @@ class JWTManager:
         self,
         user: User,
         audience: str,
-        expires_in: Optional[int] = None,
-        additional_claims: Optional[Dict[str, Any]] = None,
+        expires_in: int | None = None,
+        additional_claims: dict[str, Any] | None = None,
     ) -> str:
         """Mint a JWT token for a user.
 
@@ -151,7 +150,7 @@ class JWTManager:
         expiry = expires_in or self.default_expiry
 
         # Build standard claims
-        claims: Dict[str, Any] = {
+        claims: dict[str, Any] = {
             "iss": self.issuer,
             "sub": user.id,  # User ID already has provider prefix (e.g., "github:12345")
             "aud": audience,
@@ -191,7 +190,7 @@ class JWTManager:
         token: str,
         audience: str,
         max_skew_seconds: int = 90,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Validate and decode a JWT token.
 
         Args:
@@ -214,7 +213,7 @@ class JWTManager:
             leeway=max_skew_seconds,
         )
 
-    def get_jwks(self) -> Dict[str, Any]:
+    def get_jwks(self) -> dict[str, Any]:
         """Get JSON Web Key Set (JWKS) for token validation.
 
         Returns RSA public key in JWK format for RS256, or empty for HS256

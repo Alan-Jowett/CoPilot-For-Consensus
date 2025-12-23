@@ -3,21 +3,13 @@
 
 """Factory for creating summarizer instances based on configuration."""
 
-import os
 import logging
-from typing import Optional
-try:
-    from summarizer import Summarizer
-    from openai_summarizer import OpenAISummarizer, DEFAULT_AZURE_API_VERSION
-    from mock_summarizer import MockSummarizer
-    from local_llm_summarizer import LocalLLMSummarizer
-    from llamacpp_summarizer import LlamaCppSummarizer
-except ImportError:
-    from .summarizer import Summarizer
-    from .openai_summarizer import OpenAISummarizer, DEFAULT_AZURE_API_VERSION
-    from .mock_summarizer import MockSummarizer
-    from .local_llm_summarizer import LocalLLMSummarizer
-    from .llamacpp_summarizer import LlamaCppSummarizer
+
+from .llamacpp_summarizer import LlamaCppSummarizer
+from .local_llm_summarizer import LocalLLMSummarizer
+from .mock_summarizer import MockSummarizer
+from .openai_summarizer import DEFAULT_AZURE_API_VERSION, OpenAISummarizer
+from .summarizer import Summarizer
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +22,10 @@ class SummarizerFactory:
 
     @staticmethod
     def create_summarizer(
-        provider: Optional[str] = None,
-        model: Optional[str] = None,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
+        provider: str | None = None,
+        model: str | None = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
         **kwargs
     ) -> Summarizer:
         """Create a summarizer instance based on provider type.

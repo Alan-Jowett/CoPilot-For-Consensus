@@ -8,13 +8,14 @@ configuration from both environment variables and secret storage.
 """
 
 import os
-from copilot_secrets import create_secret_provider
+
 from copilot_config import (
-    SecretConfigProvider,
+    ConfigSchema,
     EnvConfigProvider,
     SchemaConfigLoader,
-    ConfigSchema,
+    SecretConfigProvider,
 )
+from copilot_secrets import create_secret_provider
 
 
 def main():

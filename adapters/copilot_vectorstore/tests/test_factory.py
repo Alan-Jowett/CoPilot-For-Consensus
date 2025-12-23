@@ -4,8 +4,9 @@
 """Tests for vector store factory."""
 
 import os
+
 import pytest
-from copilot_vectorstore import create_vector_store, InMemoryVectorStore
+from copilot_vectorstore import InMemoryVectorStore, create_vector_store
 
 try:
     from copilot_vectorstore import FAISSVectorStore

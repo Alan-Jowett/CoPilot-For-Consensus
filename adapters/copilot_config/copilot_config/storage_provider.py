@@ -6,7 +6,7 @@
 import logging
 import os
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .providers import DocStoreConfigProvider
 
@@ -29,15 +29,15 @@ class StorageConfigProvider(DocStoreConfigProvider):
 
     def __init__(
         self,
-        doc_store: Optional[Any] = None,
+        doc_store: Any | None = None,
         collection: str = "config",
-        cache_ttl_seconds: Optional[float] = 30.0,
+        cache_ttl_seconds: float | None = 30.0,
         auto_connect: bool = True,
-        store_type: Optional[str] = None,
-        store_kwargs: Optional[Dict[str, Any]] = None,
+        store_type: str | None = None,
+        store_kwargs: dict[str, Any] | None = None,
     ):
         self._cache_ttl_seconds = cache_ttl_seconds
-        self._last_refresh: Optional[float] = None
+        self._last_refresh: float | None = None
         self._auto_connect = auto_connect
 
         store = doc_store or self._create_store(store_type=store_type, store_kwargs=store_kwargs)
@@ -106,8 +106,8 @@ class StorageConfigProvider(DocStoreConfigProvider):
 
     def _create_store(
         self,
-        store_type: Optional[str] = None,
-        store_kwargs: Optional[Dict[str, Any]] = None,
+        store_type: str | None = None,
+        store_kwargs: dict[str, Any] | None = None,
     ) -> Any:
         if create_document_store is None:
             raise ImportError(
@@ -124,11 +124,11 @@ class StorageConfigProvider(DocStoreConfigProvider):
         kwargs = self._build_store_kwargs(store_kwargs)
         return create_document_store(store_type=resolved_type, **kwargs)
 
-    def _build_store_kwargs(self, store_kwargs: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    def _build_store_kwargs(self, store_kwargs: dict[str, Any] | None) -> dict[str, Any]:
         if store_kwargs is not None:
             return store_kwargs
 
-        kwargs: Dict[str, Any] = {}
+        kwargs: dict[str, Any] = {}
 
         host = os.environ.get("CONFIG_STORE_HOST")
         if host:

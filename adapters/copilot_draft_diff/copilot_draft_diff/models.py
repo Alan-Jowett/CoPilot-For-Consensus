@@ -4,7 +4,7 @@
 """Data models for draft diffs."""
 
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Any
 
 
 @dataclass
@@ -27,10 +27,10 @@ class DraftDiff:
     format: str
     content: str
     source: str
-    url: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    url: str | None = None
+    metadata: dict[str, Any] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary representation.
 
         Returns:

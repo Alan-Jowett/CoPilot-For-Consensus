@@ -6,9 +6,9 @@
 import pytest
 from copilot_archive_fetcher import (
     ArchiveFetcherError,
-    UnsupportedSourceTypeError,
-    FetchError,
     ConfigurationError,
+    FetchError,
+    UnsupportedSourceTypeError,
 )
 
 

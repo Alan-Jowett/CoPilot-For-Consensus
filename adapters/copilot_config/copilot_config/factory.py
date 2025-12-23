@@ -3,8 +3,6 @@
 
 """Factory helpers for configuration providers."""
 
-import os
-from typing import Optional
 
 from .base import ConfigProvider
 from .env_provider import EnvConfigProvider
@@ -12,7 +10,7 @@ from .static_provider import StaticConfigProvider
 from .storage_provider import StorageConfigProvider
 
 
-def create_config_provider(provider_type: Optional[str] = None, **kwargs) -> ConfigProvider:
+def create_config_provider(provider_type: str | None = None, **kwargs) -> ConfigProvider:
     """Create a configuration provider by type.
 
     Args:

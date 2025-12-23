@@ -3,12 +3,12 @@
 
 """Integration tests for the reporting service API."""
 
-import pytest
 from unittest.mock import Mock
-from fastapi.testclient import TestClient
 
-from main import app
+import pytest
 from app.service import ReportingService
+from fastapi.testclient import TestClient
+from main import app
 
 
 @pytest.fixture

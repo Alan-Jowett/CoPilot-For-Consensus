@@ -4,9 +4,8 @@
 """Tests for validating document store."""
 
 import pytest
-
-from copilot_storage import InMemoryDocumentStore, DocumentNotFoundError
-from copilot_storage.validating_document_store import ValidatingDocumentStore, DocumentValidationError
+from copilot_storage import DocumentNotFoundError, InMemoryDocumentStore
+from copilot_storage.validating_document_store import DocumentValidationError, ValidatingDocumentStore
 
 # Check if copilot_schema_validation is available
 try:

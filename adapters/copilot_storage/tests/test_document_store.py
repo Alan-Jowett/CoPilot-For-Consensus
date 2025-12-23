@@ -4,14 +4,13 @@
 """Tests for document stores."""
 
 import pytest
-
 from copilot_storage import (
-    create_document_store,
-    DocumentStore,
-    MongoDocumentStore,
-    InMemoryDocumentStore,
-    DocumentStoreConnectionError,
     DocumentNotFoundError,
+    DocumentStore,
+    DocumentStoreConnectionError,
+    InMemoryDocumentStore,
+    MongoDocumentStore,
+    create_document_store,
 )
 
 
@@ -569,6 +568,7 @@ class TestMongoDocumentStore:
 
         # Mock pymongo to raise ConnectionFailure
         from unittest.mock import MagicMock, patch
+
         from pymongo.errors import ConnectionFailure
 
         mock_client = MagicMock()

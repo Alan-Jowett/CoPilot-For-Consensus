@@ -6,12 +6,12 @@
 import json
 import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
 from .config import ConfigProvider, EnvConfigProvider, StaticConfigProvider
 
 
-def _resolve_schema_directory(schema_dir: Optional[str] = None) -> str:
+def _resolve_schema_directory(schema_dir: str | None = None) -> str:
     """Resolve schema directory path.
 
     Args:
@@ -42,7 +42,7 @@ def _resolve_schema_directory(schema_dir: Optional[str] = None) -> str:
     return os.path.join(os.getcwd(), "documents", "schemas", "configs")
 
 
-def _parse_semver(version: str) -> Tuple[int, int, int]:
+def _parse_semver(version: str) -> tuple[int, int, int]:
     """Parse semver string into tuple of ints.
 
     Args:
@@ -124,24 +124,24 @@ class FieldSpec:
     required: bool = False
     default: Any = None
     source: str = "env"  # "env", "document_store", "static", "secret"
-    env_var: Optional[str] = None
-    doc_store_path: Optional[str] = None
-    secret_name: Optional[str] = None
-    description: Optional[str] = None
-    nested_schema: Optional[Dict[str, 'FieldSpec']] = None
+    env_var: str | None = None
+    doc_store_path: str | None = None
+    secret_name: str | None = None
+    description: str | None = None
+    nested_schema: dict[str, "FieldSpec"] | None = None
 
 
 @dataclass
 class ConfigSchema:
     """Configuration schema for a microservice."""
     service_name: str
-    fields: Dict[str, FieldSpec] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    schema_version: Optional[str] = None
-    min_service_version: Optional[str] = None
+    fields: dict[str, FieldSpec] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    schema_version: str | None = None
+    min_service_version: str | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'ConfigSchema':
+    def from_dict(cls, data: dict[str, Any]) -> 'ConfigSchema':
         """Create ConfigSchema from dictionary.
 
         Args:
@@ -169,7 +169,7 @@ class ConfigSchema:
         )
 
     @classmethod
-    def _parse_field_spec(cls, name: str, data: Dict[str, Any]) -> FieldSpec:
+    def _parse_field_spec(cls, name: str, data: dict[str, Any]) -> FieldSpec:
         """Parse a field specification from dictionary.
 
         Args:
@@ -220,7 +220,7 @@ class ConfigSchema:
             raise ConfigSchemaError(f"Schema file not found: {filepath}")
 
         try:
-            with open(filepath, "r") as f:
+            with open(filepath) as f:
                 data = json.load(f)
             return cls.from_dict(data)
         except json.JSONDecodeError as e:
@@ -235,9 +235,9 @@ class SchemaConfigLoader:
     def __init__(
         self,
         schema: ConfigSchema,
-        env_provider: Optional[ConfigProvider] = None,
-        static_provider: Optional[StaticConfigProvider] = None,
-        secret_provider: Optional[ConfigProvider] = None,
+        env_provider: ConfigProvider | None = None,
+        static_provider: StaticConfigProvider | None = None,
+        secret_provider: ConfigProvider | None = None,
     ):
         """Initialize the schema config loader.
 
@@ -252,7 +252,7 @@ class SchemaConfigLoader:
         self.static_provider = static_provider
         self.secret_provider = secret_provider
 
-    def load(self) -> Dict[str, Any]:
+    def load(self) -> dict[str, Any]:
         """Load and validate configuration based on schema.
 
         Returns:
@@ -339,8 +339,8 @@ class SchemaConfigLoader:
         return value
 
     def _load_nested_object(
-        self, nested_schema: Dict[str, FieldSpec], provider: ConfigProvider, parent_key: str
-    ) -> Dict[str, Any]:
+        self, nested_schema: dict[str, FieldSpec], provider: ConfigProvider, parent_key: str
+    ) -> dict[str, Any]:
         """Load a nested object configuration.
 
         Args:
@@ -375,7 +375,7 @@ class SchemaConfigLoader:
 
         return obj
 
-    def _get_provider(self, source: str) -> Optional[ConfigProvider]:
+    def _get_provider(self, source: str) -> ConfigProvider | None:
         """Get the appropriate provider for a source.
 
         Args:
@@ -413,12 +413,12 @@ class SchemaConfigLoader:
 
 def _load_config(
     service_name: str,
-    schema_dir: Optional[str] = None,
-    env_provider: Optional[ConfigProvider] = None,
-    static_provider: Optional[StaticConfigProvider] = None,
-    secret_provider: Optional[ConfigProvider] = None,
+    schema_dir: str | None = None,
+    env_provider: ConfigProvider | None = None,
+    static_provider: StaticConfigProvider | None = None,
+    secret_provider: ConfigProvider | None = None,
     schema: Optional['ConfigSchema'] = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Load and validate configuration for a service (internal function).
 
     INTERNAL API: Use load_typed_config() instead for type-safe, validated config loading.

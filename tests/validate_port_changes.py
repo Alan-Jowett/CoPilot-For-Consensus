@@ -22,10 +22,10 @@ Requirements:
     - requests library (pip install requests)
 """
 
-import sys
 import subprocess
+import sys
+
 import requests
-import time
 
 
 def check_service_accessible(url, service_name, timeout=5):

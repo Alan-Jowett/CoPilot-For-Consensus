@@ -5,7 +5,7 @@
 
 import threading
 import time
-from typing import Any, Optional
+from typing import Any
 
 from copilot_logging import Logger
 
@@ -17,7 +17,7 @@ class IngestionScheduler:
         self,
         service: Any,
         interval_seconds: int = 21600,  # Default: 6 hours
-        logger: Optional[Logger] = None,
+        logger: Logger | None = None,
     ):
         """Initialize the scheduler.
 
@@ -30,7 +30,7 @@ class IngestionScheduler:
         self.interval_seconds = interval_seconds
         self.logger = logger
         self._stop_event = threading.Event()
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._running = False
 
     def start(self):

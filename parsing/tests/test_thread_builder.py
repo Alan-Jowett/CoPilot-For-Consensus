@@ -4,6 +4,7 @@
 """Unit tests for thread builder."""
 
 import hashlib
+
 from app.thread_builder import ThreadBuilder
 
 

@@ -4,7 +4,7 @@
 """No-op event publisher for testing."""
 
 import logging
-from typing import Dict, Any, List
+from typing import Any
 
 from .publisher import EventPublisher
 
@@ -16,7 +16,7 @@ class NoopPublisher(EventPublisher):
 
     def __init__(self):
         """Initialize no-op publisher."""
-        self.published_events: List[Dict[str, Any]] = []
+        self.published_events: list[dict[str, Any]] = []
         self.connected = False
 
     def connect(self) -> None:
@@ -29,7 +29,7 @@ class NoopPublisher(EventPublisher):
         self.connected = False
         logger.debug("NoopPublisher: disconnected")
 
-    def publish(self, exchange: str, routing_key: str, event: Dict[str, Any]) -> None:
+    def publish(self, exchange: str, routing_key: str, event: dict[str, Any]) -> None:
         """Store event without publishing to a real message bus.
 
         Args:
@@ -52,7 +52,7 @@ class NoopPublisher(EventPublisher):
         """Clear all stored events (useful for testing)."""
         self.published_events.clear()
 
-    def get_events(self, event_type: str = None) -> List[Dict[str, Any]]:
+    def get_events(self, event_type: str = None) -> list[dict[str, Any]]:
         """Get stored events, optionally filtered by event type.
 
         Args:

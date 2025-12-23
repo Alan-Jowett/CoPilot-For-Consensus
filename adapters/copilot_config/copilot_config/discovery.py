@@ -5,16 +5,16 @@
 
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .schema_loader import ConfigSchema, _resolve_schema_directory
 
 
 def get_configuration_schema_response(
     service_name: str,
-    schema_dir: Optional[str] = None,
-    service_version: Optional[str] = None,
-) -> Dict[str, Any]:
+    schema_dir: str | None = None,
+    service_version: str | None = None,
+) -> dict[str, Any]:
     """Get configuration schema response for discovery endpoint.
 
     This function loads the configuration schema and returns a dictionary
@@ -50,7 +50,7 @@ def get_configuration_schema_response(
         raise FileNotFoundError(f"Schema file not found: {schema_path}")
 
     # Read the raw schema file
-    with open(schema_path, "r", encoding="utf-8") as f:
+    with open(schema_path, encoding="utf-8") as f:
         schema_data = json.load(f)
 
     # Parse schema for version info

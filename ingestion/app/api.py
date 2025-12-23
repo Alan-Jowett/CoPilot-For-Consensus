@@ -7,11 +7,11 @@ import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, Query, UploadFile, File
-from pydantic import BaseModel, Field
+from typing import Any
 
 from copilot_logging import Logger
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from pydantic import BaseModel, Field
 
 
 class SourceConfig(BaseModel):
@@ -20,12 +20,12 @@ class SourceConfig(BaseModel):
     name: str = Field(..., description="Unique name for the source")
     source_type: str = Field(..., description="Type of source (rsync, http, imap, local)")
     url: str = Field(..., description="Source URL or connection string")
-    port: Optional[int] = Field(None, description="Port number (for IMAP sources)")
-    username: Optional[str] = Field(None, description="Username for authentication")
-    password: Optional[str] = Field(None, description="Password for authentication")
-    folder: Optional[str] = Field(None, description="Folder path (for IMAP sources)")
+    port: int | None = Field(None, description="Port number (for IMAP sources)")
+    username: str | None = Field(None, description="Username for authentication")
+    password: str | None = Field(None, description="Password for authentication")
+    folder: str | None = Field(None, description="Folder path (for IMAP sources)")
     enabled: bool = Field(True, description="Whether the source is enabled for ingestion")
-    schedule: Optional[str] = Field(None, description="Cron expression for scheduling (e.g., '0 */6 * * *')")
+    schedule: str | None = Field(None, description="Cron expression for scheduling (e.g., '0 */6 * * *')")
 
 
 class SourceStatus(BaseModel):
@@ -33,10 +33,10 @@ class SourceStatus(BaseModel):
 
     name: str
     enabled: bool
-    last_run_at: Optional[str] = None
-    last_run_status: Optional[str] = None
-    last_error: Optional[str] = None
-    next_run_at: Optional[str] = None
+    last_run_at: str | None = None
+    last_run_status: str | None = None
+    last_error: str | None = None
+    next_run_at: str | None = None
     files_processed: int = 0
     files_skipped: int = 0
 
@@ -146,7 +146,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
         """Get ingestion service statistics."""
         return service.get_stats()
 
-    @router.get("/api/sources", response_model=Dict[str, Any])
+    @router.get("/api/sources", response_model=dict[str, Any])
     def list_sources(
         enabled_only: bool = Query(False, description="Return only enabled sources"),
     ):
@@ -161,7 +161,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
             logger.error("Error listing sources: %s", e, exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
 
-    @router.get("/api/sources/{source_name}", response_model=Dict[str, Any])
+    @router.get("/api/sources/{source_name}", response_model=dict[str, Any])
     def get_source(source_name: str):
         """Get a specific source by name."""
         try:
@@ -175,7 +175,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
             logger.error("Error getting source %s: %s", source_name, e, exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
 
-    @router.post("/api/sources", response_model=Dict[str, Any], status_code=201)
+    @router.post("/api/sources", response_model=dict[str, Any], status_code=201)
     def create_source(source: SourceConfig):
         """Create a new ingestion source."""
         try:
@@ -190,7 +190,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
             logger.error("Error creating source: %s", e, exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
 
-    @router.put("/api/sources/{source_name}", response_model=Dict[str, Any])
+    @router.put("/api/sources/{source_name}", response_model=dict[str, Any])
     def update_source(
         source_name: str,
         source: SourceConfig,
@@ -219,7 +219,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
             logger.error("Error updating source %s: %s", source_name, e, exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
 
-    @router.delete("/api/sources/{source_name}", response_model=Dict[str, str])
+    @router.delete("/api/sources/{source_name}", response_model=dict[str, str])
     def delete_source(source_name: str):
         """Delete a source."""
         try:
@@ -350,7 +350,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
                 with open(file_path, "wb") as f:
                     f.write(content)
                 logger.debug("File written successfully", path=str(file_path))
-            except IOError as e:
+            except OSError as e:
                 logger.error(
                     "Failed to write file to disk",
                     path=str(file_path),

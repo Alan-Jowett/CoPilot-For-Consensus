@@ -3,11 +3,12 @@
 
 """Unit tests for the summarization service."""
 
-import pytest
 from unittest.mock import Mock
 
+import pytest
 from app.service import SummarizationService
-from copilot_summarization import Summary, Citation
+from copilot_summarization import Citation, Summary
+
 from .test_helpers import assert_valid_event_schema
 
 

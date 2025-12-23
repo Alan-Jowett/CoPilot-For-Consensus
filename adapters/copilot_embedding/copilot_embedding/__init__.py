@@ -24,14 +24,14 @@ Example:
 
 __version__ = "0.1.0"
 
+from .factory import create_embedding_provider
 from .providers import (
     EmbeddingProvider,
-    MockEmbeddingProvider,
-    SentenceTransformerEmbeddingProvider,
-    OpenAIEmbeddingProvider,
     HuggingFaceEmbeddingProvider,
+    MockEmbeddingProvider,
+    OpenAIEmbeddingProvider,
+    SentenceTransformerEmbeddingProvider,
 )
-from .factory import create_embedding_provider
 
 __all__ = [
     # Version

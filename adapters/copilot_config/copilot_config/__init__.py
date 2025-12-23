@@ -10,14 +10,12 @@ in the Copilot-for-Consensus system.
 __version__ = "0.1.0"
 
 from .base import ConfigProvider
+from .discovery import get_configuration_schema_response
 from .env_provider import EnvConfigProvider
-from .static_provider import StaticConfigProvider
 from .factory import create_config_provider
-from .storage_provider import StorageConfigProvider
 from .providers import (
     DocStoreConfigProvider,
 )
-from .secret_provider import SecretConfigProvider
 from .schema_loader import (
     ConfigSchema,
     ConfigSchemaError,
@@ -25,11 +23,13 @@ from .schema_loader import (
     FieldSpec,
     SchemaConfigLoader,
 )
+from .secret_provider import SecretConfigProvider
+from .static_provider import StaticConfigProvider
+from .storage_provider import StorageConfigProvider
 from .typed_config import (
     TypedConfig,
     load_typed_config,  # The ONLY recommended way to load config
 )
-from .discovery import get_configuration_schema_response
 
 __all__ = [
     # Version

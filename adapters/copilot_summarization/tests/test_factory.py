@@ -3,15 +3,14 @@
 
 """Tests for SummarizerFactory."""
 
-import os
-import pytest
 from unittest.mock import patch
 
+import pytest
 from copilot_summarization.factory import SummarizerFactory
-from copilot_summarization.openai_summarizer import OpenAISummarizer
-from copilot_summarization.mock_summarizer import MockSummarizer
-from copilot_summarization.local_llm_summarizer import LocalLLMSummarizer
 from copilot_summarization.llamacpp_summarizer import LlamaCppSummarizer
+from copilot_summarization.local_llm_summarizer import LocalLLMSummarizer
+from copilot_summarization.mock_summarizer import MockSummarizer
+from copilot_summarization.openai_summarizer import OpenAISummarizer
 
 
 class TestSummarizerFactory:

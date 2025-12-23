@@ -17,16 +17,15 @@ import json
 import logging
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 # Module-level cache for loaded schemas
-_schema_cache: Dict[str, dict] = {}
+_schema_cache: dict[str, dict] = {}
 
 # Schema registry mapping (type, version) pairs to relative schema file paths
 # All paths are relative to the repository's documents/schemas/ directory
-SCHEMA_REGISTRY: Dict[str, str] = {
+SCHEMA_REGISTRY: dict[str, str] = {
     # Event schemas (v1)
     "v1.ArchiveIngested": "events/ArchiveIngested.schema.json",
     "v1.ArchiveIngestionFailed": "events/ArchiveIngestionFailed.schema.json",
@@ -171,7 +170,7 @@ def load_schema(schema_type: str, version: str) -> dict:
     schema_path = get_schema_path(schema_type, version)
 
     try:
-        with open(schema_path, 'r', encoding='utf-8') as f:
+        with open(schema_path, encoding='utf-8') as f:
             schema = json.load(f)
 
         # Cache the loaded schema
@@ -186,7 +185,7 @@ def load_schema(schema_type: str, version: str) -> dict:
         raise
 
 
-def list_schemas() -> List[Tuple[str, str, str]]:
+def list_schemas() -> list[tuple[str, str, str]]:
     """List all registered schemas.
 
     Returns:
@@ -210,7 +209,7 @@ def list_schemas() -> List[Tuple[str, str, str]]:
     return sorted(result, key=lambda x: (x[0], x[1]))
 
 
-def validate_registry() -> Tuple[bool, List[str]]:
+def validate_registry() -> tuple[bool, list[str]]:
     """Validate that all registered schemas exist on disk.
 
     Returns:
@@ -241,7 +240,7 @@ def validate_registry() -> Tuple[bool, List[str]]:
         else:
             # Try to load and validate JSON
             try:
-                with open(full_path, 'r', encoding='utf-8') as f:
+                with open(full_path, encoding='utf-8') as f:
                     json.load(f)
             except json.JSONDecodeError as e:
                 errors.append(
@@ -255,7 +254,7 @@ def validate_registry() -> Tuple[bool, List[str]]:
     return len(errors) == 0, errors
 
 
-def get_schema_metadata(schema_type: str, version: str) -> Optional[Dict[str, str]]:
+def get_schema_metadata(schema_type: str, version: str) -> dict[str, str] | None:
     """Get metadata about a registered schema without loading the full content.
 
     Args:

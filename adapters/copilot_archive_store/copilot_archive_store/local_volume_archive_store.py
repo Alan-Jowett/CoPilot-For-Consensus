@@ -3,17 +3,16 @@
 
 """Local volume-based archive store implementation."""
 
-import os
 import hashlib
 import json
-from pathlib import Path
+import os
 from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
+from pathlib import Path
+from typing import Any
 
 from .archive_store import (
     ArchiveStore,
     ArchiveStoreError,
-    ArchiveNotFoundError,
 )
 
 
@@ -44,14 +43,14 @@ class LocalVolumeArchiveStore(ArchiveStore):
         self.metadata_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Load metadata index
-        self._metadata: Dict[str, Dict[str, Any]] = {}
+        self._metadata: dict[str, dict[str, Any]] = {}
         self._load_metadata()
 
     def _load_metadata(self) -> None:
         """Load metadata index from disk."""
         if self.metadata_path.exists():
             try:
-                with open(self.metadata_path, "r") as f:
+                with open(self.metadata_path) as f:
                     self._metadata = json.load(f)
             except Exception as e:
                 # Start with empty metadata if load fails
@@ -117,7 +116,7 @@ class LocalVolumeArchiveStore(ArchiveStore):
         except Exception as e:
             raise ArchiveStoreError(f"Failed to store archive: {e}")
 
-    def get_archive(self, archive_id: str) -> Optional[bytes]:
+    def get_archive(self, archive_id: str) -> bytes | None:
         """Retrieve archive content from local filesystem.
 
         Args:
@@ -142,7 +141,7 @@ class LocalVolumeArchiveStore(ArchiveStore):
         except Exception as e:
             raise ArchiveStoreError(f"Failed to retrieve archive: {e}")
 
-    def get_archive_by_hash(self, content_hash: str) -> Optional[str]:
+    def get_archive_by_hash(self, content_hash: str) -> str | None:
         """Retrieve archive ID by content hash.
 
         Args:
@@ -200,7 +199,7 @@ class LocalVolumeArchiveStore(ArchiveStore):
         except Exception as e:
             raise ArchiveStoreError(f"Failed to delete archive: {e}")
 
-    def list_archives(self, source_name: str) -> List[Dict[str, Any]]:
+    def list_archives(self, source_name: str) -> list[dict[str, Any]]:
         """List all archives for a given source.
 
         Args:

@@ -18,9 +18,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "adapters" / "copilot_schema_validation"))
 
 from copilot_schema_validation import (
-    load_schema,
     get_schema_path,
     list_schemas,
+    load_schema,
     validate_json,
     validate_registry,
 )

@@ -8,7 +8,6 @@ import re
 import sys
 from pathlib import Path
 
-
 SPDX_PATTERN = re.compile(r"SPDX-License-Identifier:\s*([A-Za-z0-9\-\.\+]+)")
 COPYRIGHT_PATTERN = re.compile(r"Copyright\s*\(c\)\s*\d{4}(-\d{4})?")
 

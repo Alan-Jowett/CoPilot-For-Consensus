@@ -10,11 +10,10 @@ This script provides utilities for:
 - Generating markdown documentation of available schemas
 """
 
-import sys
 import argparse
 import logging
+import sys
 from pathlib import Path
-from typing import List, Tuple
 
 # Add adapter directory to path to import the schema validation module
 script_dir = Path(__file__).parent
@@ -23,10 +22,10 @@ adapter_dir = repo_root / "adapters" / "copilot_schema_validation"
 sys.path.insert(0, str(adapter_dir))
 
 from copilot_schema_validation.schema_registry import (
+    SCHEMA_REGISTRY,
+    get_schema_metadata,
     list_schemas,
     validate_registry,
-    get_schema_metadata,
-    SCHEMA_REGISTRY,
 )
 
 logging.basicConfig(
@@ -135,7 +134,7 @@ def markdown_command() -> int:
     print(f"**Total schemas:** {len(schemas)}")
     print()
 
-    def print_table(schemas_list: List[Tuple[str, str, str]], title: str):
+    def print_table(schemas_list: list[tuple[str, str, str]], title: str):
         """Print a markdown table for a category of schemas."""
         if not schemas_list:
             return

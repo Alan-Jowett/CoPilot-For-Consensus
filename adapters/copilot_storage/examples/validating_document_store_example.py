@@ -9,9 +9,9 @@ to enforce schema validation on document operations.
 """
 
 from copilot_storage import (
-    create_document_store,
-    ValidatingDocumentStore,
     DocumentValidationError,
+    ValidatingDocumentStore,
+    create_document_store,
 )
 
 
@@ -105,9 +105,9 @@ def main():
         doc_id = validating_store.insert_document("user", invalid_user)
         print(f"✓ Document inserted successfully with ID: {doc_id}")
     except DocumentValidationError as e:
-        print(f"✗ Validation failed (as expected):")
+        print("✗ Validation failed (as expected):")
         print(f"   Collection: {e.collection}")
-        print(f"   Errors:")
+        print("   Errors:")
         for error in e.errors:
             print(f"     - {error}")
     print()
@@ -146,7 +146,7 @@ def main():
         # Collection "product" maps to schema "Product"
         doc_id = validating_store.insert_document("product", product)
         print(f"✓ Product inserted with ID: {doc_id}")
-        print(f"   Collection 'product' → Schema 'Product'")
+        print("   Collection 'product' → Schema 'Product'")
     except DocumentValidationError as e:
         print(f"✗ Validation failed: {e}")
     print()
@@ -202,7 +202,7 @@ def main():
         result = validating_store.update_document("product", doc_id, invalid_update)
         print(f"✓ Document updated successfully: {result}")
     except DocumentValidationError as e:
-        print(f"✗ Update validation failed (as expected):")
+        print("✗ Update validation failed (as expected):")
         for error in e.errors:
             print(f"     - {error}")
     print()

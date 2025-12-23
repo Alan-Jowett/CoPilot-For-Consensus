@@ -10,14 +10,14 @@ implementing the common authentication code exchange and discovery logic.
 import base64
 import hashlib
 import secrets
-from typing import Any, Dict, Optional
 from abc import abstractmethod
+from typing import Any
 
 import httpx
 import jwt
 
-from .provider import IdentityProvider, AuthenticationError, ProviderError
 from .models import User
+from .provider import AuthenticationError, IdentityProvider, ProviderError
 
 
 class OIDCProvider(IdentityProvider):
@@ -43,7 +43,7 @@ class OIDCProvider(IdentityProvider):
         client_secret: str,
         redirect_uri: str,
         discovery_url: str,
-        scopes: Optional[list[str]] = None,
+        scopes: list[str] | None = None,
     ):
         """Initialize the OIDC provider.
 
@@ -61,13 +61,13 @@ class OIDCProvider(IdentityProvider):
         self.scopes = scopes or ["openid", "profile", "email"]
 
         # Will be populated by discover()
-        self._discovery_data: Optional[Dict[str, Any]] = None
-        self._authorization_endpoint: Optional[str] = None
-        self._token_endpoint: Optional[str] = None
-        self._userinfo_endpoint: Optional[str] = None
-        self._jwks_uri: Optional[str] = None
-        self._issuer: Optional[str] = None
-        self._jwks_cache: Optional[Dict[str, Any]] = None
+        self._discovery_data: dict[str, Any] | None = None
+        self._authorization_endpoint: str | None = None
+        self._token_endpoint: str | None = None
+        self._userinfo_endpoint: str | None = None
+        self._jwks_uri: str | None = None
+        self._issuer: str | None = None
+        self._jwks_cache: dict[str, Any] | None = None
 
     def discover(self) -> None:
         """Perform OIDC discovery to retrieve provider endpoints.
@@ -98,10 +98,10 @@ class OIDCProvider(IdentityProvider):
 
     def get_authorization_url(
         self,
-        state: Optional[str] = None,
-        nonce: Optional[str] = None,
-        prompt: Optional[str] = None,
-        code_challenge: Optional[str] = None,
+        state: str | None = None,
+        nonce: str | None = None,
+        prompt: str | None = None,
+        code_challenge: str | None = None,
         code_challenge_method: str = "S256",
     ) -> tuple[str, str, str]:
         """Generate authorization URL for OAuth flow.
@@ -150,8 +150,8 @@ class OIDCProvider(IdentityProvider):
     def exchange_code_for_token(
         self,
         code: str,
-        code_verifier: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        code_verifier: str | None = None,
+    ) -> dict[str, Any]:
         """Exchange authorization code for access and ID tokens.
 
         Args:
@@ -210,7 +210,7 @@ class OIDCProvider(IdentityProvider):
         except httpx.HTTPError as e:
             raise ProviderError(f"Token endpoint unavailable: {e}") from e
 
-    def get_userinfo(self, access_token: str) -> Dict[str, Any]:
+    def get_userinfo(self, access_token: str) -> dict[str, Any]:
         """Retrieve user information from userinfo endpoint.
 
         Args:
@@ -241,7 +241,7 @@ class OIDCProvider(IdentityProvider):
             raise ProviderError(f"Userinfo endpoint unavailable: {e}") from e
 
     @abstractmethod
-    def _map_userinfo_to_user(self, userinfo: Dict[str, Any], provider_id: str) -> User:
+    def _map_userinfo_to_user(self, userinfo: dict[str, Any], provider_id: str) -> User:
         """Map provider-specific userinfo to User model.
 
         Args:
@@ -253,7 +253,7 @@ class OIDCProvider(IdentityProvider):
         """
         pass
 
-    def get_user(self, token: str) -> Optional[User]:
+    def get_user(self, token: str) -> User | None:
         """Retrieve user information from an OAuth access token.
 
         This method uses the access token to fetch user info from the
@@ -272,7 +272,7 @@ class OIDCProvider(IdentityProvider):
         userinfo = self.get_userinfo(token)
         return self._map_userinfo_to_user(userinfo, self.__class__.__name__.replace("IdentityProvider", "").lower())
 
-    def validate_id_token(self, id_token: str, nonce: str, leeway: int = 60) -> Dict[str, Any]:
+    def validate_id_token(self, id_token: str, nonce: str, leeway: int = 60) -> dict[str, Any]:
         """Validate ID token using provider JWKS.
 
         Args:

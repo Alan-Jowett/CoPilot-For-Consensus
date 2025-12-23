@@ -7,14 +7,14 @@ import copy
 import logging
 import re
 import uuid
-from typing import Dict, Any, List, Optional
+from typing import Any
 
 from .document_store import (
-    DocumentStore,
-    DocumentStoreNotConnectedError,
-    DocumentStoreConnectionError,
     DocumentNotFoundError,
-    DocumentStoreError
+    DocumentStore,
+    DocumentStoreConnectionError,
+    DocumentStoreError,
+    DocumentStoreNotConnectedError,
 )
 
 logger = logging.getLogger(__name__)
@@ -116,8 +116,8 @@ class AzureCosmosDocumentStore(DocumentStore):
             DocumentStoreConnectionError: If connection fails
         """
         try:
-            from azure.cosmos import CosmosClient
             from azure.core.exceptions import AzureError
+            from azure.cosmos import CosmosClient
         except ImportError as e:
             logger.error("AzureCosmosDocumentStore: azure-cosmos not installed")
             raise DocumentStoreConnectionError("azure-cosmos not installed") from e
@@ -146,12 +146,22 @@ class AzureCosmosDocumentStore(DocumentStore):
                     id=self.container_name,
                     partition_key={"paths": [self.partition_key], "kind": "Hash"}
                 )
-                logger.info(f"AzureCosmosDocumentStore: using container '{self.container_name}' with partition key '{self.partition_key}'")
+                logger.info(
+                    f"AzureCosmosDocumentStore: using container '{self.container_name}' "
+                    f"with partition key '{self.partition_key}'"
+                )
             except cosmos_exceptions.CosmosHttpResponseError as e:
-                logger.error(f"AzureCosmosDocumentStore: failed to create/access container - {e}")
-                raise DocumentStoreConnectionError(f"Failed to create/access container '{self.container_name}'") from e
+                logger.error(
+                    f"AzureCosmosDocumentStore: failed to create/access container - {e}"
+                )
+                raise DocumentStoreConnectionError(
+                    f"Failed to create/access container '{self.container_name}'"
+                ) from e
 
-            logger.info(f"AzureCosmosDocumentStore: connected to {self.endpoint}/{self.database_name}/{self.container_name}")
+            logger.info(
+                f"AzureCosmosDocumentStore: connected to "
+                f"{self.endpoint}/{self.database_name}/{self.container_name}"
+            )
 
         except (cosmos_exceptions.CosmosHttpResponseError, AzureError) as e:
             logger.error(f"AzureCosmosDocumentStore: connection failed - {e}", exc_info=True)
@@ -171,7 +181,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             self.container = None
             logger.info("AzureCosmosDocumentStore: disconnected")
 
-    def insert_document(self, collection: str, doc: Dict[str, Any]) -> str:
+    def insert_document(self, collection: str, doc: dict[str, Any]) -> str:
         """Insert a document into the specified collection.
 
         In Cosmos DB, we store all collections in a single container, using the
@@ -225,7 +235,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             logger.error(f"AzureCosmosDocumentStore: insert failed - {e}")
             raise DocumentStoreError(f"Failed to insert document into {collection}") from e
 
-    def get_document(self, collection: str, doc_id: str) -> Optional[Dict[str, Any]]:
+    def get_document(self, collection: str, doc_id: str) -> dict[str, Any] | None:
         """Retrieve a document by its ID.
 
         Args:
@@ -266,8 +276,8 @@ class AzureCosmosDocumentStore(DocumentStore):
             raise DocumentStoreError(f"Failed to retrieve document {doc_id} from {collection}") from e
 
     def query_documents(
-        self, collection: str, filter_dict: Dict[str, Any], limit: int = 100
-    ) -> List[Dict[str, Any]]:
+        self, collection: str, filter_dict: dict[str, Any], limit: int = 100
+    ) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
         Args:
@@ -330,7 +340,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             raise DocumentStoreError(f"Failed to query documents from {collection}") from e
 
     def update_document(
-        self, collection: str, doc_id: str, patch: Dict[str, Any]
+        self, collection: str, doc_id: str, patch: dict[str, Any]
     ) -> None:
         """Update a document with the provided patch.
 
@@ -424,8 +434,8 @@ class AzureCosmosDocumentStore(DocumentStore):
             raise DocumentStoreError(f"Failed to delete document {doc_id} from {collection}") from e
 
     def aggregate_documents(
-        self, collection: str, pipeline: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, collection: str, pipeline: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Execute an aggregation pipeline on a collection.
 
         Note: This is a simplified implementation that supports common aggregation stages
@@ -498,7 +508,7 @@ class AzureCosmosDocumentStore(DocumentStore):
                     # Cosmos DB doesn't support joins like MongoDB
                     # This would require multiple queries and client-side joining
                     logger.warning(
-                        f"AzureCosmosDocumentStore: $lookup not supported, skipping"
+                        "AzureCosmosDocumentStore: $lookup not supported, skipping"
                     )
 
                 else:

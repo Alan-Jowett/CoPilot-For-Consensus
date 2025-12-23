@@ -3,21 +3,20 @@
 
 """Integration tests for the summarization service."""
 
-import pytest
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
+import pytest
 from app.service import SummarizationService
-from copilot_summarization import MockSummarizer, LocalLLMSummarizer
-from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
 from copilot_schema_validation import FileSchemaProvider
+from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
+from copilot_summarization import MockSummarizer
 
 
 @pytest.fixture
 def in_memory_document_store():
     """Create an in-memory document store with schema validation for testing."""
     from datetime import datetime, timezone
-    import uuid
 
     # Create base in-memory store
     base_store = InMemoryDocumentStore()

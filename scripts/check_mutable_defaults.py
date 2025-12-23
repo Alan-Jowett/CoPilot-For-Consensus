@@ -14,7 +14,6 @@ import ast
 import sys
 from pathlib import Path
 
-
 DEFAULT_EXCLUDES = {
     ".git", "node_modules", "venv", ".venv", "env", ".env",
     "__pycache__", "build", "dist", ".pytest_cache", ".mypy_cache",
@@ -69,7 +68,7 @@ def find_mutable_defaults(filepath: Path) -> list[tuple[int, str, str, str]]:
 
     issues = []
     for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             # Check regular positional/keyword defaults
             for i, default in enumerate(node.args.defaults):
                 is_mutable, default_type = is_mutable_default(default)

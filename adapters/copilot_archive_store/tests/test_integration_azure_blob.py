@@ -16,9 +16,10 @@ Or use a connection string:
 - AZURE_STORAGE_CONNECTION_STRING: Full Azure Storage connection string
 """
 
-import pytest
-import os
 import hashlib
+import os
+
+import pytest
 
 # Test if azure-storage-blob is available
 try:

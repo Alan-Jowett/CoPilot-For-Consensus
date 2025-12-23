@@ -3,7 +3,8 @@
 
 """Example integration patterns for embedding and summarization services."""
 
-from typing import List, Dict, Any
+from typing import Any
+
 from copilot_vectorstore import create_vector_store
 
 
@@ -25,8 +26,8 @@ class EmbeddingServiceExample:
         self.vector_store = create_vector_store(dimension=embedding_dimension)
         self.embedding_dimension = embedding_dimension
 
-    def process_chunks(self, chunks: List[Dict[str, Any]],
-                      embeddings: List[List[float]]) -> None:
+    def process_chunks(self, chunks: list[dict[str, Any]],
+                      embeddings: list[list[float]]) -> None:
         """Store chunk embeddings in the vector store.
 
         Args:
@@ -57,7 +58,7 @@ class EmbeddingServiceExample:
         self.vector_store.add_embeddings(ids, embeddings, metadatas)
         print(f"Stored {len(chunks)} embeddings in vector store")
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get statistics about stored embeddings.
 
         Returns:
@@ -84,8 +85,8 @@ class SummarizationServiceExample:
         """
         self.vector_store = create_vector_store(dimension=embedding_dimension)
 
-    def get_relevant_context(self, query_embedding: List[float],
-                            top_k: int = 10) -> List[Dict[str, Any]]:
+    def get_relevant_context(self, query_embedding: list[float],
+                            top_k: int = 10) -> list[dict[str, Any]]:
         """Retrieve the most relevant text chunks for a query.
 
         Args:
@@ -111,7 +112,7 @@ class SummarizationServiceExample:
         return context_chunks
 
     def build_prompt_with_context(self, query: str,
-                                  query_embedding: List[float],
+                                  query_embedding: list[float],
                                   top_k: int = 10) -> str:
         """Build a summarization prompt with retrieved context.
 
@@ -153,8 +154,8 @@ class SimpleRAGExample:
         self.vector_store = create_vector_store(dimension=embedding_dimension)
         self.embedding_dimension = embedding_dimension
 
-    def index_documents(self, documents: List[Dict[str, Any]],
-                       embeddings: List[List[float]]) -> None:
+    def index_documents(self, documents: list[dict[str, Any]],
+                       embeddings: list[list[float]]) -> None:
         """Index documents with their embeddings.
 
         Args:
@@ -169,8 +170,8 @@ class SimpleRAGExample:
 
         self.vector_store.add_embeddings(ids, embeddings, metadatas)
 
-    def search(self, query_embedding: List[float],
-              top_k: int = 5) -> List[Dict[str, Any]]:
+    def search(self, query_embedding: list[float],
+              top_k: int = 5) -> list[dict[str, Any]]:
         """Search for relevant documents.
 
         Args:

@@ -5,9 +5,9 @@
 
 import logging
 import uuid
-from typing import List, Dict, Any, Optional
+from typing import Any
 
-from .interface import VectorStore, SearchResult
+from .interface import SearchResult, VectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class QdrantVectorStore(VectorStore):
         self,
         host: str = "localhost",
         port: int = 6333,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         collection_name: str = "embeddings",
         vector_size: int = 384,
         distance: str = "cosine",
@@ -66,7 +66,7 @@ class QdrantVectorStore(VectorStore):
         """
         try:
             from qdrant_client import QdrantClient
-            from qdrant_client.models import Distance, VectorParams, PointStruct, PointIdsList
+            from qdrant_client.models import Distance, PointIdsList, PointStruct, VectorParams
         except ImportError as e:
             raise ImportError(
                 "qdrant-client is not installed. Install it with: pip install qdrant-client"
@@ -144,7 +144,7 @@ class QdrantVectorStore(VectorStore):
             )
             logger.info(f"Created new collection '{self._collection_name}'")
 
-    def add_embedding(self, id: str, vector: List[float], metadata: Dict[str, Any]) -> None:
+    def add_embedding(self, id: str, vector: list[float], metadata: dict[str, Any]) -> None:
         """Add a single embedding to the vector store.
 
         Idempotent operation: if the ID already exists, it will be updated with the new
@@ -177,8 +177,8 @@ class QdrantVectorStore(VectorStore):
         )
         logger.debug(f"Upserted embedding with ID: {id}")
 
-    def add_embeddings(self, ids: List[str], vectors: List[List[float]],
-                      metadatas: List[Dict[str, Any]]) -> None:
+    def add_embeddings(self, ids: list[str], vectors: list[list[float]],
+                      metadatas: list[dict[str, Any]]) -> None:
         """Add multiple embeddings to the vector store in batch.
 
         Idempotent operation: if any IDs already exist, they will be updated with the new
@@ -228,7 +228,7 @@ class QdrantVectorStore(VectorStore):
                 points=batch,
             )
 
-    def query(self, query_vector: List[float], top_k: int = 10) -> List[SearchResult]:
+    def query(self, query_vector: list[float], top_k: int = 10) -> list[SearchResult]:
         """Query the vector store for similar embeddings.
 
         Args:

@@ -4,18 +4,18 @@
 """Tests for schema registry functionality."""
 
 import json
-import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
+import pytest
 from copilot_schema_validation.schema_registry import (
-    get_schema_path,
-    load_schema,
-    list_schemas,
-    validate_registry,
-    get_schema_metadata,
     SCHEMA_REGISTRY,
     _get_schema_base_dir,
+    get_schema_metadata,
+    get_schema_path,
+    list_schemas,
+    load_schema,
+    validate_registry,
 )
 
 

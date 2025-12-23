@@ -7,10 +7,10 @@ This module provides a logging configuration for Uvicorn that integrates
 with the copilot_logging structured JSON logging system.
 """
 
-import logging
 import json
+import logging
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any
 
 
 class JSONFormatter(logging.Formatter):
@@ -63,7 +63,7 @@ class JSONFormatter(logging.Formatter):
         return json.dumps(log_entry, default=str)
 
 
-def create_uvicorn_log_config(service_name: str, log_level: str = "INFO") -> Dict[str, Any]:
+def create_uvicorn_log_config(service_name: str, log_level: str = "INFO") -> dict[str, Any]:
     """Create Uvicorn logging configuration with structured JSON output.
 
     This configuration:

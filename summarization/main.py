@@ -11,21 +11,19 @@ from pathlib import Path
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
-from fastapi import FastAPI
 import uvicorn
-
-from copilot_config import load_typed_config
-from copilot_events import create_publisher, create_subscriber
-from copilot_storage import create_document_store, ValidatingDocumentStore, DocumentStoreConnectionError
-from copilot_schema_validation import FileSchemaProvider
-from copilot_vectorstore import create_vector_store
-from copilot_metrics import create_metrics_collector
-from copilot_reporting import create_error_reporter
-from copilot_summarization import SummarizerFactory
-from copilot_logging import create_logger, create_uvicorn_log_config
-
 from app import __version__
 from app.service import SummarizationService
+from copilot_config import load_typed_config
+from copilot_events import create_publisher, create_subscriber
+from copilot_logging import create_logger, create_uvicorn_log_config
+from copilot_metrics import create_metrics_collector
+from copilot_reporting import create_error_reporter
+from copilot_schema_validation import FileSchemaProvider
+from copilot_storage import DocumentStoreConnectionError, ValidatingDocumentStore, create_document_store
+from copilot_summarization import SummarizerFactory
+from copilot_vectorstore import create_vector_store
+from fastapi import FastAPI
 
 # Configure structured JSON logging
 logger = create_logger(logger_type="stdout", level="INFO", name="summarization")

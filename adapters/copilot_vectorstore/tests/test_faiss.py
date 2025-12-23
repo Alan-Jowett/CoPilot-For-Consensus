@@ -4,6 +4,7 @@
 """Tests for FAISSVectorStore implementation."""
 
 import random
+
 import pytest
 
 try:
@@ -257,8 +258,8 @@ class TestFAISSVectorStore:
 
     def test_save_and_load(self):
         """Test saving and loading FAISS index."""
-        import tempfile
         import os
+        import tempfile
 
         # Create a temporary file for the index
         with tempfile.NamedTemporaryFile(suffix='.faiss', delete=False) as tmp:

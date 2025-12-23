@@ -3,9 +3,9 @@
 
 """Tests for startup requeue utility."""
 
-import pytest
 from unittest.mock import Mock
 
+import pytest
 from copilot_startup import StartupRequeue
 
 

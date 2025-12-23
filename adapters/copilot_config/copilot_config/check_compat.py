@@ -6,7 +6,7 @@
 import argparse
 import json
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .schema_loader import _parse_semver
 
@@ -18,7 +18,7 @@ class CompatibilityIssue:
     WARNING = "WARNING"
     INFO = "INFO"
 
-    def __init__(self, severity: str, message: str, field: Optional[str] = None):
+    def __init__(self, severity: str, message: str, field: str | None = None):
         self.severity = severity
         self.message = message
         self.field = field
@@ -30,9 +30,9 @@ class CompatibilityIssue:
 
 
 def check_schema_compatibility(
-    old_schema: Dict[str, Any],
-    new_schema: Dict[str, Any],
-) -> List[CompatibilityIssue]:
+    old_schema: dict[str, Any],
+    new_schema: dict[str, Any],
+) -> list[CompatibilityIssue]:
     """Check compatibility between two configuration schemas.
 
     Args:
@@ -164,8 +164,8 @@ def check_schema_compatibility(
 def check_version_bump_adequate(
     old_version: str,
     new_version: str,
-    issues: List[CompatibilityIssue]
-) -> List[CompatibilityIssue]:
+    issues: list[CompatibilityIssue]
+) -> list[CompatibilityIssue]:
     """Check if version bump is adequate for the changes.
 
     Args:
@@ -226,9 +226,9 @@ def main():
 
     # Load schemas
     try:
-        with open(args.old, "r", encoding="utf-8") as f:
+        with open(args.old, encoding="utf-8") as f:
             old_schema = json.load(f)
-        with open(args.new, "r", encoding="utf-8") as f:
+        with open(args.new, encoding="utf-8") as f:
             new_schema = json.load(f)
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)

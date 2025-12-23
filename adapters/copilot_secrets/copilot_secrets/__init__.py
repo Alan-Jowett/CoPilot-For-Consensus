@@ -12,11 +12,11 @@ Example:
     >>> jwt_key = provider.get_secret("jwt_private_key")
 """
 
-from .exceptions import SecretError, SecretNotFoundError, SecretProviderError
-from .provider import SecretProvider
-from .local_provider import LocalFileSecretProvider
 from .azurekeyvault_provider import AzureKeyVaultProvider
+from .exceptions import SecretError, SecretNotFoundError, SecretProviderError
 from .factory import create_secret_provider
+from .local_provider import LocalFileSecretProvider
+from .provider import SecretProvider
 
 __all__ = [
     "SecretProvider",

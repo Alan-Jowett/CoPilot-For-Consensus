@@ -3,11 +3,10 @@
 
 """Integration tests for the chunking service."""
 
-import pytest
 from datetime import datetime, timezone
 from unittest.mock import Mock
-import uuid
 
+import pytest
 from app.service import ChunkingService
 from copilot_chunking import TokenWindowChunker, create_chunker
 from copilot_schema_validation import generate_message_doc_id

@@ -4,14 +4,14 @@
 """MongoDB document store implementation."""
 
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Any
 
 from .document_store import (
-    DocumentStore,
-    DocumentStoreNotConnectedError,
-    DocumentStoreConnectionError,
     DocumentNotFoundError,
-    DocumentStoreError
+    DocumentStore,
+    DocumentStoreConnectionError,
+    DocumentStoreError,
+    DocumentStoreNotConnectedError,
 )
 
 logger = logging.getLogger(__name__)
@@ -24,8 +24,8 @@ class MongoDocumentStore(DocumentStore):
         self,
         host: str = "localhost",
         port: int = 27017,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
+        username: str | None = None,
+        password: str | None = None,
         database: str = "copilot",
         **kwargs
     ):
@@ -105,7 +105,7 @@ class MongoDocumentStore(DocumentStore):
             self.database = None
             logger.info("MongoDocumentStore: disconnected")
 
-    def insert_document(self, collection: str, doc: Dict[str, Any]) -> str:
+    def insert_document(self, collection: str, doc: dict[str, Any]) -> str:
         """Insert a document into the specified collection.
 
         Args:
@@ -131,7 +131,7 @@ class MongoDocumentStore(DocumentStore):
             logger.error(f"MongoDocumentStore: insert failed - {e}")
             raise
 
-    def get_document(self, collection: str, doc_id: str) -> Optional[Dict[str, Any]]:
+    def get_document(self, collection: str, doc_id: str) -> dict[str, Any] | None:
         """Retrieve a document by its ID.
 
         Args:
@@ -178,8 +178,8 @@ class MongoDocumentStore(DocumentStore):
             raise DocumentStoreError(f"Failed to retrieve document {doc_id} from {collection}") from e
 
     def query_documents(
-        self, collection: str, filter_dict: Dict[str, Any], limit: int = 100
-    ) -> List[Dict[str, Any]]:
+        self, collection: str, filter_dict: dict[str, Any], limit: int = 100
+    ) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
         Args:
@@ -219,7 +219,7 @@ class MongoDocumentStore(DocumentStore):
             raise DocumentStoreError(f"Failed to query documents from {collection}") from e
 
     def update_document(
-        self, collection: str, doc_id: str, patch: Dict[str, Any]
+        self, collection: str, doc_id: str, patch: dict[str, Any]
     ) -> None:
         """Update a document with the provided patch.
 
@@ -305,8 +305,8 @@ class MongoDocumentStore(DocumentStore):
             raise DocumentStoreError(f"Failed to delete document {doc_id} from {collection}") from e
 
     def aggregate_documents(
-        self, collection: str, pipeline: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, collection: str, pipeline: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Execute an aggregation pipeline on a collection.
 
         **Note**: ObjectId values are recursively converted to strings for JSON
@@ -359,11 +359,11 @@ class MongoDocumentStore(DocumentStore):
             for key, value in obj.items():
                 if isinstance(value, ObjectId):
                     obj[key] = str(value)
-                elif isinstance(value, (dict, list)):
+                elif isinstance(value, dict | list):
                     self._convert_objectids_to_strings(value)
         elif isinstance(obj, list):
             for i, item in enumerate(obj):
                 if isinstance(item, ObjectId):
                     obj[i] = str(item)
-                elif isinstance(item, (dict, list)):
+                elif isinstance(item, dict | list):
                     self._convert_objectids_to_strings(item)

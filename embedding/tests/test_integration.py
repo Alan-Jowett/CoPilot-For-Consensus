@@ -3,16 +3,16 @@
 
 """Integration tests for the embedding service."""
 
-import pytest
-from unittest.mock import Mock
-from typing import Dict, Any
 from pathlib import Path
+from typing import Any
+from unittest.mock import Mock
 
+import pytest
 from app.service import EmbeddingService
-from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
-from copilot_schema_validation import FileSchemaProvider
-from copilot_vectorstore import InMemoryVectorStore
 from copilot_embedding import MockEmbeddingProvider
+from copilot_schema_validation import FileSchemaProvider
+from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
+from copilot_vectorstore import InMemoryVectorStore
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ def in_memory_document_store():
     # Wrap query_documents to support $in operator
     original_query = base_store.query_documents
 
-    def query_with_in_support(collection: str, filter_dict: Dict[str, Any], limit: int = 100):
+    def query_with_in_support(collection: str, filter_dict: dict[str, Any], limit: int = 100):
         # Check if filter uses $in operator
         for key, value in filter_dict.items():
             if isinstance(value, dict) and "$in" in value:

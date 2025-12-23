@@ -22,7 +22,7 @@ from pathlib import Path
 def validate_json_syntax(file_path: Path) -> tuple[bool, str]:
     """Validate JSON syntax."""
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             json.load(f)
         return True, "Valid JSON syntax"
     except json.JSONDecodeError as e:
@@ -36,7 +36,7 @@ def validate_template_structure(file_path: Path) -> tuple[bool, list[str]]:
     errors = []
 
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             template = json.load(f)
 
         # Check required sections
@@ -110,7 +110,7 @@ def validate_parameters_file(file_path: Path) -> tuple[bool, list[str]]:
     errors = []
 
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             params_file = json.load(f)
 
         # Check required sections

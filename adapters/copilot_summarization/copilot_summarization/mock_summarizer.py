@@ -3,14 +3,11 @@
 
 """Mock summarization implementation for testing."""
 
-import time
 import logging
-try:
-    from summarizer import Summarizer
-    from models import Thread, Summary, Citation
-except ImportError:
-    from .summarizer import Summarizer
-    from .models import Thread, Summary, Citation
+import time
+
+from .models import Citation, Summary, Thread
+from .summarizer import Summarizer
 
 logger = logging.getLogger(__name__)
 

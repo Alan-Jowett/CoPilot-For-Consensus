@@ -4,15 +4,15 @@
 """Tests for embedding provider factory."""
 
 import os
-import pytest
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
+import pytest
 from copilot_embedding.factory import create_embedding_provider
 from copilot_embedding.providers import (
-    MockEmbeddingProvider,
-    SentenceTransformerEmbeddingProvider,
-    OpenAIEmbeddingProvider,
     HuggingFaceEmbeddingProvider,
+    MockEmbeddingProvider,
+    OpenAIEmbeddingProvider,
+    SentenceTransformerEmbeddingProvider,
 )
 
 

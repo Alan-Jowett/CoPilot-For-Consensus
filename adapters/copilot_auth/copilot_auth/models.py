@@ -8,7 +8,6 @@ the Copilot-for-Consensus system.
 """
 
 from dataclasses import dataclass, field
-from typing import List
 
 
 @dataclass
@@ -28,8 +27,8 @@ class User:
     id: str
     email: str
     name: str
-    roles: List[str] = field(default_factory=list)
-    affiliations: List[str] = field(default_factory=list)
+    roles: list[str] = field(default_factory=list)
+    affiliations: list[str] = field(default_factory=list)
 
     def has_role(self, role: str) -> bool:
         """Check if user has a specific role.

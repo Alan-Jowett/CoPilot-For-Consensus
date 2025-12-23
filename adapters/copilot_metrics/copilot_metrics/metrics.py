@@ -6,7 +6,6 @@
 import logging
 import os
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +18,7 @@ class MetricsCollector(ABC):
     """
 
     @abstractmethod
-    def increment(self, name: str, value: float = 1.0, tags: Optional[Dict[str, str]] = None) -> None:
+    def increment(self, name: str, value: float = 1.0, tags: dict[str, str] | None = None) -> None:
         """Increment a counter metric.
 
         Args:
@@ -30,7 +29,7 @@ class MetricsCollector(ABC):
         pass
 
     @abstractmethod
-    def observe(self, name: str, value: float, tags: Optional[Dict[str, str]] = None) -> None:
+    def observe(self, name: str, value: float, tags: dict[str, str] | None = None) -> None:
         """Observe a value for histogram/summary metrics.
 
         Useful for measuring durations, sizes, or other distributions.
@@ -43,7 +42,7 @@ class MetricsCollector(ABC):
         pass
 
     @abstractmethod
-    def gauge(self, name: str, value: float, tags: Optional[Dict[str, str]] = None) -> None:
+    def gauge(self, name: str, value: float, tags: dict[str, str] | None = None) -> None:
         """Set a gauge metric to a specific value.
 
         Gauges represent values that can go up or down (e.g., queue depth, memory usage).
@@ -73,7 +72,7 @@ class MetricsCollector(ABC):
 
 
 def create_metrics_collector(
-    backend: Optional[str] = None,
+    backend: str | None = None,
     **kwargs
 ) -> MetricsCollector:
     """Factory function to create a metrics collector based on backend type.

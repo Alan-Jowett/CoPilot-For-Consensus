@@ -5,21 +5,22 @@ import json
 import logging
 import os
 import time
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Dict, Any, Iterable, List, Tuple
+from typing import Any
 
-from copilot_events import EventPublisher, ArchiveIngestedEvent, ArchiveIngestionFailedEvent, ArchiveMetadata
+from copilot_archive_fetcher import SourceConfig, calculate_file_hash, create_fetcher
+from copilot_events import ArchiveIngestedEvent, ArchiveIngestionFailedEvent, ArchiveMetadata, EventPublisher
 from copilot_logging import Logger, create_logger
 from copilot_metrics import MetricsCollector, create_metrics_collector
 from copilot_reporting import ErrorReporter, create_error_reporter
-from copilot_archive_fetcher import create_fetcher, calculate_file_hash, SourceConfig
 from copilot_storage import DocumentStore
 
 from .exceptions import (
+    FetchError,
     IngestionError,
     SourceConfigurationError,
-    FetchError,
 )
 
 DEFAULT_CONFIG = {
@@ -58,7 +59,7 @@ class _ConfigWithDefaults:
     def __init__(self, config: object):
         # Store base config and allow per-instance overrides without mutating base
         self._config = config
-        self._overrides: Dict[str, Any] = {}
+        self._overrides: dict[str, Any] = {}
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Allow overrides while keeping base config immutable."""
@@ -88,11 +89,11 @@ def _apply_defaults(config: object) -> object:
     return _ConfigWithDefaults(config)
 
 
-def _expand(value: Optional[str]) -> Optional[str]:
+def _expand(value: str | None) -> str | None:
     return os.path.expandvars(value) if isinstance(value, str) else value
 
 
-def _source_from_mapping(source: Dict[str, Any]) -> SourceConfig:
+def _source_from_mapping(source: dict[str, Any]) -> SourceConfig:
     """Convert a raw mapping into a fetcher SourceConfig.
 
     Args:
@@ -124,7 +125,7 @@ def _source_from_mapping(source: Dict[str, Any]) -> SourceConfig:
     )
 
 
-def _sanitize_source_dict(source_dict: Dict[str, Any]) -> Dict[str, Any]:
+def _sanitize_source_dict(source_dict: dict[str, Any]) -> dict[str, Any]:
     """Remove fields that should not be exposed or are not JSON serializable."""
     sanitized = source_dict.copy()
     sanitized.pop("_id", None)
@@ -135,7 +136,7 @@ def _sanitize_source_dict(source_dict: Dict[str, Any]) -> Dict[str, Any]:
     return sanitized
 
 
-def _enabled_sources(raw_sources: Iterable[Any]) -> List[SourceConfig]:
+def _enabled_sources(raw_sources: Iterable[Any]) -> list[SourceConfig]:
     """Normalize and filter enabled sources.
 
     Args:
@@ -144,7 +145,7 @@ def _enabled_sources(raw_sources: Iterable[Any]) -> List[SourceConfig]:
     Returns:
         List of enabled SourceConfig objects
     """
-    enabled_sources: List[SourceConfig] = []
+    enabled_sources: list[SourceConfig] = []
 
     for raw in raw_sources or []:
         try:
@@ -194,10 +195,10 @@ class IngestionService:
         self,
         config: object,
         publisher: EventPublisher,
-        document_store: Optional[DocumentStore] = None,
-        error_reporter: Optional[ErrorReporter] = None,
-        logger: Optional[Logger] = None,
-        metrics: Optional[MetricsCollector] = None,
+        document_store: DocumentStore | None = None,
+        error_reporter: ErrorReporter | None = None,
+        logger: Logger | None = None,
+        metrics: MetricsCollector | None = None,
     ):
         """Initialize ingestion service.
 
@@ -212,7 +213,7 @@ class IngestionService:
         self.config = _apply_defaults(config)
         self.publisher = publisher
         self.document_store = document_store
-        self.checksums: Dict[str, Dict[str, Any]] = {}
+        self.checksums: dict[str, dict[str, Any]] = {}
         self.logger = logger or create_logger(
             logger_type=config.log_type,
             level=config.log_level,
@@ -234,7 +235,7 @@ class IngestionService:
             self.error_reporter = error_reporter
 
         # Source status tracking
-        self._source_status: Dict[str, Dict[str, Any]] = {}
+        self._source_status: dict[str, dict[str, Any]] = {}
         self._stats = {
             "total_files_ingested": 0,
             "last_ingestion_at": None,
@@ -259,7 +260,7 @@ class IngestionService:
 
         if os.path.exists(checksums_path):
             try:
-                with open(checksums_path, "r") as f:
+                with open(checksums_path) as f:
                     self.checksums = json.load(f)
                 self.logger.info(
                     "Loaded checksums",
@@ -392,7 +393,7 @@ class IngestionService:
     def ingest_archive(
         self,
         source: object,
-        max_retries: Optional[int] = None,
+        max_retries: int | None = None,
     ) -> None:
         """Ingest archives from a source.
 
@@ -670,7 +671,7 @@ class IngestionService:
         # Should never reach here due to loop structure, but add safety
         raise IngestionError(f"Ingestion failed for unknown reason (source: {source.name})")
 
-    def ingest_all_enabled_sources(self) -> Dict[str, Optional[Exception]]:
+    def ingest_all_enabled_sources(self) -> dict[str, Exception | None]:
         """Ingest from all enabled sources.
 
         Attempts ingestion for each enabled source, catching exceptions to allow
@@ -957,7 +958,7 @@ class IngestionService:
 
     def _record_success_metrics(
         self,
-        tags: Dict[str, str],
+        tags: dict[str, str],
         duration_seconds: float,
         files_processed: int,
         files_skipped: int,
@@ -983,7 +984,7 @@ class IngestionService:
             tags=tags,
         )
 
-    def _record_failure_metrics(self, tags: Dict[str, str], started_monotonic: float) -> None:
+    def _record_failure_metrics(self, tags: dict[str, str], started_monotonic: float) -> None:
         """Emit failure metrics for a source ingestion."""
         duration_seconds = time.monotonic() - started_monotonic
         self.metrics.increment(
@@ -997,7 +998,7 @@ class IngestionService:
         )
 
     @staticmethod
-    def _metric_tags(source: SourceConfig) -> Dict[str, str]:
+    def _metric_tags(source: SourceConfig) -> dict[str, str]:
         """Build consistent metric tags for a source."""
         name = getattr(source, "name", None) or (source.get("name") if isinstance(source, dict) else None)
         src_type = getattr(source, "source_type", None) or (source.get("source_type") if isinstance(source, dict) else None)
@@ -1008,7 +1009,7 @@ class IngestionService:
 
     # Source management API methods
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get service statistics.
 
         Returns:
@@ -1024,7 +1025,7 @@ class IngestionService:
             "version": getattr(self, "version", "unknown"),
         }
 
-    def list_sources(self, enabled_only: bool = False) -> List[Dict[str, Any]]:
+    def list_sources(self, enabled_only: bool = False) -> list[dict[str, Any]]:
         """List all sources.
 
         Args:
@@ -1064,7 +1065,7 @@ class IngestionService:
 
         return result
 
-    def get_source(self, source_name: str) -> Optional[Dict[str, Any]]:
+    def get_source(self, source_name: str) -> dict[str, Any] | None:
         """Get a specific source by name.
 
         Args:
@@ -1079,7 +1080,7 @@ class IngestionService:
                 return source
         return None
 
-    def create_source(self, source_data: Dict[str, Any]) -> Dict[str, Any]:
+    def create_source(self, source_data: dict[str, Any]) -> dict[str, Any]:
         """Create a new source.
 
         Args:
@@ -1124,7 +1125,7 @@ class IngestionService:
             self.logger.error("Failed to create source", error=str(e), exc_info=True)
             raise ValueError(f"Failed to create source: {str(e)}")
 
-    def update_source(self, source_name: str, source_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def update_source(self, source_name: str, source_data: dict[str, Any]) -> dict[str, Any] | None:
         """Update an existing source.
 
         Args:
@@ -1206,7 +1207,7 @@ class IngestionService:
             self.logger.error("Failed to delete source", error=str(e), exc_info=True)
             raise ValueError(f"Failed to delete source: {str(e)}")
 
-    def trigger_ingestion(self, source_name: str) -> Tuple[bool, str]:
+    def trigger_ingestion(self, source_name: str) -> tuple[bool, str]:
         """Trigger manual ingestion for a source.
 
         When explicitly triggered, this method deletes any existing checksums
@@ -1250,7 +1251,7 @@ class IngestionService:
         except Exception as e:
             return False, f"Ingestion failed: {str(e)}"
 
-    def get_source_status(self, source_name: str) -> Optional[Dict[str, Any]]:
+    def get_source_status(self, source_name: str) -> dict[str, Any] | None:
         """Get status information for a source.
 
         Args:
@@ -1303,7 +1304,7 @@ class IngestionService:
         self,
         source_name: str,
         status: str,
-        error: Optional[str] = None,
+        error: str | None = None,
         files_processed: int = 0,
         files_skipped: int = 0,
     ):

@@ -3,8 +3,9 @@
 
 """Unit tests for QdrantVectorStore implementation."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 # Check if qdrant-client is available
 try:

@@ -4,7 +4,7 @@
 """Prometheus metrics collector implementation."""
 
 import logging
-from typing import Dict, Optional
+from typing import Optional
 
 from .metrics import MetricsCollector
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Import prometheus_client with graceful fallback
 try:
-    from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry
+    from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
@@ -54,12 +54,12 @@ class PrometheusMetricsCollector(MetricsCollector):
         self.registry = registry
         self.namespace = namespace
         self.raise_on_error = raise_on_error
-        self._counters: Dict[str, Counter] = {}
-        self._histograms: Dict[str, Histogram] = {}
-        self._gauges: Dict[str, Gauge] = {}
+        self._counters: dict[str, Counter] = {}
+        self._histograms: dict[str, Histogram] = {}
+        self._gauges: dict[str, Gauge] = {}
         self._metrics_errors_count = 0
 
-    def _get_or_create_counter(self, name: str, tags: Optional[Dict[str, str]] = None) -> 'Counter':
+    def _get_or_create_counter(self, name: str, tags: dict[str, str] | None = None) -> 'Counter':
         """Get or create a Prometheus counter.
 
         Args:
@@ -83,7 +83,7 @@ class PrometheusMetricsCollector(MetricsCollector):
 
         return self._counters[cache_key]
 
-    def _get_or_create_histogram(self, name: str, tags: Optional[Dict[str, str]] = None) -> 'Histogram':
+    def _get_or_create_histogram(self, name: str, tags: dict[str, str] | None = None) -> 'Histogram':
         """Get or create a Prometheus histogram.
 
         Args:
@@ -107,7 +107,7 @@ class PrometheusMetricsCollector(MetricsCollector):
 
         return self._histograms[cache_key]
 
-    def _get_or_create_gauge(self, name: str, tags: Optional[Dict[str, str]] = None) -> 'Gauge':
+    def _get_or_create_gauge(self, name: str, tags: dict[str, str] | None = None) -> 'Gauge':
         """Get or create a Prometheus gauge.
 
         Args:
@@ -131,7 +131,7 @@ class PrometheusMetricsCollector(MetricsCollector):
 
         return self._gauges[cache_key]
 
-    def increment(self, name: str, value: float = 1.0, tags: Optional[Dict[str, str]] = None) -> None:
+    def increment(self, name: str, value: float = 1.0, tags: dict[str, str] | None = None) -> None:
         """Increment a Prometheus counter.
 
         Args:
@@ -152,7 +152,7 @@ class PrometheusMetricsCollector(MetricsCollector):
             if self.raise_on_error:
                 raise
 
-    def observe(self, name: str, value: float, tags: Optional[Dict[str, str]] = None) -> None:
+    def observe(self, name: str, value: float, tags: dict[str, str] | None = None) -> None:
         """Observe a value in a Prometheus histogram.
 
         Args:
@@ -173,7 +173,7 @@ class PrometheusMetricsCollector(MetricsCollector):
             if self.raise_on_error:
                 raise
 
-    def gauge(self, name: str, value: float, tags: Optional[Dict[str, str]] = None) -> None:
+    def gauge(self, name: str, value: float, tags: dict[str, str] | None = None) -> None:
         """Set a Prometheus gauge to a specific value.
 
         Args:

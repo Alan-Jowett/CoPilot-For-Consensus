@@ -9,10 +9,11 @@ Tests the FailedQueueManager class functionality.
 """
 
 import json
-import pytest
-from unittest.mock import MagicMock, patch
-import sys
 import os
+import sys
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Add scripts directory to path
 sys.path.insert(0, os.path.dirname(__file__))

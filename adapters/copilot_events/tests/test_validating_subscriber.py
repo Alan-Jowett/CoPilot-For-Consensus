@@ -3,11 +3,12 @@
 
 """Tests for ValidatingEventSubscriber."""
 
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch, call
 from copilot_events.validating_subscriber import (
-    ValidatingEventSubscriber,
     SubscriberValidationError,
+    ValidatingEventSubscriber,
 )
 
 

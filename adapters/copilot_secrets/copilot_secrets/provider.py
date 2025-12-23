@@ -4,7 +4,6 @@
 """Base secret provider interface."""
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 
 class SecretProvider(ABC):
@@ -15,7 +14,7 @@ class SecretProvider(ABC):
     """
 
     @abstractmethod
-    def get_secret(self, key_name: str, version: Optional[str] = None) -> str:
+    def get_secret(self, key_name: str, version: str | None = None) -> str:
         """Retrieve a secret by name.
 
         Args:
@@ -32,7 +31,7 @@ class SecretProvider(ABC):
         pass
 
     @abstractmethod
-    def get_secret_bytes(self, key_name: str, version: Optional[str] = None) -> bytes:
+    def get_secret_bytes(self, key_name: str, version: str | None = None) -> bytes:
         """Retrieve a secret as raw bytes.
 
         Useful for binary secrets like encryption keys or certificates.

@@ -21,8 +21,8 @@ Environment Variables:
 import os
 import sys
 import time
+
 import requests
-from typing import Dict, List
 
 
 def get_rabbitmq_api_url() -> str:
@@ -66,7 +66,7 @@ def get_rabbitmq_credentials() -> tuple:
     return (username, password)
 
 
-def get_queue_stats() -> List[Dict]:
+def get_queue_stats() -> list[dict]:
     """Fetch queue statistics from RabbitMQ management API."""
     api_url = get_rabbitmq_api_url()
     auth = get_rabbitmq_credentials()
@@ -77,11 +77,11 @@ def get_queue_stats() -> List[Dict]:
         return response.json()
     except requests.RequestException as e:
         print(f"❌ Cannot connect to RabbitMQ management API: {type(e).__name__}")
-        print(f"   Check that RabbitMQ is running and accessible")
+        print("   Check that RabbitMQ is running and accessible")
         sys.exit(1)
 
 
-def check_for_duplicate_queues(queues: List[Dict]) -> bool:
+def check_for_duplicate_queues(queues: list[dict]) -> bool:
     """Check if duplicate queues exist that should have been removed."""
     queue_names = {q["name"] for q in queues}
 
@@ -113,7 +113,7 @@ def check_for_duplicate_queues(queues: List[Dict]) -> bool:
         return True
 
 
-def check_queue_drainage(queues: List[Dict]) -> bool:
+def check_queue_drainage(queues: list[dict]) -> bool:
     """Check if all queues have drained to empty."""
     queues_with_messages = []
 
@@ -148,7 +148,7 @@ def check_queue_drainage(queues: List[Dict]) -> bool:
         return True
 
 
-def check_consumer_coverage(queues: List[Dict]) -> bool:
+def check_consumer_coverage(queues: list[dict]) -> bool:
     """Check if all expected queues have active consumers."""
     # Queues that should have consumers (from definitions.json)
     expected_consumers = {
@@ -185,7 +185,7 @@ def check_consumer_coverage(queues: List[Dict]) -> bool:
         return True
 
 
-def print_queue_summary(queues: List[Dict]) -> None:
+def print_queue_summary(queues: list[dict]) -> None:
     """Print a summary of all queues."""
     print("\n=== Queue Summary ===")
     print(f"Total queues: {len(queues)}\n")

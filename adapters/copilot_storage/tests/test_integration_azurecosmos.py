@@ -5,14 +5,14 @@
 
 import logging
 import os
-import pytest
 import time
 
+import pytest
 from copilot_storage import (
-    create_document_store,
     AzureCosmosDocumentStore,
-    DocumentStoreNotConnectedError,
     DocumentNotFoundError,
+    DocumentStoreNotConnectedError,
+    create_document_store,
 )
 
 logger = logging.getLogger(__name__)

@@ -3,15 +3,11 @@
 
 """OpenAI-based summarization implementation."""
 
-import time
 import logging
-from typing import Optional
-try:
-    from summarizer import Summarizer
-    from models import Thread, Summary
-except ImportError:
-    from .summarizer import Summarizer
-    from .models import Thread, Summary
+import time
+
+from .models import Summary, Thread
+from .summarizer import Summarizer
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +32,9 @@ class OpenAISummarizer(Summarizer):
         self,
         api_key: str,
         model: str = "gpt-3.5-turbo",
-        base_url: Optional[str] = None,
-        api_version: Optional[str] = None,
-        deployment_name: Optional[str] = None
+        base_url: str | None = None,
+        api_version: str | None = None,
+        deployment_name: str | None = None
     ):
         """Initialize OpenAI summarizer.
 
@@ -59,7 +55,7 @@ class OpenAISummarizer(Summarizer):
             specified (or default) api_version and deployment_name.
         """
         try:
-            from openai import OpenAI, AzureOpenAI
+            from openai import AzureOpenAI, OpenAI
         except ImportError:
             raise ImportError(
                 "openai is required for OpenAISummarizer. "

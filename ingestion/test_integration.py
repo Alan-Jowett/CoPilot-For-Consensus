@@ -11,8 +11,10 @@ Integration test script to verify ingestion service can:
 
 import sys
 import time
-import requests
+
 import pika
+import requests
+
 
 def test_rabbitmq_connection():
     """Test connection to RabbitMQ."""
@@ -41,9 +43,9 @@ def test_rabbitmq_connection():
         channel.queue_bind(exchange='copilot.events', queue=queue_name, routing_key='archive.ingested')
         channel.queue_bind(exchange='copilot.events', queue=queue_name, routing_key='archive.ingestion.failed')
 
-        print(f"✅ Successfully connected to RabbitMQ")
+        print("✅ Successfully connected to RabbitMQ")
         print(f"   Queue: {queue_name}")
-        print(f"   Listening for: archive.ingested, archive.ingestion.failed")
+        print("   Listening for: archive.ingested, archive.ingestion.failed")
 
         connection.close()
         return True
@@ -60,7 +62,7 @@ def test_prometheus_connection():
         response = requests.get('http://localhost:9090/api/v1/status/config', timeout=5)
         if response.status_code == 200:
             print("✅ Successfully connected to Prometheus")
-            print(f"   Endpoint: http://localhost:9090")
+            print("   Endpoint: http://localhost:9090")
             return True
         else:
             print(f"❌ Prometheus returned status code: {response.status_code}")
@@ -77,7 +79,7 @@ def check_rabbitmq_management():
         response = requests.get('http://localhost:15672/api/queues', auth=('guest', 'guest'), timeout=5)
         if response.status_code == 200:
             queues = response.json()
-            print(f"✅ RabbitMQ Management API accessible")
+            print("✅ RabbitMQ Management API accessible")
             print(f"   Total queues: {len(queues)}")
 
             # Look for copilot-related queues
@@ -145,7 +147,7 @@ def monitor_events(duration_seconds=30):
 
         connection.close()
 
-        print(f"\n=== Monitoring Complete ===")
+        print("\n=== Monitoring Complete ===")
         print(f"Total events received: {len(events_received)}")
 
         if events_received:

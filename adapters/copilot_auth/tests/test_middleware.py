@@ -7,10 +7,9 @@ import time
 from unittest.mock import patch
 
 import pytest
+from copilot_auth.middleware import JWTMiddleware, create_jwt_middleware
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
-
-from copilot_auth.middleware import JWTMiddleware, create_jwt_middleware
 
 
 @pytest.fixture
@@ -33,9 +32,9 @@ def mock_jwks():
 def valid_token():
     """Generate a valid JWT token for testing."""
     import jwt
+    from cryptography.hazmat.backends import default_backend
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric import rsa
-    from cryptography.hazmat.backends import default_backend
 
     # Generate test keypair
     private_key = rsa.generate_private_key(

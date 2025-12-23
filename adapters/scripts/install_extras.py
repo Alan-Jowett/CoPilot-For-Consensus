@@ -9,9 +9,10 @@ Usage:
     python install_extras.py '["package1", "package2"]'
 """
 
-import sys
-import subprocess
 import json
+import subprocess
+import sys
+
 
 def install_packages(packages):
     """Install a list of pip packages."""

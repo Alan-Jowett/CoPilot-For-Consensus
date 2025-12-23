@@ -3,15 +3,15 @@
 
 """Integration tests for secret-backed configuration."""
 
-import tempfile
 import json
+import tempfile
 from pathlib import Path
 
 from copilot_config import (
-    SchemaConfigLoader,
     ConfigSchema,
-    SecretConfigProvider,
     EnvConfigProvider,
+    SchemaConfigLoader,
+    SecretConfigProvider,
 )
 
 

@@ -45,11 +45,11 @@ class RoleStore:
             secret_file = f"/run/secrets/{secret_name}"
             if os.path.exists(secret_file):
                 try:
-                    with open(secret_file, 'r') as f:
+                    with open(secret_file) as f:
                         content = f.read().strip()
                         if content:  # Only return if not empty
                             return content
-                except (OSError, IOError) as exc:
+                except OSError as exc:
                     logger.warning(
                         "Failed to read Docker secret '%s' from %s: %s",
                         secret_name,
@@ -65,9 +65,18 @@ class RoleStore:
         store_kwargs = {
             "host": getattr(config, "role_store_host", None) or os.getenv("DOCUMENT_DATABASE_HOST"),
             "port": getattr(config, "role_store_port", None) or os.getenv("DOCUMENT_DATABASE_PORT"),
-            "username": getattr(config, "role_store_username", None) or get_secret_or_env("document_database_user", "DOCUMENT_DATABASE_USER"),
-            "password": getattr(config, "role_store_password", None) or get_secret_or_env("document_database_password", "DOCUMENT_DATABASE_PASSWORD"),
-            "database": getattr(config, "role_store_database", None) or os.getenv("DOCUMENT_DATABASE_NAME", "auth"),
+            "username": (
+                getattr(config, "role_store_username", None)
+                or get_secret_or_env("document_database_user", "DOCUMENT_DATABASE_USER")
+            ),
+            "password": (
+                getattr(config, "role_store_password", None)
+                or get_secret_or_env("document_database_password", "DOCUMENT_DATABASE_PASSWORD")
+            ),
+            "database": (
+                getattr(config, "role_store_database", None)
+                or os.getenv("DOCUMENT_DATABASE_NAME", "auth")
+            ),
         }
 
         # Convert port to int if it's a string
@@ -269,7 +278,11 @@ class RoleStore:
         # Validate roles
         invalid_roles = [r for r in roles if r not in self.VALID_ROLES]
         if invalid_roles:
-            raise ValueError(f"Invalid roles: {', '.join(invalid_roles)}. Valid roles are: {', '.join(sorted(self.VALID_ROLES))}")
+            valid_roles_str = ", ".join(sorted(self.VALID_ROLES))
+            raise ValueError(
+                f"Invalid roles: {', '.join(invalid_roles)}. "
+                f"Valid roles are: {valid_roles_str}"
+            )
 
         record = self._find_user_record(user_id)
 
@@ -361,7 +374,11 @@ class RoleStore:
         # Validate roles
         invalid_roles = [r for r in roles if r not in self.VALID_ROLES]
         if invalid_roles:
-            raise ValueError(f"Invalid roles: {', '.join(invalid_roles)}. Valid roles are: {', '.join(sorted(self.VALID_ROLES))}")
+            valid_roles_str = ", ".join(sorted(self.VALID_ROLES))
+            raise ValueError(
+                f"Invalid roles: {', '.join(invalid_roles)}. "
+                f"Valid roles are: {valid_roles_str}"
+            )
 
         record = self._find_user_record(user_id)
 

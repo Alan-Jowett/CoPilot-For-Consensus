@@ -7,13 +7,12 @@ import logging
 from unittest.mock import Mock
 
 import pytest
-from pymongo.errors import DuplicateKeyError
-
+from app.service import ParsingService
 from copilot_events import EventPublisher, EventSubscriber, NoopPublisher, NoopSubscriber
 from copilot_storage import DocumentStore, InMemoryDocumentStore
 from copilot_storage.validating_document_store import DocumentValidationError
+from pymongo.errors import DuplicateKeyError
 
-from app.service import ParsingService
 from .test_helpers import assert_valid_event_schema
 
 

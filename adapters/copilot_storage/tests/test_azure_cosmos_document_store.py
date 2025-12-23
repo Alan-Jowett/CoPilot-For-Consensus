@@ -3,17 +3,17 @@
 
 """Tests for Azure Cosmos DB document store."""
 
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
 from copilot_storage import (
-    create_document_store,
     AzureCosmosDocumentStore,
+    DocumentNotFoundError,
     DocumentStore,
     DocumentStoreConnectionError,
-    DocumentStoreNotConnectedError,
-    DocumentNotFoundError,
     DocumentStoreError,
+    DocumentStoreNotConnectedError,
+    create_document_store,
 )
 
 

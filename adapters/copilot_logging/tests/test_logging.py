@@ -4,16 +4,15 @@
 """Tests for logging abstraction."""
 
 import json
-import os
-import pytest
 from io import StringIO
 from unittest.mock import patch
 
+import pytest
 from copilot_logging import (
-    create_logger,
     Logger,
-    StdoutLogger,
     SilentLogger,
+    StdoutLogger,
+    create_logger,
 )
 
 

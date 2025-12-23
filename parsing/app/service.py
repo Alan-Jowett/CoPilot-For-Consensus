@@ -5,23 +5,22 @@
 
 import time
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
-from pymongo.errors import DuplicateKeyError
-
-from copilot_storage.validating_document_store import DocumentValidationError
+from typing import Any
 
 from copilot_events import (
+    ArchiveIngestedEvent,
     EventPublisher,
     EventSubscriber,
-    ArchiveIngestedEvent,
     JSONParsedEvent,
     ParsingFailedEvent,
 )
-from copilot_storage import DocumentStore
+from copilot_logging import create_logger
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
 from copilot_schema_validation import generate_message_doc_id
-from copilot_logging import create_logger
+from copilot_storage import DocumentStore
+from copilot_storage.validating_document_store import DocumentValidationError
+from pymongo.errors import DuplicateKeyError
 
 from .parser import MessageParser
 from .thread_builder import ThreadBuilder
@@ -37,8 +36,8 @@ class ParsingService:
         document_store: DocumentStore,
         publisher: EventPublisher,
         subscriber: EventSubscriber,
-        metrics_collector: Optional[MetricsCollector] = None,
-        error_reporter: Optional[ErrorReporter] = None,
+        metrics_collector: MetricsCollector | None = None,
+        error_reporter: ErrorReporter | None = None,
     ):
         """Initialize parsing service.
 
@@ -124,7 +123,7 @@ class ParsingService:
             logger.error(f"Startup requeue failed: {e}", exc_info=True)
             # Don't fail service startup on requeue errors
 
-    def _handle_archive_ingested(self, event: Dict[str, Any]):
+    def _handle_archive_ingested(self, event: dict[str, Any]):
         """Handle ArchiveIngested event.
 
         This is an event handler for message queue consumption. Exceptions are
@@ -150,7 +149,7 @@ class ParsingService:
                 self.error_reporter.report(e, context={"event": event})
             raise  # Re-raise to trigger message requeue for transient failures
 
-    def process_archive(self, archive_data: Dict[str, Any]):
+    def process_archive(self, archive_data: dict[str, Any]):
         """Process an archive and parse messages.
 
         Errors are handled by publishing ParsingFailed events and collecting
@@ -492,7 +491,7 @@ class ParsingService:
             # Validate required fields exist
             message_doc_id = message.get("_id")
             if not message_doc_id:
-                logger.error(f"Cannot publish event: message missing required '_id' field")
+                logger.error("Cannot publish event: message missing required '_id' field")
                 failed_publishes.append((
                     "unknown",
                     ValueError("Message missing required '_id' field")
@@ -590,7 +589,7 @@ class ParsingService:
                 self.error_reporter.report(e, context={"archive_id": archive_id})
             raise
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get parsing statistics.
 
         Returns:

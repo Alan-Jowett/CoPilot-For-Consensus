@@ -4,9 +4,8 @@
 """Tests for schema provider implementations."""
 
 import json
-import logging
-import pytest
 
+import pytest
 from copilot_schema_validation.file_schema_provider import FileSchemaProvider
 
 

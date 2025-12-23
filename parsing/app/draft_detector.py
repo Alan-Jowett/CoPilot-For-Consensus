@@ -4,7 +4,6 @@
 """Draft and RFC mention detection."""
 
 import re
-from typing import List
 
 
 class DraftDetector:
@@ -21,7 +20,7 @@ class DraftDetector:
         self.pattern = pattern or self.DEFAULT_PATTERN
         self.regex = re.compile(self.pattern, re.IGNORECASE)
 
-    def detect(self, text: str) -> List[str]:
+    def detect(self, text: str) -> list[str]:
         """Detect RFC and draft mentions in text.
 
         Args:

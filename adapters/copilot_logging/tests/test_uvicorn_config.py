@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from io import StringIO
 from unittest.mock import patch
 
-from copilot_logging.uvicorn_config import create_uvicorn_log_config, JSONFormatter
+from copilot_logging.uvicorn_config import JSONFormatter, create_uvicorn_log_config
 
 
 class TestJSONFormatter:

@@ -4,31 +4,29 @@
 """Ingestion Service: Continuous service for managing and ingesting mailing list archives."""
 
 import os
-import sys
 import signal
+import sys
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
-from fastapi import FastAPI
 import uvicorn
-
-from copilot_config import load_typed_config
-from copilot_events import create_publisher, ValidatingEventPublisher
-from copilot_logging import create_logger, create_uvicorn_log_config
-from copilot_schema_validation import FileSchemaProvider
-from copilot_metrics import create_metrics_collector
-from copilot_storage import (
-    create_document_store,
-    ValidatingDocumentStore,
-    DocumentStoreConnectionError,
-)
-from copilot_config.providers import DocStoreConfigProvider
-
 from app import __version__
-from app.service import IngestionService
 from app.api import create_api_router
 from app.scheduler import IngestionScheduler
+from app.service import IngestionService
+from copilot_config import load_typed_config
+from copilot_config.providers import DocStoreConfigProvider
+from copilot_events import ValidatingEventPublisher, create_publisher
+from copilot_logging import create_logger, create_uvicorn_log_config
+from copilot_metrics import create_metrics_collector
+from copilot_schema_validation import FileSchemaProvider
+from copilot_storage import (
+    DocumentStoreConnectionError,
+    ValidatingDocumentStore,
+    create_document_store,
+)
+from fastapi import FastAPI
 
 # Bootstrap logger before configuration is loaded
 bootstrap_logger = create_logger(logger_type="stdout", level="INFO", name="ingestion-bootstrap")
@@ -237,7 +235,7 @@ def main():
         # Connect publisher
         try:
             base_publisher.connect()
-        except Exception as e:
+        except Exception:
             if str(config.message_bus_type).lower() != "noop":
                 log.error(
                     "Failed to connect to message bus. Failing fast as message_bus_type is not noop.",

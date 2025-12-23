@@ -3,9 +3,9 @@
 
 """Tests for Thread and Message models."""
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
-from copilot_consensus import Thread, Message
+from copilot_consensus import Message, Thread
 
 
 class TestMessage:

@@ -21,12 +21,11 @@ Environment Variables:
 
 import os
 import time
-from typing import Dict, Any
+from typing import Any
 
 from prometheus_client import Gauge, start_http_server
 from pymongo import MongoClient
 from pymongo import errors as pymongo_errors
-
 
 # Configuration
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb://root:example@documentdb:27017/admin")
@@ -79,7 +78,7 @@ TARGET_COLLECTIONS = [
 ]
 
 
-def get_collection_stats(db, collection_name: str) -> Dict[str, Any]:
+def get_collection_stats(db, collection_name: str) -> dict[str, Any]:
     """Get collection statistics from MongoDB."""
     try:
         stats = db.command("collStats", collection_name)
@@ -169,7 +168,7 @@ def main():
             client = MongoClient(MONGO_URI, directConnection=True, serverSelectionTimeoutMS=5000)
             # Test the connection
             client.admin.command('ping')
-            print(f"Successfully connected to MongoDB")
+            print("Successfully connected to MongoDB")
             break
         except pymongo_errors.PyMongoError as e:
             print(f"Failed to connect to MongoDB (attempt {attempt + 1}/{max_retries}): {e}")

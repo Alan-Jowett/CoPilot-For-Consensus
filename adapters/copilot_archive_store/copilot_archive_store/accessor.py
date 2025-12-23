@@ -10,9 +10,8 @@ functionality.
 
 import os
 from pathlib import Path
-from typing import Optional, Tuple
 
-from .archive_store import create_archive_store, ArchiveStore, ArchiveStoreError
+from .archive_store import ArchiveStore, create_archive_store
 
 
 class ArchiveAccessor:
@@ -31,7 +30,7 @@ class ArchiveAccessor:
         ... )
     """
 
-    def __init__(self, archive_store: Optional[ArchiveStore] = None, enable_fallback: bool = True):
+    def __init__(self, archive_store: ArchiveStore | None = None, enable_fallback: bool = True):
         """Initialize archive accessor.
 
         Args:
@@ -55,9 +54,9 @@ class ArchiveAccessor:
 
     def get_archive_content(
         self,
-        archive_id: Optional[str] = None,
-        fallback_file_path: Optional[str] = None
-    ) -> Optional[bytes]:
+        archive_id: str | None = None,
+        fallback_file_path: str | None = None
+    ) -> bytes | None:
         """Get archive content, trying archive store first then file path.
 
         Args:
@@ -90,9 +89,9 @@ class ArchiveAccessor:
 
     def check_archive_availability(
         self,
-        archive_id: Optional[str] = None,
-        fallback_file_path: Optional[str] = None
-    ) -> Tuple[bool, str]:
+        archive_id: str | None = None,
+        fallback_file_path: str | None = None
+    ) -> tuple[bool, str]:
         """Check if archive is available and how it can be accessed.
 
         Args:
@@ -121,7 +120,7 @@ class ArchiveAccessor:
         return (False, "unavailable")
 
     @staticmethod
-    def _read_file(file_path: str) -> Optional[bytes]:
+    def _read_file(file_path: str) -> bytes | None:
         """Read file content from disk.
 
         Args:
@@ -141,7 +140,7 @@ class ArchiveAccessor:
 
 
 def create_archive_accessor(
-    store_type: Optional[str] = None,
+    store_type: str | None = None,
     enable_fallback: bool = True,
     **kwargs
 ) -> ArchiveAccessor:

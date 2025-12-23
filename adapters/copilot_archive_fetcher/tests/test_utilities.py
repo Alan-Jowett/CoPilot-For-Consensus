@@ -4,8 +4,9 @@
 """Tests for utility functions."""
 
 import os
-import pytest
 import tempfile
+
+import pytest
 from copilot_archive_fetcher import calculate_file_hash
 
 

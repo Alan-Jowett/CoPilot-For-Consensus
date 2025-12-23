@@ -5,21 +5,21 @@
 
 import hashlib
 import time
-from typing import Optional, Dict, Any, List
+from typing import Any
 
 from copilot_events import (
     EventPublisher,
     EventSubscriber,
+    SummarizationFailedEvent,
     SummarizationRequestedEvent,
     SummaryCompleteEvent,
-    SummarizationFailedEvent,
 )
-from copilot_storage import DocumentStore
-from copilot_vectorstore import VectorStore
+from copilot_logging import create_logger
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
-from copilot_summarization import Summarizer, Thread, Citation
-from copilot_logging import create_logger
+from copilot_storage import DocumentStore
+from copilot_summarization import Citation, Summarizer, Thread
+from copilot_vectorstore import VectorStore
 
 logger = create_logger(name="summarization")
 
@@ -39,8 +39,8 @@ class SummarizationService:
         citation_text_max_length: int = 500,
         retry_max_attempts: int = 3,
         retry_backoff_seconds: int = 5,
-        metrics_collector: Optional[MetricsCollector] = None,
-        error_reporter: Optional[ErrorReporter] = None,
+        metrics_collector: MetricsCollector | None = None,
+        error_reporter: ErrorReporter | None = None,
     ):
         """Initialize summarization service.
 
@@ -134,7 +134,7 @@ class SummarizationService:
             logger.error(f"Startup requeue failed: {e}", exc_info=True)
             # Don't fail service startup on requeue errors
 
-    def _handle_summarization_requested(self, event: Dict[str, Any]):
+    def _handle_summarization_requested(self, event: dict[str, Any]):
         """Handle SummarizationRequested event.
 
         This is an event handler for message queue consumption. Exceptions are
@@ -160,7 +160,7 @@ class SummarizationService:
                 self.error_reporter.report(e, context={"event": event})
             raise  # Re-raise to trigger message requeue for transient failures
 
-    def process_summarization(self, event_data: Dict[str, Any]):
+    def process_summarization(self, event_data: dict[str, Any]):
         """Process summarization request for threads.
 
         Args:
@@ -381,7 +381,7 @@ class SummarizationService:
                         # Push metrics to Pushgateway
                         self.metrics_collector.safe_push()
 
-    def _retrieve_context(self, thread_id: str, top_k: int) -> Dict[str, Any]:
+    def _retrieve_context(self, thread_id: str, top_k: int) -> dict[str, Any]:
         """Retrieve context for a thread from vector and document stores.
 
         Args:
@@ -427,9 +427,9 @@ class SummarizationService:
 
     def _format_citations(
         self,
-        citations: List[Citation],
-        chunks: List[Dict[str, Any]],
-    ) -> List[Dict[str, Any]]:
+        citations: list[Citation],
+        chunks: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
         """Format citations for output.
 
         Args:
@@ -468,7 +468,7 @@ class SummarizationService:
 
         return formatted
 
-    def _generate_summary_id(self, thread_id: str, citations: List[Dict[str, Any]]) -> str:
+    def _generate_summary_id(self, thread_id: str, citations: list[dict[str, Any]]) -> str:
         """Generate deterministic summary ID from thread and chunk IDs.
 
         Creates a SHA256 hash of the thread_id combined with sorted chunk_ids
@@ -498,7 +498,7 @@ class SummarizationService:
         summary_id: str,
         thread_id: str,
         summary_markdown: str,
-        citations: List[Dict[str, Any]],
+        citations: list[dict[str, Any]],
         llm_backend: str,
         llm_model: str,
         tokens_prompt: int,
@@ -587,7 +587,7 @@ class SummarizationService:
             f"{error_type} - {error_message}"
         )
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get service statistics.
 
         Returns:

@@ -7,7 +7,7 @@ import json
 import logging
 import sys
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from .logger import Logger
 
@@ -15,7 +15,7 @@ from .logger import Logger
 class StdoutLogger(Logger):
     """Logger that outputs structured JSON logs to stdout."""
 
-    def __init__(self, level: str = "INFO", name: Optional[str] = None):
+    def __init__(self, level: str = "INFO", name: str | None = None):
         """Initialize stdout logger.
 
         Args:

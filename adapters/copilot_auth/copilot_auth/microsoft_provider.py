@@ -7,7 +7,7 @@ This module provides authentication via Microsoft Entra ID OAuth/OIDC,
 allowing users to authenticate using their Microsoft accounts.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 from .models import User
 from .oidc_provider import OIDCProvider
@@ -55,7 +55,7 @@ class MicrosoftIdentityProvider(OIDCProvider):
 
         self.tenant = tenant
 
-    def _map_userinfo_to_user(self, userinfo: Dict[str, Any], provider_id: str) -> User:
+    def _map_userinfo_to_user(self, userinfo: dict[str, Any], provider_id: str) -> User:
         """Map Microsoft userinfo to User model.
 
         Args:

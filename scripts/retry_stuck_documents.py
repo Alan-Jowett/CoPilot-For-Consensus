@@ -36,9 +36,9 @@ import json
 import os
 import sys
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any
 
 from copilot_logging import create_logger
 
@@ -71,7 +71,7 @@ except ImportError:
 logger = create_logger(name=__name__)
 
 
-def _get_env_or_secret(env_var: str, secret_name: str) -> Optional[str]:
+def _get_env_or_secret(env_var: str, secret_name: str) -> str | None:
     """Return env var if set, otherwise read from /run/secrets/<secret_name>."""
     if env_var in os.environ and os.environ[env_var]:
         return os.environ[env_var]
@@ -186,8 +186,8 @@ class RetryStuckDocumentsJob:
         mongodb_host: str = "localhost",
         mongodb_port: int = 27017,
         mongodb_database: str = "copilot",
-        mongodb_username: Optional[str] = None,
-        mongodb_password: Optional[str] = None,
+        mongodb_username: str | None = None,
+        mongodb_password: str | None = None,
         rabbitmq_host: str = "localhost",
         rabbitmq_port: int = 5672,
         rabbitmq_username: str = "guest",
@@ -321,7 +321,7 @@ class RetryStuckDocumentsJob:
 
         return datetime.now(timezone.utc) >= next_attempt_time
 
-    def find_stuck_documents(self, collection_name: str, max_attempts: int) -> List[Dict[str, Any]]:
+    def find_stuck_documents(self, collection_name: str, max_attempts: int) -> list[dict[str, Any]]:
         """Find stuck documents eligible for retry.
 
         Args:
@@ -417,7 +417,7 @@ class RetryStuckDocumentsJob:
         self,
         event_type: str,
         routing_key: str,
-        document: Dict[str, Any],
+        document: dict[str, Any],
         collection_name: str
     ):
         """Publish event to trigger document reprocessing.
@@ -452,7 +452,7 @@ class RetryStuckDocumentsJob:
 
         logger.info(f"Published {event_type} event for retry: {routing_key}")
 
-    def _build_event_data(self, collection_name: str, document: Dict[str, Any]) -> Dict[str, Any]:
+    def _build_event_data(self, collection_name: str, document: dict[str, Any]) -> dict[str, Any]:
         """Build event data payload for retry.
 
         Args:
@@ -488,7 +488,7 @@ class RetryStuckDocumentsJob:
         else:
             return {}
 
-    def process_collection(self, collection_name: str, config: Dict[str, Any]):
+    def process_collection(self, collection_name: str, config: dict[str, Any]):
         """Process stuck documents in a collection.
 
         Args:

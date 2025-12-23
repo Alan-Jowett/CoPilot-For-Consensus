@@ -8,10 +8,9 @@ for testing and local development without requiring external authentication
 services.
 """
 
-from typing import Dict, Optional
 
 from .models import User
-from .provider import IdentityProvider, AuthenticationError
+from .provider import AuthenticationError, IdentityProvider
 
 
 class MockIdentityProvider(IdentityProvider):
@@ -26,7 +25,7 @@ class MockIdentityProvider(IdentityProvider):
 
     def __init__(self):
         """Initialize the mock provider with an empty user dictionary."""
-        self.users: Dict[str, User] = {}
+        self.users: dict[str, User] = {}
 
     def add_user(self, token: str, user: User) -> None:
         """Add a user to the mock provider.
@@ -46,7 +45,7 @@ class MockIdentityProvider(IdentityProvider):
         if token in self.users:
             del self.users[token]
 
-    def get_user(self, token: str) -> Optional[User]:
+    def get_user(self, token: str) -> User | None:
         """Retrieve user information from an authentication token.
 
         Args:

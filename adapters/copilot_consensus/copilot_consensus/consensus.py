@@ -8,13 +8,13 @@ allowing different heuristics, rule-based systems, or ML models to be plugged in
 for identifying signs of agreement, dissent, or stagnation in threads.
 """
 
+import os
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import List, Dict, Any, Optional
-import re
-import os
+from typing import Any
 
 from .thread import Thread
 
@@ -42,9 +42,9 @@ class ConsensusSignal:
     """
     level: ConsensusLevel
     confidence: float
-    signals: List[str] = field(default_factory=list)
+    signals: list[str] = field(default_factory=list)
     explanation: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Validate confidence score."""
@@ -187,20 +187,28 @@ class HeuristicConsensusDetector(ConsensusDetector):
 
             if agreement_count >= self.agreement_threshold * 2:
                 confidence = min(0.95, 0.7 + (agreement_count * 0.05))
+                explanation = (
+                    f"Strong consensus with {agreement_count} agreement signals "
+                    f"from {participant_count} participants"
+                )
                 return ConsensusSignal(
                     level=ConsensusLevel.STRONG_CONSENSUS,
                     confidence=confidence,
                     signals=signals,
-                    explanation=f"Strong consensus with {agreement_count} agreement signals from {participant_count} participants",
+                    explanation=explanation,
                     metadata=metadata
                 )
             else:
                 confidence = min(0.85, 0.6 + (agreement_count * 0.05))
+                explanation = (
+                    f"Consensus detected with {agreement_count} agreement signals "
+                    f"from {participant_count} participants"
+                )
                 return ConsensusSignal(
                     level=ConsensusLevel.CONSENSUS,
                     confidence=confidence,
                     signals=signals,
-                    explanation=f"Consensus detected with {agreement_count} agreement signals from {participant_count} participants",
+                    explanation=explanation,
                     metadata=metadata
                 )
 
@@ -208,11 +216,15 @@ class HeuristicConsensusDetector(ConsensusDetector):
         if agreement_count > 0 or reply_count >= 2:
             signals.append(f"Limited agreement ({agreement_count} signal(s))")
             signals.append(f"{reply_count} reply/replies")
+            explanation = (
+                f"Weak consensus with limited engagement "
+                f"({reply_count} replies, {agreement_count} agreements)"
+            )
             return ConsensusSignal(
                 level=ConsensusLevel.WEAK_CONSENSUS,
                 confidence=0.5,
                 signals=signals,
-                explanation=f"Weak consensus with limited engagement ({reply_count} replies, {agreement_count} agreements)",
+                explanation=explanation,
                 metadata=metadata
             )
 
@@ -226,7 +238,7 @@ class HeuristicConsensusDetector(ConsensusDetector):
             metadata=metadata
         )
 
-    def _count_patterns(self, thread: Thread, patterns: List[str]) -> int:
+    def _count_patterns(self, thread: Thread, patterns: list[str]) -> int:
         """Count occurrences of patterns across all messages in thread."""
         count = 0
         for message in thread.messages:
@@ -277,7 +289,7 @@ class MLConsensusDetector(ConsensusDetector):
     - Ensemble methods combining multiple ML approaches
     """
 
-    def __init__(self, model_path: Optional[str] = None):
+    def __init__(self, model_path: str | None = None):
         """Initialize ML detector.
 
         Args:
@@ -299,7 +311,7 @@ class MLConsensusDetector(ConsensusDetector):
         )
 
 
-def create_consensus_detector(detector_type: Optional[str] = None) -> ConsensusDetector:
+def create_consensus_detector(detector_type: str | None = None) -> ConsensusDetector:
     """Factory method to create consensus detector based on configuration.
 
     Args:

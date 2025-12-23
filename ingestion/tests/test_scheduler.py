@@ -4,16 +4,16 @@
 """Unit tests for ingestion scheduler."""
 
 import time
-import pytest
 from unittest.mock import patch
 
+import pytest
+from app.scheduler import IngestionScheduler
+from app.service import IngestionService
 from copilot_events import NoopPublisher
-from copilot_storage import InMemoryDocumentStore
 from copilot_logging import create_logger
 from copilot_metrics import NoOpMetricsCollector
+from copilot_storage import InMemoryDocumentStore
 
-from app.service import IngestionService
-from app.scheduler import IngestionScheduler
 from .test_helpers import make_config
 
 

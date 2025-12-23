@@ -32,15 +32,14 @@ Usage:
 import os
 import time
 import traceback
-from typing import Callable, List, Optional
+from collections.abc import Callable
 
 import httpx
 import jwt
+from copilot_logging import create_logger
 from fastapi import HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-
-from copilot_logging import create_logger
 
 logger = create_logger(logger_type="stdout", level="INFO", name="copilot_auth.middleware")
 
@@ -64,8 +63,8 @@ class JWTMiddleware(BaseHTTPMiddleware):
         app,
         auth_service_url: str,
         audience: str,
-        required_roles: Optional[List[str]] = None,
-        public_paths: Optional[List[str]] = None,
+        required_roles: list[str] | None = None,
+        public_paths: list[str] | None = None,
         jwks_cache_ttl: int = 3600,
     ):
         """Initialize JWT middleware.
@@ -86,7 +85,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
         self.jwks_cache_ttl = jwks_cache_ttl
 
         # JWKS cache with timestamp
-        self.jwks: Optional[dict] = None
+        self.jwks: dict | None = None
         self.jwks_last_fetched: float = 0
         self._fetch_jwks()
 
@@ -116,7 +115,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
             if self.jwks is None:
                 self.jwks = {"keys": []}
 
-    def _get_public_key(self, token_header: dict) -> Optional[str]:
+    def _get_public_key(self, token_header: dict) -> str | None:
         """Get public key for token validation.
 
         Args:
@@ -399,16 +398,17 @@ class JWTMiddleware(BaseHTTPMiddleware):
 
 
 def create_jwt_middleware(
-    auth_service_url: Optional[str] = None,
-    audience: Optional[str] = None,
-    required_roles: Optional[List[str]] = None,
-    public_paths: Optional[List[str]] = None,
+    auth_service_url: str | None = None,
+    audience: str | None = None,
+    required_roles: list[str] | None = None,
+    public_paths: list[str] | None = None,
 ) -> type[JWTMiddleware]:
     """Factory function to create JWT middleware with configuration.
 
     Args:
         auth_service_url: URL of auth service (default: from AUTH_SERVICE_URL env)
-        audience: Expected audience (default: from SERVICE_AUDIENCE env, or SERVICE_NAME for backward compatibility, or 'copilot-for-consensus')
+        audience: Expected audience (default: from SERVICE_AUDIENCE env,
+            or SERVICE_NAME for backward compatibility, or 'copilot-for-consensus')
         required_roles: Optional list of required roles
         public_paths: List of paths that don't require auth
 

@@ -5,21 +5,21 @@
 
 import time
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List
+from typing import Any
 
+from copilot_embedding import EmbeddingProvider
 from copilot_events import (
+    ChunksPreparedEvent,
+    EmbeddingGenerationFailedEvent,
+    EmbeddingsGeneratedEvent,
     EventPublisher,
     EventSubscriber,
-    ChunksPreparedEvent,
-    EmbeddingsGeneratedEvent,
-    EmbeddingGenerationFailedEvent,
 )
-from copilot_storage import DocumentStore
-from copilot_vectorstore import VectorStore
-from copilot_embedding import EmbeddingProvider
+from copilot_logging import create_logger
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
-from copilot_logging import create_logger
+from copilot_storage import DocumentStore
+from copilot_vectorstore import VectorStore
 
 logger = create_logger(name="embedding")
 
@@ -34,8 +34,8 @@ class EmbeddingService:
         embedding_provider: EmbeddingProvider,
         publisher: EventPublisher,
         subscriber: EventSubscriber,
-        metrics_collector: Optional[MetricsCollector] = None,
-        error_reporter: Optional[ErrorReporter] = None,
+        metrics_collector: MetricsCollector | None = None,
+        error_reporter: ErrorReporter | None = None,
         embedding_model: str = "all-MiniLM-L6-v2",
         embedding_backend: str = "sentencetransformers",
         embedding_dimension: int = 384,
@@ -141,7 +141,7 @@ class EmbeddingService:
             logger.error(f"Startup requeue failed: {e}", exc_info=True)
             # Don't fail service startup on requeue errors
 
-    def _handle_chunks_prepared(self, event: Dict[str, Any]):
+    def _handle_chunks_prepared(self, event: dict[str, Any]):
         """Handle ChunksPrepared event.
 
         This is an event handler for message queue consumption. Exceptions are
@@ -167,7 +167,7 @@ class EmbeddingService:
                 self.error_reporter.report(e, context={"event": event})
             raise  # Re-raise to trigger message requeue for transient failures
 
-    def process_chunks(self, event_data: Dict[str, Any]):
+    def process_chunks(self, event_data: dict[str, Any]):
         """Process chunks and generate embeddings.
 
         Args:
@@ -310,7 +310,7 @@ class EmbeddingService:
                     logger.info(f"Retrying in {capped_backoff_time} seconds...")
                     time.sleep(capped_backoff_time)
 
-    def _generate_batch_embeddings(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _generate_batch_embeddings(self, chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Generate embeddings for a batch of chunks.
 
         Args:
@@ -358,7 +358,7 @@ class EmbeddingService:
 
         return embeddings
 
-    def _store_embeddings(self, embeddings: List[Dict[str, Any]]):
+    def _store_embeddings(self, embeddings: list[dict[str, Any]]):
         """Store embeddings in vector store.
 
         Args:
@@ -381,7 +381,7 @@ class EmbeddingService:
         if self.metrics_collector:
             self.metrics_collector.increment("vector_store_documents_total", value=len(embeddings))
 
-    def _update_chunk_status_by_doc_ids(self, doc_ids: List[str]):
+    def _update_chunk_status_by_doc_ids(self, doc_ids: list[str]):
         """Update chunk embedding status in document database using Mongo _id values.
 
         Idempotent operation: updates chunks with embedding_generated=True.
@@ -424,7 +424,7 @@ class EmbeddingService:
 
     def _publish_embeddings_generated(
         self,
-        chunk_ids: List[str],
+        chunk_ids: list[str],
         embedding_count: int,
         avg_generation_time_ms: float,
     ):
@@ -461,7 +461,7 @@ class EmbeddingService:
 
     def _publish_embedding_failed(
         self,
-        chunk_ids: List[str],
+        chunk_ids: list[str],
         error_message: str,
         error_type: str,
         retry_count: int,
@@ -496,7 +496,7 @@ class EmbeddingService:
 
         logger.error(f"Published EmbeddingGenerationFailed event for {len(chunk_ids)} chunks")
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get service statistics.
 
         Returns:

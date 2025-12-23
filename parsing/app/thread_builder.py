@@ -5,7 +5,7 @@
 
 import logging
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Set
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class ThreadBuilder:
     """Builds thread relationships from parsed messages."""
 
-    def build_threads(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def build_threads(self, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Build thread documents from parsed messages.
 
         This method:
@@ -127,8 +127,8 @@ class ThreadBuilder:
     def _find_thread_root(
         self,
         message_id: str,
-        message_map: Dict[str, Dict[str, Any]],
-        known_roots: Set[str],
+        message_map: dict[str, dict[str, Any]],
+        known_roots: set[str],
         max_depth: int = 100,
     ) -> str:
         """Find the root message ID for a thread by following in_reply_to chain.

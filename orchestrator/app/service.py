@@ -6,19 +6,19 @@
 import hashlib
 import time
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List, Set
+from typing import Any
 
 from copilot_events import (
+    EmbeddingsGeneratedEvent,
     EventPublisher,
     EventSubscriber,
-    EmbeddingsGeneratedEvent,
-    SummarizationRequestedEvent,
     OrchestrationFailedEvent,
+    SummarizationRequestedEvent,
 )
-from copilot_storage import DocumentStore
+from copilot_logging import create_logger
 from copilot_metrics import MetricsCollector
 from copilot_reporting import ErrorReporter
-from copilot_logging import create_logger
+from copilot_storage import DocumentStore
 
 logger = create_logger(name="orchestrator")
 
@@ -37,8 +37,8 @@ class OrchestrationService:
         llm_model: str = "mistral",
         llm_temperature: float = 0.2,
         llm_max_tokens: int = 2048,
-        metrics_collector: Optional[MetricsCollector] = None,
-        error_reporter: Optional[ErrorReporter] = None,
+        metrics_collector: MetricsCollector | None = None,
+        error_reporter: ErrorReporter | None = None,
     ):
         """Initialize orchestration service.
 
@@ -103,7 +103,7 @@ class OrchestrationService:
 
             logger.info("Scanning for threads ready for summarization to requeue on startup...")
 
-            requeue = StartupRequeue(
+            StartupRequeue(
                 document_store=self.document_store,
                 publisher=self.publisher,
                 metrics_collector=self.metrics_collector,
@@ -231,7 +231,7 @@ class OrchestrationService:
             logger.error(f"Startup requeue failed: {e}", exc_info=True)
             # Don't fail service startup on requeue errors
 
-    def _handle_embeddings_generated(self, event: Dict[str, Any]):
+    def _handle_embeddings_generated(self, event: dict[str, Any]):
         """Handle EmbeddingsGenerated event.
 
         This is an event handler for message queue consumption. Exceptions are
@@ -261,7 +261,7 @@ class OrchestrationService:
             self.failures_count += 1
             raise  # Re-raise to trigger message requeue for transient failures
 
-    def process_embeddings(self, event_data: Dict[str, Any]):
+    def process_embeddings(self, event_data: dict[str, Any]):
         """Process embeddings and orchestrate summarization.
 
         Args:
@@ -316,7 +316,7 @@ class OrchestrationService:
             self.last_processing_time = time.time() - start_time
             logger.info(f"Processing completed in {self.last_processing_time:.2f}s")
 
-    def _resolve_threads(self, chunk_ids: List[str]) -> List[str]:
+    def _resolve_threads(self, chunk_ids: list[str]) -> list[str]:
         """Resolve thread IDs from chunk IDs.
 
         Args:
@@ -325,7 +325,7 @@ class OrchestrationService:
         Returns:
             List of unique thread IDs
         """
-        thread_ids: Set[str] = set()
+        thread_ids: set[str] = set()
 
         try:
             # Query document store for chunks by _id
@@ -404,7 +404,7 @@ class OrchestrationService:
             logger.error(f"Error in _orchestrate_thread for {thread_id}: {e}", exc_info=True)
             raise
 
-    def _calculate_summary_id(self, thread_id: str, chunks: List[Dict[str, Any]]) -> str:
+    def _calculate_summary_id(self, thread_id: str, chunks: list[dict[str, Any]]) -> str:
         """Calculate deterministic summary ID from thread and chunks.
 
         Uses the same algorithm as the summarization service to predict what
@@ -458,7 +458,7 @@ class OrchestrationService:
             # On error, assume summary doesn't exist to avoid blocking summarization
             return False
 
-    def _retrieve_context(self, thread_id: str) -> Dict[str, Any]:
+    def _retrieve_context(self, thread_id: str) -> dict[str, Any]:
         """Retrieve top-k chunks and metadata for a thread.
 
         Args:
@@ -508,7 +508,7 @@ class OrchestrationService:
                 self.error_reporter.report(e, context={"thread_id": thread_id})
             raise
 
-    def _publish_summarization_requested(self, thread_ids: List[str], context: Dict[str, Any]):
+    def _publish_summarization_requested(self, thread_ids: list[str], context: dict[str, Any]):
         """Publish SummarizationRequested event.
 
         Args:
@@ -551,7 +551,7 @@ class OrchestrationService:
                 self.error_reporter.report(e, context={"thread_ids": thread_ids})
             raise
 
-    def _publish_orchestration_failed(self, thread_ids: List[str], error_message: str, error_type: str):
+    def _publish_orchestration_failed(self, thread_ids: list[str], error_message: str, error_type: str):
         """Publish OrchestrationFailed event.
 
         Args:
@@ -595,7 +595,7 @@ class OrchestrationService:
                 self.error_reporter.report(e, context={"thread_ids": thread_ids})
             raise
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get service statistics.
 
         Returns:

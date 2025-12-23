@@ -4,7 +4,6 @@
 """No-op metrics collector for testing and local development."""
 
 import logging
-from typing import Dict, Optional, List, Tuple
 
 from .metrics import MetricsCollector
 
@@ -28,11 +27,11 @@ class NoOpMetricsCollector(MetricsCollector):
         Args:
             **kwargs: Ignored (for compatibility with factory method)
         """
-        self.counters: List[Tuple[str, float, Optional[Dict[str, str]]]] = []
-        self.observations: List[Tuple[str, float, Optional[Dict[str, str]]]] = []
-        self.gauges: List[Tuple[str, float, Optional[Dict[str, str]]]] = []
+        self.counters: list[tuple[str, float, dict[str, str] | None]] = []
+        self.observations: list[tuple[str, float, dict[str, str] | None]] = []
+        self.gauges: list[tuple[str, float, dict[str, str] | None]] = []
 
-    def increment(self, name: str, value: float = 1.0, tags: Optional[Dict[str, str]] = None) -> None:
+    def increment(self, name: str, value: float = 1.0, tags: dict[str, str] | None = None) -> None:
         """Store counter increment in memory.
 
         Args:
@@ -43,7 +42,7 @@ class NoOpMetricsCollector(MetricsCollector):
         self.counters.append((name, value, tags))
         logger.debug(f"NoOpMetricsCollector: increment {name} by {value} with tags {tags}")
 
-    def observe(self, name: str, value: float, tags: Optional[Dict[str, str]] = None) -> None:
+    def observe(self, name: str, value: float, tags: dict[str, str] | None = None) -> None:
         """Store observation in memory.
 
         Args:
@@ -54,7 +53,7 @@ class NoOpMetricsCollector(MetricsCollector):
         self.observations.append((name, value, tags))
         logger.debug(f"NoOpMetricsCollector: observe {name} value {value} with tags {tags}")
 
-    def gauge(self, name: str, value: float, tags: Optional[Dict[str, str]] = None) -> None:
+    def gauge(self, name: str, value: float, tags: dict[str, str] | None = None) -> None:
         """Store gauge value in memory.
 
         Args:
@@ -71,7 +70,7 @@ class NoOpMetricsCollector(MetricsCollector):
         self.observations.clear()
         self.gauges.clear()
 
-    def get_counter_total(self, name: str, tags: Optional[Dict[str, str]] = None) -> float:
+    def get_counter_total(self, name: str, tags: dict[str, str] | None = None) -> float:
         """Get total value of a counter metric.
 
         Args:
@@ -88,7 +87,7 @@ class NoOpMetricsCollector(MetricsCollector):
                     total += value
         return total
 
-    def get_observations(self, name: str, tags: Optional[Dict[str, str]] = None) -> List[float]:
+    def get_observations(self, name: str, tags: dict[str, str] | None = None) -> list[float]:
         """Get all observed values for a metric.
 
         Args:
@@ -103,7 +102,7 @@ class NoOpMetricsCollector(MetricsCollector):
             if obs_name == name and (tags is None or obs_tags == tags)
         ]
 
-    def get_gauge_value(self, name: str, tags: Optional[Dict[str, str]] = None) -> Optional[float]:
+    def get_gauge_value(self, name: str, tags: dict[str, str] | None = None) -> float | None:
         """Get the most recent value of a gauge metric.
 
         Args:

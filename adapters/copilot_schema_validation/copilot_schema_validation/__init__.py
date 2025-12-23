@@ -9,49 +9,49 @@ in the Copilot-for-Consensus system.
 
 __version__ = "0.1.0"
 
-from .schema_provider import SchemaProvider
 from .file_schema_provider import FileSchemaProvider
-from .schema_validator import validate_json
-from .schema_registry import (
-    get_schema_path,
-    load_schema,
-    list_schemas,
-    validate_registry,
-    get_schema_metadata,
-    SCHEMA_REGISTRY,
-)
 from .identifier_generator import (
     generate_archive_id_from_bytes,
-    generate_message_doc_id,
     generate_chunk_id,
+    generate_message_doc_id,
     generate_summary_id,
 )
 from .models import (
-    BaseEvent,
     # Ingestion Service Events
     ArchiveIngestedEvent,
     ArchiveIngestionFailedEvent,
-    # Parsing Service Events
-    JSONParsedEvent,
-    ParsingFailedEvent,
-    # Chunking Service Events
-    ChunksPreparedEvent,
-    ChunkingFailedEvent,
-    # Embedding Service Events
-    EmbeddingsGeneratedEvent,
-    EmbeddingGenerationFailedEvent,
-    # Orchestration Service Events
-    SummarizationRequestedEvent,
-    OrchestrationFailedEvent,
-    # Summarization Service Events
-    SummaryCompleteEvent,
-    SummarizationFailedEvent,
-    # Reporting Service Events
-    ReportPublishedEvent,
-    ReportDeliveryFailedEvent,
     # Data Models
     ArchiveMetadata,
+    BaseEvent,
+    ChunkingFailedEvent,
+    # Chunking Service Events
+    ChunksPreparedEvent,
+    EmbeddingGenerationFailedEvent,
+    # Embedding Service Events
+    EmbeddingsGeneratedEvent,
+    # Parsing Service Events
+    JSONParsedEvent,
+    OrchestrationFailedEvent,
+    ParsingFailedEvent,
+    ReportDeliveryFailedEvent,
+    # Reporting Service Events
+    ReportPublishedEvent,
+    SummarizationFailedEvent,
+    # Orchestration Service Events
+    SummarizationRequestedEvent,
+    # Summarization Service Events
+    SummaryCompleteEvent,
 )
+from .schema_provider import SchemaProvider
+from .schema_registry import (
+    SCHEMA_REGISTRY,
+    get_schema_metadata,
+    get_schema_path,
+    list_schemas,
+    load_schema,
+    validate_registry,
+)
+from .schema_validator import validate_json
 
 __all__ = [
     # Schema validation

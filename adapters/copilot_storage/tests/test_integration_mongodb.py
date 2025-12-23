@@ -4,14 +4,14 @@
 """Integration tests for MongoDB document store against a real MongoDB instance."""
 
 import os
-import pytest
 import time
 
+import pytest
 from copilot_storage import (
-    create_document_store,
-    MongoDocumentStore,
-    DocumentStoreNotConnectedError,
     DocumentNotFoundError,
+    DocumentStoreNotConnectedError,
+    MongoDocumentStore,
+    create_document_store,
 )
 
 
@@ -509,7 +509,7 @@ class TestMongoDBAggregate:
                 mongodb_store.database[refs_col].drop()
 
             # Insert messages and references
-            msg_id = mongodb_store.insert_document(messages_col, {"message_key": "msg1", "text": "Test"})
+            mongodb_store.insert_document(messages_col, {"message_key": "msg1", "text": "Test"})
             mongodb_store.insert_document(refs_col, {"message_key": "msg1", "ref_id": "ref1"})
 
             # Aggregate with $lookup to bring in referenced documents

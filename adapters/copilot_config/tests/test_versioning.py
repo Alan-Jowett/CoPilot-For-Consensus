@@ -5,8 +5,8 @@
 
 import json
 import os
-import pytest
 
+import pytest
 from copilot_config import (
     ConfigSchema,
     ConfigSchemaError,

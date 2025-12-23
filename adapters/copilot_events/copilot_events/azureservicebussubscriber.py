@@ -6,11 +6,12 @@
 import json
 import logging
 import threading
-from typing import Callable, Dict, Any, Optional
+from collections.abc import Callable
+from typing import Any
 
 try:
-    from azure.servicebus import ServiceBusClient, ServiceBusReceiveMode
     from azure.identity import DefaultAzureCredential
+    from azure.servicebus import ServiceBusClient, ServiceBusReceiveMode
 except ImportError:
     ServiceBusClient = None  # type: ignore
     ServiceBusReceiveMode = None  # type: ignore
@@ -30,11 +31,11 @@ class AzureServiceBusSubscriber(EventSubscriber):
 
     def __init__(
         self,
-        connection_string: Optional[str] = None,
-        fully_qualified_namespace: Optional[str] = None,
-        queue_name: Optional[str] = None,
-        topic_name: Optional[str] = None,
-        subscription_name: Optional[str] = None,
+        connection_string: str | None = None,
+        fully_qualified_namespace: str | None = None,
+        queue_name: str | None = None,
+        topic_name: str | None = None,
+        subscription_name: str | None = None,
         use_managed_identity: bool = False,
         auto_complete: bool = False,
         max_wait_time: int = 5,
@@ -86,9 +87,9 @@ class AzureServiceBusSubscriber(EventSubscriber):
         self.auto_complete = auto_complete
         self.max_wait_time = max_wait_time
 
-        self.client: Optional[ServiceBusClient] = None
+        self.client: ServiceBusClient | None = None
         self._credential = None
-        self.callbacks: Dict[str, Callable[[Dict[str, Any]], None]] = {}
+        self.callbacks: dict[str, Callable[[dict[str, Any]], None]] = {}
         self._consuming = threading.Event()  # Thread-safe flag for consumption control
 
     def connect(self) -> None:
@@ -118,7 +119,10 @@ class AzureServiceBusSubscriber(EventSubscriber):
                     conn_str=self.connection_string
                 )
 
-            source = f"queue={self.queue_name}" if self.queue_name else f"topic={self.topic_name}/subscription={self.subscription_name}"
+            if self.queue_name:
+                source = f"queue={self.queue_name}"
+            else:
+                source = f"topic={self.topic_name}/subscription={self.subscription_name}"
             logger.info(f"Connected to Azure Service Bus: {source}")
 
         except Exception as e:
@@ -138,7 +142,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
     def subscribe(
         self,
         event_type: str,
-        callback: Callable[[Dict[str, Any]], None],
+        callback: Callable[[dict[str, Any]], None],
         routing_key: str = None,
         exchange: str = None,
     ) -> None:

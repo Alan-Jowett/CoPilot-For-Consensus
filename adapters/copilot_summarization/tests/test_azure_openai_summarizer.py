@@ -3,11 +3,11 @@
 
 """Tests for Azure OpenAI Summarizer."""
 
-import pytest
 from unittest.mock import Mock, patch
 
-from copilot_summarization.openai_summarizer import OpenAISummarizer
+import pytest
 from copilot_summarization.models import Thread
+from copilot_summarization.openai_summarizer import OpenAISummarizer
 
 
 class TestAzureOpenAISummarizer:

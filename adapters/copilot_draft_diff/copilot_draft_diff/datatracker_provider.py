@@ -3,8 +3,8 @@
 
 """Datatracker diff provider implementation."""
 
-from .provider import DraftDiffProvider
 from .models import DraftDiff
+from .provider import DraftDiffProvider
 
 
 class DatatrackerDiffProvider(DraftDiffProvider):

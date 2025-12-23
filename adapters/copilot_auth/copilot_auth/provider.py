@@ -10,7 +10,6 @@ a specific provider.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from .models import User
 
@@ -23,7 +22,7 @@ class IdentityProvider(ABC):
     """
 
     @abstractmethod
-    def get_user(self, token: str) -> Optional[User]:
+    def get_user(self, token: str) -> User | None:
         """Retrieve user information from an authentication token.
 
         Args:

@@ -8,19 +8,17 @@ based on configuration or environment variables, enabling easy switching
 between authentication strategies.
 """
 
-import os
-from typing import Optional
 
-from .provider import IdentityProvider
-from .mock_provider import MockIdentityProvider
+from .datatracker_provider import DatatrackerIdentityProvider
 from .github_provider import GitHubIdentityProvider
 from .google_provider import GoogleIdentityProvider
 from .microsoft_provider import MicrosoftIdentityProvider
-from .datatracker_provider import DatatrackerIdentityProvider
+from .mock_provider import MockIdentityProvider
+from .provider import IdentityProvider
 
 
 def create_identity_provider(
-    provider_type: Optional[str] = None,
+    provider_type: str | None = None,
     **kwargs
 ) -> IdentityProvider:
     """Create an identity provider based on type.

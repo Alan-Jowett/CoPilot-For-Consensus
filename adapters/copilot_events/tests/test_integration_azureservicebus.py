@@ -19,11 +19,11 @@ Optional environment variables:
 """
 
 import os
-import time
 import threading
-import pytest
+import time
 import uuid
 
+import pytest
 from copilot_events import (
     AzureServiceBusPublisher,
     AzureServiceBusSubscriber,

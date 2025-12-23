@@ -5,7 +5,7 @@
 
 import logging
 import os
-from typing import Dict, Optional, Any
+from typing import Any
 
 from .metrics import MetricsCollector
 
@@ -47,7 +47,7 @@ class AzureMonitorMetricsCollector(MetricsCollector):
 
     def __init__(
         self,
-        connection_string: Optional[str] = None,
+        connection_string: str | None = None,
         namespace: str = "copilot",
         export_interval_millis: int = 60000,
         raise_on_error: bool = False,
@@ -104,10 +104,10 @@ class AzureMonitorMetricsCollector(MetricsCollector):
                 )
 
         # Initialize cache dictionaries first to ensure object is always in consistent state
-        self._counters: Dict[str, Any] = {}
-        self._histograms: Dict[str, Any] = {}
-        self._gauges: Dict[str, Any] = {}
-        self._gauge_values: Dict[str, float] = {}
+        self._counters: dict[str, Any] = {}
+        self._histograms: dict[str, Any] = {}
+        self._gauges: dict[str, Any] = {}
+        self._gauge_values: dict[str, float] = {}
 
         # Create Azure Monitor exporter
         try:
@@ -149,7 +149,7 @@ class AzureMonitorMetricsCollector(MetricsCollector):
             self._meter = None
             self._provider = None
 
-    def _get_or_create_counter(self, name: str) -> Optional[Any]:
+    def _get_or_create_counter(self, name: str) -> Any | None:
         """Get or create an OpenTelemetry counter.
 
         Args:
@@ -169,7 +169,7 @@ class AzureMonitorMetricsCollector(MetricsCollector):
 
         return self._counters[name]
 
-    def _get_or_create_histogram(self, name: str) -> Optional[Any]:
+    def _get_or_create_histogram(self, name: str) -> Any | None:
         """Get or create an OpenTelemetry histogram.
 
         Args:
@@ -189,7 +189,7 @@ class AzureMonitorMetricsCollector(MetricsCollector):
 
         return self._histograms[name]
 
-    def _get_or_create_gauge(self, name: str) -> Optional[Any]:
+    def _get_or_create_gauge(self, name: str) -> Any | None:
         """Get or create an OpenTelemetry observable gauge.
 
         Note: OpenTelemetry gauges are observable (callback-based), so we store
@@ -223,7 +223,7 @@ class AzureMonitorMetricsCollector(MetricsCollector):
 
         return self._gauges[name]
 
-    def increment(self, name: str, value: float = 1.0, tags: Optional[Dict[str, str]] = None) -> None:
+    def increment(self, name: str, value: float = 1.0, tags: dict[str, str] | None = None) -> None:
         """Increment a counter in Azure Monitor.
 
         Args:
@@ -243,7 +243,7 @@ class AzureMonitorMetricsCollector(MetricsCollector):
             if self.raise_on_error:
                 raise
 
-    def observe(self, name: str, value: float, tags: Optional[Dict[str, str]] = None) -> None:
+    def observe(self, name: str, value: float, tags: dict[str, str] | None = None) -> None:
         """Observe a value in an Azure Monitor histogram.
 
         Args:
@@ -263,7 +263,7 @@ class AzureMonitorMetricsCollector(MetricsCollector):
             if self.raise_on_error:
                 raise
 
-    def gauge(self, name: str, value: float, tags: Optional[Dict[str, str]] = None) -> None:
+    def gauge(self, name: str, value: float, tags: dict[str, str] | None = None) -> None:
         """Set an Azure Monitor gauge to a specific value.
 
         Note: OpenTelemetry gauges are observable (callback-based), so this implementation
@@ -295,7 +295,7 @@ class AzureMonitorMetricsCollector(MetricsCollector):
             if self.raise_on_error:
                 raise
 
-    def get_gauge_value(self, name: str, tags: Optional[Dict[str, str]] = None) -> Optional[float]:
+    def get_gauge_value(self, name: str, tags: dict[str, str] | None = None) -> float | None:
         """Get the most recent value of a gauge metric.
 
         Args:

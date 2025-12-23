@@ -3,22 +3,20 @@
 
 """Factory for creating vector store instances based on configuration."""
 
-import os
 import logging
-from typing import Optional
 
-from .interface import VectorStore
-from .inmemory import InMemoryVectorStore
-from .faiss_store import FAISSVectorStore
-from .qdrant_store import QdrantVectorStore
 from .azure_ai_search_store import AzureAISearchVectorStore
+from .faiss_store import FAISSVectorStore
+from .inmemory import InMemoryVectorStore
+from .interface import VectorStore
+from .qdrant_store import QdrantVectorStore
 
 logger = logging.getLogger(__name__)
 
 
 def create_vector_store(
-    backend: Optional[str] = None,
-    dimension: Optional[int] = None,
+    backend: str | None = None,
+    dimension: int | None = None,
     **kwargs
 ) -> VectorStore:
     """Factory method to create a vector store based on configuration.

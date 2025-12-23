@@ -13,10 +13,9 @@ import argparse
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 
-def run_command(cmd: List[str], description: str, check: bool = False) -> Tuple[int, str]:
+def run_command(cmd: list[str], description: str, check: bool = False) -> tuple[int, str]:
     """
     Run a command and return the result.
 

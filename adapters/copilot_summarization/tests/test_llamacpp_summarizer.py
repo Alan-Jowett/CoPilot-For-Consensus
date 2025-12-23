@@ -3,9 +3,10 @@
 
 """Tests for LlamaCppSummarizer."""
 
+from unittest.mock import Mock, patch
+
 import pytest
 import requests
-from unittest.mock import patch, Mock
 from copilot_summarization.llamacpp_summarizer import LlamaCppSummarizer
 from copilot_summarization.models import Thread
 

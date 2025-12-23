@@ -3,10 +3,11 @@
 
 """Test helper utilities for schema validation and event testing."""
 
-from typing import Dict, Any
-from types import SimpleNamespace
 import os
 import tempfile
+from types import SimpleNamespace
+from typing import Any
+
 from copilot_schema_validation import FileSchemaProvider, validate_json
 
 
@@ -57,7 +58,7 @@ def get_schema_provider():
     return FileSchemaProvider(schema_dir=schema_dir)
 
 
-def validate_event_against_schema(event: Dict[str, Any]) -> tuple[bool, list[str]]:
+def validate_event_against_schema(event: dict[str, Any]) -> tuple[bool, list[str]]:
     """Validate an event against its JSON schema.
 
     Args:
@@ -79,7 +80,7 @@ def validate_event_against_schema(event: Dict[str, Any]) -> tuple[bool, list[str
     return validate_json(event, schema, schema_provider=schema_provider)
 
 
-def assert_valid_event_schema(event: Dict[str, Any]) -> None:
+def assert_valid_event_schema(event: dict[str, Any]) -> None:
     """Assert that an event is valid according to its JSON schema.
 
     Args:

@@ -4,7 +4,6 @@
 """Data models for summarization service."""
 
 from dataclasses import dataclass, field
-from typing import List
 
 
 @dataclass
@@ -33,7 +32,7 @@ class Thread:
         prompt_template: Prompt template to use for summarization
     """
     thread_id: str
-    messages: List[str]
+    messages: list[str]
     top_k: int = 10
     context_window_tokens: int = 4096
     prompt_template: str = "Summarize the following discussion thread:"
@@ -55,7 +54,7 @@ class Summary:
     """
     thread_id: str
     summary_markdown: str
-    citations: List[Citation] = field(default_factory=list)
+    citations: list[Citation] = field(default_factory=list)
     llm_backend: str = "unknown"
     llm_model: str = "unknown"
     tokens_prompt: int = 0

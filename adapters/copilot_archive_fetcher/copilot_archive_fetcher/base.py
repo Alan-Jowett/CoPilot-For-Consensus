@@ -6,7 +6,6 @@
 import hashlib
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +14,7 @@ class ArchiveFetcher(ABC):
     """Abstract base class for archive fetchers."""
 
     @abstractmethod
-    def fetch(self, output_dir: str) -> Tuple[bool, Optional[list], Optional[str]]:
+    def fetch(self, output_dir: str) -> tuple[bool, list | None, str | None]:
         """Fetch archive from source.
 
         Args:

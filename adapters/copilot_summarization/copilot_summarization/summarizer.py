@@ -4,10 +4,8 @@
 """Abstract base class for summarization engines."""
 
 from abc import ABC, abstractmethod
-try:
-    from models import Thread, Summary
-except ImportError:
-    from .models import Thread, Summary
+
+from .models import Summary, Thread
 
 
 class Summarizer(ABC):

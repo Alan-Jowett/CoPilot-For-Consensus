@@ -4,14 +4,14 @@
 """Tests for metrics collectors."""
 
 import sys
-import pytest
 
+import pytest
 from copilot_metrics import (
-    create_metrics_collector,
     MetricsCollector,
     NoOpMetricsCollector,
     PrometheusMetricsCollector,
     PrometheusPushGatewayMetricsCollector,
+    create_metrics_collector,
 )
 
 

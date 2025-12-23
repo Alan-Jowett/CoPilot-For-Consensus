@@ -4,7 +4,6 @@
 """Tests for validating event publisher."""
 
 import pytest
-
 from copilot_events import NoopPublisher
 from copilot_events.validating_publisher import ValidatingEventPublisher, ValidationError
 

@@ -3,13 +3,13 @@
 
 """Tests for Azure Monitor logger implementation."""
 
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
 from copilot_logging import (
-    create_logger,
-    Logger,
     AzureMonitorLogger,
+    Logger,
+    create_logger,
 )
 
 

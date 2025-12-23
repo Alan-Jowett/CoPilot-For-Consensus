@@ -4,7 +4,6 @@
 """Data models for archive fetcher."""
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -20,14 +19,14 @@ class SourceConfig:
     url: str
     """URL or path for the source."""
 
-    port: Optional[int] = None
+    port: int | None = None
     """Port number (for IMAP and other services)."""
 
-    username: Optional[str] = None
+    username: str | None = None
     """Username for authentication."""
 
-    password: Optional[str] = None
+    password: str | None = None
     """Password for authentication."""
 
-    folder: Optional[str] = None
+    folder: str | None = None
     """Folder or path specification (e.g., IMAP folder)."""

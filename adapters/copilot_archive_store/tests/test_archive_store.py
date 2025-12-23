@@ -3,13 +3,13 @@
 
 """Unit tests for ArchiveStore interface."""
 
-import pytest
 from abc import ABC
 
+import pytest
 from copilot_archive_store import (
+    ArchiveNotFoundError,
     ArchiveStore,
     ArchiveStoreError,
-    ArchiveNotFoundError,
     create_archive_store,
 )
 

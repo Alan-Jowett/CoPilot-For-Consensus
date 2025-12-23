@@ -3,8 +3,9 @@
 
 """Unit tests for AzureAISearchVectorStore implementation."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 # Check if azure-search-documents SDK is available
 try:

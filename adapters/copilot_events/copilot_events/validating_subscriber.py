@@ -3,8 +3,9 @@
 
 """Validating event subscriber that enforces schema validation."""
 
-from typing import Dict, Any, Optional, Callable, List, Tuple
 import logging
+from collections.abc import Callable
+from typing import Any
 
 from .subscriber import EventSubscriber
 
@@ -19,7 +20,7 @@ class SubscriberValidationError(Exception):
         errors: List of validation error messages
     """
 
-    def __init__(self, event_type: str, errors: List[str]):
+    def __init__(self, event_type: str, errors: list[str]):
         self.event_type = event_type
         self.errors = errors
         error_msg = f"Received event validation failed for type '{event_type}': {'; '.join(errors)}"
@@ -57,7 +58,7 @@ class ValidatingEventSubscriber(EventSubscriber):
     def __init__(
         self,
         subscriber: EventSubscriber,
-        schema_provider: Optional[Any] = None,
+        schema_provider: Any | None = None,
         strict: bool = True,
     ):
         """Initialize the validating subscriber.
@@ -71,9 +72,9 @@ class ValidatingEventSubscriber(EventSubscriber):
         self._subscriber = subscriber
         self._schema_provider = schema_provider
         self._strict = strict
-        self._callbacks: Dict[str, Callable] = {}
+        self._callbacks: dict[str, Callable] = {}
 
-    def _validate_event(self, event: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    def _validate_event(self, event: dict[str, Any]) -> tuple[bool, list[str]]:
         """Validate a received event against its schema.
 
         Args:
@@ -129,7 +130,7 @@ class ValidatingEventSubscriber(EventSubscriber):
         Returns:
             A wrapper function that validates and then calls the original callback
         """
-        def wrapper(event: Dict[str, Any]) -> None:
+        def wrapper(event: dict[str, Any]) -> None:
             # Validate event
             is_valid, errors = self._validate_event(event)
 
@@ -169,7 +170,7 @@ class ValidatingEventSubscriber(EventSubscriber):
     def subscribe(
         self,
         event_type: str,
-        callback: Callable[[Dict[str, Any]], None],
+        callback: Callable[[dict[str, Any]], None],
         routing_key: str = None,
         exchange: str = None,
     ) -> None:

@@ -3,9 +3,10 @@
 
 """Tests for LocalLLMSummarizer."""
 
+from unittest.mock import Mock, patch
+
 import pytest
 import requests
-from unittest.mock import patch, Mock
 from copilot_summarization.local_llm_summarizer import LocalLLMSummarizer
 from copilot_summarization.models import Thread
 

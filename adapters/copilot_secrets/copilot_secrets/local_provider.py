@@ -4,12 +4,11 @@
 """Local filesystem secret provider."""
 
 from pathlib import Path
-from typing import Optional
 
 from copilot_logging import create_logger
 
-from .provider import SecretProvider
 from .exceptions import SecretNotFoundError, SecretProviderError
+from .provider import SecretProvider
 
 logger = create_logger(logger_type="stdout", level="INFO", name="copilot_secrets.local")
 
@@ -79,7 +78,7 @@ class LocalFileSecretProvider(SecretProvider):
 
         return potential_path
 
-    def get_secret(self, key_name: str, version: Optional[str] = None) -> str:
+    def get_secret(self, key_name: str, version: str | None = None) -> str:
         """Retrieve a secret by name.
 
         Args:
@@ -102,14 +101,14 @@ class LocalFileSecretProvider(SecretProvider):
             raise SecretProviderError(f"Secret path is not a file: {key_name}")
 
         try:
-            with open(secret_path, "r", encoding="utf-8") as f:
+            with open(secret_path, encoding="utf-8") as f:
                 content = f.read().strip()
             return content
 
         except OSError as e:
             raise SecretProviderError(f"Failed to read secret {key_name}: {e}") from e
 
-    def get_secret_bytes(self, key_name: str, version: Optional[str] = None) -> bytes:
+    def get_secret_bytes(self, key_name: str, version: str | None = None) -> bytes:
         """Retrieve a secret as raw bytes.
 
         Args:

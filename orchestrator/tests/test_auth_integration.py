@@ -6,14 +6,13 @@
 import time
 from unittest.mock import Mock, patch
 
-import pytest
 import jwt
-from fastapi.testclient import TestClient
+import pytest
+from app.service import OrchestrationService
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.backends import default_backend
-
-from app.service import OrchestrationService
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture
@@ -45,6 +44,7 @@ def test_keypair():
 def mock_jwks(test_keypair):
     """Create mock JWKS response."""
     import json
+
     from jwt.algorithms import RSAAlgorithm
     _, public_key, _, _ = test_keypair
 
@@ -122,10 +122,10 @@ def mock_service():
 @pytest.fixture
 def client_with_auth(mock_service, mock_jwks):
     """Create test client with mocked auth."""
+    from app import __version__
     from fastapi import FastAPI, Request
     from fastapi.responses import JSONResponse
     from starlette.middleware.base import BaseHTTPMiddleware
-    from app import __version__
 
     # Create a fresh app for testing
     test_app = FastAPI()
@@ -183,7 +183,6 @@ def client_with_auth(mock_service, mock_jwks):
 
             try:
                 import jwt
-                from jwt.algorithms import RSAAlgorithm
 
                 # Get the test keypair from the fixture scope
                 # For mock tokens, we just validate the structure and claims
@@ -215,12 +214,12 @@ def client_with_auth(mock_service, mock_jwks):
                 request.state.user_email = claims.get("email")
                 request.state.user_roles = claims.get("roles", [])
 
-            except jwt.DecodeError as e:
+            except jwt.DecodeError:
                 return JSONResponse(
                     status_code=401,
                     content={"detail": "Invalid token"},
                 )
-            except Exception as e:
+            except Exception:
                 return JSONResponse(
                     status_code=401,
                     content={"detail": "Authentication error"},

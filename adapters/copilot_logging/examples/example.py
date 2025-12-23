@@ -8,7 +8,6 @@ This script demonstrates how to use the logging abstraction layer
 for structured logging across microservices.
 """
 
-import os
 from copilot_logging import create_logger
 
 

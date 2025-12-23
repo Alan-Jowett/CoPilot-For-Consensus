@@ -4,14 +4,14 @@
 """Abstract event publisher interface."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Any
 
 
 class EventPublisher(ABC):
     """Abstract base class for event publishers."""
 
     @abstractmethod
-    def publish(self, exchange: str, routing_key: str, event: Dict[str, Any]) -> None:
+    def publish(self, exchange: str, routing_key: str, event: dict[str, Any]) -> None:
         """Publish an event to the message bus.
 
         Args:

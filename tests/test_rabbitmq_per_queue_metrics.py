@@ -13,6 +13,7 @@ This script validates:
 import re
 import subprocess
 import sys
+
 import yaml
 
 
@@ -58,7 +59,7 @@ def check_messagebus_env_var(config):
 def check_rabbitmq_plugin():
     """Check if rabbitmq_prometheus plugin is enabled"""
     try:
-        with open('infra/rabbitmq/enabled_plugins', 'r') as f:
+        with open('infra/rabbitmq/enabled_plugins') as f:
             content = f.read()
             if 'rabbitmq_prometheus' in content:
                 return True, "rabbitmq_prometheus plugin is enabled"

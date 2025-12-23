@@ -3,7 +3,7 @@
 
 """Secret-backed configuration provider using copilot_secrets."""
 
-from typing import Any, Optional
+from typing import Any
 
 from .base import ConfigProvider
 
@@ -96,7 +96,7 @@ class SecretConfigProvider(ConfigProvider):
         except (ValueError, TypeError):
             return default
 
-    def get_bytes(self, key: str, default: Optional[bytes] = None) -> Optional[bytes]:
+    def get_bytes(self, key: str, default: bytes | None = None) -> bytes | None:
         """Get a secret value as raw bytes.
 
         Useful for binary secrets like encryption keys or certificates.

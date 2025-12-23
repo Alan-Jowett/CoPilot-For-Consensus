@@ -3,9 +3,8 @@
 
 """Embedding provider abstraction layer."""
 
-from abc import ABC, abstractmethod
-from typing import List, Optional
 import logging
+from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +13,7 @@ class EmbeddingProvider(ABC):
     """Abstract base class for embedding providers."""
 
     @abstractmethod
-    def embed(self, text: str) -> List[float]:
+    def embed(self, text: str) -> list[float]:
         """Generate embeddings for the given text.
 
         Args:
@@ -38,7 +37,7 @@ class MockEmbeddingProvider(EmbeddingProvider):
         self.dimension = dimension
         logger.info(f"Initialized MockEmbeddingProvider with dimension={dimension}")
 
-    def embed(self, text: str) -> List[float]:
+    def embed(self, text: str) -> list[float]:
         """Generate mock embeddings based on text hash.
 
         Args:
@@ -71,7 +70,7 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
         self,
         model_name: str = "all-MiniLM-L6-v2",
         device: str = "cpu",
-        cache_dir: Optional[str] = None
+        cache_dir: str | None = None
     ):
         """Initialize SentenceTransformer provider.
 
@@ -98,9 +97,9 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
             device=device,
             cache_folder=cache_dir
         )
-        logger.info(f"SentenceTransformer model loaded successfully")
+        logger.info("SentenceTransformer model loaded successfully")
 
-    def embed(self, text: str) -> List[float]:
+    def embed(self, text: str) -> list[float]:
         """Generate embeddings using SentenceTransformer.
 
         Args:
@@ -130,9 +129,9 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         self,
         api_key: str,
         model: str = "text-embedding-ada-002",
-        api_base: Optional[str] = None,
-        api_version: Optional[str] = None,
-        deployment_name: Optional[str] = None
+        api_base: str | None = None,
+        api_version: str | None = None,
+        deployment_name: str | None = None
     ):
         """Initialize OpenAI embedding provider.
 
@@ -144,7 +143,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             deployment_name: Deployment name (for Azure OpenAI)
         """
         try:
-            from openai import OpenAI, AzureOpenAI
+            from openai import AzureOpenAI, OpenAI
         except ImportError:
             raise ImportError(
                 "openai is required for OpenAIEmbeddingProvider. "
@@ -166,7 +165,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             logger.info(f"Initializing OpenAI embedding provider with model: {model}")
             self.client = OpenAI(api_key=api_key)
 
-    def embed(self, text: str) -> List[float]:
+    def embed(self, text: str) -> list[float]:
         """Generate embeddings using OpenAI API.
 
         Args:
@@ -209,7 +208,7 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
         self,
         model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
         device: str = "cpu",
-        cache_dir: Optional[str] = None,
+        cache_dir: str | None = None,
         max_length: int = DEFAULT_MAX_LENGTH
     ):
         """Initialize HuggingFace embedding provider.
@@ -221,8 +220,8 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
             max_length: Maximum sequence length for tokenization
         """
         try:
-            from transformers import AutoTokenizer, AutoModel
             import torch
+            from transformers import AutoModel, AutoTokenizer
         except ImportError:
             raise ImportError(
                 "transformers and torch are required for HuggingFaceEmbeddingProvider. "
@@ -244,9 +243,9 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
             model_name,
             cache_dir=cache_dir
         ).to(device)
-        logger.info(f"HuggingFace model loaded successfully")
+        logger.info("HuggingFace model loaded successfully")
 
-    def embed(self, text: str) -> List[float]:
+    def embed(self, text: str) -> list[float]:
         """Generate embeddings using HuggingFace Transformers.
 
         Args:

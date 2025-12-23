@@ -6,14 +6,14 @@
 import json
 import os
 import tempfile
-import pytest
 
+import pytest
+from app.service import IngestionService
 from copilot_events import NoopPublisher, ValidatingEventPublisher
-from copilot_schema_validation import FileSchemaProvider
 from copilot_logging import create_logger
 from copilot_metrics import NoOpMetricsCollector
+from copilot_schema_validation import FileSchemaProvider
 
-from app.service import IngestionService
 from .test_helpers import assert_valid_event_schema, make_config, make_source
 
 
@@ -35,6 +35,7 @@ class TestIngestionService:
     def service(self, config):
         """Create test ingestion service."""
         from pathlib import Path
+
         from copilot_storage import InMemoryDocumentStore
 
         base_publisher = NoopPublisher()
@@ -226,7 +227,7 @@ class TestIngestionService:
             log_path = os.path.join(temp_storage, "metadata", "ingestion_log.jsonl")
             assert os.path.exists(log_path)
 
-            with open(log_path, "r") as f:
+            with open(log_path) as f:
                 lines = f.readlines()
                 assert len(lines) >= 1
                 log_entry = json.loads(lines[0])
@@ -502,10 +503,12 @@ def test_archive_ingestion_failed_event_schema_validation():
 
 def test_save_checksums_raises_on_write_error(tmp_path):
     """Test that save_checksums raises exception on write errors."""
+    from unittest.mock import patch
+
     from app.service import IngestionService
     from copilot_events import NoopPublisher
+
     from .test_helpers import make_config
-    from unittest.mock import patch
 
     config = make_config(storage_path=str(tmp_path))
 
@@ -526,6 +529,7 @@ def test_load_checksums_recovers_on_read_error(tmp_path):
     """Test that load_checksums recovers gracefully on read errors (intentional)."""
     from app.service import IngestionService
     from copilot_events import NoopPublisher
+
     from .test_helpers import make_config
 
     # Create a corrupted checksums file
@@ -546,6 +550,7 @@ def test_load_checksums_recovers_on_read_error(tmp_path):
 def test_publish_success_event_raises_on_publisher_failure(tmp_path):
     """Test that _publish_success_event raises exception when publisher fails."""
     from unittest.mock import Mock
+
     from copilot_events import ArchiveMetadata
 
     config = make_config(storage_path=str(tmp_path))
@@ -575,6 +580,7 @@ def test_publish_success_event_raises_on_publisher_failure(tmp_path):
 def test_publish_failure_event_raises_on_publisher_failure(tmp_path):
     """Test that _publish_failure_event raises exception when publisher fails."""
     from unittest.mock import Mock
+
     from copilot_archive_fetcher import SourceConfig
 
     config = make_config(storage_path=str(tmp_path))
@@ -603,6 +609,7 @@ def test_publish_failure_event_raises_on_publisher_failure(tmp_path):
 def test_publish_success_event_raises_on_publisher_exception(tmp_path):
     """Test that _publish_success_event raises exception when publisher raises."""
     from unittest.mock import Mock
+
     from copilot_events import ArchiveMetadata
 
     config = make_config(storage_path=str(tmp_path))
@@ -632,6 +639,7 @@ def test_publish_success_event_raises_on_publisher_exception(tmp_path):
 def test_publish_failure_event_raises_on_publisher_exception(tmp_path):
     """Test that _publish_failure_event raises exception when publisher raises."""
     from unittest.mock import Mock
+
     from copilot_archive_fetcher import SourceConfig
 
     config = make_config(storage_path=str(tmp_path))
@@ -730,6 +738,7 @@ def test_exception_prevents_silent_failure():
     the return value.
     """
     import tempfile
+
     from app.exceptions import FetchError
 
     with tempfile.TemporaryDirectory() as tmpdir:

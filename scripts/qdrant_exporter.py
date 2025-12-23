@@ -20,11 +20,10 @@ Environment Variables:
 
 import os
 import time
-from typing import Dict, List, Any
+from typing import Any
 
 import requests
-from prometheus_client import Gauge, Counter, Histogram, start_http_server
-
+from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
 # Configuration
 QDRANT_HOST = os.environ.get("QDRANT_HOST", "vectorstore")
@@ -87,7 +86,7 @@ qdrant_scrape_duration_seconds = Histogram(
 )
 
 
-def get_collections() -> List[str]:
+def get_collections() -> list[str]:
     """Get list of collection names from Qdrant."""
     try:
         resp = session.get(f"{QDRANT_BASE_URL}/collections", timeout=(3, 10))
@@ -103,7 +102,7 @@ def get_collections() -> List[str]:
         return []
 
 
-def get_collection_info(collection_name: str) -> Dict[str, Any]:
+def get_collection_info(collection_name: str) -> dict[str, Any]:
     """Get detailed information about a specific collection."""
     try:
         resp = session.get(
@@ -122,7 +121,7 @@ def get_collection_info(collection_name: str) -> Dict[str, Any]:
         return {}
 
 
-def extract_metrics_from_collection_info(info: Dict[str, Any], collection_name: str = "") -> Dict[str, Any]:
+def extract_metrics_from_collection_info(info: dict[str, Any], collection_name: str = "") -> dict[str, Any]:
     """Extract relevant metrics from collection info response."""
     metrics = {
         "vectors_count": 0,

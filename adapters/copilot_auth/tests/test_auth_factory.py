@@ -4,12 +4,11 @@
 """Tests for identity provider factory."""
 
 import pytest
-
 from copilot_auth import (
-    create_identity_provider,
-    MockIdentityProvider,
-    GitHubIdentityProvider,
     DatatrackerIdentityProvider,
+    GitHubIdentityProvider,
+    MockIdentityProvider,
+    create_identity_provider,
 )
 
 

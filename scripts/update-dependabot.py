@@ -11,8 +11,6 @@ or setup.py files and generates a complete dependabot.yml configuration.
 
 import os
 from pathlib import Path
-from typing import List, Tuple
-
 
 HEADER = """# SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
@@ -28,7 +26,7 @@ updates:
 """
 
 
-def find_python_packages(root_dir: Path) -> List[Tuple[str, str]]:
+def find_python_packages(root_dir: Path) -> list[tuple[str, str]]:
     """
     Find all directories with Python package metadata.
 
@@ -83,17 +81,17 @@ def find_python_packages(root_dir: Path) -> List[Tuple[str, str]]:
     return sorted(packages, key=sort_key)
 
 
-def generate_dependabot_config(packages: List[Tuple[str, str]]) -> str:
+def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
     """Generate the dependabot.yml content."""
     content = HEADER
 
     for directory, description in packages:
         content += f"  # Monitor Python dependencies in {description}\n"
-        content += f"  - package-ecosystem: \"pip\"\n"
+        content += "  - package-ecosystem: \"pip\"\n"
         content += f"    directory: \"{directory}\"\n"
-        content += f"    schedule:\n"
-        content += f"      interval: \"weekly\"\n"
-        content += f"    open-pull-requests-limit: 5\n\n"
+        content += "    schedule:\n"
+        content += "      interval: \"weekly\"\n"
+        content += "    open-pull-requests-limit: 5\n\n"
 
     # Add npm monitoring for the React UI
     content += "  # Monitor npm dependencies in React UI\n"

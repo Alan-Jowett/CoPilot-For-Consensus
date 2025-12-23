@@ -9,12 +9,13 @@ to interact with Azure Cosmos DB for document storage.
 """
 
 import os
+
 from copilot_storage import (
-    create_document_store,
-    DocumentStoreConnectionError,
     DocumentNotFoundError,
+    DocumentStoreConnectionError,
     DocumentValidationError,
     ValidatingDocumentStore,
+    create_document_store,
 )
 
 
@@ -80,7 +81,7 @@ def main():
 
         retrieved = store.get_document("users", doc_id)
         if retrieved:
-            print(f"✓ Retrieved document:")
+            print("✓ Retrieved document:")
             print(f"   Name: {retrieved['name']}")
             print(f"   Email: {retrieved['email']}")
             print(f"   Age: {retrieved['age']}")
@@ -110,7 +111,7 @@ def main():
         store.update_document("users", doc_id, {"age": 31, "department": "Senior Engineering"})
 
         updated = store.get_document("users", doc_id)
-        print(f"✓ Updated document:")
+        print("✓ Updated document:")
         print(f"   Name: {updated['name']}")
         print(f"   Age: {updated['age']}")
         print(f"   Department: {updated['department']}")
@@ -279,7 +280,7 @@ def main():
             validating_store.insert_document("user", invalid_user)
             print("✗ Should have raised DocumentValidationError")
         except DocumentValidationError as e:
-            print(f"✓ Validation correctly rejected invalid document:")
+            print("✓ Validation correctly rejected invalid document:")
             print(f"   Errors: {e.errors}")
 
         # Clean up
