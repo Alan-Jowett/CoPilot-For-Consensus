@@ -60,10 +60,41 @@
         "description": "Container image tag to deploy"
       }
     },
-    "mongoDbConnectionString": {
-      "type": "securestring",
+    "cosmosDbAccountName": {
+      "type": "string",
+      "defaultValue": "[format('{0}-cosmos-{1}', parameters('projectName'), variables('uniqueSuffix'))]",
       "metadata": {
-        "description": "MongoDB/CosmosDB connection string"
+        "description": "Cosmos DB account name"
+      }
+    },
+    "cosmosDbDatabaseName": {
+      "type": "string",
+      "defaultValue": "copilot",
+      "metadata": {
+        "description": "Cosmos DB database name"
+      }
+    },
+    "cosmosDbContainerName": {
+      "type": "string",
+      "defaultValue": "documents",
+      "metadata": {
+        "description": "Cosmos DB container name"
+      }
+    },
+    "cosmosDbPartitionKey": {
+      "type": "string",
+      "defaultValue": "/collection",
+      "metadata": {
+        "description": "Cosmos DB partition key path"
+      }
+    },
+    "cosmosDbThroughput": {
+      "type": "int",
+      "defaultValue": 400,
+      "minValue": 400,
+      "maxValue": 1000000,
+      "metadata": {
+        "description": "Cosmos DB container throughput in RU/s (Request Units per second)"
       }
     },
     "serviceBusConnectionString": {
@@ -243,7 +274,8 @@
     
     "roleDefinitions": {
       "KeyVaultSecretsUser": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]",
-      "StorageBlobDataContributor": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]"
+      "StorageBlobDataContributor": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
+      "CosmosDbDataContributor": "00000000-0000-0000-0000-000000000002"
     }
   },
   "resources": [
@@ -327,6 +359,80 @@
       }
     },
     {
+      "type": "Microsoft.DocumentDB/databaseAccounts",
+      "apiVersion": "2023-04-15",
+      "name": "[parameters('cosmosDbAccountName')]",
+      "location": "[parameters('location')]",
+      "kind": "GlobalDocumentDB",
+      "properties": {
+        "databaseAccountOfferType": "Standard",
+        "consistencyPolicy": {
+          "defaultConsistencyLevel": "Session"
+        },
+        "locations": [
+          {
+            "locationName": "[parameters('location')]",
+            "failoverPriority": 0,
+            "isZoneRedundant": false
+          }
+        ],
+        "enableAutomaticFailover": false,
+        "enableMultipleWriteLocations": false,
+        "disableKeyBasedMetadataWriteAccess": false,
+        "enableFreeTier": false,
+        "publicNetworkAccess": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases",
+      "apiVersion": "2023-04-15",
+      "name": "[format('{0}/{1}', parameters('cosmosDbAccountName'), parameters('cosmosDbDatabaseName'))]",
+      "properties": {
+        "resource": {
+          "id": "[parameters('cosmosDbDatabaseName')]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
+      "apiVersion": "2023-04-15",
+      "name": "[format('{0}/{1}/{2}', parameters('cosmosDbAccountName'), parameters('cosmosDbDatabaseName'), parameters('cosmosDbContainerName'))]",
+      "properties": {
+        "resource": {
+          "id": "[parameters('cosmosDbContainerName')]",
+          "partitionKey": {
+            "paths": [
+              "[parameters('cosmosDbPartitionKey')]"
+            ],
+            "kind": "Hash"
+          },
+          "indexingPolicy": {
+            "indexingMode": "consistent",
+            "automatic": true,
+            "includedPaths": [
+              {
+                "path": "/*"
+              }
+            ],
+            "excludedPaths": [
+              {
+                "path": "/\"_etag\"/?"
+              }
+            ]
+          }
+        },
+        "options": {
+          "throughput": "[parameters('cosmosDbThroughput')]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('cosmosDbAccountName'), parameters('cosmosDbDatabaseName'))]"
+      ]
+    },
+    {
       "condition": "[parameters('createNewIdentities')]",
       "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
       "apiVersion": "2023-01-31",
@@ -381,8 +487,8 @@
           },
           "secrets": [
             {
-              "name": "mongodb-connection-string",
-              "value": "[parameters('mongoDbConnectionString')]"
+              "name": "cosmos-key",
+              "value": "[listKeys(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName')), '2023-04-15').primaryMasterKey]"
             },
             {
               "name": "servicebus-connection-string",
@@ -418,11 +524,27 @@
                 },
                 {
                   "name": "DOCUMENT_STORE_TYPE",
-                  "value": "mongodb"
+                  "value": "azurecosmos"
                 },
                 {
-                  "name": "DOCUMENT_DATABASE_CONNECTION_STRING",
-                  "secretRef": "mongodb-connection-string"
+                  "name": "COSMOS_ENDPOINT",
+                  "value": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))).documentEndpoint]"
+                },
+                {
+                  "name": "COSMOS_KEY",
+                  "secretRef": "cosmos-key"
+                },
+                {
+                  "name": "COSMOS_DATABASE",
+                  "value": "[parameters('cosmosDbDatabaseName')]"
+                },
+                {
+                  "name": "COSMOS_CONTAINER",
+                  "value": "[parameters('cosmosDbContainerName')]"
+                },
+                {
+                  "name": "COSMOS_PARTITION_KEY",
+                  "value": "[parameters('cosmosDbPartitionKey')]"
                 },
                 {
                   "name": "STORAGE_CONNECTION_STRING",
@@ -483,6 +605,7 @@
         "[resourceId('Microsoft.App/managedEnvironments', variables('containerAppsEnvironmentName'))]",
         "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]",
         "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))]",
         "identityCopy"
       ]
     },
@@ -525,6 +648,25 @@
         "identityCopy",
         "containerAppsCopy"
       ]
+    },
+    {
+      "type": "Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments",
+      "apiVersion": "2023-04-15",
+      "name": "[format('{0}/{1}', parameters('cosmosDbAccountName'), guid(resourceGroup().id, variables('services')[copyIndex()].name, 'CosmosDbDataContributor'))]",
+      "properties": {
+        "roleDefinitionId": "[concat(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName')), '/sqlRoleDefinitions/', variables('roleDefinitions').CosmosDbDataContributor)]",
+        "principalId": "[if(parameters('createNewIdentities'), reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-{1}-identity', parameters('projectName'), variables('services')[copyIndex()].name))).principalId, reference(parameters('existingIdentityResourceIds')[variables('services')[copyIndex()].name], '2023-01-31').principalId)]",
+        "scope": "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))]"
+      },
+      "copy": {
+        "name": "cosmosDbRoleAssignmentsCopy",
+        "count": "[length(variables('services'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))]",
+        "identityCopy",
+        "containerAppsCopy"
+      ]
     }
   ],
   "outputs": {
@@ -543,6 +685,18 @@
     "storageAccountName": {
       "type": "string",
       "value": "[variables('storageAccountName')]"
+    },
+    "cosmosDbEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))).documentEndpoint]"
+    },
+    "cosmosDbDatabaseName": {
+      "type": "string",
+      "value": "[parameters('cosmosDbDatabaseName')]"
+    },
+    "cosmosDbContainerName": {
+      "type": "string",
+      "value": "[parameters('cosmosDbContainerName')]"
     },
     "gatewayUrl": {
       "type": "string",

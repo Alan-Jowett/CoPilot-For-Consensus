@@ -49,7 +49,7 @@ The ARM template (`azuredeploy.json`) automates the deployment of the entire Cop
   - Create resource groups
   - Deploy resources (Contributor role or higher)
   - Assign RBAC roles (User Access Administrator or Owner)
-- **Azure Cosmos DB for MongoDB** or **Azure Database for MongoDB** (or provide external MongoDB connection string)
+- **Azure Cosmos DB** with Core (SQL) API (or provide external Cosmos DB connection details)
 - **Azure Service Bus** namespace (Standard or Premium tier)
 - **Azure OpenAI** service (if using `llmBackend: azure`)
 - **Container images** published to a GitHub Container Registry (GHCR) that your deployment can pull from. You can either:
@@ -98,8 +98,8 @@ The deployment creates the following Azure resources:
 └─────────────────────────────────────────────────────────────┘
          │                    │                    │
          ▼                    ▼                    ▼
-  Cosmos DB/MongoDB   Azure Service Bus    Azure OpenAI
-  (external)          (external)           (external)
+  Azure Service Bus   Cosmos DB (SQL)    Azure OpenAI
+  (external)          (provisioned)      (external)
 ```
 
 Each Container App has its own user-assigned managed identity with RBAC permissions to access only the resources it needs:
@@ -145,24 +145,28 @@ Edit `azuredeploy.parameters.json` to set your configuration:
 {
   "projectName": { "value": "copilot" },
   "environment": { "value": "dev" },
-  "mongoDbConnectionString": { "value": "YOUR_MONGODB_CONNECTION_STRING" },
   "serviceBusConnectionString": { "value": "YOUR_SERVICEBUS_CONNECTION_STRING" },
   "storageAccountConnectionString": { "value": "YOUR_STORAGE_CONNECTION_STRING" },
+  "cosmosDbAccountName": { "value": "copilot-cosmos" },
+  "cosmosDbDatabaseName": { "value": "copilot" },
+  "cosmosDbContainerName": { "value": "documents" },
   "azureOpenAIEndpoint": { "value": "YOUR_AZURE_OPENAI_ENDPOINT" },
   "azureOpenAIKey": { "value": "YOUR_AZURE_OPENAI_KEY" }
 }
 ```
 
+**Note**: The ARM template now provisions Cosmos DB with Core (SQL) API directly. You no longer need to provide a MongoDB connection string.
+
 **Security Note**: For production, use Azure Key Vault references instead of plain text secrets:
 
 ```json
 {
-  "mongoDbConnectionString": {
+  "serviceBusConnectionString": {
     "reference": {
       "keyVault": {
         "id": "/subscriptions/.../resourceGroups/.../providers/Microsoft.KeyVault/vaults/my-keyvault"
       },
-      "secretName": "mongodb-connection-string"
+      "secretName": "servicebus-connection-string"
     }
   }
 }
@@ -217,9 +221,10 @@ az deployment group create \
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `mongoDbConnectionString` | securestring | MongoDB or Cosmos DB connection string |
 | `serviceBusConnectionString` | securestring | Azure Service Bus connection string |
 | `storageAccountConnectionString` | securestring | Azure Storage connection string |
+
+**Note**: Cosmos DB is now provisioned automatically by the ARM template. You no longer need to provide connection strings for the document database.
 
 ### Optional Parameters
 
@@ -231,6 +236,11 @@ az deployment group create \
 | `deploymentMode` | string | `admin` | Deployment mode: admin or managedIdentity |
 | `containerRegistryName` | string | `ghcr.io/alan-jowett/copilot-for-consensus` | Container registry URL |
 | `containerImageTag` | string | `latest` | Container image tag |
+| `cosmosDbAccountName` | string | `{projectName}-cosmos-{uniqueSuffix}` | Cosmos DB account name |
+| `cosmosDbDatabaseName` | string | `copilot` | Cosmos DB database name |
+| `cosmosDbContainerName` | string | `documents` | Cosmos DB container name |
+| `cosmosDbPartitionKey` | string | `/collection` | Cosmos DB partition key path |
+| `cosmosDbThroughput` | int | `400` | Cosmos DB throughput in RU/s (400-1000000) |
 | `createNewIdentities` | bool | `true` | Create new managed identities or use existing |
 | `existingIdentityResourceIds` | object | `{}` | Existing identity resource IDs (if createNewIdentities is false) |
 | `llmBackend` | string | `azure` | LLM backend: local, azure, or mock |
@@ -271,26 +281,7 @@ If you have pre-created managed identities, set `createNewIdentities` to `false`
 
 Before deploying, create these external Azure resources (or use existing ones):
 
-#### 1.1 Create Azure Cosmos DB for MongoDB
-
-```bash
-# Create Cosmos DB account with MongoDB API
-az cosmosdb create \
-  --name copilot-cosmosdb \
-  --resource-group copilot-rg \
-  --kind MongoDB \
-  --server-version 4.2 \
-  --locations regionName=eastus
-
-# Get connection string
-az cosmosdb keys list \
-  --name copilot-cosmosdb \
-  --resource-group copilot-rg \
-  --type connection-strings \
-  --query "connectionStrings[0].connectionString" -o tsv
-```
-
-#### 1.2 Create Azure Service Bus
+#### 1.1 Azure Service Bus
 
 ```bash
 # Create Service Bus namespace (Standard tier minimum)
@@ -308,7 +299,7 @@ az servicebus namespace authorization-rule keys list \
   --query primaryConnectionString -o tsv
 ```
 
-#### 1.3 Create Azure Storage Account (for archives)
+#### 1.2 Azure Storage Account (for archives)
 
 ```bash
 # Create storage account
@@ -325,7 +316,7 @@ az storage account show-connection-string \
   --query connectionString -o tsv
 ```
 
-#### 1.4 Create Azure OpenAI Service (Optional)
+#### 1.3 Azure OpenAI Service (Optional)
 
 ```bash
 # Create Azure OpenAI resource
@@ -349,9 +340,18 @@ az cognitiveservices account keys list \
   --query key1 -o tsv
 ```
 
+**Note**: Azure Cosmos DB is provisioned automatically by the ARM template with the following default configuration:
+- **API**: Core (SQL) API
+- **Database**: `copilot` (configurable via `cosmosDbDatabaseName` parameter)
+- **Container**: `documents` (configurable via `cosmosDbContainerName` parameter)
+- **Partition Key**: `/collection` (configurable via `cosmosDbPartitionKey` parameter)
+- **Throughput**: 400 RU/s (configurable via `cosmosDbThroughput` parameter)
+
+The template uses managed identities with RBAC role assignments for Cosmos DB data plane access. Currently, the template provisions with account key authentication for the data plane, but configures RBAC roles to support future migration to passwordless authentication using DefaultAzureCredential.
+
 ### Step 2: Update Parameters File
 
-Update `azuredeploy.parameters.json` with the connection strings obtained in Step 1.
+Update `azuredeploy.parameters.json` with the connection strings obtained in Step 1. Note that Cosmos DB connection details are no longer required as the database is provisioned by the template.
 
 ### Step 3: Deploy Using Script
 
@@ -512,14 +512,15 @@ The deployment includes Application Insights dashboards for:
 - Check RBAC role assignments (Key Vault Secrets User)
 - Ensure Key Vault has RBAC authorization enabled
 
-#### 4. MongoDB Connection Fails
+#### 4. Cosmos DB Connection Fails
 
-**Error**: "Failed to connect to MongoDB"
+**Error**: "Failed to connect to Cosmos DB"
 
 **Solution**:
-- Verify connection string format
+- Verify managed identities were created and assigned Cosmos DB Data Contributor role
 - Check Cosmos DB firewall rules (allow Container Apps subnet or enable public access)
-- Ensure Cosmos DB is running and accessible
+- Ensure Cosmos DB account is running and accessible
+- Verify COSMOS_ENDPOINT environment variable is correctly set
 
 ### Debugging Container Apps
 
@@ -549,7 +550,7 @@ Approximate monthly costs for a development deployment (prices vary by region):
 |----------|-----|----------------|
 | Container Apps Environment | Consumption | ~$50/month |
 | Container Apps (10 services) | 0.5-1.0 vCPU, 1-2GB RAM | ~$200-400/month |
-| Cosmos DB for MongoDB | 400 RU/s | ~$25/month |
+| Cosmos DB (Core SQL API) | 400 RU/s | ~$24/month |
 | Azure Service Bus | Standard | ~$10/month |
 | Storage Account | Standard LRS, 100GB | ~$2/month |
 | Application Insights | Basic, 5GB/month | ~$10/month |
@@ -574,6 +575,7 @@ Use the [Azure Pricing Calculator](https://azure.microsoft.com/en-us/pricing/cal
 - ✅ All services use user-assigned managed identities
 - ✅ No connection strings or passwords in application code
 - ✅ RBAC-based access to Azure resources
+- ✅ Cosmos DB uses built-in RBAC roles for data plane access
 
 ### 2. Secure Secrets in Key Vault
 
@@ -616,6 +618,56 @@ Each managed identity has only the permissions it needs:
 - Use specific image tags (not `latest`) for production
 - Regularly update base images and dependencies
 - Scan images for vulnerabilities using Trivy or Azure Defender
+
+## Migration from MongoDB to Cosmos DB SQL API
+
+If you are upgrading from a previous deployment that used MongoDB/Cosmos DB MongoDB API, follow these steps:
+
+### Migration Steps
+
+1. **Backup Existing Data**: Export your current MongoDB data before migration
+   ```bash
+   # Connect to your MongoDB instance and export data
+   mongodump --uri="YOUR_MONGODB_CONNECTION_STRING" --out=/backup/copilot-data
+   ```
+
+2. **Deploy New Infrastructure**: Deploy the updated ARM template which provisions Cosmos DB with SQL API
+   - The new deployment will create a separate Cosmos DB account
+   - Existing MongoDB data will not be automatically migrated
+
+3. **Data Migration Options**:
+   
+   **Option A: Re-ingest Documents** (Recommended for small datasets)
+   - Re-run your ingestion process to populate the new Cosmos DB
+   - This ensures data is properly formatted for the native adapter
+   
+   **Option B: Manual Migration** (For preserving existing data)
+   - Use the Azure Data Migration tool or custom scripts
+   - Ensure document schema is compatible with the native adapter
+   - The native adapter expects documents with a `collection` field for partitioning
+
+4. **Update Deployment Parameters and Application Configuration**:
+   - Update your `azuredeploy.parameters.json`:
+     - Remove the `mongoDbConnectionString` parameter and its value
+     - Add the new Cosmos DB parameters (`cosmosDbAccountName`, `cosmosDbDatabaseName`, `cosmosDbContainerName`, etc.) as required by the updated template
+   - Redeploy using the new ARM template; this will stop referencing the old `mongodb-connection-string` secret
+   - The application configuration change from `DOCUMENT_STORE_TYPE=mongodb` to `DOCUMENT_STORE_TYPE=azurecosmos` is handled automatically by the template
+
+5. **Verify Migration**:
+   ```bash
+   # Test document retrieval through the reporting API
+   curl https://$GATEWAY_URL/reporting/api/reports
+   ```
+
+6. **Decommission Old MongoDB Instance**: After verifying data migration, remove the old MongoDB/Cosmos DB MongoDB API instance
+
+### Schema Compatibility
+
+The native Cosmos DB adapter uses the same document structure as MongoDB adapter with one key difference:
+- **Partition Key**: All documents must have a `collection` field (automatically added by the adapter)
+- **Document ID**: Uses `id` field (mapped from MongoDB's `_id`)
+
+Most applications using the document store abstraction will work without code changes.
 
 ## Additional Resources
 
