@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any
 
 from copilot_events import EventPublisher
-from copilot_logging import StructuredLogger
+from copilot_logging import Logger
 from copilot_storage import DocumentStore
 
 from .models import ConfigDiff, ConfigDocument, ConfigNotification
@@ -28,7 +28,7 @@ class ConfigRegistryService:
         self,
         doc_store: DocumentStore,
         event_publisher: EventPublisher | None = None,
-        logger: StructuredLogger | None = None,
+        logger: Logger | None = None,
     ):
         """Initialize config registry service.
 
@@ -65,18 +65,22 @@ class ConfigRegistryService:
 
         if version is not None:
             query["version"] = version
-            doc = self.doc_store.get_document("configs", query)
-            if doc:
-                self._stats["configs_retrieved"] += 1
-                return doc.get("config_data")
-        else:
-            # Get latest version
-            docs = self.doc_store.query_documents(
-                "configs", query, sort=[("version", -1)], limit=1
-            )
-            if docs:
-                self._stats["configs_retrieved"] += 1
-                return docs[0].get("config_data")
+
+        # Get all matching docs and filter/sort in Python
+        # (InMemoryDocumentStore doesn't support complex queries)
+        all_docs = self.doc_store.query_documents("configs", {}, limit=1000)
+        matching_docs = [
+            doc for doc in all_docs
+            if doc.get("service_name") == service_name
+            and doc.get("environment") == environment
+            and (version is None or doc.get("version") == version)
+        ]
+
+        if matching_docs:
+            # Sort by version descending and take first
+            matching_docs.sort(key=lambda x: x.get("version", 0), reverse=True)
+            self._stats["configs_retrieved"] += 1
+            return matching_docs[0].get("config_data")
 
         return None
 
@@ -153,18 +157,22 @@ class ConfigRegistryService:
         Returns:
             Updated configuration document
         """
-        # Get latest version
-        query = {"service_name": service_name, "environment": environment}
-        docs = self.doc_store.query_documents(
-            "configs", query, sort=[("version", -1)], limit=1
-        )
+        # Get all matching docs and sort in Python
+        all_docs = self.doc_store.query_documents("configs", {}, limit=1000)
+        matching_docs = [
+            doc for doc in all_docs
+            if doc.get("service_name") == service_name
+            and doc.get("environment") == environment
+        ]
 
-        if not docs:
+        if not matching_docs:
             raise ValueError(
                 f"Configuration for {service_name}/{environment} does not exist. Use create instead."
             )
 
-        latest_version = docs[0].get("version", 0)
+        # Sort by version descending to get latest
+        matching_docs.sort(key=lambda x: x.get("version", 0), reverse=True)
+        latest_version = matching_docs[0].get("version", 0)
         new_version = latest_version + 1
 
         doc = ConfigDocument(
@@ -206,27 +214,24 @@ class ConfigRegistryService:
         Returns:
             List of configuration documents
         """
-        query = {}
+        # Get all configs and filter/deduplicate in Python
+        all_docs = self.doc_store.query_documents("configs", {}, limit=1000)
+        
+        # Apply filters
+        filtered_docs = all_docs
         if service_name:
-            query["service_name"] = service_name
+            filtered_docs = [d for d in filtered_docs if d.get("service_name") == service_name]
         if environment:
-            query["environment"] = environment
-
-        # Get latest versions only
-        pipeline = [
-            {"$match": query} if query else {"$match": {}},
-            {"$sort": {"version": -1}},
-            {
-                "$group": {
-                    "_id": {"service_name": "$service_name", "environment": "$environment"},
-                    "latest": {"$first": "$$ROOT"},
-                }
-            },
-            {"$replaceRoot": {"newRoot": "$latest"}},
-        ]
-
-        docs = list(self.doc_store.doc_store.db["configs"].aggregate(pipeline))
-        return docs
+            filtered_docs = [d for d in filtered_docs if d.get("environment") == environment]
+        
+        # Group by service_name + environment and keep latest version
+        latest_configs = {}
+        for doc in filtered_docs:
+            key = (doc.get("service_name"), doc.get("environment"))
+            if key not in latest_configs or doc.get("version", 0) > latest_configs[key].get("version", 0):
+                latest_configs[key] = doc
+        
+        return list(latest_configs.values())
 
     def get_config_history(
         self, service_name: str, environment: str = "default", limit: int = 10
@@ -241,11 +246,16 @@ class ConfigRegistryService:
         Returns:
             List of configuration versions (newest first)
         """
-        query = {"service_name": service_name, "environment": environment}
-        docs = self.doc_store.query_documents(
-            "configs", query, sort=[("version", -1)], limit=limit
-        )
-        return docs
+        # Get all configs and filter in Python
+        all_docs = self.doc_store.query_documents("configs", {}, limit=1000)
+        matching_docs = [
+            doc for doc in all_docs
+            if doc.get("service_name") == service_name
+            and doc.get("environment") == environment
+        ]
+        # Sort by version descending (newest first)
+        matching_docs.sort(key=lambda x: x.get("version", 0), reverse=True)
+        return matching_docs[:limit]
 
     def diff_configs(
         self,
@@ -266,7 +276,7 @@ class ConfigRegistryService:
             Configuration diff
         """
         # Get versions
-        history = self.get_config_history(service_name, environment, limit=2)
+        history = self.get_config_history(service_name, environment, limit=1000)
         if len(history) < 2 and (old_version is None or new_version is None):
             raise ValueError("Not enough versions to compare")
 
@@ -274,9 +284,9 @@ class ConfigRegistryService:
             new_doc = history[0]
             new_version = new_doc["version"]
         else:
-            new_doc = self.doc_store.get_document(
-                "configs",
-                {"service_name": service_name, "environment": environment, "version": new_version},
+            # Find doc with specified version
+            new_doc = next(
+                (doc for doc in history if doc.get("version") == new_version), None
             )
             if not new_doc:
                 raise ValueError(f"Version {new_version} not found")
@@ -285,9 +295,9 @@ class ConfigRegistryService:
             old_doc = history[1] if len(history) > 1 else {}
             old_version = old_doc.get("version", 0)
         else:
-            old_doc = self.doc_store.get_document(
-                "configs",
-                {"service_name": service_name, "environment": environment, "version": old_version},
+            # Find doc with specified version
+            old_doc = next(
+                (doc for doc in history if doc.get("version") == old_version), None
             )
             if not old_doc:
                 raise ValueError(f"Version {old_version} not found")
@@ -327,11 +337,23 @@ class ConfigRegistryService:
         Returns:
             Number of documents deleted
         """
-        query = {"service_name": service_name, "environment": environment}
-        if version is not None:
-            query["version"] = version
+        # Get all matching docs
+        all_docs = self.doc_store.query_documents("configs", {}, limit=1000)
+        matching_docs = [
+            doc for doc in all_docs
+            if doc.get("service_name") == service_name
+            and doc.get("environment") == environment
+            and (version is None or doc.get("version") == version)
+        ]
 
-        count = self.doc_store.delete_documents("configs", query)
+        # Delete each matching document
+        count = 0
+        for doc in matching_docs:
+            doc_id = doc.get("_id")
+            if doc_id:
+                self.doc_store.delete_document("configs", doc_id)
+                count += 1
+
         self._stats["configs_deleted"] += count
 
         # Send notification
