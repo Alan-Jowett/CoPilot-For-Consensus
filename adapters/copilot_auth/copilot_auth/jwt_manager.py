@@ -21,7 +21,7 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPubl
 from .models import User
 
 # Type alias for keys that can be used with jwt.encode/decode
-JWTKeyType = Union[RSAPrivateKey, RSAPublicKey, str]
+JWTKeyType = RSAPrivateKey | RSAPublicKey | str
 
 
 class JWTManager:
