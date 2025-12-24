@@ -18,7 +18,7 @@ This guide explains how to monitor and troubleshoot the services in this reposit
 - Loki HTTP API: http://localhost:3100 (log store)
 - Promtail (shipper): publishes container logs into Loki
 - RabbitMQ Management UI: http://localhost:15672 (default creds: `guest` / `guest` unless overridden)
-- cAdvisor: http://localhost:8082 (container resource metrics)
+- cAdvisor: Not exposed to host; metrics scraped internally by Prometheus at `cadvisor:8080`
 - Qdrant Dashboard: http://localhost:6333/dashboard (vectorstore web UI)
 - Service container logs: via `docker compose logs -f <service>`
 
@@ -327,16 +327,24 @@ The **Container Resource Usage** dashboard provides comprehensive visibility int
 
 ### Metrics Source
 - **Data Source**: cAdvisor (Container Advisor)
-- **Endpoint**: http://localhost:8082 (mapped from container port 8080)
+- **Version**: v0.55.1+ (from ghcr.io/google/cadvisor registry)
+- **Endpoint**: Internal only - `cadvisor:8080` (not exposed to host, scraped by Prometheus)
 - **Prometheus Job**: `cadvisor`
 - **Availability**: Starts automatically with the monitoring stack
 - **Query Patterns**: Uses Docker Compose labels (`container_label_com_docker_compose_project` and `container_label_com_docker_compose_service`) for robust filtering across environments
+- **Docker API Compatibility**: Configured with `DOCKER_API_VERSION=1.44` for Docker Desktop/WSL2 compatibility
 
 ### Troubleshooting
 - **No data in dashboard**:
   1. Verify cAdvisor is running: `docker compose ps cadvisor`
   2. If not running, start it: `docker compose up -d cadvisor`
 - **Missing metrics**: Check Prometheus targets (http://localhost:9090/targets) - cadvisor should be UP
+- **Missing Docker Compose labels** (metrics don't show service names):
+  1. Check cAdvisor logs for Docker factory registration errors: `docker compose logs cadvisor | grep -i docker`
+  2. Look for "Registration of the docker container factory successfully" message
+  3. If you see "client version X.XX is too old" error, ensure you're using cAdvisor v0.55.1+ from `ghcr.io/google/cadvisor` registry
+  4. Verify `DOCKER_API_VERSION=1.44` environment variable is set in docker-compose.infra.yml
+  5. This fix was implemented to resolve compatibility issues with Docker Desktop/WSL2 (see [GitHub issue #3793](https://github.com/google/cadvisor/issues/3793))
 - **High memory %**: Investigate service logs, check for memory leaks, consider increasing container limits
 - **Frequent restarts**: Check container logs (`docker compose logs <service>`) for crash reasons
 
