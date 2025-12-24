@@ -18,10 +18,10 @@ from uuid import uuid4
 
 class DocumentStatus(str, Enum):
     """Processing status for documents to track forward progress.
-    
+
     This enum is used across multiple document collections (archives, messages,
     chunks, threads) to track processing state and enable retry logic.
-    
+
     Values:
         PENDING: Document is waiting to be processed
         PROCESSING: Document is currently being processed

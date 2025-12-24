@@ -189,9 +189,9 @@ def main(output_path_arg=None):
         f.write(config_content)
 
     print(f"\n✅ Successfully generated {output_path}")
-    print(f"   Total update entries: 4 (1 pip multi-directory + 1 npm + 1 docker + 1 github-actions)")
+    print("   Total update entries: 4 (1 pip multi-directory + 1 npm + 1 docker + 1 github-actions)")
     print(f"   Python directories monitored: {len(packages)}")
-    print(f"\n💡 Using multi-directory configuration to consolidate Python updates")
+    print("\n💡 Using multi-directory configuration to consolidate Python updates")
     print(f"   This reduces PR noise by grouping updates across all {len(packages)} directories")
 
 

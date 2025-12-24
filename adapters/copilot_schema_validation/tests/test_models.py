@@ -6,9 +6,9 @@
 import json
 
 from copilot_schema_validation import (
-    DocumentStatus,
     ArchiveIngestedEvent,
     ArchiveIngestionFailedEvent,
+    DocumentStatus,
     JSONParsedEvent,
     ParsingFailedEvent,
 )
