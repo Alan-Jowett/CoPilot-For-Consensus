@@ -184,7 +184,10 @@ class TestAssignRoles:
 
     def test_assign_roles_success(self, role_store, mock_store):
         """Test successfully assigning roles to a user."""
+        from bson import ObjectId
+
         existing_record = {
+            "_id": ObjectId("507f1f77bcf86cd799439011"),
             "user_id": "github:123",
             "roles": [],
             "status": "pending",
@@ -208,15 +211,22 @@ class TestAssignRoles:
         mock_store.update_document.assert_called_once()
 
     def test_assign_roles_user_not_found(self, role_store, mock_store):
-        """Test assigning roles to non-existent user raises error."""
+        """Test assigning roles to non-existent user creates new record."""
         mock_store.query_documents.return_value = []
 
-        with pytest.raises(ValueError, match="User record not found"):
-            role_store.assign_roles(
-                user_id="github:999",
-                roles=["contributor"],
-                admin_user_id="github:admin",
-            )
+        result = role_store.assign_roles(
+            user_id="github:999",
+            roles=["contributor"],
+            admin_user_id="github:admin",
+        )
+
+        # Should create a new record with the roles
+        assert result["user_id"] == "github:999"
+        assert result["roles"] == ["contributor"]
+        assert result["status"] == "approved"
+        assert result["approved_by"] == "github:admin"
+        # Should insert (not update) since no existing record
+        mock_store.insert_document.assert_called_once()
 
     def test_assign_roles_invalid_role(self, role_store, mock_store):
         """Test assigning invalid roles raises error."""
@@ -266,6 +276,54 @@ class TestAssignRoles:
         assert update_doc["user_id"] == "github:123"
         assert update_doc["roles"] == ["contributor"]
         assert update_doc["status"] == "approved"
+
+    def test_assign_roles_merges_with_existing(self, role_store, mock_store):
+        """Test that assigning roles merges with existing roles (additive)."""
+        from bson import ObjectId
+
+        existing_record = {
+            "_id": ObjectId("507f1f77bcf86cd799439011"),
+            "user_id": "github:123",
+            "roles": ["reader"],
+            "status": "approved",
+            "requested_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z",
+        }
+        mock_store.query_documents.return_value = [existing_record]
+
+        result = role_store.assign_roles(
+            user_id="github:123",
+            roles=["contributor", "reviewer"],
+            admin_user_id="github:admin",
+        )
+
+        # Should merge: reader + contributor + reviewer
+        assert set(result["roles"]) == {"reader", "contributor", "reviewer"}
+        assert result["status"] == "approved"
+        mock_store.update_document.assert_called_once()
+
+    def test_assign_roles_deduplicates(self, role_store, mock_store):
+        """Test that assigning duplicate roles doesn't create duplicates."""
+        from bson import ObjectId
+
+        existing_record = {
+            "_id": ObjectId("507f1f77bcf86cd799439011"),
+            "user_id": "github:123",
+            "roles": ["contributor", "reader"],
+            "status": "approved",
+        }
+        mock_store.query_documents.return_value = [existing_record]
+
+        result = role_store.assign_roles(
+            user_id="github:123",
+            roles=["contributor", "reviewer"],  # contributor is duplicate
+            admin_user_id="github:admin",
+        )
+
+        # Should have: contributor, reader, reviewer (no duplicate contributor)
+        assert len(result["roles"]) == 3
+        assert set(result["roles"]) == {"contributor", "reader", "reviewer"}
+        mock_store.update_document.assert_called_once()
 
 
 class TestRevokeRoles:
