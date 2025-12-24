@@ -91,7 +91,14 @@ def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
         content += f"    directory: \"{directory}\"\n"
         content += "    schedule:\n"
         content += "      interval: \"weekly\"\n"
-        content += "    open-pull-requests-limit: 5\n\n"
+        content += "    open-pull-requests-limit: 5\n"
+        content += "    groups:\n"
+        content += "      pip-minor-patch:\n"
+        content += "        patterns:\n"
+        content += "          - \"*\"\n"
+        content += "        update-types:\n"
+        content += "          - \"minor\"\n"
+        content += "          - \"patch\"\n\n"
 
     # Add npm monitoring for the React UI
     content += "  # Monitor npm dependencies in React UI\n"
@@ -99,7 +106,14 @@ def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
     content += "    directory: \"/ui\"\n"
     content += "    schedule:\n"
     content += "      interval: \"weekly\"\n"
-    content += "    open-pull-requests-limit: 5\n\n"
+    content += "    open-pull-requests-limit: 5\n"
+    content += "    groups:\n"
+    content += "      npm-minor-patch:\n"
+    content += "        patterns:\n"
+    content += "          - \"*\"\n"
+    content += "        update-types:\n"
+    content += "          - \"minor\"\n"
+    content += "          - \"patch\"\n\n"
 
     # Add Docker image monitoring for docker-compose
     content += "  # Monitor Docker image updates in docker-compose\n"
@@ -107,7 +121,14 @@ def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
     content += "    directory: \"/\"\n"
     content += "    schedule:\n"
     content += "      interval: \"weekly\"\n"
-    content += "    open-pull-requests-limit: 5\n\n"
+    content += "    open-pull-requests-limit: 5\n"
+    content += "    groups:\n"
+    content += "      docker-minor-patch:\n"
+    content += "        patterns:\n"
+    content += "          - \"*\"\n"
+    content += "        update-types:\n"
+    content += "          - \"minor\"\n"
+    content += "          - \"patch\"\n\n"
 
     # Add GitHub Actions monitoring
     content += "  # Monitor GitHub Actions\n"
@@ -116,6 +137,13 @@ def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
     content += "    schedule:\n"
     content += "      interval: \"weekly\"\n"
     content += "    open-pull-requests-limit: 5\n"
+    content += "    groups:\n"
+    content += "      github-actions-minor-patch:\n"
+    content += "        patterns:\n"
+    content += "          - \"*\"\n"
+    content += "        update-types:\n"
+    content += "          - \"minor\"\n"
+    content += "          - \"patch\"\n"
 
     return content
 
