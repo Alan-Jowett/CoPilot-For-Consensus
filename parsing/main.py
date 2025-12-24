@@ -241,7 +241,7 @@ def main():
 
         # Configure Uvicorn with structured JSON logging
         log_config = create_uvicorn_log_config(service_name="parsing", log_level="INFO")
-        uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config)
+        uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config, access_log=False)
 
     except KeyboardInterrupt:
         logger.info("Shutting down parsing service")
