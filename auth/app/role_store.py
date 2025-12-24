@@ -50,9 +50,7 @@ class RoleStore:
                         if content:  # Only return if not empty
                             return content
                 except OSError as exc:
-                    logger.warning(
-                        f"Failed to read Docker secret '{key_name}' from {secret_file}: {exc}"
-                    )
+                    logger.warning(f"Failed to read Docker secret '{key_name}' from {secret_file}: {exc}")
 
             # Fallback to environment variable
             value = os.getenv(env_var)
@@ -70,10 +68,7 @@ class RoleStore:
                 getattr(config, "role_store_password", None)
                 or get_secret_or_env("document_database_password", "DOCUMENT_DATABASE_PASSWORD")
             ),
-            "database": (
-                getattr(config, "role_store_database", None)
-                or os.getenv("DOCUMENT_DATABASE_NAME", "auth")
-            ),
+            "database": (getattr(config, "role_store_database", None) or os.getenv("DOCUMENT_DATABASE_NAME", "auth")),
         }
 
         # Convert port to int if it's a string
@@ -276,10 +271,7 @@ class RoleStore:
         invalid_roles = [r for r in roles if r not in self.VALID_ROLES]
         if invalid_roles:
             valid_roles_str = ", ".join(sorted(self.VALID_ROLES))
-            raise ValueError(
-                f"Invalid roles: {', '.join(invalid_roles)}. "
-                f"Valid roles are: {valid_roles_str}"
-            )
+            raise ValueError(f"Invalid roles: {', '.join(invalid_roles)}. " f"Valid roles are: {valid_roles_str}")
 
         record = self._find_user_record(user_id)
 
@@ -313,6 +305,7 @@ class RoleStore:
         try:
             # Try to update, or insert if doesn't exist
             from copilot_storage.document_store import DocumentNotFoundError
+
             try:
                 # Update using the document's _id if available
                 if "_id" in record:
@@ -372,10 +365,7 @@ class RoleStore:
         invalid_roles = [r for r in roles if r not in self.VALID_ROLES]
         if invalid_roles:
             valid_roles_str = ", ".join(sorted(self.VALID_ROLES))
-            raise ValueError(
-                f"Invalid roles: {', '.join(invalid_roles)}. "
-                f"Valid roles are: {valid_roles_str}"
-            )
+            raise ValueError(f"Invalid roles: {', '.join(invalid_roles)}. " f"Valid roles are: {valid_roles_str}")
 
         record = self._find_user_record(user_id)
 
@@ -398,16 +388,19 @@ class RoleStore:
 
         try:
             # Try to update document
-            # First get the document by _id to ensure we can update it
+            # Remove _id from the update doc (MongoDB doesn't allow updating immutable _id field)
+            update_doc = {k: v for k, v in updated_doc.items() if k != "_id"}
+
             if "_id" in record:
                 # Update using the document's _id
-                self.store.update_document(self.collection, record["_id"], updated_doc)
+                self.store.update_document(self.collection, record["_id"], update_doc)
             else:
                 # If no _id, try to update with query filter (may not work with all stores)
                 # This is a fallback for stores that support filter-based updates
                 from copilot_storage.document_store import DocumentNotFoundError
+
                 try:
-                    self.store.update_document(self.collection, {"user_id": user_id}, updated_doc)
+                    self.store.update_document(self.collection, {"user_id": user_id}, update_doc)
                 except (DocumentNotFoundError, TypeError):
                     # If update by query fails, this store requires _id
                     # Shouldn't happen since record came from _find_user_record which queries
@@ -482,8 +475,7 @@ class RoleStore:
                 all_docs = self.store.query_documents(self.collection, {})
                 search_lower = search_term.lower()
                 docs = [
-                    doc for doc in all_docs
-                    if doc.get(search_by) and search_lower in doc.get(search_by, "").lower()
+                    doc for doc in all_docs if doc.get(search_by) and search_lower in doc.get(search_by, "").lower()
                 ]
 
             return docs
