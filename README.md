@@ -83,6 +83,17 @@ The system follows a **microservice-based, event-driven architecture** where ser
 
 For detailed architecture documentation, design patterns, and service interactions, see [documents/ARCHITECTURE.md](./documents/ARCHITECTURE.md).
 
+### Cloud-Agnostic API Gateway
+
+The API Gateway provides a unified entry point for all services with **multi-cloud portability**:
+
+- **Local Development**: NGINX-based gateway for single-machine deployments (default)
+- **Cloud Deployments**: Native gateway support for Azure (APIM), AWS (API Gateway), and GCP (Cloud Endpoints)
+- **Single Source of Truth**: OpenAPI 3.0 specification drives all gateway configurations
+- **Automated Generation**: CLI tool transforms OpenAPI spec into provider-specific configs
+
+See [Gateway Documentation](./docs/gateway/overview.md) for architecture, deployment guides, and how to extend to new providers.
+
 ### Services Overview
 
 | Service | Purpose | Port(s) | Status | Auth |
@@ -494,6 +505,14 @@ Comprehensive documentation is available throughout the repository:
 - **[documents/FORWARD_PROGRESS.md](./documents/FORWARD_PROGRESS.md)**: Idempotency, retry logic, and error handling patterns
 - **[documents/SERVICE_MONITORING.md](./documents/SERVICE_MONITORING.md)**: Observability, metrics, and logging best practices
 - **[documents/FAILED_QUEUE_OPERATIONS.md](./documents/FAILED_QUEUE_OPERATIONS.md)**: Failed queue management and troubleshooting
+
+### Gateway Documentation
+- **[docs/gateway/overview.md](./docs/gateway/overview.md)**: Cloud-agnostic API gateway architecture and workflow
+- **[docs/gateway/local-deployment.md](./docs/gateway/local-deployment.md)**: NGINX gateway for local development
+- **[docs/gateway/azure-deployment.md](./docs/gateway/azure-deployment.md)**: Azure API Management deployment guide
+- **[docs/gateway/aws-deployment.md](./docs/gateway/aws-deployment.md)**: AWS API Gateway deployment guide
+- **[docs/gateway/gcp-deployment.md](./docs/gateway/gcp-deployment.md)**: GCP Cloud Endpoints deployment guide
+- **[docs/gateway/extending.md](./docs/gateway/extending.md)**: How to add support for new cloud providers
 
 ### Development Guides
 - **[documents/LOCAL_DEVELOPMENT.md](./documents/LOCAL_DEVELOPMENT.md)**: Complete local development setup, debugging, and testing guide
