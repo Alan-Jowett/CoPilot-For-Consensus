@@ -93,35 +93,6 @@ jobs:
         docker compose up -d pushgateway
         timeout 60s bash -c 'until docker compose ps pushgateway --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for pushgateway..."; sleep 3; done' || (docker compose logs pushgateway --tail=50 && exit 1)
 
-    - name: Start rabbitmq-exporter
-      run: |
-        docker compose up -d rabbitmq-exporter
-        # No healthcheck, so wait for it to be running
-        timeout 60s bash -c 'until docker compose ps rabbitmq-exporter --format "{{.Status}}" | grep -q "Up"; do echo "Waiting for rabbitmq-exporter..."; sleep 3; done' || (docker compose logs rabbitmq-exporter --tail=50 && exit 1)
-
-    - name: Start mongodb-exporter
-      run: |
-        docker compose up -d mongodb-exporter
-        # No healthcheck, so wait for it to be running
-        timeout 60s bash -c 'until docker compose ps mongodb-exporter --format "{{.Status}}" | grep -q "Up"; do echo "Waiting for mongodb-exporter..."; sleep 3; done' || (docker compose logs mongodb-exporter --tail=50 && exit 1)
-
-    - name: Start qdrant-exporter
-      run: |
-        docker compose up -d qdrant-exporter
-        # No healthcheck, so wait for it to be running
-        timeout 60s bash -c 'until docker compose ps qdrant-exporter --format "{{.Status}}" | grep -q "Up"; do echo "Waiting for qdrant-exporter..."; sleep 3; done' || (docker compose logs qdrant-exporter --tail=50 && exit 1)
-
-    - name: Start mongo-doc-count-exporter
-      run: |
-        docker compose up -d mongo-doc-count-exporter
-        # No healthcheck, so wait for it to be running
-        timeout 60s bash -c 'until docker compose ps mongo-doc-count-exporter --format "{{.Status}}" | grep -q "Up"; do echo "Waiting for mongo-doc-count-exporter..."; sleep 3; done' || (docker compose logs mongo-doc-count-exporter --tail=50 && exit 1)
-
-    - name: Start cadvisor
-      run: |
-        docker compose up -d cadvisor
-        timeout 60s bash -c 'until docker compose ps cadvisor --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for cadvisor..."; sleep 3; done' || (docker compose logs cadvisor --tail=50 && exit 1)
-
     - name: Start loki
       run: |
         docker compose up -d loki
@@ -334,6 +305,17 @@ jobs:
         pip install -q -r scripts/requirements.txt
         python -m unittest scripts/test_validate_grafana_dashboards.py -v
         echo "✓ All tests passed"
+
+    # Start metric exporters to populate Prometheus with metrics for dashboard validation
+    - name: Start metric exporters
+      run: |
+        echo "Starting metric exporters for dashboard validation..."
+        docker compose up -d rabbitmq-exporter mongodb-exporter qdrant-exporter mongo-doc-count-exporter cadvisor document-processing-exporter
+        echo "Waiting for exporters to initialize..."
+        sleep 10
+        echo "Checking exporter status..."
+        docker compose ps rabbitmq-exporter mongodb-exporter qdrant-exporter mongo-doc-count-exporter cadvisor document-processing-exporter
+        echo "✓ Metric exporters started"
 
     - name: Wait for Prometheus to scrape metrics
       run: |
