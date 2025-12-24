@@ -5,6 +5,9 @@ import { getUnauthorizedCallback } from './contexts/AuthContext'
 
 let authToken: string | null = null
 
+// Track the last token we attempted refresh with to prevent infinite loops
+let lastRefreshToken: string | null = null
+
 // Set the auth token (called from AuthContext)
 export function setAuthToken(token: string | null) {
   authToken = token
@@ -38,6 +41,60 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
       callback()
     }
     throw new Error('UNAUTHORIZED')
+  }
+
+  // Handle 403 Forbidden - may need token refresh due to stale permission claims
+  if (response.status === 403) {
+    console.log('[fetchWithAuth] Got 403 Forbidden, user may need permission refresh')
+    
+    // Check if already attempted refresh for this request
+    const attemptedRefresh = (options as any)._attemptedRefresh === true
+    
+    // Check if already refreshed with this token (prevents loops across page reloads)
+    const currentToken = localStorage.getItem('auth_token')
+    const tokenAlreadyRefreshed = currentToken === lastRefreshToken && lastRefreshToken !== null
+    
+    if (!attemptedRefresh && !tokenAlreadyRefreshed) {
+      console.log('[fetchWithAuth] First 403, attempting token refresh')
+      
+      try {
+        // Consume response body
+        await response.text()
+      } catch (e) {
+        // Ignore
+      }
+      
+      try {
+        // Record token to prevent re-refresh with same token
+        lastRefreshToken = currentToken
+        
+        // Wait for server to process role changes
+        console.log('[fetchWithAuth] Waiting 500ms before refresh...')
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Store current page location for return after refresh
+        sessionStorage.setItem('postLoginUrl', window.location.pathname + window.location.search)
+        
+        // Redirect to OAuth with refresh marker
+        const audience = 'copilot-for-consensus'
+        const redirectUri = `${window.location.origin}${import.meta.env.BASE_URL}callback?refresh=true`
+        const loginUrl = `/auth/login?provider=github&aud=${audience}&redirect_uri=${encodeURIComponent(redirectUri)}`
+        
+        console.log('[fetchWithAuth] Redirecting to refresh login flow')
+        window.location.href = loginUrl
+        
+        throw new Error('TOKEN_REFRESH_IN_PROGRESS')
+      } catch (err) {
+        console.error('[fetchWithAuth] Error during refresh:', err)
+        // Fall through to return 403
+      }
+    } else {
+      if (tokenAlreadyRefreshed) {
+        console.log('[fetchWithAuth] Token already refreshed, still 403 - user lacks permission')
+      } else {
+        console.log('[fetchWithAuth] Already attempted refresh for this request')
+      }
+    }
   }
 
   return response

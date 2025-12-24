@@ -42,9 +42,28 @@ export function Callback() {
       // Then notify the AuthContext
       console.log('[Callback] Calling setAuthToken()')
       setAuthToken(token)
+      
+      // Check if this is a token refresh (automatic permission re-sync)
+      const isRefresh = searchParams.get('refresh') === 'true'
+      let redirectUrl = '/ui/reports'
+      
+      if (isRefresh) {
+        // Return to original page
+        const postLoginUrl = sessionStorage.getItem('postLoginUrl')
+        if (postLoginUrl) {
+          redirectUrl = postLoginUrl
+          sessionStorage.removeItem('postLoginUrl')
+          console.log('[Callback] Token refreshed, returning to:', redirectUrl)
+        } else {
+          console.log('[Callback] Token refreshed, location lost, using default')
+        }
+      } else {
+        console.log('[Callback] Normal login, redirecting to reports')
+      }
+      
       // Redirect to reports
-      console.log('[Callback] Redirecting to /ui/reports')
-      window.location.href = '/ui/reports'
+      console.log('[Callback] Redirecting to', redirectUrl)
+      window.location.href = redirectUrl
     } else if (code) {
       // Exchange authorization code for token
       console.log('[Callback] Code found, exchanging for token')
@@ -92,11 +111,29 @@ export function Callback() {
         console.log('[Callback] Calling setAuthToken()')
         setAuthToken(data.access_token)
 
+        // Check if this is a token refresh (automatic permission re-sync)
+        const isRefresh = searchParams.get('refresh') === 'true'
+        let redirectUrl = '/ui/reports'
+        
+        if (isRefresh) {
+          // Return to original page
+          const postLoginUrl = sessionStorage.getItem('postLoginUrl')
+          if (postLoginUrl) {
+            redirectUrl = postLoginUrl
+            sessionStorage.removeItem('postLoginUrl')
+            console.log('[Callback] Token refreshed, returning to:', redirectUrl)
+          } else {
+            console.log('[Callback] Token refreshed, location lost, using default')
+          }
+        } else {
+          console.log('[Callback] Normal login, redirecting to reports')
+        }
+
         // Then redirect after a short delay to allow logs to be read
-        console.log('[Callback] Will redirect to /ui/reports in 1 second (or enable "Preserve log" in DevTools)')
+        console.log('[Callback] Will redirect to', redirectUrl, 'in 1 second (or enable "Preserve log" in DevTools)')
         setTimeout(() => {
-          console.log('[Callback] NOW redirecting to /ui/reports')
-          window.location.href = '/ui/reports'
+          console.log('[Callback] NOW redirecting to', redirectUrl)
+          window.location.href = redirectUrl
         }, 1000)
       } else {
         throw new Error('No token in response')
