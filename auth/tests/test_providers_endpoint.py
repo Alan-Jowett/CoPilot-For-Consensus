@@ -57,24 +57,24 @@ class TestProvidersEndpoint:
         """Test /providers endpoint when no providers are configured."""
         client = create_client(mock_auth_service_no_providers)
         response = client.get("/providers")
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         # Check structure
         assert "providers" in data
         assert "configured_count" in data
         assert "total_supported" in data
-        
+
         # Check counts
         assert data["configured_count"] == 0
         assert data["total_supported"] == 3
-        
+
         # Check all three providers are listed as not configured
         assert "github" in data["providers"]
         assert "google" in data["providers"]
         assert "microsoft" in data["providers"]
-        
+
         assert data["providers"]["github"]["configured"] is False
         assert data["providers"]["google"]["configured"] is False
         assert data["providers"]["microsoft"]["configured"] is False
@@ -83,33 +83,33 @@ class TestProvidersEndpoint:
         """Test /providers endpoint when only GitHub is configured."""
         client = create_client(mock_auth_service_github_only)
         response = client.get("/providers")
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         # Check counts
         assert data["configured_count"] == 1
         assert data["total_supported"] == 3
-        
+
         # Check GitHub is configured, others are not
         assert data["providers"]["github"]["configured"] is True
-        
+
         assert data["providers"]["google"]["configured"] is False
-        
+
         assert data["providers"]["microsoft"]["configured"] is False
 
     def test_providers_endpoint_all_configured(self, mock_auth_service_all_providers):
         """Test /providers endpoint when all providers are configured."""
         client = create_client(mock_auth_service_all_providers)
         response = client.get("/providers")
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         # Check counts
         assert data["configured_count"] == 3
         assert data["total_supported"] == 3
-        
+
         # Check all providers are configured
         assert data["providers"]["github"]["configured"] is True
         assert data["providers"]["google"]["configured"] is True
@@ -121,9 +121,9 @@ class TestProvidersEndpoint:
             import main
             main.auth_service = None
             client = TestClient(main.app)
-            
+
             response = client.get("/providers")
-            
+
             assert response.status_code == 503
             data = response.json()
             assert "not initialized" in data["detail"].lower()

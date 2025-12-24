@@ -4,7 +4,6 @@
 """Azure Key Vault secret provider."""
 
 import os
-from typing import Optional
 
 from copilot_logging import create_logger
 
@@ -47,7 +46,7 @@ class AzureKeyVaultProvider(SecretProvider):
         _credential: DefaultAzureCredential instance used for authentication
     """
 
-    def __init__(self, vault_url: Optional[str] = None, vault_name: Optional[str] = None):
+    def __init__(self, vault_url: str | None = None, vault_name: str | None = None):
         """Initialize the Azure Key Vault secret provider.
 
         Args:
@@ -61,7 +60,7 @@ class AzureKeyVaultProvider(SecretProvider):
             SecretProviderError: If vault URL cannot be determined or authentication fails
         """
         try:
-            from azure.core.exceptions import ClientAuthenticationError, AzureError, ResourceNotFoundError
+            from azure.core.exceptions import AzureError, ClientAuthenticationError, ResourceNotFoundError
             from azure.identity import DefaultAzureCredential
             from azure.keyvault.secrets import SecretClient
         except ImportError as e:
@@ -99,7 +98,7 @@ class AzureKeyVaultProvider(SecretProvider):
             except (AttributeError, TypeError, RuntimeError):
                 # Suppress expected errors during cleanup
                 pass
-        
+
         # Then close the credential
         credential = getattr(self, "_credential", None)
         if credential is not None:
@@ -123,7 +122,7 @@ class AzureKeyVaultProvider(SecretProvider):
             # Do not use logging here as logger may not be available
             pass
 
-    def _determine_vault_url(self, vault_url: Optional[str], vault_name: Optional[str]) -> str:
+    def _determine_vault_url(self, vault_url: str | None, vault_name: str | None) -> str:
         """Determine the vault URL from parameters or environment variables.
 
         Args:
@@ -160,7 +159,7 @@ class AzureKeyVaultProvider(SecretProvider):
             "AZURE_KEY_VAULT_URI or AZURE_KEY_VAULT_NAME environment variable"
         )
 
-    def get_secret(self, key_name: str, version: Optional[str] = None) -> str:
+    def get_secret(self, key_name: str, version: str | None = None) -> str:
         """Retrieve a secret by name from Azure Key Vault.
 
         Args:
@@ -175,7 +174,7 @@ class AzureKeyVaultProvider(SecretProvider):
             SecretNotFoundError: If the secret does not exist
             SecretProviderError: If retrieval fails
         """
-        from azure.core.exceptions import ResourceNotFoundError, AzureError
+        from azure.core.exceptions import AzureError, ResourceNotFoundError
 
         try:
             if version:
@@ -200,7 +199,7 @@ class AzureKeyVaultProvider(SecretProvider):
             # Wrap any unexpected exceptions in SecretProviderError
             raise SecretProviderError(f"Failed to retrieve key '{key_name}': {e}") from e
 
-    def get_secret_bytes(self, key_name: str, version: Optional[str] = None) -> bytes:
+    def get_secret_bytes(self, key_name: str, version: str | None = None) -> bytes:
         """Retrieve a secret as raw bytes from Azure Key Vault.
 
         Azure Key Vault stores secrets as strings, so this method retrieves
@@ -229,12 +228,12 @@ class AzureKeyVaultProvider(SecretProvider):
         Returns:
             True if secret exists and is enabled, False otherwise
         """
-        from azure.core.exceptions import ResourceNotFoundError, AzureError
+        from azure.core.exceptions import AzureError, ResourceNotFoundError
 
         try:
-            # Use get_secret_properties to check existence without retrieving value
-            props = self.client.get_secret_properties(key_name)
-            return props is not None and props.enabled
+            # Fetch secret metadata; get_secret returns value + properties
+            secret = self.client.get_secret(key_name)
+            return bool(secret and getattr(secret.properties, "enabled", True))
 
         except ResourceNotFoundError:
             # Secret does not exist

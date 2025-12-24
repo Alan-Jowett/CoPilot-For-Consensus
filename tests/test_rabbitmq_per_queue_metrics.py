@@ -13,6 +13,7 @@ This script validates:
 import re
 import subprocess
 import sys
+
 import yaml
 
 
@@ -38,7 +39,7 @@ def check_messagebus_env_var(config):
     """Check if messagebus service has PROMETHEUS_RETURN_PER_OBJECT_METRICS set"""
     services = config.get('services', {})
     messagebus = services.get('messagebus', {})
-    
+
     # Check if the environment variable is set in the command
     # The command can be a string or a list, so normalize it to a string
     command = messagebus.get('command', '')
@@ -46,19 +47,19 @@ def check_messagebus_env_var(config):
         command_str = ' '.join(str(c) for c in command)
     else:
         command_str = str(command)
-    
+
     # Look for the environment variable export statement with word boundaries
     pattern = r'\bPROMETHEUS_RETURN_PER_OBJECT_METRICS\s*=\s*true\b'
     if re.search(pattern, command_str):
         return True, "PROMETHEUS_RETURN_PER_OBJECT_METRICS=true found in messagebus command"
-    
+
     return False, "PROMETHEUS_RETURN_PER_OBJECT_METRICS not set to true in messagebus command"
 
 
 def check_rabbitmq_plugin():
     """Check if rabbitmq_prometheus plugin is enabled"""
     try:
-        with open('infra/rabbitmq/enabled_plugins', 'r') as f:
+        with open('infra/rabbitmq/enabled_plugins') as f:
             content = f.read()
             if 'rabbitmq_prometheus' in content:
                 return True, "rabbitmq_prometheus plugin is enabled"
@@ -73,23 +74,23 @@ def main():
     """Run all validation checks"""
     print("RabbitMQ Per-Queue Metrics Configuration Test")
     print("=" * 50)
-    
+
     config = load_compose_config()
-    
+
     all_passed = True
-    
+
     # Check 1: PROMETHEUS_RETURN_PER_OBJECT_METRICS environment variable
     passed, message = check_messagebus_env_var(config)
     status = "✓" if passed else "✗"
     print(f"{status} {message}")
     all_passed = all_passed and passed
-    
+
     # Check 2: rabbitmq_prometheus plugin enabled
     passed, message = check_rabbitmq_plugin()
     status = "✓" if passed else "✗"
     print(f"{status} {message}")
     all_passed = all_passed and passed
-    
+
     print("=" * 50)
     if all_passed:
         print("✓ All checks passed")

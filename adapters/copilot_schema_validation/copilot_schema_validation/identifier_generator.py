@@ -16,7 +16,6 @@ Provided generators:
 from __future__ import annotations
 
 import hashlib
-from typing import Optional
 
 
 def _sha256_16(s: str) -> str:
@@ -36,9 +35,9 @@ def generate_archive_id_from_bytes(data: bytes) -> str:
 def generate_message_doc_id(
     archive_id: str,
     message_id: str,
-    date: Optional[str] = None,
-    sender_email: Optional[str] = None,
-    subject: Optional[str] = None,
+    date: str | None = None,
+    sender_email: str | None = None,
+    subject: str | None = None,
 ) -> str:
     """Generate the canonical `_id` for a message document.
 

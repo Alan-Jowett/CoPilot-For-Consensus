@@ -21,12 +21,11 @@ Environment Variables:
 
 import os
 import time
-from typing import Dict, Any
+from typing import Any
 
 from prometheus_client import Gauge, start_http_server
 from pymongo import MongoClient
 from pymongo import errors as pymongo_errors
-
 
 # Configuration
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb://root:example@documentdb:27017/admin")
@@ -70,7 +69,7 @@ index_sizes_gauge = Gauge(
 # Target collections to monitor
 TARGET_COLLECTIONS = [
     "archives",
-    "messages", 
+    "messages",
     "chunks",
     "threads",
     "summaries",
@@ -79,7 +78,7 @@ TARGET_COLLECTIONS = [
 ]
 
 
-def get_collection_stats(db, collection_name: str) -> Dict[str, Any]:
+def get_collection_stats(db, collection_name: str) -> dict[str, Any]:
     """Get collection statistics from MongoDB."""
     try:
         stats = db.command("collStats", collection_name)
@@ -92,42 +91,42 @@ def get_collection_stats(db, collection_name: str) -> Dict[str, Any]:
 def collect_metrics(client: MongoClient) -> None:
     """Collect and update all collection stats metrics."""
     db = client[DB_NAME]
-    
+
     for collection_name in TARGET_COLLECTIONS:
         try:
             stats = get_collection_stats(db, collection_name)
-            
+
             if not stats:
                 continue
-            
+
             # Storage size
             if "storageSize" in stats:
                 storage_size_gauge.labels(
-                    db=DB_NAME, 
+                    db=DB_NAME,
                     collection=collection_name
                 ).set(stats["storageSize"])
-            
+
             # Document count
             if "count" in stats:
                 count_gauge.labels(
                     db=DB_NAME,
                     collection=collection_name
                 ).set(stats["count"])
-            
+
             # Average object size
             if "avgObjSize" in stats:
                 avg_obj_size_gauge.labels(
                     db=DB_NAME,
                     collection=collection_name
                 ).set(stats["avgObjSize"])
-            
+
             # Total index size
             if "totalIndexSize" in stats:
                 total_index_size_gauge.labels(
                     db=DB_NAME,
                     collection=collection_name
                 ).set(stats["totalIndexSize"])
-            
+
             # Individual index sizes
             if "indexSizes" in stats:
                 for index_name, index_size in stats["indexSizes"].items():
@@ -136,14 +135,14 @@ def collect_metrics(client: MongoClient) -> None:
                         collection=collection_name,
                         index=index_name
                     ).set(index_size)
-            
+
             print(
                 f"Collection '{collection_name}': "
                 f"{stats.get('count', 0)} docs, "
                 f"{stats.get('storageSize', 0)} bytes storage, "
                 f"{stats.get('totalIndexSize', 0)} bytes indexes"
             )
-            
+
         except pymongo_errors.PyMongoError as e:
             print(f"Error collecting metrics for {collection_name}: {e}")
 
@@ -154,22 +153,22 @@ def main():
     print(f"MongoDB URI: {MONGO_URI}")
     print(f"Database: {DB_NAME}")
     print(f"Scrape interval: {INTERVAL}s")
-    
+
     # Start Prometheus HTTP server
     start_http_server(PORT)
     print(f"Metrics endpoint available at http://0.0.0.0:{PORT}/metrics")
-    
+
     # Connect to MongoDB with retry logic
     client = None
     max_retries = 5
     retry_delay = 5
-    
+
     for attempt in range(max_retries):
         try:
             client = MongoClient(MONGO_URI, directConnection=True, serverSelectionTimeoutMS=5000)
             # Test the connection
             client.admin.command('ping')
-            print(f"Successfully connected to MongoDB")
+            print("Successfully connected to MongoDB")
             break
         except pymongo_errors.PyMongoError as e:
             print(f"Failed to connect to MongoDB (attempt {attempt + 1}/{max_retries}): {e}")
@@ -179,7 +178,7 @@ def main():
             else:
                 print("Max retries reached. Exiting.")
                 raise
-    
+
     # Main scrape loop with error handling
     while True:
         try:
@@ -190,7 +189,7 @@ def main():
         except Exception as e:
             print(f"Unexpected error during metrics collection: {e}")
             print("Will retry on next iteration...")
-        
+
         time.sleep(INTERVAL)
 
 

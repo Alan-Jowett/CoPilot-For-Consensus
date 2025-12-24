@@ -6,7 +6,6 @@
 import os
 
 import pytest
-
 from copilot_archive_fetcher import RsyncFetcher, SourceConfig
 
 

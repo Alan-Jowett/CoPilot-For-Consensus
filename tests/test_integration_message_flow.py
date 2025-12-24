@@ -14,37 +14,37 @@ their JSON schemas, demonstrating that schema validation can be integrated
 into service tests.
 """
 
-import pytest
-from typing import Dict, Any
+from typing import Any
 
+import pytest
 from copilot_schema_validation import FileSchemaProvider, validate_json
 
 
-def validate_event(event: Dict[str, Any]) -> None:
+def validate_event(event: dict[str, Any]) -> None:
     """Validate an event against its JSON schema."""
     event_type = event.get("event_type")
     assert event_type, "Event missing event_type field"
-    
+
     schema_provider = FileSchemaProvider()
     schema = schema_provider.get_schema(event_type)
     assert schema, f"No schema found for event type {event_type}"
-    
+
     is_valid, errors = validate_json(event, schema, schema_provider=schema_provider)
     assert is_valid, f"Event validation failed: {'; '.join(errors)}"
 
 
 class TestEventSchemaValidation:
     """Tests for validating events against JSON schemas."""
-    
+
     @pytest.mark.integration
     def test_all_event_schemas_available(self):
         """Test that all event types have schemas available.
-        
+
         This test ensures schema validation is working for all event types.
         """
         schema_provider = FileSchemaProvider()
         event_types = schema_provider.list_event_types()
-        
+
         # Should have schemas for all major events
         expected_events = [
             "ArchiveIngested",
@@ -62,14 +62,14 @@ class TestEventSchemaValidation:
             "ReportPublished",
             "ReportDeliveryFailed",
         ]
-        
+
         for event_type in expected_events:
             assert event_type in event_types, f"Missing schema for {event_type}"
-            
+
             # Verify schema can be loaded
             schema = schema_provider.get_schema(event_type)
             assert schema is not None, f"Failed to load schema for {event_type}"
-    
+
     @pytest.mark.integration
     def test_archive_ingested_event_validation(self):
         """Test validation of a well-formed ArchiveIngested event."""
@@ -90,10 +90,10 @@ class TestEventSchemaValidation:
                 "ingestion_completed_at": "2023-10-15T12:01:00Z",
             }
         }
-        
+
         # validate_event raises AssertionError on failure
         validate_event(event)
-    
+
     @pytest.mark.integration
     def test_json_parsed_event_validation(self):
         """Test validation of a well-formed JSONParsed event."""
@@ -111,10 +111,10 @@ class TestEventSchemaValidation:
                 "parsing_duration_seconds": 1.5,
             }
         }
-        
+
         # validate_event raises AssertionError on failure
         validate_event(event)
-    
+
     @pytest.mark.integration
     def test_chunks_prepared_event_validation(self):
         """Test validation of a well-formed ChunksPrepared event."""
@@ -132,10 +132,10 @@ class TestEventSchemaValidation:
                 "chunking_strategy": "token_window",
             }
         }
-        
+
         # validate_event raises AssertionError on failure
         validate_event(event)
-    
+
     @pytest.mark.integration
     def test_summarization_requested_event_validation(self):
         """Test validation of a well-formed SummarizationRequested event."""
@@ -153,10 +153,10 @@ class TestEventSchemaValidation:
                 "prompt_template": "Summarize the following discussion:",
             }
         }
-        
+
         # validate_event raises AssertionError on failure
         validate_event(event)
-    
+
     @pytest.mark.integration
     def test_summary_complete_event_validation(self):
         """Test validation of a well-formed SummaryComplete event."""
@@ -182,10 +182,10 @@ class TestEventSchemaValidation:
                 "latency_ms": 1500,
             }
         }
-        
+
         # validate_event raises AssertionError on failure
         validate_event(event)
-    
+
     @pytest.mark.integration
     def test_invalid_event_missing_required_field(self):
         """Test that validation fails for events missing required fields."""
@@ -199,13 +199,13 @@ class TestEventSchemaValidation:
                 "archive_id": "a1b2c3d4e5f67890",
             }
         }
-        
+
         # Should fail validation
         with pytest.raises(AssertionError) as exc_info:
             validate_event(event)
-        
+
         assert "validation failed" in str(exc_info.value).lower()
-    
+
     @pytest.mark.integration
     def test_invalid_event_wrong_type(self):
         """Test that validation fails for events with wrong field types."""
@@ -223,21 +223,21 @@ class TestEventSchemaValidation:
                 "parsing_duration_seconds": 1.0,
             }
         }
-        
+
         # Should fail validation
         with pytest.raises(AssertionError) as exc_info:
             validate_event(event)
-        
+
         assert "validation failed" in str(exc_info.value).lower()
 
 
 class TestMessageFlowPatterns:
     """Tests demonstrating message flow patterns without actual service instances.
-    
+
     These tests document the expected event flows and data transformations
     without needing to instantiate actual services.
     """
-    
+
     @pytest.mark.integration
     def test_ingestion_produces_archive_ingested(self):
         """Document that ingestion service produces ArchiveIngested events."""
@@ -259,13 +259,13 @@ class TestMessageFlowPatterns:
                 "ingestion_completed_at": "2023-10-15T12:00:30Z",
             }
         }
-        
+
         # Validate event structure (raises AssertionError on failure)
         validate_event(event)
-        
+
         # Parsing service consumes this and produces JSONParsed
         # (documented in next test)
-    
+
     @pytest.mark.integration
     def test_parsing_consumes_archive_ingested_produces_json_parsed(self):
         """Document that parsing service consumes ArchiveIngested and produces JSONParsed."""
@@ -287,9 +287,9 @@ class TestMessageFlowPatterns:
                 "ingestion_completed_at": "2023-10-15T12:00:30Z",
             }
         }
-        
+
         validate_event(input_event)
-        
+
         # Output: JSONParsed event (same archive_id)
         output_event = {
             "event_type": "JSONParsed",
@@ -305,12 +305,12 @@ class TestMessageFlowPatterns:
                 "parsing_duration_seconds": 30.0,
             }
         }
-        
+
         validate_event(output_event)
-        
+
         # Verify data flow: archive_id is preserved
         assert output_event["data"]["archive_id"] == input_event["data"]["archive_id"]
-    
+
     @pytest.mark.integration
     def test_chunking_consumes_json_parsed_produces_chunks_prepared(self):
         """Document that chunking service consumes JSONParsed and produces ChunksPrepared."""
@@ -329,9 +329,9 @@ class TestMessageFlowPatterns:
                 "parsing_duration_seconds": 30.0,
             }
         }
-        
+
         validate_event(input_event)
-        
+
         # Output: ChunksPrepared event
         output_event = {
             "event_type": "ChunksPrepared",
@@ -347,8 +347,8 @@ class TestMessageFlowPatterns:
                 "chunking_strategy": "token_window",
             }
         }
-        
+
         validate_event(output_event)
-        
+
         # Verify data flow: message_doc_ids are preserved
         assert output_event["data"]["message_doc_ids"] == input_event["data"]["message_doc_ids"]

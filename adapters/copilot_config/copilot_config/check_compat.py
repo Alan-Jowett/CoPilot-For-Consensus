@@ -6,23 +6,23 @@
 import argparse
 import json
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .schema_loader import _parse_semver
 
 
 class CompatibilityIssue:
     """Represents a compatibility issue between schemas."""
-    
+
     BREAKING = "BREAKING"
     WARNING = "WARNING"
     INFO = "INFO"
-    
-    def __init__(self, severity: str, message: str, field: Optional[str] = None):
+
+    def __init__(self, severity: str, message: str, field: str | None = None):
         self.severity = severity
         self.message = message
         self.field = field
-    
+
     def __str__(self):
         if self.field:
             return f"[{self.severity}] {self.field}: {self.message}"
@@ -30,34 +30,34 @@ class CompatibilityIssue:
 
 
 def check_schema_compatibility(
-    old_schema: Dict[str, Any],
-    new_schema: Dict[str, Any],
-) -> List[CompatibilityIssue]:
+    old_schema: dict[str, Any],
+    new_schema: dict[str, Any],
+) -> list[CompatibilityIssue]:
     """Check compatibility between two configuration schemas.
-    
+
     Args:
         old_schema: Previous schema version
         new_schema: New schema version
-        
+
     Returns:
         List of compatibility issues found
-        
+
     Breaking changes:
         - Field removal
         - Type change
         - Making optional field required
         - Default value change for required fields
-        
+
     Warnings:
         - Deprecated fields
         - Default value changes for optional fields
     """
     issues = []
-    
+
     # Check version changes
     old_version = old_schema.get("schema_version")
     new_version = new_schema.get("schema_version")
-    
+
     if old_version and new_version:
         try:
             old_parts = _parse_semver(old_version)
@@ -65,20 +65,20 @@ def check_schema_compatibility(
         except ValueError:
             # Invalid version format, skip comparison
             old_parts = new_parts = (0, 0, 0)
-        
+
         if old_parts > new_parts:
             issues.append(CompatibilityIssue(
                 CompatibilityIssue.BREAKING,
                 f"Schema version downgrade: {old_version} -> {new_version}"
             ))
-    
+
     # Get field sets
     old_fields = old_schema.get("fields", {})
     new_fields = new_schema.get("fields", {})
-    
+
     old_field_names = set(old_fields.keys())
     new_field_names = set(new_fields.keys())
-    
+
     # Check for removed fields
     removed_fields = old_field_names - new_field_names
     for field_name in removed_fields:
@@ -95,13 +95,13 @@ def check_schema_compatibility(
                 "Optional field removed",
                 field_name
             ))
-    
+
     # Check for modified fields
     common_fields = old_field_names & new_field_names
     for field_name in common_fields:
         old_field = old_fields[field_name]
         new_field = new_fields[field_name]
-        
+
         # Check type changes
         old_type = old_field.get("type")
         new_type = new_field.get("type")
@@ -111,7 +111,7 @@ def check_schema_compatibility(
                 f"Type changed from {old_type} to {new_type}",
                 field_name
             ))
-        
+
         # Check required flag changes
         old_required = old_field.get("required", False)
         new_required = new_field.get("required", False)
@@ -121,7 +121,7 @@ def check_schema_compatibility(
                 "Optional field changed to required",
                 field_name
             ))
-        
+
         # Check default value changes
         old_default = old_field.get("default")
         new_default = new_field.get("default")
@@ -138,7 +138,7 @@ def check_schema_compatibility(
                     f"Default value changed: {old_default} -> {new_default}",
                     field_name
                 ))
-        
+
         # Check for deprecation
         if new_field.get("deprecated", False) and not old_field.get("deprecated", False):
             issues.append(CompatibilityIssue(
@@ -146,7 +146,7 @@ def check_schema_compatibility(
                 "Field marked as deprecated",
                 field_name
             ))
-    
+
     # Check for added required fields
     added_fields = new_field_names - old_field_names
     for field_name in added_fields:
@@ -157,39 +157,39 @@ def check_schema_compatibility(
                 "New required field added",
                 field_name
             ))
-    
+
     return issues
 
 
 def check_version_bump_adequate(
     old_version: str,
     new_version: str,
-    issues: List[CompatibilityIssue]
-) -> List[CompatibilityIssue]:
+    issues: list[CompatibilityIssue]
+) -> list[CompatibilityIssue]:
     """Check if version bump is adequate for the changes.
-    
+
     Args:
         old_version: Previous schema version
         new_version: New schema version
         issues: List of compatibility issues
-        
+
     Returns:
         Additional issues if version bump is inadequate
     """
     additional_issues = []
-    
+
     try:
         old_parts = _parse_semver(old_version)
         new_parts = _parse_semver(new_version)
     except ValueError:
         # Invalid version format, skip check
         return additional_issues
-    
+
     has_breaking_changes = any(
         issue.severity == CompatibilityIssue.BREAKING
         for issue in issues
     )
-    
+
     # Check if MAJOR version was bumped for breaking changes
     if has_breaking_changes:
         if new_parts[0] <= old_parts[0]:
@@ -197,7 +197,7 @@ def check_version_bump_adequate(
                 CompatibilityIssue.BREAKING,
                 f"Breaking changes require MAJOR version bump (current: {old_version} -> {new_version})"
             ))
-    
+
     return additional_issues
 
 
@@ -221,14 +221,14 @@ def main():
         action="store_true",
         help="Exit with error on warnings (not just breaking changes)"
     )
-    
+
     args = parser.parse_args()
-    
+
     # Load schemas
     try:
-        with open(args.old, "r", encoding="utf-8") as f:
+        with open(args.old, encoding="utf-8") as f:
             old_schema = json.load(f)
-        with open(args.new, "r", encoding="utf-8") as f:
+        with open(args.new, encoding="utf-8") as f:
             new_schema = json.load(f)
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -236,40 +236,40 @@ def main():
     except json.JSONDecodeError as e:
         print(f"Error parsing JSON: {e}", file=sys.stderr)
         sys.exit(1)
-    
+
     # Check compatibility
     issues = check_schema_compatibility(old_schema, new_schema)
-    
+
     # Check version bump adequacy
     old_version = old_schema.get("schema_version")
     new_version = new_schema.get("schema_version")
-    
+
     if old_version and new_version:
         version_issues = check_version_bump_adequate(old_version, new_version, issues)
         issues.extend(version_issues)
-    
+
     # Report issues
     if not issues:
         print("✓ No compatibility issues found")
         sys.exit(0)
-    
+
     breaking_count = sum(1 for i in issues if i.severity == CompatibilityIssue.BREAKING)
     warning_count = sum(1 for i in issues if i.severity == CompatibilityIssue.WARNING)
-    
+
     print(f"Found {len(issues)} compatibility issue(s):")
     print(f"  - {breaking_count} breaking change(s)")
     print(f"  - {warning_count} warning(s)")
     print()
-    
+
     for issue in issues:
         print(f"  {issue}")
-    
+
     # Exit with error if breaking changes found or strict mode with warnings
     if breaking_count > 0:
         sys.exit(1)
     elif args.strict and warning_count > 0:
         sys.exit(1)
-    
+
     sys.exit(0)
 
 

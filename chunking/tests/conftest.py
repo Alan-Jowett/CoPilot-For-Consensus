@@ -6,10 +6,10 @@
 import os
 import sys
 from pathlib import Path
-import pytest
 
-from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
+import pytest
 from copilot_schema_validation import FileSchemaProvider
+from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
 
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -45,10 +45,10 @@ def document_store():
     # Create base in-memory store
     base_store = InMemoryDocumentStore()
     base_store.connect()
-    
+
     # Override query_documents to support $in operator
     base_store.query_documents = create_query_with_in_support(base_store.query_documents)
-    
+
     # Wrap with validation using document schemas
     schema_dir = Path(__file__).parent.parent.parent / "documents" / "schemas" / "documents"
     schema_provider = FileSchemaProvider(schema_dir=schema_dir)
@@ -56,5 +56,5 @@ def document_store():
         store=base_store,
         schema_provider=schema_provider
     )
-    
+
     return validating_store

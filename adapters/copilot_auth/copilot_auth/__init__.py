@@ -11,17 +11,17 @@ IETF Datatracker, and mock providers for testing.
 
 __version__ = "0.2.0"
 
-from .models import User
-from .provider import IdentityProvider, AuthenticationError, ProviderError
-from .mock_provider import MockIdentityProvider
-from .oidc_provider import OIDCProvider
+from .datatracker_provider import DatatrackerIdentityProvider
+from .factory import create_identity_provider
 from .github_provider import GitHubIdentityProvider
 from .google_provider import GoogleIdentityProvider
-from .microsoft_provider import MicrosoftIdentityProvider
-from .datatracker_provider import DatatrackerIdentityProvider
 from .jwt_manager import JWTManager
-from .factory import create_identity_provider
+from .microsoft_provider import MicrosoftIdentityProvider
 from .middleware import JWTMiddleware, create_jwt_middleware
+from .mock_provider import MockIdentityProvider
+from .models import User
+from .oidc_provider import OIDCProvider
+from .provider import AuthenticationError, IdentityProvider, ProviderError
 
 __all__ = [
     # Version

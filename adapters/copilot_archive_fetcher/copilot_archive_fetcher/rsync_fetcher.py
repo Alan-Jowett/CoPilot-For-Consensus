@@ -6,7 +6,6 @@
 import logging
 import os
 import subprocess
-from typing import Optional, Tuple
 
 from .base import ArchiveFetcher
 from .models import SourceConfig
@@ -19,18 +18,18 @@ class RsyncFetcher(ArchiveFetcher):
 
     def __init__(self, source: SourceConfig):
         """Initialize rsync fetcher.
-        
+
         Args:
             source: Source configuration
         """
         self.source = source
 
-    def fetch(self, output_dir: str) -> Tuple[bool, Optional[list], Optional[str]]:
+    def fetch(self, output_dir: str) -> tuple[bool, list | None, str | None]:
         """Fetch archives via rsync.
-        
+
         Args:
             output_dir: Directory to store the fetched archives
-            
+
         Returns:
             Tuple of (success, list_of_file_paths, error_message)
         """

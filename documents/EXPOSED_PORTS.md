@@ -23,7 +23,7 @@ These ports are accessible from any network interface and may be reachable from 
 - **Protocol**: HTTP
 - **Access**: http://localhost:8080/grafana/
 - **Credentials**: admin/admin (default, should be changed in production)
-- **Security Notes**: 
+- **Security Notes**:
   - Primary monitoring interface for operators
   - Contains sensitive operational data
   - Should be protected by authentication (configured by default)
@@ -52,7 +52,7 @@ These ports are bound to localhost and only accessible from the host machine. Th
 - **Purpose**: MongoDB database for messages, threads, summaries, and metadata
 - **Protocol**: MongoDB wire protocol
 - **Access**: mongodb://root:example@localhost:27017/admin
-- **Use Cases**: 
+- **Use Cases**:
   - Database administration via MongoDB Compass or mongosh
   - Direct queries for debugging
   - Data export/import operations
@@ -64,11 +64,11 @@ These ports are bound to localhost and only accessible from the host machine. Th
 ### Port 5672 & 15672 - RabbitMQ (Message Bus)
 
 - **Service**: `messagebus`
-- **Purpose**: 
+- **Purpose**:
   - Port 5672: AMQP protocol for message publishing/consuming
   - Port 15672: Management UI for queue inspection and monitoring
 - **Protocol**: AMQP (5672), HTTP (15672)
-- **Access**: 
+- **Access**:
   - AMQP: amqp://guest:guest@localhost:5672
   - Management UI: http://localhost:15672
 - **Use Cases**:
@@ -187,11 +187,11 @@ These ports are bound to localhost and only accessible from the host machine. Th
     ```bash
     # Generate self-signed certificates
     ./infra/nginx/certs/generate-certs.sh
-    
+
     # Copy to secrets directory
     cp ./infra/nginx/certs/server.crt ./secrets/gateway_tls_cert
     cp ./infra/nginx/certs/server.key ./secrets/gateway_tls_key
-    
+
     # Rebuild and restart gateway
     docker compose up -d --build gateway
     ```
@@ -203,7 +203,7 @@ These ports are bound to localhost and only accessible from the host machine. Th
     cp /path/to/privkey.pem ./secrets/gateway_tls_key
     chmod 644 ./secrets/gateway_tls_cert
     chmod 600 ./secrets/gateway_tls_key
-    
+
     # 3. Rebuild and restart gateway
     docker compose up -d --build gateway
     ```

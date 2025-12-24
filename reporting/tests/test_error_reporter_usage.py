@@ -3,9 +3,9 @@
 
 """Tests for error reporter usage in reporting service."""
 
-import pytest
 from unittest.mock import Mock, patch
 
+import pytest
 from app.service import ReportingService
 
 
@@ -66,14 +66,14 @@ def test_error_reporter_called_on_publish_report_published_failure(
     # Create a publisher that raises an exception
     failing_publisher = Mock()
     failing_publisher.publish = Mock(side_effect=Exception("Publish failed"))
-    
+
     service = ReportingService(
         document_store=mock_document_store,
         publisher=failing_publisher,
         subscriber=mock_subscriber,
         error_reporter=mock_error_reporter,
     )
-    
+
     # Should raise the exception
     with pytest.raises(Exception, match="Publish failed"):
         service._publish_report_published(
@@ -82,15 +82,15 @@ def test_error_reporter_called_on_publish_report_published_failure(
             notified=False,
             delivery_channels=[],
         )
-    
+
     # Verify error_reporter.report() was called with the exception
     mock_error_reporter.report.assert_called_once()
     call_args = mock_error_reporter.report.call_args
-    
+
     # Check that the exception was passed
     assert isinstance(call_args[0][0], Exception)
     assert "Publish failed" in str(call_args[0][0])
-    
+
     # Check that context was passed
     assert call_args[1]["context"]["report_id"] == "test_report"
     assert call_args[1]["context"]["event_type"] == "ReportPublished"
@@ -103,14 +103,14 @@ def test_error_reporter_called_on_publish_delivery_failed_failure(
     # Create a publisher that raises an exception
     failing_publisher = Mock()
     failing_publisher.publish = Mock(side_effect=Exception("Delivery publish failed"))
-    
+
     service = ReportingService(
         document_store=mock_document_store,
         publisher=failing_publisher,
         subscriber=mock_subscriber,
         error_reporter=mock_error_reporter,
     )
-    
+
     # Should raise the exception
     with pytest.raises(Exception, match="Delivery publish failed"):
         service._publish_delivery_failed(
@@ -120,15 +120,15 @@ def test_error_reporter_called_on_publish_delivery_failed_failure(
             error_message="Webhook failed",
             error_type="ConnectionError",
         )
-    
+
     # Verify error_reporter.report() was called with the exception
     mock_error_reporter.report.assert_called_once()
     call_args = mock_error_reporter.report.call_args
-    
+
     # Check that the exception was passed
     assert isinstance(call_args[0][0], Exception)
     assert "Delivery publish failed" in str(call_args[0][0])
-    
+
     # Check that context was passed
     assert call_args[1]["context"]["report_id"] == "test_report"
     assert call_args[1]["context"]["event_type"] == "ReportDeliveryFailed"
@@ -144,7 +144,7 @@ def test_error_reporter_called_on_nested_exception_in_process_summary(
         (_ for _ in ()).throw(Exception("Failed to publish delivery failed event"))
         if routing_key == "report.delivery.failed" else None
     )
-    
+
     service = ReportingService(
         document_store=mock_document_store,
         publisher=failing_publisher,
@@ -153,24 +153,24 @@ def test_error_reporter_called_on_nested_exception_in_process_summary(
         webhook_url="http://example.com/webhook",
         notify_enabled=True,
     )
-    
+
     # Mock webhook to fail
     with patch("app.service.requests.post") as mock_post:
         mock_post.side_effect = Exception("Webhook connection failed")
-        
+
         # Should raise the original webhook exception (chained from publish error)
         with pytest.raises(Exception, match="Webhook connection failed"):
             service.process_summary(sample_event_data, {"timestamp": "2025-01-01T00:00:00Z"})
-    
+
     # Verify error_reporter.report() was called twice (once in _publish_delivery_failed, once in process_summary nested handler)
     assert mock_error_reporter.report.call_count == 2
-    
+
     # Check the first call (from _publish_delivery_failed)
     first_call = mock_error_reporter.report.call_args_list[0]
     assert isinstance(first_call[0][0], Exception)
     assert "Failed to publish delivery failed event" in str(first_call[0][0])
     assert first_call[1]["context"]["event_type"] == "ReportDeliveryFailed"
-    
+
     # Check the second call (from nested exception handler in process_summary)
     second_call = mock_error_reporter.report.call_args_list[1]
     assert isinstance(second_call[0][0], Exception)
@@ -189,7 +189,7 @@ def test_error_reporter_not_called_when_no_exception(
         subscriber=mock_subscriber,
         error_reporter=mock_error_reporter,
     )
-    
+
     # Publish ReportPublished event successfully
     service._publish_report_published(
         report_id="test_report",
@@ -197,7 +197,7 @@ def test_error_reporter_not_called_when_no_exception(
         notified=False,
         delivery_channels=[],
     )
-    
+
     # Verify error_reporter.report() was not called
     mock_error_reporter.report.assert_not_called()
 
@@ -209,14 +209,14 @@ def test_error_reporter_not_called_when_error_reporter_is_none(
     # Create a publisher that raises an exception
     failing_publisher = Mock()
     failing_publisher.publish = Mock(side_effect=Exception("Publish failed"))
-    
+
     service = ReportingService(
         document_store=mock_document_store,
         publisher=failing_publisher,
         subscriber=mock_subscriber,
         error_reporter=None,  # No error reporter
     )
-    
+
     # Should raise the exception without calling error_reporter
     with pytest.raises(Exception, match="Publish failed"):
         service._publish_report_published(
@@ -225,5 +225,5 @@ def test_error_reporter_not_called_when_error_reporter_is_none(
             notified=False,
             delivery_channels=[],
         )
-    
+
     # No assertion needed - if this doesn't crash, the test passes

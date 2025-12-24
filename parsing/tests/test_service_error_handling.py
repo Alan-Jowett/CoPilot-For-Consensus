@@ -4,13 +4,11 @@
 """Tests for parsing service error handling in message and thread storage."""
 
 import logging
+
 import pytest
-
-from pymongo.errors import DuplicateKeyError
-
-from copilot_storage.validating_document_store import DocumentValidationError
-
 from app.service import ParsingService
+from copilot_storage.validating_document_store import DocumentValidationError
+from pymongo.errors import DuplicateKeyError
 
 
 class DummyPublisher:
@@ -176,7 +174,7 @@ def test_store_threads_transient_errors_are_reraised(caplog):
         pass
 
     store = FakeDocumentStore({
-        "threads": [TransientError("db down")] 
+        "threads": [TransientError("db down")]
     })
     service = make_service_with_store(store)
 

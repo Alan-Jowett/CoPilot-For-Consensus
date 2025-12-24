@@ -3,11 +3,11 @@
 
 """Utilities for validating JSON documents against JSON Schemas."""
 
-from typing import Any, Dict, List, Tuple
 import copy
 import json
 import logging
 from pathlib import Path
+from typing import Any
 
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
@@ -66,7 +66,7 @@ def _build_registry() -> Registry:
     return Registry().with_resources(resources.items())
 
 
-def _strip_allof_additional_properties(schema: Dict[str, Any]) -> Dict[str, Any]:
+def _strip_allof_additional_properties(schema: dict[str, Any]) -> dict[str, Any]:
     """Relax additionalProperties inside allOf blocks to avoid double-rejection.
 
     Event schemas extend a shared envelope via allOf. Without removing
@@ -93,7 +93,7 @@ def _strip_allof_additional_properties(schema: Dict[str, Any]) -> Dict[str, Any]
     return normalized
 
 
-def validate_json(document: Dict[str, Any], schema: Dict[str, Any], schema_provider=None) -> Tuple[bool, List[str]]:
+def validate_json(document: dict[str, Any], schema: dict[str, Any], schema_provider=None) -> tuple[bool, list[str]]:
     """Validate a JSON document against a JSON schema.
 
     Args:
@@ -115,7 +115,7 @@ def validate_json(document: Dict[str, Any], schema: Dict[str, Any], schema_provi
         if not errors:
             return True, []
 
-        messages: List[str] = []
+        messages: list[str] = []
         for err in errors:
             path = ".".join([str(p) for p in err.absolute_path])
             location = f" at '{path}'" if path else ""

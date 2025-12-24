@@ -4,9 +4,8 @@
 """Tests for schema provider implementations."""
 
 import json
-import logging
-import pytest
 
+import pytest
 from copilot_schema_validation.file_schema_provider import FileSchemaProvider
 
 
@@ -74,7 +73,7 @@ class TestFileSchemaProvider:
         schema_file.write_text(json.dumps(test_schema), encoding="utf-8")
 
         provider = FileSchemaProvider(schema_dir)
-        
+
         # Load schema twice
         schema1 = provider.get_schema("TestEvent")
         schema2 = provider.get_schema("TestEvent")
@@ -144,7 +143,7 @@ class TestFileSchemaProvider:
 
 class TestDocumentStoreSchemaProvider:
     """Tests for DocumentStoreSchemaProvider - REMOVED.
-    
+
     DocumentStoreSchemaProvider and its dependency on copilot_storage have been removed
     to break the circular dependency between copilot_schema_validation and copilot_storage.
     The application now uses only FileSchemaProvider to load schemas from the file system.

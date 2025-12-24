@@ -157,7 +157,7 @@ class MyService:
             reporter_type=config.error_reporter_type,
             dsn=config.sentry_dsn
         )
-    
+
     def process_data(self, data):
         try:
             result = self._do_processing(data)

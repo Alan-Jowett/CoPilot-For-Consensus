@@ -10,18 +10,17 @@ functionality.
 
 import os
 from pathlib import Path
-from typing import Optional, Tuple
 
-from .archive_store import create_archive_store, ArchiveStore, ArchiveStoreError
+from .archive_store import ArchiveStore, create_archive_store
 
 
 class ArchiveAccessor:
     """Helper class for backward-compatible archive access.
-    
+
     This class provides methods that work with both the old file-path-based
     approach and the new archive-store-based approach. It attempts to use
     the archive store first, then falls back to direct file access.
-    
+
     Example:
         >>> accessor = ArchiveAccessor()
         >>> # Try archive store first, fall back to file path
@@ -30,10 +29,10 @@ class ArchiveAccessor:
         ...     fallback_file_path="/data/raw_archives/source/file.mbox"
         ... )
     """
-    
-    def __init__(self, archive_store: Optional[ArchiveStore] = None, enable_fallback: bool = True):
+
+    def __init__(self, archive_store: ArchiveStore | None = None, enable_fallback: bool = True):
         """Initialize archive accessor.
-        
+
         Args:
             archive_store: Optional ArchiveStore instance. If None, attempts to create
                           one from environment variables.
@@ -41,7 +40,7 @@ class ArchiveAccessor:
                            store access fails. Default True for backward compatibility.
         """
         self.enable_fallback = enable_fallback
-        
+
         # Try to initialize archive store
         try:
             if archive_store is None:
@@ -52,21 +51,21 @@ class ArchiveAccessor:
         except Exception:
             # If archive store initialization fails, disable it
             self.archive_store = None
-    
+
     def get_archive_content(
         self,
-        archive_id: Optional[str] = None,
-        fallback_file_path: Optional[str] = None
-    ) -> Optional[bytes]:
+        archive_id: str | None = None,
+        fallback_file_path: str | None = None
+    ) -> bytes | None:
         """Get archive content, trying archive store first then file path.
-        
+
         Args:
             archive_id: Archive identifier for archive store lookup
             fallback_file_path: File path to use if archive store fails
-            
+
         Returns:
             Archive content as bytes, or None if not found
-            
+
         Raises:
             ArchiveStoreError: If neither method succeeds and fallback is disabled
         """
@@ -81,24 +80,24 @@ class ArchiveAccessor:
                 # This makes the accessor resilient to any store errors
                 if not self.enable_fallback:
                     raise
-        
+
         # Fall back to direct file access if enabled
         if self.enable_fallback and fallback_file_path:
             return self._read_file(fallback_file_path)
-        
+
         return None
-    
+
     def check_archive_availability(
         self,
-        archive_id: Optional[str] = None,
-        fallback_file_path: Optional[str] = None
-    ) -> Tuple[bool, str]:
+        archive_id: str | None = None,
+        fallback_file_path: str | None = None
+    ) -> tuple[bool, str]:
         """Check if archive is available and how it can be accessed.
-        
+
         Args:
             archive_id: Archive identifier for archive store lookup
             fallback_file_path: File path to check
-            
+
         Returns:
             Tuple of (available: bool, method: str) where method is one of:
             - "archive_store": Available via archive store
@@ -113,20 +112,20 @@ class ArchiveAccessor:
             except Exception:
                 # Catch all exceptions for resilience
                 pass
-        
+
         # Try file path
         if fallback_file_path and Path(fallback_file_path).exists():
             return (True, "file_path")
-        
+
         return (False, "unavailable")
-    
+
     @staticmethod
-    def _read_file(file_path: str) -> Optional[bytes]:
+    def _read_file(file_path: str) -> bytes | None:
         """Read file content from disk.
-        
+
         Args:
             file_path: Path to file
-            
+
         Returns:
             File content as bytes, or None if file doesn't exist
         """
@@ -141,25 +140,25 @@ class ArchiveAccessor:
 
 
 def create_archive_accessor(
-    store_type: Optional[str] = None,
+    store_type: str | None = None,
     enable_fallback: bool = True,
     **kwargs
 ) -> ArchiveAccessor:
     """Create an ArchiveAccessor with specified configuration.
-    
+
     Args:
         store_type: Type of archive store ("local", "mongodb", etc.)
                    If None, reads from ARCHIVE_STORE_TYPE environment variable
         enable_fallback: Enable fallback to direct file access
         **kwargs: Additional arguments passed to archive store creation
-        
+
     Returns:
         Configured ArchiveAccessor instance
-        
+
     Example:
         >>> # Auto-detect from environment
         >>> accessor = create_archive_accessor()
-        
+
         >>> # Explicit configuration
         >>> accessor = create_archive_accessor(
         ...     store_type="local",
@@ -175,7 +174,7 @@ def create_archive_accessor(
     except Exception:
         # If creation fails, use None (file-only mode)
         archive_store = None
-    
+
     return ArchiveAccessor(
         archive_store=archive_store,
         enable_fallback=enable_fallback

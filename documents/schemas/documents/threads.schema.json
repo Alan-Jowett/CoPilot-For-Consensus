@@ -11,8 +11,8 @@
       "pattern": "^[A-Fa-f0-9]{16}$",
       "description": "Deterministic thread identifier (e.g., root message or normalized subject lineage)"
     },
-    "archive_id": { 
-      "type": "string", 
+    "archive_id": {
+      "type": "string",
       "minLength": 16,
       "maxLength": 16,
       "pattern": "^[A-Fa-f0-9]{16}$",
@@ -33,13 +33,13 @@
       "minItems": 0
     },
     "message_count": { "type": "integer", "minimum": 0 },
-    "first_message_date": { 
+    "first_message_date": {
       "anyOf": [
         { "type": "string", "format": "date-time" },
         { "type": "null" }
       ]
     },
-    "last_message_date": { 
+    "last_message_date": {
       "anyOf": [
         { "type": "string", "format": "date-time" },
         { "type": "null" }
@@ -52,7 +52,7 @@
       "uniqueItems": true
     },
     "has_consensus": { "type": "boolean" },
-    "consensus_type": { 
+    "consensus_type": {
       "anyOf": [
         { "type": "string", "enum": ["agreement", "dissent", "mixed"] },
         { "type": "null" }
@@ -71,12 +71,12 @@
       "enum": ["pending", "processing", "completed", "failed", "failed_max_retries"],
       "description": "Processing status for retry and workflow tracking"
     },
-    "attemptCount": { 
-      "type": "integer", 
+    "attemptCount": {
+      "type": "integer",
       "minimum": 0,
       "description": "Number of summarization attempts for retry tracking"
     },
-    "lastAttemptTime": { 
+    "lastAttemptTime": {
       "anyOf": [
         { "type": "string", "format": "date-time" },
         { "type": "null" }

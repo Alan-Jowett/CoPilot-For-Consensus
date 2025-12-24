@@ -19,11 +19,11 @@ Optional environment variables:
 """
 
 import os
-import time
 import threading
-import pytest
+import time
 import uuid
 
+import pytest
 from copilot_events import (
     AzureServiceBusPublisher,
     AzureServiceBusSubscriber,
@@ -36,7 +36,7 @@ TEST_TIMEOUT_SECONDS = 30  # seconds to wait for test completion
 
 def get_azureservicebus_config():
     """Get Azure Service Bus configuration from environment variables.
-    
+
     Configuration precedence:
     - If AZURE_SERVICEBUS_CONNECTION_STRING is set, it takes precedence
     - Otherwise, AZURE_SERVICEBUS_NAMESPACE is used with managed identity
@@ -45,10 +45,10 @@ def get_azureservicebus_config():
     """
     connection_string = os.getenv("AZURE_SERVICEBUS_CONNECTION_STRING")
     namespace = os.getenv("AZURE_SERVICEBUS_NAMESPACE")
-    
+
     if not connection_string and not namespace:
         return None
-    
+
     return {
         "connection_string": connection_string,
         "fully_qualified_namespace": namespace,
@@ -75,7 +75,7 @@ def azureservicebus_config():
 def azureservicebus_publisher(azureservicebus_config):
     """Create and connect to an Azure Service Bus publisher for integration tests."""
     config = azureservicebus_config
-    
+
     publisher = AzureServiceBusPublisher(
         connection_string=config.get("connection_string"),
         fully_qualified_namespace=config.get("fully_qualified_namespace"),
@@ -83,7 +83,7 @@ def azureservicebus_publisher(azureservicebus_config):
         topic_name=config.get("topic_name"),
         use_managed_identity=config.get("use_managed_identity", False),
     )
-    
+
     # Attempt to connect with retries
     max_retries = 3
     for i in range(max_retries):
@@ -95,9 +95,9 @@ def azureservicebus_publisher(azureservicebus_config):
                 time.sleep(2)
             else:
                 pytest.skip(f"Could not connect to Azure Service Bus: {e}")
-    
+
     yield publisher
-    
+
     # Cleanup
     publisher.disconnect()
 
@@ -106,7 +106,7 @@ def azureservicebus_publisher(azureservicebus_config):
 def azureservicebus_subscriber(azureservicebus_config):
     """Create an Azure Service Bus subscriber for integration tests."""
     config = azureservicebus_config
-    
+
     # Use topic/subscription if configured, otherwise use queue
     if config.get("topic_name") and config.get("subscription_name"):
         subscriber = AzureServiceBusSubscriber(
@@ -125,7 +125,7 @@ def azureservicebus_subscriber(azureservicebus_config):
             use_managed_identity=config.get("use_managed_identity", False),
             max_wait_time=3,
         )
-    
+
     # Attempt to connect with retries
     max_retries = 3
     for i in range(max_retries):
@@ -137,9 +137,9 @@ def azureservicebus_subscriber(azureservicebus_config):
                 time.sleep(2)
             else:
                 pytest.skip(f"Could not connect to Azure Service Bus: {e}")
-    
+
     yield subscriber
-    
+
     # Cleanup
     subscriber.disconnect()
 
@@ -162,23 +162,23 @@ class TestAzureServiceBusIntegration:
         """Test publishing an event and receiving it."""
         # Track received events
         received_events = []
-        
+
         def callback(event):
             received_events.append(event)
-        
+
         # Subscribe to test event
         azureservicebus_subscriber.subscribe("TestEvent", callback)
-        
+
         # Start subscriber in a thread
         subscriber_thread = threading.Thread(
             target=azureservicebus_subscriber.start_consuming,
             daemon=True,
         )
         subscriber_thread.start()
-        
+
         # Give subscriber time to start
         time.sleep(SUBSCRIBER_STARTUP_WAIT)
-        
+
         # Publish test event
         test_event = {
             "event_type": "TestEvent",
@@ -187,22 +187,22 @@ class TestAzureServiceBusIntegration:
             "version": "1.0",
             "data": {"test_key": "test_value"},
         }
-        
+
         azureservicebus_publisher.publish(
             exchange="copilot.events",
             routing_key="test.event",
             event=test_event,
         )
-        
+
         # Wait for event to be received
         timeout_at = time.time() + TEST_TIMEOUT_SECONDS
         while len(received_events) == 0 and time.time() < timeout_at:
             time.sleep(0.5)
-        
+
         # Stop subscriber
         azureservicebus_subscriber.stop_consuming()
         subscriber_thread.join(timeout=5)
-        
+
         # Verify event was received
         assert len(received_events) == 1
         received_event = received_events[0]
@@ -216,23 +216,23 @@ class TestAzureServiceBusIntegration:
         """Test publishing multiple events."""
         # Track received events
         received_events = []
-        
+
         def callback(event):
             received_events.append(event)
-        
+
         # Subscribe to test event
         azureservicebus_subscriber.subscribe("MultiTestEvent", callback)
-        
+
         # Start subscriber in a thread
         subscriber_thread = threading.Thread(
             target=azureservicebus_subscriber.start_consuming,
             daemon=True,
         )
         subscriber_thread.start()
-        
+
         # Give subscriber time to start
         time.sleep(SUBSCRIBER_STARTUP_WAIT)
-        
+
         # Publish multiple test events
         num_events = 5
         for i in range(num_events):
@@ -243,22 +243,22 @@ class TestAzureServiceBusIntegration:
                 "version": "1.0",
                 "data": {"sequence": i},
             }
-            
+
             azureservicebus_publisher.publish(
                 exchange="copilot.events",
                 routing_key="test.multi",
                 event=test_event,
             )
-        
+
         # Wait for events to be received
         timeout_at = time.time() + TEST_TIMEOUT_SECONDS
         while len(received_events) < num_events and time.time() < timeout_at:
             time.sleep(0.5)
-        
+
         # Stop subscriber
         azureservicebus_subscriber.stop_consuming()
         subscriber_thread.join(timeout=5)
-        
+
         # Verify events were received
         assert len(received_events) == num_events
         sequences = [e["data"]["sequence"] for e in received_events]

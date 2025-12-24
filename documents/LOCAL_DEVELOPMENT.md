@@ -173,7 +173,7 @@ The gateway uses Docker secrets for TLS certificates:
   - `/auth/` - Authentication service
   - `/ingestion/` - Ingestion API
   - `/grafana/` - Grafana dashboards
-  
+
 - **HTTP (always available)**: http://localhost:8080/
   - Same endpoints available
   - Recommended only for local development
@@ -496,7 +496,7 @@ docker compose exec ollama ollama show mistral
    ```bash
    docker system info | grep -i memory
    ```
-   
+
    **Windows (PowerShell):**
    ```powershell
    docker system info | Select-String -Pattern "memory" -CaseSensitive:$false

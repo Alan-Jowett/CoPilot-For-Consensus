@@ -34,7 +34,7 @@ secrets:
     file: ./secrets/message_bus_user
   message_bus_password:
     file: ./secrets/message_bus_password
-  
+
   # Document database credentials
   document_database_user:
     file: ./secrets/document_database_user
@@ -44,17 +44,17 @@ secrets:
     file: ./secrets/mongodb_root_username
   mongodb_root_password:
     file: ./secrets/mongodb_root_password
-  
+
   # Grafana admin
   grafana_admin_user:
     file: ./secrets/grafana_admin_user
   grafana_admin_password:
     file: ./secrets/grafana_admin_password
-  
+
   # Azure OpenAI
   azure_openai_key:
     file: ./secrets/azure_openai_key
-  
+
   # Auth service JWT keys
   jwt_private_key:
     file: ./secrets/jwt_private_key
@@ -62,7 +62,7 @@ secrets:
     file: ./secrets/jwt_public_key
   jwt_secret_key:
     file: ./secrets/jwt_secret_key
-  
+
   # OAuth provider secrets
   github_oauth_client_id:
     file: ./secrets/github_oauth_client_id
@@ -72,11 +72,11 @@ secrets:
     file: ./secrets/google_oauth_client_secret
   microsoft_oauth_client_secret:
     file: ./secrets/microsoft_oauth_client_secret
-  
+
   # Auth role store
   role_store_password:
     file: ./secrets/role_store_password
-  
+
   # API Gateway TLS certificates (optional)
   # Provide these secrets to enable HTTPS on port 8443
   gateway_tls_cert:

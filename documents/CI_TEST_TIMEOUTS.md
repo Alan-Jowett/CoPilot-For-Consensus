@@ -40,7 +40,7 @@ This timeout applies to all tests unless overridden with explicit markers.
 Each test job has a maximum execution time of **30 minutes**.
 
 **Configuration:**
-- Files: 
+- Files:
   - `.github/workflows/service-reusable-unit-test-ci.yml` (for services)
   - `.github/workflows/adapter-reusable-unit-test-ci.yml` (for adapters)
 - Setting: `timeout-minutes: 30`

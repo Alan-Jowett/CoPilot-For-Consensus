@@ -22,7 +22,7 @@ const testMessage = {
 
 try {
   const result = database.getCollection('messages').insertOne(testMessage);
-  
+
   if (result.acknowledged && result.insertedId) {
     print('✓ Success: Message inserted with _id:', result.insertedId);
     print('  message_id:', testMessage.message_id);

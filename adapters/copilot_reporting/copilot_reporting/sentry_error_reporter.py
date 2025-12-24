@@ -3,25 +3,25 @@
 
 """Sentry error reporter implementation (scaffold for future use)."""
 
-from typing import Optional, Dict, Any
+from typing import Any
 
 from .error_reporter import ErrorReporter
 
 
 class SentryErrorReporter(ErrorReporter):
     """Sentry error reporter for cloud-based error tracking.
-    
+
     This is a scaffold implementation for future integration with Sentry.
     To use this reporter, install the sentry-sdk package and provide a DSN.
-    
+
     Example:
         reporter = SentryErrorReporter(dsn="https://...@sentry.io/...")
         reporter.report(exception, context={"user_id": "123"})
     """
 
-    def __init__(self, dsn: Optional[str] = None, environment: str = "production"):
+    def __init__(self, dsn: str | None = None, environment: str = "production"):
         """Initialize Sentry error reporter.
-        
+
         Args:
             dsn: Sentry DSN (Data Source Name) for the project
             environment: Environment name (production, staging, development)
@@ -29,13 +29,13 @@ class SentryErrorReporter(ErrorReporter):
         self.dsn = dsn
         self.environment = environment
         self._initialized = False
-        
+
         if dsn:
             self._initialize_sentry()
 
     def _initialize_sentry(self) -> None:
         """Initialize Sentry SDK.
-        
+
         Note: This is a scaffold. Actual implementation requires:
             pip install sentry-sdk
         """
@@ -54,19 +54,19 @@ class SentryErrorReporter(ErrorReporter):
                 "Install it with: pip install sentry-sdk"
             )
 
-    def report(self, error: Exception, context: Optional[Dict[str, Any]] = None) -> None:
+    def report(self, error: Exception, context: dict[str, Any] | None = None) -> None:
         """Report an exception with optional context.
-        
+
         Args:
             error: The exception to report
             context: Optional dictionary with additional context
         """
         if not self._initialized:
             raise RuntimeError("Sentry reporter not initialized with a valid DSN")
-        
+
         try:
             import sentry_sdk
-            
+
             # Set context if provided
             if context:
                 with sentry_sdk.push_scope() as scope:
@@ -78,7 +78,7 @@ class SentryErrorReporter(ErrorReporter):
                     sentry_sdk.capture_exception(error)
             else:
                 sentry_sdk.capture_exception(error)
-                
+
         except ImportError:
             raise ImportError(
                 "sentry-sdk is not installed. "
@@ -89,10 +89,10 @@ class SentryErrorReporter(ErrorReporter):
         self,
         message: str,
         level: str = "error",
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ) -> None:
         """Capture a message without an exception.
-        
+
         Args:
             message: The message to capture
             level: Severity level (debug, info, warning, error, critical)
@@ -100,10 +100,10 @@ class SentryErrorReporter(ErrorReporter):
         """
         if not self._initialized:
             raise RuntimeError("Sentry reporter not initialized with a valid DSN")
-        
+
         try:
             import sentry_sdk
-            
+
             # Map our level names to Sentry level names
             level_map = {
                 "debug": "debug",
@@ -112,9 +112,9 @@ class SentryErrorReporter(ErrorReporter):
                 "error": "error",
                 "critical": "fatal",
             }
-            
+
             sentry_level = level_map.get(level.lower(), "error")
-            
+
             # Set context if provided
             if context:
                 with sentry_sdk.push_scope() as scope:
@@ -126,7 +126,7 @@ class SentryErrorReporter(ErrorReporter):
                     sentry_sdk.capture_message(message, level=sentry_level)
             else:
                 sentry_sdk.capture_message(message, level=sentry_level)
-                
+
         except ImportError:
             raise ImportError(
                 "sentry-sdk is not installed. "

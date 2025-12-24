@@ -15,14 +15,14 @@ mkdir -p "$(dirname "$CERT_PATH")"
 # Check if TLS certificates are available (from bind mount or Docker secrets)
 if [ ! -f "$CERT_PATH" ] || [ ! -f "$KEY_PATH" ]; then
     echo "TLS certificates not found - generating self-signed certificates..."
-    
+
     # Generate self-signed certificate (valid for 365 days)
     openssl req -x509 -newkey rsa:2048 \
         -keyout "$KEY_PATH" \
         -out "$CERT_PATH" \
         -days 365 -nodes \
         -subj "/C=US/ST=State/L=City/O=Copilot-for-Consensus/CN=localhost" 2>&1
-    
+
     if [ -f "$CERT_PATH" ] && [ -f "$KEY_PATH" ]; then
         echo "✓ Self-signed certificates generated successfully"
         echo "  Certificate: $CERT_PATH"

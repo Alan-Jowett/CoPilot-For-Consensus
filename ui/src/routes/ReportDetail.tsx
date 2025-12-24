@@ -63,11 +63,11 @@ export function ReportDetail() {
             <div className="info-value">{report.generated_by}</div>
           </div>
         </div>
-        
+
         {/* Add navigation to thread view */}
         <div style={{ marginTop: '15px' }}>
-          <Link 
-            className="view-thread-btn" 
+          <Link
+            className="view-thread-btn"
             to={`/threads/${report.thread_id}/messages`}
           >
             💬 View Underlying Discussion
@@ -132,8 +132,8 @@ export function ReportDetail() {
                   </div>
                   {/* Add clickable link to view in thread context */}
                   <div className="citation-actions">
-                    <Link 
-                      className="citation-link" 
+                    <Link
+                      className="citation-link"
                       to={`/threads/${report.thread_id}/messages?highlight=${c.message_id}`}
                     >
                       📍 View in Thread

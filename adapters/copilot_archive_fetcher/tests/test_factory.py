@@ -5,13 +5,13 @@
 
 import pytest
 from copilot_archive_fetcher import (
-    create_fetcher,
-    SourceConfig,
-    RsyncFetcher,
     HTTPFetcher,
-    LocalFetcher,
     IMAPFetcher,
+    LocalFetcher,
+    RsyncFetcher,
+    SourceConfig,
     UnsupportedSourceTypeError,
+    create_fetcher,
 )
 
 

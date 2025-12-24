@@ -4,8 +4,9 @@
 """Tests for utility functions."""
 
 import os
-import pytest
 import tempfile
+
+import pytest
 from copilot_archive_fetcher import calculate_file_hash
 
 
@@ -17,12 +18,12 @@ class TestUtilities:
         with tempfile.TemporaryDirectory() as tmpdir:
             test_file = os.path.join(tmpdir, "test.txt")
             test_content = b"Test content for hashing"
-            
+
             with open(test_file, "wb") as f:
                 f.write(test_content)
 
             hash_value = calculate_file_hash(test_file)
-            
+
             # Expected SHA256 of "Test content for hashing"
             assert isinstance(hash_value, str)
             assert len(hash_value) == 64  # SHA256 is 64 hex characters
@@ -37,7 +38,7 @@ class TestUtilities:
 
             hash1 = calculate_file_hash(test_file)
             hash2 = calculate_file_hash(test_file)
-            
+
             assert hash1 == hash2
 
     def test_calculate_file_hash_different_content(self):
@@ -45,7 +46,7 @@ class TestUtilities:
         with tempfile.TemporaryDirectory() as tmpdir:
             file1 = os.path.join(tmpdir, "file1.txt")
             file2 = os.path.join(tmpdir, "file2.txt")
-            
+
             with open(file1, "wb") as f:
                 f.write(b"Content 1")
             with open(file2, "wb") as f:
@@ -53,7 +54,7 @@ class TestUtilities:
 
             hash1 = calculate_file_hash(file1)
             hash2 = calculate_file_hash(file2)
-            
+
             assert hash1 != hash2
 
     def test_calculate_file_hash_nonexistent(self):
@@ -69,7 +70,7 @@ class TestUtilities:
                 f.write(b"Test")
 
             hash_value = calculate_file_hash(test_file, algorithm="md5")
-            
+
             assert isinstance(hash_value, str)
             assert len(hash_value) == 32  # MD5 is 32 hex characters
 
@@ -82,19 +83,19 @@ class TestUtilities:
 
             with pytest.raises(ValueError) as exc_info:
                 calculate_file_hash(test_file, algorithm="invalid_algo")
-            
+
             assert "Unsupported hash algorithm" in str(exc_info.value)
 
     def test_calculate_file_hash_large_file(self):
         """Test hash calculation for larger file."""
         with tempfile.TemporaryDirectory() as tmpdir:
             test_file = os.path.join(tmpdir, "large.bin")
-            
+
             # Create a file larger than chunk size (4096 bytes)
             with open(test_file, "wb") as f:
                 f.write(b"x" * 10000)
 
             hash_value = calculate_file_hash(test_file)
-            
+
             assert isinstance(hash_value, str)
             assert len(hash_value) == 64

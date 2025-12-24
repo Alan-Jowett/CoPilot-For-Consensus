@@ -10,7 +10,7 @@ entries issue has been resolved.
 
 Usage:
     python3 validate_queue_drainage.py
-    
+
 Environment Variables:
     RABBITMQ_HOST - RabbitMQ host (default: localhost)
     RABBITMQ_MGMT_PORT - RabbitMQ management port (default: 15672)
@@ -21,19 +21,19 @@ Environment Variables:
 import os
 import sys
 import time
+
 import requests
-from typing import Dict, List
 
 
 def get_rabbitmq_api_url() -> str:
     """Get RabbitMQ management API URL from environment or use default."""
     host = os.getenv("RABBITMQ_HOST", "localhost")
     port = os.getenv("RABBITMQ_MGMT_PORT", "15672")
-    
+
     # Validate and sanitize host
     if not host or not isinstance(host, str):
         host = "localhost"
-    
+
     # Remove protocol and path components, extract just hostname/IP
     # This prevents injection via URLs like http://evil.com/path
     host = host.replace("http://", "").replace("https://", "")
@@ -41,12 +41,12 @@ def get_rabbitmq_api_url() -> str:
     host = host.split("?")[0]  # Remove query string
     host = host.split("#")[0]  # Remove fragment
     host = host.split(":")[0]  # Remove port if included in host
-    
+
     # Only allow alphanumeric, dots, hyphens, and underscores (valid DNS characters)
     # This prevents special characters that could be used for injection
     if not all(c.isalnum() or c in ".-_" for c in host):
         host = "localhost"
-    
+
     # Validate port is numeric and in valid range
     try:
         port_num = int(port)
@@ -55,7 +55,7 @@ def get_rabbitmq_api_url() -> str:
         port = str(port_num)  # Use validated numeric value
     except (ValueError, TypeError):
         port = "15672"
-    
+
     return f"http://{host}:{port}/api"
 
 
@@ -66,25 +66,25 @@ def get_rabbitmq_credentials() -> tuple:
     return (username, password)
 
 
-def get_queue_stats() -> List[Dict]:
+def get_queue_stats() -> list[dict]:
     """Fetch queue statistics from RabbitMQ management API."""
     api_url = get_rabbitmq_api_url()
     auth = get_rabbitmq_credentials()
-    
+
     try:
         response = requests.get(f"{api_url}/queues", auth=auth, timeout=10)
         response.raise_for_status()
         return response.json()
     except requests.RequestException as e:
         print(f"❌ Cannot connect to RabbitMQ management API: {type(e).__name__}")
-        print(f"   Check that RabbitMQ is running and accessible")
+        print("   Check that RabbitMQ is running and accessible")
         sys.exit(1)
 
 
-def check_for_duplicate_queues(queues: List[Dict]) -> bool:
+def check_for_duplicate_queues(queues: list[dict]) -> bool:
     """Check if duplicate queues exist that should have been removed."""
     queue_names = {q["name"] for q in queues}
-    
+
     # Queues that should NOT exist (removed from definitions.json)
     forbidden_queues = {
         "chunks.prepared",
@@ -98,9 +98,9 @@ def check_for_duplicate_queues(queues: List[Dict]) -> bool:
         "summarization.failed",
         "report.delivery.failed",
     }
-    
+
     found_forbidden = queue_names & forbidden_queues
-    
+
     if found_forbidden:
         print("❌ Found duplicate queues that should have been removed:")
         for queue_name in sorted(found_forbidden):
@@ -113,17 +113,17 @@ def check_for_duplicate_queues(queues: List[Dict]) -> bool:
         return True
 
 
-def check_queue_drainage(queues: List[Dict]) -> bool:
+def check_queue_drainage(queues: list[dict]) -> bool:
     """Check if all queues have drained to empty."""
     queues_with_messages = []
-    
+
     for queue in queues:
         name = queue.get("name", "unknown")
         ready = queue.get("messages_ready", 0)
         unacked = queue.get("messages_unacknowledged", 0)
         total = queue.get("messages", 0)
         consumers = queue.get("consumers", 0)
-        
+
         if ready > 0 or unacked > 0:
             queues_with_messages.append({
                 "name": name,
@@ -132,7 +132,7 @@ def check_queue_drainage(queues: List[Dict]) -> bool:
                 "total": total,
                 "consumers": consumers,
             })
-    
+
     if queues_with_messages:
         print("⚠️  Queues have lingering messages:")
         for q in queues_with_messages:
@@ -148,7 +148,7 @@ def check_queue_drainage(queues: List[Dict]) -> bool:
         return True
 
 
-def check_consumer_coverage(queues: List[Dict]) -> bool:
+def check_consumer_coverage(queues: list[dict]) -> bool:
     """Check if all expected queues have active consumers."""
     # Queues that should have consumers (from definitions.json)
     expected_consumers = {
@@ -157,23 +157,23 @@ def check_consumer_coverage(queues: List[Dict]) -> bool:
         "summarization.requested": 1,
         "summary.complete": 1,
     }
-    
+
     missing_consumers = []
     for queue in queues:
         queue_name = queue.get("name")
         if queue_name not in expected_consumers:
             continue
-        
+
         expected_count = expected_consumers[queue_name]
         actual_count = queue.get("consumers", 0)
-        
+
         if actual_count < expected_count:
             missing_consumers.append({
                 "name": queue_name,
                 "expected": expected_count,
                 "actual": actual_count,
             })
-    
+
     if missing_consumers:
         print("⚠️  Queues missing expected consumers:")
         for q in missing_consumers:
@@ -185,30 +185,30 @@ def check_consumer_coverage(queues: List[Dict]) -> bool:
         return True
 
 
-def print_queue_summary(queues: List[Dict]) -> None:
+def print_queue_summary(queues: list[dict]) -> None:
     """Print a summary of all queues."""
     print("\n=== Queue Summary ===")
     print(f"Total queues: {len(queues)}\n")
-    
+
     if not queues:
         print("No queues found.\n")
         return
-    
+
     # Sort by name for consistent output
     sorted_queues = sorted(queues, key=lambda q: q.get("name", ""))
-    
+
     print(f"{'Queue Name':<40} {'Ready':<8} {'Unacked':<8} {'Total':<8} {'Consumers':<10}")
     print("-" * 90)
-    
+
     for queue in sorted_queues:
         name = queue.get("name", "unknown")
         ready = queue.get("messages_ready", 0)
         unacked = queue.get("messages_unacknowledged", 0)
         total = queue.get("messages", 0)
         consumers = queue.get("consumers", 0)
-        
+
         print(f"{name:<40} {ready:<8} {unacked:<8} {total:<8} {consumers:<10}")
-    
+
     print()
 
 
@@ -218,38 +218,38 @@ def main():
     print("Queue Drainage Validation")
     print("=" * 80)
     print()
-    
+
     # Fetch queue stats
     print("Fetching queue statistics from RabbitMQ...")
     queues = get_queue_stats()
     print(f"Found {len(queues)} queue(s)\n")
-    
+
     # Run validation checks
     all_passed = True
-    
+
     print("--- Check 1: Duplicate Queue Detection ---")
     if not check_for_duplicate_queues(queues):
         all_passed = False
     print()
-    
+
     print("--- Check 2: Consumer Coverage ---")
     if not check_consumer_coverage(queues):
         all_passed = False
     print()
-    
+
     print("--- Check 3: Queue Drainage ---")
     print("Waiting 3 seconds for any in-flight messages to complete...")
     time.sleep(3)
-    
+
     # Refresh stats after wait
     queues = get_queue_stats()
     if not check_queue_drainage(queues):
         all_passed = False
     print()
-    
+
     # Print summary
     print_queue_summary(queues)
-    
+
     # Final result
     print("=" * 80)
     if all_passed:

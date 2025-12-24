@@ -84,7 +84,7 @@ The Chunking Service subscribes to the following events. See [SCHEMA.md](../docu
 
 Consumes events from the Parsing & Normalization Service when messages are parsed.
 
-**Exchange:** `copilot.events`  
+**Exchange:** `copilot.events`
 **Routing Key:** `json.parsed`
 
 See [JSONParsed schema](../documents/SCHEMA.md#3-jsonparsed) in SCHEMA.md for the complete payload definition.
@@ -104,7 +104,7 @@ The Chunking Service publishes the following events. See [SCHEMA.md](../document
 
 Published when messages have been successfully chunked and stored.
 
-**Exchange:** `copilot.events`  
+**Exchange:** `copilot.events`
 **Routing Key:** `chunks.prepared`
 
 See [ChunksPrepared schema](../documents/SCHEMA.md#5-chunksprepared) in SCHEMA.md for the complete payload definition.
@@ -121,7 +121,7 @@ See [ChunksPrepared schema](../documents/SCHEMA.md#5-chunksprepared) in SCHEMA.m
 
 Published when chunking fails for a batch of messages.
 
-**Exchange:** `copilot.events`  
+**Exchange:** `copilot.events`
 **Routing Key:** `chunks.failed`
 
 See [ChunkingFailed schema](../documents/SCHEMA.md#6-chunkingfailed) in SCHEMA.md for the complete payload definition.
@@ -212,11 +212,11 @@ Each chunk is stored in the `chunks` collection:
 def chunk_message(message_text: str, config: ChunkConfig) -> List[Chunk]:
     """
     Split message text into chunks using recursive strategy.
-    
+
     Args:
         message_text: Normalized message body
         config: Chunking configuration
-        
+
     Returns:
         List of chunk objects with metadata
     """
@@ -227,10 +227,10 @@ def chunk_message(message_text: str, config: ChunkConfig) -> List[Chunk]:
         separators=["\n\n", "\n", ". ", " ", ""],
         length_function=count_tokens
     )
-    
+
     # 2. Split text
     text_chunks = splitter.split_text(message_text)
-    
+
     # 3. Create chunk objects with metadata
     chunks = []
     offset = 0
@@ -247,7 +247,7 @@ def chunk_message(message_text: str, config: ChunkConfig) -> List[Chunk]:
         }
         chunks.append(chunk)
         offset += len(text)
-    
+
     return chunks
 ```
 
@@ -257,11 +257,11 @@ def chunk_message(message_text: str, config: ChunkConfig) -> List[Chunk]:
 def count_tokens(text: str, model: str = "cl100k_base") -> int:
     """
     Count tokens in text using specified encoding.
-    
+
     Args:
         text: Input text
         model: Tokenizer model (for tiktoken)
-        
+
     Returns:
         Number of tokens
     """
@@ -284,20 +284,20 @@ async def process_json_parsed_event(event: JSONParsedEvent):
         messages = db.messages.find({
             "_id": {"$in": event.data.message_doc_ids}
         })
-        
+
         # 2. Process each message
         all_chunks = []
         for message in messages:
             # Extract normalized body
             text = message.get("body_normalized", "")
-            
+
             if not text or len(text.strip()) == 0:
                 logger.warning(f"Empty message body: {message['message_id']}")
                 continue
-            
+
             # Create chunks
             chunks = chunk_message(text, chunk_config)
-            
+
             # Add message metadata to each chunk
             for chunk in chunks:
                 chunk.update({
@@ -316,19 +316,19 @@ async def process_json_parsed_event(event: JSONParsedEvent):
                     "embedding_generated": False
                 })
                 all_chunks.append(chunk)
-        
+
         # 3. Store chunks in database
         if all_chunks:
             db.chunks.insert_many(all_chunks)
             logger.info(f"Created {len(all_chunks)} chunks")
-        
+
         # 4. Publish ChunksPrepared event
         await publish_chunks_prepared_event(
             message_doc_ids=event.data.message_doc_ids,
             chunk_ids=[c["_id"] for c in all_chunks],
             chunk_count=len(all_chunks)
         )
-        
+
     except Exception as e:
         logger.error(f"Chunking failed: {e}")
         await publish_chunking_failed_event(

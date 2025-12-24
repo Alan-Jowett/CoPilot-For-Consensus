@@ -46,11 +46,11 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
 ```typescript
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers || {})
-  
+
   // Get the token from localStorage (most recent source of truth)
   const token = localStorage.getItem('auth_token')
   console.log('[fetchWithAuth] URL:', url, 'Has token:', !!token)
-  
+
   if (token) {
     headers.set('Authorization', `Bearer ${token}`)  // Now sends the token!
   }

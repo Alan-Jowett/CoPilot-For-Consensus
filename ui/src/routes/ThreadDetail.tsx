@@ -9,7 +9,7 @@ export function ThreadDetail() {
   const { threadId } = useParams()
   const [searchParams] = useSearchParams()
   const highlightMessageId = searchParams.get('highlight')
-  
+
   const [thread, setThread] = useState<Thread | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -23,7 +23,7 @@ export function ThreadDetail() {
     let cancelled = false
     setLoading(true)
     setError(null)
-    
+
     Promise.all([
       fetchThread(threadId),
       fetchThreadMessages(threadId, limit, page * limit)
@@ -41,7 +41,7 @@ export function ThreadDetail() {
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
-    
+
     return () => { cancelled = true }
   }, [threadId, page])
 
@@ -58,7 +58,7 @@ export function ThreadDetail() {
   }, [highlightMessageId, messages])
 
   // Check if highlighted message exists in current page
-  const highlightedMessageFound = highlightMessageId 
+  const highlightedMessageFound = highlightMessageId
     ? messages.some(msg => msg.message_id === highlightMessageId)
     : true
 
@@ -110,7 +110,7 @@ export function ThreadDetail() {
             </div>
           )}
         </div>
-        
+
         {thread.summary_id && (
           <div style={{ marginTop: '15px' }}>
             <Link className="view-summary-btn" to={`/reports/${thread.summary_id}`}>
@@ -142,7 +142,7 @@ export function ThreadDetail() {
                   <div className="message-header">
                     <div className="message-meta">
                       <span className="message-sender">
-                        {msg.from && msg.from.email 
+                        {msg.from && msg.from.email
                           ? (msg.from.name || msg.from.email)
                           : 'Unknown Sender'}
                       </span>
@@ -156,19 +156,19 @@ export function ThreadDetail() {
                       <span className="highlight-badge">Referenced in Summary</span>
                     )}
                   </div>
-                  
+
                   {msg.subject && msg.subject !== thread.subject && (
                     <div className="message-subject">{msg.subject}</div>
                   )}
-                  
+
                   <div className="message-body-preview">
                     {(msg.body_normalized || '').substring(0, 300)}
                     {(msg.body_normalized || '').length > 300 && '...'}
                   </div>
-                  
+
                   <div className="message-footer">
-                    <Link 
-                      className="view-message-link" 
+                    <Link
+                      className="view-message-link"
                       to={`/messages/${msg._id}`}
                     >
                       View Full Message →
@@ -183,17 +183,17 @@ export function ThreadDetail() {
             })}
           </div>
         )}
-        
+
         {(page > 0 || hasMore) && (
           <div className="pagination">
-            <button 
+            <button
               className={page === 0 ? 'disabled' : ''}
               onClick={() => page > 0 && setPage(page - 1)}
             >
               ← Previous
             </button>
             <span>Page {page + 1}</span>
-            <button 
+            <button
               className={!hasMore ? 'disabled' : ''}
               onClick={() => hasMore && setPage(page + 1)}
             >

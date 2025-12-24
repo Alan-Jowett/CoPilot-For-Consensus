@@ -181,7 +181,7 @@ Detailed explanation of the service's role in the system.
 
 #### 1. EventName
 
-**Exchange**: `copilot.events`  
+**Exchange**: `copilot.events`
 **Routing Key**: `event.name`
 
 See [SCHEMA.md](../documents/SCHEMA.md#event-name) for complete schema.

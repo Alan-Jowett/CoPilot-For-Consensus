@@ -9,33 +9,33 @@ in the Copilot-for-Consensus system.
 
 from typing import Optional
 
-from .error_reporter import ErrorReporter
 from .console_error_reporter import ConsoleErrorReporter
-from .silent_error_reporter import SilentErrorReporter
+from .error_reporter import ErrorReporter
 from .sentry_error_reporter import SentryErrorReporter
+from .silent_error_reporter import SilentErrorReporter
 
 __version__ = "0.1.0"
 
 
 def create_error_reporter(
     reporter_type: str = "console",
-    logger_name: Optional[str] = None,
-    dsn: Optional[str] = None,
+    logger_name: str | None = None,
+    dsn: str | None = None,
     environment: str = "production",
     **kwargs
 ) -> ErrorReporter:
     """Create an error reporter based on type.
-    
+
     Args:
         reporter_type: Type of reporter ("console", "silent", "sentry")
         logger_name: Logger name for console reporter (optional)
         dsn: Sentry DSN for sentry reporter (optional)
         environment: Environment name for sentry reporter (optional)
         **kwargs: Additional reporter-specific arguments
-        
+
     Returns:
         ErrorReporter instance
-        
+
     Raises:
         ValueError: If reporter_type is unknown
     """

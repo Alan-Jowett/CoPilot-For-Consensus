@@ -11,21 +11,19 @@ from pathlib import Path
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
-from fastapi import FastAPI
 import uvicorn
-
-from copilot_config import load_typed_config
-from copilot_events import create_publisher, create_subscriber
-from copilot_storage import create_document_store, ValidatingDocumentStore, DocumentStoreConnectionError
-from copilot_schema_validation import FileSchemaProvider
-from copilot_vectorstore import create_vector_store
-from copilot_metrics import create_metrics_collector
-from copilot_reporting import create_error_reporter
-from copilot_summarization import SummarizerFactory
-from copilot_logging import create_logger, create_uvicorn_log_config
-
 from app import __version__
 from app.service import SummarizationService
+from copilot_config import load_typed_config
+from copilot_events import create_publisher, create_subscriber
+from copilot_logging import create_logger, create_uvicorn_log_config
+from copilot_metrics import create_metrics_collector
+from copilot_reporting import create_error_reporter
+from copilot_schema_validation import FileSchemaProvider
+from copilot_storage import DocumentStoreConnectionError, ValidatingDocumentStore, create_document_store
+from copilot_summarization import SummarizerFactory
+from copilot_vectorstore import create_vector_store
+from fastapi import FastAPI
 
 # Configure structured JSON logging
 logger = create_logger(logger_type="stdout", level="INFO", name="summarization")
@@ -41,9 +39,9 @@ summarization_service = None
 def health():
     """Health check endpoint."""
     global summarization_service
-    
+
     stats = summarization_service.get_stats() if summarization_service is not None else {}
-    
+
     return {
         "status": "healthy",
         "service": "summarization",
@@ -58,19 +56,19 @@ def health():
 def get_stats():
     """Get summarization statistics."""
     global summarization_service
-    
+
     if not summarization_service:
         return {"error": "Service not initialized"}
-    
+
     return summarization_service.get_stats()
 
 
 def start_subscriber_thread(service: SummarizationService):
     """Start the event subscriber in a separate thread.
-    
+
     Args:
         service: Summarization service instance
-        
+
     Raises:
         Exception: Re-raises any exception to fail fast
     """
@@ -89,13 +87,13 @@ def start_subscriber_thread(service: SummarizationService):
 def main():
     """Main entry point for the summarization service."""
     global summarization_service
-    
+
     logger.info(f"Starting Summarization Service (version {__version__})")
-    
+
     try:
         # Load configuration from schema with typed access
         config = load_typed_config("summarization")
-        
+
         # Conditionally add JWT authentication middleware based on config
         if getattr(config, 'jwt_auth_enabled', True):
             logger.info("JWT authentication is enabled")
@@ -110,7 +108,7 @@ def main():
                 logger.warning("copilot_auth module not available - JWT authentication disabled")
         else:
             logger.warning("JWT authentication is DISABLED - all endpoints are public")
-        
+
         # Create adapters
         logger.info("Creating message bus publisher...")
         publisher = create_publisher(
@@ -128,7 +126,7 @@ def main():
                 raise ConnectionError("Publisher failed to connect to message bus")
             else:
                 logger.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
-        
+
         logger.info("Creating message bus subscriber...")
         subscriber = create_subscriber(
             message_bus_type=config.message_bus_type,
@@ -143,7 +141,7 @@ def main():
         except Exception as e:
             logger.error(f"Failed to connect subscriber to message bus: {e}")
             raise ConnectionError("Subscriber failed to connect to message bus")
-        
+
         logger.info("Creating document store...")
         base_document_store = create_document_store(
             store_type=config.doc_store_type,
@@ -158,7 +156,7 @@ def main():
         except DocumentStoreConnectionError as e:
             logger.error(f"Failed to connect to document store: {e}")
             raise
-        
+
         # Wrap with schema validation
         logger.info("Wrapping document store with schema validation...")
         document_schema_provider = FileSchemaProvider(
@@ -169,21 +167,21 @@ def main():
             schema_provider=document_schema_provider,
             strict=True,
         )
-        
+
         logger.info("Creating vector store...")
-        
+
         # Build vector store kwargs based on backend type
         vector_store_kwargs = {
             "backend": config.vector_store_type,
         }
-        
+
         if config.vector_store_type.lower() == "faiss":
             # Validate required config attributes
             if not hasattr(config, "embedding_dimension"):
                 raise ValueError("embedding_dimension configuration is required for FAISS backend")
             if not hasattr(config, "vector_store_index_type"):
                 raise ValueError("vector_store_index_type configuration is required for FAISS backend")
-            
+
             vector_store_kwargs.update({
                 "dimension": config.embedding_dimension,
                 "index_type": config.vector_store_index_type,
@@ -191,12 +189,12 @@ def main():
             })
         elif config.vector_store_type.lower() == "qdrant":
             # Validate required config attributes
-            required_attrs = ["embedding_dimension", "vector_store_host", "vector_store_port", 
+            required_attrs = ["embedding_dimension", "vector_store_host", "vector_store_port",
                             "vector_store_collection", "vector_store_distance", "vector_store_batch_size"]
             missing = [attr for attr in required_attrs if not hasattr(config, attr)]
             if missing:
                 raise ValueError(f"Missing required Qdrant configuration: {', '.join(missing)}")
-            
+
             vector_store_kwargs.update({
                 "dimension": config.embedding_dimension,
                 "host": config.vector_store_host,
@@ -206,7 +204,7 @@ def main():
                 "upsert_batch_size": config.vector_store_batch_size,
                 "api_key": config.vector_store_api_key if hasattr(config, "vector_store_api_key") else None,
             })
-        
+
         vector_store = create_vector_store(**vector_store_kwargs)
 
         # Connect vector store if required; in-memory typically doesn't need connect
@@ -220,16 +218,16 @@ def main():
                 if str(config.vector_store_type).lower() != "inmemory":
                     logger.error(f"Failed to connect to vector store: {e}")
                     raise ConnectionError("Vector store failed to connect")
-        
+
         # Create summarizer
         logger.info(f"Creating summarizer with backend: {config.llm_backend}")
-        
+
         # Build summarizer kwargs based on backend type
         summarizer_kwargs = {
             "provider": config.llm_backend,
             "model": config.llm_model,
         }
-        
+
         if config.llm_backend.lower() in ("openai", "azure", "local", "llamacpp"):
             if config.llm_backend.lower() == "openai":
                 if not hasattr(config, "openai_api_key"):
@@ -243,7 +241,7 @@ def main():
                 missing = [attr for attr in required_attrs if not hasattr(config, attr)]
                 if missing:
                     raise ValueError(f"Missing required Azure summarizer configuration: {', '.join(missing)}")
-                
+
                 summarizer_kwargs["api_key"] = config.azure_openai_api_key
                 summarizer_kwargs["base_url"] = config.azure_openai_endpoint
                 if not summarizer_kwargs["api_key"]:
@@ -262,17 +260,17 @@ def main():
                 summarizer_kwargs["base_url"] = config.llamacpp_endpoint
                 if not summarizer_kwargs["base_url"]:
                     raise ValueError("llamacpp_endpoint configuration is required for llama.cpp summarizer and cannot be empty")
-        
+
         summarizer = SummarizerFactory.create_summarizer(**summarizer_kwargs)
-        
+
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")
         metrics_collector = create_metrics_collector()
-        
+
         # Create error reporter - fail fast on errors
         logger.info("Creating error reporter...")
         error_reporter = create_error_reporter()
-        
+
         # Create summarization service
         summarization_service = SummarizationService(
             document_store=document_store,
@@ -287,7 +285,7 @@ def main():
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
         )
-        
+
         # Start subscriber in a separate thread (non-daemon to fail fast)
         subscriber_thread = threading.Thread(
             target=start_subscriber_thread,
@@ -296,14 +294,14 @@ def main():
         )
         subscriber_thread.start()
         logger.info("Subscriber thread started")
-        
+
         # Start FastAPI server
         logger.info(f"Starting HTTP server on port {config.http_port}...")
-        
+
         # Configure Uvicorn with structured JSON logging
         log_config = create_uvicorn_log_config(service_name="summarization", log_level="INFO")
         uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config)
-        
+
     except Exception as e:
         logger.error(f"Failed to start summarization service: {e}")
         sys.exit(1)

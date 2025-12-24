@@ -3,8 +3,9 @@
 
 """Pytest configuration and shared fixtures for schema validation tests."""
 
-import pytest
 from pathlib import Path
+
+import pytest
 from copilot_schema_validation import FileSchemaProvider
 
 

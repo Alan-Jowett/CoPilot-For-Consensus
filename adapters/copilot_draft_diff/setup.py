@@ -3,13 +3,17 @@
 
 """Setup configuration for draft-diff package."""
 
-from setuptools import setup, find_packages
 from pathlib import Path
+
+from setuptools import find_packages, setup
 
 # Read the README file if it exists
 this_directory = Path(__file__).parent
 readme_path = this_directory / "README.md"
-long_description = readme_path.read_text(encoding="utf-8") if readme_path.exists() else "Draft diff provider abstraction for Copilot-for-Consensus"
+if readme_path.exists():
+    long_description = readme_path.read_text(encoding="utf-8")
+else:
+    long_description = "Draft diff provider abstraction for Copilot-for-Consensus"
 
 setup(
     name="copilot-draft-diff",

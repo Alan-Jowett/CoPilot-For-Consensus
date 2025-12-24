@@ -3,14 +3,13 @@
 
 """Integration tests for the orchestration service."""
 
-import pytest
 from pathlib import Path
 
-from copilot_events import NoopPublisher, NoopSubscriber
-from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
-from copilot_schema_validation import FileSchemaProvider
-
+import pytest
 from app.service import OrchestrationService
+from copilot_events import NoopPublisher, NoopSubscriber
+from copilot_schema_validation import FileSchemaProvider
+from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
 
 
 def create_query_with_in_support(original_query):
@@ -58,10 +57,10 @@ def document_store():
     """Create an in-memory document store with schema validation for testing."""
     # Create base in-memory store
     base_store = InMemoryDocumentStore()
-    
+
     # Override query_documents to support $in operator
     base_store.query_documents = create_query_with_in_support(base_store.query_documents)
-    
+
     # Wrap with validation using document schemas
     schema_dir = Path(__file__).parent.parent.parent / "documents" / "schemas" / "documents"
     schema_provider = FileSchemaProvider(schema_dir=schema_dir)
@@ -69,7 +68,7 @@ def document_store():
         store=base_store,
         schema_provider=schema_provider
     )
-    
+
     return validating_store
 
 
@@ -101,10 +100,8 @@ def service(document_store, publisher, subscriber):
 def test_end_to_end_orchestration(service, document_store):
     """Test end-to-end orchestration flow."""
     from datetime import datetime, timezone
-    import uuid
-    
+
     # Setup test data in document store
-    thread_id = "<thread-1@example.com>"
     now = datetime.now(timezone.utc).isoformat()
 
     # Insert chunks
@@ -203,10 +200,9 @@ def test_orchestration_with_no_chunks(service, document_store):
 def test_orchestration_with_multiple_threads(service, document_store):
     """Test orchestration with chunks from multiple threads."""
     from datetime import datetime, timezone
-    import uuid
-    
+
     now = datetime.now(timezone.utc).isoformat()
-    
+
     # Setup chunks from different threads
     chunk_ids = []
     chunks = [
@@ -288,7 +284,7 @@ def test_orchestration_with_multiple_threads(service, document_store):
             "draft_mentions": [],
         },
     ]
-    
+
     for msg in messages:
         document_store.insert_document("messages", msg)
 

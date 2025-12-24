@@ -23,14 +23,14 @@ Created a new adapter module `copilot_startup` that provides:
 
 #### 1. Parsing Service
 - **Query**: Archives with `status` in `["pending", "processing"]`
-- **Event**: `ArchiveIngested` 
+- **Event**: `ArchiveIngested`
 - **Limit**: 1000 archives
 - **Logic**: Simple status-based query
 
 #### 2. Chunking Service
 - **Query**: Messages without corresponding chunks
 - **Event**: `JSONParsed`
-- **Logic**: 
+- **Logic**:
   - Queries all messages
   - Checks for existing chunks
   - Identifies messages without chunks

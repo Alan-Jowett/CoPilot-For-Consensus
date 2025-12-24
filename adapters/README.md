@@ -102,7 +102,7 @@ pytest -m integration
 pytest -m "not integration"
 ```
 
-Integration tests require external services (MongoDB, RabbitMQ, etc.) to be running. 
+Integration tests require external services (MongoDB, RabbitMQ, etc.) to be running.
 The CI pipeline automatically provisions these services using GitHub Actions service containers.
 
 ## Contributing

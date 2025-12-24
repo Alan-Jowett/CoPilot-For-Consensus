@@ -17,11 +17,11 @@ export function setUnauthorizedCallback(callback: (() => void) | null) {
 // Helper to make authenticated API requests
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers || {})
-  
+
   // Get the token from localStorage (most recent source of truth)
   const token = localStorage.getItem('auth_token')
   console.log('[fetchWithAuth] URL:', url, 'Has token:', !!token)
-  
+
   if (token) {
     headers.set('Authorization', `Bearer ${token}`)
   }

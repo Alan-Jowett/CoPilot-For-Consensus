@@ -91,7 +91,7 @@ The parsing service now publishes **one** `JSONParsed` event per message:
    - Chunking service already processes `parsed_message_ids` as an array
    - Single-item arrays work identically to multi-item arrays
 
-2. **Testing**: 
+2. **Testing**:
    - Update tests that assert on event count (see `parsing/tests/test_service.py`)
    - Verify per-message event publishing in integration tests
 

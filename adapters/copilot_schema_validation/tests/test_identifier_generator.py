@@ -5,8 +5,8 @@ import datetime as dt
 
 from copilot_schema_validation.identifier_generator import (
     generate_archive_id_from_bytes,
-    generate_message_doc_id,
     generate_chunk_id,
+    generate_message_doc_id,
     generate_summary_id,
 )
 

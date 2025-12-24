@@ -13,11 +13,11 @@ This implementation adds support for Azure Managed Identity authentication as an
 #### New Parameters
 - **`useManagedIdentityForServiceBus`** (bool, default: false)
   - Toggles between connection string and managed identity authentication modes
-  
+
 - **`serviceBusNamespace`** (string, default: "")
   - Fully qualified Service Bus namespace (e.g., `mynamespace.servicebus.windows.net`)
   - Required when `useManagedIdentityForServiceBus` is true
-  
+
 - **`serviceBusResourceId`** (string, default: "")
   - Azure Service Bus namespace resource ID for RBAC role assignments
   - Required when `useManagedIdentityForServiceBus` is true
@@ -124,11 +124,11 @@ The Service Bus role assignments use nested deployment because:
 
 ## Validation
 
-✅ **ARM Template JSON Syntax**: Passed  
-✅ **Template Structure Validation**: Passed  
-✅ **Parameters File Validation**: Passed  
-✅ **Code Review**: Completed (minor readability concerns about complex expressions, but acceptable for ARM templates)  
-✅ **Security Scan**: No vulnerabilities detected  
+✅ **ARM Template JSON Syntax**: Passed
+✅ **Template Structure Validation**: Passed
+✅ **Parameters File Validation**: Passed
+✅ **Code Review**: Completed (minor readability concerns about complex expressions, but acceptable for ARM templates)
+✅ **Security Scan**: No vulnerabilities detected
 
 ## Backward Compatibility
 

@@ -16,7 +16,7 @@ class TestUser:
             email="test@example.com",
             name="Test User"
         )
-        
+
         assert user.id == "user-123"
         assert user.email == "test@example.com"
         assert user.name == "Test User"
@@ -32,7 +32,7 @@ class TestUser:
             roles=["contributor", "reviewer"],
             affiliations=["IETF", "W3C"]
         )
-        
+
         assert user.id == "user-456"
         assert user.email == "contributor@example.com"
         assert user.name == "Jane Contributor"
@@ -47,7 +47,7 @@ class TestUser:
             name="Working Group Chair",
             roles=["chair", "contributor"]
         )
-        
+
         assert user.has_role("chair") is True
         assert user.has_role("contributor") is True
 
@@ -59,7 +59,7 @@ class TestUser:
             name="Working Group Chair",
             roles=["chair"]
         )
-        
+
         assert user.has_role("admin") is False
         assert user.has_role("reviewer") is False
 
@@ -71,7 +71,7 @@ class TestUser:
             name="IETF Member",
             affiliations=["IETF", "IRTF"]
         )
-        
+
         assert user.has_affiliation("IETF") is True
         assert user.has_affiliation("IRTF") is True
 
@@ -83,7 +83,7 @@ class TestUser:
             name="IETF Member",
             affiliations=["IETF"]
         )
-        
+
         assert user.has_affiliation("W3C") is False
         assert user.has_affiliation("IEEE") is False
 
@@ -96,9 +96,9 @@ class TestUser:
             roles=["contributor"],
             affiliations=["IETF"]
         )
-        
+
         result = user.to_dict()
-        
+
         assert result == {
             "id": "user-202",
             "email": "test@example.com",
@@ -114,9 +114,9 @@ class TestUser:
             email="test@example.com",
             name="Test User"
         )
-        
+
         result = user.to_dict()
-        
+
         assert result["roles"] == []
         assert result["affiliations"] == []
 
@@ -136,7 +136,7 @@ class TestUser:
             roles=["contributor"],
             affiliations=["IETF"]
         )
-        
+
         assert user1 == user2
 
     def test_user_inequality(self):
@@ -151,5 +151,5 @@ class TestUser:
             email="test2@example.com",
             name="Test User 2"
         )
-        
+
         assert user1 != user2

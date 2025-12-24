@@ -107,7 +107,7 @@ For each document collection (archives, messages, chunks, threads):
    ```javascript
    db.collection.updateOne(
      { _id: doc._id },
-     { 
+     {
        $inc: { attemptCount: 1 },
        $set: { lastAttemptTime: new Date() }
      }

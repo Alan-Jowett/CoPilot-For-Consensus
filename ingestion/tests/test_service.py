@@ -6,14 +6,14 @@
 import json
 import os
 import tempfile
-import pytest
 
+import pytest
+from app.service import IngestionService
 from copilot_events import NoopPublisher, ValidatingEventPublisher
-from copilot_schema_validation import FileSchemaProvider
 from copilot_logging import create_logger
 from copilot_metrics import NoOpMetricsCollector
+from copilot_schema_validation import FileSchemaProvider
 
-from app.service import IngestionService
 from .test_helpers import assert_valid_event_schema, make_config, make_source
 
 
@@ -35,8 +35,9 @@ class TestIngestionService:
     def service(self, config):
         """Create test ingestion service."""
         from pathlib import Path
+
         from copilot_storage import InMemoryDocumentStore
-        
+
         base_publisher = NoopPublisher()
         base_publisher.connect()
         # Wrap with schema validation for events
@@ -49,11 +50,11 @@ class TestIngestionService:
         )
         logger = create_logger(logger_type="silent", level="INFO", name="ingestion-test")
         metrics = NoOpMetricsCollector()
-        
+
         # Create in-memory document store for testing
         document_store = InMemoryDocumentStore()
         document_store.connect()
-        
+
         return IngestionService(
             config,
             publisher,
@@ -121,11 +122,11 @@ class TestIngestionService:
 
             # Should not raise exception on success
             service.ingest_archive(source, max_retries=1)
-            
+
             # Check that archives collection has one entry
             archives = service.document_store.query_documents("archives", {})
             assert len(archives) == 1
-            
+
             # Verify archive document structure
             archive = archives[0]
             assert "_id" in archive
@@ -226,7 +227,7 @@ class TestIngestionService:
             log_path = os.path.join(temp_storage, "metadata", "ingestion_log.jsonl")
             assert os.path.exists(log_path)
 
-            with open(log_path, "r") as f:
+            with open(log_path) as f:
                 lines = f.readlines()
                 assert len(lines) >= 1
                 log_entry = json.loads(lines[0])
@@ -313,10 +314,10 @@ class TestIngestionService:
         """Test deleting checksums for a specific source."""
         # Add checksums for multiple sources
         storage_path = service.config.storage_path
-        
+
         # Checksums for source1
         service.add_checksum(
-            "hash1", "archive1", 
+            "hash1", "archive1",
             os.path.join(storage_path, "source1", "file1.mbox"),
             "2023-01-01T00:00:00Z"
         )
@@ -325,25 +326,25 @@ class TestIngestionService:
             os.path.join(storage_path, "source1", "file2.mbox"),
             "2023-01-01T00:00:00Z"
         )
-        
+
         # Checksums for source2
         service.add_checksum(
             "hash3", "archive3",
             os.path.join(storage_path, "source2", "file3.mbox"),
             "2023-01-01T00:00:00Z"
         )
-        
+
         assert len(service.checksums) == 3
-        
+
         # Delete checksums for source1
         deleted_count = service.delete_checksums_for_source("source1")
-        
+
         assert deleted_count == 2
         assert len(service.checksums) == 1
         assert not service.is_file_already_ingested("hash1")
         assert not service.is_file_already_ingested("hash2")
         assert service.is_file_already_ingested("hash3")
-    
+
     def test_delete_checksums_for_nonexistent_source(self, service):
         """Test deleting checksums for a source with no checksums."""
         # Add a checksum for a different source
@@ -352,17 +353,17 @@ class TestIngestionService:
             os.path.join(service.config.storage_path, "source1", "file1.mbox"),
             "2023-01-01T00:00:00Z"
         )
-        
+
         # Try to delete checksums for a source that doesn't exist
         deleted_count = service.delete_checksums_for_source("nonexistent-source")
-        
+
         assert deleted_count == 0
         assert len(service.checksums) == 1
-    
+
     def test_delete_checksums_only_deletes_exact_source_match(self, service):
         """Test that delete_checksums_for_source doesn't match similar source names."""
         storage_path = service.config.storage_path
-        
+
         # Add checksums for sources with similar names
         service.add_checksum(
             "hash1", "archive1",
@@ -379,34 +380,34 @@ class TestIngestionService:
             os.path.join(storage_path, "source1-backup", "file3.mbox"),
             "2023-01-01T00:00:00Z"
         )
-        
+
         assert len(service.checksums) == 3
-        
+
         # Delete checksums for source1 only
         deleted_count = service.delete_checksums_for_source("source1")
-        
+
         # Should only delete hash1, not hash2 or hash3
         assert deleted_count == 1
         assert len(service.checksums) == 2
         assert not service.is_file_already_ingested("hash1")
         assert service.is_file_already_ingested("hash2")
         assert service.is_file_already_ingested("hash3")
-    
+
     def test_trigger_ingestion_deletes_checksums(self, service, temp_storage):
         """Test that trigger_ingestion deletes checksums before re-ingestion."""
         from copilot_storage import InMemoryDocumentStore
-        
+
         # Setup document store with a source
         if not service.document_store:
             service.document_store = InMemoryDocumentStore()
             service.document_store.connect()
-        
+
         # Create a test file
         with tempfile.TemporaryDirectory() as source_dir:
             test_file = os.path.join(source_dir, "test.mbox")
             with open(test_file, "w") as f:
                 f.write("From: test@example.com\nTo: dev@example.com\nSubject: Test\n\nContent")
-            
+
             # Create a source
             source_data = {
                 "name": "test-source",
@@ -415,20 +416,20 @@ class TestIngestionService:
                 "enabled": True,
             }
             service.create_source(source_data)
-            
+
             # First ingestion - should create a checksum
             success, message = service.trigger_ingestion("test-source")
             assert success is True
             assert len(service.checksums) == 1
             first_hash = list(service.checksums.keys())[0]
-            
+
             # Verify the file would be skipped on next ingest
             assert service.is_file_already_ingested(first_hash)
-            
+
             # Trigger ingestion again - should delete the checksum and re-ingest
             success, message = service.trigger_ingestion("test-source")
             assert success is True
-            
+
             # The file should have been re-ingested, creating a new checksum entry
             # (same hash, but the checksum should have been deleted and re-added)
             assert len(service.checksums) == 1
@@ -473,7 +474,7 @@ def test_archive_ingested_event_schema_validation():
 def test_archive_ingestion_failed_event_schema_validation():
     """Test that ArchiveIngestionFailed events validate against schema."""
     from app.exceptions import FetchError
-    
+
     with tempfile.TemporaryDirectory() as tmpdir:
         config = make_config(storage_path=tmpdir)
         publisher = NoopPublisher()
@@ -502,19 +503,21 @@ def test_archive_ingestion_failed_event_schema_validation():
 
 def test_save_checksums_raises_on_write_error(tmp_path):
     """Test that save_checksums raises exception on write errors."""
+    from unittest.mock import patch
+
     from app.service import IngestionService
     from copilot_events import NoopPublisher
+
     from .test_helpers import make_config
-    from unittest.mock import patch
-    
+
     config = make_config(storage_path=str(tmp_path))
-    
+
     publisher = NoopPublisher()
     service = IngestionService(config=config, publisher=publisher)
-    
+
     # Add a checksum
     service.checksums["test"] = "abc123"
-    
+
     # Mock open to raise PermissionError when writing checksums file
     with patch("builtins.open", side_effect=PermissionError("Permission denied")):
         # Verify exception is raised, not swallowed
@@ -526,18 +529,19 @@ def test_load_checksums_recovers_on_read_error(tmp_path):
     """Test that load_checksums recovers gracefully on read errors (intentional)."""
     from app.service import IngestionService
     from copilot_events import NoopPublisher
+
     from .test_helpers import make_config
-    
+
     # Create a corrupted checksums file
     metadata_dir = tmp_path / "metadata"
     metadata_dir.mkdir(exist_ok=True)
     checksums_file = metadata_dir / "checksums.json"
     checksums_file.write_text("{ invalid json }")
-    
+
     config = make_config(storage_path=str(tmp_path))
-    
+
     publisher = NoopPublisher()
-    
+
     # Service should start with empty checksums (intentional recovery)
     service = IngestionService(config=config, publisher=publisher)
     assert service.checksums == {}
@@ -546,14 +550,15 @@ def test_load_checksums_recovers_on_read_error(tmp_path):
 def test_publish_success_event_raises_on_publisher_failure(tmp_path):
     """Test that _publish_success_event raises exception when publisher fails."""
     from unittest.mock import Mock
+
     from copilot_events import ArchiveMetadata
-    
+
     config = make_config(storage_path=str(tmp_path))
     publisher = Mock()
     publisher.publish = Mock(side_effect=Exception("Publisher failure"))  # Simulate publisher failure
-    
+
     service = IngestionService(config=config, publisher=publisher)
-    
+
     metadata = ArchiveMetadata(
         archive_id="archive-123",
         source_name="test-source",
@@ -566,7 +571,7 @@ def test_publish_success_event_raises_on_publisher_failure(tmp_path):
         ingestion_completed_at="2023-10-15T12:00:10Z",
         status="success",
     )
-    
+
     # Service should propagate exception when publisher.publish raises
     with pytest.raises(Exception, match="Publisher failure"):
         service._publish_success_event(metadata)
@@ -575,20 +580,21 @@ def test_publish_success_event_raises_on_publisher_failure(tmp_path):
 def test_publish_failure_event_raises_on_publisher_failure(tmp_path):
     """Test that _publish_failure_event raises exception when publisher fails."""
     from unittest.mock import Mock
+
     from copilot_archive_fetcher import SourceConfig
-    
+
     config = make_config(storage_path=str(tmp_path))
     publisher = Mock()
     publisher.publish = Mock(side_effect=Exception("Publisher failure"))  # Simulate publisher failure
-    
+
     service = IngestionService(config=config, publisher=publisher)
-    
+
     source = SourceConfig(
         name="test-source",
         source_type="mbox",
         url="http://example.com/list.mbox",
     )
-    
+
     # Service should propagate exception when publisher.publish raises
     with pytest.raises(Exception, match="Publisher failure"):
         service._publish_failure_event(
@@ -603,14 +609,15 @@ def test_publish_failure_event_raises_on_publisher_failure(tmp_path):
 def test_publish_success_event_raises_on_publisher_exception(tmp_path):
     """Test that _publish_success_event raises exception when publisher raises."""
     from unittest.mock import Mock
+
     from copilot_events import ArchiveMetadata
-    
+
     config = make_config(storage_path=str(tmp_path))
     publisher = Mock()
     publisher.publish = Mock(side_effect=Exception("RabbitMQ connection lost"))
-    
+
     service = IngestionService(config=config, publisher=publisher)
-    
+
     metadata = ArchiveMetadata(
         archive_id="archive-123",
         source_name="test-source",
@@ -623,7 +630,7 @@ def test_publish_success_event_raises_on_publisher_exception(tmp_path):
         ingestion_completed_at="2023-10-15T12:00:10Z",
         status="success",
     )
-    
+
     # Service should raise exception from publisher
     with pytest.raises(Exception, match="RabbitMQ connection lost"):
         service._publish_success_event(metadata)
@@ -632,20 +639,21 @@ def test_publish_success_event_raises_on_publisher_exception(tmp_path):
 def test_publish_failure_event_raises_on_publisher_exception(tmp_path):
     """Test that _publish_failure_event raises exception when publisher raises."""
     from unittest.mock import Mock
+
     from copilot_archive_fetcher import SourceConfig
-    
+
     config = make_config(storage_path=str(tmp_path))
     publisher = Mock()
     publisher.publish = Mock(side_effect=Exception("RabbitMQ connection lost"))
-    
+
     service = IngestionService(config=config, publisher=publisher)
-    
+
     source = SourceConfig(
         name="test-source",
         source_type="mbox",
         url="http://example.com/list.mbox",
     )
-    
+
     # Service should raise exception from publisher
     with pytest.raises(Exception, match="RabbitMQ connection lost"):
         service._publish_failure_event(
@@ -660,16 +668,16 @@ def test_publish_failure_event_raises_on_publisher_exception(tmp_path):
 def test_ingest_archive_raises_source_configuration_error(tmp_path):
     """Test that ingest_archive raises SourceConfigurationError for invalid config."""
     from app.exceptions import SourceConfigurationError
-    
+
     config = make_config(storage_path=str(tmp_path))
     publisher = NoopPublisher()
     publisher.connect()
-    
+
     service = IngestionService(config=config, publisher=publisher)
-    
+
     # Invalid source dict missing required fields
     invalid_source = {"name": "test"}  # Missing source_type and url
-    
+
     with pytest.raises(SourceConfigurationError, match="missing required fields"):
         service.ingest_archive(invalid_source, max_retries=1)
 
@@ -677,16 +685,16 @@ def test_ingest_archive_raises_source_configuration_error(tmp_path):
 def test_ingest_archive_raises_fetch_error(tmp_path):
     """Test that ingest_archive raises FetchError when fetching fails."""
     from app.exceptions import FetchError
-    
+
     config = make_config(storage_path=str(tmp_path))
     publisher = NoopPublisher()
     publisher.connect()
-    
+
     service = IngestionService(config=config, publisher=publisher)
-    
+
     # Source with non-existent URL
     source = make_source(name="test", url="file:///nonexistent/path/file.mbox")
-    
+
     with pytest.raises(FetchError):
         service.ingest_archive(source, max_retries=1)
 
@@ -694,27 +702,27 @@ def test_ingest_archive_raises_fetch_error(tmp_path):
 def test_ingest_all_enabled_sources_returns_exceptions(tmp_path):
     """Test that ingest_all_enabled_sources returns exception objects for failures."""
     from app.exceptions import FetchError
-    
+
     config = make_config(storage_path=str(tmp_path))
     publisher = NoopPublisher()
     publisher.connect()
-    
+
     service = IngestionService(config=config, publisher=publisher)
-    
+
     with tempfile.TemporaryDirectory() as source_dir:
         # Create one valid file
         valid_file = os.path.join(source_dir, "valid.mbox")
         with open(valid_file, "w") as f:
             f.write("content")
-        
+
         sources = [
             make_source(name="valid-source", url=valid_file),
             make_source(name="invalid-source", url="file:///nonexistent/file.mbox"),
         ]
-        
+
         config.sources = sources
         results = service.ingest_all_enabled_sources()
-        
+
         # Check that results contain one success and one failure
         assert len(results) == 2
         assert results["valid-source"] is None  # Success
@@ -724,29 +732,30 @@ def test_ingest_all_enabled_sources_returns_exceptions(tmp_path):
 
 def test_exception_prevents_silent_failure():
     """Demonstrate that exceptions prevent silent failures (the core issue this PR addresses).
-    
+
     This test validates that the refactored code makes it impossible to ignore failures,
     unlike the previous return-code-based approach where callers could forget to check
     the return value.
     """
     import tempfile
+
     from app.exceptions import FetchError
-    
+
     with tempfile.TemporaryDirectory() as tmpdir:
         config = make_config(storage_path=tmpdir)
         publisher = NoopPublisher()
         publisher.connect()
-        
+
         service = IngestionService(config=config, publisher=publisher)
-        
+
         # Create a source that will fail (non-existent file)
         bad_source = make_source(name="bad", url="file:///this/does/not/exist.mbox")
-        
+
         # OLD BEHAVIOR (before this PR):
         # success = service.ingest_archive(bad_source)
         # # Oops! Forgot to check 'success' - silent failure!
         # continue_with_next_step()  # This would run even though ingestion failed
-        
+
         # NEW BEHAVIOR (after this PR):
         # Exception MUST be handled - can't be ignored
         exception_was_raised = False
@@ -759,5 +768,5 @@ def test_exception_prevents_silent_failure():
             exception_was_raised = True
             assert e.source_name == "bad"
             assert e.retry_count > 0
-        
+
         assert exception_was_raised, "Exception-based approach successfully prevented silent failure"

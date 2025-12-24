@@ -276,7 +276,7 @@ Uses a shared access signature (SAS) connection string. This is the traditional 
 }
 ```
 
-**Pros:** Simple to set up, works immediately  
+**Pros:** Simple to set up, works immediately
 **Cons:** Requires managing and rotating secrets
 
 #### 2. Managed Identity Mode (Passwordless)
@@ -296,7 +296,7 @@ Uses Azure Managed Identity for passwordless authentication via RBAC roles. **Re
 - **Ingestion service:** Azure Service Bus Data Sender
 - **Parsing, Chunking, Embedding, Orchestrator, Summarization, Reporting services:** Azure Service Bus Data Sender + Data Receiver
 
-**Pros:** No secrets to manage, improved security, aligns with Azure best practices  
+**Pros:** No secrets to manage, improved security, aligns with Azure best practices
 **Cons:** Requires existing Service Bus namespace with appropriate RBAC permissions
 
 > **⚠️ Important**: When using managed identity mode, application services must be updated to read and use the `MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE` and `MESSAGE_BUS_USE_MANAGED_IDENTITY` environment variables. See [SERVICE_BUS_INTEGRATION_GUIDE.md](SERVICE_BUS_INTEGRATION_GUIDE.md) for detailed implementation instructions.
@@ -592,7 +592,7 @@ The deployment includes Application Insights dashboards for:
 
 **Error**: "Container failed to pull image"
 
-**Solution**: 
+**Solution**:
 - Verify GHCR images exist at `ghcr.io/alan-jowett/copilot-for-consensus`
 - Check if Container Apps have outbound internet access
 - Ensure images are public or provide registry credentials
@@ -730,11 +730,11 @@ If you are upgrading from a previous deployment that used MongoDB/Cosmos DB Mong
    - Existing MongoDB data will not be automatically migrated
 
 3. **Data Migration Options**:
-   
+
    **Option A: Re-ingest Documents** (Recommended for small datasets)
    - Re-run your ingestion process to populate the new Cosmos DB
    - This ensures data is properly formatted for the native adapter
-   
+
    **Option B: Manual Migration** (For preserving existing data)
    - Use the Azure Data Migration tool or custom scripts
    - Ensure document schema is compatible with the native adapter
@@ -779,6 +779,6 @@ For issues or questions:
 
 ---
 
-**License**: MIT  
+**License**: MIT
 **Copyright**: © 2025 Copilot-for-Consensus contributors
 

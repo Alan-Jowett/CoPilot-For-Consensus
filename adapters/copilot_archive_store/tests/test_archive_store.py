@@ -3,13 +3,13 @@
 
 """Unit tests for ArchiveStore interface."""
 
-import pytest
 from abc import ABC
 
+import pytest
 from copilot_archive_store import (
+    ArchiveNotFoundError,
     ArchiveStore,
     ArchiveStoreError,
-    ArchiveNotFoundError,
     create_archive_store,
 )
 
@@ -17,7 +17,7 @@ from copilot_archive_store import (
 def test_archive_store_is_abstract():
     """Test that ArchiveStore is an abstract base class."""
     assert issubclass(ArchiveStore, ABC)
-    
+
     # Should not be able to instantiate directly
     with pytest.raises(TypeError):
         ArchiveStore()
@@ -33,7 +33,7 @@ def test_archive_store_has_required_methods():
         'delete_archive',
         'list_archives',
     ]
-    
+
     for method_name in required_methods:
         assert hasattr(ArchiveStore, method_name)
         method = getattr(ArchiveStore, method_name)
@@ -56,7 +56,7 @@ def test_create_archive_store_default(tmp_path):
     old_path = os.environ.get("ARCHIVE_STORE_PATH")
     if "ARCHIVE_STORE_TYPE" in os.environ:
         del os.environ["ARCHIVE_STORE_TYPE"]
-    
+
     try:
         # Set a temporary path to avoid permission issues
         os.environ["ARCHIVE_STORE_PATH"] = str(tmp_path)
@@ -104,7 +104,7 @@ def test_create_archive_store_azure_blob():
     # Without credentials, it should raise ValueError (not NotImplementedError)
     with pytest.raises(ValueError, match="Azure Storage"):
         create_archive_store("azure_blob")
-    
+
     # With credentials, it should create an AzureBlobArchiveStore
     # (We can't fully test this without mocking, but we verify it doesn't raise NotImplementedError)
     try:
@@ -125,10 +125,10 @@ def test_archive_store_exceptions():
     """Test that custom exceptions are defined."""
     # All exceptions should inherit from ArchiveStoreError
     assert issubclass(ArchiveNotFoundError, ArchiveStoreError)
-    
+
     # Test exception instantiation
     error = ArchiveStoreError("test error")
     assert str(error) == "test error"
-    
+
     not_found = ArchiveNotFoundError("archive not found")
     assert str(not_found) == "archive not found"

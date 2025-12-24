@@ -8,11 +8,11 @@ from multiple sources (e.g., Datatracker, GitHub, local files) and in multiple
 formats (e.g., HTML, Markdown, plain text).
 """
 
+from .datatracker_provider import DatatrackerDiffProvider
+from .factory import DiffProviderFactory, create_diff_provider
+from .mock_provider import MockDiffProvider
 from .models import DraftDiff
 from .provider import DraftDiffProvider
-from .datatracker_provider import DatatrackerDiffProvider
-from .mock_provider import MockDiffProvider
-from .factory import DiffProviderFactory, create_diff_provider
 
 __all__ = [
     "DraftDiff",

@@ -32,7 +32,7 @@ class TextNormalizer:
         strip_quoted: bool = True,
     ):
         """Initialize text normalizer.
-        
+
         Args:
             strip_html: Whether to remove HTML tags
             strip_signatures: Whether to remove email signatures
@@ -44,10 +44,10 @@ class TextNormalizer:
 
     def normalize(self, text: str) -> str:
         """Normalize email body text.
-        
+
         Args:
             text: Raw email body text
-            
+
         Returns:
             Cleaned and normalized text
         """
@@ -73,10 +73,10 @@ class TextNormalizer:
 
     def _contains_html(self, text: str) -> bool:
         """Check if text contains HTML tags.
-        
+
         Args:
             text: Text to check
-            
+
         Returns:
             True if HTML tags are detected
         """
@@ -90,16 +90,16 @@ class TextNormalizer:
             r'<span',
             r'<table',
         ]
-        
+
         text_lower = text.lower()
         return any(pattern in text_lower for pattern in html_patterns)
 
     def _remove_html(self, text: str) -> str:
         """Remove HTML tags and convert to plain text.
-        
+
         Args:
             text: HTML text
-            
+
         Returns:
             Plain text with HTML tags removed
         """
@@ -126,10 +126,10 @@ class TextNormalizer:
 
     def _remove_signature(self, text: str) -> str:
         """Remove email signature after common delimiters.
-        
+
         Args:
             text: Email body text
-            
+
         Returns:
             Text with signature removed
         """
@@ -137,21 +137,21 @@ class TextNormalizer:
             if delimiter in text:
                 text = text.split(delimiter)[0]
                 break
-        
+
         return text
 
     def _remove_quoted_text(self, text: str) -> str:
         """Remove quoted reply lines (starting with > or >>).
-        
+
         Args:
             text: Email body text
-            
+
         Returns:
             Text with quoted lines removed
         """
         lines = text.split('\n')
         filtered_lines = []
-        
+
         for line in lines:
             stripped = line.strip()
             # Skip lines that start with quote markers
@@ -160,22 +160,22 @@ class TextNormalizer:
             elif not stripped:
                 # Keep blank lines
                 filtered_lines.append(line)
-        
+
         return '\n'.join(filtered_lines)
 
     def _normalize_whitespace(self, text: str) -> str:
         """Normalize whitespace in text.
-        
+
         Args:
             text: Text to normalize
-            
+
         Returns:
             Text with normalized whitespace
         """
         # Replace multiple spaces with single space
         text = re.sub(r'[ \t]+', ' ', text)
-        
+
         # Replace more than 2 consecutive newlines with 2
         text = re.sub(r'\n{3,}', '\n\n', text)
-        
+
         return text

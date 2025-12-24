@@ -5,7 +5,6 @@
 
 import logging
 import os
-from typing import Optional, Tuple
 
 from .base import ArchiveFetcher
 from .models import SourceConfig
@@ -18,18 +17,18 @@ class HTTPFetcher(ArchiveFetcher):
 
     def __init__(self, source: SourceConfig):
         """Initialize HTTP fetcher.
-        
+
         Args:
             source: Source configuration
         """
         self.source = source
 
-    def fetch(self, output_dir: str) -> Tuple[bool, Optional[list], Optional[str]]:
+    def fetch(self, output_dir: str) -> tuple[bool, list | None, str | None]:
         """Fetch archive via HTTP.
-        
+
         Args:
             output_dir: Directory to store the fetched archive
-            
+
         Returns:
             Tuple of (success, list_of_file_paths, error_message)
         """
@@ -57,7 +56,7 @@ class HTTPFetcher(ArchiveFetcher):
             logger.info(f"Downloaded {file_path}")
             return True, [file_path], None
 
-        except ImportError as e:
+        except ImportError:
             error_msg = "requests library not installed"
             logger.error(error_msg)
             return False, None, error_msg

@@ -4,14 +4,13 @@
 """Tests for Azure Service Bus publishers and subscribers."""
 
 import pytest
-
 from copilot_events import (
-    create_publisher,
-    create_subscriber,
     AzureServiceBusPublisher,
     AzureServiceBusSubscriber,
     EventPublisher,
     EventSubscriber,
+    create_publisher,
+    create_subscriber,
 )
 
 
@@ -25,7 +24,7 @@ class TestAzureServiceBusPublisherFactory:
             connection_string="Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test",
             queue_name="test-queue",
         )
-        
+
         assert isinstance(publisher, AzureServiceBusPublisher)
         assert isinstance(publisher, EventPublisher)
         assert publisher.connection_string is not None
@@ -39,7 +38,7 @@ class TestAzureServiceBusPublisherFactory:
             topic_name="test-topic",
             use_managed_identity=True,
         )
-        
+
         assert isinstance(publisher, AzureServiceBusPublisher)
         assert publisher.fully_qualified_namespace == "test.servicebus.windows.net"
         assert publisher.topic_name == "test-topic"
@@ -69,7 +68,7 @@ class TestAzureServiceBusSubscriberFactory:
             connection_string="Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test",
             queue_name="test-queue",
         )
-        
+
         assert isinstance(subscriber, AzureServiceBusSubscriber)
         assert isinstance(subscriber, EventSubscriber)
         assert subscriber.queue_name == "test-queue"
@@ -82,7 +81,7 @@ class TestAzureServiceBusSubscriberFactory:
             topic_name="test-topic",
             subscription_name="test-subscription",
         )
-        
+
         assert isinstance(subscriber, AzureServiceBusSubscriber)
         assert subscriber.topic_name == "test-topic"
         assert subscriber.subscription_name == "test-subscription"
@@ -114,7 +113,7 @@ class TestAzureServiceBusPublisher:
             connection_string="Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test",
             queue_name="test-queue",
         )
-        
+
         assert publisher.connection_string is not None
         assert publisher.queue_name == "test-queue"
         assert publisher.use_managed_identity is False
@@ -126,7 +125,7 @@ class TestAzureServiceBusPublisher:
             topic_name="test-topic",
             use_managed_identity=True,
         )
-        
+
         assert publisher.fully_qualified_namespace == "test.servicebus.windows.net"
         assert publisher.topic_name == "test-topic"
         assert publisher.use_managed_identity is True
@@ -142,7 +141,7 @@ class TestAzureServiceBusPublisher:
             connection_string="Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test",
             queue_name="test-queue",
         )
-        
+
         with pytest.raises(ConnectionError, match="Not connected"):
             publisher.publish("exchange", "routing.key", {"event_type": "Test"})
 
@@ -156,7 +155,7 @@ class TestAzureServiceBusSubscriber:
             connection_string="Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test",
             queue_name="test-queue",
         )
-        
+
         assert subscriber.queue_name == "test-queue"
         assert subscriber.topic_name is None
         assert subscriber.subscription_name is None
@@ -168,7 +167,7 @@ class TestAzureServiceBusSubscriber:
             topic_name="test-topic",
             subscription_name="test-subscription",
         )
-        
+
         assert subscriber.topic_name == "test-topic"
         assert subscriber.subscription_name == "test-subscription"
         assert subscriber.queue_name is None
@@ -194,7 +193,7 @@ class TestAzureServiceBusSubscriber:
             connection_string="Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test",
             queue_name="test-queue",
         )
-        
+
         with pytest.raises(RuntimeError, match="Not connected"):
             subscriber.subscribe("TestEvent", lambda e: None)
 
@@ -204,7 +203,7 @@ class TestAzureServiceBusSubscriber:
             connection_string="Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test",
             queue_name="test-queue",
         )
-        
+
         with pytest.raises(RuntimeError, match="Not connected"):
             subscriber.start_consuming()
 

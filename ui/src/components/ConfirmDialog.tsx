@@ -52,11 +52,11 @@ export function ConfirmDialog({
         const activeElement = document.activeElement
         const isCancelButton = activeElement === cancelButtonRef.current
         const isConfirmButton = activeElement === confirmButtonRef.current
-        
+
         // Only trap if focus is on one of our buttons
         if (isCancelButton || isConfirmButton) {
           e.preventDefault()
-          
+
           if (e.shiftKey) {
             // Shift+Tab: reverse direction
             if (isCancelButton) {

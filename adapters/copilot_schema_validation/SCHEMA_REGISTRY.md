@@ -196,7 +196,7 @@ When evolving schemas to new versions:
    ```python
    # Old version
    schema_v1 = load_schema("ArchiveIngested", "v1")
-   
+
    # New version
    schema_v2 = load_schema("ArchiveIngested", "v2")
    ```

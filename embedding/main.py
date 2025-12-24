@@ -11,21 +11,19 @@ from pathlib import Path
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
-from fastapi import FastAPI
 import uvicorn
-
-from copilot_config import load_typed_config
-from copilot_events import create_publisher, create_subscriber
-from copilot_storage import create_document_store, ValidatingDocumentStore, DocumentStoreConnectionError
-from copilot_schema_validation import FileSchemaProvider
-from copilot_vectorstore import create_vector_store
-from copilot_embedding import create_embedding_provider
-from copilot_metrics import create_metrics_collector
-from copilot_reporting import create_error_reporter
-from copilot_logging import create_logger, create_uvicorn_log_config
-
 from app import __version__
 from app.service import EmbeddingService
+from copilot_config import load_typed_config
+from copilot_embedding import create_embedding_provider
+from copilot_events import create_publisher, create_subscriber
+from copilot_logging import create_logger, create_uvicorn_log_config
+from copilot_metrics import create_metrics_collector
+from copilot_reporting import create_error_reporter
+from copilot_schema_validation import FileSchemaProvider
+from copilot_storage import DocumentStoreConnectionError, ValidatingDocumentStore, create_document_store
+from copilot_vectorstore import create_vector_store
+from fastapi import FastAPI
 
 # Configure structured JSON logging
 logger = create_logger(logger_type="stdout", level="INFO", name="embedding")
@@ -41,9 +39,9 @@ embedding_service = None
 def health():
     """Health check endpoint."""
     global embedding_service
-    
+
     stats = embedding_service.get_stats() if embedding_service is not None else {}
-    
+
     return {
         "status": "healthy",
         "service": "embedding",
@@ -60,19 +58,19 @@ def health():
 def get_stats():
     """Get embedding statistics."""
     global embedding_service
-    
+
     if not embedding_service:
         return {"error": "Service not initialized"}
-    
+
     return embedding_service.get_stats()
 
 
 def start_subscriber_thread(service: EmbeddingService):
     """Start the event subscriber in a separate thread.
-    
+
     Args:
         service: Embedding service instance
-        
+
     Raises:
         Exception: Re-raises any exception to fail fast
     """
@@ -91,14 +89,14 @@ def start_subscriber_thread(service: EmbeddingService):
 def main():
     """Main entry point for the embedding service."""
     global embedding_service
-    
+
     logger.info(f"Starting Embedding Service (version {__version__})")
-    
+
     try:
         # Load configuration using config adapter
         config = load_typed_config("embedding")
         logger.info("Configuration loaded successfully")
-        
+
         # Conditionally add JWT authentication middleware based on config
         if getattr(config, 'jwt_auth_enabled', True):
             logger.info("JWT authentication is enabled")
@@ -113,7 +111,7 @@ def main():
                 logger.warning("copilot_auth module not available - JWT authentication disabled")
         else:
             logger.warning("JWT authentication is DISABLED - all endpoints are public")
-        
+
         # Create adapters
         logger.info("Creating message bus publisher...")
         publisher = create_publisher(
@@ -131,7 +129,7 @@ def main():
                 raise ConnectionError("Publisher failed to connect to message bus")
             else:
                 logger.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
-        
+
         logger.info("Creating message bus subscriber...")
         subscriber = create_subscriber(
             message_bus_type=config.message_bus_type,
@@ -144,7 +142,7 @@ def main():
         except Exception as e:
             logger.error(f"Failed to connect subscriber to message bus: {e}")
             raise ConnectionError("Subscriber failed to connect to message bus")
-        
+
         logger.info("Creating document store...")
         base_document_store = create_document_store(
             store_type=config.doc_store_type,
@@ -159,7 +157,7 @@ def main():
         except DocumentStoreConnectionError as e:
             logger.error(f"Failed to connect to document store: {e}")
             raise
-        
+
         # Wrap with schema validation
         logger.info("Wrapping document store with schema validation...")
         document_schema_provider = FileSchemaProvider(
@@ -171,19 +169,19 @@ def main():
             schema_provider=document_schema_provider,
             strict=True,
         )
-        
+
         logger.info(f"Creating vector store ({config.vector_store_type})...")
-        
+
         # Build vector store kwargs based on backend type
         vector_store_kwargs = {
             "backend": config.vector_store_type,
         }
-        
+
         if config.vector_store_type.lower() == "faiss":
             # Validate required config attributes
             if not hasattr(config, "vector_store_index_type"):
                 raise ValueError("vector_store_index_type configuration is required for FAISS backend")
-            
+
             vector_store_kwargs.update({
                 "dimension": config.embedding_dimension,
                 "index_type": config.vector_store_index_type,
@@ -191,12 +189,12 @@ def main():
             })
         elif config.vector_store_type.lower() == "qdrant":
             # Validate required config attributes
-            required_attrs = ["vector_store_host", "vector_store_port", "vector_store_collection", 
+            required_attrs = ["vector_store_host", "vector_store_port", "vector_store_collection",
                             "vector_store_distance", "vector_store_batch_size"]
             missing = [attr for attr in required_attrs if not hasattr(config, attr)]
             if missing:
                 raise ValueError(f"Missing required Qdrant configuration: {', '.join(missing)}")
-            
+
             vector_store_kwargs.update({
                 "dimension": config.embedding_dimension,
                 "host": config.vector_store_host,
@@ -206,9 +204,9 @@ def main():
                 "upsert_batch_size": config.vector_store_batch_size,
                 "api_key": config.vector_store_api_key if hasattr(config, "vector_store_api_key") else None,
             })
-        
+
         vector_store = create_vector_store(**vector_store_kwargs)
-        
+
         if hasattr(vector_store, "connect"):
             try:
                 # Some backends may return bool, but prefer exception handling
@@ -220,15 +218,15 @@ def main():
                 if str(config.vector_store_type).lower() != "inmemory":
                     logger.error(f"Failed to connect to vector store: {e}")
                     raise ConnectionError("Vector store failed to connect")
-        
+
         logger.info(f"Creating embedding provider ({config.embedding_backend})...")
-        
+
         # Build embedding provider kwargs based on backend type
         embedding_kwargs = {
             "backend": config.embedding_backend,
             "model": config.embedding_model,
         }
-        
+
         if config.embedding_backend.lower() == "mock":
             embedding_kwargs["dimension"] = config.embedding_dimension
         elif config.embedding_backend.lower() in ("sentencetransformers", "huggingface"):
@@ -247,27 +245,27 @@ def main():
             missing = [attr for attr in required_attrs if not hasattr(config, attr)]
             if missing:
                 raise ValueError(f"Missing required Azure embedding configuration: {', '.join(missing)}")
-            
+
             embedding_kwargs["api_key"] = config.azure_openai_key
             embedding_kwargs["api_base"] = config.azure_openai_endpoint
             embedding_kwargs["api_version"] = config.azure_openai_api_version if hasattr(config, "azure_openai_api_version") else None
             embedding_kwargs["deployment_name"] = config.azure_openai_deployment if hasattr(config, "azure_openai_deployment") else None
-            
+
             if not embedding_kwargs["api_key"]:
                 raise ValueError("azure_openai_key configuration is required for Azure embedding backend and cannot be empty")
             if not embedding_kwargs["api_base"]:
                 raise ValueError("azure_openai_endpoint configuration is required for Azure embedding backend and cannot be empty")
-        
+
         embedding_provider = create_embedding_provider(**embedding_kwargs)
-        
+
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")
         metrics_collector = create_metrics_collector()
-        
+
         # Create error reporter - fail fast on errors
         logger.info("Creating error reporter...")
         error_reporter = create_error_reporter()
-        
+
         # Create embedding service
         embedding_service = EmbeddingService(
             document_store=document_store,
@@ -284,7 +282,7 @@ def main():
             max_retries=config.max_retries,
             retry_backoff_seconds=config.retry_backoff,
         )
-        
+
         # Start subscriber in a separate thread (non-daemon to fail fast)
         subscriber_thread = threading.Thread(
             target=start_subscriber_thread,
@@ -293,14 +291,14 @@ def main():
         )
         subscriber_thread.start()
         logger.info("Subscriber thread started")
-        
+
         # Start FastAPI server
         logger.info(f"Starting HTTP server on port {config.http_port}...")
-        
+
         # Configure Uvicorn with structured JSON logging
         log_config = create_uvicorn_log_config(service_name="embedding", log_level="INFO")
         uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config)
-        
+
     except Exception as e:
         logger.error(f"Failed to start embedding service: {e}")
         sys.exit(1)

@@ -67,7 +67,7 @@ pytest tests/test_integration_message_flow.py -v -m integration
 
 ### Run end-to-end validation (requires Docker Compose stack)
 
-> **Note:** These commands use `docker compose` (with a space), which requires Docker Compose V2.  
+> **Note:** These commands use `docker compose` (with a space), which requires Docker Compose V2.
 > If you are using an older Docker installation, replace `docker compose` with `docker-compose` (with a hyphen) in all commands below.
 
 ```bash

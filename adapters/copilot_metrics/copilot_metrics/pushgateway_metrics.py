@@ -5,7 +5,6 @@
 
 import logging
 import os
-from typing import Dict, Optional
 
 from .prometheus_metrics import PrometheusMetricsCollector
 
@@ -31,9 +30,9 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
 
     def __init__(
         self,
-        gateway: Optional[str] = None,
-        job: Optional[str] = None,
-        grouping_key: Optional[Dict[str, str]] = None,
+        gateway: str | None = None,
+        job: str | None = None,
+        grouping_key: dict[str, str] | None = None,
         **kwargs,
     ) -> None:
         if not PROMETHEUS_AVAILABLE:

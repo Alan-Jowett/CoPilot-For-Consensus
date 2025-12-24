@@ -3,10 +3,10 @@
 
 """Validating document store that enforces schema validation."""
 
-from typing import Dict, Any, Optional, List, Tuple
 import logging
+from typing import Any
 
-from .document_store import DocumentStore, DocumentNotFoundError
+from .document_store import DocumentNotFoundError, DocumentStore
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class DocumentValidationError(Exception):
         errors: List of validation error messages
     """
 
-    def __init__(self, collection: str, errors: List[str]):
+    def __init__(self, collection: str, errors: list[str]):
         self.collection = collection
         self.errors = errors
         error_msg = f"Validation failed for collection '{collection}': {'; '.join(errors)}"
@@ -54,7 +54,7 @@ class ValidatingDocumentStore(DocumentStore):
     def __init__(
         self,
         store: DocumentStore,
-        schema_provider: Optional[Any] = None,
+        schema_provider: Any | None = None,
         strict: bool = True,
         validate_reads: bool = False,
     ):
@@ -88,7 +88,7 @@ class ValidatingDocumentStore(DocumentStore):
         # Document schemas use lowercase naming matching collection names
         return collection
 
-    def _validate_document(self, collection: str, doc: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    def _validate_document(self, collection: str, doc: dict[str, Any]) -> tuple[bool, list[str]]:
         """Validate a document against its schema.
 
         Args:
@@ -136,7 +136,7 @@ class ValidatingDocumentStore(DocumentStore):
             logger.error("Validation failed with exception: %s", exc)
             return False, [f"Validation exception: {exc}"]
 
-    def _handle_validation_failure(self, collection: str, errors: List[str]) -> None:
+    def _handle_validation_failure(self, collection: str, errors: list[str]) -> None:
         """Handle validation failure based on strict mode.
 
         Args:
@@ -168,7 +168,7 @@ class ValidatingDocumentStore(DocumentStore):
         """Disconnect from the document store."""
         self._store.disconnect()
 
-    def insert_document(self, collection: str, doc: Dict[str, Any]) -> str:
+    def insert_document(self, collection: str, doc: dict[str, Any]) -> str:
         """Insert a document after validating it against its schema.
 
         Args:
@@ -191,7 +191,7 @@ class ValidatingDocumentStore(DocumentStore):
         # Delegate to underlying store
         return self._store.insert_document(collection, doc)
 
-    def get_document(self, collection: str, doc_id: str) -> Optional[Dict[str, Any]]:
+    def get_document(self, collection: str, doc_id: str) -> dict[str, Any] | None:
         """Retrieve a document by its ID.
 
         Optionally validates the retrieved document if validate_reads=True.
@@ -218,8 +218,8 @@ class ValidatingDocumentStore(DocumentStore):
         return doc
 
     def query_documents(
-        self, collection: str, filter_dict: Dict[str, Any], limit: int = 100
-    ) -> List[Dict[str, Any]]:
+        self, collection: str, filter_dict: dict[str, Any], limit: int = 100
+    ) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
         Args:
@@ -234,7 +234,7 @@ class ValidatingDocumentStore(DocumentStore):
         return self._store.query_documents(collection, filter_dict, limit)
 
     def update_document(
-        self, collection: str, doc_id: str, patch: Dict[str, Any]
+        self, collection: str, doc_id: str, patch: dict[str, Any]
     ) -> None:
         """Update a document with the provided patch.
 
@@ -281,8 +281,8 @@ class ValidatingDocumentStore(DocumentStore):
         self._store.delete_document(collection, doc_id)
 
     def aggregate_documents(
-        self, collection: str, pipeline: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, collection: str, pipeline: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Execute an aggregation pipeline on a collection.
 
         This method delegates to the underlying store if it supports aggregation.

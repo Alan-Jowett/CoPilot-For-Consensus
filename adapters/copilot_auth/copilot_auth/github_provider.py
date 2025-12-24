@@ -7,7 +7,7 @@ This module provides authentication via GitHub OAuth, allowing users to
 authenticate using their GitHub accounts.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 import httpx
 
@@ -18,17 +18,17 @@ from .provider import AuthenticationError
 
 class GitHubIdentityProvider(OIDCProvider):
     """GitHub OAuth/OIDC identity provider.
-    
+
     This provider authenticates users via GitHub OAuth and retrieves
     their profile information from the GitHub API.
-    
+
     Attributes:
         client_id: GitHub OAuth application client ID
         client_secret: GitHub OAuth application client secret
         redirect_uri: OAuth callback URL
         api_base_url: Base URL for GitHub API (default: https://api.github.com)
     """
-    
+
     def __init__(
         self,
         client_id: str,
@@ -37,7 +37,7 @@ class GitHubIdentityProvider(OIDCProvider):
         api_base_url: str = "https://api.github.com",
     ):
         """Initialize the GitHub identity provider.
-        
+
         Args:
             client_id: GitHub OAuth application client ID
             client_secret: GitHub OAuth application client secret
@@ -49,7 +49,7 @@ class GitHubIdentityProvider(OIDCProvider):
         # This provider will surface an explicit error if an ID token is expected, because
         # GitHub OAuth does not issue id_tokens. For GitHub Actions OIDC, you must configure
         # that separately (token.actions.githubusercontent.com).
-        
+
         super().__init__(
             client_id=client_id,
             client_secret=client_secret,
@@ -57,7 +57,7 @@ class GitHubIdentityProvider(OIDCProvider):
             discovery_url="",  # placeholder; discover() is overridden
             scopes=["read:user", "user:email"],
         )
-        
+
         self.api_base_url = api_base_url
 
     def discover(self) -> None:
@@ -77,13 +77,13 @@ class GitHubIdentityProvider(OIDCProvider):
             "GitHub OAuth does not provide an id_token. "
             "Use an OIDC-capable provider or configure GitHub Actions OIDC separately."
         )
-    
+
     def _get_user_organizations(self, access_token: str) -> list[str]:
         """Retrieve user's GitHub organizations.
-        
+
         Args:
             access_token: GitHub OAuth access token
-        
+
         Returns:
             List of organization names
         """
@@ -96,18 +96,18 @@ class GitHubIdentityProvider(OIDCProvider):
             response.raise_for_status()
             orgs = response.json()
             return [org.get("login", "") for org in orgs if org.get("login")]
-        
+
         except httpx.HTTPError:
             # Organizations are optional, return empty list on error
             return []
-    
-    def _map_userinfo_to_user(self, userinfo: Dict[str, Any], provider_id: str) -> User:
+
+    def _map_userinfo_to_user(self, userinfo: dict[str, Any], provider_id: str) -> User:
         """Map GitHub userinfo to User model.
-        
+
         Args:
             userinfo: Raw userinfo from GitHub
             provider_id: Provider identifier ("github")
-        
+
         Returns:
             User object with mapped fields
         """
@@ -115,22 +115,22 @@ class GitHubIdentityProvider(OIDCProvider):
         user_id = str(userinfo.get("id", ""))
         if not user_id:
             user_id = userinfo.get("login", "unknown")
-        
+
         # Extract email (may be None if not public)
         email = userinfo.get("email", "")
         if not email:
             # Try to get primary verified email
             email = f"{userinfo.get('login', 'unknown')}@users.noreply.github.com"
-        
+
         # Extract name
         name = userinfo.get("name") or userinfo.get("login", "Unknown")
-        
+
         # Default role
         roles = ["contributor"]
-        
+
         # Organizations become affiliations
         affiliations = []
-        
+
         return User(
             id=f"github:{user_id}",
             email=email,
@@ -138,26 +138,26 @@ class GitHubIdentityProvider(OIDCProvider):
             roles=roles,
             affiliations=affiliations,
         )
-    
-    def get_user(self, token: str) -> Optional[User]:
+
+    def get_user(self, token: str) -> User | None:
         """Retrieve user information from a GitHub OAuth token.
-        
+
         Args:
             token: GitHub OAuth access token
-            
+
         Returns:
             User object if token is valid, None otherwise
-            
+
         Raises:
             AuthenticationError: If token is invalid
             ProviderError: If GitHub API is unavailable
         """
         # Get basic user info via OIDC userinfo endpoint
         user = super().get_user(token)
-        
+
         if user:
             # Fetch organizations and add as affiliations
             orgs = self._get_user_organizations(token)
             user.affiliations.extend(orgs)
-        
+
         return user

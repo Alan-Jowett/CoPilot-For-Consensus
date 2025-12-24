@@ -9,13 +9,12 @@ successfully imported, catching AttributeError, NameError, and other
 import-time issues before they reach production.
 """
 
-import sys
 import importlib
 import pkgutil
+import sys
 from pathlib import Path
-from typing import List
-import pytest
 
+import pytest
 
 # Define all service and adapter module paths relative to repository root
 SERVICE_PATHS = [
@@ -71,7 +70,7 @@ def add_adapters_to_path() -> None:
     adapters_dir = repo_root / "adapters"
     if adapters_dir.exists() and str(adapters_dir) not in sys.path:
         sys.path.insert(0, str(adapters_dir))
-    
+
     # Add each adapter's package directory
     for adapter in ADAPTER_MODULES:
         adapter_dir = adapters_dir / adapter
@@ -79,13 +78,13 @@ def add_adapters_to_path() -> None:
             sys.path.insert(0, str(adapter_dir))
 
 
-def discover_submodules(package_name: str) -> List[str]:
+def discover_submodules(package_name: str) -> list[str]:
     """
     Discover all submodules within a package.
-    
+
     Args:
         package_name: Name of the package to explore
-        
+
     Returns:
         List of fully qualified module names
     """
@@ -94,13 +93,13 @@ def discover_submodules(package_name: str) -> List[str]:
     except (ImportError, ModuleNotFoundError) as e:
         pytest.skip(f"Package {package_name} not available: {e}")
         return []
-    
+
     if not hasattr(package, "__path__"):
         # Not a package, just a module
         return [package_name]
-    
+
     modules = [package_name]
-    
+
     try:
         for _, modname, ispkg in pkgutil.walk_packages(
             package.__path__,
@@ -111,23 +110,23 @@ def discover_submodules(package_name: str) -> List[str]:
     except Exception:
         # If walk_packages fails, just return the base package
         pass
-    
+
     return modules
 
 
 class TestServiceImports:
     """Test that all service modules can be imported without errors."""
-    
+
     @pytest.mark.parametrize("service_path", SERVICE_PATHS)
     def test_service_imports(self, service_path: str) -> None:
         """Test that a service module can be imported.
-        
+
         Args:
             service_path: Service module path (e.g., "chunking.app")
         """
         # Add service to path
         add_service_to_path(service_path)
-        
+
         # Try importing the module
         try:
             importlib.import_module(service_path)
@@ -148,17 +147,17 @@ class TestServiceImports:
 
 class TestAdapterImports:
     """Test that all adapter modules can be imported without errors."""
-    
+
     @pytest.mark.parametrize("adapter_name", ADAPTER_MODULES)
     def test_adapter_base_imports(self, adapter_name: str) -> None:
         """Test that an adapter package can be imported.
-        
+
         Args:
             adapter_name: Adapter module name (e.g., "copilot_config")
         """
         # Add adapters to path
         add_adapters_to_path()
-        
+
         # Try importing the adapter
         try:
             importlib.import_module(adapter_name)
@@ -173,23 +172,23 @@ class TestAdapterImports:
             pytest.fail(
                 f"Failed to import {adapter_name}: {type(e).__name__}: {e}"
             )
-    
+
     @pytest.mark.parametrize("adapter_name", ADAPTER_MODULES)
     def test_adapter_submodules_import(self, adapter_name: str) -> None:
         """Test that all submodules within an adapter can be imported.
-        
+
         Args:
             adapter_name: Adapter module name
         """
         # Add adapters to path
         add_adapters_to_path()
-        
+
         # Discover all submodules
         submodules = discover_submodules(adapter_name)
-        
+
         # Track failures
         failures = []
-        
+
         for submodule in submodules:
             try:
                 importlib.import_module(submodule)
@@ -204,7 +203,7 @@ class TestAdapterImports:
                 failures.append(
                     f"Error in {submodule}: {type(e).__name__}: {e}"
                 )
-        
+
         if failures:
             pytest.fail(
                 f"Failed to import submodules in {adapter_name}:\n" +
@@ -214,27 +213,27 @@ class TestAdapterImports:
 
 class TestScriptImports:
     """Test that utility scripts can be imported without errors."""
-    
+
     def test_scripts_directory(self) -> None:
         """Test that scripts in the scripts/ directory can be imported."""
         repo_root = get_repo_root()
         scripts_dir = repo_root / "scripts"
-        
+
         if not scripts_dir.exists():
             pytest.skip("No scripts directory found")
-        
+
         # Add scripts to path
         if str(scripts_dir) not in sys.path:
             sys.path.insert(0, str(scripts_dir))
-        
+
         failures = []
-        
+
         for script_file in scripts_dir.glob("*.py"):
             if script_file.name.startswith("_"):
                 continue
-            
+
             module_name = script_file.stem
-            
+
             try:
                 importlib.import_module(module_name)
             except ModuleNotFoundError:
@@ -253,7 +252,7 @@ class TestScriptImports:
                     failures.append(
                         f"Error in {module_name}: {e}"
                     )
-        
+
         if failures:
             pytest.fail(
                 "Failed to import scripts:\n" + "\n".join(failures)
@@ -263,17 +262,17 @@ class TestScriptImports:
 def test_no_warnings_on_import() -> None:
     """
     Test that importing key modules doesn't produce warnings.
-    
+
     This helps catch deprecated API usage and other issues.
     """
     import warnings
-    
+
     # Add necessary paths
     add_adapters_to_path()
-    
+
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
-        
+
         # Try importing a few key adapters
         for adapter in ["copilot_config", "copilot_logging", "copilot_events"]:
             try:
@@ -281,13 +280,13 @@ def test_no_warnings_on_import() -> None:
             except ModuleNotFoundError:
                 # Not installed, skip
                 continue
-        
+
         # Check for DeprecationWarnings or other concerning warnings
         concerning_warnings = [
             warning for warning in w
-            if issubclass(warning.category, (DeprecationWarning, FutureWarning))
+            if issubclass(warning.category, DeprecationWarning | FutureWarning)
         ]
-        
+
         if concerning_warnings:
             warning_messages = [
                 f"{w.category.__name__}: {w.message}"

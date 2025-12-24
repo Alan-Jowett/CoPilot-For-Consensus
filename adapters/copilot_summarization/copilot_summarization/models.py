@@ -4,13 +4,12 @@
 """Data models for summarization service."""
 
 from dataclasses import dataclass, field
-from typing import List
 
 
 @dataclass
 class Citation:
     """Citation linking summary to source material.
-    
+
     Attributes:
         message_id: ID of the source message
         chunk_id: ID of the chunk within the message
@@ -24,7 +23,7 @@ class Citation:
 @dataclass
 class Thread:
     """Thread data to be summarized.
-    
+
     Attributes:
         thread_id: Unique identifier for the thread
         messages: List of message contents in the thread
@@ -33,7 +32,7 @@ class Thread:
         prompt_template: Prompt template to use for summarization
     """
     thread_id: str
-    messages: List[str]
+    messages: list[str]
     top_k: int = 10
     context_window_tokens: int = 4096
     prompt_template: str = "Summarize the following discussion thread:"
@@ -42,7 +41,7 @@ class Thread:
 @dataclass
 class Summary:
     """Summary generated for a thread.
-    
+
     Attributes:
         thread_id: Thread that was summarized
         summary_markdown: Generated summary in Markdown format
@@ -55,7 +54,7 @@ class Summary:
     """
     thread_id: str
     summary_markdown: str
-    citations: List[Citation] = field(default_factory=list)
+    citations: list[Citation] = field(default_factory=list)
     llm_backend: str = "unknown"
     llm_model: str = "unknown"
     tokens_prompt: int = 0

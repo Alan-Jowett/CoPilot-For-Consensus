@@ -25,14 +25,14 @@ from app.middleware import JWTMiddleware
 
 class TestAuthConfig:
     """Test auth configuration."""
-    
+
     def test_jwt_config_defaults(self):
         """Test JWT config with defaults."""
         config = JWTConfig()
         assert config.algorithm == "RS256"
         assert config.key_id == "default"
         assert config.default_expiry == 1800
-    
+
     def test_security_config_defaults(self):
         """Test security config with defaults."""
         config = SecurityConfig()
@@ -44,7 +44,7 @@ class TestAuthConfig:
 
 class TestAuthService:
     """Test auth service."""
-    
+
     @pytest.fixture
     def test_config(self, tmp_path):
         """Create test configuration."""
@@ -52,37 +52,37 @@ class TestAuthService:
         from cryptography.hazmat.backends import default_backend
         from cryptography.hazmat.primitives import serialization
         from cryptography.hazmat.primitives.asymmetric import rsa
-        
+
         private_key = rsa.generate_private_key(
             public_exponent=65537,
             key_size=2048,
             backend=default_backend()
         )
-        
+
         private_path = tmp_path / "private.pem"
         public_path = tmp_path / "public.pem"
-        
+
         private_pem = private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PrivateFormat.PKCS8,
             encryption_algorithm=serialization.NoEncryption()
         )
         private_path.write_bytes(private_pem)
-        
+
         public_key = private_key.public_key()
         public_pem = public_key.public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
         public_path.write_bytes(public_pem)
-        
+
         # Create config
         jwt_config = JWTConfig(
             algorithm="RS256",
             private_key_path=private_path,
             public_key_path=public_path,
         )
-        
+
         # Add mock provider
         providers = {
             "mock": OIDCProviderConfig(
@@ -92,39 +92,39 @@ class TestAuthService:
                 redirect_uri="http://localhost:8090/callback",
             )
         }
-        
+
         return AuthConfig(
             issuer="http://localhost:8090",
             audiences=["test-audience"],
             jwt=jwt_config,
             oidc_providers=providers,
         )
-    
+
     def test_service_initialization(self, test_config):
         """Test service initializes correctly."""
         service = AuthService(config=test_config)
-        
+
         assert service.is_ready() is True
         assert service.jwt_manager is not None
         assert len(service.providers) == 1
-    
+
     def test_get_jwks(self, test_config):
         """Test JWKS endpoint."""
         service = AuthService(config=test_config)
-        
+
         jwks = service.get_jwks()
-        
+
         assert "keys" in jwks
         assert len(jwks["keys"]) == 1
         assert jwks["keys"][0]["kty"] == "RSA"
         assert jwks["keys"][0]["alg"] == "RS256"
-    
+
     def test_get_stats(self, test_config):
         """Test statistics retrieval."""
         service = AuthService(config=test_config)
-        
+
         stats = service.get_stats()
-        
+
         assert "logins_total" in stats
         assert "tokens_minted" in stats
         assert "tokens_validated" in stats
@@ -358,101 +358,101 @@ class TestJWTMiddleware:
 
 class TestSessionManagement:
     """Test session state management and security."""
-    
+
     def test_invalid_state_raises_error(self, tmp_path):
         """Test that invalid state in callback raises ValueError."""
         user = User(id="user:1", email="test@example.com", name="Test", roles=[], affiliations=[])
         config = _auth_config_with_fake_provider(tmp_path, user)
         service = AuthService(config=config)
         service.providers["fake"] = FakeOIDCProvider(user)
-        
+
         # Attempt callback with invalid state
         with pytest.raises(ValueError, match="Invalid or expired state"):
             service.handle_callback(code="auth-code", state="invalid-state")
-    
+
     def test_session_cleanup_after_callback(self, tmp_path):
         """Test that session is deleted after successful callback."""
         user = User(id="user:2", email="test2@example.com", name="Test2", roles=[], affiliations=[])
         config = _auth_config_with_fake_provider(tmp_path, user)
         service = AuthService(config=config)
         service.providers["fake"] = FakeOIDCProvider(user)
-        
+
         # Login
         _, state, _ = service.initiate_login(provider="fake", audience="test-audience")
         assert state in service._sessions
-        
+
         # Callback
         service.handle_callback(code="auth-code", state=state)
-        
+
         # Session should be cleaned up
         assert state not in service._sessions
-    
+
     def test_session_cleanup_on_error(self, tmp_path):
         """Test that session is cleaned up even if callback fails."""
         user = User(id="user:3", email="test3@example.com", name="Test3", roles=[], affiliations=[])
         config = _auth_config_with_fake_provider(tmp_path, user)
         service = AuthService(config=config)
-        
+
         class FailingProvider(FakeOIDCProvider):
             def exchange_code_for_token(self, code: str, code_verifier: Optional[str] = None) -> Dict[str, str]:
                 raise AuthenticationError("Token exchange failed")
-        
+
         service.providers["fake"] = FailingProvider(user)
-        
+
         # Login
         _, state, _ = service.initiate_login(provider="fake", audience="test-audience")
         assert state in service._sessions
-        
+
         # Callback fails
         with pytest.raises(AuthenticationError):
             service.handle_callback(code="auth-code", state=state)
-        
+
         # Session should still be cleaned up
         assert state not in service._sessions
-    
+
     def test_state_not_reusable(self, tmp_path):
         """Test that state cannot be reused after callback."""
         user = User(id="user:4", email="test4@example.com", name="Test4", roles=[], affiliations=[])
         config = _auth_config_with_fake_provider(tmp_path, user)
         service = AuthService(config=config)
         service.providers["fake"] = FakeOIDCProvider(user)
-        
+
         # Login
         _, state, _ = service.initiate_login(provider="fake", audience="test-audience")
-        
+
         # First callback succeeds
         service.handle_callback(code="auth-code", state=state)
-        
+
         # Second callback with same state fails
         with pytest.raises(ValueError, match="Invalid or expired state"):
             service.handle_callback(code="auth-code-2", state=state)
-    
+
     def test_concurrent_sessions(self, tmp_path):
         """Test multiple concurrent sessions are handled correctly."""
         user = User(id="user:5", email="test5@example.com", name="Test5", roles=[], affiliations=[])
         config = _auth_config_with_fake_provider(tmp_path, user)
         service = AuthService(config=config)
         service.providers["fake"] = FakeOIDCProvider(user)
-        
+
         # Create multiple sessions
         _, state1, _ = service.initiate_login(provider="fake", audience="aud1")
         _, state2, _ = service.initiate_login(provider="fake", audience="aud2")
         _, state3, _ = service.initiate_login(provider="fake", audience="aud3")
-        
+
         # All sessions exist
         assert len(service._sessions) == 3
         assert state1 in service._sessions
         assert state2 in service._sessions
         assert state3 in service._sessions
-        
+
         # Complete one session
         token1 = service.handle_callback(code="code1", state=state1)
-        
+
         # Only that session is cleaned up
         assert state1 not in service._sessions
         assert state2 in service._sessions
         assert state3 in service._sessions
-        
+
         # Verify token has correct audience
         claims = service.validate_token(token=token1, audience="aud1")
         assert claims["aud"] == "aud1"
@@ -460,50 +460,50 @@ class TestSessionManagement:
 
 class TestJWTMinting:
     """Test JWT token minting with different configurations."""
-    
+
     def test_mint_token_with_different_audiences(self, tmp_path):
         """Test minting tokens for different audiences."""
         user = User(id="user:6", email="test6@example.com", name="Test6", roles=["reader"], affiliations=[])
         config = _auth_config_with_fake_provider(tmp_path, user)
         service = AuthService(config=config)
         service.providers["fake"] = FakeOIDCProvider(user)
-        
+
         # Login for audience A
         _, state_a, _ = service.initiate_login(provider="fake", audience="audience-a")
         token_a = service.handle_callback(code="code-a", state=state_a)
-        
+
         # Login for audience B
         _, state_b, _ = service.initiate_login(provider="fake", audience="audience-b")
         token_b = service.handle_callback(code="code-b", state=state_b)
-        
+
         # Tokens should be different
         assert token_a != token_b
-        
+
         # Each token validates only with its own audience
         claims_a = service.validate_token(token=token_a, audience="audience-a")
         assert claims_a["aud"] == "audience-a"
-        
+
         claims_b = service.validate_token(token=token_b, audience="audience-b")
         assert claims_b["aud"] == "audience-b"
-        
+
         # Cross-validation fails
         with pytest.raises(Exception):  # jwt.InvalidAudienceError
             service.validate_token(token=token_a, audience="audience-b")
-    
+
     def test_token_includes_provider_claim(self, tmp_path):
         """Test that minted tokens include provider information."""
         user = User(id="user:7", email="test7@example.com", name="Test7", roles=[], affiliations=[])
         config = _auth_config_with_fake_provider(tmp_path, user)
         service = AuthService(config=config)
         service.providers["fake"] = FakeOIDCProvider(user)
-        
+
         _, state, _ = service.initiate_login(provider="fake", audience="test-aud")
         token = service.handle_callback(code="code", state=state)
-        
+
         claims = service.validate_token(token=token, audience="test-aud")
         assert claims["provider"] == "fake"
         assert claims["amr"] == ["pwd"]  # authentication method reference
-    
+
     def test_token_includes_user_attributes(self, tmp_path):
         """Test that minted tokens include all user attributes."""
         user = User(
@@ -516,131 +516,131 @@ class TestJWTMinting:
         config = _auth_config_with_fake_provider(tmp_path, user)
         service = AuthService(config=config)
         service.providers["fake"] = FakeOIDCProvider(user)
-        
+
         _, state, _ = service.initiate_login(provider="fake", audience="test-aud")
         token = service.handle_callback(code="code", state=state)
-        
+
         claims = service.validate_token(token=token, audience="test-aud")
         assert claims["sub"] == "user:8"
         assert claims["email"] == "test8@example.com"
         assert claims["name"] == "Test User 8"
         assert set(claims["roles"]) == {"admin", "editor"}
         assert set(claims["affiliations"]) == {"org1", "org2"}
-    
+
     def test_statistics_tracking(self, tmp_path):
         """Test that statistics are tracked correctly."""
         user = User(id="user:9", email="test9@example.com", name="Test9", roles=[], affiliations=[])
         config = _auth_config_with_fake_provider(tmp_path, user)
         service = AuthService(config=config)
         service.providers["fake"] = FakeOIDCProvider(user)
-        
+
         initial_stats = service.get_stats()
         assert initial_stats["logins_total"] == 0
         assert initial_stats["tokens_minted"] == 0
         assert initial_stats["tokens_validated"] == 0
-        
+
         # Login
         _, state, _ = service.initiate_login(provider="fake", audience="test-aud")
         stats = service.get_stats()
         assert stats["logins_total"] == 1
-        
+
         # Callback
         token = service.handle_callback(code="code", state=state)
         stats = service.get_stats()
         assert stats["tokens_minted"] == 1
-        
+
         # Validate
         service.validate_token(token=token, audience="test-aud")
         stats = service.get_stats()
         assert stats["tokens_validated"] == 1
-        
+
         # Invalid validation
         try:
             service.validate_token(token="invalid-token", audience="test-aud")
         except:
             pass
-        
+
         stats = service.get_stats()
         assert stats["validation_failures"] == 1
 
 
 class TestErrorHandling:
     """Test error handling in auth flows."""
-    
+
     def test_unknown_provider_error(self, tmp_path):
         """Test error when using unknown provider."""
         user = User(id="user:10", email="test10@example.com", name="Test10", roles=[], affiliations=[])
         config = _auth_config_with_fake_provider(tmp_path, user)
         service = AuthService(config=config)
-        
+
         with pytest.raises(ValueError, match="Unknown provider"):
             service.initiate_login(provider="nonexistent", audience="test-aud")
-    
+
     def test_callback_without_access_token(self, tmp_path):
         """Test callback fails when access_token is missing."""
         user = User(id="user:11", email="test11@example.com", name="Test11", roles=[], affiliations=[])
         config = _auth_config_with_fake_provider(tmp_path, user)
         service = AuthService(config=config)
-        
+
         class NoAccessTokenProvider(FakeOIDCProvider):
             def exchange_code_for_token(self, code: str, code_verifier: Optional[str] = None) -> Dict[str, str]:
                 return {"id_token": "id-token"}  # missing access_token
-        
+
         service.providers["fake"] = NoAccessTokenProvider(user)
         _, state, _ = service.initiate_login(provider="fake", audience="test-aud")
-        
+
         with pytest.raises(AuthenticationError, match="No access token"):
             service.handle_callback(code="code", state=state)
-    
+
     def test_callback_fails_on_user_retrieval_error(self, tmp_path):
         """Test callback fails when user info retrieval fails."""
         user = User(id="user:12", email="test12@example.com", name="Test12", roles=[], affiliations=[])
         config = _auth_config_with_fake_provider(tmp_path, user)
         service = AuthService(config=config)
-        
+
         class FailingUserProvider(FakeOIDCProvider):
             def get_user(self, token: str) -> Optional[User]:
                 return None  # Failed to retrieve user
-        
+
         service.providers["fake"] = FailingUserProvider(user)
         _, state, _ = service.initiate_login(provider="fake", audience="test-aud")
-        
+
         with pytest.raises(AuthenticationError, match="Failed to retrieve user info"):
             service.handle_callback(code="code", state=state)
-    
+
     def test_pkce_verifier_passed_to_provider(self, tmp_path):
         """Test that PKCE code_verifier is correctly passed to provider."""
         user = User(id="user:13", email="test13@example.com", name="Test13", roles=[], affiliations=[])
         config = _auth_config_with_fake_provider(tmp_path, user)
         service = AuthService(config=config)
-        
+
         fake_provider = FakeOIDCProvider(user)
         service.providers["fake"] = fake_provider
-        
+
         # Login
         _, state, _ = service.initiate_login(provider="fake", audience="test-aud")
         stored_verifier = service._sessions[state]["code_verifier"]
-        
+
         # Callback
         service.handle_callback(code="code", state=state)
-        
+
         # Verify provider received the verifier
         assert fake_provider.last_code_verifier == stored_verifier
-    
+
     def test_nonce_validation(self, tmp_path):
         """Test that nonce is validated during ID token verification."""
         user = User(id="user:14", email="test14@example.com", name="Test14", roles=[], affiliations=[])
         config = _auth_config_with_fake_provider(tmp_path, user)
         service = AuthService(config=config)
-        
+
         fake_provider = FakeOIDCProvider(user)
         service.providers["fake"] = fake_provider
-        
+
         # Login
         _, state, nonce = service.initiate_login(provider="fake", audience="test-aud")
-        
+
         # Callback
         service.handle_callback(code="code", state=state)
-        
+
         # Verify provider validated nonce
         assert fake_provider.last_nonce == nonce
