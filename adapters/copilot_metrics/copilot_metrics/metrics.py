@@ -6,8 +6,17 @@
 import logging
 import os
 from abc import ABC, abstractmethod
+from typing import Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
+
+
+@runtime_checkable
+class _Pushable(Protocol):
+    """Protocol for collectors that support push."""
+
+    def push(self) -> None:
+        ...
 
 
 class MetricsCollector(ABC):
@@ -64,9 +73,9 @@ class MetricsCollector(ABC):
         This method is designed to be called after collecting metrics to ensure
         they are sent to the monitoring backend without failing the service.
         """
-        if hasattr(self, 'push') and callable(getattr(self, 'push')):
+        if isinstance(self, _Pushable):
             try:
-                self.push()  # type: ignore[attr-defined]  # pylint: disable=no-member
+                self.push()
             except Exception as e:
                 logger.warning(f"Failed to push metrics: {e}")
 

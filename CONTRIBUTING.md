@@ -171,6 +171,21 @@ def get_user_name(user: User | None) -> str:
     return user.name
 ```
 
+**5. Dynamically-checked capabilities**
+```python
+# ✅ Acceptable - runtime-checked optional method
+from typing import Protocol, runtime_checkable
+
+@runtime_checkable
+class Pushable(Protocol):
+    def push(self) -> None: ...
+
+def safe_push(collector: object) -> None:
+    if isinstance(collector, Pushable):
+        collector.push()
+```
+Use a small `Protocol` + `isinstance` check for optional capabilities instead of scattering `# type: ignore` or `# pylint: disable` on dynamic attributes.
+
 #### CI Pipeline Behavior
 
 The CI pipeline includes:
