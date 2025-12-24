@@ -105,7 +105,7 @@ def main():
                 )
                 app.add_middleware(auth_middleware)
             except ImportError:
-                logger.warning("copilot_auth module not available - JWT authentication disabled")
+                logger.debug("copilot_auth module not available - JWT authentication disabled")
         else:
             logger.warning("JWT authentication is DISABLED - all endpoints are public")
 
