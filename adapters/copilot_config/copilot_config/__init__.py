@@ -16,6 +16,7 @@ from .factory import create_config_provider
 from .providers import (
     DocStoreConfigProvider,
 )
+from .registry_provider import ConfigWatcher, RegistryConfigProvider
 from .schema_loader import (
     ConfigSchema,
     ConfigSchemaError,
@@ -41,6 +42,7 @@ __all__ = [
     "StorageConfigProvider",
     "DocStoreConfigProvider",
     "SecretConfigProvider",
+    "RegistryConfigProvider",
     "create_config_provider",
     # Schema-driven configuration
     "ConfigSchema",
@@ -53,4 +55,6 @@ __all__ = [
     "load_typed_config",  # Only public config loading function
     # Configuration discovery
     "get_configuration_schema_response",
+    # Hot-reload support (Phase 3)
+    "ConfigWatcher",
 ]

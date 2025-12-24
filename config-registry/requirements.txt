@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+# Core dependencies
+fastapi>=0.100.0
+uvicorn>=0.23.0
+pydantic>=2.0.0
+
+# Copilot adapters (installed from local paths in Dockerfile)
+# copilot-config
+# copilot-logging
+# copilot-storage
+# copilot-events
