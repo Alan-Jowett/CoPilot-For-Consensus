@@ -584,3 +584,65 @@ class TestAzureMonitorMetricsCollector:
         except ImportError:
             # Expected if Azure packages not installed - test passes
             pass
+
+
+class TestAzureMonitorWarningSuppress:
+    """Tests for Azure Monitor import warning suppression."""
+
+    def test_azure_monitor_import_no_warning_at_info_level(self, caplog):
+        """Test that Azure Monitor import doesn't log warning at INFO level.
+        
+        This verifies issue #XXX fix: Azure Monitor OpenTelemetry packages are optional,
+        so the warning about missing packages should only appear at DEBUG level, not INFO.
+        """
+        import logging
+        import importlib
+        
+        # Set logging to INFO level (typical for service startup)
+        caplog.set_level(logging.INFO)
+        
+        # Reimport the azure_monitor_metrics module to trigger the import-time logging
+        from copilot_metrics import azure_monitor_metrics
+        importlib.reload(azure_monitor_metrics)
+        
+        # Check that no warning about Azure Monitor packages appears in INFO logs
+        azure_monitor_warnings = [
+            record for record in caplog.records
+            if "Azure Monitor OpenTelemetry" in record.message
+            and record.levelname == "WARNING"
+        ]
+        
+        assert len(azure_monitor_warnings) == 0, (
+            "Azure Monitor import warning should not appear at INFO level. "
+            "It should only log at DEBUG level since it's an optional dependency."
+        )
+    
+    def test_azure_monitor_import_debug_message_at_debug_level(self, caplog):
+        """Test that Azure Monitor import logs debug message at DEBUG level.
+        
+        Verifies that the message is still available for debugging but doesn't clutter
+        normal INFO-level service startup logs.
+        """
+        import logging
+        import importlib
+        
+        # Set logging to DEBUG level
+        caplog.set_level(logging.DEBUG)
+        
+        # Reimport the azure_monitor_metrics module
+        from copilot_metrics import azure_monitor_metrics
+        importlib.reload(azure_monitor_metrics)
+        
+        # Only check if packages aren't installed (expected in most environments)
+        if not azure_monitor_metrics.AZURE_MONITOR_AVAILABLE:
+            # Check that debug message appears at DEBUG level
+            azure_monitor_debug_msgs = [
+                record for record in caplog.records
+                if "Azure Monitor OpenTelemetry" in record.message
+                and record.levelname == "DEBUG"
+            ]
+            
+            assert len(azure_monitor_debug_msgs) > 0, (
+                "Azure Monitor debug message should appear at DEBUG level "
+                "when packages are not installed."
+            )
