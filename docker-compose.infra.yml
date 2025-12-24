@@ -437,8 +437,13 @@ services:
   # Only use in development/local environments. For production, use platform-native monitoring.
   # See: https://github.com/google/cadvisor/blob/master/docs/security.md
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1@sha256:3cde6faf0791ebf7b41d6f8ae7145466fed712ea6f252c935294d2608b1af388
+    image: ghcr.io/google/cadvisor:v0.55.1@sha256:e02855207ec07bb45ee41f720645945251f093f24c28f8c29cf718490f784922
     container_name: cadvisor
+    environment:
+      # Force Docker API version 1.44 to ensure compatibility with Docker Desktop
+      # Fixes issue where cAdvisor fails to register Docker factory due to API mismatch
+      # See: https://github.com/google/cadvisor/issues/3793
+      - DOCKER_API_VERSION=1.44
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
