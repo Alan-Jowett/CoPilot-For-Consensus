@@ -231,10 +231,12 @@ gcloud services api-keys create \
   --api-target=service=$SERVICE_NAME
 ```
 
-Clients include key in request:
+Clients include key in request header (avoid query parameters to prevent key leakage in logs):
 ```bash
-curl "$GATEWAY_URL/api/endpoint?key=YOUR_API_KEY"
+curl -H "x-api-key: YOUR_API_KEY" "$GATEWAY_URL/api/endpoint"
 ```
+
+**Security Note:** Always send API keys in headers rather than query parameters. Query parameters are logged in HTTP access logs, proxies, browser history, and referrer headers, increasing the risk of credential leakage. Configure your gateway and logging to avoid recording sensitive header values.
 
 #### Option 3: Service Accounts
 
