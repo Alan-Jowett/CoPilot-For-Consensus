@@ -172,5 +172,5 @@ The implementation is production-ready and awaits manual testing in a live envir
 
 **References**:
 - Issue: Implement Automatic Token Refresh on 403 (Permission Changes)
-- PR: #562 (merged into main)
+- PR: #562
 - Branch: `copilot/implement-token-refresh-on-403`
