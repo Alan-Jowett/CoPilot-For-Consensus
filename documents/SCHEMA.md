@@ -26,11 +26,17 @@ Stores metadata about ingested mailing list archives.
 | `ingestion_date` | DateTime | When the archive was ingested | Yes |
 | `message_count` | Integer | Number of messages in archive | No |
 | `file_path` | String | Storage path for raw archive | No |
-| `status` | String | Processing status (pending, processed, failed) | Yes |
+| `status` | String | Processing status (pending, processing, completed, failed, failed_max_retries) | Yes |
+| `attemptCount` | Integer | Number of processing attempts for retry tracking | No |
+| `lastAttemptTime` | DateTime (nullable) | Timestamp of the last processing attempt | No |
+| `lastUpdated` | DateTime | Timestamp of last status or field update for observability and forward progress tracking | Yes |
+| `workerId` | String (nullable) | Optional identifier of worker/service instance processing this document | No |
 
 **Indexes:**
 - Primary: `_id`
-- Secondary: `source`, `file_hash`, `ingestion_date`, `status`
+- Secondary: `source`, `file_hash`, `ingestion_date`, `status`, `lastUpdated`
+
+> **Note:** The `status` and `lastUpdated` fields are indexed for efficient querying, but they are not marked as required in the JSON schemas. These indexes are sparse and only cover documents where the corresponding fields are present. Queries or monitoring logic that filter on these fields should account for documents that may not have these fields populated yet (e.g., during migration or for legacy documents).
 
 ---
 
@@ -57,10 +63,17 @@ Stores parsed and normalized email messages.
 | `attachments` | Array[Object] | Attachment metadata | No |
 | `draft_mentions` | Array[String] | Mentioned RFC/draft identifiers | Yes |
 | `created_at` | DateTime | Record creation timestamp | Yes |
+| `status` | String | Processing status (pending, processing, completed, failed, failed_max_retries) | Yes |
+| `attemptCount` | Integer | Number of processing attempts for retry tracking | No |
+| `lastAttemptTime` | DateTime (nullable) | Timestamp of the last processing attempt | No |
+| `lastUpdated` | DateTime | Timestamp of last status or field update for observability and forward progress tracking | Yes |
+| `workerId` | String (nullable) | Optional identifier of worker/service instance processing this document | No |
 
 **Indexes:**
 - Primary: `_id`
-- Secondary: `archive_id`, `thread_id`, `date`, `in_reply_to`, `draft_mentions`, `created_at`
+- Secondary: `archive_id`, `thread_id`, `date`, `in_reply_to`, `draft_mentions`, `created_at`, `status`, `lastUpdated`
+
+> **Note:** The `status` and `lastUpdated` fields are indexed for efficient querying, but they are not marked as required in the JSON schemas. These indexes are sparse and only cover documents where the corresponding fields are present. Queries or monitoring logic that filter on these fields should account for documents that may not have these fields populated yet (e.g., during migration or for legacy documents).
 
 **Example Document:**
 ```json
@@ -100,10 +113,17 @@ Stores text chunks derived from messages for embedding generation.
 | `metadata` | Object | Additional context (sender, date, subject) | No |
 | `created_at` | DateTime | Chunk creation timestamp | Yes |
 | `embedding_generated` | Boolean | Whether embedding exists in vector store | Yes |
+| `status` | String | Processing status (pending, processing, completed, failed, failed_max_retries) | Yes |
+| `attemptCount` | Integer | Number of embedding generation attempts for retry tracking | No |
+| `lastAttemptTime` | DateTime (nullable) | Timestamp of the last embedding generation attempt | No |
+| `lastUpdated` | DateTime | Timestamp of last status or field update for observability and forward progress tracking | Yes |
+| `workerId` | String (nullable) | Optional identifier of worker/service instance processing this document | No |
 
 **Indexes:**
 - Primary: `_id`
-- Secondary: `message_doc_id`, `message_id`, `thread_id`, `created_at`, `embedding_generated`
+- Secondary: `message_doc_id`, `message_id`, `thread_id`, `created_at`, `embedding_generated`, `status`, `lastUpdated`
+
+> **Note:** The `status` and `lastUpdated` fields are indexed for efficient querying, but they are not marked as required in the JSON schemas. These indexes are sparse and only cover documents where the corresponding fields are present. Queries or monitoring logic that filter on these fields should account for documents that may not have these fields populated yet (e.g., during migration or for legacy documents).
 
 **Example Document:**
 ```json
@@ -147,10 +167,17 @@ Stores aggregated thread metadata for quick retrieval.
 | `consensus_type` | String | Type (agreement, dissent, mixed) | No |
 | `summary_id` | String | Reference to generated summary (references `summaries._id`) | Yes |
 | `created_at` | DateTime | Thread record creation | Yes |
+| `status` | String | Processing status (pending, processing, completed, failed, failed_max_retries) | Yes |
+| `attemptCount` | Integer | Number of summarization attempts for retry tracking | No |
+| `lastAttemptTime` | DateTime (nullable) | Timestamp of the last summarization attempt | No |
+| `lastUpdated` | DateTime | Timestamp of last status or field update for observability and forward progress tracking | Yes |
+| `workerId` | String (nullable) | Optional identifier of worker/service instance processing this document | No |
 
 **Indexes:**
 - Primary: `_id`
-- Secondary: `archive_id`, `first_message_date`, `last_message_date`, `draft_mentions`, `has_consensus`, `summary_id`, `created_at`
+- Secondary: `archive_id`, `first_message_date`, `last_message_date`, `draft_mentions`, `has_consensus`, `summary_id`, `created_at`, `status`, `lastUpdated`
+
+> **Note:** The `status` and `lastUpdated` fields are indexed for efficient querying, but they are not marked as required in the JSON schemas. These indexes are sparse and only cover documents where the corresponding fields are present. Queries or monitoring logic that filter on these fields should account for documents that may not have these fields populated yet (e.g., during migration or for legacy documents).
 
 ---
 

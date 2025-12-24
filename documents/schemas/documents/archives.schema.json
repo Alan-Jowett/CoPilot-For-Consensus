@@ -29,7 +29,11 @@
     "ingestion_date": { "type": "string", "format": "date-time" },
     "message_count": { "type": "integer", "minimum": 0 },
     "file_path": { "type": "string", "minLength": 1 },
-    "status": { "type": "string", "enum": ["pending", "processing", "processed", "failed", "failed_max_retries"] },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "processing", "completed", "failed", "failed_max_retries"],
+      "description": "Processing status for retry and workflow tracking"
+    },
     "attemptCount": {
       "type": "integer",
       "minimum": 0,
@@ -41,6 +45,18 @@
         { "type": "null" }
       ],
       "description": "Timestamp of the last processing attempt"
+    },
+    "lastUpdated": { 
+      "type": "string", 
+      "format": "date-time",
+      "description": "Timestamp of last status or field update for observability and forward progress tracking"
+    },
+    "workerId": {
+      "anyOf": [
+        { "type": "string", "minLength": 1 },
+        { "type": "null" }
+      ],
+      "description": "Optional identifier of the worker/service instance processing this document for debugging and observability"
     }
   },
   "required": ["_id", "file_hash", "file_size_bytes", "source", "ingestion_date", "status"]

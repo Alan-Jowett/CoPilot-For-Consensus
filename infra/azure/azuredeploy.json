@@ -60,69 +60,16 @@
         "description": "Container image tag to deploy"
       }
     },
-    "cosmosDbAccountName": {
-      "type": "string",
-      "defaultValue": "[format('{0}-cosmos-{1}', parameters('projectName'), variables('uniqueSuffix'))]",
+    "mongoDbConnectionString": {
+      "type": "securestring",
       "metadata": {
-        "description": "Cosmos DB account name"
-      }
-    },
-    "cosmosDbDatabaseName": {
-      "type": "string",
-      "defaultValue": "copilot",
-      "metadata": {
-        "description": "Cosmos DB database name"
-      }
-    },
-    "cosmosDbContainerName": {
-      "type": "string",
-      "defaultValue": "documents",
-      "metadata": {
-        "description": "Cosmos DB container name"
-      }
-    },
-    "cosmosDbPartitionKey": {
-      "type": "string",
-      "defaultValue": "/collection",
-      "metadata": {
-        "description": "Cosmos DB partition key path"
-      }
-    },
-    "cosmosDbThroughput": {
-      "type": "int",
-      "defaultValue": 400,
-      "minValue": 400,
-      "maxValue": 1000000,
-      "metadata": {
-        "description": "Cosmos DB container throughput in RU/s (Request Units per second)"
-      }
-    },
-    "useManagedIdentityForServiceBus": {
-      "type": "bool",
-      "defaultValue": false,
-      "metadata": {
-        "description": "Use Azure Managed Identity for Service Bus authentication (passwordless). When true, serviceBusNamespace is required and serviceBusConnectionString is not used."
-      }
-    },
-    "serviceBusNamespace": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": {
-        "description": "Azure Service Bus fully qualified namespace (e.g., 'mynamespace.servicebus.windows.net'). Required when useManagedIdentityForServiceBus is true."
-      }
-    },
-    "serviceBusResourceId": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": {
-        "description": "Azure Service Bus namespace resource ID in format: '/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.ServiceBus/namespaces/{namespace-name}'. Required when useManagedIdentityForServiceBus is true for RBAC role assignments."
+        "description": "MongoDB/CosmosDB connection string"
       }
     },
     "serviceBusConnectionString": {
       "type": "securestring",
-      "defaultValue": "",
       "metadata": {
-        "description": "Azure Service Bus connection string. Required when useManagedIdentityForServiceBus is false."
+        "description": "Azure Service Bus connection string"
       }
     },
     "storageAccountConnectionString": {
@@ -200,9 +147,7 @@
     "applicationInsightsName": "[format('{0}-insights-{1}', parameters('projectName'), variables('uniqueSuffix'))]",
     "keyVaultName": "[format('{0}kv{1}', parameters('projectName'), variables('uniqueSuffix'))]",
     "storageAccountName": "[format('{0}st{1}', replace(parameters('projectName'), '-', ''), variables('uniqueSuffix'))]",
-
-    "validateServiceBusResourceIdFormat": "[if(parameters('useManagedIdentityForServiceBus'), if(equals(length(split(parameters('serviceBusResourceId'), '/')), 9), true(), json('null')), true())]",
-
+    
     "services": [
       {
         "name": "ingestion",
@@ -295,47 +240,11 @@
         "port": 8080
       }
     ],
-
+    
     "roleDefinitions": {
       "KeyVaultSecretsUser": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]",
-      "StorageBlobDataContributor": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
-      "ServiceBusDataSender": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '69a216fc-b8fb-44d4-bc22-1f3c7cd27a98')]",
-      "ServiceBusDataReceiver": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4f6d3b9b-027b-4f4c-9142-0e5a2a2247e0')]",
-      "CosmosDbDataContributor": "00000000-0000-0000-0000-000000000002"
-    },
-
-    "serviceBusRoleAssignments": [
-      {
-        "serviceName": "ingestion",
-        "roles": ["ServiceBusDataSender"]
-      },
-      {
-        "serviceName": "parsing",
-        "roles": ["ServiceBusDataSender", "ServiceBusDataReceiver"]
-      },
-      {
-        "serviceName": "chunking",
-        "roles": ["ServiceBusDataSender", "ServiceBusDataReceiver"]
-      },
-      {
-        "serviceName": "embedding",
-        "roles": ["ServiceBusDataSender", "ServiceBusDataReceiver"]
-      },
-      {
-        "serviceName": "orchestrator",
-        "roles": ["ServiceBusDataSender", "ServiceBusDataReceiver"]
-      },
-      {
-        "serviceName": "summarization",
-        "roles": ["ServiceBusDataSender", "ServiceBusDataReceiver"]
-      },
-      {
-        "serviceName": "reporting",
-        "roles": ["ServiceBusDataSender", "ServiceBusDataReceiver"]
-      }
-    ],
-
-    "servicesUsingMessageBus": ["ingestion", "parsing", "chunking", "embedding", "orchestrator", "summarization", "reporting"]
+      "StorageBlobDataContributor": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]"
+    }
   },
   "resources": [
     {
@@ -418,80 +327,6 @@
       }
     },
     {
-      "type": "Microsoft.DocumentDB/databaseAccounts",
-      "apiVersion": "2023-04-15",
-      "name": "[parameters('cosmosDbAccountName')]",
-      "location": "[parameters('location')]",
-      "kind": "GlobalDocumentDB",
-      "properties": {
-        "databaseAccountOfferType": "Standard",
-        "consistencyPolicy": {
-          "defaultConsistencyLevel": "Session"
-        },
-        "locations": [
-          {
-            "locationName": "[parameters('location')]",
-            "failoverPriority": 0,
-            "isZoneRedundant": false
-          }
-        ],
-        "enableAutomaticFailover": false,
-        "enableMultipleWriteLocations": false,
-        "disableKeyBasedMetadataWriteAccess": false,
-        "enableFreeTier": false,
-        "publicNetworkAccess": "Enabled"
-      }
-    },
-    {
-      "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases",
-      "apiVersion": "2023-04-15",
-      "name": "[format('{0}/{1}', parameters('cosmosDbAccountName'), parameters('cosmosDbDatabaseName'))]",
-      "properties": {
-        "resource": {
-          "id": "[parameters('cosmosDbDatabaseName')]"
-        }
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))]"
-      ]
-    },
-    {
-      "type": "Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers",
-      "apiVersion": "2023-04-15",
-      "name": "[format('{0}/{1}/{2}', parameters('cosmosDbAccountName'), parameters('cosmosDbDatabaseName'), parameters('cosmosDbContainerName'))]",
-      "properties": {
-        "resource": {
-          "id": "[parameters('cosmosDbContainerName')]",
-          "partitionKey": {
-            "paths": [
-              "[parameters('cosmosDbPartitionKey')]"
-            ],
-            "kind": "Hash"
-          },
-          "indexingPolicy": {
-            "indexingMode": "consistent",
-            "automatic": true,
-            "includedPaths": [
-              {
-                "path": "/*"
-              }
-            ],
-            "excludedPaths": [
-              {
-                "path": "/\"_etag\"/?"
-              }
-            ]
-          }
-        },
-        "options": {
-          "throughput": "[parameters('cosmosDbThroughput')]"
-        }
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.DocumentDB/databaseAccounts/sqlDatabases', parameters('cosmosDbAccountName'), parameters('cosmosDbDatabaseName'))]"
-      ]
-    },
-    {
       "condition": "[parameters('createNewIdentities')]",
       "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
       "apiVersion": "2023-01-31",
@@ -544,7 +379,24 @@
             "transport": "http",
             "allowInsecure": false
           },
-          "secrets": "[if(parameters('useManagedIdentityForServiceBus'), createArray(createObject('name', 'cosmos-key', 'value', listKeys(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName')), '2023-04-15').primaryMasterKey), createObject('name', 'storage-connection-string', 'value', parameters('storageAccountConnectionString')), createObject('name', 'azure-openai-key', 'value', if(equals(parameters('llmBackend'), 'azure'), parameters('azureOpenAIKey'), ''))), createArray(createObject('name', 'cosmos-key', 'value', listKeys(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName')), '2023-04-15').primaryMasterKey), createObject('name', 'servicebus-connection-string', 'value', parameters('serviceBusConnectionString')), createObject('name', 'storage-connection-string', 'value', parameters('storageAccountConnectionString')), createObject('name', 'azure-openai-key', 'value', if(equals(parameters('llmBackend'), 'azure'), parameters('azureOpenAIKey'), ''))))]"
+          "secrets": [
+            {
+              "name": "mongodb-connection-string",
+              "value": "[parameters('mongoDbConnectionString')]"
+            },
+            {
+              "name": "servicebus-connection-string",
+              "value": "[parameters('serviceBusConnectionString')]"
+            },
+            {
+              "name": "storage-connection-string",
+              "value": "[parameters('storageAccountConnectionString')]"
+            },
+            {
+              "name": "azure-openai-key",
+              "value": "[if(equals(parameters('llmBackend'), 'azure'), parameters('azureOpenAIKey'), '')]"
+            }
+          ]
         },
         "template": {
           "containers": [
@@ -555,7 +407,56 @@
                 "cpu": "[json(variables('services')[copyIndex()].cpu)]",
                 "memory": "[variables('services')[copyIndex()].memory]"
               },
-              "env": "[concat(if(contains(variables('servicesUsingMessageBus'), variables('services')[copyIndex()].name), concat(createArray(createObject('name', 'MESSAGE_BUS_TYPE', 'value', 'azureservicebus')), if(parameters('useManagedIdentityForServiceBus'), createArray(createObject('name', 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE', 'value', parameters('serviceBusNamespace')), createObject('name', 'MESSAGE_BUS_USE_MANAGED_IDENTITY', 'value', 'true')), createArray(createObject('name', 'MESSAGE_BUS_CONNECTION_STRING', 'secretRef', 'servicebus-connection-string')))), createArray()), createArray(createObject('name', 'DOCUMENT_STORE_TYPE', 'value', 'azurecosmos'), createObject('name', 'COSMOS_ENDPOINT', 'value', reference(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))).documentEndpoint), createObject('name', 'COSMOS_KEY', 'secretRef', 'cosmos-key'), createObject('name', 'COSMOS_DATABASE', 'value', parameters('cosmosDbDatabaseName')), createObject('name', 'COSMOS_CONTAINER', 'value', parameters('cosmosDbContainerName')), createObject('name', 'COSMOS_PARTITION_KEY', 'value', parameters('cosmosDbPartitionKey')), createObject('name', 'STORAGE_CONNECTION_STRING', 'secretRef', 'storage-connection-string'), createObject('name', 'LLM_BACKEND', 'value', parameters('llmBackend')), createObject('name', 'AZURE_OPENAI_ENDPOINT', 'value', parameters('azureOpenAIEndpoint')), createObject('name', 'AZURE_OPENAI_KEY', 'secretRef', 'azure-openai-key'), createObject('name', 'APPLICATIONINSIGHTS_CONNECTION_STRING', 'value', reference(resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))).ConnectionString), createObject('name', 'KEY_VAULT_URI', 'value', reference(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))).vaultUri), createObject('name', 'METRICS_BACKEND', 'value', 'applicationinsights'), createObject('name', 'ERROR_REPORTER_TYPE', 'value', 'applicationinsights')))]"
+              "env": [
+                {
+                  "name": "MESSAGE_BUS_TYPE",
+                  "value": "azureservicebus"
+                },
+                {
+                  "name": "MESSAGE_BUS_CONNECTION_STRING",
+                  "secretRef": "servicebus-connection-string"
+                },
+                {
+                  "name": "DOCUMENT_STORE_TYPE",
+                  "value": "mongodb"
+                },
+                {
+                  "name": "DOCUMENT_DATABASE_CONNECTION_STRING",
+                  "secretRef": "mongodb-connection-string"
+                },
+                {
+                  "name": "STORAGE_CONNECTION_STRING",
+                  "secretRef": "storage-connection-string"
+                },
+                {
+                  "name": "LLM_BACKEND",
+                  "value": "[parameters('llmBackend')]"
+                },
+                {
+                  "name": "AZURE_OPENAI_ENDPOINT",
+                  "value": "[parameters('azureOpenAIEndpoint')]"
+                },
+                {
+                  "name": "AZURE_OPENAI_KEY",
+                  "secretRef": "azure-openai-key"
+                },
+                {
+                  "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                  "value": "[reference(resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))).ConnectionString]"
+                },
+                {
+                  "name": "KEY_VAULT_URI",
+                  "value": "[reference(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))).vaultUri]"
+                },
+                {
+                  "name": "METRICS_BACKEND",
+                  "value": "applicationinsights"
+                },
+                {
+                  "name": "ERROR_REPORTER_TYPE",
+                  "value": "applicationinsights"
+                }
+              ]
             }
           ],
           "scale": {
@@ -582,7 +483,6 @@
         "[resourceId('Microsoft.App/managedEnvironments', variables('containerAppsEnvironmentName'))]",
         "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]",
         "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
-        "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))]",
         "identityCopy"
       ]
     },
@@ -625,106 +525,6 @@
         "identityCopy",
         "containerAppsCopy"
       ]
-    },
-    {
-      "type": "Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments",
-      "apiVersion": "2023-04-15",
-      "name": "[format('{0}/{1}', parameters('cosmosDbAccountName'), guid(resourceGroup().id, variables('services')[copyIndex()].name, 'CosmosDbDataContributor'))]",
-      "properties": {
-        "roleDefinitionId": "[concat(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName')), '/sqlRoleDefinitions/', variables('roleDefinitions').CosmosDbDataContributor)]",
-        "principalId": "[if(parameters('createNewIdentities'), reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-{1}-identity', parameters('projectName'), variables('services')[copyIndex()].name))).principalId, reference(parameters('existingIdentityResourceIds')[variables('services')[copyIndex()].name], '2023-01-31').principalId)]",
-        "scope": "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))]"
-      },
-      "copy": {
-        "name": "cosmosDbRoleAssignmentsCopy",
-        "count": "[length(variables('services'))]"
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))]",
-        "identityCopy",
-        "containerAppsCopy"
-      ]
-    },
-    {
-      "condition": "[and(parameters('useManagedIdentityForServiceBus'), variables('validateServiceBusResourceIdFormat'))]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
-      "name": "[format('serviceBusRoleAssignments-{0}', variables('serviceBusRoleAssignments')[copyIndex()].serviceName)]",
-      "resourceGroup": "[split(parameters('serviceBusResourceId'), '/')[4]]",
-      "properties": {
-        "mode": "Incremental",
-        "expressionEvaluationOptions": {
-          "scope": "Inner"
-        },
-        "parameters": {
-          "serviceBusNamespaceName": {
-            "value": "[last(split(parameters('serviceBusResourceId'), '/'))]"
-          },
-          "principalId": {
-            "value": "[if(parameters('createNewIdentities'), reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', format('{0}-{1}-identity', parameters('projectName'), variables('serviceBusRoleAssignments')[copyIndex()].serviceName))).principalId, reference(parameters('existingIdentityResourceIds')[variables('serviceBusRoleAssignments')[copyIndex()].serviceName], '2023-01-31').principalId)]"
-          },
-          "roles": {
-            "value": "[variables('serviceBusRoleAssignments')[copyIndex()].roles]"
-          },
-          "serviceName": {
-            "value": "[variables('serviceBusRoleAssignments')[copyIndex()].serviceName]"
-          },
-          "roleDefinitions": {
-            "value": "[variables('roleDefinitions')]"
-          },
-          "resourceGroupId": {
-            "value": "[resourceGroup().id]"
-          }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "parameters": {
-            "serviceBusNamespaceName": {
-              "type": "string"
-            },
-            "principalId": {
-              "type": "string"
-            },
-            "roles": {
-              "type": "array"
-            },
-            "serviceName": {
-              "type": "string"
-            },
-            "roleDefinitions": {
-              "type": "object"
-            },
-            "resourceGroupId": {
-              "type": "string"
-            }
-          },
-          "resources": [
-            {
-              "copy": {
-                "name": "roleAssignmentCopy",
-                "count": "[length(parameters('roles'))]"
-              },
-              "type": "Microsoft.ServiceBus/namespaces/providers/roleAssignments",
-              "apiVersion": "2022-04-01",
-              "name": "[format('{0}/Microsoft.Authorization/{1}', parameters('serviceBusNamespaceName'), guid(parameters('resourceGroupId'), parameters('serviceName'), parameters('roles')[copyIndex()]))]",
-              "properties": {
-                "roleDefinitionId": "[parameters('roleDefinitions')[parameters('roles')[copyIndex()]]]",
-                "principalId": "[parameters('principalId')]",
-                "principalType": "ServicePrincipal"
-              }
-            }
-          ]
-        }
-      },
-      "copy": {
-        "name": "serviceBusRoleAssignmentsCopy",
-        "count": "[length(variables('serviceBusRoleAssignments'))]"
-      },
-      "dependsOn": [
-        "identityCopy",
-        "containerAppsCopy"
-      ]
     }
   ],
   "outputs": {
@@ -743,18 +543,6 @@
     "storageAccountName": {
       "type": "string",
       "value": "[variables('storageAccountName')]"
-    },
-    "cosmosDbEndpoint": {
-      "type": "string",
-      "value": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))).documentEndpoint]"
-    },
-    "cosmosDbDatabaseName": {
-      "type": "string",
-      "value": "[parameters('cosmosDbDatabaseName')]"
-    },
-    "cosmosDbContainerName": {
-      "type": "string",
-      "value": "[parameters('cosmosDbContainerName')]"
     },
     "gatewayUrl": {
       "type": "string",

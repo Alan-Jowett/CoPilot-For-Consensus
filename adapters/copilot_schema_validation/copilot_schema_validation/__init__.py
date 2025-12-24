@@ -26,6 +26,8 @@ from .models import (
     ChunkingFailedEvent,
     # Chunking Service Events
     ChunksPreparedEvent,
+    # Enums
+    DocumentStatus,
     EmbeddingGenerationFailedEvent,
     # Embedding Service Events
     EmbeddingsGeneratedEvent,
@@ -65,6 +67,8 @@ __all__ = [
     "validate_registry",
     "get_schema_metadata",
     "SCHEMA_REGISTRY",
+    # Enums
+    "DocumentStatus",
     # Event models
     "BaseEvent",
     "ArchiveIngestedEvent",

@@ -12,9 +12,10 @@ from copilot_vectorstore import create_vector_store
 # Check if azure-search-documents is available
 AZURE_AVAILABLE = False
 try:
-    import azure.search.documents  # type: ignore[import]
+    import azure.search.documents  # type: ignore[import]  # noqa: F401
     AZURE_AVAILABLE = True
 except ImportError:
+    # Azure SDK not installed - integration tests will be skipped
     pass
 
 
