@@ -40,9 +40,9 @@ class RoleStore:
         import os
 
         # Helper to read from Docker secrets first, then environment variables
-        def get_secret_or_env(secret_name: str, env_var: str) -> str | None:
+        def get_secret_or_env(key_name: str, env_var: str) -> str | None:
             # Try reading from Docker secrets first (mounted at /run/secrets/)
-            secret_file = f"/run/secrets/{secret_name}"
+            secret_file = f"/run/secrets/{key_name}"
             if os.path.exists(secret_file):
                 try:
                     with open(secret_file) as f:
@@ -51,7 +51,7 @@ class RoleStore:
                             return content
                 except OSError as exc:
                     logger.warning(
-                        f"Failed to read Docker secret '{secret_name}' from {secret_file}: {exc}"
+                        f"Failed to read Docker secret '{key_name}' from {secret_file}: {exc}"
                     )
 
             # Fallback to environment variable
