@@ -71,7 +71,7 @@ class GitHubIdentityProvider(OIDCProvider):
         self._jwks_uri = None
         self._issuer = None
 
-    def validate_id_token(self, id_token: str, nonce: str, leeway: int = 60):
+    def validate_id_token(self, id_token: str, nonce: str, leeway: int = 60) -> dict[str, Any]:
         """GitHub OAuth does not issue ID tokens; fail fast with guidance."""
         raise AuthenticationError(
             "GitHub OAuth does not provide an id_token. "
@@ -129,7 +129,7 @@ class GitHubIdentityProvider(OIDCProvider):
         roles = ["contributor"]
 
         # Organizations become affiliations
-        affiliations = []
+        affiliations: list[str] = []
 
         return User(
             id=f"github:{user_id}",

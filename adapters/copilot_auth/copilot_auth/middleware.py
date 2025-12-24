@@ -33,10 +33,11 @@ import os
 import time
 import traceback
 from collections.abc import Callable
+from typing import Any, cast
 
 import httpx
 import jwt
-from copilot_logging import create_logger
+from copilot_logging import create_logger  # type: ignore[import-not-found]
 from fastapi import HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -60,7 +61,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
 
     def __init__(
         self,
-        app,
+        app: Any,
         auth_service_url: str,
         audience: str,
         required_roles: list[str] | None = None,
@@ -85,7 +86,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
         self.jwks_cache_ttl = jwks_cache_ttl
 
         # JWKS cache with timestamp
-        self.jwks: dict | None = None
+        self.jwks: dict[str, Any] | None = None
         self.jwks_last_fetched: float = 0
         self._fetch_jwks()
 
@@ -105,9 +106,10 @@ class JWTMiddleware(BaseHTTPMiddleware):
         try:
             response = httpx.get(f"{self.auth_service_url}/keys", timeout=10.0)
             response.raise_for_status()
-            self.jwks = response.json()
+            jwks = response.json()
+            self.jwks = jwks
             self.jwks_last_fetched = time.time()
-            logger.info(f"Fetched JWKS from {self.auth_service_url}/keys ({len(self.jwks.get('keys', []))} keys)")
+            logger.info(f"Fetched JWKS from {self.auth_service_url}/keys ({len(jwks.get('keys', []))} keys)")
 
         except Exception as e:
             logger.error(f"Failed to fetch JWKS: {e}")
@@ -115,7 +117,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
             if self.jwks is None:
                 self.jwks = {"keys": []}
 
-    def _get_public_key(self, token_header: dict) -> str | None:
+    def _get_public_key(self, token_header: dict[str, Any]) -> Any:
         """Get public key for token validation.
 
         Args:
@@ -153,7 +155,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
         logger.error(f"Key {kid} not found even after forced refresh")
         return None
 
-    def _validate_token(self, token: str) -> dict:
+    def _validate_token(self, token: str) -> dict[Any, Any]:
         """Validate JWT token.
 
         Args:
@@ -203,7 +205,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
 
             claims = jwt.decode(
                 token,
-                public_key,
+                public_key,  # type: ignore[arg-type]
                 algorithms=["RS256"],
                 audience=self.audience,
                 options={"verify_exp": True}
@@ -218,7 +220,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 exp_timestamp=claims.get("exp"),
             )
 
-            return claims
+            return claims  # type: ignore[no-any-return]
 
         except jwt.ExpiredSignatureError as e:
             logger.warning("Token has expired", error=str(e))
@@ -243,7 +245,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 detail=f"Invalid token: {str(e)}"
             )
 
-    def _check_roles(self, claims: dict) -> None:
+    def _check_roles(self, claims: dict[str, Any]) -> None:
         """Check if user has required roles.
 
         Args:
@@ -278,7 +280,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
 
         logger.debug("User has all required roles", user_roles=user_roles)
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(self, request: Request, call_next: Callable[..., Any]) -> Response:
         """Process request and validate JWT.
 
         Args:
@@ -298,7 +300,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
         # Skip authentication for public paths
         if request.url.path in self.public_paths:
             logger.debug("Public path, skipping authentication", path=request.url.path)
-            return await call_next(request)
+            return await call_next(request)  # type: ignore[no-any-return]
 
         # Extract Authorization header
         auth_header = request.headers.get("Authorization")
@@ -346,7 +348,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
 
             # Call next handler
             response = await call_next(request)
-            return response
+            return response  # type: ignore[no-any-return]
 
         except HTTPException as e:
             logger.warning(
@@ -426,13 +428,13 @@ def create_jwt_middleware(
         ... )
         >>> app.add_middleware(middleware)
     """
-    # Get defaults from environment
-    auth_url = auth_service_url or os.getenv("AUTH_SERVICE_URL", "http://auth:8090")
-    aud = audience or os.getenv("SERVICE_AUDIENCE", os.getenv("SERVICE_NAME", "copilot-for-consensus"))
+    # Get defaults from environment - these will always be strings due to defaults
+    auth_url = cast(str, auth_service_url or os.getenv("AUTH_SERVICE_URL", "http://auth:8090"))
+    aud = cast(str, audience or os.getenv("SERVICE_AUDIENCE", os.getenv("SERVICE_NAME", "copilot-for-consensus")))
 
     # Create configured middleware class
     class ConfiguredJWTMiddleware(JWTMiddleware):
-        def __init__(self, app):
+        def __init__(self, app: Any) -> None:
             super().__init__(
                 app=app,
                 auth_service_url=auth_url,

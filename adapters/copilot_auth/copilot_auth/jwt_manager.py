@@ -10,14 +10,18 @@ supporting both RSA and HMAC signing algorithms with key rotation.
 import secrets
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 
 import jwt
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
 
 from .models import User
+
+# Type alias for keys that can be used with jwt.encode/decode
+JWTKeyType = Union[RSAPrivateKey, RSAPublicKey, str]
 
 
 class JWTManager:
@@ -63,6 +67,10 @@ class JWTManager:
         self.algorithm = algorithm
         self.default_expiry = default_expiry
         self.key_id = key_id or "default"
+        
+        # Keys can be either RSA objects or strings (for HS256)
+        self.private_key: JWTKeyType
+        self.public_key: JWTKeyType
 
         if algorithm == "RS256":
             if not private_key_path or not public_key_path:
@@ -70,14 +78,14 @@ class JWTManager:
 
             # Load RSA keys
             with open(private_key_path, "rb") as f:
-                self.private_key = serialization.load_pem_private_key(
+                self.private_key = serialization.load_pem_private_key(  # type: ignore[assignment]
                     f.read(),
                     password=None,
                     backend=default_backend()
                 )
 
             with open(public_key_path, "rb") as f:
-                self.public_key = serialization.load_pem_public_key(
+                self.public_key = serialization.load_pem_public_key(  # type: ignore[assignment]
                     f.read(),
                     backend=default_backend()
                 )
@@ -180,7 +188,7 @@ class JWTManager:
 
         return jwt.encode(
             claims,
-            self.private_key,
+            self.private_key,  # type: ignore[arg-type]
             algorithm=self.algorithm,
             headers=headers
         )
@@ -204,9 +212,9 @@ class JWTManager:
         Raises:
             jwt.InvalidTokenError: If token is invalid, expired, or has wrong audience
         """
-        return jwt.decode(
+        return jwt.decode(  # type: ignore[no-any-return]
             token,
-            self.public_key,
+            self.public_key,  # type: ignore[arg-type]
             algorithms=[self.algorithm],
             audience=audience,
             issuer=self.issuer,

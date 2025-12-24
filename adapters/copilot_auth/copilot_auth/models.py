@@ -8,6 +8,7 @@ the Copilot-for-Consensus system.
 """
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -52,7 +53,7 @@ class User:
         """
         return affiliation in self.affiliations
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert user to dictionary for serialization.
 
         Returns:

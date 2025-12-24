@@ -78,14 +78,15 @@ class OIDCProvider(IdentityProvider):
         try:
             response = httpx.get(self.discovery_url, timeout=10.0)
             response.raise_for_status()
-            self._discovery_data = response.json()
+            discovery_data = response.json()
+            self._discovery_data = discovery_data
 
-            # Extract required endpoints
-            self._authorization_endpoint = self._discovery_data.get("authorization_endpoint")
-            self._token_endpoint = self._discovery_data.get("token_endpoint")
-            self._userinfo_endpoint = self._discovery_data.get("userinfo_endpoint")
-            self._jwks_uri = self._discovery_data.get("jwks_uri")
-            self._issuer = self._discovery_data.get("issuer")
+            # Extract required endpoints - safe after json() call
+            self._authorization_endpoint = discovery_data.get("authorization_endpoint")
+            self._token_endpoint = discovery_data.get("token_endpoint")
+            self._userinfo_endpoint = discovery_data.get("userinfo_endpoint")
+            self._jwks_uri = discovery_data.get("jwks_uri")
+            self._issuer = discovery_data.get("issuer")
 
             if not all([self._authorization_endpoint, self._token_endpoint]):
                 raise ProviderError(
@@ -167,6 +168,10 @@ class OIDCProvider(IdentityProvider):
         """
         if not self._token_endpoint:
             self.discover()
+        
+        # After discover(), _token_endpoint is guaranteed to be set or raises ProviderError
+        if not self._token_endpoint:
+            raise ProviderError("Token endpoint not available after discovery")
 
         try:
             response = httpx.post(
@@ -187,7 +192,7 @@ class OIDCProvider(IdentityProvider):
             # Handle both JSON and form-encoded responses
             content_type = response.headers.get("content-type", "")
             if "application/json" in content_type:
-                return response.json()
+                return response.json()  # type: ignore[no-any-return]
             elif "application/x-www-form-urlencoded" in content_type or response.text.startswith("access_token="):
                 # Parse form-encoded response (GitHub returns this by default)
                 import urllib.parse
@@ -197,7 +202,7 @@ class OIDCProvider(IdentityProvider):
             else:
                 # Try JSON first, fall back to form parsing
                 try:
-                    return response.json()
+                    return response.json()  # type: ignore[no-any-return]
                 except ValueError:
                     import urllib.parse
                     parsed = urllib.parse.parse_qs(response.text)
@@ -225,6 +230,10 @@ class OIDCProvider(IdentityProvider):
         """
         if not self._userinfo_endpoint:
             self.discover()
+        
+        # After discover(), _userinfo_endpoint should be available
+        if not self._userinfo_endpoint:
+            raise ProviderError("Userinfo endpoint not available after discovery")
 
         try:
             response = httpx.get(
@@ -233,7 +242,7 @@ class OIDCProvider(IdentityProvider):
                 timeout=10.0,
             )
             response.raise_for_status()
-            return response.json()
+            return response.json()  # type: ignore[no-any-return]
 
         except httpx.HTTPStatusError as e:
             raise AuthenticationError(f"Failed to retrieve user info: {e}") from e
@@ -285,6 +294,10 @@ class OIDCProvider(IdentityProvider):
         """
         if not self._jwks_uri:
             self.discover()
+        
+        # After discover(), _jwks_uri should be available
+        if not self._jwks_uri:
+            raise ProviderError("JWKS URI not available after discovery")
 
         if not self._jwks_cache:
             try:
@@ -298,7 +311,7 @@ class OIDCProvider(IdentityProvider):
         try:
             decoded = jwt.decode(
                 id_token,
-                key=self._jwks_cache,
+                key=self._jwks_cache,  # type: ignore[arg-type]
                 algorithms=["RS256", "HS256"],
                 audience=self.client_id,
                 issuer=self._issuer,
@@ -313,7 +326,7 @@ class OIDCProvider(IdentityProvider):
         if nonce and token_nonce != nonce:
             raise AuthenticationError("ID token nonce mismatch")
 
-        return decoded
+        return decoded  # type: ignore[no-any-return]
 
     @staticmethod
     def build_pkce_pair() -> tuple[str, str]:
