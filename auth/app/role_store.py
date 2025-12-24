@@ -339,6 +339,7 @@ class RoleStore:
 
         except Exception as exc:
             logger.exception(f"Failed to assign roles: {exc}")
+            raise
 
     def revoke_roles(
         self,
