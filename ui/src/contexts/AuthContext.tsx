@@ -2,10 +2,20 @@
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { jwtDecode } from 'jwt-decode'
+
+interface JWTPayload {
+  sub: string
+  email: string
+  name: string
+  roles?: string[]
+  [key: string]: any
+}
 
 interface AuthContextType {
   token: string | null
   isAuthenticated: boolean
+  isAdmin: boolean
   login: (provider: string) => void
   logout: () => void
   setToken: (token: string) => void
@@ -33,11 +43,32 @@ export const setUnauthorizedCallback = (callback: () => void) => {
 
 export const getUnauthorizedCallback = () => globalOnUnauthorized
 
+/**
+ * Check if the user has admin role from JWT token
+ */
+export const isUserAdmin = (token: string | null): boolean => {
+  if (!token) return false
+  
+  try {
+    const decoded = jwtDecode<JWTPayload>(token)
+    // Check if 'admin' role exists in the roles array
+    return decoded.roles?.includes('admin') ?? false
+  } catch (err) {
+    console.error('[AuthContext] Failed to decode token:', err)
+    return false
+  }
+}
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [token, setTokenInternal] = useState<string | null>(() => {
     const stored = localStorage.getItem('auth_token')
     console.log('[AuthContext] Initialized from localStorage:', !!stored)
     return stored
+  })
+
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+    const stored = localStorage.getItem('auth_token')
+    return isUserAdmin(stored)
   })
 
   // Store the setter globally so it can be called from api.ts
@@ -50,8 +81,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     console.log('[AuthContext] Token changed:', !!token)
     if (token) {
       localStorage.setItem('auth_token', token)
+      // Update admin status when token changes
+      setIsAdmin(isUserAdmin(token))
     } else {
       localStorage.removeItem('auth_token')
+      setIsAdmin(false)
     }
   }, [token])
 
@@ -68,7 +102,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }
 
   return (
-    <AuthContext.Provider value={{ token, isAuthenticated: !!token, login, logout, setToken: setTokenInternal }}>
+    <AuthContext.Provider value={{ token, isAuthenticated: !!token, isAdmin, login, logout, setToken: setTokenInternal }}>
       {children}
     </AuthContext.Provider>
   )

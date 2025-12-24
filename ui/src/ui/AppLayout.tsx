@@ -4,6 +4,7 @@
 import React, { Component, ReactNode } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { ThemeToggle } from '../components/ThemeToggle'
+import { AdminLinks } from '../components/AdminLinks'
 import { useAuth } from '../contexts/AuthContext'
 
 interface ErrorBoundaryState {
@@ -103,6 +104,7 @@ function AppLayoutContent() {
         </div>
       </nav>
       <div className="container">
+        <AdminLinks />
         <ErrorBoundary>
           <Outlet />
         </ErrorBoundary>
