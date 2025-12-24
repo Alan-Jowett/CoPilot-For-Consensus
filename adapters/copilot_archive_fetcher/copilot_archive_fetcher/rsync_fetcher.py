@@ -24,7 +24,7 @@ class RsyncFetcher(ArchiveFetcher):
         """
         self.source = source
 
-    def fetch(self, output_dir: str) -> tuple[bool, list | None, str | None]:
+    def fetch(self, output_dir: str) -> tuple[bool, list[str] | None, str | None]:
         """Fetch archives via rsync.
 
         Args:

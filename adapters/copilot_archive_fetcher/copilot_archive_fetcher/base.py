@@ -14,14 +14,14 @@ class ArchiveFetcher(ABC):
     """Abstract base class for archive fetchers."""
 
     @abstractmethod
-    def fetch(self, output_dir: str) -> tuple[bool, list | None, str | None]:
+    def fetch(self, output_dir: str) -> tuple[bool, list[str] | None, str | None]:
         """Fetch archive from source.
 
         Args:
             output_dir: Directory to store the fetched archive
 
         Returns:
-            Tuple of (success: bool, list_of_file_paths: Optional[list], error_message: Optional[str])
+            Tuple of (success: bool, list_of_file_paths: Optional[list[str]], error_message: Optional[str])
         """
         pass
 

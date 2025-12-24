@@ -24,7 +24,7 @@ class LocalFetcher(ArchiveFetcher):
         """
         self.source = source
 
-    def fetch(self, output_dir: str) -> tuple[bool, list | None, str | None]:
+    def fetch(self, output_dir: str) -> tuple[bool, list[str] | None, str | None]:
         """Copy archive from local filesystem.
 
         Args:
