@@ -246,6 +246,31 @@ class JWTManager:
 
         return {"keys": [jwk]}
 
+    def get_public_key_pem(self) -> str | None:
+        """Get public key in PEM format for external services.
+        
+        Returns public key as PEM-encoded string for RS256, or None for HS256
+        (HMAC secrets should not be published).
+        
+        Returns:
+            Public key in PEM format, or None if not available
+        """
+        if self.algorithm != "RS256":
+            return None
+        
+        from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+        
+        if not isinstance(self.public_key, RSAPublicKey):
+            return None
+        
+        # Export public key to PEM format
+        pem = self.public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        
+        return pem.decode('utf-8')
+
     @staticmethod
     def _int_to_base64url(value: int) -> str:
         """Convert integer to base64url-encoded string."""
