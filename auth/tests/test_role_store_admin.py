@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from bson import ObjectId
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -184,8 +185,6 @@ class TestAssignRoles:
 
     def test_assign_roles_success(self, role_store, mock_store):
         """Test successfully assigning roles to a user."""
-        from bson import ObjectId
-
         existing_record = {
             "_id": ObjectId("507f1f77bcf86cd799439011"),
             "user_id": "github:123",
@@ -246,8 +245,6 @@ class TestAssignRoles:
 
     def test_assign_roles_excludes_id_from_update(self, role_store, mock_store):
         """Test that _id field is excluded from update document (MongoDB immutable field)."""
-        from bson import ObjectId
-
         # Include _id in the record (simulating MongoDB document)
         existing_record = {
             "_id": ObjectId("507f1f77bcf86cd799439011"),
@@ -279,8 +276,6 @@ class TestAssignRoles:
 
     def test_assign_roles_merges_with_existing(self, role_store, mock_store):
         """Test that assigning roles merges with existing roles (additive)."""
-        from bson import ObjectId
-
         existing_record = {
             "_id": ObjectId("507f1f77bcf86cd799439011"),
             "user_id": "github:123",
@@ -304,8 +299,6 @@ class TestAssignRoles:
 
     def test_assign_roles_deduplicates(self, role_store, mock_store):
         """Test that assigning duplicate roles doesn't create duplicates."""
-        from bson import ObjectId
-
         existing_record = {
             "_id": ObjectId("507f1f77bcf86cd799439011"),
             "user_id": "github:123",
@@ -414,8 +407,6 @@ class TestRevokeRoles:
 
     def test_revoke_roles_excludes_id_from_update(self, role_store, mock_store):
         """Test that _id field is excluded from update document (MongoDB immutable field)."""
-        from bson import ObjectId
-
         # Include _id in the record (simulating MongoDB document)
         existing_record = {
             "_id": ObjectId("507f1f77bcf86cd799439011"),
