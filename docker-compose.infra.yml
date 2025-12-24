@@ -86,6 +86,34 @@ services:
     environment:
       - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:8080/grafana/}
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      
+      # JWT Authentication Configuration
+      # Enables JWT-based authentication for seamless SSO
+      - GF_AUTH_JWT_ENABLED=true
+      # Header containing JWT token (Nginx will pass Authorization header)
+      - GF_AUTH_JWT_HEADER_NAME=Authorization
+      # JWT claim mapping to Grafana user attributes
+      - GF_AUTH_JWT_EMAIL_CLAIM=email
+      - GF_AUTH_JWT_USERNAME_CLAIM=sub
+      - GF_AUTH_JWT_NAME_CLAIM=name
+      # Path to admin claim in JWT (checks if 'admin' role exists in roles array)
+      - GF_AUTH_JWT_ROLE_ATTRIBUTE_PATH=contains(roles[*], 'admin')
+      - GF_AUTH_JWT_ROLE_ATTRIBUTE_STRICT=false
+      
+      # JWT Validation: Path to public key file for signature validation
+      # This public key is obtained from the auth service
+      - GF_AUTH_JWT_KEY_FILE=/etc/grafana/secrets/auth_service_public_key.pem
+      
+      # Auto-login via JWT token
+      - GF_AUTH_JWT_AUTO_SIGN_UP=true
+      # Allow JWT to assign Grafana Admin role based on admin claim
+      - GF_AUTH_JWT_ALLOW_ASSIGN_GRAFANA_ADMIN=true
+      
+      # User account defaults
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_USERS_AUTO_ASSIGN_ORG=true
+      # Default role for users without admin claim
+      - GF_USERS_AUTO_ASSIGN_ORG_ROLE=Viewer
     command:
       - |-
         export GF_SECURITY_ADMIN_USER="$(cat /run/secrets/grafana_admin_user)"
@@ -99,6 +127,9 @@ services:
       - ./infra/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
       - ./infra/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./infra/grafana/dashboards:/var/lib/grafana/dashboards
+      # Mount public key file for JWT validation
+      # This file will be created by setup script
+      - ./secrets/auth_service_public_key.pem:/etc/grafana/secrets/auth_service_public_key.pem:ro
     depends_on:
       monitoring:
         condition: service_healthy
