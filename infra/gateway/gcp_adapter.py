@@ -8,7 +8,6 @@ This adapter generates Google Cloud Platform configuration for deploying
 the Copilot-for-Consensus API via Cloud Endpoints with ESPv2 proxy.
 """
 
-import json
 from pathlib import Path
 from typing import Any, Dict
 
@@ -134,7 +133,7 @@ Monitoring:
         k8s_config = self._generate_k8s_config()
         k8s_path = output_dir / "gcp-k8s-deployment.yaml"
         with open(k8s_path, 'w') as f:
-            yaml.dump(k8s_config, f, default_flow_style=False)
+            yaml.dump_all(k8s_config, f, default_flow_style=False)
         
         # Generate ESPv2 configuration
         esp_config = self._generate_esp_config()
@@ -163,14 +162,25 @@ Monitoring:
             if not file_path.exists():
                 raise ValueError(f"Generated file does not exist: {file_path}")
         
+        # Check for unreplaced placeholders in generated files
+        placeholders = ['PROJECT_ID', 'your-gcp-project-id', 'admin@example.com', 
+                       'https://example.com', 'your-backend-', 'REPLACE_WITH']
+        
+        for name, file_path in config_files.items():
+            if file_path.suffix in ['.yaml', '.yml', '.json', '.sh']:
+                with open(file_path, 'r') as f:
+                    content = f.read()
+                    found_placeholders = [p for p in placeholders if p in content]
+                    if found_placeholders:
+                        print(f"⚠️  Warning: {name} contains unreplaced placeholders: {', '.join(found_placeholders)}")
+                        print(f"   These must be configured before deployment. See deployment guide.")
+        
         return True
     
     def _add_gcp_extensions(self) -> Dict[str, Any]:
         """Add GCP-specific extensions to OpenAPI spec."""
         import copy
         spec = copy.deepcopy(self.openapi_spec)
-        
-        info = spec.get('info', {})
         
         # Update host to use Cloud Endpoints format
         # This should be customized per deployment
@@ -275,75 +285,78 @@ Monitoring:
             }
         }
     
-    def _generate_k8s_config(self) -> Dict[str, Any]:
+    def _generate_k8s_config(self) -> list:
         """Generate Kubernetes deployment configuration for GKE."""
-        return {
-            'apiVersion': 'v1',
-            'kind': 'Service',
-            'metadata': {
-                'name': 'copilot-gateway',
-                'labels': {
-                    'app': 'copilot-for-consensus',
-                    'component': 'gateway'
-                }
-            },
-            'spec': {
-                'type': 'LoadBalancer',
-                'selector': {
-                    'app': 'copilot-gateway'
-                },
-                'ports': [
-                    {
-                        'name': 'http',
-                        'port': 80,
-                        'targetPort': 8080
+        return [
+            {
+                'apiVersion': 'v1',
+                'kind': 'Service',
+                'metadata': {
+                    'name': 'copilot-gateway',
+                    'labels': {
+                        'app': 'copilot-for-consensus',
+                        'component': 'gateway'
                     }
-                ]
-            },
-            '---': None,
-            'apiVersion': 'apps/v1',
-            'kind': 'Deployment',
-            'metadata': {
-                'name': 'copilot-gateway',
-                'labels': {
-                    'app': 'copilot-for-consensus',
-                    'component': 'gateway'
-                }
-            },
-            'spec': {
-                'replicas': 2,
-                'selector': {
-                    'matchLabels': {
+                },
+                'spec': {
+                    'type': 'LoadBalancer',
+                    'selector': {
                         'app': 'copilot-gateway'
+                    },
+                    'ports': [
+                        {
+                            'name': 'http',
+                            'port': 80,
+                            'targetPort': 8080
+                        }
+                    ]
+                }
+            },
+            {
+                'apiVersion': 'apps/v1',
+                'kind': 'Deployment',
+                'metadata': {
+                    'name': 'copilot-gateway',
+                    'labels': {
+                        'app': 'copilot-for-consensus',
+                        'component': 'gateway'
                     }
                 },
-                'template': {
-                    'metadata': {
-                        'labels': {
+                'spec': {
+                    'replicas': 2,
+                    'selector': {
+                        'matchLabels': {
                             'app': 'copilot-gateway'
                         }
                     },
-                    'spec': {
-                        'containers': [
-                            {
-                                'name': 'esp',
-                                'image': 'gcr.io/endpoints-release/endpoints-runtime:2',
-                                'args': [
-                                    '--service=copilot-api.endpoints.PROJECT_ID.cloud.goog',
-                                    '--rollout_strategy=managed',
-                                    '--backend=127.0.0.1:8081'
-                                ],
-                                'ports': [
-                                    {
-                                        'containerPort': 8080
-                                    }
-                                ]
+                    'template': {
+                        'metadata': {
+                            'labels': {
+                                'app': 'copilot-gateway'
                             }
-                        ]
+                        },
+                        'spec': {
+                            'containers': [
+                                {
+                                    'name': 'esp',
+                                    'image': 'gcr.io/endpoints-release/endpoints-runtime:2',
+                                    'args': [
+                                        '--service=copilot-api.endpoints.PROJECT_ID.cloud.goog',
+                                        '--rollout_strategy=managed',
+                                        '--backend=127.0.0.1:8081'
+                                    ],
+                                    'ports': [
+                                        {
+                                            'containerPort': 8080
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
                     }
                 }
             }
-        }
+        ]
     
     def _generate_esp_config(self) -> Dict[str, Any]:
         """Generate ESPv2 configuration."""
@@ -399,7 +412,15 @@ gcloud services enable run.googleapis.com
 
 # Step 3: Replace placeholders in OpenAPI spec
 echo "📝 Preparing OpenAPI specification..."
-sed "s/PROJECT_ID/$PROJECT_ID/g" gcp-openapi-spec.yaml > gcp-openapi-spec-processed.yaml
+python3 -c "
+import sys
+project_id = '$PROJECT_ID'
+with open('gcp-openapi-spec.yaml', 'r') as f:
+    content = f.read()
+content = content.replace('PROJECT_ID', project_id)
+with open('gcp-openapi-spec-processed.yaml', 'w') as f:
+    f.write(content)
+"
 
 # Step 4: Deploy API configuration
 echo "☁️  Deploying API configuration to Cloud Endpoints..."

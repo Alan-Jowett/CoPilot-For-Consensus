@@ -375,6 +375,8 @@ paths:
                 type: object
       tags:
         - ingestion
+      security:
+        - BearerAuth: []
       x-gateway-config:
         rate-limit: 10/minute
         requires-auth: true

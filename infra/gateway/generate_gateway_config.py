@@ -20,7 +20,10 @@ import sys
 from pathlib import Path
 
 # Add current directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent))
+# This ensures the script can find adapter modules when run from any directory
+script_dir = Path(__file__).parent.resolve()
+if str(script_dir) not in sys.path:
+    sys.path.insert(0, str(script_dir))
 
 from adapter_base import GatewayAdapter, NginxAdapter
 from azure_adapter import AzureAdapter

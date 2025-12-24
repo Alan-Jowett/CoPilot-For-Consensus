@@ -155,6 +155,19 @@ Monitoring:
                     if field not in cfn_template:
                         raise ValueError(f"CloudFormation template missing required field: {field}")
         
+        # Check for unreplaced placeholders in generated files
+        placeholders = ['your-backend-', 'https://your-backend-', 'example.com',
+                       '<your-', '<sub-id>', '<rg>', '<app-insights-name>']
+        
+        for name, file_path in config_files.items():
+            if file_path.suffix in ['.json', '.yaml', '.yml']:
+                with open(file_path, 'r') as f:
+                    content = f.read()
+                    found_placeholders = [p for p in placeholders if p in content]
+                    if found_placeholders:
+                        print(f"⚠️  Warning: {name} contains unreplaced placeholders: {', '.join(found_placeholders)}")
+                        print(f"   These must be configured before deployment. See deployment guide.")
+        
         return True
     
     def _generate_cloudformation_template(self) -> Dict[str, Any]:
