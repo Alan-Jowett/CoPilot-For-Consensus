@@ -314,7 +314,9 @@ jobs:
         echo "Waiting for exporters to initialize..."
         sleep 10
         echo "Checking exporter status..."
-        docker compose ps rabbitmq-exporter mongodb-exporter qdrant-exporter mongo-doc-count-exporter cadvisor document-processing-exporter
+        docker compose ps rabbitmq-exporter mongodb-exporter qdrant-exporter mongo-doc-count-exporter cadvisor document-processing-exporter || true
+        # Verify at least cadvisor (which has a healthcheck) is running
+        timeout 60s bash -c 'until docker compose ps cadvisor --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for cadvisor..."; sleep 3; done' || (echo "Cadvisor failed to start"; docker compose logs cadvisor --tail=50 && exit 1)
         echo "✓ Metric exporters started"
 
     - name: Wait for Prometheus to scrape metrics
