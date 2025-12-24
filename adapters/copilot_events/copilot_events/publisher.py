@@ -45,7 +45,7 @@ def create_publisher(
     port: int = 5672,
     username: str = "guest",
     password: str = "guest",
-    **kwargs
+    **kwargs: Any
 ) -> EventPublisher:
     """Factory function to create an event publisher.
 

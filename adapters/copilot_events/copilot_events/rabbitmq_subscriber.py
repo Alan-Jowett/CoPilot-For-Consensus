@@ -29,7 +29,7 @@ class RabbitMQSubscriber(EventSubscriber):
         password: str = "guest",
         exchange_name: str = "copilot.events",
         exchange_type: str = "topic",
-        queue_name: str = None,
+        queue_name: str | None = None,
         queue_durable: bool = True,
         auto_ack: bool = False,
     ):
@@ -56,8 +56,8 @@ class RabbitMQSubscriber(EventSubscriber):
         self.queue_durable = queue_durable
         self.auto_ack = auto_ack
 
-        self.connection = None
-        self.channel = None
+        self.connection: Any = None  # pika.BlockingConnection after connect()
+        self.channel: Any = None  # pika.channel.Channel after connect()
         self.callbacks: dict[str, Callable[[dict[str, Any]], None]] = {}
         self._consuming = False
 
@@ -122,8 +122,8 @@ class RabbitMQSubscriber(EventSubscriber):
         self,
         event_type: str,
         callback: Callable[[dict[str, Any]], None],
-        routing_key: str = None,
-        exchange: str = None,
+        routing_key: str | None = None,
+        exchange: str | None = None,
     ) -> None:
         """Subscribe to events of a specific type.
 
@@ -224,7 +224,7 @@ class RabbitMQSubscriber(EventSubscriber):
                 # Always reset the flag
                 self._consuming = False
 
-    def _on_message(self, channel, method, properties, body) -> None:
+    def _on_message(self, channel: Any, method: Any, properties: Any, body: bytes) -> None:
         """Handle incoming message from RabbitMQ.
 
         Args:

@@ -111,7 +111,7 @@ class ValidatingEventPublisher(EventPublisher):
 
         # Validate event against schema
         try:
-            from copilot_schema_validation import validate_json  # pylint: disable=import-outside-toplevel
+            from copilot_schema_validation import validate_json  # type: ignore[import-not-found] # pylint: disable=import-outside-toplevel
             is_valid, errors = validate_json(event, schema, schema_provider=self._schema_provider)
             return is_valid, errors
         except Exception as exc:
@@ -161,7 +161,7 @@ class ValidatingEventPublisher(EventPublisher):
         """Disconnect from the message bus."""
         self._publisher.disconnect()
 
-    def __getattr__(self, name: str):
+    def __getattr__(self, name: str) -> Any:
         """Delegate attribute access to underlying publisher for test utilities.
 
         This allows tests to access attributes like 'published_events' on

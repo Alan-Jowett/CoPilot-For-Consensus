@@ -8,6 +8,7 @@ based on configuration or environment variables, enabling easy switching
 between authentication strategies.
 """
 
+from typing import Any
 
 from .datatracker_provider import DatatrackerIdentityProvider
 from .github_provider import GitHubIdentityProvider
@@ -19,7 +20,7 @@ from .provider import IdentityProvider
 
 def create_identity_provider(
     provider_type: str | None = None,
-    **kwargs
+    **kwargs: Any
 ) -> IdentityProvider:
     """Create an identity provider based on type.
 

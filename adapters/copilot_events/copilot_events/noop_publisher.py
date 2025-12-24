@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class NoopPublisher(EventPublisher):
     """No-op publisher for testing that stores events in memory."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize no-op publisher."""
         self.published_events: list[dict[str, Any]] = []
         self.connected = False
@@ -52,7 +52,7 @@ class NoopPublisher(EventPublisher):
         """Clear all stored events (useful for testing)."""
         self.published_events.clear()
 
-    def get_events(self, event_type: str = None) -> list[dict[str, Any]]:
+    def get_events(self, event_type: str | None = None) -> list[dict[str, Any]]:
         """Get stored events, optionally filtered by event type.
 
         Args:

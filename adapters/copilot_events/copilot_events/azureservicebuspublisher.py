@@ -63,8 +63,8 @@ class AzureServiceBusPublisher(EventPublisher):
         self.topic_name = topic_name
         self.use_managed_identity = use_managed_identity
 
-        self.client: ServiceBusClient | None = None
-        self._credential = None
+        self.client: Any = None  # ServiceBusClient after connect()
+        self._credential: Any = None  # DefaultAzureCredential if using managed identity
 
     def connect(self) -> None:
         """Connect to Azure Service Bus.
@@ -82,6 +82,8 @@ class AzureServiceBusPublisher(EventPublisher):
         try:
             if self.use_managed_identity:
                 logger.info("Connecting to Azure Service Bus using managed identity")
+                if self.fully_qualified_namespace is None:
+                    raise ValueError("fully_qualified_namespace is required when using managed identity")
                 self._credential = DefaultAzureCredential()
                 self.client = ServiceBusClient(
                     fully_qualified_namespace=self.fully_qualified_namespace,
@@ -209,7 +211,7 @@ class AzureServiceBusPublisher(EventPublisher):
 
         except Exception as e:
             # Check if it's a ServiceBusError (if the module is available)
-            if ServiceBusError and isinstance(e, ServiceBusError):
+            if ServiceBusError is not None and isinstance(e, ServiceBusError):
                 logger.error(f"Azure Service Bus error while publishing: {e}")
             else:
                 logger.error(f"Failed to publish event: {e}")

@@ -23,7 +23,7 @@ class MockIdentityProvider(IdentityProvider):
         users: Dictionary mapping tokens to User objects
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the mock provider with an empty user dictionary."""
         self.users: dict[str, User] = {}
 

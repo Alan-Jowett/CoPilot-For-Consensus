@@ -35,8 +35,8 @@ class EventSubscriber(ABC):
         self,
         event_type: str,
         callback: Callable[[dict[str, Any]], None],
-        routing_key: str = None,
-        exchange: str = None,
+        routing_key: str | None = None,
+        exchange: str | None = None,
     ) -> None:
         """Subscribe to events of a specific type.
 

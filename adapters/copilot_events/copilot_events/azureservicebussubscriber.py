@@ -87,8 +87,8 @@ class AzureServiceBusSubscriber(EventSubscriber):
         self.auto_complete = auto_complete
         self.max_wait_time = max_wait_time
 
-        self.client: ServiceBusClient | None = None
-        self._credential = None
+        self.client: Any = None  # ServiceBusClient after connect()
+        self._credential: Any = None  # DefaultAzureCredential if using managed identity
         self.callbacks: dict[str, Callable[[dict[str, Any]], None]] = {}
         self._consuming = threading.Event()  # Thread-safe flag for consumption control
 
@@ -108,7 +108,11 @@ class AzureServiceBusSubscriber(EventSubscriber):
         try:
             if self.use_managed_identity:
                 logger.info("Connecting to Azure Service Bus using managed identity")
+                if self.fully_qualified_namespace is None:
+                    raise ValueError("fully_qualified_namespace is required when using managed identity")
                 self._credential = DefaultAzureCredential()
+                if ServiceBusClient is None:
+                    raise ImportError("azure-servicebus library is not installed")
                 self.client = ServiceBusClient(
                     fully_qualified_namespace=self.fully_qualified_namespace,
                     credential=self._credential,
@@ -143,8 +147,8 @@ class AzureServiceBusSubscriber(EventSubscriber):
         self,
         event_type: str,
         callback: Callable[[dict[str, Any]], None],
-        routing_key: str = None,
-        exchange: str = None,
+        routing_key: str | None = None,
+        exchange: str | None = None,
     ) -> None:
         """Subscribe to events of a specific type.
 
@@ -249,7 +253,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
             self._consuming.clear()
             logger.info("Stopping event consumption")
 
-    def _process_message(self, msg, receiver) -> None:
+    def _process_message(self, msg: Any, receiver: Any) -> None:
         """Process a received message.
 
         Args:
