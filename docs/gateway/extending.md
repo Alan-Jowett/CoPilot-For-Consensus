@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
 # Extending the Gateway Abstraction
 
 This guide explains how to add support for new cloud providers or gateway platforms to the Copilot-for-Consensus gateway abstraction.
