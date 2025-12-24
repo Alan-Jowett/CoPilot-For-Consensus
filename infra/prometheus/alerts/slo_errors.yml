@@ -1,0 +1,353 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+# Prometheus Alert Rules for SLO-Based Error Rates
+#
+# These alerts monitor service error rates and fire when SLO thresholds are exceeded.
+# See docs/OBSERVABILITY_RFC.md for SLO definitions.
+
+groups:
+  - name: slo_errors
+    interval: 60s
+    rules:
+      # Service Error Rate SLOs
+      - alert: ParsingErrorRateHigh
+        expr: |
+          (
+            rate(copilot_parsing_failures_total{service="parsing"}[5m])
+            /
+            rate(copilot_parsing_messages_parsed_total{service="parsing"}[5m])
+          ) > 0.01
+        for: 15m
+        labels:
+          severity: warning
+          component: parsing
+          slo: error_rate
+        annotations:
+          summary: "Parsing error rate is {{ $value | humanizePercentage }}"
+          description: |
+            Parsing service error rate is {{ $value | humanizePercentage }}, exceeding SLO target of 1%.
+            
+            SLO: < 1% error rate (99% success)
+            Current: {{ $value | humanizePercentage }}
+            
+            Error count: {{ with query "rate(copilot_parsing_failures_total{service=\"parsing\"}[5m])" }}{{ . | first | value | humanize }}{{ end }} errors/sec
+            
+            Actions:
+              1. Check error types: rate(copilot_parsing_failures_total{service="parsing"}[5m]) by (error_type)
+              2. Review parsing service logs: docker compose logs parsing | grep ERROR
+              3. Check for malformed archives
+              4. Verify schema validation
+              5. Review recent code changes
+            
+            Runbook: documents/runbooks/high-error-rate.md
+            Dashboard: Grafana > Service Metrics
+
+      - alert: ParsingErrorRateCritical
+        expr: |
+          (
+            rate(copilot_parsing_failures_total{service="parsing"}[5m])
+            /
+            rate(copilot_parsing_messages_parsed_total{service="parsing"}[5m])
+          ) > 0.05
+        for: 15m
+        labels:
+          severity: critical
+          component: parsing
+          slo: error_rate
+        annotations:
+          summary: "Parsing error rate is {{ $value | humanizePercentage }} (CRITICAL)"
+          description: |
+            Parsing service error rate is {{ $value | humanizePercentage }}, exceeding critical threshold.
+            Significant processing failures detected.
+            
+            SLO Violation: < 1% error rate
+            Current: {{ $value | humanizePercentage }}
+            
+            Actions:
+              1. URGENT: Investigate immediate cause
+              2. Check for systematic failures (all archives failing)
+              3. Review recent deployments
+              4. Consider rollback if caused by recent change
+              5. Escalate to on-call if not resolved in 30 minutes
+            
+            Runbook: documents/runbooks/high-error-rate.md
+            Dashboard: Grafana > Service Metrics
+
+      - alert: ChunkingErrorRateHigh
+        expr: |
+          (
+            rate(copilot_chunking_failures_total{service="chunking"}[5m])
+            /
+            rate(copilot_chunking_messages_processed_total{service="chunking"}[5m])
+          ) > 0.01
+        for: 15m
+        labels:
+          severity: warning
+          component: chunking
+          slo: error_rate
+        annotations:
+          summary: "Chunking error rate is {{ $value | humanizePercentage }}"
+          description: |
+            Chunking service error rate is {{ $value | humanizePercentage }}, exceeding SLO target.
+            
+            SLO: < 1% error rate
+            Current: {{ $value | humanizePercentage }}
+            
+            Actions:
+              1. Check error types
+              2. Review chunking service logs
+              3. Check for problematic message content
+              4. Verify tokenizer configuration
+            
+            Runbook: documents/runbooks/high-error-rate.md
+            Dashboard: Grafana > Service Metrics
+
+      - alert: EmbeddingErrorRateHigh
+        expr: |
+          (
+            rate(copilot_embedding_failures_total{service="embedding"}[5m])
+            /
+            rate(copilot_embedding_chunks_processed_total{service="embedding"}[5m])
+          ) > 0.01
+        for: 15m
+        labels:
+          severity: warning
+          component: embedding
+          slo: error_rate
+        annotations:
+          summary: "Embedding error rate is {{ $value | humanizePercentage }}"
+          description: |
+            Embedding service error rate is {{ $value | humanizePercentage }}, exceeding SLO target.
+            
+            SLO: < 1% error rate
+            Current: {{ $value | humanizePercentage }}
+            
+            Actions:
+              1. Check Ollama service health: docker compose ps ollama
+              2. Check Qdrant service health: docker compose ps vectorstore
+              3. Review embedding service logs for connection errors
+              4. Verify model is loaded: curl http://localhost:11434/api/tags
+              5. Check network connectivity between services
+            
+            Runbook: documents/runbooks/high-error-rate.md
+            Dashboard: Grafana > Service Metrics
+
+      - alert: SummarizationErrorRateHigh
+        expr: |
+          (
+            rate(copilot_summarization_failures_total{service="summarization"}[5m])
+            /
+            rate(copilot_summarization_events_total{service="summarization",outcome="success"}[5m])
+          ) > 0.01
+        for: 15m
+        labels:
+          severity: warning
+          component: summarization
+          slo: error_rate
+        annotations:
+          summary: "Summarization error rate is {{ $value | humanizePercentage }}"
+          description: |
+            Summarization service error rate is {{ $value | humanizePercentage }}, exceeding SLO target.
+            
+            SLO: < 1% error rate
+            Current: {{ $value | humanizePercentage }}
+            
+            Actions:
+              1. Check LLM backend health (Ollama/Azure OpenAI)
+              2. Review error types: rate(copilot_summarization_failures_total[5m]) by (error_type)
+              3. Check for API rate limiting
+              4. Verify LLM API credentials/tokens
+              5. Review summarization prompts for issues
+            
+            Runbook: documents/runbooks/high-error-rate.md
+            Dashboard: Grafana > Service Metrics
+
+      # HTTP API Error Rates
+      - alert: IngestionAPIErrorRateHigh
+        expr: |
+          (
+            rate(http_requests_total{service="ingestion",status=~"5.."}[5m])
+            /
+            rate(http_requests_total{service="ingestion"}[5m])
+          ) > 0.001
+        for: 10m
+        labels:
+          severity: warning
+          component: ingestion
+          slo: error_rate
+        annotations:
+          summary: "Ingestion API 5xx error rate is {{ $value | humanizePercentage }}"
+          description: |
+            Ingestion API is returning 5xx errors at {{ $value | humanizePercentage }} rate.
+            
+            SLO: < 0.1% error rate (99.9% success)
+            Current: {{ $value | humanizePercentage }}
+            
+            Actions:
+              1. Check ingestion service logs
+              2. Verify MongoDB connectivity
+              3. Check RabbitMQ connection
+              4. Review recent API changes
+              5. Check for resource exhaustion
+            
+            Runbook: documents/runbooks/high-error-rate.md
+            Dashboard: Grafana > Service Metrics
+
+      - alert: ReportingAPIErrorRateHigh
+        expr: |
+          (
+            rate(http_requests_total{service="reporting",status=~"5.."}[5m])
+            /
+            rate(http_requests_total{service="reporting"}[5m])
+          ) > 0.001
+        for: 10m
+        labels:
+          severity: warning
+          component: reporting
+          slo: error_rate
+        annotations:
+          summary: "Reporting API 5xx error rate is {{ $value | humanizePercentage }}"
+          description: |
+            Reporting API is returning 5xx errors at {{ $value | humanizePercentage }} rate.
+            User-facing API is experiencing failures.
+            
+            SLO: < 0.1% error rate (99.9% success)
+            Current: {{ $value | humanizePercentage }}
+            
+            Actions:
+              1. Check reporting service logs
+              2. Verify MongoDB read performance
+              3. Check for missing data
+              4. Review error status codes
+              5. Check service resource usage
+            
+            Runbook: documents/runbooks/high-error-rate.md
+            Dashboard: Grafana > Service Metrics
+
+      # Dependency Error Rates
+      - alert: MongoDBConnectionErrorsHigh
+        expr: rate(mongodb_connections_failed_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: error
+          component: database
+        annotations:
+          summary: "MongoDB connection failures: {{ $value | humanize }}/sec"
+          description: |
+            MongoDB is experiencing {{ $value | humanize }} connection failures per second.
+            Services may be unable to access the database.
+            
+            Actions:
+              1. Check MongoDB health: docker compose ps documentdb
+              2. Review MongoDB logs: docker compose logs documentdb
+              3. Check connection pool settings
+              4. Verify network connectivity
+              5. Check for MongoDB resource limits
+            
+            Runbook: documents/runbooks/database-connection-failures.md
+            Dashboard: Grafana > MongoDB Status
+
+      - alert: RabbitMQConnectionErrorsHigh
+        expr: rate(rabbitmq_connections_closed_total[5m]) > 1
+        for: 5m
+        labels:
+          severity: error
+          component: message_bus
+        annotations:
+          summary: "RabbitMQ connection closures: {{ $value | humanize }}/sec"
+          description: |
+            RabbitMQ is experiencing {{ $value | humanize }} connection closures per second.
+            Services may be losing message bus connectivity.
+            
+            Actions:
+              1. Check RabbitMQ health: docker compose ps messagebus
+              2. Review RabbitMQ logs: docker compose logs messagebus
+              3. Check for network issues
+              4. Verify RabbitMQ resource limits
+              5. Review connection timeout settings
+            
+            Dashboard: Grafana > Queue Status
+
+      - alert: QdrantErrorRateHigh
+        expr: |
+          rate(qdrant_http_requests_total{status=~"5.."}[5m])
+          /
+          rate(qdrant_http_requests_total[5m])
+          > 0.01
+        for: 10m
+        labels:
+          severity: warning
+          component: vectorstore
+        annotations:
+          summary: "Qdrant error rate is {{ $value | humanizePercentage }}"
+          description: |
+            Qdrant is returning errors at {{ $value | humanizePercentage }} rate.
+            Vector operations may be failing.
+            
+            Actions:
+              1. Check Qdrant health: docker compose ps vectorstore
+              2. Review Qdrant logs: docker compose logs vectorstore
+              3. Check disk space for /qdrant/storage
+              4. Verify collection configurations
+              5. Check for corruption or index issues
+            
+            Dashboard: Grafana > Vectorstore Status
+
+      # Error Budget Burn Rate
+      - alert: ErrorBudgetBurnRateHigh
+        expr: |
+          (
+            1 - (
+              sum(rate(copilot_processing_messages_processed_total{status="success"}[30d]))
+              /
+              sum(rate(copilot_processing_messages_processed_total[30d]))
+            )
+          ) > 0.01
+        for: 1h
+        labels:
+          severity: warning
+          slo: error_budget
+        annotations:
+          summary: "Error budget consumption is {{ $value | humanizePercentage }}"
+          description: |
+            Current error rate is {{ $value | humanizePercentage }}, which is consuming error budget faster than sustainable.
+            
+            30-day SLO: 99% success rate (1% error budget)
+            Current error rate: {{ $value | humanizePercentage }}
+            
+            If this continues, SLO will be violated before month end.
+            
+            Actions:
+              1. Review recent changes causing increased errors
+              2. Prioritize error fixes
+              3. Consider rollback of problematic changes
+              4. Monitor error budget dashboard
+            
+            Dashboard: Grafana > SLO Dashboard
+
+      # Service-Specific Error Patterns
+      - alert: HighErrorTypeConcentration
+        expr: |
+          (
+            sum by (service, error_type) (rate(copilot_processing_failures_total[10m]))
+            /
+            sum by (service) (rate(copilot_processing_failures_total[10m]))
+          ) > 0.8
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.error_type }} errors dominate {{ $labels.service }} failures ({{ $value | humanizePercentage }})"
+          description: |
+            Service {{ $labels.service }} is experiencing {{ $value | humanizePercentage }} of errors from {{ $labels.error_type }}.
+            This indicates a systematic issue with a specific failure mode.
+            
+            Actions:
+              1. Investigate root cause of {{ $labels.error_type }}
+              2. Review recent changes related to this error type
+              3. Check logs for patterns: docker compose logs {{ $labels.service }} | grep {{ $labels.error_type }}
+              4. Implement targeted fix
+            
+            Runbook: documents/runbooks/high-error-rate.md
+            Dashboard: Grafana > Service Metrics

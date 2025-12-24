@@ -1,0 +1,389 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+# Prometheus Alert Rules for Resource Utilization
+#
+# These alerts monitor CPU, memory, disk, and network usage across services.
+# See docs/OBSERVABILITY_RFC.md for resource management guidelines.
+
+groups:
+  - name: resource_limits
+    interval: 60s
+    rules:
+      # Memory Usage Alerts
+      - alert: ServiceMemoryUsageHigh
+        expr: |
+          (
+            container_memory_usage_bytes{name=~"copilot-.*"}
+            /
+            container_spec_memory_limit_bytes{name=~"copilot-.*"}
+          ) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          component: resource_management
+        annotations:
+          summary: "Service {{ $labels.name }} memory usage is {{ $value | humanizePercentage }}"
+          description: |
+            Service {{ $labels.name }} is using {{ $value | humanizePercentage }} of its memory limit.
+            
+            Current: {{ with query "container_memory_usage_bytes{name=\"" }}{{ . | first | value | humanize1024 }}{{ end }}
+            Limit: {{ with query "container_spec_memory_limit_bytes{name=\"" }}{{ . | first | value | humanize1024 }}{{ end }}
+            
+            Actions:
+              1. Check for memory leaks: docker stats {{ $labels.name }}
+              2. Review service logs for OOM warnings
+              3. Check memory growth trend over time
+              4. Consider increasing memory limit if legitimate usage
+              5. Investigate and fix memory leaks if present
+            
+            Runbook: documents/runbooks/memory-exhaustion.md
+            Dashboard: Grafana > Resource Usage
+
+      - alert: ServiceMemoryCritical
+        expr: |
+          (
+            container_memory_usage_bytes{name=~"copilot-.*"}
+            /
+            container_spec_memory_limit_bytes{name=~"copilot-.*"}
+          ) > 0.95
+        for: 5m
+        labels:
+          severity: critical
+          component: resource_management
+        annotations:
+          summary: "Service {{ $labels.name }} memory at {{ $value | humanizePercentage }} (CRITICAL)"
+          description: |
+            Service {{ $labels.name }} is at {{ $value | humanizePercentage }} memory usage.
+            OOM kill is imminent.
+            
+            Actions:
+              1. URGENT: Increase memory limit immediately
+              2. Restart service: docker compose restart {{ $labels.name }}
+              3. Investigate memory leak post-incident
+              4. Review heap dumps if available
+            
+            Runbook: documents/runbooks/memory-exhaustion.md
+            Dashboard: Grafana > Resource Usage
+
+      - alert: InfrastructureMemoryHigh
+        expr: |
+          (
+            container_memory_usage_bytes{name=~"documentdb|messagebus|vectorstore|monitoring"}
+            /
+            container_spec_memory_limit_bytes{name=~"documentdb|messagebus|vectorstore|monitoring"}
+          ) > 0.90
+        for: 10m
+        labels:
+          severity: error
+          component: infrastructure
+        annotations:
+          summary: "Infrastructure {{ $labels.name }} memory at {{ $value | humanizePercentage }}"
+          description: |
+            Critical infrastructure service {{ $labels.name }} is at {{ $value | humanizePercentage }} memory usage.
+            
+            Actions:
+              1. Check service health: docker compose ps {{ $labels.name }}
+              2. Review memory configuration
+              3. Increase memory limits
+              4. Check for memory leaks or runaway queries
+              5. Consider scaling or optimization
+            
+            Runbook: documents/runbooks/memory-exhaustion.md
+            Dashboard: Grafana > Resource Usage
+
+      # CPU Usage Alerts
+      - alert: ServiceCPUUsageHigh
+        expr: |
+          rate(container_cpu_usage_seconds_total{name=~"copilot-.*"}[5m]) > 0.85
+        for: 15m
+        labels:
+          severity: warning
+          component: resource_management
+        annotations:
+          summary: "Service {{ $labels.name }} CPU usage is {{ $value | humanizePercentage }}"
+          description: |
+            Service {{ $labels.name }} is using {{ $value | humanizePercentage }} CPU.
+            Service may be CPU-bound.
+            
+            Actions:
+              1. Check service workload: docker stats {{ $labels.name }}
+              2. Review service logs for excessive computation
+              3. Profile CPU usage if possible
+              4. Consider horizontal scaling
+              5. Optimize CPU-intensive operations
+            
+            Dashboard: Grafana > Resource Usage
+
+      - alert: InfrastructureCPUHigh
+        expr: |
+          rate(container_cpu_usage_seconds_total{name=~"documentdb|messagebus|vectorstore"}[5m]) > 0.90
+        for: 10m
+        labels:
+          severity: error
+          component: infrastructure
+        annotations:
+          summary: "Infrastructure {{ $labels.name }} CPU at {{ $value | humanizePercentage }}"
+          description: |
+            Critical infrastructure {{ $labels.name }} is at {{ $value | humanizePercentage }} CPU usage.
+            Performance degradation likely.
+            
+            Actions:
+              1. Identify CPU-intensive queries/operations
+              2. Review workload patterns
+              3. Scale infrastructure if needed
+              4. Optimize queries/indexes
+            
+            Dashboard: Grafana > Resource Usage
+
+      # Disk Usage Alerts
+      - alert: DiskSpaceLow
+        expr: |
+          (
+            1 - (
+              node_filesystem_avail_bytes{mountpoint=~"/.*"}
+              /
+              node_filesystem_size_bytes{mountpoint=~"/.*"}
+            )
+          ) > 0.80
+        for: 10m
+        labels:
+          severity: warning
+          component: storage
+        annotations:
+          summary: "Disk space on {{ $labels.mountpoint }} is {{ $value | humanizePercentage }} full"
+          description: |
+            Disk space on {{ $labels.mountpoint }} is {{ $value | humanizePercentage }} full.
+            
+            Available: {{ with query "node_filesystem_avail_bytes{mountpoint=\"" }}{{ . | first | value | humanize1024 }}{{ end }}
+            Total: {{ with query "node_filesystem_size_bytes{mountpoint=\"" }}{{ . | first | value | humanize1024 }}{{ end }}
+            
+            Actions:
+              1. Check disk usage: df -h {{ $labels.mountpoint }}
+              2. Identify large files: du -sh /* | sort -hr | head -20
+              3. Clean up logs/temporary files
+              4. Review retention policies
+              5. Expand disk if needed
+            
+            Runbook: documents/runbooks/disk-space-low.md
+            Dashboard: Grafana > Resource Usage
+
+      - alert: DiskSpaceCritical
+        expr: |
+          (
+            1 - (
+              node_filesystem_avail_bytes{mountpoint=~"/.*"}
+              /
+              node_filesystem_size_bytes{mountpoint=~"/.*"}
+            )
+          ) > 0.90
+        for: 5m
+        labels:
+          severity: critical
+          component: storage
+        annotations:
+          summary: "Disk space on {{ $labels.mountpoint }} is {{ $value | humanizePercentage }} full (CRITICAL)"
+          description: |
+            Disk space on {{ $labels.mountpoint }} is critically low at {{ $value | humanizePercentage }}.
+            Service failures imminent.
+            
+            Actions:
+              1. URGENT: Free up disk space immediately
+              2. Stop non-critical services
+              3. Clean logs: docker compose logs --tail=0
+              4. Purge old Docker images: docker image prune -a
+              5. Expand disk urgently
+            
+            Runbook: documents/runbooks/disk-space-low.md
+            Dashboard: Grafana > Resource Usage
+
+      # Docker Volume Usage
+      - alert: DockerVolumeUsageHigh
+        expr: |
+          (
+            docker_volume_size_bytes
+            /
+            docker_volume_limit_bytes
+          ) > 0.80
+        for: 15m
+        labels:
+          severity: warning
+          component: storage
+        annotations:
+          summary: "Docker volume {{ $labels.volume }} is {{ $value | humanizePercentage }} full"
+          description: |
+            Docker volume {{ $labels.volume }} is {{ $value | humanizePercentage }} full.
+            
+            Actions:
+              1. Check volume usage: docker volume inspect {{ $labels.volume }}
+              2. Identify consuming containers
+              3. Clean up old data if applicable
+              4. Review data retention policies
+              5. Expand volume if needed
+            
+            Dashboard: Grafana > Resource Usage
+
+      # Prometheus Storage
+      - alert: PrometheusStorageAlmostFull
+        expr: |
+          (
+            prometheus_tsdb_storage_blocks_bytes
+            /
+            prometheus_tsdb_retention_limit_bytes
+          ) > 0.85
+        for: 1h
+        labels:
+          severity: warning
+          component: monitoring
+        annotations:
+          summary: "Prometheus storage is {{ $value | humanizePercentage }} full"
+          description: |
+            Prometheus TSDB storage is {{ $value | humanizePercentage }} full.
+            Metrics may be dropped soon.
+            
+            Actions:
+              1. Review retention settings: infra/prometheus/prometheus.yml
+              2. Reduce cardinality if possible
+              3. Increase storage limit
+              4. Reduce scrape frequency for non-critical metrics
+            
+            Dashboard: Grafana > System Health
+
+      # Network Usage
+      - alert: HighNetworkErrors
+        expr: |
+          rate(container_network_receive_errors_total{name=~"copilot-.*"}[5m])
+          +
+          rate(container_network_transmit_errors_total{name=~"copilot-.*"}[5m])
+          > 10
+        for: 10m
+        labels:
+          severity: warning
+          component: network
+        annotations:
+          summary: "Service {{ $labels.name }} has {{ $value | humanize }} network errors/sec"
+          description: |
+            Service {{ $labels.name }} is experiencing {{ $value | humanize }} network errors per second.
+            
+            Actions:
+              1. Check container networking: docker network inspect
+              2. Review service logs for connection issues
+              3. Check for DNS resolution problems
+              4. Verify inter-service connectivity
+            
+            Dashboard: Grafana > Resource Usage
+
+      # Database-Specific Resources
+      - alert: MongoDBConnectionPoolExhausted
+        expr: mongodb_connections_current > 0.9 * mongodb_connections_available
+        for: 10m
+        labels:
+          severity: error
+          component: database
+        annotations:
+          summary: "MongoDB connection pool is {{ $value | humanizePercentage }} utilized"
+          description: |
+            MongoDB connection pool is nearing exhaustion.
+            New connection requests may fail or timeout.
+            
+            Current: {{ with query "mongodb_connections_current" }}{{ . | first | value }}{{ end }}
+            Available: {{ with query "mongodb_connections_available" }}{{ . | first | value }}{{ end }}
+            
+            Actions:
+              1. Review connection pool configuration
+              2. Check for connection leaks in services
+              3. Increase connection pool size
+              4. Review long-running queries
+            
+            Dashboard: Grafana > MongoDB Status
+
+      # RabbitMQ Resources
+      - alert: RabbitMQMemoryAlarmActive
+        expr: rabbitmq_memory_alarm > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: message_bus
+        annotations:
+          summary: "RabbitMQ memory alarm is active"
+          description: |
+            RabbitMQ has triggered a memory alarm.
+            Publishing will be blocked until memory is freed.
+            
+            Actions:
+              1. Check RabbitMQ memory: rabbitmqctl status
+              2. Review queue depths and purge if needed
+              3. Increase RabbitMQ memory limit
+              4. Check for message buildup
+            
+            Dashboard: Grafana > Queue Status
+
+      - alert: RabbitMQDiskAlarmActive
+        expr: rabbitmq_disk_space_alarm > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: message_bus
+        annotations:
+          summary: "RabbitMQ disk alarm is active"
+          description: |
+            RabbitMQ has triggered a disk space alarm.
+            Publishing will be blocked.
+            
+            Actions:
+              1. Check disk space: df -h
+              2. Clean up old log files
+              3. Increase disk space
+              4. Review message persistence settings
+            
+            Dashboard: Grafana > Queue Status
+
+      # Qdrant Resources
+      - alert: QdrantDiskUsageHigh
+        expr: |
+          (
+            qdrant_disk_usage_bytes
+            /
+            qdrant_disk_total_bytes
+          ) > 0.80
+        for: 15m
+        labels:
+          severity: warning
+          component: vectorstore
+        annotations:
+          summary: "Qdrant disk usage is {{ $value | humanizePercentage }}"
+          description: |
+            Qdrant disk usage is {{ $value | humanizePercentage }}.
+            Vector storage may fill soon.
+            
+            Actions:
+              1. Check collection sizes
+              2. Review data retention
+              3. Clean up old collections if applicable
+              4. Expand storage
+            
+            Dashboard: Grafana > Vectorstore Status
+
+      # Container Restart Rate
+      - alert: ServiceRestartingTooOften
+        expr: |
+          increase(container_last_seen{name=~"copilot-.*"}[1h]) > 3
+        for: 5m
+        labels:
+          severity: error
+          component: service_stability
+        annotations:
+          summary: "Service {{ $labels.name }} restarted {{ $value }} times in the last hour"
+          description: |
+            Service {{ $labels.name }} has restarted {{ $value }} times in the last hour.
+            Indicates crashes, OOM kills, or health check failures.
+            
+            Actions:
+              1. Check logs: docker compose logs {{ $labels.name }} --tail=500
+              2. Check for OOM: dmesg | grep {{ $labels.name }}
+              3. Review resource limits
+              4. Check health check configuration
+              5. Investigate code issues causing crashes
+            
+            Runbook: documents/runbooks/service-down.md
+            Dashboard: Grafana > Resource Usage
