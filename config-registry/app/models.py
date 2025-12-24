@@ -3,7 +3,7 @@
 
 """Data models for config registry."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from pydantic import BaseModel, Field
 
@@ -17,8 +17,8 @@ class ConfigDocument(BaseModel):
     )
     version: int = Field(default=1, description="Configuration version")
     config_data: dict[str, Any] = Field(..., description="Configuration data")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     created_by: str = Field(default="system", description="User who created this config")
     comment: str = Field(default="", description="Change comment")
 
@@ -49,6 +49,6 @@ class ConfigNotification(BaseModel):
     service_name: str
     environment: str
     version: int
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     change_type: str = Field(..., description="Type of change: created, updated, deleted")
     comment: str = Field(default="")

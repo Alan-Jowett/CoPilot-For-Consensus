@@ -5,6 +5,7 @@
 
 import os
 import sys
+from contextlib import asynccontextmanager
 from typing import Any
 
 # Add app directory to path
@@ -23,20 +24,13 @@ from fastapi import FastAPI, HTTPException, Query
 # Configure structured JSON logging
 logger = create_logger(logger_type="stdout", level="INFO", name="config-registry")
 
-# Create FastAPI app
-app = FastAPI(
-    title="Config Registry Service",
-    version=__version__,
-    description="Centralized configuration management with hot-reload support",
-)
-
 # Global service instance
 registry_service: ConfigRegistryService | None = None
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize service on startup."""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifespan."""
     global registry_service
 
     logger.info("startup_begin", version=__version__)
@@ -79,13 +73,21 @@ async def startup_event():
         logger.error("startup_failed", error=str(e))
         raise
 
+    yield
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown."""
+    # Cleanup on shutdown
     logger.info("shutdown_begin")
     # Cleanup resources if needed
     logger.info("shutdown_complete")
+
+
+# Create FastAPI app with lifespan
+app = FastAPI(
+    title="Config Registry Service",
+    version=__version__,
+    description="Centralized configuration management with hot-reload support",
+    lifespan=lifespan,
+)
 
 
 @app.get("/health")
@@ -146,7 +148,11 @@ def get_config(
 
 
 @app.post("/api/configs/{service_name}", status_code=201)
-def create_config(service_name: str, update: ConfigUpdate, environment: str = "default") -> ConfigDocument:
+def create_config(
+    service_name: str, 
+    update: ConfigUpdate, 
+    environment: str = Query("default", description="Environment name")
+) -> ConfigDocument:
     """Create a new configuration."""
     if not registry_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
@@ -164,7 +170,11 @@ def create_config(service_name: str, update: ConfigUpdate, environment: str = "d
 
 
 @app.put("/api/configs/{service_name}")
-def update_config(service_name: str, update: ConfigUpdate, environment: str = "default") -> ConfigDocument:
+def update_config(
+    service_name: str, 
+    update: ConfigUpdate, 
+    environment: str = Query("default", description="Environment name")
+) -> ConfigDocument:
     """Update configuration (creates new version)."""
     if not registry_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
