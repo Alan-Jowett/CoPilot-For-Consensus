@@ -5,6 +5,18 @@ import { getUnauthorizedCallback } from './contexts/AuthContext'
 
 let authToken: string | null = null
 
+// Track the last token we attempted refresh with to prevent infinite loops.
+// Note: This value is intentionally kept in memory only. It survives SPA
+// navigations while the bundle remains loaded, but is reset on a full page
+// reload, so loop-prevention state does not persist across reloads. If we
+// ever need this guard to survive reloads within the same browser session,
+// we should mirror it into sessionStorage.
+let lastRefreshToken: string | null = null
+
+// Flag to prevent multiple concurrent redirect attempts when multiple API calls
+// return 403 simultaneously
+let redirectInProgress = false
+
 // Set the auth token (called from AuthContext)
 export function setAuthToken(token: string | null) {
   authToken = token
@@ -38,6 +50,85 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
       callback()
     }
     throw new Error('UNAUTHORIZED')
+  }
+
+  // Handle 403 Forbidden - may need token refresh due to stale permission claims
+  if (response.status === 403) {
+    console.log('[fetchWithAuth] Got 403 Forbidden, user may need permission refresh')
+    
+    // Check if a redirect is already in progress (race condition prevention)
+    if (redirectInProgress) {
+      console.log('[fetchWithAuth] Token refresh redirect already in progress')
+      return response
+    }
+    
+    // Check if already attempted refresh for this request
+    const attemptedRefresh = (options as any)._attemptedRefresh === true
+    
+    // Check if already refreshed with this token (prevents loops across page reloads)
+    const currentToken = localStorage.getItem('auth_token')
+    const tokenAlreadyRefreshed = currentToken === lastRefreshToken && lastRefreshToken !== null
+    
+    if (!attemptedRefresh && !tokenAlreadyRefreshed) {
+      console.log('[fetchWithAuth] First 403, attempting token refresh')
+      
+      try {
+        // Consume response body
+        await response.text()
+      } catch (e) {
+        // Ignore
+      }
+      
+      try {
+        // Mark redirect as in progress to prevent concurrent redirects
+        redirectInProgress = true
+        
+        // Record token to prevent re-refresh with same token
+        lastRefreshToken = currentToken
+        
+        // Wait for server to process role changes
+        // This delay can be configured via VITE_TOKEN_REFRESH_DELAY_MS (default: 500ms)
+        const delayMs = parseInt(import.meta.env.VITE_TOKEN_REFRESH_DELAY_MS || '500', 10)
+        console.log(`[fetchWithAuth] Waiting ${delayMs}ms before refresh...`)
+        await new Promise(resolve => setTimeout(resolve, delayMs))
+        
+        // Store current page location for return after refresh
+        sessionStorage.setItem('postLoginUrl', window.location.pathname + window.location.search)
+        
+        // Redirect to OAuth with refresh marker
+        const audience = 'copilot-for-consensus'
+        const redirectUri = `${window.location.origin}${import.meta.env.BASE_URL}callback?refresh=true`
+        const loginUrl = `/auth/login?provider=github&aud=${audience}&redirect_uri=${encodeURIComponent(redirectUri)}`
+        
+        console.log('[fetchWithAuth] Redirecting to refresh login flow')
+        window.location.href = loginUrl
+        
+        throw new Error('TOKEN_REFRESH_IN_PROGRESS')
+      } catch (err) {
+        console.error('[fetchWithAuth] Error during refresh:', err)
+        redirectInProgress = false // Reset flag on error
+        
+        // Record a hint so the UI can show a more informative message to the user
+        try {
+          sessionStorage.setItem(
+            'tokenRefreshError',
+            'Token refresh failed. Please try logging in again.',
+          )
+        } catch (storageErr) {
+          console.error(
+            '[fetchWithAuth] Failed to record token refresh error hint:',
+            storageErr,
+          )
+        }
+        // Fall through to return 403 so existing behavior is preserved
+      }
+    } else {
+      if (tokenAlreadyRefreshed) {
+        console.log('[fetchWithAuth] Token already refreshed, still 403 - user lacks permission')
+      } else {
+        console.log('[fetchWithAuth] Already attempted refresh for this request')
+      }
+    }
   }
 
   return response
