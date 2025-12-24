@@ -138,7 +138,7 @@ groups:
           (
             rate(copilot_summarization_failures_total{service="summarization"}[5m])
             /
-            rate(copilot_summarization_events_total{service="summarization",outcome="success"}[5m])
+            (rate(copilot_summarization_events_total{service="summarization"}[5m]) + rate(copilot_summarization_failures_total{service="summarization"}[5m]))
           ) > 0.01
         for: 15m
         labels:

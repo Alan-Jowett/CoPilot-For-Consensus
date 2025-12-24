@@ -72,10 +72,13 @@ docker compose logs <service_name> -f
 # Check container resource usage
 docker stats <service_name>
 
-# Check system resources
+# Check system resources (Linux/macOS)
 df -h                # Disk space
 free -h              # Memory
 top                  # CPU usage
+
+# Windows PowerShell alternative for disk space
+# Get-PSDrive C | Select-Object Used,Free,@{Name="Size";Expression={$_.Used+$_.Free}}
 ```
 
 ### 4. Check Health Endpoint (if applicable)
@@ -203,8 +206,10 @@ docker compose logs <service_name> | grep -i config
 
 **Fix:**
 ```bash
-# Check disk space
+# Check disk space (Linux/macOS)
 df -h
+# Windows PowerShell: Get-PSDrive C | Select-Object Used,Free,@{Name="Size";Expression={$_.Used+$_.Free}}
+
 # Free up space if needed:
 docker system prune -a --volumes  # WARNING: Removes unused resources
 
@@ -280,8 +285,9 @@ docker compose ps vectorstore
 # 2. Check logs
 docker compose logs vectorstore --tail=100
 
-# 3. Check disk space
+# 3. Check disk space (Linux/macOS)
 df -h | grep qdrant
+# Windows PowerShell: Get-PSDrive C | Select-Object Used,Free,@{Name="Size";Expression={$_.Used+$_.Free}}
 
 # 4. Restart
 docker compose restart vectorstore

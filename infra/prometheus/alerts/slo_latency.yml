@@ -15,7 +15,7 @@ groups:
         expr: |
           histogram_quantile(0.95,
             rate(copilot_parsing_duration_seconds_bucket{service="parsing"}[5m])
-          ) > 10
+          ) > 5
         for: 10m
         labels:
           severity: warning
@@ -74,7 +74,7 @@ groups:
         expr: |
           histogram_quantile(0.95,
             rate(copilot_chunking_duration_seconds_bucket{service="chunking"}[5m])
-          ) > 5
+          ) > 2
         for: 10m
         labels:
           severity: warning
@@ -102,7 +102,7 @@ groups:
         expr: |
           histogram_quantile(0.95,
             rate(copilot_embedding_generation_duration_seconds_bucket{service="embedding"}[5m])
-          ) > 30
+          ) > 10
         for: 10m
         labels:
           severity: warning
@@ -159,7 +159,7 @@ groups:
         expr: |
           histogram_quantile(0.95,
             rate(copilot_summarization_latency_seconds_bucket{service="summarization"}[5m])
-          ) > 60
+          ) > 30
         for: 15m
         labels:
           severity: warning
