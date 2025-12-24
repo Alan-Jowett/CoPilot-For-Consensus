@@ -3,13 +3,13 @@
 
 python-dotenv==1.2.1
 prometheus-client==0.23.1
-fastapi==0.125.0
+fastapi==0.127.0
 uvicorn[standard]==0.38.0
 httpx==0.28.1  # Required for FastAPI TestClient
 python-multipart>=0.0.20  # Required for file upload support
 
 # Authentication
 PyJWT==2.10.1
-cryptography==44.0.1
+cryptography==46.0.3
 
 # NOTE: Adapters are installed separately in CI and Docker builds
