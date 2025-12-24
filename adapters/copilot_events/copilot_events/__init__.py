@@ -7,10 +7,12 @@ A shared library for event publishing and subscribing across microservices
 in the Copilot-for-Consensus system.
 """
 
+from typing import Any
+
 __version__ = "0.1.0"
 
 # Import event models from the schema validation module
-from copilot_schema_validation import (
+from copilot_schema_validation import (  # type: ignore[import-not-found]
     # Ingestion Service Events
     ArchiveIngestedEvent,
     ArchiveIngestionFailedEvent,
@@ -51,11 +53,11 @@ from .validating_subscriber import SubscriberValidationError, ValidatingEventSub
 
 def create_subscriber(
     message_bus_type: str,
-    host: str = None,
-    port: int = None,
-    username: str = None,
-    password: str = None,
-    **kwargs
+    host: str | None = None,
+    port: int | None = None,
+    username: str | None = None,
+    password: str | None = None,
+    **kwargs: Any
 ) -> EventSubscriber:
     """Create an event subscriber based on message bus type.
 

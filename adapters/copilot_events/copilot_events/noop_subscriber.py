@@ -20,7 +20,7 @@ class NoopSubscriber(EventSubscriber):
     event handlers without requiring a real message bus.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize noop subscriber."""
         self.connected = False
         self.consuming = False
@@ -43,8 +43,8 @@ class NoopSubscriber(EventSubscriber):
         self,
         event_type: str,
         callback: Callable[[dict[str, Any]], None],
-        routing_key: str = None,
-        exchange: str = None,
+        routing_key: str | None = None,
+        exchange: str | None = None,
     ) -> None:
         """Register a callback for an event type.
 
@@ -54,7 +54,8 @@ class NoopSubscriber(EventSubscriber):
             routing_key: Optional routing key (stored but not used)
         """
         self.callbacks[event_type] = callback
-        self.routing_keys[event_type] = routing_key
+        if routing_key is not None:
+            self.routing_keys[event_type] = routing_key
         # exchange is accepted for interface compatibility; noop ignores it
         logger.debug(f"NoopSubscriber subscribed to {event_type}")
 

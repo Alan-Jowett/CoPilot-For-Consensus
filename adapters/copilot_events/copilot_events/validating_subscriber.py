@@ -72,7 +72,7 @@ class ValidatingEventSubscriber(EventSubscriber):
         self._subscriber = subscriber
         self._schema_provider = schema_provider
         self._strict = strict
-        self._callbacks: dict[str, Callable] = {}
+        self._callbacks: dict[str, Callable[..., Any]] = {}
 
     def _validate_event(self, event: dict[str, Any]) -> tuple[bool, list[str]]:
         """Validate a received event against its schema.
@@ -113,14 +113,14 @@ class ValidatingEventSubscriber(EventSubscriber):
 
         # Validate event against schema
         try:
-            from copilot_schema_validation import validate_json  # pylint: disable=import-outside-toplevel
+            from copilot_schema_validation import validate_json  # type: ignore[import-not-found] # pylint: disable=import-outside-toplevel
             is_valid, errors = validate_json(event, schema, schema_provider=self._schema_provider)
             return is_valid, errors
         except Exception as exc:
             logger.error("Validation failed with exception: %s", exc)
             return False, [f"Validation exception: {exc}"]
 
-    def _validating_callback_wrapper(self, event_type: str, original_callback: Callable) -> Callable:
+    def _validating_callback_wrapper(self, event_type: str, original_callback: Callable[..., Any]) -> Callable[..., Any]:
         """Create a wrapper callback that validates events before invoking the original callback.
 
         Args:
@@ -171,8 +171,8 @@ class ValidatingEventSubscriber(EventSubscriber):
         self,
         event_type: str,
         callback: Callable[[dict[str, Any]], None],
-        routing_key: str = None,
-        exchange: str = None,
+        routing_key: str | None = None,
+        exchange: str | None = None,
     ) -> None:
         """Subscribe to events of a specific type.
 
@@ -191,7 +191,7 @@ class ValidatingEventSubscriber(EventSubscriber):
 
         # Subscribe with the validating wrapper
         # Support both old and new parameter names for flexibility
-        kwargs = {"callback": validating_callback}
+        kwargs: dict[str, Any] = {"callback": validating_callback}
         if event_type:
             kwargs["event_type"] = event_type
         if routing_key:

@@ -11,7 +11,7 @@ from typing import Any
 try:
     import pika
 except ImportError:
-    pika = None  # type: ignore
+    pika = None
 
 from .publisher import EventPublisher
 
@@ -55,9 +55,9 @@ class RabbitMQPublisher(EventPublisher):
         self.enable_publisher_confirms = enable_publisher_confirms
         self.max_reconnect_attempts = max_reconnect_attempts
         self.reconnect_delay = reconnect_delay
-        self.connection = None
-        self.channel = None
-        self._declared_queues = set()
+        self.connection: Any = None  # pika.BlockingConnection after connect()
+        self.channel: Any = None  # pika.channel.Channel after connect()
+        self._declared_queues: set[str] = set()
         self._last_reconnect_time = 0.0
         self._reconnect_count = 0
 
