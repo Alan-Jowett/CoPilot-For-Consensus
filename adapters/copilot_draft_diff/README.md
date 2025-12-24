@@ -185,10 +185,10 @@ diff_provider = create_diff_provider()
 # When processing drafts
 def process_draft_changes(draft_name: str, old_version: str, new_version: str):
     diff = diff_provider.getdiff(draft_name, old_version, new_version)
-    
+
     # Process the diff content
     summary = summarize_diff(diff.content)
-    
+
     return {
         "draft": diff.draft_name,
         "versions": f"{diff.version_a} -> {diff.version_b}",

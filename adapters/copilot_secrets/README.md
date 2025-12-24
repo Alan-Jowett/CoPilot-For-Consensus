@@ -85,7 +85,7 @@ provider = create_secret_provider("azure", vault_name="my-production-vault")
 
 # Or using full vault URL
 provider = create_secret_provider(
-    "azure", 
+    "azure",
     vault_url="https://my-vault.vault.azure.net/"
 )
 
@@ -123,7 +123,7 @@ The Azure provider uses `DefaultAzureCredential` from `azure-identity`, which tr
 1. **Managed Identity** (recommended for production)
    - Works automatically on Azure App Service, Azure Functions, Azure VMs, Azure Container Instances
    - No credentials needed in code or environment
-   
+
 2. **Environment Variables** (for local development or CI/CD)
    ```bash
    export AZURE_TENANT_ID="your-tenant-id"
@@ -150,7 +150,7 @@ services:
     environment:
       AZURE_KEY_VAULT_NAME: my-production-vault
       # For managed identity on Azure, no additional config needed
-      
+
       # For local dev with service principal:
       AZURE_TENANT_ID: ${AZURE_TENANT_ID}
       AZURE_CLIENT_ID: ${AZURE_CLIENT_ID}
@@ -218,11 +218,11 @@ class SecretProvider(ABC):
     def get_secret(self, secret_name: str, version: Optional[str] = None) -> str:
         """Retrieve a secret as a string."""
         pass
-    
+
     def get_secret_bytes(self, secret_name: str, version: Optional[str] = None) -> bytes:
         """Retrieve a secret as raw bytes."""
         pass
-    
+
     def secret_exists(self, secret_name: str) -> bool:
         """Check if a secret exists."""
         pass
@@ -296,7 +296,7 @@ jwt_manager = JWTManager(
 3. **No Logging**: Secret values are never logged by the provider
 4. **Volume Mounts**: Use read-only mounts (`:ro`) when mounting secret directories
 5. **Kubernetes Secrets**: Compatible with `kubectl create secret generic` mounted secrets
-6. **Azure Key Vault**: 
+6. **Azure Key Vault**:
    - Use managed identities instead of service principals when possible
    - Enable soft-delete and purge protection on Key Vaults
    - Use Azure RBAC or access policies to grant least-privilege access

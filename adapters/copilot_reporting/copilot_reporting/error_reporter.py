@@ -4,21 +4,21 @@
 """Abstract error reporter interface for structured error reporting."""
 
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
+from typing import Any
 
 
 class ErrorReporter(ABC):
     """Abstract base class for error reporting.
-    
+
     This interface allows services to emit structured error events to different
     backends (e.g., Sentry, console, file logs) and support consistent error
     tracking across environments.
     """
 
     @abstractmethod
-    def report(self, error: Exception, context: Optional[Dict[str, Any]] = None) -> None:
+    def report(self, error: Exception, context: dict[str, Any] | None = None) -> None:
         """Report an exception with optional context.
-        
+
         Args:
             error: The exception to report
             context: Optional dictionary with additional context (user_id, request_id, etc.)
@@ -30,10 +30,10 @@ class ErrorReporter(ABC):
         self,
         message: str,
         level: str = "error",
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ) -> None:
         """Capture a message without an exception.
-        
+
         Args:
             message: The message to capture
             level: Severity level (debug, info, warning, error, critical)

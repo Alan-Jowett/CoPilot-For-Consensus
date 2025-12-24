@@ -22,9 +22,9 @@ class TestCompatibilityChecker:
                 "field1": {"type": "string", "default": "test"},
             },
         }
-        
+
         issues = check_schema_compatibility(schema, schema)
-        
+
         assert len(issues) == 0
 
     def test_field_removal_breaking(self):
@@ -37,9 +37,9 @@ class TestCompatibilityChecker:
         new_schema = {
             "fields": {},
         }
-        
+
         issues = check_schema_compatibility(old_schema, new_schema)
-        
+
         breaking = [i for i in issues if i.severity == CompatibilityIssue.BREAKING]
         assert len(breaking) == 1
         assert "field1" in breaking[0].field
@@ -54,9 +54,9 @@ class TestCompatibilityChecker:
         new_schema = {
             "fields": {},
         }
-        
+
         issues = check_schema_compatibility(old_schema, new_schema)
-        
+
         warnings = [i for i in issues if i.severity == CompatibilityIssue.WARNING]
         assert len(warnings) == 1
         assert "field1" in warnings[0].field
@@ -73,9 +73,9 @@ class TestCompatibilityChecker:
                 "field1": {"type": "int"},
             },
         }
-        
+
         issues = check_schema_compatibility(old_schema, new_schema)
-        
+
         breaking = [i for i in issues if i.severity == CompatibilityIssue.BREAKING]
         assert len(breaking) == 1
         assert "Type changed" in breaking[0].message
@@ -92,9 +92,9 @@ class TestCompatibilityChecker:
                 "field1": {"type": "string", "required": True},
             },
         }
-        
+
         issues = check_schema_compatibility(old_schema, new_schema)
-        
+
         breaking = [i for i in issues if i.severity == CompatibilityIssue.BREAKING]
         assert len(breaking) == 1
         assert "required" in breaking[0].message.lower()
@@ -109,9 +109,9 @@ class TestCompatibilityChecker:
                 "field1": {"type": "string", "required": True},
             },
         }
-        
+
         issues = check_schema_compatibility(old_schema, new_schema)
-        
+
         breaking = [i for i in issues if i.severity == CompatibilityIssue.BREAKING]
         assert len(breaking) == 1
         assert "required" in breaking[0].message.lower()
@@ -126,9 +126,9 @@ class TestCompatibilityChecker:
                 "field1": {"type": "string", "required": False},
             },
         }
-        
+
         issues = check_schema_compatibility(old_schema, new_schema)
-        
+
         # Should have no breaking changes
         breaking = [i for i in issues if i.severity == CompatibilityIssue.BREAKING]
         assert len(breaking) == 0
@@ -145,9 +145,9 @@ class TestCompatibilityChecker:
                 "field1": {"type": "string", "required": True, "default": "new"},
             },
         }
-        
+
         issues = check_schema_compatibility(old_schema, new_schema)
-        
+
         breaking = [i for i in issues if i.severity == CompatibilityIssue.BREAKING]
         assert len(breaking) == 1
         assert "Default value changed" in breaking[0].message
@@ -164,9 +164,9 @@ class TestCompatibilityChecker:
                 "field1": {"type": "string", "required": False, "default": "new"},
             },
         }
-        
+
         issues = check_schema_compatibility(old_schema, new_schema)
-        
+
         warnings = [i for i in issues if i.severity == CompatibilityIssue.WARNING]
         assert len(warnings) == 1
         assert "Default value changed" in warnings[0].message
@@ -183,9 +183,9 @@ class TestCompatibilityChecker:
                 "field1": {"type": "string", "deprecated": True},
             },
         }
-        
+
         issues = check_schema_compatibility(old_schema, new_schema)
-        
+
         warnings = [i for i in issues if i.severity == CompatibilityIssue.WARNING]
         assert len(warnings) == 1
         assert "deprecated" in warnings[0].message.lower()
@@ -200,9 +200,9 @@ class TestCompatibilityChecker:
             "schema_version": "1.0.0",
             "fields": {},
         }
-        
+
         issues = check_schema_compatibility(old_schema, new_schema)
-        
+
         breaking = [i for i in issues if i.severity == CompatibilityIssue.BREAKING]
         assert len(breaking) == 1
         assert "downgrade" in breaking[0].message.lower()
@@ -216,12 +216,12 @@ class TestVersionBumpAdequacy:
         issues = [
             CompatibilityIssue(CompatibilityIssue.BREAKING, "Breaking change"),
         ]
-        
+
         # Minor bump is not adequate
         version_issues = check_version_bump_adequate("1.0.0", "1.1.0", issues)
         assert len(version_issues) > 0
         assert "MAJOR" in version_issues[0].message
-        
+
         # Major bump is adequate
         version_issues = check_version_bump_adequate("1.0.0", "2.0.0", issues)
         assert len(version_issues) == 0
@@ -231,7 +231,7 @@ class TestVersionBumpAdequacy:
         issues = [
             CompatibilityIssue(CompatibilityIssue.WARNING, "Warning"),
         ]
-        
+
         # Minor bump is fine for warnings
         version_issues = check_version_bump_adequate("1.0.0", "1.1.0", issues)
         assert len(version_issues) == 0

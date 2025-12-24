@@ -482,7 +482,7 @@ Configuration is provided via environment variables and secrets (mounted at `/ru
    export JWT_ALGORITHM="RS256"
    export JWT_PRIVATE_KEY_PATH="config/dev_jwt_private.pem"
    export JWT_PUBLIC_KEY_PATH="config/dev_jwt_public.pem"
-   
+
    # Configure at least one provider (example: GitHub)
   echo "your_github_client_id" > secrets/github_oauth_client_id
   echo "your_github_client_secret" > secrets/github_oauth_client_secret
@@ -497,10 +497,10 @@ Configuration is provided via environment variables and secrets (mounted at `/ru
    ```bash
    # Health check
    curl http://localhost:8090/health
-   
+
    # JWKS
    curl http://localhost:8090/keys
-   
+
    # Initiate login (will redirect)
    curl -i "http://localhost:8090/login?provider=github"
    ```

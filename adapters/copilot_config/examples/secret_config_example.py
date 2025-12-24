@@ -8,29 +8,30 @@ configuration from both environment variables and secret storage.
 """
 
 import os
-from copilot_secrets import create_secret_provider
+
 from copilot_config import (
-    SecretConfigProvider,
+    ConfigSchema,
     EnvConfigProvider,
     SchemaConfigLoader,
-    ConfigSchema,
+    SecretConfigProvider,
 )
+from copilot_secrets import create_secret_provider
 
 
 def main():
     """Example of loading configuration with secrets."""
-    
+
     # 1. Create secret provider (from copilot_secrets)
     #    In production, secrets are mounted as Docker volumes or from cloud key vault
     secret_base_path = os.getenv("SECRETS_BASE_PATH", "/run/secrets")
     secrets = create_secret_provider("local", base_path=secret_base_path)
-    
+
     # 2. Wrap it in a SecretConfigProvider (for copilot_config)
     secret_config = SecretConfigProvider(secret_provider=secrets)
-    
+
     # 3. Create environment provider for non-secret config
     env_config = EnvConfigProvider()
-    
+
     # 4. Define your service schema
     schema = ConfigSchema(
         service_name="auth",
@@ -54,7 +55,7 @@ def main():
                 "env_var": "LOG_LEVEL",
                 "default": "INFO",
             }),
-            
+
             # Sensitive config from secrets
             "jwt_private_key": ConfigSchema._parse_field_spec("jwt_private_key", {
                 "type": "string",
@@ -79,29 +80,29 @@ def main():
             }),
         }
     )
-    
+
     # 5. Load configuration
     loader = SchemaConfigLoader(
         schema=schema,
         env_provider=env_config,
         secret_provider=secret_config,
     )
-    
+
     config = loader.load()
-    
+
     # 6. Use configuration
     print(f"Service: {config['service_name']}")
     print(f"Port: {config['port']}")
     print(f"Log Level: {config['log_level']}")
     print(f"JWT Private Key: {'*' * 40}... (loaded from secrets)")
     print(f"OAuth Client Secret: {'*' * 20}... (loaded from secrets)")
-    
+
     return config
 
 
 def schema_based_example():
     """Example using schema JSON file."""
-    
+
     # Schema file content (documents/schemas/configs/auth.json):
     # {
     #   "service_name": "auth",
@@ -121,31 +122,31 @@ def schema_based_example():
     #     }
     #   }
     # }
-    
+
     # Load schema from file
     schema = ConfigSchema.from_json_file("documents/schemas/configs/auth.json")
-    
+
     # Create providers
     secrets = create_secret_provider("local", base_path="/run/secrets")
     secret_config = SecretConfigProvider(secret_provider=secrets)
     env_config = EnvConfigProvider()
-    
+
     # Load config
     loader = SchemaConfigLoader(
         schema=schema,
         env_provider=env_config,
         secret_provider=secret_config,
     )
-    
+
     config = loader.load()
     return config
 
 
 def docker_compose_example():
     """Example Docker Compose configuration for secret mounting.
-    
+
     docker-compose.yml:
-    
+
     ```yaml
     services:
       auth:
@@ -158,29 +159,29 @@ def docker_compose_example():
           LOG_LEVEL: INFO
           SECRETS_BASE_PATH: /run/secrets
     ```
-    
+
     Secrets directory structure:
-    
+
     ```
     secrets/
     ├── jwt_private_key          # PEM-encoded RSA private key
     ├── jwt_public_key           # PEM-encoded RSA public key
     └── github_oauth_client_secret
     ```
-    
+
     Service code:
-    
+
     ```python
     from copilot_secrets import create_secret_provider
     from copilot_config import SecretConfigProvider, load_typed_config
-    
+
     # Initialize secret provider
     secrets = create_secret_provider("local", base_path="/run/secrets")
     secret_config = SecretConfigProvider(secret_provider=secrets)
-    
+
     # Load config with schema
     config = load_typed_config("auth", secret_provider=secret_config)
-    
+
     # Access config
     print(f"JWT key loaded: {len(config['jwt_private_key'])} bytes")
     ```
@@ -196,7 +197,7 @@ if __name__ == "__main__":
     #   echo "test-public-key" > /tmp/test-secrets/jwt_public_key
     #   echo "test-client-secret" > /tmp/test-secrets/github_oauth_client_secret
     #   export SECRETS_BASE_PATH=/tmp/test-secrets
-    
+
     try:
         config = main()
         print("\n✅ Configuration loaded successfully!")

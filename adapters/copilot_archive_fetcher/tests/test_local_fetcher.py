@@ -5,6 +5,7 @@
 
 import os
 import tempfile
+
 from copilot_archive_fetcher import LocalFetcher, SourceConfig
 
 
@@ -34,7 +35,7 @@ class TestLocalFetcher:
             assert error is None
             assert files is not None
             assert len(files) == 1
-            
+
             # Verify file was copied
             copied_file = files[0]
             assert os.path.exists(copied_file)
@@ -47,10 +48,10 @@ class TestLocalFetcher:
             # Create a test directory with files
             test_dir = os.path.join(tmpdir, "test_dir")
             os.makedirs(test_dir)
-            
+
             file1 = os.path.join(test_dir, "file1.txt")
             file2 = os.path.join(test_dir, "file2.txt")
-            
+
             with open(file1, "w") as f:
                 f.write("Content 1")
             with open(file2, "w") as f:
@@ -94,10 +95,10 @@ class TestLocalFetcher:
             test_dir = os.path.join(tmpdir, "test_dir")
             subdir = os.path.join(test_dir, "subdir")
             os.makedirs(subdir)
-            
+
             file1 = os.path.join(test_dir, "file1.txt")
             file2 = os.path.join(subdir, "file2.txt")
-            
+
             with open(file1, "w") as f:
                 f.write("Content 1")
             with open(file2, "w") as f:
@@ -115,7 +116,7 @@ class TestLocalFetcher:
 
             assert success is True
             assert len(files) == 2
-            
+
             # Verify directory structure is preserved
             # The output should have test_dir/nested-test/file1.txt and test_dir/nested-test/subdir/file2.txt
             copied_dir = os.path.join(output_dir, "nested-test")

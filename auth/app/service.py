@@ -19,17 +19,17 @@ from copilot_auth import (
 )
 from copilot_logging import create_logger
 
+from . import OAUTH_PROVIDERS, SUPPORTED_PROVIDERS
 from .role_store import RoleStore
-from . import SUPPORTED_PROVIDERS, OAUTH_PROVIDERS
 
 logger = create_logger(logger_type="stdout", level="INFO", name="auth.service")
 
 
 class AuthService:
     """Authentication service for OIDC login and JWT minting.
-    
+
     Coordinates multiple OIDC providers and issues local JWTs.
-    
+
     Attributes:
         config: Auth service configuration
         providers: Dictionary of OIDC providers by name
@@ -39,7 +39,7 @@ class AuthService:
 
     def __init__(self, config):
         """Initialize the auth service.
-        
+
         Args:
             config: Auth service configuration
         """
@@ -175,31 +175,32 @@ class AuthService:
         prompt: str | None = None,
     ) -> tuple[str, str, str]:
         """Initiate OIDC login flow.
-        
+
         Args:
             provider: Provider identifier
             audience: Target audience for JWT
             prompt: Optional OAuth prompt parameter
-        
+
         Returns:
             Tuple of (authorization_url, state, nonce)
-        
+
         Raises:
             ValueError: If provider is unknown or not configured
         """
         if provider not in self.providers:
             configured_providers = list(self.providers.keys())
+            configured_list = ", ".join(configured_providers) if configured_providers else "none"
             if provider in OAUTH_PROVIDERS:
                 raise ValueError(
                     f"Provider '{provider}' is not configured. "
                     f"Please configure OAuth credentials for {provider}. "
                     f"See documentation for setup instructions. "
-                    f"Currently configured providers: {', '.join(configured_providers) if configured_providers else 'none'}"
+                    f"Currently configured providers: {configured_list}"
                 )
             raise ValueError(
                 f"Unknown provider: {provider}. "
                 f"Supported providers: {', '.join(SUPPORTED_PROVIDERS)}. "
-                f"Currently configured: {', '.join(configured_providers) if configured_providers else 'none'}"
+                f"Currently configured: {configured_list}"
             )
 
         provider_instance = self.providers[provider]
@@ -244,14 +245,14 @@ class AuthService:
         state: str,
     ) -> str:
         """Handle OIDC callback and mint local JWT.
-        
+
         Args:
             code: Authorization code from provider
             state: OAuth state parameter
-        
+
         Returns:
             Local JWT token
-        
+
         Raises:
             ValueError: If state is invalid or provider unknown
             AuthenticationError: If code exchange fails
@@ -359,14 +360,14 @@ class AuthService:
         audience: str,
     ) -> dict[str, Any]:
         """Validate a JWT token.
-        
+
         Args:
             token: JWT token string
             audience: Expected audience
-        
+
         Returns:
             Decoded token claims
-        
+
         Raises:
             jwt.InvalidTokenError: If token is invalid
         """
@@ -387,7 +388,7 @@ class AuthService:
 
     def get_jwks(self) -> dict[str, Any]:
         """Get JWKS for public key distribution.
-        
+
         Returns:
             JWKS dictionary
         """
@@ -395,7 +396,7 @@ class AuthService:
 
     def _cleanup_expired_sessions(self) -> None:
         """Clean up expired sessions (called with lock held).
-        
+
         This is a lazy cleanup mechanism that runs periodically when
         new sessions are created. For production, use Redis with TTL.
         """
@@ -420,7 +421,7 @@ class AuthService:
 
     def get_stats(self) -> dict[str, Any]:
         """Get service statistics.
-        
+
         Returns:
             Statistics dictionary
         """

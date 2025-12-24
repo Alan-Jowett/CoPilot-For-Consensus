@@ -11,14 +11,14 @@ export function SourceForm() {
   const { sourceName } = useParams()
   const navigate = useNavigate()
   const isEditMode = !!sourceName
-  
+
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
-  
+
   const [form, setForm] = useState<IngestionSource>({
     name: '',
     source_type: 'local',
@@ -33,11 +33,11 @@ export function SourceForm() {
 
   useEffect(() => {
     if (!isEditMode) return
-    
+
     let cancelled = false
     setLoading(true)
     setError(null)
-    
+
     fetchIngestionSource(sourceName!)
       .then(source => {
         if (!cancelled) {
@@ -63,25 +63,25 @@ export function SourceForm() {
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
-    
+
     return () => { cancelled = true }
   }, [sourceName, isEditMode])
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {}
-    
+
     if (!form.name.trim()) {
       errors.name = 'Source name is required'
     }
-    
+
     if (!form.source_type) {
       errors.source_type = 'Source type is required'
     }
-    
+
     if (!form.url.trim()) {
       errors.url = 'URL/connection string is required'
     }
-    
+
     if (form.source_type === 'imap') {
       if (!form.port) {
         errors.port = 'Port is required for IMAP sources'
@@ -93,7 +93,7 @@ export function SourceForm() {
         errors.password = 'Password is required for IMAP sources'
       }
     }
-    
+
     setValidationErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -124,12 +124,12 @@ export function SourceForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) return
-    
+
     setSaving(true)
     setError(null)
-    
+
     try {
       // Prepare the source data, removing empty optional fields
       const sourceData: IngestionSource = {
@@ -138,19 +138,19 @@ export function SourceForm() {
         url: form.url.trim(),
         enabled: form.enabled,
       }
-      
+
       if (form.port) sourceData.port = form.port
       if (form.username?.trim()) sourceData.username = form.username.trim()
       if (form.password?.trim()) sourceData.password = form.password.trim()
       if (form.folder?.trim()) sourceData.folder = form.folder.trim()
       if (form.schedule?.trim()) sourceData.schedule = form.schedule.trim()
-      
+
       if (isEditMode) {
         await updateIngestionSource(sourceName!, sourceData)
       } else {
         await createIngestionSource(sourceData)
       }
-      
+
       navigate('/sources')
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Failed to save source'
@@ -178,7 +178,7 @@ export function SourceForm() {
       <Link to="/sources" className="back-link">← Back to Sources</Link>
       <h1>{isEditMode ? 'Edit Source' : 'Add New Source'}</h1>
       <p className="subtitle">
-        {isEditMode 
+        {isEditMode
           ? `Update configuration for source "${sourceName}"`
           : 'Configure a new ingestion source for email archives'}
       </p>
@@ -230,7 +230,7 @@ export function SourceForm() {
 
           <div className="filter-section">
             <h3>Connection Details</h3>
-            
+
             {form.source_type === 'local' && !isEditMode && (
               <div className="filter-row">
                 <div className="filter-group">
@@ -258,7 +258,7 @@ export function SourceForm() {
                 </div>
               </div>
             )}
-            
+
             <div className="filter-row">
               <div className="filter-group">
                 <label htmlFor="url">
@@ -269,7 +269,7 @@ export function SourceForm() {
                   value={form.url}
                   onChange={e => setForm({ ...form, url: e.target.value })}
                   placeholder={
-                    form.source_type === 'imap' 
+                    form.source_type === 'imap'
                       ? 'e.g., imap.example.com'
                       : form.source_type === 'http'
                       ? 'e.g., https://example.com/archives'

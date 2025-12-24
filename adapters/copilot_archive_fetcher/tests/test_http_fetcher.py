@@ -3,9 +3,10 @@
 
 """Tests for HTTP fetcher."""
 
-import pytest
 import tempfile
-from copilot_archive_fetcher import HTTPFetcher, SourceConfig, ArchiveFetcher
+
+import pytest
+from copilot_archive_fetcher import ArchiveFetcher, HTTPFetcher, SourceConfig
 
 
 class TestHTTPFetcher:
@@ -19,7 +20,7 @@ class TestHTTPFetcher:
             url="https://example.com/archive.zip"
         )
         fetcher = HTTPFetcher(config)
-        
+
         assert fetcher.source == config
         assert fetcher.source.name == "http-test"
         assert fetcher.source.url == "https://example.com/archive.zip"
@@ -32,7 +33,7 @@ class TestHTTPFetcher:
             url="https://example.com/archive.zip"
         )
         fetcher = HTTPFetcher(config)
-        
+
         assert isinstance(fetcher, ArchiveFetcher)
 
     @pytest.mark.integration
@@ -44,10 +45,10 @@ class TestHTTPFetcher:
             url="https://httpbin.org/image/png"
         )
         fetcher = HTTPFetcher(config)
-        
+
         with tempfile.TemporaryDirectory() as tmpdir:
             success, files, error = fetcher.fetch(tmpdir)
-            
+
             # This may fail if no network, but should handle gracefully
             if success:
                 assert files is not None

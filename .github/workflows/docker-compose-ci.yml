@@ -27,7 +27,7 @@ jobs:
   test-docker-compose:
     name: Test Docker Compose
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
@@ -35,23 +35,23 @@ jobs:
     - name: Create test secrets for CI
       run: |
         mkdir -p secrets
-        
+
         # Message bus credentials
         echo "guest" > secrets/message_bus_user
         echo "guest" > secrets/message_bus_password
         echo "guest" > secrets/rabbitmq_user
         echo "guest" > secrets/rabbitmq_pass
-        
+
         # MongoDB credentials
         echo "root" > secrets/document_database_user
         echo "example" > secrets/document_database_password
         echo "root" > secrets/mongodb_root_username
         echo "example" > secrets/mongodb_root_password
-        
+
         # Grafana admin
         echo "admin" > secrets/grafana_admin_user
         echo "admin" > secrets/grafana_admin_password
-        
+
         # Auth service secrets
         if [ ! -f secrets/jwt_private_key ]; then
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out secrets/jwt_private_key
@@ -63,10 +63,10 @@ jobs:
         echo "" > secrets/google_oauth_client_secret
         echo "" > secrets/microsoft_oauth_client_secret
         echo "example" > secrets/role_store_password
-        
+
         # Azure OpenAI (empty for CI)
         echo "" > secrets/azure_openai_key
-        
+
         # Generate self-signed TLS certificates for gateway (HTTPS)
         echo "Generating self-signed TLS certificates for gateway..."
         openssl req -x509 -newkey rsa:2048 \
@@ -89,7 +89,7 @@ jobs:
         df -h
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3
+      uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
     - name: Clean up any existing containers and volumes
       run: |
@@ -150,6 +150,14 @@ jobs:
         docker compose up -d loki
         # Loki image is distroless and has no healthcheck, so wait for it to be running
         timeout 60s bash -c 'until docker compose ps loki --format "{{.Status}}" | grep -q "Up"; do echo "Waiting for loki..."; sleep 3; done' || (docker compose logs loki --tail=50 && exit 1)
+
+    - name: Create placeholder public key for Grafana JWT auth
+      run: |
+        # Create a placeholder public key file for Grafana
+        # This will be replaced by the actual public key from auth service later
+        # Using the jwt_public_key we generated earlier as a placeholder
+        cp secrets/jwt_public_key secrets/auth_service_public_key.pem
+        echo "✓ Placeholder public key created for Grafana"
 
     - name: Start grafana
       run: |
@@ -274,15 +282,15 @@ jobs:
       run: |
         set -euo pipefail
         echo "Creating ingestion source via REST API..."
-        
+
         # Generate a test JWT token with admin role
         # First, get the public key from the auth service
         PUBLIC_KEY=$(curl -s http://localhost:8080/auth/keys | python -c 'import json,sys; data=json.load(sys.stdin); print(data.get("keys", [{}])[0].get("x5c", [""])[0])' 2>/dev/null || echo "")
-        
+
         # For CI without proper OAuth, we use the disabled JWT auth mode
         # If JWT is disabled, we can make requests without tokens
         # If JWT is enabled, the test infrastructure should provide mock tokens
-        
+
         payload='{"name":"test-mailbox","source_type":"local","url":"/tmp/test-mailbox/test-archive.mbox","enabled":true}'
         max_attempts=5
         attempt=1
@@ -294,7 +302,7 @@ jobs:
             echo "✓ Ingestion source created (no auth required)"
             break
           fi
-          
+
           # If that fails, try with a mock auth header for compatibility
           if curl -k -f -X POST https://localhost/ingestion/api/sources \
             -H "Content-Type: application/json" \
@@ -303,7 +311,7 @@ jobs:
             echo "✓ Ingestion source created (with mock token)"
             break
           fi
-          
+
           echo "Attempt $attempt/$max_attempts: Failed to create source, retrying..."
           sleep 2
           attempt=$((attempt + 1))
@@ -327,29 +335,29 @@ jobs:
             echo "✓ Ingestion triggered successfully (no auth required)"
             break
           fi
-          
+
           # If that fails, try with a mock auth header for compatibility
           if curl -k -f -X POST https://localhost/ingestion/api/sources/test-mailbox/trigger \
             -H "Authorization: Bearer test-token" 2>/dev/null; then
             echo "✓ Ingestion triggered successfully (with mock token)"
             break
           fi
-          
+
           echo "Attempt $attempt/$max_attempts: Failed to trigger ingestion, retrying..."
           sleep 2
           attempt=$((attempt + 1))
         done
-        
+
         if [ $attempt -gt $max_attempts ]; then
           echo "❌ Failed to trigger ingestion after $max_attempts attempts"
           docker compose logs ingestion --tail=50
           exit 1
         fi
-        
+
         # Wait for ingestion to complete (check status)
         echo "Waiting for ingestion to complete..."
         sleep 10  # Give it time to process
-        
+
         # Check ingestion status
         status=$(curl -k -s https://localhost/ingestion/api/sources/test-mailbox/status || echo "unknown")
         echo "Ingestion status: $status"

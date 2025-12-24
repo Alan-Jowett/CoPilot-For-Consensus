@@ -279,7 +279,7 @@ class ChunkingService:
     def __init__(self, config: ChunkingConfig = None):
         self.config = config or ChunkingConfig()
         self.chunker = create_chunker(**self.config.get_chunker_params())
-    
+
     def chunk_message(self, message_doc_id, thread_id, message_id, text, metadata):
         thread = Thread(
             thread_id=thread_id,
@@ -343,16 +343,16 @@ class SummarizationService:
         """Summarize using retrieved chunks from any strategy."""
         # Use top-k most relevant chunks
         selected = chunks[:top_k]
-        
+
         # Build context from chunks
         context = "\n\n".join(chunk.text for chunk in selected)
-        
+
         # Generate summary with LLM
         summary = self._generate_summary(context)
-        
+
         # Extract citations
         citations = self._extract_citations(selected)
-        
+
         return {"summary": summary, "citations": citations}
 ```
 
@@ -429,22 +429,22 @@ from uuid import uuid4
 
 class CustomChunker(ThreadChunker):
     """Custom chunking strategy."""
-    
+
     def __init__(self, custom_param: int = 100):
         self.custom_param = custom_param
-    
+
     def chunk(self, thread: Thread) -> List[Chunk]:
         """Implement custom chunking logic."""
         if not thread.text or not thread.text.strip():
             raise ValueError("Thread text cannot be empty")
-        
+
         # Your custom chunking logic here
         chunks = []
-        
+
         # Example: split every N characters
         text = thread.text
         chunk_index = 0
-        
+
         for i in range(0, len(text), self.custom_param):
             chunk_text = text[i:i + self.custom_param]
             chunk = Chunk(
@@ -456,7 +456,7 @@ class CustomChunker(ThreadChunker):
             )
             chunks.append(chunk)
             chunk_index += 1
-        
+
         return chunks
 ```
 
@@ -467,7 +467,7 @@ To make your custom chunker available via the factory:
 ```python
 def create_chunker(strategy: str, **kwargs) -> ThreadChunker:
     strategy_lower = strategy.lower()
-    
+
     if strategy_lower == "token_window":
         return TokenWindowChunker(**kwargs)
     elif strategy_lower == "fixed_size":
@@ -509,13 +509,13 @@ def test_chunking_service_with_strategies():
         config = ChunkingConfig()
         config.chunking_strategy = strategy
         service = ChunkingService(config)
-        
+
         chunks = service.chunk_message(
             message_id="test",
             text="Test message content.",
             metadata={"sender": "test@example.com"}
         )
-        
+
         assert len(chunks) > 0
         assert all(isinstance(c, Chunk) for c in chunks)
 ```

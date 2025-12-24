@@ -65,7 +65,7 @@ class RequiredFieldMissingError(ParsingError):
 #### Before:
 ```python
 def ingest_archive(source) -> bool:
-    # ... 
+    # ...
     if not success:
         return False
     # ...
@@ -207,25 +207,25 @@ Example:
 ```python
 def process_data(self, data: Dict) -> ProcessedData:
     """Process input data.
-    
+
     Args:
         data: Input data dictionary
-        
+
     Returns:
         ProcessedData object
-        
+
     Raises:
         ValidationError: If data validation fails
         ProcessingError: If processing fails
     """
     if not self._validate(data):
         raise ValidationError("Data missing required fields")
-    
+
     try:
         result = self._process(data)
     except Exception as e:
         raise ProcessingError("Processing failed") from e
-    
+
     return result
 ```
 

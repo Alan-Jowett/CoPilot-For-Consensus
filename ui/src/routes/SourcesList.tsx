@@ -40,9 +40,9 @@ export function SourcesList() {
 
   const handleDeleteConfirm = async () => {
     if (!sourceToDelete) return
-    
+
     setDeleteDialogOpen(false)
-    
+
     try {
       await deleteIngestionSource(sourceToDelete)
       setSuccessMessage(`Source "${sourceToDelete}" deleted successfully`)

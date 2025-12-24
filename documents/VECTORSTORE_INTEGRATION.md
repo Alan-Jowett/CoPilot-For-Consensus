@@ -90,13 +90,13 @@ class EmbeddingService:
         # Use environment variable to select backend
         self.vector_store = create_vector_store(dimension=384)
         self.embedding_model = load_embedding_model()
-    
+
     def process_chunks(self, chunks):
         """Process and store chunk embeddings."""
         # Generate embeddings
         texts = [chunk["text"] for chunk in chunks]
         embeddings = self.embedding_model.encode(texts)
-        
+
         # Store in vector store
         ids = [chunk["chunk_id"] for chunk in chunks]
         metadatas = [
@@ -107,7 +107,7 @@ class EmbeddingService:
             }
             for chunk in chunks
         ]
-        
+
         self.vector_store.add_embeddings(ids, embeddings, metadatas)
         print(f"Stored {len(chunks)} embeddings")
 ```
@@ -122,28 +122,28 @@ class SummarizationService:
         self.vector_store = create_vector_store(dimension=384)
         self.embedding_model = load_embedding_model()
         self.llm = load_llm()
-    
+
     def summarize_thread(self, thread_query):
         """Generate summary using retrieved context."""
         # Embed the query
         query_embedding = self.embedding_model.encode([thread_query])[0]
-        
+
         # Retrieve relevant chunks
         results = self.vector_store.query(
             query_vector=query_embedding,
             top_k=10
         )
-        
+
         # Build context for LLM
         context = "\n\n".join([
             f"[{i+1}] {r.metadata['text']}"
             for i, r in enumerate(results)
         ])
-        
+
         # Generate summary
         prompt = f"Context:\n{context}\n\nSummarize the discussion:"
         summary = self.llm.generate(prompt)
-        
+
         return summary, results
 ```
 
@@ -208,35 +208,35 @@ class RAGSystem:
         self.vector_store = create_vector_store(dimension=384)
         self.embedding_model = load_embedding_model()
         self.llm = load_llm()
-    
+
     def index_documents(self, documents):
         """Index documents for retrieval."""
         texts = [doc["text"] for doc in documents]
         embeddings = self.embedding_model.encode(texts)
-        
+
         ids = [doc["id"] for doc in documents]
         metadatas = documents
-        
+
         self.vector_store.add_embeddings(ids, embeddings, metadatas)
-    
+
     def ask(self, question, top_k=5):
         """Answer a question using retrieved context."""
         # Embed question
         question_embedding = self.embedding_model.encode([question])[0]
-        
+
         # Retrieve relevant documents
         results = self.vector_store.query(question_embedding, top_k=top_k)
-        
+
         # Build context
         context = "\n\n".join([
             f"Document {r.id}: {r.metadata['text']}"
             for r in results
         ])
-        
+
         # Generate answer
         prompt = f"Context:\n{context}\n\nQuestion: {question}\nAnswer:"
         answer = self.llm.generate(prompt)
-        
+
         return answer, results
 ```
 
@@ -251,17 +251,17 @@ from copilot_vectorstore import InMemoryVectorStore
 def test_embedding_service():
     # Use in-memory store for testing
     store = InMemoryVectorStore()
-    
+
     # Add test data
     store.add_embedding(
         id="test-1",
         vector=[1.0, 0.0, 0.0],
         metadata={"text": "test"}
     )
-    
+
     # Query
     results = store.query([0.9, 0.1, 0.0], top_k=1)
-    
+
     assert len(results) == 1
     assert results[0].id == "test-1"
 ```

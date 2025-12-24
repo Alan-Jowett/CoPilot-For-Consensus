@@ -150,7 +150,7 @@ jobs:
   # ==========================================
   # Service Test Jobs
   # ==========================================
-  
+
   chunking:
     needs: detect-changes
     if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.detect-changes.outputs.chunking == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
@@ -429,9 +429,9 @@ jobs:
   # ==========================================
   # Unified Coverage Summary
   # ==========================================
-  
+
   coverage-summary:
-    needs: 
+    needs:
       # Services
       - chunking
       - embedding
@@ -466,7 +466,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
-      
+
       - name: Finalize coverage upload
         uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e # v2
         with:

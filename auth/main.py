@@ -21,16 +21,14 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 
 import uvicorn
+from app import SUPPORTED_PROVIDERS, __version__
+from app.config import load_auth_config
+from app.service import AuthService
+from copilot_logging import create_logger, create_uvicorn_log_config
+from copilot_metrics import create_metrics_collector
 from fastapi import FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
-
-from copilot_logging import create_logger, create_uvicorn_log_config
-from copilot_metrics import create_metrics_collector
-
-from app import __version__, SUPPORTED_PROVIDERS
-from app.config import load_auth_config
-from app.service import AuthService
 
 # Configure structured JSON logging
 logger = create_logger(logger_type="stdout", level="INFO", name="auth")
@@ -106,12 +104,12 @@ async def readyz() -> dict[str, str]:
 @app.get("/providers")
 async def list_providers() -> dict[str, Any]:
     """List available authentication providers.
-    
+
     Returns information about which providers are configured and ready to use.
-    
+
     Returns:
         JSON with list of configured providers and their status
-    
+
     Example Response:
         {
             "providers": {
@@ -129,13 +127,13 @@ async def list_providers() -> dict[str, Any]:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
     configured_providers = list(auth_service.providers.keys())
-    
+
     provider_status = {}
     for provider in SUPPORTED_PROVIDERS:
         provider_status[provider] = {
             "configured": provider in configured_providers,
         }
-    
+
     return {
         "providers": provider_status,
         "configured_count": len(configured_providers),
@@ -354,6 +352,58 @@ def jwks() -> JSONResponse:
     return JSONResponse(content=jwks_data)
 
 
+@app.get("/.well-known/jwks.json")
+def well_known_jwks() -> JSONResponse:
+    """Get JSON Web Key Set (JWKS) at standard OIDC discovery endpoint.
+    
+    Standard OIDC endpoint that provides the keys needed to validate
+    tokens signed by this auth service.
+    
+    Format: https://tools.ietf.org/html/rfc7517
+    
+    Returns:
+        JWKS with public keys
+    """
+    return jwks()
+
+
+@app.get("/.well-known/public_key.pem")
+async def get_public_key() -> Response:
+    """Expose public key for JWT validation by external services (e.g., Grafana).
+    
+    Grafana will fetch this endpoint and use the public key to validate
+    JWT tokens before auto-login.
+    
+    Returns:
+        Public key in PEM format
+    """
+    global auth_service
+    
+    if not auth_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    try:
+        # Get public key from JWT manager
+        public_key_pem = auth_service.jwt_manager.get_public_key_pem()
+        
+        if not public_key_pem:
+            raise HTTPException(status_code=404, detail="Public key not available")
+        
+        metrics.increment("public_key_requests_total")
+        
+        # Return as plain text with PEM content type
+        return Response(
+            content=public_key_pem,
+            media_type="application/x-pem-file",
+            headers={
+                "Content-Disposition": 'attachment; filename="public_key.pem"'
+            }
+        )
+    except Exception as e:
+        logger.error(f"Failed to retrieve public key: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve public key")
+
+
 
 
 
@@ -397,9 +447,12 @@ def require_admin_role(request: Request) -> tuple[str, str | None]:
 
     # Extract token from Authorization header
     auth_header = request.headers.get("Authorization", "")
-    logger.info(f"Authorization header present: {bool(auth_header)}, starts with Bearer: {auth_header.startswith('Bearer ')}")
+    logger.info(
+        f"Authorization header present: {bool(auth_header)}, "
+        f"starts with Bearer: {auth_header.startswith('Bearer ')}"
+    )
     if not auth_header.startswith("Bearer "):
-        logger.warning(f"Missing or invalid Authorization header. Header value: '{auth_header[:50]}...' if longer")
+        logger.warning("Missing or invalid Authorization header")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid Authorization header")
 
     token = auth_header[7:]  # Remove "Bearer " prefix
@@ -434,7 +487,10 @@ def require_admin_role(request: Request) -> tuple[str, str | None]:
                 continue
 
         # Token didn't match any configured audience
-        logger.error(f"Token didn't match any configured audience. Audiences: {configured_audiences}, Token preview: {token[:50]}...")
+        logger.error(
+            f"Token didn't match any configured audience. "
+            f"Audiences: {configured_audiences}, Token preview: {token[:50]}..."
+        )
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
     except HTTPException:

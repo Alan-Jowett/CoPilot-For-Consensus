@@ -8,7 +8,7 @@ from copilot_draft_diff.models import DraftDiff
 
 class TestDraftDiff:
     """Tests for DraftDiff model."""
-    
+
     def test_basic_initialization(self):
         """Test basic DraftDiff initialization."""
         diff = DraftDiff(
@@ -19,7 +19,7 @@ class TestDraftDiff:
             content="Mock diff content",
             source="mock"
         )
-        
+
         assert diff.draft_name == "draft-ietf-quic-transport"
         assert diff.version_a == "01"
         assert diff.version_b == "02"
@@ -28,7 +28,7 @@ class TestDraftDiff:
         assert diff.source == "mock"
         assert diff.url is None
         assert diff.metadata is None
-    
+
     def test_initialization_with_optional_fields(self):
         """Test DraftDiff initialization with optional fields."""
         metadata = {"lines_added": 10, "lines_removed": 5}
@@ -42,11 +42,11 @@ class TestDraftDiff:
             url="https://datatracker.ietf.org/doc/draft-ietf-quic-transport/diff/",
             metadata=metadata
         )
-        
+
         assert diff.url == "https://datatracker.ietf.org/doc/draft-ietf-quic-transport/diff/"
         assert diff.metadata == metadata
         assert diff.metadata["lines_added"] == 10
-    
+
     def test_to_dict(self):
         """Test conversion to dictionary."""
         diff = DraftDiff(
@@ -59,9 +59,9 @@ class TestDraftDiff:
             url="mock://test",
             metadata={"test": True}
         )
-        
+
         result = diff.to_dict()
-        
+
         assert isinstance(result, dict)
         assert result["draft_name"] == "draft-test"
         assert result["version_a"] == "00"

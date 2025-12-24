@@ -3,9 +3,10 @@
 
 """Tests for validation integration."""
 
-from copilot_schema_validation import FileSchemaProvider, validate_json
 import json
 from unittest.mock import Mock
+
+from copilot_schema_validation import FileSchemaProvider, validate_json
 
 
 class TestValidationIntegration:

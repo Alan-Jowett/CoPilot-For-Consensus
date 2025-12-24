@@ -11,15 +11,15 @@
       "pattern": "^[A-Fa-f0-9]{16}$",
       "description": "Canonical primary key: deterministic SHA256 (first 16 chars) of mbox file contents"
     },
-    "file_hash": { 
-      "type": "string", 
+    "file_hash": {
+      "type": "string",
       "minLength": 64,
       "maxLength": 64,
       "pattern": "^[A-Fa-f0-9]{64}$",
       "description": "Full SHA256 hash of the mbox file for complete audit trail and integrity verification"
     },
-    "file_size_bytes": { 
-      "type": "integer", 
+    "file_size_bytes": {
+      "type": "integer",
       "minimum": 0,
       "description": "Size of the original mbox file in bytes"
     },
@@ -30,12 +30,12 @@
     "message_count": { "type": "integer", "minimum": 0 },
     "file_path": { "type": "string", "minLength": 1 },
     "status": { "type": "string", "enum": ["pending", "processing", "completed", "failed", "failed_max_retries"] },
-    "attemptCount": { 
-      "type": "integer", 
+    "attemptCount": {
+      "type": "integer",
       "minimum": 0,
       "description": "Number of processing attempts for retry tracking"
     },
-    "lastAttemptTime": { 
+    "lastAttemptTime": {
       "anyOf": [
         { "type": "string", "format": "date-time" },
         { "type": "null" }

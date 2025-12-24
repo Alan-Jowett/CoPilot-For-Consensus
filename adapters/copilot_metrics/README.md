@@ -197,23 +197,23 @@ class IngestionService:
         # Initialize metrics collector from environment
         self.metrics = create_metrics_collector()
         logger.info(f"Metrics collector initialized: {type(self.metrics).__name__}")
-    
+
     def ingest_archive(self, archive_id: str, source: str):
         """Ingest an archive and emit metrics."""
         # Measure processing time - initialize before try block
         import time
         start_time = time.time()
-        
+
         try:
             # Track that we started processing
             self.metrics.increment("archives_started", tags={
                 "source": source
             })
-            
+
             # ... actual ingestion logic ...
-            
+
             duration = time.time() - start_time
-            
+
             # Record success metrics
             self.metrics.increment("archives_ingested", tags={
                 "source": source,
@@ -222,12 +222,12 @@ class IngestionService:
             self.metrics.observe("ingestion_duration_seconds", duration, tags={
                 "source": source
             })
-            
+
             logger.info(f"Archive {archive_id} ingested in {duration:.2f}s")
-            
+
         except Exception as e:
             duration = time.time() - start_time
-            
+
             # Track failures
             self.metrics.increment("archives_ingested", tags={
                 "source": source,
@@ -289,14 +289,14 @@ def test_service_emits_metrics():
     """Test that service emits expected metrics."""
     metrics = NoOpMetricsCollector()
     service = MyService(metrics=metrics)
-    
+
     # Exercise the service
     service.process_item("test-item")
-    
+
     # Verify metrics were emitted
     assert metrics.get_counter_total("items_processed") == 1.0
     assert len(metrics.get_observations("processing_duration")) == 1
-    
+
     # Verify tags
     assert metrics.get_counter_total(
         "items_processed",
@@ -506,7 +506,7 @@ For enhanced security in production:
 
 Potential future backends:
 
-- **StatsD**: For DataDog, Graphite integration  
+- **StatsD**: For DataDog, Graphite integration
 - **CloudWatch**: AWS native metrics
 - **Custom backends**: Implement `MetricsCollector` interface
 
@@ -519,11 +519,11 @@ class MyCustomCollector(MetricsCollector):
     def increment(self, name, value=1.0, tags=None):
         # Custom implementation
         pass
-    
+
     def observe(self, name, value, tags=None):
         # Custom implementation
         pass
-    
+
     def gauge(self, name, value, tags=None):
         # Custom implementation
         pass

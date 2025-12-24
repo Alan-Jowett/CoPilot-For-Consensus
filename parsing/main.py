@@ -5,25 +5,23 @@
 
 import os
 import sys
-from pathlib import Path
 import threading
+from pathlib import Path
 
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
-from fastapi import FastAPI, HTTPException
 import uvicorn
-
-from copilot_config import load_typed_config, get_configuration_schema_response
-from copilot_events import create_publisher, create_subscriber, ValidatingEventPublisher, ValidatingEventSubscriber
-from copilot_storage import create_document_store, ValidatingDocumentStore
+from app import __version__
+from app.service import ParsingService
+from copilot_config import get_configuration_schema_response, load_typed_config
+from copilot_events import ValidatingEventPublisher, ValidatingEventSubscriber, create_publisher, create_subscriber
+from copilot_logging import create_logger, create_uvicorn_log_config
 from copilot_metrics import create_metrics_collector
 from copilot_reporting import create_error_reporter
 from copilot_schema_validation import FileSchemaProvider
-from copilot_logging import create_logger, create_uvicorn_log_config
-
-from app import __version__
-from app.service import ParsingService
+from copilot_storage import ValidatingDocumentStore, create_document_store
+from fastapi import FastAPI, HTTPException
 
 # Configure structured JSON logging
 logger = create_logger(logger_type="stdout", level="INFO", name="parsing")
@@ -39,9 +37,9 @@ parsing_service = None
 def health():
     """Health check endpoint."""
     global parsing_service
-    
+
     stats = parsing_service.get_stats() if parsing_service is not None else {}
-    
+
     return {
         "status": "healthy",
         "service": "parsing",
@@ -57,17 +55,17 @@ def health():
 def stats():
     """Get parsing statistics."""
     global parsing_service
-    
+
     if not parsing_service:
         return {"error": "Service not initialized"}
-    
+
     return parsing_service.get_stats()
 
 
 @app.get("/.well-known/configuration-schema")
 def configuration_schema():
     """Configuration schema discovery endpoint.
-    
+
     Returns the configuration schema for this service, including:
     - Service name and version
     - Schema version
@@ -89,10 +87,10 @@ def configuration_schema():
 
 def start_subscriber_thread(service: ParsingService):
     """Start the event subscriber in a separate thread.
-    
+
     Args:
         service: Parsing service instance
-        
+
     Raises:
         Exception: Re-raises any exception to fail fast
     """
@@ -111,14 +109,14 @@ def start_subscriber_thread(service: ParsingService):
 def main():
     """Main entry point for the parsing service."""
     global parsing_service
-    
+
     logger.info(f"Starting Parsing Service (version {__version__})")
-    
+
     try:
         # Load configuration using config adapter
         config = load_typed_config("parsing")
         logger.info("Configuration loaded successfully")
-        
+
         # Conditionally add JWT authentication middleware based on config
         if getattr(config, 'jwt_auth_enabled', True):
             logger.info("JWT authentication is enabled")
@@ -130,10 +128,10 @@ def main():
                 )
                 app.add_middleware(auth_middleware)
             except ImportError:
-                logger.warning("copilot_auth module not available - JWT authentication disabled")
+                logger.debug("copilot_auth module not available - JWT authentication disabled")
         else:
             logger.warning("JWT authentication is DISABLED - all endpoints are public")
-        
+
         # Create event publisher with schema validation
         logger.info(f"Creating event publisher ({config.message_bus_type})")
         base_publisher = create_publisher(
@@ -143,7 +141,7 @@ def main():
             username=config.message_bus_user,
             password=config.message_bus_password,
         )
-        
+
         try:
             base_publisher.connect()
         except Exception as e:
@@ -152,7 +150,7 @@ def main():
                 raise ConnectionError("Publisher failed to connect to message bus")
             else:
                 logger.warning("Failed to connect publisher to message bus. Continuing with noop publisher: %s", e)
-        
+
         # Wrap with schema validation
         # Create schema providers for event and document validation
         # Events use schemas from documents/schemas/events/
@@ -161,12 +159,12 @@ def main():
         document_schema_provider = FileSchemaProvider(
             schema_dir=Path(__file__).parent / "documents" / "schemas" / "documents"
         )
-        
+
         publisher = ValidatingEventPublisher(
             publisher=base_publisher,
             schema_provider=event_schema_provider,
         )
-        
+
         # Create event subscriber with schema validation
         logger.info(f"Creating event subscriber ({config.message_bus_type})")
         base_subscriber = create_subscriber(
@@ -177,19 +175,19 @@ def main():
             password=config.message_bus_password,
             queue_name="archive.ingested",
         )
-        
+
         try:
             base_subscriber.connect()
         except Exception as e:
             logger.error("Failed to connect subscriber to message bus: %s", e)
             raise ConnectionError("Subscriber failed to connect to message bus")
-        
+
         # Wrap with schema validation
         subscriber = ValidatingEventSubscriber(
             subscriber=base_subscriber,
             schema_provider=event_schema_provider,
         )
-        
+
         # Create document store with schema validation
         logger.info(f"Creating document store ({config.doc_store_type})")
         base_document_store = create_document_store(
@@ -200,27 +198,27 @@ def main():
             username=config.doc_store_user,
             password=config.doc_store_password,
         )
-        
+
         try:
             base_document_store.connect()
         except Exception as e:
             logger.error(f"Failed to connect to document store: {e}")
             raise  # Re-raise the original exception
-        
+
         # Wrap with schema validation
         document_store = ValidatingDocumentStore(
             store=base_document_store,
             schema_provider=document_schema_provider,
         )
-        
+
         # Create metrics collector - fail fast on errors
         logger.info(f"Creating metrics collector ({config.metrics_backend})...")
         metrics_collector = create_metrics_collector(backend=config.metrics_backend)
-        
+
         # Create error reporter - fail fast on errors
         logger.info(f"Creating error reporter ({config.error_reporter_type})...")
         error_reporter = create_error_reporter(reporter_type=config.error_reporter_type)
-        
+
         # Create parsing service
         parsing_service = ParsingService(
             document_store=document_store,
@@ -229,7 +227,7 @@ def main():
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
         )
-        
+
         # Start subscriber in a separate thread (non-daemon to fail fast)
         subscriber_thread = threading.Thread(
             target=start_subscriber_thread,
@@ -237,14 +235,14 @@ def main():
             daemon=False,
         )
         subscriber_thread.start()
-        
+
         # Start FastAPI server (blocking)
         logger.info(f"Starting FastAPI server on port {config.http_port}")
-        
+
         # Configure Uvicorn with structured JSON logging
         log_config = create_uvicorn_log_config(service_name="parsing", log_level="INFO")
-        uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config)
-        
+        uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config, access_log=False)
+
     except KeyboardInterrupt:
         logger.info("Shutting down parsing service")
     except Exception as e:

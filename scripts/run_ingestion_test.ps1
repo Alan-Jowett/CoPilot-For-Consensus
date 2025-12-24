@@ -17,7 +17,7 @@
 
 .EXAMPLE
     .\run_ingestion_test.ps1
-    
+
 .EXAMPLE
     .\run_ingestion_test.ps1 -Monitor
 #>
@@ -97,7 +97,7 @@ if ($Monitor) {
     Write-Host "  The monitor will listen for events for 60 seconds." -ForegroundColor Cyan
     Write-Host "  In another terminal, run:" -ForegroundColor Cyan
     Write-Host "    docker compose run --rm ingestion`n" -ForegroundColor White
-    
+
     # Run the Python monitoring script
     python .\ingestion\test_integration.py
 } else {
@@ -108,7 +108,7 @@ if ($Monitor) {
     Write-Host "    - METRICS_BACKEND=prometheus_pushgateway" -ForegroundColor Cyan
     Write-Host "    - PROMETHEUS_PUSHGATEWAY=http://pushgateway:9091" -ForegroundColor Cyan
     Write-Host ""
-    
+
     # Run ingestion service with test config
     docker compose run --rm `
         -e MESSAGE_BUS_HOST=messagebus `
@@ -117,7 +117,7 @@ if ($Monitor) {
         -e PROMETHEUS_PUSHGATEWAY=http://pushgateway:9091 `
         -e LOG_LEVEL=DEBUG `
         ingestion
-    
+
     Write-Host "`n==================================================================" -ForegroundColor Cyan
     Write-Host "Ingestion Complete!" -ForegroundColor Cyan
     Write-Host "==================================================================" -ForegroundColor Cyan

@@ -129,10 +129,10 @@ class EmbeddingProvider(ABC):
     @abstractmethod
     def embed(self, text: str) -> List[float]:
         """Generate embeddings for the given text.
-        
+
         Args:
             text: Input text to embed
-            
+
         Returns:
             List of floats representing the embedding vector
         """

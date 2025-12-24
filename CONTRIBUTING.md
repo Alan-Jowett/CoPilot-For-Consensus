@@ -79,31 +79,149 @@ pre-commit install
 
 ### Static Analysis and Validation
 
-This project uses comprehensive static analysis to catch attribute errors, missing fields, and type issues before they reach production:
+This project uses comprehensive static analysis to catch attribute errors, missing fields, and type issues before they reach production. **All pull requests must pass these checks in CI.**
 
-*   **Ruff**: Fast Python linter for syntax and style checks
-*   **MyPy**: Static type checker with strict mode enabled
-*   **Pyright**: Advanced type checker for catching attribute errors
-*   **Pylint**: Additional linting focused on attribute and member access
+#### Tools Overview
 
-All pull requests must pass these checks in CI. To run validation locally:
+| Tool     | Purpose                                      | What It Catches |
+|----------|----------------------------------------------|-----------------|
+| **Ruff** | Fast Python linter for syntax and style     | Import errors, undefined names (F821), unused imports |
+| **MyPy** | Static type checker for Python types        | Type mismatches, missing return types, incorrect signatures |
+| **Pyright** | Advanced type checker                     | Attribute errors, optional member access, missing fields |
+| **Pylint** | Linting focused on attribute and member access | Undefined variables (E0602), nonexistent members (E1101) |
+
+#### Running Validation Locally
+
+To run validation locally before pushing:
 
 ```bash
 # Run all linters and type checkers
 ruff check .                          # Fast linting
 mypy <module_path>                    # Type checking with mypy
 npx pyright <module_path>            # Type checking with pyright
-pylint <module_path> --disable=all --enable=E1101,E0611,E1102,E1120,E1121
+pylint <module_path> --disable=all --enable=E0602,E1101,E0611,E1102,E1120,E1121
 
 # Run import smoke tests
 pytest tests/test_imports.py -v
 ```
 
+#### Common Error Patterns and Fixes
+
+**1. Undefined Variable (E0602)**
+```python
+# ❌ Bad - Variable used before definition
+def process_data():
+    result = calculate()  # 'calculate' is not defined
+    return result
+
+# ✅ Good - Variable properly defined or imported
+from utils import calculate
+
+def process_data():
+    result = calculate()
+    return result
+```
+
+**2. Nonexistent Member/Attribute (E1101)**
+```python
+# ❌ Bad - Hallucinated attribute
+class Config:
+    def __init__(self):
+        self.host = "localhost"
+
+config = Config()
+print(config.hostname)  # AttributeError: 'Config' has no attribute 'hostname'
+
+# ✅ Good - Use actual attribute
+config = Config()
+print(config.host)  # Works correctly
+```
+
+**3. Type Errors (MyPy/Pyright)**
+```python
+# ❌ Bad - Missing type hints and return type
+def fetch_data(url):
+    response = requests.get(url)
+    return response.json()
+
+# ✅ Good - Proper type hints
+import requests
+from typing import Any
+
+def fetch_data(url: str) -> dict[str, Any]:
+    response = requests.get(url)
+    return response.json()
+```
+
+**4. Optional Member Access**
+```python
+# ❌ Bad - Accessing optional without checking
+from typing import Optional
+
+def get_user_name(user: Optional[dict]) -> str:
+    return user["name"]  # Error: 'user' may be None
+
+# ✅ Good - Check for None first
+from typing import Optional
+
+def get_user_name(user: Optional[dict]) -> str:
+    if user is None:
+        return "Unknown"
+    return user.get("name", "Unknown")
+```
+
+**5. Dynamically-checked capabilities**
+```python
+# ✅ Acceptable - runtime-checked optional method
+from typing import Protocol, runtime_checkable
+
+@runtime_checkable
+class Pushable(Protocol):
+    def push(self) -> None: ...
+
+def safe_push(collector: object) -> None:
+    if isinstance(collector, Pushable):
+        collector.push()
+```
+Use a small `Protocol` + `isinstance` check for optional capabilities instead of scattering `# type: ignore` or `# pylint: disable` on dynamic attributes.
+
+#### CI Pipeline Behavior
+
 The CI pipeline includes:
-- Static type checking (mypy, pyright)
-- Linting (ruff, pylint)
-- Import smoke tests to ensure all modules load without errors
-- Runtime validation for configs and JSON payloads (via Pydantic where applicable)
+- **Ruff**: Reports style issues (non-blocking for warnings)
+- **Pylint**: **FAILS** the build on critical errors (E0602, E1101, E0611, E1102, E1120, E1121)
+- **MyPy**: **FAILS** the build on type errors (strict mode enabled)
+- **Pyright**: **FAILS** the build on attribute access errors
+- **Import smoke tests**: **FAILS** if any module cannot be imported
+
+These checks catch:
+- Hallucinated methods and attributes
+- Undefined variables
+- Type mismatches
+- Missing imports
+- Incorrect function signatures
+
+#### Fixing CI Failures
+
+If your PR fails static analysis:
+
+1. **Review the CI logs** to identify which tool reported the error
+2. **Run the tool locally** to reproduce the issue
+3. **Fix the actual problem** - don't just add `# type: ignore` or disable checks
+4. **Re-run locally** to verify the fix
+5. **Push the changes** - CI will automatically re-run
+
+**Example CI failure**:
+```
+Error: Pylint found critical errors in 2 module(s)
+  chunking/app/service.py:45: E1101: Instance of 'Config' has no 'max_chunk_size' member
+```
+
+**How to fix**:
+1. Check the `Config` class definition
+2. Either add the missing attribute or fix the typo
+3. Run `pylint chunking/app/ --disable=all --enable=E1101` to verify
+4. Commit and push
 
 ### Key Patterns for Contributors
 

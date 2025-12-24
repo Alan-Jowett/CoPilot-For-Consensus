@@ -4,21 +4,21 @@
 """Abstract event publisher interface."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Any
 
 
 class EventPublisher(ABC):
     """Abstract base class for event publishers."""
 
     @abstractmethod
-    def publish(self, exchange: str, routing_key: str, event: Dict[str, Any]) -> None:
+    def publish(self, exchange: str, routing_key: str, event: dict[str, Any]) -> None:
         """Publish an event to the message bus.
-        
+
         Args:
             exchange: Exchange name (e.g., "copilot.events")
             routing_key: Routing key (e.g., "archive.ingested")
             event: Event data as dictionary
-            
+
         Raises:
             Exception: If publishing fails for any reason
         """
@@ -27,7 +27,7 @@ class EventPublisher(ABC):
     @abstractmethod
     def connect(self) -> None:
         """Connect to the message bus.
-        
+
         Raises:
             Exception: If connection fails for any reason
         """
@@ -48,7 +48,7 @@ def create_publisher(
     **kwargs
 ) -> EventPublisher:
     """Factory function to create an event publisher.
-    
+
     Args:
         message_bus_type: Type of message bus ("rabbitmq", "azureservicebus", or "noop")
         host: Message bus host (for RabbitMQ)
@@ -62,10 +62,10 @@ def create_publisher(
                 - queue_name: Default queue name
                 - topic_name: Default topic name
                 - use_managed_identity: Use Azure managed identity (default: False)
-        
+
     Returns:
         EventPublisher instance
-        
+
     Raises:
         ValueError: If message_bus_type is not recognized
     """

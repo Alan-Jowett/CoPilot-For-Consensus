@@ -6,10 +6,9 @@
 Used primarily in test environments where schema files are available locally.
 """
 
-from pathlib import Path
-from typing import Dict, Optional
 import json
 import logging
+from pathlib import Path
 
 from .schema_provider import SchemaProvider
 
@@ -19,7 +18,7 @@ logger = logging.getLogger(__name__)
 class FileSchemaProvider(SchemaProvider):
     """Schema provider that loads schemas from JSON files on disk."""
 
-    def __init__(self, schema_dir: Optional[Path] = None):
+    def __init__(self, schema_dir: Path | None = None):
         """Initialize the file-based schema provider.
 
         Args:
@@ -37,16 +36,16 @@ class FileSchemaProvider(SchemaProvider):
             error_msg = f"Schema directory does not exist: {self.schema_dir}"
             logger.error(error_msg)
             raise FileNotFoundError(error_msg)
-        
+
         if not self.schema_dir.is_dir():
             error_msg = f"Schema path is not a directory: {self.schema_dir}"
             logger.error(error_msg)
             raise NotADirectoryError(error_msg)
-        
-        logger.info(f"Loading schemas from: {self.schema_dir}")
-        self._schema_cache: Dict[str, Dict] = {}
 
-    def get_schema(self, event_type: str) -> Optional[Dict]:
+        logger.info(f"Loading schemas from: {self.schema_dir}")
+        self._schema_cache: dict[str, dict] = {}
+
+    def get_schema(self, event_type: str) -> dict | None:
         """Retrieve the JSON schema for a given event type from disk.
 
         Args:
@@ -66,7 +65,7 @@ class FileSchemaProvider(SchemaProvider):
             return None
 
         try:
-            with open(schema_file, 'r', encoding='utf-8') as f:
+            with open(schema_file, encoding='utf-8') as f:
                 schema = json.load(f)
             self._schema_cache[event_type] = schema
             logger.debug(f"Loaded schema for event type: {event_type}")

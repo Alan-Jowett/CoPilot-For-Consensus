@@ -3,12 +3,12 @@
 
 # Core dependencies
 beautifulsoup4==4.14.3
-fastapi==0.125.0
-uvicorn==0.38.0
+fastapi==0.127.0
+uvicorn==0.40.0
 prometheus-client==0.23.1
 
 # Authentication
 PyJWT==2.10.1
-cryptography==44.0.1
+cryptography==46.0.3
 
 # NOTE: Adapters are installed separately in CI and Docker builds

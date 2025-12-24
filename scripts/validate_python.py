@@ -13,18 +13,17 @@ import argparse
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
 
-def run_command(cmd: List[str], description: str, check: bool = False) -> Tuple[int, str]:
+def run_command(cmd: list[str], description: str, check: bool = False) -> tuple[int, str]:
     """
     Run a command and return the result.
-    
+
     Args:
         cmd: Command and arguments to run
         description: Human-readable description of what's being run
         check: If True, raise exception on non-zero exit code
-        
+
     Returns:
         Tuple of (exit_code, output)
     """
@@ -32,7 +31,7 @@ def run_command(cmd: List[str], description: str, check: bool = False) -> Tuple[
     print(f"Running: {description}")
     print(f"Command: {' '.join(cmd)}")
     print('=' * 60)
-    
+
     try:
         result = subprocess.run(
             cmd,
@@ -40,14 +39,14 @@ def run_command(cmd: List[str], description: str, check: bool = False) -> Tuple[
             text=True,
             check=check
         )
-        
+
         if result.stdout:
             print(result.stdout)
         if result.stderr:
             print(result.stderr, file=sys.stderr)
-        
+
         return result.returncode, result.stdout + result.stderr
-    
+
     except subprocess.CalledProcessError as e:
         print(f"Error running {description}: {e}", file=sys.stderr)
         return e.returncode, str(e)
@@ -74,7 +73,7 @@ def validate_ruff(repo_root: Path, fix: bool = False) -> int:
     cmd = ["ruff", "check", str(repo_root)]
     if fix:
         cmd.append("--fix")
-    
+
     return run_command(cmd, "Ruff - Fast Python Linter")[0]
 
 
@@ -88,7 +87,7 @@ def validate_mypy(repo_root: Path, target: str = None) -> int:
             str(d / d.name) for d in (repo_root / "adapters").glob("copilot_*")
             if d.is_dir() and (d / d.name / "__init__.py").exists()
         ]
-    
+
     exit_codes = []
     for target_path in targets:
         exit_code, _ = run_command(
@@ -96,7 +95,7 @@ def validate_mypy(repo_root: Path, target: str = None) -> int:
             f"MyPy Type Checker - {Path(target_path).name}"
         )
         exit_codes.append(exit_code)
-    
+
     return max(exit_codes) if exit_codes else 0
 
 
@@ -108,7 +107,7 @@ def validate_pyright(repo_root: Path, target: str = None) -> int:
     except (subprocess.CalledProcessError, FileNotFoundError):
         print("\n⚠️  Pyright not found. Install with: npm install -g pyright")
         return 0
-    
+
     if target:
         targets = [str(repo_root / target)]
     else:
@@ -117,7 +116,7 @@ def validate_pyright(repo_root: Path, target: str = None) -> int:
             str(d / d.name) for d in (repo_root / "adapters").glob("copilot_*")
             if d.is_dir() and (d / d.name / "__init__.py").exists()
         ]
-    
+
     exit_codes = []
     for target_path in targets:
         exit_code, _ = run_command(
@@ -125,7 +124,7 @@ def validate_pyright(repo_root: Path, target: str = None) -> int:
             f"Pyright Type Checker - {Path(target_path).name}"
         )
         exit_codes.append(exit_code)
-    
+
     return max(exit_codes) if exit_codes else 0
 
 
@@ -139,7 +138,7 @@ def validate_pylint(repo_root: Path, target: str = None) -> int:
             str(d / d.name) for d in (repo_root / "adapters").glob("copilot_*")
             if d.is_dir() and (d / d.name / "__init__.py").exists()
         ]
-    
+
     exit_codes = []
     for target_path in targets:
         exit_code, _ = run_command(
@@ -152,7 +151,7 @@ def validate_pylint(repo_root: Path, target: str = None) -> int:
             f"Pylint Attribute Checker - {Path(target_path).name}"
         )
         exit_codes.append(exit_code)
-    
+
     return max(exit_codes) if exit_codes else 0
 
 
@@ -162,7 +161,7 @@ def run_import_tests(repo_root: Path) -> int:
     if not test_file.exists():
         print(f"⚠️  Import test file not found: {test_file}")
         return 0
-    
+
     return run_command(
         ["pytest", str(test_file), "-v", "--tb=short"],
         "Import Smoke Tests"
@@ -189,45 +188,45 @@ def main():
         "--target",
         help="Specific target directory to check (relative to repo root)"
     )
-    
+
     args = parser.parse_args()
     repo_root = get_repo_root()
-    
+
     print(f"\n🔍 Running Python validation checks in: {repo_root}\n")
-    
+
     # Track results
     results = {}
-    
+
     # Run selected tools
     if args.tool in ("ruff", "all"):
         results["ruff"] = validate_ruff(repo_root, fix=args.fix)
-    
+
     if args.tool in ("mypy", "all"):
         results["mypy"] = validate_mypy(repo_root, args.target)
-    
+
     if args.tool in ("pyright", "all"):
         results["pyright"] = validate_pyright(repo_root, args.target)
-    
+
     if args.tool in ("pylint", "all"):
         results["pylint"] = validate_pylint(repo_root, args.target)
-    
+
     if args.tool in ("import-tests", "all"):
         results["import-tests"] = run_import_tests(repo_root)
-    
+
     # Print summary
     print("\n" + "=" * 60)
     print("VALIDATION SUMMARY")
     print("=" * 60)
-    
+
     all_passed = True
     for tool, exit_code in results.items():
         status = "✅ PASSED" if exit_code == 0 else "❌ FAILED"
         print(f"{tool:20s}: {status}")
         if exit_code != 0:
             all_passed = False
-    
+
     print("=" * 60)
-    
+
     if all_passed:
         print("\n✅ All validation checks passed!")
         return 0

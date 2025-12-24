@@ -15,10 +15,10 @@ Environment variables:
     AZURE_MONITOR_CONNECTION_STRING or AZURE_MONITOR_INSTRUMENTATION_KEY
 """
 
+import logging
 import os
 import sys
 import time
-import logging
 
 # Add parent directory to path for local development
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))

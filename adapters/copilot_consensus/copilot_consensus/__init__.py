@@ -9,16 +9,16 @@ in the Copilot-for-Consensus system.
 
 __version__ = "0.1.0"
 
-from .thread import Thread, Message
 from .consensus import (
     ConsensusDetector,
-    ConsensusSignal,
     ConsensusLevel,
+    ConsensusSignal,
     HeuristicConsensusDetector,
-    MockConsensusDetector,
     MLConsensusDetector,
+    MockConsensusDetector,
     create_consensus_detector,
 )
+from .thread import Message, Thread
 
 __all__ = [
     # Version

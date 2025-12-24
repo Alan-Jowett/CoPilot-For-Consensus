@@ -4,11 +4,9 @@
 
 import os
 import time
-from typing import Dict
 
 from prometheus_client import Gauge, start_http_server
 from pymongo import MongoClient
-
 
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb://root:example@documentdb:27017/admin")
 DB_NAME = os.environ.get("MONGO_DB", "copilot")
@@ -23,7 +21,7 @@ doc_count_gauge = Gauge(
 )
 
 
-def get_counts(client: MongoClient) -> Dict[str, int]:
+def get_counts(client: MongoClient) -> dict[str, int]:
     db = client[DB_NAME]
     counts = {}
     # target collections - all collections used by the system

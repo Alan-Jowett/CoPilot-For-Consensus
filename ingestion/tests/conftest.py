@@ -3,9 +3,9 @@
 
 """Pytest configuration and fixtures."""
 import sys
+import types
 from pathlib import Path
 from unittest.mock import MagicMock
-import types
 
 # Mock pymongo before any imports that might use it
 # This prevents the SDK from trying to connect to MongoDB during tests

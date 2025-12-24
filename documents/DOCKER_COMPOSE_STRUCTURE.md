@@ -8,7 +8,7 @@ The Docker Compose configuration is split into three files for better organizati
 
 ### docker-compose.yml (Top-level)
 - **Purpose**: Main entry point that orchestrates all services
-- **Contains**: 
+- **Contains**:
   - `include` directives for infrastructure and services
   - Shared volumes (mongo_data, vector_data, prometheus_data, etc.)
   - Shared secrets (credentials, keys, OAuth tokens)

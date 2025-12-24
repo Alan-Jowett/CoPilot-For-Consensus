@@ -222,7 +222,7 @@ if echo "$CHANGED_FILES" | grep -q "^adapters/"; then
   # Adapter change: extract adapter name and run unit tests (excluding integration)
   ADAPTER=$(echo "$CHANGED_FILES" | grep "^adapters/" | head -1 | cut -d/ -f2)
   ADAPTER_PATH="adapters/$ADAPTER"
-  
+
   echo "Running unit tests for adapter: $ADAPTER"
   cd "$ADAPTER_PATH"
   python -m pip install --upgrade pip
@@ -231,11 +231,11 @@ if echo "$CHANGED_FILES" | grep -q "^adapters/"; then
   pytest tests/ -v --tb=short -m "not integration" \
     --junit-xml=test-results.xml \
     --cov=$(basename "$ADAPTER_PATH") --cov-report=lcov --cov-report=html --cov-report=term
-  
+
 elif echo "$CHANGED_FILES" | grep -qE "^(chunking|embedding|parsing|orchestrator|summarization|reporting|ingestion)/"; then
   # Service change: extract service name and run all tests (unit + integration)
   SERVICE=$(echo "$CHANGED_FILES" | grep -oE "^(chunking|embedding|parsing|orchestrator|summarization|reporting|ingestion)" | head -1)
-  
+
   echo "Running tests for service: $SERVICE"
   cd "$SERVICE"
   python -m pip install --upgrade pip
@@ -264,7 +264,7 @@ if ($adapterMatch) {
   # Adapter change: extract adapter name and run unit tests (excluding integration)
   $adapter = $adapterMatch -replace "^adapters/", "" -replace "/.*", ""
   $adapterPath = "adapters/$adapter"
-  
+
   Write-Host "Running unit tests for adapter: $adapter"
   Push-Location $adapterPath
   python -m pip install --upgrade pip
@@ -274,11 +274,11 @@ if ($adapterMatch) {
     --junit-xml=test-results.xml `
     --cov=$adapter --cov-report=lcov --cov-report=html --cov-report=term
   Pop-Location
-  
+
 } elseif ($serviceMatch) {
   # Service change: extract service name and run all tests (unit + integration)
   $service = $serviceMatch -replace "/.*", ""
-  
+
   Write-Host "Running tests for service: $service"
   Push-Location $service
   python -m pip install --upgrade pip
@@ -288,7 +288,7 @@ if ($adapterMatch) {
     --junit-xml=test-results.xml `
     --cov=app --cov-report=lcov --cov-report=html --cov-report=term
   Pop-Location
-  
+
 } else {
   Write-Host "No adapter or service changes detected."
   exit 1

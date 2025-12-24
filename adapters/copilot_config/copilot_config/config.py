@@ -5,9 +5,9 @@
 
 from .base import ConfigProvider
 from .env_provider import EnvConfigProvider
+from .factory import create_config_provider
 from .static_provider import StaticConfigProvider
 from .storage_provider import StorageConfigProvider
-from .factory import create_config_provider
 
 __all__ = [
     "ConfigProvider",

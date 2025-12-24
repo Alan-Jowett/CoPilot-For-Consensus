@@ -22,7 +22,7 @@ from pathlib import Path
 def validate_json_syntax(file_path: Path) -> tuple[bool, str]:
     """Validate JSON syntax."""
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             json.load(f)
         return True, "Valid JSON syntax"
     except json.JSONDecodeError as e:
@@ -34,28 +34,28 @@ def validate_json_syntax(file_path: Path) -> tuple[bool, str]:
 def validate_template_structure(file_path: Path) -> tuple[bool, list[str]]:
     """Validate ARM template structure."""
     errors = []
-    
+
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             template = json.load(f)
-        
+
         # Check required sections
         required_sections = ["$schema", "contentVersion", "resources"]
         for section in required_sections:
             if section not in template:
                 errors.append(f"Missing required section: {section}")
-        
+
         # Validate schema
         if "$schema" in template:
             expected_schema_prefix = "https://schema.management.azure.com/schemas/"
             if not template["$schema"].startswith(expected_schema_prefix):
                 errors.append(f"Invalid schema URL: {template['$schema']}")
-        
+
         # Validate contentVersion
         if "contentVersion" in template:
             if not isinstance(template["contentVersion"], str):
                 errors.append("contentVersion must be a string")
-        
+
         # Validate parameters section
         if "parameters" in template:
             params = template["parameters"]
@@ -67,7 +67,7 @@ def validate_template_structure(file_path: Path) -> tuple[bool, list[str]]:
                         errors.append(f"Parameter '{param_name}' must be an object")
                     elif "type" not in param_def:
                         errors.append(f"Parameter '{param_name}' missing 'type' property")
-        
+
         # Validate resources section
         if "resources" in template:
             resources = template["resources"]
@@ -84,7 +84,7 @@ def validate_template_structure(file_path: Path) -> tuple[bool, list[str]]:
                                 errors.append(
                                     f"Resource at index {i} missing required property: {prop}"
                                 )
-        
+
         # Validate outputs section (if present)
         if "outputs" in template:
             outputs = template["outputs"]
@@ -98,9 +98,9 @@ def validate_template_structure(file_path: Path) -> tuple[bool, list[str]]:
                         errors.append(f"Output '{output_name}' missing 'type' property")
                     elif "value" not in output_def:
                         errors.append(f"Output '{output_name}' missing 'value' property")
-        
+
         return len(errors) == 0, errors
-    
+
     except Exception as e:
         return False, [f"Error validating template structure: {e}"]
 
@@ -108,18 +108,18 @@ def validate_template_structure(file_path: Path) -> tuple[bool, list[str]]:
 def validate_parameters_file(file_path: Path) -> tuple[bool, list[str]]:
     """Validate ARM parameters file."""
     errors = []
-    
+
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             params_file = json.load(f)
-        
+
         # Check required sections
         if "$schema" not in params_file:
             errors.append("Missing required section: $schema")
-        
+
         if "contentVersion" not in params_file:
             errors.append("Missing required section: contentVersion")
-        
+
         if "parameters" not in params_file:
             errors.append("Missing required section: parameters")
         else:
@@ -134,9 +134,9 @@ def validate_parameters_file(file_path: Path) -> tuple[bool, list[str]]:
                         errors.append(
                             f"Parameter '{param_name}' must have either 'value' or 'reference'"
                         )
-        
+
         return len(errors) == 0, errors
-    
+
     except Exception as e:
         return False, [f"Error validating parameters file: {e}"]
 
@@ -146,18 +146,18 @@ def main():
     script_dir = Path(__file__).parent
     template_file = script_dir / "azuredeploy.json"
     parameters_file = script_dir / "azuredeploy.parameters.json"
-    
+
     print("ARM Template Validation")
     print("=" * 60)
-    
+
     all_valid = True
-    
+
     # Validate template JSON syntax
     print(f"\nValidating template file: {template_file}")
     valid, message = validate_json_syntax(template_file)
     print(f"  JSON Syntax: {'✓ PASS' if valid else '✗ FAIL'} - {message}")
     all_valid = all_valid and valid
-    
+
     # Validate template structure
     if valid:
         valid, errors = validate_template_structure(template_file)
@@ -168,13 +168,13 @@ def main():
             for error in errors:
                 print(f"    - {error}")
             all_valid = False
-    
+
     # Validate parameters file JSON syntax
     print(f"\nValidating parameters file: {parameters_file}")
     valid, message = validate_json_syntax(parameters_file)
     print(f"  JSON Syntax: {'✓ PASS' if valid else '✗ FAIL'} - {message}")
     all_valid = all_valid and valid
-    
+
     # Validate parameters file structure
     if valid:
         valid, errors = validate_parameters_file(parameters_file)
@@ -185,7 +185,7 @@ def main():
             for error in errors:
                 print(f"    - {error}")
             all_valid = False
-    
+
     # Summary
     print("\n" + "=" * 60)
     if all_valid:

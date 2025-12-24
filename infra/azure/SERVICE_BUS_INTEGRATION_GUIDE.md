@@ -42,13 +42,13 @@ message_bus_kwargs = {}
 if config.message_bus_type == "azureservicebus":
     # Check if using managed identity mode
     use_managed_identity = os.getenv("MESSAGE_BUS_USE_MANAGED_IDENTITY", "false").lower() == "true"
-    
+
     if use_managed_identity:
         # Managed Identity mode
         fully_qualified_namespace = os.getenv("MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE")
         if not fully_qualified_namespace:
             raise ValueError("MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE is required when using managed identity")
-        
+
         message_bus_kwargs = {
             "fully_qualified_namespace": fully_qualified_namespace,
             "use_managed_identity": True,
@@ -60,7 +60,7 @@ if config.message_bus_type == "azureservicebus":
         connection_string = os.getenv("MESSAGE_BUS_CONNECTION_STRING")
         if not connection_string:
             raise ValueError("MESSAGE_BUS_CONNECTION_STRING is required when not using managed identity")
-        
+
         message_bus_kwargs = {
             "connection_string": connection_string,
             "queue_name": "archive.ingested",  # Or appropriate queue/topic name
@@ -95,23 +95,23 @@ You can create a helper function to standardize this across all services:
 ```python
 def get_message_bus_kwargs(message_bus_type: str) -> dict:
     """Get message bus connection parameters based on type and environment variables.
-    
+
     Args:
         message_bus_type: Type of message bus (e.g., 'azureservicebus', 'rabbitmq')
-        
+
     Returns:
         Dictionary of connection parameters for the create_publisher/create_subscriber factories
     """
     if message_bus_type != "azureservicebus":
         return {}
-    
+
     use_managed_identity = os.getenv("MESSAGE_BUS_USE_MANAGED_IDENTITY", "false").lower() == "true"
-    
+
     if use_managed_identity:
         fully_qualified_namespace = os.getenv("MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE")
         if not fully_qualified_namespace:
             raise ValueError("MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE is required when using managed identity")
-        
+
         return {
             "fully_qualified_namespace": fully_qualified_namespace,
             "use_managed_identity": True,
@@ -120,7 +120,7 @@ def get_message_bus_kwargs(message_bus_type: str) -> dict:
         connection_string = os.getenv("MESSAGE_BUS_CONNECTION_STRING")
         if not connection_string:
             raise ValueError("MESSAGE_BUS_CONNECTION_STRING is required when not using managed identity")
-        
+
         return {
             "connection_string": connection_string,
         }
@@ -144,22 +144,22 @@ The following services use the message bus and need to be updated:
 
 1. **ingestion** (`ingestion/main.py`) - Producer only
    - Needs: `queue_name` or `topic_name` parameter
-   
+
 2. **parsing** (`parsing/main.py`) - Consumer + Producer
    - Needs: `queue_name="archive.ingested"` for subscriber
-   
+
 3. **chunking** (`chunking/main.py`) - Consumer + Producer
    - Needs: `queue_name` parameter for subscriber
-   
+
 4. **embedding** (`embedding/main.py`) - Consumer + Producer
    - Needs: `queue_name` parameter for subscriber
-   
+
 5. **orchestrator** (`orchestrator/main.py`) - Consumer + Producer
    - Needs: `queue_name` or `topic_name` parameter
-   
+
 6. **summarization** (`summarization/main.py`) - Consumer + Producer
    - Needs: `queue_name` parameter for subscriber
-   
+
 7. **reporting** (`reporting/main.py`) - Consumer + Producer
    - Needs: `queue_name` parameter for subscriber
 
@@ -196,7 +196,7 @@ The ARM template automatically assigns these roles when managed identity is enab
 - **Azure Service Bus Data Sender** (for producers)
   - Role ID: `69a216fc-b8fb-44d4-bc22-1f3c7cd27a98`
   - Services: ingestion, parsing, chunking, embedding, orchestrator, summarization, reporting
-  
+
 - **Azure Service Bus Data Receiver** (for consumers)
   - Role ID: `4f6d3b9b-027b-4f4c-9142-0e5a2a2247e0`
   - Services: parsing, chunking, embedding, orchestrator, summarization, reporting
@@ -221,7 +221,7 @@ The ARM template automatically assigns these roles when managed identity is enab
 
 **Cause**: Managed identity doesn't have permission to access Service Bus.
 
-**Solution**: 
+**Solution**:
 1. Verify the Container App has a managed identity assigned
 2. Check that RBAC roles are assigned to the identity on the Service Bus namespace
 3. Review Azure Activity Logs for authorization failures

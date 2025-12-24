@@ -144,7 +144,7 @@ class SchemaProvider:
                 "required": ["user_id", "name", "email"]
             }
         }
-    
+
     def get_schema(self, schema_name):
         return self.schemas.get(schema_name)
 

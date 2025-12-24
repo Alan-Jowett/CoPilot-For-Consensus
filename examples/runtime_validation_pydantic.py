@@ -15,13 +15,12 @@ Pydantic provides:
 - IDE autocomplete and type checking support
 """
 
-from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
 from enum import Enum
+from typing import Any, Literal
 
 try:
-    from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
-    from pydantic import ValidationError
+    from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 except ImportError:
     print("Pydantic not installed. Install with: pip install pydantic")
     raise
@@ -41,7 +40,7 @@ class EventType(str, Enum):
 class MessageEvent(BaseModel):
     """
     Base model for all message bus events.
-    
+
     This ensures all events have required fields and validates
     their types at runtime.
     """
@@ -49,22 +48,22 @@ class MessageEvent(BaseModel):
         use_enum_values=True,  # Convert enum to string
         validate_assignment=True,  # Validate on attribute assignment
     )
-    
+
     event_type: EventType
     document_id: str = Field(..., min_length=1, description="Document identifier")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class ChunksPreparedEvent(MessageEvent):
     """Event emitted when chunks are prepared."""
     event_type: Literal[EventType.CHUNKS_PREPARED] = EventType.CHUNKS_PREPARED
     chunk_count: int = Field(..., gt=0, description="Number of chunks created")
-    chunk_ids: List[str] = Field(..., min_length=1)
-    
+    chunk_ids: list[str] = Field(..., min_length=1)
+
     @field_validator('chunk_ids')
     @classmethod
-    def validate_chunk_ids(cls, v: List[str], info) -> List[str]:
+    def validate_chunk_ids(cls, v: list[str], info) -> list[str]:
         """Ensure chunk_ids count matches chunk_count."""
         chunk_count = info.data.get('chunk_count')
         if chunk_count is not None and len(v) != chunk_count:
@@ -92,23 +91,23 @@ class DocumentSummary(BaseModel):
             }
         }
     )
-    
+
     document_id: str
-    thread_id: Optional[str] = None
+    thread_id: str | None = None
     subject: str = Field(..., min_length=1)
     summary: str = Field(..., min_length=1)
-    consensus_level: Optional[str] = Field(None, pattern="^(high|medium|low|none)$")
+    consensus_level: str | None = Field(None, pattern="^(high|medium|low|none)$")
     created_at: datetime
     updated_at: datetime
 
 
 class PaginatedResponse(BaseModel):
     """Generic paginated response model."""
-    items: List[DocumentSummary]
+    items: list[DocumentSummary]
     total: int = Field(..., ge=0)
     page: int = Field(..., ge=1)
     page_size: int = Field(..., ge=1, le=100)
-    
+
     @model_validator(mode='after')
     def validate_pagination(self):
         """Ensure pagination values are consistent."""
@@ -127,9 +126,9 @@ class DatabaseConfig(BaseModel):
     host: str = Field(..., min_length=1)
     port: int = Field(..., ge=1, le=65535)
     database: str = Field(..., min_length=1)
-    username: Optional[str] = None
-    password: Optional[str] = None
-    
+    username: str | None = None
+    password: str | None = None
+
     @property
     def connection_string(self) -> str:
         """Build MongoDB connection string."""
@@ -153,7 +152,7 @@ class ServiceConfig(BaseModel):
     database: DatabaseConfig
     message_bus: MessageBusConfig
     log_level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
-    
+
     @field_validator('service_name')
     @classmethod
     def validate_service_name(cls, v: str) -> str:
@@ -175,7 +174,7 @@ class ServiceConfig(BaseModel):
 def example_event_validation():
     """Demonstrate event validation."""
     print("\n=== Event Validation Example ===\n")
-    
+
     # Valid event
     try:
         event = ChunksPreparedEvent(
@@ -187,7 +186,7 @@ def example_event_validation():
         print(f"  {event.model_dump_json(indent=2)}")
     except ValidationError as e:
         print(f"✗ Validation failed: {e}")
-    
+
     # Invalid event - missing required field
     print("\nAttempting to create event with missing chunk_ids...")
     try:
@@ -200,7 +199,7 @@ def example_event_validation():
     except ValidationError as e:
         print("✓ Validation correctly caught missing field:")
         print(f"  {e}")
-    
+
     # Invalid event - mismatched counts
     print("\nAttempting to create event with mismatched counts...")
     try:
@@ -218,7 +217,7 @@ def example_event_validation():
 def example_api_response_validation():
     """Demonstrate API response validation."""
     print("\n=== API Response Validation Example ===\n")
-    
+
     # Simulate API response
     api_response = {
         "items": [
@@ -235,7 +234,7 @@ def example_api_response_validation():
         "page": 1,
         "page_size": 10
     }
-    
+
     try:
         response = PaginatedResponse(**api_response)
         print("✓ Valid API response parsed:")
@@ -243,7 +242,7 @@ def example_api_response_validation():
         print(f"  Items: {len(response.items)}")
     except ValidationError as e:
         print(f"✗ Validation failed: {e}")
-    
+
     # Invalid response - missing required field
     print("\nAttempting to parse response with missing 'subject'...")
     invalid_response = {
@@ -260,7 +259,7 @@ def example_api_response_validation():
         "page": 1,
         "page_size": 10
     }
-    
+
     try:
         response = PaginatedResponse(**invalid_response)
         print(f"✗ Should have failed but got: {response}")
@@ -272,7 +271,7 @@ def example_api_response_validation():
 def example_config_validation():
     """Demonstrate configuration validation."""
     print("\n=== Configuration Validation Example ===\n")
-    
+
     # Valid configuration
     config_data = {
         "service_name": "chunking",
@@ -288,7 +287,7 @@ def example_config_validation():
         },
         "log_level": "INFO"
     }
-    
+
     try:
         config = ServiceConfig(**config_data)
         print("✓ Valid configuration loaded:")
@@ -297,7 +296,7 @@ def example_config_validation():
         print(f"  Queue: {config.message_bus.queue_name}")
     except ValidationError as e:
         print(f"✗ Validation failed: {e}")
-    
+
     # Invalid configuration - wrong port
     print("\nAttempting to load config with invalid port...")
     invalid_config = {
@@ -313,7 +312,7 @@ def example_config_validation():
             "queue_name": "chunking_queue"
         }
     }
-    
+
     try:
         config = ServiceConfig(**invalid_config)
         print(f"✗ Should have failed but got: {config}")
@@ -325,7 +324,7 @@ def example_config_validation():
 def example_external_api_validation():
     """Demonstrate validation of external API responses."""
     print("\n=== External API Validation Example ===\n")
-    
+
     # Simulating an external API response with potential issues
     external_response = {
         "document_id": "msg_123",
@@ -335,7 +334,7 @@ def example_external_api_validation():
         "created_at": "2025-01-15T10:30:00Z",
         "updated_at": "2025-01-15T10:30:00Z"
     }
-    
+
     try:
         summary = DocumentSummary(**external_response)
         print(f"✗ Should have failed but got: {summary}")
@@ -350,12 +349,12 @@ if __name__ == "__main__":
     print("=" * 60)
     print("Runtime Validation Examples with Pydantic")
     print("=" * 60)
-    
+
     example_event_validation()
     example_api_response_validation()
     example_config_validation()
     example_external_api_validation()
-    
+
     print("\n" + "=" * 60)
     print("Summary")
     print("=" * 60)
@@ -367,7 +366,7 @@ Pydantic provides runtime validation that:
   ✓ Enables static type checking with mypy/pyright
   ✓ Auto-generates JSON schemas for documentation
   ✓ Integrates seamlessly with FastAPI
-  
+
 Use Pydantic models for:
   • Message bus event payloads
   • API request/response bodies

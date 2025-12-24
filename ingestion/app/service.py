@@ -5,21 +5,22 @@ import json
 import logging
 import os
 import time
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Dict, Any, Iterable, List, Tuple
+from typing import Any
 
-from copilot_events import EventPublisher, ArchiveIngestedEvent, ArchiveIngestionFailedEvent, ArchiveMetadata
+from copilot_archive_fetcher import SourceConfig, calculate_file_hash, create_fetcher
+from copilot_events import ArchiveIngestedEvent, ArchiveIngestionFailedEvent, ArchiveMetadata, EventPublisher
 from copilot_logging import Logger, create_logger
 from copilot_metrics import MetricsCollector, create_metrics_collector
 from copilot_reporting import ErrorReporter, create_error_reporter
-from copilot_archive_fetcher import create_fetcher, calculate_file_hash, SourceConfig
 from copilot_storage import DocumentStore
 
 from .exceptions import (
+    FetchError,
     IngestionError,
     SourceConfigurationError,
-    FetchError,
 )
 
 DEFAULT_CONFIG = {
@@ -54,11 +55,11 @@ DEFAULT_CONFIG = {
 
 class _ConfigWithDefaults:
     """Wrapper that combines a loaded config with defaults, without modifying the original."""
-    
+
     def __init__(self, config: object):
         # Store base config and allow per-instance overrides without mutating base
         self._config = config
-        self._overrides: Dict[str, Any] = {}
+        self._overrides: dict[str, Any] = {}
 
     def __setattr__(self, name: str, value: Any) -> None:
         """Allow overrides while keeping base config immutable."""
@@ -68,7 +69,7 @@ class _ConfigWithDefaults:
         # Record overrides instead of mutating the base config
         overrides = object.__getattribute__(self, "_overrides")
         overrides[name] = value
-    
+
     def __getattr__(self, name: str) -> Any:
         overrides = object.__getattribute__(self, "_overrides")
         if name in overrides:
@@ -88,19 +89,19 @@ def _apply_defaults(config: object) -> object:
     return _ConfigWithDefaults(config)
 
 
-def _expand(value: Optional[str]) -> Optional[str]:
+def _expand(value: str | None) -> str | None:
     return os.path.expandvars(value) if isinstance(value, str) else value
 
 
-def _source_from_mapping(source: Dict[str, Any]) -> SourceConfig:
+def _source_from_mapping(source: dict[str, Any]) -> SourceConfig:
     """Convert a raw mapping into a fetcher SourceConfig.
-    
+
     Args:
         source: Source configuration dictionary
-        
+
     Returns:
         SourceConfig object
-        
+
     Raises:
         SourceConfigurationError: If source is empty or missing required fields
     """
@@ -124,7 +125,7 @@ def _source_from_mapping(source: Dict[str, Any]) -> SourceConfig:
     )
 
 
-def _sanitize_source_dict(source_dict: Dict[str, Any]) -> Dict[str, Any]:
+def _sanitize_source_dict(source_dict: dict[str, Any]) -> dict[str, Any]:
     """Remove fields that should not be exposed or are not JSON serializable."""
     sanitized = source_dict.copy()
     sanitized.pop("_id", None)
@@ -135,16 +136,16 @@ def _sanitize_source_dict(source_dict: Dict[str, Any]) -> Dict[str, Any]:
     return sanitized
 
 
-def _enabled_sources(raw_sources: Iterable[Any]) -> List[SourceConfig]:
+def _enabled_sources(raw_sources: Iterable[Any]) -> list[SourceConfig]:
     """Normalize and filter enabled sources.
-    
+
     Args:
         raw_sources: Iterable of raw source configurations
-        
+
     Returns:
         List of enabled SourceConfig objects
     """
-    enabled_sources: List[SourceConfig] = []
+    enabled_sources: list[SourceConfig] = []
 
     for raw in raw_sources or []:
         try:
@@ -194,13 +195,13 @@ class IngestionService:
         self,
         config: object,
         publisher: EventPublisher,
-        document_store: Optional[DocumentStore] = None,
-        error_reporter: Optional[ErrorReporter] = None,
-        logger: Optional[Logger] = None,
-        metrics: Optional[MetricsCollector] = None,
+        document_store: DocumentStore | None = None,
+        error_reporter: ErrorReporter | None = None,
+        logger: Logger | None = None,
+        metrics: MetricsCollector | None = None,
     ):
         """Initialize ingestion service.
-        
+
         Args:
             config: Ingestion configuration
             publisher: Event publisher for publishing ingestion events
@@ -212,7 +213,7 @@ class IngestionService:
         self.config = _apply_defaults(config)
         self.publisher = publisher
         self.document_store = document_store
-        self.checksums: Dict[str, Dict[str, Any]] = {}
+        self.checksums: dict[str, dict[str, Any]] = {}
         self.logger = logger or create_logger(
             logger_type=config.log_type,
             level=config.log_level,
@@ -221,7 +222,7 @@ class IngestionService:
         self.metrics = metrics or create_metrics_collector(backend=config.metrics_backend)
         self._ensure_storage_path(self.config.storage_path)
         self._initial_storage_path = self.config.storage_path
-        
+
         # Initialize error reporter
         if error_reporter is None:
             self.error_reporter = create_error_reporter(
@@ -232,14 +233,14 @@ class IngestionService:
             )
         else:
             self.error_reporter = error_reporter
-        
+
         # Source status tracking
-        self._source_status: Dict[str, Dict[str, Any]] = {}
+        self._source_status: dict[str, dict[str, Any]] = {}
         self._stats = {
             "total_files_ingested": 0,
             "last_ingestion_at": None,
         }
-        
+
         self.load_checksums()
 
     @staticmethod
@@ -250,7 +251,7 @@ class IngestionService:
 
     def load_checksums(self) -> None:
         """Load checksums from metadata file.
-        
+
         If loading fails, starts with empty checksums to allow service to continue.
         This is intentional recovery - the service can start even if checksums
         can't be loaded (though files may be reprocessed).
@@ -259,7 +260,7 @@ class IngestionService:
 
         if os.path.exists(checksums_path):
             try:
-                with open(checksums_path, "r") as f:
+                with open(checksums_path) as f:
                     self.checksums = json.load(f)
                 self.logger.info(
                     "Loaded checksums",
@@ -281,7 +282,7 @@ class IngestionService:
 
     def save_checksums(self) -> None:
         """Save checksums to metadata file.
-        
+
         Raises on failure to ensure caller is aware that checksums weren't persisted.
         """
         checksums_path = os.path.join(self.config.storage_path, "metadata", "checksums.json")
@@ -312,10 +313,10 @@ class IngestionService:
 
     def is_file_already_ingested(self, file_hash: str) -> bool:
         """Check if a file has already been ingested.
-        
+
         Args:
             file_hash: SHA256 hash of the file
-            
+
         Returns:
             True if file has been ingested, False otherwise
         """
@@ -329,7 +330,7 @@ class IngestionService:
         first_seen: str,
     ) -> None:
         """Add a checksum entry.
-        
+
         Args:
             file_hash: SHA256 hash of the file
             archive_id: Unique identifier for the archive
@@ -344,12 +345,12 @@ class IngestionService:
 
     def delete_checksums_for_source(self, source_name: str) -> int:
         """Delete all checksums associated with a source.
-        
+
         This allows re-ingestion of previously processed files from the source.
-        
+
         Args:
             source_name: Name of the source
-            
+
         Returns:
             Number of checksums deleted
         """
@@ -357,7 +358,7 @@ class IngestionService:
         # Files from a source are stored in: {storage_path}/{source_name}/*
         # Normalize the base source path so comparisons work across platforms
         source_root = os.path.normpath(os.path.join(self.config.storage_path, source_name))
-        
+
         hashes_to_delete = []
         for file_hash, metadata in self.checksums.items():
             file_path = metadata.get("file_path", "")
@@ -365,7 +366,7 @@ class IngestionService:
             if not file_path or not file_path.strip():
                 continue
             normalized_file_path = os.path.normpath(file_path)
-            
+
             # Check if this file belongs to the source
             # Use path comparison that checks if file is in the source directory
             # by verifying the normalized path is equal to or starts with source_root followed by separator
@@ -375,31 +376,31 @@ class IngestionService:
             elif normalized_file_path.startswith(source_root + os.sep):
                 # File is in a subdirectory of source_root
                 hashes_to_delete.append(file_hash)
-        
+
         # Delete the identified hashes
         for file_hash in hashes_to_delete:
             del self.checksums[file_hash]
-        
+
         if hashes_to_delete:
             self.logger.info(
                 "Deleted checksums for source",
                 source_name=source_name,
                 count=len(hashes_to_delete),
             )
-        
+
         return len(hashes_to_delete)
 
     def ingest_archive(
         self,
         source: object,
-        max_retries: Optional[int] = None,
+        max_retries: int | None = None,
     ) -> None:
         """Ingest archives from a source.
-        
+
         Args:
             source: Source configuration
             max_retries: Maximum number of retries (uses config default if None)
-            
+
         Raises:
             SourceConfigurationError: If source configuration is invalid
             FetchError: If fetching archives fails after all retries
@@ -587,7 +588,7 @@ class IngestionService:
                     files_processed,
                     files_skipped,
                 )
-                
+
                 # Update source status tracking
                 self._update_source_status(
                     source.name,
@@ -595,7 +596,7 @@ class IngestionService:
                     files_processed=files_processed,
                     files_skipped=files_skipped,
                 )
-                
+
                 # Success - method returns normally without exception
                 return
 
@@ -611,7 +612,7 @@ class IngestionService:
                     attempt=attempt + 1,
                     source_name=source.name,
                 )
-                
+
                 # Report error with context
                 self.error_reporter.report(
                     e,
@@ -670,12 +671,12 @@ class IngestionService:
         # Should never reach here due to loop structure, but add safety
         raise IngestionError(f"Ingestion failed for unknown reason (source: {source.name})")
 
-    def ingest_all_enabled_sources(self) -> Dict[str, Optional[Exception]]:
+    def ingest_all_enabled_sources(self) -> dict[str, Exception | None]:
         """Ingest from all enabled sources.
-        
+
         Attempts ingestion for each enabled source, catching exceptions to allow
         other sources to be processed even if one fails.
-        
+
         Returns:
             Dictionary mapping source name to exception (None if successful).
             - None value indicates success
@@ -707,10 +708,10 @@ class IngestionService:
 
     def _calculate_directory_hash(self, dir_path: str) -> str:
         """Calculate hash of all files in a directory.
-        
+
         Args:
             dir_path: Path to the directory
-            
+
         Returns:
             Combined hash of all files
         """
@@ -728,10 +729,10 @@ class IngestionService:
 
     def _calculate_directory_size(self, dir_path: str) -> int:
         """Calculate total size of all files in a directory.
-        
+
         Args:
             dir_path: Path to the directory
-            
+
         Returns:
             Total size in bytes
         """
@@ -746,10 +747,10 @@ class IngestionService:
 
     def _save_ingestion_log(self, metadata: ArchiveMetadata) -> None:
         """Save ingestion metadata to log file.
-        
+
         This is best-effort audit logging. Failures are logged but not raised
         since audit log failures should not block ingestion processing.
-        
+
         Args:
             metadata: Archive metadata to log
         """
@@ -783,11 +784,11 @@ class IngestionService:
         ingestion_date: str,
     ) -> None:
         """Write archive record to document store.
-        
+
         Creates a document in the archives collection with metadata about the
         ingested archive. The status is set to 'pending' initially, and will
         be updated to 'processed' by the parsing service after parsing completes.
-        
+
         Args:
             archive_id: Unique identifier for the archive
             source: Source configuration
@@ -831,7 +832,7 @@ class IngestionService:
                 source=source.name,
                 file_path=file_path,
             )
-            
+
             # Emit metric for archive creation with pending status
             if self.metrics:
                 self.metrics.increment(
@@ -861,17 +862,17 @@ class IngestionService:
 
     def _publish_success_event(self, metadata: ArchiveMetadata) -> None:
         """Publish ArchiveIngested event.
-        
+
         Args:
             metadata: Archive metadata
-            
+
         Raises:
             Exception: Re-raises any exception from publisher to ensure visibility
         """
         # Convert metadata to dict and remove status field (not part of event schema)
         event_data = metadata.to_dict()
         event_data.pop('status', None)  # Remove status field if present
-        
+
         try:
             event = ArchiveIngestedEvent(data=event_data)
 
@@ -906,14 +907,14 @@ class IngestionService:
         ingestion_started_at: str,
     ) -> None:
         """Publish ArchiveIngestionFailed event.
-        
+
         Args:
             source: Source configuration
             error_message: Error message
             error_type: Type of error
             retry_count: Number of retries attempted
             ingestion_started_at: When ingestion started
-            
+
         Raises:
             Exception: Re-raises any exception from publisher to ensure visibility
         """
@@ -957,7 +958,7 @@ class IngestionService:
 
     def _record_success_metrics(
         self,
-        tags: Dict[str, str],
+        tags: dict[str, str],
         duration_seconds: float,
         files_processed: int,
         files_skipped: int,
@@ -983,7 +984,7 @@ class IngestionService:
             tags=tags,
         )
 
-    def _record_failure_metrics(self, tags: Dict[str, str], started_monotonic: float) -> None:
+    def _record_failure_metrics(self, tags: dict[str, str], started_monotonic: float) -> None:
         """Emit failure metrics for a source ingestion."""
         duration_seconds = time.monotonic() - started_monotonic
         self.metrics.increment(
@@ -997,7 +998,7 @@ class IngestionService:
         )
 
     @staticmethod
-    def _metric_tags(source: SourceConfig) -> Dict[str, str]:
+    def _metric_tags(source: SourceConfig) -> dict[str, str]:
         """Build consistent metric tags for a source."""
         name = getattr(source, "name", None) or (source.get("name") if isinstance(source, dict) else None)
         src_type = getattr(source, "source_type", None) or (source.get("source_type") if isinstance(source, dict) else None)
@@ -1005,17 +1006,17 @@ class IngestionService:
             "source_name": name or "unknown",
             "source_type": src_type or "unknown",
         }
-    
+
     # Source management API methods
-    
-    def get_stats(self) -> Dict[str, Any]:
+
+    def get_stats(self) -> dict[str, Any]:
         """Get service statistics.
-        
+
         Returns:
             Dictionary with service statistics
         """
         sources = _enabled_sources(getattr(self.config, "sources", []))
-        
+
         return {
             "sources_configured": len(getattr(self.config, "sources", [])),
             "sources_enabled": len(sources),
@@ -1023,18 +1024,18 @@ class IngestionService:
             "last_ingestion_at": self._stats.get("last_ingestion_at"),
             "version": getattr(self, "version", "unknown"),
         }
-    
-    def list_sources(self, enabled_only: bool = False) -> List[Dict[str, Any]]:
+
+    def list_sources(self, enabled_only: bool = False) -> list[dict[str, Any]]:
         """List all sources.
-        
+
         Args:
             enabled_only: If True, only return enabled sources
-            
+
         Returns:
             List of source configurations
         """
         sources = getattr(self.config, "sources", [])
-        
+
         result = []
         for source in sources:
             if isinstance(source, dict):
@@ -1052,24 +1053,24 @@ class IngestionService:
                     "enabled": getattr(source, "enabled", True),
                     "schedule": getattr(source, "schedule", None),
                 }
-            
+
             # Ensure password is not exposed
             if "password" in source_dict and source_dict["password"]:
                 source_dict["password"] = None
-            
+
             if enabled_only and not source_dict.get("enabled", True):
                 continue
-            
+
             result.append(source_dict)
-        
+
         return result
-    
-    def get_source(self, source_name: str) -> Optional[Dict[str, Any]]:
+
+    def get_source(self, source_name: str) -> dict[str, Any] | None:
         """Get a specific source by name.
-        
+
         Args:
             source_name: Name of the source
-            
+
         Returns:
             Source configuration or None if not found
         """
@@ -1078,73 +1079,73 @@ class IngestionService:
             if source.get("name") == source_name:
                 return source
         return None
-    
-    def create_source(self, source_data: Dict[str, Any]) -> Dict[str, Any]:
+
+    def create_source(self, source_data: dict[str, Any]) -> dict[str, Any]:
         """Create a new source.
-        
+
         Args:
             source_data: Source configuration data
-            
+
         Returns:
             Created source configuration
-            
+
         Raises:
             ValueError: If source name already exists or data is invalid
         """
         if not self.document_store:
             raise ValueError("Document store not configured")
-        
+
         # Validate required fields
         required_fields = {"name", "source_type", "url"}
         if not required_fields.issubset(source_data.keys()):
             missing = required_fields - set(source_data.keys())
             raise ValueError(f"Missing required fields: {missing}")
-        
+
         # Check if source already exists
         existing = self.get_source(source_data["name"])
         if existing:
             raise ValueError(f"Source '{source_data['name']}' already exists")
-        
+
         # Add default enabled flag if not present
         if "enabled" not in source_data:
             source_data["enabled"] = True
-        
+
         # Store in document store
         try:
             self.document_store.insert_document("sources", source_data)
-            
+
             # Reload sources from config
             self._reload_sources()
-            
+
             self.logger.info("Source created", source_name=source_data["name"])
-            
+
             # Return created source (without exposing password)
             return _sanitize_source_dict(source_data)
         except Exception as e:
             self.logger.error("Failed to create source", error=str(e), exc_info=True)
             raise ValueError(f"Failed to create source: {str(e)}")
-    
-    def update_source(self, source_name: str, source_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+
+    def update_source(self, source_name: str, source_data: dict[str, Any]) -> dict[str, Any] | None:
         """Update an existing source.
-        
+
         Args:
             source_name: Name of the source to update
             source_data: Updated source configuration
-            
+
         Returns:
             Updated source configuration or None if not found
-            
+
         Raises:
             ValueError: If update fails
         """
         if not self.document_store:
             raise ValueError("Document store not configured")
-        
+
         # Check if source exists
         existing = self.get_source(source_name)
         if not existing:
             return None
-        
+
         try:
             # Update in document store
             self.document_store.update_document(
@@ -1152,70 +1153,70 @@ class IngestionService:
                 {"name": source_name},
                 source_data
             )
-            
+
             # Reload sources from config
             self._reload_sources()
-            
+
             self.logger.info("Source updated", source_name=source_name)
-            
+
             # Return updated source (without exposing password)
             updated = source_data.copy()
             if "password" in updated and updated["password"]:
                 updated["password"] = None
-            
+
             return updated
         except Exception as e:
             self.logger.error("Failed to update source", error=str(e), exc_info=True)
             raise ValueError(f"Failed to update source: {str(e)}")
-    
+
     def delete_source(self, source_name: str) -> bool:
         """Delete a source.
-        
+
         Args:
             source_name: Name of the source to delete
-            
+
         Returns:
             True if deleted, False if not found
-            
+
         Raises:
             ValueError: If deletion fails
         """
         if not self.document_store:
             raise ValueError("Document store not configured")
-        
+
         # Check if source exists
         existing = self.get_source(source_name)
         if not existing:
             return False
-        
+
         try:
             # Delete from document store
             self.document_store.delete_document("sources", {"name": source_name})
-            
+
             # Reload sources from config
             self._reload_sources()
-            
+
             # Clear status tracking
             if source_name in self._source_status:
                 del self._source_status[source_name]
-            
+
             self.logger.info("Source deleted", source_name=source_name)
-            
+
             return True
         except Exception as e:
             self.logger.error("Failed to delete source", error=str(e), exc_info=True)
             raise ValueError(f"Failed to delete source: {str(e)}")
-    
-    def trigger_ingestion(self, source_name: str) -> Tuple[bool, str]:
+
+    def trigger_ingestion(self, source_name: str) -> tuple[bool, str]:
         """Trigger manual ingestion for a source.
-        
+
         When explicitly triggered, this method deletes any existing checksums
         for the source to force re-ingestion of all files, even if they were
         previously processed.
-        
+
         Args:
             source_name: Name of the source to ingest
-            
+
         Returns:
             Tuple of (success, message)
         """
@@ -1223,10 +1224,10 @@ class IngestionService:
         source = self.get_source(source_name)
         if not source:
             return False, f"Source '{source_name}' not found"
-        
+
         if not source.get("enabled", True):
             return False, f"Source '{source_name}' is disabled"
-        
+
         try:
             # Delete existing checksums to force re-ingestion
             deleted_count = self.delete_checksums_for_source(source_name)
@@ -1238,34 +1239,34 @@ class IngestionService:
                 )
                 # Save checksums after deletion to persist the change immediately
                 self.save_checksums()
-            
+
             # Convert to SourceConfig
             source_cfg = _source_from_mapping(source)
-            
+
             # Run ingestion
             # Note: ingest_archive will save checksums again after adding new ones
             self.ingest_archive(source_cfg)
-            
+
             return True, f"Ingestion triggered successfully for '{source_name}'"
         except Exception as e:
             return False, f"Ingestion failed: {str(e)}"
-    
-    def get_source_status(self, source_name: str) -> Optional[Dict[str, Any]]:
+
+    def get_source_status(self, source_name: str) -> dict[str, Any] | None:
         """Get status information for a source.
-        
+
         Args:
             source_name: Name of the source
-            
+
         Returns:
             Status information or None if source not found
         """
         source = self.get_source(source_name)
         if not source:
             return None
-        
+
         # Get status from tracking or create default
         status = self._source_status.get(source_name, {})
-        
+
         return {
             "name": source_name,
             "enabled": source.get("enabled", True),
@@ -1276,39 +1277,39 @@ class IngestionService:
             "files_processed": status.get("files_processed", 0),
             "files_skipped": status.get("files_skipped", 0),
         }
-    
+
     def _reload_sources(self):
         """Reload sources from document store."""
         if not self.document_store:
             return
-        
+
         try:
             from copilot_config.providers import DocStoreConfigProvider
-            
+
             doc_store_provider = DocStoreConfigProvider(self.document_store)
             sources = doc_store_provider.query_documents_from_collection("sources") or []
-            
+
             # Update config sources - handle both _ConfigWithDefaults and SimpleNamespace
             if hasattr(self.config, "_overrides"):
                 self.config._overrides["sources"] = sources
             else:
                 # For SimpleNamespace, just update the attribute
                 self.config.sources = sources
-            
+
             self.logger.info("Sources reloaded", source_count=len(sources))
         except Exception as e:
             self.logger.warning("Failed to reload sources", error=str(e), exc_info=True)
-    
+
     def _update_source_status(
         self,
         source_name: str,
         status: str,
-        error: Optional[str] = None,
+        error: str | None = None,
         files_processed: int = 0,
         files_skipped: int = 0,
     ):
         """Update status tracking for a source.
-        
+
         Args:
             source_name: Name of the source
             status: Status (success, failed)
@@ -1317,10 +1318,10 @@ class IngestionService:
             files_skipped: Number of files skipped
         """
         now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-        
+
         if source_name not in self._source_status:
             self._source_status[source_name] = {}
-        
+
         self._source_status[source_name].update({
             "last_run_at": now,
             "last_run_status": status,
@@ -1328,7 +1329,7 @@ class IngestionService:
             "files_processed": files_processed,
             "files_skipped": files_skipped,
         })
-        
+
         # Update global stats
         if status == "success":
             self._stats["total_files_ingested"] += files_processed

@@ -388,7 +388,7 @@ The system includes an authentication service that supports GitHub, Google, and 
         ```
      2. Edit the copied files and replace the placeholder values with your actual Microsoft OAuth credentials
      3. Save the files
-   
+
    **Note:** On Windows, use `Copy-Item` instead of `cp` in PowerShell.
 
 3. **Restart the auth service** to pick up the new credentials:
@@ -476,7 +476,7 @@ docker compose exec documentdb mongosh \
   --eval 'db.messages.deleteOne({message_id: "smoke-test-message-001"})'
 ```
 
-***  
+***
 
 ## Documentation
 

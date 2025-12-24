@@ -9,43 +9,45 @@ in the Copilot-for-Consensus system.
 
 __version__ = "0.1.0"
 
-from .publisher import EventPublisher, create_publisher
-from .rabbitmq_publisher import RabbitMQPublisher
-from .azureservicebuspublisher import AzureServiceBusPublisher
-from .noop_publisher import NoopPublisher
-from .subscriber import EventSubscriber
-from .rabbitmq_subscriber import RabbitMQSubscriber
-from .azureservicebussubscriber import AzureServiceBusSubscriber
-from .noop_subscriber import NoopSubscriber
-from .validating_publisher import ValidatingEventPublisher, ValidationError
-from .validating_subscriber import ValidatingEventSubscriber, SubscriberValidationError
 # Import event models from the schema validation module
 from copilot_schema_validation import (
-    BaseEvent,
     # Ingestion Service Events
     ArchiveIngestedEvent,
     ArchiveIngestionFailedEvent,
-    # Parsing Service Events
-    JSONParsedEvent,
-    ParsingFailedEvent,
-    # Chunking Service Events
-    ChunksPreparedEvent,
-    ChunkingFailedEvent,
-    # Embedding Service Events
-    EmbeddingsGeneratedEvent,
-    EmbeddingGenerationFailedEvent,
-    # Orchestration Service Events
-    SummarizationRequestedEvent,
-    OrchestrationFailedEvent,
-    # Summarization Service Events
-    SummaryCompleteEvent,
-    SummarizationFailedEvent,
-    # Reporting Service Events
-    ReportPublishedEvent,
-    ReportDeliveryFailedEvent,
     # Data Models
     ArchiveMetadata,
+    BaseEvent,
+    ChunkingFailedEvent,
+    # Chunking Service Events
+    ChunksPreparedEvent,
+    EmbeddingGenerationFailedEvent,
+    # Embedding Service Events
+    EmbeddingsGeneratedEvent,
+    # Parsing Service Events
+    JSONParsedEvent,
+    OrchestrationFailedEvent,
+    ParsingFailedEvent,
+    ReportDeliveryFailedEvent,
+    # Reporting Service Events
+    ReportPublishedEvent,
+    SummarizationFailedEvent,
+    # Orchestration Service Events
+    SummarizationRequestedEvent,
+    # Summarization Service Events
+    SummaryCompleteEvent,
 )
+
+from .azureservicebuspublisher import AzureServiceBusPublisher
+from .azureservicebussubscriber import AzureServiceBusSubscriber
+from .noop_publisher import NoopPublisher
+from .noop_subscriber import NoopSubscriber
+from .publisher import EventPublisher, create_publisher
+from .rabbitmq_publisher import RabbitMQPublisher
+from .rabbitmq_subscriber import RabbitMQSubscriber
+from .subscriber import EventSubscriber
+from .validating_publisher import ValidatingEventPublisher, ValidationError
+from .validating_subscriber import SubscriberValidationError, ValidatingEventSubscriber
+
 
 def create_subscriber(
     message_bus_type: str,
@@ -56,7 +58,7 @@ def create_subscriber(
     **kwargs
 ) -> EventSubscriber:
     """Create an event subscriber based on message bus type.
-    
+
     Args:
         message_bus_type: Type of message bus ("rabbitmq", "azureservicebus", or "noop")
         host: Message bus hostname (required for rabbitmq)
@@ -73,10 +75,10 @@ def create_subscriber(
                 - use_managed_identity: Use Azure managed identity (default: False)
                 - auto_complete: Auto-complete messages (default: False)
                 - max_wait_time: Max wait time for messages in seconds (default: 5)
-        
+
     Returns:
         EventSubscriber instance
-        
+
     Raises:
         ValueError: If message_bus_type is unknown
     """

@@ -16,8 +16,8 @@
       "minLength": 1,
       "description": "RFC 5322 Message-ID header value for the email (external identifier). This is NOT a hash; it is the message's original Message-ID, typically in the form '<unique@domain>'."
     },
-    "archive_id": { 
-      "type": "string", 
+    "archive_id": {
+      "type": "string",
       "minLength": 16,
       "maxLength": 16,
       "pattern": "^[A-Fa-f0-9]{16}$",
@@ -30,7 +30,7 @@
       "pattern": "^[A-Fa-f0-9]{16}$",
       "description": "Reference to the thread's canonical identifier (threads._id). Internal usage for grouping related messages; not an RFC field."
     },
-    "in_reply_to": { 
+    "in_reply_to": {
       "anyOf": [
         { "type": "string", "minLength": 1 },
         { "type": "null" }
@@ -43,7 +43,7 @@
       "minItems": 0,
       "description": "RFC 5322 References header: ordered list of ancestor Message-IDs forming the reply chain (external identifiers)."
     },
-    "subject": { 
+    "subject": {
       "anyOf": [
         { "type": "string" },
         { "type": "null" }
@@ -89,7 +89,7 @@
       },
       "minItems": 0
     },
-    "date": { 
+    "date": {
       "anyOf": [
         { "type": "string", "format": "date-time" },
         { "type": "null" }
@@ -126,12 +126,12 @@
       "enum": ["pending", "processing", "completed", "failed", "failed_max_retries"],
       "description": "Processing status for retry and workflow tracking"
     },
-    "attemptCount": { 
-      "type": "integer", 
+    "attemptCount": {
+      "type": "integer",
       "minimum": 0,
       "description": "Number of processing attempts for retry tracking"
     },
-    "lastAttemptTime": { 
+    "lastAttemptTime": {
       "anyOf": [
         { "type": "string", "format": "date-time" },
         { "type": "null" }

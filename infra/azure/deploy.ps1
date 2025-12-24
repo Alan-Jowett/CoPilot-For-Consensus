@@ -87,14 +87,14 @@ function Write-Error-Custom {
 # Function to check prerequisites
 function Test-Prerequisites {
     Write-Info "Checking prerequisites..."
-    
+
     # Check if Azure PowerShell module is installed
     if (-not (Get-Module -ListAvailable -Name Az.Resources)) {
         Write-Error-Custom "Azure PowerShell module (Az.Resources) is not installed."
         Write-Host "Please install it with: Install-Module -Name Az -AllowClobber -Scope CurrentUser"
         exit 1
     }
-    
+
     # Check if logged in to Azure
     try {
         $context = Get-AzContext
@@ -107,7 +107,7 @@ function Test-Prerequisites {
         Write-Error-Custom "Not logged in to Azure. Please run 'Connect-AzAccount' first."
         exit 1
     }
-    
+
     Write-Info "Prerequisites check passed."
 }
 
@@ -115,10 +115,10 @@ function Test-Prerequisites {
 function Start-Deployment {
     # Get script directory
     $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-    
+
     # Check prerequisites
     Test-Prerequisites
-    
+
     Write-Info "Deployment Configuration:"
     Write-Info "  Resource Group: $ResourceGroup"
     Write-Info "  Location: $Location"
@@ -126,14 +126,14 @@ function Start-Deployment {
     Write-Info "  Environment: $Environment"
     Write-Info "  Image Tag: $ImageTag"
     Write-Info "  Parameters File: $ParametersFile"
-    
+
     # Check if parameters file exists
     $ParametersPath = Join-Path $ScriptDir $ParametersFile
     if (-not (Test-Path $ParametersPath)) {
         Write-Error-Custom "Parameters file not found: $ParametersPath"
         exit 1
     }
-    
+
     # Create resource group if it doesn't exist
     Write-Info "Checking if resource group exists..."
     $rg = Get-AzResourceGroup -Name $ResourceGroup -ErrorAction SilentlyContinue
@@ -144,10 +144,10 @@ function Start-Deployment {
     else {
         Write-Info "Resource group already exists: $ResourceGroup"
     }
-    
+
     # Prepare template and parameters
     $TemplatePath = Join-Path $ScriptDir "azuredeploy.json"
-    
+
     # Validate template
     Write-Info "Validating ARM template..."
     $validationResult = Test-AzResourceGroupDeployment `
@@ -158,23 +158,23 @@ function Start-Deployment {
         -environment $Environment `
         -containerImageTag $ImageTag `
         -location $Location
-    
+
     if ($validationResult) {
         Write-Error-Custom "Template validation failed:"
         $validationResult | Format-List
         exit 1
     }
     Write-Info "Template validation passed."
-    
+
     if ($ValidateOnly) {
         Write-Info "Validation complete. Skipping deployment (-ValidateOnly specified)."
         return
     }
-    
+
     # Deploy template
     Write-Info "Starting deployment..."
     $DeploymentName = "$ProjectName-deployment-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-    
+
     try {
         $deployment = New-AzResourceGroupDeployment `
             -Name $DeploymentName `
@@ -186,16 +186,16 @@ function Start-Deployment {
             -containerImageTag $ImageTag `
             -location $Location `
             -Verbose
-        
+
         # NOTE: Parameters specified on the command line override those in the parameters file.
         # This allows script arguments (projectName, environment, etc.) to take precedence.
-        
+
         Write-Info "Deployment completed successfully!"
-        
+
         # Show deployment outputs
         Write-Info "Deployment outputs:"
         $deployment.Outputs | Format-Table -AutoSize
-        
+
         Write-Info ""
         Write-Info "Next steps:"
         Write-Info "1. Verify the deployment in Azure Portal"

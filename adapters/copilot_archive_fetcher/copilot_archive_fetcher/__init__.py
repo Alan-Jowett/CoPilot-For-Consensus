@@ -10,18 +10,18 @@ in the Copilot-for-Consensus system. Supports multiple source types with a unifi
 __version__ = "0.1.0"
 
 from .base import ArchiveFetcher, calculate_file_hash
-from .models import SourceConfig
-from .rsync_fetcher import RsyncFetcher
-from .http_fetcher import HTTPFetcher
-from .local_fetcher import LocalFetcher
-from .imap_fetcher import IMAPFetcher
-from .factory import create_fetcher
 from .exceptions import (
     ArchiveFetcherError,
-    UnsupportedSourceTypeError,
-    FetchError,
     ConfigurationError,
+    FetchError,
+    UnsupportedSourceTypeError,
 )
+from .factory import create_fetcher
+from .http_fetcher import HTTPFetcher
+from .imap_fetcher import IMAPFetcher
+from .local_fetcher import LocalFetcher
+from .models import SourceConfig
+from .rsync_fetcher import RsyncFetcher
 
 __all__ = [
     # Version

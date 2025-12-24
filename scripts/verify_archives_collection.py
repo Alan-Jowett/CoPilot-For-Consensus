@@ -13,6 +13,7 @@ Usage:
 
 import os
 import sys
+
 from pymongo import MongoClient
 
 
@@ -24,33 +25,33 @@ def verify_archives_collection():
     mongo_user = os.getenv("DOCUMENT_DATABASE_USER", "root")
     mongo_password = os.getenv("DOCUMENT_DATABASE_PASSWORD", "example")
     mongo_db = os.getenv("DOCUMENT_DATABASE_NAME", "copilot")
-    
+
     connection_string = f"mongodb://{mongo_user}:{mongo_password}@{mongo_host}:{mongo_port}/{mongo_db}?authSource=admin"
-    
+
     try:
         # Connect to MongoDB
         print(f"Connecting to MongoDB at {mongo_host}:{mongo_port}...")
         client = MongoClient(connection_string, serverSelectionTimeoutMS=5000)
-        
+
         # Test connection
         client.server_info()
         print("✓ Connected to MongoDB")
-        
+
         # Get database and collection
         db = client[mongo_db]
         archives = db.archives
-        
+
         # Count archives
         archive_count = archives.count_documents({})
         print(f"\n✓ Archives collection has {archive_count} documents")
-        
+
         if archive_count == 0:
             print("⚠ Warning: No archives found. Has ingestion run yet?")
             return True
-        
+
         # Get a sample archive
         sample_archive = archives.find_one()
-        
+
         print("\nSample archive document:")
         print(f"  archive_id: {sample_archive.get('archive_id', 'MISSING')}")
         print(f"  source: {sample_archive.get('source', 'MISSING')}")
@@ -60,24 +61,24 @@ def verify_archives_collection():
         print(f"  message_count: {sample_archive.get('message_count', 'MISSING')}")
         print(f"  file_path: {sample_archive.get('file_path', 'MISSING')}")
         print(f"  status: {sample_archive.get('status', 'MISSING')}")
-        
+
         # Verify required fields
         required_fields = ['archive_id', 'source', 'ingestion_date', 'status']
         missing_fields = [f for f in required_fields if f not in sample_archive]
-        
+
         if missing_fields:
             print(f"\n✗ Error: Missing required fields: {', '.join(missing_fields)}")
             return False
-        
+
         # Count by status
         print("\nArchive status breakdown:")
         for status in ['pending', 'processed', 'failed']:
             count = archives.count_documents({'status': status})
             print(f"  {status}: {count}")
-        
+
         print("\n✓ Archives collection verification successful!")
         return True
-        
+
     except Exception as e:
         print(f"\n✗ Error: {e}")
         return False

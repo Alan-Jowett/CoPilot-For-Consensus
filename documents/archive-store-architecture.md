@@ -37,7 +37,7 @@ The ArchiveStore adapter pattern provides an abstraction layer for archive stora
 ```
 
 ### Storage
-- **Volume Mount**: Shared Docker volume `raw_archives` 
+- **Volume Mount**: Shared Docker volume `raw_archives`
 - **Ingestion**: Mounts as `/data/raw_archives` (read-write)
 - **Parsing**: Mounts as `/data/raw_archives:ro` (read-only)
 - **Limitation**: Requires shared filesystem, not suitable for multi-node clusters
@@ -48,22 +48,22 @@ The ArchiveStore adapter pattern provides an abstraction layer for archive stora
 ```python
 class ArchiveStore(ABC):
     """Abstract interface for archive storage backends."""
-    
+
     def store_archive(self, source_name: str, file_path: str, content: bytes) -> str:
         """Store archive and return archive_id."""
-        
+
     def get_archive(self, archive_id: str) -> Optional[bytes]:
         """Retrieve archive content by ID."""
-        
+
     def get_archive_by_hash(self, content_hash: str) -> Optional[str]:
         """Retrieve archive ID by content hash (deduplication)."""
-        
+
     def archive_exists(self, archive_id: str) -> bool:
         """Check if archive exists."""
-        
+
     def delete_archive(self, archive_id: str) -> bool:
         """Delete archive."""
-        
+
     def list_archives(self, source_name: str) -> List[Dict[str, Any]]:
         """List all archives for a source."""
 ```
@@ -107,7 +107,7 @@ class ArchiveStore(ABC):
 - **Purpose**: Multi-node clusters, stateless services
 - **Storage**: MongoDB GridFS (files > 16MB) or collection (smaller files)
 - **Use Case**: Kubernetes, Docker Swarm, cloud deployments
-- **Benefits**: 
+- **Benefits**:
   - No shared volume required
   - Built-in replication
   - Content-addressable storage
@@ -193,7 +193,7 @@ services:
       - ARCHIVE_STORE_PATH=/data/raw_archives
     volumes:
       - raw_archives:/data/raw_archives
-  
+
   parsing:
     environment:
       - ARCHIVE_STORE_TYPE=local
@@ -212,7 +212,7 @@ services:
       - MONGODB_PORT=27017
       - ARCHIVE_STORE_DB=copilot_archives
     # No volume mount needed!
-  
+
   parsing:
     environment:
       - ARCHIVE_STORE_TYPE=mongodb

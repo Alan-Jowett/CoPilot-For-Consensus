@@ -18,7 +18,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 def generate_keys(output_dir: Path, key_size: int = 2048) -> None:
     """Generate RSA key pair.
-    
+
     Args:
         output_dir: Directory to save keys
         key_size: RSA key size in bits

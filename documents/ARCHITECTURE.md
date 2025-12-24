@@ -300,29 +300,29 @@ Services communicate via these domain events:
 ```mermaid
 graph LR
     A["📥 Ingestion Service<br/>(rsync/IMAP)"] -->|ArchiveIngested| MB["📬 Message Bus<br/>(RabbitMQ/ServiceBus)"]
-    
+
     MB -->|consume| B["🔍 Parsing Service<br/>(Extract & Normalize)"]
     B -->|JSONParsed| MB
     B -->|store JSON| DB["🗄️ Document DB<br/>(MongoDB/Cosmos)"]
-    
+
     MB -->|consume| C["✂️ Chunking Service<br/>(token-aware splits)"]
     C -->|ChunksPrepared| MB
-    
+
     MB -->|consume| D["🧠 Embedding Service<br/>(OpenAI/SentenceTransformers)"]
     D -->|EmbeddingsGenerated| MB
     D -->|store embeddings| VS["🔎 Vector Store<br/>(Azure Cognitive Search/Qdrant)"]
-    
+
     MB -->|consume| E["⚙️ Orchestration Layer<br/>(Semantic Kernel)"]
     E -->|REST API| VS
     E -->|REST API| DB
     E -->|triggers| F["📝 Summarization Service<br/>(LLM summarization)"]
-    
+
     F -->|SummaryComplete| MB
     F -->|store reports| DB
-    
+
     G["🎨 Reporting & Front-End<br/>(Dashboard/Export)"] -->|REST API| VS
     G -->|REST API| DB
-    
+
     H["📊 Prometheus<br/>(Metrics)"] -.->|scrape| A
     H -.->|scrape| B
     H -.->|scrape| C
@@ -330,10 +330,10 @@ graph LR
     H -.->|scrape| E
     H -.->|scrape| F
     H -.->|scrape| G
-    
+
     I["📊 Grafana<br/>(Visualization)"] -->|query| H
     I -->|query| J["📋 Loki<br/>(Logs)"]
-    
+
     K["📝 Promtail<br/>(Log Collector)"] -.->|collect| A
     K -.->|collect| B
     K -.->|collect| C
@@ -342,7 +342,7 @@ graph LR
     K -.->|collect| F
     K -.->|collect| G
     K -->|forward| J
-    
+
     A -.->|errors| L["🚨 Error Reporting<br/>(Error Tracking)"]
     B -.->|errors| L
     C -.->|errors| L

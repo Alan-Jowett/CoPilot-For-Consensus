@@ -18,14 +18,14 @@ logger = create_logger(logger_type="stdout", level="INFO", name="auth.config")
 
 def load_auth_config():
     """Load auth service configuration from environment and secrets.
-    
+
     Uses copilot_config with schema-driven configuration loading.
     Secrets integration is handled transparently by load_typed_config
     based on configuration in documents/schemas/configs/auth.json.
-    
+
     Returns:
         TypedConfig instance with validated configuration
-        
+
     Example:
         >>> config = load_auth_config()
         >>> print(config.issuer)

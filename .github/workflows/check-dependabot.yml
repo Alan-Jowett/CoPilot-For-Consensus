@@ -21,7 +21,7 @@ jobs:
     permissions:
       contents: read
       issues: write
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
@@ -59,11 +59,11 @@ jobs:
               state: 'open',
               labels: 'dependabot-config'
             });
-            
-            const existingIssue = issues.data.find(issue => 
+
+            const existingIssue = issues.data.find(issue =>
               issue.title === 'Dependabot configuration is out of date'
             );
-            
+
             if (existingIssue) {
               core.setOutput('issue-number', existingIssue.number);
               core.setOutput('issue-exists', 'true');
@@ -84,46 +84,46 @@ jobs:
             } catch (error) {
               diffOutput = error.stdout || error.stderr || 'Unable to generate diff';
             }
-            
+
             const issueBody = `## 🔄 Dependabot Configuration Out of Date
-            
+
             The \`.github/dependabot.yml\` file is missing entries for some Python packages or has outdated configuration.
-            
+
             ### How to Fix
-            
+
             Run the auto-update script to regenerate the configuration:
-            
+
             \`\`\`bash
             python scripts/update-dependabot.py
             \`\`\`
-            
+
             Then commit and push the changes:
-            
+
             \`\`\`bash
             git add .github/dependabot.yml
             git commit -m "chore: update dependabot configuration"
             git push
             \`\`\`
-            
+
             ### Detected Differences
-            
+
             <details>
             <summary>Show diff</summary>
-            
+
             \`\`\`diff
             ${diffOutput}
             \`\`\`
-            
+
             </details>
-            
+
             ---
-            
+
             *This issue was automatically created by the [check-dependabot workflow](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).*
             *Last checked: ${new Date().toISOString()}*`;
-            
+
             const issueExists = '${{ steps.find-issue.outputs.issue-exists }}' === 'true';
             const issueNumber = '${{ steps.find-issue.outputs.issue-number }}';
-            
+
             if (issueExists) {
               // Update existing issue
               await github.rest.issues.createComment({
@@ -151,21 +151,21 @@ jobs:
         with:
           script: |
             const issueNumber = '${{ steps.find-issue.outputs.issue-number }}';
-            
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: parseInt(issueNumber),
               body: '✅ Dependabot configuration is now up to date. Closing this issue.'
             });
-            
+
             await github.rest.issues.update({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: parseInt(issueNumber),
               state: 'closed'
             });
-            
+
             console.log(`Closed issue #${issueNumber}`);
 
       - name: Fail workflow if outdated

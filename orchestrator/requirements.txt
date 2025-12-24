@@ -2,8 +2,8 @@
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
 # Web framework
-fastapi==0.125.0
-uvicorn==0.38.0
+fastapi==0.127.0
+uvicorn==0.40.0
 httpx==0.28.1  # Required for FastAPI TestClient
 
 # Type hints
@@ -14,7 +14,7 @@ prometheus-client==0.23.1
 
 # Authentication
 PyJWT==2.10.1
-cryptography==44.0.1
+cryptography==46.0.3
 
 # NOTE: Adapters are installed separately in CI and Docker builds
 

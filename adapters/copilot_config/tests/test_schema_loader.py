@@ -6,7 +6,6 @@
 import json
 
 import pytest
-
 from copilot_config import (
     ConfigSchema,
     ConfigSchemaError,
@@ -31,7 +30,7 @@ class TestFieldSpec:
             source="env",
             env_var="DB_HOST",
         )
-        
+
         assert field.name == "database_host"
         assert field.field_type == "string"
         assert field.required is True
@@ -41,7 +40,7 @@ class TestFieldSpec:
     def test_field_spec_defaults(self):
         """Test FieldSpec default values."""
         field = FieldSpec(name="test", field_type="string")
-        
+
         assert field.required is False
         assert field.default is None
         assert field.source == "env"
@@ -70,9 +69,9 @@ class TestConfigSchema:
                 },
             },
         }
-        
+
         schema = ConfigSchema.from_dict(schema_data)
-        
+
         assert schema.service_name == "test-service"
         assert "database_host" in schema.fields
         assert "port" in schema.fields
@@ -94,9 +93,9 @@ class TestConfigSchema:
             },
         }
         schema_file.write_text(json.dumps(schema_data))
-        
+
         schema = ConfigSchema.from_json_file(str(schema_file))
-        
+
         assert schema.service_name == "test-service"
         assert "app_name" in schema.fields
 
@@ -109,7 +108,7 @@ class TestConfigSchema:
         """Test that invalid JSON raises error."""
         schema_file = tmp_path / "invalid.json"
         schema_file.write_text("{ invalid json }")
-        
+
         with pytest.raises(ConfigSchemaError, match="Invalid JSON"):
             ConfigSchema.from_json_file(str(schema_file))
 
@@ -131,12 +130,12 @@ class TestSchemaConfigLoader:
                 ),
             },
         )
-        
+
         env_provider = EnvConfigProvider(environ={"APP_NAME": "my-app"})
         loader = SchemaConfigLoader(schema, env_provider=env_provider)
-        
+
         config = loader.load()
-        
+
         assert config["app_name"] == "my-app"
 
     def test_load_with_default_values(self):
@@ -160,12 +159,12 @@ class TestSchemaConfigLoader:
                 ),
             },
         )
-        
+
         env_provider = EnvConfigProvider(environ={})
         loader = SchemaConfigLoader(schema, env_provider=env_provider)
-        
+
         config = loader.load()
-        
+
         assert config["app_name"] == "default-app"
         assert config["port"] == 8080
 
@@ -183,10 +182,10 @@ class TestSchemaConfigLoader:
                 ),
             },
         )
-        
+
         env_provider = EnvConfigProvider(environ={})
         loader = SchemaConfigLoader(schema, env_provider=env_provider)
-        
+
         with pytest.raises(ConfigValidationError, match="database_host"):
             loader.load()
 
@@ -225,7 +224,7 @@ class TestSchemaConfigLoader:
                 ),
             },
         )
-        
+
         env_provider = EnvConfigProvider(environ={
             "APP_NAME": "test-app",
             "PORT": "9000",
@@ -233,9 +232,9 @@ class TestSchemaConfigLoader:
             "TEMPERATURE": "0.7",
         })
         loader = SchemaConfigLoader(schema, env_provider=env_provider)
-        
+
         config = loader.load()
-        
+
         assert config["app_name"] == "test-app"
         assert config["port"] == 9000
         assert config["debug"] is True
@@ -253,12 +252,12 @@ class TestSchemaConfigLoader:
                 ),
             },
         )
-        
+
         static_provider = StaticConfigProvider({"app_name": "static-app"})
         loader = SchemaConfigLoader(schema, static_provider=static_provider)
-        
+
         config = loader.load()
-        
+
         assert config["app_name"] == "static-app"
 
 
@@ -270,7 +269,7 @@ class TestLoadConfig:
         # Create schema directory and file
         schema_dir = tmp_path / "schemas"
         schema_dir.mkdir()
-        
+
         schema_file = schema_dir / "test-service.json"
         schema_data = {
             "service_name": "test-service",
@@ -290,7 +289,7 @@ class TestLoadConfig:
             },
         }
         schema_file.write_text(json.dumps(schema_data))
-        
+
         # Load config
         env_provider = EnvConfigProvider(environ={"APP_NAME": "my-app", "PORT": "9000"})
         config = _load_config(
@@ -298,7 +297,7 @@ class TestLoadConfig:
             schema_dir=str(schema_dir),
             env_provider=env_provider,
         )
-        
+
         assert config["app_name"] == "my-app"
         assert config["port"] == 9000
 
@@ -306,7 +305,7 @@ class TestLoadConfig:
         """Test that missing schema file raises error."""
         schema_dir = tmp_path / "schemas"
         schema_dir.mkdir()
-        
+
         with pytest.raises(ConfigSchemaError, match="Schema file not found"):
             _load_config("nonexistent-service", schema_dir=str(schema_dir))
 
@@ -314,7 +313,7 @@ class TestLoadConfig:
         """Test that validation errors are raised."""
         schema_dir = tmp_path / "schemas"
         schema_dir.mkdir()
-        
+
         schema_file = schema_dir / "test-service.json"
         schema_data = {
             "service_name": "test-service",
@@ -328,9 +327,9 @@ class TestLoadConfig:
             },
         }
         schema_file.write_text(json.dumps(schema_data))
-        
+
         env_provider = EnvConfigProvider(environ={})
-        
+
         with pytest.raises(ConfigValidationError, match="database_host"):
             _load_config(
                 "test-service",
@@ -339,7 +338,7 @@ class TestLoadConfig:
             )
 class TestSchemaLoaderExceptionHandling:
     """Tests for exception handling in SchemaConfigLoader.
-    
+
     NOTE: Storage-backed configuration is no longer supported in SchemaConfigLoader.
     Schemas are purely file-based using environment and static sources.
     Storage-backed config must be loaded and merged separately by the caller.

@@ -3,8 +3,8 @@
 
 """Validating event publisher that enforces schema validation."""
 
-from typing import Dict, Any, Optional, Tuple, List
 import logging
+from typing import Any
 
 from .publisher import EventPublisher
 
@@ -19,7 +19,7 @@ class ValidationError(Exception):
         errors: List of validation error messages
     """
 
-    def __init__(self, event_type: str, errors: List[str]):
+    def __init__(self, event_type: str, errors: list[str]):
         self.event_type = event_type
         self.errors = errors
         error_msg = f"Validation failed for event type '{event_type}': {'; '.join(errors)}"
@@ -57,7 +57,7 @@ class ValidatingEventPublisher(EventPublisher):
     def __init__(
         self,
         publisher: EventPublisher,
-        schema_provider: Optional[Any] = None,
+        schema_provider: Any | None = None,
         strict: bool = True,
     ):
         """Initialize the validating publisher.
@@ -72,7 +72,7 @@ class ValidatingEventPublisher(EventPublisher):
         self._schema_provider = schema_provider
         self._strict = strict
 
-    def _validate_event(self, event: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    def _validate_event(self, event: dict[str, Any]) -> tuple[bool, list[str]]:
         """Validate an event against its schema.
 
         Args:
@@ -118,7 +118,7 @@ class ValidatingEventPublisher(EventPublisher):
             logger.error("Validation failed with exception: %s", exc)
             return False, [f"Validation exception: {exc}"]
 
-    def publish(self, exchange: str, routing_key: str, event: Dict[str, Any]) -> None:
+    def publish(self, exchange: str, routing_key: str, event: dict[str, Any]) -> None:
         """Publish an event after validating it against its schema.
 
         Args:
@@ -151,7 +151,7 @@ class ValidatingEventPublisher(EventPublisher):
 
     def connect(self) -> None:
         """Connect to the message bus.
-        
+
         Raises:
             Exception: If connection fails for any reason
         """

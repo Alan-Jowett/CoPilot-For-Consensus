@@ -4,7 +4,7 @@
 """Environment-backed configuration provider."""
 
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .base import ConfigProvider
 
@@ -12,7 +12,7 @@ from .base import ConfigProvider
 class EnvConfigProvider(ConfigProvider):
     """Configuration provider that reads from environment variables."""
 
-    def __init__(self, environ: Optional[Dict[str, str]] = None):
+    def __init__(self, environ: dict[str, str] | None = None):
         self._environ = environ if environ is not None else os.environ
 
     def get(self, key: str, default: Any = None) -> Any:

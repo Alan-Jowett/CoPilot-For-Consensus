@@ -87,7 +87,7 @@ The Parsing Service subscribes to the following events. See [SCHEMA.md](../docum
 
 Consumes events from the Ingestion Service when archives are ready for parsing.
 
-**Exchange:** `copilot.events`  
+**Exchange:** `copilot.events`
 **Routing Key:** `archive.ingested`
 
 See [ArchiveIngested schema](../documents/SCHEMA.md#1-archiveingested) in SCHEMA.md for the complete payload definition.
@@ -108,7 +108,7 @@ The Parsing Service publishes the following events. See [SCHEMA.md](../documents
 
 Published when an archive has been successfully parsed and messages are stored.
 
-**Exchange:** `copilot.events`  
+**Exchange:** `copilot.events`
 **Routing Key:** `json.parsed`
 
 See [JSONParsed schema](../documents/SCHEMA.md#3-jsonparsed) in SCHEMA.md for the complete payload definition.
@@ -125,7 +125,7 @@ See [JSONParsed schema](../documents/SCHEMA.md#3-jsonparsed) in SCHEMA.md for th
 
 Published when archive parsing fails.
 
-**Exchange:** `copilot.events`  
+**Exchange:** `copilot.events`
 **Routing Key:** `parsing.failed`
 
 See [ParsingFailed schema](../documents/SCHEMA.md#4-parsingfailed) in SCHEMA.md for the complete payload definition.
@@ -292,16 +292,16 @@ async def process_archive_ingested_event(event: ArchiveIngestedEvent):
     try:
         archive_id = event.data.archive_id
         file_path = event.data.file_path
-        
+
         logger.info(f"Parsing archive: {archive_id}")
-        
+
         # 1. Load mbox file
         mbox = mailbox.mbox(file_path)
-        
+
         # 2. Parse all messages
         parsed_messages = []
         message_doc_ids = []
-        
+
         for message in mbox:
             try:
                 parsed = parse_message(message, archive_id)
@@ -310,19 +310,19 @@ async def process_archive_ingested_event(event: ArchiveIngestedEvent):
             except Exception as e:
                 logger.warning(f"Failed to parse message: {e}")
                 continue
-        
+
         # 3. Build thread relationships
         threads = build_threads(parsed_messages)
-        
+
         # 4. Store in database
         if parsed_messages:
             db.messages.insert_many(parsed_messages)
             logger.info(f"Stored {len(parsed_messages)} messages")
-        
+
         if threads:
             db.threads.insert_many(threads)
             logger.info(f"Created {len(threads)} threads")
-        
+
         # 5. Publish JSONParsed event
         await publish_json_parsed_event(
             archive_id=archive_id,
@@ -330,9 +330,9 @@ async def process_archive_ingested_event(event: ArchiveIngestedEvent):
             message_doc_ids=message_doc_ids,
             thread_count=len(threads)
         )
-        
+
         logger.info(f"Parsing complete: {len(parsed_messages)} messages, {len(threads)} threads")
-        
+
     except Exception as e:
         logger.error(f"Parsing failed: {e}")
         await publish_parsing_failed_event(
@@ -356,26 +356,26 @@ def parse_message(raw_message: mailbox.mboxMessage, archive_id: str) -> dict:
     references = parse_references(raw_message.get("References", ""))
     subject = raw_message.get("Subject", "")
     date = parse_date(raw_message.get("Date", ""))
-    
+
     # Extract addresses
     from_addr = parse_address(raw_message.get("From", ""))
     to_addrs = parse_address_list(raw_message.get("To", ""))
     cc_addrs = parse_address_list(raw_message.get("CC", ""))
-    
+
     # Extract body
     body_raw = extract_body(raw_message)
     body_normalized = normalize_body(body_raw)
     body_html = extract_html_body(raw_message)
-    
+
     # Extract attachments
     attachments = extract_attachments(raw_message)
-    
+
     # Detect draft mentions
     draft_mentions = detect_drafts(body_normalized)
-    
+
     # Determine thread_id (root message-id)
     thread_id = in_reply_to or message_id
-    
+
     return {
         "message_id": message_id,
         "archive_id": archive_id,
@@ -405,25 +405,25 @@ def normalize_body(raw_body: str) -> str:
     Clean and normalize message body.
     """
     text = raw_body
-    
+
     # Strip HTML tags if present
     if config.strip_html and "<html" in text.lower():
         from bs4 import BeautifulSoup
         text = BeautifulSoup(text, "html.parser").get_text()
-    
+
     # Remove email signatures
     if config.strip_signatures:
         text = remove_signature(text)
-    
+
     # Remove quoted replies
     if config.strip_quoted_replies:
         text = remove_quoted_text(text)
-    
+
     # Normalize whitespace
     text = re.sub(r'\n{3,}', '\n\n', text)  # Max 2 consecutive newlines
     text = re.sub(r'[ \t]+', ' ', text)     # Single spaces
     text = text.strip()
-    
+
     return text
 
 def remove_signature(text: str) -> str:
@@ -437,12 +437,12 @@ def remove_signature(text: str) -> str:
         "\n___\n",
         "\n___________\n"
     ]
-    
+
     for delimiter in delimiters:
         if delimiter in text:
             text = text.split(delimiter)[0]
             break
-    
+
     return text
 
 def remove_quoted_text(text: str) -> str:
@@ -451,7 +451,7 @@ def remove_quoted_text(text: str) -> str:
     """
     lines = text.split('\n')
     filtered_lines = [
-        line for line in lines 
+        line for line in lines
         if not line.strip().startswith(('>', '|', '>>'))
     ]
     return '\n'.join(filtered_lines)
@@ -466,10 +466,10 @@ def detect_drafts(text: str) -> List[str]:
     """
     if not config.detect_drafts:
         return []
-    
+
     pattern = config.draft_regex_pattern or r'(draft-[a-z0-9-]+-\d+)|(RFC\s*\d+)|(rfc\d+)'
     matches = re.findall(pattern, text, re.IGNORECASE)
-    
+
     # Flatten tuples and normalize
     drafts = []
     for match in matches:
@@ -479,7 +479,7 @@ def detect_drafts(text: str) -> List[str]:
                 if group.lower().startswith('rfc'):
                     group = 'RFC ' + re.search(r'\d+', group).group()
                 drafts.append(group)
-    
+
     return list(set(drafts))  # Remove duplicates
 ```
 
@@ -491,10 +491,10 @@ def build_threads(messages: List[dict]) -> List[dict]:
     Build thread documents from parsed messages.
     """
     threads = {}
-    
+
     for message in messages:
         thread_id = message["thread_id"]
-        
+
         if thread_id not in threads:
             threads[thread_id] = {
                 "thread_id": thread_id,
@@ -507,27 +507,27 @@ def build_threads(messages: List[dict]) -> List[dict]:
                 "draft_mentions": set(),
                 "created_at": datetime.now(timezone.utc)
             }
-        
+
         thread = threads[thread_id]
         thread["message_count"] += 1
-        
+
         # Update participants
         if message["from"] not in thread["participants"]:
             thread["participants"].append(message["from"])
-        
+
         # Update date range
         if message["date"] < thread["first_message_date"]:
             thread["first_message_date"] = message["date"]
         if message["date"] > thread["last_message_date"]:
             thread["last_message_date"] = message["date"]
-        
+
         # Aggregate draft mentions
         thread["draft_mentions"].update(message["draft_mentions"])
-    
+
     # Convert sets to lists for storage
     for thread in threads.values():
         thread["draft_mentions"] = list(thread["draft_mentions"])
-    
+
     return list(threads.values())
 ```
 

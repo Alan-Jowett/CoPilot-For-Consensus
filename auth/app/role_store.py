@@ -38,36 +38,37 @@ class RoleStore:
         # Get values from config with fallback to environment variables
         # For password/username, read directly from Docker secrets if available
         import os
-        
+
         # Helper to read from Docker secrets first, then environment variables
-        def get_secret_or_env(secret_name: str, env_var: str) -> str | None:
+        def get_secret_or_env(key_name: str, env_var: str) -> str | None:
             # Try reading from Docker secrets first (mounted at /run/secrets/)
-            secret_file = f"/run/secrets/{secret_name}"
+            secret_file = f"/run/secrets/{key_name}"
             if os.path.exists(secret_file):
                 try:
-                    with open(secret_file, 'r') as f:
+                    with open(secret_file) as f:
                         content = f.read().strip()
                         if content:  # Only return if not empty
                             return content
-                except (OSError, IOError) as exc:
-                    logger.warning(
-                        "Failed to read Docker secret '%s' from %s: %s",
-                        secret_name,
-                        secret_file,
-                        exc,
-                    )
-            
+                except OSError as exc:
+                    logger.warning(f"Failed to read Docker secret '{key_name}' from {secret_file}: {exc}")
+
             # Fallback to environment variable
             value = os.getenv(env_var)
             # Only return if it's not empty string
             return value if value else None
-        
+
         store_kwargs = {
             "host": getattr(config, "role_store_host", None) or os.getenv("DOCUMENT_DATABASE_HOST"),
             "port": getattr(config, "role_store_port", None) or os.getenv("DOCUMENT_DATABASE_PORT"),
-            "username": getattr(config, "role_store_username", None) or get_secret_or_env("document_database_user", "DOCUMENT_DATABASE_USER"),
-            "password": getattr(config, "role_store_password", None) or get_secret_or_env("document_database_password", "DOCUMENT_DATABASE_PASSWORD"),
-            "database": getattr(config, "role_store_database", None) or os.getenv("DOCUMENT_DATABASE_NAME", "auth"),
+            "username": (
+                getattr(config, "role_store_username", None)
+                or get_secret_or_env("document_database_user", "DOCUMENT_DATABASE_USER")
+            ),
+            "password": (
+                getattr(config, "role_store_password", None)
+                or get_secret_or_env("document_database_password", "DOCUMENT_DATABASE_PASSWORD")
+            ),
+            "database": (getattr(config, "role_store_database", None) or os.getenv("DOCUMENT_DATABASE_NAME", "auth")),
         }
 
         # Convert port to int if it's a string
@@ -112,12 +113,12 @@ class RoleStore:
 
         Returns a tuple of (roles, status) where status is one of
         "approved", "pending", or "denied".
-        
-        Special behavior: If this is a NEW USER (no existing record) and no admins exist 
+
+        Special behavior: If this is a NEW USER (no existing record) and no admins exist
         in the system and auto-promotion is enabled (first_user_auto_promotion_enabled=True),
-        the user is automatically promoted to admin. This is disabled by default for production 
+        the user is automatically promoted to admin. This is disabled by default for production
         security. Existing users with records are never affected by this setting.
-        
+
         Args:
             user: User object with id, email, name
             auto_approve_enabled: Whether to auto-approve new users with default roles
@@ -149,7 +150,7 @@ class RoleStore:
                 roles = ["admin"]
                 status = "approved"
                 logger.info(f"Auto-promoting first user {user.id} to admin role (no admins exist)")
-        
+
         # If auto-promotion didn't happen, check normal auto-approval
         if not roles:
             auto_roles = [r for r in auto_approve_roles if r]
@@ -269,7 +270,8 @@ class RoleStore:
         # Validate roles
         invalid_roles = [r for r in roles if r not in self.VALID_ROLES]
         if invalid_roles:
-            raise ValueError(f"Invalid roles: {', '.join(invalid_roles)}. Valid roles are: {', '.join(sorted(self.VALID_ROLES))}")
+            valid_roles_str = ", ".join(sorted(self.VALID_ROLES))
+            raise ValueError(f"Invalid roles: {', '.join(invalid_roles)}. " f"Valid roles are: {valid_roles_str}")
 
         record = self._find_user_record(user_id)
 
@@ -303,6 +305,7 @@ class RoleStore:
         try:
             # Try to update, or insert if doesn't exist
             from copilot_storage.document_store import DocumentNotFoundError
+
             try:
                 # Update using the document's _id if available
                 if "_id" in record:
@@ -361,7 +364,8 @@ class RoleStore:
         # Validate roles
         invalid_roles = [r for r in roles if r not in self.VALID_ROLES]
         if invalid_roles:
-            raise ValueError(f"Invalid roles: {', '.join(invalid_roles)}. Valid roles are: {', '.join(sorted(self.VALID_ROLES))}")
+            valid_roles_str = ", ".join(sorted(self.VALID_ROLES))
+            raise ValueError(f"Invalid roles: {', '.join(invalid_roles)}. " f"Valid roles are: {valid_roles_str}")
 
         record = self._find_user_record(user_id)
 
@@ -384,16 +388,19 @@ class RoleStore:
 
         try:
             # Try to update document
-            # First get the document by _id to ensure we can update it
+            # Remove _id from the update doc (MongoDB doesn't allow updating immutable _id field)
+            update_doc = {k: v for k, v in updated_doc.items() if k != "_id"}
+
             if "_id" in record:
                 # Update using the document's _id
-                self.store.update_document(self.collection, record["_id"], updated_doc)
+                self.store.update_document(self.collection, record["_id"], update_doc)
             else:
                 # If no _id, try to update with query filter (may not work with all stores)
                 # This is a fallback for stores that support filter-based updates
                 from copilot_storage.document_store import DocumentNotFoundError
+
                 try:
-                    self.store.update_document(self.collection, {"user_id": user_id}, updated_doc)
+                    self.store.update_document(self.collection, {"user_id": user_id}, update_doc)
                 except (DocumentNotFoundError, TypeError):
                     # If update by query fails, this store requires _id
                     # Shouldn't happen since record came from _find_user_record which queries
@@ -468,8 +475,7 @@ class RoleStore:
                 all_docs = self.store.query_documents(self.collection, {})
                 search_lower = search_term.lower()
                 docs = [
-                    doc for doc in all_docs
-                    if doc.get(search_by) and search_lower in doc.get(search_by, "").lower()
+                    doc for doc in all_docs if doc.get(search_by) and search_lower in doc.get(search_by, "").lower()
                 ]
 
             return docs

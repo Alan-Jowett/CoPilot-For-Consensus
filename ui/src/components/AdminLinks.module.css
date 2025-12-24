@@ -1,0 +1,49 @@
+/* SPDX-License-Identifier: MIT */
+/* Copyright (c) 2025 Copilot-for-Consensus contributors */
+
+.adminPanel {
+  border-top: 1px solid #e0e0e0;
+  padding: 16px;
+  margin-top: 16px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.navLinks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  color: #1890ff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.link:hover {
+  background-color: #e6f7ff;
+  border-color: #1890ff;
+  color: #0050b3;
+}
+
+.link:active {
+  background-color: #bae7ff;
+}

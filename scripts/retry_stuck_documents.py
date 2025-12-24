@@ -36,9 +36,9 @@ import json
 import os
 import sys
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Any
 
 from copilot_logging import create_logger
 
@@ -71,7 +71,7 @@ except ImportError:
 logger = create_logger(name=__name__)
 
 
-def _get_env_or_secret(env_var: str, secret_name: str) -> Optional[str]:
+def _get_env_or_secret(env_var: str, secret_name: str) -> str | None:
     """Return env var if set, otherwise read from /run/secrets/<secret_name>."""
     if env_var in os.environ and os.environ[env_var]:
         return os.environ[env_var]
@@ -87,10 +87,10 @@ def _get_env_or_secret(env_var: str, secret_name: str) -> Optional[str]:
 
 class RetryJobMetrics:
     """Prometheus metrics for retry job."""
-    
+
     def __init__(self, registry: CollectorRegistry):
         """Initialize metrics.
-        
+
         Args:
             registry: Prometheus collector registry
         """
@@ -100,49 +100,49 @@ class RetryJobMetrics:
             ['collection'],
             registry=registry
         )
-        
+
         self.documents_skipped_backoff = Counter(
             'retry_job_documents_skipped_backoff_total',
             'Documents skipped due to backoff delay',
             ['collection'],
             registry=registry
         )
-        
+
         self.documents_max_retries_exceeded = Counter(
             'retry_job_documents_max_retries_exceeded_total',
             'Documents exceeding max retry attempts',
             ['collection'],
             registry=registry
         )
-        
+
         self.runs_total = Counter(
             'retry_job_runs_total',
             'Retry job executions',
             ['status'],
             registry=registry
         )
-        
+
         self.errors_total = Counter(
             'retry_job_errors_total',
             'Errors encountered during retry job',
             ['error_type'],
             registry=registry
         )
-        
+
         self.stuck_documents = Gauge(
             'retry_job_stuck_documents',
             'Current count of stuck documents',
             ['collection'],
             registry=registry
         )
-        
+
         self.failed_documents = Gauge(
             'retry_job_failed_documents',
             'Current count of failed documents (max retries)',
             ['collection'],
             registry=registry
         )
-        
+
         self.duration_seconds = Histogram(
             'retry_job_duration_seconds',
             'Time taken to complete retry job',
@@ -152,7 +152,7 @@ class RetryJobMetrics:
 
 class RetryStuckDocumentsJob:
     """Retry job for stuck/failed documents."""
-    
+
     # Collection-specific configurations
     COLLECTION_CONFIGS = {
         "archives": {
@@ -180,14 +180,14 @@ class RetryStuckDocumentsJob:
             "id_field": "thread_id",
         },
     }
-    
+
     def __init__(
         self,
         mongodb_host: str = "localhost",
         mongodb_port: int = 27017,
         mongodb_database: str = "copilot",
-        mongodb_username: Optional[str] = None,
-        mongodb_password: Optional[str] = None,
+        mongodb_username: str | None = None,
+        mongodb_password: str | None = None,
         rabbitmq_host: str = "localhost",
         rabbitmq_port: int = 5672,
         rabbitmq_username: str = "guest",
@@ -198,7 +198,7 @@ class RetryStuckDocumentsJob:
         stuck_threshold_hours: int = 24,
     ):
         """Initialize retry job.
-        
+
         Args:
             mongodb_host: MongoDB host
             mongodb_port: MongoDB port
@@ -227,17 +227,17 @@ class RetryStuckDocumentsJob:
         self.base_delay_seconds = base_delay_seconds
         self.max_delay_seconds = max_delay_seconds
         self.stuck_threshold_hours = stuck_threshold_hours
-        
+
         # Initialize connections
         self.mongo_client = None
         self.db = None
         self.rabbitmq_connection = None
         self.rabbitmq_channel = None
-        
+
         # Initialize metrics
         self.registry = CollectorRegistry()
         self.metrics = RetryJobMetrics(self.registry)
-    
+
     def connect_mongodb(self):
         """Connect to MongoDB."""
         if self.mongodb_username and self.mongodb_password:
@@ -247,20 +247,20 @@ class RetryStuckDocumentsJob:
             )
         else:
             connection_string = f"mongodb://{self.mongodb_host}:{self.mongodb_port}/{self.mongodb_database}"
-        
+
         self.mongo_client = MongoClient(connection_string, serverSelectionTimeoutMS=5000)
         self.db = self.mongo_client[self.mongodb_database]
-        
+
         # Test connection
         self.mongo_client.admin.command('ping')
         logger.info(f"Connected to MongoDB at {self.mongodb_host}:{self.mongodb_port}")
-    
+
     def disconnect_mongodb(self):
         """Disconnect from MongoDB."""
         if self.mongo_client:
             self.mongo_client.close()
             logger.info("Disconnected from MongoDB")
-    
+
     def connect_rabbitmq(self):
         """Connect to RabbitMQ."""
         credentials = pika.PlainCredentials(self.rabbitmq_username, self.rabbitmq_password)
@@ -271,69 +271,69 @@ class RetryStuckDocumentsJob:
         )
         self.rabbitmq_connection = pika.BlockingConnection(parameters)
         self.rabbitmq_channel = self.rabbitmq_connection.channel()
-        
+
         # Ensure exchange exists
         self.rabbitmq_channel.exchange_declare(
             exchange="copilot.events",
             exchange_type="topic",
             durable=True,
         )
-        
+
         logger.info(f"Connected to RabbitMQ at {self.rabbitmq_host}:{self.rabbitmq_port}")
-    
+
     def disconnect_rabbitmq(self):
         """Disconnect from RabbitMQ."""
         if self.rabbitmq_connection and not self.rabbitmq_connection.is_closed:
             self.rabbitmq_connection.close()
             logger.info("Disconnected from RabbitMQ")
-    
+
     def calculate_backoff_delay(self, attempt_count: int) -> int:
         """Calculate exponential backoff delay.
-        
+
         Args:
             attempt_count: Number of attempts so far
-            
+
         Returns:
             Delay in seconds
         """
         if attempt_count <= 1:
             return 0  # No delay for first retry
-        
+
         # Exponential: base * 2^(attempt - 1)
         delay = self.base_delay_seconds * (2 ** (attempt_count - 1))
         return min(delay, self.max_delay_seconds)
-    
+
     def is_backoff_elapsed(self, last_attempt_time: datetime, attempt_count: int) -> bool:
         """Check if backoff period has elapsed.
-        
+
         Args:
             last_attempt_time: Timestamp of last attempt
             attempt_count: Number of attempts so far
-            
+
         Returns:
             True if backoff delay has elapsed
         """
         if last_attempt_time is None:
             return True  # Never attempted, eligible for retry
-        
+
         backoff_delay = self.calculate_backoff_delay(attempt_count)
         next_attempt_time = last_attempt_time + timedelta(seconds=backoff_delay)
-        
+
         return datetime.now(timezone.utc) >= next_attempt_time
-    
-    def find_stuck_documents(self, collection_name: str, max_attempts: int) -> List[Dict[str, Any]]:
+
+    def find_stuck_documents(self, collection_name: str, max_attempts: int) -> list[dict[str, Any]]:
         """Find stuck documents eligible for retry.
-        
+
         Args:
             collection_name: Name of collection
             max_attempts: Maximum retry attempts for this collection
-            
+
         Returns:
             List of stuck documents
         """
         collection = self.db[collection_name]
         stuck_threshold = datetime.now(timezone.utc) - timedelta(hours=self.stuck_threshold_hours)
-        
+
         # Query for stuck documents
         query = {
             "status": {"$in": ["pending", "processing"]},
@@ -343,41 +343,41 @@ class RetryStuckDocumentsJob:
                 {"lastAttemptTime": {"$lt": stuck_threshold}}
             ]
         }
-        
+
         stuck_docs = list(collection.find(query))
         logger.info(f"Found {len(stuck_docs)} stuck documents in {collection_name}")
-        
+
         return stuck_docs
-    
+
     def find_failed_documents(self, collection_name: str, max_attempts: int) -> int:
         """Count documents that have exceeded max retries.
-        
+
         Args:
             collection_name: Name of collection
             max_attempts: Maximum retry attempts for this collection
-            
+
         Returns:
             Count of failed documents
         """
         collection = self.db[collection_name]
-        
+
         query = {
             "attemptCount": {"$gte": max_attempts},
             "status": {"$nin": ["processed", "failed_max_retries"]}
         }
-        
+
         return collection.count_documents(query)
-    
+
     def mark_max_retries_exceeded(self, collection_name: str, doc_id: Any, id_field: str):
         """Mark document as permanently failed due to max retries.
-        
+
         Args:
             collection_name: Name of collection
             doc_id: Document ID
             id_field: ID field name
         """
         collection = self.db[collection_name]
-        
+
         result = collection.update_one(
             {id_field: doc_id},
             {
@@ -387,24 +387,24 @@ class RetryStuckDocumentsJob:
                 }
             }
         )
-        
+
         if result.modified_count > 0:
             logger.error(
                 f"Document {doc_id} in {collection_name} exceeded max retries. "
                 f"Marked as failed_max_retries."
             )
             self.metrics.documents_max_retries_exceeded.labels(collection=collection_name).inc()
-    
+
     def update_attempt_count(self, collection_name: str, doc_id: Any, id_field: str):
         """Increment attempt count and update last attempt time.
-        
+
         Args:
             collection_name: Name of collection
             doc_id: Document ID
             id_field: ID field name
         """
         collection = self.db[collection_name]
-        
+
         collection.update_one(
             {id_field: doc_id},
             {
@@ -412,16 +412,16 @@ class RetryStuckDocumentsJob:
                 "$set": {"lastAttemptTime": datetime.now(timezone.utc)}
             }
         )
-    
+
     def publish_retry_event(
         self,
         event_type: str,
         routing_key: str,
-        document: Dict[str, Any],
+        document: dict[str, Any],
         collection_name: str
     ):
         """Publish event to trigger document reprocessing.
-        
+
         Args:
             event_type: Event type name
             routing_key: RabbitMQ routing key
@@ -430,7 +430,7 @@ class RetryStuckDocumentsJob:
         """
         # Build event payload based on collection type
         event_data = self._build_event_data(collection_name, document)
-        
+
         event = {
             "event_type": event_type,
             "event_id": f"retry-{document.get('_id', 'unknown')}",
@@ -438,7 +438,7 @@ class RetryStuckDocumentsJob:
             "version": "1.0",
             "data": event_data
         }
-        
+
         # Publish to RabbitMQ
         self.rabbitmq_channel.basic_publish(
             exchange="copilot.events",
@@ -449,16 +449,16 @@ class RetryStuckDocumentsJob:
                 delivery_mode=2,  # Persistent
             )
         )
-        
+
         logger.info(f"Published {event_type} event for retry: {routing_key}")
-    
-    def _build_event_data(self, collection_name: str, document: Dict[str, Any]) -> Dict[str, Any]:
+
+    def _build_event_data(self, collection_name: str, document: dict[str, Any]) -> dict[str, Any]:
         """Build event data payload for retry.
-        
+
         Args:
             collection_name: Collection name
             document: Document from MongoDB
-            
+
         Returns:
             Event data dictionary
         """
@@ -487,41 +487,41 @@ class RetryStuckDocumentsJob:
             }
         else:
             return {}
-    
-    def process_collection(self, collection_name: str, config: Dict[str, Any]):
+
+    def process_collection(self, collection_name: str, config: dict[str, Any]):
         """Process stuck documents in a collection.
-        
+
         Args:
             collection_name: Name of collection
             config: Collection configuration
         """
         logger.info(f"Processing collection: {collection_name}")
-        
+
         max_attempts = config["max_attempts"]
         event_type = config["event_type"]
         routing_key = config["routing_key"]
         id_field = config["id_field"]
-        
+
         # Find stuck documents
         stuck_docs = self.find_stuck_documents(collection_name, max_attempts)
-        
+
         # Update stuck documents gauge
         self.metrics.stuck_documents.labels(collection=collection_name).set(len(stuck_docs))
-        
+
         # Process each stuck document
         requeued_count = 0
         skipped_count = 0
-        
+
         for doc in stuck_docs:
             doc_id = doc.get(id_field)
             attempt_count = doc.get("attemptCount", 0)
             last_attempt_time = doc.get("lastAttemptTime")
-            
+
             # Check if max retries exceeded
             if attempt_count >= max_attempts:
                 self.mark_max_retries_exceeded(collection_name, doc_id, id_field)
                 continue
-            
+
             # Check backoff eligibility
             if not self.is_backoff_elapsed(last_attempt_time, attempt_count):
                 logger.debug(
@@ -531,10 +531,10 @@ class RetryStuckDocumentsJob:
                 self.metrics.documents_skipped_backoff.labels(collection=collection_name).inc()
                 skipped_count += 1
                 continue
-            
+
             # Update attempt count
             self.update_attempt_count(collection_name, doc_id, id_field)
-            
+
             # Publish retry event
             try:
                 self.publish_retry_event(event_type, routing_key, doc, collection_name)
@@ -543,32 +543,32 @@ class RetryStuckDocumentsJob:
             except Exception as e:
                 logger.error(f"Failed to publish retry event for {doc_id}: {e}")
                 self.metrics.errors_total.labels(error_type="publish_error").inc()
-        
+
         # Count failed documents (exceeded max retries)
         failed_count = self.find_failed_documents(collection_name, max_attempts)
         self.metrics.failed_documents.labels(collection=collection_name).set(failed_count)
-        
+
         logger.info(
             f"Processed {collection_name}: "
             f"{requeued_count} requeued, {skipped_count} skipped (backoff), "
             f"{failed_count} failed (max retries)"
         )
-    
+
     def run_once(self):
         """Run retry job once."""
         logger.info("Starting retry job execution")
         start_time = time.time()
-        
+
         # Initialize all gauges to 0 to ensure metrics exist even on failure
         for collection_name in self.COLLECTION_CONFIGS.keys():
             self.metrics.stuck_documents.labels(collection=collection_name).set(0)
             self.metrics.failed_documents.labels(collection=collection_name).set(0)
-        
+
         try:
             # Connect to dependencies
             self.connect_mongodb()
             self.connect_rabbitmq()
-            
+
             # Process each collection
             for collection_name, config in self.COLLECTION_CONFIGS.items():
                 try:
@@ -577,25 +577,25 @@ class RetryStuckDocumentsJob:
                     logger.error(f"Error processing collection {collection_name}: {e}", exc_info=True)
                     self.metrics.errors_total.labels(error_type="collection_error").inc()
                     # Gauges already initialized to 0 above
-            
+
             # Record success
             self.metrics.runs_total.labels(status="success").inc()
-            
+
         except Exception as e:
             logger.error(f"Retry job failed: {e}", exc_info=True)
             self.metrics.runs_total.labels(status="failure").inc()
             self.metrics.errors_total.labels(error_type="job_error").inc()
             raise
-        
+
         finally:
             # Disconnect
             self.disconnect_rabbitmq()
             self.disconnect_mongodb()
-            
+
             # Record duration
             duration = time.time() - start_time
             self.metrics.duration_seconds.observe(duration)
-            
+
             # Push metrics to Pushgateway
             try:
                 push_to_gateway(
@@ -606,23 +606,23 @@ class RetryStuckDocumentsJob:
                 logger.info(f"Pushed metrics to {self.pushgateway_url}")
             except Exception as e:
                 logger.warning(f"Failed to push metrics to Pushgateway: {e}")
-            
+
             logger.info(f"Retry job completed in {duration:.2f} seconds")
-    
+
     def run_loop(self, interval_seconds: int):
         """Run retry job in a loop.
-        
+
         Args:
             interval_seconds: Seconds between executions
         """
         logger.info(f"Starting retry job loop (interval: {interval_seconds}s)")
-        
+
         while True:
             try:
                 self.run_once()
             except Exception as e:
                 logger.error(f"Retry job execution failed: {e}")
-            
+
             logger.info(f"Sleeping for {interval_seconds} seconds...")
             time.sleep(interval_seconds)
 
@@ -633,15 +633,15 @@ def main():
     if not PYMONGO_AVAILABLE:
         print("Error: pymongo library not installed. Run: pip install pymongo", file=sys.stderr)
         sys.exit(1)
-    
+
     if not PIKA_AVAILABLE:
         print("Error: pika library not installed. Run: pip install pika", file=sys.stderr)
         sys.exit(1)
-    
+
     if not PROMETHEUS_AVAILABLE:
         print("Error: prometheus_client not installed. Run: pip install prometheus_client", file=sys.stderr)
         sys.exit(1)
-    
+
     parser = argparse.ArgumentParser(
         description="Retry stuck documents in Copilot-for-Consensus pipeline",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -665,54 +665,54 @@ Environment Variables:
 For full documentation, see documents/RETRY_POLICY.md
         """
     )
-    
+
     parser.add_argument(
         "--once",
         action="store_true",
         help="Run once and exit (default: run continuously)"
     )
-    
+
     parser.add_argument(
         "--interval",
         type=int,
         default=int(os.getenv("RETRY_JOB_INTERVAL_SECONDS", "900")),
         help="Interval between runs in seconds (default: 900)"
     )
-    
+
     parser.add_argument(
         "--base-delay",
         type=int,
         default=int(os.getenv("RETRY_JOB_BASE_DELAY_SECONDS", "300")),
         help="Base backoff delay in seconds (default: 300)"
     )
-    
+
     parser.add_argument(
         "--max-delay",
         type=int,
         default=int(os.getenv("RETRY_JOB_MAX_DELAY_SECONDS", "3600")),
         help="Max backoff delay in seconds (default: 3600)"
     )
-    
+
     parser.add_argument(
         "--stuck-threshold-hours",
         type=int,
         default=int(os.getenv("RETRY_JOB_STUCK_THRESHOLD_HOURS", "24")),
         help="Hours before document is 'stuck' (default: 24)"
     )
-    
+
     parser.add_argument(
         "-v", "--verbose",
         action="store_true",
         help="Enable verbose logging"
     )
-    
+
     args = parser.parse_args()
-    
+
     # Configure logging
     global logger
     if args.verbose:
         logger = create_logger(name=__name__, level="DEBUG")
-    
+
     mongodb_username = _get_env_or_secret("MONGODB_USERNAME", "document_database_user")
     mongodb_password = _get_env_or_secret("MONGODB_PASSWORD", "document_database_password")
     rabbitmq_username = _get_env_or_secret("RABBITMQ_USERNAME", "message_bus_user") or "guest"
@@ -734,7 +734,7 @@ For full documentation, see documents/RETRY_POLICY.md
         max_delay_seconds=args.max_delay,
         stuck_threshold_hours=args.stuck_threshold_hours,
     )
-    
+
     # Run
     try:
         if args.once:

@@ -143,19 +143,19 @@ def test_service_fails_when_publisher_connection_fails():
             config.message_bus_type = "rabbitmq"
             # ... configure all required fields ...
             mock_config.return_value = config
-            
+
             # Setup mock publisher that fails to connect
             mock_publisher = Mock()
             mock_publisher.connect = Mock(return_value=False)
             mock_create_publisher.return_value = mock_publisher
-            
+
             # Import main after setting up mocks
             import main
-            
+
             # Service should raise ConnectionError and exit
             with pytest.raises(SystemExit) as exc_info:
                 main.main()
-            
+
             # Should exit with code 1 (error)
             assert exc_info.value.code == 1
 ```

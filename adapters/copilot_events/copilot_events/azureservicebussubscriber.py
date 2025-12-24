@@ -6,11 +6,12 @@
 import json
 import logging
 import threading
-from typing import Callable, Dict, Any, Optional
+from collections.abc import Callable
+from typing import Any
 
 try:
-    from azure.servicebus import ServiceBusClient, ServiceBusReceiveMode
     from azure.identity import DefaultAzureCredential
+    from azure.servicebus import ServiceBusClient, ServiceBusReceiveMode
 except ImportError:
     ServiceBusClient = None  # type: ignore
     ServiceBusReceiveMode = None  # type: ignore
@@ -23,24 +24,24 @@ logger = logging.getLogger(__name__)
 
 class AzureServiceBusSubscriber(EventSubscriber):
     """Azure Service Bus implementation of EventSubscriber.
-    
+
     Subscribes to events from Azure Service Bus queues or topic subscriptions
     and dispatches them to registered callbacks based on event type.
     """
 
     def __init__(
         self,
-        connection_string: Optional[str] = None,
-        fully_qualified_namespace: Optional[str] = None,
-        queue_name: Optional[str] = None,
-        topic_name: Optional[str] = None,
-        subscription_name: Optional[str] = None,
+        connection_string: str | None = None,
+        fully_qualified_namespace: str | None = None,
+        queue_name: str | None = None,
+        topic_name: str | None = None,
+        subscription_name: str | None = None,
         use_managed_identity: bool = False,
         auto_complete: bool = False,
         max_wait_time: int = 5,
     ):
         """Initialize Azure Service Bus subscriber.
-        
+
         Args:
             connection_string: Azure Service Bus connection string
             fully_qualified_namespace: Namespace hostname (e.g., "namespace.servicebus.windows.net")
@@ -51,7 +52,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
             use_managed_identity: Use Azure managed identity for authentication
             auto_complete: Whether to automatically complete messages (default: False for manual ack)
             max_wait_time: Maximum time to wait for messages in seconds (default: 5)
-            
+
         Raises:
             ValueError: If neither connection_string nor fully_qualified_namespace is provided
             ValueError: If topic_name is provided but subscription_name is not
@@ -61,22 +62,22 @@ class AzureServiceBusSubscriber(EventSubscriber):
             raise ValueError(
                 "Either connection_string or fully_qualified_namespace must be provided"
             )
-        
+
         if use_managed_identity and not fully_qualified_namespace:
             raise ValueError(
                 "fully_qualified_namespace is required when using managed identity"
             )
-        
+
         if topic_name and not subscription_name:
             raise ValueError(
                 "subscription_name is required when topic_name is provided"
             )
-        
+
         if not queue_name and not topic_name:
             raise ValueError(
                 "Either queue_name or topic_name must be provided"
             )
-        
+
         self.connection_string = connection_string
         self.fully_qualified_namespace = fully_qualified_namespace
         self.queue_name = queue_name
@@ -85,25 +86,25 @@ class AzureServiceBusSubscriber(EventSubscriber):
         self.use_managed_identity = use_managed_identity
         self.auto_complete = auto_complete
         self.max_wait_time = max_wait_time
-        
-        self.client: Optional[ServiceBusClient] = None
+
+        self.client: ServiceBusClient | None = None
         self._credential = None
-        self.callbacks: Dict[str, Callable[[Dict[str, Any]], None]] = {}
+        self.callbacks: dict[str, Callable[[dict[str, Any]], None]] = {}
         self._consuming = threading.Event()  # Thread-safe flag for consumption control
 
     def connect(self) -> None:
         """Connect to Azure Service Bus.
-        
+
         Raises:
             ImportError: If azure-servicebus or azure-identity library is not installed
             Exception: If connection fails
         """
         if ServiceBusClient is None:
             raise ImportError("azure-servicebus library is not installed")
-        
+
         if self.use_managed_identity and DefaultAzureCredential is None:
             raise ImportError("azure-identity library is not installed")
-        
+
         try:
             if self.use_managed_identity:
                 logger.info("Connecting to Azure Service Bus using managed identity")
@@ -117,10 +118,13 @@ class AzureServiceBusSubscriber(EventSubscriber):
                 self.client = ServiceBusClient.from_connection_string(
                     conn_str=self.connection_string
                 )
-            
-            source = f"queue={self.queue_name}" if self.queue_name else f"topic={self.topic_name}/subscription={self.subscription_name}"
+
+            if self.queue_name:
+                source = f"queue={self.queue_name}"
+            else:
+                source = f"topic={self.topic_name}/subscription={self.subscription_name}"
             logger.info(f"Connected to Azure Service Bus: {source}")
-            
+
         except Exception as e:
             logger.error(f"Failed to connect to Azure Service Bus: {e}")
             raise
@@ -138,16 +142,16 @@ class AzureServiceBusSubscriber(EventSubscriber):
     def subscribe(
         self,
         event_type: str,
-        callback: Callable[[Dict[str, Any]], None],
+        callback: Callable[[dict[str, Any]], None],
         routing_key: str = None,
         exchange: str = None,
     ) -> None:
         """Subscribe to events of a specific type.
-        
+
         For Azure Service Bus, the subscription is message-based rather than
         routing-key based. This method registers a callback for a specific event type.
         Messages are filtered by event_type field in the message body.
-        
+
         Args:
             event_type: Type of event to subscribe to
             callback: Function to call when an event is received
@@ -156,31 +160,31 @@ class AzureServiceBusSubscriber(EventSubscriber):
         """
         if not self.client:
             raise RuntimeError("Not connected. Call connect() first.")
-        
+
         # Register callback
         self.callbacks[event_type] = callback
-        
+
         logger.info(f"Registered callback for event type: {event_type}")
 
     def start_consuming(self) -> None:
         """Start consuming events from the queue or subscription.
-        
+
         This method blocks and processes events as they arrive,
         calling the registered callbacks.
-        
+
         Raises:
             RuntimeError: If not connected to Azure Service Bus
             Exception: For unexpected errors during message processing
         """
         if not self.client:
             raise RuntimeError("Not connected. Call connect() first.")
-        
+
         if ServiceBusReceiveMode is None:
             raise RuntimeError("azure-servicebus library is not installed")
-        
+
         self._consuming.set()
         logger.info("Started consuming events")
-        
+
         try:
             # Choose receive mode based on auto_complete setting
             receive_mode = (
@@ -188,7 +192,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
                 if self.auto_complete
                 else ServiceBusReceiveMode.PEEK_LOCK
             )
-            
+
             # Get receiver based on queue or topic/subscription
             if self.queue_name:
                 receiver = self.client.get_queue_receiver(
@@ -201,7 +205,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
                     subscription_name=self.subscription_name,
                     receive_mode=receive_mode,
                 )
-            
+
             with receiver:
                 # Continuously receive and process messages
                 while self._consuming.is_set():
@@ -211,7 +215,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
                             max_message_count=10,
                             max_wait_time=self.max_wait_time,
                         )
-                        
+
                         for msg in messages:
                             try:
                                 self._process_message(msg, receiver)
@@ -223,7 +227,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
                                         receiver.abandon_message(msg)
                                     except Exception as abandon_error:
                                         logger.error(f"Error abandoning message: {abandon_error}")
-                                        
+
                     except KeyboardInterrupt:
                         logger.info("Received keyboard interrupt, stopping consumption")
                         break
@@ -231,7 +235,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
                         if self._consuming.is_set():
                             logger.error(f"Error receiving messages: {e}")
                         # Continue processing unless explicitly stopped
-                        
+
         except Exception as e:
             logger.error(f"Error in start_consuming: {e}")
             raise
@@ -247,7 +251,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
 
     def _process_message(self, msg, receiver) -> None:
         """Process a received message.
-        
+
         Args:
             msg: ServiceBusReceivedMessage object
             receiver: ServiceBusReceiver object
@@ -256,28 +260,28 @@ class AzureServiceBusSubscriber(EventSubscriber):
             # Parse message body
             message_body = str(msg)
             event = json.loads(message_body)
-            
+
             # Extract event type
             event_type = event.get("event_type")
-            
+
             if not event_type:
                 logger.warning("Received message without event_type field")
                 if not self.auto_complete:
                     receiver.complete_message(msg)
                 return
-            
+
             # Find and call registered callback
             callback = self.callbacks.get(event_type)
-            
+
             if callback:
                 try:
                     callback(event)
                     logger.debug(f"Processed {event_type} event: {event.get('event_id')}")
-                    
+
                     # Complete message if not auto-complete
                     if not self.auto_complete:
                         receiver.complete_message(msg)
-                        
+
                 except Exception as e:
                     logger.error(f"Error in callback for {event_type}: {e}")
                     # Abandon message for retry if not auto-complete
@@ -289,7 +293,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
                 # Complete message even if no callback (to avoid reprocessing)
                 if not self.auto_complete:
                     receiver.complete_message(msg)
-                    
+
         except json.JSONDecodeError as e:
             logger.error(f"Failed to decode message JSON: {e}")
             # Complete malformed messages to avoid blocking the queue

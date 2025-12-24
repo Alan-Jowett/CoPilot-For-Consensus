@@ -64,7 +64,7 @@ class TestArchiveIngestedEvent:
     def test_event_defaults(self):
         """Test event with default values."""
         event = ArchiveIngestedEvent()
-        
+
         assert event.event_type == "ArchiveIngested"
         assert event.version == "1.0"
         assert event.event_id is not None
@@ -79,7 +79,7 @@ class TestArchiveIngestedEvent:
             "file_path": "/test/path.mbox",
         }
         event = ArchiveIngestedEvent(data=data)
-        
+
         assert event.data == data
         assert event.event_type == "ArchiveIngested"
 
@@ -87,9 +87,9 @@ class TestArchiveIngestedEvent:
         """Test event serialization to dict."""
         data = {"archive_id": "abc-123"}
         event = ArchiveIngestedEvent(data=data)
-        
+
         result = event.to_dict()
-        
+
         assert result["event_type"] == "ArchiveIngested"
         assert result["version"] == "1.0"
         assert "event_id" in result
@@ -99,10 +99,10 @@ class TestArchiveIngestedEvent:
     def test_event_json_serializable(self):
         """Test that event can be JSON serialized."""
         event = ArchiveIngestedEvent(data={"test": "value"})
-        
+
         # Should not raise exception
         json_str = json.dumps(event.to_dict())
-        
+
         # Should be able to deserialize
         result = json.loads(json_str)
         assert result["event_type"] == "ArchiveIngested"
@@ -111,7 +111,7 @@ class TestArchiveIngestedEvent:
         """Test that each event gets a unique ID."""
         event1 = ArchiveIngestedEvent()
         event2 = ArchiveIngestedEvent()
-        
+
         assert event1.event_id != event2.event_id
 
 
@@ -121,7 +121,7 @@ class TestArchiveIngestionFailedEvent:
     def test_event_defaults(self):
         """Test event with default values."""
         event = ArchiveIngestionFailedEvent()
-        
+
         assert event.event_type == "ArchiveIngestionFailed"
         assert event.version == "1.0"
         assert event.event_id is not None
@@ -137,16 +137,16 @@ class TestArchiveIngestionFailedEvent:
             "retry_count": 3,
         }
         event = ArchiveIngestionFailedEvent(data=data)
-        
+
         assert event.data == data
         assert event.data["error_message"] == "Connection failed"
 
     def test_event_to_dict(self):
         """Test event serialization to dict."""
         event = ArchiveIngestionFailedEvent(data={"error": "test"})
-        
+
         result = event.to_dict()
-        
+
         assert result["event_type"] == "ArchiveIngestionFailed"
         assert result["version"] == "1.0"
         assert "event_id" in result
@@ -159,7 +159,7 @@ class TestJSONParsedEvent:
     def test_event_defaults(self):
         """Test event with default values."""
         event = JSONParsedEvent()
-        
+
         assert event.event_type == "JSONParsed"
         assert event.version == "1.0"
         assert event.event_id is not None
@@ -177,7 +177,7 @@ class TestJSONParsedEvent:
             "parsing_duration_seconds": 12.5,
         }
         event = JSONParsedEvent(data=data)
-        
+
         assert event.data == data
         assert event.data["message_count"] == 150
         assert event.data["thread_count"] == 45
@@ -186,9 +186,9 @@ class TestJSONParsedEvent:
         """Test event serialization to dict."""
         data = {"archive_id": "abc-123", "message_count": 100}
         event = JSONParsedEvent(data=data)
-        
+
         result = event.to_dict()
-        
+
         assert result["event_type"] == "JSONParsed"
         assert result["version"] == "1.0"
         assert "event_id" in result
@@ -198,10 +198,10 @@ class TestJSONParsedEvent:
     def test_event_json_serializable(self):
         """Test that event can be JSON serialized."""
         event = JSONParsedEvent(data={"message_count": 50})
-        
+
         # Should not raise exception
         json_str = json.dumps(event.to_dict())
-        
+
         # Should be able to deserialize
         result = json.loads(json_str)
         assert result["event_type"] == "JSONParsed"
@@ -213,7 +213,7 @@ class TestParsingFailedEvent:
     def test_event_defaults(self):
         """Test event with default values."""
         event = ParsingFailedEvent()
-        
+
         assert event.event_type == "ParsingFailed"
         assert event.version == "1.0"
         assert event.event_id is not None
@@ -231,7 +231,7 @@ class TestParsingFailedEvent:
             "retry_count": 3,
         }
         event = ParsingFailedEvent(data=data)
-        
+
         assert event.data == data
         assert event.data["error_message"] == "Invalid mbox format"
         assert event.data["messages_parsed_before_failure"] == 75
@@ -239,9 +239,9 @@ class TestParsingFailedEvent:
     def test_event_to_dict(self):
         """Test event serialization to dict."""
         event = ParsingFailedEvent(data={"error": "test"})
-        
+
         result = event.to_dict()
-        
+
         assert result["event_type"] == "ParsingFailed"
         assert result["version"] == "1.0"
         assert "event_id" in result

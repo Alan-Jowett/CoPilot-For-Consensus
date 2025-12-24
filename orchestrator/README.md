@@ -97,14 +97,14 @@ LLM_MODEL=gpt-4o-mini
 
 The Orchestration Service subscribes to the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
 
-1) **EmbeddingsGenerated**  
-   - **Exchange:** `copilot.events`  
-   - **Routing Key:** `embeddings.generated`  
+1) **EmbeddingsGenerated**
+   - **Exchange:** `copilot.events`
+   - **Routing Key:** `embeddings.generated`
    - See [EmbeddingsGenerated schema](../documents/SCHEMA.md#7-embeddingsgenerated) in SCHEMA.md
    - **Behavior:** Fetch chunk metadata; compute thread scope; retrieve top-k from vector store; assemble prompt; trigger summarization job.
 
-2) **JSONParsed** *(optional for thread bookkeeping)*  
-   - **Exchange:** `copilot.events`  
+2) **JSONParsed** *(optional for thread bookkeeping)*
+   - **Exchange:** `copilot.events`
    - **Routing Key:** `json.parsed`
    - See [JSONParsed schema](../documents/SCHEMA.md#3-jsonparsed) in SCHEMA.md
    - **Behavior:** Track new threads/messages; maintain orchestration schedule.
@@ -113,21 +113,21 @@ The Orchestration Service subscribes to the following events. See [SCHEMA.md](..
 
 The Orchestration Service publishes the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
 
-1) **SummarizationRequested**  
-   - **Exchange:** `copilot.events`  
-   - **Routing Key:** `summarization.requested`  
+1) **SummarizationRequested**
+   - **Exchange:** `copilot.events`
+   - **Routing Key:** `summarization.requested`
    - See [SummarizationRequested schema](../documents/SCHEMA.md#9-summarizationrequested) in SCHEMA.md
    - **Behavior:** Triggers summarization with LLM configuration and context parameters.
 
-2) **SummaryComplete** *(relayed)*  
-   - **Exchange:** `copilot.events`  
-   - **Routing Key:** `summary.complete`  
+2) **SummaryComplete** *(relayed)*
+   - **Exchange:** `copilot.events`
+   - **Routing Key:** `summary.complete`
    - See [SummaryComplete schema](../documents/SCHEMA.md#11-summarycomplete) in SCHEMA.md
    - **Behavior:** Forward summary results or acknowledge completion to downstream services.
 
-3) **OrchestrationFailed**  
-   - **Exchange:** `copilot.events`  
-   - **Routing Key:** `orchestration.failed`  
+3) **OrchestrationFailed**
+   - **Exchange:** `copilot.events`
+   - **Routing Key:** `orchestration.failed`
    - See [OrchestrationFailed schema](../documents/SCHEMA.md#10-orchestrationfailed) in SCHEMA.md
    - **Behavior:** Signals orchestration errors for specific threads.
 
@@ -160,15 +160,15 @@ def handle_embeddings_generated(event):
     thread_ids = resolve_threads(event.data.chunk_ids)
     for thread_id in thread_ids:
         context = retrieve_context(thread_id, top_k=cfg.top_k)
-        
+
         # Calculate expected summary_id from thread + chunks
         expected_summary_id = calculate_summary_id(thread_id, context.chunks)
-        
+
         # Skip if summary already exists for this exact set of chunks
         if summary_exists(expected_summary_id):
             log_metric("orchestrator_summary_skipped_total")
             continue
-        
+
         # Trigger summarization only when chunks changed
         publish_summarization_requested(thread_id, context, cfg)
         log_metric("orchestrator_summary_triggered_total")

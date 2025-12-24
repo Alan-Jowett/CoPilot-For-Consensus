@@ -6,7 +6,6 @@
 import logging
 import os
 import shutil
-from typing import Optional, Tuple
 
 from .base import ArchiveFetcher
 from .models import SourceConfig
@@ -19,18 +18,18 @@ class LocalFetcher(ArchiveFetcher):
 
     def __init__(self, source: SourceConfig):
         """Initialize local fetcher.
-        
+
         Args:
             source: Source configuration
         """
         self.source = source
 
-    def fetch(self, output_dir: str) -> Tuple[bool, Optional[list], Optional[str]]:
+    def fetch(self, output_dir: str) -> tuple[bool, list | None, str | None]:
         """Copy archive from local filesystem.
-        
+
         Args:
             output_dir: Directory to store the copied archive
-            
+
         Returns:
             Tuple of (success, list_of_file_paths, error_message)
         """
@@ -55,14 +54,14 @@ class LocalFetcher(ArchiveFetcher):
                 # Copy directory and collect all files
                 dest_path = os.path.join(output_dir, self.source.name)
                 shutil.copytree(source_path, dest_path, dirs_exist_ok=True)
-                
+
                 # Collect all files in the copied directory
                 file_paths = []
                 for root, dirs, files in os.walk(dest_path):
                     for file in files:
                         file_path = os.path.join(root, file)
                         file_paths.append(file_path)
-                
+
                 logger.info(f"Copied directory {source_path} to {dest_path} ({len(file_paths)} files)")
                 return True, file_paths, None
             else:

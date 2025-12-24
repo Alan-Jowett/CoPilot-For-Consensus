@@ -11,20 +11,18 @@ from pathlib import Path
 # Add app directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
-from fastapi import FastAPI
 import uvicorn
-
-from copilot_config import load_typed_config
-from copilot_events import create_publisher, create_subscriber
-from copilot_storage import create_document_store, ValidatingDocumentStore
-from copilot_schema_validation import FileSchemaProvider
-from copilot_metrics import create_metrics_collector
-from copilot_reporting import create_error_reporter
-from copilot_chunking import create_chunker
-from copilot_logging import create_logger, create_uvicorn_log_config
-
 from app import __version__
 from app.service import ChunkingService
+from copilot_chunking import create_chunker
+from copilot_config import load_typed_config
+from copilot_events import create_publisher, create_subscriber
+from copilot_logging import create_logger, create_uvicorn_log_config
+from copilot_metrics import create_metrics_collector
+from copilot_reporting import create_error_reporter
+from copilot_schema_validation import FileSchemaProvider
+from copilot_storage import ValidatingDocumentStore, create_document_store
+from fastapi import FastAPI
 
 # Configure structured JSON logging
 logger = create_logger(logger_type="stdout", level="INFO", name="chunking")
@@ -40,9 +38,9 @@ chunking_service = None
 def health():
     """Health check endpoint."""
     global chunking_service
-    
+
     stats = chunking_service.get_stats() if chunking_service is not None else {}
-    
+
     return {
         "status": "healthy",
         "service": "chunking",
@@ -57,19 +55,19 @@ def health():
 def get_stats():
     """Get chunking statistics."""
     global chunking_service
-    
+
     if not chunking_service:
         return {"error": "Service not initialized"}
-    
+
     return chunking_service.get_stats()
 
 
 def start_subscriber_thread(service: ChunkingService):
     """Start the event subscriber in a separate thread.
-    
+
     Args:
         service: Chunking service instance
-        
+
     Raises:
         Exception: Re-raises any exception to fail fast
     """
@@ -88,14 +86,14 @@ def start_subscriber_thread(service: ChunkingService):
 def main():
     """Main entry point for the chunking service."""
     global chunking_service
-    
+
     logger.info(f"Starting Chunking Service (version {__version__})")
-    
+
     try:
         # Load configuration using config adapter
         config = load_typed_config("chunking")
         logger.info("Configuration loaded successfully")
-        
+
         # Conditionally add JWT authentication middleware based on config
         if getattr(config, 'jwt_auth_enabled', True):
             logger.info("JWT authentication is enabled")
@@ -107,10 +105,10 @@ def main():
                 )
                 app.add_middleware(auth_middleware)
             except ImportError:
-                logger.warning("copilot_auth module not available - JWT authentication disabled")
+                logger.debug("copilot_auth module not available - JWT authentication disabled")
         else:
             logger.warning("JWT authentication is DISABLED - all endpoints are public")
-        
+
         # Create adapters
         logger.info("Creating message bus publisher...")
         publisher = create_publisher(
@@ -128,7 +126,7 @@ def main():
                 raise ConnectionError("Publisher failed to connect to message bus")
             else:
                 logger.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
-        
+
         logger.info("Creating message bus subscriber...")
         subscriber = create_subscriber(
             message_bus_type=config.message_bus_type,
@@ -143,7 +141,7 @@ def main():
         except Exception as e:
             logger.error(f"Failed to connect subscriber to message bus: {e}")
             raise ConnectionError("Subscriber failed to connect to message bus")
-        
+
         logger.info("Creating document store...")
         base_document_store = create_document_store(
             store_type=config.doc_store_type,
@@ -157,7 +155,7 @@ def main():
         # connect() raises on failure; None return indicates success
         base_document_store.connect()
         logger.info("Document store connected successfully")
-        
+
         # Wrap with schema validation
         logger.info("Wrapping document store with schema validation...")
         # The schema path is resolved relative to the container's filesystem layout.
@@ -169,7 +167,7 @@ def main():
             schema_provider=document_schema_provider,
             strict=True,
         )
-        
+
         # Create chunker
         logger.info(f"Creating chunker with strategy: {config.chunking_strategy}")
         chunker = create_chunker(
@@ -179,15 +177,15 @@ def main():
             min_chunk_size=config.min_chunk_size,
             max_chunk_size=config.max_chunk_size,
         )
-        
+
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")
         metrics_collector = create_metrics_collector()
-        
+
         # Create error reporter - fail fast on errors
         logger.info("Creating error reporter...")
         error_reporter = create_error_reporter()
-        
+
         # Create chunking service
         chunking_service = ChunkingService(
             document_store=document_store,
@@ -197,7 +195,7 @@ def main():
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
         )
-        
+
         # Start subscriber in a separate thread (non-daemon to fail fast)
         subscriber_thread = threading.Thread(
             target=start_subscriber_thread,
@@ -206,14 +204,14 @@ def main():
         )
         subscriber_thread.start()
         logger.info("Subscriber thread started")
-        
+
         # Start FastAPI server
         logger.info(f"Starting HTTP server on port {config.http_port}...")
-        
+
         # Configure Uvicorn with structured JSON logging
         log_config = create_uvicorn_log_config(service_name="chunking", log_level="INFO")
-        uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config)
-        
+        uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config, access_log=False)
+
     except Exception as e:
         logger.error(f"Failed to start chunking service: {e}")
         sys.exit(1)

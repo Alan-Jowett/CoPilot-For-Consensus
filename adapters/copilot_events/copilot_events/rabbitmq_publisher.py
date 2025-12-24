@@ -6,7 +6,7 @@
 import json
 import logging
 import time
-from typing import Dict, Any, List, Optional
+from typing import Any
 
 try:
     import pika
@@ -34,7 +34,7 @@ class RabbitMQPublisher(EventPublisher):
         reconnect_delay: float = 2.0,
     ):
         """Initialize RabbitMQ publisher.
-        
+
         Args:
             host: RabbitMQ host
             port: RabbitMQ port
@@ -63,14 +63,14 @@ class RabbitMQPublisher(EventPublisher):
 
     def connect(self) -> None:
         """Connect to RabbitMQ and declare exchange.
-        
+
         Raises:
             ImportError: If pika library is not installed
             Exception: If connection or exchange declaration fails
         """
         if pika is None:
             raise ImportError("pika library is not installed")
-            
+
         credentials = pika.PlainCredentials(self.username, self.password)
         parameters = pika.ConnectionParameters(
             host=self.host,
@@ -107,7 +107,7 @@ class RabbitMQPublisher(EventPublisher):
 
     def _is_connected(self) -> bool:
         """Check if connection and channel are open.
-        
+
         Returns:
             True if both connection and channel are open, False otherwise
         """
@@ -123,15 +123,15 @@ class RabbitMQPublisher(EventPublisher):
 
     def _reconnect(self) -> bool:
         """Attempt to reconnect to RabbitMQ with circuit breaker logic.
-        
+
         Implements exponential backoff to prevent reconnection storms.
         Resets reconnect count after successful reconnection.
-        
+
         Returns:
             True if reconnection succeeded, False otherwise
         """
         current_time = time.time()
-        
+
         # Circuit breaker with exponential backoff: prevent rapid reconnection attempts
         time_since_last_reconnect = current_time - self._last_reconnect_time
         # Exponential backoff with a reasonable cap to prevent excessive delay
@@ -143,44 +143,44 @@ class RabbitMQPublisher(EventPublisher):
                 f"Reconnection throttled, {remaining:.1f}s remaining (backoff {backoff_delay:.1f}s)"
             )
             return False
-        
+
         self._last_reconnect_time = current_time
-        
+
         # Check reconnection limit
         if self._reconnect_count >= self.max_reconnect_attempts:
             logger.error(
                 f"Maximum reconnection attempts ({self.max_reconnect_attempts}) exceeded"
             )
             return False
-        
+
         # Close existing connections
         try:
             if self.channel and self.channel.is_open:
                 self.channel.close()
         except Exception as e:
             logger.debug(f"Error closing channel during reconnect: {e}")
-            
+
         try:
             if self.connection and not self.connection.is_closed:
                 self.connection.close()
         except Exception as e:
             logger.debug(f"Error closing connection during reconnect: {e}")
-        
+
         # Reset state
         self.channel = None
         self.connection = None
-        
+
         # Attempt reconnection
         self._reconnect_count += 1
         logger.info(
             f"Attempting reconnection {self._reconnect_count}/{self.max_reconnect_attempts}..."
         )
-        
+
         try:
             self.connect()
             logger.info("Reconnection successful")
             self._reconnect_count = 0  # Reset count on success
-            
+
             # Re-declare queues that were previously declared
             if self._declared_queues:
                 logger.info(f"Re-declaring {len(self._declared_queues)} queues...")
@@ -188,7 +188,7 @@ class RabbitMQPublisher(EventPublisher):
                 self._declared_queues.clear()
                 for queue_name in queues_to_redeclare:
                     self.declare_queue(queue_name)
-            
+
             return True
         except Exception as e:
             logger.error(f"Reconnection attempt {self._reconnect_count} failed: {e}")
@@ -197,8 +197,8 @@ class RabbitMQPublisher(EventPublisher):
     def declare_queue(
         self,
         queue_name: str,
-        routing_key: Optional[str] = None,
-        exchange: Optional[str] = None,
+        routing_key: str | None = None,
+        exchange: str | None = None,
     ) -> None:
         """Declare a durable queue and bind it to an exchange.
 
@@ -248,15 +248,15 @@ class RabbitMQPublisher(EventPublisher):
             logger.error(f"Failed to declare queue '{queue_name}': {e}")
             raise
 
-    def declare_queues(self, queues: List[Dict[str, Optional[str]]]) -> bool:
+    def declare_queues(self, queues: list[dict[str, str | None]]) -> bool:
         """Declare multiple queues at once.
-        
+
         Args:
             queues: List of queue configurations, each with:
                 - queue_name: Name of the queue
                 - routing_key: Routing key (optional)
                 - exchange: Exchange name (optional)
-                
+
         Returns:
             True if all queues declared successfully, False otherwise
         """
@@ -279,20 +279,20 @@ class RabbitMQPublisher(EventPublisher):
 
         return success
 
-    def publish(self, exchange: str, routing_key: str, event: Dict[str, Any]) -> None:
+    def publish(self, exchange: str, routing_key: str, event: dict[str, Any]) -> None:
         """Publish an event to RabbitMQ with message persistence and automatic reconnection.
-        
+
         Messages are published with:
         - delivery_mode=2 for persistence
         - mandatory=True to detect unroutable messages
         - Publisher confirms (if enabled) for guaranteed delivery
         - Automatic reconnection on channel/connection errors
-        
+
         Args:
             exchange: Exchange name
             routing_key: Routing key
             event: Event data as dictionary
-            
+
         Raises:
             ConnectionError: If not connected and reconnection fails
             RuntimeError: If pika library is not installed
@@ -325,7 +325,7 @@ class RabbitMQPublisher(EventPublisher):
                 ),
                 mandatory=True,  # Return unroutable messages
             )
-            
+
             logger.info(
                 f"Published event to {exchange}/{routing_key}: {event.get('event_type')}"
             )

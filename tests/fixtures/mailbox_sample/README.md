@@ -42,7 +42,7 @@ From the 10 messages in test-archive.mbox:
 
 ## Running Locally
 
-> **Note:** These commands use `docker compose` (with a space), which requires Docker Compose V2.  
+> **Note:** These commands use `docker compose` (with a space), which requires Docker Compose V2.
 > If you are using an older Docker installation, replace `docker compose` with `docker-compose` (with a hyphen) in all commands below.
 
 To test the end-to-end flow locally:

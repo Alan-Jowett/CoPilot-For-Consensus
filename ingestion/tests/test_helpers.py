@@ -3,10 +3,11 @@
 
 """Test helper utilities for schema validation and event testing."""
 
-from typing import Dict, Any
-from types import SimpleNamespace
 import os
 import tempfile
+from types import SimpleNamespace
+from typing import Any
+
 from copilot_schema_validation import FileSchemaProvider, validate_json
 
 
@@ -48,7 +49,7 @@ def make_source(**overrides) -> dict:
 
 def get_schema_provider():
     """Get a FileSchemaProvider for testing.
-    
+
     Returns:
         FileSchemaProvider instance configured with repository schemas
     """
@@ -57,34 +58,34 @@ def get_schema_provider():
     return FileSchemaProvider(schema_dir=schema_dir)
 
 
-def validate_event_against_schema(event: Dict[str, Any]) -> tuple[bool, list[str]]:
+def validate_event_against_schema(event: dict[str, Any]) -> tuple[bool, list[str]]:
     """Validate an event against its JSON schema.
-    
+
     Args:
         event: Event dictionary containing event_type and other fields
-        
+
     Returns:
         Tuple of (is_valid, error_messages)
     """
     event_type = event.get("event_type")
     if not event_type:
         return False, ["Event missing 'event_type' field"]
-    
+
     schema_provider = get_schema_provider()
     schema = schema_provider.get_schema(event_type)
-    
+
     if schema is None:
         return False, [f"No schema found for event type '{event_type}'"]
-    
+
     return validate_json(event, schema, schema_provider=schema_provider)
 
 
-def assert_valid_event_schema(event: Dict[str, Any]) -> None:
+def assert_valid_event_schema(event: dict[str, Any]) -> None:
     """Assert that an event is valid according to its JSON schema.
-    
+
     Args:
         event: Event dictionary to validate
-        
+
     Raises:
         AssertionError: If validation fails
     """

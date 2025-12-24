@@ -68,7 +68,7 @@ export function Callback() {
       const response = await fetch(`/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`)
 
       console.log('[Callback] Response status:', response.status)
-      
+
       if (!response.ok) {
         const error = await response.json().catch(() => ({
           detail: `Token exchange failed: ${response.status}`,
@@ -78,7 +78,7 @@ export function Callback() {
 
       const data = await response.json()
       console.log('[Callback] Got response:', { access_token: !!data.access_token, token_type: data.token_type })
-      
+
       if (data.access_token) {
         console.log('[Callback] Storing token directly to localStorage')
         // TODO: Security - Move to httpOnly cookies for production
@@ -87,11 +87,11 @@ export function Callback() {
         localStorage.setItem('auth_token', data.access_token)
         console.log('[Callback] Token stored in localStorage, length:', localStorage.getItem('auth_token')?.length)
         console.log('[Callback] Verify localStorage has token:', !!localStorage.getItem('auth_token'))
-        
+
         // Then notify the AuthContext
         console.log('[Callback] Calling setAuthToken()')
         setAuthToken(data.access_token)
-        
+
         // Then redirect after a short delay to allow logs to be read
         console.log('[Callback] Will redirect to /ui/reports in 1 second (or enable "Preserve log" in DevTools)')
         setTimeout(() => {

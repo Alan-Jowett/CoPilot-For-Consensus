@@ -3,7 +3,7 @@
 
 """Static/dictionary-backed configuration provider."""
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .base import ConfigProvider
 
@@ -11,7 +11,7 @@ from .base import ConfigProvider
 class StaticConfigProvider(ConfigProvider):
     """Configuration provider with static values (useful for tests)."""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         self._config = config if config is not None else {}
 
     def get(self, key: str, default: Any = None) -> Any:

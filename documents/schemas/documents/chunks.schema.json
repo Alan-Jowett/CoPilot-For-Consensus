@@ -33,13 +33,13 @@
     "chunk_index": { "type": "integer", "minimum": 0 },
     "text": { "type": "string", "minLength": 1 },
     "token_count": { "type": "integer", "minimum": 0 },
-    "start_offset": { 
+    "start_offset": {
       "anyOf": [
         { "type": "integer", "minimum": 0 },
         { "type": "null" }
       ]
     },
-    "end_offset": { 
+    "end_offset": {
       "anyOf": [
         { "type": "integer", "minimum": 0 },
         { "type": "null" }
@@ -62,12 +62,12 @@
       "enum": ["pending", "processing", "completed", "failed", "failed_max_retries"],
       "description": "Processing status for retry and workflow tracking"
     },
-    "attemptCount": { 
-      "type": "integer", 
+    "attemptCount": {
+      "type": "integer",
       "minimum": 0,
       "description": "Number of embedding generation attempts for retry tracking"
     },
-    "lastAttemptTime": { 
+    "lastAttemptTime": {
       "anyOf": [
         { "type": "string", "format": "date-time" },
         { "type": "null" }

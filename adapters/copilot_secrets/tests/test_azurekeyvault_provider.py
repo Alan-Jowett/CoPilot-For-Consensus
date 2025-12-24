@@ -275,9 +275,9 @@ class TestAzureKeyVaultProvider:
         # the error message that would be raised.
         # The actual ImportError path is tested implicitly when running tests without
         # Azure SDK installed, but here we verify the error message format.
-        
+
         expected_keywords = ["Azure SDK dependencies", "not installed", "pip install"]
-        
+
         # Verify that if ImportError occurred, the message would be correct
         # This is more of a documentation test that shows what users would see
         try:
@@ -300,14 +300,14 @@ class TestAzureKeyVaultProvider:
         mock_default_credential.return_value = mock_credential
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
-        
+
         # Add close methods to mocks
         mock_client.close = Mock()
         mock_credential.close = Mock()
-        
+
         # Call close
         provider.close()
-        
+
         # Verify both close methods were called
         mock_client.close.assert_called_once()
         mock_credential.close.assert_called_once()
@@ -325,7 +325,7 @@ class TestAzureKeyVaultProvider:
         del mock_credential.close
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
-        
+
         # Should not raise any exception
         provider.close()
 
@@ -338,11 +338,11 @@ class TestAzureKeyVaultProvider:
         mock_default_credential.return_value = mock_credential
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
-        
+
         # Make close methods raise exceptions
         mock_client.close = Mock(side_effect=RuntimeError("Close failed"))
         mock_credential.close = Mock(side_effect=RuntimeError("Close failed"))
-        
+
         # Should not raise any exception
         provider.close()
 
@@ -357,20 +357,20 @@ class TestAzureKeyVaultProvider:
         # Add close methods to mocks before creating provider
         mock_client.close = Mock()
         mock_credential.close = Mock()
-        
+
         # Verify close hasn't been called yet
         assert not mock_client.close.called
         assert not mock_credential.close.called
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
-        
+
         # Still not called after instantiation
         assert not mock_client.close.called
         assert not mock_credential.close.called
-        
+
         # Use del to trigger __del__ naturally instead of calling it explicitly
         del provider
-        
+
         # Verify close was attempted
         mock_client.close.assert_called_once()
         mock_credential.close.assert_called_once()
@@ -384,11 +384,11 @@ class TestAzureKeyVaultProvider:
         mock_default_credential.return_value = mock_credential
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
-        
+
         # Make close raise an exception
         mock_client.close = Mock(side_effect=RuntimeError("Close failed"))
         mock_credential.close = Mock(side_effect=RuntimeError("Close failed"))
-        
+
         # Should not raise any exception when deleted - test passes if no exception propagates
         try:
             del provider

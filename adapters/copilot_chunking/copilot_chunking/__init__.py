@@ -11,20 +11,20 @@ enabling flexible experimentation without modifying downstream services.
 
 Example:
     >>> from copilot_chunking import Thread, create_chunker
-    >>> 
+    >>>
     >>> # Create a chunker with token window strategy
     >>> chunker = create_chunker("token_window", chunk_size=384, overlap=50)
-    >>> 
+    >>>
     >>> # Create a thread
     >>> thread = Thread(
     ...     thread_id="<msg@example.com>",
     ...     text="Email content here...",
     ...     metadata={"sender": "user@example.com"}
     ... )
-    >>> 
+    >>>
     >>> # Chunk the thread
     >>> chunks = chunker.chunk(thread)
-    >>> 
+    >>>
     >>> # Process chunks
     >>> for chunk in chunks:
     ...     print(f"Chunk {chunk.chunk_index}: {chunk.token_count} tokens")
@@ -33,12 +33,12 @@ Example:
 __version__ = "0.1.0"
 
 from .chunkers import (
-    ThreadChunker,
-    TokenWindowChunker,
+    Chunk,
     FixedSizeChunker,
     SemanticChunker,
-    Chunk,
     Thread,
+    ThreadChunker,
+    TokenWindowChunker,
     create_chunker,
 )
 

@@ -8,9 +8,9 @@ This module provides a unified interface for different vector store backends
 and simplify testing.
 """
 
-from .interface import VectorStore, SearchResult
-from .inmemory import InMemoryVectorStore
 from .factory import create_vector_store
+from .inmemory import InMemoryVectorStore
+from .interface import SearchResult, VectorStore
 
 # Optional imports that may not be available
 try:

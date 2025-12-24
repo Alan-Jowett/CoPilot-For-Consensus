@@ -33,11 +33,11 @@ Validate that events published by a service conform to their JSON schemas:
 def test_publish_event_with_schema_validation(service, mock_publisher):
     """Test that published events validate against schema."""
     service._publish_my_event(...)
-    
+
     # Get published event
     call_args = mock_publisher.publish.call_args
     event = call_args[1]["message"]
-    
+
     # Validate against JSON schema
     assert_valid_event_schema(event)
 ```
@@ -62,13 +62,13 @@ def test_consume_event():
         "version": "1.0",
         "data": {...}
     }
-    
+
     # Validate incoming event
     assert_valid_event_schema(event)
-    
+
     # Process the event
     service._handle_my_event(event)
-    
+
     # Verify processing succeeded
     assert service.get_stats()["events_processed"] == 1
 ```
@@ -93,7 +93,7 @@ def test_handle_malformed_event():
         "version": "1.0",
         # Missing 'data' field
     }
-    
+
     # Should handle gracefully without crashing
     try:
         service._handle_my_event(event)
@@ -120,7 +120,7 @@ def test_message_flow_pattern():
         ...
     }
     validate_event(input_event)
-    
+
     # Output event from service B
     output_event = {
         "event_type": "EventB",
@@ -130,7 +130,7 @@ def test_message_flow_pattern():
         }
     }
     validate_event(output_event)
-    
+
     # Verify data preservation
     assert output_event["data"]["preserved_field"] == input_event["data"]["field"]
 ```
@@ -211,10 +211,10 @@ from .test_helpers import assert_valid_event_schema
 def test_my_event_schema_validation(service, mock_publisher):
     """Test that MyEvent validates against schema."""
     service._publish_my_event(field1="value1", field2="value2")
-    
+
     call_args = mock_publisher.publish.call_args
     event = call_args[1]["message"]
-    
+
     # This will fail if event doesn't match schema
     assert_valid_event_schema(event)
 
@@ -227,20 +227,20 @@ def test_consume_incoming_event():
         "version": "1.0",
         "data": {...}
     }
-    
+
     # Validate event structure
     assert_valid_event_schema(event)
-    
+
     # Process it
     service._handle_incoming_event(event)
-    
+
     # Verify results
     assert service.get_stats()["events_processed"] == 1
 
 def test_handle_malformed_event():
     """Test handling malformed event."""
     event = {"event_type": "IncomingEvent"}  # Missing required fields
-    
+
     try:
         service._handle_incoming_event(event)
     except (KeyError, ValueError):

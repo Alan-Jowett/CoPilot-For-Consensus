@@ -416,7 +416,7 @@ for result in results:
     chunk = db.chunks.find_one({"_id": result.id})
     message = db.messages.find_one({"message_id": chunk["message_id"]})
     thread = db.threads.find_one({"_id": message["thread_id"]})
-    
+
     enriched_results.append({
         "score": result.score,
         "id": result.id,
@@ -456,13 +456,13 @@ summary = db.summaries.find_one({"_id": "..."})
 for citation in summary["citations"]:
     # Retrieve chunk
     chunk = db.chunks.find_one({"_id": citation["chunk_id"]})
-    
+
     # Retrieve original message
     message = db.messages.find_one({"message_id": chunk["message_id"]})
-    
+
     # Verify quote appears in chunk
     is_valid = citation["quote"] in chunk["text"]
-    
+
     print(f"Citation valid: {is_valid}")
     print(f"Source: {message['from']['email']} on {message['date']}")
 ```
@@ -551,10 +551,10 @@ client.create_payload_index(
 
 1. **Chunks must reference valid messages**
    - Before inserting chunk: Verify `message_id` exists in `messages` collection
-   
+
 2. **Embeddings must reference valid chunks**
    - Vector store `id` must match existing `chunk_id` in `chunks` collection
-   
+
 3. **Summary citations must reference valid chunks**
    - All `summaries.citations[].chunk_id` must exist in `chunks` collection
 
@@ -686,8 +686,8 @@ All events use this common structure:
 
 #### 1. ArchiveIngested
 
-**Published by:** Ingestion Service  
-**Consumed by:** Parsing Service  
+**Published by:** Ingestion Service
+**Consumed by:** Parsing Service
 **Routing Key:** `archive.ingested`
 
 Signals that a new archive has been successfully fetched and stored.
@@ -714,7 +714,7 @@ Signals that a new archive has been successfully fetched and stored.
 
 #### 2. ArchiveIngestionFailed
 
-**Published by:** Ingestion Service  
+**Published by:** Ingestion Service
 **Routing Key:** `archive.ingestion.failed`
 
 Signals that archive ingestion failed after all retry attempts.
@@ -740,8 +740,8 @@ Signals that archive ingestion failed after all retry attempts.
 
 #### 3. JSONParsed
 
-**Published by:** Parsing Service  
-**Consumed by:** Chunking Service, Orchestration Service (optional)  
+**Published by:** Parsing Service
+**Consumed by:** Chunking Service, Orchestration Service (optional)
 **Routing Key:** `json.parsed`
 
 Signals that an archive has been parsed and messages are stored.
@@ -770,7 +770,7 @@ Signals that an archive has been parsed and messages are stored.
 
 #### 4. ParsingFailed
 
-**Published by:** Parsing Service  
+**Published by:** Parsing Service
 **Routing Key:** `parsing.failed`
 
 Signals that archive parsing failed.
@@ -795,8 +795,8 @@ Signals that archive parsing failed.
 
 #### 5. ChunksPrepared
 
-**Published by:** Chunking Service  
-**Consumed by:** Embedding Service  
+**Published by:** Chunking Service
+**Consumed by:** Embedding Service
 **Routing Key:** `chunks.prepared`
 
 Signals that messages have been chunked and stored.
@@ -825,7 +825,7 @@ Signals that messages have been chunked and stored.
 
 #### 6. ChunkingFailed
 
-**Published by:** Chunking Service  
+**Published by:** Chunking Service
 **Routing Key:** `chunks.failed`
 
 Signals that chunking failed for a batch of messages.
@@ -850,8 +850,8 @@ Signals that chunking failed for a batch of messages.
 
 #### 7. EmbeddingsGenerated
 
-**Published by:** Embedding Service  
-**Consumed by:** Orchestration Service  
+**Published by:** Embedding Service
+**Consumed by:** Orchestration Service
 **Routing Key:** `embeddings.generated`
 
 Signals that embeddings have been generated and stored in the vector store.
@@ -880,7 +880,7 @@ Signals that embeddings have been generated and stored in the vector store.
 
 #### 8. EmbeddingGenerationFailed
 
-**Published by:** Embedding Service  
+**Published by:** Embedding Service
 **Routing Key:** `embeddings.failed`
 
 Signals that embedding generation failed.
@@ -906,8 +906,8 @@ Signals that embedding generation failed.
 
 #### 9. SummarizationRequested
 
-**Published by:** Orchestration Service  
-**Consumed by:** Summarization Service  
+**Published by:** Orchestration Service
+**Consumed by:** Summarization Service
 **Routing Key:** `summarization.requested`
 
 Signals that summarization should be performed for specific threads.
@@ -933,7 +933,7 @@ Signals that summarization should be performed for specific threads.
 
 #### 10. OrchestrationFailed
 
-**Published by:** Orchestration Service  
+**Published by:** Orchestration Service
 **Routing Key:** `orchestration.failed`
 
 Signals that orchestration failed for specific threads.
@@ -957,8 +957,8 @@ Signals that orchestration failed for specific threads.
 
 #### 11. SummaryComplete
 
-**Published by:** Summarization Service  
-**Consumed by:** Reporting Service  
+**Published by:** Summarization Service
+**Consumed by:** Reporting Service
 **Routing Key:** `summary.complete`
 
 Signals that a summary has been generated.
@@ -990,7 +990,7 @@ Signals that a summary has been generated.
 
 #### 12. SummarizationFailed
 
-**Published by:** Summarization Service  
+**Published by:** Summarization Service
 **Routing Key:** `summarization.failed`
 
 Signals that summarization failed for a thread.
@@ -1012,7 +1012,7 @@ Signals that summarization failed for a thread.
 
 #### 13. ReportPublished
 
-**Published by:** Reporting Service  
+**Published by:** Reporting Service
 **Routing Key:** `report.published`
 
 Signals that a report has been published and is available via API.
@@ -1036,7 +1036,7 @@ Signals that a report has been published and is available via API.
 
 #### 14. ReportDeliveryFailed
 
-**Published by:** Reporting Service  
+**Published by:** Reporting Service
 **Routing Key:** `report.delivery_failed`
 
 Signals that report delivery (e.g., webhook notification) failed.

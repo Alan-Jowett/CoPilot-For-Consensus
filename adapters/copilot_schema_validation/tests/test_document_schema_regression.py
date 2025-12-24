@@ -32,7 +32,7 @@ class TestMessageSchemaRegression:
             "body_normalized": "Test message body",
             "created_at": "2025-01-01T00:00:00Z"
         }
-        
+
         is_valid, errors = validate_json(message, messages_schema, schema_provider=document_schema_provider)
         assert is_valid, f"Validation failed with errors: {errors}"
 
@@ -47,7 +47,7 @@ class TestMessageSchemaRegression:
             "body_normalized": "Test message body",
             "created_at": "2025-01-01T00:00:00Z"
         }
-        
+
         is_valid, errors = validate_json(message, messages_schema, schema_provider=document_schema_provider)
         assert is_valid, f"Validation failed with errors: {errors}"
 
@@ -62,7 +62,7 @@ class TestMessageSchemaRegression:
             "body_normalized": "Test message body",
             "created_at": "2025-01-01T00:00:00Z"
         }
-        
+
         is_valid, errors = validate_json(message, messages_schema, schema_provider=document_schema_provider)
         assert is_valid, f"Validation failed with errors: {errors}"
 
@@ -77,7 +77,7 @@ class TestMessageSchemaRegression:
             "body_normalized": "Test message body",
             "created_at": "2025-01-01T00:00:00Z"
         }
-        
+
         is_valid, errors = validate_json(message, messages_schema, schema_provider=document_schema_provider)
         assert is_valid, f"Validation failed with errors: {errors}"
 
@@ -91,7 +91,7 @@ class TestMessageSchemaRegression:
             "body_normalized": "Test message body",
             "created_at": "2025-01-01T00:00:00Z"
         }
-        
+
         is_valid, errors = validate_json(message, messages_schema, schema_provider=document_schema_provider)
         assert is_valid, f"Validation failed with errors: {errors}"
 
@@ -106,7 +106,7 @@ class TestMessageSchemaRegression:
             "body_normalized": "Test message body",
             "created_at": "2025-01-01T00:00:00Z"
         }
-        
+
         is_valid, errors = validate_json(message, messages_schema, schema_provider=document_schema_provider)
         assert is_valid, f"Validation failed with errors: {errors}"
 
@@ -121,7 +121,7 @@ class TestMessageSchemaRegression:
             "body_normalized": "Test message body",
             "created_at": "2025-01-01T00:00:00Z"
         }
-        
+
         is_valid, errors = validate_json(message, messages_schema, schema_provider=document_schema_provider)
         assert is_valid, f"Validation failed with errors: {errors}"
 
@@ -162,7 +162,7 @@ class TestThreadSchemaRegression:
             "has_consensus": False,
             "created_at": "2025-01-01T00:00:00Z"
         }
-        
+
         is_valid, errors = validate_json(thread, threads_schema, schema_provider=document_schema_provider)
         assert is_valid, f"Validation failed with errors: {errors}"
 
@@ -176,7 +176,7 @@ class TestThreadSchemaRegression:
             "has_consensus": False,
             "created_at": "2025-01-01T00:00:00Z"
         }
-        
+
         is_valid, errors = validate_json(thread, threads_schema, schema_provider=document_schema_provider)
         assert is_valid, f"Validation failed with errors: {errors}"
 
@@ -189,7 +189,7 @@ class TestThreadSchemaRegression:
             "has_consensus": False,
             "created_at": "2025-01-01T00:00:00Z"
         }
-        
+
         is_valid, errors = validate_json(thread, threads_schema, schema_provider=document_schema_provider)
         assert is_valid, f"Validation failed with errors: {errors}"
 
@@ -202,7 +202,7 @@ class TestThreadSchemaRegression:
             "has_consensus": False,
             "created_at": "2025-01-01T00:00:00Z"
         }
-        
+
         is_valid, errors = validate_json(thread, threads_schema, schema_provider=document_schema_provider)
         assert is_valid, f"Validation failed with errors: {errors}"
 
@@ -214,7 +214,7 @@ class TestThreadSchemaRegression:
             "has_consensus": False,
             "created_at": "2025-01-01T00:00:00Z"
         }
-        
+
         is_valid, errors = validate_json(thread, threads_schema, schema_provider=document_schema_provider)
         assert is_valid, f"Validation failed with errors: {errors}"
 
@@ -238,7 +238,7 @@ class TestArchiveSchemaRegression:
             "status": "completed",
             "custom_field": "custom_value"  # Additional property
         }
-        
+
         is_valid, errors = validate_json(archive, archives_schema, schema_provider=document_schema_provider)
         assert is_valid, f"Validation failed with errors: {errors}"
 
@@ -264,7 +264,7 @@ class TestChunkSchemaRegression:
             "embedding_generated": False,
             "custom_field": "custom_value"  # Additional property
         }
-        
+
         is_valid, errors = validate_json(chunk, chunks_schema, schema_provider=document_schema_provider)
         assert is_valid, f"Validation failed with errors: {errors}"
 
@@ -286,6 +286,6 @@ class TestSummarySchemaRegression:
             "content_markdown": "# Test Summary\n\nThis is a test.",
             "custom_field": "custom_value"  # Additional property
         }
-        
+
         is_valid, errors = validate_json(summary, summaries_schema, schema_provider=document_schema_provider)
         assert is_valid, f"Validation failed with errors: {errors}"

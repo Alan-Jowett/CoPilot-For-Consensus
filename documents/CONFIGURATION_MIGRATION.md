@@ -118,7 +118,7 @@ def test_service():
     # Set environment variables
     os.environ["MESSAGE_BUS_HOST"] = "test-host"
     os.environ["MESSAGE_BUS_PORT"] = "6000"
-    
+
     # Run test
     # ...
 ```
@@ -136,12 +136,12 @@ def test_service():
         "doc_store_host": "test-db",
         # ... other config values
     })
-    
+
     config = load_typed_config(
         "my-service",
         static_provider=static_provider
     )
-    
+
     # Run test with config
     # ...
 ```
@@ -213,7 +213,7 @@ chunking_strategy = config.chunking_strategy
 ## Schema Field Types
 
 - `string`: String values
-- `int`: Integer values  
+- `int`: Integer values
 - `bool`: Boolean values (accepts "true", "1", "yes", "on" as True)
 - `float`: Floating-point values
 - `object`: Nested objects

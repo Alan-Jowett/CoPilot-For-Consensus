@@ -94,9 +94,9 @@ LLM_MODEL=gpt-4o-mini
 
 The Summarization Service subscribes to the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
 
-1) **SummarizationRequested**  
-   - **Exchange:** `copilot.events`  
-   - **Routing Key:** `summarization.requested`  
+1) **SummarizationRequested**
+   - **Exchange:** `copilot.events`
+   - **Routing Key:** `summarization.requested`
    - See [SummarizationRequested schema](../documents/SCHEMA.md#9-summarizationrequested) in SCHEMA.md
    - **Behavior:** For each thread, retrieve context, build prompt, call LLM, produce summary with citations.
 
@@ -104,15 +104,15 @@ The Summarization Service subscribes to the following events. See [SCHEMA.md](..
 
 The Summarization Service publishes the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
 
-1) **SummaryComplete**  
-   - **Exchange:** `copilot.events`  
-   - **Routing Key:** `summary.complete`  
+1) **SummaryComplete**
+   - **Exchange:** `copilot.events`
+   - **Routing Key:** `summary.complete`
    - See [SummaryComplete schema](../documents/SCHEMA.md#11-summarycomplete) in SCHEMA.md
    - **Behavior:** Contains the completed summary with markdown formatting, citations, and LLM performance metrics.
 
-2) **SummarizationFailed**  
-   - **Exchange:** `copilot.events`  
-   - **Routing Key:** `summarization.failed`  
+2) **SummarizationFailed**
+   - **Exchange:** `copilot.events`
+   - **Routing Key:** `summarization.failed`
    - See [SummarizationFailed schema](../documents/SCHEMA.md#12-summarizationfailed) in SCHEMA.md
    - **Behavior:** Signals summarization errors for specific threads with error details and retry information.
 
