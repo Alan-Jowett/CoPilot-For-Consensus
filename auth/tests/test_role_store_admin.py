@@ -237,7 +237,7 @@ class TestAssignRoles:
     def test_assign_roles_excludes_id_from_update(self, role_store, mock_store):
         """Test that _id field is excluded from update document (MongoDB immutable field)."""
         from bson import ObjectId
-        
+
         # Include _id in the record (simulating MongoDB document)
         existing_record = {
             "_id": ObjectId("507f1f77bcf86cd799439011"),
@@ -255,11 +255,11 @@ class TestAssignRoles:
 
         # Verify update_document was called
         mock_store.update_document.assert_called_once()
-        
+
         # Get the update document that was passed (third argument)
         call_args = mock_store.update_document.call_args
         update_doc = call_args[0][2]
-        
+
         # Verify _id is NOT in the update document
         assert "_id" not in update_doc, "update document should not contain _id field"
         # Verify other fields are present
@@ -357,7 +357,7 @@ class TestRevokeRoles:
     def test_revoke_roles_excludes_id_from_update(self, role_store, mock_store):
         """Test that _id field is excluded from update document (MongoDB immutable field)."""
         from bson import ObjectId
-        
+
         # Include _id in the record (simulating MongoDB document)
         existing_record = {
             "_id": ObjectId("507f1f77bcf86cd799439011"),
@@ -375,11 +375,11 @@ class TestRevokeRoles:
 
         # Verify update_document was called
         mock_store.update_document.assert_called_once()
-        
+
         # Get the update document that was passed (third argument)
         call_args = mock_store.update_document.call_args
         update_doc = call_args[0][2]
-        
+
         # Verify _id is NOT in the update document
         assert "_id" not in update_doc, "update document should not contain _id field"
         # Verify other fields are present
