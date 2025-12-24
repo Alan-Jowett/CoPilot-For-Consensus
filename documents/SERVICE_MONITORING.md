@@ -327,7 +327,7 @@ The **Container Resource Usage** dashboard provides comprehensive visibility int
 
 ### Metrics Source
 - **Data Source**: cAdvisor (Container Advisor)
-- **Version**: v0.55.1+ (from ghcr.io/google/cadvisor registry)
+- **Version**: v0.55.1 (from ghcr.io/google/cadvisor registry)
 - **Endpoint**: Internal only - `cadvisor:8080` (not exposed to host, scraped by Prometheus)
 - **Prometheus Job**: `cadvisor`
 - **Availability**: Starts automatically with the monitoring stack
@@ -342,7 +342,7 @@ The **Container Resource Usage** dashboard provides comprehensive visibility int
 - **Missing Docker Compose labels** (metrics don't show service names):
   1. Check cAdvisor logs for Docker factory registration errors: `docker compose logs cadvisor | grep -i docker`
   2. Look for "Registration of the docker container factory successfully" message
-  3. If you see "client version X.XX is too old" error, ensure you're using cAdvisor v0.55.1+ from `ghcr.io/google/cadvisor` registry
+  3. If you see "client version X.XX is too old" error, ensure you're using cAdvisor v0.55.1 or newer from `ghcr.io/google/cadvisor` registry
   4. Verify `DOCKER_API_VERSION=1.44` environment variable is set in docker-compose.infra.yml
   5. This fix was implemented to resolve compatibility issues with Docker Desktop/WSL2 (see [GitHub issue #3793](https://github.com/google/cadvisor/issues/3793))
 - **High memory %**: Investigate service logs, check for memory leaks, consider increasing container limits
