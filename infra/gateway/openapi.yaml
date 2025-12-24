@@ -1,0 +1,832 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+openapi: 3.0.3
+info:
+  title: Copilot-for-Consensus API Gateway
+  description: |
+    Unified API Gateway for Copilot-for-Consensus microservices.
+    
+    This OpenAPI specification serves as the canonical definition of all public
+    endpoints exposed by the Copilot-for-Consensus system. It is used to:
+    - Generate NGINX configuration for local deployments
+    - Generate cloud provider gateway configurations (Azure, AWS, GCP)
+    - Validate API compatibility across deployment targets
+    - Document the public API surface
+    
+    ## Authentication
+    
+    Most endpoints require JWT-based authentication using Bearer tokens.
+    Tokens can be obtained via the `/auth/` endpoints.
+    
+    ## Rate Limiting
+    
+    Rate limits may be enforced at the gateway level depending on the deployment:
+    - Local (NGINX): No rate limiting by default
+    - Cloud providers: Configurable per deployment
+  version: 0.1.0
+  contact:
+    name: Copilot-for-Consensus Team
+    url: https://github.com/Alan-Jowett/CoPilot-For-Consensus
+  license:
+    name: MIT
+    url: https://github.com/Alan-Jowett/CoPilot-For-Consensus/blob/main/LICENSE
+
+servers:
+  - url: https://localhost:443
+    description: Local HTTPS deployment
+  - url: http://localhost:8080
+    description: Local HTTP deployment (development only)
+
+tags:
+  - name: reporting
+    description: Summary and report retrieval
+  - name: ingestion
+    description: Mailing list source management and ingestion
+  - name: auth
+    description: Authentication and authorization
+  - name: admin
+    description: Administrative endpoints (auth service)
+  - name: ui
+    description: Web user interface
+  - name: grafana
+    description: Monitoring and observability dashboards
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /auth/ endpoints
+  
+  schemas:
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: Error message
+      required:
+        - detail
+    
+    HealthCheck:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        service:
+          type: string
+        version:
+          type: string
+      required:
+        - status
+  
+  parameters:
+    ThreadId:
+      name: thread_id
+      in: query
+      description: Filter by thread ID
+      schema:
+        type: string
+    
+    Limit:
+      name: limit
+      in: query
+      description: Maximum number of results
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+    
+    Skip:
+      name: skip
+      in: query
+      description: Number of results to skip (pagination)
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+
+paths:
+  # Root redirect
+  /:
+    get:
+      summary: Root endpoint
+      description: Redirects to the web UI
+      responses:
+        '302':
+          description: Redirect to /ui/
+      tags:
+        - ui
+      security: []
+  
+  /health:
+    get:
+      summary: Gateway health check
+      description: Health check endpoint for the API gateway itself
+      responses:
+        '200':
+          description: Gateway is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: ok
+      tags:
+        - reporting
+      security: []
+  
+  # Reporting API
+  /reporting/health:
+    get:
+      summary: Reporting service health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheck'
+      tags:
+        - reporting
+      security: []
+  
+  /reporting/api/reports:
+    get:
+      summary: List reports
+      description: Get a list of summary reports with optional filtering
+      parameters:
+        - $ref: '#/components/parameters/ThreadId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Skip'
+        - name: start_date
+          in: query
+          description: Filter reports generated after this date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          description: Filter reports generated before this date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: source
+          in: query
+          description: Filter by archive source
+          schema:
+            type: string
+        - name: min_participants
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+        - name: max_participants
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+        - name: min_messages
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+        - name: max_messages
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        '200':
+          description: List of reports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reports:
+                    type: array
+                    items:
+                      type: object
+                  count:
+                    type: integer
+                  limit:
+                    type: integer
+                  skip:
+                    type: integer
+        '503':
+          description: Service not initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - reporting
+  
+  /reporting/api/reports/search:
+    get:
+      summary: Search reports by topic
+      description: Search reports using embedding-based similarity
+      parameters:
+        - name: topic
+          in: query
+          required: true
+          description: Topic or query text to search for
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+        - name: min_score
+          in: query
+          schema:
+            type: number
+            format: float
+            minimum: 0.0
+            maximum: 1.0
+            default: 0.5
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reports:
+                    type: array
+                    items:
+                      type: object
+                  count:
+                    type: integer
+                  topic:
+                    type: string
+                  min_score:
+                    type: number
+        '400':
+          description: Topic search not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - reporting
+  
+  /reporting/api/reports/{report_id}:
+    get:
+      summary: Get a specific report
+      parameters:
+        - name: report_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Report details
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      tags:
+        - reporting
+  
+  # Ingestion API
+  /ingestion/health:
+    get:
+      summary: Ingestion service health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheck'
+      tags:
+        - ingestion
+      security: []
+  
+  /ingestion/api/sources:
+    get:
+      summary: List ingestion sources
+      responses:
+        '200':
+          description: List of configured sources
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - ingestion
+    
+    post:
+      summary: Create a new ingestion source
+      description: |
+        Create a new mailing list ingestion source.
+        
+        **SECURITY WARNING**: This endpoint accepts untrusted URL inputs that could
+        be exploited for SSRF attacks. In production:
+        - Add authentication/authorization at the gateway
+        - Implement strict validation/allowlists for source URL and source_type
+        - Consider restricting to internal network access only
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - source_type
+                - url
+              properties:
+                name:
+                  type: string
+                source_type:
+                  type: string
+                  enum: [local, rsync, imap, http]
+                url:
+                  type: string
+                enabled:
+                  type: boolean
+                  default: true
+      responses:
+        '201':
+          description: Source created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - ingestion
+      x-gateway-config:
+        rate-limit: 10/minute
+        requires-auth: true
+  
+  /ingestion/api/sources/{source_name}:
+    get:
+      summary: Get a specific source
+      parameters:
+        - name: source_name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Source details
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - ingestion
+    
+    put:
+      summary: Update an ingestion source
+      parameters:
+        - name: source_name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Source updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - ingestion
+    
+    delete:
+      summary: Delete an ingestion source
+      parameters:
+        - name: source_name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Source deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+      tags:
+        - ingestion
+  
+  /ingestion/api/sources/{source_name}/trigger:
+    post:
+      summary: Trigger ingestion for a source
+      parameters:
+        - name: source_name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ingestion triggered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - ingestion
+  
+  /ingestion/api/sources/{source_name}/status:
+    get:
+      summary: Get source ingestion status
+      parameters:
+        - name: source_name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Source status
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - ingestion
+  
+  # Auth API
+  /auth/health:
+    get:
+      summary: Auth service health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheck'
+      tags:
+        - auth
+      security: []
+  
+  /auth/providers:
+    get:
+      summary: List available OAuth providers
+      responses:
+        '200':
+          description: List of configured OAuth providers
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - auth
+      security: []
+  
+  /auth/login:
+    get:
+      summary: Initiate OAuth login flow
+      parameters:
+        - name: provider
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [github, google, microsoft]
+      responses:
+        '302':
+          description: Redirect to OAuth provider
+      tags:
+        - auth
+      security: []
+  
+  /auth/callback:
+    get:
+      summary: OAuth callback endpoint
+      parameters:
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to application
+      tags:
+        - auth
+      security: []
+  
+  /auth/token:
+    post:
+      summary: Exchange credentials for JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                    example: Bearer
+                  expires_in:
+                    type: integer
+      tags:
+        - auth
+      security: []
+  
+  /auth/userinfo:
+    get:
+      summary: Get current user information
+      responses:
+        '200':
+          description: User information
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - auth
+  
+  /auth/keys:
+    get:
+      summary: Get JWT public keys (JWKS)
+      responses:
+        '200':
+          description: JSON Web Key Set
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - auth
+      security: []
+  
+  /auth/.well-known/jwks.json:
+    get:
+      summary: JWKS endpoint (OpenID Connect Discovery)
+      responses:
+        '200':
+          description: JSON Web Key Set
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - auth
+      security: []
+  
+  /auth/.well-known/public_key.pem:
+    get:
+      summary: Public key in PEM format
+      responses:
+        '200':
+          description: PEM-encoded public key
+          content:
+            text/plain:
+              schema:
+                type: string
+      tags:
+        - auth
+      security: []
+  
+  # Admin API (requires admin role)
+  /admin/role-assignments/pending:
+    get:
+      summary: List pending role assignment requests
+      responses:
+        '200':
+          description: List of pending requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+      tags:
+        - admin
+      x-gateway-config:
+        requires-role: admin
+  
+  /admin/users/search:
+    get:
+      summary: Search users
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+      tags:
+        - admin
+      x-gateway-config:
+        requires-role: admin
+  
+  /admin/users/{user_id}/roles:
+    get:
+      summary: Get user roles
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User roles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+      tags:
+        - admin
+      x-gateway-config:
+        requires-role: admin
+    
+    post:
+      summary: Assign role to user
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+      responses:
+        '200':
+          description: Role assigned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - admin
+      x-gateway-config:
+        requires-role: admin
+    
+    delete:
+      summary: Remove role from user
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: role
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Role removed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+      tags:
+        - admin
+      x-gateway-config:
+        requires-role: admin
+  
+  # UI endpoints (static content)
+  /ui/{path}:
+    get:
+      summary: Web user interface
+      description: React-based single-page application
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: HTML/JS/CSS content
+      tags:
+        - ui
+      security: []
+  
+  # Grafana (monitoring dashboards)
+  /grafana/{path}:
+    get:
+      summary: Grafana dashboards
+      description: |
+        Grafana monitoring and observability dashboards.
+        Supports JWT-based authentication for seamless SSO.
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Grafana content
+      tags:
+        - grafana
+      security: []
+
+x-gateway-config:
+  # Global gateway configuration
+  cors:
+    enabled: true
+    allowed-origins:
+      - http://localhost:8080
+      - https://localhost:443
+    allowed-methods:
+      - GET
+      - POST
+      - PUT
+      - DELETE
+      - OPTIONS
+    allowed-headers:
+      - Authorization
+      - Content-Type
+      - X-Requested-With
+    exposed-headers:
+      - X-Request-Id
+    max-age: 3600
+  
+  rate-limiting:
+    default: 100/minute
+    burst: 200
+  
+  observability:
+    metrics: true
+    tracing: true
+    logging: true
+  
+  backends:
+    reporting:
+      url: http://reporting:8080
+      health-check: /health
+    ingestion:
+      url: http://ingestion:8001
+      health-check: /health
+    auth:
+      url: http://auth:8090
+      health-check: /health
+    ui:
+      url: http://ui:80
+      health-check: /
+    grafana:
+      url: http://grafana:3000
+      health-check: /api/health
