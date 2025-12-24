@@ -592,7 +592,7 @@ class TestAzureMonitorWarningSuppress:
     def test_azure_monitor_import_no_warning_at_info_level(self, caplog):
         """Test that Azure Monitor import doesn't log warning at INFO level.
         
-        This verifies issue #XXX fix: Azure Monitor OpenTelemetry packages are optional,
+        This verifies issue #570 fix: Azure Monitor OpenTelemetry packages are optional,
         so the warning about missing packages should only appear at DEBUG level, not INFO.
         """
         import logging
