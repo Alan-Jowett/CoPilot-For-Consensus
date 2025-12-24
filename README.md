@@ -148,31 +148,54 @@ For detailed architecture documentation, design patterns, and service interactio
 
 ### Observability Stack
 
-The system includes a comprehensive observability stack for monitoring, logging, and error tracking:
+The system includes a **production-ready observability stack** with comprehensive metrics, logging, alerting, and tracing capabilities. See the [Observability RFC](./docs/OBSERVABILITY_RFC.md) for complete details.
 
 #### Metrics (Prometheus + Grafana)
 - **Prometheus** scrapes metrics from all services on port 9090
-- **Grafana** provides visualization dashboards on port 3000
+- **Grafana** provides visualization dashboards accessible via `http://localhost:8080/grafana/`
+- **57 alert rules** covering service health, queue lag, latency SLOs, error rates, and resource limits
 - Pre-configured dashboards for:
   - System health and service uptime
-  - Ingestion and parsing throughput
-  - Embedding latency percentiles
-  - Vector store size and performance
+  - Service metrics (latency P95/P99, throughput, error rates)
+  - Queue status (depth, age, consumer count)
+  - Document processing pipeline
+  - Resource usage (CPU, memory, disk, network)
   - Failed queue monitoring
+  - MongoDB, RabbitMQ, Qdrant status
 
 Access Grafana via the Gateway at `http://localhost:8080/grafana/` (default credentials: admin/admin).
+
+**For Developers**: See [Metrics Integration Guide](./documents/METRICS_INTEGRATION_GUIDE.md) for adding metrics to services.
 
 #### Logging (Loki + Promtail)
 - **Loki** aggregates logs from all services on port 3100
 - **Promtail** scrapes Docker container logs automatically
+- Structured JSON logging with trace correlation
 - Logs are labeled by service, container, and level
 - Query logs through Grafana's Explore interface
+
+#### Alerting and Runbooks
+- **Prometheus Alertmanager** evaluates alert rules every 60 seconds
+- Alert severity levels: Info → Warning → Error → Critical → Emergency
+- **Operator Runbooks** with diagnosis, resolution, and escalation procedures:
+  - [High Queue Lag](./documents/runbooks/high-queue-lag.md)
+  - [Service Down](./documents/runbooks/service-down.md)
+  - [High Error Rate](./documents/runbooks/high-error-rate.md)
+- SLO-based alerts for latency (P95/P99), error rate, and queue lag
+
+View active alerts: http://localhost:9090/alerts
 
 #### Failed Queue Management
 - **Failed queues** capture messages that fail after retry exhaustion
 - Automated alerts for queue buildup (Warning >50, Critical >200, Emergency >1000)
 - CLI tool for inspection, requeue, and purge operations: `scripts/manage_failed_queues.py`
 - Dedicated Grafana dashboard: **Failed Queues Overview**
+
+**Documentation**:
+- [Observability RFC](./docs/OBSERVABILITY_RFC.md) - Complete observability strategy
+- [Observability Implementation Summary](./documents/OBSERVABILITY_IMPLEMENTATION_SUMMARY.md) - What's been implemented
+- [Service Monitoring Guide](./documents/SERVICE_MONITORING.md) - Monitoring overview
+- [Metrics Integration Guide](./documents/METRICS_INTEGRATION_GUIDE.md) - Developer guide
 - See [documents/FAILED_QUEUE_OPERATIONS.md](./documents/FAILED_QUEUE_OPERATIONS.md) for operational runbook
 
 ### Adapters
