@@ -398,16 +398,18 @@ class RoleStore:
 
         try:
             # Try to update document
-            # First get the document by _id to ensure we can update it
+            # Remove _id from the update doc (MongoDB doesn't allow updating immutable _id field)
+            update_doc = {k: v for k, v in updated_doc.items() if k != "_id"}
+            
             if "_id" in record:
                 # Update using the document's _id
-                self.store.update_document(self.collection, record["_id"], updated_doc)
+                self.store.update_document(self.collection, record["_id"], update_doc)
             else:
                 # If no _id, try to update with query filter (may not work with all stores)
                 # This is a fallback for stores that support filter-based updates
                 from copilot_storage.document_store import DocumentNotFoundError
                 try:
-                    self.store.update_document(self.collection, {"user_id": user_id}, updated_doc)
+                    self.store.update_document(self.collection, {"user_id": user_id}, update_doc)
                 except (DocumentNotFoundError, TypeError):
                     # If update by query fails, this store requires _id
                     # Shouldn't happen since record came from _find_user_record which queries
