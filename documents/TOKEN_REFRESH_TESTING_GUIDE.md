@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Manual Test Guide: Token Refresh on 403
 
 This guide provides step-by-step instructions for manually testing the automatic token refresh feature.

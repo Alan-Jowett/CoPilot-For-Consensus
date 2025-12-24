@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Implementation Summary: Automatic Token Refresh on 403
 
 ## Status: ✅ COMPLETE
