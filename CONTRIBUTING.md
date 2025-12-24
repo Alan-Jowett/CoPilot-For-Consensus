@@ -156,19 +156,18 @@ def fetch_data(url: str) -> dict[str, Any]:
 **4. Optional Member Access**
 ```python
 # ❌ Bad - Accessing optional without checking
-from typing import Protocol
+from typing import Optional
 
-class User(Protocol):
-    name: str
-
-def get_user_name(user: User | None) -> str:
-    return user.name  # Error: 'user' may be None
+def get_user_name(user: Optional[dict]) -> str:
+    return user["name"]  # Error: 'user' may be None
 
 # ✅ Good - Check for None first
-def get_user_name(user: User | None) -> str:
+from typing import Optional
+
+def get_user_name(user: Optional[dict]) -> str:
     if user is None:
         return "Unknown"
-    return user.name
+    return user.get("name", "Unknown")
 ```
 
 **5. Dynamically-checked capabilities**
