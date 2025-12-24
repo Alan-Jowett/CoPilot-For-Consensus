@@ -170,7 +170,7 @@ class ParsingService:
             logger.error(error_msg)
             raise KeyError(error_msg)
 
-        start_time = time.time()
+        start_time = time.monotonic()
 
         try:
             logger.info(f"Parsing archive {archive_id} from {file_path}")
@@ -236,7 +236,7 @@ class ParsingService:
             self._update_archive_status(archive_id, "processed", len(parsed_messages))
 
             # Calculate duration
-            duration = time.time() - start_time
+            duration = time.monotonic() - start_time
             self.last_processing_time = duration
 
             # Update stats
@@ -280,7 +280,7 @@ class ParsingService:
             )
 
         except Exception as e:
-            duration = time.time() - start_time
+            duration = time.monotonic() - start_time
             logger.error(f"Failed to parse archive {archive_id} after {duration:.2f}s: {e}", exc_info=True)
 
             # Update archive status to 'failed'

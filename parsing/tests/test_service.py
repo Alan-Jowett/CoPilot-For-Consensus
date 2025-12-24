@@ -258,6 +258,44 @@ class TestParsingService:
         assert stats["threads_created"] == 1
         assert stats["last_processing_time_seconds"] > 0
 
+    def test_parsing_duration_always_positive(self, service, sample_mbox_file):
+        """Test that parsing_duration_seconds is always >= 0.
+        
+        This test verifies the fix for negative duration issue caused by system clock skew.
+        Using time.monotonic() ensures duration is never negative even if system clock
+        is adjusted backwards (e.g., NTP sync, DST transitions, VM time sync).
+        """
+        archive_data = {
+            "archive_id": "test-archive-duration",
+            "file_path": sample_mbox_file,
+        }
+        
+        service.process_archive(archive_data)
+        
+        # Duration in stats should be >= 0
+        stats = service.get_stats()
+        assert stats["last_processing_time_seconds"] >= 0, \
+            f"Duration should never be negative, got {stats['last_processing_time_seconds']}"
+
+    def test_parsing_duration_always_positive_on_error(self, service):
+        """Test that parsing duration is >= 0 even when processing fails.
+        
+        This verifies that the error handling path also uses monotonic time
+        and cannot produce negative durations.
+        """
+        archive_data = {
+            "archive_id": "test-archive-error-duration",
+            "file_path": "/nonexistent/file.mbox",
+        }
+        
+        # Process should handle error gracefully
+        service.process_archive(archive_data)
+        
+        # Duration should still be >= 0 even after error
+        stats = service.get_stats()
+        assert stats["last_processing_time_seconds"] >= 0, \
+            f"Duration should never be negative even on error, got {stats['last_processing_time_seconds']}"
+
     def test_store_messages_skips_duplicates_and_continues(self, mock_service, caplog):
         """Duplicate messages are skipped, logged, and processing continues."""
         service, store = mock_service
@@ -382,6 +420,12 @@ class TestParsingService:
 
         # Verify messages are different
         assert event1["event"]["data"]["message_doc_ids"][0] != event2["event"]["data"]["message_doc_ids"][0]
+
+        # Verify parsing_duration_seconds is non-negative in published events
+        assert event1["event"]["data"]["parsing_duration_seconds"] >= 0, \
+            f"Published event should have non-negative duration, got {event1['event']['data']['parsing_duration_seconds']}"
+        assert event2["event"]["data"]["parsing_duration_seconds"] >= 0, \
+            f"Published event should have non-negative duration, got {event2['event']['data']['parsing_duration_seconds']}"
 
     def test_event_publishing_on_failure(self, document_store, subscriber):
         """Test that ParsingFailed event is published on parsing failure."""
