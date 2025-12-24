@@ -34,9 +34,16 @@ A comprehensive 31KB document establishing:
 - Cardinality limits documented to prevent metric explosion
 - SLO targets: 99% success rate, P95 < 5s, queue lag < 5min
 
-### 2. Alert Rules (5 new files, ~65KB)
+### 2. Alert Rules (8 files, ~85KB total)
 
-Comprehensive Prometheus alert rules covering all critical scenarios:
+Comprehensive Prometheus alert rules covering all critical scenarios (80 rules total):
+
+#### Existing Alert Files (3 files)
+- `document_processing.yml` - 7 rules for document processing health
+- `failed_queues.yml` - 5 rules for dead letter queue monitoring
+- `retry_policy.yml` - 6 rules for retry job monitoring
+
+#### New Alert Files (5 files, ~65KB)
 
 #### `service_health.yml` (10.6KB)
 - Infrastructure service down alerts (MongoDB, RabbitMQ, Qdrant, Ollama)
@@ -91,7 +98,12 @@ Comprehensive Prometheus alert rules covering all critical scenarios:
 
 **Alerts**: 15 rules covering all resource types
 
-**Total**: 57 new alert rules with clear severity levels, runbook links, and remediation steps
+**Total**: 80 alert rules with clear severity levels, runbook links, and remediation steps
+- 49 Warning alerts (4-hour response)
+- 14 Error alerts (1-hour response)
+- 15 Critical alerts (30-minute response)
+- 1 Emergency alert (immediate response)
+- 1 Info alert (FYI only)
 
 ### 3. Metrics Integration Guide (`documents/METRICS_INTEGRATION_GUIDE.md`)
 
@@ -384,10 +396,10 @@ copilot_<subsystem>_<metric>_<unit>_<type>
 | Metric | Count | Size |
 |--------|-------|------|
 | **Documents** | 5 | 91 KB |
-| **Alert Rules** | 57 | 65 KB |
+| **Alert Rules** | 80 (57 new) | 85 KB |
 | **Runbooks** | 3 | 26 KB |
-| **Config Changes** | 1 | - |
-| **Total** | **66 files/rules** | **~182 KB** |
+| **Config Changes** | 2 | - |
+| **Total** | **90 files/rules** | **~202 KB** |
 
 ---
 
