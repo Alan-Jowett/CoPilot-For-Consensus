@@ -25,7 +25,7 @@ class NoopSubscriber(EventSubscriber):
         self.connected = False
         self.consuming = False
         self.callbacks: dict[str, Callable[[dict[str, Any]], None]] = {}
-        self.routing_keys: dict[str, str] = {}
+        self.routing_keys: dict[str, str | None] = {}
         self._stop_event = threading.Event()
 
     def connect(self) -> None:
@@ -54,8 +54,7 @@ class NoopSubscriber(EventSubscriber):
             routing_key: Optional routing key (stored but not used)
         """
         self.callbacks[event_type] = callback
-        if routing_key is not None:
-            self.routing_keys[event_type] = routing_key
+        self.routing_keys[event_type] = routing_key
         # exchange is accepted for interface compatibility; noop ignores it
         logger.debug(f"NoopSubscriber subscribed to {event_type}")
 

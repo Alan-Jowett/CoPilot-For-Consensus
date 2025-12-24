@@ -82,8 +82,8 @@ class AzureServiceBusPublisher(EventPublisher):
         try:
             if self.use_managed_identity:
                 logger.info("Connecting to Azure Service Bus using managed identity")
-                if DefaultAzureCredential is None or self.fully_qualified_namespace is None:
-                    raise ImportError("azure-identity library is not installed or namespace not set")
+                if self.fully_qualified_namespace is None:
+                    raise ValueError("fully_qualified_namespace is required when using managed identity")
                 self._credential = DefaultAzureCredential()
                 self.client = ServiceBusClient(
                     fully_qualified_namespace=self.fully_qualified_namespace,
