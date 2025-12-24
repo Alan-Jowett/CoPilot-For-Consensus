@@ -203,7 +203,7 @@ The following manual test scenarios are documented in `TOKEN_REFRESH_TESTING_GUI
 - Running instance of Copilot for Consensus
 - Two user accounts (user and admin)
 - Browser with DevTools (Chrome/Firefox/Edge)
-- JWT decoder (jwt.io)
+- JWT decoder (for example, an internal or offline JWT viewer or a browser DevTools extension; do not paste live tokens into third-party sites)
 
 ## Edge Cases Handled
 

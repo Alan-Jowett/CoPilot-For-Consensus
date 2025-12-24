@@ -5,8 +5,17 @@ import { getUnauthorizedCallback } from './contexts/AuthContext'
 
 let authToken: string | null = null
 
-// Track the last token we attempted refresh with to prevent infinite loops
+// Track the last token we attempted refresh with to prevent infinite loops.
+// Note: This value is intentionally kept in memory only. It survives SPA
+// navigations while the bundle remains loaded, but is reset on a full page
+// reload, so loop-prevention state does not persist across reloads. If we
+// ever need this guard to survive reloads within the same browser session,
+// we should mirror it into sessionStorage.
 let lastRefreshToken: string | null = null
+
+// Flag to prevent multiple concurrent redirect attempts when multiple API calls
+// return 403 simultaneously
+let redirectInProgress = false
 
 // Set the auth token (called from AuthContext)
 export function setAuthToken(token: string | null) {
@@ -47,6 +56,12 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
   if (response.status === 403) {
     console.log('[fetchWithAuth] Got 403 Forbidden, user may need permission refresh')
     
+    // Check if a redirect is already in progress (race condition prevention)
+    if (redirectInProgress) {
+      console.log('[fetchWithAuth] Token refresh redirect already in progress')
+      return response
+    }
+    
     // Check if already attempted refresh for this request
     const attemptedRefresh = (options as any)._attemptedRefresh === true
     
@@ -65,12 +80,17 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
       }
       
       try {
+        // Mark redirect as in progress to prevent concurrent redirects
+        redirectInProgress = true
+        
         // Record token to prevent re-refresh with same token
         lastRefreshToken = currentToken
         
         // Wait for server to process role changes
-        console.log('[fetchWithAuth] Waiting 500ms before refresh...')
-        await new Promise(resolve => setTimeout(resolve, 500))
+        // This delay can be configured via VITE_TOKEN_REFRESH_DELAY_MS (default: 500ms)
+        const delayMs = parseInt(import.meta.env.VITE_TOKEN_REFRESH_DELAY_MS || '500', 10)
+        console.log(`[fetchWithAuth] Waiting ${delayMs}ms before refresh...`)
+        await new Promise(resolve => setTimeout(resolve, delayMs))
         
         // Store current page location for return after refresh
         sessionStorage.setItem('postLoginUrl', window.location.pathname + window.location.search)
@@ -86,7 +106,21 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
         throw new Error('TOKEN_REFRESH_IN_PROGRESS')
       } catch (err) {
         console.error('[fetchWithAuth] Error during refresh:', err)
-        // Fall through to return 403
+        redirectInProgress = false // Reset flag on error
+        
+        // Record a hint so the UI can show a more informative message to the user
+        try {
+          sessionStorage.setItem(
+            'tokenRefreshError',
+            'Token refresh failed. Please try logging in again.',
+          )
+        } catch (storageErr) {
+          console.error(
+            '[fetchWithAuth] Failed to record token refresh error hint:',
+            storageErr,
+          )
+        }
+        // Fall through to return 403 so existing behavior is preserved
       }
     } else {
       if (tokenAlreadyRefreshed) {

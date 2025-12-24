@@ -153,7 +153,7 @@ Action succeeds automatically
 ## Debug Tips
 
 1. **Enable "Preserve log"** in browser DevTools to see full flow
-2. **Decode JWT tokens** at jwt.io to verify claims
+2. **Decode JWT tokens** using offline or internally hosted tools to verify claims (only use sanitized or non-production tokens with external sites like jwt.io)
 3. **Check sessionStorage** in DevTools → Application tab
 4. **Monitor Network tab** for OAuth redirects
 5. **Watch Console** for detailed log messages

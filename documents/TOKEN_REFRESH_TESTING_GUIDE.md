@@ -47,7 +47,8 @@ This guide provides step-by-step instructions for manually testing the automatic
    ```
    Open Console
    Run: localStorage.getItem('auth_token')
-   Copy token and decode at jwt.io
+   Copy token and decode using an offline JWT decoder
+   (WARNING: Never paste production tokens into third-party sites like jwt.io)
    Expected: roles = ["user"]
    ```
 
@@ -89,7 +90,8 @@ This guide provides step-by-step instructions for manually testing the automatic
    ```
    After redirect:
    Run: localStorage.getItem('auth_token')
-   Copy and decode at jwt.io
+   Copy and decode using an offline JWT decoder
+   (WARNING: Never paste production tokens into third-party sites)
    Expected: roles = ["user", "analyst"]
    ```
 
@@ -144,7 +146,8 @@ This guide provides step-by-step instructions for manually testing the automatic
    ```
    After OAuth:
    Run: localStorage.getItem('auth_token')
-   Decode at jwt.io
+   Decode using an offline JWT decoder
+   (WARNING: Never paste production tokens into third-party sites)
    Expected: roles = ["user"] (no change)
    ```
 
@@ -251,7 +254,9 @@ This guide provides step-by-step instructions for manually testing the automatic
 
 2. **Decode Initial Token**
    ```
-   Go to: https://jwt.io
+   Use an offline JWT decoder (browser extension or local tool)
+   WARNING: Only use sanitized/non-production tokens with external sites
+   If using a third-party site for testing only: https://jwt.io
    Paste token in "Encoded" section
    Note the "roles" claim in payload
    Example: { "roles": ["user"], ... }
@@ -276,7 +281,9 @@ This guide provides step-by-step instructions for manually testing the automatic
 
 6. **Decode New Token**
    ```
-   Go to: https://jwt.io
+   Use an offline JWT decoder (browser extension or local tool)
+   WARNING: Only use sanitized/non-production tokens with external sites
+   If using a third-party site for testing only: https://jwt.io
    Paste new token
    Compare with initial token
    ```
@@ -302,7 +309,7 @@ This guide provides step-by-step instructions for manually testing the automatic
 - ✓ New token issued (different signature)
 - ✓ Roles array contains new roles
 - ✓ Timestamps updated (iat, exp)
-- ✓ Token format valid (decodes at jwt.io)
+- ✓ Token format valid (decodes with offline JWT decoder)
 
 ---
 

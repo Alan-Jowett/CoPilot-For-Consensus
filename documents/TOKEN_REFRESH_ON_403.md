@@ -354,10 +354,29 @@ The implementation includes comprehensive console logging for debugging:
 ## Performance Impact
 
 - **Minimal overhead**: Only triggers on 403 responses
-- **500ms delay**: Allows server role processing, acceptable UX
+- **Configurable delay**: Default 500ms allows server role processing (configurable via `VITE_TOKEN_REFRESH_DELAY_MS` environment variable)
+  - **Deployment considerations**: In distributed systems with eventual consistency, database replication lag, or caching layers, this delay may need adjustment
+  - Set `VITE_TOKEN_REFRESH_DELAY_MS` at build time (e.g., `VITE_TOKEN_REFRESH_DELAY_MS=1000 npm run build`)
 - **Single redirect**: No additional network overhead
 - **No polling**: Event-driven, not continuous checking
 - **Session storage**: Minimal memory footprint
+- **Race condition prevention**: `redirectInProgress` flag ensures only one OAuth redirect occurs even with multiple concurrent 403 responses
+
+## Testing Considerations
+
+### Automated Testing
+
+**Current Status**: This implementation lacks automated test coverage. While comprehensive manual testing documentation is provided, this critical security-related functionality would benefit from unit and integration tests.
+
+**Recommended Test Coverage**:
+- Loop prevention mechanisms (both per-request and cross-page)
+- URL preservation with various query parameter combinations
+- Edge cases (concurrent 403s, missing sessionStorage, failed redirects)
+- Refresh flow doesn't interfere with normal authentication
+- `redirectInProgress` flag correctly prevents race conditions
+- Configurable delay respects environment variable
+
+**Note**: The UI service currently lacks a test suite entirely. Consider adding a testing framework (e.g., Vitest, Jest) and starting with tests for this critical functionality.
 
 ## Future Improvements
 
@@ -380,6 +399,11 @@ The implementation includes comprehensive console logging for debugging:
    - Track refresh success/failure rates
    - Monitor loop prevention effectiveness
    - Identify permission issues
+
+5. **Automated Test Suite**
+   - Add unit tests for loop prevention logic
+   - Add integration tests for OAuth flow
+   - Add E2E tests for full user journey
 
 ## Related Documentation
 
