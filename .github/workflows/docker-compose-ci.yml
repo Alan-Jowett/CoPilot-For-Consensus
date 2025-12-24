@@ -151,6 +151,14 @@ jobs:
         # Loki image is distroless and has no healthcheck, so wait for it to be running
         timeout 60s bash -c 'until docker compose ps loki --format "{{.Status}}" | grep -q "Up"; do echo "Waiting for loki..."; sleep 3; done' || (docker compose logs loki --tail=50 && exit 1)
 
+    - name: Create placeholder public key for Grafana JWT auth
+      run: |
+        # Create a placeholder public key file for Grafana
+        # This will be replaced by the actual public key from auth service later
+        # Using the jwt_public_key we generated earlier as a placeholder
+        cp secrets/jwt_public_key secrets/auth_service_public_key.pem
+        echo "✓ Placeholder public key created for Grafana"
+
     - name: Start grafana
       run: |
         docker compose up -d grafana
