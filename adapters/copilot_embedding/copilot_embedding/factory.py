@@ -119,8 +119,8 @@ def create_embedding_provider(
 
         # Use deployment_name as model if model not provided
         model = model or deployment_name
-        if not model:
-            raise ValueError("Either model or deployment_name must be provided for Azure OpenAI")
+        # Type narrowing: at this point, model is guaranteed to be a string
+        assert model is not None and isinstance(model, str)
 
         return OpenAIEmbeddingProvider(
             api_key=api_key,
@@ -143,8 +143,7 @@ def create_embedding_provider(
                 "Specify 'cpu' or 'cuda'"
             )
         cache_dir = kwargs.get("cache_dir")
-        max_length_param = kwargs.get("max_length")
-        max_length = max_length_param if isinstance(max_length_param, int) else HuggingFaceEmbeddingProvider.DEFAULT_MAX_LENGTH
+        max_length: int = kwargs.get("max_length", HuggingFaceEmbeddingProvider.DEFAULT_MAX_LENGTH)
 
         return HuggingFaceEmbeddingProvider(
             model_name=model,
