@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react'
 import { jwtDecode } from 'jwt-decode'
 
 interface JWTPayload {
@@ -61,14 +61,14 @@ export const isUserAdmin = (token: string | null): boolean => {
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Initialize both token and isAdmin from a single localStorage read to avoid duplicate access
-  const initialState = useState(() => {
+  const initialState = useMemo(() => {
     const stored = localStorage.getItem('auth_token')
     console.log('[AuthContext] Initialized from localStorage:', !!stored)
     return {
       token: stored,
       isAdmin: isUserAdmin(stored)
     }
-  })[0]
+  }, [])
 
   const [token, setTokenInternal] = useState<string | null>(initialState.token)
   const [isAdmin, setIsAdmin] = useState<boolean>(initialState.isAdmin)

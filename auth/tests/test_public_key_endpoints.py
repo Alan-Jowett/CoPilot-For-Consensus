@@ -3,8 +3,53 @@
 
 """Tests for public key endpoints."""
 
+import sys
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+
+@pytest.fixture
+def mock_auth_service():
+    """Create a mock auth service with JWT manager."""
+    service = MagicMock()
+    service.config.audiences = "copilot-for-consensus"
+    
+    # Mock JWT manager with public key
+    jwt_manager = MagicMock()
+    jwt_manager.get_public_key_pem.return_value = """-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0Z6Wr1nN3dkp1pL5JHQN
+-----END PUBLIC KEY-----"""
+    jwt_manager.get_jwks.return_value = {
+        "keys": [{
+            "kty": "RSA",
+            "use": "sig",
+            "kid": "default",
+            "alg": "RS256"
+        }]
+    }
+    service.jwt_manager = jwt_manager
+    
+    return service
+
+
+@pytest.fixture
+def test_client(mock_auth_service):
+    """Create test client with mocked auth service."""
+    # Patch before importing main
+    with patch("sys.path", [str(Path(__file__).parent.parent)] + sys.path):
+        # Import main module
+        import main
+
+        # Set the mock auth service
+        main.auth_service = mock_auth_service
+
+        return TestClient(main.app)
 
 
 def test_public_key_endpoint(test_client: TestClient):
