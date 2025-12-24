@@ -60,16 +60,18 @@ export const isUserAdmin = (token: string | null): boolean => {
 }
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [token, setTokenInternal] = useState<string | null>(() => {
+  // Initialize both token and isAdmin from a single localStorage read to avoid duplicate access
+  const initialState = useState(() => {
     const stored = localStorage.getItem('auth_token')
     console.log('[AuthContext] Initialized from localStorage:', !!stored)
-    return stored
-  })
+    return {
+      token: stored,
+      isAdmin: isUserAdmin(stored)
+    }
+  })[0]
 
-  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
-    const stored = localStorage.getItem('auth_token')
-    return isUserAdmin(stored)
-  })
+  const [token, setTokenInternal] = useState<string | null>(initialState.token)
+  const [isAdmin, setIsAdmin] = useState<boolean>(initialState.isAdmin)
 
   // Store the setter globally so it can be called from api.ts
   useEffect(() => {
