@@ -349,7 +349,7 @@ def main():
 
         # Configure Uvicorn with structured JSON logging
         log_config = create_uvicorn_log_config(service_name="ingestion", log_level=config.log_level)
-        uvicorn.run(app, host=http_host, port=http_port, log_config=log_config)
+        uvicorn.run(app, host=http_host, port=http_port, log_config=log_config, access_log=False)
 
     except Exception as e:
         log.error("Fatal error in ingestion service", error=str(e), exc_info=True)

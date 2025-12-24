@@ -297,7 +297,7 @@ def main():
 
         # Configure Uvicorn with structured JSON logging
         log_config = create_uvicorn_log_config(service_name="embedding", log_level="INFO")
-        uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config)
+        uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config, access_log=False)
 
     except Exception as e:
         logger.error(f"Failed to start embedding service: {e}")
