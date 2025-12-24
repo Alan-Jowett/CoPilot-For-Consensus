@@ -1,0 +1,280 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+# Prometheus Alert Rules for Service Health
+#
+# These alerts monitor core infrastructure and service health endpoints.
+# See docs/OBSERVABILITY_RFC.md for alert design principles.
+
+groups:
+  - name: service_health
+    interval: 30s
+    rules:
+      # Infrastructure Service Down
+      - alert: MongoDBDown
+        expr: up{job="mongodb"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "MongoDB is down"
+          description: |
+            MongoDB (documentdb) has been unreachable for 1 minute.
+            All document storage operations will fail.
+            
+            Impact: CRITICAL - Pipeline cannot process documents
+            
+            Actions:
+              1. Check container: docker compose ps documentdb
+              2. Check logs: docker compose logs documentdb --tail=100
+              3. Verify network connectivity
+              4. Check disk space: df -h
+              5. Restart if necessary: docker compose restart documentdb
+            
+            Runbook: documents/runbooks/service-down.md
+            Dashboard: Grafana > MongoDB Status
+
+      - alert: RabbitMQDown
+        expr: up{job="rabbitmq"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: message_bus
+        annotations:
+          summary: "RabbitMQ is down"
+          description: |
+            RabbitMQ (messagebus) has been unreachable for 1 minute.
+            All async message processing will stop.
+            
+            Impact: CRITICAL - No new work can be queued
+            
+            Actions:
+              1. Check container: docker compose ps messagebus
+              2. Check logs: docker compose logs messagebus --tail=100
+              3. Verify port 5672 is listening
+              4. Check Erlang VM memory: rabbitmqctl status
+              5. Restart if necessary: docker compose restart messagebus
+            
+            Runbook: documents/runbooks/service-down.md
+            Dashboard: Grafana > Queue Status
+
+      - alert: QdrantDown
+        expr: up{job="qdrant"} == 0
+        for: 5m
+        labels:
+          severity: error
+          component: vectorstore
+        annotations:
+          summary: "Qdrant vectorstore is down"
+          description: |
+            Qdrant has been unreachable for 5 minutes.
+            Embedding storage and vector search will fail.
+            
+            Impact: HIGH - Cannot generate/query embeddings
+            
+            Actions:
+              1. Check container: docker compose ps vectorstore
+              2. Check logs: docker compose logs vectorstore --tail=100
+              3. Verify disk space for /qdrant/storage
+              4. Check collections: curl http://localhost:6333/collections
+              5. Restart if necessary: docker compose restart vectorstore
+            
+            Runbook: documents/runbooks/service-down.md
+            Dashboard: Grafana > Vectorstore Status
+
+      - alert: OllamaDown
+        expr: up{job="ollama"} == 0
+        for: 10m
+        labels:
+          severity: warning
+          component: llm
+        annotations:
+          summary: "Ollama LLM service is down"
+          description: |
+            Ollama has been unreachable for 10 minutes.
+            Local LLM inference will fail (affects summarization).
+            
+            Impact: MEDIUM - Summarization degraded if no fallback backend
+            
+            Actions:
+              1. Check container: docker compose ps ollama
+              2. Check logs: docker compose logs ollama --tail=100
+              3. Verify model loaded: curl http://localhost:11434/api/tags
+              4. Check GPU availability if using GPU
+              5. Restart if necessary: docker compose restart ollama
+            
+            Dashboard: Grafana > Service Metrics
+
+      - alert: PrometheusDown
+        expr: up{job="prometheus"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: monitoring
+        annotations:
+          summary: "Prometheus is down"
+          description: |
+            Prometheus monitoring has been down for 5 minutes.
+            Metrics collection and alerting are disabled.
+            
+            Impact: MEDIUM - Cannot monitor system or fire alerts
+            
+            Actions:
+              1. Check container: docker compose ps monitoring
+              2. Check logs: docker compose logs monitoring --tail=100
+              3. Verify config: promtool check config infra/prometheus/prometheus.yml
+              4. Check disk space: df -h
+              5. Restart: docker compose restart monitoring
+            
+            Dashboard: N/A (Prometheus is down)
+
+      - alert: GrafanaDown
+        expr: up{job="grafana"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: monitoring
+        annotations:
+          summary: "Grafana is down"
+          description: |
+            Grafana has been down for 5 minutes.
+            Dashboards and visualization are unavailable.
+            
+            Impact: LOW - Metrics still collected, just not visible
+            
+            Actions:
+              1. Check container: docker compose ps grafana
+              2. Check logs: docker compose logs grafana --tail=100
+              3. Verify port 3000 accessibility
+              4. Restart: docker compose restart grafana
+            
+            Dashboard: N/A (Grafana is down)
+
+      # Processing Service Health
+      - alert: ProcessingServiceUnhealthy
+        expr: |
+          (
+            sum by (service) (
+              rate(copilot_processing_messages_processed_total[5m])
+            ) == 0
+          )
+          and
+          (
+            sum by (service) (
+              rabbitmq_queue_messages_ready{queue=~"parsing|chunking|embedding|summarization"}
+            ) > 10
+          )
+        for: 15m
+        labels:
+          severity: error
+          component: processing_pipeline
+        annotations:
+          summary: "Service {{ $labels.service }} is not processing messages"
+          description: |
+            Service {{ $labels.service }} has not processed any messages in 15 minutes,
+            but its queue has {{ $value }} pending messages.
+            
+            This indicates the service is stuck or crashed.
+            
+            Actions:
+              1. Check service health: docker compose ps {{ $labels.service }}
+              2. Check logs: docker compose logs {{ $labels.service }} --tail=100
+              3. Check RabbitMQ consumers: http://localhost:15672/#/queues
+              4. Verify dependencies are healthy
+              5. Restart service: docker compose restart {{ $labels.service }}
+            
+            Runbook: documents/runbooks/service-down.md
+            Dashboard: Grafana > Service Metrics
+
+      # Exporter Health
+      - alert: ExporterDown
+        expr: up{job=~"mongo-doc-count|mongo-collstats|document-processing|qdrant-exporter"} == 0
+        for: 10m
+        labels:
+          severity: warning
+          component: monitoring
+        annotations:
+          summary: "Exporter {{ $labels.job }} is down"
+          description: |
+            Custom exporter {{ $labels.job }} has been down for 10 minutes.
+            Some metrics will be missing from dashboards.
+            
+            Impact: LOW - Observability degraded, service functionality unaffected
+            
+            Actions:
+              1. Check container: docker compose ps {{ $labels.job }}
+              2. Check logs: docker compose logs {{ $labels.job }} --tail=100
+              3. Verify dependencies (MongoDB/Qdrant) are healthy
+              4. Restart: docker compose restart {{ $labels.job }}
+            
+            Dashboard: Grafana > System Health
+
+      # High Service Restart Rate
+      - alert: ServiceRestartingFrequently
+        expr: |
+          rate(container_last_seen{name=~"copilot-.*"}[5m]) > 0.01
+        for: 10m
+        labels:
+          severity: warning
+          component: service_stability
+        annotations:
+          summary: "Service {{ $labels.name }} is restarting frequently"
+          description: |
+            Service {{ $labels.name }} has restarted multiple times in the last 10 minutes.
+            This indicates crashes or OOM kills.
+            
+            Restart rate: {{ $value | humanize }} restarts/second
+            
+            Actions:
+              1. Check logs for crashes: docker compose logs {{ $labels.name }} --tail=200
+              2. Check memory usage: docker stats {{ $labels.name }}
+              3. Check OOM kills: dmesg | grep -i "out of memory"
+              4. Review recent code changes
+              5. Increase resource limits if OOM
+            
+            Runbook: documents/runbooks/service-down.md
+            Dashboard: Grafana > Resource Usage
+
+      # Prometheus Target Down
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: monitoring
+        annotations:
+          summary: "Prometheus target {{ $labels.job }} is down"
+          description: |
+            Prometheus cannot scrape target {{ $labels.job }} ({{ $labels.instance }}).
+            Metrics for this target will be missing.
+            
+            Actions:
+              1. Check if service is running
+              2. Verify network connectivity
+              3. Check if endpoint is responding: curl {{ $labels.instance }}
+              4. Review Prometheus targets: http://localhost:9090/targets
+            
+            Dashboard: Grafana > System Health
+
+      # No metrics received
+      - alert: NoMetricsFromService
+        expr: |
+          (time() - timestamp(up{job=~"parsing|chunking|embedding|summarization"})) > 300
+        for: 5m
+        labels:
+          severity: warning
+          component: monitoring
+        annotations:
+          summary: "No metrics received from {{ $labels.job }} for 5 minutes"
+          description: |
+            Prometheus has not received metrics from {{ $labels.job }} in over 5 minutes.
+            Service may be unhealthy or metrics collection is broken.
+            
+            Actions:
+              1. Check service health: docker compose ps {{ $labels.job }}
+              2. Verify Pushgateway is up: docker compose ps pushgateway
+              3. Check Pushgateway metrics: curl http://pushgateway:9091/metrics
+              4. Review service metrics emission code
+            
+            Dashboard: Grafana > System Health

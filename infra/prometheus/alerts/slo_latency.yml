@@ -1,0 +1,326 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+# Prometheus Alert Rules for SLO-Based Latency
+#
+# These alerts monitor service latency SLOs (P95, P99) and fire when targets are exceeded.
+# See docs/OBSERVABILITY_RFC.md for SLO definitions.
+
+groups:
+  - name: slo_latency
+    interval: 60s
+    rules:
+      # Parsing Service Latency SLO
+      - alert: ParsingLatencyP95High
+        expr: |
+          histogram_quantile(0.95,
+            rate(copilot_parsing_duration_seconds_bucket{service="parsing"}[5m])
+          ) > 5
+        for: 10m
+        labels:
+          severity: warning
+          component: parsing
+          slo: latency
+        annotations:
+          summary: "Parsing P95 latency is {{ $value | humanizeDuration }}"
+          description: |
+            Parsing service P95 latency is {{ $value | humanizeDuration }}, exceeding SLO target of 5 seconds.
+            Processing is slower than expected.
+            
+            SLO: P95 < 5s per message
+            Current: {{ $value | humanizeDuration }}
+            
+            Actions:
+              1. Check service resource usage: Grafana > Resource Usage
+              2. Check MongoDB query performance
+              3. Check for slow archives: db.archives.find({}).sort({parsing_duration: -1}).limit(10)
+              4. Review recent code changes
+              5. Scale service if CPU/memory constrained
+            
+            Runbook: documents/runbooks/high-latency.md
+            Dashboard: Grafana > Service Metrics
+
+      - alert: ParsingLatencyP99Critical
+        expr: |
+          histogram_quantile(0.99,
+            rate(copilot_parsing_duration_seconds_bucket{service="parsing"}[5m])
+          ) > 30
+        for: 10m
+        labels:
+          severity: error
+          component: parsing
+          slo: latency
+        annotations:
+          summary: "Parsing P99 latency is {{ $value | humanizeDuration }} (CRITICAL)"
+          description: |
+            Parsing service P99 latency is {{ $value | humanizeDuration }}, exceeding critical threshold.
+            Some archives are taking extremely long to process.
+            
+            SLO: P99 < 10s per message
+            Current: {{ $value | humanizeDuration }}
+            
+            Actions:
+              1. URGENT: Identify slow archives causing outliers
+              2. Check for memory pressure or CPU throttling
+              3. Review parser logic for inefficiencies
+              4. Consider splitting large archives
+              5. Escalate if not resolved in 1 hour
+            
+            Runbook: documents/runbooks/high-latency.md
+            Dashboard: Grafana > Service Metrics
+
+      # Chunking Service Latency SLO
+      - alert: ChunkingLatencyP95High
+        expr: |
+          histogram_quantile(0.95,
+            rate(copilot_chunking_duration_seconds_bucket{service="chunking"}[5m])
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+          component: chunking
+          slo: latency
+        annotations:
+          summary: "Chunking P95 latency is {{ $value | humanizeDuration }}"
+          description: |
+            Chunking service P95 latency is {{ $value | humanizeDuration }}, exceeding SLO target of 2 seconds.
+            
+            SLO: P95 < 2s per message
+            Current: {{ $value | humanizeDuration }}
+            
+            Actions:
+              1. Check service resource usage
+              2. Review tokenizer performance
+              3. Check for large messages causing slow chunking
+              4. Scale service if needed
+            
+            Runbook: documents/runbooks/high-latency.md
+            Dashboard: Grafana > Service Metrics
+
+      # Embedding Service Latency SLO
+      - alert: EmbeddingLatencyP95High
+        expr: |
+          histogram_quantile(0.95,
+            rate(copilot_embedding_generation_duration_seconds_bucket{service="embedding"}[5m])
+          ) > 10
+        for: 10m
+        labels:
+          severity: warning
+          component: embedding
+          slo: latency
+        annotations:
+          summary: "Embedding P95 latency is {{ $value | humanizeDuration }}"
+          description: |
+            Embedding service P95 latency is {{ $value | humanizeDuration }}, exceeding SLO target of 10 seconds.
+            
+            SLO: P95 < 10s per chunk
+            Current: {{ $value | humanizeDuration }}
+            
+            Actions:
+              1. Check Ollama service: docker compose ps ollama
+              2. Verify GPU is being used (if enabled)
+              3. Check Ollama model loading time
+              4. Check Qdrant insert performance
+              5. Scale embedding service
+            
+            Runbook: documents/runbooks/high-latency.md
+            Dashboard: Grafana > Service Metrics
+
+      - alert: EmbeddingLatencyP99Critical
+        expr: |
+          histogram_quantile(0.99,
+            rate(copilot_embedding_generation_duration_seconds_bucket{service="embedding"}[5m])
+          ) > 60
+        for: 10m
+        labels:
+          severity: error
+          component: embedding
+          slo: latency
+        annotations:
+          summary: "Embedding P99 latency is {{ $value | humanizeDuration }} (CRITICAL)"
+          description: |
+            Embedding service P99 latency is {{ $value | humanizeDuration }}, exceeding critical threshold.
+            
+            SLO: P99 < 30s per chunk
+            Current: {{ $value | humanizeDuration }}
+            
+            Actions:
+              1. Check Ollama for errors: docker compose logs ollama
+              2. Verify Qdrant disk I/O performance
+              3. Check for network issues between services
+              4. Review embedding model configuration
+              5. Consider using smaller/faster model
+            
+            Runbook: documents/runbooks/high-latency.md
+            Dashboard: Grafana > Service Metrics
+
+      # Summarization Service Latency SLO
+      - alert: SummarizationLatencyP95High
+        expr: |
+          histogram_quantile(0.95,
+            rate(copilot_summarization_latency_seconds_bucket{service="summarization"}[5m])
+          ) > 30
+        for: 15m
+        labels:
+          severity: warning
+          component: summarization
+          slo: latency
+        annotations:
+          summary: "Summarization P95 latency is {{ $value | humanizeDuration }}"
+          description: |
+            Summarization service P95 latency is {{ $value | humanizeDuration }}, exceeding SLO target of 30 seconds.
+            
+            SLO: P95 < 30s per thread
+            Current: {{ $value | humanizeDuration }}
+            
+            Actions:
+              1. Check LLM backend response time
+              2. Verify Ollama/Azure OpenAI connectivity
+              3. Check RAG context size (may be too large)
+              4. Review prompt templates for optimization
+              5. Monitor LLM token usage
+            
+            Runbook: documents/runbooks/high-latency.md
+            Dashboard: Grafana > Service Metrics
+
+      - alert: SummarizationLatencyP99Critical
+        expr: |
+          histogram_quantile(0.99,
+            rate(copilot_summarization_latency_seconds_bucket{service="summarization"}[5m])
+          ) > 120
+        for: 15m
+        labels:
+          severity: error
+          component: summarization
+          slo: latency
+        annotations:
+          summary: "Summarization P99 latency is {{ $value | humanizeDuration }} (CRITICAL)"
+          description: |
+            Summarization service P99 latency is {{ $value | humanizeDuration }}, exceeding critical threshold.
+            Some threads are taking extremely long to summarize.
+            
+            SLO: P99 < 60s per thread
+            Current: {{ $value | humanizeDuration }}
+            
+            Actions:
+              1. Identify threads with excessive context length
+              2. Check LLM backend for throttling/rate limits
+              3. Review complex prompts or edge cases
+              4. Consider timeout and fallback strategies
+              5. Escalate if LLM backend issue
+            
+            Runbook: documents/runbooks/high-latency.md
+            Dashboard: Grafana > Service Metrics
+
+      # Ingestion API Latency SLO
+      - alert: IngestionAPILatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_seconds_bucket{service="ingestion"}[5m])
+          ) > 1
+        for: 10m
+        labels:
+          severity: warning
+          component: ingestion
+          slo: latency
+        annotations:
+          summary: "Ingestion API P95 latency is {{ $value | humanizeDuration }}"
+          description: |
+            Ingestion API P95 latency is {{ $value | humanizeDuration }}, exceeding SLO target of 500ms.
+            
+            SLO: P95 < 500ms
+            Current: {{ $value | humanizeDuration }}
+            
+            Actions:
+              1. Check ingestion service logs
+              2. Review database write performance
+              3. Check for slow HTTP clients
+              4. Verify RabbitMQ publish latency
+              5. Scale service if needed
+            
+            Runbook: documents/runbooks/high-latency.md
+            Dashboard: Grafana > Service Metrics
+
+      # Reporting API Latency SLO
+      - alert: ReportingAPILatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_seconds_bucket{service="reporting"}[5m])
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          component: reporting
+          slo: latency
+        annotations:
+          summary: "Reporting API P95 latency is {{ $value }}s"
+          description: |
+            Reporting API P95 latency is {{ $value }}s, exceeding SLO target of 200ms.
+            User-facing API responses are slower than expected.
+            
+            SLO: P95 < 200ms
+            Current: {{ $value }}s
+            
+            Actions:
+              1. Check database query performance
+              2. Review API endpoint implementations
+              3. Check for N+1 queries
+              4. Consider caching frequently accessed data
+              5. Optimize MongoDB indexes
+            
+            Runbook: documents/runbooks/high-latency.md
+            Dashboard: Grafana > Service Metrics
+
+      - alert: ReportingAPILatencyCritical
+        expr: |
+          histogram_quantile(0.99,
+            rate(http_request_duration_seconds_bucket{service="reporting"}[5m])
+          ) > 2
+        for: 10m
+        labels:
+          severity: error
+          component: reporting
+          slo: latency
+        annotations:
+          summary: "Reporting API P99 latency is {{ $value }}s (CRITICAL)"
+          description: |
+            Reporting API P99 latency is {{ $value }}s, exceeding critical threshold.
+            Some requests are timing out or taking extremely long.
+            
+            SLO: P99 < 500ms
+            Current: {{ $value }}s
+            
+            Actions:
+              1. URGENT: Identify slow queries in MongoDB
+              2. Check for missing indexes
+              3. Review endpoint implementations for inefficiencies
+              4. Check MongoDB resource usage
+              5. Consider read replicas or caching
+            
+            Runbook: documents/runbooks/high-latency.md
+            Dashboard: Grafana > Service Metrics
+
+      # Database Query Latency
+      - alert: MongoDBSlowQueries
+        expr: mongodb_op_latencies_latency{type="commands"} > 100
+        for: 10m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "MongoDB command latency is {{ $value }}ms"
+          description: |
+            MongoDB command latency is {{ $value }}ms, which is higher than normal.
+            Database operations are slower than expected.
+            
+            Target: < 100ms
+            Current: {{ $value }}ms
+            
+            Actions:
+              1. Check slow query log: db.setProfilingLevel(1, {slowms: 100})
+              2. Review query patterns and indexes
+              3. Check disk I/O performance
+              4. Verify working set fits in memory
+              5. Review collection statistics
+            
+            Dashboard: Grafana > MongoDB Status
