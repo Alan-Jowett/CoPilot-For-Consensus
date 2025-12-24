@@ -4,6 +4,7 @@
 """Factory for creating summarizer instances based on configuration."""
 
 import logging
+from typing import Any
 
 from .llamacpp_summarizer import LlamaCppSummarizer
 from .local_llm_summarizer import LocalLLMSummarizer
@@ -26,7 +27,7 @@ class SummarizerFactory:
         model: str | None = None,
         api_key: str | None = None,
         base_url: str | None = None,
-        **kwargs
+        **kwargs: Any
     ) -> Summarizer:
         """Create a summarizer instance based on provider type.
 

@@ -119,7 +119,7 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
             raise ValueError("Text cannot be empty or whitespace-only")
 
         embedding = self.model.encode(text, convert_to_numpy=True)
-        return embedding.tolist()
+        return list(embedding.tolist())  # Convert to list[float]
 
 
 class OpenAIEmbeddingProvider(EmbeddingProvider):
@@ -195,7 +195,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
                 model=self.model
             )
 
-        return response.data[0].embedding
+        return list(response.data[0].embedding)  # Convert to list[float]
 
 
 class HuggingFaceEmbeddingProvider(EmbeddingProvider):
@@ -285,4 +285,4 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
         # Use mean pooling on token embeddings
         embeddings = outputs.last_hidden_state.mean(dim=1)
 
-        return embeddings.cpu().numpy()[0].tolist()
+        return list(embeddings.cpu().numpy()[0].tolist())  # Convert to list[float]

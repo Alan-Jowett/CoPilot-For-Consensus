@@ -4,6 +4,7 @@
 """Factory for creating embedding providers based on configuration."""
 
 import logging
+from typing import Any
 
 from .providers import (
     EmbeddingProvider,
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 def create_embedding_provider(
     backend: str | None = None,
     model: str | None = None,
-    **kwargs
+    **kwargs: Any
 ) -> EmbeddingProvider:
     """Create an embedding provider based on configuration.
 
@@ -118,6 +119,8 @@ def create_embedding_provider(
 
         # Use deployment_name as model if model not provided
         model = model or deployment_name
+        if not model:
+            raise ValueError("Either model or deployment_name must be provided for Azure OpenAI")
 
         return OpenAIEmbeddingProvider(
             api_key=api_key,
@@ -140,7 +143,8 @@ def create_embedding_provider(
                 "Specify 'cpu' or 'cuda'"
             )
         cache_dir = kwargs.get("cache_dir")
-        max_length = kwargs.get("max_length")
+        max_length_param = kwargs.get("max_length")
+        max_length = max_length_param if isinstance(max_length_param, int) else HuggingFaceEmbeddingProvider.DEFAULT_MAX_LENGTH
 
         return HuggingFaceEmbeddingProvider(
             model_name=model,
