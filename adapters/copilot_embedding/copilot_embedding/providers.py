@@ -5,6 +5,7 @@
 
 import logging
 from abc import ABC, abstractmethod
+from typing import cast
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +120,7 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
             raise ValueError("Text cannot be empty or whitespace-only")
 
         embedding = self.model.encode(text, convert_to_numpy=True)
-        return list(embedding.tolist())  # Convert to list[float]
+        return cast(list[float], embedding.tolist())
 
 
 class OpenAIEmbeddingProvider(EmbeddingProvider):
@@ -195,7 +196,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
                 model=self.model
             )
 
-        return list(response.data[0].embedding)  # Convert to list[float]
+        return cast(list[float], response.data[0].embedding)
 
 
 class HuggingFaceEmbeddingProvider(EmbeddingProvider):
@@ -285,4 +286,4 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
         # Use mean pooling on token embeddings
         embeddings = outputs.last_hidden_state.mean(dim=1)
 
-        return list(embeddings.cpu().numpy()[0].tolist())  # Convert to list[float]
+        return cast(list[float], embeddings.cpu().numpy()[0].tolist())

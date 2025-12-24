@@ -117,10 +117,10 @@ def create_embedding_provider(
                 "Specify the model or deployment name"
             )
 
+        from typing import cast
+        
         # Use deployment_name as model if model not provided
-        model = model or deployment_name
-        # Type narrowing: at this point, model is guaranteed to be a string
-        assert model is not None and isinstance(model, str)
+        model = cast(str, model or deployment_name)
 
         return OpenAIEmbeddingProvider(
             api_key=api_key,
@@ -142,8 +142,10 @@ def create_embedding_provider(
                 "device parameter is required for huggingface backend. "
                 "Specify 'cpu' or 'cuda'"
             )
+        from typing import cast
+        
         cache_dir = kwargs.get("cache_dir")
-        max_length: int = kwargs.get("max_length", HuggingFaceEmbeddingProvider.DEFAULT_MAX_LENGTH)
+        max_length = cast(int, kwargs.get("max_length", HuggingFaceEmbeddingProvider.DEFAULT_MAX_LENGTH))
 
         return HuggingFaceEmbeddingProvider(
             model_name=model,

@@ -10,7 +10,7 @@ threads before embedding or summarization.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from copilot_schema_validation import generate_chunk_id
 
@@ -153,8 +153,6 @@ class TokenWindowChunker(ThreadChunker):
 
             # Only create chunk if it meets minimum size
             if len(chunk_words) >= self.min_chunk_size or end_idx == len(words):
-                # message_doc_id is guaranteed to be non-None by check at start of chunk()
-                assert thread.message_doc_id is not None
                 chunk = Chunk(
                     chunk_id=generate_chunk_id(thread.message_doc_id, chunk_index),
                     message_doc_id=thread.message_doc_id,
@@ -238,8 +236,6 @@ class FixedSizeChunker(ThreadChunker):
             token_count = len(chunk_text.split())
 
             chunk_idx = i // self.messages_per_chunk
-            # message_doc_id is guaranteed to be non-None by check at start of chunk()
-            assert thread.message_doc_id is not None
             chunk = Chunk(
                 chunk_id=generate_chunk_id(thread.message_doc_id, chunk_idx),
                 message_doc_id=thread.message_doc_id,
@@ -297,11 +293,9 @@ class FixedSizeChunker(ThreadChunker):
             token_count = len(chunk_text.split())
 
             chunk_idx = i // self.messages_per_chunk
-            # message_doc_id is guaranteed to be non-None by check at start of chunk()
-            assert thread.message_doc_id is not None
             chunk = Chunk(
-                chunk_id=generate_chunk_id(thread.message_doc_id, chunk_idx),
-                message_doc_id=thread.message_doc_id,
+                chunk_id=generate_chunk_id(cast(str, thread.message_doc_id), chunk_idx),
+                message_doc_id=cast(str, thread.message_doc_id),
                 thread_id=thread.thread_id,
                 text=chunk_text,
                 chunk_index=chunk_idx,
@@ -374,8 +368,6 @@ class SemanticChunker(ThreadChunker):
             # If adding this sentence would exceed target, create a chunk
             if current_chunk_sentences and current_token_count + sentence_tokens > self.target_chunk_size:
                 chunk_text = " ".join(current_chunk_sentences)
-                # message_doc_id is guaranteed to be non-None by check at start of chunk()
-                assert thread.message_doc_id is not None
                 chunk = Chunk(
                     chunk_id=generate_chunk_id(thread.message_doc_id, chunk_index),
                     message_doc_id=thread.message_doc_id,
@@ -398,8 +390,6 @@ class SemanticChunker(ThreadChunker):
         # Add final chunk if there are remaining sentences
         if current_chunk_sentences:
             chunk_text = " ".join(current_chunk_sentences)
-            # message_doc_id is guaranteed to be non-None by check at start of chunk()
-            assert thread.message_doc_id is not None
             chunk = Chunk(
                 chunk_id=generate_chunk_id(thread.message_doc_id, chunk_index),
                 message_doc_id=thread.message_doc_id,
