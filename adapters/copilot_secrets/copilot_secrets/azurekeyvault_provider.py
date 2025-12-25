@@ -175,6 +175,7 @@ class AzureKeyVaultProvider(SecretProvider):
             SecretProviderError: If retrieval fails
         """
         from azure.core.exceptions import AzureError, ResourceNotFoundError
+        from typing import cast
 
         try:
             if version:
@@ -185,7 +186,7 @@ class AzureKeyVaultProvider(SecretProvider):
             if secret.value is None:
                 raise SecretNotFoundError(f"Key '{key_name}' has no value")
 
-            return secret.value
+            return cast(str, secret.value)
 
         except SecretNotFoundError:
             # Re-raise SecretNotFoundError without wrapping

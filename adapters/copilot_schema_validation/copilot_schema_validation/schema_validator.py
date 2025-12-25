@@ -9,7 +9,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator  # type: ignore[import-untyped]  # type: ignore[import-untyped]
 from referencing import Registry, Resource
 
 logger = logging.getLogger(__name__)
@@ -93,7 +93,7 @@ def _strip_allof_additional_properties(schema: dict[str, Any]) -> dict[str, Any]
     return normalized
 
 
-def validate_json(document: dict[str, Any], schema: dict[str, Any], schema_provider=None) -> tuple[bool, list[str]]:
+def validate_json(document: dict[str, Any], schema: dict[str, Any], schema_provider: Any = None) -> tuple[bool, list[str]]:
     """Validate a JSON document against a JSON schema.
 
     Args:

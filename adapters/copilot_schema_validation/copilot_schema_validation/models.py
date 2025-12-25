@@ -58,7 +58,7 @@ class BaseEvent:
     version: str = "1.0"
     data: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Generate default values for event_id and timestamp."""
         if self.event_id is None:
             self.event_id = str(uuid4())
