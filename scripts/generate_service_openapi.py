@@ -29,7 +29,11 @@ import sys
 from pathlib import Path
 from typing import Dict, Any
 
-import yaml
+try:
+    import yaml
+except ImportError:
+    print("Error: PyYAML is required. Install with: pip install pyyaml")
+    raise
 
 
 def load_fastapi_app(service_name: str) -> Any:

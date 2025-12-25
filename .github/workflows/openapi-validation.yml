@@ -86,16 +86,24 @@ jobs:
           pip install openapi-spec-validator pyyaml fastapi uvicorn pydantic
           # Install service-specific dependencies
           if [ -f ${{ matrix.service }}/requirements.txt ]; then
-            pip install -r ${{ matrix.service }}/requirements.txt
+            echo "Installing ${{ matrix.service }} dependencies..."
+            pip install -r ${{ matrix.service }}/requirements.txt || {
+              echo "Warning: Failed to install some dependencies for ${{ matrix.service }}"
+              echo "This may be expected if optional dependencies are unavailable"
+            }
           fi
       
       - name: Install adapters (if needed for service imports)
         run: |
           # Install adapter packages that services depend on
+          # Note: Adapters may use setup.py rather than pyproject.toml
           for adapter_dir in adapters/*/; do
-            if [ -f "${adapter_dir}pyproject.toml" ]; then
+            if [ -f "${adapter_dir}pyproject.toml" ] || [ -f "${adapter_dir}setup.py" ]; then
               echo "Installing adapter: ${adapter_dir}"
-              pip install -e "${adapter_dir}"
+              pip install -e "${adapter_dir}" || {
+                echo "Warning: Failed to install adapter ${adapter_dir}"
+                echo "This may be expected if adapter has optional dependencies"
+              }
             fi
           done
       

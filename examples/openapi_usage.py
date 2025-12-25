@@ -30,10 +30,20 @@ def load_openapi_spec(spec_path: Path) -> Dict[str, Any]:
     
     Returns:
         OpenAPI specification as a dictionary
+    
+    Raises:
+        FileNotFoundError: If spec file doesn't exist
+        yaml.YAMLError: If spec file has invalid YAML syntax
     """
-    with open(spec_path) as f:
-        spec = yaml.safe_load(f)
-    return spec
+    if not spec_path.exists():
+        raise FileNotFoundError(f"OpenAPI spec not found: {spec_path}")
+    
+    try:
+        with open(spec_path) as f:
+            spec = yaml.safe_load(f)
+        return spec
+    except yaml.YAMLError as e:
+        raise yaml.YAMLError(f"Invalid YAML in {spec_path}: {e}")
 
 
 def print_spec_info(spec: Dict[str, Any], spec_name: str) -> None:
