@@ -108,18 +108,18 @@ def generate_openapi_spec(service_name: str, output_format: str = 'yaml') -> Dic
     return openapi_spec
 
 
-def save_spec(spec: Dict[str, Any], output_path: Path, format: str = 'yaml') -> None:
+def save_spec(spec: Dict[str, Any], output_path: Path, output_format: str = 'yaml') -> None:
     """Save OpenAPI spec to file.
     
     Args:
         spec: OpenAPI specification dictionary
         output_path: Path to save the spec
-        format: Output format ('yaml' or 'json')
+        output_format: Output format ('yaml' or 'json')
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
     with open(output_path, 'w') as f:
-        if format == 'yaml':
+        if output_format == 'yaml':
             yaml.dump(spec, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
         else:
             json.dump(spec, f, indent=2)

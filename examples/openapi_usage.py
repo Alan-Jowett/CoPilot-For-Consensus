@@ -15,7 +15,6 @@ The hybrid OpenAPI workflow provides:
 - Service specs (code-first): openapi/generated/*.yaml
 """
 
-import json
 from pathlib import Path
 from typing import Any, Dict
 
