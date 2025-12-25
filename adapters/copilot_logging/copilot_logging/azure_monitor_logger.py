@@ -121,7 +121,7 @@ class AzureMonitorLogger(Logger):
             self._logger_provider = logger_provider
 
             # Add batch processor for efficient log transmission
-            logger_provider.add_log_record_processor(  # type: ignore
+            logger_provider.add_log_record_processor(
                 BatchLogRecordProcessor(exporter)
             )
 
@@ -131,7 +131,7 @@ class AzureMonitorLogger(Logger):
                 # Use existing tracer provider
                 try:
                     trace_exporter = AzureMonitorTraceExporter(connection_string=conn_str)
-                    tracer_provider.add_span_processor(  # type: ignore
+                    tracer_provider.add_span_processor(
                         BatchSpanProcessor(trace_exporter)
                     )
                 except Exception:
@@ -359,7 +359,7 @@ class AzureMonitorLogger(Logger):
         """
         if self._logger_provider is not None and hasattr(self._logger_provider, 'shutdown'):
             try:
-                self._logger_provider.shutdown()  # type: ignore
+                self._logger_provider.shutdown()
             except Exception as exc:
                 # Log shutdown errors but keep shutdown non-fatal
                 try:

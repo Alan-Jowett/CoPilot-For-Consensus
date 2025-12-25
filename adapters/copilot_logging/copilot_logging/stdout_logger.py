@@ -58,7 +58,7 @@ class StdoutLogger(Logger):
         exc_info = kwargs.pop("exc_info", None)
 
         # Build structured log entry
-        log_entry = {
+        log_entry: dict[str, Any] = {
             "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "level": level,
             "logger": self.name,

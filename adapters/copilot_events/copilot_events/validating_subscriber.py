@@ -114,7 +114,7 @@ class ValidatingEventSubscriber(EventSubscriber):
         # Validate event against schema
         try:
             from copilot_schema_validation import (
-                validate_json,  # type: ignore[import-not-found] # pylint: disable=import-outside-toplevel
+                validate_json,  # pylint: disable=import-outside-toplevel
             )
             is_valid, errors = validate_json(event, schema, schema_provider=self._schema_provider)
             return is_valid, errors

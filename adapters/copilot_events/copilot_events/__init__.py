@@ -12,7 +12,7 @@ from typing import Any
 __version__ = "0.1.0"
 
 # Import event models from the schema validation module
-from copilot_schema_validation import (  # type: ignore[import-not-found]
+from copilot_schema_validation import (
     # Ingestion Service Events
     ArchiveIngestedEvent,
     ArchiveIngestionFailedEvent,

@@ -34,7 +34,7 @@ class SilentLogger(Logger):
             message: The log message
             **kwargs: Additional structured data to log
         """
-        log_entry = {
+        log_entry: dict[str, Any] = {
             "level": level,
             "message": message,
         }
@@ -84,7 +84,7 @@ class SilentLogger(Logger):
         """Clear all stored log messages (useful for testing)."""
         self.logs.clear()
 
-    def get_logs(self, level: str = None) -> list[dict[str, Any]]:
+    def get_logs(self, level: str | None = None) -> list[dict[str, Any]]:
         """Get stored log messages, optionally filtered by level.
 
         Args:
@@ -97,7 +97,7 @@ class SilentLogger(Logger):
             return self.logs
         return [log for log in self.logs if log["level"] == level]
 
-    def has_log(self, message: str, level: str = None) -> bool:
+    def has_log(self, message: str, level: str | None = None) -> bool:
         """Check if a specific log message exists.
 
         Args:
