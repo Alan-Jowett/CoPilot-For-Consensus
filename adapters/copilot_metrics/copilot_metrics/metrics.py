@@ -80,9 +80,11 @@ class MetricsCollector(ABC):
                 logger.warning(f"Failed to push metrics: {e}")
 
 
+from typing import Any
+
 def create_metrics_collector(
     backend: str | None = None,
-    **kwargs
+    **kwargs: Any
 ) -> MetricsCollector:
     """Factory function to create a metrics collector based on backend type.
 

@@ -54,9 +54,9 @@ class PrometheusMetricsCollector(MetricsCollector):
         self.registry = registry
         self.namespace = namespace
         self.raise_on_error = raise_on_error
-        self._counters: dict[str, Counter] = {}
-        self._histograms: dict[str, Histogram] = {}
-        self._gauges: dict[str, Gauge] = {}
+        self._counters: dict[tuple[str, tuple[str, ...]], Counter] = {}
+        self._histograms: dict[tuple[str, tuple[str, ...]], Histogram] = {}
+        self._gauges: dict[tuple[str, tuple[str, ...]], Gauge] = {}
         self._metrics_errors_count = 0
 
     def _get_or_create_counter(self, name: str, tags: dict[str, str] | None = None) -> 'Counter':

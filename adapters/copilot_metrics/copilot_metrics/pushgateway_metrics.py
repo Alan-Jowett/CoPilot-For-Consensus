@@ -5,6 +5,7 @@
 
 import logging
 import os
+from typing import Any
 
 from .prometheus_metrics import PrometheusMetricsCollector
 
@@ -33,7 +34,7 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
         gateway: str | None = None,
         job: str | None = None,
         grouping_key: dict[str, str] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         if not PROMETHEUS_AVAILABLE:
             raise ImportError(
@@ -47,7 +48,7 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
         super().__init__(registry=registry, **kwargs)
 
         self.gateway = gateway or os.getenv("PROMETHEUS_PUSHGATEWAY", "pushgateway:9091")
-        if not self.gateway.startswith("http"):
+        if self.gateway and not self.gateway.startswith("http"):
             self.gateway = f"http://{self.gateway}"
 
         self.job = job or os.getenv("METRICS_JOB_NAME", "ingestion")
