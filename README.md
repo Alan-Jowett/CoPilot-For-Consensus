@@ -530,6 +530,7 @@ Comprehensive documentation is available throughout the repository:
 - **[documents/FAILED_QUEUE_OPERATIONS.md](./documents/FAILED_QUEUE_OPERATIONS.md)**: Failed queue management and troubleshooting
 
 ### Gateway Documentation
+- **[docs/openapi.md](./docs/openapi.md)**: Hybrid OpenAPI 3.0 workflow guide (spec-first gateway, code-first services)
 - **[docs/gateway/overview.md](./docs/gateway/overview.md)**: Cloud-agnostic API gateway architecture and workflow
 - **[docs/gateway/local-deployment.md](./docs/gateway/local-deployment.md)**: NGINX gateway for local development
 - **[docs/gateway/azure-deployment.md](./docs/gateway/azure-deployment.md)**: Azure API Management deployment guide
