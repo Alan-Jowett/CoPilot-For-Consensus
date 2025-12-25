@@ -156,8 +156,8 @@ Examples:
     parser.add_argument(
         '--spec',
         type=Path,
-        default=Path(__file__).parent / 'openapi.yaml',
-        help='Path to OpenAPI specification (default: openapi.yaml)'
+        default=Path(__file__).parent.parent.parent / 'openapi' / 'gateway.yaml',
+        help='Path to OpenAPI specification (default: openapi/gateway.yaml)'
     )
     
     parser.add_argument(
