@@ -314,10 +314,18 @@ jobs:
         echo "Waiting for exporters to initialize..."
         sleep 10
         echo "Checking exporter status..."
-        docker compose ps rabbitmq-exporter mongodb-exporter qdrant-exporter mongo-doc-count-exporter cadvisor document-processing-exporter || true
-        # Verify at least cadvisor (which has a healthcheck) is running
-        timeout 60s bash -c 'until docker compose ps cadvisor --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for cadvisor..."; sleep 3; done' || (echo "Cadvisor failed to start"; docker compose logs cadvisor --tail=50 && exit 1)
-        echo "✓ Metric exporters started"
+        docker compose ps rabbitmq-exporter mongodb-exporter qdrant-exporter mongo-doc-count-exporter cadvisor document-processing-exporter
+        # Verify exporters are running (at least in "Up" state, some may not have healthchecks)
+        for exporter in rabbitmq-exporter mongodb-exporter qdrant-exporter mongo-doc-count-exporter cadvisor document-processing-exporter; do
+          status=$(docker compose ps "$exporter" --format '{{.Status}}' 2>/dev/null || echo "not found")
+          if [[ "$status" != *"Up"* ]]; then
+            echo "ERROR: $exporter is not running: $status"
+            docker compose logs "$exporter" --tail=50
+            exit 1
+          fi
+          echo "  ✓ $exporter: $status"
+        done
+        echo "✓ All metric exporters started"
 
     - name: Wait for Prometheus to scrape metrics
       run: |
