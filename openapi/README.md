@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
 # OpenAPI Specifications
 
 This directory contains OpenAPI 3.0 specifications for the Copilot-for-Consensus system.
