@@ -102,6 +102,10 @@ class DocStoreConfigProvider(ConfigProvider):
             # If cache loading fails, return default
             return default
 
+        # If cache is still None after _ensure_cache, return default
+        if self._cache is None:
+            return default
+
         # Try direct key lookup first
         if key in self._cache:
             return self._cache[key]

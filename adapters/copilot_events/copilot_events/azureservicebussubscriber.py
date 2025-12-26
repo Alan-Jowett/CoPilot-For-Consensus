@@ -110,7 +110,7 @@ class AzureServiceBusSubscriber(EventSubscriber):
                 logger.info("Connecting to Azure Service Bus using managed identity")
                 if self.fully_qualified_namespace is None:
                     raise ValueError("fully_qualified_namespace is required when using managed identity")
-                self._credential = DefaultAzureCredential()
+                self._credential = DefaultAzureCredential()  # type: ignore[misc]
                 if ServiceBusClient is None:
                     raise ImportError("azure-servicebus library is not installed")
                 self.client = ServiceBusClient(

@@ -32,12 +32,12 @@ class AzureCosmosDocumentStore(DocumentStore):
 
     def __init__(
         self,
-        endpoint: str = None,
-        key: str = None,
+        endpoint: str | None = None,
+        key: str | None = None,
         database: str = "copilot",
         container: str = "documents",
         partition_key: str = "/collection",
-        **kwargs
+        **kwargs: Any
     ):
         """Initialize Azure Cosmos DB document store.
 
@@ -136,7 +136,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             try:
                 self.database = self.client.create_database_if_not_exists(id=self.database_name)
                 logger.info(f"AzureCosmosDocumentStore: using database '{self.database_name}'")
-            except cosmos_exceptions.CosmosHttpResponseError as e:
+            except cosmos_exceptions.CosmosHttpResponseError  # type: ignore[attr-defined] as e:
                 logger.error(f"AzureCosmosDocumentStore: failed to create/access database - {e}")
                 raise DocumentStoreConnectionError(f"Failed to create/access database '{self.database_name}'") from e
 
@@ -144,13 +144,13 @@ class AzureCosmosDocumentStore(DocumentStore):
             try:
                 self.container = self.database.create_container_if_not_exists(
                     id=self.container_name,
-                    partition_key={"paths": [self.partition_key], "kind": "Hash"}
+                    partition_key={"paths": [self.partition_key], "kind": "Hash"}  # type: ignore[arg-type]
                 )
                 logger.info(
                     f"AzureCosmosDocumentStore: using container '{self.container_name}' "
                     f"with partition key '{self.partition_key}'"
                 )
-            except cosmos_exceptions.CosmosHttpResponseError as e:
+            except cosmos_exceptions.CosmosHttpResponseError  # type: ignore[attr-defined] as e:
                 logger.error(
                     f"AzureCosmosDocumentStore: failed to create/access container - {e}"
                 )
@@ -163,7 +163,7 @@ class AzureCosmosDocumentStore(DocumentStore):
                 f"{self.endpoint}/{self.database_name}/{self.container_name}"
             )
 
-        except (cosmos_exceptions.CosmosHttpResponseError, AzureError) as e:
+        except (cosmos_exceptions.CosmosHttpResponseError, AzureError) as e:  # type: ignore[attr-defined]
             logger.error(f"AzureCosmosDocumentStore: connection failed - {e}", exc_info=True)
             raise DocumentStoreConnectionError(f"Failed to connect to Cosmos DB at {self.endpoint}") from e
         except Exception as e:
@@ -222,10 +222,10 @@ class AzureCosmosDocumentStore(DocumentStore):
 
             return doc_id
 
-        except cosmos_exceptions.CosmosResourceExistsError as e:
+        except cosmos_exceptions.CosmosResourceExistsError  # type: ignore[attr-defined] as e:
             logger.error(f"AzureCosmosDocumentStore: document with id {doc_id} already exists - {e}")
             raise DocumentStoreError(f"Document with id {doc_id} already exists in collection {collection}") from e
-        except cosmos_exceptions.CosmosHttpResponseError as e:
+        except cosmos_exceptions.CosmosHttpResponseError  # type: ignore[attr-defined] as e:
             if e.status_code == 429:
                 logger.warning(f"AzureCosmosDocumentStore: throttled during insert - {e}")
                 raise DocumentStoreError(f"Throttled during insert: {str(e)}") from e
@@ -262,10 +262,10 @@ class AzureCosmosDocumentStore(DocumentStore):
             logger.debug(f"AzureCosmosDocumentStore: retrieved document {doc_id} from {collection}")
             return doc
 
-        except cosmos_exceptions.CosmosResourceNotFoundError:
+        except cosmos_exceptions.CosmosResourceNotFoundError  # type: ignore[attr-defined]:
             logger.debug(f"AzureCosmosDocumentStore: document {doc_id} not found in {collection}")
             return None
-        except cosmos_exceptions.CosmosHttpResponseError as e:
+        except cosmos_exceptions.CosmosHttpResponseError  # type: ignore[attr-defined] as e:
             if e.status_code == 429:
                 logger.warning(f"AzureCosmosDocumentStore: throttled during get - {e}")
                 raise DocumentStoreError(f"Throttled during get: {str(e)}") from e
@@ -318,7 +318,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             # Execute query
             items = list(self.container.query_items(
                 query=query,
-                parameters=parameters,
+                parameters=parameters,  # type: ignore[arg-type]
                 enable_cross_partition_query=False,
                 partition_key=collection
             ))
@@ -329,7 +329,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             )
             return items
 
-        except cosmos_exceptions.CosmosHttpResponseError as e:
+        except cosmos_exceptions.CosmosHttpResponseError  # type: ignore[attr-defined] as e:
             if e.status_code == 429:
                 logger.warning(f"AzureCosmosDocumentStore: throttled during query - {e}")
                 raise DocumentStoreError(f"Throttled during query: {str(e)}") from e
@@ -364,7 +364,7 @@ class AzureCosmosDocumentStore(DocumentStore):
                     item=doc_id,
                     partition_key=collection
                 )
-            except cosmos_exceptions.CosmosResourceNotFoundError:
+            except cosmos_exceptions.CosmosResourceNotFoundError  # type: ignore[attr-defined]:
                 logger.debug(f"AzureCosmosDocumentStore: document {doc_id} not found in {collection}")
                 raise DocumentNotFoundError(f"Document {doc_id} not found in collection {collection}")
 
@@ -386,7 +386,7 @@ class AzureCosmosDocumentStore(DocumentStore):
 
         except DocumentNotFoundError:
             raise
-        except cosmos_exceptions.CosmosHttpResponseError as e:
+        except cosmos_exceptions.CosmosHttpResponseError  # type: ignore[attr-defined] as e:
             if e.status_code == 429:
                 logger.warning(f"AzureCosmosDocumentStore: throttled during update - {e}")
                 raise DocumentStoreError(f"Throttled during update: {str(e)}") from e
@@ -420,10 +420,10 @@ class AzureCosmosDocumentStore(DocumentStore):
 
             logger.debug(f"AzureCosmosDocumentStore: deleted document {doc_id} from {collection}")
 
-        except cosmos_exceptions.CosmosResourceNotFoundError:
+        except cosmos_exceptions.CosmosResourceNotFoundError  # type: ignore[attr-defined]:
             logger.debug(f"AzureCosmosDocumentStore: document {doc_id} not found in {collection}")
             raise DocumentNotFoundError(f"Document {doc_id} not found in collection {collection}")
-        except cosmos_exceptions.CosmosHttpResponseError as e:
+        except cosmos_exceptions.CosmosHttpResponseError  # type: ignore[attr-defined] as e:
             if e.status_code == 429:
                 logger.warning(f"AzureCosmosDocumentStore: throttled during delete - {e}")
                 raise DocumentStoreError(f"Throttled during delete: {str(e)}") from e
@@ -523,7 +523,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             # Execute query
             items = list(self.container.query_items(
                 query=query,
-                parameters=parameters,
+                parameters=parameters,  # type: ignore[arg-type]
                 enable_cross_partition_query=False,
                 partition_key=collection
             ))
@@ -534,7 +534,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             )
             return items
 
-        except cosmos_exceptions.CosmosHttpResponseError as e:
+        except cosmos_exceptions.CosmosHttpResponseError  # type: ignore[attr-defined] as e:
             if e.status_code == 429:
                 logger.warning(f"AzureCosmosDocumentStore: throttled during aggregation - {e}")
                 raise DocumentStoreError(f"Throttled during aggregation: {str(e)}") from e
