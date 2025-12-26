@@ -306,36 +306,7 @@ jobs:
         python -m unittest scripts/test_validate_grafana_dashboards.py -v
         echo "✓ All tests passed"
 
-    # Start metric exporters to populate Prometheus with metrics for dashboard validation
-    - name: Start metric exporters
-      run: |
-        echo "Starting metric exporters for dashboard validation..."
-        docker compose up -d rabbitmq-exporter mongodb-exporter qdrant-exporter mongo-doc-count-exporter cadvisor document-processing-exporter
-        echo "Waiting for exporters to initialize..."
-        sleep 10
-        echo "Checking exporter status..."
-        docker compose ps rabbitmq-exporter mongodb-exporter qdrant-exporter mongo-doc-count-exporter cadvisor document-processing-exporter
-        # Verify exporters are running (at least in "Up" state, some may not have healthchecks)
-        for exporter in rabbitmq-exporter mongodb-exporter qdrant-exporter mongo-doc-count-exporter cadvisor document-processing-exporter; do
-          status=$(docker compose ps "$exporter" --format '{{.Status}}' 2>&1)
-          echo "  Checking $exporter: $status"
-          if ! echo "$status" | grep -qi "up"; then
-            echo "ERROR: $exporter is not running or not found"
-            docker compose logs "$exporter" --tail=50 || true
-            exit 1
-          fi
-          echo "  ✓ $exporter is running"
-        done
-        echo "✓ All metric exporters started"
 
-    - name: Wait for Prometheus to scrape metrics
-      run: |
-        echo "Waiting for Prometheus to scrape metrics from exporters..."
-        echo "Prometheus scrape interval is 15s, waiting 20s to ensure at least one scrape..."
-        sleep 20
-        echo "Checking if Prometheus has any targets..."
-        curl -s http://localhost:9090/api/v1/targets | python3 -c "import sys,json; data=json.load(sys.stdin); active=[t for t in data['data']['activeTargets']]; print(f'Active targets: {len(active)}'); [print(f\"  - {t['labels']['job']}: {t['health']}\") for t in active]"
-        echo "✓ Prometheus has scraped metrics"
 
     - name: Validate Grafana Dashboards
       run: |
