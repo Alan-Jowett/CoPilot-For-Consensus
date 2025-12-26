@@ -4,9 +4,15 @@
 
 This directory contains the cloud-agnostic API gateway abstraction layer for Copilot-for-Consensus.
 
+## Quick Links
+
+- **OpenAPI Specification**: [`../../openapi/gateway.yaml`](../../openapi/gateway.yaml) (canonical location)
+- **Documentation**: [`../../docs/openapi.md`](../../docs/openapi.md) (hybrid OpenAPI workflow)
+- **Deployment Guides**: [`../../docs/gateway/`](../../docs/gateway/)
+
 ## Contents
 
-- **`openapi.yaml`** - Canonical OpenAPI 3.0 specification (single source of truth)
+- **`openapi.yaml`** - Legacy location (backward compatibility only) - **Use `../../openapi/gateway.yaml` instead**
 - **`adapter_base.py`** - Abstract base class for gateway adapters
 - **`azure_adapter.py`** - Azure API Management adapter
 - **`aws_adapter.py`** - AWS API Gateway adapter

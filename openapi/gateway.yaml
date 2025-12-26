@@ -1,10 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-# NOTE: This file has been moved to openapi/gateway.yaml (canonical location)
-# This copy is maintained for backward compatibility and will be removed in a future release.
-# Please update your scripts to reference openapi/gateway.yaml instead.
-
 openapi: 3.0.3
 info:
   title: Copilot-for-Consensus API Gateway

@@ -9,6 +9,7 @@ permissions:
 on:
   pull_request:
     paths:
+      - 'openapi/**'
       - 'infra/gateway/**'
       - 'infra/nginx/nginx.conf'
       - '.github/workflows/gateway-validation.yml'
@@ -16,6 +17,7 @@ on:
     branches:
       - main
     paths:
+      - 'openapi/**'
       - 'infra/gateway/**'
       - 'infra/nginx/nginx.conf'
 
@@ -39,11 +41,11 @@ jobs:
       
       - name: Validate OpenAPI spec syntax
         run: |
-          openapi-spec-validator infra/gateway/openapi.yaml
+          openapi-spec-validator openapi/gateway.yaml
       
       - name: Check OpenAPI spec is valid YAML
         run: |
-          python -c "import yaml; yaml.safe_load(open('infra/gateway/openapi.yaml'))"
+          python -c "import yaml; yaml.safe_load(open('openapi/gateway.yaml'))"
   
   test-adapters:
     name: Test Gateway Adapters
