@@ -18,7 +18,7 @@ class MongoDBArchiveStore(ArchiveStore):
     Note: This is a stub implementation. Full implementation is planned.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """Initialize MongoDB archive store."""
         raise NotImplementedError("MongoDB backend not yet implemented")
 

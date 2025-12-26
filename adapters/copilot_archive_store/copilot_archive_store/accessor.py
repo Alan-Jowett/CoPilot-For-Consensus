@@ -10,6 +10,7 @@ functionality.
 
 import os
 from pathlib import Path
+from typing import Any
 
 from .archive_store import ArchiveStore, create_archive_store
 
@@ -40,6 +41,7 @@ class ArchiveAccessor:
                            store access fails. Default True for backward compatibility.
         """
         self.enable_fallback = enable_fallback
+        self.archive_store: ArchiveStore | None
 
         # Try to initialize archive store
         try:
@@ -139,10 +141,12 @@ class ArchiveAccessor:
             return None
 
 
+from typing import Any
+
 def create_archive_accessor(
     store_type: str | None = None,
     enable_fallback: bool = True,
-    **kwargs
+    **kwargs: Any
 ) -> ArchiveAccessor:
     """Create an ArchiveAccessor with specified configuration.
 
