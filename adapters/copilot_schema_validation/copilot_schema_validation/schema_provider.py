@@ -8,13 +8,14 @@ from different sources (files, MongoDB).
 """
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 
 class SchemaProvider(ABC):
     """Abstract base class for schema providers."""
 
     @abstractmethod
-    def get_schema(self, event_type: str) -> dict | None:
+    def get_schema(self, event_type: str) -> dict[Any, Any] | None:
         """Retrieve the JSON schema for a given event type.
 
         Args:

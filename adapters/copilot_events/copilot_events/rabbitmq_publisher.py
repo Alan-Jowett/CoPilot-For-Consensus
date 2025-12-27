@@ -330,11 +330,11 @@ class RabbitMQPublisher(EventPublisher):
                 f"Published event to {exchange}/{routing_key}: {event.get('event_type')}"
             )
         except (
-            pika.exceptions.ChannelWrongStateError,
-            pika.exceptions.ChannelClosedByBroker,
-            pika.exceptions.ConnectionClosedByBroker,
-            pika.exceptions.AMQPConnectionError,
-            pika.exceptions.StreamLostError,
+            pika.exceptions.ChannelWrongStateError,  # pyright: ignore[reportAttributeAccessIssue]
+            pika.exceptions.ChannelClosedByBroker,  # pyright: ignore[reportAttributeAccessIssue]
+            pika.exceptions.ConnectionClosedByBroker,  # pyright: ignore[reportAttributeAccessIssue]
+            pika.exceptions.AMQPConnectionError,  # pyright: ignore[reportAttributeAccessIssue]
+            pika.exceptions.StreamLostError,  # pyright: ignore[reportAttributeAccessIssue]
         ) as e:
             # Connection/channel errors - attempt reconnection and retry once
             logger.warning(f"Connection error during publish: {e}, attempting reconnection...")
@@ -360,14 +360,14 @@ class RabbitMQPublisher(EventPublisher):
             else:
                 logger.error("Reconnection failed, cannot publish event")
                 raise ConnectionError(f"Failed to publish after connection error: {e}")
-        except pika.exceptions.UnroutableError:
+        except pika.exceptions.UnroutableError:  # pyright: ignore[reportAttributeAccessIssue]
             error_msg = (
                 f"Message unroutable - no queue bound for {exchange}/{routing_key}. "
                 "Ensure queues are declared before publishing."
             )
             logger.error(error_msg)
             raise
-        except pika.exceptions.NackError:
+        except pika.exceptions.NackError:  # pyright: ignore[reportAttributeAccessIssue]
             error_msg = f"Message rejected (NACK) by broker for {exchange}/{routing_key}"
             logger.error(error_msg)
             raise

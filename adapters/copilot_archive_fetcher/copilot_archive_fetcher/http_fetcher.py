@@ -23,7 +23,7 @@ class HTTPFetcher(ArchiveFetcher):
         """
         self.source = source
 
-    def fetch(self, output_dir: str) -> tuple[bool, list | None, str | None]:
+    def fetch(self, output_dir: str) -> tuple[bool, list[str] | None, str | None]:
         """Fetch archive via HTTP.
 
         Args:
@@ -33,7 +33,7 @@ class HTTPFetcher(ArchiveFetcher):
             Tuple of (success, list_of_file_paths, error_message)
         """
         try:
-            import requests
+            import requests  # type: ignore[import-untyped]
 
             os.makedirs(output_dir, exist_ok=True)
 

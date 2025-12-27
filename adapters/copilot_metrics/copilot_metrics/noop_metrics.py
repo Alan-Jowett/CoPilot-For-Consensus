@@ -4,6 +4,7 @@
 """No-op metrics collector for testing and local development."""
 
 import logging
+from typing import Any
 
 from .metrics import MetricsCollector
 
@@ -21,7 +22,7 @@ class NoOpMetricsCollector(MetricsCollector):
     Stores all metrics calls in memory for testing/inspection purposes.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """Initialize no-op metrics collector.
 
         Args:

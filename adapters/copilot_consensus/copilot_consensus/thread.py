@@ -51,7 +51,7 @@ class Thread:
     last_activity_at: datetime | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Update timestamps from messages if not provided."""
         if self.messages:
             if self.started_at is None:

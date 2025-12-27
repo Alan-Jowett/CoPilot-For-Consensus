@@ -7,7 +7,7 @@ A shared library for error reporting and diagnostics across microservices
 in the Copilot-for-Consensus system.
 """
 
-from typing import Optional
+from typing import Any, Optional
 
 from .console_error_reporter import ConsoleErrorReporter
 from .error_reporter import ErrorReporter
@@ -22,7 +22,7 @@ def create_error_reporter(
     logger_name: str | None = None,
     dsn: str | None = None,
     environment: str = "production",
-    **kwargs
+    **kwargs: Any
 ) -> ErrorReporter:
     """Create an error reporter based on type.
 

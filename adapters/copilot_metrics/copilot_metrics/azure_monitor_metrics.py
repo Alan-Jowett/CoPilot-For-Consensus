@@ -21,7 +21,7 @@ try:
     AZURE_MONITOR_AVAILABLE = True
 except ImportError:
     AZURE_MONITOR_AVAILABLE = False
-    otel_metrics = None  # type: ignore
+    otel_metrics = None
     # Use debug level for optional dependency - error is raised if user tries to actually use it
     logger.debug(
         "Azure Monitor OpenTelemetry packages not installed. "

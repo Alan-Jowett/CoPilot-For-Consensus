@@ -8,7 +8,7 @@ import json
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 
 from azure.core.exceptions import AzureError, ResourceNotFoundError
 from azure.storage.blob import BlobServiceClient, ContainerClient
@@ -52,12 +52,12 @@ class AzureBlobArchiveStore(ArchiveStore):
 
     def __init__(
         self,
-        account_name: str = None,
-        account_key: str = None,
-        sas_token: str = None,
-        container_name: str = None,
-        prefix: str = None,
-        connection_string: str = None,
+        account_name: str | None = None,
+        account_key: str | None = None,
+        sas_token: str | None = None,
+        container_name: str | None = None,
+        prefix: str | None = None,
+        connection_string: str | None = None,
     ):
         """Initialize Azure Blob archive store.
 
@@ -306,7 +306,7 @@ class AzureBlobArchiveStore(ArchiveStore):
 
             try:
                 download_stream = blob_client.download_blob()
-                content = download_stream.readall()
+                content = cast(bytes, download_stream.readall())
                 logger.debug("Retrieved archive %s", archive_id)
                 return content
             except ResourceNotFoundError:
@@ -356,7 +356,7 @@ class AzureBlobArchiveStore(ArchiveStore):
             blob_client = self.container_client.get_blob_client(blob_name)
 
             # Check if blob exists
-            return blob_client.exists()
+            return cast(bool, blob_client.exists())
 
         except AzureError as e:
             raise ArchiveStoreError(

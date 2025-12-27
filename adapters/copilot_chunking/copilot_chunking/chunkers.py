@@ -10,7 +10,7 @@ threads before embedding or summarization.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from copilot_schema_validation import generate_chunk_id
 
@@ -294,8 +294,8 @@ class FixedSizeChunker(ThreadChunker):
 
             chunk_idx = i // self.messages_per_chunk
             chunk = Chunk(
-                chunk_id=generate_chunk_id(thread.message_doc_id, chunk_idx),
-                message_doc_id=thread.message_doc_id,
+                chunk_id=generate_chunk_id(cast(str, thread.message_doc_id), chunk_idx),
+                message_doc_id=cast(str, thread.message_doc_id),
                 thread_id=thread.thread_id,
                 text=chunk_text,
                 chunk_index=chunk_idx,
@@ -358,7 +358,7 @@ class SemanticChunker(ThreadChunker):
         sentences = self._split_sentences(thread.text)
 
         chunks = []
-        current_chunk_sentences = []
+        current_chunk_sentences: list[str] = []
         current_token_count = 0
         chunk_index = 0
 
@@ -427,7 +427,7 @@ def create_chunker(
     chunk_size: int | None = None,
     overlap: int | None = None,
     messages_per_chunk: int | None = None,
-    **kwargs
+    **kwargs: Any
 ) -> ThreadChunker:
     """Factory method to create a chunker based on strategy name.
 
@@ -447,7 +447,7 @@ def create_chunker(
     strategy_lower = strategy.lower()
 
     if strategy_lower == "token_window":
-        params = {}
+        params: dict[str, Any] = {}
         if chunk_size is not None:
             params["chunk_size"] = chunk_size
         if overlap is not None:
@@ -456,18 +456,18 @@ def create_chunker(
         return TokenWindowChunker(**params)
 
     elif strategy_lower == "fixed_size":
-        params = {}
+        params_fixed: dict[str, Any] = {}
         if messages_per_chunk is not None:
-            params["messages_per_chunk"] = messages_per_chunk
-        params.update(kwargs)
-        return FixedSizeChunker(**params)
+            params_fixed["messages_per_chunk"] = messages_per_chunk
+        params_fixed.update(kwargs)
+        return FixedSizeChunker(**params_fixed)
 
     elif strategy_lower == "semantic":
-        params = {}
+        params_semantic: dict[str, Any] = {}
         if chunk_size is not None:
-            params["target_chunk_size"] = chunk_size
-        params.update(kwargs)
-        return SemanticChunker(**params)
+            params_semantic["target_chunk_size"] = chunk_size
+        params_semantic.update(kwargs)
+        return SemanticChunker(**params_semantic)
 
     else:
         raise ValueError(

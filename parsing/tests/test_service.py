@@ -260,7 +260,7 @@ class TestParsingService:
 
     def test_parsing_duration_always_positive(self, service, sample_mbox_file):
         """Test that parsing_duration_seconds is always >= 0.
-        
+
         This test verifies the fix for negative duration issue caused by system clock skew.
         Using time.monotonic() ensures duration is never negative even if system clock
         is adjusted backwards (e.g., NTP sync, DST transitions, VM time sync).
@@ -269,9 +269,9 @@ class TestParsingService:
             "archive_id": "test-archive-duration",
             "file_path": sample_mbox_file,
         }
-        
+
         service.process_archive(archive_data)
-        
+
         # Duration in stats should be >= 0
         stats = service.get_stats()
         assert stats["last_processing_time_seconds"] >= 0, \
@@ -279,7 +279,7 @@ class TestParsingService:
 
     def test_parsing_duration_always_positive_on_error(self, service):
         """Test that parsing duration is >= 0 even when processing fails.
-        
+
         This verifies that the error handling path also uses monotonic time
         and cannot produce negative durations.
         """
@@ -287,10 +287,10 @@ class TestParsingService:
             "archive_id": "test-archive-error-duration",
             "file_path": "/nonexistent/file.mbox",
         }
-        
+
         # Process should handle error gracefully
         service.process_archive(archive_data)
-        
+
         # Duration should still be >= 0 even after error
         stats = service.get_stats()
         assert stats["last_processing_time_seconds"] >= 0, \

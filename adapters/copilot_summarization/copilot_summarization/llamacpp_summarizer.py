@@ -6,9 +6,9 @@
 import logging
 import time
 
-import requests
+import requests  # type: ignore[import-untyped]
 
-from .models import Summary, Thread
+from .models import Citation, Summary, Thread
 from .summarizer import Summarizer
 
 logger = logging.getLogger(__name__)
@@ -122,7 +122,7 @@ class LlamaCppSummarizer(Summarizer):
             latency_ms = int((time.time() - start_time) * 1000)
 
             # Create citations (placeholder - would need context chunks to generate real citations)
-            citations = []
+            citations: list[Citation] = []
 
             logger.info(
                 "Successfully generated summary for thread %s (tokens: %d+%d, latency: %dms)",

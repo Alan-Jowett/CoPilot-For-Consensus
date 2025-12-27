@@ -3,7 +3,7 @@
 
 """Factory for creating secret providers."""
 
-from typing import Any
+from typing import Any, cast
 
 from .azurekeyvault_provider import AzureKeyVaultProvider
 from .exceptions import SecretProviderError
@@ -41,4 +41,4 @@ def create_secret_provider(provider_type: str, **kwargs: Any) -> SecretProvider:
         )
 
     provider_class = providers[provider_type]
-    return provider_class(**kwargs)
+    return cast(SecretProvider, provider_class(**kwargs))

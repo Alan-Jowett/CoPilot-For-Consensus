@@ -9,6 +9,7 @@ Used primarily in test environments where schema files are available locally.
 import json
 import logging
 from pathlib import Path
+from typing import Any
 
 from .schema_provider import SchemaProvider
 
@@ -43,9 +44,9 @@ class FileSchemaProvider(SchemaProvider):
             raise NotADirectoryError(error_msg)
 
         logger.info(f"Loading schemas from: {self.schema_dir}")
-        self._schema_cache: dict[str, dict] = {}
+        self._schema_cache: dict[str, dict[Any, Any]] = {}
 
-    def get_schema(self, event_type: str) -> dict | None:
+    def get_schema(self, event_type: str) -> dict[Any, Any] | None:
         """Retrieve the JSON schema for a given event type from disk.
 
         Args:
@@ -66,7 +67,7 @@ class FileSchemaProvider(SchemaProvider):
 
         try:
             with open(schema_file, encoding='utf-8') as f:
-                schema = json.load(f)
+                schema: dict[Any, Any] = json.load(f)
             self._schema_cache[event_type] = schema
             logger.debug(f"Loaded schema for event type: {event_type}")
             return schema

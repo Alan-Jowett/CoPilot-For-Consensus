@@ -37,7 +37,7 @@ from typing import Any, cast
 
 import httpx
 import jwt
-from copilot_logging import create_logger  # type: ignore[import-not-found]
+from copilot_logging import create_logger
 from fastapi import HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware

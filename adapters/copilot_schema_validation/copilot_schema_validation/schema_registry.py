@@ -17,11 +17,12 @@ import json
 import logging
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # Module-level cache for loaded schemas
-_schema_cache: dict[str, dict] = {}
+_schema_cache: dict[str, dict[Any, Any]] = {}
 
 # Schema registry mapping (type, version) pairs to relative schema file paths
 # All paths are relative to the repository's documents/schemas/ directory
@@ -139,7 +140,7 @@ def get_schema_path(schema_type: str, version: str) -> str:
     return str(full_path)
 
 
-def load_schema(schema_type: str, version: str) -> dict:
+def load_schema(schema_type: str, version: str) -> dict[Any, Any]:
     """Load a JSON schema given its type and version.
 
     Schemas are cached after first load to avoid repeated file I/O.
@@ -171,7 +172,7 @@ def load_schema(schema_type: str, version: str) -> dict:
 
     try:
         with open(schema_path, encoding='utf-8') as f:
-            schema = json.load(f)
+            schema: dict[Any, Any] = json.load(f)
 
         # Cache the loaded schema
         _schema_cache[cache_key] = schema
@@ -286,10 +287,11 @@ def get_schema_metadata(schema_type: str, version: str) -> dict[str, str] | None
         exists = False
         full_path = None
 
-    return {
+    result: dict[str, Any] = {
         "type": schema_type,
         "version": version,
         "relative_path": relative_path,
         "absolute_path": str(full_path) if full_path else None,
         "exists": exists,
     }
+    return result

@@ -15,7 +15,7 @@ class SilentErrorReporter(ErrorReporter):
     error reporting behavior without producing actual logs or side effects.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize silent error reporter."""
         self.reported_errors: list[dict[str, Any]] = []
         self.captured_messages: list[dict[str, Any]] = []

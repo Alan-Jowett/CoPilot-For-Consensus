@@ -137,7 +137,9 @@ class ArchiveStore(ABC):
         pass
 
 
-def create_archive_store(store_type: str = None, **kwargs) -> ArchiveStore:
+from typing import Any
+
+def create_archive_store(store_type: str | None = None, **kwargs: Any) -> ArchiveStore:
     """Factory function to create an archive store instance.
 
     Args:

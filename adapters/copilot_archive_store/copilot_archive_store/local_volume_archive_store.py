@@ -25,7 +25,7 @@ class LocalVolumeArchiveStore(ArchiveStore):
     Metadata is stored in a separate JSON file for efficient querying.
     """
 
-    def __init__(self, base_path: str = None):
+    def __init__(self, base_path: str | None = None):
         """Initialize local volume archive store.
 
         Args:

@@ -4,6 +4,7 @@
 """Factory for creating embedding providers based on configuration."""
 
 import logging
+from typing import Any
 
 from .providers import (
     EmbeddingProvider,
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 def create_embedding_provider(
     backend: str | None = None,
     model: str | None = None,
-    **kwargs
+    **kwargs: Any
 ) -> EmbeddingProvider:
     """Create an embedding provider based on configuration.
 
@@ -116,8 +117,10 @@ def create_embedding_provider(
                 "Specify the model or deployment name"
             )
 
+        from typing import cast
+        
         # Use deployment_name as model if model not provided
-        model = model or deployment_name
+        model = cast(str, model or deployment_name)
 
         return OpenAIEmbeddingProvider(
             api_key=api_key,
@@ -139,8 +142,10 @@ def create_embedding_provider(
                 "device parameter is required for huggingface backend. "
                 "Specify 'cpu' or 'cuda'"
             )
+        from typing import cast
+        
         cache_dir = kwargs.get("cache_dir")
-        max_length = kwargs.get("max_length")
+        max_length = cast(int, kwargs.get("max_length", HuggingFaceEmbeddingProvider.DEFAULT_MAX_LENGTH))
 
         return HuggingFaceEmbeddingProvider(
             model_name=model,

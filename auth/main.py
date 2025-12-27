@@ -355,12 +355,12 @@ def jwks() -> JSONResponse:
 @app.get("/.well-known/jwks.json")
 def well_known_jwks() -> JSONResponse:
     """Get JSON Web Key Set (JWKS) at standard OIDC discovery endpoint.
-    
+
     Standard OIDC endpoint that provides the keys needed to validate
     tokens signed by this auth service.
-    
+
     Format: https://tools.ietf.org/html/rfc7517
-    
+
     Returns:
         JWKS with public keys
     """
@@ -370,27 +370,27 @@ def well_known_jwks() -> JSONResponse:
 @app.get("/.well-known/public_key.pem")
 async def get_public_key() -> Response:
     """Expose public key for JWT validation by external services (e.g., Grafana).
-    
+
     Grafana will fetch this endpoint and use the public key to validate
     JWT tokens before auto-login.
-    
+
     Returns:
         Public key in PEM format
     """
     global auth_service
-    
+
     if not auth_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     try:
         # Get public key from JWT manager
         public_key_pem = auth_service.jwt_manager.get_public_key_pem()
-        
+
         if not public_key_pem:
             raise HTTPException(status_code=404, detail="Public key not available")
-        
+
         metrics.increment("public_key_requests_total")
-        
+
         # Return as plain text with PEM content type
         return Response(
             content=public_key_pem,

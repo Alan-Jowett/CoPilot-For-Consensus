@@ -3,7 +3,7 @@
 
 """Factory for creating draft diff providers."""
 
-from typing import Any
+from typing import Any, cast
 
 from .datatracker_provider import DatatrackerDiffProvider
 from .mock_provider import MockDiffProvider
@@ -54,7 +54,7 @@ class DiffProviderFactory:
         config = config or {}
 
         # Create provider with config
-        return provider_class(**config)
+        return cast(DraftDiffProvider, provider_class(**config))
 
     @classmethod
     def register_provider(cls, name: str, provider_class: type) -> None:
