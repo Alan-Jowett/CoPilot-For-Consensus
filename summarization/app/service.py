@@ -36,7 +36,7 @@ class SummarizationService:
         summarizer: Summarizer,
         top_k: int = 12,
         citation_count: int = 12,
-        citation_text_max_length: int = 500,
+        citation_text_max_length: int = 300,
         retry_max_attempts: int = 3,
         retry_backoff_seconds: int = 5,
         metrics_collector: MetricsCollector | None = None,

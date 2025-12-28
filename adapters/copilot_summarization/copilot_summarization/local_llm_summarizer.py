@@ -30,7 +30,7 @@ class LocalLLMSummarizer(Summarizer):
         self,
         model: str = "mistral",
         base_url: str = "http://localhost:11434",
-        timeout: int = 120
+        timeout: int = 300
     ):
         """Initialize local LLM summarizer.
 

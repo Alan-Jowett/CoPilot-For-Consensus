@@ -228,6 +228,9 @@ def main():
             "model": config.llm_model,
         }
 
+        # Always pass a timeout; default to 300s to match schema when not set in config
+        summarizer_kwargs["timeout"] = getattr(config, "llm_timeout_seconds", 300)
+
         if config.llm_backend.lower() in ("openai", "azure", "local", "llamacpp"):
             if config.llm_backend.lower() == "openai":
                 if not hasattr(config, "openai_api_key"):
@@ -280,6 +283,7 @@ def main():
             summarizer=summarizer,
             top_k=config.top_k,
             citation_count=config.citation_count,
+            citation_text_max_length=getattr(config, "citation_text_max_length", 300),
             retry_max_attempts=config.max_retries,
             retry_backoff_seconds=config.retry_delay,
             metrics_collector=metrics_collector,

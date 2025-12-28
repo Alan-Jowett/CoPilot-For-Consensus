@@ -242,7 +242,11 @@ def test_format_citations_limit(summarization_service):
 
 
 def test_format_citations_text_truncation(summarization_service):
-    """Test that citation text is truncated to 500 characters."""
+    """Test that citation text is truncated to citation_text_max_length.
+    
+    Note: This test uses the service fixture which doesn't specify citation_text_max_length,
+    so it uses the SummarizationService class default of 300 characters (matches schema default).
+    """
     long_text = "x" * 1000  # 1000 character text
 
     citations = [
@@ -260,8 +264,54 @@ def test_format_citations_text_truncation(summarization_service):
     formatted = summarization_service._format_citations(citations, chunks)
 
     assert len(formatted) == 1
-    assert len(formatted[0]["text"]) == 500
-    assert formatted[0]["text"] == "x" * 500
+    assert len(formatted[0]["text"]) == 300
+    assert formatted[0]["text"] == "x" * 300
+
+
+def test_format_citations_custom_max_length(
+    mock_document_store,
+    mock_vector_store,
+    mock_publisher,
+    mock_subscriber,
+    mock_summarizer,
+):
+    """Test that citation text truncation respects explicitly set citation_text_max_length.
+    
+    Uses a non-default value (200) to verify the parameter is actually being applied.
+    """
+    # Create service with custom citation_text_max_length of 200 (non-default)
+    service = SummarizationService(
+        document_store=mock_document_store,
+        vector_store=mock_vector_store,
+        publisher=mock_publisher,
+        subscriber=mock_subscriber,
+        summarizer=mock_summarizer,
+        top_k=10,
+        citation_count=10,
+        citation_text_max_length=200,
+        retry_max_attempts=3,
+        retry_backoff_seconds=1,
+    )
+
+    long_text = "y" * 1000  # 1000 character text
+
+    citations = [
+        Citation(
+            message_id="<msg1@example.com>",
+            chunk_id="aaaa1111bbbb2222",
+            offset=0,
+        ),
+    ]
+
+    chunks = [
+        {"_id": "aaaa1111bbbb2222", "message_id": "<msg1@example.com>", "text": long_text},
+    ]
+
+    formatted = service._format_citations(citations, chunks)
+
+    assert len(formatted) == 1
+    assert len(formatted[0]["text"]) == 200
+    assert formatted[0]["text"] == "y" * 200
 
 
 def test_format_citations_missing_chunk_id(summarization_service):
