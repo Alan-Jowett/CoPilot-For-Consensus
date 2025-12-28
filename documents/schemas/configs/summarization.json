@@ -195,7 +195,7 @@
       "source": "env",
       "env_var": "CITATION_TEXT_MAX_LENGTH",
       "default": 300,
-      "description": "Maximum length for citation text snippets (reduced from 500 to help fit prompts within context limits)"
+      "description": "Maximum length for citation text snippets to help fit prompts within context limits"
     },
     "llm_timeout_seconds": {
       "type": "int",

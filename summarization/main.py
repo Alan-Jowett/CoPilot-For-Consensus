@@ -284,7 +284,7 @@ def main():
             summarizer=summarizer,
             top_k=config.top_k,
             citation_count=config.citation_count,
-            citation_text_max_length=config.citation_text_max_length if hasattr(config, "citation_text_max_length") else 500,
+            citation_text_max_length=config.citation_text_max_length if hasattr(config, "citation_text_max_length") else 300,
             retry_max_attempts=config.max_retries,
             retry_backoff_seconds=config.retry_delay,
             metrics_collector=metrics_collector,
