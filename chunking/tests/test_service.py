@@ -140,6 +140,170 @@ def test_chunk_message_whitespace_only(chunking_service):
     assert len(chunks) == 0
 
 
+def test_chunk_message_without_date(chunking_service):
+    """Test chunking a message without a date field."""
+    message = {
+        "_id": "abc123def4567890",
+        "message_id": "<test@example.com>",
+        "thread_id": "fedcba9876543210",
+        "archive_id": "a1b2c3d4e5f67890",
+        "body_normalized": "This is a test message with some content. " * 100,
+        "from": {"email": "user@example.com", "name": "Test User"},
+        "subject": "Test Subject",
+        "draft_mentions": [],
+        # No date field
+    }
+
+    chunks = chunking_service._chunk_message(message)
+
+    # Verify chunks were created
+    assert len(chunks) > 0
+
+    # Verify chunk structure
+    chunk = chunks[0]
+    assert "_id" in chunk
+    assert chunk["message_id"] == "<test@example.com>"
+    assert "metadata" in chunk
+    # Date should not be present in metadata when missing
+    assert "date" not in chunk["metadata"]
+
+
+def test_chunk_message_with_null_date(chunking_service):
+    """Test chunking a message with null date field."""
+    message = {
+        "_id": "abc123def4567890",
+        "message_id": "<test@example.com>",
+        "thread_id": "fedcba9876543210",
+        "archive_id": "a1b2c3d4e5f67890",
+        "body_normalized": "This is a test message with some content. " * 100,
+        "from": {"email": "user@example.com", "name": "Test User"},
+        "date": None,  # Null date
+        "subject": "Test Subject",
+        "draft_mentions": [],
+    }
+
+    chunks = chunking_service._chunk_message(message)
+
+    # Verify chunks were created
+    assert len(chunks) > 0
+
+    # Verify chunk structure
+    chunk = chunks[0]
+    assert "_id" in chunk
+    assert chunk["message_id"] == "<test@example.com>"
+    assert "metadata" in chunk
+    # Date should not be present in metadata when None
+    assert "date" not in chunk["metadata"]
+
+
+def test_chunk_message_with_empty_string_date(chunking_service):
+    """Test chunking a message with empty string date field."""
+    message = {
+        "_id": "abc123def4567890",
+        "message_id": "<test@example.com>",
+        "thread_id": "fedcba9876543210",
+        "archive_id": "a1b2c3d4e5f67890",
+        "body_normalized": "This is a test message with some content. " * 100,
+        "from": {"email": "user@example.com", "name": "Test User"},
+        "date": "",  # Empty string date
+        "subject": "Test Subject",
+        "draft_mentions": [],
+    }
+
+    chunks = chunking_service._chunk_message(message)
+
+    # Verify chunks were created
+    assert len(chunks) > 0
+
+    # Verify chunk structure
+    chunk = chunks[0]
+    assert "_id" in chunk
+    assert chunk["message_id"] == "<test@example.com>"
+    assert "metadata" in chunk
+    # Date should not be present in metadata when empty string
+    assert "date" not in chunk["metadata"]
+
+
+def test_chunk_message_with_whitespace_only_date(chunking_service):
+    """Test chunking a message with whitespace-only date field."""
+    message = {
+        "_id": "abc123def4567890",
+        "message_id": "<test@example.com>",
+        "thread_id": "fedcba9876543210",
+        "archive_id": "a1b2c3d4e5f67890",
+        "body_normalized": "This is a test message with some content. " * 100,
+        "from": {"email": "user@example.com", "name": "Test User"},
+        "date": "   \t  ",  # Whitespace-only date
+        "subject": "Test Subject",
+        "draft_mentions": [],
+    }
+
+    chunks = chunking_service._chunk_message(message)
+
+    # Verify chunks were created
+    assert len(chunks) > 0
+
+    # Verify chunk structure
+    chunk = chunks[0]
+    assert "_id" in chunk
+    assert "metadata" in chunk
+    # Date should not be present in metadata when whitespace-only
+    assert "date" not in chunk["metadata"]
+
+
+def test_chunk_message_with_null_from(chunking_service):
+    """Test chunking a message with null from field."""
+    message = {
+        "_id": "abc123def4567890",
+        "message_id": "<test@example.com>",
+        "thread_id": "fedcba9876543210",
+        "archive_id": "a1b2c3d4e5f67890",
+        "body_normalized": "This is a test message with some content. " * 100,
+        "from": None,  # Null from
+        "subject": "Test Subject",
+        "draft_mentions": [],
+    }
+
+    chunks = chunking_service._chunk_message(message)
+
+    # Verify chunks were created
+    assert len(chunks) > 0
+
+    # Verify chunk structure
+    chunk = chunks[0]
+    assert "_id" in chunk
+    assert "metadata" in chunk
+    # Sender and sender_name should be empty strings when from is None
+    assert chunk["metadata"]["sender"] == ""
+    assert chunk["metadata"]["sender_name"] == ""
+
+
+def test_chunk_message_with_null_subject(chunking_service):
+    """Test chunking a message with null subject field."""
+    message = {
+        "_id": "abc123def4567890",
+        "message_id": "<test@example.com>",
+        "thread_id": "fedcba9876543210",
+        "archive_id": "a1b2c3d4e5f67890",
+        "body_normalized": "This is a test message with some content. " * 100,
+        "from": {"email": "user@example.com", "name": "Test User"},
+        "subject": None,  # Null subject
+        "draft_mentions": [],
+    }
+
+    chunks = chunking_service._chunk_message(message)
+
+    # Verify chunks were created
+    assert len(chunks) > 0
+
+    # Verify chunk structure
+    chunk = chunks[0]
+    assert "_id" in chunk
+    assert "metadata" in chunk
+    # Subject should be empty string when None
+    assert chunk["metadata"]["subject"] == ""
+
+
 def test_process_messages_success(chunking_service, mock_document_store, mock_publisher):
     """Test processing messages successfully."""
     # Setup mock responses

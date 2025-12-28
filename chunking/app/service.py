@@ -428,17 +428,25 @@ class ChunkingService:
             return []
 
         # Create thread object for chunking
+        # Build metadata with defensive handling for None values
+        from_data = message.get("from") or {}
+        metadata = {
+            "sender": from_data.get("email", ""),
+            "sender_name": from_data.get("name", ""),
+            "subject": message.get("subject") or "",
+            "draft_mentions": message.get("draft_mentions", []),
+        }
+
+        # Only include date if it's a valid non-empty string
+        date_value = message.get("date")
+        if date_value and isinstance(date_value, str) and date_value.strip():
+            metadata["date"] = date_value
+
         thread = Thread(
             thread_id=thread_id,
             message_doc_id=message_doc_id,
             text=text,
-            metadata={
-                "sender": message.get("from", {}).get("email", ""),
-                "sender_name": message.get("from", {}).get("name", ""),
-                "date": message.get("date", ""),
-                "subject": message.get("subject", ""),
-                "draft_mentions": message.get("draft_mentions", []),
-            }
+            metadata=metadata
         )
 
         # Chunk the thread
