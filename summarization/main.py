@@ -228,8 +228,8 @@ def main():
             "model": config.llm_model,
         }
 
-        # Add timeout if available in config (applies to local and llamacpp backends)
-        summarizer_kwargs["timeout"] = getattr(config, "llm_timeout_seconds", None)
+        # Always pass a timeout; default to 300s to match schema when not set in config
+        summarizer_kwargs["timeout"] = getattr(config, "llm_timeout_seconds", 300)
 
         if config.llm_backend.lower() in ("openai", "azure", "local", "llamacpp"):
             if config.llm_backend.lower() == "openai":

@@ -31,7 +31,7 @@ class LlamaCppSummarizer(Summarizer):
         self,
         model: str = "mistral",
         base_url: str = "http://localhost:8080",
-        timeout: int = 120
+        timeout: int = 300
     ):
         """Initialize llama.cpp summarizer.
 

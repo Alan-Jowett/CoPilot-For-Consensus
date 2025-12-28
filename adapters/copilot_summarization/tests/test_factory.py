@@ -128,7 +128,7 @@ class TestSummarizerFactory:
         assert isinstance(summarizer, LocalLLMSummarizer)
         assert summarizer.model == "llama2"
         assert summarizer.base_url == "http://localhost:8080"
-        assert summarizer.timeout == 120  # default
+        assert summarizer.timeout == 300  # default
 
     def test_create_local_summarizer_with_timeout(self):
         """Test creating a local LLM summarizer with custom timeout."""
@@ -163,7 +163,7 @@ class TestSummarizerFactory:
         assert isinstance(summarizer, LlamaCppSummarizer)
         assert summarizer.model == "mistral-7b-instruct-v0.2.Q4_K_M"
         assert summarizer.base_url == "http://llama-cpp:8080"
-        assert summarizer.timeout == 120  # default
+        assert summarizer.timeout == 300  # default
 
     def test_create_llamacpp_summarizer_with_timeout(self):
         """Test creating a llama.cpp summarizer with custom timeout."""

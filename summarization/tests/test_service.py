@@ -277,10 +277,9 @@ def test_format_citations_custom_max_length(
 ):
     """Test that citation text truncation respects explicitly set citation_text_max_length.
     
-    This test explicitly sets citation_text_max_length to 300 to verify the parameter
-    works correctly, even though 300 is also the default value.
+    Uses a non-default value (200) to verify the parameter is actually being applied.
     """
-    # Create service with custom citation_text_max_length of 300
+    # Create service with custom citation_text_max_length of 200 (non-default)
     service = SummarizationService(
         document_store=mock_document_store,
         vector_store=mock_vector_store,
@@ -289,7 +288,7 @@ def test_format_citations_custom_max_length(
         summarizer=mock_summarizer,
         top_k=10,
         citation_count=10,
-        citation_text_max_length=300,
+        citation_text_max_length=200,
         retry_max_attempts=3,
         retry_backoff_seconds=1,
     )
@@ -311,8 +310,8 @@ def test_format_citations_custom_max_length(
     formatted = service._format_citations(citations, chunks)
 
     assert len(formatted) == 1
-    assert len(formatted[0]["text"]) == 300
-    assert formatted[0]["text"] == "y" * 300
+    assert len(formatted[0]["text"]) == 200
+    assert formatted[0]["text"] == "y" * 200
 
 
 def test_format_citations_missing_chunk_id(summarization_service):
