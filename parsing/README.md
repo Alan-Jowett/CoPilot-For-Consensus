@@ -176,7 +176,7 @@ Startup requeue complements the periodic retry job:
 
 Both mechanisms are idempotent and safe to run concurrently.
 
-See [FORWARD_PROGRESS.md](../documents/FORWARD_PROGRESS.md) for complete details on startup behavior and retry policies.
+See [forward-progress.md](../docs/development/forward-progress.md) for complete details on startup behavior and retry policies.
 
 ## Data Flow
 

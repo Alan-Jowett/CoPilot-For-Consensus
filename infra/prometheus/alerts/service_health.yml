@@ -32,7 +32,7 @@ groups:
               4. Check disk space: df -h
               5. Restart if necessary: docker compose restart documentdb
             
-            Runbook: documents/runbooks/service-down.md
+            Runbook: docs/operations/runbooks/service-down.md
             Dashboard: Grafana > MongoDB Status
 
       - alert: RabbitMQDown
@@ -56,7 +56,7 @@ groups:
               4. Check Erlang VM memory: rabbitmqctl status
               5. Restart if necessary: docker compose restart messagebus
             
-            Runbook: documents/runbooks/service-down.md
+            Runbook: docs/operations/runbooks/service-down.md
             Dashboard: Grafana > Queue Status
 
       - alert: QdrantDown
@@ -80,7 +80,7 @@ groups:
               4. Check collections: curl http://localhost:6333/collections
               5. Restart if necessary: docker compose restart vectorstore
             
-            Runbook: documents/runbooks/service-down.md
+            Runbook: docs/operations/runbooks/service-down.md
             Dashboard: Grafana > Vectorstore Status
 
       - alert: OllamaDown
@@ -184,7 +184,7 @@ groups:
               4. Verify dependencies are healthy
               5. Restart service: docker compose restart {{ $labels.service }}
             
-            Runbook: documents/runbooks/service-down.md
+            Runbook: docs/operations/runbooks/service-down.md
             Dashboard: Grafana > Service Metrics
 
       # Exporter Health
@@ -233,7 +233,7 @@ groups:
               4. Review recent code changes
               5. Increase resource limits if OOM
             
-            Runbook: documents/runbooks/service-down.md
+            Runbook: docs/operations/runbooks/service-down.md
             Dashboard: Grafana > Resource Usage
 
       # Prometheus Target Down

@@ -557,7 +557,7 @@ pytest tests/ -v
 - **HTTPS Only**: Always use HTTPS for auth endpoints in production
 - **State/Nonce Validation**: Implemented for CSRF protection
 - **Audience Validation**: Always validate `aud` claim in consuming services
-- **First User Auto-Promotion**: **SECURITY RISK** - The system can auto-promote the first user to admin when no admins exist. This is **disabled by default** (`AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=false`) to prevent attackers from gaining admin access by authenticating first. For production, create the initial admin in a strictly isolated environment with temporary auto-promotion enabled, then immediately disable it. A dedicated bootstrap token mechanism is planned but not yet implemented. See [AUTH_IMPLEMENTATION_SUMMARY.md](../documents/AUTH_IMPLEMENTATION_SUMMARY.md#security-considerations) for details.
+- **First User Auto-Promotion**: **SECURITY RISK** - The system can auto-promote the first user to admin when no admins exist. This is **disabled by default** (`AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=false`) to prevent attackers from gaining admin access by authenticating first. For production, create the initial admin in a strictly isolated environment with temporary auto-promotion enabled, then immediately disable it. A dedicated bootstrap token mechanism is planned but not yet implemented. See [auth-implementation-summary.md](../docs/implementation-notes/auth-implementation-summary.md#security-considerations) for details.
 
 ## Production Deployment
 

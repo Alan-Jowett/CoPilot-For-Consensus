@@ -37,7 +37,7 @@ groups:
               4. Consider increasing memory limit if legitimate usage
               5. Investigate and fix memory leaks if present
             
-            Runbook: documents/runbooks/memory-exhaustion.md
+            Runbook: docs/operations/runbooks/memory-exhaustion.md
             Dashboard: Grafana > Resource Usage
 
       - alert: ServiceMemoryCritical
@@ -63,7 +63,7 @@ groups:
               3. Investigate memory leak post-incident
               4. Review heap dumps if available
             
-            Runbook: documents/runbooks/memory-exhaustion.md
+            Runbook: docs/operations/runbooks/memory-exhaustion.md
             Dashboard: Grafana > Resource Usage
 
       - alert: InfrastructureMemoryHigh
@@ -89,7 +89,7 @@ groups:
               4. Check for memory leaks or runaway queries
               5. Consider scaling or optimization
             
-            Runbook: documents/runbooks/memory-exhaustion.md
+            Runbook: docs/operations/runbooks/memory-exhaustion.md
             Dashboard: Grafana > Resource Usage
 
       # CPU Usage Alerts
@@ -165,7 +165,7 @@ groups:
               4. Review retention policies
               5. Expand disk if needed
             
-            Runbook: documents/runbooks/disk-space-low.md
+            Runbook: docs/operations/runbooks/disk-space-low.md
             Dashboard: Grafana > Resource Usage
 
       - alert: DiskSpaceCritical
@@ -194,7 +194,7 @@ groups:
               4. Purge old Docker images: docker image prune -a
               5. Expand disk urgently
             
-            Runbook: documents/runbooks/disk-space-low.md
+            Runbook: docs/operations/runbooks/disk-space-low.md
             Dashboard: Grafana > Resource Usage
 
       # Docker Volume Usage
@@ -385,5 +385,5 @@ groups:
               4. Check health check configuration
               5. Investigate code issues causing crashes
             
-            Runbook: documents/runbooks/service-down.md
+            Runbook: docs/operations/runbooks/service-down.md
             Dashboard: Grafana > Resource Usage

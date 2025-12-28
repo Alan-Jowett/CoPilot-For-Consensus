@@ -37,7 +37,7 @@ groups:
               4. Review recent code changes
               5. Scale service if CPU/memory constrained
             
-            Runbook: documents/runbooks/high-latency.md
+            Runbook: docs/operations/runbooks/high-latency.md
             Dashboard: Grafana > Service Metrics
 
       - alert: ParsingLatencyP99Critical
@@ -66,7 +66,7 @@ groups:
               4. Consider splitting large archives
               5. Escalate if not resolved in 1 hour
             
-            Runbook: documents/runbooks/high-latency.md
+            Runbook: docs/operations/runbooks/high-latency.md
             Dashboard: Grafana > Service Metrics
 
       # Chunking Service Latency SLO
@@ -94,7 +94,7 @@ groups:
               3. Check for large messages causing slow chunking
               4. Scale service if needed
             
-            Runbook: documents/runbooks/high-latency.md
+            Runbook: docs/operations/runbooks/high-latency.md
             Dashboard: Grafana > Service Metrics
 
       # Embedding Service Latency SLO
@@ -123,7 +123,7 @@ groups:
               4. Check Qdrant insert performance
               5. Scale embedding service
             
-            Runbook: documents/runbooks/high-latency.md
+            Runbook: docs/operations/runbooks/high-latency.md
             Dashboard: Grafana > Service Metrics
 
       - alert: EmbeddingLatencyP99Critical
@@ -151,7 +151,7 @@ groups:
               4. Review embedding model configuration
               5. Consider using smaller/faster model
             
-            Runbook: documents/runbooks/high-latency.md
+            Runbook: docs/operations/runbooks/high-latency.md
             Dashboard: Grafana > Service Metrics
 
       # Summarization Service Latency SLO
@@ -180,7 +180,7 @@ groups:
               4. Review prompt templates for optimization
               5. Monitor LLM token usage
             
-            Runbook: documents/runbooks/high-latency.md
+            Runbook: docs/operations/runbooks/high-latency.md
             Dashboard: Grafana > Service Metrics
 
       - alert: SummarizationLatencyP99Critical
@@ -209,7 +209,7 @@ groups:
               4. Consider timeout and fallback strategies
               5. Escalate if LLM backend issue
             
-            Runbook: documents/runbooks/high-latency.md
+            Runbook: docs/operations/runbooks/high-latency.md
             Dashboard: Grafana > Service Metrics
 
       # Ingestion API Latency SLO
@@ -238,7 +238,7 @@ groups:
               4. Verify RabbitMQ publish latency
               5. Scale service if needed
             
-            Runbook: documents/runbooks/high-latency.md
+            Runbook: docs/operations/runbooks/high-latency.md
             Dashboard: Grafana > Service Metrics
 
       # Reporting API Latency SLO
@@ -268,7 +268,7 @@ groups:
               4. Consider caching frequently accessed data
               5. Optimize MongoDB indexes
             
-            Runbook: documents/runbooks/high-latency.md
+            Runbook: docs/operations/runbooks/high-latency.md
             Dashboard: Grafana > Service Metrics
 
       - alert: ReportingAPILatencyCritical
@@ -297,7 +297,7 @@ groups:
               4. Check MongoDB resource usage
               5. Consider read replicas or caching
             
-            Runbook: documents/runbooks/high-latency.md
+            Runbook: docs/operations/runbooks/high-latency.md
             Dashboard: Grafana > Service Metrics
 
       # Database Query Latency

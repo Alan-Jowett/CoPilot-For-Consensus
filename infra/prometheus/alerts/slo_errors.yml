@@ -40,7 +40,7 @@ groups:
               4. Verify schema validation
               5. Review recent code changes
             
-            Runbook: documents/runbooks/high-error-rate.md
+            Runbook: docs/operations/runbooks/high-error-rate.md
             Dashboard: Grafana > Service Metrics
 
       - alert: ParsingErrorRateCritical
@@ -71,7 +71,7 @@ groups:
               4. Consider rollback if caused by recent change
               5. Escalate to on-call if not resolved in 30 minutes
             
-            Runbook: documents/runbooks/high-error-rate.md
+            Runbook: docs/operations/runbooks/high-error-rate.md
             Dashboard: Grafana > Service Metrics
 
       - alert: ChunkingErrorRateHigh
@@ -100,7 +100,7 @@ groups:
               3. Check for problematic message content
               4. Verify tokenizer configuration
             
-            Runbook: documents/runbooks/high-error-rate.md
+            Runbook: docs/operations/runbooks/high-error-rate.md
             Dashboard: Grafana > Service Metrics
 
       - alert: EmbeddingErrorRateHigh
@@ -130,7 +130,7 @@ groups:
               4. Verify model is loaded: curl http://localhost:11434/api/tags
               5. Check network connectivity between services
             
-            Runbook: documents/runbooks/high-error-rate.md
+            Runbook: docs/operations/runbooks/high-error-rate.md
             Dashboard: Grafana > Service Metrics
 
       - alert: SummarizationErrorRateHigh
@@ -160,7 +160,7 @@ groups:
               4. Verify LLM API credentials/tokens
               5. Review summarization prompts for issues
             
-            Runbook: documents/runbooks/high-error-rate.md
+            Runbook: docs/operations/runbooks/high-error-rate.md
             Dashboard: Grafana > Service Metrics
 
       # HTTP API Error Rates
@@ -191,7 +191,7 @@ groups:
               4. Review recent API changes
               5. Check for resource exhaustion
             
-            Runbook: documents/runbooks/high-error-rate.md
+            Runbook: docs/operations/runbooks/high-error-rate.md
             Dashboard: Grafana > Service Metrics
 
       - alert: ReportingAPIErrorRateHigh
@@ -222,7 +222,7 @@ groups:
               4. Review error status codes
               5. Check service resource usage
             
-            Runbook: documents/runbooks/high-error-rate.md
+            Runbook: docs/operations/runbooks/high-error-rate.md
             Dashboard: Grafana > Service Metrics
 
       # Dependency Error Rates
@@ -245,7 +245,7 @@ groups:
               4. Verify network connectivity
               5. Check for MongoDB resource limits
             
-            Runbook: documents/runbooks/database-connection-failures.md
+            Runbook: docs/operations/runbooks/database-connection-failures.md
             Dashboard: Grafana > MongoDB Status
 
       - alert: RabbitMQConnectionErrorsHigh
@@ -349,5 +349,5 @@ groups:
               3. Check logs for patterns: docker compose logs {{ $labels.service }} | grep {{ $labels.error_type }}
               4. Implement targeted fix
             
-            Runbook: documents/runbooks/high-error-rate.md
+            Runbook: docs/operations/runbooks/high-error-rate.md
             Dashboard: Grafana > Service Metrics

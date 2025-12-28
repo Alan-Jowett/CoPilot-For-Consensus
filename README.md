@@ -567,7 +567,7 @@ Each microservice has a comprehensive README:
 
 ### Local Development Setup
 
-For detailed local development instructions, see [documents/LOCAL_DEVELOPMENT.md](./documents/LOCAL_DEVELOPMENT.md).
+For detailed local development instructions, see [docs/development/local-development.md](./docs/development/local-development.md).
 
 **Quick setup:**
 1. Clone the repository

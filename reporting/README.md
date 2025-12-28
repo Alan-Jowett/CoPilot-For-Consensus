@@ -56,28 +56,28 @@ The Reporting Service delivers summaries and insights to users via REST endpoint
 
 ### Subscribes To
 
-The Reporting Service subscribes to the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+The Reporting Service subscribes to the following events. See [message-schemas.md](../docs/schemas/message-schemas.md#message-bus-event-schemas) for complete event schemas.
 
 1) **SummaryComplete**
    - **Exchange:** `copilot.events`
    - **Routing Key:** `summary.complete`
-   - See [SummaryComplete schema](../documents/SCHEMA.md#11-summarycomplete) in SCHEMA.md
+   - See [SummaryComplete schema](../docs/schemas/message-schemas.md#11-summarycomplete) in message-schemas.md
    - **Behavior:** Persist summary and citations; index for search/filtering; optionally notify downstream channels.
 
 ### Publishes
 
-The Reporting Service publishes the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+The Reporting Service publishes the following events. See [message-schemas.md](../docs/schemas/message-schemas.md#message-bus-event-schemas) for complete event schemas.
 
 1) **ReportPublished**
    - **Exchange:** `copilot.events`
    - **Routing Key:** `report.published`
-   - See [ReportPublished schema](../documents/SCHEMA.md#13-reportpublished) in SCHEMA.md
+   - See [ReportPublished schema](../docs/schemas/message-schemas.md#13-reportpublished) in message-schemas.md
    - **Behavior:** Signals that a report has been published and is available via API with notification status.
 
 2) **ReportDeliveryFailed** *(optional)*
    - **Exchange:** `copilot.events`
    - **Routing Key:** `report.delivery_failed`
-   - See [ReportDeliveryFailed schema](../documents/SCHEMA.md#14-reportdeliveryfailed) in SCHEMA.md
+   - See [ReportDeliveryFailed schema](../docs/schemas/message-schemas.md#14-reportdeliveryfailed) in message-schemas.md
    - **Behavior:** Signals that report delivery (e.g., webhook notification) failed with retry details.
 
 ## Data Flow

@@ -232,7 +232,7 @@ services:
     volumes:
       - ./ollama_models:/root/.ollama
     # Uncomment the deploy section below to enable GPU support (requires NVIDIA GPU + nvidia-container-toolkit)
-    # See documents/OLLAMA_GPU_SETUP.md for setup instructions
+    # See docs/operations/ollama-gpu-setup.md for setup instructions
     # deploy:
     #   resources:
     #     reservations:
@@ -315,7 +315,7 @@ services:
     #           capabilities: [gpu]
     #
     # After uncommenting, also remove the 'llamacpp' profile below to enable the service.
-    # See documents/LLAMA_CPP_AMD_SETUP.md for detailed setup instructions.
+    # See docs/operations/llama-cpp-amd-setup.md for detailed setup instructions.
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
       interval: 10s

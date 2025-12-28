@@ -114,7 +114,7 @@ EMBEDDING_DIMENSION=768
 
 ### Events Subscribed To
 
-The Embedding Service subscribes to the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+The Embedding Service subscribes to the following events. See [message-schemas.md](../docs/schemas/message-schemas.md#message-bus-event-schemas) for complete event schemas.
 
 #### 1. ChunksPrepared
 
@@ -123,7 +123,7 @@ Consumes events from the Chunking Service when text chunks are ready.
 **Exchange:** `copilot.events`
 **Routing Key:** `chunks.prepared`
 
-See [ChunksPrepared schema](../documents/SCHEMA.md#5-chunksprepared) in SCHEMA.md for the complete payload definition.
+See [ChunksPrepared schema](../docs/schemas/message-schemas.md#5-chunksprepared) in message-schemas.md for the complete payload definition.
 
 **Processing:**
 1. Retrieve chunks from document database using `chunk_ids`
@@ -135,7 +135,7 @@ See [ChunksPrepared schema](../documents/SCHEMA.md#5-chunksprepared) in SCHEMA.m
 
 ### Events Published
 
-The Embedding Service publishes the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+The Embedding Service publishes the following events. See [message-schemas.md](../docs/schemas/message-schemas.md#message-bus-event-schemas) for complete event schemas.
 
 #### 1. EmbeddingsGenerated
 
@@ -144,7 +144,7 @@ Published when embeddings are successfully generated and stored.
 **Exchange:** `copilot.events`
 **Routing Key:** `embeddings.generated`
 
-See [EmbeddingsGenerated schema](../documents/SCHEMA.md#7-embeddingsgenerated) in SCHEMA.md for the complete payload definition.
+See [EmbeddingsGenerated schema](../docs/schemas/message-schemas.md#7-embeddingsgenerated) in message-schemas.md for the complete payload definition.
 
 **Key Fields:**
 - `chunk_ids`: List of canonical chunk identifiers (_id) that were embedded
@@ -163,7 +163,7 @@ Published when embedding generation fails.
 **Exchange:** `copilot.events`
 **Routing Key:** `embeddings.failed`
 
-See [EmbeddingGenerationFailed schema](../documents/SCHEMA.md#8-embeddinggenerationfailed) in SCHEMA.md for the complete payload definition.
+See [EmbeddingGenerationFailed schema](../docs/schemas/message-schemas.md#8-embeddinggenerationfailed) in message-schemas.md for the complete payload definition.
 
 **Key Fields:**
 - `chunk_ids`: List of canonical chunk identifiers (_id) that failed
@@ -227,7 +227,7 @@ Startup requeue complements the periodic retry job:
 
 Both mechanisms are idempotent and safe to run concurrently.
 
-See [FORWARD_PROGRESS.md](../documents/FORWARD_PROGRESS.md) for complete details on startup behavior and retry policies.
+See [forward-progress.md](../docs/development/forward-progress.md) for complete details on startup behavior and retry policies.
 
 ## Data Flow
 

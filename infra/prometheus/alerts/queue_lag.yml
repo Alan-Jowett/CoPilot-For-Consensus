@@ -33,7 +33,7 @@ groups:
               4. Scale parsing service if needed: docker compose up -d --scale parsing=3
               5. Monitor queue drain rate
             
-            Runbook: documents/runbooks/high-queue-lag.md
+            Runbook: docs/operations/runbooks/high-queue-lag.md
             Dashboard: Grafana > Queue Status
 
       - alert: ParsingQueueDepthCritical
@@ -58,7 +58,7 @@ groups:
               4. Scale immediately: docker compose up -d --scale parsing=5
               5. Escalate if not resolved in 30 minutes
             
-            Runbook: documents/runbooks/high-queue-lag.md
+            Runbook: docs/operations/runbooks/high-queue-lag.md
             Dashboard: Grafana > Queue Status
 
       - alert: ChunkingQueueDepthHigh
@@ -80,7 +80,7 @@ groups:
               2. Check throughput: rate(copilot_chunking_messages_processed_total[5m])
               3. Scale if needed: docker compose up -d --scale chunking=3
             
-            Runbook: documents/runbooks/high-queue-lag.md
+            Runbook: docs/operations/runbooks/high-queue-lag.md
             Dashboard: Grafana > Queue Status
 
       - alert: EmbeddingQueueDepthHigh
@@ -104,7 +104,7 @@ groups:
               3. Check Ollama: docker compose ps ollama
               4. Scale if needed: docker compose up -d --scale embedding=3
             
-            Runbook: documents/runbooks/high-queue-lag.md
+            Runbook: docs/operations/runbooks/high-queue-lag.md
             Dashboard: Grafana > Queue Status
 
       - alert: EmbeddingQueueDepthCritical
@@ -128,7 +128,7 @@ groups:
               4. Scale aggressively: docker compose up -d --scale embedding=5
               5. Consider temporary ingestion pause
             
-            Runbook: documents/runbooks/high-queue-lag.md
+            Runbook: docs/operations/runbooks/high-queue-lag.md
             Dashboard: Grafana > Queue Status
 
       - alert: SummarizationQueueDepthHigh
@@ -152,7 +152,7 @@ groups:
               3. Check P95 latency: histogram_quantile(0.95, rate(copilot_summarization_latency_seconds_bucket[5m]))
               4. Scale if using local LLM: docker compose up -d --scale summarization=2
             
-            Runbook: documents/runbooks/high-queue-lag.md
+            Runbook: docs/operations/runbooks/high-queue-lag.md
             Dashboard: Grafana > Queue Status
 
       # Queue Age Alerts (oldest message)
@@ -176,7 +176,7 @@ groups:
               3. Check for errors in service logs
               4. Scale service horizontally
             
-            Runbook: documents/runbooks/high-queue-lag.md
+            Runbook: docs/operations/runbooks/high-queue-lag.md
             Dashboard: Grafana > Queue Status
 
       - alert: QueueMessageAgeCritical
@@ -198,7 +198,7 @@ groups:
               4. Consider service restart
               5. Escalate to on-call
             
-            Runbook: documents/runbooks/high-queue-lag.md
+            Runbook: docs/operations/runbooks/high-queue-lag.md
             Dashboard: Grafana > Queue Status
 
       # Consumer Count Alerts
@@ -223,7 +223,7 @@ groups:
               4. Restart service: docker compose restart {{ $labels.queue }}
               5. Verify consumer reconnects
             
-            Runbook: documents/runbooks/service-down.md
+            Runbook: docs/operations/runbooks/service-down.md
             Dashboard: Grafana > Queue Status
 
       - alert: LowConsumerCount
@@ -274,7 +274,7 @@ groups:
               3. Consider temporary ingestion throttling
               4. Monitor for continued growth
             
-            Runbook: documents/runbooks/high-queue-lag.md
+            Runbook: docs/operations/runbooks/high-queue-lag.md
             Dashboard: Grafana > Queue Status
 
       # Delivery/Acknowledgement Issues
@@ -297,7 +297,7 @@ groups:
               4. Verify message format/schema validity
               5. Check dependency health (DB, external APIs)
             
-            Runbook: documents/runbooks/high-error-rate.md
+            Runbook: docs/operations/runbooks/high-error-rate.md
             Dashboard: Grafana > Queue Status
 
       # Dead Letter Queue Growth
@@ -323,5 +323,5 @@ groups:
               4. Verify dependencies are healthy
               5. Consider manual reprocessing after fix
             
-            Runbook: documents/runbooks/failed-queue-growing.md
+            Runbook: docs/operations/runbooks/failed-queue-growing.md
             Dashboard: Grafana > Failed Queues
