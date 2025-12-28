@@ -133,6 +133,55 @@
       "env_var": "JWT_AUTH_ENABLED",
       "default": true,
       "description": "Enable JWT authentication middleware"
+    },
+    "vector_store_type": {
+      "type": "string",
+      "source": "env",
+      "env_var": "VECTOR_STORE_TYPE",
+      "default": "",
+      "description": "Vector store type (e.g., qdrant, faiss). Leave empty to disable topic search."
+    },
+    "vector_store_host": {
+      "type": "string",
+      "source": "env",
+      "env_var": "VECTOR_DB_HOST",
+      "default": "vectorstore",
+      "description": "Vector store hostname"
+    },
+    "vector_store_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "VECTOR_DB_PORT",
+      "default": 6333,
+      "description": "Vector store port"
+    },
+    "vector_store_collection": {
+      "type": "string",
+      "source": "env",
+      "env_var": "VECTOR_DB_COLLECTION",
+      "default": "embeddings",
+      "description": "Vector store collection name"
+    },
+    "embedding_backend": {
+      "type": "string",
+      "source": "env",
+      "env_var": "EMBEDDING_BACKEND",
+      "default": "sentencetransformers",
+      "description": "Embedding backend (e.g., sentencetransformers, openai, azure)"
+    },
+    "embedding_model": {
+      "type": "string",
+      "source": "env",
+      "env_var": "EMBEDDING_MODEL",
+      "default": "all-MiniLM-L6-v2",
+      "description": "Embedding model name"
+    },
+    "device": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DEVICE",
+      "default": "cpu",
+      "description": "Device for embedding generation (cpu, cuda)"
     }
   }
 }
