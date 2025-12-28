@@ -250,10 +250,11 @@ Common issues:
 1. **Token Refresh**: Implement automatic token refresh before expiry
 2. **Key Rotation**: Support multiple key IDs for zero-downtime key rotation
 3. **CSP Headers**: Add strict Content Security Policy headers
-4. **Secure Flag**: Enable secure flag on cookie for production HTTPS deployments
-5. **Audit Logging**: Log all Grafana access attempts with user info
-6. **Custom Roles**: Map more granular roles from JWT to Grafana permissions
-7. **JWKS Auto-Update**: Automatically update public key from JWKS endpoint
+4. **Audit Logging**: Log all Grafana access attempts with user info
+5. **Custom Roles**: Map more granular roles from JWT to Grafana permissions
+6. **JWKS Auto-Update**: Automatically update public key from JWKS endpoint
+
+**Note**: Cookie secure flag support has been implemented via the `COOKIE_SECURE` environment variable.
 
 ## References
 

@@ -235,10 +235,10 @@ docker compose logs grafana | grep -i "jwt\|unauthorized"
 # 2. Check nginx configuration for cookie extraction
 docker compose exec gateway cat /etc/nginx/nginx.conf | grep -A 20 "location /grafana"
 
-# Verify cookie extraction logic:
-# set $auth_header $http_authorization;
-# if ($auth_header = "") {
-#   set $auth_header "Bearer $cookie_auth_token";
+# Verify cookie extraction logic (using map directive):
+# map $http_authorization $auth_header {
+#   "" "Bearer $cookie_auth_token";
+#   default $http_authorization;
 # }
 # proxy_set_header Authorization $auth_header;
 

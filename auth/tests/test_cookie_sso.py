@@ -29,11 +29,20 @@ def mock_auth_service():
 
 @pytest.fixture
 def test_client(mock_auth_service):
-    """Create test client with mocked auth service."""
+    """Create test client with mocked auth service.
+    
+    Uses importlib.reload to ensure fresh module state for each test,
+    avoiding test isolation issues from module caching.
+    """
+    import importlib
+    
     # Patch before importing main
     with patch("sys.path", [str(Path(__file__).parent.parent)] + sys.path):
         # Import main module
         import main
+        
+        # Reload the module to ensure fresh state
+        importlib.reload(main)
 
         # Set the mock auth service
         main.auth_service = mock_auth_service
@@ -94,3 +103,45 @@ def test_callback_cookie_expiry_matches_jwt(test_client: TestClient):
     # Check cookie max_age
     set_cookie_header = response.headers.get("set-cookie", "")
     assert "Max-Age=1800" in set_cookie_header or "max-age=1800" in set_cookie_header
+
+
+def test_cookie_secure_flag_from_env(mock_auth_service):
+    """Test that COOKIE_SECURE environment variable controls secure flag."""
+    import os
+    from unittest.mock import patch
+    
+    # Test with COOKIE_SECURE=true
+    with patch.dict(os.environ, {"COOKIE_SECURE": "true"}):
+        with patch("sys.path", [str(Path(__file__).parent.parent)] + sys.path):
+            import main
+            main.auth_service = mock_auth_service
+            client = TestClient(main.app)
+            
+            response = client.get("/callback?code=test_code&state=test_state")
+            assert response.status_code == 200
+            
+            set_cookie_header = response.headers.get("set-cookie", "")
+            # When COOKIE_SECURE=true, secure flag should be present
+            assert "Secure" in set_cookie_header or "secure" in set_cookie_header.lower()
+    
+    # Test with COOKIE_SECURE=false (default)
+    with patch.dict(os.environ, {"COOKIE_SECURE": "false"}, clear=False):
+        with patch("sys.path", [str(Path(__file__).parent.parent)] + sys.path):
+            # Need to reload the module to pick up new env var
+            import importlib
+            import main
+            importlib.reload(main)
+            main.auth_service = mock_auth_service
+            client = TestClient(main.app)
+            
+            response = client.get("/callback?code=test_code&state=test_state")
+            assert response.status_code == 200
+            
+            set_cookie_header = response.headers.get("set-cookie", "")
+            # When COOKIE_SECURE=false, we check that either:
+            # - "Secure" is not a standalone attribute (it could be in "SameSite" or other words)
+            # - or the cookie doesn't have secure flag at all
+            # This is a bit tricky because "Secure" could appear in other contexts
+            # Split by semicolon and check if "Secure" is a standalone attribute
+            cookie_attrs = [attr.strip() for attr in set_cookie_header.split(";")]
+            assert "Secure" not in cookie_attrs and "secure" not in [a.lower() for a in cookie_attrs if a.lower() == "secure"]
