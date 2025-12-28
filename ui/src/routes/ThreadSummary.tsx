@@ -5,11 +5,13 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { fetchThreadSummary, Report } from '../api'
 import ReactMarkdown from 'react-markdown'
+import { AccessDenied } from '../components/AccessDenied'
 
 export function ThreadSummary() {
   const { threadId } = useParams()
   const [summary, setSummary] = useState<Report | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [accessDenied, setAccessDenied] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -17,15 +19,25 @@ export function ThreadSummary() {
     let cancelled = false
     setLoading(true)
     setError(null)
+    setAccessDenied(null)
     fetchThreadSummary(threadId)
       .then(r => { if (!cancelled) setSummary(r) })
-      .catch(e => { if (!cancelled) setError(e?.message || 'Failed to load summary') })
+      .catch(e => { 
+        if (!cancelled) {
+          if (e?.message?.startsWith('ACCESS_DENIED:')) {
+            setAccessDenied(e.message.replace('ACCESS_DENIED: ', ''))
+          } else {
+            setError(e?.message || 'Failed to load summary')
+          }
+        }
+      })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [threadId])
 
   function copy(text: string) { navigator.clipboard.writeText(text) }
 
+  if (accessDenied) return <AccessDenied message={accessDenied} />
   if (loading) return <div className="no-reports">Loading…</div>
   if (error === 'NOT_FOUND') return <div className="no-reports">No summary found for thread</div>
   if (error) return <div className="no-reports">{error}</div>
