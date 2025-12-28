@@ -36,7 +36,6 @@ class SummarizationService:
         summarizer: Summarizer,
         top_k: int = 12,
         citation_count: int = 12,
-        citation_text_max_length: int = 300,
         retry_max_attempts: int = 3,
         retry_backoff_seconds: int = 5,
         metrics_collector: MetricsCollector | None = None,
@@ -52,7 +51,6 @@ class SummarizationService:
             summarizer: Summarizer implementation (LLM backend)
             top_k: Number of top chunks to retrieve per thread
             citation_count: Maximum citations per summary
-            citation_text_max_length: Maximum length for citation text snippets
             retry_max_attempts: Maximum retry attempts on failures
             retry_backoff_seconds: Base backoff interval for retries
             metrics_collector: Metrics collector (optional)
@@ -65,7 +63,6 @@ class SummarizationService:
         self.summarizer = summarizer
         self.top_k = top_k
         self.citation_count = citation_count
-        self.citation_text_max_length = citation_text_max_length
         self.retry_max_attempts = retry_max_attempts
         self.retry_backoff_seconds = retry_backoff_seconds
         self.metrics_collector = metrics_collector
@@ -455,15 +452,12 @@ class SummarizationService:
             # citation.chunk_id now contains the _id value
             text = chunk.get("text", "")
 
-            # Truncate text to configured snippet length
-            snippet = text[:self.citation_text_max_length]
-
             formatted.append({
                 "_id": chunk.get("_id"),
                 "message_id": citation.message_id,
                 "chunk_id": citation.chunk_id,
                 "offset": citation.offset,
-                "text": snippet,
+                "text": text,
             })
 
         return formatted
