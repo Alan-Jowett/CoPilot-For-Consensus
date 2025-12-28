@@ -156,7 +156,7 @@ copilot_document_status_count{collection="archives"}
 # Failure rate
 copilot_document_status_count{collection="archives",status="failed"}
 / (copilot_document_status_count{collection="archives",status="failed"}
-   + copilot_document_status_count{collection="archives",status="processed"})
+   + copilot_document_status_count{collection="archives",status="completed"})
 
 # Embedding completion
 copilot_chunks_embedding_status_count{embedding_generated="True"}

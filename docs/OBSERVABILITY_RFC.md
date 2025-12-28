@@ -157,7 +157,7 @@ database: <db_name>      # Database name
 
 **Status Metrics:**
 ```yaml
-status: <state>          # e.g., "pending", "processed", "failed"
+status: <state>          # e.g., "pending", "completed", "failed"
 outcome: <result>        # e.g., "success", "failure", "timeout"
 ```
 
@@ -270,7 +270,7 @@ All logs MUST be JSON-formatted with these fields:
   "span_id": "def456",
   "labels": {
     "archive_id": "ietf-123",
-    "status": "processed",
+    "status": "completed",
     "duration_ms": 1234
   },
   "error": {

@@ -85,13 +85,13 @@ def test_get_archive_status_counts():
     # Mock the aggregate result
     mock_archives.aggregate.return_value = [
         {"_id": "pending", "count": 5},
-        {"_id": "processed", "count": 10},
+        {"_id": "completed", "count": 10},
         {"_id": "failed", "count": 2},
     ]
 
     result = exporter.get_archive_status_counts(mock_db)
 
-    assert result == {"pending": 5, "processed": 10, "failed": 2}, f"Unexpected result: {result}"
+    assert result == {"pending": 5, "completed": 10, "failed": 2}, f"Unexpected result: {result}"
     print("✓ get_archive_status_counts works correctly")
     return True
 
@@ -134,7 +134,7 @@ def test_collect_metrics():
     # Mock archive status aggregation
     mock_db.archives.aggregate.return_value = [
         {"_id": "pending", "count": 5},
-        {"_id": "processed", "count": 10},
+        {"_id": "completed", "count": 10},
         {"_id": "failed", "count": 2},
     ]
 
