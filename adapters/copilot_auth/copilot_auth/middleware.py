@@ -302,28 +302,48 @@ class JWTMiddleware(BaseHTTPMiddleware):
             logger.debug("Public path, skipping authentication", path=request.url.path)
             return await call_next(request)  # type: ignore[no-any-return]
 
-        # Extract Authorization header
+        # Extract token from Authorization header or cookie
+        token = None
+        auth_source = None
+        
+        # Try Authorization header first
         auth_header = request.headers.get("Authorization")
-        if not auth_header or not auth_header.startswith("Bearer "):
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header[7:]  # Remove "Bearer " prefix
+            auth_source = "header"
+            logger.debug(
+                "Bearer token extracted from Authorization header",
+                path=request.url.path,
+                token_length=len(token),
+            )
+        
+        # Fall back to cookie if no Authorization header
+        if not token:
+            # Check for auth_token cookie (httpOnly cookie used by UI)
+            cookie_token = request.cookies.get("auth_token")
+            if cookie_token:
+                token = cookie_token
+                auth_source = "cookie"
+                logger.debug(
+                    "Token extracted from auth_token cookie",
+                    path=request.url.path,
+                    token_length=len(token),
+                )
+        
+        # If no token found in either location, return 401
+        if not token:
             logger.warning(
-                "Missing or invalid Authorization header",
+                "Missing authentication: no Authorization header or auth_token cookie",
                 path=request.url.path,
                 method=request.method,
                 has_auth_header=auth_header is not None,
+                has_auth_cookie="auth_token" in request.cookies,
             )
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                content={"detail": "Missing or invalid Authorization header"},
+                content={"detail": "Missing authentication credentials"},
                 headers={"WWW-Authenticate": "Bearer"},
             )
-
-        # Extract token
-        token = auth_header[7:]  # Remove "Bearer " prefix
-        logger.debug(
-            "Bearer token extracted",
-            path=request.url.path,
-            token_length=len(token),
-        )
 
         # Validate token
         try:
@@ -344,6 +364,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 method=request.method,
                 user_id=request.state.user_id,
                 user_roles=request.state.user_roles,
+                auth_source=auth_source,
             )
 
             # Call next handler
