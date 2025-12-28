@@ -245,8 +245,7 @@ def test_format_citations_text_truncation(summarization_service):
     """Test that citation text is truncated to citation_text_max_length.
     
     Note: This test uses the service fixture which doesn't specify citation_text_max_length,
-    so it uses the SummarizationService class default of 500 characters. The config schema
-    default is 300, but the fixture creates the service directly without config.
+    so it uses the SummarizationService class default of 300 characters (matches schema default).
     """
     long_text = "x" * 1000  # 1000 character text
 
@@ -265,8 +264,8 @@ def test_format_citations_text_truncation(summarization_service):
     formatted = summarization_service._format_citations(citations, chunks)
 
     assert len(formatted) == 1
-    assert len(formatted[0]["text"]) == 500
-    assert formatted[0]["text"] == "x" * 500
+    assert len(formatted[0]["text"]) == 300
+    assert formatted[0]["text"] == "x" * 300
 
 
 def test_format_citations_custom_max_length(
