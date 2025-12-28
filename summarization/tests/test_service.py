@@ -275,7 +275,11 @@ def test_format_citations_custom_max_length(
     mock_subscriber,
     mock_summarizer,
 ):
-    """Test that citation text truncation respects custom citation_text_max_length."""
+    """Test that citation text truncation respects explicitly set citation_text_max_length.
+    
+    This test explicitly sets citation_text_max_length to 300 to verify the parameter
+    works correctly, even though 300 is also the default value.
+    """
     # Create service with custom citation_text_max_length of 300
     service = SummarizationService(
         document_store=mock_document_store,
