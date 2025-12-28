@@ -377,9 +377,13 @@ class ParsingService:
                     if isinstance(e, DuplicateKeyError):
                         skip_reason = "duplicate"
                     elif isinstance(e, DocumentValidationError):
-                        # Check if it's an empty body validation error
-                        error_msg = str(e)
-                        if "body_normalized" in error_msg and "should be non-empty" in error_msg:
+                        # Check if it's an empty body validation error by examining the errors list
+                        # Look for validation errors on body_normalized field with minLength/non-empty constraints
+                        is_empty_body = any(
+                            "body_normalized" in error and ("non-empty" in error or "minLength" in error)
+                            for error in e.errors
+                        )
+                        if is_empty_body:
                             skip_reason = "empty_body"
                             # Add debug logging for empty body messages
                             body_raw = message.get("body_raw", "")
