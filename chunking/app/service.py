@@ -439,7 +439,7 @@ class ChunkingService:
 
         # Only include date if it's a valid non-empty string
         date_value = message.get("date")
-        if date_value and isinstance(date_value, str):
+        if date_value and isinstance(date_value, str) and date_value.strip():
             metadata["date"] = date_value
 
         thread = Thread(
