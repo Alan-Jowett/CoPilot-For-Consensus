@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { fetchReports, fetchSources, ReportsQuery, searchReportsByTopic, Report } from '../api'
+import { AccessDenied } from '../components/AccessDenied'
 
 function useQueryState() {
   const [sp, setSp] = useSearchParams()
@@ -51,6 +52,7 @@ export function ReportsList() {
   const [data, setData] = useState<{ reports: Report[]; count: number }>({ reports: [], count: 0 })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [accessDenied, setAccessDenied] = useState<string | null>(null)
 
   const isTopicSearch = !!(q.topic && q.topic.trim())
 
@@ -58,6 +60,7 @@ export function ReportsList() {
     let cancelled = false
     setLoading(true)
     setError(null)
+    setAccessDenied(null)
     ;(async () => {
       try {
         const [sources, result] = await Promise.all([
@@ -77,6 +80,11 @@ export function ReportsList() {
         if (cancelled) return
         let message = 'Failed to load reports'
         if (e instanceof Error && e.message) {
+          // Check if this is an ACCESS_DENIED error
+          if (e.message.startsWith('ACCESS_DENIED:')) {
+            setAccessDenied(e.message.replace('ACCESS_DENIED: ', ''))
+            return
+          }
           message = e.message
         } else if (e && typeof e === 'object' && 'message' in e && typeof (e as { message: unknown }).message === 'string') {
           message = (e as { message: string }).message
@@ -161,6 +169,11 @@ export function ReportsList() {
 
   const prevDisabled = q.skip === 0
   const nextDisabled = isTopicSearch ? true : (data.count < (q.limit ?? 20))
+
+  // If user lacks permissions, show access denied screen
+  if (accessDenied) {
+    return <AccessDenied message={accessDenied} />
+  }
 
   return (
     <div>
