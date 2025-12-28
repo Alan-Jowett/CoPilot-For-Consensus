@@ -762,3 +762,9 @@ tr:hover { background-color: var(--bg-hover); }
   background-color: var(--color-danger-hover);
 }
 
+/* Loading spinner animation */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+

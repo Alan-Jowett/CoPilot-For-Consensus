@@ -90,15 +90,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = async () => {
     try {
       // Call the logout endpoint to clear the httpOnly cookie
-      await fetch('/auth/logout', {
+      const response = await fetch('/auth/logout', {
         method: 'POST',
         credentials: 'include'
       })
+      
+      if (!response.ok) {
+        console.error('[AuthContext] Logout failed with status:', response.status)
+      }
     } catch (error) {
-      console.error('[AuthContext] Logout error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.error('[AuthContext] Logout error:', errorMessage)
     }
     
-    // Clear local state
+    // Clear local state regardless of API call result
     setUserInfo(null)
     setIsAuthenticated(false)
     setIsAdmin(false)
@@ -116,7 +121,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       logout,
       checkAuth 
     }}>
-      {!isCheckingAuth && children}
+      {isCheckingAuth ? (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          fontFamily: 'system-ui, -apple-system, sans-serif'
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              border: '4px solid #f3f3f3',
+              borderTop: '4px solid #3498db',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto 16px'
+            }} />
+            <p style={{ color: '#666', margin: 0 }}>Loading...</p>
+          </div>
+        </div>
+      ) : children}
     </AuthContext.Provider>
   )
 }

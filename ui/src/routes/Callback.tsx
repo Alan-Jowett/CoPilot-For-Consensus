@@ -69,7 +69,7 @@ export function Callback() {
       setError('No authorization token received')
       setLoading(false)
     }
-  }, [searchParams, checkAuth])
+  }, [searchParams])
 
   const exchangeCodeForToken = async (code: string) => {
     try {

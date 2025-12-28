@@ -360,7 +360,7 @@ def userinfo(request: Request) -> JSONResponse:
         token = request.cookies.get("auth_token")
     
     if not token:
-        raise HTTPException(status_code=401, detail="Missing authentication token (Authorization header or auth_token cookie)")
+        raise HTTPException(status_code=401, detail="Authentication required")
 
     try:
         # Parse audiences from config (comma-separated string)
