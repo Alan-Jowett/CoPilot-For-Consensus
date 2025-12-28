@@ -102,15 +102,15 @@ class TestFirstUserAutoPromotion:
             first_user_auto_promotion_enabled=True,  # Enable for dev/testing
         )
 
-        # Should auto-promote to admin
-        assert roles == ["admin"]
+        # Should auto-promote to admin and grant reader role
+        assert roles == ["admin", "reader"]
         assert status == "approved"
 
-        # Verify insert was called with admin role
+        # Verify insert was called with admin and reader roles
         mock_store.insert_document.assert_called_once()
         insert_args = mock_store.insert_document.call_args[0]
         doc = insert_args[1]
-        assert doc["roles"] == ["admin"]
+        assert doc["roles"] == ["admin", "reader"]
         assert doc["status"] == "approved"
 
     def test_auto_promotion_only_when_no_admins_exist(self, role_store, mock_store, mock_user):
