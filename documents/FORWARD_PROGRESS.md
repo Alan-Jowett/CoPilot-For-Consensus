@@ -48,7 +48,7 @@ pending → completed
 **Setting the Status:**
 - **Ingestion Service** sets `status: "pending"` when creating archive documents
 - **Parsing Service** updates to `"completed"` or `"failed"` based on outcome
-- No intermediate `"processing"` state - transitions are atomic
+- While the schema still enumerates `"processing"` for backward compatibility, the parsing service does **not** set this value; transitions are treated as atomic in current implementations.
 
 **Example from Ingestion Service:**
 ```python
