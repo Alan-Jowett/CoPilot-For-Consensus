@@ -139,7 +139,7 @@
       "source": "env",
       "env_var": "VECTOR_STORE_TYPE",
       "default": "",
-      "description": "Vector store type (e.g., qdrant, faiss). Leave empty to disable topic search."
+      "description": "Vector store type (e.g., qdrant, faiss). Leave empty to disable topic search. Set to 'qdrant' in docker-compose for production use."
     },
     "vector_store_host": {
       "type": "string",
