@@ -25,7 +25,7 @@ base_publisher = create_publisher(message_bus_type="rabbitmq", host="localhost")
 
 # Wrap with validation
 # Default schema_dir points to events schemas, or specify explicitly
-schema_provider = FileSchemaProvider()  # Defaults to documents/schemas/events
+schema_provider = FileSchemaProvider()  # Defaults to docs/schemas/events
 publisher = ValidatingEventPublisher(
     publisher=base_publisher,
     schema_provider=schema_provider,
@@ -77,7 +77,7 @@ from copilot_schema_validation import FileSchemaProvider
 from pathlib import Path
 
 # For event schemas (default)
-event_provider = FileSchemaProvider()  # Defaults to documents/schemas/events
+event_provider = FileSchemaProvider()  # Defaults to docs/schemas/events
 schema = event_provider.get_schema("ArchiveIngested")
 
 # For document schemas (specify directory)
@@ -213,7 +213,7 @@ def test_mongodb_has_no_collection_validators(mongodb_store, clean_collection):
 
 When schemas need to change:
 
-1. **Update JSON Schema**: Modify schema files in `documents/schemas/events/` or `documents/schemas/documents/`
+1. **Update JSON Schema**: Modify schema files in `docs/schemas/events/` or `docs/schemas/documents/`
 2. **Update Application Code**: Ensure services handle new/changed fields
 3. **Deploy**: No database migrations needed - validation happens at application layer
 4. **Backward Compatibility**: Consider using optional fields and default values for gradual rollouts

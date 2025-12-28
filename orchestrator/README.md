@@ -95,18 +95,18 @@ LLM_MODEL=gpt-4o-mini
 
 ### Subscribes To
 
-The Orchestration Service subscribes to the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+The Orchestration Service subscribes to the following events. See [message-schemas.md](../docs/schemas/message-schemas.md#message-bus-event-schemas) for complete event schemas.
 
 1) **EmbeddingsGenerated**
    - **Exchange:** `copilot.events`
    - **Routing Key:** `embeddings.generated`
-   - See [EmbeddingsGenerated schema](../documents/SCHEMA.md#7-embeddingsgenerated) in SCHEMA.md
+   - See [EmbeddingsGenerated schema](../docs/schemas/message-schemas.md#7-embeddingsgenerated) in message-schemas.md
    - **Behavior:** Fetch chunk metadata; compute thread scope; retrieve top-k from vector store; assemble prompt; trigger summarization job.
 
 2) **JSONParsed** *(optional for thread bookkeeping)*
    - **Exchange:** `copilot.events`
    - **Routing Key:** `json.parsed`
-   - See [JSONParsed schema](../documents/SCHEMA.md#3-jsonparsed) in SCHEMA.md
+   - See [JSONParsed schema](../docs/schemas/message-schemas.md#3-jsonparsed) in message-schemas.md
    - **Behavior:** Track new threads/messages; maintain orchestration schedule.
 
 ### Publishes

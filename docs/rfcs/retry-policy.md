@@ -428,7 +428,7 @@ All retry operations must be idempotent:
 - **Embedding**: Use upsert semantics (vectorstore `add_embedding`)
 - **Summarization**: Check for an existing summary (e.g., `threads.summary_id` referencing `summaries._id`) before generating
 
-See `documents/CONTRIBUTING.md` for idempotency patterns.
+See `../CONTRIBUTING.md` for idempotency patterns.
 
 ## Configuration
 

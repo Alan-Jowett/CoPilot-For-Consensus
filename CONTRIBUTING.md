@@ -54,11 +54,11 @@ See [GOVERNANCE.md](./GOVERNANCE.md) for details.
 
 ## Development Guidelines
 
-*   **Architecture:** Microservice-based, containerized design. See [documents/ARCHITECTURE.md](./documents/ARCHITECTURE.md) for system overview.
+*   **Architecture:** Microservice-based, containerized design. See [docs/architecture/overview.md](./docs/architecture/overview.md) for system overview.
 *   **Language:** Python-first for accessibility.
 *   **Testing:** Unit tests for core logic, integration tests for pipeline components.
 *   **Documentation:** Update README.md and relevant docs for any new feature.
-*   **Forward Progress:** All services must guarantee forward progress through idempotency, retry logic, and proper error handling. See [documents/FORWARD_PROGRESS.md](./documents/FORWARD_PROGRESS.md) for detailed patterns and implementation guidelines.
+*   **Forward Progress:** All services must guarantee forward progress through idempotency, retry logic, and proper error handling. See [docs/development/forward-progress.md](./docs/development/forward-progress.md) for detailed patterns and implementation guidelines.
 
 ### Development Environment Setup
 
@@ -233,7 +233,7 @@ When implementing new microservices or modifying existing ones, follow these pat
 *   **Retry Policies:** Implement exponential backoff with configurable max retries
 *   **Observability:** Integrate metrics collection, error reporting, and appropriate logging
 
-For complete details, code examples, and testing patterns, see [documents/FORWARD_PROGRESS.md](./documents/FORWARD_PROGRESS.md).
+For complete details, code examples, and testing patterns, see [docs/development/forward-progress.md](./docs/development/forward-progress.md).
 
 ***
 

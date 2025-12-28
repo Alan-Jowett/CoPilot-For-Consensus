@@ -9,7 +9,7 @@
 
 **An open-source AI assistant that ingests mailing list discussions, summarizes threads, and surfaces consensus for technical working groups.**
 
-📚 **[Documentation](#documentation)** | 🚀 **[Quick Start](#quick-start)** | 🏗️ **[Architecture](./documents/ARCHITECTURE.md)** | 🤝 **[Contributing](./CONTRIBUTING.md)** | 📋 **[Governance](./GOVERNANCE.md)**
+📚 **[Documentation](#documentation)** | 🚀 **[Quick Start](#quick-start)** | 🏗️ **[Architecture](./docs/architecture/overview.md)** | 🤝 **[Contributing](./CONTRIBUTING.md)** | 📋 **[Governance](./GOVERNANCE.md)**
 
 ***
 
@@ -81,7 +81,7 @@ Beyond summarization, Copilot-for-Consensus will evolve into an **interactive su
 
 The system follows a **microservice-based, event-driven architecture** where services communicate asynchronously through a message bus (RabbitMQ) and store data in MongoDB and Qdrant. This design ensures loose coupling, scalability, and resilience.
 
-For detailed architecture documentation, design patterns, and service interactions, see [documents/ARCHITECTURE.md](./documents/ARCHITECTURE.md).
+For detailed architecture documentation, design patterns, and service interactions, see [docs/architecture/overview.md](./docs/architecture/overview.md).
 
 ### Cloud-Agnostic API Gateway
 
@@ -123,7 +123,7 @@ See [Gateway Documentation](./docs/gateway/overview.md) for architecture, deploy
 | Promtail | Log scraping from Docker containers | - | Production |
 | Pushgateway | Metrics push gateway for batch jobs | - | Production |
 
-**Note**: Services marked as "public" (0.0.0.0) are accessible from outside the host. All other services are bound to localhost (127.0.0.1) for security. See [documents/EXPOSED_PORTS.md](./documents/EXPOSED_PORTS.md) for security details.
+**Note**: Services marked as "public" (0.0.0.0) are accessible from outside the host. All other services are bound to localhost (127.0.0.1) for security. See [docs/operations/exposed-ports.md](./docs/operations/exposed-ports.md) for security details.
 
 ### Microservices
 
@@ -153,9 +153,9 @@ See [Gateway Documentation](./docs/gateway/overview.md) for architecture, deploy
 #### Integration Layer
 - **RabbitMQ** (`messagebus`): Message broker enabling asynchronous, event-driven communication between services
 - **Ollama**: Local LLM runtime for embeddings and text generation (fully offline capable)
-  - Supports optional GPU acceleration (10-100x speedup) - see [documents/OLLAMA_GPU_SETUP.md](./documents/OLLAMA_GPU_SETUP.md)
+  - Supports optional GPU acceleration (10-100x speedup) - see [docs/operations/ollama-gpu-setup.md](./docs/operations/ollama-gpu-setup.md)
   - NVIDIA GPU support (recommended for performance)
-- **llama.cpp** (optional): Alternative local LLM runtime with AMD GPU support (Vulkan/ROCm) - see [AMD GPU Setup Guide](./documents/LLAMA_CPP_AMD_SETUP.md)
+- **llama.cpp** (optional): Alternative local LLM runtime with AMD GPU support (Vulkan/ROCm) - see [AMD GPU Setup Guide](./docs/operations/llama-cpp-amd-setup.md)
 
 ### Observability Stack
 
@@ -176,7 +176,7 @@ The system includes a **production-ready observability stack** with comprehensiv
 
 Access Grafana via the Gateway at `http://localhost:8080/grafana/` (default credentials: admin/admin).
 
-**For Developers**: See [Metrics Integration Guide](./documents/METRICS_INTEGRATION_GUIDE.md) for adding metrics to services.
+**For Developers**: See [Metrics Integration Guide](./docs/operations/metrics-integration-guide.md) for adding metrics to services.
 
 #### Logging (Loki + Promtail)
 - **Loki** aggregates logs from all services on port 3100
@@ -189,9 +189,9 @@ Access Grafana via the Gateway at `http://localhost:8080/grafana/` (default cred
 - **Prometheus Alertmanager** evaluates alert rules every 60 seconds
 - Alert severity levels: Info → Warning → Error → Critical → Emergency
 - **Operator Runbooks** with diagnosis, resolution, and escalation procedures:
-  - [High Queue Lag](./documents/runbooks/high-queue-lag.md)
-  - [Service Down](./documents/runbooks/service-down.md)
-  - [High Error Rate](./documents/runbooks/high-error-rate.md)
+  - [High Queue Lag](./docs/operations/runbooks/high-queue-lag.md)
+  - [Service Down](./docs/operations/runbooks/service-down.md)
+  - [High Error Rate](./docs/operations/runbooks/high-error-rate.md)
 - SLO-based alerts for latency (P95/P99), error rate, and queue lag
 
 View active alerts: http://localhost:9090/alerts
@@ -204,10 +204,10 @@ View active alerts: http://localhost:9090/alerts
 
 **Documentation**:
 - [Observability RFC](./docs/OBSERVABILITY_RFC.md) - Complete observability strategy
-- [Observability Implementation Summary](./documents/OBSERVABILITY_IMPLEMENTATION_SUMMARY.md) - What's been implemented
-- [Service Monitoring Guide](./documents/SERVICE_MONITORING.md) - Monitoring overview
-- [Metrics Integration Guide](./documents/METRICS_INTEGRATION_GUIDE.md) - Developer guide
-- See [documents/FAILED_QUEUE_OPERATIONS.md](./documents/FAILED_QUEUE_OPERATIONS.md) for operational runbook
+- [Observability Implementation Summary](./docs/implementation-notes/observability-implementation-summary.md) - What's been implemented
+- [Service Monitoring Guide](./docs/operations/service-monitoring.md) - Monitoring overview
+- [Metrics Integration Guide](./docs/operations/metrics-integration-guide.md) - Developer guide
+- See [docs/operations/failed-queue-operations.md](./docs/operations/failed-queue-operations.md) for operational runbook
 
 ### Adapters
 
@@ -237,7 +237,7 @@ See [adapters/README.md](./adapters/README.md) for detailed adapter documentatio
 
 ## Quick Start
 
-**For detailed local development setup, see [documents/LOCAL_DEVELOPMENT.md](./documents/LOCAL_DEVELOPMENT.md).**
+**For detailed local development setup, see [docs/development/local-development.md](./docs/development/local-development.md).**
 
 ### Prerequisites
 - Docker and Docker Compose
@@ -288,18 +288,18 @@ docker compose logs db-init
 - **Web UI**: http://localhost:8084
 - **Grafana Dashboards**: http://localhost:3000 (admin/admin)
 
-For the full list of exposed ports and security considerations, see [documents/EXPOSED_PORTS.md](documents/EXPOSED_PORTS.md).
+For the full list of exposed ports and security considerations, see [docs/operations/exposed-ports.md](./docs/operations/exposed-ports.md).
 
 **Note:** The Mistral LLM model is automatically downloaded on first startup via the `ollama-model-loader` service when using the default Ollama backend. This may take several minutes depending on your internet connection. Models are stored in the `ollama_models` Docker volume for persistence.
 
 5. **(Optional) Enable GPU acceleration** for 10-100x faster inference:
-   - **NVIDIA GPU** (recommended): See [documents/OLLAMA_GPU_SETUP.md](./documents/OLLAMA_GPU_SETUP.md)
+   - **NVIDIA GPU** (recommended): See [docs/operations/ollama-gpu-setup.md](./docs/operations/ollama-gpu-setup.md)
      - Requires NVIDIA GPU with drivers and nvidia-container-toolkit
      - Verify GPU support:
        - Linux/macOS/WSL2: `./scripts/check_ollama_gpu.sh`
        - Windows PowerShell: `.\scripts\check_ollama_gpu.ps1`
        - Or directly: `docker exec ollama nvidia-smi`
-   - **AMD GPU** (experimental): See [AMD GPU Setup Guide](./documents/LLAMA_CPP_AMD_SETUP.md) to enable llama.cpp with Vulkan/ROCm
+   - **AMD GPU** (experimental): See [AMD GPU Setup Guide](./docs/operations/llama-cpp-amd-setup.md) to enable llama.cpp with Vulkan/ROCm
 
 6. Run ingestion to process test data:
 
@@ -371,7 +371,7 @@ Query centralized logs in Grafana:
 - Verify RabbitMQ is healthy: `docker compose ps messagebus`
 - Check management UI: http://localhost:15672 (guest/guest)
 
-For more troubleshooting, see [documents/LOCAL_DEVELOPMENT.md](./documents/LOCAL_DEVELOPMENT.md).
+For more troubleshooting, see [docs/development/local-development.md](./docs/development/local-development.md).
 
 ### Authentication Setup
 
@@ -436,7 +436,7 @@ The system includes an authentication service that supports GitHub, Google, and 
    ```
 
 **For detailed setup instructions, including production deployment with HTTPS, see:**
-- [documents/OIDC_LOCAL_TESTING.md](./documents/OIDC_LOCAL_TESTING.md) - Complete OAuth setup guide
+- [docs/features/oidc-local-testing.md](./docs/features/oidc-local-testing.md) - Complete OAuth setup guide
 - [auth/README.md](./auth/README.md) - Auth service documentation
 
 **Security Note - First User Admin Access:**
@@ -447,7 +447,7 @@ The system includes an authentication service that supports GitHub, Google, and 
   - Have the intended administrator authenticate once to receive admin role
   - **Immediately** disable auto-promotion (`AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED=false`) and restart before exposing to untrusted users
 - A dedicated bootstrap-token mechanism is **planned but not yet implemented**
-  - See [documents/AUTH_IMPLEMENTATION_SUMMARY.md](./documents/AUTH_IMPLEMENTATION_SUMMARY.md#security-considerations) for details
+  - See [docs/implementation-notes/auth-implementation-summary.md](./docs/implementation-notes/auth-implementation-summary.md#security-considerations) for details
 
 **Note:** If you don't configure any providers, the login page will show buttons but clicking them will return an error indicating the provider is not configured.
 
@@ -475,7 +475,7 @@ The system includes an authentication service that supports GitHub, Google, and 
 - See **[infra/azure/README.md](./infra/azure/README.md)** for complete deployment guide
 - One-click deployment with proper RBAC, networking, and observability
 
-See [documents/ARCHITECTURE.md](./documents/ARCHITECTURE.md) for detailed production architecture guidance.
+See [docs/architecture/overview.md](./docs/architecture/overview.md) for detailed production architecture guidance.
 
 ***
 
@@ -523,11 +523,12 @@ Comprehensive documentation is available throughout the repository:
 - **[SECURITY.md](./SECURITY.md)**: Security policy and vulnerability reporting
 
 ### Technical Documentation
-- **[documents/ARCHITECTURE.md](./documents/ARCHITECTURE.md)**: Detailed system architecture, design patterns, and service interactions
-- **[documents/SCHEMA.md](./documents/SCHEMA.md)**: Database schemas and message bus event definitions
-- **[documents/FORWARD_PROGRESS.md](./documents/FORWARD_PROGRESS.md)**: Idempotency, retry logic, and error handling patterns
-- **[documents/SERVICE_MONITORING.md](./documents/SERVICE_MONITORING.md)**: Observability, metrics, and logging best practices
-- **[documents/FAILED_QUEUE_OPERATIONS.md](./documents/FAILED_QUEUE_OPERATIONS.md)**: Failed queue management and troubleshooting
+- **[docs/README.md](./docs/README.md)**: Complete documentation index with all guides organized by topic
+- **[docs/architecture/overview.md](./docs/architecture/overview.md)**: Detailed system architecture, design patterns, and service interactions
+- **[docs/schemas/message-schemas.md](./docs/schemas/message-schemas.md)**: Database schemas and message bus event definitions
+- **[docs/development/forward-progress.md](./docs/development/forward-progress.md)**: Idempotency, retry logic, and error handling patterns
+- **[docs/operations/service-monitoring.md](./docs/operations/service-monitoring.md)**: Observability, metrics, and logging best practices
+- **[docs/operations/failed-queue-operations.md](./docs/operations/failed-queue-operations.md)**: Failed queue management and troubleshooting
 
 ### Gateway Documentation
 - **[docs/openapi.md](./docs/openapi.md)**: Hybrid OpenAPI 3.0 workflow guide (spec-first gateway, code-first services)
@@ -539,11 +540,11 @@ Comprehensive documentation is available throughout the repository:
 - **[docs/gateway/extending.md](./docs/gateway/extending.md)**: How to add support for new cloud providers
 
 ### Development Guides
-- **[documents/LOCAL_DEVELOPMENT.md](./documents/LOCAL_DEVELOPMENT.md)**: Complete local development setup, debugging, and testing guide
-- **[documents/TESTING_STRATEGY.md](./documents/TESTING_STRATEGY.md)**: Integration testing strategy, test organization, and CI/CD integration
-- **[documents/CONVENTIONS.md](./documents/CONVENTIONS.md)**: Documentation conventions, style guide, and contribution standards
-- **[documents/EXPOSED_PORTS.md](./documents/EXPOSED_PORTS.md)**: Network ports reference, security considerations, and access control
-- **[documents/AUTH_INTEGRATION_EXAMPLES.md](./documents/AUTH_INTEGRATION_EXAMPLES.md)**: Authentication service integration examples and best practices
+- **[docs/development/local-development.md](./docs/development/local-development.md)**: Complete local development setup, debugging, and testing guide
+- **[docs/development/testing-strategy.md](./docs/development/testing-strategy.md)**: Integration testing strategy, test organization, and CI/CD integration
+- **[docs/development/conventions.md](./docs/development/conventions.md)**: Documentation conventions, style guide, and contribution standards
+- **[docs/operations/exposed-ports.md](./docs/operations/exposed-ports.md)**: Network ports reference, security considerations, and access control
+- **[docs/features/authentication.md](./docs/features/authentication.md)**: Authentication service integration examples and best practices
 
 ### Service Documentation
 Each microservice has a comprehensive README:

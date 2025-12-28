@@ -355,7 +355,7 @@ All logs MUST be JSON-formatted with these fields:
         2. Verify Y
         3. Escalate if Z
       
-      Runbook: documents/<RUNBOOK>.md
+      Runbook: docs/operations/runbooks/<RUNBOOK>.md
       Dashboard: <Grafana dashboard link>
 ```
 
@@ -872,7 +872,7 @@ Each alert MUST link to a runbook with this structure:
 
 ### Core Runbooks
 
-Create these runbooks in `documents/runbooks/`:
+Create these runbooks in `docs/operations/runbooks/`:
 
 1. **High Queue Lag** (`high-queue-lag.md`)
 2. **Service Down** (`service-down.md`)
@@ -1013,4 +1013,4 @@ sum by (service) (rate({level="ERROR"}[5m]))
 - [Grafana Loki Documentation](https://grafana.com/docs/loki/latest/)
 - [OpenTelemetry Instrumentation](https://opentelemetry.io/docs/instrumentation/)
 - [The Four Golden Signals](https://sre.google/sre-book/monitoring-distributed-systems/#xref_monitoring_golden-signals)
-- Existing docs: `documents/SERVICE_MONITORING.md`, `documents/DOCUMENT_PROCESSING_OBSERVABILITY.md`
+- Existing docs: `docs/operations/service-monitoring.md`, `docs/features/document-processing-observability.md`

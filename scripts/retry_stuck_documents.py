@@ -7,7 +7,7 @@ Retry Stuck Documents Job
 
 This script periodically checks for stuck or failed documents in MongoDB
 and requeues them for retry according to the retry policy defined in
-documents/RETRY_POLICY.md.
+docs/rfcs/retry-policy.md.
 
 Features:
 - Exponential backoff with configurable delays
@@ -662,7 +662,7 @@ Environment Variables:
   RETRY_JOB_MAX_DELAY_SECONDS     Max backoff delay (default: 3600)
   RETRY_JOB_STUCK_THRESHOLD_HOURS Stuck threshold (default: 24)
 
-For full documentation, see documents/RETRY_POLICY.md
+For full documentation, see docs/rfcs/retry-policy.md
         """
     )
 

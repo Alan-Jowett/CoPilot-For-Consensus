@@ -73,7 +73,7 @@ For each provider you want to enable:
 
 Each example file (`.example`) contains detailed instructions on how to create the OAuth application with that provider. For complete setup guides, see:
 
-- [documents/OIDC_LOCAL_TESTING.md](../documents/OIDC_LOCAL_TESTING.md) - Complete OAuth setup guide for all providers
+- [docs/features/oidc-local-testing.md](../docs/features/oidc-local-testing.md) - Complete OAuth setup guide for all providers
 - [auth/README.md](../auth/README.md) - Auth service documentation
 
 ## Other Secrets

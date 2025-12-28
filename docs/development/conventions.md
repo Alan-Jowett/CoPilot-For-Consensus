@@ -108,8 +108,8 @@ Each adapter directory should contain:
 
 ### Links
 
-- Use relative paths for internal documentation: `[ARCHITECTURE.md](./documents/ARCHITECTURE.md)`
-- Use descriptive link text: `See [configuration guide](./docs/CONFIGURATION.md)` not `click here`
+- Use relative paths for internal documentation: `[overview.md](./architecture/overview.md)`
+- Use descriptive link text: `See [configuration guide](./operations/configuration.md)` not `click here`
 
 ### Lists
 
@@ -184,7 +184,7 @@ Detailed explanation of the service's role in the system.
 **Exchange**: `copilot.events`
 **Routing Key**: `event.name`
 
-See [SCHEMA.md](../documents/SCHEMA.md#event-name) for complete schema.
+See [message-schemas.md](../schemas/message-schemas.md#event-name) for complete schema.
 
 ### Events Published
 

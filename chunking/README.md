@@ -78,7 +78,7 @@ Split long email bodies into smaller, semantically coherent chunks that:
 
 ### Events Subscribed To
 
-The Chunking Service subscribes to the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+The Chunking Service subscribes to the following events. See [message-schemas.md](../docs/schemas/message-schemas.md#message-bus-event-schemas) for complete event schemas.
 
 #### 1. JSONParsed
 
@@ -87,7 +87,7 @@ Consumes events from the Parsing & Normalization Service when messages are parse
 **Exchange:** `copilot.events`
 **Routing Key:** `json.parsed`
 
-See [JSONParsed schema](../documents/SCHEMA.md#3-jsonparsed) in SCHEMA.md for the complete payload definition.
+See [JSONParsed schema](../docs/schemas/message-schemas.md#3-jsonparsed) in message-schemas.md for the complete payload definition.
 
 **Processing:**
 1. Retrieve messages by `_id` from document database
@@ -98,7 +98,7 @@ See [JSONParsed schema](../documents/SCHEMA.md#3-jsonparsed) in SCHEMA.md for th
 
 ### Events Published
 
-The Chunking Service publishes the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+The Chunking Service publishes the following events. See [message-schemas.md](../docs/schemas/message-schemas.md#message-bus-event-schemas) for complete event schemas.
 
 #### 1. ChunksPrepared
 
@@ -107,7 +107,7 @@ Published when messages have been successfully chunked and stored.
 **Exchange:** `copilot.events`
 **Routing Key:** `chunks.prepared`
 
-See [ChunksPrepared schema](../documents/SCHEMA.md#5-chunksprepared) in SCHEMA.md for the complete payload definition.
+See [ChunksPrepared schema](../docs/schemas/message-schemas.md#5-chunksprepared) in message-schemas.md for the complete payload definition.
 
 **Key Fields:**
 - `archive_id`: Archive identifier processed
@@ -124,7 +124,7 @@ Published when chunking fails for a batch of messages.
 **Exchange:** `copilot.events`
 **Routing Key:** `chunks.failed`
 
-See [ChunkingFailed schema](../documents/SCHEMA.md#6-chunkingfailed) in SCHEMA.md for the complete payload definition.
+See [ChunkingFailed schema](../docs/schemas/message-schemas.md#6-chunkingfailed) in message-schemas.md for the complete payload definition.
 
 **Key Fields:**
 - `archive_id`: Archive identifier

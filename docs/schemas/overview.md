@@ -30,11 +30,11 @@ This document lists all registered schemas in the Copilot-for-Consensus system.
 
 | Type | Version | Path |
 |------|---------|------|
-| Archive | v1 | `documents/archives.schema.json` |
-| Chunk | v1 | `documents/chunks.schema.json` |
-| Message | v1 | `documents/messages.schema.json` |
-| Summary | v1 | `documents/summaries.schema.json` |
-| Thread | v1 | `documents/threads.schema.json` |
+| Archive | v1 | `archives.schema.json` |
+| Chunk | v1 | `chunks.schema.json` |
+| Message | v1 | `messages.schema.json` |
+| Summary | v1 | `summaries.schema.json` |
+| Thread | v1 | `threads.schema.json` |
 
 ## Role Store Schemas
 

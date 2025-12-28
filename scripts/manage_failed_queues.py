@@ -12,7 +12,7 @@ This script provides CLI operations for managing failed message queues in Rabbit
 - Requeue messages back to their original queue for retry
 - Purge messages from failed queues
 
-See documents/FAILED_QUEUE_OPERATIONS.md for operational runbook.
+See docs/operations/failed-queue-operations.md for operational runbook.
 """
 
 import argparse
@@ -368,7 +368,7 @@ Examples:
   # Purge old messages
   %(prog)s purge parsing.failed --limit 100 --dry-run
 
-For full operational guide, see documents/FAILED_QUEUE_OPERATIONS.md
+For full operational guide, see docs/operations/failed-queue-operations.md
         """
     )
 

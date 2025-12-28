@@ -34,7 +34,7 @@ pending → processed
 - **`processed`**: Successfully parsed (all messages extracted)
 - **`failed`**: Parsing failed after retries
 
-**Schema:** See [`documents/schemas/documents/v1/archives.schema.json`](./schemas/documents/v1/archives.schema.json)
+**Schema:** See [`docs/schemas/documents/v1/archives.schema.json`](../schemas/documents/v1/archives.schema.json)
 
 ```json
 {
@@ -73,7 +73,7 @@ The `chunks` collection uses `embedding_generated` to track embedding state:
 embedding_generated: false → true
 ```
 
-**Schema:** See [`documents/schemas/documents/v1/chunks.schema.json`](./schemas/documents/v1/chunks.schema.json)
+**Schema:** See [`docs/schemas/documents/v1/chunks.schema.json`](../schemas/documents/v1/chunks.schema.json)
 
 ```json
 {

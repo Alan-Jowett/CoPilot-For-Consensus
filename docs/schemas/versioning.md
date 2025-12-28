@@ -11,8 +11,8 @@ This document outlines the versioning strategy for all JSON Schemas used in the 
 
 We maintain two categories of schemas:
 
-- **Event Schemas**: Define the structure of messages passed through the pub/sub pipeline (e.g., ArchiveIngested, SummaryComplete). Located in `documents/schemas/events/`.
-- **Document Schemas**: Define the structure of data stored in the document database (e.g., archives, messages, chunks, threads, summaries). Located in `documents/schemas/documents/`.
+- **Event Schemas**: Define the structure of messages passed through the pub/sub pipeline (e.g., ArchiveIngested, SummaryComplete). Located in `docs/schemas/events/`.
+- **Document Schemas**: Define the structure of data stored in the document database (e.g., archives, messages, chunks, threads, summaries). Located in `docs/schemas/documents/`.
 
 ---
 
@@ -21,7 +21,7 @@ We maintain two categories of schemas:
 All document schemas are versioned using a directory-based approach:
 
 ```
-documents/
+docs/
   schemas/
     events/
       event-envelope.schema.json  (shared envelope, contains version field)
@@ -161,7 +161,7 @@ from copilot_schema_validation import FileSchemaProvider, validate_json
 from pathlib import Path
 
 # Load schema provider for specific version
-schema_dir = Path("documents/schemas/documents/v1")
+schema_dir = Path("docs/schemas/documents/v1")
 provider = FileSchemaProvider(schema_dir=schema_dir)
 
 # Get and validate against schema
@@ -193,7 +193,7 @@ See `adapters/copilot_schema_validation/tests/test_document_schema_regression.py
 
 ## 📖 References
 
-- [documents/SCHEMA.md](SCHEMA.md) - Complete schema documentation
-- [documents/FORWARD_PROGRESS.md](FORWARD_PROGRESS.md) - Status field lifecycles and retry patterns
+- [message-schemas.md](./message-schemas.md) - Complete schema documentation
+- [../development/forward-progress.md](../development/forward-progress.md) - Status field lifecycles and retry patterns
 - [JSON Schema Specification](https://json-schema.org/specification.html)
 - Test examples: `adapters/copilot_schema_validation/tests/`

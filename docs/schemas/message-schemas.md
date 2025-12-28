@@ -236,7 +236,7 @@ Stores embeddings with metadata for semantic search and retrieval-augmented gene
 
 ### Identifier Semantics: Messages
 
-This section clarifies which identifiers are sourced from email RFCs versus internal, deterministic IDs used by the system. See the formal JSON Schema in [documents/schemas/documents/v1/messages.schema.json](documents/schemas/documents/v1/messages.schema.json).
+This section clarifies which identifiers are sourced from email RFCs versus internal, deterministic IDs used by the system. See the formal JSON Schema in [docs/schemas/documents/v1/messages.schema.json](docs/schemas/documents/v1/messages.schema.json).
 
 - _id: Internal deterministic ID. Computed as a SHA256-derived short hash (first 16 chars) from stable fields (e.g., archive_id | message_id | date | sender_email | subject). Used as the MongoDB `_id` and primary key.
 - message_id: RFC 5322 Message-ID header from the original email (external identifier). Not a hash; typically formatted like `<unique@domain>`.
