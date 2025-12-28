@@ -144,12 +144,13 @@ class RoleStore:
 
         # Special case: auto-promote first user to admin if no admins exist
         # Only if explicitly enabled (disabled by default for production security)
+        # Admin users also get reader role for basic access to reporting endpoints
         if first_user_auto_promotion_enabled:
             admins = self.find_by_role("admin")
             if not admins:
-                roles = ["admin"]
+                roles = ["admin", "reader"]
                 status = "approved"
-                logger.info(f"Auto-promoting first user {user.id} to admin role (no admins exist)")
+                logger.info(f"Auto-promoting first user {user.id} to admin and reader roles (no admins exist)")
 
         # If auto-promotion didn't happen, check normal auto-approval
         if not roles:
