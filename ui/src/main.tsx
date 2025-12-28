@@ -5,7 +5,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './contexts/ThemeContext'
-import { AuthProvider, setAuthToken, setUnauthorizedCallback } from './contexts/AuthContext'
+import { AuthProvider, setUnauthorizedCallback } from './contexts/AuthContext'
 import { AppLayout } from './ui/AppLayout'
 import { ReportsList } from './routes/ReportsList'
 import { ReportDetail } from './routes/ReportDetail'
@@ -48,11 +48,9 @@ setUnauthorizedCallback(() => {
   window.location.href = `${import.meta.env.BASE_URL}login`
 })
 
-// Restore token from localStorage on page load
-const token = localStorage.getItem('auth_token')
-if (token) {
-  setAuthToken(token)
-}
+// NOTE: Authentication is now handled via httpOnly cookies
+// No need to restore tokens from localStorage on page load
+// The AuthProvider will check authentication status via /auth/userinfo
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

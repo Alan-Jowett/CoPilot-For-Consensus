@@ -6,14 +6,14 @@ import { useAuth } from '../contexts/AuthContext'
 import styles from './Login.module.css'
 
 export function Login() {
-  const { token, login } = useAuth()
+  const { isAuthenticated, login } = useAuth()
 
   // If already logged in, redirect to reports
   useEffect(() => {
-    if (token) {
+    if (isAuthenticated) {
       window.location.href = `${import.meta.env.BASE_URL}reports`
     }
-  }, [token])
+  }, [isAuthenticated])
 
   const handleLogin = (provider: string) => {
     login(provider)
