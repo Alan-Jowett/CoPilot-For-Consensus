@@ -195,20 +195,20 @@ class TestCreateUvicornLogConfig:
         error_logger = config["loggers"]["uvicorn.error"]
         assert error_logger["level"] == "INFO"
 
-        # Check uvicorn.access logger - should be DEBUG for health checks
+        # Check uvicorn.access logger - should be WARNING to suppress noise
         assert "uvicorn.access" in config["loggers"]
         access_logger = config["loggers"]["uvicorn.access"]
-        assert access_logger["level"] == "DEBUG"
+        assert access_logger["level"] == "WARNING"
         assert access_logger["handlers"] == ["console"]
         assert access_logger["propagate"] is False
 
-    def test_access_log_level_is_debug(self):
-        """Test that access logs are set to DEBUG level regardless of service log level."""
+    def test_access_log_level_is_warning(self):
+        """Test that access logs are set to WARNING level to suppress INFO-level noise."""
         for log_level in ["DEBUG", "INFO", "WARNING", "ERROR"]:
             config = create_uvicorn_log_config("test-service", log_level)
 
-            # Access logs should always be DEBUG
-            assert config["loggers"]["uvicorn.access"]["level"] == "DEBUG"
+            # Access logs should always be WARNING to suppress health checks and normal requests
+            assert config["loggers"]["uvicorn.access"]["level"] == "WARNING"
 
             # Other loggers should respect the configured level
             assert config["loggers"]["uvicorn"]["level"] == log_level
@@ -231,7 +231,7 @@ class TestCreateUvicornLogConfig:
 
         # Test that the logger works
         logger = logging.getLogger("uvicorn.access")
-        assert logger.level == logging.DEBUG
+        assert logger.level == logging.WARNING
 
 
 class TestJSONFormatterIntegration:
