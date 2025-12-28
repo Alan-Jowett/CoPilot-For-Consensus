@@ -511,17 +511,20 @@ def require_admin_role(request: Request) -> tuple[str, str | None]:
     if not auth_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
-    # Extract token from Authorization header
+    # Extract token from Authorization header or cookie
+    token = None
     auth_header = request.headers.get("Authorization", "")
-    logger.info(
-        f"Authorization header present: {bool(auth_header)}, "
-        f"starts with Bearer: {auth_header.startswith('Bearer ')}"
-    )
-    if not auth_header.startswith("Bearer "):
-        logger.warning("Missing or invalid Authorization header")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid Authorization header")
-
-    token = auth_header[7:]  # Remove "Bearer " prefix
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]  # Remove "Bearer " prefix
+        logger.info("Token extracted from Authorization header")
+    else:
+        # Try to get token from cookie
+        token = request.cookies.get("auth_token")
+        if token:
+            logger.info("Token extracted from auth_token cookie")
+        else:
+            logger.warning("Missing or invalid Authorization header and auth_token cookie")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid Authorization header")
 
     try:
         # Parse audiences from config
