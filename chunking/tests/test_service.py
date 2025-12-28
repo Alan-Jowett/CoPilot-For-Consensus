@@ -224,6 +224,59 @@ def test_chunk_message_with_empty_string_date(chunking_service):
     assert "date" not in chunk["metadata"]
 
 
+def test_chunk_message_with_null_from(chunking_service):
+    """Test chunking a message with null from field."""
+    message = {
+        "_id": "abc123def4567890",
+        "message_id": "<test@example.com>",
+        "thread_id": "fedcba9876543210",
+        "archive_id": "a1b2c3d4e5f67890",
+        "body_normalized": "This is a test message with some content. " * 100,
+        "from": None,  # Null from
+        "subject": "Test Subject",
+        "draft_mentions": [],
+    }
+
+    chunks = chunking_service._chunk_message(message)
+
+    # Verify chunks were created
+    assert len(chunks) > 0
+
+    # Verify chunk structure
+    chunk = chunks[0]
+    assert "_id" in chunk
+    assert "metadata" in chunk
+    # Sender and sender_name should be empty strings when from is None
+    assert chunk["metadata"]["sender"] == ""
+    assert chunk["metadata"]["sender_name"] == ""
+
+
+def test_chunk_message_with_null_subject(chunking_service):
+    """Test chunking a message with null subject field."""
+    message = {
+        "_id": "abc123def4567890",
+        "message_id": "<test@example.com>",
+        "thread_id": "fedcba9876543210",
+        "archive_id": "a1b2c3d4e5f67890",
+        "body_normalized": "This is a test message with some content. " * 100,
+        "from": {"email": "user@example.com", "name": "Test User"},
+        "subject": None,  # Null subject
+        "draft_mentions": [],
+    }
+
+    chunks = chunking_service._chunk_message(message)
+
+    # Verify chunks were created
+    assert len(chunks) > 0
+
+    # Verify chunk structure
+    chunk = chunks[0]
+    assert "_id" in chunk
+    assert "metadata" in chunk
+    # Subject should be empty string when None
+    assert chunk["metadata"]["subject"] == ""
+
+
 def test_process_messages_success(chunking_service, mock_document_store, mock_publisher):
     """Test processing messages successfully."""
     # Setup mock responses

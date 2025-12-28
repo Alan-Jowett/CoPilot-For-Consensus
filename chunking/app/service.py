@@ -428,10 +428,12 @@ class ChunkingService:
             return []
 
         # Create thread object for chunking
+        # Build metadata with defensive handling for None values
+        from_data = message.get("from") or {}
         metadata = {
-            "sender": message.get("from", {}).get("email", ""),
-            "sender_name": message.get("from", {}).get("name", ""),
-            "subject": message.get("subject", ""),
+            "sender": from_data.get("email", ""),
+            "sender_name": from_data.get("name", ""),
+            "subject": message.get("subject") or "",
             "draft_mentions": message.get("draft_mentions", []),
         }
 
