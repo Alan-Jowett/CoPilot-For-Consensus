@@ -3,36 +3,31 @@
 
 import { getUnauthorizedCallback } from './contexts/AuthContext'
 
-let authToken: string | null = null
-
-// Set the auth token (called from AuthContext)
-export function setAuthToken(token: string | null) {
-  authToken = token
-}
+// NOTE: Auth tokens are now stored in httpOnly cookies (not localStorage)
+// This protects against XSS attacks since JavaScript cannot access httpOnly cookies.
+// The browser automatically sends cookies with requests when credentials: 'include' is set.
 
 export function setUnauthorizedCallback(callback: (() => void) | null) {
   // Note: This is handled in AuthContext now, but keeping for backward compatibility
 }
 
 // Helper to make authenticated API requests
+// Uses httpOnly cookies for authentication (sent automatically by browser)
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers || {})
 
-  // Get the token from localStorage (most recent source of truth)
-  const token = localStorage.getItem('auth_token')
-  console.log('[fetchWithAuth] URL:', url, 'Has token:', !!token)
+  console.log('[fetchWithAuth] URL:', url, 'Using cookie-based auth')
 
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`)
-  }
-
-  const response = await fetch(url, { ...options, headers })
+  // Send cookies with the request (includes httpOnly auth_token cookie)
+  const response = await fetch(url, { 
+    ...options, 
+    headers,
+    credentials: 'include'  // Always include cookies for authentication
+  })
 
   // Handle 401 Unauthorized - redirect to login
   if (response.status === 401) {
-    console.log('[fetchWithAuth] Got 401, clearing token and redirecting to login')
-    localStorage.removeItem('auth_token')
-    authToken = null
+    console.log('[fetchWithAuth] Got 401, redirecting to login')
     const callback = getUnauthorizedCallback()
     if (callback) {
       callback()
@@ -384,9 +379,7 @@ export async function uploadMailboxFile(
           reject(new Error('Failed to parse upload response'))
         }
       } else if (xhr.status === 401) {
-        // Handle unauthorized - clear token and callback
-        authToken = null
-        localStorage.removeItem('auth_token')
+        // Handle unauthorized - callback to redirect to login
         const callback = getUnauthorizedCallback()
         if (callback) callback()
         reject(new Error('UNAUTHORIZED'))
@@ -409,14 +402,9 @@ export async function uploadMailboxFile(
     })
 
     xhr.open('POST', `${INGESTION_API_BASE}/api/uploads`)
-    // Add auth header if token exists (use localStorage as source of truth)
-    const token = localStorage.getItem('auth_token') || authToken
-    if (token) {
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`)
-      console.log('[uploadMailboxFile] Added Authorization header')
-    } else {
-      console.warn('[uploadMailboxFile] No auth token found')
-    }
+    // Enable cookie-based authentication
+    xhr.withCredentials = true
+    console.log('[uploadMailboxFile] Using cookie-based authentication')
     xhr.send(formData)
   })
 }

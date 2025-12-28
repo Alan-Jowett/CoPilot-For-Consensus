@@ -336,7 +336,10 @@ def token_exchange(request: Request) -> JSONResponse:
 def userinfo(request: Request) -> JSONResponse:
     """Get user information from JWT.
 
-    Requires Bearer token in Authorization header.
+    Accepts token from either:
+    - Authorization header (Bearer token)
+    - auth_token cookie (httpOnly cookie set by /callback)
+
     Validates token for any supported audience.
 
     Returns:
@@ -347,12 +350,17 @@ def userinfo(request: Request) -> JSONResponse:
     if not auth_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
-    # Extract token from Authorization header
+    # Extract token from Authorization header or cookie
+    token = None
     auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
-
-    token = auth_header[7:]  # Remove "Bearer " prefix
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]  # Remove "Bearer " prefix
+    else:
+        # Try to get token from cookie
+        token = request.cookies.get("auth_token")
+    
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authentication token (Authorization header or auth_token cookie)")
 
     try:
         # Parse audiences from config (comma-separated string)

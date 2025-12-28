@@ -3,13 +3,14 @@
 
 import React, { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { setAuthToken } from '../contexts/AuthContext'
+import { useAuth } from '../contexts/AuthContext'
 import styles from './Callback.module.css'
 
 export function Callback() {
   const [searchParams] = useSearchParams()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const { checkAuth } = useAuth()
 
   useEffect(() => {
     console.log('[Callback] Component mounted, searchParams:', Object.fromEntries(searchParams))
@@ -19,7 +20,7 @@ export function Callback() {
     // - code parameter: authorization code to exchange for token
     // - state parameter: CSRF protection
     // Or for implicit flow:
-    // - access_token parameter: JWT token directly
+    // - token parameter: JWT token directly
     // - token_type parameter: usually "Bearer"
 
     const token = searchParams.get('token')
@@ -36,12 +37,8 @@ export function Callback() {
 
     if (token) {
       // Token received directly from auth service
-      console.log('[Callback] Token found in URL params, storing directly to localStorage')
-      // Store directly to localStorage first
-      localStorage.setItem('auth_token', token)
-      // Then notify the AuthContext
-      console.log('[Callback] Calling setAuthToken()')
-      setAuthToken(token)
+      // The token is already set as an httpOnly cookie by the auth service
+      console.log('[Callback] Token found in URL params, cookie should be set by auth service')
       
       // Check if this is a token refresh (automatic permission re-sync)
       const isRefresh = searchParams.get('refresh') === 'true'
@@ -61,7 +58,7 @@ export function Callback() {
         console.log('[Callback] Normal login, redirecting to reports')
       }
       
-      // Redirect to reports
+      // Redirect to destination
       console.log('[Callback] Redirecting to', redirectUrl)
       window.location.href = redirectUrl
     } else if (code) {
@@ -72,7 +69,7 @@ export function Callback() {
       setError('No authorization token received')
       setLoading(false)
     }
-  }, [searchParams])
+  }, [searchParams, checkAuth])
 
   const exchangeCodeForToken = async (code: string) => {
     try {
@@ -84,7 +81,9 @@ export function Callback() {
       }
 
       console.log('[Callback] Exchanging code for token, calling /auth/callback...')
-      const response = await fetch(`/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`)
+      const response = await fetch(`/auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`, {
+        credentials: 'include'  // Include cookies in request
+      })
 
       console.log('[Callback] Response status:', response.status)
 
@@ -99,17 +98,9 @@ export function Callback() {
       console.log('[Callback] Got response:', { access_token: !!data.access_token, token_type: data.token_type })
 
       if (data.access_token) {
-        console.log('[Callback] Storing token directly to localStorage')
-        // TODO: Security - Move to httpOnly cookies for production
-        // localStorage is vulnerable to XSS; use httpOnly Secure cookies instead
-        // For now, localStorage is acceptable for local development
-        localStorage.setItem('auth_token', data.access_token)
-        console.log('[Callback] Token stored in localStorage, length:', localStorage.getItem('auth_token')?.length)
-        console.log('[Callback] Verify localStorage has token:', !!localStorage.getItem('auth_token'))
-
-        // Then notify the AuthContext
-        console.log('[Callback] Calling setAuthToken()')
-        setAuthToken(data.access_token)
+        // Token is set as httpOnly cookie by the auth service
+        // No need to store in localStorage (security improvement)
+        console.log('[Callback] Token received and set as httpOnly cookie by auth service')
 
         // Check if this is a token refresh (automatic permission re-sync)
         const isRefresh = searchParams.get('refresh') === 'true'
@@ -129,7 +120,7 @@ export function Callback() {
           console.log('[Callback] Normal login, redirecting to reports')
         }
 
-        // Then redirect after a short delay to allow logs to be read
+        // Redirect after a short delay to allow logs to be read
         console.log('[Callback] Will redirect to', redirectUrl, 'in 1 second (or enable "Preserve log" in DevTools)')
         setTimeout(() => {
           console.log('[Callback] NOW redirecting to', redirectUrl)
