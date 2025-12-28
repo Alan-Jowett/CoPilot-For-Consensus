@@ -43,7 +43,7 @@ class BaseEvent:
     All events follow the event envelope format with common fields.
     Subclasses set event_type to their specific event name.
 
-    Schema: documents/schemas/events/event-envelope.schema.json
+    Schema: docs/schemas/events/event-envelope.schema.json
 
     Attributes:
         event_type: Type of event (set by subclass)
@@ -88,7 +88,7 @@ class BaseEvent:
 class ArchiveIngestedEvent(BaseEvent):
     """Event published when an archive is successfully ingested.
 
-    Schema: documents/schemas/events/ArchiveIngested.schema.json
+    Schema: docs/schemas/events/ArchiveIngested.schema.json
 
     Published by: Ingestion Service
     Consumed by: Parsing Service
@@ -112,7 +112,7 @@ class ArchiveIngestedEvent(BaseEvent):
 class ArchiveIngestionFailedEvent(BaseEvent):
     """Event published when archive ingestion fails.
 
-    Schema: documents/schemas/events/ArchiveIngestionFailed.schema.json
+    Schema: docs/schemas/events/ArchiveIngestionFailed.schema.json
 
     Published by: Ingestion Service
     Routing Key: archive.ingestion.failed
@@ -139,7 +139,7 @@ class ArchiveIngestionFailedEvent(BaseEvent):
 class JSONParsedEvent(BaseEvent):
     """Event published when an archive has been successfully parsed.
 
-    Schema: documents/schemas/events/JSONParsed.schema.json
+    Schema: docs/schemas/events/JSONParsed.schema.json
 
     Published by: Parsing Service
     Consumed by: Chunking Service, Orchestration Service
@@ -160,7 +160,7 @@ class JSONParsedEvent(BaseEvent):
 class ParsingFailedEvent(BaseEvent):
     """Event published when archive parsing fails.
 
-    Schema: documents/schemas/events/ParsingFailed.schema.json
+    Schema: docs/schemas/events/ParsingFailed.schema.json
 
     Published by: Parsing Service
     Routing Key: parsing.failed
@@ -185,7 +185,7 @@ class ParsingFailedEvent(BaseEvent):
 class ChunksPreparedEvent(BaseEvent):
     """Event published when messages have been chunked.
 
-    Schema: documents/schemas/events/ChunksPrepared.schema.json
+    Schema: docs/schemas/events/ChunksPrepared.schema.json
 
     Published by: Chunking Service
     Consumed by: Embedding Service
@@ -206,7 +206,7 @@ class ChunksPreparedEvent(BaseEvent):
 class ChunkingFailedEvent(BaseEvent):
     """Event published when chunking fails.
 
-    Schema: documents/schemas/events/ChunkingFailed.schema.json
+    Schema: docs/schemas/events/ChunkingFailed.schema.json
 
     Published by: Chunking Service
     Routing Key: chunks.failed
@@ -229,7 +229,7 @@ class ChunkingFailedEvent(BaseEvent):
 class EmbeddingsGeneratedEvent(BaseEvent):
     """Event published when embeddings have been generated.
 
-    Schema: documents/schemas/events/EmbeddingsGenerated.schema.json
+    Schema: docs/schemas/events/EmbeddingsGenerated.schema.json
 
     Published by: Embedding Service
     Consumed by: Orchestration Service
@@ -252,7 +252,7 @@ class EmbeddingsGeneratedEvent(BaseEvent):
 class EmbeddingGenerationFailedEvent(BaseEvent):
     """Event published when embedding generation fails.
 
-    Schema: documents/schemas/events/EmbeddingGenerationFailed.schema.json
+    Schema: docs/schemas/events/EmbeddingGenerationFailed.schema.json
 
     Published by: Embedding Service
     Routing Key: embeddings.failed
@@ -276,7 +276,7 @@ class EmbeddingGenerationFailedEvent(BaseEvent):
 class SummarizationRequestedEvent(BaseEvent):
     """Event published when summarization is requested.
 
-    Schema: documents/schemas/events/SummarizationRequested.schema.json
+    Schema: docs/schemas/events/SummarizationRequested.schema.json
 
     Published by: Orchestration Service
     Consumed by: Summarization Service
@@ -297,7 +297,7 @@ class SummarizationRequestedEvent(BaseEvent):
 class OrchestrationFailedEvent(BaseEvent):
     """Event published when orchestration fails.
 
-    Schema: documents/schemas/events/OrchestrationFailed.schema.json
+    Schema: docs/schemas/events/OrchestrationFailed.schema.json
 
     Published by: Orchestration Service
     Routing Key: orchestration.failed
@@ -319,7 +319,7 @@ class OrchestrationFailedEvent(BaseEvent):
 class SummaryCompleteEvent(BaseEvent):
     """Event published when a summary has been generated.
 
-    Schema: documents/schemas/events/SummaryComplete.schema.json
+    Schema: docs/schemas/events/SummaryComplete.schema.json
 
     Published by: Summarization Service
     Consumed by: Reporting Service
@@ -343,7 +343,7 @@ class SummaryCompleteEvent(BaseEvent):
 class SummarizationFailedEvent(BaseEvent):
     """Event published when summarization fails.
 
-    Schema: documents/schemas/events/SummarizationFailed.schema.json
+    Schema: docs/schemas/events/SummarizationFailed.schema.json
 
     Published by: Summarization Service
     Routing Key: summarization.failed
@@ -365,7 +365,7 @@ class SummarizationFailedEvent(BaseEvent):
 class ReportPublishedEvent(BaseEvent):
     """Event published when a report is published.
 
-    Schema: documents/schemas/events/ReportPublished.schema.json
+    Schema: docs/schemas/events/ReportPublished.schema.json
 
     Published by: Reporting Service
     Routing Key: report.published
@@ -385,7 +385,7 @@ class ReportPublishedEvent(BaseEvent):
 class ReportDeliveryFailedEvent(BaseEvent):
     """Event published when report delivery fails.
 
-    Schema: documents/schemas/events/ReportDeliveryFailed.schema.json
+    Schema: docs/schemas/events/ReportDeliveryFailed.schema.json
 
     Published by: Reporting Service
     Routing Key: report.delivery_failed

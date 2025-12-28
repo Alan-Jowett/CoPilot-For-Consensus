@@ -41,7 +41,7 @@ def generate_message_doc_id(
 ) -> str:
     """Generate the canonical `_id` for a message document.
 
-    Composite fields mirror documents/schemas/documents/v1/messages.schema.json
+    Composite fields mirror docs/schemas/documents/v1/messages.schema.json
     description: archive_id|message_id|date|sender_email|subject.
     Missing optional fields are treated as empty strings.
     """

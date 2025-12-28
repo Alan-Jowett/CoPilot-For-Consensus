@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 _schema_cache: dict[str, dict] = {}
 
 # Schema registry mapping (type, version) pairs to relative schema file paths
-# All paths are relative to the repository's documents/schemas/ directory
+# All paths are relative to the repository's docs/schemas/ directory
 SCHEMA_REGISTRY: dict[str, str] = {
     # Event schemas (v1)
     "v1.ArchiveIngested": "events/ArchiveIngested.schema.json",
@@ -62,7 +62,7 @@ def _get_schema_base_dir() -> Path:
     This function is cached to avoid repeated directory tree walking.
 
     Returns:
-        Path to the documents/schemas directory in the repository.
+        Path to the docs/schemas directory in the repository.
 
     Raises:
         FileNotFoundError: If the schema directory cannot be found.
@@ -73,14 +73,14 @@ def _get_schema_base_dir() -> Path:
 
     # Walk up the directory tree looking for the schema directory
     for _ in range(10):  # Limit search depth to avoid infinite loops
-        schema_dir = current / "documents" / "schemas"
+        schema_dir = current / "docs" / "schemas"
         if schema_dir.exists() and schema_dir.is_dir():
             logger.debug(f"Found schema directory at: {schema_dir}")
             return schema_dir
 
         # Check if we've reached the repo root by looking for common markers
         if (current / ".git").exists() or (current / "pyproject.toml").exists():
-            schema_dir = current / "documents" / "schemas"
+            schema_dir = current / "docs" / "schemas"
             if schema_dir.exists() and schema_dir.is_dir():
                 return schema_dir
 
@@ -92,7 +92,7 @@ def _get_schema_base_dir() -> Path:
 
     error_msg = (
         f"Schema directory not found. Searched up from {Path(__file__).resolve().parent} "
-        f"but could not find documents/schemas directory."
+        f"but could not find docs/schemas directory."
     )
     logger.error(error_msg)
     raise FileNotFoundError(error_msg)
