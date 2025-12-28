@@ -371,7 +371,7 @@ class ParsingService:
                 error_type = type(e).__name__
                 logger.info(f"Skipping message {message_id} ({error_type}): {e}")
                 skipped_count += 1
-                
+
                 # Collect metrics for skipped messages
                 if self.metrics_collector:
                     if isinstance(e, DuplicateKeyError):
@@ -393,7 +393,7 @@ class ParsingService:
                             skip_reason = "validation_error"
                     else:
                         skip_reason = "unknown"
-                    
+
                     self.metrics_collector.increment(
                         "parsing_messages_skipped_total",
                         tags={"reason": skip_reason}
