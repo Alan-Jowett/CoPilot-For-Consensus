@@ -19,7 +19,7 @@ class TestLlamaCppSummarizer:
         summarizer = LlamaCppSummarizer()
         assert summarizer.model == "mistral"
         assert summarizer.base_url == "http://localhost:8080"
-        assert summarizer.timeout == 120
+        assert summarizer.timeout == 300
 
     def test_llamacpp_summarizer_custom_config(self):
         """Test creating a llama.cpp summarizer with custom config."""

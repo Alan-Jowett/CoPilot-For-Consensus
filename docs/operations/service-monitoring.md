@@ -1101,7 +1101,7 @@ The exporter exposes the following metrics for monitoring document processing:
 
 - **`copilot_document_status_count{collection, status}`**: Count of documents by collection and status
   - Collections: `archives`, `messages`, `chunks`, `threads`
-  - Status values: `pending`, `processing`, `processed`, `failed`
+  - Status values: `pending`, `processing`, `completed`, `failed`, `failed_max_retries`
 
 - **`copilot_document_processing_duration_seconds{collection}`**: Average processing duration (time between creation and completion)
   - Useful for identifying performance degradation
@@ -1130,8 +1130,8 @@ The **Document Processing Status** dashboard (UID: `copilot-document-processing-
 5. **Avg Archive Attempt Count**: Retry distribution indicator
 6. **Chunk Embedding Completion Rate**: Percentage of chunks with embeddings
 7. **Chunk Embedding Status Over Time**: Trend of embedding generation progress
-8. **Stuck Document Detection (Age by Status)**: Multi-line chart showing age of documents in non-completed states (excludes "processed" documents). Yellow alert >10 min, red alert >30 min. Use this to identify documents stuck in pending or failed states.
-9. **Archive Status Summary**: Table view with status, count, and age (note: age for processed documents is not useful for stuck detection)
+8. **Stuck Document Detection (Age by Status)**: Multi-line chart showing age of documents in non-completed states (excludes "completed" documents). Yellow alert >10 min, red alert >30 min. Use this to identify documents stuck in pending or failed states.
+9. **Archive Status Summary**: Table view with status, count, and age (note: age for completed documents is not useful for stuck detection)
 10. **Archive Processing & Failure Rates**: Rate of successful vs. failed processing
 
 ### Prometheus Queries
@@ -1145,13 +1145,13 @@ copilot_document_status_count{collection="archives"}
 # Failure rate (percentage)
 (copilot_document_status_count{collection="archives",status="failed"}
  / (copilot_document_status_count{collection="archives",status="failed"}
-    + copilot_document_status_count{collection="archives",status="processed"})) * 100
+    + copilot_document_status_count{collection="archives",status="completed"})) * 100
 
 # Documents pending longer than 30 minutes
 copilot_document_age_seconds{collection="archives",status="pending"} > 1800
 
 # All non-completed documents (detect stuck documents)
-copilot_document_age_seconds{collection="archives",status!="processed"}
+copilot_document_age_seconds{collection="archives",status!="completed"}
 
 # Embedding completion rate
 copilot_chunks_embedding_status_count{embedding_generated="True"}
@@ -1159,7 +1159,7 @@ copilot_chunks_embedding_status_count{embedding_generated="True"}
    + copilot_chunks_embedding_status_count{embedding_generated="False"})
 
 # Processing rate (documents/second over 5 minutes)
-rate(copilot_document_status_count{collection="archives",status="processed"}[5m])
+rate(copilot_document_status_count{collection="archives",status="completed"}[5m])
 
 # Failure rate (failures/second over 5 minutes)
 rate(copilot_document_status_count{collection="archives",status="failed"}[5m])

@@ -363,7 +363,7 @@ class RetryStuckDocumentsJob:
 
         query = {
             "attemptCount": {"$gte": max_attempts},
-            "status": {"$nin": ["processed", "failed_max_retries"]}
+            "status": {"$nin": ["completed", "failed_max_retries"]}
         }
 
         return collection.count_documents(query)

@@ -408,7 +408,7 @@ All services (parsing, chunking, embedding, orchestrator, summarization) must:
    document_store.update(
        collection,
        {"archive_id": archive_id},
-       {"$set": {"status": "processed"}}
+       {"$set": {"status": "completed"}}
    )
    ```
 

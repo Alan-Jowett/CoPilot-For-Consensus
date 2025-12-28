@@ -19,7 +19,7 @@ class TestLocalLLMSummarizer:
         summarizer = LocalLLMSummarizer()
         assert summarizer.model == "mistral"
         assert summarizer.base_url == "http://localhost:11434"
-        assert summarizer.timeout == 120
+        assert summarizer.timeout == 300
 
     def test_local_llm_summarizer_custom_config(self):
         """Test creating a local LLM summarizer with custom config."""
