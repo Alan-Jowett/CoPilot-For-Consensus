@@ -229,13 +229,34 @@ async def callback(
         # Record metrics
         metrics.increment("callback_success_total", {"audience": auth_service.config.audiences.split(",")[0]})
 
-        return JSONResponse(
+        # Create response with JWT cookie for seamless SSO integration with services like Grafana
+        # The cookie allows services accessed via browser navigation (not fetch/XHR) to authenticate
+        # using JWT without requiring Authorization headers
+        response = JSONResponse(
             content={
                 "access_token": local_jwt,
                 "token_type": "Bearer",
                 "expires_in": auth_service.config.jwt_default_expiry,
             }
         )
+        
+        # Set JWT as httpOnly cookie for SSO with browser navigation
+        # - httpOnly: prevents XSS attacks (JavaScript cannot access)
+        # - secure: requires HTTPS in production (TODO: enable based on environment)
+        # - samesite=lax: allows cookie on top-level navigation (clicking links)
+        # - path=/: makes cookie available to all paths
+        # - max_age: matches JWT expiry time
+        response.set_cookie(
+            key="auth_token",
+            value=local_jwt,
+            httponly=True,
+            secure=False,  # TODO: Set to True in production with HTTPS
+            samesite="lax",
+            path="/",
+            max_age=auth_service.config.jwt_default_expiry,
+        )
+        
+        return response
 
     except ValueError as e:
         logger.error(f"Callback validation failed: {e}")
@@ -245,6 +266,39 @@ async def callback(
         logger.error(f"Unexpected error during callback: {e}")
         metrics.increment("callback_failed_total", {"error": "internal_error"})
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/logout")
+async def logout() -> JSONResponse:
+    """Logout endpoint that clears the auth cookie.
+    
+    This endpoint clears the httpOnly cookie used for SSO integration.
+    The UI should also clear localStorage.
+    
+    Returns:
+        Success message
+    """
+    global auth_service
+    
+    if not auth_service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    
+    logger.info("Logout requested")
+    metrics.increment("logout_total")
+    
+    # Create response
+    response = JSONResponse(
+        content={"message": "Logged out successfully"}
+    )
+    
+    # Clear the auth cookie by setting it with max_age=0
+    response.delete_cookie(
+        key="auth_token",
+        path="/",
+        samesite="lax",
+    )
+    
+    return response
 
 
 @app.post("/token")

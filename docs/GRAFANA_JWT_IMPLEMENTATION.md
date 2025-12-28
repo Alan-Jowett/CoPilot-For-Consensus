@@ -5,51 +5,57 @@
 
 ## Overview
 
-This implementation adds JWT token-based authentication to Grafana, enabling seamless SSO integration with the existing OAuth/OIDC auth service. Users authenticate once via OAuth/OIDC and can access Grafana without a separate login.
+This implementation adds JWT token-based authentication to Grafana, enabling seamless SSO integration with the existing OAuth/OIDC auth service. Users authenticate once via OAuth/OIDC and can access Grafana without a separate login, including when clicking Grafana links in the UI.
 
 ## Key Features
 
 1. **Automatic User Authentication**: JWT tokens from the auth service are automatically validated by Grafana
 2. **Role-Based Access Control**: Users with 'admin' role in JWT receive Grafana Admin access
-3. **Seamless SSO Experience**: No separate Grafana login required
-4. **Admin-Only UI Integration**: Grafana link only shown to users with admin role
-5. **Backward Compatibility**: Hardcoded admin credentials still work as fallback
+3. **Seamless SSO Experience**: No separate Grafana login required, works with browser link navigation
+4. **Cookie-Based Authentication**: JWT stored in httpOnly cookie enables SSO via regular HTML links
+5. **Admin-Only UI Integration**: Grafana link only shown to users with admin role
+6. **Backward Compatibility**: Hardcoded admin credentials still work as fallback
 
 ## Architecture
 
 ```
-User Flow:
+User Flow (with Cookie-Based SSO):
 1. User logs in via OAuth/OIDC → receives JWT token
-2. JWT token stored in browser localStorage
-3. Browser requests /grafana/ with Authorization header
-4. Nginx forwards Authorization header to Grafana
-5. Grafana validates JWT using public key
-6. User auto-logged-in with role based on JWT claims
+2. Auth service sets JWT in:
+   - Response body (for localStorage storage by UI)
+   - httpOnly cookie (for automatic browser inclusion)
+3. When user clicks Grafana link:
+   - Browser automatically sends auth_token cookie
+   - Nginx extracts JWT from cookie
+   - Nginx forwards JWT as Authorization header to Grafana
+4. Grafana validates JWT using public key
+5. User auto-logged-in with role based on JWT claims
 ```
 
 ## Components Modified
 
 ### Backend Changes
 
-1. **docker-compose.infra.yml**
-   - Added JWT authentication environment variables to Grafana service
+1. **auth/main.py**
+   - Modified `/callback` endpoint to set JWT in httpOnly cookie
+   - Added `/logout` endpoint to clear auth cookie
+   - Cookie settings: httpOnly, samesite=lax, path=/, secure flag for production
+   - Added `GET /.well-known/public_key.pem` endpoint
+   - Added `GET /.well-known/jwks.json` endpoint (OIDC standard)
+
+2. **infra/nginx/nginx.conf**
+   - Updated `/grafana/` location to extract JWT from cookie when Authorization header is absent
+   - Priority: Authorization header (API calls) → auth_token cookie (browser navigation)
+   - Format: "Bearer $cookie_auth_token" forwarded to Grafana
+   - Updated both HTTP and HTTPS server blocks
+
+3. **docker-compose.infra.yml**
+   - Grafana configured with JWT authentication environment variables
    - Configured claim mappings: email, sub (username), name, roles
    - Added volume mount for public key file
    - Enabled auto-sign-up and admin role assignment
 
-2. **infra/nginx/nginx.conf**
-   - Added `proxy_set_header Authorization $http_authorization;` to forward JWT
-   - Updated both HTTP and HTTPS server blocks
-
-3. **auth/main.py**
-   - Added `GET /.well-known/public_key.pem` endpoint
-   - Added `GET /.well-known/jwks.json` endpoint (OIDC standard)
-   - Both endpoints expose public key for external validation
-
-4. **adapters/copilot_auth/copilot_auth/jwt_manager.py**
-   - Added `get_public_key_pem()` method to export public key in PEM format
-
-5. **scripts/setup_grafana_jwt.sh**
+4. **scripts/setup_grafana_jwt.sh**
    - Automated script to extract public key from auth service
    - Validates key is valid PEM format
    - Creates secrets/auth_service_public_key.pem
@@ -66,7 +72,8 @@ User Flow:
 
 3. **ui/src/components/AdminLinks.tsx**
    - New component displaying Grafana link for admin users
-   - Opens Grafana in new tab with Authorization header
+   - Simple HTML link (`<a href="/grafana/">`) works with cookie-based SSO
+   - No JavaScript required to add Authorization headers
 
 4. **ui/src/components/AdminLinks.module.css**
    - Styling for admin tools section
@@ -95,6 +102,8 @@ User Flow:
 ✅ **Defense in Depth**: Frontend hides links, but backend still validates tokens
 ✅ **Token Expiry**: JWT tokens expire after configured time period
 ✅ **Emergency Access**: Hardcoded admin credentials still work as fallback
+✅ **HttpOnly Cookies**: JWT stored in httpOnly cookie prevents XSS access to token
+✅ **Cookie Attributes**: SameSite=lax prevents CSRF attacks while allowing navigation
 
 ### Potential Risks & Mitigations
 
@@ -102,13 +111,15 @@ User Flow:
    - **Mitigation**: Use short-lived tokens (30 minutes default)
    - **Mitigation**: Implement token refresh mechanism
    - **Mitigation**: Use HTTPS (already implemented)
+   - **Mitigation**: HttpOnly cookie prevents XSS-based theft
 
 ⚠️ **Key Rotation**: If private key is compromised, all tokens become invalid
    - **Mitigation**: Implement key rotation mechanism with multiple key IDs
    - **Mitigation**: Monitor auth service logs for suspicious activity
    - **Mitigation**: Use Azure Key Vault in production (recommended)
 
-⚠️ **XSS Attacks**: Could steal token from localStorage
+⚠️ **XSS Attacks**: Could steal token from localStorage (but not from httpOnly cookie)
+   - **Mitigation**: HttpOnly cookie prevents JavaScript access
    - **Mitigation**: Strict CSP headers (should be added)
    - **Mitigation**: Input sanitization in UI
    - **Mitigation**: Consider httpOnly cookies in production
@@ -188,6 +199,33 @@ All criteria met:
 - ✅ Fallback to hardcoded credentials works
 - ✅ No security vulnerabilities detected (CodeQL passed)
 
+## Solution Approach: Cookie-Based JWT for Browser Navigation
+
+The original implementation attempted to use Authorization headers for Grafana SSO, but this approach fails when users click regular HTML links because browsers cannot send custom headers during standard navigation.
+
+**Problem**: The `<a href="/grafana/">` link in AdminLinks.tsx opened Grafana in a new tab, but the browser made a standard GET request without the Authorization header from localStorage.
+
+**Solution**: We implemented a hybrid cookie + header approach:
+1. Auth service `/callback` endpoint now sets JWT in both:
+   - Response body (for localStorage, used by API calls)
+   - httpOnly cookie (automatically sent by browser)
+2. Nginx extracts JWT from cookie when Authorization header is absent
+3. Nginx forwards JWT to Grafana as "Bearer {token}" in Authorization header
+4. Grafana validates JWT using its existing configuration (no changes needed)
+
+**Benefits**:
+- ✅ Works with regular HTML links (browser sends cookies automatically)
+- ✅ Works with API calls (explicit Authorization header takes precedence)
+- ✅ Improved security (httpOnly cookie prevents XSS token theft)
+- ✅ Minimal changes (no Grafana config changes, simple nginx logic)
+- ✅ No client-side JavaScript needed for SSO
+
+**Alternative Approaches Considered** (see issue for details):
+- Auth Proxy mode: Would require JWT validation in nginx (complex)
+- Anonymous + JWT upgrade: Would show login page briefly (poor UX)
+- iframe embedding: Complex and restricted by security policies
+- Cookie-only: Would require changing all API calls (breaking change)
+
 ## Troubleshooting
 
 See `docs/GRAFANA_JWT_TESTING.md` for detailed troubleshooting steps.
@@ -196,14 +234,15 @@ Common issues:
 - Public key file not mounted → Run setup script
 - 401 Unauthorized → Check Grafana logs for JWT validation errors
 - Admin Tools not visible → Verify JWT contains 'admin' role
-- Login page shown → Verify Authorization header forwarding in nginx
+- Login page shown → Check if auth_token cookie is set, verify nginx cookie extraction
+- Cookie not sent → Check cookie domain/path settings, ensure same-origin
 
 ## Future Enhancements
 
 1. **Token Refresh**: Implement automatic token refresh before expiry
 2. **Key Rotation**: Support multiple key IDs for zero-downtime key rotation
 3. **CSP Headers**: Add strict Content Security Policy headers
-4. **HttpOnly Cookies**: Consider using httpOnly cookies instead of localStorage
+4. **Secure Flag**: Enable secure flag on cookie for production HTTPS deployments
 5. **Audit Logging**: Log all Grafana access attempts with user info
 6. **Custom Roles**: Map more granular roles from JWT to Grafana permissions
 7. **JWKS Auto-Update**: Automatically update public key from JWKS endpoint
