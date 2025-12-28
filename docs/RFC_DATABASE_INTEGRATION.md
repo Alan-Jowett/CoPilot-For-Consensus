@@ -158,7 +158,7 @@ The RFC integration adds new services while integrating with existing architectu
 - Stable URLs and versioning
 
 **Access Methods:**
-1. **Bulk Download**: rsync from `ftp.rfc-editor.org::rfcs-text-only`
+1. **Bulk Download**: rsync from `rsync://ftp.rfc-editor.org/rfcs-text-only`
 2. **Individual Fetch**: HTTPS download `https://www.rfc-editor.org/rfc/rfc{number}.xml`
 3. **Datatracker API**: Metadata from `https://datatracker.ietf.org/api/v1/doc/document/`
 
@@ -204,7 +204,7 @@ New microservice: `rfc-ingestion`
     "ingestion_schedule": {
       "type": "string",
       "default": "0 2 * * *",
-      "description": "Cron expression for periodic sync"
+      "description": "Cron expression for periodic sync (evaluated in UTC)"
     }
   }
 }
@@ -257,6 +257,8 @@ New microservice: `rfc-parser`
 }
 ```
 
+**Note on `section_ids` ordering**: The `section_ids` array is ordered in depth-first traversal order (e.g., "1", "1.1", "1.1.1", "1.2", "2", "2.1", etc.) to ensure consistent processing by downstream services (chunking, navigation).
+
 ### Storage Strategy
 
 #### Document Store (MongoDB)
@@ -284,7 +286,8 @@ New microservice: `rfc-parser`
       "requirement_type": "MUST",
       "text": "Clients MUST discard..."
     }
-  ]
+  ],
+  "normative_metadata_source": "derived_from_rfc_document"
 }
 ```
 
@@ -323,7 +326,7 @@ RFCs have well-defined structure. Leverage this for semantic chunks:
 
 #### RFC Embedding Service
 
-New microservice: `rfc-embedding` (or extend existing `embedding` service)
+New microservice: `rfc_embedding` (or extend existing `embedding` service)
 
 **Responsibilities:**
 - Generate embeddings for RFC chunks
@@ -361,12 +364,14 @@ Detect and tag normative language per RFC 2119:
 ```python
 import re
 
+from typing import List
+
 NORMATIVE_PATTERN = re.compile(
     r'\b(MUST(?:\s+NOT)?|SHOULD(?:\s+NOT)?|MAY|REQUIRED)\b'
 )
 
-def detect_normative_language(text: str) -> list[str]:
-    return list(set(NORMATIVE_PATTERN.findall(text)))
+def detect_normative_language(text: str) -> List[str]:
+    return list({match.group(0) for match in NORMATIVE_PATTERN.finditer(text)})
 ```
 
 ---
@@ -382,20 +387,24 @@ Extend existing draft detection in `parsing` service:
 
 ```python
 RFC_REFERENCE_PATTERN = re.compile(
-    r'\b(?:RFC\s*(\d{4,5})|rfc(\d{4,5}))\b',
+    r'\bRFC[-\s]?(\d{4,5})\b',
     re.IGNORECASE
 )
 
 SECTION_REFERENCE_PATTERN = re.compile(
-    r'(?:RFC\s*(\d{4,5}))?[§\s]*[Ss]ection\s+(\d+(?:\.\d+)*)',
+    r'(?:RFC[-\s]?(\d{4,5}))?[§\s]*[Ss]ection\s+(\d+(?:\.\d+)*)',
     re.IGNORECASE
 )
 ```
 
 **Examples Matched:**
 - "RFC 9000"
+- "RFC9000" (without space)
+- "RFC-9000" (with hyphen)
 - "RFC 9000 Section 7.2"
 - "Section 7.2 of RFC 9000"
+
+**Note on Section Reference Pattern**: The pattern handles optional RFC numbers, but for complete coverage, consider splitting into separate patterns for "RFC X Section Y", "Section Y of RFC X", and standalone "Section Y" references to ensure all cases are captured correctly.
 
 **Enhanced Message Schema:**
 ```json
@@ -436,6 +445,13 @@ New microservice: `rfc-linker`
   "mention_context": "We should follow RFC 9000 Section 7.2..."
 }
 ```
+
+**`link_type` values:**
+- `explicit`: The message contains a direct textual citation of the RFC (and optionally section), e.g., "RFC 9000 Section 7.2"
+- `semantic`: The RFC section is linked based on semantic similarity of the content, even if the RFC is not mentioned in the message
+- `user_created`: A link manually added by a user through the UI or API
+
+Implementations SHOULD treat `link_type` as an enumerated field with the values above and keep this list in sync across services.
 
 ---
 
@@ -577,21 +593,23 @@ Enable direct Q&A over RFC content:
 
 ### REST API Endpoints
 
+**API Versioning**: All endpoints use the `/api/v1/` prefix to support future API evolution without breaking existing clients. This is especially important given the 6-phase rollout plan where API contracts may need to evolve.
+
 #### RFC Retrieval
 
-**GET /api/rfcs**
+**GET /api/v1/rfcs**
 - List all RFCs with pagination and filtering
 - Query params: `status`, `year`, `wg`, `search`, `page`, `per_page`
 
-**GET /api/rfcs/{rfc_number}**
+**GET /api/v1/rfcs/{rfc_number}**
 - Get complete RFC document with sections
 
-**GET /api/rfcs/{rfc_number}/sections/{section_id}**
+**GET /api/v1/rfcs/{rfc_number}/sections/{section_id}**
 - Get specific section content
 
 #### RFC Search
 
-**POST /api/rfcs/search**
+**POST /api/v1/rfcs/search**
 - Semantic search over RFC content
 ```json
 {
@@ -606,10 +624,10 @@ Enable direct Q&A over RFC content:
 
 #### RFC-Message Links
 
-**GET /api/rfcs/{rfc_number}/citations**
+**GET /api/v1/rfcs/{rfc_number}/citations**
 - Get all mailing list messages citing this RFC
 
-**GET /api/messages/{message_id}/rfc-links**
+**GET /api/v1/messages/{message_id}/rfc-links**
 - Get all RFC sections linked to this message
 
 ---
@@ -736,8 +754,10 @@ Enable direct Q&A over RFC content:
 |-----------|---------------------|-------------------|
 | RFC retrieval | <100ms | 100 req/s |
 | Section retrieval | <50ms | 200 req/s |
-| Semantic search | <1s | 20 req/s |
-| Q&A query | <5s | 5 req/s |
+| Semantic search | <5s | 20 req/s |
+| Q&A workflow | <5s | 5 req/s |
+
+**Note on Performance Targets**: These targets align with the stated non-goal of sub-second latency for RFC queries (line 103); for the initial release, p95 latencies under 5 seconds for semantic search and Q&A workflows are considered acceptable. The Phase 6 success criterion of "<1s p95 latency" (line 714) refers to optimized performance after production hardening, not the initial release baseline.
 
 ### Scalability Strategy
 
@@ -795,7 +815,10 @@ Enable direct Q&A over RFC content:
 - RFC chunking: Validate chunk boundaries
 - RFC linker: Test pattern matching
 
-**Coverage Target:** 80%
+**Coverage Target and Reporting:**
+- Minimum 80% line coverage **per service and adapter** impacted by this RFC (ingestion, parsing, chunking, linking)
+- The RFC database integration feature should maintain at least 80% aggregate coverage as reflected in the repository-wide Coveralls report
+- Coverage is measured and reported via the existing unified CI workflows (service/adapter pytest runs with `pytest-cov`) and Coveralls integration; no separate coverage tooling is introduced for this feature
 
 ### Integration Tests
 
