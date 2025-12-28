@@ -242,15 +242,16 @@ async def callback(
         
         # Set JWT as httpOnly cookie for SSO with browser navigation
         # - httpOnly: prevents XSS attacks (JavaScript cannot access)
-        # - secure: requires HTTPS in production (TODO: enable based on environment)
+        # - secure: requires HTTPS (read from environment, defaults to False for dev)
         # - samesite=lax: allows cookie on top-level navigation (clicking links)
         # - path=/: makes cookie available to all paths
         # - max_age: matches JWT expiry time
+        cookie_secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
         response.set_cookie(
             key="auth_token",
             value=local_jwt,
             httponly=True,
-            secure=False,  # TODO: Set to True in production with HTTPS
+            secure=cookie_secure,
             samesite="lax",
             path="/",
             max_age=auth_service.config.jwt_default_expiry,
@@ -292,10 +293,13 @@ async def logout() -> JSONResponse:
     )
     
     # Clear the auth cookie by setting it with max_age=0
+    # Use same secure flag as when setting the cookie
+    cookie_secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
     response.delete_cookie(
         key="auth_token",
         path="/",
         samesite="lax",
+        secure=cookie_secure,
     )
     
     return response

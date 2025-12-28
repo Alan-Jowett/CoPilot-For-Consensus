@@ -126,6 +126,14 @@ User Flow (with Cookie-Based SSO):
 
 ## Configuration Reference
 
+### Auth Service Environment Variables
+
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `COOKIE_SECURE` | `false` (default), `true` | Enable secure flag on cookies (requires HTTPS) |
+
+**Note**: Set `COOKIE_SECURE=true` in production deployments with HTTPS to ensure cookies are only sent over encrypted connections.
+
 ### Grafana JWT Environment Variables
 
 | Variable | Value | Purpose |
