@@ -89,9 +89,18 @@ open http://localhost:8080/ui/
 
 # 2. Click login and authenticate with OAuth provider
 
-# 3. After authentication, check localStorage for token
+# 3. After authentication, verify both storage mechanisms:
+
+# 3a. Check localStorage for token (used by API calls)
 # Open browser console and run:
 # localStorage.getItem('auth_token')
+
+# 3b. Check httpOnly cookie (used by browser navigation)
+# Open browser DevTools → Application/Storage → Cookies
+# Look for 'auth_token' cookie with:
+#   - HttpOnly flag set
+#   - SameSite=Lax
+#   - Path=/
 
 # 4. Decode the token to verify claims (use jwt.io or jwt-decode)
 # Expected claims:
@@ -101,7 +110,7 @@ open http://localhost:8080/ui/
 # - roles: array of roles (e.g., ["admin"])
 ```
 
-### Test 4: Access Grafana with JWT Token
+### Test 4: Access Grafana with JWT Token (Cookie-Based SSO)
 
 #### For Admin Users (with 'admin' role in JWT):
 
@@ -114,6 +123,12 @@ open http://localhost:8080/ui/
 #    - You are automatically logged in (no login page)
 #    - You have Admin role (can see Admin menu/gear icon)
 #    - You can create/edit dashboards
+#
+# Behind the scenes:
+# - Browser automatically sends auth_token cookie
+# - Nginx extracts JWT from cookie
+# - Nginx forwards as Authorization: Bearer {token}
+# - Grafana validates and auto-logins user
 ```
 
 #### For Non-Admin Users (without 'admin' role):
@@ -206,19 +221,36 @@ docker compose logs grafana | grep -i "jwt\|unauthorized"
 ### Issue: Grafana shows login page instead of auto-login
 
 **Possible causes:**
-1. Authorization header not being forwarded by nginx
-2. JWT token not being sent by browser
-3. Grafana JWT configuration incorrect
+1. auth_token cookie not set by auth service
+2. Cookie not being sent by browser (domain/path mismatch)
+3. Nginx not extracting JWT from cookie
+4. Grafana JWT configuration incorrect
 
 **Solutions:**
 ```bash
-# Check nginx configuration
-docker compose exec gateway cat /etc/nginx/nginx.conf | grep -A 10 "location /grafana"
+# 1. Check if cookie is set after login
+# In browser DevTools → Application → Cookies
+# Look for 'auth_token' cookie at domain of gateway
 
-# Verify Authorization header is set:
-# proxy_set_header Authorization $http_authorization;
+# 2. Check nginx configuration for cookie extraction
+docker compose exec gateway cat /etc/nginx/nginx.conf | grep -A 20 "location /grafana"
 
-# Check Grafana JWT configuration
+# Verify cookie extraction logic (using map directive):
+# map $http_authorization $auth_header {
+#   "" "Bearer $cookie_auth_token";
+#   default $http_authorization;
+# }
+# proxy_set_header Authorization $auth_header;
+
+# 3. Test cookie extraction manually
+# Get auth_token cookie value from browser
+# Then test Grafana API:
+curl -H "Authorization: Bearer <cookie_value>" \
+  http://localhost:8080/grafana/api/user
+
+# Should return user info, not 401
+
+# 4. Check Grafana JWT configuration
 docker compose exec grafana env | grep GF_AUTH_JWT
 
 # Expected variables:
@@ -227,13 +259,36 @@ docker compose exec grafana env | grep GF_AUTH_JWT
 # GF_AUTH_JWT_KEY_FILE=/etc/grafana/secrets/auth_service_public_key.pem
 ```
 
+### Issue: Cookie not sent to Grafana
+
+**Possible causes:**
+1. Cookie domain doesn't match
+2. Cookie path is incorrect
+3. SameSite attribute blocks cookie
+
+**Solutions:**
+```bash
+# Check cookie attributes in browser DevTools → Application → Cookies
+# auth_token cookie should have:
+#   - Domain: matches your gateway domain
+#   - Path: /
+#   - SameSite: Lax (allows top-level navigation)
+#   - HttpOnly: true
+#   - Secure: false (true in production with HTTPS)
+
+# If cookie is not sent, check browser console for warnings about:
+# - Cross-site cookie restrictions
+# - SameSite attribute issues
+```
+
 ## Success Criteria
 
 - ✅ Public key endpoint returns valid PEM
 - ✅ JWKS endpoint returns valid JWK Set
+- ✅ Auth callback sets JWT in both localStorage and httpOnly cookie
 - ✅ Admin users see "Admin Tools" section in UI
 - ✅ Non-admin users don't see "Admin Tools" section
-- ✅ Admin users can access Grafana with Admin role
+- ✅ Admin users can access Grafana with Admin role via link click
 - ✅ Non-admin users can access Grafana with Viewer role
 - ✅ No separate Grafana login required (seamless SSO)
 - ✅ User email and name from JWT shown in Grafana profile
