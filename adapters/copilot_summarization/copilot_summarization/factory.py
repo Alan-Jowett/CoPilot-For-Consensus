@@ -26,6 +26,7 @@ class SummarizerFactory:
         model: str | None = None,
         api_key: str | None = None,
         base_url: str | None = None,
+        timeout: int | None = None,
         **kwargs
     ) -> Summarizer:
         """Create a summarizer instance based on provider type.
@@ -35,6 +36,7 @@ class SummarizerFactory:
             model: Model name to use. Required for openai, azure, local, and llamacpp backends.
             api_key: API key for cloud providers. Required for openai and azure.
             base_url: Base URL for Azure, local, or llamacpp endpoints. Required for azure, local, and llamacpp.
+            timeout: Request timeout in seconds. Applied to local and llamacpp backends. If not provided, uses backend defaults.
 
         Returns:
             Summarizer instance
@@ -115,10 +117,15 @@ class SummarizerFactory:
                     "Specify the local LLM endpoint (e.g., 'http://localhost:11434')"
                 )
 
-            return LocalLLMSummarizer(
-                model=model,
-                base_url=base_url
-            )
+            # Build kwargs for LocalLLMSummarizer
+            local_kwargs = {
+                "model": model,
+                "base_url": base_url
+            }
+            if timeout is not None:
+                local_kwargs["timeout"] = timeout
+
+            return LocalLLMSummarizer(**local_kwargs)
 
         elif provider == "llamacpp":
             if not model:
@@ -133,10 +140,15 @@ class SummarizerFactory:
                     "Specify the llama.cpp server endpoint (e.g., 'http://localhost:8080')"
                 )
 
-            return LlamaCppSummarizer(
-                model=model,
-                base_url=base_url
-            )
+            # Build kwargs for LlamaCppSummarizer
+            llamacpp_kwargs = {
+                "model": model,
+                "base_url": base_url
+            }
+            if timeout is not None:
+                llamacpp_kwargs["timeout"] = timeout
+
+            return LlamaCppSummarizer(**llamacpp_kwargs)
 
         elif provider == "mock":
             # MockSummarizer has its own default for latency_ms in the class

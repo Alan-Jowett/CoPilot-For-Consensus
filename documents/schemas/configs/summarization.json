@@ -190,6 +190,20 @@
       "default": 12,
       "description": "Number of citations to include in summaries"
     },
+    "citation_text_max_length": {
+      "type": "int",
+      "source": "env",
+      "env_var": "CITATION_TEXT_MAX_LENGTH",
+      "default": 300,
+      "description": "Maximum length for citation text snippets (reduced from 500 to help fit prompts within context limits)"
+    },
+    "llm_timeout_seconds": {
+      "type": "int",
+      "source": "env",
+      "env_var": "LLM_TIMEOUT_SECONDS",
+      "default": 300,
+      "description": "LLM request timeout in seconds (300s/5min default for CPU inference; increase if using large models on CPU)"
+    },
     "max_retries": {
       "type": "int",
       "source": "env",
