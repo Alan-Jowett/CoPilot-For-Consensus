@@ -430,6 +430,20 @@ class ParsingService:
                 error_type = type(e).__name__
                 logger.info(f"Skipping thread {thread_id} ({error_type}): {e}")
                 skipped_count += 1
+
+                # Collect metrics for skipped threads
+                if self.metrics_collector:
+                    if isinstance(e, DuplicateKeyError):
+                        skip_reason = "duplicate"
+                    elif isinstance(e, DocumentValidationError):
+                        skip_reason = "validation_error"
+                    else:
+                        skip_reason = "unknown"
+
+                    self.metrics_collector.increment(
+                        "parsing_threads_skipped_total",
+                        tags={"reason": skip_reason}
+                    )
             except Exception as e:
                 # Other errors are transient failures - re-raise
                 logger.error(f"Error storing thread: {e}")

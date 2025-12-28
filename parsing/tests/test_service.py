@@ -434,6 +434,53 @@ class TestParsingService:
         with pytest.raises(Exception, match="boom"):
             service._store_threads([{"thread_id": "t1"}])
 
+    def test_store_threads_metrics_for_skipped_threads(self):
+        """Metrics are collected for skipped threads with proper categorization."""
+        store = Mock(spec=DocumentStore)
+        publisher = Mock(spec=EventPublisher)
+        subscriber = Mock(spec=EventSubscriber)
+        metrics = Mock()
+
+        service = ParsingService(
+            document_store=store,
+            publisher=publisher,
+            subscriber=subscriber,
+            metrics_collector=metrics,
+        )
+
+        # Test different skip reasons
+        threads = [
+            {"thread_id": "t1"},  # duplicate
+            {"thread_id": "t2"},  # validation error
+            {"thread_id": "t3"},  # success
+        ]
+
+        duplicate_error = DuplicateKeyError("duplicate key")
+        validation_error = DocumentValidationError("threads", ["missing required field"])
+
+        store.insert_document = Mock(side_effect=[
+            duplicate_error,
+            validation_error,
+            None,
+        ])
+
+        service._store_threads(threads)
+
+        # Verify metrics were collected with correct reasons
+        assert metrics.increment.call_count == 2
+
+        # Check duplicate metric
+        metrics.increment.assert_any_call(
+            "parsing_threads_skipped_total",
+            tags={"reason": "duplicate"}
+        )
+
+        # Check validation error metric
+        metrics.increment.assert_any_call(
+            "parsing_threads_skipped_total",
+            tags={"reason": "validation_error"}
+        )
+
     def test_event_publishing_on_success(self, document_store, subscriber, sample_mbox_file):
         """Test that JSONParsed events are published (one per message) on successful parsing."""
         mock_publisher = MockPublisher()
