@@ -28,10 +28,10 @@
                   "index": 1,
                   "text": "Processing"
                 },
-                "processed": {
+                "completed": {
                   "color": "green",
                   "index": 2,
-                  "text": "Processed"
+                  "text": "Completed"
                 },
                 "failed": {
                   "color": "red",
@@ -145,7 +145,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "processed"
+              "options": "completed"
             },
             "properties": [
               {
@@ -579,13 +579,13 @@
       },
       "targets": [
         {
-          "expr": "copilot_document_age_seconds{collection=\"archives\",status!=\"processed\"}",
+          "expr": "copilot_document_age_seconds{collection=\"archives\",status!=\"completed\"}",
           "refId": "A",
           "legendFormat": "{{status}}"
         }
       ],
       "title": "Stuck Document Detection (Age by Status)",
-      "description": "Time since last update for documents NOT in 'processed' status. High values indicate documents stuck in pending or failed states. Excludes completed documents.",
+      "description": "Time since last update for documents NOT in 'completed' status. High values indicate documents stuck in pending or failed states. Excludes completed documents.",
       "type": "timeseries"
     },
     {
@@ -684,7 +684,7 @@
         }
       ],
       "title": "Archive Status Summary",
-      "description": "Summary of document counts and age by status. Note: Age for 'processed' documents represents total lifetime (not useful for stuck detection). Focus on 'pending' and 'failed' age for troubleshooting.",
+      "description": "Summary of document counts and age by status. Note: Age for 'completed' documents represents total lifetime (not useful for stuck detection). Focus on 'pending' and 'failed' age for troubleshooting.",
       "transformations": [
         {
           "id": "merge",
@@ -776,7 +776,7 @@
       },
       "targets": [
         {
-          "expr": "rate(copilot_document_status_count{collection=\"archives\",status=\"processed\"}[5m])",
+          "expr": "rate(copilot_document_status_count{collection=\"archives\",status=\"completed\"}[5m])",
           "refId": "A",
           "legendFormat": "Processing Rate"
         },

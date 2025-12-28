@@ -20,7 +20,7 @@ groups:
             copilot_document_status_count{collection="archives",status="failed"}
             /
             (copilot_document_status_count{collection="archives",status="failed"}
-             + copilot_document_status_count{collection="archives",status="processed"})
+             + copilot_document_status_count{collection="archives",status="completed"})
           ) > 0.1
         for: 15m
         labels:

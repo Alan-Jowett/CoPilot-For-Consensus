@@ -25,13 +25,13 @@ The `archives` collection uses a `status` field to track processing state:
 
 **Lifecycle:**
 ```
-pending → processed
+pending → completed
         ↘ failed
 ```
 
 **States:**
 - **`pending`**: Archive ingested, awaiting parsing
-- **`processed`**: Successfully parsed (all messages extracted)
+- **`completed`**: Successfully parsed (all messages extracted)
 - **`failed`**: Parsing failed after retries
 
 **Schema:** See [`documents/schemas/documents/v1/archives.schema.json`](./schemas/documents/v1/archives.schema.json)
@@ -40,14 +40,14 @@ pending → processed
 {
   "status": {
     "type": "string",
-    "enum": ["pending", "processed", "failed"]
+    "enum": ["pending", "processing", "completed", "failed", "failed_max_retries"]
   }
 }
 ```
 
 **Setting the Status:**
 - **Ingestion Service** sets `status: "pending"` when creating archive documents
-- **Parsing Service** updates to `"processed"` or `"failed"` based on outcome
+- **Parsing Service** updates to `"completed"` or `"failed"` based on outcome
 - No intermediate `"processing"` state - transitions are atomic
 
 **Example from Ingestion Service:**

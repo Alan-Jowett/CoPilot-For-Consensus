@@ -72,7 +72,7 @@ def verify_archives_collection():
 
         # Count by status
         print("\nArchive status breakdown:")
-        for status in ['pending', 'processed', 'failed']:
+        for status in ['pending', 'processing', 'completed', 'failed', 'failed_max_retries']:
             count = archives.count_documents({'status': status})
             print(f"  {status}: {count}")
 

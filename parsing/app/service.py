@@ -203,9 +203,9 @@ class ParsingService:
                 error_msg = "No messages found in archive"
                 logger.warning(error_msg)
 
-                # Update archive status to 'processed' with 0 messages
+                # Update archive status to 'completed' with 0 messages
                 # This is not an error - just an empty archive
-                self._update_archive_status(archive_id, "processed", 0)
+                self._update_archive_status(archive_id, "completed", 0)
                 return
 
             # Generate canonical _id for each message (needed for thread building)
@@ -232,8 +232,8 @@ class ParsingService:
                 self._store_threads(threads)
                 logger.info(f"Created {len(threads)} threads")
 
-            # Update archive status to 'processed'
-            self._update_archive_status(archive_id, "processed", len(parsed_messages))
+            # Update archive status to 'completed'
+            self._update_archive_status(archive_id, "completed", len(parsed_messages))
 
             # Calculate duration
             duration = time.monotonic() - start_time
@@ -416,7 +416,7 @@ class ParsingService:
 
         Args:
             archive_id: Archive identifier
-            status: New status (e.g., 'processed', 'failed')
+            status: New status (e.g., 'completed', 'failed')
             message_count: Number of messages parsed from archive
 
         Note:

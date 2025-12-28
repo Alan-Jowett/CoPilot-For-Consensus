@@ -176,7 +176,7 @@ def example_document_validation():
         "file_size_bytes": 1048576,
         "source": "ietf-announce",
         "ingestion_date": "2025-12-21T12:00:00Z",
-        "status": "processed"
+        "status": "completed"
     }
 
     is_valid, errors = validate_json(valid_archive, schema)

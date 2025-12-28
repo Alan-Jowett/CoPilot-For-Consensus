@@ -84,7 +84,7 @@ store = create_document_store(
 if store.connect():
     doc_id = store.insert_document("archives", {
         "archive_id": "abc-123",
-        "status": "processed",
+        "status": "completed",
         "timestamp": "2025-01-01T00:00:00Z"
     })
     store.disconnect()
@@ -110,7 +110,7 @@ store = create_document_store(
 store.connect()
 doc_id = store.insert_document("archives", {
     "archive_id": "abc-123",
-    "status": "processed",
+    "status": "completed",
     "timestamp": "2025-01-01T00:00:00Z"
 })
 store.disconnect()

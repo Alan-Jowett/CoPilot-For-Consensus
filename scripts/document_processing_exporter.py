@@ -262,7 +262,7 @@ def collect_metrics(client: MongoClient):
             ).set(count)
 
         # Ensure all expected statuses are represented (set to 0 if not present)
-        for status in ["pending", "processed", "failed"]:
+        for status in ["pending", "completed", "failed"]:
             if status not in archive_status:
                 document_status_count.labels(
                     database=DB_NAME,
