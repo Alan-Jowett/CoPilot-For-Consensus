@@ -5,11 +5,13 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { fetchReport, Report } from '../api'
 import ReactMarkdown from 'react-markdown'
+import { AccessDenied } from '../components/AccessDenied'
 
 export function ReportDetail() {
   const { reportId } = useParams()
   const [report, setReport] = useState<Report | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [accessDenied, setAccessDenied] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -17,9 +19,18 @@ export function ReportDetail() {
     let cancelled = false
     setLoading(true)
     setError(null)
+    setAccessDenied(null)
     fetchReport(reportId)
       .then(r => { if (!cancelled) setReport(r) })
-      .catch(e => { if (!cancelled) setError(e?.message || 'Failed to load report') })
+      .catch(e => { 
+        if (!cancelled) {
+          if (e?.message?.startsWith('ACCESS_DENIED:')) {
+            setAccessDenied(e.message.replace('ACCESS_DENIED: ', ''))
+          } else {
+            setError(e?.message || 'Failed to load report')
+          }
+        }
+      })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [reportId])
@@ -28,6 +39,7 @@ export function ReportDetail() {
     navigator.clipboard.writeText(text)
   }
 
+  if (accessDenied) return <AccessDenied message={accessDenied} />
   if (loading) return <div className="no-reports">Loading…</div>
   if (error === 'NOT_FOUND') return <div className="no-reports">Report not found</div>
   if (error) return <div className="no-reports">{error}</div>

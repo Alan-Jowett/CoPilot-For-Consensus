@@ -5,12 +5,14 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { fetchIngestionSources, deleteIngestionSource, triggerIngestionSource, IngestionSource } from '../api'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { AccessDenied } from '../components/AccessDenied'
 
 export function SourcesList() {
   const navigate = useNavigate()
   const [sources, setSources] = useState<IngestionSource[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [accessDenied, setAccessDenied] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [sourceToDelete, setSourceToDelete] = useState<string | null>(null)
@@ -18,10 +20,15 @@ export function SourcesList() {
   const loadSources = async () => {
     setLoading(true)
     setError(null)
+    setAccessDenied(null)
     try {
       const data = await fetchIngestionSources()
       setSources(data.sources)
     } catch (e: unknown) {
+      if (e instanceof Error && e.message.startsWith('ACCESS_DENIED:')) {
+        setAccessDenied(e.message.replace('ACCESS_DENIED: ', ''))
+        return
+      }
       const message = e instanceof Error ? e.message : 'Failed to load sources'
       setError(message)
     } finally {
@@ -70,6 +77,11 @@ export function SourcesList() {
       const message = e instanceof Error ? e.message : 'Failed to trigger ingestion'
       setError(message)
     }
+  }
+
+  // If user lacks permissions, show access denied screen
+  if (accessDenied) {
+    return <AccessDenied message={accessDenied} />
   }
 
   return (

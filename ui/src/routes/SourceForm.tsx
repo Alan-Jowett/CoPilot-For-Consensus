@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { fetchIngestionSource, createIngestionSource, updateIngestionSource, uploadMailboxFile, IngestionSource } from '../api'
+import { AccessDenied } from '../components/AccessDenied'
 
 const SOURCE_TYPES = ['local', 'rsync', 'http', 'imap']
 
@@ -17,6 +18,7 @@ export function SourceForm() {
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [accessDenied, setAccessDenied] = useState<string | null>(null)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
 
   const [form, setForm] = useState<IngestionSource>({
@@ -37,6 +39,7 @@ export function SourceForm() {
     let cancelled = false
     setLoading(true)
     setError(null)
+    setAccessDenied(null)
 
     fetchIngestionSource(sourceName!)
       .then(source => {
@@ -53,6 +56,10 @@ export function SourceForm() {
       })
       .catch(e => {
         if (!cancelled) {
+          if (e?.message?.startsWith('ACCESS_DENIED:')) {
+            setAccessDenied(e.message.replace('ACCESS_DENIED: ', ''))
+            return
+          }
           const message =
             e instanceof Error && e.message === 'NOT_FOUND'
               ? 'Source not found'
@@ -158,6 +165,10 @@ export function SourceForm() {
     } finally {
       setSaving(false)
     }
+  }
+
+  if (accessDenied) {
+    return <AccessDenied message={accessDenied} />
   }
 
   if (loading) {
