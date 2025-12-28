@@ -329,6 +329,62 @@ class TestParsingService:
         assert "Skipping message m1 (DocumentValidationError)" in caplog.text
         assert "Stored 1 messages, skipped 1 (duplicates/validation)" in caplog.text
 
+    def test_store_messages_metrics_for_skipped_messages(self):
+        """Metrics are collected for skipped messages with proper categorization."""
+        store = Mock(spec=DocumentStore)
+        publisher = Mock(spec=EventPublisher)
+        subscriber = Mock(spec=EventSubscriber)
+        metrics = Mock()
+        
+        service = ParsingService(
+            document_store=store,
+            publisher=publisher,
+            subscriber=subscriber,
+            metrics_collector=metrics,
+        )
+        
+        # Test different skip reasons
+        messages = [
+            {"message_id": "m1", "body_raw": "some text", "attachments": []},  # duplicate
+            {"message_id": "m2", "body_raw": "", "attachments": []},  # empty body
+            {"message_id": "m3", "body_raw": "text", "attachments": ["file.pdf"]},  # other validation
+            {"message_id": "m4"},  # success
+        ]
+        
+        duplicate_error = DuplicateKeyError("duplicate key")
+        empty_body_error = DocumentValidationError("messages", ["'' should be non-empty at 'body_normalized'"])
+        other_validation_error = DocumentValidationError("messages", ["missing required field"])
+        
+        store.insert_document = Mock(side_effect=[
+            duplicate_error,
+            empty_body_error,
+            other_validation_error,
+            None,
+        ])
+        
+        service._store_messages(messages)
+        
+        # Verify metrics were collected with correct reasons
+        assert metrics.increment.call_count == 3
+        
+        # Check duplicate metric
+        metrics.increment.assert_any_call(
+            "parsing_messages_skipped_total",
+            tags={"reason": "duplicate"}
+        )
+        
+        # Check empty body metric
+        metrics.increment.assert_any_call(
+            "parsing_messages_skipped_total",
+            tags={"reason": "empty_body"}
+        )
+        
+        # Check other validation metric
+        metrics.increment.assert_any_call(
+            "parsing_messages_skipped_total",
+            tags={"reason": "validation_error"}
+        )
+
     def test_store_messages_raises_on_transient_errors(self, mock_service):
         """Non-permanent errors are re-raised for retry handling."""
         service, store = mock_service
