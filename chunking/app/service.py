@@ -152,18 +152,21 @@ class ChunkingService:
                 # Requeue by archive
                 requeued = 0
                 for archive_id, msg_doc_ids in archive_groups.items():
-                    event_data = {
-                        "archive_id": archive_id,
-                        "message_doc_ids": msg_doc_ids,
-                        "message_count": len(msg_doc_ids),
+                    event = {
+                        "event_type": "JSONParsed",
+                        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                        "data": {
+                            "archive_id": archive_id,
+                            "message_doc_ids": msg_doc_ids,
+                            "message_count": len(msg_doc_ids),
+                        },
                     }
 
                     try:
                         self.publisher.publish(
-                            event_type="JSONParsed",
-                            data=event_data,
-                            routing_key="json.parsed",
                             exchange="copilot.events",
+                            routing_key="json.parsed",
+                            event=event,
                         )
                         requeued += len(msg_doc_ids)
                         logger.debug(f"Requeued {len(msg_doc_ids)} messages from archive {archive_id}")
