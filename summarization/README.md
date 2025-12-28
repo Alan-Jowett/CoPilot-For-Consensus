@@ -53,6 +53,8 @@ The Summarization Service turns retrieved context into concise, citation-rich su
 | `CONTEXT_WINDOW_TOKENS` | Integer | No | `3000` | Token budget for retrieved context |
 | `TOP_K` | Integer | No | `12` | Chunks to retrieve per thread |
 | `CITATION_COUNT` | Integer | No | `12` | Maximum citations per summary |
+| `CITATION_TEXT_MAX_LENGTH` | Integer | No | `300` | Maximum length for citation text snippets (characters) |
+| `LLM_TIMEOUT_SECONDS` | Integer | No | `300` | LLM request timeout in seconds (5 min for CPU inference) |
 | `RETRY_MAX_ATTEMPTS` | Integer | No | `3` | Retry attempts on failures |
 | `RETRY_BACKOFF_SECONDS` | Integer | No | `5` | Base backoff interval |
 | `AZURE_OPENAI_KEY` | String | No | - | Azure OpenAI API key (if using Azure) |
@@ -71,7 +73,17 @@ The Summarization Service turns retrieved context into concise, citation-rich su
 LLM_BACKEND=ollama
 LLM_MODEL=mistral
 OLLAMA_HOST=http://ollama:11434
+# For CPU inference, increase timeout to allow sufficient generation time
+LLM_TIMEOUT_SECONDS=300  # 5 minutes (default)
+# Reduce prompt size to fit within context limits
+CITATION_TEXT_MAX_LENGTH=300  # characters (default)
 ```
+
+**Note on CPU Performance:** When running Ollama on CPU without GPU acceleration, LLM inference is significantly slower. The default timeout of 300 seconds (5 minutes) is calibrated for CPU inference with models like Mistral-7B. If you experience timeouts:
+- Increase `LLM_TIMEOUT_SECONDS` (e.g., 600 for 10 minutes)
+- Reduce `TOP_K` to use fewer context chunks (e.g., 8 instead of 12)
+- Consider using a smaller/faster model (e.g., TinyLlama, Phi-2)
+- For production workloads, enable GPU acceleration (see [OLLAMA_GPU_SETUP.md](../documents/OLLAMA_GPU_SETUP.md))
 
 **Azure OpenAI:**
 ```bash
