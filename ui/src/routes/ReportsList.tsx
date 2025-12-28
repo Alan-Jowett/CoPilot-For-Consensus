@@ -79,10 +79,10 @@ export function ReportsList() {
       } catch (e: unknown) {
         if (cancelled) return
         let message = 'Failed to load reports'
-        if (e instanceof Error && e.message) {
+        if (e instanceof Error && e?.message) {
           // Check if this is an ACCESS_DENIED error
-          if (e.message.startsWith('ACCESS_DENIED:')) {
-            setAccessDenied(e.message.replace('ACCESS_DENIED: ', ''))
+          if (e?.message?.startsWith('ACCESS_DENIED:')) {
+            setAccessDenied(e?.message?.replace('ACCESS_DENIED: ', '') ?? '')
             return
           }
           message = e.message
