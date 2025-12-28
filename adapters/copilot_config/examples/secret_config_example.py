@@ -103,7 +103,7 @@ def main():
 def schema_based_example():
     """Example using schema JSON file."""
 
-    # Schema file content (documents/schemas/configs/auth.json):
+    # Schema file content (docs/schemas/configs/auth.json):
     # {
     #   "service_name": "auth",
     #   "fields": {
@@ -124,7 +124,7 @@ def schema_based_example():
     # }
 
     # Load schema from file
-    schema = ConfigSchema.from_json_file("documents/schemas/configs/auth.json")
+    schema = ConfigSchema.from_json_file("docs/schemas/configs/auth.json")
 
     # Create providers
     secrets = create_secret_provider("local", base_path="/run/secrets")

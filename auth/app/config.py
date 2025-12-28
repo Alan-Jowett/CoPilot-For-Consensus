@@ -21,7 +21,7 @@ def load_auth_config():
 
     Uses copilot_config with schema-driven configuration loading.
     Secrets integration is handled transparently by load_typed_config
-    based on configuration in documents/schemas/configs/auth.json.
+    based on configuration in docs/schemas/configs/auth.json.
 
     Returns:
         TypedConfig instance with validated configuration

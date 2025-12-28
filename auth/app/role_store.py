@@ -87,7 +87,7 @@ class RoleStore:
         schema_dir = getattr(config, "role_store_schema_dir", None)
         if schema_dir is None:
             # Default to repository schema location
-            schema_dir = Path(__file__).resolve().parents[1] / "documents" / "schemas" / "role_store"
+            schema_dir = Path(__file__).resolve().parents[2] / "docs" / "schemas" / "role_store"
 
         schema_provider = FileSchemaProvider(Path(schema_dir))
 

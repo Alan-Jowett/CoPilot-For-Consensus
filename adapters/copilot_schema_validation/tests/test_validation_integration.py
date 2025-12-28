@@ -47,8 +47,8 @@ class TestValidationIntegration:
         """Test that event-envelope is not requested from arbitrary schema providers.
 
         This verifies the fix for the issue where document schema providers
-        (pointing to documents/schemas/documents/) were being asked for
-        event-envelope.schema.json, which only exists in documents/schemas/events/.
+        (pointing to docs/schemas/documents/) were being asked for
+        event-envelope.schema.json, which only exists in docs/schemas/events/.
 
         The event envelope should only be loaded from the filesystem, not from
         the schema_provider parameter passed to validate_json().
