@@ -15,9 +15,7 @@ interface AccessDeniedProps {
 export function AccessDenied({ message, showLogout = true }: AccessDeniedProps) {
   const { logout } = useAuth()
 
-  const defaultMessage = 
-    'You do not have permission to access this resource. ' +
-    'Please contact an administrator to request access.'
+  const defaultMessage = `You do not have permission to access this resource. Please contact an administrator to request access.`
 
   return (
     <div style={{
