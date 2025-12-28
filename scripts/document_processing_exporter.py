@@ -262,7 +262,9 @@ def collect_metrics(client: MongoClient):
             ).set(count)
 
         # Ensure all expected statuses are represented (set to 0 if not present)
-        for status in ["pending", "completed", "failed"]:
+        # Note: Using subset of schema statuses that are commonly monitored.
+        # Full schema: ['pending', 'processing', 'completed', 'failed', 'failed_max_retries']
+        for status in ["pending", "processing", "completed", "failed", "failed_max_retries"]:
             if status not in archive_status:
                 document_status_count.labels(
                     database=DB_NAME,
