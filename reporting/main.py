@@ -502,16 +502,6 @@ def main():
         # Check if we have vector store configuration
         if hasattr(config, 'vector_store_type') and config.vector_store_type:
             try:
-                logger.info("Creating vector store for topic search...")
-                from copilot_vectorstore import create_vector_store
-                vector_store = create_vector_store(
-                    store_type=config.vector_store_type,
-                    host=getattr(config, 'vector_store_host', 'localhost'),
-                    port=getattr(config, 'vector_store_port', 6333),
-                    collection_name=getattr(config, 'vector_store_collection', 'embeddings'),
-                )
-                logger.info("Vector store created successfully")
-
                 logger.info("Creating embedding provider for topic search...")
                 from copilot_embedding import create_embedding_provider
                 embedding_provider = create_embedding_provider(
@@ -520,6 +510,24 @@ def main():
                     device=getattr(config, 'device', 'cpu'),
                 )
                 logger.info("Embedding provider created successfully")
+                
+                # Get embedding dimension from a test embedding
+                test_embedding = embedding_provider.embed("test")
+                embedding_dimension = len(test_embedding)
+                logger.info(f"Detected embedding dimension: {embedding_dimension}")
+                
+                logger.info("Creating vector store for topic search...")
+                from copilot_vectorstore import create_vector_store
+                vector_store = create_vector_store(
+                    backend=config.vector_store_type,  # Changed from store_type to backend
+                    dimension=embedding_dimension,
+                    host=getattr(config, 'vector_store_host', 'localhost'),
+                    port=getattr(config, 'vector_store_port', 6333),
+                    collection_name=getattr(config, 'vector_store_collection', 'embeddings'),
+                    distance='cosine',  # Use cosine similarity for embeddings
+                    upsert_batch_size=100,  # Batch size for upserts
+                )
+                logger.info("Vector store created successfully")
                 logger.info("Topic-based search is enabled")
             except Exception as e:
                 logger.warning(f"Failed to initialize topic search components: {e}")
