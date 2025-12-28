@@ -3,14 +3,12 @@
 
 import React, { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
 import styles from './Callback.module.css'
 
 export function Callback() {
   const [searchParams] = useSearchParams()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const { checkAuth } = useAuth()
 
   useEffect(() => {
     console.log('[Callback] Component mounted, searchParams:', Object.fromEntries(searchParams))
