@@ -83,7 +83,9 @@ CITATION_TEXT_MAX_LENGTH=300  # characters (default)
 - Increase `LLM_TIMEOUT_SECONDS` (e.g., 600 for 10 minutes)
 - Reduce `TOP_K` to use fewer context chunks (e.g., 8 instead of 12)
 - Consider using a smaller/faster model (e.g., TinyLlama, Phi-2)
-- For production workloads, enable GPU acceleration (see [OLLAMA_GPU_SETUP.md](../documents/OLLAMA_GPU_SETUP.md))
+- For production workloads, enable GPU acceleration:
+  - NVIDIA GPUs with Ollama: See [OLLAMA_GPU_SETUP.md](../documents/OLLAMA_GPU_SETUP.md)
+  - AMD GPUs with llama.cpp: See [LLAMA_CPP_AMD_SETUP.md](../documents/LLAMA_CPP_AMD_SETUP.md)
 
 **Azure OpenAI:**
 ```bash
