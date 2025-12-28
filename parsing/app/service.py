@@ -215,7 +215,7 @@ class ParsingService:
                         archive_id=archive_id,
                         message_id=message.get("message_id", ""),
                         date=message.get("date"),
-                        sender_email=message.get("from", {}).get("email"),
+                        sender_email=(message.get("from") or {}).get("email"),
                         subject=message.get("subject"),
                     )
 
@@ -359,7 +359,7 @@ class ParsingService:
                         archive_id=message.get("archive_id", ""),
                         message_id=message.get("message_id", ""),
                         date=message.get("date"),
-                        sender_email=message.get("from", {}).get("email"),
+                        sender_email=(message.get("from") or {}).get("email"),
                         subject=message.get("subject"),
                     )
 

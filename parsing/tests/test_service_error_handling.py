@@ -183,3 +183,39 @@ def test_store_threads_transient_errors_are_reraised(caplog):
 
     error_logs = [r for r in caplog.records if "Error storing thread" in r.message]
     assert error_logs
+
+
+def test_store_messages_handles_none_from_field():
+    """Test that messages with None 'from' field are handled gracefully.
+    
+    This tests the fix for AttributeError when message["from"] is None.
+    Previously, message.get("from", {}).get("email") would fail because
+    .get(key, default) only returns default when key is missing, not when
+    value is None. The fix uses (message.get("from") or {}).get("email").
+    """
+    msgs = [
+        {
+            "message_id": "m1",
+            "from": None,  # This used to cause AttributeError
+            "archive_id": "test-archive",
+            "date": "2023-10-15T12:00:00Z",
+            "subject": "Test message",
+        },
+        {
+            "message_id": "m2",
+            "from": {"email": "sender@example.com", "name": "Sender"},
+            "archive_id": "test-archive",
+            "date": "2023-10-15T13:00:00Z",
+            "subject": "Test message 2",
+        },
+    ]
+    store = FakeDocumentStore({
+        "messages": [None, None]  # Both succeed
+    })
+    service = make_service_with_store(store)
+
+    # Should not raise AttributeError
+    service._store_messages(msgs)
+
+    # Both messages should have been processed
+    assert store.calls["messages"] == 2
