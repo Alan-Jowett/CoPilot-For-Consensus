@@ -266,6 +266,13 @@ services:
       - DOCUMENT_DATABASE_HOST=documentdb
       - DOCUMENT_DATABASE_PORT=27017
       - DOCUMENT_DATABASE_NAME=copilot
+      - VECTOR_STORE_TYPE=qdrant
+      - VECTOR_DB_HOST=vectorstore
+      - VECTOR_DB_PORT=6333
+      - VECTOR_DB_COLLECTION=embeddings
+      - EMBEDDING_BACKEND=${EMBEDDING_BACKEND:-sentencetransformers}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-all-MiniLM-L6-v2}
+      - DEVICE=${DEVICE:-cpu}
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
       - HTTP_PORT=8080
@@ -285,6 +292,8 @@ services:
       messagebus:
         condition: service_healthy
       documentdb:
+        condition: service_healthy
+      vectorstore:
         condition: service_healthy
       auth:
         condition: service_healthy

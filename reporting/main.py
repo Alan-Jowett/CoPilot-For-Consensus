@@ -515,8 +515,9 @@ def main():
                 logger.info("Creating embedding provider for topic search...")
                 from copilot_embedding import create_embedding_provider
                 embedding_provider = create_embedding_provider(
-                    provider_type=getattr(config, 'embedding_provider', 'sentence-transformer'),
-                    model_name=getattr(config, 'embedding_model', 'all-MiniLM-L6-v2'),
+                    backend=getattr(config, 'embedding_backend', 'sentencetransformers'),
+                    model=getattr(config, 'embedding_model', 'all-MiniLM-L6-v2'),
+                    device=getattr(config, 'device', 'cpu'),
                 )
                 logger.info("Embedding provider created successfully")
                 logger.info("Topic-based search is enabled")
