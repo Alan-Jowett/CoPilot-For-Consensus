@@ -72,18 +72,41 @@ echo -e "${YELLOW}Creating service principal...${NC}"
 MAX_RETRIES=5
 RETRY_COUNT=0
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    PRINCIPAL_ID=$(az ad sp create --id "$APP_ID" --query id -o tsv 2>&1)
-    if [ $? -eq 0 ] && [ -n "$PRINCIPAL_ID" ]; then
+    SP_OUTPUT=$(az ad sp create --id "$APP_ID" --query id -o tsv 2>&1)
+    SP_EXIT_CODE=$?
+    
+    if [ $SP_EXIT_CODE -eq 0 ] && [ -n "$SP_OUTPUT" ]; then
+        PRINCIPAL_ID="$SP_OUTPUT"
         echo -e "${GREEN}✓ Service principal created: $PRINCIPAL_ID${NC}"
         break
     else
+        # Check if the error is "already exists" (idempotent, OK to ignore)
+        if echo "$SP_OUTPUT" | grep -q "already exists"; then
+            # If service principal already exists, retrieve its ID
+            PRINCIPAL_ID=$(az ad sp list --filter "appId eq '$APP_ID'" --query "[0].id" -o tsv 2>&1)
+            if [ -n "$PRINCIPAL_ID" ]; then
+                echo -e "${GREEN}✓ Service principal already exists: $PRINCIPAL_ID (idempotent)${NC}"
+                break
+            fi
+        fi
+        
+        # Check if error is permission-related (fatal, don't retry)
+        if echo "$SP_OUTPUT" | grep -qE "(Insufficient|Authorization|permission)"; then
+            echo -e "${RED}Error: Insufficient permissions to create service principal.${NC}"
+            echo -e "${RED}Details: $SP_OUTPUT${NC}"
+            echo -e "${YELLOW}You need 'Application Administrator' or 'Global Administrator' role in Azure AD.${NC}"
+            exit 1
+        fi
+        
+        # Otherwise assume it's a propagation issue and retry
         RETRY_COUNT=$((RETRY_COUNT + 1))
         if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
             echo -e "${YELLOW}  Retry $RETRY_COUNT/$MAX_RETRIES: Waiting for Azure AD propagation...${NC}"
             sleep 15
         else
             echo -e "${RED}Error: Failed to create service principal after $MAX_RETRIES attempts.${NC}"
-            echo -e "${RED}This is usually due to Azure AD propagation delays.${NC}"
+            echo -e "${RED}Details: $SP_OUTPUT${NC}"
+            echo -e "${YELLOW}This is usually due to Azure AD propagation delays.${NC}"
             echo -e "${YELLOW}Try running this command manually after a few minutes:${NC}"
             echo "  az ad sp create --id $APP_ID"
             exit 1
@@ -98,20 +121,38 @@ sleep 10
 MAX_RETRIES=5
 RETRY_COUNT=0
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    az role assignment create \
+    ROLE_OUTPUT=$(az role assignment create \
         --role "Contributor" \
         --assignee "$PRINCIPAL_ID" \
-        --scope "/subscriptions/$SUBSCRIPTION_ID" 2>&1
-    if [ $? -eq 0 ]; then
+        --scope "/subscriptions/$SUBSCRIPTION_ID" 2>&1)
+    ROLE_EXIT_CODE=$?
+    
+    if [ $ROLE_EXIT_CODE -eq 0 ]; then
         echo -e "${GREEN}✓ Contributor role assigned${NC}"
         break
     else
+        # Check if the error is "already exists" (idempotent, OK to ignore)
+        if echo "$ROLE_OUTPUT" | grep -q "The role assignment already exists"; then
+            echo -e "${GREEN}✓ Contributor role already exists (idempotent)${NC}"
+            break
+        fi
+        
+        # Check if error is permission-related (fatal, don't retry)
+        if echo "$ROLE_OUTPUT" | grep -qE "(Insufficient|Authorization|permission|AuthorizationFailed)"; then
+            echo -e "${RED}Error: Insufficient permissions to assign role.${NC}"
+            echo -e "${RED}Details: $ROLE_OUTPUT${NC}"
+            echo -e "${YELLOW}You need 'User Access Administrator' or 'Owner' role on the subscription.${NC}"
+            exit 1
+        fi
+        
+        # Otherwise assume it's a propagation issue and retry
         RETRY_COUNT=$((RETRY_COUNT + 1))
         if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
             echo -e "${YELLOW}  Retry $RETRY_COUNT/$MAX_RETRIES: Waiting for service principal propagation...${NC}"
             sleep 10
         else
             echo -e "${RED}Error: Failed to assign role after $MAX_RETRIES attempts.${NC}"
+            echo -e "${RED}Details: $ROLE_OUTPUT${NC}"
             echo -e "${YELLOW}Try running this command manually:${NC}"
             echo "  az role assignment create --role Contributor --assignee $PRINCIPAL_ID --scope /subscriptions/$SUBSCRIPTION_ID"
             exit 1
