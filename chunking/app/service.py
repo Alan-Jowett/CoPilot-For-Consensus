@@ -149,24 +149,25 @@ class ChunkingService:
                         archive_groups[archive_id] = []
                     archive_groups[archive_id].append(msg_doc_id)
 
-                # Requeue by archive
+                # Requeue by archive using StartupRequeue helper
+                from copilot_startup import StartupRequeue
+                requeue_helper = StartupRequeue(
+                    document_store=self.document_store,
+                    publisher=self.publisher,
+                    metrics_collector=self.metrics_collector,
+                )
+
                 requeued = 0
                 for archive_id, msg_doc_ids in archive_groups.items():
-                    event = {
-                        "event_type": "JSONParsed",
-                        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-                        "data": {
-                            "archive_id": archive_id,
-                            "message_doc_ids": msg_doc_ids,
-                            "message_count": len(msg_doc_ids),
-                        },
-                    }
-
                     try:
-                        self.publisher.publish(
-                            exchange="copilot.events",
+                        requeue_helper.publish_event(
+                            event_type="JSONParsed",
                             routing_key="json.parsed",
-                            event=event,
+                            event_data={
+                                "archive_id": archive_id,
+                                "message_doc_ids": msg_doc_ids,
+                                "message_count": len(msg_doc_ids),
+                            },
                         )
                         requeued += len(msg_doc_ids)
                         logger.debug(f"Requeued {len(msg_doc_ids)} messages from archive {archive_id}")
