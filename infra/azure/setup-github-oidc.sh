@@ -60,12 +60,48 @@ echo -e "${GREEN}✓ Tenant ID: $TENANT_ID${NC}"
 
 # Create Azure AD app registration
 echo -e "${YELLOW}Creating app registration: $APP_NAME${NC}"
-APP_ID=$(az ad app create --display-name "$APP_NAME" --query appId -o tsv)
-echo -e "${GREEN}✓ App registration created: $APP_ID${NC}"
 
-# Wait for app registration to propagate (Azure AD requires this)
-echo -e "${YELLOW}Waiting for app registration to propagate (this takes ~30 seconds)...${NC}"
-sleep 30
+# Check if app already exists (in case this script is retried)
+EXISTING_APP_ID=$(az ad app list --filter "displayName eq '$APP_NAME'" --query "[0].appId" -o tsv 2>/dev/null || true)
+if [ -n "$EXISTING_APP_ID" ] && [ "$EXISTING_APP_ID" != "null" ]; then
+    APP_ID="$EXISTING_APP_ID"
+    echo -e "${GREEN}✓ App registration already exists: $APP_ID (idempotent)${NC}"
+else
+    APP_ID=$(az ad app create --display-name "$APP_NAME" --query appId -o tsv)
+    echo -e "${GREEN}✓ App registration created: $APP_ID${NC}"
+fi
+
+# Wait for app registration to propagate with polling (Azure AD requires this)
+echo -e "${YELLOW}Verifying app registration propagation...${NC}"
+PROPAGATION_TIMEOUT=60
+PROPAGATION_ELAPSED=0
+PROPAGATION_CHECK_INTERVAL=5
+APP_READY=false
+
+while [ $PROPAGATION_ELAPSED -lt $PROPAGATION_TIMEOUT ]; do
+    # Try to retrieve the app to verify it's actually accessible
+    if az ad app show --id "$APP_ID" > /dev/null 2>&1; then
+        APP_READY=true
+        echo -e "${GREEN}✓ App registration is accessible (propagated in ${PROPAGATION_ELAPSED}s)${NC}"
+        break
+    fi
+    
+    PROPAGATION_ELAPSED=$((PROPAGATION_ELAPSED + PROPAGATION_CHECK_INTERVAL))
+    if [ $PROPAGATION_ELAPSED -lt $PROPAGATION_TIMEOUT ]; then
+        echo -e "${YELLOW}  Waiting for Azure AD propagation... (${PROPAGATION_ELAPSED}/${PROPAGATION_TIMEOUT}s)${NC}"
+        sleep $PROPAGATION_CHECK_INTERVAL
+    fi
+done
+
+if [ "$APP_READY" = false ]; then
+    echo -e "${YELLOW}⚠️  App registration propagation is taking longer than expected.${NC}"
+    echo -e "${YELLOW}This can happen during high Azure AD load. You have two options:${NC}"
+    echo -e "${YELLOW}1. Wait a moment and retry the script (it will reuse the app registration)${NC}"
+    echo -e "${YELLOW}2. Manually create the service principal and federated credentials later${NC}"
+    echo -e "${YELLOW}${NC}"
+    echo -e "${YELLOW}If you choose to retry, the script will detect the existing app and continue.${NC}"
+    exit 1
+fi
 
 # Create service principal with retry logic
 echo -e "${YELLOW}Creating service principal...${NC}"
