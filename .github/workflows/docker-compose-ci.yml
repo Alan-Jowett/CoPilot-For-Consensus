@@ -101,12 +101,36 @@ jobs:
     - name: Validate docker-compose configuration
       run: docker compose config
 
-    # Build all services in parallel for faster CI times
-    - name: Build all services in parallel
+    # Build all services sequentially to reduce peak disk usage
+    - name: Build all services sequentially with cleanup
       env:
         DOCKER_BUILDKIT: 1
         COMPOSE_DOCKER_CLI_BUILD: 1
-      run: docker compose build --parallel
+      run: |
+        set -euo pipefail
+        echo "Enumerating compose services..."
+        services=$(docker compose config --services)
+        echo "Services to build:" $services
+
+        for svc in $services; do
+          echo "\n=== Building service: $svc ==="
+          docker compose build "$svc"
+
+          echo "Cleaning up build cache and dangling artifacts to save disk..."
+          # Remove build cache layers
+          docker builder prune -af || true
+          # Remove dangling images only (keep built images for later run)
+          docker image prune -f || true
+          # Remove unused containers and networks
+          docker container prune -f || true
+          docker network prune -f || true
+          # Remove unused anonymous volumes, if any
+          docker volume prune -f || true
+
+          echo "Disk usage after $svc build and prune:"
+          docker system df || true
+          df -h || true
+        done
 
     # Infrastructure Services
     - name: Start documentdb
