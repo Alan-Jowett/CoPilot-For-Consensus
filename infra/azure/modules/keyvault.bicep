@@ -7,6 +7,7 @@ param location string
 param keyVaultName string
 param tenantId string
 param managedIdentityPrincipalIds array
+param enablePublicNetworkAccess bool = true
 param tags object
 
 // Create Azure Key Vault
@@ -24,11 +25,15 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
       name: 'standard'
     }
     accessPolicies: []
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: enablePublicNetworkAccess ? 'Enabled' : 'Disabled'
+    networkAcls: enablePublicNetworkAccess ? null : {
+      defaultAction: 'Deny'
+      bypass: 'AzureServices'
+    }
   }
 }
 
-// Build access policies array from principal IDs object
+// Build access policies array from principal IDs array
 var accessPoliciesArray = [
   for principalId in managedIdentityPrincipalIds: {
     objectId: principalId
@@ -36,7 +41,7 @@ var accessPoliciesArray = [
     permissions: {
       secrets: [
         'get'
-        'list'
+        'list'  // WARNING: 'list' allows enumeration of all secrets; consider removing if not needed
       ]
       keys: []
       certificates: []
@@ -44,7 +49,9 @@ var accessPoliciesArray = [
   }
 ]
 
-// Assign Key Vault Secrets User role to each service identity
+// Add access policies to grant secret read permissions to each service identity
+// Note: This uses access policies (legacy approach). For new deployments, consider
+// Azure RBAC (enableRbacAuthorization: true) with Key Vault Secrets User role assignments
 resource keyVaultAccessPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2023-07-01' = {
   name: 'add'
   parent: keyVault

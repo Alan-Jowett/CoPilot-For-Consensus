@@ -24,6 +24,7 @@ param azureOpenAISku string = 'S0'
 @maxValue(1000000)
 param cosmosDbAutoscaleMinRu int = 400
 
+// cosmosDbAutoscaleMaxRu must be >= cosmosDbAutoscaleMinRu
 @minValue(400)
 @maxValue(1000000)
 param cosmosDbAutoscaleMaxRu int = 1000
@@ -54,7 +55,8 @@ var services = [
 ]
 
 var uniqueSuffix = uniqueString(resourceGroup().id)
-var keyVaultName = '${projectName}-kv-${uniqueSuffix}'
+// Key Vault name must be 3-24 characters, globally unique
+var keyVaultName = '${take(projectName, 8)}kv${take(uniqueSuffix, 13)}'
 var identityPrefix = '${projectName}-${environment}'
 
 // Module: User-Assigned Managed Identities
@@ -76,6 +78,7 @@ module keyVaultModule 'modules/keyvault.bicep' = {
     keyVaultName: keyVaultName
     tenantId: subscription().tenantId
     managedIdentityPrincipalIds: identitiesModule.outputs.identityPrincipalIds
+    enablePublicNetworkAccess: true  // Set to false for production with Private Link
     tags: tags
   }
 }

@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
   pull-requests: write
 
 env:
@@ -116,7 +117,7 @@ jobs:
           try:
               with open('what-if-output.json') as f:
                   data = json.load(f)
-          except:
+          except (json.JSONDecodeError, FileNotFoundError, IOError):
               print("No what-if data available")
               sys.exit(0)
           

@@ -27,18 +27,11 @@ output identities array = [
 ]
 
 output identityPrincipalIds array = [
-  managedIdentities[0].properties.principalId
-  managedIdentities[1].properties.principalId
-  managedIdentities[2].properties.principalId
-  managedIdentities[3].properties.principalId
-  managedIdentities[4].properties.principalId
-  managedIdentities[5].properties.principalId
-  managedIdentities[6].properties.principalId
-  managedIdentities[7].properties.principalId
-  managedIdentities[8].properties.principalId
-  managedIdentities[9].properties.principalId
+  for (service, idx) in services: managedIdentities[idx].properties.principalId
 ]
 
+// IMPORTANT: The order of the services array must not change, as downstream
+// modules depend on this specific mapping of service names to identity resource IDs
 output identityResourceIds object = {
   ingestion: managedIdentities[0].id
   parsing: managedIdentities[1].id

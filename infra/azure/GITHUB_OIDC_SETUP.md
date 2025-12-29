@@ -15,7 +15,8 @@ Instead of using a static Azure service principal secret (which is a security ri
 ## Prerequisites
 
 - **Azure CLI** installed and logged in (`az login`)
-- **Owner** or **Contributor** access to your Azure subscription
+- **Contributor** access to your Azure subscription
+- **Application Administrator** or **Global Administrator** role in Azure AD (for creating app registrations)
 - **Admin** access to the GitHub repository
 
 ## Setup Steps

@@ -9,10 +9,12 @@
 set -e
 
 # Configuration
-GITHUB_ORG="Alan-Jowett"
-GITHUB_REPO="CoPilot-For-Consensus"
-APP_NAME="github-copilot-consensus-oidc"
 SUBSCRIPTION_NAME=${1:-""}
+# GitHub organization and repository can be provided as optional arguments.
+# If not provided, they are inferred from the local git remote URL.
+GITHUB_ORG=${2:-$(git remote get-url origin 2>/dev/null | sed -n 's#.*[:/]\\([^/]*\\)/[^/]*\\.git.*#\\1#p')}
+GITHUB_REPO=${3:-$(git remote get-url origin 2>/dev/null | sed -n 's#.*/\\([^/]*\\)\\.git.*#\\1#p')}
+APP_NAME="github-copilot-consensus-oidc"
 
 # Colors for output
 RED='\033[0;31m'
@@ -21,6 +23,15 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 echo -e "${YELLOW}=== GitHub OIDC Trust Setup for Azure ===${NC}"
+
+# Validate that org and repo were detected
+if [ -z \"$GITHUB_ORG\" ] || [ -z \"$GITHUB_REPO\" ]; then
+    echo -e \"${RED}Error: Could not detect GitHub org/repo from git remote.${NC}\"
+    echo -e \"${YELLOW}Please provide them as arguments: $0 [subscription] [org] [repo]${NC}\"
+    exit 1
+fi
+
+echo -e \"${GREEN}✓ Detected GitHub: $GITHUB_ORG/$GITHUB_REPO${NC}\"
 
 # Check prerequisites
 if ! command -v az &> /dev/null; then
