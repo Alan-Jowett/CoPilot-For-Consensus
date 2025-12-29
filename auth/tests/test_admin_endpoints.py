@@ -136,7 +136,51 @@ class TestListPendingAssignments:
         response = client.get("/admin/role-assignments/pending")
 
         assert response.status_code == 401
-        assert "Missing or invalid Authorization header" in response.json()["detail"]
+        assert "Missing authentication" in response.json()["detail"]
+
+    def test_list_pending_with_cookie(self, client, mock_auth_service):
+        """Test listing pending assignments using auth_token cookie."""
+        # Mock token validation
+        mock_auth_service.validate_token.return_value = {
+            "sub": "github:admin",
+            "email": "admin@example.com",
+            "roles": ["admin"],
+        }
+
+        # Mock role store response
+        mock_auth_service.role_store.list_pending_role_assignments.return_value = ([], 0)
+
+        response = client.get(
+            "/admin/role-assignments/pending",
+            cookies={"auth_token": "valid.jwt.token"},
+        )
+
+        assert response.status_code == 200
+        mock_auth_service.role_store.list_pending_role_assignments.assert_called_once()
+
+    def test_list_pending_header_precedence_over_cookie(self, client, mock_auth_service):
+        """Test that Authorization header takes precedence over cookie when both provided."""
+        # Set validation behavior: header token is considered valid
+        def validate_token_side_effect(token, audience):
+            if token == "header.jwt.token":
+                return {"sub": "github:admin", "email": "admin@example.com", "roles": ["admin"]}
+            elif token == "cookie.jwt.token":
+                return {"sub": "github:user", "email": "user@example.com", "roles": ["contributor"]}
+            raise ValueError("Invalid token")
+
+        mock_auth_service.validate_token.side_effect = validate_token_side_effect
+        mock_auth_service.role_store.list_pending_role_assignments.return_value = ([], 0)
+
+        response = client.get(
+            "/admin/role-assignments/pending",
+            headers={"Authorization": "Bearer header.jwt.token"},
+            cookies={"auth_token": "cookie.jwt.token"},
+        )
+
+        assert response.status_code == 200
+        # Ensure validate_token was called with the header token first
+        called_tokens = [call.kwargs.get("token", call.args[0]) for call in mock_auth_service.validate_token.call_args_list]
+        assert "header.jwt.token" in called_tokens
 
 
 class TestGetUserRoles:
