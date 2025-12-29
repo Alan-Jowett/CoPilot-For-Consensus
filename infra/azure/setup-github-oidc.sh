@@ -72,8 +72,8 @@ if [ -z "$SUBSCRIPTION_NAME" ]; then
     fi
 fi
 
-SUBSCRIPTION_ID=$(az account show --subscription "$SUBSCRIPTION_NAME" --query id -o tsv)
-TENANT_ID=$(az account show --subscription "$SUBSCRIPTION_NAME" --query tenantId -o tsv)
+SUBSCRIPTION_ID=$(az account show --subscription "$SUBSCRIPTION_NAME" --query id -o tsv | tr -d '\r')
+TENANT_ID=$(az account show --subscription "$SUBSCRIPTION_NAME" --query tenantId -o tsv | tr -d '\r')
 
 echo -e "${GREEN}✓ Using subscription: $SUBSCRIPTION_NAME (ID: $SUBSCRIPTION_ID)${NC}"
 echo -e "${GREEN}✓ Tenant ID: $TENANT_ID${NC}"
@@ -82,45 +82,52 @@ echo -e "${GREEN}✓ Tenant ID: $TENANT_ID${NC}"
 echo -e "${YELLOW}Creating app registration: $APP_NAME${NC}"
 
 # Check if app already exists (in case this script is retried)
-EXISTING_APP_ID=$(az ad app list --filter "displayName eq '$APP_NAME'" --query "[0].appId" -o tsv 2>/dev/null || true)
+EXISTING_APP_ID=$(az ad app list --filter "displayName eq '$APP_NAME'" --query "[0].appId" -o tsv 2>/dev/null | tr -d '\r' || true)
 if [ -n "$EXISTING_APP_ID" ] && [ "$EXISTING_APP_ID" != "null" ]; then
     APP_ID="$EXISTING_APP_ID"
+    APP_ALREADY_EXISTS=true
     echo -e "${GREEN}✓ App registration already exists: $APP_ID (idempotent)${NC}"
 else
-    APP_ID=$(az ad app create --display-name "$APP_NAME" --query appId -o tsv)
+    APP_ID=$(az ad app create --display-name "$APP_NAME" --query appId -o tsv | tr -d '\r')
+    APP_ALREADY_EXISTS=false
     echo -e "${GREEN}✓ App registration created: $APP_ID${NC}"
 fi
 
 # Wait for app registration to propagate with polling (Azure AD requires this)
-echo -e "${YELLOW}Verifying app registration propagation...${NC}"
-PROPAGATION_TIMEOUT=60
-PROPAGATION_ELAPSED=0
-PROPAGATION_CHECK_INTERVAL=5
-APP_READY=false
+# Skip if app already existed (already propagated)
+if [ "$APP_ALREADY_EXISTS" = true ]; then
+    echo -e "${GREEN}✓ App registration is accessible (already existed)${NC}"
+else
+    echo -e "${YELLOW}Verifying app registration propagation...${NC}"
+    PROPAGATION_TIMEOUT=60
+    PROPAGATION_ELAPSED=0
+    PROPAGATION_CHECK_INTERVAL=5
+    APP_READY=false
 
-while [ $PROPAGATION_ELAPSED -lt $PROPAGATION_TIMEOUT ]; do
-    # Try to retrieve the app to verify it's actually accessible
-    if az ad app show --id "$APP_ID" > /dev/null 2>&1; then
-        APP_READY=true
-        echo -e "${GREEN}✓ App registration is accessible (propagated in ${PROPAGATION_ELAPSED}s)${NC}"
-        break
-    fi
-    
-    PROPAGATION_ELAPSED=$((PROPAGATION_ELAPSED + PROPAGATION_CHECK_INTERVAL))
-    if [ $PROPAGATION_ELAPSED -lt $PROPAGATION_TIMEOUT ]; then
-        echo -e "${YELLOW}  Waiting for Azure AD propagation... (${PROPAGATION_ELAPSED}/${PROPAGATION_TIMEOUT}s)${NC}"
-        sleep $PROPAGATION_CHECK_INTERVAL
-    fi
-done
+    while [ $PROPAGATION_ELAPSED -lt $PROPAGATION_TIMEOUT ]; do
+        # Try to retrieve the app to verify it's actually accessible
+        if az ad app show --id "$APP_ID" > /dev/null 2>&1; then
+            APP_READY=true
+            echo -e "${GREEN}✓ App registration is accessible (propagated in ${PROPAGATION_ELAPSED}s)${NC}"
+            break
+        fi
+        
+        PROPAGATION_ELAPSED=$((PROPAGATION_ELAPSED + PROPAGATION_CHECK_INTERVAL))
+        if [ $PROPAGATION_ELAPSED -lt $PROPAGATION_TIMEOUT ]; then
+            echo -e "${YELLOW}  Waiting for Azure AD propagation... (${PROPAGATION_ELAPSED}/${PROPAGATION_TIMEOUT}s)${NC}"
+            sleep $PROPAGATION_CHECK_INTERVAL
+        fi
+    done
 
-if [ "$APP_READY" = false ]; then
-    echo -e "${YELLOW}⚠️  App registration propagation is taking longer than expected.${NC}"
-    echo -e "${YELLOW}This can happen during high Azure AD load. You have two options:${NC}"
-    echo -e "${YELLOW}1. Wait a moment and retry the script (it will reuse the app registration)${NC}"
-    echo -e "${YELLOW}2. Manually create the service principal and federated credentials later${NC}"
-    echo -e "${YELLOW}${NC}"
-    echo -e "${YELLOW}If you choose to retry, the script will detect the existing app and continue.${NC}"
-    exit 1
+    if [ "$APP_READY" = false ]; then
+        echo -e "${YELLOW}⚠️  App registration propagation is taking longer than expected.${NC}"
+        echo -e "${YELLOW}This can happen during high Azure AD load. You have two options:${NC}"
+        echo -e "${YELLOW}1. Wait a moment and retry the script (it will reuse the app registration)${NC}"
+        echo -e "${YELLOW}2. Manually create the service principal and federated credentials later${NC}"
+        echo -e "${YELLOW}${NC}"
+        echo -e "${YELLOW}If you choose to retry, the script will detect the existing app and continue.${NC}"
+        exit 1
+    fi
 fi
 
 # Create service principal with retry logic
@@ -132,14 +139,14 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     SP_EXIT_CODE=$?
     
     if [ $SP_EXIT_CODE -eq 0 ] && [ -n "$SP_OUTPUT" ]; then
-        PRINCIPAL_ID="$SP_OUTPUT"
+        PRINCIPAL_ID=$(echo "$SP_OUTPUT" | tr -d '\r')
         echo -e "${GREEN}✓ Service principal created: $PRINCIPAL_ID${NC}"
         break
     else
         # Check if the error is "already exists" (idempotent, OK to ignore)
         if echo "$SP_OUTPUT" | grep -q "already exists"; then
             # If service principal already exists, retrieve its ID
-            PRINCIPAL_ID=$(az ad sp list --filter "appId eq '$APP_ID'" --query "[0].id" -o tsv 2>&1)
+            PRINCIPAL_ID=$(az ad sp list --filter "appId eq '$APP_ID'" --query "[0].id" -o tsv 2>&1 | tr -d '\r')
             if [ -n "$PRINCIPAL_ID" ]; then
                 echo -e "${GREEN}✓ Service principal already exists: $PRINCIPAL_ID (idempotent)${NC}"
                 break
