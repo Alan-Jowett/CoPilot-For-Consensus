@@ -170,7 +170,7 @@ class StartupRequeue:
         try:
             event = {
                 "event_type": event_type,
-                "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "data": event_data,
             }
 

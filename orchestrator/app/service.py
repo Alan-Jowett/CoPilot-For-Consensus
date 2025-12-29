@@ -99,15 +99,7 @@ class OrchestrationService:
     def _requeue_incomplete_threads(self):
         """Requeue threads ready for summarization on startup for forward progress."""
         try:
-            from copilot_startup import StartupRequeue
-
             logger.info("Scanning for threads ready for summarization to requeue on startup...")
-
-            StartupRequeue(
-                document_store=self.document_store,
-                publisher=self.publisher,
-                metrics_collector=self.metrics_collector,
-            )
 
             # Find threads that don't have summaries and have all chunks embedded
             # This requires verifying embeddings are complete before triggering summarization

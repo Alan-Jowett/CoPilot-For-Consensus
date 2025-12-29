@@ -84,15 +84,7 @@ class ChunkingService:
     def _requeue_incomplete_messages(self):
         """Requeue parsed messages without chunks on startup for forward progress."""
         try:
-            from copilot_startup import StartupRequeue
-
             logger.info("Scanning for parsed messages without chunks to requeue on startup...")
-
-            StartupRequeue(
-                document_store=self.document_store,
-                publisher=self.publisher,
-                metrics_collector=self.metrics_collector,
-            )
 
             # Use aggregation pipeline to efficiently find messages without chunks
             try:
