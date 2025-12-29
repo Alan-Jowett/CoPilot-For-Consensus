@@ -3,6 +3,8 @@
 
 # JWT Token Authentication for Grafana - Implementation Summary
 
+> Status: Rolled back on Dec 29, 2025 — JWT SSO is temporarily disabled. Grafana currently uses local admin authentication via Docker secrets. This document remains for reference and future re‑implementation plans (e.g., auth_proxy or cookie-based SSO).
+
 ## Overview
 
 This implementation adds JWT token-based authentication to Grafana, enabling seamless SSO integration with the existing OAuth/OIDC auth service. Users authenticate once via OAuth/OIDC and can access Grafana without a separate login, including when clicking Grafana links in the UI.
