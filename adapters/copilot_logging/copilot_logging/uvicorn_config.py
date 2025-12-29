@@ -68,13 +68,13 @@ def create_uvicorn_log_config(service_name: str, log_level: str = "INFO") -> dic
 
     This configuration:
     - Uses structured JSON logging for all Uvicorn logs
-    - Sets access logs to DEBUG level to reduce noise
-    - Uses the configured log_level for error logs (same as the main uvicorn logger)
+    - Suppresses access logs (INFO level) to reduce noise (health checks, normal requests)
+    - Only logs uvicorn errors at the configured log_level
     - Integrates with copilot_logging format
 
     Args:
         service_name: Name of the service for log identification
-        log_level: Default log level (DEBUG, INFO, WARNING, ERROR)
+        log_level: Default log level for errors (DEBUG, INFO, WARNING, ERROR)
 
     Returns:
         Dictionary compatible with Uvicorn's log_config parameter
@@ -115,7 +115,7 @@ def create_uvicorn_log_config(service_name: str, log_level: str = "INFO") -> dic
             },
             "uvicorn.access": {
                 "handlers": ["console"],
-                "level": "DEBUG",  # Health checks at DEBUG level
+                "level": "WARNING",  # Suppress INFO and DEBUG access logs (health checks, normal requests)
                 "propagate": False,
             },
         },

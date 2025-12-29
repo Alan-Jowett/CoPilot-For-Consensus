@@ -101,6 +101,7 @@ services:
       - GF_AUTH_JWT_ROLE_ATTRIBUTE_STRICT=false
       
       # JWT Validation: Use JWKS endpoint for key fetching and validation
+      # Must use HTTPS scheme as required by Grafana JWT authentication
       # Using gateway (nginx) for HTTPS; self-signed certs used internally
       - GF_AUTH_JWT_JWK_SET_URL=https://gateway:8443/auth/.well-known/jwks.json
       # Skip certificate verification for internal self-signed certs
