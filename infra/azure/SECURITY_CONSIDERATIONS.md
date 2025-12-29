@@ -36,6 +36,34 @@ This document outlines known security considerations and recommended improvement
 
 **Status:** Known limitation in PR #1 (Foundation Layer). Will address in PR #5 (Container Apps) when secret names are defined.
 
+### Access Authorization Approach: Legacy Access Policies vs. Azure RBAC
+
+**Current Implementation (PR #1):**
+- Uses legacy Access Policies for backward compatibility
+- Parameter `enableRbacAuthorization: false` in `keyvault.bicep`
+
+**Why Access Policies (Temporary):**
+- Fastest validation path for PR #1 foundation layer
+- Works with existing Bicep patterns
+- Well-documented and proven approach
+
+**Why RBAC is Better (Future):**
+- **Modern**: Officially recommended by Microsoft
+- **Audit**: Better integration with Azure Policy and activity logs
+- **Granular**: Separate permissions per service via RBAC roles
+- **Consistent**: Same authorization model as other Azure services
+
+**Migration Plan (PRs #2-5):**
+1. Set `enableRbacAuthorization: true` when PR #2 (Service Bus) is merged
+2. Replace Access Policies with RBAC role assignments:
+   - Service identities get `Key Vault Secrets User` role
+   - Remove hardcoded secret access patterns
+3. Remove `accessPoliciesArray` completely once migration done
+
+**Status:** Access Policies in PR #1, RBAC migration starts in PR #2.
+
+---
+
 ---
 
 ## Subscription-Level Contributor Access

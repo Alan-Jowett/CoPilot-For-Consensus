@@ -79,6 +79,7 @@ module keyVaultModule 'modules/keyvault.bicep' = {
     tenantId: subscription().tenantId
     managedIdentityPrincipalIds: identitiesModule.outputs.identityPrincipalIds
     enablePublicNetworkAccess: true  // Set to false for production with Private Link
+    enableRbacAuthorization: false  // TODO: Migrate to true in future PRs (#2-5) when services use Azure RBAC role assignments
     tags: tags
   }
 }
