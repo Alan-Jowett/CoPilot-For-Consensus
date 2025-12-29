@@ -524,7 +524,10 @@ def require_admin_role(request: Request) -> tuple[str, str | None]:
             logger.info("Token extracted from auth_token cookie")
         else:
             logger.warning("Missing or invalid Authorization header and auth_token cookie")
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid Authorization header")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing authentication: provide either Authorization header or auth_token cookie",
+            )
 
     try:
         # Parse audiences from config
