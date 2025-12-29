@@ -23,6 +23,12 @@ RUN python /app/adapters/scripts/install_adapters.py \
     copilot_schema_validation \
     copilot_secrets
 
+# Install optional vectorstore backend with Qdrant support
+RUN pip install --no-cache-dir -e /app/adapters/copilot_vectorstore[qdrant]
+
+# Install embedding backend with sentence-transformers support
+RUN pip install --no-cache-dir -e /app/adapters/copilot_embedding[sentencetransformers]
+
 # Copy schema files for validation
 COPY documents/schemas /app/documents/schemas
 
