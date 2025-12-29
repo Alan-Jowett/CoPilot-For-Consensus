@@ -511,10 +511,13 @@ def main():
                 )
                 logger.info("Embedding provider created successfully")
                 
-                # Get embedding dimension from a test embedding
-                test_embedding = embedding_provider.embed("test")
-                embedding_dimension = len(test_embedding)
-                logger.info(f"Detected embedding dimension: {embedding_dimension}")
+                # Get embedding dimension, preferring configuration over dynamic detection
+                embedding_dimension = getattr(config, 'embedding_dimension', None)
+                if embedding_dimension is None:
+                    logger.info("Embedding dimension not configured; detecting via test embedding")
+                    test_embedding = embedding_provider.embed("test")
+                    embedding_dimension = len(test_embedding)
+                logger.info(f"Using embedding dimension: {embedding_dimension}")
                 
                 logger.info("Creating vector store for topic search...")
                 from copilot_vectorstore import create_vector_store
