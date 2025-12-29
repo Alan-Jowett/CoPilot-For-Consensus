@@ -8,7 +8,7 @@ metadata author = 'Copilot-for-Consensus Team'
 @maxLength(15)
 param projectName string = 'copilot'
 
-@allowed(['dev', 'test', 'prod'])
+@allowed(['dev', 'staging', 'prod'])  // Aligns with existing azuredeploy.json
 param environment string = 'dev'
 
 param location string = 'westus'

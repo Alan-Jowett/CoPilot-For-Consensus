@@ -283,6 +283,27 @@ az deployment group create \
 
 ## Configuration
 
+### Environment Parameter Files
+
+The repository includes pre-configured parameter files for each environment:
+
+- **`parameters.dev.json`** - Development environment (low cost)
+  - Uses minimal SKUs (Standard Service Bus, 1000-2000 RU Cosmos autoscale)
+  - Single-region deployment
+  - Public network access enabled (for quick testing)
+
+- **`parameters.staging.json`** - Staging/pre-production environment (balanced)
+  - Medium SKUs (Standard Service Bus, 1000-2000 RU Cosmos autoscale)
+  - Single-region deployment
+  - For pre-release testing
+
+- **`parameters.prod.json`** - Production environment (high availability)
+  - Premium SKUs (Premium Service Bus, higher Cosmos RU limits)
+  - Multi-region deployment (optional, via `enableMultiRegionCosmos`)
+  - Public network access disabled (requires Private Link)
+
+**Alignment:** Environment names (`dev`, `staging`, `prod`) align with the existing [azuredeploy.json](../../../docs/) ARM template for consistency.
+
 ### Required Parameters
 
 | Parameter | Type | Description |
