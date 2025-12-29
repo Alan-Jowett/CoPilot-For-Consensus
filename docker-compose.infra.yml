@@ -101,9 +101,10 @@ services:
       - GF_AUTH_JWT_ROLE_ATTRIBUTE_STRICT=false
       
       # JWT Validation: Use JWKS endpoint for key fetching and validation
-      # Must use HTTPS scheme as required by Grafana JWT authentication
-      # Using gateway (nginx) for HTTPS; direct auth service connections require http
+      # Using gateway (nginx) for HTTPS; self-signed certs used internally
       - GF_AUTH_JWT_JWK_SET_URL=https://gateway:8443/auth/.well-known/jwks.json
+      # Skip certificate verification for internal self-signed certs
+      - GF_AUTH_JWT_TLS_SKIP_VERIFY_INSECURE=true
       # Cache JWKS for 1 hour to reduce auth service load
       - GF_AUTH_JWT_CACHE_TTL=3600
       
