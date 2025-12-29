@@ -12,8 +12,17 @@ set -e
 SUBSCRIPTION_NAME=${1:-""}
 # GitHub organization and repository can be provided as optional arguments.
 # If not provided, they are inferred from the local git remote URL.
-GITHUB_ORG=${2:-$(git remote get-url origin 2>/dev/null | sed -n 's#.*[:/]\\([^/]*\\)/[^/]*\\.git.*#\\1#p')}
-GITHUB_REPO=${3:-$(git remote get-url origin 2>/dev/null | sed -n 's#.*/\\([^/]*\\)\\.git.*#\\1#p')}
+# Handle both SSH (git@github.com:org/repo.git) and HTTPS (https://github.com/org/repo.git) formats
+GIT_REMOTE=$(git remote get-url origin 2>/dev/null || true)
+if [[ "$GIT_REMOTE" == *"github.com"* ]]; then
+    # Remove protocol and .git suffix, then extract org/repo
+    GIT_PATH="${GIT_REMOTE#*github.com[:/]}"  # Remove leading git@github.com: or https://github.com/
+    GIT_PATH="${GIT_PATH%.git}"               # Remove trailing .git
+    GITHUB_ORG="${GIT_PATH%/*}"               # Extract org (part before /)
+    GITHUB_REPO="${GIT_PATH##*/}"             # Extract repo (part after /)
+fi
+GITHUB_ORG=${2:-"$GITHUB_ORG"}
+GITHUB_REPO=${3:-"$GITHUB_REPO"}
 APP_NAME="github-copilot-consensus-oidc"
 
 # Colors for output
@@ -47,9 +56,20 @@ fi
 
 # Get subscription details
 if [ -z "$SUBSCRIPTION_NAME" ]; then
-    echo -e "${YELLOW}Available subscriptions:${NC}"
-    az account list --query "[].{name: name, id: id}" -o table
-    read -p "Enter subscription name or ID: " SUBSCRIPTION_NAME
+    # Count available subscriptions
+    SUBSCRIPTION_COUNT=$(az account list --query "length([]) " -o tsv)
+    
+    if [ "$SUBSCRIPTION_COUNT" -eq 1 ]; then
+        # Only one subscription, use it automatically
+        SUBSCRIPTION_NAME=$(az account list --query "[0].name" -o tsv)
+        echo -e "${GREEN}✓ Only one subscription available, using: $SUBSCRIPTION_NAME${NC}"
+    else
+        # Multiple subscriptions, show list and prompt
+        echo -e "${YELLOW}Available subscriptions:${NC}"
+        az account list --query "[].{name: name, id: id}" -o table
+        echo ""
+        read -p "Enter subscription name or ID: " SUBSCRIPTION_NAME
+    fi
 fi
 
 SUBSCRIPTION_ID=$(az account show --subscription "$SUBSCRIPTION_NAME" --query id -o tsv)
