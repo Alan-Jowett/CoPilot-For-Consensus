@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "projectName": {
+      "value": "copilot"
+    },
+    "environment": {
+      "value": "dev"
+    },
+    "location": {
+      "value": "westus"
+    },
+    "containerImageTag": {
+      "value": "latest"
+    },
+    "deployAzureOpenAI": {
+      "value": true
+    },
+    "azureOpenAISku": {
+      "value": "S0"
+    },
+    "cosmosDbAutoscaleMinRu": {
+      "value": 400
+    },
+    "cosmosDbAutoscaleMaxRu": {
+      "value": 1000
+    },
+    "serviceBusSku": {
+      "value": "Standard"
+    },
+    "enableMultiRegionCosmos": {
+      "value": false
+    },
+    "tags": {
+      "value": {
+        "environment": "dev",
+        "project": "copilot-for-consensus",
+        "createdBy": "bicep"
+      }
+    }
+  }
+}
