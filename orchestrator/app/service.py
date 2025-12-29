@@ -99,15 +99,7 @@ class OrchestrationService:
     def _requeue_incomplete_threads(self):
         """Requeue threads ready for summarization on startup for forward progress."""
         try:
-            from copilot_startup import StartupRequeue
-
             logger.info("Scanning for threads ready for summarization to requeue on startup...")
-
-            StartupRequeue(
-                document_store=self.document_store,
-                publisher=self.publisher,
-                metrics_collector=self.metrics_collector,
-            )
 
             # Find threads that don't have summaries and have all chunks embedded
             # This requires verifying embeddings are complete before triggering summarization
@@ -184,23 +176,27 @@ class OrchestrationService:
 
                 logger.info(f"Found {len(ready_threads)} threads ready for summarization")
 
-                # Requeue each ready thread
+                # Requeue each ready thread using StartupRequeue helper
+                from copilot_startup import StartupRequeue
+                requeue_helper = StartupRequeue(
+                    document_store=self.document_store,
+                    publisher=self.publisher,
+                    metrics_collector=self.metrics_collector,
+                )
+
                 requeued = 0
                 for thread in ready_threads:
                     thread_id = thread.get("thread_id")
                     archive_id = thread.get("archive_id")
 
-                    event_data = {
-                        "thread_ids": [thread_id],
-                        "archive_id": archive_id,
-                    }
-
                     try:
-                        self.publisher.publish(
+                        requeue_helper.publish_event(
                             event_type="SummarizationRequested",
-                            data=event_data,
                             routing_key="summarization.requested",
-                            exchange="copilot.events",
+                            event_data={
+                                "thread_ids": [thread_id],
+                                "archive_id": archive_id,
+                            },
                         )
                         requeued += 1
                         logger.debug(f"Requeued thread {thread_id} for summarization")

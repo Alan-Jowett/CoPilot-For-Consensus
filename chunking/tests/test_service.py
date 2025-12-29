@@ -883,7 +883,8 @@ def test_requeue_incomplete_messages_with_aggregation_support():
     call_args = mock_publisher.publish.call_args
 
     # Verify the published event contains msg2 only (no msg1 which has chunks)
-    event_data = call_args[1]['data']
+    event = call_args[1]['event']
+    event_data = event['data']
     assert event_data['archive_id'] == archive_id
     assert msg2_id in event_data['message_doc_ids']
     assert msg1_id not in event_data['message_doc_ids']

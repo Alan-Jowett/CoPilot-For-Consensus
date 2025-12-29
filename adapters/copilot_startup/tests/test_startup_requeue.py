@@ -3,6 +3,7 @@
 
 """Tests for startup requeue utility."""
 
+from datetime import datetime
 from unittest.mock import Mock
 
 import pytest
@@ -296,3 +297,39 @@ class TestStartupRequeue:
         assert call_args[0][1] == 1
         assert call_args[1]["tags"]["collection"] == "archives"
         assert call_args[1]["tags"]["error_type"] == "Exception"
+
+
+class TestPublishEvent:
+    """Tests for StartupRequeue.publish_event helper."""
+
+    def test_publish_event_builds_event_and_calls_publisher(self):
+        mock_publisher = Mock()
+        requeue = StartupRequeue(document_store=Mock(), publisher=mock_publisher)
+
+        requeue.publish_event(
+            event_type="SummarizationRequested",
+            routing_key="summarization.requested",
+            event_data={"thread_ids": ["t1"], "archive_id": "a1"},
+        )
+
+        mock_publisher.publish.assert_called_once()
+        call_kwargs = mock_publisher.publish.call_args.kwargs
+        assert call_kwargs["exchange"] == "copilot.events"
+        assert call_kwargs["routing_key"] == "summarization.requested"
+        event = call_kwargs["event"]
+        assert event["event_type"] == "SummarizationRequested"
+        assert event["data"] == {"thread_ids": ["t1"], "archive_id": "a1"}
+        # Timestamp should be ISO 8601 with offset (consistent with requeue_incomplete)
+        datetime.fromisoformat(event["timestamp"])
+
+    def test_publish_event_propagates_errors(self):
+        mock_publisher = Mock()
+        mock_publisher.publish.side_effect = RuntimeError("publish failed")
+        requeue = StartupRequeue(document_store=Mock(), publisher=mock_publisher)
+
+        with pytest.raises(RuntimeError, match="publish failed"):
+            requeue.publish_event(
+                event_type="SummarizationRequested",
+                routing_key="summarization.requested",
+                event_data={},
+            )
