@@ -208,10 +208,20 @@ cat > /tmp/federated_cred_main.json <<EOF
 }
 EOF
 
-az ad app federated-credential create \
+FEDERATED_MAIN_OUTPUT=$(az ad app federated-credential create \
     --id "$APP_ID" \
-    --parameters /tmp/federated_cred_main.json
-echo -e "${GREEN}✓ Federated credential created for main branch${NC}"
+    --parameters /tmp/federated_cred_main.json 2>&1)
+FEDERATED_MAIN_EXIT=$?
+
+if [ $FEDERATED_MAIN_EXIT -eq 0 ]; then
+    echo -e "${GREEN}✓ Federated credential created for main branch${NC}"
+elif echo "$FEDERATED_MAIN_OUTPUT" | grep -q "already exists"; then
+    echo -e "${GREEN}✓ Federated credential already exists for main branch (idempotent)${NC}"
+else
+    echo -e "${RED}Error creating federated credential for main branch:${NC}"
+    echo "$FEDERATED_MAIN_OUTPUT"
+    exit 1
+fi
 
 # Create federated credential for GitHub PR branches
 echo -e "${YELLOW}Creating federated credential for GitHub (PR branches)...${NC}"
@@ -225,10 +235,20 @@ cat > /tmp/federated_cred_pr.json <<EOF
 }
 EOF
 
-az ad app federated-credential create \
+FEDERATED_PR_OUTPUT=$(az ad app federated-credential create \
     --id "$APP_ID" \
-    --parameters /tmp/federated_cred_pr.json
-echo -e "${GREEN}✓ Federated credential created for PR branches${NC}"
+    --parameters /tmp/federated_cred_pr.json 2>&1)
+FEDERATED_PR_EXIT=$?
+
+if [ $FEDERATED_PR_EXIT -eq 0 ]; then
+    echo -e "${GREEN}✓ Federated credential created for PR branches${NC}"
+elif echo "$FEDERATED_PR_OUTPUT" | grep -q "already exists"; then
+    echo -e "${GREEN}✓ Federated credential already exists for PR branches (idempotent)${NC}"
+else
+    echo -e "${RED}Error creating federated credential for PR branches:${NC}"
+    echo "$FEDERATED_PR_OUTPUT"
+    exit 1
+fi
 
 # Output secrets for GitHub Actions
 echo ""
