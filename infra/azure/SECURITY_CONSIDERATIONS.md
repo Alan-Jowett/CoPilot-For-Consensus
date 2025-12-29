@@ -71,32 +71,141 @@ This document outlines known security considerations and recommended improvement
 **Current Implementation:**
 - GitHub OIDC service principal has `Contributor` role on entire subscription
 - Required for CI/CD to create resource groups and validate deployments
+- Federated credentials grant access for BOTH main branch deployments AND pull requests
 
-**Risk:**
-- **Overly broad permissions**: Compromised GitHub workflow could affect unrelated resource groups
-- **Attack surface**: Any PR with malicious Bicep templates could deploy resources anywhere in subscription
+**Critical Risk - GitHub PR Execution:**
+- ⚠️ **Pull requests from ANY contributor trigger CI/CD with full Contributor permissions**
+- Includes PRs from forks and external contributors
+- Malicious PR can deploy infrastructure, modify data, exfiltrate secrets
+- Validation runs BEFORE merge approval, so risk applies to all PRs
+
+**Why This Matters:**
+- PR CI/CD runs before human review of the pull request content
+- Bicep templates in PRs execute with full permissions (ARM validation, what-if analysis)
+- Attacker doesn't need code merge approval to execute arbitrary deployments
+- No way to distinguish between legitimate development PR and malicious PR at runtime
 
 **Mitigation Options:**
 
-1. **Scope to Resource Group** (Recommended for Production)
-   - Assign `Contributor` only to specific RG used for validation
-   - Requires pre-creating RG before CI/CD runs
-   - Best practice: `az role assignment create --scope /subscriptions/.../resourceGroups/copilot-validation-rg`
+### Option 1: **Scope to Validation-Only Resource Group** (RECOMMENDED)
 
-2. **Custom RBAC Role** (Most Secure)
-   - Create custom role with only required permissions:
-     - `Microsoft.Resources/deployments/*`
-     - `Microsoft.Resources/subscriptions/resourceGroups/read`
-     - `Microsoft.ManagedIdentity/*` (for validation only)
-     - `Microsoft.KeyVault/vaults/read` (for validation only)
-   - Deny actual resource creation except in specific RGs
+**How it works:**
+- Assign `Contributor` role to specific resource group (e.g., `copilot-bicep-validation-rg`)
+- Pre-create this RG before enabling CI/CD
+- All PR deployments happen in this isolated RG
+- Validation still works, but blast radius is contained
 
-3. **Branch Protection + Manual Review** (Process Control)
-   - Require manual approval for Bicep changes before CI runs
-   - Use GitHub Environments with required reviewers
-   - Reduces risk of malicious PR abuse
+**Implementation:**
+```bash
+# Create validation resource group
+az group create --name copilot-bicep-validation-rg --location westus
 
-**Status:** Known tradeoff in PR #1. Suitable for dev/test subscriptions. Recommend scoping for production deployments.
+# Scope service principal to this RG only
+az role assignment create \
+  --role "Contributor" \
+  --assignee <service-principal-id> \
+  --resource-group copilot-bicep-validation-rg
+```
+
+**Then remove subscription-level Contributor role:**
+```bash
+# List all role assignments for the service principal
+az role assignment list --assignee <service-principal-id>
+
+# Remove Contributor from subscription scope (keep only RG scope)
+az role assignment delete \
+  --assignee <service-principal-id> \
+  --role "Contributor" \
+  --scope "/subscriptions/<subscription-id>"
+```
+
+**Pros:**
+- Simple to implement
+- Isolates PR validation to specific RG
+- Malicious PR can't affect production or other services
+- Still allows full Bicep validation
+
+**Cons:**
+- CI/CD can only validate for specific RG (not production deployment)
+- Requires manual promotion of validated changes to production
+
+### Option 2: **Custom RBAC Role with Limited Permissions** (MOST SECURE)
+
+Create custom role that allows ONLY validation operations:
+```json
+{
+  "Name": "Bicep Validation Only",
+  "IsCustom": true,
+  "Permissions": [
+    {
+      "Actions": [
+        "Microsoft.Resources/deployments/validate/action",
+        "Microsoft.Resources/deployments/whatIf/action"
+      ],
+      "NotActions": [],
+      "DataActions": [],
+      "NotDataActions": []
+    }
+  ],
+  "AssignableScopes": [
+    "/subscriptions/<subscription-id>"
+  ]
+}
+```
+
+**Pros:**
+- No unintended resource creation possible
+- Validates templates without actual deployment
+- Most restrictive
+
+**Cons:**
+- CI/CD cannot create temporary RGs for validation
+- Still need some permissions to read existing infrastructure
+
+### Option 3: **Disable PR Validation for Untrusted Forks** (PROCESS CONTROL)
+
+Modify workflow to:
+- Only run Tier 2 validation (what-if/deployment) on approved PRs
+- PR validation from forks runs Tier 1 only (Bicep lint)
+- Requires `pull_request_target` event with approval gates
+
+**Pros:**
+- Prevents automatic malicious deployments
+- Still validates syntax for open-source contributors
+
+**Cons:**
+- Blocks legitimate contributor feedback
+- Extra manual approval steps
+- GitHub Actions matrix requires careful configuration
+
+### Option 4: **Separate Service Principal for PR Validation** (HYBRID)
+
+Create TWO service principals:
+1. **PR Validation SP**: Limited permissions (validate/whatIf only)
+2. **Production Deployment SP**: Full Contributor (for main branch only)
+
+Use different credentials based on branch/event.
+
+**Pros:**
+- Granular control per workflow type
+- Full functionality, limited blast radius
+
+**Cons:**
+- Operational complexity
+- Two separate OIDC setups to maintain
+
+---
+
+**RECOMMENDED ACTION FOR PR #1:**
+
+✅ **Implement Option 1 immediately** (Scope to Validation RG):
+1. Create resource group: `copilot-bicep-validation-rg`
+2. Assign service principal Contributor role to **this RG only**
+3. Remove subscription-level Contributor assignment
+4. Update workflow to deploy validations to this RG
+5. Document that production deployments require manual setup
+
+This provides immediate security improvement while keeping CI/CD functional.
 
 ---
 
