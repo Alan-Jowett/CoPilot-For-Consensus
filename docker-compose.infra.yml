@@ -100,9 +100,13 @@ services:
       - GF_AUTH_JWT_ROLE_ATTRIBUTE_PATH=contains(roles[*], 'admin')
       - GF_AUTH_JWT_ROLE_ATTRIBUTE_STRICT=false
       
-      # JWT Validation: Path to public key file for signature validation
-      # This public key is obtained from the auth service
-      - GF_AUTH_JWT_KEY_FILE=/etc/grafana/secrets/auth_service_public_key.pem
+      # JWT Validation: Use JWKS endpoint for key fetching and validation
+      # Using gateway (nginx) for HTTPS; self-signed certs used internally
+      - GF_AUTH_JWT_JWK_SET_URL=https://gateway:8443/auth/.well-known/jwks.json
+      # Skip certificate verification for internal self-signed certs
+      - GF_AUTH_JWT_TLS_SKIP_VERIFY_INSECURE=true
+      # Cache JWKS for 1 hour to reduce auth service load
+      - GF_AUTH_JWT_CACHE_TTL=3600
       
       # Auto-login via JWT token
       - GF_AUTH_JWT_AUTO_SIGN_UP=true
@@ -127,9 +131,6 @@ services:
       - ./infra/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
       - ./infra/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./infra/grafana/dashboards:/var/lib/grafana/dashboards
-      # Mount public key file for JWT validation
-      # This file will be created by setup script
-      - ./secrets/auth_service_public_key.pem:/etc/grafana/secrets/auth_service_public_key.pem:ro
     depends_on:
       monitoring:
         condition: service_healthy
