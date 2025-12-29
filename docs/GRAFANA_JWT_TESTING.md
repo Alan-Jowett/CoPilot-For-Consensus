@@ -3,6 +3,8 @@
 
 # Testing JWT Authentication for Grafana
 
+> Status: Rolled back on Dec 29, 2025 — JWT SSO is temporarily disabled. The testing steps below are deprecated for the current deployment. Use local Grafana admin credentials as a temporary workaround until SSO is re‑implemented.
+
 This document describes how to test the JWT authentication implementation for Grafana.
 
 ## Prerequisites
