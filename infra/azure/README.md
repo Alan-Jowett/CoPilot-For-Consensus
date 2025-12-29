@@ -52,8 +52,29 @@ Then add the resulting secrets to GitHub repository settings. See [GITHUB_OIDC_S
 ### Validation Results
 
 - ✅ Validation results are posted as comments on pull requests
-- ✅ Failed validations block PR merge (via branch protection)
+- ⚠️ Failed validations **can** block PR merge (requires branch protection configuration)
 - ✅ All validation is auditable in GitHub Actions tab
+
+### Configuring Branch Protection (Recommended)
+
+To automatically block PR merges when validation fails, configure branch protection rules:
+
+1. Go to **Settings > Branches > Branch protection rules**
+2. Click **Add rule**
+3. Branch name pattern: `main`
+4. Enable:
+   - ✅ **Require a pull request before merging**
+   - ✅ **Require status checks to pass before merging**
+   - ✅ **Require branches to be up to date before merging**
+5. Select required status checks:
+   - `bicep-lint` (Bicep Lint & Build)
+   - `validate-template` (ARM Template Validation)
+   - `comment-results` (PR comment posting)
+6. Click **Create** or **Save changes**
+
+**Result**: Pull requests to `main` will require all Bicep validation checks to pass before merge is allowed.
+
+**Note**: Branch protection requires the validation workflow to have completed successfully. If you haven't configured GitHub OIDC yet (see [One-Time Setup: GitHub OIDC](#one-time-setup-github-oidc)), the ARM validation step will be skipped, so you may want to only require the `bicep-lint` job initially.
 
 ## Building ARM Templates from Bicep
 
