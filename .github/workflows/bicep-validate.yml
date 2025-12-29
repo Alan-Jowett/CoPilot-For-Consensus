@@ -23,6 +23,7 @@ env:
   AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
   AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  VALIDATION_RESOURCE_GROUP: copilot-bicep-validation-rg
 
 jobs:
   bicep-lint:
@@ -75,19 +76,22 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           enable-AzPSSession: false
 
-      - name: Create temporary resource group for validation
-        id: create-rg
+      - name: Ensure validation resource group exists
         run: |
-          RG_NAME="bicep-validate-$(date +%s)"
-          echo "rg_name=$RG_NAME" >> $GITHUB_OUTPUT
-          az group create --name "$RG_NAME" --location westus
-          echo "✓ Created temporary RG: $RG_NAME"
+          RG_NAME="${{ env.VALIDATION_RESOURCE_GROUP }}"
+          if ! az group show --name "$RG_NAME" >/dev/null 2>&1; then
+            echo "❌ Validation resource group '$RG_NAME' not found."
+            echo "Please create it once with:"
+            echo "  az group create --name $RG_NAME --location westus"
+            exit 1
+          fi
+          echo "✓ Using validation RG: $RG_NAME"
 
       - name: Validate main.bicep template
         run: |
           cd infra/azure
           az deployment group validate \
-            --resource-group ${{ steps.create-rg.outputs.rg_name }} \
+            --resource-group ${{ env.VALIDATION_RESOURCE_GROUP }} \
             --template-file main.bicep \
             --parameters parameters.dev.json \
             --query "validationLevel" -o tsv
@@ -98,7 +102,7 @@ jobs:
         run: |
           cd infra/azure
           az deployment group what-if \
-            --resource-group ${{ steps.create-rg.outputs.rg_name }} \
+            --resource-group ${{ env.VALIDATION_RESOURCE_GROUP }} \
             --template-file main.bicep \
             --parameters parameters.dev.json \
             --output json > what-if-output.json
@@ -170,13 +174,7 @@ jobs:
             echo "⚠️ No what-if output generated (may be due to validation error)"
           fi
 
-      - name: Clean up temporary resource group
-        if: always()
-        run: |
-          az group delete \
-            --name ${{ steps.create-rg.outputs.rg_name }} \
-            --yes --no-wait
-          echo "✓ Temporary RG marked for deletion"
+      # Note: No cleanup step; the validation RG is long-lived and pre-created
 
   comment-results:
     name: Comment on PR

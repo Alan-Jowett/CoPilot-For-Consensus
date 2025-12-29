@@ -28,14 +28,24 @@ All pull requests that modify files in `infra/azure/` are automatically validate
 ### Validation Stages
 
 1. **Bicep Lint & Build** (always runs)
-   - Compiles `.bicep` templates to ARM JSON
-   - Runs linter for best-practice checks
-   - Fast feedback, no Azure access required
+  - Compiles `.bicep` templates to ARM JSON
+  - Runs linter for best-practice checks
+  - Fast feedback, no Azure access required
 
 2. **ARM Template Validation** (requires Azure secrets)
-   - Validates generated ARM templates against Azure
-   - Runs what-if analysis to preview resource changes
-   - Requires GitHub OIDC setup (see [GITHUB_OIDC_SETUP.md](GITHUB_OIDC_SETUP.md))
+  - Validates generated ARM templates against Azure
+  - Runs what-if analysis to preview resource changes
+  - Uses GitHub OIDC (see [GITHUB_OIDC_SETUP.md](GITHUB_OIDC_SETUP.md)) and targets a pre-created validation resource group (`copilot-bicep-validation-rg`)
+
+#### Validation Resource Group (one-time)
+
+Create the long-lived validation resource group once per subscription before relying on CI:
+
+```bash
+az group create --name copilot-bicep-validation-rg --location westus
+```
+
+The GitHub Actions workflow will fail fast with guidance if this group is missing. No teardown step runs in CI because the group is reused across runs.
 
 ### One-Time Setup: GitHub OIDC
 
