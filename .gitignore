@@ -4,6 +4,11 @@
 # Ollama models (large files, cached locally)
 ollama_models/
 
+# Generated ARM templates (compile from Bicep source instead)
+infra/azure/*.json
+!infra/azure/parameters*.json  # Keep parameter files
+infra/azure/what-if-output.json  # Temporary what-if analysis output
+
 **/__pycache__/**
 **/*.egg-info/**
 **/build/**

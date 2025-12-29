@@ -55,7 +55,42 @@ Then add the resulting secrets to GitHub repository settings. See [GITHUB_OIDC_S
 - ✅ Failed validations block PR merge (via branch protection)
 - ✅ All validation is auditable in GitHub Actions tab
 
-## Overview
+## Building ARM Templates from Bicep
+
+This repository uses **Bicep** (not raw ARM JSON) as the infrastructure-as-code language. Bicep is more readable and maintainable than ARM JSON.
+
+### Generated Files
+
+- **`main.json`** is automatically generated from `main.bicep`
+- Do NOT edit `main.json` directly — always edit the `.bicep` files
+- Generated files are excluded from version control (see `.gitignore`)
+
+### Build Locally
+
+To regenerate ARM templates from Bicep source:
+
+```bash
+# Build main template
+az bicep build --file infra/azure/main.bicep
+
+# Build individual modules
+az bicep build --file infra/azure/modules/identities.bicep
+az bicep build --file infra/azure/modules/keyvault.bicep
+```
+
+The generated `.json` files will be written to the same directory as the `.bicep` files.
+
+### CI/CD Integration
+
+The GitHub Actions workflow (`.github/workflows/bicep-validate.yml`) automatically:
+1. Compiles Bicep to ARM templates
+2. Validates ARM syntax
+3. Runs linter checks
+4. Performs what-if analysis
+
+You don't need to manually commit generated files — they're built on-demand.
+
+
 
 The ARM template (`azuredeploy.json`) automates the deployment of the entire Copilot for Consensus architecture to Azure, including:
 
