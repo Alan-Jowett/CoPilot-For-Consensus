@@ -149,3 +149,38 @@ class StartupRequeue:
                     tags={"collection": collection, "error_type": type(e).__name__}
                 )
             raise
+
+    def publish_event(
+        self,
+        event_type: str,
+        routing_key: str,
+        event_data: dict[str, Any],
+    ) -> None:
+        """Publish a single requeue event using standardized formatting.
+
+        This helper builds the event with a timestamp and uses the configured
+        publisher to emit it. Useful when you've already selected the specific
+        documents to requeue through custom logic.
+
+        Args:
+            event_type: Type of the event to publish (e.g., "SummarizationRequested")
+            routing_key: Message bus routing key (e.g., "summarization.requested")
+            event_data: Event data payload
+        """
+        try:
+            event = {
+                "event_type": event_type,
+                "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "data": event_data,
+            }
+
+            self.publisher.publish(
+                exchange="copilot.events",
+                routing_key=routing_key,
+                event=event,
+            )
+
+            logger.debug(f"Published {event_type} requeue event on {routing_key}")
+        except Exception as e:
+            logger.error(f"Failed to publish {event_type} requeue event: {e}")
+            raise

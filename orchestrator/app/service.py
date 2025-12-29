@@ -184,26 +184,27 @@ class OrchestrationService:
 
                 logger.info(f"Found {len(ready_threads)} threads ready for summarization")
 
-                # Requeue each ready thread
+                # Requeue each ready thread using StartupRequeue helper
+                from copilot_startup import StartupRequeue
+                requeue_helper = StartupRequeue(
+                    document_store=self.document_store,
+                    publisher=self.publisher,
+                    metrics_collector=self.metrics_collector,
+                )
+
                 requeued = 0
                 for thread in ready_threads:
                     thread_id = thread.get("thread_id")
                     archive_id = thread.get("archive_id")
 
-                    event = {
-                        "event_type": "SummarizationRequested",
-                        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-                        "data": {
-                            "thread_ids": [thread_id],
-                            "archive_id": archive_id,
-                        },
-                    }
-
                     try:
-                        self.publisher.publish(
-                            exchange="copilot.events",
+                        requeue_helper.publish_event(
+                            event_type="SummarizationRequested",
                             routing_key="summarization.requested",
-                            event=event,
+                            event_data={
+                                "thread_ids": [thread_id],
+                                "archive_id": archive_id,
+                            },
                         )
                         requeued += 1
                         logger.debug(f"Requeued thread {thread_id} for summarization")
