@@ -52,18 +52,61 @@ echo -e "${YELLOW}Creating app registration: $APP_NAME${NC}"
 APP_ID=$(az ad app create --display-name "$APP_NAME" --query appId -o tsv)
 echo -e "${GREEN}✓ App registration created: $APP_ID${NC}"
 
-# Create service principal
+# Wait for app registration to propagate (Azure AD requires this)
+echo -e "${YELLOW}Waiting for app registration to propagate (this takes ~30 seconds)...${NC}"
+sleep 30
+
+# Create service principal with retry logic
 echo -e "${YELLOW}Creating service principal...${NC}"
-PRINCIPAL_ID=$(az ad sp create --id "$APP_ID" --query id -o tsv)
-echo -e "${GREEN}✓ Service principal created: $PRINCIPAL_ID${NC}"
+MAX_RETRIES=5
+RETRY_COUNT=0
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    PRINCIPAL_ID=$(az ad sp create --id "$APP_ID" --query id -o tsv 2>&1)
+    if [ $? -eq 0 ] && [ -n "$PRINCIPAL_ID" ]; then
+        echo -e "${GREEN}✓ Service principal created: $PRINCIPAL_ID${NC}"
+        break
+    else
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+            echo -e "${YELLOW}  Retry $RETRY_COUNT/$MAX_RETRIES: Waiting for Azure AD propagation...${NC}"
+            sleep 15
+        else
+            echo -e "${RED}Error: Failed to create service principal after $MAX_RETRIES attempts.${NC}"
+            echo -e "${RED}This is usually due to Azure AD propagation delays.${NC}"
+            echo -e "${YELLOW}Try running this command manually after a few minutes:${NC}"
+            echo "  az ad sp create --id $APP_ID"
+            exit 1
+        fi
+    fi
+done
 
 # Assign Contributor role to service principal on subscription
 echo -e "${YELLOW}Assigning Contributor role on subscription...${NC}"
-az role assignment create \
-    --role "Contributor" \
-    --assignee "$PRINCIPAL_ID" \
-    --scope "/subscriptions/$SUBSCRIPTION_ID"
-echo -e "${GREEN}✓ Contributor role assigned${NC}"
+# Wait a moment for service principal to be ready
+sleep 10
+MAX_RETRIES=5
+RETRY_COUNT=0
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    az role assignment create \
+        --role "Contributor" \
+        --assignee "$PRINCIPAL_ID" \
+        --scope "/subscriptions/$SUBSCRIPTION_ID" 2>&1
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✓ Contributor role assigned${NC}"
+        break
+    else
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+            echo -e "${YELLOW}  Retry $RETRY_COUNT/$MAX_RETRIES: Waiting for service principal propagation...${NC}"
+            sleep 10
+        else
+            echo -e "${RED}Error: Failed to assign role after $MAX_RETRIES attempts.${NC}"
+            echo -e "${YELLOW}Try running this command manually:${NC}"
+            echo "  az role assignment create --role Contributor --assignee $PRINCIPAL_ID --scope /subscriptions/$SUBSCRIPTION_ID"
+            exit 1
+        fi
+    fi
+done
 
 # Create federated credential for GitHub main branch
 echo -e "${YELLOW}Creating federated credential for GitHub (main branch)...${NC}"
