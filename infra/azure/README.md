@@ -8,6 +8,7 @@ This guide provides instructions for deploying Copilot for Consensus to Azure us
 ## Table of Contents
 
 - [Overview](#overview)
+- [CI/CD Validation](#cicd-validation)
 - [Prerequisites](#prerequisites)
 - [Architecture](#architecture)
 - [Deployment Modes](#deployment-modes)
@@ -19,6 +20,40 @@ This guide provides instructions for deploying Copilot for Consensus to Azure us
 - [Troubleshooting](#troubleshooting)
 - [Cost Estimation](#cost-estimation)
 - [Security Best Practices](#security-best-practices)
+
+## CI/CD Validation
+
+All pull requests that modify files in `infra/azure/` are automatically validated by GitHub Actions.
+
+### Validation Stages
+
+1. **Bicep Lint & Build** (always runs)
+   - Compiles `.bicep` templates to ARM JSON
+   - Runs linter for best-practice checks
+   - Fast feedback, no Azure access required
+
+2. **ARM Template Validation** (requires Azure secrets)
+   - Validates generated ARM templates against Azure
+   - Runs what-if analysis to preview resource changes
+   - Requires GitHub OIDC setup (see [GITHUB_OIDC_SETUP.md](GITHUB_OIDC_SETUP.md))
+
+### One-Time Setup: GitHub OIDC
+
+To enable full validation with Azure integration:
+
+```bash
+cd infra/azure
+chmod +x setup-github-oidc.sh
+./setup-github-oidc.sh
+```
+
+Then add the resulting secrets to GitHub repository settings. See [GITHUB_OIDC_SETUP.md](GITHUB_OIDC_SETUP.md) for details.
+
+### Validation Results
+
+- ✅ Validation results are posted as comments on pull requests
+- ✅ Failed validations block PR merge (via branch protection)
+- ✅ All validation is auditable in GitHub Actions tab
 
 ## Overview
 

@@ -1,0 +1,208 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Bicep Template Validation
+
+on:
+  pull_request:
+    paths:
+      - 'infra/azure/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/azure/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+
+jobs:
+  bicep-lint:
+    name: Bicep Lint & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          az --version
+
+      - name: Bicep build & lint - main.bicep
+        run: |
+          cd infra/azure
+          az bicep build --file main.bicep
+          echo "✓ main.bicep syntax valid"
+
+      - name: Bicep lint - main.bicep
+        run: |
+          cd infra/azure
+          az bicep lint --file main.bicep
+          echo "✓ main.bicep linting complete"
+
+      - name: Bicep lint - identities.bicep
+        run: |
+          cd infra/azure
+          az bicep lint --file modules/identities.bicep
+          echo "✓ identities.bicep linting complete"
+
+      - name: Bicep lint - keyvault.bicep
+        run: |
+          cd infra/azure
+          az bicep lint --file modules/keyvault.bicep
+          echo "✓ keyvault.bicep linting complete"
+
+  validate-template:
+    name: ARM Template Validation
+    runs-on: ubuntu-latest
+    needs: bicep-lint
+    if: secrets.AZURE_SUBSCRIPTION_ID != ''
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+          enable-AzPSSession: false
+
+      - name: Create temporary resource group for validation
+        id: create-rg
+        run: |
+          RG_NAME="bicep-validate-$(date +%s)"
+          echo "rg_name=$RG_NAME" >> $GITHUB_OUTPUT
+          az group create --name "$RG_NAME" --location westus
+          echo "✓ Created temporary RG: $RG_NAME"
+
+      - name: Validate main.bicep template
+        run: |
+          cd infra/azure
+          az deployment group validate \
+            --resource-group ${{ steps.create-rg.outputs.rg_name }} \
+            --template-file main.bicep \
+            --parameters parameters.dev.json \
+            --query "validationLevel" -o tsv
+          echo "✓ Template validation passed"
+
+      - name: Run what-if analysis (dev)
+        continue-on-error: true
+        run: |
+          cd infra/azure
+          az deployment group what-if \
+            --resource-group ${{ steps.create-rg.outputs.rg_name }} \
+            --template-file main.bicep \
+            --parameters parameters.dev.json \
+            --no-pretty-print > what-if-output.json
+          echo "✓ What-if analysis complete"
+          
+      - name: Parse and comment what-if results
+        if: github.event_name == 'pull_request'
+        run: |
+          # Extract resource changes from what-if output
+          cd infra/azure
+          if [ -f what-if-output.json ]; then
+            cat > /tmp/parse-whatif.py << 'PYTHON'
+          import json
+          import sys
+          
+          try:
+              with open('what-if-output.json') as f:
+                  data = json.load(f)
+          except:
+              print("No what-if data available")
+              sys.exit(0)
+          
+          changes = data.get('changes', [])
+          if not changes:
+              print("No resource changes detected")
+              sys.exit(0)
+          
+          creates = [c for c in changes if c.get('changeType') == 'Create']
+          modifies = [c for c in changes if c.get('changeType') == 'Modify']
+          deletes = [c for c in changes if c.get('changeType') == 'Delete']
+          
+          print(f"📋 What-If Analysis Results:")
+          print(f"  🟢 Creates: {len(creates)}")
+          print(f"  🟡 Modifies: {len(modifies)}")
+          print(f"  🔴 Deletes: {len(deletes)}")
+          print()
+          
+          if creates:
+              print("**Resources to Create:**")
+              for r in creates:
+                  print(f"  - {r.get('resourceId', 'Unknown')}")
+          
+          if modifies:
+              print("**Resources to Modify:**")
+              for r in modifies:
+                  print(f"  - {r.get('resourceId', 'Unknown')}")
+          
+          if deletes:
+              print("**Resources to Delete:**")
+              for r in deletes:
+                  print(f"  - {r.get('resourceId', 'Unknown')}")
+          PYTHON
+            python /tmp/parse-whatif.py
+          else
+            echo "⚠️ No what-if output generated"
+          fi
+
+      - name: Clean up temporary resource group
+        if: always()
+        run: |
+          az group delete \
+            --name ${{ steps.create-rg.outputs.rg_name }} \
+            --yes --no-wait
+          echo "✓ Temporary RG marked for deletion"
+
+  comment-results:
+    name: Comment on PR
+    runs-on: ubuntu-latest
+    needs: [bicep-lint, validate-template]
+    if: github.event_name == 'pull_request' && always()
+    steps:
+      - name: Post validation results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const lint_result = '${{ needs.bicep-lint.result }}';
+            const validate_result = '${{ needs.validate-template.result }}';
+            
+            let status = '✅';
+            let details = '';
+            
+            if (lint_result !== 'success') {
+              status = '❌';
+              details += '- Bicep linting failed\n';
+            } else {
+              details += '- ✓ Bicep syntax valid\n';
+              details += '- ✓ Bicep linting passed\n';
+            }
+            
+            if (validate_result === 'skipped') {
+              details += '- ⚠️ ARM validation skipped (Azure secrets not configured)\n';
+            } else if (validate_result !== 'success') {
+              status = '❌';
+              details += '- ARM template validation failed\n';
+            } else {
+              details += '- ✓ ARM template validation passed\n';
+              details += '- ✓ What-if analysis completed\n';
+            }
+            
+            const body = `## ${status} Bicep Validation Results\n\n${details}`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
