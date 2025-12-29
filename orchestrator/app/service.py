@@ -190,17 +190,20 @@ class OrchestrationService:
                     thread_id = thread.get("thread_id")
                     archive_id = thread.get("archive_id")
 
-                    event_data = {
-                        "thread_ids": [thread_id],
-                        "archive_id": archive_id,
+                    event = {
+                        "event_type": "SummarizationRequested",
+                        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                        "data": {
+                            "thread_ids": [thread_id],
+                            "archive_id": archive_id,
+                        },
                     }
 
                     try:
                         self.publisher.publish(
-                            event_type="SummarizationRequested",
-                            data=event_data,
-                            routing_key="summarization.requested",
                             exchange="copilot.events",
+                            routing_key="summarization.requested",
+                            event=event,
                         )
                         requeued += 1
                         logger.debug(f"Requeued thread {thread_id} for summarization")
