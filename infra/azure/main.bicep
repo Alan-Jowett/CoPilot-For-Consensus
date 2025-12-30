@@ -111,6 +111,8 @@ module keyVaultModule 'modules/keyvault.bicep' = {
 
 // Variable for Service Bus namespace name (must be globally unique)
 var serviceBusNamespaceName = '${take(projectName, 8)}-sb-${environment}-${take(uniqueSuffix, 8)}'
+// Cosmos DB account name must be globally unique and lowercase
+var cosmosAccountName = toLower('${take(projectName, 10)}-cos-${environment}-${take(uniqueSuffix, 5)}')
 
 // Module: Azure Service Bus
 module serviceBusModule 'modules/servicebus.bicep' = {
@@ -125,11 +127,18 @@ module serviceBusModule 'modules/servicebus.bicep' = {
   }
 }
 
-// Module: Azure Cosmos DB (Placeholder for PR #3)
-// module cosmosModule 'modules/cosmos.bicep' = {
-//   name: 'cosmosDeployment'
-//   ...
-// }
+// Module: Azure Cosmos DB
+module cosmosModule 'modules/cosmos.bicep' = {
+  name: 'cosmosDeployment'
+  params: {
+    location: location
+    accountName: cosmosAccountName
+    enableMultiRegion: enableMultiRegionCosmos
+    cosmosDbAutoscaleMinRu: cosmosDbAutoscaleMinRu
+    cosmosDbAutoscaleMaxRu: cosmosDbAutoscaleMaxRu
+    tags: tags
+  }
+}
 
 // Module: Azure OpenAI (Placeholder for PR #4)
 // module openaiModule 'modules/openai.bicep' = {
@@ -150,6 +159,12 @@ output managedIdentities array = identitiesModule.outputs.identities
 output serviceBusNamespace string = serviceBusModule.outputs.namespaceName
 output serviceBusNamespaceId string = serviceBusModule.outputs.namespaceResourceId
 output serviceBusQueues array = serviceBusModule.outputs.queueNames
+output cosmosAccountName string = cosmosModule.outputs.accountName
+output cosmosAccountEndpoint string = cosmosModule.outputs.accountEndpoint
+output cosmosDatabaseName string = cosmosModule.outputs.databaseName
+output cosmosContainerName string = cosmosModule.outputs.containerName
+output cosmosAutoscaleMaxRu int = cosmosModule.outputs.autoscaleMaxThroughput
+output cosmosWriteRegions array = cosmosModule.outputs.writeRegions
 output resourceGroupName string = resourceGroup().name
 output location string = location
 output environment string = environment
