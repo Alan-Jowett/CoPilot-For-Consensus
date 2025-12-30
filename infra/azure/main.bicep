@@ -19,6 +19,7 @@ param containerImageTag string = 'latest'
 #disable-next-line no-unused-params
 param deployAzureOpenAI bool = true
 
+// Azure OpenAI accounts only support S0 (S1/S2 apply to other Cognitive Services resources, not OpenAI)
 @allowed(['S0'])
 #disable-next-line no-unused-params
 @description('SKU for Azure OpenAI Service. Azure OpenAI currently only supports the S0 SKU; other SKUs are not valid for this resource type.')
@@ -29,11 +30,23 @@ param azureOpenAISku string = 'S0'
 @description('Deployment SKU for Azure OpenAI (GlobalStandard recommended for production)')
 param azureOpenAIDeploymentSku string = 'GlobalStandard'
 
+@allowed([
+  '2024-05-13'
+  '2024-08-06'
+  '2024-11-20'
+])
+#disable-next-line no-unused-params
+@description('Model version for GPT-4o deployments; default tracks latest GA. Override per environment if needed.')
+param azureOpenAIModelVersion string = '2024-11-20'
+
 @minValue(1)
 @maxValue(1000)
 #disable-next-line no-unused-params
 @description('Deployment capacity units for Azure OpenAI. Each unit represents 1K tokens per minute (TPM). For GlobalStandard SKU, capacity determines throughput allocation across global regions. Use lower values for dev, higher for prod.')
 param azureOpenAIDeploymentCapacity int = 10
+
+@description('IPv4 CIDR allowlist for Azure OpenAI when public network access is enabled')
+param azureOpenAIAllowedCidrs array = []
 
 @minValue(400)
 @maxValue(1000000)
@@ -70,6 +83,7 @@ var services = [
   'auth'
   'ui'
   'gateway'
+  'openai'
 ]
 
 // Explicit sender/receiver lists for least-privilege RBAC in Service Bus
@@ -165,9 +179,12 @@ module openaiModule 'modules/openai.bicep' = if (deployAzureOpenAI) {
     accountName: openaiAccountName
     sku: azureOpenAISku
     deploymentSku: azureOpenAIDeploymentSku
+    modelVersion: azureOpenAIModelVersion
     deploymentCapacity: azureOpenAIDeploymentCapacity
-    enablePublicNetworkAccess: environment == 'dev'  // Disable for non-dev; use Private Link in staging/prod
-    networkDefaultAction: environment == 'dev' ? 'Allow' : 'Deny'
+    identityResourceId: identitiesModule.outputs.identityResourceIds.openai
+    enablePublicNetworkAccess: environment == 'dev'  // For dev enable public endpoint, but defaultAction remains Deny; use azureOpenAIAllowedCidrs to allow specific IPs
+    networkDefaultAction: 'Deny'
+    ipRules: azureOpenAIAllowedCidrs
     tags: tags
   }
 }

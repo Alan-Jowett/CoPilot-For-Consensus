@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
-metadata description = 'Module to provision Azure OpenAI Service with GPT-4 and other model deployments'
+metadata description = 'Module to provision Azure OpenAI Service with GPT-4o and related model deployments'
 metadata author = 'Copilot-for-Consensus Team'
 
 @description('Azure region for the OpenAI resource')
@@ -38,6 +38,9 @@ param networkDefaultAction string = 'Deny'
 @description('Optional user-assigned managed identity resource ID for RBAC')
 param identityResourceId string = ''
 
+@description('List of IPv4 CIDR ranges allowed to reach the OpenAI endpoint')
+param ipRules array = []
+
 @description('Tags applied to all OpenAI resources')
 param tags object = {}
 
@@ -73,6 +76,7 @@ resource openaiAccount 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
     publicNetworkAccess: enablePublicNetworkAccess ? 'Enabled' : 'Disabled'
     networkAcls: {
       defaultAction: enablePublicNetworkAccess ? networkDefaultAction : 'Deny'
+      ipRules: [for cidr in ipRules: { value: cidr }]
     }
   }
 }
@@ -104,9 +108,9 @@ output accountId string = openaiAccount.id
 output accountEndpoint string = openaiAccount.properties.endpoint
 @description('Custom subdomain for token-based auth')
 output customSubdomain string = openaiAccount.properties.customSubDomainName
-@description('GPT-4 deployment resource ID')
+@description('GPT-4o deployment resource ID')
 output gpt4DeploymentId string = gpt4Deployment.id
-@description('GPT-4 deployment name')
+@description('GPT-4o deployment name')
 output gpt4DeploymentName string = gpt4Deployment.name
 @description('Configured SKU for OpenAI account')
 output skuName string = sku
