@@ -13,26 +13,8 @@ param environment string = 'dev'
 
 param location string = 'westus'
 
-param containerImageTag string = 'latest'
-
-param deployAzureOpenAI bool = true
-
-@allowed(['S0', 'S1', 'S2'])
-param azureOpenAISku string = 'S0'
-
-@minValue(400)
-@maxValue(1000000)
-param cosmosDbAutoscaleMinRu int = 400
-
-// cosmosDbAutoscaleMaxRu must be >= cosmosDbAutoscaleMinRu
-@minValue(400)
-@maxValue(1000000)
-param cosmosDbAutoscaleMaxRu int = 1000
-
 @allowed(['Standard', 'Premium'])
 param serviceBusSku string = 'Standard'
-
-param enableMultiRegionCosmos bool = false
 
 param tags object = {
   environment: environment
@@ -52,6 +34,25 @@ var services = [
   'auth'
   'ui'
   'gateway'
+]
+
+// Explicit sender/receiver lists for least-privilege RBAC in Service Bus
+var serviceBusSenderServices = [
+  'parsing'
+  'chunking'
+  'embedding'
+  'orchestrator'
+  'summarization'
+  'reporting'
+]
+
+var serviceBusReceiverServices = [
+  'chunking'
+  'embedding'
+  'orchestrator'
+  'summarization'
+  'reporting'
+  'ingestion'
 ]
 
 var uniqueSuffix = uniqueString(resourceGroup().id)
@@ -94,9 +95,8 @@ module serviceBusModule 'modules/servicebus.bicep' = {
     location: location
     namespaceName: serviceBusNamespaceName
     sku: serviceBusSku
-    managedIdentityPrincipalIds: identitiesModule.outputs.identityPrincipalIds
-    services: services
-    tags: tags
+    senderServices: serviceBusSenderServices
+    receiverServices: serviceBusReceiverServices
   }
 }
 
@@ -122,7 +122,8 @@ module serviceBusModule 'modules/servicebus.bicep' = {
 output keyVaultUri string = keyVaultModule.outputs.keyVaultUri
 output keyVaultName string = keyVaultModule.outputs.keyVaultName
 output managedIdentities array = identitiesModule.outputs.identities
-output serviceBusNamespace string = serviceBusModule.outputs.serviceBusNamespaceName
+output serviceBusNamespace string = serviceBusModule.outputs.namespaceName
+output serviceBusNamespaceId string = serviceBusModule.outputs.namespaceResourceId
 output serviceBusQueues array = serviceBusModule.outputs.queueNames
 output resourceGroupName string = resourceGroup().name
 output location string = location
