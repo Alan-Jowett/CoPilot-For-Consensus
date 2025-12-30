@@ -177,9 +177,10 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     fi
 done
 
-# Assign Contributor role to service principal on subscription
+# Assign roles needed for deployments
+# 1) Contributor for resource CRUD
+# 2) User Access Administrator for creating roleAssignments (least privilege that enables RBAC writes)
 echo -e "${YELLOW}Assigning Contributor role on subscription...${NC}"
-# Wait a moment for service principal to be ready
 sleep 10
 MAX_RETRIES=5
 RETRY_COUNT=0
@@ -194,30 +195,62 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         echo -e "${GREEN}✓ Contributor role assigned${NC}"
         break
     else
-        # Check if the error is "already exists" (idempotent, OK to ignore)
         if echo "$ROLE_OUTPUT" | grep -q "The role assignment already exists"; then
             echo -e "${GREEN}✓ Contributor role already exists (idempotent)${NC}"
             break
         fi
-        
-        # Check if error is permission-related (fatal, don't retry)
         if echo "$ROLE_OUTPUT" | grep -qE "(Insufficient|Authorization|permission|AuthorizationFailed)"; then
-            echo -e "${RED}Error: Insufficient permissions to assign role.${NC}"
+            echo -e "${RED}Error: Insufficient permissions to assign Contributor.${NC}"
             echo -e "${RED}Details: $ROLE_OUTPUT${NC}"
             echo -e "${YELLOW}You need 'User Access Administrator' or 'Owner' role on the subscription.${NC}"
             exit 1
         fi
-        
-        # Otherwise assume it's a propagation issue and retry
         RETRY_COUNT=$((RETRY_COUNT + 1))
         if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
             echo -e "${YELLOW}  Retry $RETRY_COUNT/$MAX_RETRIES: Waiting for service principal propagation...${NC}"
             sleep 10
         else
-            echo -e "${RED}Error: Failed to assign role after $MAX_RETRIES attempts.${NC}"
+            echo -e "${RED}Error: Failed to assign Contributor after $MAX_RETRIES attempts.${NC}"
             echo -e "${RED}Details: $ROLE_OUTPUT${NC}"
             echo -e "${YELLOW}Try running this command manually:${NC}"
             echo "  az role assignment create --role Contributor --assignee $PRINCIPAL_ID --scope /subscriptions/$SUBSCRIPTION_ID"
+            exit 1
+        fi
+    fi
+done
+
+echo -e "${YELLOW}Assigning User Access Administrator role on subscription (required for roleAssignments)...${NC}"
+RETRY_COUNT=0
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    ROLE_OUTPUT=$(az role assignment create \
+        --role "User Access Administrator" \
+        --assignee "$PRINCIPAL_ID" \
+        --scope "/subscriptions/$SUBSCRIPTION_ID" 2>&1)
+    ROLE_EXIT_CODE=$?
+    
+    if [ $ROLE_EXIT_CODE -eq 0 ]; then
+        echo -e "${GREEN}✓ User Access Administrator role assigned${NC}"
+        break
+    else
+        if echo "$ROLE_OUTPUT" | grep -q "The role assignment already exists"; then
+            echo -e "${GREEN}✓ User Access Administrator role already exists (idempotent)${NC}"
+            break
+        fi
+        if echo "$ROLE_OUTPUT" | grep -qE "(Insufficient|Authorization|permission|AuthorizationFailed)"; then
+            echo -e "${RED}Error: Insufficient permissions to assign User Access Administrator.${NC}"
+            echo -e "${RED}Details: $ROLE_OUTPUT${NC}"
+            echo -e "${YELLOW}You need 'User Access Administrator' or 'Owner' role on the subscription.${NC}"
+            exit 1
+        fi
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+            echo -e "${YELLOW}  Retry $RETRY_COUNT/$MAX_RETRIES: Waiting for service principal propagation...${NC}"
+            sleep 10
+        else
+            echo -e "${RED}Error: Failed to assign User Access Administrator after $MAX_RETRIES attempts.${NC}"
+            echo -e "${RED}Details: $ROLE_OUTPUT${NC}"
+            echo -e "${YELLOW}Try running this command manually:${NC}"
+            echo "  az role assignment create --role 'User Access Administrator' --assignee $PRINCIPAL_ID --scope /subscriptions/$SUBSCRIPTION_ID"
             exit 1
         fi
     fi
