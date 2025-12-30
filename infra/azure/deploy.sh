@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-# Azure ARM Template Deployment Script for Copilot for Consensus
+# Azure Bicep Deployment Script for Copilot for Consensus
 # This script deploys the entire Copilot for Consensus architecture to Azure
-# using Azure Resource Manager templates with managed identity support.
+# using the main Bicep template with managed identity support.
 
 set -e
 
@@ -55,7 +55,7 @@ Deploy Copilot for Consensus to Azure using ARM templates.
 OPTIONS:
     -g, --resource-group    Resource group name (required)
     -l, --location          Azure region (default: eastus)
-    -p, --parameters        Path to parameters file (default: azuredeploy.parameters.json)
+    -p, --parameters        Path to parameters file (default: parameters.dev.json)
     -n, --project-name      Project name prefix (default: copilot)
     -e, --environment       Environment (dev/staging/prod, default: dev)
     -t, --image-tag         Container image tag (default: latest)
@@ -78,7 +78,7 @@ EOF
 # Default values
 RESOURCE_GROUP=""
 LOCATION="eastus"
-PARAMETERS_FILE="azuredeploy.parameters.json"
+PARAMETERS_FILE="parameters.dev.json"
 PROJECT_NAME="copilot"
 ENVIRONMENT="dev"
 IMAGE_TAG="latest"
@@ -163,10 +163,10 @@ main() {
     fi
 
     # Validate template
-    print_info "Validating ARM template..."
+    print_info "Validating Bicep template..."
     if ! az deployment group validate \
         --resource-group "$RESOURCE_GROUP" \
-        --template-file "$SCRIPT_DIR/azuredeploy.json" \
+        --template-file "$SCRIPT_DIR/main.bicep" \
         --parameters "@$SCRIPT_DIR/$PARAMETERS_FILE" \
         --parameters projectName="$PROJECT_NAME" environment="$ENVIRONMENT" containerImageTag="$IMAGE_TAG" location="$LOCATION"; then
         print_error "Template validation failed."
@@ -189,7 +189,7 @@ main() {
     if az deployment group create \
         --name "$DEPLOYMENT_NAME" \
         --resource-group "$RESOURCE_GROUP" \
-        --template-file "$SCRIPT_DIR/azuredeploy.json" \
+        --template-file "$SCRIPT_DIR/main.bicep" \
         --parameters "@$SCRIPT_DIR/$PARAMETERS_FILE" \
         --parameters projectName="$PROJECT_NAME" environment="$ENVIRONMENT" containerImageTag="$IMAGE_TAG" location="$LOCATION"; then
 

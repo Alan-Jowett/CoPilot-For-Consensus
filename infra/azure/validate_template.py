@@ -3,18 +3,14 @@
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
 """
-ARM Template Validation Script
+Bicep/Parameters Validation Script
 
-This script validates the Azure ARM template for syntax and structural correctness.
-It does not perform Azure API validation but checks for:
-- Valid JSON syntax
-- Required template sections
-- Parameter definitions
-- Resource declarations
-- Output definitions
+This script validates the Azure Bicep template compiles and that parameter files
+are well-formed JSON. It does not call Azure APIs.
 """
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -144,47 +140,50 @@ def validate_parameters_file(file_path: Path) -> tuple[bool, list[str]]:
 def main():
     """Main validation function."""
     script_dir = Path(__file__).parent
-    template_file = script_dir / "azuredeploy.json"
-    parameters_file = script_dir / "azuredeploy.parameters.json"
+    template_file = script_dir / "main.bicep"
+    parameter_files = [
+        script_dir / "parameters.dev.json",
+        script_dir / "parameters.staging.json",
+        script_dir / "parameters.prod.json",
+    ]
 
-    print("ARM Template Validation")
+    print("Bicep/Parameters Validation")
     print("=" * 60)
 
     all_valid = True
 
-    # Validate template JSON syntax
-    print(f"\nValidating template file: {template_file}")
-    valid, message = validate_json_syntax(template_file)
-    print(f"  JSON Syntax: {'✓ PASS' if valid else '✗ FAIL'} - {message}")
-    all_valid = all_valid and valid
+    # Validate Bicep compilation
+    print(f"\nValidating Bicep file: {template_file}")
+    try:
+        subprocess.run(
+            ["az", "bicep", "build", "--file", str(template_file)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        print("  Bicep Compile: ✓ PASS")
+    except subprocess.CalledProcessError as exc:
+        print("  Bicep Compile: ✗ FAIL")
+        print(exc.stdout)
+        print(exc.stderr)
+        all_valid = False
 
-    # Validate template structure
-    if valid:
-        valid, errors = validate_template_structure(template_file)
+    # Validate parameter files
+    for parameters_file in parameter_files:
+        print(f"\nValidating parameters file: {parameters_file.name}")
+        valid, message = validate_json_syntax(parameters_file)
+        print(f"  JSON Syntax: {'✓ PASS' if valid else '✗ FAIL'} - {message}")
+        all_valid = all_valid and valid
+
         if valid:
-            print("  Template Structure: ✓ PASS")
-        else:
-            print("  Template Structure: ✗ FAIL")
-            for error in errors:
-                print(f"    - {error}")
-            all_valid = False
-
-    # Validate parameters file JSON syntax
-    print(f"\nValidating parameters file: {parameters_file}")
-    valid, message = validate_json_syntax(parameters_file)
-    print(f"  JSON Syntax: {'✓ PASS' if valid else '✗ FAIL'} - {message}")
-    all_valid = all_valid and valid
-
-    # Validate parameters file structure
-    if valid:
-        valid, errors = validate_parameters_file(parameters_file)
-        if valid:
-            print("  Parameters Structure: ✓ PASS")
-        else:
-            print("  Parameters Structure: ✗ FAIL")
-            for error in errors:
-                print(f"    - {error}")
-            all_valid = False
+            valid, errors = validate_parameters_file(parameters_file)
+            if valid:
+                print("  Parameters Structure: ✓ PASS")
+            else:
+                print("  Parameters Structure: ✗ FAIL")
+                for error in errors:
+                    print(f"    - {error}")
+                all_valid = False
 
     # Summary
     print("\n" + "=" * 60)
