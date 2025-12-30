@@ -32,7 +32,7 @@ param azureOpenAIDeploymentSku string = 'GlobalStandard'
 @minValue(1)
 @maxValue(1000)
 #disable-next-line no-unused-params
-@description('Deployment capacity (TPM in thousands) for Azure OpenAI. Use lower values for dev, higher for prod.')
+@description('Deployment capacity units for Azure OpenAI. Each unit represents 1K tokens per minute (TPM). For GlobalStandard SKU, capacity determines throughput allocation across global regions. Use lower values for dev, higher for prod.')
 param azureOpenAIDeploymentCapacity int = 10
 
 @minValue(400)

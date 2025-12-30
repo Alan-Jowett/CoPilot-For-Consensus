@@ -51,7 +51,7 @@ var normalizedAccountName = toLower(accountName)
 // Use the first 8 chars of the account name for brevity
 var projectName = take(normalizedAccountName, 8)
 var normalizedSubdomain = customSubdomainName != '' ? toLower(customSubdomainName) : toLower('${projectName}-openai-${uniqueString(resourceGroup().id)}')
-var deploymentName = 'gpt-4-deployment'
+var deploymentName = 'gpt-4o-deployment'
 
 // Azure OpenAI Service account
 resource openaiAccount 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
