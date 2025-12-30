@@ -83,6 +83,8 @@ var uniqueSuffix = uniqueString(resourceGroup().id)
 // Key Vault name must be 3-24 characters, globally unique
 var keyVaultName = '${take(projectName, 8)}kv${take(uniqueSuffix, 13)}'
 var identityPrefix = '${projectName}-${environment}'
+// Ensure project name prefix doesn't end with dash to avoid double-dash in resource names
+var projectPrefix = take(replace(projectName, '-', ''), 8)
 
 // Module: User-Assigned Managed Identities
 module identitiesModule 'modules/identities.bicep' = {
@@ -110,7 +112,8 @@ module keyVaultModule 'modules/keyvault.bicep' = {
 }
 
 // Variable for Service Bus namespace name (must be globally unique)
-var serviceBusNamespaceName = '${take(projectName, 8)}-sb-${environment}-${take(uniqueSuffix, 8)}'
+// Use projectPrefix to avoid double-dash issues
+var serviceBusNamespaceName = '${projectPrefix}-sb-${environment}-${take(uniqueSuffix, 8)}'
 // Cosmos DB account name must be globally unique and lowercase
 var cosmosAccountName = toLower('${take(projectName, 10)}-cos-${environment}-${take(uniqueSuffix, 5)}')
 
