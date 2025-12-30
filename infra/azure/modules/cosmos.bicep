@@ -31,6 +31,8 @@ var autoscaleMaxRu = cosmosDbAutoscaleMaxRu >= cosmosDbAutoscaleMinRu ? cosmosDb
 var writeRegionNames = [
   for loc in failoverLocations: loc.locationName
 ]
+var enableMultiRegionEffective = enableMultiRegion && contains(secondaryRegionMap, location)
+var secondaryRegion = enableMultiRegionEffective ? secondaryRegionMap[location] : ''
 
 // Preferred regional pairs for failover; falls back to the primary location if not mapped
 var secondaryRegionMap = {
@@ -49,15 +51,14 @@ var secondaryRegionMap = {
   germanywestcentral: 'germanynorth'
 }
 
-var failoverLocations = enableMultiRegion ? [
+var failoverLocations = enableMultiRegionEffective ? [
   {
     locationName: location
     failoverPriority: 0
     isZoneRedundant: false
   }
   {
-#disable-next-line use-safe-access
-    locationName: contains(secondaryRegionMap, location) ? secondaryRegionMap[location] : location
+    locationName: secondaryRegion
     failoverPriority: 1
     isZoneRedundant: false
   }
