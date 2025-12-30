@@ -34,11 +34,11 @@ param cosmosDbAutoscaleMinRu int = 400
 #disable-next-line no-unused-params
 param cosmosDbAutoscaleMaxRu int = 1000
 
-#disable-next-line no-unused-params
-param enableMultiRegionCosmos bool = false
-
 @allowed(['Standard', 'Premium'])
 param serviceBusSku string = 'Standard'
+
+#disable-next-line no-unused-params
+param enableMultiRegionCosmos bool = false
 
 param tags object = {
   environment: environment

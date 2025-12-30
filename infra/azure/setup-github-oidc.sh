@@ -132,6 +132,13 @@ fi
 
 # Create service principal with retry logic
 echo -e "${YELLOW}Creating service principal...${NC}"
+set +e
+# If SP already exists, reuse it and skip creation
+EXISTING_SP_ID=$(az ad sp list --filter "appId eq '$APP_ID'" --query "[0].id" -o tsv 2>/dev/null | tr -d '\r')
+if [ -n "$EXISTING_SP_ID" ]; then
+    PRINCIPAL_ID=$EXISTING_SP_ID
+    echo -e "${GREEN}✓ Service principal already exists: $PRINCIPAL_ID (idempotent)${NC}"
+else
 MAX_RETRIES=5
 RETRY_COUNT=0
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
@@ -176,10 +183,25 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         fi
     fi
 done
+fi
+set -e
 
 # Assign roles needed for deployments
 # 1) Contributor for resource CRUD
 # 2) User Access Administrator for creating roleAssignments (least privilege that enables RBAC writes)
+#    Prefer scoping UA Admin to a specific resource group to reduce blast radius.
+DEFAULT_UAA_RG="copilot-bicep-validation-rg"
+ROLE_SCOPE_RG=${ROLE_SCOPE_RG:-$DEFAULT_UAA_RG}
+UAA_SCOPE="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$ROLE_SCOPE_RG"
+
+# Verify RG exists; if not, fall back to subscription scope with warning
+if ! az group show --name "$ROLE_SCOPE_RG" >/dev/null 2>&1; then
+    echo -e "${YELLOW}Warning: Resource group '$ROLE_SCOPE_RG' not found; falling back to subscription scope for UA Admin.${NC}"
+    UAA_SCOPE="/subscriptions/$SUBSCRIPTION_ID"
+else
+    echo -e "${GREEN}✓ Using resource group scope for UA Admin: $UAA_SCOPE${NC}"
+fi
+
 echo -e "${YELLOW}Assigning Contributor role on subscription...${NC}"
 sleep 10
 MAX_RETRIES=5
@@ -219,13 +241,13 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     fi
 done
 
-echo -e "${YELLOW}Assigning User Access Administrator role on subscription (required for roleAssignments)...${NC}"
+echo -e "${YELLOW}Assigning User Access Administrator role (scope: $UAA_SCOPE)...${NC}"
 RETRY_COUNT=0
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     ROLE_OUTPUT=$(az role assignment create \
         --role "User Access Administrator" \
         --assignee "$PRINCIPAL_ID" \
-        --scope "/subscriptions/$SUBSCRIPTION_ID" 2>&1)
+        --scope "$UAA_SCOPE" 2>&1)
     ROLE_EXIT_CODE=$?
     
     if [ $ROLE_EXIT_CODE -eq 0 ]; then
@@ -268,14 +290,16 @@ cat > /tmp/federated_cred_main.json <<EOF
 }
 EOF
 
+set +e
 FEDERATED_MAIN_OUTPUT=$(az ad app federated-credential create \
     --id "$APP_ID" \
     --parameters /tmp/federated_cred_main.json 2>&1)
 FEDERATED_MAIN_EXIT=$?
+set -e
 
 if [ $FEDERATED_MAIN_EXIT -eq 0 ]; then
     echo -e "${GREEN}✓ Federated credential created for main branch${NC}"
-elif echo "$FEDERATED_MAIN_OUTPUT" | grep -q "already exists"; then
+elif echo "$FEDERATED_MAIN_OUTPUT" | grep -qi "already exists"; then
     echo -e "${GREEN}✓ Federated credential already exists for main branch (idempotent)${NC}"
 else
     echo -e "${RED}Error creating federated credential for main branch:${NC}"
@@ -295,14 +319,16 @@ cat > /tmp/federated_cred_pr.json <<EOF
 }
 EOF
 
+set +e
 FEDERATED_PR_OUTPUT=$(az ad app federated-credential create \
     --id "$APP_ID" \
     --parameters /tmp/federated_cred_pr.json 2>&1)
 FEDERATED_PR_EXIT=$?
+set -e
 
 if [ $FEDERATED_PR_EXIT -eq 0 ]; then
     echo -e "${GREEN}✓ Federated credential created for PR branches${NC}"
-elif echo "$FEDERATED_PR_OUTPUT" | grep -q "already exists"; then
+elif echo "$FEDERATED_PR_OUTPUT" | grep -qi "already exists"; then
     echo -e "${GREEN}✓ Federated credential already exists for PR branches (idempotent)${NC}"
 else
     echo -e "${RED}Error creating federated credential for PR branches:${NC}"

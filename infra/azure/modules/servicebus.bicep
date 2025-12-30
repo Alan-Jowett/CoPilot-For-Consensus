@@ -19,7 +19,6 @@ param identityResourceIds object
 
 @description('Services that will send messages (sender role only)')
 @minLength(1)
-@maxLength(10)
 param senderServices array = [
   'parsing'
   'chunking'
@@ -31,7 +30,6 @@ param senderServices array = [
 
 @description('Services that will receive messages (receiver role only)')
 @minLength(1)
-@maxLength(10)
 param receiverServices array = [
   'chunking'
   'embedding'
@@ -86,7 +84,8 @@ resource queues 'Microsoft.ServiceBus/namespaces/queues@2022-10-01-preview' = [
       // Partitioning improves throughput for Standard; Premium handles scale implicitly.
       enablePartitioning: sku == 'Standard'
       enableExpress: false
-      autoDeleteOnIdle: 'P10D'
+      autoDeleteOnIdle: null
+      maxDeliveryCount: 10
     }
   }
 ]
