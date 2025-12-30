@@ -10,11 +10,16 @@ param location string
 @description('OpenAI account name (3-64 characters, lowercase alphanumeric and hyphens only)')
 param accountName string
 
-@description('SKU for Azure OpenAI Service (S0, S1, S2)')
+@allowed(['S0'])
+@description('SKU for Azure OpenAI Service (currently only S0 is supported)')
 param sku string = 'S0'
 
 @description('Model version to deploy (e.g., 1106-preview)')
 param modelVersion string = '1106-preview'
+
+@allowed(['Allow', 'Deny'])
+@description('Default action for network ACLs when public network is enabled')
+param networkDefaultAction string = 'Deny'
 
 @description('Optional user-assigned managed identity resource ID for RBAC')
 param identityResourceId string = ''
@@ -57,7 +62,7 @@ resource openaiAccount 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
     customSubDomainName: normalizedSubdomain
     publicNetworkAccess: enablePublicNetworkAccess ? 'Enabled' : 'Disabled'
     networkAcls: {
-      defaultAction: enablePublicNetworkAccess ? 'Allow' : 'Deny'
+      defaultAction: enablePublicNetworkAccess ? networkDefaultAction : 'Deny'
     }
   }
 }
@@ -68,6 +73,7 @@ resource gpt4Deployment 'Microsoft.CognitiveServices/accounts/deployments@2025-0
   name: deploymentName
   sku: {
     name: 'Standard'
+    capacity: deploymentCapacity
   }
   properties: {
     model: {
@@ -78,7 +84,6 @@ resource gpt4Deployment 'Microsoft.CognitiveServices/accounts/deployments@2025-0
     versionUpgradeOption: 'OnceNewDefaultVersionAvailable'
     scaleSettings: {
       scaleType: 'Standard'
-      capacity: deploymentCapacity
     }
   }
 }

@@ -153,6 +153,7 @@ module openaiModule 'modules/openai.bicep' = if (deployAzureOpenAI) {
     accountName: openaiAccountName
     sku: azureOpenAISku
     enablePublicNetworkAccess: environment == 'dev'  // Disable for non-dev; use Private Link in staging/prod
+    networkDefaultAction: environment == 'dev' ? 'Allow' : 'Deny'
     tags: tags
   }
 }
