@@ -8,6 +8,7 @@ This guide provides instructions for deploying Copilot for Consensus to Azure us
 ## Table of Contents
 
 - [Overview](#overview)
+- [CI/CD Validation](#cicd-validation)
 - [Prerequisites](#prerequisites)
 - [Architecture](#architecture)
 - [Deployment Modes](#deployment-modes)
@@ -20,7 +21,107 @@ This guide provides instructions for deploying Copilot for Consensus to Azure us
 - [Cost Estimation](#cost-estimation)
 - [Security Best Practices](#security-best-practices)
 
-## Overview
+## CI/CD Validation
+
+All pull requests that modify files in `infra/azure/` are automatically validated by GitHub Actions.
+
+### Validation Stages
+
+1. **Bicep Lint & Build** (always runs)
+  - Compiles `.bicep` templates to ARM JSON
+  - Runs linter for best-practice checks
+  - Fast feedback, no Azure access required
+
+2. **ARM Template Validation** (requires Azure secrets)
+  - Validates generated ARM templates against Azure
+  - Runs what-if analysis to preview resource changes
+  - Uses GitHub OIDC (see [GITHUB_OIDC_SETUP.md](GITHUB_OIDC_SETUP.md)) and targets a pre-created validation resource group (`copilot-bicep-validation-rg`)
+
+#### Validation Resource Group (one-time)
+
+Create the long-lived validation resource group once per subscription before relying on CI:
+
+```bash
+az group create --name copilot-bicep-validation-rg --location westus
+```
+
+The GitHub Actions workflow will fail fast with guidance if this group is missing. No teardown step runs in CI because the group is reused across runs.
+
+### One-Time Setup: GitHub OIDC
+
+To enable full validation with Azure integration:
+
+```bash
+cd infra/azure
+chmod +x setup-github-oidc.sh
+./setup-github-oidc.sh
+```
+
+Then add the resulting secrets to GitHub repository settings. See [GITHUB_OIDC_SETUP.md](GITHUB_OIDC_SETUP.md) for details.
+
+### Validation Results
+
+- ✅ Validation results are posted as comments on pull requests
+- ⚠️ Failed validations **can** block PR merge (requires branch protection configuration)
+- ✅ All validation is auditable in GitHub Actions tab
+
+### Configuring Branch Protection (Recommended)
+
+To automatically block PR merges when validation fails, configure branch protection rules:
+
+1. Go to **Settings > Branches > Branch protection rules**
+2. Click **Add rule**
+3. Branch name pattern: `main`
+4. Enable:
+   - ✅ **Require a pull request before merging**
+   - ✅ **Require status checks to pass before merging**
+   - ✅ **Require branches to be up to date before merging**
+5. Select required status checks:
+   - `bicep-lint` (Bicep Lint & Build)
+   - `validate-template` (ARM Template Validation)
+   - `comment-results` (PR comment posting)
+6. Click **Create** or **Save changes**
+
+**Result**: Pull requests to `main` will require all Bicep validation checks to pass before merge is allowed.
+
+**Note**: Branch protection requires the validation workflow to have completed successfully. If you haven't configured GitHub OIDC yet (see [One-Time Setup: GitHub OIDC](#one-time-setup-github-oidc)), the ARM validation step will be skipped, so you may want to only require the `bicep-lint` job initially.
+
+## Building ARM Templates from Bicep
+
+This repository uses **Bicep** (not raw ARM JSON) as the infrastructure-as-code language. Bicep is more readable and maintainable than ARM JSON.
+
+### Generated Files
+
+- **`main.json`** is automatically generated from `main.bicep`
+- Do NOT edit `main.json` directly — always edit the `.bicep` files
+- Generated files are excluded from version control (see `.gitignore`)
+
+### Build Locally
+
+To regenerate ARM templates from Bicep source:
+
+```bash
+# Build main template
+az bicep build --file infra/azure/main.bicep
+
+# Build individual modules
+az bicep build --file infra/azure/modules/identities.bicep
+az bicep build --file infra/azure/modules/keyvault.bicep
+```
+
+The generated `.json` files will be written to the same directory as the `.bicep` files.
+
+### CI/CD Integration
+
+The GitHub Actions workflow (`.github/workflows/bicep-validate.yml`) automatically:
+1. Compiles Bicep to ARM templates
+2. Validates ARM syntax
+3. Runs linter checks
+4. Performs what-if analysis
+
+You don't need to manually commit generated files — they're built on-demand.
+
+
 
 The ARM template (`azuredeploy.json`) automates the deployment of the entire Copilot for Consensus architecture to Azure, including:
 
@@ -212,6 +313,27 @@ az deployment group create \
 ```
 
 ## Configuration
+
+### Environment Parameter Files
+
+The repository includes pre-configured parameter files for each environment:
+
+- **`parameters.dev.json`** - Development environment (low cost)
+  - Uses minimal SKUs (Standard Service Bus, 1000-2000 RU Cosmos autoscale)
+  - Single-region deployment
+  - Public network access enabled (for quick testing)
+
+- **`parameters.staging.json`** - Staging/pre-production environment (balanced)
+  - Medium SKUs (Standard Service Bus, 1000-2000 RU Cosmos autoscale)
+  - Single-region deployment
+  - For pre-release testing
+
+- **`parameters.prod.json`** - Production environment (high availability)
+  - Premium SKUs (Premium Service Bus, higher Cosmos RU limits)
+  - Multi-region deployment (optional, via `enableMultiRegionCosmos`)
+  - Public network access disabled (requires Private Link)
+
+**Alignment:** Environment names (`dev`, `staging`, `prod`) align with the existing [azuredeploy.json](../../../docs/) ARM template for consistency.
 
 ### Required Parameters
 
