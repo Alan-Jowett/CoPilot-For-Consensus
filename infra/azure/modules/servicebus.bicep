@@ -110,7 +110,7 @@ resource receiverRoleAssignments 'Microsoft.Authorization/roleAssignments@2022-0
     scope: serviceBusNamespace
     properties: {
       // Built-in role for listening to queues and topics
-      roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '17d1049b-9a84-46fb-8f53-869881c3d3ab') // Azure Service Bus Data Receiver
+      roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4f6d3b9b-027b-4f4c-9142-0e5a2a2247e0') // Azure Service Bus Data Receiver
       principalId: reference(identityResourceIds[service], '2023-01-31').principalId
       principalType: 'ServicePrincipal'
     }

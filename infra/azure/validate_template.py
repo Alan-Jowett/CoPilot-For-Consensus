@@ -5,8 +5,8 @@
 """
 Bicep/Parameters Validation Script
 
-This script validates the Azure Bicep template compiles and that parameter files
-are well-formed JSON. It does not call Azure APIs.
+This script validates that the Azure Bicep template compiles and that parameter
+files are well-formed JSON. It does not call Azure APIs.
 """
 
 import json

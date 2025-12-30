@@ -9,7 +9,7 @@
       "value": "staging"
     },
     "location": {
-      "value": "westus"
+      "value": "eastus"
     },
     "containerImageTag": {
       "value": "latest"
