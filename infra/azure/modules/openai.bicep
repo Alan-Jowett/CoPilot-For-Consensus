@@ -15,14 +15,13 @@ param accountName string
 param sku string = 'S0'
 
 @allowed([
-  '2023-03-15'
-  '2023-06-13'
-  '2023-09-15'
-  '2024-08-06-preview'
-  '1106-preview'
+  '0314'
+  '0613'
+  '1106-Preview'
+  'turbo-2024-04-09'
 ])
-@description('Model version to deploy for gpt-4')
-param modelVersion string = '2023-03-15'
+@description('Model version to deploy for gpt-4 (0613 recommended for broad regional availability)')
+param modelVersion string = '0613'
 
 @allowed(['Allow', 'Deny'])
 @description('Default action for network ACLs when public network is enabled')
