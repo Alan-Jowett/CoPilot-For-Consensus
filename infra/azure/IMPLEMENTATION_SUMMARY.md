@@ -10,7 +10,7 @@ This implementation adds comprehensive Azure Resource Manager (ARM) template sup
 ## Files Created
 
 ### Core Template Files
-1. **`infra/azure/azuredeploy.json`** (645 lines)
+1. **`infra/azure/main.bicep`** (source template)
    - Comprehensive ARM template defining all Azure resources
    - 10 microservices as Azure Container Apps
    - User-assigned managed identities for each service
@@ -18,7 +18,7 @@ This implementation adds comprehensive Azure Resource Manager (ARM) template sup
    - RBAC role assignments for secure access
    - Parameterized for flexibility
 
-2. **`infra/azure/azuredeploy.parameters.json`** (39 lines)
+2. **`infra/azure/parameters.dev.json`** (environment parameters)
    - Template parameters file with default values
    - Placeholder for secrets (to be replaced by user)
    - Supports parameterization of all configurable aspects
@@ -233,7 +233,7 @@ Production costs scale with usage (autoscaling, higher throughput, etc.).
 
 1. **User Configuration**:
    - Create external dependencies (Cosmos DB, Service Bus, OpenAI)
-   - Update `azuredeploy.parameters.json` with connection strings
+   - Update `parameters.dev.json` (or staging/prod variants) with connection strings
    - Run deployment script
 
 2. **Post-Deployment**:

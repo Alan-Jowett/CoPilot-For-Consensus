@@ -3,11 +3,11 @@
 
 <#
 .SYNOPSIS
-    Deploys Copilot for Consensus to Azure using ARM templates.
+    Deploys Copilot for Consensus to Azure using the Bicep template.
 
 .DESCRIPTION
     This script deploys the entire Copilot for Consensus architecture to Azure
-    using Azure Resource Manager templates with managed identity support.
+    using the main Bicep template with managed identity support.
 
 .PARAMETER ResourceGroup
     The name of the Azure resource group to deploy to (required).
@@ -16,7 +16,7 @@
     The Azure region to deploy to (default: eastus).
 
 .PARAMETER ParametersFile
-    Path to the parameters file (default: azuredeploy.parameters.json).
+    Path to the parameters file (default: parameters.dev.json).
 
 .PARAMETER ProjectName
     Project name prefix for resources (default: copilot).
@@ -49,7 +49,7 @@ param(
     [string]$Location = "eastus",
 
     [Parameter(Mandatory=$false)]
-    [string]$ParametersFile = "azuredeploy.parameters.json",
+    [string]$ParametersFile = "parameters.dev.json",
 
     [Parameter(Mandatory=$false)]
     [string]$ProjectName = "copilot",
@@ -146,10 +146,10 @@ function Start-Deployment {
     }
 
     # Prepare template and parameters
-    $TemplatePath = Join-Path $ScriptDir "azuredeploy.json"
+    $TemplatePath = Join-Path $ScriptDir "main.bicep"
 
     # Validate template
-    Write-Info "Validating ARM template..."
+    Write-Info "Validating Bicep template..."
     $validationResult = Test-AzResourceGroupDeployment `
         -ResourceGroupName $ResourceGroup `
         -TemplateFile $TemplatePath `

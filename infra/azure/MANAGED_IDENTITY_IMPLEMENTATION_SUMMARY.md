@@ -8,7 +8,7 @@ This implementation adds support for Azure Managed Identity authentication as an
 
 ## Changes Made
 
-### 1. ARM Template (`infra/azure/azuredeploy.json`)
+### 1. Bicep Template (`infra/azure/main.bicep`)
 
 #### New Parameters
 - **`useManagedIdentityForServiceBus`** (bool, default: false)
@@ -69,7 +69,7 @@ Updated container environment variables to conditionally set:
 #### Secrets
 Modified secrets array to conditionally exclude Service Bus connection string when using managed identity mode.
 
-### 2. Parameters File (`infra/azure/azuredeploy.parameters.json`)
+### 2. Parameters File (`infra/azure/parameters.dev.json`)
 
 Added new parameters with default values:
 ```json
@@ -171,8 +171,8 @@ For existing deployments wanting to adopt managed identity:
 
 | File | Lines Changed | Type |
 |------|---------------|------|
-| infra/azure/azuredeploy.json | ~50 additions, ~10 modifications | ARM Template |
-| infra/azure/azuredeploy.parameters.json | ~6 additions | Parameters |
+| infra/azure/main.bicep | ~50 additions, ~10 modifications | Bicep Template |
+| infra/azure/parameters.dev.json | ~6 additions | Parameters |
 | infra/azure/README.md | ~80 additions, ~10 modifications | Documentation |
 | infra/azure/SERVICE_BUS_INTEGRATION_GUIDE.md | ~250 additions (new file) | Documentation |
 

@@ -8,7 +8,7 @@ metadata author = 'Copilot-for-Consensus Team'
 @maxLength(15)
 param projectName string = 'copilot'
 
-@allowed(['dev', 'staging', 'prod'])  // Aligns with existing azuredeploy.json
+@allowed(['dev', 'staging', 'prod'])  // Keep environment alignment across docs and params
 param environment string = 'dev'
 
 param location string = 'westus'
@@ -80,8 +80,10 @@ var serviceBusReceiverServices = [
 ]
 
 var uniqueSuffix = uniqueString(resourceGroup().id)
+// Ensure project name prefix doesn't end with dash to avoid double-dash in resource names
+var projectPrefix = take(replace(projectName, '-', ''), 8)
 // Key Vault name must be 3-24 characters, globally unique
-var keyVaultName = '${take(projectName, 8)}kv${take(uniqueSuffix, 13)}'
+var keyVaultName = '${projectPrefix}kv${take(uniqueSuffix, 13)}'
 var identityPrefix = '${projectName}-${environment}'
 
 // Module: User-Assigned Managed Identities
@@ -110,9 +112,10 @@ module keyVaultModule 'modules/keyvault.bicep' = {
 }
 
 // Variable for Service Bus namespace name (must be globally unique)
-var serviceBusNamespaceName = '${take(projectName, 8)}-sb-${environment}-${take(uniqueSuffix, 8)}'
+// Use projectPrefix to avoid double-dash issues
+var serviceBusNamespaceName = '${projectPrefix}-sb-${environment}-${take(uniqueSuffix, 8)}'
 // Cosmos DB account name must be globally unique and lowercase
-var cosmosAccountName = toLower('${take(projectName, 10)}-cos-${environment}-${take(uniqueSuffix, 5)}')
+var cosmosAccountName = toLower('${take(projectPrefix, 10)}-cos-${environment}-${take(uniqueSuffix, 5)}')
 
 // Module: Azure Service Bus
 module serviceBusModule 'modules/servicebus.bicep' = {

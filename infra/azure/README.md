@@ -123,7 +123,7 @@ You don't need to manually commit generated files — they're built on-demand.
 
 
 
-The ARM template (`azuredeploy.json`) automates the deployment of the entire Copilot for Consensus architecture to Azure, including:
+The Bicep template (`main.bicep`) automates the deployment of the entire Copilot for Consensus architecture to Azure, including:
 
 - **Azure Container Apps** for all microservices (ingestion, parsing, chunking, embedding, orchestrator, summarization, reporting, auth, UI, gateway)
 - **User-Assigned Managed Identities** for each service with least-privilege access
@@ -138,7 +138,7 @@ The ARM template (`azuredeploy.json`) automates the deployment of the entire Cop
 
 ### Required Tools
 
-- **Azure CLI** (version 2.50.0 or later)
+- **Azure CLI** (version 2.50.0 or later) with Bicep support (`az bicep install`)
   - Install: https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
 - **Azure PowerShell** (Az module, version 10.0.0 or later) - for PowerShell deployment
   - Install: `Install-Module -Name Az -AllowClobber -Scope CurrentUser`
@@ -150,7 +150,7 @@ The ARM template (`azuredeploy.json`) automates the deployment of the entire Cop
   - Create resource groups
   - Deploy resources (Contributor role or higher)
   - Assign RBAC roles (User Access Administrator or Owner)
-- **Azure Cosmos DB for MongoDB** or **Azure Database for MongoDB** (or provide external MongoDB connection string)
+- **Azure Cosmos DB for SQL API** (provisioned by this template) or external MongoDB connection string if you override defaults
 - **Azure Service Bus** namespace (Standard or Premium tier)
 - **Azure OpenAI** service (if using `llmBackend: azure`)
 - **Container images** published to a GitHub Container Registry (GHCR) that your deployment can pull from. You can either:
@@ -240,7 +240,7 @@ cd CoPilot-For-Consensus/infra/azure
 
 ### 2. Configure Parameters
 
-Edit `azuredeploy.parameters.json` to set your configuration:
+Edit the environment parameter file (e.g., `parameters.dev.json`) to set your configuration:
 
 ```json
 {
@@ -301,15 +301,15 @@ az group create --name copilot-rg --location eastus
 # Validate template
 az deployment group validate \
   --resource-group copilot-rg \
-  --template-file azuredeploy.json \
-  --parameters @azuredeploy.parameters.json
+  --template-file main.bicep \
+  --parameters @parameters.dev.json
 
 # Deploy
 az deployment group create \
   --name copilot-deployment \
   --resource-group copilot-rg \
-  --template-file azuredeploy.json \
-  --parameters @azuredeploy.parameters.json
+  --template-file main.bicep \
+  --parameters @parameters.dev.json
 ```
 
 ## Configuration
@@ -333,7 +333,7 @@ The repository includes pre-configured parameter files for each environment:
   - Multi-region deployment (optional, via `enableMultiRegionCosmos`)
   - Public network access disabled (requires Private Link)
 
-**Alignment:** Environment names (`dev`, `staging`, `prod`) align with the existing [azuredeploy.json](../../../docs/) ARM template for consistency.
+**Alignment:** Environment names (`dev`, `staging`, `prod`) align with existing deployment conventions across Bicep and documentation.
 
 ### Required Parameters
 
@@ -473,7 +473,7 @@ az cognitiveservices account keys list \
 
 ### Step 2: Update Parameters File
 
-Update `azuredeploy.parameters.json` with the connection strings obtained in Step 1.
+Update the appropriate environment parameters file (e.g., `parameters.dev.json`) with the connection strings obtained in Step 1.
 
 ### Step 3: Deploy Using Script
 
