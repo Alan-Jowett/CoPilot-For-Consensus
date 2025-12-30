@@ -88,9 +88,6 @@ resource gpt4Deployment 'Microsoft.CognitiveServices/accounts/deployments@2025-0
       version: modelVersion
     }
     versionUpgradeOption: 'OnceNewDefaultVersionAvailable'
-    scaleSettings: {
-      scaleType: 'Standard'
-    }
   }
 }
 
