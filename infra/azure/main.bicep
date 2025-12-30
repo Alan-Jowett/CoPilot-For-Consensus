@@ -119,6 +119,7 @@ module serviceBusModule 'modules/servicebus.bicep' = {
     location: location
     namespaceName: serviceBusNamespaceName
     sku: serviceBusSku
+    identityResourceIds: identitiesModule.outputs.identityResourceIds
     senderServices: serviceBusSenderServices
     receiverServices: serviceBusReceiverServices
   }

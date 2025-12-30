@@ -14,6 +14,9 @@ param sku string = 'Standard'
 @description('The capacity (messaging units) for Premium SKU. Only valid for Premium SKU')
 param capacity int = 1
 
+@description('Managed identity resource IDs keyed by service name (from identities module)')
+param identityResourceIds object
+
 @description('Services that will send messages (sender role only)')
 @minLength(1)
 @maxLength(10)
@@ -39,45 +42,21 @@ param receiverServices array = [
 ]
 
 var queueDefinitions = [
-  {
-    name: 'archive.ingested'
-    description: 'Archive documents ingested into the system'
-  }
-  {
-    name: 'json.parsed'
-    description: 'JSON-parsed documents ready for chunking'
-  }
-  {
-    name: 'chunks.prepared'
-    description: 'Document chunks prepared for embedding'
-  }
-  {
-    name: 'embeddings.generated'
-    description: 'Generated embeddings ready for orchestration'
-  }
-  {
-    name: 'summarization.requested'
-    description: 'Documents requested for summarization'
-  }
-  {
-    name: 'summary.complete'
-    description: 'Completed summaries'
-  }
-  {
-    name: 'dlq.dead-letter'
-    description: 'Dead-letter queue for failed messages'
-  }
+  'archive.ingested'
+  'json.parsed'
+  'chunks.prepared'
+  'embeddings.generated'
+  'summarization.requested'
+  'summary.complete'
+  'report.published'
+  'dlq.dead-letter'
 ]
 
 // Service Bus Namespace
 resource serviceBusNamespace 'Microsoft.ServiceBus/namespaces@2022-10-01-preview' = {
   name: namespaceName
   location: location
-  sku: {
-    name: sku
-    // Capacity (messaging units) is only applicable for Premium SKU
-    capacity: sku == 'Premium' ? capacity : null
-  }
+  sku: union({ name: sku }, sku == 'Premium' ? { capacity: capacity } : {})
   identity: {
     type: 'None'
   }
@@ -93,7 +72,7 @@ resource serviceBusNamespace 'Microsoft.ServiceBus/namespaces@2022-10-01-preview
 resource queues 'Microsoft.ServiceBus/namespaces/queues@2022-10-01-preview' = [
   for queue in queueDefinitions: {
     parent: serviceBusNamespace
-    name: queue.name
+    name: queue
     properties: {
       lockDuration: 'PT5M'
       maxSizeInMegabytes: sku == 'Premium' ? 81920 : 1024
@@ -102,8 +81,10 @@ resource queues 'Microsoft.ServiceBus/namespaces/queues@2022-10-01-preview' = [
       defaultMessageTimeToLive: 'P14D'
       deadLetteringOnMessageExpiration: true
       duplicateDetectionHistoryTimeWindow: 'PT10M'
+      // NOTE: Standard queues are limited to 256 KB per message; Premium supports up to 100 MB.
       maxMessageSizeInKilobytes: sku == 'Premium' ? 102400 : 256
-      enablePartitioning: false
+      // Partitioning improves throughput for Standard; Premium handles scale implicitly.
+      enablePartitioning: sku == 'Standard'
       enableExpress: false
       autoDeleteOnIdle: 'P10D'
     }
@@ -117,7 +98,7 @@ resource senderRoleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-
     scope: serviceBusNamespace
     properties: {
       roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '69a216fc-b8fb-44d8-bc22-1f3c2cd27a39') // Azure Service Bus Data Sender
-      principalId: reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', service), '2023-01-31').principalId
+      principalId: reference(identityResourceIds[service], '2023-01-31').principalId
       principalType: 'ServicePrincipal'
     }
   }
@@ -130,7 +111,7 @@ resource receiverRoleAssignments 'Microsoft.Authorization/roleAssignments@2022-0
     scope: serviceBusNamespace
     properties: {
       roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4f6d3b9b-027b-4f4c-9142-6440c6acfb47') // Azure Service Bus Data Receiver
-      principalId: reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', service), '2023-01-31').principalId
+      principalId: reference(identityResourceIds[service], '2023-01-31').principalId
       principalType: 'ServicePrincipal'
     }
   }
@@ -144,5 +125,5 @@ output namespaceResourceId string = serviceBusNamespace.id
 
 @description('Queue names deployed to the namespace')
 output queueNames array = [
-  for queue in queueDefinitions: queue.name
+  for queue in queueDefinitions: queue
 ]
