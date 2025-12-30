@@ -13,6 +13,30 @@ param environment string = 'dev'
 
 param location string = 'westus'
 
+#disable-next-line no-unused-params
+param containerImageTag string = 'latest'
+
+#disable-next-line no-unused-params
+param deployAzureOpenAI bool = true
+
+@allowed(['S0', 'S1', 'S2'])
+#disable-next-line no-unused-params
+param azureOpenAISku string = 'S0'
+
+@minValue(400)
+@maxValue(1000000)
+#disable-next-line no-unused-params
+param cosmosDbAutoscaleMinRu int = 400
+
+// cosmosDbAutoscaleMaxRu must be >= cosmosDbAutoscaleMinRu
+@minValue(400)
+@maxValue(1000000)
+#disable-next-line no-unused-params
+param cosmosDbAutoscaleMaxRu int = 1000
+
+#disable-next-line no-unused-params
+param enableMultiRegionCosmos bool = false
+
 @allowed(['Standard', 'Premium'])
 param serviceBusSku string = 'Standard'
 
