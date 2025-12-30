@@ -84,11 +84,21 @@ module keyVaultModule 'modules/keyvault.bicep' = {
   }
 }
 
-// Module: Azure Service Bus (Placeholder for PR #2)
-// module serviceBusModule 'modules/servicebus.bicep' = {
-//   name: 'serviceBusDeployment'
-//   ...
-// }
+// Variable for Service Bus namespace name (must be globally unique)
+var serviceBusNamespaceName = '${take(projectName, 8)}-sb-${environment}-${take(uniqueSuffix, 8)}'
+
+// Module: Azure Service Bus
+module serviceBusModule 'modules/servicebus.bicep' = {
+  name: 'serviceBusDeployment'
+  params: {
+    location: location
+    namespaceName: serviceBusNamespaceName
+    sku: serviceBusSku
+    managedIdentityPrincipalIds: identitiesModule.outputs.identityPrincipalIds
+    services: services
+    tags: tags
+  }
+}
 
 // Module: Azure Cosmos DB (Placeholder for PR #3)
 // module cosmosModule 'modules/cosmos.bicep' = {
@@ -112,6 +122,8 @@ module keyVaultModule 'modules/keyvault.bicep' = {
 output keyVaultUri string = keyVaultModule.outputs.keyVaultUri
 output keyVaultName string = keyVaultModule.outputs.keyVaultName
 output managedIdentities array = identitiesModule.outputs.identities
+output serviceBusNamespace string = serviceBusModule.outputs.serviceBusNamespaceName
+output serviceBusQueues array = serviceBusModule.outputs.queueNames
 output resourceGroupName string = resourceGroup().name
 output location string = location
 output environment string = environment
