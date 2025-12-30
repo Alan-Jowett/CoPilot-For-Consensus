@@ -152,7 +152,7 @@ module openaiModule 'modules/openai.bicep' = if (deployAzureOpenAI) {
     location: location
     accountName: openaiAccountName
     sku: azureOpenAISku
-    enablePublicNetworkAccess: true  // Set to false for production with Private Link
+    enablePublicNetworkAccess: environment == 'dev'  // Disable for non-dev; use Private Link in staging/prod
     tags: tags
   }
 }
@@ -176,19 +176,12 @@ output cosmosDatabaseName string = cosmosModule.outputs.databaseName
 output cosmosContainerName string = cosmosModule.outputs.containerName
 output cosmosAutoscaleMaxRu int = cosmosModule.outputs.autoscaleMaxThroughput
 output cosmosWriteRegions array = cosmosModule.outputs.writeRegions
-@metadata({description: 'Azure OpenAI account name'})
 output openaiAccountName string = deployAzureOpenAI ? openaiModule.outputs.accountName : ''
-@metadata({description: 'Azure OpenAI account ID'})
 output openaiAccountId string = deployAzureOpenAI ? openaiModule.outputs.accountId : ''
-@metadata({description: 'Azure OpenAI account endpoint'})
 output openaiAccountEndpoint string = deployAzureOpenAI ? openaiModule.outputs.accountEndpoint : ''
-@metadata({description: 'Azure OpenAI custom subdomain'})
 output openaiCustomSubdomain string = deployAzureOpenAI ? openaiModule.outputs.customSubdomain : ''
-@metadata({description: 'GPT-4 deployment ID'})
 output openaiGpt4DeploymentId string = deployAzureOpenAI ? openaiModule.outputs.gpt4DeploymentId : ''
-@metadata({description: 'GPT-4 deployment name'})
 output openaiGpt4DeploymentName string = deployAzureOpenAI ? openaiModule.outputs.gpt4DeploymentName : ''
-@metadata({description: 'Azure OpenAI SKU name'})
 output openaiSkuName string = deployAzureOpenAI ? openaiModule.outputs.skuName : ''
 output resourceGroupName string = resourceGroup().name
 output location string = location

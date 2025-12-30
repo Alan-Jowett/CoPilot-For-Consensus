@@ -20,6 +20,7 @@ Dockerfile* text eol=lf
 *.txt text eol=lf
 *.conf text eol=lf
 *.config text eol=lf
+*.bicep text eol=lf
 
 # Windows-specific files should use CRLF
 *.bat text eol=crlf
