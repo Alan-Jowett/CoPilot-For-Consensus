@@ -15,13 +15,16 @@ param accountName string
 param sku string = 'S0'
 
 @allowed([
-  '0314'
-  '0613'
-  '1106-Preview'
-  'turbo-2024-04-09'
+  '2024-05-13'
+  '2024-08-06'
+  '2024-11-20'
 ])
-@description('Model version to deploy for gpt-4 (0613 recommended for broad regional availability)')
-param modelVersion string = '0613'
+@description('Model version to deploy for gpt-4o (2024-11-20 is latest GA)')
+param modelVersion string = '2024-11-20'
+
+@allowed(['Standard', 'GlobalStandard'])
+@description('Deployment SKU (GlobalStandard for global load balancing)')
+param deploymentSku string = 'GlobalStandard'
 
 @allowed(['Allow', 'Deny'])
 @description('Default action for network ACLs when public network is enabled')
@@ -44,7 +47,6 @@ var normalizedAccountName = toLower(accountName)
 var projectName = take(normalizedAccountName, 8)
 var normalizedSubdomain = customSubdomainName != '' ? toLower(customSubdomainName) : toLower('${projectName}-openai-${uniqueString(resourceGroup().id)}')
 var deploymentName = 'gpt-4-deployment'
-var deploymentCapacity = 20
 
 // Build identity object only when provided
 var identityConfig = identityResourceId != '' ? {
@@ -73,18 +75,18 @@ resource openaiAccount 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
   }
 }
 
-// GPT-4 Deployment
+// GPT-4o Deployment
 resource gpt4Deployment 'Microsoft.CognitiveServices/accounts/deployments@2025-09-01' = {
   parent: openaiAccount
   name: deploymentName
   sku: {
-    name: 'Standard'
-    capacity: deploymentCapacity
+    name: deploymentSku
+    capacity: 10
   }
   properties: {
     model: {
       format: 'OpenAI'
-      name: 'gpt-4'
+      name: 'gpt-4o'
       version: modelVersion
     }
     versionUpgradeOption: 'OnceNewDefaultVersionAvailable'
