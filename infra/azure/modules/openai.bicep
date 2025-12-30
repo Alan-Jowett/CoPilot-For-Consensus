@@ -26,6 +26,11 @@ param modelVersion string = '2024-11-20'
 @description('Deployment SKU (GlobalStandard for global load balancing)')
 param deploymentSku string = 'GlobalStandard'
 
+@minValue(1)
+@maxValue(1000)
+@description('Capacity (units) for the GPT-4o deployment. Represents Tokens-Per-Minute throughput in thousands.')
+param deploymentCapacity int = 10
+
 @allowed(['Allow', 'Deny'])
 @description('Default action for network ACLs when public network is enabled')
 param networkDefaultAction string = 'Deny'
@@ -48,20 +53,17 @@ var projectName = take(normalizedAccountName, 8)
 var normalizedSubdomain = customSubdomainName != '' ? toLower(customSubdomainName) : toLower('${projectName}-openai-${uniqueString(resourceGroup().id)}')
 var deploymentName = 'gpt-4-deployment'
 
-// Build identity object only when provided
-var identityConfig = identityResourceId != '' ? {
-  type: 'UserAssigned'
-  userAssignedIdentities: {
-    '${identityResourceId}': {}
-  }
-} : null
-
 // Azure OpenAI Service account
 resource openaiAccount 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
   name: normalizedAccountName
   location: location
   kind: 'OpenAI'
-  identity: identityConfig
+  identity: identityResourceId != '' ? {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${identityResourceId}': {}
+    }
+  } : null
   sku: {
     name: sku
   }
@@ -81,7 +83,7 @@ resource gpt4Deployment 'Microsoft.CognitiveServices/accounts/deployments@2025-0
   name: deploymentName
   sku: {
     name: deploymentSku
-    capacity: 10
+    capacity: deploymentCapacity
   }
   properties: {
     model: {

@@ -21,8 +21,19 @@ param deployAzureOpenAI bool = true
 
 @allowed(['S0'])
 #disable-next-line no-unused-params
-@description('SKU for Azure OpenAI Service (S0 supported)')
+@description('SKU for Azure OpenAI Service. Azure OpenAI currently only supports the S0 SKU; other SKUs are not valid for this resource type.')
 param azureOpenAISku string = 'S0'
+
+@allowed(['Standard', 'GlobalStandard'])
+#disable-next-line no-unused-params
+@description('Deployment SKU for Azure OpenAI (GlobalStandard recommended for production)')
+param azureOpenAIDeploymentSku string = 'GlobalStandard'
+
+@minValue(1)
+@maxValue(1000)
+#disable-next-line no-unused-params
+@description('Deployment capacity (TPM in thousands) for Azure OpenAI. Use lower values for dev, higher for prod.')
+param azureOpenAIDeploymentCapacity int = 10
 
 @minValue(400)
 @maxValue(1000000)
@@ -153,6 +164,8 @@ module openaiModule 'modules/openai.bicep' = if (deployAzureOpenAI) {
     location: location
     accountName: openaiAccountName
     sku: azureOpenAISku
+    deploymentSku: azureOpenAIDeploymentSku
+    deploymentCapacity: azureOpenAIDeploymentCapacity
     enablePublicNetworkAccess: environment == 'dev'  // Disable for non-dev; use Private Link in staging/prod
     networkDefaultAction: environment == 'dev' ? 'Allow' : 'Deny'
     tags: tags
