@@ -14,8 +14,15 @@ param accountName string
 @description('SKU for Azure OpenAI Service (currently only S0 is supported)')
 param sku string = 'S0'
 
-@description('Model version to deploy (e.g., 1106-preview)')
-param modelVersion string = '1106-preview'
+@allowed([
+  '2023-03-15'
+  '2023-06-13'
+  '2023-09-15'
+  '2024-08-06-preview'
+  '1106-preview'
+])
+@description('Model version to deploy for gpt-4')
+param modelVersion string = '2023-03-15'
 
 @allowed(['Allow', 'Deny'])
 @description('Default action for network ACLs when public network is enabled')
