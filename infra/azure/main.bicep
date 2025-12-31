@@ -201,7 +201,8 @@ module openaiModule 'modules/openai.bicep' = if (deployAzureOpenAI) {
 }
 
 // Module: Azure AI Search (vector store)
-module aiSearchModule 'modules/aisearch.bicep' = {
+// Only deployed when Container Apps are enabled (required for embedding service)
+module aiSearchModule 'modules/aisearch.bicep' = if (deployContainerApps) {
   name: 'aiSearchDeployment'
   params: {
     location: location
@@ -266,7 +267,7 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     containerImageTag: containerImageTag
     identityResourceIds: identitiesModule.outputs.identityResourceIds
     azureOpenAIEndpoint: deployAzureOpenAI ? openaiModule!.outputs.accountEndpoint : ''
-    aiSearchEndpoint: aiSearchModule.outputs.endpoint
+    aiSearchEndpoint: aiSearchModule!.outputs.endpoint
     serviceBusNamespace: serviceBusModule.outputs.namespaceName
     cosmosDbEndpoint: cosmosModule.outputs.accountEndpoint
     subnetId: vnetModule.outputs.containerAppsSubnetId
@@ -302,9 +303,9 @@ output openaiCustomSubdomain string = deployAzureOpenAI ? openaiModule!.outputs.
 output openaiGpt4DeploymentId string = deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentId : ''
 output openaiGpt4DeploymentName string = deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentName : ''
 output openaiSkuName string = deployAzureOpenAI ? openaiModule!.outputs.skuName : ''
-output aiSearchServiceName string = aiSearchModule.outputs.serviceName
-output aiSearchEndpoint string = aiSearchModule.outputs.endpoint
-output aiSearchServiceId string = aiSearchModule.outputs.serviceId
+output aiSearchServiceName string = deployContainerApps ? aiSearchModule!.outputs.serviceName : ''
+output aiSearchEndpoint string = deployContainerApps ? aiSearchModule!.outputs.endpoint : ''
+output aiSearchServiceId string = deployContainerApps ? aiSearchModule!.outputs.serviceId : ''
 output appInsightsId string = deployContainerApps ? appInsightsModule.outputs.appInsightsId : ''
 output containerAppsEnvId string = deployContainerApps ? containerAppsModule.outputs.containerAppsEnvId : ''
 output gatewayFqdn string = deployContainerApps ? containerAppsModule.outputs.gatewayFqdn : ''
