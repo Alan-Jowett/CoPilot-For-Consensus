@@ -121,6 +121,63 @@ Each example file (`.example`) contains detailed instructions on how to create t
 - [documents/OIDC_LOCAL_TESTING.md](../documents/OIDC_LOCAL_TESTING.md) - Complete OAuth setup guide for all providers
 - [auth/README.md](../auth/README.md) - Auth service documentation
 
+## Setting up Grafana Admin Credentials
+
+Grafana requires admin credentials for local/docker-compose deployments.
+
+### Quick Setup
+
+**Linux/macOS (bash):**
+```bash
+# Copy example files
+cp secrets/grafana_admin_user.example secrets/grafana_admin_user
+cp secrets/grafana_admin_password.example secrets/grafana_admin_password
+
+# Set credentials (replace with your own)
+echo -n "admin" > secrets/grafana_admin_user
+openssl rand -base64 32 | tr -d '\n' > secrets/grafana_admin_password
+
+# Restart Grafana
+docker compose restart grafana gateway
+```
+
+**Windows (PowerShell):**
+```powershell
+# Copy example files
+Copy-Item secrets/grafana_admin_user.example secrets/grafana_admin_user
+Copy-Item secrets/grafana_admin_password.example secrets/grafana_admin_password
+
+# Set credentials (replace with your own)
+"admin" | Out-File -FilePath secrets/grafana_admin_user -NoNewline
+# Generate a 24-character password using uppercase, lowercase, digits, and special characters
+# Character ranges: 65-90 (A-Z), 97-122 (a-z), 48-57 (0-9), special chars (!#$%&*+)
+-join ((65..90) + (97..122) + (48..57) + (33,35,36,37,38,42,43) | Get-Random -Count 24 | % {[char]$_}) | Out-File -FilePath secrets/grafana_admin_password -NoNewline
+
+# Restart Grafana
+docker compose restart grafana gateway
+```
+
+### Rotating Grafana Credentials
+
+To rotate Grafana admin credentials:
+
+1. Update the credential files:
+   ```bash
+   echo -n "new-username" > secrets/grafana_admin_user
+   echo -n "new-password" > secrets/grafana_admin_password
+   ```
+
+2. Restart Grafana and Gateway:
+   ```bash
+   docker compose restart grafana gateway
+   ```
+
+3. Login to Grafana with new credentials at http://localhost:8080/grafana/
+
+**Important**: Both Grafana and Gateway need to be restarted to pick up the new credentials from the secrets files.
+
+For Azure deployments with Grafana, credentials should be stored in Azure Key Vault. See [documents/runbooks/grafana-credential-rotation.md](../documents/runbooks/grafana-credential-rotation.md) for details.
+
 ## Other Secrets
 
 Examples for infrastructure:
