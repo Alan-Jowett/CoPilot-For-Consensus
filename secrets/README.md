@@ -149,7 +149,8 @@ Copy-Item secrets/grafana_admin_password.example secrets/grafana_admin_password
 
 # Set credentials (replace with your own)
 "admin" | Out-File -FilePath secrets/grafana_admin_user -NoNewline
-# Generate a secure random password (or use your own)
+# Generate a 24-character password using uppercase, lowercase, digits, and special characters
+# Character ranges: 65-90 (A-Z), 97-122 (a-z), 48-57 (0-9), special chars (!#$%&*+)
 -join ((65..90) + (97..122) + (48..57) + (33,35,36,37,38,42,43) | Get-Random -Count 24 | % {[char]$_}) | Out-File -FilePath secrets/grafana_admin_password -NoNewline
 
 # Restart Grafana
@@ -162,8 +163,8 @@ To rotate Grafana admin credentials:
 
 1. Update the credential files:
    ```bash
-   echo "new-username" > secrets/grafana_admin_user
-   echo "new-password" > secrets/grafana_admin_password
+   echo -n "new-username" > secrets/grafana_admin_user
+   echo -n "new-password" > secrets/grafana_admin_password
    ```
 
 2. Restart Grafana and Gateway:
