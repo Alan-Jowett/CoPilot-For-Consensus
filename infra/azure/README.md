@@ -480,23 +480,26 @@ az deployment group show \
 
 ## Post-Deployment Configuration
 
-### 1. Configure Service Secrets in Key Vault
+### 1. JWT Keys (Automatically Generated)
 
-After deployment, you'll need to set up secrets for authentication and other services. The deployment outputs include instructions for which secrets need to be configured.
+JWT keys are automatically generated during deployment via the `jwtkeys.bicep` module. No manual setup is required. The deployment script:
+- Generates a fresh RSA 2048-bit keypair per deployment
+- Stores both keys securely in Key Vault
+- Makes them available to the auth service via managed identity
 
-#### Check which secrets need to be set
-
+To regenerate keys (invalidates all active sessions):
 ```bash
-# View deployment outputs to see which secrets are missing
-az deployment group show \
+az deployment group create \
   --name copilot-deployment \
   --resource-group copilot-rg \
-  --query properties.outputs.secretsSetupRequired
+  --template-file main.bicep \
+  --parameters @parameters.dev.json \
+  --parameters jwtForceUpdateTag="$(date +%s)"
 ```
 
-#### Set JWT Keys for Auth Service
+### 2. Configure OAuth Providers (Optional)
 
-The auth service requires RSA key pairs for JWT signing. Generate and upload them:
+To enable OAuth authentication, create OAuth applications with each provider and store the credentials in Key Vault.
 
 ```bash
 # Get Key Vault name from deployment outputs
@@ -504,33 +507,7 @@ KEY_VAULT_NAME=$(az deployment group show \
   --name copilot-deployment \
   --resource-group copilot-rg \
   --query properties.outputs.keyVaultName.value -o tsv)
-
-# Generate RSA key pair (4096-bit for production security)
-ssh-keygen -t rsa -b 4096 -m PEM -f jwt_private_key -N ""
-ssh-keygen -f jwt_private_key -e -m PKCS8 > jwt_public_key
-
-# Upload keys to Key Vault
-az keyvault secret set --vault-name $KEY_VAULT_NAME --name jwt-private-key --file jwt_private_key
-az keyvault secret set --vault-name $KEY_VAULT_NAME --name jwt-public-key --file jwt_public_key
-
-# Clean up local key files (optional but recommended for security)
-rm jwt_private_key jwt_public_key
 ```
-
-**Alternative: Use Python script from repository**
-
-```bash
-# From repository root
-python auth/generate_keys.py
-
-# Upload generated keys
-az keyvault secret set --vault-name $KEY_VAULT_NAME --name jwt-private-key --file secrets/jwt_private_key
-az keyvault secret set --vault-name $KEY_VAULT_NAME --name jwt-public-key --file secrets/jwt_public_key
-```
-
-#### Configure OAuth Providers (GitHub, Google, Microsoft)
-
-To enable OAuth authentication, create OAuth applications with each provider and store the credentials in Key Vault.
 
 **GitHub OAuth Setup**
 
@@ -574,7 +551,23 @@ az keyvault secret set --vault-name $KEY_VAULT_NAME --name microsoft-oauth-clien
 
 **Important**: For detailed OAuth setup instructions, see [../../documents/OIDC_LOCAL_TESTING.md](../../documents/OIDC_LOCAL_TESTING.md)
 
-#### Configure Grafana Admin Credentials (Optional)
+#### Restart Services After Setting OAuth Secrets
+
+After adding OAuth secrets to Key Vault, restart the auth service to pick up the new values:
+
+```bash
+az containerapp restart \
+  --name copilot-auth-dev \
+  --resource-group copilot-rg
+
+# Verify the service is running
+az containerapp show \
+  --name copilot-auth-dev \
+  --resource-group copilot-rg \
+  --query properties.runningStatus
+```
+
+### 3. Configure Grafana Admin Credentials (Optional)
 
 If deploying Grafana as part of your infrastructure (not included in current Container Apps):
 
