@@ -189,17 +189,6 @@ module openaiModule 'modules/openai.bicep' = if (deployAzureOpenAI) {
   }
 }
 
-// Normalize OpenAI outputs to avoid null access when OpenAI is not deployed
-var openaiOutputs = deployAzureOpenAI ? openaiModule!.outputs : {
-  accountName: ''
-  accountId: ''
-  accountEndpoint: ''
-  customSubdomain: ''
-  gpt4DeploymentId: ''
-  gpt4DeploymentName: ''
-  skuName: ''
-}
-
 // Module: Container Apps (Placeholder for PR #5)
 // module containerAppsModule 'modules/containerapps.bicep' = {
 //   name: 'containerAppsDeployment'
@@ -219,13 +208,13 @@ output cosmosDatabaseName string = cosmosModule.outputs.databaseName
 output cosmosContainerName string = cosmosModule.outputs.containerName
 output cosmosAutoscaleMaxRu int = cosmosModule.outputs.autoscaleMaxThroughput
 output cosmosWriteRegions array = cosmosModule.outputs.writeRegions
-output openaiAccountName string = openaiOutputs.accountName
-output openaiAccountId string = openaiOutputs.accountId
-output openaiAccountEndpoint string = openaiOutputs.accountEndpoint
-output openaiCustomSubdomain string = openaiOutputs.customSubdomain
-output openaiGpt4DeploymentId string = openaiOutputs.gpt4DeploymentId
-output openaiGpt4DeploymentName string = openaiOutputs.gpt4DeploymentName
-output openaiSkuName string = openaiOutputs.skuName
+output openaiAccountName string = deployAzureOpenAI ? openaiModule!.outputs.accountName : ''
+output openaiAccountId string = deployAzureOpenAI ? openaiModule!.outputs.accountId : ''
+output openaiAccountEndpoint string = deployAzureOpenAI ? openaiModule!.outputs.accountEndpoint : ''
+output openaiCustomSubdomain string = deployAzureOpenAI ? openaiModule!.outputs.customSubdomain : ''
+output openaiGpt4DeploymentId string = deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentId : ''
+output openaiGpt4DeploymentName string = deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentName : ''
+output openaiSkuName string = deployAzureOpenAI ? openaiModule!.outputs.skuName : ''
 output resourceGroupName string = resourceGroup().name
 output location string = location
 output environment string = environment
