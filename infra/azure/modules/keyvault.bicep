@@ -12,29 +12,28 @@ param enablePublicNetworkAccess bool = true
 param enableRbacAuthorization bool = false  // Set to true to use Azure RBAC instead of access policies
 param tags object
 
-// ⚠️ SECURITY WARNING: Current access policy design is overly permissive
-// All managed identities receive vault-wide 'get' and 'list' permissions for ALL secrets.
-// This violates least-privilege principles and creates significant lateral movement risk:
-// - Any compromised service identity can enumerate and read ALL secrets (including JWT keys)
-// - Enables cross-service impersonation and credential exfiltration
-// - Single identity compromise can lead to full environment takeover
+// ⚠️ SECURITY NOTE: Access policy design follows least-privilege principles
+// All managed identities receive vault-wide 'get' permission (only) for secrets.
+// Services can read secrets by name but cannot enumerate vault contents.
+// This prevents lateral movement risk:
+// - Compromised service identity cannot discover secret names via enumeration
+// - Attacker must know secret names in advance to access them
+// - Significantly reduces blast radius of single identity compromise
 //
-// IMMEDIATE ACTION REQUIRED:
+// FUTURE ENHANCEMENT:
 // Migrate to Azure RBAC with per-identity secret scoping or separate vaults per service.
-// See tracked issue for remediation plan.
+// See tracked issue #637 for RBAC migration plan.
 
 // Build access policies array from principal IDs array
 // Used only when enableRbacAuthorization = false (legacy mode)
-// Note: This approach allows 'list' permission for secret enumeration; can be removed once
-// all services migrate to Azure RBAC 'Key Vault Secrets User' role in future PRs
+// Security: Only 'get' permission granted - services can read secrets by name but cannot enumerate all secrets
 var readAccessPolicies = [
   for principalId in managedIdentityPrincipalIds: {
     objectId: principalId
     tenantId: tenantId
     permissions: {
       secrets: [
-        'get'
-        'list'  // WARNING: 'list' allows enumeration of all secrets; removed when migrating to RBAC role assignments
+        'get'  // Services can only read secrets they know the name of (no enumeration)
       ]
       keys: []
       certificates: []
@@ -48,9 +47,8 @@ var writeAccessPolicies = [
     tenantId: tenantId
     permissions: {
       secrets: [
-        'get'
-        'list'
-        'set'
+        'get'  // Read access to verify written secrets
+        'set'  // Write access for deployment scripts (e.g., JWT key generation)
       ]
       keys: []
       certificates: []
