@@ -20,6 +20,18 @@
     "azureOpenAISku": {
       "value": "S0"
     },
+    "azureOpenAIDeploymentSku": {
+      "value": "Standard"
+    },
+    "azureOpenAIModelVersion": {
+      "value": "2024-11-20"
+    },
+    "azureOpenAIDeploymentCapacity": {
+      "value": 10
+    },
+    "azureOpenAIAllowedCidrs": {
+      "value": []
+    },
     "cosmosDbAutoscaleMinRu": {
       "value": 400
     },
