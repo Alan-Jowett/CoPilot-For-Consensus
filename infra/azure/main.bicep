@@ -51,48 +51,6 @@ param azureOpenAIAllowedCidrs array = []
 @description('Whether to deploy Container Apps environment and services')
 param deployContainerApps bool = true
 
-// Auth service secrets (JWT and OAuth)
-@secure()
-@description('JWT private key for auth service (PEM format). If not provided, must be set manually in Key Vault.')
-param jwtPrivateKey string = ''
-
-@secure()
-@description('JWT public key for auth service (PEM format). If not provided, must be set manually in Key Vault.')
-param jwtPublicKey string = ''
-
-@secure()
-@description('GitHub OAuth client ID. If not provided, must be set manually in Key Vault.')
-param githubOAuthClientId string = ''
-
-@secure()
-@description('GitHub OAuth client secret. If not provided, must be set manually in Key Vault.')
-param githubOAuthClientSecret string = ''
-
-@secure()
-@description('Google OAuth client ID. If not provided, must be set manually in Key Vault.')
-param googleOAuthClientId string = ''
-
-@secure()
-@description('Google OAuth client secret. If not provided, must be set manually in Key Vault.')
-param googleOAuthClientSecret string = ''
-
-@secure()
-@description('Microsoft OAuth client ID. If not provided, must be set manually in Key Vault.')
-param microsoftOAuthClientId string = ''
-
-@secure()
-@description('Microsoft OAuth client secret. If not provided, must be set manually in Key Vault.')
-param microsoftOAuthClientSecret string = ''
-
-// Grafana admin credentials
-@secure()
-@description('Grafana admin username. If not provided, must be set manually in Key Vault.')
-param grafanaAdminUser string = ''
-
-@secure()
-@description('Grafana admin password. If not provided, must be set manually in Key Vault.')
-param grafanaAdminPassword string = ''
-
 @description('VNet address space for Container Apps (CIDR notation)')
 param vnetAddressSpace string = '10.0.0.0/16'
 
@@ -166,18 +124,6 @@ var projectPrefix = take(replace(projectName, '-', ''), 8)
 var keyVaultName = '${projectPrefix}kv${take(uniqueSuffix, 13)}'
 var identityPrefix = '${projectName}-${environment}'
 var jwtKeysIdentityName = '${identityPrefix}-jwtkeys-id'
-
-// Variables to track whether secrets were provided at deployment time (for output purposes)
-var jwtPrivateKeyProvided = jwtPrivateKey != ''
-var jwtPublicKeyProvided = jwtPublicKey != ''
-var githubOAuthClientIdProvided = githubOAuthClientId != ''
-var githubOAuthClientSecretProvided = githubOAuthClientSecret != ''
-var googleOAuthClientIdProvided = googleOAuthClientId != ''
-var googleOAuthClientSecretProvided = googleOAuthClientSecret != ''
-var microsoftOAuthClientIdProvided = microsoftOAuthClientId != ''
-var microsoftOAuthClientSecretProvided = microsoftOAuthClientSecret != ''
-var grafanaAdminUserProvided = grafanaAdminUser != ''
-var grafanaAdminPasswordProvided = grafanaAdminPassword != ''
 
 // Module: User-Assigned Managed Identities
 module identitiesModule 'modules/identities.bicep' = {
@@ -327,100 +273,6 @@ resource appInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@20
   }
 }
 
-// Auth service secrets: JWT keys
-// These secrets can be provided as parameters or set manually in Key Vault after deployment
-resource jwtPrivateKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (jwtPrivateKey != '') {
-  name: '${keyVaultName}/jwt-private-key'
-  properties: {
-    value: jwtPrivateKey
-    contentType: 'application/x-pem-file'
-  }
-  dependsOn: [keyVaultModule]
-}
-
-resource jwtPublicKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (jwtPublicKey != '') {
-  name: '${keyVaultName}/jwt-public-key'
-  properties: {
-    value: jwtPublicKey
-    contentType: 'application/x-pem-file'
-  }
-  dependsOn: [keyVaultModule]
-}
-
-// Auth service secrets: OAuth credentials
-resource githubOAuthClientIdSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (githubOAuthClientId != '') {
-  name: '${keyVaultName}/github-oauth-client-id'
-  properties: {
-    value: githubOAuthClientId
-    contentType: 'text/plain'
-  }
-  dependsOn: [keyVaultModule]
-}
-
-resource githubOAuthClientSecretSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (githubOAuthClientSecret != '') {
-  name: '${keyVaultName}/github-oauth-client-secret'
-  properties: {
-    value: githubOAuthClientSecret
-    contentType: 'text/plain'
-  }
-  dependsOn: [keyVaultModule]
-}
-
-resource googleOAuthClientIdSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (googleOAuthClientId != '') {
-  name: '${keyVaultName}/google-oauth-client-id'
-  properties: {
-    value: googleOAuthClientId
-    contentType: 'text/plain'
-  }
-  dependsOn: [keyVaultModule]
-}
-
-resource googleOAuthClientSecretSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (googleOAuthClientSecret != '') {
-  name: '${keyVaultName}/google-oauth-client-secret'
-  properties: {
-    value: googleOAuthClientSecret
-    contentType: 'text/plain'
-  }
-  dependsOn: [keyVaultModule]
-}
-
-resource microsoftOAuthClientIdSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (microsoftOAuthClientId != '') {
-  name: '${keyVaultName}/microsoft-oauth-client-id'
-  properties: {
-    value: microsoftOAuthClientId
-    contentType: 'text/plain'
-  }
-  dependsOn: [keyVaultModule]
-}
-
-resource microsoftOAuthClientSecretSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (microsoftOAuthClientSecret != '') {
-  name: '${keyVaultName}/microsoft-oauth-client-secret'
-  properties: {
-    value: microsoftOAuthClientSecret
-    contentType: 'text/plain'
-  }
-  dependsOn: [keyVaultModule]
-}
-
-// Grafana admin credentials
-resource grafanaAdminUserSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (grafanaAdminUser != '') {
-  name: '${keyVaultName}/grafana-admin-user'
-  properties: {
-    value: grafanaAdminUser
-    contentType: 'text/plain'
-  }
-  dependsOn: [keyVaultModule]
-}
-
-resource grafanaAdminPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (grafanaAdminPassword != '') {
-  name: '${keyVaultName}/grafana-admin-password'
-  properties: {
-    value: grafanaAdminPassword
-    contentType: 'text/plain'
-  }
-  dependsOn: [keyVaultModule]
-}
-
 // Module: Virtual Network (for Container Apps integration)
 module vnetModule 'modules/vnet.bicep' = if (deployContainerApps) {
   name: 'vnetDeployment'
@@ -458,18 +310,6 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     appInsightsConnectionStringSecretUri: appInsightsConnectionStringSecret!.properties.secretUriWithVersion
     logAnalyticsWorkspaceId: appInsightsModule!.outputs.workspaceId
     logAnalyticsCustomerId: appInsightsModule!.outputs.workspaceCustomerId
-    // Auth service secret URIs - these will be empty strings if secrets are not provided at deployment time
-    jwtPrivateKeySecretUri: jwtPrivateKey != '' ? jwtPrivateKeySecret!.properties.secretUriWithVersion : ''
-    jwtPublicKeySecretUri: jwtPublicKey != '' ? jwtPublicKeySecret!.properties.secretUriWithVersion : ''
-    githubOAuthClientIdSecretUri: githubOAuthClientId != '' ? githubOAuthClientIdSecret!.properties.secretUriWithVersion : ''
-    githubOAuthClientSecretSecretUri: githubOAuthClientSecret != '' ? githubOAuthClientSecretSecret!.properties.secretUriWithVersion : ''
-    googleOAuthClientIdSecretUri: googleOAuthClientId != '' ? googleOAuthClientIdSecret!.properties.secretUriWithVersion : ''
-    googleOAuthClientSecretSecretUri: googleOAuthClientSecret != '' ? googleOAuthClientSecretSecret!.properties.secretUriWithVersion : ''
-    microsoftOAuthClientIdSecretUri: microsoftOAuthClientId != '' ? microsoftOAuthClientIdSecret!.properties.secretUriWithVersion : ''
-    microsoftOAuthClientSecretSecretUri: microsoftOAuthClientSecret != '' ? microsoftOAuthClientSecretSecret!.properties.secretUriWithVersion : ''
-    // Grafana admin secret URIs
-    grafanaAdminUserSecretUri: grafanaAdminUser != '' ? grafanaAdminUserSecret!.properties.secretUriWithVersion : ''
-    grafanaAdminPasswordSecretUri: grafanaAdminPassword != '' ? grafanaAdminPasswordSecret!.properties.secretUriWithVersion : ''
     tags: tags
   }
   dependsOn: [
@@ -511,30 +351,9 @@ output location string = location
 output environment string = environment
 output deploymentId string = deployment().name
 
-// Secret management outputs - these show which secrets need to be set manually if not provided at deployment time
-// Note: Using variables to avoid directly exposing secure parameter values in outputs
-output secretsSetupRequired object = {
-  jwtPrivateKey: !jwtPrivateKeyProvided
-  jwtPublicKey: !jwtPublicKeyProvided
-  githubOAuthClientId: !githubOAuthClientIdProvided
-  githubOAuthClientSecret: !githubOAuthClientSecretProvided
-  googleOAuthClientId: !googleOAuthClientIdProvided
-  googleOAuthClientSecret: !googleOAuthClientSecretProvided
-  microsoftOAuthClientId: !microsoftOAuthClientIdProvided
-  microsoftOAuthClientSecret: !microsoftOAuthClientSecretProvided
-  grafanaAdminUser: !grafanaAdminUserProvided
-  grafanaAdminPassword: !grafanaAdminPasswordProvided
-}
-
-// Instructions for setting secrets manually
-output secretsSetupInstructions string = '''
-To set secrets manually in Key Vault, use the following Azure CLI commands:
-
-# Generate and upload JWT keys:
-ssh-keygen -t rsa -b 4096 -m PEM -f jwt_private_key -N ""
-ssh-keygen -f jwt_private_key -e -m PKCS8 > jwt_public_key
-az keyvault secret set --vault-name ${keyVaultModule.outputs.keyVaultName} --name jwt-private-key --file jwt_private_key
-az keyvault secret set --vault-name ${keyVaultModule.outputs.keyVaultName} --name jwt-public-key --file jwt_public_key
+// OAuth and Grafana secret setup instructions
+output oauthSecretsSetupInstructions string = '''
+JWT keys are automatically generated during deployment. To configure OAuth providers, set secrets manually in Key Vault:
 
 # Set OAuth credentials (replace with actual values):
 az keyvault secret set --vault-name ${keyVaultModule.outputs.keyVaultName} --name github-oauth-client-id --value "YOUR_GITHUB_CLIENT_ID"
@@ -548,8 +367,8 @@ az keyvault secret set --vault-name ${keyVaultModule.outputs.keyVaultName} --nam
 az keyvault secret set --vault-name ${keyVaultModule.outputs.keyVaultName} --name grafana-admin-user --value "admin"
 az keyvault secret set --vault-name ${keyVaultModule.outputs.keyVaultName} --name grafana-admin-password --value "YOUR_SECURE_PASSWORD"
 
-After setting secrets, restart the affected Container Apps to pick up the new values.
+After setting secrets, restart the auth service to pick up the new values:
+az containerapp restart --name <project>-auth-<env> --resource-group <resource-group>
 '''
-
 
 
