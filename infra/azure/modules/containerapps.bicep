@@ -141,7 +141,7 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'SECRET_PROVIDER_TYPE'
-              value: 'azurekeyvault'
+              value: keyVaultName != '' ? 'azurekeyvault' : 'local'
             }
             {
               name: 'AZURE_KEYVAULT_NAME'
