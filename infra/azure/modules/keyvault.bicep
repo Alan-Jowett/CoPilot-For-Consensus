@@ -25,16 +25,14 @@ param tags object
 
 // Build access policies array from principal IDs array
 // Used only when enableRbacAuthorization = false (legacy mode)
-// Note: This approach allows 'list' permission for secret enumeration; can be removed once
-// all services migrate to Azure RBAC 'Key Vault Secrets User' role in future PRs
+// Security: Only 'get' permission granted - services can read secrets by name but cannot enumerate all secrets
 var readAccessPolicies = [
   for principalId in managedIdentityPrincipalIds: {
     objectId: principalId
     tenantId: tenantId
     permissions: {
       secrets: [
-        'get'
-        'list'  // WARNING: 'list' allows enumeration of all secrets; removed when migrating to RBAC role assignments
+        'get'  // Services can only read secrets they know the name of (no enumeration)
       ]
       keys: []
       certificates: []

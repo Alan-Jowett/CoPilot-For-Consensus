@@ -7,34 +7,31 @@ This document outlines known security considerations and recommended improvement
 
 ## Current Security Posture (PR #1)
 
-### Shared Key Vault with Broad Permissions
+### Shared Key Vault with Restricted Permissions
 
 **Current Implementation:**
-- All 10 microservice identities have `get` and `list` permissions on a single shared Key Vault
-- Any compromised service identity can enumerate and read **all** secrets in the vault
+- All 10 microservice identities have `get` permission (only) on a single shared Key Vault
+- Services can read secrets by name but cannot enumerate all secrets in the vault
+- **Security Improvement (Issue #638)**: `list` permission removed to prevent secret enumeration
 
-**Risk:**
-- **High lateral movement risk**: Compromise of one service leads to credential exposure for all services
-- **Blast radius**: Single breach affects entire system
+**Remaining Risk:**
+- **Shared secrets**: All services still access the same Key Vault, so compromise of one service could expose secrets it knows about
+- **Blast radius**: While enumeration is prevented, lateral movement is still possible if secret names are known
 
-**Mitigation Options (for future PRs):**
+**Future Mitigation Options:**
 
 1. **Separate Key Vaults per Service** (Most Secure)
    - Each service gets its own Key Vault
    - Requires more management overhead
    - Best for high-security production deployments
 
-2. **Remove `list` Permission** (Quick Win)
-   - Services can only read secrets they explicitly know about (by name)
-   - Prevents enumeration attacks
-   - Reduces blast radius without infrastructure changes
-
-3. **Migrate to Azure RBAC** (Recommended)
+2. **Migrate to Azure RBAC** (Recommended)
    - Use `enableRbacAuthorization: true` on Key Vault
-   - Assign granular RBAC roles per identity
+   - Assign granular RBAC roles per identity (e.g., `Key Vault Secrets User`)
    - Modern approach, better audit trails
+   - Tracked in Issue #637
 
-**Status:** Known limitation in PR #1 (Foundation Layer). Will address in PR #5 (Container Apps) when secret names are defined.
+**Status:** ✅ `list` permission removed (Issue #638). Services can only read secrets they explicitly know by name, preventing enumeration attacks.
 
 ### Access Authorization Approach: Legacy Access Policies vs. Azure RBAC
 
