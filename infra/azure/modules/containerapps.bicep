@@ -42,6 +42,12 @@ param keyVaultUri string
 @description('Application Insights instrumentation key for service telemetry')
 param appInsightsKey string = ''
 
+@description('Log Analytics workspace customerId (GUID)')
+param logAnalyticsCustomerId string
+
+@description('Log Analytics workspace primary shared key')
+param logAnalyticsSharedKey string
+
 param tags object = {}
 
 // Derived variables
@@ -81,6 +87,10 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
     ]
     appLogsConfiguration: {
       destination: 'log-analytics'
+      logAnalyticsConfiguration: {
+        customerId: logAnalyticsCustomerId
+        sharedKey: logAnalyticsSharedKey
+      }
     }
   }
 }

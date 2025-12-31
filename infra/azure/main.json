@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "14641623947090913772"
+      "templateHash": "10575867208979086148"
     },
     "description": "Main orchestration template for Copilot for Consensus Azure deployment",
     "author": "Copilot-for-Consensus Team"
@@ -1196,7 +1196,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "4863797888295056409"
+              "templateHash": "8551066614024295841"
             },
             "description": "Module to provision Application Insights for monitoring",
             "author": "Copilot-for-Consensus Team"
@@ -1284,6 +1284,20 @@
                 "description": "Log Analytics Workspace ID"
               },
               "value": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('lawName'))]"
+            },
+            "workspaceCustomerId": {
+              "type": "string",
+              "metadata": {
+                "description": "Log Analytics Workspace customerId (GUID)"
+              },
+              "value": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', variables('lawName')), '2021-12-01-preview').customerId]"
+            },
+            "workspaceSharedKey": {
+              "type": "string",
+              "metadata": {
+                "description": "Log Analytics Workspace primary shared key"
+              },
+              "value": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', variables('lawName')), '2021-12-01-preview').primarySharedKey]"
             }
           }
         }
@@ -1332,6 +1346,12 @@
           "appInsightsKey": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'appInsightsDeployment'), '2025-04-01').outputs.instrumentationKey.value]"
           },
+          "logAnalyticsCustomerId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'appInsightsDeployment'), '2025-04-01').outputs.workspaceCustomerId.value]"
+          },
+          "logAnalyticsSharedKey": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'appInsightsDeployment'), '2025-04-01').outputs.workspaceSharedKey.value]"
+          },
           "tags": {
             "value": "[parameters('tags')]"
           }
@@ -1343,7 +1363,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "2819552765746862962"
+              "templateHash": "14313292759824892884"
             },
             "description": "Module to provision Container Apps environment and all microservices",
             "author": "Copilot-for-Consensus Team"
@@ -1426,6 +1446,18 @@
                 "description": "Application Insights instrumentation key for service telemetry"
               }
             },
+            "logAnalyticsCustomerId": {
+              "type": "string",
+              "metadata": {
+                "description": "Log Analytics workspace customerId (GUID)"
+              }
+            },
+            "logAnalyticsSharedKey": {
+              "type": "string",
+              "metadata": {
+                "description": "Log Analytics workspace primary shared key"
+              }
+            },
             "tags": {
               "type": "object",
               "defaultValue": {}
@@ -1467,7 +1499,11 @@
                   }
                 ],
                 "appLogsConfiguration": {
-                  "destination": "log-analytics"
+                  "destination": "log-analytics",
+                  "logAnalyticsConfiguration": {
+                    "customerId": "[parameters('logAnalyticsCustomerId')]",
+                    "sharedKey": "[parameters('logAnalyticsSharedKey')]"
+                  }
                 }
               }
             },
