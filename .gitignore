@@ -5,7 +5,8 @@
 ollama_models/
 
 # Generated ARM templates (compile from Bicep source instead)
-infra/azure/what-if-output.json  # Temporary what-if analysis output
+infra/azure/what-if-output.json
+infra/azure/main.json
 
 **/__pycache__/**
 **/*.egg-info/**
