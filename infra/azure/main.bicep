@@ -48,6 +48,15 @@ param azureOpenAIDeploymentCapacity int = 10
 @description('IPv4 CIDR allowlist for Azure OpenAI when public network access is enabled')
 param azureOpenAIAllowedCidrs array = []
 
+@description('Whether to deploy Container Apps environment and services')
+param deployContainerApps bool = true
+
+@description('VNet address space for Container Apps')
+param vnetAddressPrefix string = '10.0.0.0/16'
+
+@description('Container Apps subnet address space')
+param containerAppsSubnetPrefix string = '10.0.0.0/23'
+
 @minValue(400)
 @maxValue(1000000)
 #disable-next-line no-unused-params
@@ -189,11 +198,51 @@ module openaiModule 'modules/openai.bicep' = if (deployAzureOpenAI) {
   }
 }
 
-// Module: Container Apps (Placeholder for PR #5)
-// module containerAppsModule 'modules/containerapps.bicep' = {
-//   name: 'containerAppsDeployment'
-//   ...
-// }
+// Module: Application Insights (monitoring for Container Apps)
+module appInsightsModule 'modules/appinsights.bicep' = if (deployContainerApps) {
+  name: 'appInsightsDeployment'
+  params: {
+    location: location
+    projectName: projectName
+    environment: environment
+    tags: tags
+  }
+}
+
+// Module: Container Apps (VNet and 10 microservices)
+module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerApps) {
+  name: 'containerAppsDeployment'
+  params: {
+    location: location
+    projectName: projectName
+    environment: environment
+    containerRegistry: 'ghcr.io/alan-jowett/copilot-for-consensus'
+    containerImageTag: containerImageTag
+    identityResourceIds: identitiesModule.outputs.identityResourceIds
+    serviceBusConnectionString: serviceBusModule.outputs.connectionString
+    cosmosDbConnectionString: cosmosModule.outputs.connectionString
+    azureOpenAIEndpoint: deployAzureOpenAI ? openaiModule!.outputs.accountEndpoint : ''
+    azureOpenAIKey: deployAzureOpenAI ? openaiModule!.outputs.accountId : ''
+    vnetId: vnetModule.outputs.vnetId
+    subnetId: vnetModule.outputs.containerAppsSubnetId
+    keyVaultUri: keyVaultModule.outputs.keyVaultUri
+    appInsightsKey: appInsightsModule.outputs.instrumentationKey
+    tags: tags
+  }
+}
+
+// Module: Virtual Network (for Container Apps integration)
+module vnetModule 'modules/vnet.bicep' = if (deployContainerApps) {
+  name: 'vnetDeployment'
+  params: {
+    location: location
+    projectName: projectName
+    environment: environment
+    vnetAddressPrefix: vnetAddressPrefix
+    containerAppsSubnetPrefix: containerAppsSubnetPrefix
+    tags: tags
+  }
+}
 
 // Outputs
 output keyVaultUri string = keyVaultModule.outputs.keyVaultUri
@@ -215,6 +264,12 @@ output openaiCustomSubdomain string = deployAzureOpenAI ? openaiModule!.outputs.
 output openaiGpt4DeploymentId string = deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentId : ''
 output openaiGpt4DeploymentName string = deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentName : ''
 output openaiSkuName string = deployAzureOpenAI ? openaiModule!.outputs.skuName : ''
+output appInsightsInstrumentationKey string = deployContainerApps ? appInsightsModule.outputs.instrumentationKey : ''
+output appInsightsId string = deployContainerApps ? appInsightsModule.outputs.appInsightsId : ''
+output containerAppsEnvId string = deployContainerApps ? containerAppsModule.outputs.containerAppsEnvId : ''
+output gatewayFqdn string = deployContainerApps ? containerAppsModule.outputs.gatewayFqdn : ''
+output containerAppIds object = deployContainerApps ? containerAppsModule.outputs.appIds : {}
+output vnetId string = deployContainerApps ? vnetModule.outputs.vnetId : ''
 output resourceGroupName string = resourceGroup().name
 output location string = location
 output environment string = environment
