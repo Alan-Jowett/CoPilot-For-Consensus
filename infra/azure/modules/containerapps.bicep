@@ -37,14 +37,14 @@ param cosmosDbEndpoint string = ''
 @description('Container Apps subnet ID')
 param subnetId string
 
+@description('Key Vault name for secret access')
+param keyVaultName string
+
 @description('Application Insights instrumentation key secret URI (from Key Vault)')
 param appInsightsKeySecretUri string = ''
 
 @description('Application Insights connection string secret URI (from Key Vault)')
 param appInsightsConnectionStringSecretUri string = ''
-
-@description('Key Vault name for auth service secret provider (auth service reads secrets directly from Key Vault using managed identity)')
-param keyVaultNameForSecrets string = ''
 
 @description('Log Analytics workspace resource ID')
 param logAnalyticsWorkspaceId string
@@ -141,11 +141,11 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'SECRET_PROVIDER_TYPE'
-              value: keyVaultNameForSecrets != '' ? 'azure' : 'local'
+              value: keyVaultName != '' ? 'azurekeyvault' : 'local'
             }
             {
-              name: 'AZURE_KEY_VAULT_NAME'
-              value: keyVaultNameForSecrets
+              name: 'AZURE_KEYVAULT_NAME'
+              value: keyVaultName
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'

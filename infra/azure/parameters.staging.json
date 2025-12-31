@@ -41,9 +41,6 @@
     "subnetAddressPrefix": {
       "value": "10.1.0.0/23"
     },
-    "keyVaultNameForSecrets": {
-      "value": ""
-    },
     "tags": {
       "value": {
         "environment": "staging",

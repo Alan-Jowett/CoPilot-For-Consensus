@@ -48,9 +48,6 @@ param azureOpenAIDeploymentCapacity int = 10
 @description('IPv4 CIDR allowlist for Azure OpenAI when public network access is enabled')
 param azureOpenAIAllowedCidrs array = []
 
-@description('Key Vault name for auth service secret provider (auth service reads GitHub OAuth and JWT secrets directly from Key Vault using managed identity)')
-param keyVaultNameForSecrets string = ''
-
 @description('Whether to deploy Container Apps environment and services')
 param deployContainerApps bool = true
 
@@ -82,6 +79,9 @@ param tags object = {
   project: 'copilot-for-consensus'
   createdBy: 'bicep'
 }
+
+@description('Force tag to control JWT key regeneration. Use utcNow() to regenerate keys on every deployment (WARNING: invalidates all active sessions). Default: keys persist across deployments unless this parameter changes.')
+param jwtForceUpdateTag string = 'stable'
 
 // Service names for identity assignment
 var services = [
@@ -123,6 +123,7 @@ var projectPrefix = take(replace(projectName, '-', ''), 8)
 // Key Vault name must be 3-24 characters, globally unique
 var keyVaultName = '${projectPrefix}kv${take(uniqueSuffix, 13)}'
 var identityPrefix = '${projectName}-${environment}'
+var jwtKeysIdentityName = '${identityPrefix}-jwtkeys-id'
 
 // Module: User-Assigned Managed Identities
 module identitiesModule 'modules/identities.bicep' = {
@@ -135,7 +136,17 @@ module identitiesModule 'modules/identities.bicep' = {
   }
 }
 
+// Dedicated identity to set JWT secrets in Key Vault during deployment
+resource jwtKeysIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = if (deployContainerApps) {
+  name: jwtKeysIdentityName
+  location: location
+  tags: tags
+}
+
 // Module: Azure Key Vault
+// Note: secretWriterPrincipalIds is currently limited to jwtKeysIdentity for deployment script write access.
+// If additional deployment scripts or components require Key Vault write permissions in the future,
+// consider refactoring to a dedicated parameter or variable array for better extensibility.
 module keyVaultModule 'modules/keyvault.bicep' = {
   name: 'keyVaultDeployment'
   params: {
@@ -143,6 +154,7 @@ module keyVaultModule 'modules/keyvault.bicep' = {
     keyVaultName: keyVaultName
     tenantId: subscription().tenantId
     managedIdentityPrincipalIds: identitiesModule.outputs.identityPrincipalIds
+    secretWriterPrincipalIds: deployContainerApps ? [jwtKeysIdentity!.properties.principalId] : []
     enablePublicNetworkAccess: true  // Set to false for production with Private Link
     enableRbacAuthorization: false  // TODO: Migrate to true in future PRs (#2-5) when services use Azure RBAC role assignments
     tags: tags
@@ -233,15 +245,30 @@ module appInsightsModule 'modules/appinsights.bicep' = if (deployContainerApps) 
 resource appInsightsInstrKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps) {
   name: '${keyVaultName}/appinsights-instrumentation-key'
   properties: {
-    value: appInsightsModule.outputs.instrumentationKey
+    value: appInsightsModule!.outputs.instrumentationKey
     contentType: 'text/plain'
   }
+}
+
+// Module: Generate per-deployment JWT keys and store in Key Vault
+module jwtKeysModule 'modules/jwtkeys.bicep' = if (deployContainerApps) {
+  name: 'jwtKeysDeployment'
+  params: {
+    location: location
+    keyVaultName: keyVaultName
+    scriptIdentityId: jwtKeysIdentity!.id
+    forceUpdateTag: jwtForceUpdateTag
+    tags: tags
+  }
+  dependsOn: [
+    keyVaultModule
+  ]
 }
 
 resource appInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps) {
   name: '${keyVaultName}/appinsights-connection-string'
   properties: {
-    value: appInsightsModule.outputs.connectionString
+    value: appInsightsModule!.outputs.connectionString
     contentType: 'text/plain'
   }
 }
@@ -278,13 +305,16 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     serviceBusNamespace: serviceBusModule.outputs.namespaceName
     cosmosDbEndpoint: cosmosModule.outputs.accountEndpoint
     subnetId: vnetModule!.outputs.containerAppsSubnetId
+    keyVaultName: keyVaultName
     appInsightsKeySecretUri: appInsightsInstrKeySecret!.properties.secretUriWithVersion
     appInsightsConnectionStringSecretUri: appInsightsConnectionStringSecret!.properties.secretUriWithVersion
     logAnalyticsWorkspaceId: appInsightsModule!.outputs.workspaceId
     logAnalyticsCustomerId: appInsightsModule!.outputs.workspaceCustomerId
-    keyVaultNameForSecrets: keyVaultName
     tags: tags
   }
+  dependsOn: [
+    jwtKeysModule  // Ensure JWT keys are generated before auth service starts
+  ]
 }
 
 // Outputs

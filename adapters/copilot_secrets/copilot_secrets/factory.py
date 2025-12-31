@@ -30,6 +30,7 @@ def create_secret_provider(provider_type: str, **kwargs: Any) -> SecretProvider:
     providers: dict[str, type] = {
         "local": LocalFileSecretProvider,
         "azure": AzureKeyVaultProvider,
+        "azurekeyvault": AzureKeyVaultProvider,  # Alias for azure
         # Future: "aws": AWSSecretsManagerProvider,
         # Future: "gcp": GCPSecretManagerProvider,
     }
