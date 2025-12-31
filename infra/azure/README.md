@@ -538,9 +538,9 @@ az keyvault secret set --vault-name $KEY_VAULT_NAME --name google-oauth-client-s
 az keyvault secret set --vault-name $KEY_VAULT_NAME --name microsoft-oauth-client-secret --value "YOUR_MICROSOFT_CLIENT_SECRET"
 ```
 
-**How it works**: The auth Container App is configured with `SECRET_PROVIDER_TYPE=azure` and `AZURE_KEY_VAULT_NAME` environment variables. This tells the auth service to use the Azure Key Vault secret provider, which reads secrets directly from Key Vault using the auth service's managed identity. No additional deployment steps are needed - the secrets are automatically available to the auth service.
+**How it works**: The auth Container App is configured with `SECRET_PROVIDER_TYPE=azurekeyvault` and `AZURE_KEYVAULT_NAME` environment variables. This tells the auth service to use the Azure Key Vault secret provider, which reads secrets directly from Key Vault using the auth service's managed identity. No additional deployment steps are needed - the secrets are automatically available to the auth service.
 
-**Note**: The auth service's managed identity already has "Key Vault Secrets User" permissions, configured during initial deployment.
+**Note**: The auth service's managed identity already has "Key Vault Secrets User" permissions, configured during initial deployment. JWT keys are also automatically generated and stored in Key Vault during deployment.
 
 #### Rotating GitHub OAuth Secrets
 
@@ -648,18 +648,22 @@ If you need to rollback to previous GitHub OAuth credentials:
 
 **Note**: Key Vault automatically versions secrets. You can always restore to a previous version by re-setting the secret with the previous value.
 
-### 2. Generate JWT Keys
+### 2. JWT Keys (Automatically Generated)
 
-Generate JWT signing keys for the auth service:
+JWT signing keys for the auth service are **automatically generated** and stored in Key Vault during deployment. No manual steps are required.
+
+The deployment script creates:
+- `jwt-private-key`: RSA private key for signing JWTs (RS256)
+- `jwt-public-key`: RSA public key for verifying JWTs
+
+**Key Rotation**: To regenerate JWT keys (which will invalidate all active sessions), set the `jwtForceUpdateTag` parameter to a new value (e.g., `utcNow()`) and redeploy:
 
 ```bash
-# Generate RSA key pair
-python auth/generate_keys.py
-
-# Upload to Key Vault
-az keyvault secret set --vault-name $KEY_VAULT_NAME --name jwt-private-key --file secrets/jwt_private_key
-az keyvault secret set --vault-name $KEY_VAULT_NAME --name jwt-public-key --file secrets/jwt_public_key
+# WARNING: This invalidates all active user sessions
+./deploy.sh -g copilot-rg -l eastus -e dev -t latest --jwt-force-update "$(date +%s)"
 ```
+
+For normal deployments, JWT keys persist across deployments unless you explicitly change the `jwtForceUpdateTag` parameter.
 
 ### 3. Test the Deployment
 
