@@ -51,6 +51,9 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
 @description('Application Insights Instrumentation Key')
 output instrumentationKey string = appInsights.properties.InstrumentationKey
 
+@description('Application Insights connection string')
+output connectionString string = appInsights.properties.ConnectionString
+
 @description('Application Insights ID')
 output appInsightsId string = appInsights.id
 

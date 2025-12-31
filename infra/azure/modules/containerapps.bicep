@@ -42,6 +42,9 @@ param keyVaultUri string
 @description('Application Insights instrumentation key for service telemetry')
 param appInsightsKey string = ''
 
+@description('Application Insights connection string for service telemetry')
+param appInsightsConnectionString string = ''
+
 @description('Log Analytics workspace customerId (GUID)')
 param logAnalyticsCustomerId string
 
@@ -136,6 +139,10 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
               value: appInsightsKey
+            }
+            {
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              value: appInsightsConnectionString
             }
           ]
           resources: {

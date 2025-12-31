@@ -238,6 +238,7 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     subnetId: vnetModule.outputs.containerAppsSubnetId
     keyVaultUri: keyVaultModule.outputs.keyVaultUri
     appInsightsKey: appInsightsModule.outputs.instrumentationKey
+    appInsightsConnectionString: appInsightsModule.outputs.connectionString
     logAnalyticsCustomerId: appInsightsModule.outputs.workspaceCustomerId
     logAnalyticsSharedKey: appInsightsModule.outputs.workspaceSharedKey
     tags: tags

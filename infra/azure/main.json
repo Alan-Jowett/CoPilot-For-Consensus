@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "3042477859888580014"
+      "templateHash": "3632196995826274319"
     },
     "description": "Main orchestration template for Copilot for Consensus Azure deployment",
     "author": "Copilot-for-Consensus Team"
@@ -1196,7 +1196,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "8551066614024295841"
+              "templateHash": "6416005725683192876"
             },
             "description": "Module to provision Application Insights for monitoring",
             "author": "Copilot-for-Consensus Team"
@@ -1270,6 +1270,13 @@
                 "description": "Application Insights Instrumentation Key"
               },
               "value": "[reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').InstrumentationKey]"
+            },
+            "connectionString": {
+              "type": "string",
+              "metadata": {
+                "description": "Application Insights connection string"
+              },
+              "value": "[reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').ConnectionString]"
             },
             "appInsightsId": {
               "type": "string",
@@ -1490,6 +1497,9 @@
           "appInsightsKey": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'appInsightsDeployment'), '2025-04-01').outputs.instrumentationKey.value]"
           },
+          "appInsightsConnectionString": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'appInsightsDeployment'), '2025-04-01').outputs.connectionString.value]"
+          },
           "logAnalyticsCustomerId": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'appInsightsDeployment'), '2025-04-01').outputs.workspaceCustomerId.value]"
           },
@@ -1507,7 +1517,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "14313292759824892884"
+              "templateHash": "9640117792028008853"
             },
             "description": "Module to provision Container Apps environment and all microservices",
             "author": "Copilot-for-Consensus Team"
@@ -1588,6 +1598,13 @@
               "defaultValue": "",
               "metadata": {
                 "description": "Application Insights instrumentation key for service telemetry"
+              }
+            },
+            "appInsightsConnectionString": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Application Insights connection string for service telemetry"
               }
             },
             "logAnalyticsCustomerId": {
@@ -1693,6 +1710,10 @@
                         {
                           "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
                           "value": "[parameters('appInsightsKey')]"
+                        },
+                        {
+                          "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                          "value": "[parameters('appInsightsConnectionString')]"
                         }
                       ],
                       "resources": {
