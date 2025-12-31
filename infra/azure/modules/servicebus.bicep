@@ -127,3 +127,6 @@ output namespaceResourceId string = serviceBusNamespace.id
 output queueNames array = [
   for queue in queueDefinitions: queue
 ]
+
+@description('Service Bus namespace connection string for managed identity auth')
+output connectionString string = 'Endpoint=sb://${serviceBusNamespace.name}.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=${listKeys('${serviceBusNamespace.id}/AuthorizationRules/RootManageSharedAccessKey', '2022-10-01-preview').primaryKey}'

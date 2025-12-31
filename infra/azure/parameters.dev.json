@@ -32,6 +32,15 @@
     "enableMultiRegionCosmos": {
       "value": false
     },
+    "deployContainerApps": {
+      "value": true
+    },
+    "vnetAddressPrefix": {
+      "value": "10.0.0.0/16"
+    },
+    "containerAppsSubnetPrefix": {
+      "value": "10.0.0.0/23"
+    },
     "tags": {
       "value": {
         "environment": "dev",
