@@ -98,11 +98,6 @@ The workflow should:
 - Verify `AZURE_SUBSCRIPTION_ID` is correct: `az account list --query "[].id" -o tsv`
 - Confirm subscription is active: `az account show --subscription <SUBSCRIPTION_ID>`
 
-### "Subscription not found"
-
-- Verify `AZURE_SUBSCRIPTION_ID` is correct: `az account list --query "[].id" -o tsv`
-- Confirm subscription is active: `az account show --subscription <SUBSCRIPTION_ID>`
-
 ### Script fails to create app registration
 
 - Ensure you're using an account with **Admin** permissions

@@ -198,8 +198,11 @@ UAA_SCOPE="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$VALIDATION_RG"
 # Verify RG exists; if not, create it (required for scoped permissions)
 if ! az group show --name "$VALIDATION_RG" >/dev/null 2>&1; then
     echo -e "${YELLOW}Validation resource group '$VALIDATION_RG' not found. Creating it...${NC}"
-    LOCATION="eastus"  # Default location for validation RG
-    az group create --name "$VALIDATION_RG" --location "$LOCATION" >/dev/null 2>&1
+    LOCATION="${VALIDATION_LOCATION:-eastus}"  # Location for validation RG (configurable via VALIDATION_LOCATION env var)
+    if ! az group create --name "$VALIDATION_RG" --location "$LOCATION" >/dev/null; then
+        echo -e "${RED}Error: Failed to create validation resource group '$VALIDATION_RG' in location '$LOCATION'.${NC}"
+        exit 1
+    fi
     echo -e "${GREEN}✓ Validation resource group created: $VALIDATION_RG (location: $LOCATION)${NC}"
 else
     echo -e "${GREEN}✓ Validation resource group exists: $VALIDATION_RG${NC}"
