@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "12548378400983705248"
+      "templateHash": "16648270851024774537"
     },
     "description": "Main orchestration template for Copilot for Consensus Azure deployment",
     "author": "Copilot-for-Consensus Team"
@@ -1349,7 +1349,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "492196009867333449"
+              "templateHash": "13485128634348745810"
             },
             "description": "Module to provision Container Apps environment and all microservices",
             "author": "Copilot-for-Consensus Team"
@@ -2089,7 +2089,7 @@
                   "ingress": {
                     "external": true,
                     "targetPort": "[variables('servicePorts').gateway]",
-                    "allowInsecure": true,
+                    "allowInsecure": false,
                     "transport": "http"
                   }
                 },
