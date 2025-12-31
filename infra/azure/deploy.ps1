@@ -114,7 +114,13 @@ function Test-Prerequisites {
 # Main deployment function
 function Start-Deployment {
     # Get script directory
-    $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $ScriptDir = $PSScriptRoot
+    if ([string]::IsNullOrEmpty($ScriptDir)) {
+        $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+    }
+    if ([string]::IsNullOrEmpty($ScriptDir)) {
+        $ScriptDir = Get-Location
+    }
 
     # Check prerequisites
     Test-Prerequisites
