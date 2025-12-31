@@ -149,7 +149,8 @@ Copy-Item secrets/grafana_admin_password.example secrets/grafana_admin_password
 
 # Set credentials (replace with your own)
 "admin" | Out-File -FilePath secrets/grafana_admin_user -NoNewline
-"your-strong-password-here" | Out-File -FilePath secrets/grafana_admin_password -NoNewline
+# Generate a secure random password (or use your own)
+-join ((65..90) + (97..122) + (48..57) + (33,35,36,37,38,42,43) | Get-Random -Count 24 | % {[char]$_}) | Out-File -FilePath secrets/grafana_admin_password -NoNewline
 
 # Restart Grafana
 docker compose restart grafana gateway
