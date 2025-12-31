@@ -153,6 +153,8 @@ var serviceBusNamespaceName = '${projectPrefix}-sb-${environment}-${take(uniqueS
 var cosmosAccountName = toLower('${take(projectPrefix, 10)}-cos-${environment}-${take(uniqueSuffix, 5)}')
 // OpenAI account name must be globally unique and lowercase
 var openaiAccountName = toLower('${take(projectPrefix, 10)}-oai-${environment}-${take(uniqueSuffix, 5)}')
+// Azure AI Search service name must be globally unique and lowercase
+var aiSearchServiceName = toLower('${take(projectPrefix, 10)}-ais-${environment}-${take(uniqueSuffix, 5)}')
 
 // Module: Azure Service Bus
 module serviceBusModule 'modules/servicebus.bicep' = {
@@ -198,6 +200,19 @@ module openaiModule 'modules/openai.bicep' = if (deployAzureOpenAI) {
   }
 }
 
+// Module: Azure AI Search (vector store)
+module aiSearchModule 'modules/aisearch.bicep' = {
+  name: 'aiSearchDeployment'
+  params: {
+    location: location
+    serviceName: aiSearchServiceName
+    sku: environment == 'prod' ? 'standard' : 'basic'
+    identityResourceId: identitiesModule.outputs.identityResourceIds.embedding
+    enablePublicNetworkAccess: true  // Set to false for production with Private Link
+    tags: tags
+  }
+}
+
 // Module: Application Insights (monitoring for Container Apps)
 module appInsightsModule 'modules/appinsights.bicep' = if (deployContainerApps) {
   name: 'appInsightsDeployment'
@@ -233,6 +248,8 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     containerImageTag: containerImageTag
     identityResourceIds: identitiesModule.outputs.identityResourceIds
     azureOpenAIEndpoint: deployAzureOpenAI ? openaiModule!.outputs.accountEndpoint : ''
+    aiSearchEndpoint: aiSearchModule.outputs.endpoint
+    aiSearchAdminKey: aiSearchModule.outputs.adminApiKey
     subnetId: vnetModule.outputs.containerAppsSubnetId
     appInsightsKey: appInsightsModule.outputs.instrumentationKey
     appInsightsConnectionString: appInsightsModule.outputs.connectionString
@@ -262,6 +279,9 @@ output openaiCustomSubdomain string = deployAzureOpenAI ? openaiModule!.outputs.
 output openaiGpt4DeploymentId string = deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentId : ''
 output openaiGpt4DeploymentName string = deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentName : ''
 output openaiSkuName string = deployAzureOpenAI ? openaiModule!.outputs.skuName : ''
+output aiSearchServiceName string = aiSearchModule.outputs.serviceName
+output aiSearchEndpoint string = aiSearchModule.outputs.endpoint
+output aiSearchServiceId string = aiSearchModule.outputs.serviceId
 output appInsightsInstrumentationKey string = deployContainerApps ? appInsightsModule.outputs.instrumentationKey : ''
 output appInsightsId string = deployContainerApps ? appInsightsModule.outputs.appInsightsId : ''
 output containerAppsEnvId string = deployContainerApps ? containerAppsModule.outputs.containerAppsEnvId : ''

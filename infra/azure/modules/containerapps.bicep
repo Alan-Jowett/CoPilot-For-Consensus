@@ -25,6 +25,12 @@ param identityResourceIds object
 @description('Azure OpenAI endpoint URL')
 param azureOpenAIEndpoint string = ''
 
+@description('Azure AI Search endpoint URL')
+param aiSearchEndpoint string = ''
+
+@description('Azure AI Search admin API key')
+param aiSearchAdminKey string = ''
+
 @description('Container Apps subnet ID')
 param subnetId string
 
@@ -39,9 +45,6 @@ param logAnalyticsWorkspaceId string
 
 @description('Log Analytics workspace customerId (GUID)')
 param logAnalyticsCustomerId string
-
-@description('Allow insecure HTTP ingress to gateway (use only for explicit dev scenarios)')
-param gatewayAllowInsecure bool = false
 
 param tags object = {}
 
@@ -462,7 +465,19 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'VECTORSTORE_TYPE'
-              value: 'qdrant'
+              value: 'ai_search'
+            }
+            {
+              name: 'AISEARCH_ENDPOINT'
+              value: aiSearchEndpoint
+            }
+            {
+              name: 'AISEARCH_ADMIN_KEY'
+              value: aiSearchAdminKey
+            }
+            {
+              name: 'AISEARCH_INDEX_NAME'
+              value: 'document-embeddings'
             }
             {
               name: 'AUTH_SERVICE_URL'
@@ -702,7 +717,7 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
       ingress: {
         external: true
         targetPort: servicePorts.gateway
-        allowInsecure: gatewayAllowInsecure
+        allowInsecure: false
         transport: 'auto'
       }
     }
