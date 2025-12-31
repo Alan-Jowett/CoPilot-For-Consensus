@@ -50,11 +50,24 @@ param enablePublicNetworkAccess bool = true
 @description('Custom subdomain name for token-based authentication')
 param customSubdomainName string = ''
 
+@description('Whether to deploy text embedding model (text-embedding-ada-002)')
+param deployEmbeddingModel bool = true
+
+@allowed(['text-embedding-ada-002', 'text-embedding-3-small', 'text-embedding-3-large'])
+@description('Embedding model to deploy')
+param embeddingModelName string = 'text-embedding-ada-002'
+
+@minValue(1)
+@maxValue(1000)
+@description('Capacity (units) for the embedding deployment')
+param embeddingDeploymentCapacity int = 10
+
 var normalizedAccountName = toLower(accountName)
 // Use the first 8 chars of the account name for brevity
 var projectName = take(normalizedAccountName, 8)
 var normalizedSubdomain = customSubdomainName != '' ? toLower(customSubdomainName) : toLower('${projectName}-openai-${uniqueString(resourceGroup().id)}')
-var deploymentName = 'gpt-4o-deployment'
+var gpt4DeploymentName = 'gpt-4o-deployment'
+var embeddingDeploymentName = 'embedding-deployment'
 
 // Azure OpenAI Service account
 resource openaiAccount 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
@@ -84,7 +97,7 @@ resource openaiAccount 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
 // GPT-4o Deployment
 resource gpt4Deployment 'Microsoft.CognitiveServices/accounts/deployments@2025-09-01' = {
   parent: openaiAccount
-  name: deploymentName
+  name: gpt4DeploymentName
   sku: {
     name: deploymentSku
     capacity: deploymentCapacity
@@ -97,6 +110,25 @@ resource gpt4Deployment 'Microsoft.CognitiveServices/accounts/deployments@2025-0
     }
     versionUpgradeOption: 'OnceNewDefaultVersionAvailable'
   }
+}
+
+// Embedding Model Deployment (text-embedding-ada-002 or text-embedding-3-*)
+resource embeddingDeployment 'Microsoft.CognitiveServices/accounts/deployments@2025-09-01' = if (deployEmbeddingModel) {
+  parent: openaiAccount
+  name: embeddingDeploymentName
+  sku: {
+    name: deploymentSku
+    capacity: embeddingDeploymentCapacity
+  }
+  properties: {
+    model: {
+      format: 'OpenAI'
+      name: embeddingModelName
+      version: embeddingModelName == 'text-embedding-ada-002' ? '2' : (embeddingModelName == 'text-embedding-3-small' ? '1' : '1')
+    }
+    versionUpgradeOption: 'OnceNewDefaultVersionAvailable'
+  }
+  dependsOn: [gpt4Deployment]  // Deploy sequentially to avoid quota conflicts
 }
 
 // Outputs
@@ -112,5 +144,9 @@ output customSubdomain string = openaiAccount.properties.customSubDomainName
 output gpt4DeploymentId string = gpt4Deployment.id
 @description('GPT-4o deployment name')
 output gpt4DeploymentName string = gpt4Deployment.name
+@description('Embedding deployment resource ID')
+output embeddingDeploymentId string = deployEmbeddingModel ? embeddingDeployment.id : ''
+@description('Embedding deployment name')
+output embeddingDeploymentName string = deployEmbeddingModel ? embeddingDeployment.name : ''
 @description('Configured SKU for OpenAI account')
 output skuName string = sku
