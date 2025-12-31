@@ -378,15 +378,15 @@ All parameters are configurable via the environment-specific parameter files (`p
 |-----------|------|---------|-------------|
 | `deployAzureOpenAI` | bool | `true` | Whether to deploy Azure OpenAI service |
 | `azureOpenAISku` | string | `S0` | SKU for Azure OpenAI (only `S0` is currently supported) |
-| `azureOpenAIDeploymentSku` | string | `GlobalStandard` | Deployment SKU: `Standard` or `GlobalStandard` (global load balancing) |
+| `azureOpenAIDeploymentSku` | string | `GlobalStandard` | Deployment SKU: `Standard` or `GlobalStandard` (global load balancing). `GlobalStandard` is the main.bicep default; environment parameter files may override this (for example, `parameters.dev.json` uses `Standard` for cost savings). |
 | `azureOpenAIModelVersion` | string | `2024-11-20` | GPT-4o model version: `2024-05-13`, `2024-08-06`, or `2024-11-20` |
-| `azureOpenAIDeploymentCapacity` | int | `10` | Deployment capacity (1-1000 TPM units, each = 1K tokens/min) |
+| `azureOpenAIDeploymentCapacity` | int | `10` | Deployment capacity in thousands of tokens per minute (1-1000 TPM). Defaults by environment: dev `10`, staging `30`, prod `100`. |
 | `azureOpenAIAllowedCidrs` | array | `[]` | IPv4 CIDR allowlist for public network access (e.g., `["203.0.113.0/24"]`) |
 
 **Environment-specific recommendations:**
 - **Dev**: Use `Standard` SKU with capacity `10` for cost savings
 - **Staging**: Use `GlobalStandard` SKU with capacity `30` for regional load balancing
-- **Prod**: Use `GlobalStandard` SKU with capacity `100+` for high availability
+- **Prod**: Use `GlobalStandard` SKU with capacity `100` (or higher as needed) for high availability
 
 #### Cosmos DB Parameters
 
