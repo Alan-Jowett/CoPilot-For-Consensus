@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2025 Copilot-for-Consensus contributors
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
 
 # Grafana Admin Credential Rotation Runbook
 
@@ -42,11 +42,13 @@ Grafana admin credentials should be rotated regularly as part of security best p
 
    ```bash
    # Generate a new secure password (Linux/macOS)
-   NEW_PASSWORD=$(openssl rand -base64 32)
+   NEW_PASSWORD=$(openssl rand -base64 32 | tr -d '\n')
    echo "$NEW_PASSWORD"
-   
-   # For PowerShell on Windows
-   # Generate a 24-character password using uppercase, lowercase, digits, and special characters
+   ```
+
+   ```powershell
+   # Generate a 24-character password using uppercase, lowercase, digits, and special characters (Windows PowerShell)
+   # Character ranges: 65-90 (A-Z), 97-122 (a-z), 48-57 (0-9), special chars (!#$%&*+)
    $NEW_PASSWORD = -join ((65..90) + (97..122) + (48..57) + (33,35,36,37,38,42,43) | Get-Random -Count 24 | % {[char]$_})
    $NEW_PASSWORD
    ```
@@ -56,10 +58,10 @@ Grafana admin credentials should be rotated regularly as part of security best p
    **Linux/macOS (bash):**
    ```bash
    # Update username (if needed)
-   echo "admin" > secrets/grafana_admin_user
+   echo -n "admin" > secrets/grafana_admin_user
    
    # Update password
-   echo "$NEW_PASSWORD" > secrets/grafana_admin_password
+   echo -n "$NEW_PASSWORD" > secrets/grafana_admin_password
    
    # Or use your preferred method to edit the files
    ```
@@ -144,7 +146,7 @@ Grafana admin credentials should be rotated regularly as part of security best p
      --value "admin"
    
    # Update admin password with a strong random password
-   NEW_PASSWORD=$(openssl rand -base64 32)
+   NEW_PASSWORD=$(openssl rand -base64 32 | tr -d '\n')
    az keyvault secret set \
      --vault-name "$KV_NAME" \
      --name grafana-admin-password \

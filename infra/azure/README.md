@@ -645,7 +645,7 @@ Set Grafana admin credentials in Key Vault for monitoring dashboards (when Grafa
 az keyvault secret set --vault-name $KEY_VAULT_NAME --name grafana-admin-user --value "admin"
 
 # Generate and set a strong admin password
-GRAFANA_PASSWORD=$(openssl rand -base64 32)
+GRAFANA_PASSWORD=$(openssl rand -base64 32 | tr -d '\n')
 az keyvault secret set --vault-name $KEY_VAULT_NAME --name grafana-admin-password --value "$GRAFANA_PASSWORD"
 
 # Save the password securely

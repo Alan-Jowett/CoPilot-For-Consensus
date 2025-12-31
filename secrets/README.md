@@ -134,8 +134,8 @@ cp secrets/grafana_admin_user.example secrets/grafana_admin_user
 cp secrets/grafana_admin_password.example secrets/grafana_admin_password
 
 # Set credentials (replace with your own)
-echo "admin" > secrets/grafana_admin_user
-openssl rand -base64 32 > secrets/grafana_admin_password
+echo -n "admin" > secrets/grafana_admin_user
+openssl rand -base64 32 | tr -d '\n' > secrets/grafana_admin_password
 
 # Restart Grafana
 docker compose restart grafana gateway
