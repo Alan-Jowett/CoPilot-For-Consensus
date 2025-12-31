@@ -48,6 +48,15 @@ param azureOpenAIDeploymentCapacity int = 10
 @description('IPv4 CIDR allowlist for Azure OpenAI when public network access is enabled')
 param azureOpenAIAllowedCidrs array = []
 
+@description('Whether to deploy Container Apps environment and services')
+param deployContainerApps bool = true
+
+@description('VNet address space for Container Apps (CIDR notation)')
+param vnetAddressSpace string = '10.0.0.0/16'
+
+@description('Container Apps subnet address prefix (CIDR notation)')
+param subnetAddressPrefix string = '10.0.0.0/23'
+
 @minValue(400)
 @maxValue(1000000)
 #disable-next-line no-unused-params
@@ -144,6 +153,8 @@ var serviceBusNamespaceName = '${projectPrefix}-sb-${environment}-${take(uniqueS
 var cosmosAccountName = toLower('${take(projectPrefix, 10)}-cos-${environment}-${take(uniqueSuffix, 5)}')
 // OpenAI account name must be globally unique and lowercase
 var openaiAccountName = toLower('${take(projectPrefix, 10)}-oai-${environment}-${take(uniqueSuffix, 5)}')
+// Azure AI Search service name must be globally unique and lowercase
+var aiSearchServiceName = toLower('${take(projectPrefix, 10)}-ais-${environment}-${take(uniqueSuffix, 5)}')
 
 // Module: Azure Service Bus
 module serviceBusModule 'modules/servicebus.bicep' = {
@@ -189,11 +200,88 @@ module openaiModule 'modules/openai.bicep' = if (deployAzureOpenAI) {
   }
 }
 
-// Module: Container Apps (Placeholder for PR #5)
-// module containerAppsModule 'modules/containerapps.bicep' = {
-//   name: 'containerAppsDeployment'
-//   ...
-// }
+// Module: Azure AI Search (vector store)
+// Only deployed when Container Apps are enabled (required for embedding service)
+module aiSearchModule 'modules/aisearch.bicep' = if (deployContainerApps) {
+  name: 'aiSearchDeployment'
+  params: {
+    location: location
+    serviceName: aiSearchServiceName
+    sku: environment == 'prod' ? 'standard' : 'basic'
+    embeddingServicePrincipalId: identitiesModule.outputs.identityPrincipalIdsByName.embedding  // use named mapping to avoid fragile index coupling
+    enablePublicNetworkAccess: environment != 'prod'  // Disable for production (Private Link), enable for dev/staging
+    tags: tags
+  }
+}
+
+// Module: Application Insights (monitoring for Container Apps)
+module appInsightsModule 'modules/appinsights.bicep' = if (deployContainerApps) {
+  name: 'appInsightsDeployment'
+  params: {
+    location: location
+    projectName: projectName
+    environment: environment
+    tags: tags
+  }
+}
+
+// Store Application Insights secrets securely in Key Vault
+// These must NOT be passed as plaintext environment variables to Container Apps
+resource appInsightsInstrKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps) {
+  name: '${keyVaultName}/appinsights-instrumentation-key'
+  properties: {
+    value: appInsightsModule.outputs.instrumentationKey
+    contentType: 'text/plain'
+  }
+}
+
+resource appInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps) {
+  name: '${keyVaultName}/appinsights-connection-string'
+  properties: {
+    value: appInsightsModule.outputs.connectionString
+    contentType: 'text/plain'
+  }
+}
+
+// Module: Virtual Network (for Container Apps integration)
+module vnetModule 'modules/vnet.bicep' = if (deployContainerApps) {
+  name: 'vnetDeployment'
+  params: {
+    location: location
+    projectName: projectName
+    environment: environment
+    vnetAddressSpace: vnetAddressSpace
+    subnetAddressPrefix: subnetAddressPrefix
+    tags: tags
+  }
+}
+
+// Module: Container Apps (VNet and 10 microservices)
+// IMPORTANT: This module uses non-null assertions (!) for outputs from vnetModule, appInsightsModule,
+// aiSearchModule, and Key Vault secrets. These assertions are safe ONLY because this module has the same
+// conditional guard (if (deployContainerApps)) as those resources. Changing this condition independently
+// will cause deployment failures. Keep all Container Apps-related conditionals synchronized.
+module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerApps) {
+  name: 'containerAppsDeployment'
+  params: {
+    location: location
+    projectName: projectName
+    environment: environment
+    containerRegistry: 'ghcr.io/alan-jowett/copilot-for-consensus'
+    containerImageTag: containerImageTag
+    identityResourceIds: identitiesModule.outputs.identityResourceIds
+    azureOpenAIEndpoint: deployAzureOpenAI ? openaiModule!.outputs.accountEndpoint : ''
+    aiSearchEndpoint: aiSearchModule!.outputs.endpoint
+    serviceBusNamespace: serviceBusModule.outputs.namespaceName
+    cosmosDbEndpoint: cosmosModule.outputs.accountEndpoint
+    subnetId: vnetModule!.outputs.containerAppsSubnetId
+    appInsightsKeySecretUri: appInsightsInstrKeySecret!.properties.secretUriWithVersion
+    appInsightsConnectionStringSecretUri: appInsightsConnectionStringSecret!.properties.secretUriWithVersion
+    logAnalyticsWorkspaceId: appInsightsModule!.outputs.workspaceId
+    logAnalyticsCustomerId: appInsightsModule!.outputs.workspaceCustomerId
+    tags: tags
+  }
+}
 
 // Outputs
 output keyVaultUri string = keyVaultModule.outputs.keyVaultUri
@@ -215,7 +303,17 @@ output openaiCustomSubdomain string = deployAzureOpenAI ? openaiModule!.outputs.
 output openaiGpt4DeploymentId string = deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentId : ''
 output openaiGpt4DeploymentName string = deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentName : ''
 output openaiSkuName string = deployAzureOpenAI ? openaiModule!.outputs.skuName : ''
+// AI Search outputs: naming follows Azure resource type (Microsoft.Search/searchServices uses "service", not "account")
+output aiSearchServiceName string = deployContainerApps ? aiSearchModule!.outputs.serviceName : ''
+output aiSearchEndpoint string = deployContainerApps ? aiSearchModule!.outputs.endpoint : ''
+output aiSearchServiceId string = deployContainerApps ? aiSearchModule!.outputs.serviceId : ''
+output appInsightsId string = deployContainerApps ? appInsightsModule!.outputs.appInsightsId : ''
+output containerAppsEnvId string = deployContainerApps ? containerAppsModule!.outputs.containerAppsEnvId : ''
+output gatewayFqdn string = deployContainerApps ? containerAppsModule!.outputs.gatewayFqdn : ''
+output containerAppIds object = deployContainerApps ? containerAppsModule!.outputs.appIds : {}
+output vnetId string = deployContainerApps ? vnetModule!.outputs.vnetId : ''
 output resourceGroupName string = resourceGroup().name
 output location string = location
 output environment string = environment
 output deploymentId string = deployment().name
+

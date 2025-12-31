@@ -340,7 +340,6 @@ The repository includes pre-configured parameter files for each environment:
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `mongoDbConnectionString` | securestring | MongoDB or Cosmos DB connection string |
-| `serviceBusConnectionString` | securestring | Azure Service Bus connection string |
 | `storageAccountConnectionString` | securestring | Azure Storage connection string |
 
 ### Optional Parameters
@@ -358,8 +357,25 @@ The repository includes pre-configured parameter files for each environment:
 | `llmBackend` | string | `azure` | LLM backend: local, azure, or mock |
 | `azureOpenAIEndpoint` | string | `` | Azure OpenAI endpoint URL (required if llmBackend is azure) |
 | `azureOpenAIKey` | securestring | `` | Azure OpenAI API key (required if llmBackend is azure) |
-| `vnetAddressPrefix` | string | `10.0.0.0/16` | Virtual network address prefix |
-| `subnetAddressPrefix` | string | `10.0.0.0/23` | Container Apps subnet prefix |
+| `deployContainerApps` | bool | `true` | Deploy Container Apps environment and all microservices |
+| `vnetAddressSpace` | string | `10.0.0.0/16` | VNet address space for Container Apps (CIDR notation) |
+| `subnetAddressPrefix` | string | `10.0.0.0/23` | Container Apps subnet address prefix (CIDR notation) |
+
+#### VNet Configuration
+
+When deploying Container Apps (`deployContainerApps: true`), the template creates a Virtual Network with the following configurable parameters:
+
+- **`vnetAddressSpace`**: The address space for the entire VNet (default: `10.0.0.0/16`, providing 65,536 IP addresses)
+- **`subnetAddressPrefix`**: The address prefix for the Container Apps subnet (default: `10.0.0.0/23`, providing 512 IP addresses)
+
+**Non-Overlapping Address Spaces by Environment:**
+- **Dev**: `10.0.0.0/16` (subnet: `10.0.0.0/23`)
+- **Staging**: `10.1.0.0/16` (subnet: `10.1.0.0/23`)
+- **Prod**: `10.2.0.0/16` (subnet: `10.2.0.0/23`)
+
+This design enables future VNet peering or hybrid connectivity scenarios without address conflicts. If your environments are fully isolated (separate subscriptions), you can use the same address space across all environments.
+
+> **Note**: Service Bus and Cosmos DB access now rely on managed identities; connection strings are no longer passed into the Container Apps module. The Container Apps environment logs are sent to Log Analytics using the workspace shared key (platform requirement).
 
 ### Using Existing Managed Identities
 

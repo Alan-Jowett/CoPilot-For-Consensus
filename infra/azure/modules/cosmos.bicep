@@ -145,3 +145,4 @@ output autoscaleMaxThroughput int = autoscaleMaxRu
 
 @description('Configured write/replica regions (failover priority order)')
 output writeRegions array = writeRegionNames
+

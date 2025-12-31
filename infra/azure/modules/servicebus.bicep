@@ -127,3 +127,4 @@ output namespaceResourceId string = serviceBusNamespace.id
 output queueNames array = [
   for queue in queueDefinitions: queue
 ]
+
