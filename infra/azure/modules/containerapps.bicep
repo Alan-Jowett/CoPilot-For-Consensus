@@ -40,6 +40,9 @@ param logAnalyticsWorkspaceId string
 @description('Log Analytics workspace customerId (GUID)')
 param logAnalyticsCustomerId string
 
+@description('Allow insecure HTTP ingress to gateway (use only for explicit dev scenarios)')
+param gatewayAllowInsecure bool = false
+
 param tags object = {}
 
 // Derived variables
@@ -699,8 +702,8 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
       ingress: {
         external: true
         targetPort: servicePorts.gateway
-        allowInsecure: false
-        transport: 'http'
+        allowInsecure: gatewayAllowInsecure
+        transport: 'auto'
       }
     }
     template: {

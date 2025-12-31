@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "4816879077873533370"
+      "templateHash": "17332176960017166522"
     },
     "description": "Main orchestration template for Copilot for Consensus Azure deployment",
     "author": "Copilot-for-Consensus Team"
@@ -1489,7 +1489,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "3737973016132270894"
+              "templateHash": "11033178782336816465"
             },
             "description": "Module to provision Container Apps environment and all microservices",
             "author": "Copilot-for-Consensus Team"
@@ -1570,6 +1570,13 @@
               "type": "string",
               "metadata": {
                 "description": "Log Analytics workspace customerId (GUID)"
+              }
+            },
+            "gatewayAllowInsecure": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Allow insecure HTTP ingress to gateway (use only for explicit dev scenarios)"
               }
             },
             "tags": {
@@ -2261,8 +2268,8 @@
                   "ingress": {
                     "external": true,
                     "targetPort": "[variables('servicePorts').gateway]",
-                    "allowInsecure": false,
-                    "transport": "http"
+                    "allowInsecure": "[parameters('gatewayAllowInsecure')]",
+                    "transport": "auto"
                   }
                 },
                 "template": {
