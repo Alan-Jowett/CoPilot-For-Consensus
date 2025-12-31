@@ -299,6 +299,7 @@ output openaiCustomSubdomain string = deployAzureOpenAI ? openaiModule!.outputs.
 output openaiGpt4DeploymentId string = deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentId : ''
 output openaiGpt4DeploymentName string = deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentName : ''
 output openaiSkuName string = deployAzureOpenAI ? openaiModule!.outputs.skuName : ''
+// AI Search outputs: naming follows Azure resource type (Microsoft.Search/searchServices uses "service", not "account")
 output aiSearchServiceName string = deployContainerApps ? aiSearchModule!.outputs.serviceName : ''
 output aiSearchEndpoint string = deployContainerApps ? aiSearchModule!.outputs.endpoint : ''
 output aiSearchServiceId string = deployContainerApps ? aiSearchModule!.outputs.serviceId : ''
