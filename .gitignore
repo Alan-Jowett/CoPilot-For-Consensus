@@ -23,4 +23,7 @@ infra/azure/main.json
 **/htmlcov/**
 **/*.pyc
 **/.venv/**
-**/secrets/**
+# Secrets directory - exclude all files except examples and README
+**/secrets/*
+!**/secrets/*.example
+!**/secrets/README.md

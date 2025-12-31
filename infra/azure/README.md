@@ -636,7 +636,40 @@ The deployment script creates:
 
 For normal deployments, JWT keys persist across deployments unless you explicitly change the `jwtForceUpdateTag` parameter.
 
-### 3. Test the Deployment
+### 3. Configure Grafana Admin Credentials
+
+Set Grafana admin credentials in Key Vault for monitoring dashboards (when Grafana is deployed as a Container App):
+
+```bash
+# Set Grafana admin username (default: admin)
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name grafana-admin-user --value "admin"
+
+# Generate and set a strong admin password
+GRAFANA_PASSWORD=$(openssl rand -base64 32 | tr -d '\n')
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name grafana-admin-password --value "$GRAFANA_PASSWORD"
+
+# Save the password securely
+echo "Grafana admin password: $GRAFANA_PASSWORD"
+```
+
+**PowerShell (Windows):**
+```powershell
+# Set Grafana admin username
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name grafana-admin-user --value "admin"
+
+# Generate a 24-character password using uppercase, lowercase, digits, and special characters
+# Character ranges: 65-90 (A-Z), 97-122 (a-z), 48-57 (0-9), special chars (!#$%&*+)
+$GRAFANA_PASSWORD = -join ((65..90) + (97..122) + (48..57) + (33,35,36,37,38,42,43) | Get-Random -Count 24 | % {[char]$_})
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name grafana-admin-password --value $GRAFANA_PASSWORD
+
+Write-Host "Grafana admin password: $GRAFANA_PASSWORD"
+```
+
+**Note**: These credentials are stored in Key Vault for future use when Grafana is deployed as a Container App. For current docker-compose deployments, see `secrets/README.md` for local credential management.
+
+For credential rotation procedures, see [documents/runbooks/grafana-credential-rotation.md](../../documents/runbooks/grafana-credential-rotation.md).
+
+### 4. Test the Deployment
 
 Get the gateway URL from deployment outputs:
 
@@ -653,7 +686,7 @@ curl https://$GATEWAY_URL/reporting/health
 curl https://$GATEWAY_URL/auth/health
 ```
 
-### 4. Configure Monitoring Alerts
+### 5. Configure Monitoring Alerts
 
 Set up alerts in Application Insights for:
 - High error rates
@@ -803,6 +836,16 @@ Use the [Azure Pricing Calculator](https://azure.microsoft.com/en-us/pricing/cal
 - ✅ All secrets stored in Azure Key Vault
 - ✅ Key Vault uses RBAC (not access policies)
 - ✅ Soft delete enabled for accidental deletion protection
+- ✅ Grafana admin credentials stored in Key Vault for rotation and auditing
+
+**Secrets stored in Key Vault:**
+- OAuth provider credentials (GitHub, Google, Microsoft)
+- JWT signing keys for authentication
+- Application Insights connection strings
+- Grafana admin credentials (for monitoring dashboards)
+
+**Rotating Grafana credentials:**
+See [documents/runbooks/grafana-credential-rotation.md](../../documents/runbooks/grafana-credential-rotation.md) for step-by-step rotation procedures.
 
 ### 3. Network Security
 
