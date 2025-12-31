@@ -850,6 +850,10 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'http://${projectPrefix}-ui-${environment}:${servicePorts.ui}'
             }
             {
+              name: 'ENABLE_INTERNAL_TLS'
+              value: 'false'
+            }
+            {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
               value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
