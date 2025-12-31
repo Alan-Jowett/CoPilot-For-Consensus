@@ -28,6 +28,12 @@ param azureOpenAIEndpoint string = ''
 @description('Azure AI Search endpoint URL')
 param aiSearchEndpoint string = ''
 
+@description('Service Bus namespace name for message bus connection')
+param serviceBusNamespace string = ''
+
+@description('Cosmos DB account endpoint URL for document store connection')
+param cosmosDbEndpoint string = ''
+
 @description('Container Apps subnet ID')
 param subnetId string
 
@@ -190,8 +196,16 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'service_bus'
             }
             {
+              name: 'SERVICE_BUS_NAMESPACE'
+              value: serviceBusNamespace
+            }
+            {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
+            }
+            {
+              name: 'COSMOS_DB_ENDPOINT'
+              value: cosmosDbEndpoint
             }
             {
               name: 'AUTH_SERVICE_URL'
@@ -255,8 +269,16 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'service_bus'
             }
             {
+              name: 'SERVICE_BUS_NAMESPACE'
+              value: serviceBusNamespace
+            }
+            {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
+            }
+            {
+              name: 'COSMOS_DB_ENDPOINT'
+              value: cosmosDbEndpoint
             }
             {
               name: 'STORAGE_PATH'
@@ -325,8 +347,16 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'service_bus'
             }
             {
+              name: 'SERVICE_BUS_NAMESPACE'
+              value: serviceBusNamespace
+            }
+            {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
+            }
+            {
+              name: 'COSMOS_DB_ENDPOINT'
+              value: cosmosDbEndpoint
             }
             {
               name: 'AUTH_SERVICE_URL'
@@ -391,8 +421,16 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'service_bus'
             }
             {
+              name: 'SERVICE_BUS_NAMESPACE'
+              value: serviceBusNamespace
+            }
+            {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
+            }
+            {
+              name: 'COSMOS_DB_ENDPOINT'
+              value: cosmosDbEndpoint
             }
             {
               name: 'AUTH_SERVICE_URL'
@@ -457,8 +495,16 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'service_bus'
             }
             {
+              name: 'SERVICE_BUS_NAMESPACE'
+              value: serviceBusNamespace
+            }
+            {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
+            }
+            {
+              name: 'COSMOS_DB_ENDPOINT'
+              value: cosmosDbEndpoint
             }
             {
               name: 'VECTORSTORE_TYPE'
@@ -535,8 +581,16 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'service_bus'
             }
             {
+              name: 'SERVICE_BUS_NAMESPACE'
+              value: serviceBusNamespace
+            }
+            {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
+            }
+            {
+              name: 'COSMOS_DB_ENDPOINT'
+              value: cosmosDbEndpoint
             }
             {
               name: 'AUTH_SERVICE_URL'
@@ -601,8 +655,16 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'service_bus'
             }
             {
+              name: 'SERVICE_BUS_NAMESPACE'
+              value: serviceBusNamespace
+            }
+            {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
+            }
+            {
+              name: 'COSMOS_DB_ENDPOINT'
+              value: cosmosDbEndpoint
             }
             {
               name: 'LLM_BACKEND'

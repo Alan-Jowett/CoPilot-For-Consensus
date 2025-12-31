@@ -249,6 +249,8 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     identityResourceIds: identitiesModule.outputs.identityResourceIds
     azureOpenAIEndpoint: deployAzureOpenAI ? openaiModule!.outputs.accountEndpoint : ''
     aiSearchEndpoint: aiSearchModule.outputs.endpoint
+    serviceBusNamespace: serviceBusModule.outputs.namespaceName
+    cosmosDbEndpoint: cosmosModule.outputs.accountEndpoint
     subnetId: vnetModule.outputs.containerAppsSubnetId
     appInsightsKey: appInsightsModule.outputs.instrumentationKey
     appInsightsConnectionString: appInsightsModule.outputs.connectionString
