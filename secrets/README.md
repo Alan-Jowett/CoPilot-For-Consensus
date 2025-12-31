@@ -69,6 +69,75 @@ For each provider you want to enable:
    curl http://localhost:8080/auth/providers
    ```
 
+### Rotating GitHub OAuth Secrets (Local/Docker Compose)
+
+To rotate GitHub OAuth credentials in your local development environment:
+
+1. **Create new OAuth credentials** in GitHub:
+   - Go to your GitHub OAuth App settings
+   - Generate a new client secret
+   - Note the new client ID and secret
+
+2. **Update the secret files**:
+
+   **Linux/macOS (bash):**
+   ```bash
+   # Update GitHub OAuth secrets
+   echo "NEW_CLIENT_ID" > secrets/github_oauth_client_id
+   echo "NEW_CLIENT_SECRET" > secrets/github_oauth_client_secret
+   ```
+
+   **Windows (PowerShell):**
+   ```powershell
+   # Update GitHub OAuth secrets
+   "NEW_CLIENT_ID" | Out-File -FilePath secrets/github_oauth_client_id -NoNewline -Encoding ASCII
+   "NEW_CLIENT_SECRET" | Out-File -FilePath secrets/github_oauth_client_secret -NoNewline -Encoding ASCII
+   ```
+
+3. **Restart the auth and gateway services** to pick up the new secrets:
+
+   ```bash
+   docker compose restart auth gateway
+   ```
+
+4. **Verify the new credentials work**:
+
+   ```bash
+   # Check that GitHub provider is still configured
+   curl http://localhost:8080/auth/providers
+   
+   # Test GitHub OAuth login flow by visiting in browser
+   # http://localhost:8080/ui
+   ```
+
+5. **Remove old credentials** from GitHub after confirming the new ones work.
+
+#### Alternative: Using Environment Variables
+
+Instead of updating files, you can override secrets using environment variables:
+
+**Linux/macOS (bash):**
+```bash
+# Set environment variables
+export GITHUB_OAUTH_CLIENT_ID="NEW_CLIENT_ID"
+export GITHUB_OAUTH_CLIENT_SECRET="NEW_CLIENT_SECRET"
+
+# Restart with environment overrides
+docker compose restart auth gateway
+```
+
+**Windows (PowerShell):**
+```powershell
+# Set environment variables
+$env:GITHUB_OAUTH_CLIENT_ID = "NEW_CLIENT_ID"
+$env:GITHUB_OAUTH_CLIENT_SECRET = "NEW_CLIENT_SECRET"
+
+# Restart with environment overrides
+docker compose restart auth gateway
+```
+
+**Note**: Environment variable overrides only persist for the current terminal session. For permanent changes, update the secret files.
+
 ### Detailed Setup Instructions
 
 Each example file (`.example`) contains detailed instructions on how to create the OAuth application with that provider. For complete setup guides, see:

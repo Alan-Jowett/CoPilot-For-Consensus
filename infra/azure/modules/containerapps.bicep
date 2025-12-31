@@ -43,6 +43,12 @@ param appInsightsKeySecretUri string = ''
 @description('Application Insights connection string secret URI (from Key Vault)')
 param appInsightsConnectionStringSecretUri string = ''
 
+@description('GitHub OAuth client ID secret URI (from Key Vault)')
+param githubOAuthClientIdSecretUri string = ''
+
+@description('GitHub OAuth client secret URI (from Key Vault)')
+param githubOAuthClientSecretSecretUri string = ''
+
 @description('Log Analytics workspace resource ID')
 param logAnalyticsWorkspaceId string
 
@@ -135,6 +141,14 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'JWT_ALGORITHM'
               value: 'RS256'
+            }
+            {
+              name: 'GITHUB_OAUTH_CLIENT_ID'
+              value: githubOAuthClientIdSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${githubOAuthClientIdSecretUri})' : ''
+            }
+            {
+              name: 'GITHUB_OAUTH_CLIENT_SECRET'
+              value: githubOAuthClientSecretSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${githubOAuthClientSecretSecretUri})' : ''
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'

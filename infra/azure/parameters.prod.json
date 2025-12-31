@@ -41,6 +41,12 @@
     "subnetAddressPrefix": {
       "value": "10.2.0.0/23"
     },
+    "githubOAuthClientIdSecretUri": {
+      "value": ""
+    },
+    "githubOAuthClientSecretSecretUri": {
+      "value": ""
+    },
     "tags": {
       "value": {
         "environment": "prod",

@@ -538,6 +538,139 @@ az keyvault secret set --vault-name $KEY_VAULT_NAME --name google-oauth-client-s
 az keyvault secret set --vault-name $KEY_VAULT_NAME --name microsoft-oauth-client-secret --value "YOUR_MICROSOFT_CLIENT_SECRET"
 ```
 
+**Important**: After adding secrets to Key Vault, you must update your deployment parameters to reference them:
+
+1. Get the secret URIs from Key Vault:
+   ```bash
+   # Get GitHub OAuth secret URIs
+   GITHUB_CLIENT_ID_URI=$(az keyvault secret show \
+     --vault-name $KEY_VAULT_NAME \
+     --name github-oauth-client-id \
+     --query id -o tsv)
+   
+   GITHUB_CLIENT_SECRET_URI=$(az keyvault secret show \
+     --vault-name $KEY_VAULT_NAME \
+     --name github-oauth-client-secret \
+     --query id -o tsv)
+   
+   echo "GitHub Client ID URI: $GITHUB_CLIENT_ID_URI"
+   echo "GitHub Client Secret URI: $GITHUB_CLIENT_SECRET_URI"
+   ```
+
+2. Update your parameter file (e.g., `parameters.dev.json`):
+   ```json
+   {
+     "githubOAuthClientIdSecretUri": {
+       "value": "https://your-keyvault.vault.azure.net/secrets/github-oauth-client-id/abc123..."
+     },
+     "githubOAuthClientSecretSecretUri": {
+       "value": "https://your-keyvault.vault.azure.net/secrets/github-oauth-client-secret/def456..."
+     }
+   }
+   ```
+
+3. Redeploy the infrastructure to wire the secrets into the auth Container App:
+   ```bash
+   ./deploy.sh -g copilot-rg -l eastus -e dev -t latest
+   ```
+
+#### Rotating GitHub OAuth Secrets
+
+To rotate GitHub OAuth credentials (recommended every 90 days):
+
+1. **Create new OAuth credentials** in GitHub:
+   - Go to your GitHub OAuth App settings
+   - Generate a new client secret
+   - Keep both old and new credentials temporarily
+
+2. **Update Key Vault with new secrets**:
+   ```bash
+   # Set new secret values in Key Vault
+   az keyvault secret set --vault-name $KEY_VAULT_NAME \
+     --name github-oauth-client-id --value "NEW_GITHUB_CLIENT_ID"
+   
+   az keyvault secret set --vault-name $KEY_VAULT_NAME \
+     --name github-oauth-client-secret --value "NEW_GITHUB_CLIENT_SECRET"
+   ```
+   
+   This creates new versions of the secrets in Key Vault.
+
+3. **Redeploy or restart the auth Container App**:
+   
+   Container Apps resolve Key Vault references when a new revision is created. To pick up the new secret versions:
+   
+   **Option A - Create new revision (recommended)**:
+   ```bash
+   # Trigger a new deployment to create a new revision
+   ./deploy.sh -g copilot-rg -l eastus -e dev -t latest
+   ```
+   
+   **Option B - Restart existing revision**:
+   ```bash
+   # Find the auth container app name
+   AUTH_APP=$(az containerapp list -g copilot-rg \
+     --query "[?contains(name, 'auth')].name" -o tsv)
+   
+   # Restart to create new revision
+   az containerapp revision restart \
+     --name $AUTH_APP \
+     --resource-group copilot-rg \
+     --revision $(az containerapp revision list \
+       --name $AUTH_APP \
+       --resource-group copilot-rg \
+       --query "[0].name" -o tsv)
+   ```
+
+4. **Verify the auth service picks up new credentials**:
+   ```bash
+   # Check auth service logs
+   az containerapp logs show \
+     --name $AUTH_APP \
+     --resource-group copilot-rg \
+     --follow
+   
+   # Test GitHub OAuth login flow
+   curl https://$GATEWAY_URL/auth/providers
+   ```
+
+5. **Remove old GitHub OAuth credentials** after verifying the new ones work.
+
+#### Rollback Guidance
+
+If you need to rollback to previous GitHub OAuth credentials:
+
+1. **Restore previous secret version** in Key Vault:
+   ```bash
+   # List all versions of a secret
+   az keyvault secret list-versions \
+     --vault-name $KEY_VAULT_NAME \
+     --name github-oauth-client-secret \
+     --query "[].{Version:id, Created:attributes.created}" -o table
+   
+   # Get a specific version
+   PREVIOUS_VERSION="abc123..."  # Version ID from list above
+   az keyvault secret show \
+     --vault-name $KEY_VAULT_NAME \
+     --name github-oauth-client-secret \
+     --version $PREVIOUS_VERSION
+   
+   # Set current secret to previous value
+   PREVIOUS_VALUE=$(az keyvault secret show \
+     --vault-name $KEY_VAULT_NAME \
+     --name github-oauth-client-secret \
+     --version $PREVIOUS_VERSION \
+     --query value -o tsv)
+   
+   az keyvault secret set \
+     --vault-name $KEY_VAULT_NAME \
+     --name github-oauth-client-secret \
+     --value "$PREVIOUS_VALUE"
+   ```
+
+2. **Restart the auth Container App** (see step 3 above)
+
+**Note**: Container Apps cache Key Vault references per revision. Always create a new revision or restart after changing secrets in Key Vault.
+
 ### 2. Generate JWT Keys
 
 Generate JWT signing keys for the auth service:
