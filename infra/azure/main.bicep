@@ -209,7 +209,7 @@ module aiSearchModule 'modules/aisearch.bicep' = if (deployContainerApps) {
     serviceName: aiSearchServiceName
     sku: environment == 'prod' ? 'standard' : 'basic'
     embeddingServicePrincipalId: identitiesModule.outputs.identityPrincipalIds[3]  // embedding is at index 3 in services array
-    enablePublicNetworkAccess: true  // Set to false for production with Private Link
+    enablePublicNetworkAccess: environment != 'prod'  // Disable for production (Private Link), enable for dev/staging
     tags: tags
   }
 }
