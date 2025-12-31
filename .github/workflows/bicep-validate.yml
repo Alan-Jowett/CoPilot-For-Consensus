@@ -65,6 +65,8 @@ jobs:
     name: ARM Template Validation
     runs-on: ubuntu-latest
     needs: bicep-lint
+    outputs:
+      whatif-status: ${{ steps.whatif-step.outputs.status }}
     steps:
       - uses: actions/checkout@v4
 
@@ -98,16 +100,30 @@ jobs:
           echo "✓ Template validation passed"
 
       - name: Run what-if analysis (dev)
+        id: whatif-step
         continue-on-error: true
         run: |
           cd infra/azure
+
+          # Run what-if and capture exit code
+          set +e
           az deployment group what-if \
             --resource-group ${{ env.VALIDATION_RESOURCE_GROUP }} \
             --template-file main.bicep \
             --parameters parameters.dev.json \
             --output json > what-if-output.json
-          echo "✓ What-if analysis complete"
-          
+          WHATIF_EXIT_CODE=$?
+          set -e
+
+          # Set output based on exit code
+          if [ $WHATIF_EXIT_CODE -eq 0 ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "✓ What-if analysis completed successfully"
+          else
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "⚠️ What-if analysis failed with exit code: $WHATIF_EXIT_CODE"
+          fi
+
       - name: Parse and comment what-if results
         if: github.event_name == 'pull_request'
         run: |
@@ -188,6 +204,7 @@ jobs:
           script: |
             const lint_result = '${{ needs.bicep-lint.result }}';
             const validate_result = '${{ needs.validate-template.result }}';
+            const whatif_status = '${{ needs.validate-template.outputs.whatif-status }}';
             
             let status = '✅';
             let details = '';
@@ -207,9 +224,17 @@ jobs:
               details += '- ARM template validation failed\n';
             } else {
               details += '- ✓ ARM template validation passed\n';
-              details += '- ✓ What-if analysis completed\n';
+
+              // Report what-if status based on captured exit code
+              if (whatif_status === 'success') {
+                details += '- ✓ What-if analysis completed successfully\n';
+              } else if (whatif_status === 'failed') {
+                details += '- ⚠️ What-if analysis failed (but syntax validation passed)\n';
+              } else {
+                details += '- ⚠️ What-if analysis status unknown\n';
+              }
             }
-            
+
             const body = `## ${status} Bicep Validation Results\n\n${details}`;
             
             github.rest.issues.createComment({
