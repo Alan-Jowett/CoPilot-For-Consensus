@@ -51,11 +51,11 @@ param azureOpenAIAllowedCidrs array = []
 @description('Whether to deploy Container Apps environment and services')
 param deployContainerApps bool = true
 
-@description('VNet address space for Container Apps')
-param vnetAddressPrefix string = '10.0.0.0/16'
+@description('VNet address space for Container Apps (CIDR notation)')
+param vnetAddressSpace string = '10.0.0.0/16'
 
-@description('Container Apps subnet address space')
-param containerAppsSubnetPrefix string = '10.0.0.0/23'
+@description('Container Apps subnet address prefix (CIDR notation)')
+param subnetAddressPrefix string = '10.0.0.0/23'
 
 @minValue(400)
 @maxValue(1000000)
@@ -249,8 +249,8 @@ module vnetModule 'modules/vnet.bicep' = if (deployContainerApps) {
     location: location
     projectName: projectName
     environment: environment
-    vnetAddressPrefix: vnetAddressPrefix
-    containerAppsSubnetPrefix: containerAppsSubnetPrefix
+    vnetAddressSpace: vnetAddressSpace
+    subnetAddressPrefix: subnetAddressPrefix
     tags: tags
   }
 }

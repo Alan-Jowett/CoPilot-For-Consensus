@@ -13,11 +13,11 @@ param projectName string
 @description('Environment name')
 param environment string
 
-@description('VNet address space')
-param vnetAddressPrefix string = '10.0.0.0/16'
+@description('VNet address space (CIDR notation)')
+param vnetAddressSpace string = '10.0.0.0/16'
 
-@description('Container Apps subnet address space')
-param containerAppsSubnetPrefix string = '10.0.0.0/23'
+@description('Container Apps subnet address prefix (CIDR notation)')
+param subnetAddressPrefix string = '10.0.0.0/23'
 
 param tags object = {}
 
@@ -34,14 +34,14 @@ resource vnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
   properties: {
     addressSpace: {
       addressPrefixes: [
-        vnetAddressPrefix
+        vnetAddressSpace
       ]
     }
     subnets: [
       {
         name: containerAppsSubnetName
         properties: {
-          addressPrefix: containerAppsSubnetPrefix
+          addressPrefix: subnetAddressPrefix
           delegations: [
             {
               name: 'Microsoft.App.environments'

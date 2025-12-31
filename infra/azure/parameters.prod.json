@@ -35,10 +35,10 @@
     "deployContainerApps": {
       "value": true
     },
-    "vnetAddressPrefix": {
+    "vnetAddressSpace": {
       "value": "10.2.0.0/16"
     },
-    "containerAppsSubnetPrefix": {
+    "subnetAddressPrefix": {
       "value": "10.2.0.0/23"
     },
     "tags": {
