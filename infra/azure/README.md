@@ -336,7 +336,6 @@ az deployment group create \
 The repository includes pre-configured parameter files for each environment:
 
 - **`parameters.dev.json`** - Development environment (low cost)
-- **`parameters.dev.json`** - Development environment (low cost)
   - Azure OpenAI: Standard deployment, 10 TPM capacity
   - Cosmos DB: 400-1000 RU autoscale, single region
   - Service Bus: Standard tier
