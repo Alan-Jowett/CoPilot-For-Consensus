@@ -19,9 +19,34 @@ param containerImageTag string = 'latest'
 #disable-next-line no-unused-params
 param deployAzureOpenAI bool = true
 
-@allowed(['S0', 'S1', 'S2'])
+// Azure OpenAI accounts only support S0 (S1/S2 apply to other Cognitive Services resources, not OpenAI)
+@allowed(['S0'])
 #disable-next-line no-unused-params
+@description('SKU for Azure OpenAI Service. Azure OpenAI currently only supports the S0 SKU; other SKUs are not valid for this resource type.')
 param azureOpenAISku string = 'S0'
+
+@allowed(['Standard', 'GlobalStandard'])
+#disable-next-line no-unused-params
+@description('Deployment SKU for Azure OpenAI (GlobalStandard recommended for production)')
+param azureOpenAIDeploymentSku string = 'GlobalStandard'
+
+@allowed([
+  '2024-05-13'
+  '2024-08-06'
+  '2024-11-20'
+])
+#disable-next-line no-unused-params
+@description('Model version for GPT-4o deployments; default tracks latest GA. Override per environment if needed.')
+param azureOpenAIModelVersion string = '2024-11-20'
+
+@minValue(1)
+@maxValue(1000)
+#disable-next-line no-unused-params
+@description('Deployment capacity units for Azure OpenAI. Each unit represents 1K tokens per minute (TPM). For GlobalStandard SKU, capacity determines throughput allocation across global regions. Use lower values for dev, higher for prod.')
+param azureOpenAIDeploymentCapacity int = 10
+
+@description('IPv4 CIDR allowlist for Azure OpenAI when public network access is enabled')
+param azureOpenAIAllowedCidrs array = []
 
 @minValue(400)
 @maxValue(1000000)
@@ -58,6 +83,7 @@ var services = [
   'auth'
   'ui'
   'gateway'
+  'openai'
 ]
 
 // Explicit sender/receiver lists for least-privilege RBAC in Service Bus
@@ -116,6 +142,8 @@ module keyVaultModule 'modules/keyvault.bicep' = {
 var serviceBusNamespaceName = '${projectPrefix}-sb-${environment}-${take(uniqueSuffix, 8)}'
 // Cosmos DB account name must be globally unique and lowercase
 var cosmosAccountName = toLower('${take(projectPrefix, 10)}-cos-${environment}-${take(uniqueSuffix, 5)}')
+// OpenAI account name must be globally unique and lowercase
+var openaiAccountName = toLower('${take(projectPrefix, 10)}-oai-${environment}-${take(uniqueSuffix, 5)}')
 
 // Module: Azure Service Bus
 module serviceBusModule 'modules/servicebus.bicep' = {
@@ -143,11 +171,23 @@ module cosmosModule 'modules/cosmos.bicep' = {
   }
 }
 
-// Module: Azure OpenAI (Placeholder for PR #4)
-// module openaiModule 'modules/openai.bicep' = {
-//   name: 'openaiDeployment'
-//   ...
-// }
+// Module: Azure OpenAI
+module openaiModule 'modules/openai.bicep' = if (deployAzureOpenAI) {
+  name: 'openaiDeployment'
+  params: {
+    location: location
+    accountName: openaiAccountName
+    sku: azureOpenAISku
+    deploymentSku: azureOpenAIDeploymentSku
+    modelVersion: azureOpenAIModelVersion
+    deploymentCapacity: azureOpenAIDeploymentCapacity
+    identityResourceId: identitiesModule.outputs.identityResourceIds.openai
+    enablePublicNetworkAccess: environment == 'dev'  // For dev enable public endpoint, but defaultAction remains Deny; use azureOpenAIAllowedCidrs to allow specific IPs
+    networkDefaultAction: 'Deny'
+    ipRules: azureOpenAIAllowedCidrs
+    tags: tags
+  }
+}
 
 // Module: Container Apps (Placeholder for PR #5)
 // module containerAppsModule 'modules/containerapps.bicep' = {
@@ -168,6 +208,13 @@ output cosmosDatabaseName string = cosmosModule.outputs.databaseName
 output cosmosContainerName string = cosmosModule.outputs.containerName
 output cosmosAutoscaleMaxRu int = cosmosModule.outputs.autoscaleMaxThroughput
 output cosmosWriteRegions array = cosmosModule.outputs.writeRegions
+output openaiAccountName string = deployAzureOpenAI ? openaiModule!.outputs.accountName : ''
+output openaiAccountId string = deployAzureOpenAI ? openaiModule!.outputs.accountId : ''
+output openaiAccountEndpoint string = deployAzureOpenAI ? openaiModule!.outputs.accountEndpoint : ''
+output openaiCustomSubdomain string = deployAzureOpenAI ? openaiModule!.outputs.customSubdomain : ''
+output openaiGpt4DeploymentId string = deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentId : ''
+output openaiGpt4DeploymentName string = deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentName : ''
+output openaiSkuName string = deployAzureOpenAI ? openaiModule!.outputs.skuName : ''
 output resourceGroupName string = resourceGroup().name
 output location string = location
 output environment string = environment

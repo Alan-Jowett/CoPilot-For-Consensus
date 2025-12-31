@@ -43,4 +43,5 @@ output identityResourceIds object = {
   auth: managedIdentities[7].id
   ui: managedIdentities[8].id
   gateway: managedIdentities[9].id
+  openai: managedIdentities[10].id
 }
