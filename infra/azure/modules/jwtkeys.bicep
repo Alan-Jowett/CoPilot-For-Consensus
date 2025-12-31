@@ -67,6 +67,7 @@ set -euo pipefail
 (apk add --no-cache openssl 2>/dev/null || apt-get update -qq && apt-get install -y -qq openssl 2>/dev/null) || true
 az login --identity --allow-no-subscriptions 2>&1 | grep -v "WARNING" || true
 workdir=$(mktemp -d)
+trap 'rm -rf "$workdir"' EXIT
 priv="$workdir/jwt_private.pem"
 pub="$workdir/jwt_public.pem"
 openssl genrsa -out "$priv" 2048
@@ -77,7 +78,7 @@ az keyvault secret set --vault-name "$KEY_VAULT_NAME" --name "$JWT_PUBLIC_SECRET
   }
 }
 
-// Outputs: use version-less URIs so Container Apps can always pull the latest version
-var keyVaultDns = environment().suffixes.keyvaultDns
-output jwtPrivateSecretUri string = 'https://${keyVault.name}.${keyVaultDns}/secrets/${jwtPrivateSecretName}'
-output jwtPublicSecretUri string = 'https://${keyVault.name}.${keyVaultDns}/secrets/${jwtPublicSecretName}'
+// Outputs
+output keyVaultName string = keyVault.name
+output jwtPrivateSecretName string = jwtPrivateSecretName
+output jwtPublicSecretName string = jwtPublicSecretName

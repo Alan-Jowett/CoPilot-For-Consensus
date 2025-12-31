@@ -302,12 +302,11 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     serviceBusNamespace: serviceBusModule.outputs.namespaceName
     cosmosDbEndpoint: cosmosModule.outputs.accountEndpoint
     subnetId: vnetModule!.outputs.containerAppsSubnetId
+    keyVaultName: keyVaultName
     appInsightsKeySecretUri: appInsightsInstrKeySecret!.properties.secretUriWithVersion
     appInsightsConnectionStringSecretUri: appInsightsConnectionStringSecret!.properties.secretUriWithVersion
     logAnalyticsWorkspaceId: appInsightsModule!.outputs.workspaceId
     logAnalyticsCustomerId: appInsightsModule!.outputs.workspaceCustomerId
-    jwtPrivateKeySecretUri: jwtKeysModule!.outputs.jwtPrivateSecretUri
-    jwtPublicKeySecretUri: jwtKeysModule!.outputs.jwtPublicSecretUri
     tags: tags
   }
 }
