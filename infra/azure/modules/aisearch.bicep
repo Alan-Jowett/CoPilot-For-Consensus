@@ -14,8 +14,8 @@ param serviceName string
 @allowed(['free', 'basic', 'standard', 'standard2', 'standard3', 'storage_optimized_l1', 'storage_optimized_l2'])
 param sku string = 'basic'
 
-@description('User-assigned managed identity resource ID for RBAC')
-param identityResourceId string
+@description('Principal ID of embedding service identity (for RBAC role assignment)')
+param embeddingServicePrincipalId string
 
 @description('Enable public network access (set to false for production with Private Link)')
 param enablePublicNetworkAccess bool = true
@@ -26,17 +26,11 @@ param enableSemanticSearch bool = false
 @description('Resource tags')
 param tags object = {}
 
-// Azure AI Search service
+// Azure AI Search service (authentication via managed identities/RBAC only)
 resource searchService 'Microsoft.Search/searchServices@2024-06-01-preview' = {
   name: serviceName
   location: location
   tags: tags
-  identity: {
-    type: 'UserAssigned'
-    userAssignedIdentities: {
-      '${identityResourceId}': {}
-    }
-  }
   sku: {
     name: sku
   }
@@ -45,6 +39,7 @@ resource searchService 'Microsoft.Search/searchServices@2024-06-01-preview' = {
     partitionCount: 1
     hostingMode: 'default'
     publicNetworkAccess: enablePublicNetworkAccess ? 'Enabled' : 'Disabled'
+    disableLocalAuth: true  // Force RBAC-only authentication, disable API keys
     encryptionWithCmk: {
       enforcement: 'Unspecified'
     }
@@ -52,10 +47,18 @@ resource searchService 'Microsoft.Search/searchServices@2024-06-01-preview' = {
   }
 }
 
-// Get API keys for authentication (note: admin keys are secrets and should be stored in Key Vault)
-resource searchServiceKeys 'Microsoft.Search/searchServices/listAdminKeys@2024-06-01-preview' = {
-  parent: searchService
-  name: 'default'
+// Role: Search Index Data Contributor (allows read/write to search indexes)
+var searchIndexDataContributorRoleId = 'c7f06df5-9f78-4436-8adb-a0e7c60c9a45'
+
+// Assign embedding service identity the "Search Index Data Contributor" role
+resource embeddingServiceRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(searchService.id, embeddingServicePrincipalId, searchIndexDataContributorRoleId)
+  scope: searchService
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', searchIndexDataContributorRoleId)
+    principalId: embeddingServicePrincipalId
+    principalType: 'ServicePrincipal'
+  }
 }
 
 // Outputs
@@ -67,11 +70,3 @@ output serviceName string = searchService.name
 
 @description('Azure AI Search service resource ID')
 output serviceId string = searchService.id
-
-@secure()
-@description('Primary admin API key (secure - store in Key Vault, do not expose in plain outputs)')
-output adminApiKey string = searchServiceKeys.listAdminKeys().primaryKey
-
-@secure()
-@description('Query API key (lower-privilege key for client applications, store in Key Vault)')
-output queryApiKey string = searchServiceKeys.listAdminKeys().secondaryKey

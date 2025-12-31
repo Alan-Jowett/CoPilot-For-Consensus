@@ -207,7 +207,7 @@ module aiSearchModule 'modules/aisearch.bicep' = {
     location: location
     serviceName: aiSearchServiceName
     sku: environment == 'prod' ? 'standard' : 'basic'
-    identityResourceId: identitiesModule.outputs.identityResourceIds.embedding
+    embeddingServicePrincipalId: identitiesModule.outputs.identityPrincipalIds[3]  // embedding is at index 3 in services array
     enablePublicNetworkAccess: true  // Set to false for production with Private Link
     tags: tags
   }
@@ -249,7 +249,6 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     identityResourceIds: identitiesModule.outputs.identityResourceIds
     azureOpenAIEndpoint: deployAzureOpenAI ? openaiModule!.outputs.accountEndpoint : ''
     aiSearchEndpoint: aiSearchModule.outputs.endpoint
-    aiSearchAdminKey: aiSearchModule.outputs.adminApiKey
     subnetId: vnetModule.outputs.containerAppsSubnetId
     appInsightsKey: appInsightsModule.outputs.instrumentationKey
     appInsightsConnectionString: appInsightsModule.outputs.connectionString

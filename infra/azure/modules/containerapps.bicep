@@ -28,9 +28,6 @@ param azureOpenAIEndpoint string = ''
 @description('Azure AI Search endpoint URL')
 param aiSearchEndpoint string = ''
 
-@description('Azure AI Search admin API key')
-param aiSearchAdminKey string = ''
-
 @description('Container Apps subnet ID')
 param subnetId string
 
@@ -470,10 +467,6 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'AISEARCH_ENDPOINT'
               value: aiSearchEndpoint
-            }
-            {
-              name: 'AISEARCH_ADMIN_KEY'
-              value: aiSearchAdminKey
             }
             {
               name: 'AISEARCH_INDEX_NAME'
