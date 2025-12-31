@@ -69,6 +69,51 @@ For each provider you want to enable:
    curl http://localhost:8080/auth/providers
    ```
 
+### Rotating GitHub OAuth Secrets (Local/Docker Compose)
+
+To rotate GitHub OAuth credentials in your local development environment:
+
+1. **Create new OAuth credentials** in GitHub:
+   - Go to your GitHub OAuth App settings
+   - Generate a new client secret
+   - Note the new client ID and secret
+
+2. **Update the secret files**:
+
+   **Linux/macOS (bash):**
+   ```bash
+   # Update GitHub OAuth secrets
+   echo "NEW_CLIENT_ID" > secrets/github_oauth_client_id
+   echo "NEW_CLIENT_SECRET" > secrets/github_oauth_client_secret
+   ```
+
+   **Windows (PowerShell):**
+   ```powershell
+   # Update GitHub OAuth secrets
+   "NEW_CLIENT_ID" | Out-File -FilePath secrets/github_oauth_client_id -NoNewline -Encoding ASCII
+   "NEW_CLIENT_SECRET" | Out-File -FilePath secrets/github_oauth_client_secret -NoNewline -Encoding ASCII
+   ```
+
+3. **Restart the auth and gateway services** to pick up the new secrets:
+
+   ```bash
+   docker compose restart auth gateway
+   ```
+
+4. **Verify the new credentials work**:
+
+   ```bash
+   # Check that GitHub provider is still configured
+   curl http://localhost:8080/auth/providers
+   
+   # Test GitHub OAuth login flow by visiting in browser
+   # http://localhost:8080/ui
+   ```
+
+5. **Remove old credentials** from GitHub after confirming the new ones work.
+
+**Note**: The auth service reads GitHub OAuth credentials from Docker secrets mounted at `/run/secrets/` (e.g., `secrets/github_oauth_client_id` and `secrets/github_oauth_client_secret`). Environment variable overrides (such as `GITHUB_OAUTH_CLIENT_ID` and `GITHUB_OAUTH_CLIENT_SECRET`) are not supported in the current implementation. To rotate credentials, update the secret files as shown above and restart the services.
+
 ### Detailed Setup Instructions
 
 Each example file (`.example`) contains detailed instructions on how to create the OAuth application with that provider. For complete setup guides, see:

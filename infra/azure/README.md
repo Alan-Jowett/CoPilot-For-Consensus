@@ -538,18 +538,139 @@ az keyvault secret set --vault-name $KEY_VAULT_NAME --name google-oauth-client-s
 az keyvault secret set --vault-name $KEY_VAULT_NAME --name microsoft-oauth-client-secret --value "YOUR_MICROSOFT_CLIENT_SECRET"
 ```
 
-### 2. Generate JWT Keys
+**How it works**: The auth Container App is configured with `SECRET_PROVIDER_TYPE=azurekeyvault` and `AZURE_KEYVAULT_NAME` environment variables. This tells the auth service to use the Azure Key Vault secret provider, which reads secrets directly from Key Vault using the auth service's managed identity. No additional deployment steps are needed - the secrets are automatically available to the auth service.
 
-Generate JWT signing keys for the auth service:
+**Note**: The auth service's managed identity already has "Key Vault Secrets User" permissions, configured during initial deployment. JWT keys are also automatically generated and stored in Key Vault during deployment.
+
+#### Rotating GitHub OAuth Secrets
+
+To rotate GitHub OAuth credentials (recommended every 90 days):
+
+1. **Create new OAuth credentials** in GitHub:
+   - Go to your GitHub OAuth App settings
+   - Generate a new client secret
+   - Keep both old and new credentials temporarily
+
+2. **Update Key Vault with new secrets**:
+   ```bash
+   # Set new secret values in Key Vault
+   az keyvault secret set --vault-name $KEY_VAULT_NAME \
+     --name github-oauth-client-id --value "NEW_GITHUB_CLIENT_ID"
+   
+   az keyvault secret set --vault-name $KEY_VAULT_NAME \
+     --name github-oauth-client-secret --value "NEW_GITHUB_CLIENT_SECRET"
+   ```
+   
+   This creates new versions of the secrets in Key Vault. The auth service will automatically pick up the new values on the next secret read (secrets are typically cached for a short period).
+
+3. **Verify the auth service picks up new credentials**:
+   ```bash
+   # Get the auth app name
+   AUTH_APP=$(az containerapp list -g copilot-rg \
+     --query "[?contains(name, 'auth')].name" -o tsv)
+   
+   # Check auth service logs
+   az containerapp logs show \
+     --name $AUTH_APP \
+     --resource-group copilot-rg \
+     --follow
+   
+   # Test GitHub OAuth login flow
+   GATEWAY_URL=$(az deployment group show \
+     --name copilot-deployment \
+     --resource-group copilot-rg \
+     --query properties.outputs.gatewayFqdn.value -o tsv)
+   
+   curl https://$GATEWAY_URL/auth/providers
+   ```
+
+4. **Optional: Restart the auth Container App** if you want to force immediate secret refresh:
+   ```bash
+   # Restart the auth app
+   az containerapp revision restart \
+     --name $AUTH_APP \
+     --resource-group copilot-rg \
+     --revision $(az containerapp revision list \
+       --name $AUTH_APP \
+       --resource-group copilot-rg \
+       --query "[0].name" -o tsv)
+   ```
+
+5. **Remove old GitHub OAuth credentials** after verifying the new ones work.
+
+**Note**: The auth service uses the Azure Key Vault secret provider, which reads secrets directly from Key Vault using its managed identity. No redeployment is needed - just update the secrets in Key Vault and they'll be available immediately (or after a short cache TTL).
+
+#### Rollback Guidance
+
+If you need to rollback to previous GitHub OAuth credentials:
+
+1. **Restore previous secret version** in Key Vault:
+   ```bash
+   # List all versions of client secret
+   az keyvault secret list-versions \
+     --vault-name $KEY_VAULT_NAME \
+     --name github-oauth-client-secret \
+     --query "[].{Version:id, Created:attributes.created}" -o table
+   
+   # Get a specific version for client secret
+   PREVIOUS_SECRET_VERSION="abc123..."  # Version ID from list above
+   az keyvault secret show \
+     --vault-name $KEY_VAULT_NAME \
+     --name github-oauth-client-secret \
+     --version $PREVIOUS_SECRET_VERSION
+   
+   # Set current secret to previous value
+   PREVIOUS_SECRET_VALUE=$(az keyvault secret show \
+     --vault-name $KEY_VAULT_NAME \
+     --name github-oauth-client-secret \
+     --version $PREVIOUS_SECRET_VERSION \
+     --query value -o tsv)
+   
+   az keyvault secret set \
+     --vault-name $KEY_VAULT_NAME \
+     --name github-oauth-client-secret \
+     --value "$PREVIOUS_SECRET_VALUE"
+   
+   # Also rollback client ID if needed
+   # List versions for client ID (may be different from secret versions)
+   az keyvault secret list-versions \
+     --vault-name $KEY_VAULT_NAME \
+     --name github-oauth-client-id \
+     --query "[].{Version:id, Created:attributes.created}" -o table
+   
+   PREVIOUS_ID_VERSION="def456..."  # Version ID from list above
+   PREVIOUS_ID_VALUE=$(az keyvault secret show \
+     --vault-name $KEY_VAULT_NAME \
+     --name github-oauth-client-id \
+     --version $PREVIOUS_ID_VERSION \
+     --query value -o tsv)
+   
+   az keyvault secret set \
+     --vault-name $KEY_VAULT_NAME \
+     --name github-oauth-client-id \
+     --value "$PREVIOUS_ID_VALUE"
+   ```
+
+2. **Optional: Restart the auth Container App** to force immediate secret refresh (see step 4 in rotation section above)
+
+**Note**: Key Vault automatically versions secrets. You can always restore to a previous version by re-setting the secret with the previous value.
+
+### 2. JWT Keys (Automatically Generated)
+
+JWT signing keys for the auth service are **automatically generated** and stored in Key Vault during deployment. No manual steps are required.
+
+The deployment script creates:
+- `jwt-private-key`: RSA private key for signing JWTs (RS256)
+- `jwt-public-key`: RSA public key for verifying JWTs
+
+**Key Rotation**: To regenerate JWT keys (which will invalidate all active sessions), set the `jwtForceUpdateTag` parameter to a new value (e.g., `utcNow()`) and redeploy:
 
 ```bash
-# Generate RSA key pair
-python auth/generate_keys.py
-
-# Upload to Key Vault
-az keyvault secret set --vault-name $KEY_VAULT_NAME --name jwt-private-key --file secrets/jwt_private_key
-az keyvault secret set --vault-name $KEY_VAULT_NAME --name jwt-public-key --file secrets/jwt_public_key
+# WARNING: This invalidates all active user sessions
+./deploy.sh -g copilot-rg -l eastus -e dev -t latest --jwt-force-update "$(date +%s)"
 ```
+
+For normal deployments, JWT keys persist across deployments unless you explicitly change the `jwtForceUpdateTag` parameter.
 
 ### 3. Test the Deployment
 
