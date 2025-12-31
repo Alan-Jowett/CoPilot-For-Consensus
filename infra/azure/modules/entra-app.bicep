@@ -27,6 +27,9 @@ param tags object = {}
 @maxValue(730)
 param secretExpirationDays int = 365
 
+@description('Key Vault name where client secret will be stored')
+param keyVaultName string
+
 @description('User-assigned managed identity resource ID with Graph API permissions')
 param deploymentIdentityId string
 
@@ -75,6 +78,10 @@ resource appRegistrationScript 'Microsoft.Resources/deploymentScripts@2023-08-01
       {
         name: 'SECRET_EXPIRATION_DAYS'
         value: string(secretExpirationDays)
+      }
+      {
+        name: 'KEY_VAULT_NAME'
+        value: keyVaultName
       }
     ]
     scriptContent: '''
@@ -179,12 +186,27 @@ resource appRegistrationScript 'Microsoft.Resources/deploymentScripts@2023-08-01
         exit 1
       fi
       
-      # Output results as JSON
+      # Store secrets in Key Vault
+      # This prevents the client secret from appearing in deployment outputs or logs
+      echo "Storing client ID in Key Vault: $KEY_VAULT_NAME"
+      az keyvault secret set \
+        --vault-name "$KEY_VAULT_NAME" \
+        --name "microsoft-oauth-client-id" \
+        --value "$APP_ID" \
+        --output none
+      
+      echo "Storing client secret in Key Vault: $KEY_VAULT_NAME"
+      az keyvault secret set \
+        --vault-name "$KEY_VAULT_NAME" \
+        --name "microsoft-oauth-client-secret" \
+        --value "$CLIENT_SECRET" \
+        --output none
+      
+      # Output results as JSON (without client secret)
       jq -n \
         --arg appId "$APP_ID" \
         --arg objectId "$OBJECT_ID" \
         --arg tenantId "$TENANT_ID" \
-        --arg clientSecret "$CLIENT_SECRET" \
         --arg secretKeyId "$SECRET_KEY_ID" \
         --arg secretExpirationDate "$EXPIRATION_DATE" \
         --arg servicePrincipalId "$SP_ID" \
@@ -192,13 +214,13 @@ resource appRegistrationScript 'Microsoft.Resources/deploymentScripts@2023-08-01
           clientId: $appId,
           objectId: $objectId,
           tenantId: $tenantId,
-          clientSecret: $clientSecret,
           secretKeyId: $secretKeyId,
           secretExpirationDate: $secretExpirationDate,
           servicePrincipalId: $servicePrincipalId
         }' > $AZ_SCRIPTS_OUTPUT_PATH
       
       echo "App registration completed successfully"
+      echo "Client ID and secret stored in Key Vault: $KEY_VAULT_NAME"
     '''
   }
   tags: tags
@@ -217,11 +239,11 @@ output objectId string = appRegistrationScript.properties.outputs.objectId
 @description('Service principal object ID')
 output servicePrincipalId string = appRegistrationScript.properties.outputs.servicePrincipalId
 
-@description('Client secret value (sensitive - store in Key Vault immediately)')
-output clientSecret string = appRegistrationScript.properties.outputs.clientSecret
-
 @description('Client secret key ID for rotation tracking')
 output secretKeyId string = appRegistrationScript.properties.outputs.secretKeyId
 
 @description('Client secret expiration date')
 output secretExpirationDate string = appRegistrationScript.properties.outputs.secretExpirationDate
+
+// Note: Client secret is NOT exposed as an output for security reasons.
+// The secret is stored directly in Key Vault by the deployment script.

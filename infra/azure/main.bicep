@@ -199,6 +199,27 @@ module keyVaultModule 'modules/keyvault.bicep' = {
   }
 }
 
+// Grant Key Vault write access to Entra app deployment identity
+// Required for the deployment script to store client secrets in Key Vault
+resource entraAppKeyVaultAccess 'Microsoft.KeyVault/vaults/accessPolicies@2023-07-01' = if (deployContainerApps && deployEntraApp) {
+  name: '${keyVaultName}/add'
+  properties: {
+    accessPolicies: [
+      {
+        tenantId: subscription().tenantId
+        objectId: entraAppIdentity!.properties.principalId
+        permissions: {
+          secrets: [
+            'get'
+            'set'  // Required for deployment script to write secrets
+          ]
+        }
+      }
+    ]
+  }
+  dependsOn: [keyVaultModule]
+}
+
 // Variable for Service Bus namespace name (must be globally unique)
 // Use projectPrefix to avoid double-dash issues
 var serviceBusNamespaceName = '${projectPrefix}-sb-${environment}-${take(uniqueSuffix, 8)}'
@@ -424,30 +445,15 @@ module entraAppModule 'modules/entra-app.bicep' = if (deployContainerApps && dep
     redirectUris: effectiveRedirectUris
     environment: environment
     secretExpirationDays: oauthSecretExpirationDays
+    keyVaultName: keyVaultName
     deploymentIdentityId: entraAppIdentity!.id
     tags: tags
   }
-  dependsOn: [containerAppsModule]
+  dependsOn: [containerAppsModule, keyVaultModule]
 }
 
-// Store Entra app credentials in Key Vault
-resource microsoftOAuthClientIdSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps && deployEntraApp && length(effectiveRedirectUris) > 0) {
-  name: '${keyVaultName}/microsoft-oauth-client-id'
-  properties: {
-    value: entraAppModule!.outputs.clientId
-    contentType: 'text/plain'
-  }
-  dependsOn: [keyVaultModule]
-}
-
-resource microsoftOAuthClientSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps && deployEntraApp && length(effectiveRedirectUris) > 0) {
-  name: '${keyVaultName}/microsoft-oauth-client-secret'
-  properties: {
-    value: entraAppModule!.outputs.clientSecret
-    contentType: 'text/plain'
-  }
-  dependsOn: [keyVaultModule]
-}
+// Note: Client ID and secret are stored directly in Key Vault by the entraAppModule deployment script.
+// No additional Key Vault secret resources are needed here.
 
 // Outputs
 output keyVaultUri string = keyVaultModule.outputs.keyVaultUri
