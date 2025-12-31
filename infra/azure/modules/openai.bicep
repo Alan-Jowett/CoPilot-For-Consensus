@@ -50,7 +50,7 @@ param enablePublicNetworkAccess bool = true
 @description('Custom subdomain name for token-based authentication')
 param customSubdomainName string = ''
 
-@description('Whether to deploy text embedding model (text-embedding-ada-002)')
+@description('Whether to deploy a text embedding model (model selected via embeddingModelName parameter)')
 param deployEmbeddingModel bool = true
 
 @allowed(['text-embedding-ada-002', 'text-embedding-3-small', 'text-embedding-3-large'])
