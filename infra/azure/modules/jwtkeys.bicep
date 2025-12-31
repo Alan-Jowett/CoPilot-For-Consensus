@@ -16,10 +16,10 @@ param scriptIdentityId string
 param forceUpdateTag string
 
 @description('Secret name for the JWT private key')
-param jwtPrivateSecretName string = 'jwt_private_key'
+param jwtPrivateSecretName string = 'jwt-private-key'
 
 @description('Secret name for the JWT public key')
-param jwtPublicSecretName string = 'jwt_public_key'
+param jwtPublicSecretName string = 'jwt-public-key'
 
 param tags object = {}
 
@@ -42,7 +42,9 @@ resource jwtKeyScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
   properties: {
     azCliVersion: '2.61.0'
     timeout: 'PT15M'
-    cleanupPreference: 'OnSuccess'
+    // Always cleanup to prevent cost accumulation from failed deployments
+    // Logs and outputs are retained for 1 day (retentionInterval) for troubleshooting
+    cleanupPreference: 'Always'
     retentionInterval: 'P1D'
     // Force regeneration on each deployment to meet "per-deployment" requirement
     forceUpdateTag: forceUpdateTag
@@ -64,16 +66,17 @@ resource jwtKeyScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
 set -euo pipefail
 # Install openssl (not included in Azure CLI container by default)
 # Try apk (Alpine) first, fallback to apt-get (Debian/Ubuntu)
-(apk add --no-cache openssl 2>/dev/null || apt-get update -qq && apt-get install -y -qq openssl 2>/dev/null) || true
-az login --identity --allow-no-subscriptions 2>&1 | grep -v "WARNING" || true
+(apk add --no-cache openssl 2>/dev/null || apt-get update -qq && apt-get install -y -qq openssl 2>/dev/null)
+if ! command -v openssl >/dev/null 2>&1; then echo "ERROR: Failed to install openssl" >&2; exit 1; fi
+az login --identity --allow-no-subscriptions >/dev/null
 workdir=$(mktemp -d)
 trap 'rm -rf "$workdir"' EXIT
 priv="$workdir/jwt_private.pem"
 pub="$workdir/jwt_public.pem"
-openssl genrsa -out "$priv" 2048
+openssl genrsa -out "$priv" 3072
 openssl rsa -in "$priv" -pubout -out "$pub"
-az keyvault secret set --vault-name "$KEY_VAULT_NAME" --name "$JWT_PRIVATE_SECRET_NAME" --file "$priv" --only-show-errors >/dev/null
-az keyvault secret set --vault-name "$KEY_VAULT_NAME" --name "$JWT_PUBLIC_SECRET_NAME" --file "$pub" --only-show-errors >/dev/null
+az keyvault secret set --vault-name "$KEY_VAULT_NAME" --name "$JWT_PRIVATE_SECRET_NAME" --file "$priv" --only-show-errors
+az keyvault secret set --vault-name "$KEY_VAULT_NAME" --name "$JWT_PUBLIC_SECRET_NAME" --file "$pub" --only-show-errors
 '''
   }
 }

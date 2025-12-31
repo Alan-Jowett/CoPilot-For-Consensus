@@ -213,9 +213,11 @@ class TestAzureKeyVaultProvider:
         mock_client = Mock()
         mock_secret_client.return_value = mock_client
 
+        mock_secret = Mock()
         mock_props = Mock()
         mock_props.enabled = True
-        mock_client.get_secret_properties.return_value = mock_props
+        mock_secret.properties = mock_props
+        mock_client.get_secret.return_value = mock_secret
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
 
@@ -227,9 +229,11 @@ class TestAzureKeyVaultProvider:
         mock_client = Mock()
         mock_secret_client.return_value = mock_client
 
+        mock_secret = Mock()
         mock_props = Mock()
         mock_props.enabled = False
-        mock_client.get_secret_properties.return_value = mock_props
+        mock_secret.properties = mock_props
+        mock_client.get_secret.return_value = mock_secret
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
 
@@ -240,7 +244,7 @@ class TestAzureKeyVaultProvider:
         vault_url = "https://test-vault.vault.azure.net/"
         mock_client = Mock()
         mock_secret_client.return_value = mock_client
-        mock_client.get_secret_properties.side_effect = mock_resource_not_found("Not found")
+        mock_client.get_secret.side_effect = mock_resource_not_found("Not found")
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
 
@@ -252,7 +256,7 @@ class TestAzureKeyVaultProvider:
         mock_client = Mock()
         mock_secret_client.return_value = mock_client
         # Use AzureError which should be caught and logged
-        mock_client.get_secret_properties.side_effect = mock_azure_error("Network error")
+        mock_client.get_secret.side_effect = mock_azure_error("Network error")
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
 
@@ -446,3 +450,67 @@ class TestAzureKeyVaultProviderIntegration:
         # Retrieve as bytes
         api_key_bytes = provider.get_secret_bytes("api-key")
         assert api_key_bytes == b"key123"
+
+
+class TestSecretNameNormalization:
+    """Test suite for secret name normalization."""
+
+    def test_normalize_secret_name_basic(self):
+        """Test basic underscore to hyphen conversion."""
+        assert AzureKeyVaultProvider._normalize_secret_name("jwt_private_key") == "jwt-private-key"
+        assert AzureKeyVaultProvider._normalize_secret_name("message_bus_user") == "message-bus-user"
+        assert AzureKeyVaultProvider._normalize_secret_name("mongodb_root_username") == "mongodb-root-username"
+
+    def test_normalize_secret_name_already_hyphenated(self):
+        """Test that already-hyphenated names pass through unchanged."""
+        assert AzureKeyVaultProvider._normalize_secret_name("jwt-private-key") == "jwt-private-key"
+        assert AzureKeyVaultProvider._normalize_secret_name("message-bus-user") == "message-bus-user"
+
+    def test_normalize_secret_name_no_separators(self):
+        """Test names without underscores or hyphens."""
+        assert AzureKeyVaultProvider._normalize_secret_name("apikey") == "apikey"
+        assert AzureKeyVaultProvider._normalize_secret_name("secret") == "secret"
+
+    def test_normalize_secret_name_multiple_underscores(self):
+        """Test names with multiple consecutive underscores."""
+        assert AzureKeyVaultProvider._normalize_secret_name("my__secret__key") == "my--secret--key"
+
+    def test_get_secret_normalizes_name(self):
+        """Test that get_secret automatically normalizes secret names."""
+        vault_url = "https://test-vault.vault.azure.net/"
+        mock_client = Mock()
+        mock_secret_client.return_value = mock_client
+
+        mock_secret = Mock()
+        mock_secret.value = "test-value"
+        mock_client.get_secret.return_value = mock_secret
+
+        provider = AzureKeyVaultProvider(vault_url=vault_url)
+        
+        # Request with underscores
+        result = provider.get_secret("jwt_private_key")
+        
+        # Verify it queries with hyphens
+        mock_client.get_secret.assert_called_with("jwt-private-key")
+        assert result == "test-value"
+
+    def test_secret_exists_normalizes_name(self):
+        """Test that secret_exists automatically normalizes secret names."""
+        vault_url = "https://test-vault.vault.azure.net/"
+        mock_client = Mock()
+        mock_secret_client.return_value = mock_client
+
+        mock_secret = Mock()
+        mock_props = Mock()
+        mock_props.enabled = True
+        mock_secret.properties = mock_props
+        mock_client.get_secret.return_value = mock_secret
+
+        provider = AzureKeyVaultProvider(vault_url=vault_url)
+        
+        # Check with underscores
+        result = provider.secret_exists("message_bus_password")
+        
+        # Verify it queries with hyphens
+        mock_client.get_secret.assert_called_with("message-bus-password")
+        assert result is True

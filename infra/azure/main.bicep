@@ -80,8 +80,8 @@ param tags object = {
   createdBy: 'bicep'
 }
 
-@description('Force tag to rerun JWT key generation script each deployment')
-param jwtForceUpdateTag string = utcNow()
+@description('Force tag to control JWT key regeneration. Use utcNow() to regenerate keys on every deployment (WARNING: invalidates all active sessions). Default: keys persist across deployments unless this parameter changes.')
+param jwtForceUpdateTag string = 'stable'
 
 // Service names for identity assignment
 var services = [
@@ -136,7 +136,17 @@ module identitiesModule 'modules/identities.bicep' = {
   }
 }
 
+// Dedicated identity to set JWT secrets in Key Vault during deployment
+resource jwtKeysIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = if (deployContainerApps) {
+  name: jwtKeysIdentityName
+  location: location
+  tags: tags
+}
+
 // Module: Azure Key Vault
+// Note: secretWriterPrincipalIds is currently limited to jwtKeysIdentity for deployment script write access.
+// If additional deployment scripts or components require Key Vault write permissions in the future,
+// consider refactoring to a dedicated parameter or variable array for better extensibility.
 module keyVaultModule 'modules/keyvault.bicep' = {
   name: 'keyVaultDeployment'
   params: {
@@ -149,13 +159,6 @@ module keyVaultModule 'modules/keyvault.bicep' = {
     enableRbacAuthorization: false  // TODO: Migrate to true in future PRs (#2-5) when services use Azure RBAC role assignments
     tags: tags
   }
-}
-
-// Dedicated identity to set JWT secrets in Key Vault during deployment
-resource jwtKeysIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = if (deployContainerApps) {
-  name: jwtKeysIdentityName
-  location: location
-  tags: tags
 }
 
 // Variable for Service Bus namespace name (must be globally unique)
@@ -309,6 +312,9 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     logAnalyticsCustomerId: appInsightsModule!.outputs.workspaceCustomerId
     tags: tags
   }
+  dependsOn: [
+    jwtKeysModule  // Ensure JWT keys are generated before auth service starts
+  ]
 }
 
 // Outputs

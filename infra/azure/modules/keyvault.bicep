@@ -12,6 +12,17 @@ param enablePublicNetworkAccess bool = true
 param enableRbacAuthorization bool = false  // Set to true to use Azure RBAC instead of access policies
 param tags object
 
+// ⚠️ SECURITY WARNING: Current access policy design is overly permissive
+// All managed identities receive vault-wide 'get' and 'list' permissions for ALL secrets.
+// This violates least-privilege principles and creates significant lateral movement risk:
+// - Any compromised service identity can enumerate and read ALL secrets (including JWT keys)
+// - Enables cross-service impersonation and credential exfiltration
+// - Single identity compromise can lead to full environment takeover
+//
+// IMMEDIATE ACTION REQUIRED:
+// Migrate to Azure RBAC with per-identity secret scoping or separate vaults per service.
+// See tracked issue for remediation plan.
+
 // Build access policies array from principal IDs array
 // Used only when enableRbacAuthorization = false (legacy mode)
 // Note: This approach allows 'list' permission for secret enumeration; can be removed once
