@@ -146,5 +146,3 @@ output autoscaleMaxThroughput int = autoscaleMaxRu
 @description('Configured write/replica regions (failover priority order)')
 output writeRegions array = writeRegionNames
 
-@description('Cosmos DB connection string for SDK access')
-output connectionString string = listConnectionStrings(cosmosAccount.id, '2023-11-15').connectionStrings[0].connectionString

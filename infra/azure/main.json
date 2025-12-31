@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "17431679878344112066"
+      "templateHash": "756763422909604523"
     },
     "description": "Main orchestration template for Copilot for Consensus Azure deployment",
     "author": "Copilot-for-Consensus Team"
@@ -690,7 +690,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "15882172506015614378"
+              "templateHash": "1484687942114674471"
             },
             "description": "Module to provision Azure Cosmos DB with autoscale throughput and optional multi-region failover"
           },
@@ -874,13 +874,6 @@
                 "description": "Configured write/replica regions (failover priority order)"
               },
               "value": "[variables('writeRegionNames')]"
-            },
-            "connectionString": {
-              "type": "string",
-              "metadata": {
-                "description": "Cosmos DB connection string for SDK access"
-              },
-              "value": "[listConnectionStrings(resourceId('Microsoft.DocumentDB/databaseAccounts', variables('normalizedAccountName')), '2023-11-15').connectionStrings[0].connectionString]"
             }
           }
         }
