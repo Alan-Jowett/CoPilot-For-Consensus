@@ -112,31 +112,7 @@ To rotate GitHub OAuth credentials in your local development environment:
 
 5. **Remove old credentials** from GitHub after confirming the new ones work.
 
-#### Alternative: Using Environment Variables
-
-Instead of updating files, you can override secrets using environment variables:
-
-**Linux/macOS (bash):**
-```bash
-# Set environment variables
-export GITHUB_OAUTH_CLIENT_ID="NEW_CLIENT_ID"
-export GITHUB_OAUTH_CLIENT_SECRET="NEW_CLIENT_SECRET"
-
-# Restart with environment overrides
-docker compose restart auth gateway
-```
-
-**Windows (PowerShell):**
-```powershell
-# Set environment variables
-$env:GITHUB_OAUTH_CLIENT_ID = "NEW_CLIENT_ID"
-$env:GITHUB_OAUTH_CLIENT_SECRET = "NEW_CLIENT_SECRET"
-
-# Restart with environment overrides
-docker compose restart auth gateway
-```
-
-**Note**: Environment variable overrides only persist for the current terminal session. For permanent changes, update the secret files.
+**Note**: The auth service reads GitHub OAuth credentials from Docker secrets mounted at `/run/secrets/` (e.g., `secrets/github_oauth_client_id` and `secrets/github_oauth_client_secret`). Environment variable overrides (such as `GITHUB_OAUTH_CLIENT_ID` and `GITHUB_OAUTH_CLIENT_SECRET`) are not supported in the current implementation. To rotate credentials, update the secret files as shown above and restart the services.
 
 ### Detailed Setup Instructions
 

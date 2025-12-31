@@ -606,42 +606,49 @@ If you need to rollback to previous GitHub OAuth credentials:
 
 1. **Restore previous secret version** in Key Vault:
    ```bash
-   # List all versions of a secret
+   # List all versions of client secret
    az keyvault secret list-versions \
      --vault-name $KEY_VAULT_NAME \
      --name github-oauth-client-secret \
      --query "[].{Version:id, Created:attributes.created}" -o table
    
-   # Get a specific version
-   PREVIOUS_VERSION="abc123..."  # Version ID from list above
+   # Get a specific version for client secret
+   PREVIOUS_SECRET_VERSION="abc123..."  # Version ID from list above
    az keyvault secret show \
      --vault-name $KEY_VAULT_NAME \
      --name github-oauth-client-secret \
-     --version $PREVIOUS_VERSION
+     --version $PREVIOUS_SECRET_VERSION
    
    # Set current secret to previous value
-   PREVIOUS_VALUE=$(az keyvault secret show \
+   PREVIOUS_SECRET_VALUE=$(az keyvault secret show \
      --vault-name $KEY_VAULT_NAME \
      --name github-oauth-client-secret \
-     --version $PREVIOUS_VERSION \
+     --version $PREVIOUS_SECRET_VERSION \
      --query value -o tsv)
    
    az keyvault secret set \
      --vault-name $KEY_VAULT_NAME \
      --name github-oauth-client-secret \
-     --value "$PREVIOUS_VALUE"
+     --value "$PREVIOUS_SECRET_VALUE"
    
    # Also rollback client ID if needed
-   PREVIOUS_CLIENT_ID=$(az keyvault secret show \
+   # List versions for client ID (may be different from secret versions)
+   az keyvault secret list-versions \
      --vault-name $KEY_VAULT_NAME \
      --name github-oauth-client-id \
-     --version $PREVIOUS_VERSION \
+     --query "[].{Version:id, Created:attributes.created}" -o table
+   
+   PREVIOUS_ID_VERSION="def456..."  # Version ID from list above
+   PREVIOUS_ID_VALUE=$(az keyvault secret show \
+     --vault-name $KEY_VAULT_NAME \
+     --name github-oauth-client-id \
+     --version $PREVIOUS_ID_VERSION \
      --query value -o tsv)
    
    az keyvault secret set \
      --vault-name $KEY_VAULT_NAME \
      --name github-oauth-client-id \
-     --value "$PREVIOUS_CLIENT_ID"
+     --value "$PREVIOUS_ID_VALUE"
    ```
 
 2. **Optional: Restart the auth Container App** to force immediate secret refresh (see step 4 in rotation section above)
