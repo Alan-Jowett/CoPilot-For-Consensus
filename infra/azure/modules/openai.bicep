@@ -62,6 +62,13 @@ param embeddingModelName string = 'text-embedding-ada-002'
 @description('Capacity (units) for the embedding deployment')
 param embeddingDeploymentCapacity int = 10
 
+// Map embedding model names to their API versions
+var embeddingModelVersions = {
+  'text-embedding-ada-002': '2'
+  'text-embedding-3-small': '1'
+  'text-embedding-3-large': '1'
+}
+
 var normalizedAccountName = toLower(accountName)
 // Use the first 8 chars of the account name for brevity
 var projectName = take(normalizedAccountName, 8)
@@ -124,7 +131,7 @@ resource embeddingDeployment 'Microsoft.CognitiveServices/accounts/deployments@2
     model: {
       format: 'OpenAI'
       name: embeddingModelName
-      version: embeddingModelName == 'text-embedding-ada-002' ? '2' : (embeddingModelName == 'text-embedding-3-small' ? '1' : '1')
+      version: embeddingModelVersions[embeddingModelName]
     }
     versionUpgradeOption: 'OnceNewDefaultVersionAvailable'
   }
