@@ -48,11 +48,8 @@ param azureOpenAIDeploymentCapacity int = 10
 @description('IPv4 CIDR allowlist for Azure OpenAI when public network access is enabled')
 param azureOpenAIAllowedCidrs array = []
 
-@description('GitHub OAuth client ID secret URI from Key Vault (format: https://<vault>.vault.azure.net/secrets/<name>/<version>)')
-param githubOAuthClientIdSecretUri string = ''
-
-@description('GitHub OAuth client secret URI from Key Vault (format: https://<vault>.vault.azure.net/secrets/<name>/<version>)')
-param githubOAuthClientSecretSecretUri string = ''
+@description('Key Vault name for auth service secret provider (auth service reads GitHub OAuth and JWT secrets directly from Key Vault using managed identity)')
+param keyVaultNameForSecrets string = ''
 
 @description('Whether to deploy Container Apps environment and services')
 param deployContainerApps bool = true
@@ -285,8 +282,7 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     appInsightsConnectionStringSecretUri: appInsightsConnectionStringSecret!.properties.secretUriWithVersion
     logAnalyticsWorkspaceId: appInsightsModule!.outputs.workspaceId
     logAnalyticsCustomerId: appInsightsModule!.outputs.workspaceCustomerId
-    githubOAuthClientIdSecretUri: githubOAuthClientIdSecretUri
-    githubOAuthClientSecretSecretUri: githubOAuthClientSecretSecretUri
+    keyVaultNameForSecrets: keyVaultName
     tags: tags
   }
 }
