@@ -74,6 +74,14 @@ param serviceBusSku string = 'Standard'
 #disable-next-line no-unused-params
 param enableMultiRegionCosmos bool = false
 
+@description('Grafana admin username for monitoring dashboards (optional, stored in Key Vault)')
+@secure()
+param grafanaAdminUser string = 'admin'
+
+@description('Grafana admin password for monitoring dashboards (optional, stored in Key Vault)')
+@secure()
+param grafanaAdminPassword string = ''
+
 param tags object = {
   environment: environment
   project: 'copilot-for-consensus'
@@ -269,6 +277,25 @@ resource appInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@20
   name: '${keyVaultName}/appinsights-connection-string'
   properties: {
     value: appInsightsModule!.outputs.connectionString
+    contentType: 'text/plain'
+  }
+}
+
+// Store Grafana admin credentials in Key Vault
+// These are used when Grafana is deployed as a Container App for monitoring dashboards
+// Credentials can be rotated by updating the secrets in Key Vault and restarting the Grafana Container App
+resource grafanaAdminUserSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  name: '${keyVaultName}/grafana-admin-user'
+  properties: {
+    value: grafanaAdminUser
+    contentType: 'text/plain'
+  }
+}
+
+resource grafanaAdminPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (grafanaAdminPassword != '') {
+  name: '${keyVaultName}/grafana-admin-password'
+  properties: {
+    value: grafanaAdminPassword
     contentType: 'text/plain'
   }
 }

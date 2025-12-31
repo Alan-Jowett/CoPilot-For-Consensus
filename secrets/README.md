@@ -121,6 +121,61 @@ Each example file (`.example`) contains detailed instructions on how to create t
 - [documents/OIDC_LOCAL_TESTING.md](../documents/OIDC_LOCAL_TESTING.md) - Complete OAuth setup guide for all providers
 - [auth/README.md](../auth/README.md) - Auth service documentation
 
+## Setting up Grafana Admin Credentials
+
+Grafana requires admin credentials for local/docker-compose deployments.
+
+### Quick Setup
+
+**Linux/macOS (bash):**
+```bash
+# Copy example files
+cp secrets/grafana_admin_user.example secrets/grafana_admin_user
+cp secrets/grafana_admin_password.example secrets/grafana_admin_password
+
+# Set credentials (replace with your own)
+echo "admin" > secrets/grafana_admin_user
+openssl rand -base64 32 > secrets/grafana_admin_password
+
+# Restart Grafana
+docker compose restart grafana gateway
+```
+
+**Windows (PowerShell):**
+```powershell
+# Copy example files
+Copy-Item secrets/grafana_admin_user.example secrets/grafana_admin_user
+Copy-Item secrets/grafana_admin_password.example secrets/grafana_admin_password
+
+# Set credentials (replace with your own)
+"admin" | Out-File -FilePath secrets/grafana_admin_user -NoNewline
+"your-strong-password-here" | Out-File -FilePath secrets/grafana_admin_password -NoNewline
+
+# Restart Grafana
+docker compose restart grafana gateway
+```
+
+### Rotating Grafana Credentials
+
+To rotate Grafana admin credentials:
+
+1. Update the credential files:
+   ```bash
+   echo "new-username" > secrets/grafana_admin_user
+   echo "new-password" > secrets/grafana_admin_password
+   ```
+
+2. Restart Grafana and Gateway:
+   ```bash
+   docker compose restart grafana gateway
+   ```
+
+3. Login to Grafana with new credentials at http://localhost:8080/grafana/
+
+**Important**: Both Grafana and Gateway need to be restarted to pick up the new credentials from the secrets files.
+
+For Azure deployments with Grafana, credentials should be stored in Azure Key Vault. See [documents/runbooks/grafana-credential-rotation.md](../documents/runbooks/grafana-credential-rotation.md) for details.
+
 ## Other Secrets
 
 Examples for infrastructure:
