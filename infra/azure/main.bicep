@@ -224,6 +224,24 @@ module appInsightsModule 'modules/appinsights.bicep' = if (deployContainerApps) 
   }
 }
 
+// Store Application Insights secrets securely in Key Vault
+// These must NOT be passed as plaintext environment variables to Container Apps
+resource appInsightsInstrKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps) {
+  name: '${keyVaultName}/appinsights-instrumentation-key'
+  properties: {
+    value: appInsightsModule.outputs.instrumentationKey
+    contentType: 'text/plain'
+  }
+}
+
+resource appInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps) {
+  name: '${keyVaultName}/appinsights-connection-string'
+  properties: {
+    value: appInsightsModule.outputs.connectionString
+    contentType: 'text/plain'
+  }
+}
+
 // Module: Virtual Network (for Container Apps integration)
 module vnetModule 'modules/vnet.bicep' = if (deployContainerApps) {
   name: 'vnetDeployment'
@@ -252,12 +270,16 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     serviceBusNamespace: serviceBusModule.outputs.namespaceName
     cosmosDbEndpoint: cosmosModule.outputs.accountEndpoint
     subnetId: vnetModule.outputs.containerAppsSubnetId
-    appInsightsKey: appInsightsModule.outputs.instrumentationKey
-    appInsightsConnectionString: appInsightsModule.outputs.connectionString
+    appInsightsKeySecretUri: appInsightsInstrKeySecret.properties.secretUriWithVersion
+    appInsightsConnectionStringSecretUri: appInsightsConnectionStringSecret.properties.secretUriWithVersion
     logAnalyticsWorkspaceId: appInsightsModule.outputs.workspaceId
     logAnalyticsCustomerId: appInsightsModule.outputs.workspaceCustomerId
     tags: tags
   }
+  dependsOn: [
+    appInsightsInstrKeySecret
+    appInsightsConnectionStringSecret
+  ]
 }
 
 // Outputs
@@ -283,7 +305,6 @@ output openaiSkuName string = deployAzureOpenAI ? openaiModule!.outputs.skuName 
 output aiSearchServiceName string = aiSearchModule.outputs.serviceName
 output aiSearchEndpoint string = aiSearchModule.outputs.endpoint
 output aiSearchServiceId string = aiSearchModule.outputs.serviceId
-output appInsightsInstrumentationKey string = deployContainerApps ? appInsightsModule.outputs.instrumentationKey : ''
 output appInsightsId string = deployContainerApps ? appInsightsModule.outputs.appInsightsId : ''
 output containerAppsEnvId string = deployContainerApps ? containerAppsModule.outputs.containerAppsEnvId : ''
 output gatewayFqdn string = deployContainerApps ? containerAppsModule.outputs.gatewayFqdn : ''

@@ -37,11 +37,11 @@ param cosmosDbEndpoint string = ''
 @description('Container Apps subnet ID')
 param subnetId string
 
-@description('Application Insights instrumentation key for service telemetry')
-param appInsightsKey string = ''
+@description('Application Insights instrumentation key secret URI (from Key Vault)')
+param appInsightsKeySecretUri string = ''
 
-@description('Application Insights connection string for service telemetry')
-param appInsightsConnectionString string = ''
+@description('Application Insights connection string secret URI (from Key Vault)')
+param appInsightsConnectionStringSecretUri string = ''
 
 @description('Log Analytics workspace resource ID')
 param logAnalyticsWorkspaceId string
@@ -136,11 +136,11 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKey
+              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-              value: appInsightsConnectionString
+              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
             }
           ]
           resources: {
@@ -213,7 +213,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKey
+              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
           ]
           resources: {
@@ -290,7 +290,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKey
+              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
           ]
           resources: {
@@ -364,7 +364,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKey
+              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
           ]
           resources: {
@@ -438,7 +438,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKey
+              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
           ]
           resources: {
@@ -524,7 +524,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKey
+              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
           ]
           resources: {
@@ -598,7 +598,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKey
+              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
           ]
           resources: {
@@ -680,7 +680,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKey
+              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
           ]
           resources: {
@@ -738,7 +738,7 @@ resource uiApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKey
+              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
           ]
           resources: {
@@ -808,7 +808,7 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKey
+              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
           ]
           resources: {
@@ -846,3 +846,4 @@ output appIds object = {
   ui: uiApp.id
   gateway: gatewayApp.id
 }
+

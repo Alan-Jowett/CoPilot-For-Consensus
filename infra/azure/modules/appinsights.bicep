@@ -47,11 +47,11 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   }
 }
 
-// Outputs
-@description('Application Insights Instrumentation Key')
+// Outputs (secrets NOT exposed as plaintext; stored in Key Vault instead)
+@description('Application Insights Instrumentation Key (for Key Vault storage only)')
 output instrumentationKey string = appInsights.properties.InstrumentationKey
 
-@description('Application Insights connection string')
+@description('Application Insights Connection String (for Key Vault storage only)')
 output connectionString string = appInsights.properties.ConnectionString
 
 @description('Application Insights ID')
@@ -60,5 +60,5 @@ output appInsightsId string = appInsights.id
 @description('Log Analytics Workspace ID')
 output workspaceId string = logAnalyticsWorkspace.id
 
-@description('Log Analytics Workspace customerId (GUID)')
+@description('Log Analytics Workspace customerId (GUID) - store in Key Vault, do not pass as plaintext')
 output workspaceCustomerId string = logAnalyticsWorkspace.properties.customerId
