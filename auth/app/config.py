@@ -23,9 +23,9 @@ def load_auth_config():
     Secrets integration is handled transparently by load_typed_config
     based on configuration in documents/schemas/configs/auth.json.
 
-    In Azure Container Apps, secrets are injected as environment variables
-    using @Microsoft.KeyVault(SecretUri=...) syntax, so they appear as
-    regular environment variables to the application.
+    In Azure Container Apps, secrets are accessed directly from Azure Key Vault
+    using the copilot_secrets.AzureKeyVaultProvider with managed identity
+    authentication (SDK-based, not environment variable injection).
 
     Returns:
         TypedConfig instance with validated configuration
@@ -42,7 +42,7 @@ def load_auth_config():
 
     # Handle JWT key file setup for RS256
     # JWTManager needs file paths, so we write secrets to temp files
-    # In Azure, JWT keys come from environment variables injected by Key Vault references
+    # In Azure, JWT keys are fetched from Key Vault via SDK using managed identity
     if config.jwt_algorithm == "RS256":
         if hasattr(config, 'jwt_private_key') and config.jwt_private_key:
             # Write secrets to temp files

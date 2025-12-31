@@ -308,7 +308,7 @@ The `copilot_secrets` adapter with `AzureKeyVaultProvider`:
 ### JWT Key Generation
 
 JWT keys are automatically generated during each deployment via `jwtkeys.bicep`:
-- Uses Azure CLI container with openssl to generate RSA 2048-bit keypair
+- Uses Azure CLI container with openssl to generate RSA 3072-bit keypair
 - Stores keys directly in Key Vault using deployment script managed identity
 - Keys persist across deployments unless `jwtForceUpdateTag` parameter changes
 - No manual key generation or upload required

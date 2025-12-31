@@ -483,7 +483,7 @@ az deployment group show \
 ### 1. JWT Keys (Automatically Generated)
 
 JWT keys are automatically generated during deployment via the `jwtkeys.bicep` module. No manual setup is required. The deployment script:
-- Generates a fresh RSA 2048-bit keypair per deployment
+- Generates a fresh RSA 3072-bit keypair per deployment
 - Stores both keys securely in Key Vault
 - Makes them available to the auth service via managed identity
 
@@ -574,44 +574,57 @@ If deploying Grafana as part of your infrastructure (not included in current Con
 ```bash
 az keyvault secret set --vault-name $KEY_VAULT_NAME --name grafana-admin-user --value "admin"
 az keyvault secret set --vault-name $KEY_VAULT_NAME --name grafana-admin-password --value "YOUR_SECURE_PASSWORD"
+
+# Restart auth service to pick up new secrets
+az containerapp restart --name copilot-auth-dev --resource-group copilot-rg
 ```
 
-#### Restart Services After Setting Secrets
+### 4. Secret Rotation
 
-After adding secrets to Key Vault, restart the auth service (and other affected services) to pick up the new values:
+#### JWT Keys
+
+JWT keys are automatically regenerated on each deployment if the `jwtForceUpdateTag` parameter changes. To force regeneration:
 
 ```bash
-# Restart auth service
-az containerapp restart \
-  --name copilot-auth-dev \
-  --resource-group copilot-rg
-
-# Verify the service is running
-az containerapp show \
-  --name copilot-auth-dev \
+az deployment group create \
+  --name copilot-deployment \
   --resource-group copilot-rg \
-  --query properties.runningStatus
+  --template-file main.bicep \
+  --parameters @parameters.dev.json \
+  --parameters jwtForceUpdateTag="$(date +%s)"
 ```
 
-### 2. Rotating Secrets
+**Warning**: This invalidates all active user sessions.
 
-To rotate secrets (recommended every 90 days for production):
+**Alternative manual rotation** (use OpenSSL to match automated generation):
 
 ```bash
-# Example: Rotate JWT keys
-# 1. Generate new keys
-ssh-keygen -t rsa -b 4096 -m PEM -f jwt_private_key_new -N ""
-ssh-keygen -f jwt_private_key_new -e -m PKCS8 > jwt_public_key_new
+# 1. Generate new RSA keys in PEM format (3072-bit to match automated deployment)
+openssl genrsa -out jwt_private_key_new.pem 3072
+openssl rsa -in jwt_private_key_new.pem -pubout -out jwt_public_key_new.pem
 
 # 2. Update Key Vault secrets
-az keyvault secret set --vault-name $KEY_VAULT_NAME --name jwt-private-key --file jwt_private_key_new
-az keyvault secret set --vault-name $KEY_VAULT_NAME --name jwt-public-key --file jwt_public_key_new
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name jwt-private-key --file jwt_private_key_new.pem
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name jwt-public-key --file jwt_public_key_new.pem
 
 # 3. Restart auth service to pick up new keys
 az containerapp restart --name copilot-auth-dev --resource-group copilot-rg
 
 # 4. Clean up local files
-rm jwt_private_key_new jwt_public_key_new
+rm jwt_private_key_new.pem jwt_public_key_new.pem
+```
+
+#### OAuth Credentials
+
+To rotate OAuth secrets (recommended every 90 days for production):
+
+```bash
+# 1. Generate new secret in OAuth provider console
+# 2. Update Key Vault
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name github-oauth-client-secret --value "NEW_SECRET"
+
+# 3. Restart auth service
+az containerapp restart --name copilot-auth-dev --resource-group copilot-rg
 ```
 
 **Note**: Key Vault automatically versions secrets, so you can roll back if needed:
