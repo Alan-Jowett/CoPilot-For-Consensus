@@ -270,17 +270,13 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     aiSearchEndpoint: aiSearchModule!.outputs.endpoint
     serviceBusNamespace: serviceBusModule.outputs.namespaceName
     cosmosDbEndpoint: cosmosModule.outputs.accountEndpoint
-    subnetId: vnetModule.outputs.containerAppsSubnetId
-    appInsightsKeySecretUri: appInsightsInstrKeySecret.properties.secretUriWithVersion
-    appInsightsConnectionStringSecretUri: appInsightsConnectionStringSecret.properties.secretUriWithVersion
-    logAnalyticsWorkspaceId: appInsightsModule.outputs.workspaceId
-    logAnalyticsCustomerId: appInsightsModule.outputs.workspaceCustomerId
+    subnetId: vnetModule!.outputs.containerAppsSubnetId
+    appInsightsKeySecretUri: appInsightsInstrKeySecret!.properties.secretUriWithVersion
+    appInsightsConnectionStringSecretUri: appInsightsConnectionStringSecret!.properties.secretUriWithVersion
+    logAnalyticsWorkspaceId: appInsightsModule!.outputs.workspaceId
+    logAnalyticsCustomerId: appInsightsModule!.outputs.workspaceCustomerId
     tags: tags
   }
-  dependsOn: [
-    appInsightsInstrKeySecret
-    appInsightsConnectionStringSecret
-  ]
 }
 
 // Outputs
