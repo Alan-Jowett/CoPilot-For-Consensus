@@ -109,16 +109,16 @@ All composite indexes include the `collection` field first to ensure efficient p
 Using the collection name as the partition key provides:
 
 1. **Natural partitioning**: Documents of the same type are co-located
-2. **Predictable distribution**: Each collection type becomes a logical partition
+2. **Predictable distribution**: Each collection type corresponds to a single logical partition key value (the `/collection` value), which Cosmos DB maps onto one or more physical partitions as needed
 3. **Efficient collection-scoped queries**: Queries within a single collection type are automatically partition-scoped
 
 ### Partition Considerations
 
 - **Balance**: Ensure roughly equal distribution of operations across collection types
 - **Avoid hot partitions**: Monitor if one collection type receives disproportionate traffic
-- **Scale limits**: Each logical partition (collection) can scale to 20GB and 10,000 RU/s
+- **Scale limits**: Azure Cosmos DB physical partitions currently support up to 20GB of storage and 10,000 RU/s of throughput; logical partitions (each distinct `/collection` value) are placed on one or more physical partitions
 
-If a single collection type exceeds these limits, consider:
+If a single collection type approaches these physical partition limits or becomes a hotspot, consider:
 1. Migrating to a more granular partition key (e.g., date-based or hash-based)
 2. Moving that collection to a dedicated container with a custom partition key
 

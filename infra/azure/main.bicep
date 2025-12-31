@@ -156,6 +156,7 @@ var openaiAccountName = toLower('${take(projectPrefix, 10)}-oai-${environment}-$
 // Azure AI Search service name must be globally unique and lowercase
 var aiSearchServiceName = toLower('${take(projectPrefix, 10)}-ais-${environment}-${take(uniqueSuffix, 5)}')
 // Storage Account name must be globally unique, lowercase, 3-24 chars (no hyphens allowed)
+// Length breakdown: 6 (projectPrefix) + 2 ('st') + 3 (environment) + 10 (uniqueSuffix) = 21 chars (within 3-24 limit)
 var storageAccountName = toLower('${take(projectPrefix, 6)}st${take(environment, 3)}${take(uniqueSuffix, 10)}')
 
 // Module: Azure Service Bus
@@ -195,7 +196,13 @@ module storageModule 'modules/storage.bicep' = if (deployContainerApps) {
     accessTier: 'Hot'
     enableHierarchicalNamespace: false
     containerNames: ['archives']
-    contributorPrincipalIds: [for service in services: identitiesModule.outputs.identityPrincipalIdsByName[service]]
+    // SECURITY: Only grant blob access to services that actually need it
+    // ingestion: stores raw email archives, parsing: reads archives for processing
+    contributorPrincipalIds: [
+      identitiesModule.outputs.identityPrincipalIdsByName.ingestion
+      identitiesModule.outputs.identityPrincipalIdsByName.parsing
+    ]
+    networkDefaultAction: environment == 'prod' ? 'Deny' : 'Allow'
     tags: tags
   }
 }

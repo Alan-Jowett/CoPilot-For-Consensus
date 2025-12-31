@@ -31,6 +31,10 @@ param contributorPrincipalIds array = []
 @description('Tags applied to all storage resources')
 param tags object = {}
 
+@description('Network access default action (Allow for dev/staging, Deny for production with specific allowlists)')
+@allowed(['Allow', 'Deny'])
+param networkDefaultAction string = 'Allow'
+
 // Storage Account
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   name: storageAccountName
@@ -47,13 +51,13 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
     allowBlobPublicAccess: false
     isHnsEnabled: enableHierarchicalNamespace
     networkAcls: {
-      // SECURITY NOTE: Default action is 'Allow' for dev/staging to simplify development
-      // For production, change to 'Deny' and configure specific IP allowlists or VNet rules
-      // Example: 
-      //   defaultAction: 'Deny'
+      // Network access is controlled via networkDefaultAction parameter
+      // Production deployments should use 'Deny' and configure specific IP allowlists or VNet rules
+      // Example for production:
+      //   networkDefaultAction: 'Deny'
       //   ipRules: [{ value: 'your-ip-address', action: 'Allow' }]
       //   virtualNetworkRules: [{ id: subnetId, action: 'Allow' }]
-      defaultAction: 'Allow'
+      defaultAction: networkDefaultAction
       bypass: 'AzureServices'
     }
     encryption: {
