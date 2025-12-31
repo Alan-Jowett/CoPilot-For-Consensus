@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "17550093012645525912"
+      "templateHash": "14641623947090913772"
     },
     "description": "Main orchestration template for Copilot for Consensus Azure deployment",
     "author": "Copilot-for-Consensus Team"
@@ -1319,7 +1319,7 @@
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'identitiesDeployment'), '2025-04-01').outputs.identityResourceIds.value]"
           },
           "azureOpenAIEndpoint": "[if(parameters('deployAzureOpenAI'), createObject('value', reference(resourceId('Microsoft.Resources/deployments', 'openaiDeployment'), '2025-04-01').outputs.accountEndpoint.value), createObject('value', ''))]",
-          "azureOpenAIKey": "[if(parameters('deployAzureOpenAI'), createObject('value', reference(resourceId('Microsoft.Resources/deployments', 'openaiDeployment'), '2025-04-01').outputs.accountId.value), createObject('value', ''))]",
+          "azureOpenAIAccountId": "[if(parameters('deployAzureOpenAI'), createObject('value', reference(resourceId('Microsoft.Resources/deployments', 'openaiDeployment'), '2025-04-01').outputs.accountId.value), createObject('value', ''))]",
           "vnetId": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'vnetDeployment'), '2025-04-01').outputs.vnetId.value]"
           },
@@ -1343,7 +1343,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "10638260535773558984"
+              "templateHash": "2819552765746862962"
             },
             "description": "Module to provision Container Apps environment and all microservices",
             "author": "Copilot-for-Consensus Team"
@@ -1394,11 +1394,11 @@
                 "description": "Azure OpenAI endpoint URL"
               }
             },
-            "azureOpenAIKey": {
+            "azureOpenAIAccountId": {
               "type": "string",
               "defaultValue": "",
               "metadata": {
-                "description": "Azure OpenAI key (from Key Vault secret)"
+                "description": "Azure OpenAI account resource ID (not a secret key)"
               }
             },
             "vnetId": {

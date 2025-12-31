@@ -220,7 +220,7 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     containerImageTag: containerImageTag
     identityResourceIds: identitiesModule.outputs.identityResourceIds
     azureOpenAIEndpoint: deployAzureOpenAI ? openaiModule!.outputs.accountEndpoint : ''
-    azureOpenAIKey: deployAzureOpenAI ? openaiModule!.outputs.accountId : ''
+    azureOpenAIAccountId: deployAzureOpenAI ? openaiModule!.outputs.accountId : ''
     vnetId: vnetModule.outputs.vnetId
     subnetId: vnetModule.outputs.containerAppsSubnetId
     keyVaultUri: keyVaultModule.outputs.keyVaultUri

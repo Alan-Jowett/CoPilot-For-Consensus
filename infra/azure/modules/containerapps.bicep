@@ -26,8 +26,8 @@ param identityResourceIds object
 param azureOpenAIEndpoint string = ''
 
 #disable-next-line no-unused-params
-@description('Azure OpenAI key (from Key Vault secret)')
-param azureOpenAIKey string = ''
+@description('Azure OpenAI account resource ID (not a secret key)')
+param azureOpenAIAccountId string = ''
 
 #disable-next-line no-unused-params
 @description('Virtual Network ID for Container Apps integration')
