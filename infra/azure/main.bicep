@@ -284,7 +284,7 @@ resource appInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@20
 // Store Grafana admin credentials in Key Vault
 // These are used when Grafana is deployed as a Container App for monitoring dashboards
 // Credentials can be rotated by updating the secrets in Key Vault and restarting the Grafana Container App
-// Default to 'admin' username if not provided
+// Note: Username secret is always created (defaults to 'admin') so it's present for rotation workflows
 resource grafanaAdminUserSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   name: '${keyVaultName}/grafana-admin-user'
   properties: {
@@ -293,6 +293,7 @@ resource grafanaAdminUserSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' =
   }
 }
 
+// Password is only stored if explicitly provided (no default for security)
 resource grafanaAdminPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (grafanaAdminPassword != '') {
   name: '${keyVaultName}/grafana-admin-password'
   properties: {
