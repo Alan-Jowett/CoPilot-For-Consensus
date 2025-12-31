@@ -231,7 +231,7 @@ jobs:
               } else if (whatif_status === 'failed') {
                 details += '- ⚠️ What-if analysis failed (but syntax validation passed)\n';
               } else {
-                details += '- ⚠️ What-if analysis status unknown\n';
+                details += `- ⚠️ What-if analysis status unknown (received: ${whatif_status})\n`;
               }
             }
 
