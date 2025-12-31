@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "10575867208979086148"
+      "templateHash": "3042477859888580014"
     },
     "description": "Main orchestration template for Copilot for Consensus Azure deployment",
     "author": "Copilot-for-Consensus Team"
@@ -1307,6 +1307,150 @@
       "condition": "[parameters('deployContainerApps')]",
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
+      "name": "vnetDeployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "projectName": {
+            "value": "[parameters('projectName')]"
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "vnetAddressPrefix": {
+            "value": "[parameters('vnetAddressPrefix')]"
+          },
+          "containerAppsSubnetPrefix": {
+            "value": "[parameters('containerAppsSubnetPrefix')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.39.26.7824",
+              "templateHash": "7266479415410015265"
+            },
+            "description": "Module to provision Virtual Network for Container Apps integration",
+            "author": "Copilot-for-Consensus Team"
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for resources"
+              }
+            },
+            "projectName": {
+              "type": "string",
+              "metadata": {
+                "description": "Project name"
+              }
+            },
+            "environment": {
+              "type": "string",
+              "metadata": {
+                "description": "Environment name"
+              }
+            },
+            "vnetAddressPrefix": {
+              "type": "string",
+              "defaultValue": "10.0.0.0/16",
+              "metadata": {
+                "description": "VNet address space"
+              }
+            },
+            "containerAppsSubnetPrefix": {
+              "type": "string",
+              "defaultValue": "10.0.0.0/23",
+              "metadata": {
+                "description": "Container Apps subnet address space"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {}
+            }
+          },
+          "variables": {
+            "uniqueSuffix": "[uniqueString(resourceGroup().id)]",
+            "projectPrefix": "[take(replace(parameters('projectName'), '-', ''), 8)]",
+            "vnetName": "[format('{0}-vnet-{1}-{2}', variables('projectPrefix'), parameters('environment'), take(variables('uniqueSuffix'), 5))]",
+            "containerAppsSubnetName": "[format('{0}-ca-subnet-{1}', variables('projectPrefix'), parameters('environment'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2024-01-01",
+              "name": "[variables('vnetName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "[parameters('vnetAddressPrefix')]"
+                  ]
+                },
+                "subnets": [
+                  {
+                    "name": "[variables('containerAppsSubnetName')]",
+                    "properties": {
+                      "addressPrefix": "[parameters('containerAppsSubnetPrefix')]",
+                      "delegations": [
+                        {
+                          "name": "Microsoft.App.environments",
+                          "properties": {
+                            "serviceName": "Microsoft.App/environments"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "outputs": {
+            "vnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "Virtual Network ID"
+              },
+              "value": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+            },
+            "containerAppsSubnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "Container Apps Subnet ID"
+              },
+              "value": "[format('{0}/subnets/{1}', resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), variables('containerAppsSubnetName'))]"
+            },
+            "vnetName": {
+              "type": "string",
+              "metadata": {
+                "description": "Virtual Network Name"
+              },
+              "value": "[variables('vnetName')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deployContainerApps')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
       "name": "containerAppsDeployment",
       "properties": {
         "expressionEvaluationOptions": {
@@ -2246,150 +2390,6 @@
         "[resourceId('Microsoft.Resources/deployments', 'openaiDeployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'vnetDeployment')]"
       ]
-    },
-    {
-      "condition": "[parameters('deployContainerApps')]",
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "vnetDeployment",
-      "properties": {
-        "expressionEvaluationOptions": {
-          "scope": "inner"
-        },
-        "mode": "Incremental",
-        "parameters": {
-          "location": {
-            "value": "[parameters('location')]"
-          },
-          "projectName": {
-            "value": "[parameters('projectName')]"
-          },
-          "environment": {
-            "value": "[parameters('environment')]"
-          },
-          "vnetAddressPrefix": {
-            "value": "[parameters('vnetAddressPrefix')]"
-          },
-          "containerAppsSubnetPrefix": {
-            "value": "[parameters('containerAppsSubnetPrefix')]"
-          },
-          "tags": {
-            "value": "[parameters('tags')]"
-          }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "metadata": {
-            "_generator": {
-              "name": "bicep",
-              "version": "0.39.26.7824",
-              "templateHash": "7266479415410015265"
-            },
-            "description": "Module to provision Virtual Network for Container Apps integration",
-            "author": "Copilot-for-Consensus Team"
-          },
-          "parameters": {
-            "location": {
-              "type": "string",
-              "metadata": {
-                "description": "Location for resources"
-              }
-            },
-            "projectName": {
-              "type": "string",
-              "metadata": {
-                "description": "Project name"
-              }
-            },
-            "environment": {
-              "type": "string",
-              "metadata": {
-                "description": "Environment name"
-              }
-            },
-            "vnetAddressPrefix": {
-              "type": "string",
-              "defaultValue": "10.0.0.0/16",
-              "metadata": {
-                "description": "VNet address space"
-              }
-            },
-            "containerAppsSubnetPrefix": {
-              "type": "string",
-              "defaultValue": "10.0.0.0/23",
-              "metadata": {
-                "description": "Container Apps subnet address space"
-              }
-            },
-            "tags": {
-              "type": "object",
-              "defaultValue": {}
-            }
-          },
-          "variables": {
-            "uniqueSuffix": "[uniqueString(resourceGroup().id)]",
-            "projectPrefix": "[take(replace(parameters('projectName'), '-', ''), 8)]",
-            "vnetName": "[format('{0}-vnet-{1}-{2}', variables('projectPrefix'), parameters('environment'), take(variables('uniqueSuffix'), 5))]",
-            "containerAppsSubnetName": "[format('{0}-ca-subnet-{1}', variables('projectPrefix'), parameters('environment'))]"
-          },
-          "resources": [
-            {
-              "type": "Microsoft.Network/virtualNetworks",
-              "apiVersion": "2024-01-01",
-              "name": "[variables('vnetName')]",
-              "location": "[parameters('location')]",
-              "tags": "[parameters('tags')]",
-              "properties": {
-                "addressSpace": {
-                  "addressPrefixes": [
-                    "[parameters('vnetAddressPrefix')]"
-                  ]
-                },
-                "subnets": [
-                  {
-                    "name": "[variables('containerAppsSubnetName')]",
-                    "properties": {
-                      "addressPrefix": "[parameters('containerAppsSubnetPrefix')]",
-                      "delegations": [
-                        {
-                          "name": "Microsoft.App.environments",
-                          "properties": {
-                            "serviceName": "Microsoft.App/environments"
-                          }
-                        }
-                      ]
-                    }
-                  }
-                ]
-              }
-            }
-          ],
-          "outputs": {
-            "vnetId": {
-              "type": "string",
-              "metadata": {
-                "description": "Virtual Network ID"
-              },
-              "value": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
-            },
-            "containerAppsSubnetId": {
-              "type": "string",
-              "metadata": {
-                "description": "Container Apps Subnet ID"
-              },
-              "value": "[format('{0}/subnets/{1}', resourceId('Microsoft.Network/virtualNetworks', variables('vnetName')), variables('containerAppsSubnetName'))]"
-            },
-            "vnetName": {
-              "type": "string",
-              "metadata": {
-                "description": "Virtual Network Name"
-              },
-              "value": "[variables('vnetName')]"
-            }
-          }
-        }
-      }
     }
   ],
   "outputs": {

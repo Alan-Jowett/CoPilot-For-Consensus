@@ -209,6 +209,19 @@ module appInsightsModule 'modules/appinsights.bicep' = if (deployContainerApps) 
   }
 }
 
+// Module: Virtual Network (for Container Apps integration)
+module vnetModule 'modules/vnet.bicep' = if (deployContainerApps) {
+  name: 'vnetDeployment'
+  params: {
+    location: location
+    projectName: projectName
+    environment: environment
+    vnetAddressPrefix: vnetAddressPrefix
+    containerAppsSubnetPrefix: containerAppsSubnetPrefix
+    tags: tags
+  }
+}
+
 // Module: Container Apps (VNet and 10 microservices)
 module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerApps) {
   name: 'containerAppsDeployment'
@@ -227,19 +240,6 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     appInsightsKey: appInsightsModule.outputs.instrumentationKey
     logAnalyticsCustomerId: appInsightsModule.outputs.workspaceCustomerId
     logAnalyticsSharedKey: appInsightsModule.outputs.workspaceSharedKey
-    tags: tags
-  }
-}
-
-// Module: Virtual Network (for Container Apps integration)
-module vnetModule 'modules/vnet.bicep' = if (deployContainerApps) {
-  name: 'vnetDeployment'
-  params: {
-    location: location
-    projectName: projectName
-    environment: environment
-    vnetAddressPrefix: vnetAddressPrefix
-    containerAppsSubnetPrefix: containerAppsSubnetPrefix
     tags: tags
   }
 }
