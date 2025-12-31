@@ -104,10 +104,6 @@ modules/
 └── containerapps.bicep         # Container Apps environment and 10 services
 ```
 
-├── containerapps.bicep         # Container Apps environment & services
-└── vnet.bicep                  # VNet and subnets
-```
-
 ### Key Design Patterns
 
 #### 1. **Managed Identities (Zero-Secrets Approach)**
