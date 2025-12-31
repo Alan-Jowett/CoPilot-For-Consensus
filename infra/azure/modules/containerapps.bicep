@@ -52,6 +52,36 @@ param logAnalyticsWorkspaceId string
 @description('Log Analytics workspace customerId (GUID)')
 param logAnalyticsCustomerId string
 
+@description('JWT private key secret URI (from Key Vault)')
+param jwtPrivateKeySecretUri string = ''
+
+@description('JWT public key secret URI (from Key Vault)')
+param jwtPublicKeySecretUri string = ''
+
+@description('GitHub OAuth client ID secret URI (from Key Vault)')
+param githubOAuthClientIdSecretUri string = ''
+
+@description('GitHub OAuth client secret secret URI (from Key Vault)')
+param githubOAuthClientSecretSecretUri string = ''
+
+@description('Google OAuth client ID secret URI (from Key Vault)')
+param googleOAuthClientIdSecretUri string = ''
+
+@description('Google OAuth client secret secret URI (from Key Vault)')
+param googleOAuthClientSecretSecretUri string = ''
+
+@description('Microsoft OAuth client ID secret URI (from Key Vault)')
+param microsoftOAuthClientIdSecretUri string = ''
+
+@description('Microsoft OAuth client secret secret URI (from Key Vault)')
+param microsoftOAuthClientSecretSecretUri string = ''
+
+@description('Grafana admin username secret URI (from Key Vault)')
+param grafanaAdminUserSecretUri string = ''
+
+@description('Grafana admin password secret URI (from Key Vault)')
+param grafanaAdminPasswordSecretUri string = ''
+
 param tags object = {}
 
 // Derived variables
@@ -141,7 +171,7 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'SECRET_PROVIDER_TYPE'
-              value: keyVaultName != '' ? 'azurekeyvault' : 'local'
+              value: 'azurekeyvault'
             }
             {
               name: 'AZURE_KEYVAULT_NAME'
@@ -154,6 +184,42 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
+            // JWT keys from Key Vault
+            {
+              name: 'JWT_PRIVATE_KEY'
+              value: jwtPrivateKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${jwtPrivateKeySecretUri})' : ''
+            }
+            {
+              name: 'JWT_PUBLIC_KEY'
+              value: jwtPublicKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${jwtPublicKeySecretUri})' : ''
+            }
+            // GitHub OAuth credentials from Key Vault
+            {
+              name: 'GITHUB_OAUTH_CLIENT_ID'
+              value: githubOAuthClientIdSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${githubOAuthClientIdSecretUri})' : ''
+            }
+            {
+              name: 'GITHUB_OAUTH_CLIENT_SECRET'
+              value: githubOAuthClientSecretSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${githubOAuthClientSecretSecretUri})' : ''
+            }
+            // Google OAuth credentials from Key Vault
+            {
+              name: 'GOOGLE_OAUTH_CLIENT_ID'
+              value: googleOAuthClientIdSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${googleOAuthClientIdSecretUri})' : ''
+            }
+            {
+              name: 'GOOGLE_OAUTH_CLIENT_SECRET'
+              value: googleOAuthClientSecretSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${googleOAuthClientSecretSecretUri})' : ''
+            }
+            // Microsoft OAuth credentials from Key Vault
+            {
+              name: 'MICROSOFT_OAUTH_CLIENT_ID'
+              value: microsoftOAuthClientIdSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${microsoftOAuthClientIdSecretUri})' : ''
+            }
+            {
+              name: 'MICROSOFT_OAUTH_CLIENT_SECRET'
+              value: microsoftOAuthClientSecretSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${microsoftOAuthClientSecretSecretUri})' : ''
             }
           ]
           resources: {

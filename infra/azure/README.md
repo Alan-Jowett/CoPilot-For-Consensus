@@ -480,7 +480,201 @@ az deployment group show \
 
 ## Post-Deployment Configuration
 
-### 1. Configure OAuth Providers (for Auth Service)
+### 1. Configure Service Secrets in Key Vault
+
+After deployment, you'll need to set up secrets for authentication and other services. The deployment outputs include instructions for which secrets need to be configured.
+
+#### Check which secrets need to be set
+
+```bash
+# View deployment outputs to see which secrets are missing
+az deployment group show \
+  --name copilot-deployment \
+  --resource-group copilot-rg \
+  --query properties.outputs.secretsSetupRequired
+```
+
+#### Set JWT Keys for Auth Service
+
+The auth service requires RSA key pairs for JWT signing. Generate and upload them:
+
+```bash
+# Get Key Vault name from deployment outputs
+KEY_VAULT_NAME=$(az deployment group show \
+  --name copilot-deployment \
+  --resource-group copilot-rg \
+  --query properties.outputs.keyVaultName.value -o tsv)
+
+# Generate RSA key pair (4096-bit for production security)
+ssh-keygen -t rsa -b 4096 -m PEM -f jwt_private_key -N ""
+ssh-keygen -f jwt_private_key -e -m PKCS8 > jwt_public_key
+
+# Upload keys to Key Vault
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name jwt-private-key --file jwt_private_key
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name jwt-public-key --file jwt_public_key
+
+# Clean up local key files (optional but recommended for security)
+rm jwt_private_key jwt_public_key
+```
+
+**Alternative: Use Python script from repository**
+
+```bash
+# From repository root
+python auth/generate_keys.py
+
+# Upload generated keys
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name jwt-private-key --file secrets/jwt_private_key
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name jwt-public-key --file secrets/jwt_public_key
+```
+
+#### Configure OAuth Providers (GitHub, Google, Microsoft)
+
+To enable OAuth authentication, create OAuth applications with each provider and store the credentials in Key Vault.
+
+**GitHub OAuth Setup**
+
+1. Go to GitHub Developer Settings: https://github.com/settings/developers
+2. Click "New OAuth App" and configure:
+   - **Application name**: Copilot for Consensus (Production)
+   - **Homepage URL**: `https://<your-gateway-fqdn>`
+   - **Authorization callback URL**: `https://<your-gateway-fqdn>/auth/callback`
+3. Save the Client ID and generate a Client Secret
+4. Store in Key Vault:
+
+```bash
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name github-oauth-client-id --value "YOUR_GITHUB_CLIENT_ID"
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name github-oauth-client-secret --value "YOUR_GITHUB_CLIENT_SECRET"
+```
+
+**Google OAuth Setup**
+
+1. Go to Google Cloud Console: https://console.cloud.google.com/apis/credentials
+2. Create a new OAuth 2.0 Client ID (Web application):
+   - **Authorized redirect URIs**: `https://<your-gateway-fqdn>/auth/callback`
+3. Store in Key Vault:
+
+```bash
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name google-oauth-client-id --value "YOUR_GOOGLE_CLIENT_ID"
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name google-oauth-client-secret --value "YOUR_GOOGLE_CLIENT_SECRET"
+```
+
+**Microsoft OAuth Setup**
+
+1. Go to Azure Portal: https://portal.azure.com/#blade/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/RegisteredApps
+2. Register a new application:
+   - **Redirect URI**: `https://<your-gateway-fqdn>/auth/callback`
+3. Create a client secret under "Certificates & secrets"
+4. Store in Key Vault:
+
+```bash
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name microsoft-oauth-client-id --value "YOUR_MICROSOFT_CLIENT_ID"
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name microsoft-oauth-client-secret --value "YOUR_MICROSOFT_CLIENT_SECRET"
+```
+
+**Important**: For detailed OAuth setup instructions, see [../../documents/OIDC_LOCAL_TESTING.md](../../documents/OIDC_LOCAL_TESTING.md)
+
+#### Configure Grafana Admin Credentials (Optional)
+
+If deploying Grafana as part of your infrastructure (not included in current Container Apps):
+
+```bash
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name grafana-admin-user --value "admin"
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name grafana-admin-password --value "YOUR_SECURE_PASSWORD"
+```
+
+#### Restart Services After Setting Secrets
+
+After adding secrets to Key Vault, restart the auth service (and other affected services) to pick up the new values:
+
+```bash
+# Restart auth service
+az containerapp restart \
+  --name copilot-auth-dev \
+  --resource-group copilot-rg
+
+# Verify the service is running
+az containerapp show \
+  --name copilot-auth-dev \
+  --resource-group copilot-rg \
+  --query properties.runningStatus
+```
+
+### 2. Rotating Secrets
+
+To rotate secrets (recommended every 90 days for production):
+
+```bash
+# Example: Rotate JWT keys
+# 1. Generate new keys
+ssh-keygen -t rsa -b 4096 -m PEM -f jwt_private_key_new -N ""
+ssh-keygen -f jwt_private_key_new -e -m PKCS8 > jwt_public_key_new
+
+# 2. Update Key Vault secrets
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name jwt-private-key --file jwt_private_key_new
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name jwt-public-key --file jwt_public_key_new
+
+# 3. Restart auth service to pick up new keys
+az containerapp restart --name copilot-auth-dev --resource-group copilot-rg
+
+# 4. Clean up local files
+rm jwt_private_key_new jwt_public_key_new
+```
+
+**Note**: Key Vault automatically versions secrets, so you can roll back if needed:
+
+```bash
+# List secret versions
+az keyvault secret list-versions --vault-name $KEY_VAULT_NAME --name jwt-private-key
+
+# Retrieve a specific version
+az keyvault secret show --vault-name $KEY_VAULT_NAME --name jwt-private-key --version <version-id>
+```
+
+### 3. Verify RBAC Permissions
+
+Ensure managed identities have correct Key Vault access:
+
+```bash
+# Check role assignments for auth service identity
+AUTH_IDENTITY_ID=$(az deployment group show \
+  --name copilot-deployment \
+  --resource-group copilot-rg \
+  --query 'properties.outputs.managedIdentities.value[?name==`auth`].principalId | [0]' -o tsv)
+
+az role assignment list \
+  --assignee $AUTH_IDENTITY_ID \
+  --scope $(az keyvault show --name $KEY_VAULT_NAME --query id -o tsv) \
+  --output table
+```
+
+Expected roles:
+- **Key Vault Secrets User**: Read secrets (if RBAC mode enabled)
+- Or access policies with `get` and `list` permissions (if access policy mode)
+
+### 4. Test Authentication
+
+Get the gateway URL and test the auth service:
+
+```bash
+GATEWAY_URL=$(az deployment group show \
+  --name copilot-deployment \
+  --resource-group copilot-rg \
+  --query properties.outputs.gatewayFqdn.value -o tsv)
+
+echo "Gateway URL: https://$GATEWAY_URL"
+
+# Test health endpoint
+curl https://$GATEWAY_URL/auth/health
+
+# List configured OAuth providers
+curl https://$GATEWAY_URL/auth/providers
+
+# Test JWT public keys endpoint
+curl https://$GATEWAY_URL/auth/.well-known/jwks.json
+```
+
+### 5. Configure OAuth Providers (for Auth Service)
 
 Store OAuth credentials in Key Vault:
 
