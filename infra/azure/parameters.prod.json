@@ -36,10 +36,10 @@
       "value": true
     },
     "vnetAddressPrefix": {
-      "value": "10.0.0.0/16"
+      "value": "10.2.0.0/16"
     },
     "containerAppsSubnetPrefix": {
-      "value": "10.0.0.0/23"
+      "value": "10.2.0.0/23"
     },
     "tags": {
       "value": {
@@ -50,3 +50,4 @@
     }
   }
 }
+

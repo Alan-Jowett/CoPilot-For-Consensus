@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "16648270851024774537"
+      "templateHash": "15244379241240590140"
     },
     "description": "Main orchestration template for Copilot for Consensus Azure deployment",
     "author": "Copilot-for-Consensus Team"
@@ -1349,7 +1349,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "13485128634348745810"
+              "templateHash": "5003508061140394854"
             },
             "description": "Module to provision Container Apps environment and all microservices",
             "author": "Copilot-for-Consensus Team"
@@ -1441,7 +1441,7 @@
               "type": "string",
               "defaultValue": "",
               "metadata": {
-                "description": "Application Insights instrumentation key"
+                "description": "Application Insights instrumentation key for service telemetry"
               }
             },
             "tags": {
@@ -1527,6 +1527,10 @@
                         {
                           "name": "JWT_ALGORITHM",
                           "value": "RS256"
+                        },
+                        {
+                          "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                          "value": "[parameters('appInsightsKey')]"
                         }
                       ],
                       "resources": {
@@ -1591,6 +1595,10 @@
                         {
                           "name": "AUTH_SERVICE_URL",
                           "value": "[format('http://auth:{0}', variables('servicePorts').auth)]"
+                        },
+                        {
+                          "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                          "value": "[parameters('appInsightsKey')]"
                         }
                       ],
                       "resources": {
@@ -1659,6 +1667,10 @@
                         {
                           "name": "AUTH_SERVICE_URL",
                           "value": "[format('http://auth:{0}', variables('servicePorts').auth)]"
+                        },
+                        {
+                          "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                          "value": "[parameters('appInsightsKey')]"
                         }
                       ],
                       "resources": {
@@ -1724,6 +1736,10 @@
                         {
                           "name": "AUTH_SERVICE_URL",
                           "value": "[format('http://auth:{0}', variables('servicePorts').auth)]"
+                        },
+                        {
+                          "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                          "value": "[parameters('appInsightsKey')]"
                         }
                       ],
                       "resources": {
@@ -1789,6 +1805,10 @@
                         {
                           "name": "AUTH_SERVICE_URL",
                           "value": "[format('http://auth:{0}', variables('servicePorts').auth)]"
+                        },
+                        {
+                          "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                          "value": "[parameters('appInsightsKey')]"
                         }
                       ],
                       "resources": {
@@ -1858,6 +1878,10 @@
                         {
                           "name": "AUTH_SERVICE_URL",
                           "value": "[format('http://auth:{0}', variables('servicePorts').auth)]"
+                        },
+                        {
+                          "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                          "value": "[parameters('appInsightsKey')]"
                         }
                       ],
                       "resources": {
@@ -1923,6 +1947,10 @@
                         {
                           "name": "AUTH_SERVICE_URL",
                           "value": "[format('http://auth:{0}', variables('servicePorts').auth)]"
+                        },
+                        {
+                          "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                          "value": "[parameters('appInsightsKey')]"
                         }
                       ],
                       "resources": {
@@ -1996,6 +2024,10 @@
                         {
                           "name": "AUTH_SERVICE_URL",
                           "value": "[format('http://auth:{0}', variables('servicePorts').auth)]"
+                        },
+                        {
+                          "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                          "value": "[parameters('appInsightsKey')]"
                         }
                       ],
                       "resources": {
@@ -2053,6 +2085,10 @@
                         {
                           "name": "REACT_APP_API_BASE_URL",
                           "value": "/api"
+                        },
+                        {
+                          "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                          "value": "[parameters('appInsightsKey')]"
                         }
                       ],
                       "resources": {
@@ -2122,6 +2158,10 @@
                         {
                           "name": "UPSTREAM_UI",
                           "value": "[format('http://ui:{0}', variables('servicePorts').ui)]"
+                        },
+                        {
+                          "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                          "value": "[parameters('appInsightsKey')]"
                         }
                       ],
                       "resources": {
