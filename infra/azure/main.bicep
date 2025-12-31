@@ -76,7 +76,7 @@ param enableMultiRegionCosmos bool = false
 
 @description('Grafana admin username for monitoring dashboards (optional, stored in Key Vault)')
 @secure()
-param grafanaAdminUser string = 'admin'
+param grafanaAdminUser string = ''
 
 @description('Grafana admin password for monitoring dashboards (optional, stored in Key Vault)')
 @secure()
@@ -284,10 +284,11 @@ resource appInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@20
 // Store Grafana admin credentials in Key Vault
 // These are used when Grafana is deployed as a Container App for monitoring dashboards
 // Credentials can be rotated by updating the secrets in Key Vault and restarting the Grafana Container App
+// Default to 'admin' username if not provided
 resource grafanaAdminUserSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   name: '${keyVaultName}/grafana-admin-user'
   properties: {
-    value: grafanaAdminUser
+    value: grafanaAdminUser != '' ? grafanaAdminUser : 'admin'
     contentType: 'text/plain'
   }
 }
