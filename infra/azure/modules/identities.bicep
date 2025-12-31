@@ -30,6 +30,21 @@ output identityPrincipalIds array = [
   for (service, idx) in services: managedIdentities[idx].properties.principalId
 ]
 
+// Named map of principal IDs to avoid fragile index-based references in downstream modules
+output identityPrincipalIdsByName object = {
+  ingestion: managedIdentities[0].properties.principalId
+  parsing: managedIdentities[1].properties.principalId
+  chunking: managedIdentities[2].properties.principalId
+  embedding: managedIdentities[3].properties.principalId
+  orchestrator: managedIdentities[4].properties.principalId
+  summarization: managedIdentities[5].properties.principalId
+  reporting: managedIdentities[6].properties.principalId
+  auth: managedIdentities[7].properties.principalId
+  ui: managedIdentities[8].properties.principalId
+  gateway: managedIdentities[9].properties.principalId
+  openai: managedIdentities[10].properties.principalId
+}
+
 // IMPORTANT: The order of the services array must not change, as downstream
 // modules depend on this specific mapping of service names to identity resource IDs
 output identityResourceIds object = {

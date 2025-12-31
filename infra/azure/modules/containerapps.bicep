@@ -56,7 +56,8 @@ var uniqueSuffix = uniqueString(resourceGroup().id)
 var projectPrefix = take(replace(projectName, '-', ''), 8)
 var caEnvName = '${projectPrefix}-env-${environment}-${take(uniqueSuffix, 5)}'
 
-// Service port mappings (internal only except gateway)
+// Service port mappings (internal container listen ports)
+// Note: Gateway uses 8080 internally; Container Apps platform handles TLS termination and exposes externally on 443
 var servicePorts = {
   auth: 8090
   reporting: 8080
@@ -67,7 +68,7 @@ var servicePorts = {
   orchestrator: 8000
   summarization: 8000
   ui: 3000
-  gateway: 443
+  gateway: 8080
 }
 
 // Container Apps Environment (VNet-integrated, consumption tier for dev)
@@ -292,6 +293,10 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
               value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
+            {
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
           ]
           resources: {
             cpu: json('0.5')
@@ -366,6 +371,10 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
               value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
+            {
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
           ]
           resources: {
             cpu: json('0.5')
@@ -439,6 +448,10 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
               value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
+            }
+            {
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
             }
           ]
           resources: {
@@ -526,6 +539,10 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
               value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
+            {
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
           ]
           resources: {
             cpu: json('1')
@@ -599,6 +616,10 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
               value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
+            }
+            {
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
             }
           ]
           resources: {
@@ -682,6 +703,10 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
               value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
+            {
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
           ]
           resources: {
             cpu: json('0.5')
@@ -739,6 +764,10 @@ resource uiApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
               value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
+            }
+            {
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
             }
           ]
           resources: {
@@ -809,6 +838,10 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
               value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
+            }
+            {
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
             }
           ]
           resources: {

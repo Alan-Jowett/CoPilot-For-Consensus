@@ -60,5 +60,5 @@ output appInsightsId string = appInsights.id
 @description('Log Analytics Workspace ID')
 output workspaceId string = logAnalyticsWorkspace.id
 
-@description('Log Analytics Workspace customerId (GUID) - store in Key Vault, do not pass as plaintext')
+@description('Log Analytics Workspace customerId (GUID) - workspace identifier for Container Apps log analytics configuration')
 output workspaceCustomerId string = logAnalyticsWorkspace.properties.customerId

@@ -97,7 +97,7 @@ All Container Apps use **user-assigned managed identities** for service-to-servi
 ### Network Security
 
 - **VNet Integration**: Container Apps are deployed to a managed VNet for improved isolation
-- **Gateway TLS**: External gateway ingress enforces HTTPS-only (`allowInsecure: false`)
+- **Gateway TLS**: Container Apps platform handles TLS termination; external ingress is HTTPS-only (443 → 8080 internally, `allowInsecure: false`)
 - **Internal DNS**: Services communicate via internal DNS using full container app names (e.g., `copilot-auth-dev:8090`)
 - **Private Network Access**: Recommended configuration for production:
   - Azure OpenAI: Public endpoint with IP allowlisting (configure `azureOpenAIAllowedCidrs`)

@@ -208,7 +208,7 @@ module aiSearchModule 'modules/aisearch.bicep' = if (deployContainerApps) {
     location: location
     serviceName: aiSearchServiceName
     sku: environment == 'prod' ? 'standard' : 'basic'
-    embeddingServicePrincipalId: identitiesModule.outputs.identityPrincipalIds[3]  // embedding is at index 3 in services array
+    embeddingServicePrincipalId: identitiesModule.outputs.identityPrincipalIdsByName.embedding  // use named mapping to avoid fragile index coupling
     enablePublicNetworkAccess: environment != 'prod'  // Disable for production (Private Link), enable for dev/staging
     tags: tags
   }
@@ -257,6 +257,10 @@ module vnetModule 'modules/vnet.bicep' = if (deployContainerApps) {
 }
 
 // Module: Container Apps (VNet and 10 microservices)
+// IMPORTANT: This module uses non-null assertions (!) for outputs from vnetModule, appInsightsModule,
+// aiSearchModule, and Key Vault secrets. These assertions are safe ONLY because this module has the same
+// conditional guard (if (deployContainerApps)) as those resources. Changing this condition independently
+// will cause deployment failures. Keep all Container Apps-related conditionals synchronized.
 module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerApps) {
   name: 'containerAppsDeployment'
   params: {
@@ -304,11 +308,12 @@ output aiSearchServiceName string = deployContainerApps ? aiSearchModule!.output
 output aiSearchEndpoint string = deployContainerApps ? aiSearchModule!.outputs.endpoint : ''
 output aiSearchServiceId string = deployContainerApps ? aiSearchModule!.outputs.serviceId : ''
 output appInsightsId string = deployContainerApps ? appInsightsModule!.outputs.appInsightsId : ''
-output containerAppsEnvId string = deployContainerApps ? containerAppsModule.outputs.containerAppsEnvId : ''
-output gatewayFqdn string = deployContainerApps ? containerAppsModule.outputs.gatewayFqdn : ''
-output containerAppIds object = deployContainerApps ? containerAppsModule.outputs.appIds : {}
-output vnetId string = deployContainerApps ? vnetModule.outputs.vnetId : ''
+output containerAppsEnvId string = deployContainerApps ? containerAppsModule!.outputs.containerAppsEnvId : ''
+output gatewayFqdn string = deployContainerApps ? containerAppsModule!.outputs.gatewayFqdn : ''
+output containerAppIds object = deployContainerApps ? containerAppsModule!.outputs.appIds : {}
+output vnetId string = deployContainerApps ? vnetModule!.outputs.vnetId : ''
 output resourceGroupName string = resourceGroup().name
 output location string = location
 output environment string = environment
 output deploymentId string = deployment().name
+
