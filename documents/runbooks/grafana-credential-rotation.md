@@ -46,7 +46,8 @@ Grafana admin credentials should be rotated regularly as part of security best p
    echo "$NEW_PASSWORD"
    
    # For PowerShell on Windows
-   $NEW_PASSWORD = -join ((65..90) + (97..122) + (48..57) + (33,35,36,37,38,42,43) | Get-Random -Count 20 | % {[char]$_})
+   # Generate a 24-character password using uppercase, lowercase, digits, and special characters
+   $NEW_PASSWORD = -join ((65..90) + (97..122) + (48..57) + (33,35,36,37,38,42,43) | Get-Random -Count 24 | % {[char]$_})
    $NEW_PASSWORD
    ```
 
@@ -157,7 +158,8 @@ Grafana admin credentials should be rotated regularly as part of security best p
    ```powershell
    $KV_NAME = "<your-keyvault-name>"
    
-   # Generate and set new password
+   # Generate a 24-character password using uppercase, lowercase, digits, and special characters
+   # Character ranges: 65-90 (A-Z), 97-122 (a-z), 48-57 (0-9), special chars (!#$%&*+)
    $NEW_PASSWORD = -join ((65..90) + (97..122) + (48..57) + (33,35,36,37,38,42,43) | Get-Random -Count 24 | % {[char]$_})
    az keyvault secret set --vault-name $KV_NAME --name grafana-admin-user --value "admin"
    az keyvault secret set --vault-name $KV_NAME --name grafana-admin-password --value $NEW_PASSWORD

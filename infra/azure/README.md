@@ -657,7 +657,8 @@ echo "Grafana admin password: $GRAFANA_PASSWORD"
 # Set Grafana admin username
 az keyvault secret set --vault-name $KEY_VAULT_NAME --name grafana-admin-user --value "admin"
 
-# Generate and set a strong admin password
+# Generate a 24-character password using uppercase, lowercase, digits, and special characters
+# Character ranges: 65-90 (A-Z), 97-122 (a-z), 48-57 (0-9), special chars (!#$%&*+)
 $GRAFANA_PASSWORD = -join ((65..90) + (97..122) + (48..57) + (33,35,36,37,38,42,43) | Get-Random -Count 24 | % {[char]$_})
 az keyvault secret set --vault-name $KEY_VAULT_NAME --name grafana-admin-password --value $GRAFANA_PASSWORD
 
