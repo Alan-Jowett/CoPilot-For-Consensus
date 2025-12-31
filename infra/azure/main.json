@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "3632196995826274319"
+      "templateHash": "17431679878344112066"
     },
     "description": "Main orchestration template for Copilot for Consensus Azure deployment",
     "author": "Copilot-for-Consensus Team"
@@ -459,7 +459,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "6808508775483418433"
+              "templateHash": "14934562744634491275"
             }
           },
           "parameters": {
@@ -646,13 +646,6 @@
                 "count": "[length(variables('queueDefinitions'))]",
                 "input": "[variables('queueDefinitions')[copyIndex()]]"
               }
-            },
-            "connectionString": {
-              "type": "string",
-              "metadata": {
-                "description": "Service Bus namespace connection string for managed identity auth"
-              },
-              "value": "[format('Endpoint=sb://{0}.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey={1}', parameters('namespaceName'), listKeys(format('{0}/AuthorizationRules/RootManageSharedAccessKey', resourceId('Microsoft.ServiceBus/namespaces', parameters('namespaceName'))), '2022-10-01-preview').primaryKey)]"
             }
           }
         }
