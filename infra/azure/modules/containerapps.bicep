@@ -209,7 +209,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'AUTH_SERVICE_URL'
-              value: 'http://auth:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -286,7 +286,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'AUTH_SERVICE_URL'
-              value: 'http://auth:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -360,7 +360,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'AUTH_SERVICE_URL'
-              value: 'http://auth:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -434,7 +434,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'AUTH_SERVICE_URL'
-              value: 'http://auth:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -520,7 +520,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'AUTH_SERVICE_URL'
-              value: 'http://auth:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -594,7 +594,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'AUTH_SERVICE_URL'
-              value: 'http://auth:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -676,7 +676,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'AUTH_SERVICE_URL'
-              value: 'http://auth:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -792,19 +792,19 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'UPSTREAM_AUTH'
-              value: 'http://auth:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
             }
             {
               name: 'UPSTREAM_REPORTING'
-              value: 'http://reporting:${servicePorts.reporting}'
+              value: 'http://${projectPrefix}-reporting-${environment}:${servicePorts.reporting}'
             }
             {
               name: 'UPSTREAM_INGESTION'
-              value: 'http://ingestion:${servicePorts.ingestion}'
+              value: 'http://${projectPrefix}-ingestion-${environment}:${servicePorts.ingestion}'
             }
             {
               name: 'UPSTREAM_UI'
-              value: 'http://ui:${servicePorts.ui}'
+              value: 'http://${projectPrefix}-ui-${environment}:${servicePorts.ui}'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
