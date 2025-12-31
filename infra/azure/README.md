@@ -682,23 +682,55 @@ curl https://$GATEWAY_URL/auth/.well-known/jwks.json
 
 ### 5. Configure OAuth Providers (for Auth Service)
 
-Store OAuth credentials in Key Vault:
+#### Automated Microsoft OAuth (Recommended)
+
+The deployment includes automated Microsoft Entra (Azure AD) app registration for OAuth. See [ENTRA_APP_AUTOMATION.md](ENTRA_APP_AUTOMATION.md) for complete setup instructions.
+
+Quick start (two-stage deployment):
+```bash
+# Stage 1: Deploy without Entra app to get gateway FQDN
+az deployment group create \
+  --resource-group copilot-rg \
+  --template-file main.bicep \
+  --parameters @parameters.dev.json \
+  --parameters deployEntraApp=false
+
+# Get gateway FQDN
+GATEWAY_FQDN=$(az deployment group show \
+  --name copilot-deployment \
+  --resource-group copilot-rg \
+  --query properties.outputs.gatewayFqdn.value -o tsv)
+
+# Stage 2: Deploy with Entra app
+az deployment group create \
+  --resource-group copilot-rg \
+  --template-file main.bicep \
+  --parameters @parameters.dev.json \
+  --parameters deployEntraApp=true \
+  --parameters oauthRedirectUris="[\"https://$GATEWAY_FQDN/auth/callback\"]"
+```
+
+#### Manual OAuth Provider Setup
+
+For GitHub and Google OAuth, or manual Microsoft OAuth setup, store credentials in Key Vault:
 
 ```bash
 # Get Key Vault name from deployment outputs
 KEY_VAULT_NAME=$(az deployment group show \
   --name copilot-deployment \
   --resource-group copilot-rg \
-  --query properties.outputs.keyVaultUri.value -o tsv | sed 's|https://||' | sed 's|.vault.azure.net/||')
+  --query properties.outputs.keyVaultName.value -o tsv)
 
 # Add GitHub OAuth secrets
 az keyvault secret set --vault-name $KEY_VAULT_NAME --name github-oauth-client-id --value "YOUR_GITHUB_CLIENT_ID"
 az keyvault secret set --vault-name $KEY_VAULT_NAME --name github-oauth-client-secret --value "YOUR_GITHUB_CLIENT_SECRET"
 
 # Add Google OAuth secrets
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name google-oauth-client-id --value "YOUR_GOOGLE_CLIENT_ID"
 az keyvault secret set --vault-name $KEY_VAULT_NAME --name google-oauth-client-secret --value "YOUR_GOOGLE_CLIENT_SECRET"
 
-# Add Microsoft OAuth secrets
+# Manual Microsoft OAuth (if not using automation)
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name microsoft-oauth-client-id --value "YOUR_MICROSOFT_CLIENT_ID"
 az keyvault secret set --vault-name $KEY_VAULT_NAME --name microsoft-oauth-client-secret --value "YOUR_MICROSOFT_CLIENT_SECRET"
 ```
 
