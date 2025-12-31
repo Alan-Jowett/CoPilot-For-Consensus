@@ -233,14 +233,11 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     containerImageTag: containerImageTag
     identityResourceIds: identitiesModule.outputs.identityResourceIds
     azureOpenAIEndpoint: deployAzureOpenAI ? openaiModule!.outputs.accountEndpoint : ''
-    azureOpenAIAccountId: deployAzureOpenAI ? openaiModule!.outputs.accountId : ''
-    vnetId: vnetModule.outputs.vnetId
     subnetId: vnetModule.outputs.containerAppsSubnetId
-    keyVaultUri: keyVaultModule.outputs.keyVaultUri
     appInsightsKey: appInsightsModule.outputs.instrumentationKey
     appInsightsConnectionString: appInsightsModule.outputs.connectionString
+    logAnalyticsWorkspaceId: appInsightsModule.outputs.workspaceId
     logAnalyticsCustomerId: appInsightsModule.outputs.workspaceCustomerId
-    logAnalyticsSharedKey: appInsightsModule.outputs.workspaceSharedKey
     tags: tags
   }
 }

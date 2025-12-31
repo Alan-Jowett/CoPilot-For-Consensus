@@ -25,19 +25,8 @@ param identityResourceIds object
 @description('Azure OpenAI endpoint URL')
 param azureOpenAIEndpoint string = ''
 
-#disable-next-line no-unused-params
-@description('Azure OpenAI account resource ID (not a secret key)')
-param azureOpenAIAccountId string = ''
-
-#disable-next-line no-unused-params
-@description('Virtual Network ID for Container Apps integration')
-param vnetId string
-
 @description('Container Apps subnet ID')
 param subnetId string
-
-@description('Key Vault URI for secret references')
-param keyVaultUri string
 
 @description('Application Insights instrumentation key for service telemetry')
 param appInsightsKey string = ''
@@ -45,11 +34,11 @@ param appInsightsKey string = ''
 @description('Application Insights connection string for service telemetry')
 param appInsightsConnectionString string = ''
 
+@description('Log Analytics workspace resource ID')
+param logAnalyticsWorkspaceId string
+
 @description('Log Analytics workspace customerId (GUID)')
 param logAnalyticsCustomerId string
-
-@description('Log Analytics workspace primary shared key')
-param logAnalyticsSharedKey string
 
 param tags object = {}
 
@@ -92,7 +81,7 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
       destination: 'log-analytics'
       logAnalyticsConfiguration: {
         customerId: logAnalyticsCustomerId
-        sharedKey: logAnalyticsSharedKey
+        sharedKey: listKeys(logAnalyticsWorkspaceId, '2021-12-01-preview').primarySharedKey
       }
     }
   }

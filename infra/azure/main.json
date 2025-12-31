@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "756763422909604523"
+      "templateHash": "4816879077873533370"
     },
     "description": "Main orchestration template for Copilot for Consensus Azure deployment",
     "author": "Copilot-for-Consensus Team"
@@ -1182,7 +1182,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "6416005725683192876"
+              "templateHash": "9111827924300638770"
             },
             "description": "Module to provision Application Insights for monitoring",
             "author": "Copilot-for-Consensus Team"
@@ -1284,13 +1284,6 @@
                 "description": "Log Analytics Workspace customerId (GUID)"
               },
               "value": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', variables('lawName')), '2021-12-01-preview').customerId]"
-            },
-            "workspaceSharedKey": {
-              "type": "string",
-              "metadata": {
-                "description": "Log Analytics Workspace primary shared key"
-              },
-              "value": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', variables('lawName')), '2021-12-01-preview').primarySharedKey]"
             }
           }
         }
@@ -1470,15 +1463,8 @@
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'identitiesDeployment'), '2025-04-01').outputs.identityResourceIds.value]"
           },
           "azureOpenAIEndpoint": "[if(parameters('deployAzureOpenAI'), createObject('value', reference(resourceId('Microsoft.Resources/deployments', 'openaiDeployment'), '2025-04-01').outputs.accountEndpoint.value), createObject('value', ''))]",
-          "azureOpenAIAccountId": "[if(parameters('deployAzureOpenAI'), createObject('value', reference(resourceId('Microsoft.Resources/deployments', 'openaiDeployment'), '2025-04-01').outputs.accountId.value), createObject('value', ''))]",
-          "vnetId": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'vnetDeployment'), '2025-04-01').outputs.vnetId.value]"
-          },
           "subnetId": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'vnetDeployment'), '2025-04-01').outputs.containerAppsSubnetId.value]"
-          },
-          "keyVaultUri": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyVaultDeployment'), '2025-04-01').outputs.keyVaultUri.value]"
           },
           "appInsightsKey": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'appInsightsDeployment'), '2025-04-01').outputs.instrumentationKey.value]"
@@ -1486,11 +1472,11 @@
           "appInsightsConnectionString": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'appInsightsDeployment'), '2025-04-01').outputs.connectionString.value]"
           },
+          "logAnalyticsWorkspaceId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'appInsightsDeployment'), '2025-04-01').outputs.workspaceId.value]"
+          },
           "logAnalyticsCustomerId": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'appInsightsDeployment'), '2025-04-01').outputs.workspaceCustomerId.value]"
-          },
-          "logAnalyticsSharedKey": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'appInsightsDeployment'), '2025-04-01').outputs.workspaceSharedKey.value]"
           },
           "tags": {
             "value": "[parameters('tags')]"
@@ -1503,7 +1489,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "9640117792028008853"
+              "templateHash": "3737973016132270894"
             },
             "description": "Module to provision Container Apps environment and all microservices",
             "author": "Copilot-for-Consensus Team"
@@ -1554,29 +1540,10 @@
                 "description": "Azure OpenAI endpoint URL"
               }
             },
-            "azureOpenAIAccountId": {
-              "type": "string",
-              "defaultValue": "",
-              "metadata": {
-                "description": "Azure OpenAI account resource ID (not a secret key)"
-              }
-            },
-            "vnetId": {
-              "type": "string",
-              "metadata": {
-                "description": "Virtual Network ID for Container Apps integration"
-              }
-            },
             "subnetId": {
               "type": "string",
               "metadata": {
                 "description": "Container Apps subnet ID"
-              }
-            },
-            "keyVaultUri": {
-              "type": "string",
-              "metadata": {
-                "description": "Key Vault URI for secret references"
               }
             },
             "appInsightsKey": {
@@ -1593,16 +1560,16 @@
                 "description": "Application Insights connection string for service telemetry"
               }
             },
+            "logAnalyticsWorkspaceId": {
+              "type": "string",
+              "metadata": {
+                "description": "Log Analytics workspace resource ID"
+              }
+            },
             "logAnalyticsCustomerId": {
               "type": "string",
               "metadata": {
                 "description": "Log Analytics workspace customerId (GUID)"
-              }
-            },
-            "logAnalyticsSharedKey": {
-              "type": "string",
-              "metadata": {
-                "description": "Log Analytics workspace primary shared key"
               }
             },
             "tags": {
@@ -1649,7 +1616,7 @@
                   "destination": "log-analytics",
                   "logAnalyticsConfiguration": {
                     "customerId": "[parameters('logAnalyticsCustomerId')]",
-                    "sharedKey": "[parameters('logAnalyticsSharedKey')]"
+                    "sharedKey": "[listKeys(parameters('logAnalyticsWorkspaceId'), '2021-12-01-preview').primarySharedKey]"
                   }
                 }
               }
@@ -2393,7 +2360,6 @@
       "dependsOn": [
         "[resourceId('Microsoft.Resources/deployments', 'appInsightsDeployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'identitiesDeployment')]",
-        "[resourceId('Microsoft.Resources/deployments', 'keyVaultDeployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'openaiDeployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'vnetDeployment')]"
       ]
