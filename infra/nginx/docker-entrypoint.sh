@@ -49,7 +49,7 @@ if [ "$ENABLE_INTERNAL_TLS" = "true" ]; then
     sed -i '/__TLS_START__/,/__TLS_END__/s/^#//g' "$NGINX_CONF"
     sed -i '/__TLS_START__/d; /__TLS_END__/d' "$NGINX_CONF"
 else
-    echo "ENABLE_INTERNAL_TLS is false; serving HTTP on port 8080 with ACA-managed TLS termination."
+    echo "ENABLE_INTERNAL_TLS is false; serving HTTP on port 8080 with Azure Container Apps (ACA) managed TLS termination."
 fi
 
 echo "✓ Configuration complete - starting nginx"
