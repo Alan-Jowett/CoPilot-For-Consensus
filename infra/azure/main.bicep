@@ -80,6 +80,9 @@ param tags object = {
   createdBy: 'bicep'
 }
 
+@description('Force tag to rerun JWT key generation script each deployment')
+param jwtForceUpdateTag string = utcNow()
+
 // Service names for identity assignment
 var services = [
   'ingestion'
@@ -120,6 +123,7 @@ var projectPrefix = take(replace(projectName, '-', ''), 8)
 // Key Vault name must be 3-24 characters, globally unique
 var keyVaultName = '${projectPrefix}kv${take(uniqueSuffix, 13)}'
 var identityPrefix = '${projectName}-${environment}'
+var jwtKeysIdentityName = '${identityPrefix}-jwtkeys-id'
 
 // Module: User-Assigned Managed Identities
 module identitiesModule 'modules/identities.bicep' = {
@@ -140,10 +144,18 @@ module keyVaultModule 'modules/keyvault.bicep' = {
     keyVaultName: keyVaultName
     tenantId: subscription().tenantId
     managedIdentityPrincipalIds: identitiesModule.outputs.identityPrincipalIds
+    secretWriterPrincipalIds: deployContainerApps ? [jwtKeysIdentity!.properties.principalId] : []
     enablePublicNetworkAccess: true  // Set to false for production with Private Link
     enableRbacAuthorization: false  // TODO: Migrate to true in future PRs (#2-5) when services use Azure RBAC role assignments
     tags: tags
   }
+}
+
+// Dedicated identity to set JWT secrets in Key Vault during deployment
+resource jwtKeysIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = if (deployContainerApps) {
+  name: jwtKeysIdentityName
+  location: location
+  tags: tags
 }
 
 // Variable for Service Bus namespace name (must be globally unique)
@@ -230,15 +242,30 @@ module appInsightsModule 'modules/appinsights.bicep' = if (deployContainerApps) 
 resource appInsightsInstrKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps) {
   name: '${keyVaultName}/appinsights-instrumentation-key'
   properties: {
-    value: appInsightsModule.outputs.instrumentationKey
+    value: appInsightsModule!.outputs.instrumentationKey
     contentType: 'text/plain'
   }
+}
+
+// Module: Generate per-deployment JWT keys and store in Key Vault
+module jwtKeysModule 'modules/jwtkeys.bicep' = if (deployContainerApps) {
+  name: 'jwtKeysDeployment'
+  params: {
+    location: location
+    keyVaultName: keyVaultName
+    scriptIdentityId: jwtKeysIdentity!.id
+    forceUpdateTag: jwtForceUpdateTag
+    tags: tags
+  }
+  dependsOn: [
+    keyVaultModule
+  ]
 }
 
 resource appInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps) {
   name: '${keyVaultName}/appinsights-connection-string'
   properties: {
-    value: appInsightsModule.outputs.connectionString
+    value: appInsightsModule!.outputs.connectionString
     contentType: 'text/plain'
   }
 }
@@ -279,6 +306,8 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     appInsightsConnectionStringSecretUri: appInsightsConnectionStringSecret!.properties.secretUriWithVersion
     logAnalyticsWorkspaceId: appInsightsModule!.outputs.workspaceId
     logAnalyticsCustomerId: appInsightsModule!.outputs.workspaceCustomerId
+    jwtPrivateKeySecretUri: jwtKeysModule!.outputs.jwtPrivateSecretUri
+    jwtPublicKeySecretUri: jwtKeysModule!.outputs.jwtPublicSecretUri
     tags: tags
   }
 }

@@ -37,6 +37,12 @@ param cosmosDbEndpoint string = ''
 @description('Container Apps subnet ID')
 param subnetId string
 
+@description('Key Vault secret URI for JWT private key (RS256)')
+param jwtPrivateKeySecretUri string = ''
+
+@description('Key Vault secret URI for JWT public key (RS256)')
+param jwtPublicKeySecretUri string = ''
+
 @description('Application Insights instrumentation key secret URI (from Key Vault)')
 param appInsightsKeySecretUri string = ''
 
@@ -135,6 +141,14 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'JWT_ALGORITHM'
               value: 'RS256'
+            }
+            {
+              name: 'JWT_PRIVATE_KEY'
+              value: jwtPrivateKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${jwtPrivateKeySecretUri})' : ''
+            }
+            {
+              name: 'JWT_PUBLIC_KEY'
+              value: jwtPublicKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${jwtPublicKeySecretUri})' : ''
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
