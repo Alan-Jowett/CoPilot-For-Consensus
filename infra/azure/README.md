@@ -238,36 +238,31 @@ git clone https://github.com/Alan-Jowett/CoPilot-For-Consensus.git
 cd CoPilot-For-Consensus/infra/azure
 ```
 
-### 2. Configure Parameters
+### 2. Review and Adjust Parameters (Optional)
 
-Edit the environment parameter file (e.g., `parameters.dev.json`) to set your configuration:
+The repository includes pre-configured parameter files for each environment that are ready to use:
+- `parameters.dev.json` - Development environment (minimal cost)
+- `parameters.staging.json` - Staging environment (balanced)
+- `parameters.prod.json` - Production environment (high availability)
 
-```json
-{
-  "projectName": { "value": "copilot" },
-  "environment": { "value": "dev" },
-  "mongoDbConnectionString": { "value": "YOUR_MONGODB_CONNECTION_STRING" },
-  "serviceBusConnectionString": { "value": "YOUR_SERVICEBUS_CONNECTION_STRING" },
-  "storageAccountConnectionString": { "value": "YOUR_STORAGE_CONNECTION_STRING" },
-  "azureOpenAIEndpoint": { "value": "YOUR_AZURE_OPENAI_ENDPOINT" },
-  "azureOpenAIKey": { "value": "YOUR_AZURE_OPENAI_KEY" }
-}
-```
-
-**Security Note**: For production, use Azure Key Vault references instead of plain text secrets:
+**These parameter files are pre-configured and ready to deploy.** However, you can customize them if needed:
 
 ```json
 {
-  "mongoDbConnectionString": {
-    "reference": {
-      "keyVault": {
-        "id": "/subscriptions/.../resourceGroups/.../providers/Microsoft.KeyVault/vaults/my-keyvault"
-      },
-      "secretName": "mongodb-connection-string"
-    }
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "projectName": { "value": "copilot" },
+    "environment": { "value": "dev" },
+    "location": { "value": "westus" },
+    "containerImageTag": { "value": "latest" },
+    "deployAzureOpenAI": { "value": true },
+    "azureOpenAIDeploymentCapacity": { "value": 10 }
   }
 }
 ```
+
+**Note**: All infrastructure (Cosmos DB, Service Bus, Azure OpenAI, Key Vault, etc.) is provisioned by the Bicep template. You don't need to create these resources separately or provide connection strings.
 
 ### 3. Deploy Using Bash Script (Linux/macOS/WSL)
 
@@ -289,28 +284,50 @@ Connect-AzAccount
 .\deploy.ps1 -ResourceGroup "copilot-rg" -Location "eastus" -Environment "dev" -ImageTag "latest"
 ```
 
-### 5. Deploy Using Azure CLI Directly
+### 5. Deploy Using Azure CLI Directly (Canonical Command)
+
+This is the recommended deployment method for manual deployments:
 
 ```bash
 # Login to Azure
 az login
 
-# Create resource group
-az group create --name copilot-rg --location eastus
+# Set variables for your deployment
+RESOURCE_GROUP="copilot-rg"
+LOCATION="eastus"
+ENVIRONMENT="dev"  # or "staging" or "prod"
 
-# Validate template
+# Create resource group if it doesn't exist
+az group create --name $RESOURCE_GROUP --location $LOCATION
+
+# Validate template before deployment (recommended)
 az deployment group validate \
-  --resource-group copilot-rg \
+  --resource-group $RESOURCE_GROUP \
   --template-file main.bicep \
-  --parameters @parameters.dev.json
+  --parameters @parameters.$ENVIRONMENT.json
 
-# Deploy
-az deployment group create \
-  --name copilot-deployment \
-  --resource-group copilot-rg \
+# Deploy with what-if to preview changes (optional but recommended)
+az deployment group what-if \
+  --resource-group $RESOURCE_GROUP \
   --template-file main.bicep \
-  --parameters @parameters.dev.json
+  --parameters @parameters.$ENVIRONMENT.json
+
+# Deploy the template
+az deployment group create \
+  --name "copilot-deployment-$(date +%Y%m%d-%H%M%S)" \
+  --resource-group $RESOURCE_GROUP \
+  --template-file main.bicep \
+  --parameters @parameters.$ENVIRONMENT.json \
+  --verbose
 ```
+
+**Key Points:**
+- Always run `validate` before deploying to catch errors early
+- Use `what-if` to preview changes without making any modifications
+- Use timestamped deployment names for easier tracking and rollback
+- The `--verbose` flag provides detailed deployment progress
+
+**For CI/CD pipelines**, use the same commands but add `--output json` for structured output and error handling.
 
 ## Configuration
 
@@ -319,44 +336,78 @@ az deployment group create \
 The repository includes pre-configured parameter files for each environment:
 
 - **`parameters.dev.json`** - Development environment (low cost)
-  - Uses minimal SKUs (Standard Service Bus, 1000-2000 RU Cosmos autoscale)
-  - Single-region deployment
-  - Public network access enabled (for quick testing)
+  - Azure OpenAI: Standard deployment, 10 TPM capacity
+  - Cosmos DB: 400-1000 RU autoscale, single region
+  - Service Bus: Standard tier
+  - Location: `westus`
+  - Public network access enabled
 
 - **`parameters.staging.json`** - Staging/pre-production environment (balanced)
-  - Medium SKUs (Standard Service Bus, 1000-2000 RU Cosmos autoscale)
-  - Single-region deployment
+  - Azure OpenAI: GlobalStandard deployment, 30 TPM capacity
+  - Cosmos DB: 1000-2000 RU autoscale, single region
+  - Service Bus: Standard tier
+  - Location: `eastus`
   - For pre-release testing
 
 - **`parameters.prod.json`** - Production environment (high availability)
-  - Premium SKUs (Premium Service Bus, higher Cosmos RU limits)
-  - Multi-region deployment (optional, via `enableMultiRegionCosmos`)
-  - Public network access disabled (requires Private Link)
+  - Azure OpenAI: GlobalStandard deployment, 100 TPM capacity
+  - Cosmos DB: 2000-4000 RU autoscale, multi-region enabled
+  - Service Bus: Premium tier
+  - Location: `westus`
+  - Enhanced throughput and availability
 
 **Alignment:** Environment names (`dev`, `staging`, `prod`) align with existing deployment conventions across Bicep and documentation.
 
-### Required Parameters
+### Parameters Reference
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `mongoDbConnectionString` | securestring | MongoDB or Cosmos DB connection string |
-| `storageAccountConnectionString` | securestring | Azure Storage connection string |
+All parameters are configurable via the environment-specific parameter files (`parameters.dev.json`, `parameters.staging.json`, `parameters.prod.json`).
 
-### Optional Parameters
+#### Core Parameters
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `projectName` | string | `copilot` | Prefix for resource names (3-15 chars) |
-| `environment` | string | `dev` | Environment: dev, staging, or prod |
-| `location` | string | Resource group location | Azure region for resources |
-| `deploymentMode` | string | `admin` | Deployment mode: admin or managedIdentity |
-| `containerRegistryName` | string | `ghcr.io/alan-jowett/copilot-for-consensus` | Container registry URL |
-| `containerImageTag` | string | `latest` | Container image tag |
-| `createNewIdentities` | bool | `true` | Create new managed identities or use existing |
-| `existingIdentityResourceIds` | object | `{}` | Existing identity resource IDs (if createNewIdentities is false) |
-| `llmBackend` | string | `azure` | LLM backend: local, azure, or mock |
-| `azureOpenAIEndpoint` | string | `` | Azure OpenAI endpoint URL (required if llmBackend is azure) |
-| `azureOpenAIKey` | securestring | `` | Azure OpenAI API key (required if llmBackend is azure) |
+| `projectName` | string | `copilot` | Prefix for resource names (3-15 chars, alphanumeric only) |
+| `environment` | string | `dev` | Environment name: `dev`, `staging`, or `prod` |
+| `location` | string | `westus` | Azure region for resource deployment |
+| `containerImageTag` | string | `latest` | Container image tag to deploy |
+| `tags` | object | `{}` | Tags to apply to all Azure resources |
+
+#### Azure OpenAI Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `deployAzureOpenAI` | bool | `true` | Whether to deploy Azure OpenAI service |
+| `azureOpenAISku` | string | `S0` | SKU for Azure OpenAI (only `S0` is currently supported) |
+| `azureOpenAIDeploymentSku` | string | `GlobalStandard` | Deployment SKU: `Standard` or `GlobalStandard` (global load balancing). `GlobalStandard` is the main.bicep default; environment parameter files may override this (for example, `parameters.dev.json` uses `Standard` for cost savings). |
+| `azureOpenAIModelVersion` | string | `2024-11-20` | GPT-4o model version: `2024-05-13`, `2024-08-06`, or `2024-11-20` |
+| `azureOpenAIDeploymentCapacity` | int | `10` | Deployment capacity in thousands of tokens per minute (1-1000 TPM). Defaults by environment: dev `10`, staging `30`, prod `100`. |
+| `azureOpenAIAllowedCidrs` | array | `[]` | IPv4 CIDR allowlist for public network access (e.g., `["203.0.113.0/24"]`) |
+
+**Environment-specific recommendations:**
+- **Dev**: Use `Standard` SKU with capacity `10` for cost savings
+- **Staging**: Use `GlobalStandard` SKU with capacity `30` for regional load balancing
+- **Prod**: Use `GlobalStandard` SKU with capacity `100` (or higher as needed) for high availability
+
+#### Cosmos DB Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `cosmosDbAutoscaleMinRu` | int | `400` | Minimum RU/s for autoscale (400-1000000) |
+| `cosmosDbAutoscaleMaxRu` | int | `1000` | Maximum RU/s for autoscale (400-1000000, must be >= min) |
+| `enableMultiRegionCosmos` | bool | `false` | Enable multi-region deployment with automatic failover |
+
+#### Service Bus Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `serviceBusSku` | string | `Standard` | Service Bus tier: `Standard` or `Premium` |
+
+**Note**: Premium tier is recommended for production workloads (higher throughput, VNet integration, larger message sizes).
+
+#### Container Apps & Networking Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
 | `deployContainerApps` | bool | `true` | Deploy Container Apps environment and all microservices |
 | `vnetAddressSpace` | string | `10.0.0.0/16` | VNet address space for Container Apps (CIDR notation) |
 | `subnetAddressPrefix` | string | `10.0.0.0/23` | Container Apps subnet address prefix (CIDR notation) |
@@ -403,114 +454,27 @@ If you have pre-created managed identities, set `createNewIdentities` to `false`
 
 **Important:** When using existing identities, you **must** provide resource IDs for **all** services listed above. If any service is missing from the `existingIdentityResourceIds` object, deployment will fail. The template does not support partial existing identities.
 
-## Deployment Steps
+## Deployment Verification
 
-### Step 1: Prepare External Dependencies
-
-Before deploying, create these external Azure resources (or use existing ones):
-
-#### 1.1 Create Azure Cosmos DB for MongoDB
+After deploying with the canonical command, verify the deployment succeeded:
 
 ```bash
-# Create Cosmos DB account with MongoDB API
-az cosmosdb create \
-  --name copilot-cosmosdb \
-  --resource-group copilot-rg \
-  --kind MongoDB \
-  --server-version 4.2 \
-  --locations regionName=eastus
+# Set your resource group name
+RESOURCE_GROUP="copilot-rg"
 
-# Get connection string
-az cosmosdb keys list \
-  --name copilot-cosmosdb \
-  --resource-group copilot-rg \
-  --type connection-strings \
-  --query "connectionStrings[0].connectionString" -o tsv
-```
-
-#### 1.2 Create Azure Service Bus
-
-```bash
-# Create Service Bus namespace (Standard tier minimum)
-az servicebus namespace create \
-  --name copilot-servicebus \
-  --resource-group copilot-rg \
-  --location eastus \
-  --sku Standard
-
-# Get connection string
-az servicebus namespace authorization-rule keys list \
-  --namespace-name copilot-servicebus \
-  --resource-group copilot-rg \
-  --name RootManageSharedAccessKey \
-  --query primaryConnectionString -o tsv
-```
-
-#### 1.3 Create Azure Storage Account (for archives)
-
-```bash
-# Create storage account
-az storage account create \
-  --name copilotst \
-  --resource-group copilot-rg \
-  --location eastus \
-  --sku Standard_LRS
-
-# Get connection string
-az storage account show-connection-string \
-  --name copilotst \
-  --resource-group copilot-rg \
-  --query connectionString -o tsv
-```
-
-#### 1.4 Create Azure OpenAI Service (Optional)
-
-```bash
-# Create Azure OpenAI resource
-az cognitiveservices account create \
-  --name copilot-openai \
-  --resource-group copilot-rg \
-  --location eastus \
-  --kind OpenAI \
-  --sku S0
-
-# Get endpoint
-az cognitiveservices account show \
-  --name copilot-openai \
-  --resource-group copilot-rg \
-  --query properties.endpoint -o tsv
-
-# Get key
-az cognitiveservices account keys list \
-  --name copilot-openai \
-  --resource-group copilot-rg \
-  --query key1 -o tsv
-```
-
-### Step 2: Update Parameters File
-
-Update the appropriate environment parameters file (e.g., `parameters.dev.json`) with the connection strings obtained in Step 1.
-
-### Step 3: Deploy Using Script
-
-Run the deployment script (see Quick Start section).
-
-### Step 4: Verify Deployment
-
-```bash
 # Check deployment status
-az deployment group show \
-  --name copilot-deployment \
-  --resource-group copilot-rg \
-  --query properties.provisioningState
+az deployment group list \
+  --resource-group $RESOURCE_GROUP \
+  --query "[0].{Name:name, State:properties.provisioningState, Timestamp:properties.timestamp}" \
+  --output table
 
-# List deployed resources
-az resource list --resource-group copilot-rg --output table
+# List all deployed resources
+az resource list --resource-group $RESOURCE_GROUP --output table
 
-# Get deployment outputs
+# Get deployment outputs (endpoints, identities, etc.)
 az deployment group show \
-  --name copilot-deployment \
-  --resource-group copilot-rg \
+  --name $(az deployment group list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv) \
+  --resource-group $RESOURCE_GROUP \
   --query properties.outputs
 ```
 
