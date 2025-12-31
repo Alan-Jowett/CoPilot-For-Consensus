@@ -58,7 +58,7 @@ param vnetAddressSpace string = '10.0.0.0/16'
 param subnetAddressPrefix string = '10.0.0.0/23'
 
 @description('Whether to create Microsoft Entra app registration for OAuth')
-param deployEntraApp bool = true
+param deployEntraApp bool = false
 
 @description('Microsoft Entra (Azure AD) tenant ID for OAuth authentication')
 param entraTenantId string = subscription().tenantId
@@ -66,7 +66,7 @@ param entraTenantId string = subscription().tenantId
 @description('Override redirect URIs for OAuth (defaults to gateway FQDN callback)')
 param oauthRedirectUris array = []
 
-@description('Client secret expiration in days for Entra app')
+@description('Client secret expiration in days for Entra app (valid range: 30-730 days)')
 @minValue(30)
 @maxValue(730)
 param oauthSecretExpirationDays int = 365
@@ -152,6 +152,7 @@ var projectPrefix = take(replace(projectName, '-', ''), 8)
 var keyVaultName = '${projectPrefix}kv${take(uniqueSuffix, 13)}'
 var identityPrefix = '${projectName}-${environment}'
 var jwtKeysIdentityName = '${identityPrefix}-jwtkeys-id'
+var entraAppIdentityName = '${identityPrefix}-entraapp-id'
 
 // Module: User-Assigned Managed Identities
 module identitiesModule 'modules/identities.bicep' = {
@@ -167,6 +168,15 @@ module identitiesModule 'modules/identities.bicep' = {
 // Dedicated identity to set JWT secrets in Key Vault during deployment
 resource jwtKeysIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = if (deployContainerApps) {
   name: jwtKeysIdentityName
+  location: location
+  tags: tags
+}
+
+// Dedicated identity for Entra app deployment script with Graph API permissions
+// This identity must be granted Application.ReadWrite.All and Directory.ReadWrite.All
+// permissions by a Global Administrator before the deployment script can execute successfully.
+resource entraAppIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = if (deployContainerApps && deployEntraApp) {
+  name: entraAppIdentityName
   location: location
   tags: tags
 }
@@ -414,7 +424,7 @@ module entraAppModule 'modules/entra-app.bicep' = if (deployContainerApps && dep
     redirectUris: effectiveRedirectUris
     environment: environment
     secretExpirationDays: oauthSecretExpirationDays
-    deploymentIdentityId: identitiesModule.outputs.identityResourceIds.auth
+    deploymentIdentityId: entraAppIdentity!.id
     tags: tags
   }
   dependsOn: [containerAppsModule]

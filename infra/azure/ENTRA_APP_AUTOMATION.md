@@ -39,23 +39,7 @@ If deploying manually with your user account:
    - **Application Administrator** (recommended)
    - **Cloud Application Administrator** (recommended)
 
-2. Alternatively, grant Graph API permissions to a service principal representing your deployment:
-
-```powershell
-# Get your user's object ID
-$userId = (az ad signed-in-user show --query id -o tsv)
-
-# Grant Graph API permissions (requires Global Admin)
-az ad app permission add \
-  --id <your-app-id> \
-  --api 00000003-0000-0000-c000-000000000000 \
-  --api-permissions \
-    1bfefb4e-e0b5-418b-a88f-73c46d2cc8e9=Role \
-    19dbc75e-c2e2-444c-a770-ec69d8559fc7=Role
-
-# Grant admin consent
-az ad app permission admin-consent --id <your-app-id>
-```
+2. For users without admin roles, the deployment will require a dedicated managed identity with Graph API permissions (see Option B below).
 
 #### Option B: Service Principal (CI/CD Deployment)
 
@@ -84,13 +68,16 @@ GRAPH_APP_ID="00000003-0000-0000-c000-000000000000"
 APP_ROLE_ID="1bfefb4e-e0b5-418b-a88f-73c46d2cc8e9"  # Application.ReadWrite.All
 DIR_ROLE_ID="19dbc75e-c2e2-444c-a770-ec69d8559fc7"   # Directory.ReadWrite.All
 
+# Get Microsoft Graph service principal resource ID
+GRAPH_SP_RESOURCE_ID=$(az ad sp list --filter "appId eq '$GRAPH_APP_ID'" --query "[0].id" -o tsv)
+
 # Grant Application.ReadWrite.All
 az rest --method POST \
   --uri "https://graph.microsoft.com/v1.0/servicePrincipals/$SP_OBJECT_ID/appRoleAssignments" \
   --headers "Content-Type=application/json" \
   --body "{
     \"principalId\": \"$SP_OBJECT_ID\",
-    \"resourceId\": \"$(az ad sp list --filter "appId eq '$GRAPH_APP_ID'" --query "[0].id" -o tsv)\",
+    \"resourceId\": \"$GRAPH_SP_RESOURCE_ID\",
     \"appRoleId\": \"$APP_ROLE_ID\"
   }"
 
@@ -100,7 +87,7 @@ az rest --method POST \
   --headers "Content-Type=application/json" \
   --body "{
     \"principalId\": \"$SP_OBJECT_ID\",
-    \"resourceId\": \"$(az ad sp list --filter "appId eq '$GRAPH_APP_ID'" --query "[0].id" -o tsv)\",
+    \"resourceId\": \"$GRAPH_SP_RESOURCE_ID\",
     \"appRoleId\": \"$DIR_ROLE_ID\"
   }"
 ```

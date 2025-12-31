@@ -109,7 +109,7 @@ resource appRegistrationScript 'Microsoft.Resources/deploymentScripts@2023-08-01
         
         # Update redirect URIs
         az ad app update --id "$APP_ID" \
-          --web-redirect-uris $REDIRECT_URIS \
+          --web-redirect-uris "${URI_ARRAY[@]}" \
           --enable-id-token-issuance true
         
       else
@@ -117,10 +117,15 @@ resource appRegistrationScript 'Microsoft.Resources/deploymentScripts@2023-08-01
         echo "Creating new app registration..."
         
         # Create app with redirect URIs
+        # Request Microsoft Graph delegated permissions:
+        # - e1fe6dd8-ba31-4d61-89e7-88639da4683d: User.Read (read user profile)
+        # - 37f7f235-527c-4136-accd-4a02d197296e: openid (OIDC sign-in)
+        # - 14dad69e-099b-42c9-810b-d002981feec1: profile (access user's profile claims)
+        # - 64a6cdd6-aab1-4aaf-94b8-3cc8405e90d0: email (access user's email)
         NEW_APP=$(az ad app create \
           --display-name "$APP_NAME" \
           --sign-in-audience AzureADMyOrg \
-          --web-redirect-uris $REDIRECT_URIS \
+          --web-redirect-uris "${URI_ARRAY[@]}" \
           --enable-id-token-issuance true \
           --required-resource-accesses '[
             {
@@ -149,12 +154,15 @@ resource appRegistrationScript 'Microsoft.Resources/deploymentScripts@2023-08-01
       fi
       
       # Generate or rotate client secret
+      # Use 'az ad app credential append' to add new secret without invalidating existing ones
+      # This enables zero-downtime rotation: old credentials remain valid during deployment
       echo "Generating client secret..."
       EXPIRATION_DATE=$(date -u -d "+${SECRET_EXPIRATION_DAYS} days" +"%Y-%m-%dT%H:%M:%SZ")
       SECRET_RESULT=$(az ad app credential reset \
         --id "$APP_ID" \
-        --display-name "Primary Secret - Created by Bicep" \
+        --display-name "Primary Secret - Created by Bicep $(date +%Y-%m-%d)" \
         --end-date "$EXPIRATION_DATE" \
+        --append \
         -o json)
       
       CLIENT_SECRET=$(echo "$SECRET_RESULT" | jq -r '.password')
@@ -163,6 +171,12 @@ resource appRegistrationScript 'Microsoft.Resources/deploymentScripts@2023-08-01
       # Get service principal ID if not set
       if [ -z "$SP_ID" ]; then
         SP_ID=$(az ad sp list --filter "appId eq '$APP_ID'" --query "[0].id" -o tsv)
+      fi
+      
+      # Validate that service principal ID was resolved
+      if [ -z "$SP_ID" ]; then
+        echo "Error: Failed to resolve service principal ID for appId $APP_ID" >&2
+        exit 1
       fi
       
       # Output results as JSON
