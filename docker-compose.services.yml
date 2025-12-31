@@ -104,6 +104,10 @@ services:
     build:
       context: .
       dockerfile: ./ingestion/Dockerfile
+    networks:
+      default:
+        aliases:
+          - ingestion.internal
     environment:
       - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/documents/schemas/configs
@@ -256,6 +260,10 @@ services:
     build:
       context: .
       dockerfile: ./reporting/Dockerfile
+    networks:
+      default:
+        aliases:
+          - reporting.internal
     environment:
       - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/documents/schemas/configs
@@ -310,6 +318,10 @@ services:
     build:
       context: .
       dockerfile: ./auth/Dockerfile
+    networks:
+      default:
+        aliases:
+          - auth.internal
     environment:
       - SERVICE_VERSION=0.1.0
       - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/ui}
@@ -375,6 +387,10 @@ services:
     build:
       context: ./ui
       dockerfile: Dockerfile
+    networks:
+      default:
+        aliases:
+          - ui.internal
     # No host port; UI served via API Gateway at /ui/
     depends_on:
       reporting:

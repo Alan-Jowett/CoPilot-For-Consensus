@@ -32,7 +32,7 @@ resource jwtKeyScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
   name: 'generate-jwt-keys'
   location: location
   tags: tags
-  kind: 'AzureCLI'
+  kind: 'AzurePowerShell'
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
@@ -40,7 +40,7 @@ resource jwtKeyScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
     }
   }
   properties: {
-    azCliVersion: '2.61.0'
+    azPowerShellVersion: '11.0'
     timeout: 'PT15M'
     // Always cleanup to prevent cost accumulation from failed deployments
     // Logs and outputs are retained for 1 day (retentionInterval) for troubleshooting
@@ -63,20 +63,26 @@ resource jwtKeyScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
       }
     ]
     scriptContent: '''
-set -euo pipefail
-# Install openssl (not included in Azure CLI container by default)
-# Try apk (Alpine) first, fallback to apt-get (Debian/Ubuntu)
-(apk add --no-cache openssl 2>/dev/null || apt-get update -qq && apt-get install -y -qq openssl 2>/dev/null)
-if ! command -v openssl >/dev/null 2>&1; then echo "ERROR: Failed to install openssl" >&2; exit 1; fi
-az login --identity --allow-no-subscriptions >/dev/null
-workdir=$(mktemp -d)
-trap 'rm -rf "$workdir"' EXIT
-priv="$workdir/jwt_private.pem"
-pub="$workdir/jwt_public.pem"
-openssl genrsa -out "$priv" 3072
-openssl rsa -in "$priv" -pubout -out "$pub"
-az keyvault secret set --vault-name "$KEY_VAULT_NAME" --name "$JWT_PRIVATE_SECRET_NAME" --file "$priv" --only-show-errors
-az keyvault secret set --vault-name "$KEY_VAULT_NAME" --name "$JWT_PUBLIC_SECRET_NAME" --file "$pub" --only-show-errors
+$VerbosePreference = 'Continue'
+$keyVaultName = $env:KEY_VAULT_NAME
+$privateSecretName = $env:JWT_PRIVATE_SECRET_NAME
+$publicSecretName = $env:JWT_PUBLIC_SECRET_NAME
+
+# Use .NET for RSA key generation (always available in PowerShell)
+[System.Reflection.Assembly]::LoadWithPartialName('System.Security') | Out-Null
+$rsa = [System.Security.Cryptography.RSA]::Create(3072)
+
+# Export private key in PEM format
+$privateKeyFormatted = "-----BEGIN RSA PRIVATE KEY-----`n" + [System.Convert]::ToBase64String($rsa.ExportRSAPrivateKey()) + "`n-----END RSA PRIVATE KEY-----"
+
+# Export public key in PEM format
+$publicKeyFormatted = "-----BEGIN PUBLIC KEY-----`n" + [System.Convert]::ToBase64String($rsa.ExportSubjectPublicKeyInfo()) + "`n-----END PUBLIC KEY-----"
+
+# Store in Key Vault using Set-AzKeyVaultSecret
+Set-AzKeyVaultSecret -VaultName $keyVaultName -Name $privateSecretName -SecretValue (ConvertTo-SecureString -String $privateKeyFormatted -AsPlainText -Force) -ErrorAction Stop | Out-Null
+Set-AzKeyVaultSecret -VaultName $keyVaultName -Name $publicSecretName -SecretValue (ConvertTo-SecureString -String $publicKeyFormatted -AsPlainText -Force) -ErrorAction Stop | Out-Null
+
+Write-Host "JWT keys generated and stored successfully"
 '''
   }
 }

@@ -78,6 +78,10 @@ services:
 
   grafana:
     image: grafana/grafana:latest@sha256:70d9599b186ce287be0d2c5ba9a78acb2e86c1a68c9c41449454d0fc3eeb84e8
+    networks:
+      default:
+        aliases:
+          - grafana.internal
     # No host port; Grafana is served via API Gateway at /grafana/
     secrets:
       - grafana_admin_user
