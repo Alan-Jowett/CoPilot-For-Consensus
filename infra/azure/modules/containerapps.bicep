@@ -110,6 +110,7 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
   }
   properties: {
     managedEnvironmentId: containerAppsEnv.id
+    workloadProfileName: 'Consumption'
     configuration: {
       ingress: {
         external: false
@@ -171,6 +172,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
   }
   properties: {
     managedEnvironmentId: containerAppsEnv.id
+    workloadProfileName: 'Consumption'
     configuration: {
       ingress: {
         external: false
@@ -216,6 +218,10 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
               value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
+            {
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
           ]
           resources: {
             cpu: json('0.5')
@@ -244,6 +250,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
   }
   properties: {
     managedEnvironmentId: containerAppsEnv.id
+    workloadProfileName: 'Consumption'
     configuration: {
       ingress: {
         external: false
@@ -326,6 +333,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
   }
   properties: {
     managedEnvironmentId: containerAppsEnv.id
+    workloadProfileName: 'Consumption'
     configuration: {
       ingress: {
         external: false
@@ -404,6 +412,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
   }
   properties: {
     managedEnvironmentId: containerAppsEnv.id
+    workloadProfileName: 'Consumption'
     configuration: {
       ingress: {
         external: false
@@ -482,6 +491,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
   }
   properties: {
     managedEnvironmentId: containerAppsEnv.id
+    workloadProfileName: 'Consumption'
     configuration: {
       ingress: {
         external: false
@@ -572,6 +582,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
   }
   properties: {
     managedEnvironmentId: containerAppsEnv.id
+    workloadProfileName: 'Consumption'
     configuration: {
       ingress: {
         external: false
@@ -650,6 +661,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
   }
   properties: {
     managedEnvironmentId: containerAppsEnv.id
+    workloadProfileName: 'Consumption'
     configuration: {
       ingress: {
         external: false
@@ -736,6 +748,7 @@ resource uiApp 'Microsoft.App/containerApps@2024-03-01' = {
   }
   properties: {
     managedEnvironmentId: containerAppsEnv.id
+    workloadProfileName: 'Consumption'
     configuration: {
       ingress: {
         external: false
@@ -797,6 +810,7 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
   }
   properties: {
     managedEnvironmentId: containerAppsEnv.id
+    workloadProfileName: 'Consumption'
     configuration: {
       ingress: {
         external: true

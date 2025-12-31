@@ -48,7 +48,8 @@ resource searchService 'Microsoft.Search/searchServices@2024-06-01-preview' = {
 }
 
 // Role: Search Index Data Contributor (allows read/write to search indexes)
-var searchIndexDataContributorRoleId = 'c7f06df5-9f78-4436-8adb-a0e7c60c9a45'
+// Role ID reference: https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#search-index-data-contributor
+var searchIndexDataContributorRoleId = '8ebe5a00-799e-43f5-93ac-243d3dce84a7'
 
 // Assign embedding service identity the "Search Index Data Contributor" role
 resource embeddingServiceRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
