@@ -1,0 +1,1115 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.39.26.7824",
+      "templateHash": "14690952670328502224"
+    },
+    "description": "Module to provision Container Apps environment and all microservices",
+    "author": "Copilot-for-Consensus Team"
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "Location for all resources"
+      }
+    },
+    "projectName": {
+      "type": "string",
+      "metadata": {
+        "description": "Project name (prefix for resource names)"
+      }
+    },
+    "environment": {
+      "type": "string",
+      "metadata": {
+        "description": "Environment name (dev, staging, prod)"
+      }
+    },
+    "containerRegistry": {
+      "type": "string",
+      "defaultValue": "ghcr.io/alan-jowett/copilot-for-consensus",
+      "metadata": {
+        "description": "Container image registry URL"
+      }
+    },
+    "containerImageTag": {
+      "type": "string",
+      "defaultValue": "latest",
+      "metadata": {
+        "description": "Container image tag"
+      }
+    },
+    "identityResourceIds": {
+      "type": "object",
+      "metadata": {
+        "description": "User-assigned managed identity resource IDs by service"
+      }
+    },
+    "azureOpenAIEndpoint": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Azure OpenAI endpoint URL"
+      }
+    },
+    "aiSearchEndpoint": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Azure AI Search endpoint URL"
+      }
+    },
+    "serviceBusNamespace": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Service Bus namespace name for message bus connection"
+      }
+    },
+    "cosmosDbEndpoint": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Cosmos DB account endpoint URL for document store connection"
+      }
+    },
+    "subnetId": {
+      "type": "string",
+      "metadata": {
+        "description": "Container Apps subnet ID"
+      }
+    },
+    "appInsightsKeySecretUri": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Application Insights instrumentation key secret URI (from Key Vault)"
+      }
+    },
+    "appInsightsConnectionStringSecretUri": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Application Insights connection string secret URI (from Key Vault)"
+      }
+    },
+    "logAnalyticsWorkspaceId": {
+      "type": "string",
+      "metadata": {
+        "description": "Log Analytics workspace resource ID"
+      }
+    },
+    "logAnalyticsCustomerId": {
+      "type": "string",
+      "metadata": {
+        "description": "Log Analytics workspace customerId (GUID)"
+      }
+    },
+    "jwtPrivateKeySecretUri": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "JWT private key secret URI (from Key Vault)"
+      }
+    },
+    "jwtPublicKeySecretUri": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "JWT public key secret URI (from Key Vault)"
+      }
+    },
+    "githubOAuthClientIdSecretUri": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "GitHub OAuth client ID secret URI (from Key Vault)"
+      }
+    },
+    "githubOAuthClientSecretSecretUri": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "GitHub OAuth client secret secret URI (from Key Vault)"
+      }
+    },
+    "googleOAuthClientIdSecretUri": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Google OAuth client ID secret URI (from Key Vault)"
+      }
+    },
+    "googleOAuthClientSecretSecretUri": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Google OAuth client secret secret URI (from Key Vault)"
+      }
+    },
+    "microsoftOAuthClientIdSecretUri": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Microsoft OAuth client ID secret URI (from Key Vault)"
+      }
+    },
+    "microsoftOAuthClientSecretSecretUri": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Microsoft OAuth client secret secret URI (from Key Vault)"
+      }
+    },
+    "grafanaAdminUserSecretUri": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Grafana admin username secret URI (from Key Vault)"
+      }
+    },
+    "grafanaAdminPasswordSecretUri": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Grafana admin password secret URI (from Key Vault)"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "defaultValue": {}
+    }
+  },
+  "variables": {
+    "uniqueSuffix": "[uniqueString(resourceGroup().id)]",
+    "projectPrefix": "[take(replace(parameters('projectName'), '-', ''), 8)]",
+    "caEnvName": "[format('{0}-env-{1}-{2}', variables('projectPrefix'), parameters('environment'), take(variables('uniqueSuffix'), 5))]",
+    "servicePorts": {
+      "auth": 8090,
+      "reporting": 8080,
+      "ingestion": 8001,
+      "parsing": 8000,
+      "chunking": 8000,
+      "embedding": 8000,
+      "orchestrator": 8000,
+      "summarization": 8000,
+      "ui": 3000,
+      "gateway": 8080
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.App/managedEnvironments",
+      "apiVersion": "2024-03-01",
+      "name": "[variables('caEnvName')]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "properties": {
+        "vnetConfiguration": {
+          "internal": false,
+          "infrastructureSubnetId": "[parameters('subnetId')]"
+        },
+        "workloadProfiles": [
+          {
+            "name": "Consumption",
+            "workloadProfileType": "Consumption"
+          }
+        ],
+        "appLogsConfiguration": {
+          "destination": "log-analytics",
+          "logAnalyticsConfiguration": {
+            "customerId": "[parameters('logAnalyticsCustomerId')]",
+            "sharedKey": "[listKeys(parameters('logAnalyticsWorkspaceId'), '2021-12-01-preview').primarySharedKey]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[format('{0}-auth-{1}', variables('projectPrefix'), parameters('environment'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', parameters('identityResourceIds').auth)]": {}
+        }
+      },
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]",
+        "workloadProfileName": "Consumption",
+        "configuration": {
+          "ingress": {
+            "external": false,
+            "targetPort": "[variables('servicePorts').auth]",
+            "allowInsecure": false
+          }
+        },
+        "template": {
+          "containers": [
+            {
+              "image": "[format('{0}/auth:{1}', parameters('containerRegistry'), parameters('containerImageTag'))]",
+              "name": "auth",
+              "env": [
+                {
+                  "name": "SERVICE_VERSION",
+                  "value": "0.1.0"
+                },
+                {
+                  "name": "LOG_LEVEL",
+                  "value": "INFO"
+                },
+                {
+                  "name": "JWT_ALGORITHM",
+                  "value": "RS256"
+                },
+                {
+                  "name": "SECRET_PROVIDER_TYPE",
+                  "value": "azurekeyvault"
+                },
+                {
+                  "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                  "value": "[if(not(equals(parameters('appInsightsKeySecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsKeySecretUri')), '')]"
+                },
+                {
+                  "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                  "value": "[if(not(equals(parameters('appInsightsConnectionStringSecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsConnectionStringSecretUri')), '')]"
+                },
+                {
+                  "name": "JWT_PRIVATE_KEY",
+                  "value": "[if(not(equals(parameters('jwtPrivateKeySecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('jwtPrivateKeySecretUri')), '')]"
+                },
+                {
+                  "name": "JWT_PUBLIC_KEY",
+                  "value": "[if(not(equals(parameters('jwtPublicKeySecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('jwtPublicKeySecretUri')), '')]"
+                },
+                {
+                  "name": "GITHUB_OAUTH_CLIENT_ID",
+                  "value": "[if(not(equals(parameters('githubOAuthClientIdSecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('githubOAuthClientIdSecretUri')), '')]"
+                },
+                {
+                  "name": "GITHUB_OAUTH_CLIENT_SECRET",
+                  "value": "[if(not(equals(parameters('githubOAuthClientSecretSecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('githubOAuthClientSecretSecretUri')), '')]"
+                },
+                {
+                  "name": "GOOGLE_OAUTH_CLIENT_ID",
+                  "value": "[if(not(equals(parameters('googleOAuthClientIdSecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('googleOAuthClientIdSecretUri')), '')]"
+                },
+                {
+                  "name": "GOOGLE_OAUTH_CLIENT_SECRET",
+                  "value": "[if(not(equals(parameters('googleOAuthClientSecretSecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('googleOAuthClientSecretSecretUri')), '')]"
+                },
+                {
+                  "name": "MICROSOFT_OAUTH_CLIENT_ID",
+                  "value": "[if(not(equals(parameters('microsoftOAuthClientIdSecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('microsoftOAuthClientIdSecretUri')), '')]"
+                },
+                {
+                  "name": "MICROSOFT_OAUTH_CLIENT_SECRET",
+                  "value": "[if(not(equals(parameters('microsoftOAuthClientSecretSecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('microsoftOAuthClientSecretSecretUri')), '')]"
+                }
+              ],
+              "resources": {
+                "cpu": "[json('0.25')]",
+                "memory": "0.5Gi"
+              }
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 2
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[format('{0}-reporting-{1}', variables('projectPrefix'), parameters('environment'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', parameters('identityResourceIds').reporting)]": {}
+        }
+      },
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]",
+        "workloadProfileName": "Consumption",
+        "configuration": {
+          "ingress": {
+            "external": false,
+            "targetPort": "[variables('servicePorts').reporting]",
+            "allowInsecure": false
+          }
+        },
+        "template": {
+          "containers": [
+            {
+              "image": "[format('{0}/reporting:{1}', parameters('containerRegistry'), parameters('containerImageTag'))]",
+              "name": "reporting",
+              "env": [
+                {
+                  "name": "SERVICE_VERSION",
+                  "value": "0.1.0"
+                },
+                {
+                  "name": "LOG_LEVEL",
+                  "value": "INFO"
+                },
+                {
+                  "name": "MESSAGE_BUS_TYPE",
+                  "value": "service_bus"
+                },
+                {
+                  "name": "SERVICE_BUS_NAMESPACE",
+                  "value": "[parameters('serviceBusNamespace')]"
+                },
+                {
+                  "name": "DOCUMENT_STORE_TYPE",
+                  "value": "cosmos"
+                },
+                {
+                  "name": "COSMOS_DB_ENDPOINT",
+                  "value": "[parameters('cosmosDbEndpoint')]"
+                },
+                {
+                  "name": "AUTH_SERVICE_URL",
+                  "value": "[format('http://{0}-auth-{1}:{2}', variables('projectPrefix'), parameters('environment'), variables('servicePorts').auth)]"
+                },
+                {
+                  "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                  "value": "[if(not(equals(parameters('appInsightsKeySecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsKeySecretUri')), '')]"
+                },
+                {
+                  "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                  "value": "[if(not(equals(parameters('appInsightsConnectionStringSecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsConnectionStringSecretUri')), '')]"
+                }
+              ],
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              }
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 2
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[format('{0}-ingestion-{1}', variables('projectPrefix'), parameters('environment'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', parameters('identityResourceIds').ingestion)]": {}
+        }
+      },
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]",
+        "workloadProfileName": "Consumption",
+        "configuration": {
+          "ingress": {
+            "external": false,
+            "targetPort": "[variables('servicePorts').ingestion]",
+            "allowInsecure": false
+          }
+        },
+        "template": {
+          "containers": [
+            {
+              "image": "[format('{0}/ingestion:{1}', parameters('containerRegistry'), parameters('containerImageTag'))]",
+              "name": "ingestion",
+              "env": [
+                {
+                  "name": "SERVICE_VERSION",
+                  "value": "0.1.0"
+                },
+                {
+                  "name": "LOG_LEVEL",
+                  "value": "INFO"
+                },
+                {
+                  "name": "MESSAGE_BUS_TYPE",
+                  "value": "service_bus"
+                },
+                {
+                  "name": "SERVICE_BUS_NAMESPACE",
+                  "value": "[parameters('serviceBusNamespace')]"
+                },
+                {
+                  "name": "DOCUMENT_STORE_TYPE",
+                  "value": "cosmos"
+                },
+                {
+                  "name": "COSMOS_DB_ENDPOINT",
+                  "value": "[parameters('cosmosDbEndpoint')]"
+                },
+                {
+                  "name": "STORAGE_PATH",
+                  "value": "/data/raw_archives"
+                },
+                {
+                  "name": "AUTH_SERVICE_URL",
+                  "value": "[format('http://{0}-auth-{1}:{2}', variables('projectPrefix'), parameters('environment'), variables('servicePorts').auth)]"
+                },
+                {
+                  "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                  "value": "[if(not(equals(parameters('appInsightsKeySecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsKeySecretUri')), '')]"
+                },
+                {
+                  "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                  "value": "[if(not(equals(parameters('appInsightsConnectionStringSecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsConnectionStringSecretUri')), '')]"
+                }
+              ],
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              }
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 2
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/containerApps', format('{0}-auth-{1}', variables('projectPrefix'), parameters('environment')))]",
+        "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[format('{0}-parsing-{1}', variables('projectPrefix'), parameters('environment'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', parameters('identityResourceIds').parsing)]": {}
+        }
+      },
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]",
+        "workloadProfileName": "Consumption",
+        "configuration": {
+          "ingress": {
+            "external": false,
+            "targetPort": "[variables('servicePorts').parsing]",
+            "allowInsecure": false
+          }
+        },
+        "template": {
+          "containers": [
+            {
+              "image": "[format('{0}/parsing:{1}', parameters('containerRegistry'), parameters('containerImageTag'))]",
+              "name": "parsing",
+              "env": [
+                {
+                  "name": "SERVICE_VERSION",
+                  "value": "0.1.0"
+                },
+                {
+                  "name": "LOG_LEVEL",
+                  "value": "INFO"
+                },
+                {
+                  "name": "MESSAGE_BUS_TYPE",
+                  "value": "service_bus"
+                },
+                {
+                  "name": "SERVICE_BUS_NAMESPACE",
+                  "value": "[parameters('serviceBusNamespace')]"
+                },
+                {
+                  "name": "DOCUMENT_STORE_TYPE",
+                  "value": "cosmos"
+                },
+                {
+                  "name": "COSMOS_DB_ENDPOINT",
+                  "value": "[parameters('cosmosDbEndpoint')]"
+                },
+                {
+                  "name": "AUTH_SERVICE_URL",
+                  "value": "[format('http://{0}-auth-{1}:{2}', variables('projectPrefix'), parameters('environment'), variables('servicePorts').auth)]"
+                },
+                {
+                  "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                  "value": "[if(not(equals(parameters('appInsightsKeySecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsKeySecretUri')), '')]"
+                },
+                {
+                  "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                  "value": "[if(not(equals(parameters('appInsightsConnectionStringSecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsConnectionStringSecretUri')), '')]"
+                }
+              ],
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              }
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 2
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/containerApps', format('{0}-auth-{1}', variables('projectPrefix'), parameters('environment')))]",
+        "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[format('{0}-chunking-{1}', variables('projectPrefix'), parameters('environment'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', parameters('identityResourceIds').chunking)]": {}
+        }
+      },
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]",
+        "workloadProfileName": "Consumption",
+        "configuration": {
+          "ingress": {
+            "external": false,
+            "targetPort": "[variables('servicePorts').chunking]",
+            "allowInsecure": false
+          }
+        },
+        "template": {
+          "containers": [
+            {
+              "image": "[format('{0}/chunking:{1}', parameters('containerRegistry'), parameters('containerImageTag'))]",
+              "name": "chunking",
+              "env": [
+                {
+                  "name": "SERVICE_VERSION",
+                  "value": "0.1.0"
+                },
+                {
+                  "name": "LOG_LEVEL",
+                  "value": "INFO"
+                },
+                {
+                  "name": "MESSAGE_BUS_TYPE",
+                  "value": "service_bus"
+                },
+                {
+                  "name": "SERVICE_BUS_NAMESPACE",
+                  "value": "[parameters('serviceBusNamespace')]"
+                },
+                {
+                  "name": "DOCUMENT_STORE_TYPE",
+                  "value": "cosmos"
+                },
+                {
+                  "name": "COSMOS_DB_ENDPOINT",
+                  "value": "[parameters('cosmosDbEndpoint')]"
+                },
+                {
+                  "name": "AUTH_SERVICE_URL",
+                  "value": "[format('http://{0}-auth-{1}:{2}', variables('projectPrefix'), parameters('environment'), variables('servicePorts').auth)]"
+                },
+                {
+                  "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                  "value": "[if(not(equals(parameters('appInsightsKeySecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsKeySecretUri')), '')]"
+                },
+                {
+                  "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                  "value": "[if(not(equals(parameters('appInsightsConnectionStringSecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsConnectionStringSecretUri')), '')]"
+                }
+              ],
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              }
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 2
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/containerApps', format('{0}-auth-{1}', variables('projectPrefix'), parameters('environment')))]",
+        "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[format('{0}-embedding-{1}', variables('projectPrefix'), parameters('environment'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', parameters('identityResourceIds').embedding)]": {}
+        }
+      },
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]",
+        "workloadProfileName": "Consumption",
+        "configuration": {
+          "ingress": {
+            "external": false,
+            "targetPort": "[variables('servicePorts').embedding]",
+            "allowInsecure": false
+          }
+        },
+        "template": {
+          "containers": [
+            {
+              "image": "[format('{0}/embedding:{1}', parameters('containerRegistry'), parameters('containerImageTag'))]",
+              "name": "embedding",
+              "env": [
+                {
+                  "name": "SERVICE_VERSION",
+                  "value": "0.1.0"
+                },
+                {
+                  "name": "LOG_LEVEL",
+                  "value": "INFO"
+                },
+                {
+                  "name": "MESSAGE_BUS_TYPE",
+                  "value": "service_bus"
+                },
+                {
+                  "name": "SERVICE_BUS_NAMESPACE",
+                  "value": "[parameters('serviceBusNamespace')]"
+                },
+                {
+                  "name": "DOCUMENT_STORE_TYPE",
+                  "value": "cosmos"
+                },
+                {
+                  "name": "COSMOS_DB_ENDPOINT",
+                  "value": "[parameters('cosmosDbEndpoint')]"
+                },
+                {
+                  "name": "VECTORSTORE_TYPE",
+                  "value": "ai_search"
+                },
+                {
+                  "name": "AISEARCH_ENDPOINT",
+                  "value": "[parameters('aiSearchEndpoint')]"
+                },
+                {
+                  "name": "AISEARCH_INDEX_NAME",
+                  "value": "document-embeddings"
+                },
+                {
+                  "name": "AUTH_SERVICE_URL",
+                  "value": "[format('http://{0}-auth-{1}:{2}', variables('projectPrefix'), parameters('environment'), variables('servicePorts').auth)]"
+                },
+                {
+                  "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                  "value": "[if(not(equals(parameters('appInsightsKeySecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsKeySecretUri')), '')]"
+                },
+                {
+                  "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                  "value": "[if(not(equals(parameters('appInsightsConnectionStringSecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsConnectionStringSecretUri')), '')]"
+                }
+              ],
+              "resources": {
+                "cpu": "[json('1')]",
+                "memory": "2Gi"
+              }
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 2
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/containerApps', format('{0}-auth-{1}', variables('projectPrefix'), parameters('environment')))]",
+        "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[format('{0}-orchestrator-{1}', variables('projectPrefix'), parameters('environment'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', parameters('identityResourceIds').orchestrator)]": {}
+        }
+      },
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]",
+        "workloadProfileName": "Consumption",
+        "configuration": {
+          "ingress": {
+            "external": false,
+            "targetPort": "[variables('servicePorts').orchestrator]",
+            "allowInsecure": false
+          }
+        },
+        "template": {
+          "containers": [
+            {
+              "image": "[format('{0}/orchestrator:{1}', parameters('containerRegistry'), parameters('containerImageTag'))]",
+              "name": "orchestrator",
+              "env": [
+                {
+                  "name": "SERVICE_VERSION",
+                  "value": "0.1.0"
+                },
+                {
+                  "name": "LOG_LEVEL",
+                  "value": "INFO"
+                },
+                {
+                  "name": "MESSAGE_BUS_TYPE",
+                  "value": "service_bus"
+                },
+                {
+                  "name": "SERVICE_BUS_NAMESPACE",
+                  "value": "[parameters('serviceBusNamespace')]"
+                },
+                {
+                  "name": "DOCUMENT_STORE_TYPE",
+                  "value": "cosmos"
+                },
+                {
+                  "name": "COSMOS_DB_ENDPOINT",
+                  "value": "[parameters('cosmosDbEndpoint')]"
+                },
+                {
+                  "name": "AUTH_SERVICE_URL",
+                  "value": "[format('http://{0}-auth-{1}:{2}', variables('projectPrefix'), parameters('environment'), variables('servicePorts').auth)]"
+                },
+                {
+                  "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                  "value": "[if(not(equals(parameters('appInsightsKeySecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsKeySecretUri')), '')]"
+                },
+                {
+                  "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                  "value": "[if(not(equals(parameters('appInsightsConnectionStringSecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsConnectionStringSecretUri')), '')]"
+                }
+              ],
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              }
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 2
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/containerApps', format('{0}-auth-{1}', variables('projectPrefix'), parameters('environment')))]",
+        "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[format('{0}-summarization-{1}', variables('projectPrefix'), parameters('environment'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', parameters('identityResourceIds').summarization)]": {}
+        }
+      },
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]",
+        "workloadProfileName": "Consumption",
+        "configuration": {
+          "ingress": {
+            "external": false,
+            "targetPort": "[variables('servicePorts').summarization]",
+            "allowInsecure": false
+          }
+        },
+        "template": {
+          "containers": [
+            {
+              "image": "[format('{0}/summarization:{1}', parameters('containerRegistry'), parameters('containerImageTag'))]",
+              "name": "summarization",
+              "env": [
+                {
+                  "name": "SERVICE_VERSION",
+                  "value": "0.1.0"
+                },
+                {
+                  "name": "LOG_LEVEL",
+                  "value": "INFO"
+                },
+                {
+                  "name": "MESSAGE_BUS_TYPE",
+                  "value": "service_bus"
+                },
+                {
+                  "name": "SERVICE_BUS_NAMESPACE",
+                  "value": "[parameters('serviceBusNamespace')]"
+                },
+                {
+                  "name": "DOCUMENT_STORE_TYPE",
+                  "value": "cosmos"
+                },
+                {
+                  "name": "COSMOS_DB_ENDPOINT",
+                  "value": "[parameters('cosmosDbEndpoint')]"
+                },
+                {
+                  "name": "LLM_BACKEND",
+                  "value": "azure"
+                },
+                {
+                  "name": "AZURE_OPENAI_ENDPOINT",
+                  "value": "[parameters('azureOpenAIEndpoint')]"
+                },
+                {
+                  "name": "AUTH_SERVICE_URL",
+                  "value": "[format('http://{0}-auth-{1}:{2}', variables('projectPrefix'), parameters('environment'), variables('servicePorts').auth)]"
+                },
+                {
+                  "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                  "value": "[if(not(equals(parameters('appInsightsKeySecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsKeySecretUri')), '')]"
+                },
+                {
+                  "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                  "value": "[if(not(equals(parameters('appInsightsConnectionStringSecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsConnectionStringSecretUri')), '')]"
+                }
+              ],
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              }
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 2
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/containerApps', format('{0}-auth-{1}', variables('projectPrefix'), parameters('environment')))]",
+        "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[format('{0}-ui-{1}', variables('projectPrefix'), parameters('environment'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', parameters('identityResourceIds').ui)]": {}
+        }
+      },
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]",
+        "workloadProfileName": "Consumption",
+        "configuration": {
+          "ingress": {
+            "external": false,
+            "targetPort": "[variables('servicePorts').ui]",
+            "allowInsecure": false
+          }
+        },
+        "template": {
+          "containers": [
+            {
+              "image": "[format('{0}/ui:{1}', parameters('containerRegistry'), parameters('containerImageTag'))]",
+              "name": "ui",
+              "env": [
+                {
+                  "name": "SERVICE_VERSION",
+                  "value": "0.1.0"
+                },
+                {
+                  "name": "LOG_LEVEL",
+                  "value": "INFO"
+                },
+                {
+                  "name": "REACT_APP_API_BASE_URL",
+                  "value": "/api"
+                },
+                {
+                  "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                  "value": "[if(not(equals(parameters('appInsightsKeySecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsKeySecretUri')), '')]"
+                },
+                {
+                  "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                  "value": "[if(not(equals(parameters('appInsightsConnectionStringSecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsConnectionStringSecretUri')), '')]"
+                }
+              ],
+              "resources": {
+                "cpu": "[json('0.25')]",
+                "memory": "0.5Gi"
+              }
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 2
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[format('{0}-gateway-{1}', variables('projectPrefix'), parameters('environment'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', parameters('identityResourceIds').gateway)]": {}
+        }
+      },
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]",
+        "workloadProfileName": "Consumption",
+        "configuration": {
+          "ingress": {
+            "external": true,
+            "targetPort": "[variables('servicePorts').gateway]",
+            "allowInsecure": false,
+            "transport": "auto"
+          }
+        },
+        "template": {
+          "containers": [
+            {
+              "image": "[format('{0}/gateway:{1}', parameters('containerRegistry'), parameters('containerImageTag'))]",
+              "name": "gateway",
+              "env": [
+                {
+                  "name": "SERVICE_VERSION",
+                  "value": "0.1.0"
+                },
+                {
+                  "name": "LOG_LEVEL",
+                  "value": "INFO"
+                },
+                {
+                  "name": "UPSTREAM_AUTH",
+                  "value": "[format('http://{0}-auth-{1}:{2}', variables('projectPrefix'), parameters('environment'), variables('servicePorts').auth)]"
+                },
+                {
+                  "name": "UPSTREAM_REPORTING",
+                  "value": "[format('http://{0}-reporting-{1}:{2}', variables('projectPrefix'), parameters('environment'), variables('servicePorts').reporting)]"
+                },
+                {
+                  "name": "UPSTREAM_INGESTION",
+                  "value": "[format('http://{0}-ingestion-{1}:{2}', variables('projectPrefix'), parameters('environment'), variables('servicePorts').ingestion)]"
+                },
+                {
+                  "name": "UPSTREAM_UI",
+                  "value": "[format('http://{0}-ui-{1}:{2}', variables('projectPrefix'), parameters('environment'), variables('servicePorts').ui)]"
+                },
+                {
+                  "name": "ENABLE_INTERNAL_TLS",
+                  "value": "false"
+                },
+                {
+                  "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                  "value": "[if(not(equals(parameters('appInsightsKeySecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsKeySecretUri')), '')]"
+                },
+                {
+                  "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                  "value": "[if(not(equals(parameters('appInsightsConnectionStringSecretUri'), '')), format('@Microsoft.KeyVault(SecretUri={0})', parameters('appInsightsConnectionStringSecretUri')), '')]"
+                }
+              ],
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              }
+            }
+          ],
+          "scale": {
+            "minReplicas": 1,
+            "maxReplicas": 3
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/containerApps', format('{0}-auth-{1}', variables('projectPrefix'), parameters('environment')))]",
+        "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]",
+        "[resourceId('Microsoft.App/containerApps', format('{0}-ingestion-{1}', variables('projectPrefix'), parameters('environment')))]",
+        "[resourceId('Microsoft.App/containerApps', format('{0}-reporting-{1}', variables('projectPrefix'), parameters('environment')))]",
+        "[resourceId('Microsoft.App/containerApps', format('{0}-ui-{1}', variables('projectPrefix'), parameters('environment')))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "containerAppsEnvId": {
+      "type": "string",
+      "metadata": {
+        "description": "Container Apps Environment ID"
+      },
+      "value": "[resourceId('Microsoft.App/managedEnvironments', variables('caEnvName'))]"
+    },
+    "gatewayFqdn": {
+      "type": "string",
+      "metadata": {
+        "description": "Gateway FQDN for external access"
+      },
+      "value": "[reference(resourceId('Microsoft.App/containerApps', format('{0}-gateway-{1}', variables('projectPrefix'), parameters('environment'))), '2024-03-01').configuration.ingress.fqdn]"
+    },
+    "appIds": {
+      "type": "object",
+      "metadata": {
+        "description": "Container App resource IDs by service"
+      },
+      "value": {
+        "auth": "[resourceId('Microsoft.App/containerApps', format('{0}-auth-{1}', variables('projectPrefix'), parameters('environment')))]",
+        "reporting": "[resourceId('Microsoft.App/containerApps', format('{0}-reporting-{1}', variables('projectPrefix'), parameters('environment')))]",
+        "ingestion": "[resourceId('Microsoft.App/containerApps', format('{0}-ingestion-{1}', variables('projectPrefix'), parameters('environment')))]",
+        "parsing": "[resourceId('Microsoft.App/containerApps', format('{0}-parsing-{1}', variables('projectPrefix'), parameters('environment')))]",
+        "chunking": "[resourceId('Microsoft.App/containerApps', format('{0}-chunking-{1}', variables('projectPrefix'), parameters('environment')))]",
+        "embedding": "[resourceId('Microsoft.App/containerApps', format('{0}-embedding-{1}', variables('projectPrefix'), parameters('environment')))]",
+        "orchestrator": "[resourceId('Microsoft.App/containerApps', format('{0}-orchestrator-{1}', variables('projectPrefix'), parameters('environment')))]",
+        "summarization": "[resourceId('Microsoft.App/containerApps', format('{0}-summarization-{1}', variables('projectPrefix'), parameters('environment')))]",
+        "ui": "[resourceId('Microsoft.App/containerApps', format('{0}-ui-{1}', variables('projectPrefix'), parameters('environment')))]",
+        "gateway": "[resourceId('Microsoft.App/containerApps', format('{0}-gateway-{1}', variables('projectPrefix'), parameters('environment')))]"
+      }
+    }
+  }
+}

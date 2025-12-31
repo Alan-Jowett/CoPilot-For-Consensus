@@ -260,6 +260,95 @@ Then configure Azure Private Link/Private Endpoints to restrict access to VNet o
 
 ---
 
+## Service Secrets and Key Vault Integration (Implemented)
+
+### Secrets Managed in Key Vault
+
+The following secrets are now managed through Azure Key Vault and injected into Container Apps:
+
+| Secret Name | Used By | Purpose | Required |
+|-------------|---------|---------|----------|
+| `jwt-private-key` | Auth | JWT signing (RS256) | Yes (for JWT auth) |
+| `jwt-public-key` | Auth | JWT verification (RS256) | Yes (for JWT auth) |
+| `github-oauth-client-id` | Auth | GitHub OAuth authentication | Optional |
+| `github-oauth-client-secret` | Auth | GitHub OAuth authentication | Optional |
+| `google-oauth-client-id` | Auth | Google OAuth authentication | Optional |
+| `google-oauth-client-secret` | Auth | Google OAuth authentication | Optional |
+| `microsoft-oauth-client-id` | Auth | Microsoft OAuth authentication | Optional |
+| `microsoft-oauth-client-secret` | Auth | Microsoft OAuth authentication | Optional |
+| `grafana-admin-user` | Grafana | Grafana admin login | Optional (future) |
+| `grafana-admin-password` | Grafana | Grafana admin login | Optional (future) |
+| `appinsights-instrumentation-key` | All services | Application monitoring | Yes (if using App Insights) |
+| `appinsights-connection-string` | All services | Application monitoring | Yes (if using App Insights) |
+
+### Secret Injection Mechanism
+
+Secrets are injected into Container Apps using the `@Microsoft.KeyVault(SecretUri=...)` syntax:
+
+```bicep
+{
+  name: 'JWT_PRIVATE_KEY'
+  value: '@Microsoft.KeyVault(SecretUri=${jwtPrivateKeySecretUri})'
+}
+```
+
+**Security Benefits:**
+- ✅ Secrets never stored in Bicep templates, parameter files, or Git
+- ✅ Container Apps platform resolves secrets at runtime using managed identity
+- ✅ Automatic secret rotation when Key Vault version changes
+- ✅ All secret access logged in Key Vault audit logs
+- ✅ Secrets encrypted at rest and in transit
+
+### RBAC for Secret Access
+
+All service managed identities are granted Key Vault access via:
+- **Access Policies** (current): `get` and `list` permissions
+- **RBAC** (planned migration): `Key Vault Secrets User` role
+
+**Current Limitation:**
+- All services can list and read all secrets in the vault
+- Compromise of one service identity exposes all secrets
+
+**Planned Improvement:**
+- Migrate to RBAC mode (`enableRbacAuthorization: true`)
+- Remove `list` permission (services only access secrets by name)
+- Consider per-service Key Vaults for high-security workloads
+
+### Setting Secrets
+
+**At Deployment Time** (secure CI/CD only):
+```bash
+az deployment group create \
+  --resource-group copilot-rg \
+  --template-file main.bicep \
+  --parameters @parameters.dev.json \
+  --parameters jwtPrivateKey=@jwt_private_key.pem
+```
+
+**After Deployment** (recommended for manual deployments):
+```bash
+KEY_VAULT_NAME=$(az deployment group show \
+  --name copilot-deployment \
+  --resource-group copilot-rg \
+  --query properties.outputs.keyVaultName.value -o tsv)
+
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name jwt-private-key --file jwt_private_key.pem
+az containerapp restart --name copilot-auth-dev --resource-group copilot-rg
+```
+
+### Secret Rotation (Every 90 Days Recommended)
+
+1. Generate new secret
+2. Update Key Vault (automatic versioning)
+3. Restart Container Apps
+4. Verify functionality
+
+Key Vault versions enable rollback if needed.
+
+See [README.md](README.md#post-deployment-configuration) for complete instructions.
+
+---
+
 ## Security Testing (Recommended)
 
 Once full deployment is complete:

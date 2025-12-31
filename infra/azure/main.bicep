@@ -167,6 +167,18 @@ var keyVaultName = '${projectPrefix}kv${take(uniqueSuffix, 13)}'
 var identityPrefix = '${projectName}-${environment}'
 var jwtKeysIdentityName = '${identityPrefix}-jwtkeys-id'
 
+// Variables to track whether secrets were provided at deployment time (for output purposes)
+var jwtPrivateKeyProvided = jwtPrivateKey != ''
+var jwtPublicKeyProvided = jwtPublicKey != ''
+var githubOAuthClientIdProvided = githubOAuthClientId != ''
+var githubOAuthClientSecretProvided = githubOAuthClientSecret != ''
+var googleOAuthClientIdProvided = googleOAuthClientId != ''
+var googleOAuthClientSecretProvided = googleOAuthClientSecret != ''
+var microsoftOAuthClientIdProvided = microsoftOAuthClientId != ''
+var microsoftOAuthClientSecretProvided = microsoftOAuthClientSecret != ''
+var grafanaAdminUserProvided = grafanaAdminUser != ''
+var grafanaAdminPasswordProvided = grafanaAdminPassword != ''
+
 // Module: User-Assigned Managed Identities
 module identitiesModule 'modules/identities.bicep' = {
   name: 'identitiesDeployment'
@@ -500,17 +512,18 @@ output environment string = environment
 output deploymentId string = deployment().name
 
 // Secret management outputs - these show which secrets need to be set manually if not provided at deployment time
+// Note: Using variables to avoid directly exposing secure parameter values in outputs
 output secretsSetupRequired object = {
-  jwtPrivateKey: jwtPrivateKey == ''
-  jwtPublicKey: jwtPublicKey == ''
-  githubOAuthClientId: githubOAuthClientId == ''
-  githubOAuthClientSecret: githubOAuthClientSecret == ''
-  googleOAuthClientId: googleOAuthClientId == ''
-  googleOAuthClientSecret: googleOAuthClientSecret == ''
-  microsoftOAuthClientId: microsoftOAuthClientId == ''
-  microsoftOAuthClientSecret: microsoftOAuthClientSecret == ''
-  grafanaAdminUser: grafanaAdminUser == ''
-  grafanaAdminPassword: grafanaAdminPassword == ''
+  jwtPrivateKey: !jwtPrivateKeyProvided
+  jwtPublicKey: !jwtPublicKeyProvided
+  githubOAuthClientId: !githubOAuthClientIdProvided
+  githubOAuthClientSecret: !githubOAuthClientSecretProvided
+  googleOAuthClientId: !googleOAuthClientIdProvided
+  googleOAuthClientSecret: !googleOAuthClientSecretProvided
+  microsoftOAuthClientId: !microsoftOAuthClientIdProvided
+  microsoftOAuthClientSecret: !microsoftOAuthClientSecretProvided
+  grafanaAdminUser: !grafanaAdminUserProvided
+  grafanaAdminPassword: !grafanaAdminPasswordProvided
 }
 
 // Instructions for setting secrets manually
@@ -537,4 +550,6 @@ az keyvault secret set --vault-name ${keyVaultModule.outputs.keyVaultName} --nam
 
 After setting secrets, restart the affected Container Apps to pick up the new values.
 '''
+
+
 
