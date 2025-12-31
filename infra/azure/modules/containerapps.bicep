@@ -52,6 +52,12 @@ param appInsightsKeySecretUri string = ''
 @description('Application Insights connection string secret URI (from Key Vault)')
 param appInsightsConnectionStringSecretUri string = ''
 
+@description('Microsoft Entra tenant ID for OAuth')
+param entraTenantId string = ''
+
+@description('OAuth redirect URI for auth service')
+param oauthRedirectUri string = ''
+
 @description('Log Analytics workspace resource ID')
 param logAnalyticsWorkspaceId string
 
@@ -152,6 +158,14 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'AZURE_KEYVAULT_NAME'
               value: keyVaultName
+            }
+            {
+              name: 'AUTH_MS_TENANT'
+              value: entraTenantId != '' ? entraTenantId : subscription().tenantId
+            }
+            {
+              name: 'AUTH_MS_REDIRECT_URI'
+              value: oauthRedirectUri
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'

@@ -57,6 +57,20 @@ param vnetAddressSpace string = '10.0.0.0/16'
 @description('Container Apps subnet address prefix (CIDR notation)')
 param subnetAddressPrefix string = '10.0.0.0/23'
 
+@description('Whether to create Microsoft Entra app registration for OAuth')
+param deployEntraApp bool = true
+
+@description('Microsoft Entra (Azure AD) tenant ID for OAuth authentication')
+param entraTenantId string = subscription().tenantId
+
+@description('Override redirect URIs for OAuth (defaults to gateway FQDN callback)')
+param oauthRedirectUris array = []
+
+@description('Client secret expiration in days for Entra app')
+@minValue(30)
+@maxValue(730)
+param oauthSecretExpirationDays int = 365
+
 @minValue(400)
 @maxValue(1000000)
 #disable-next-line no-unused-params
@@ -346,6 +360,12 @@ module vnetModule 'modules/vnet.bicep' = if (deployContainerApps) {
   }
 }
 
+// Calculate redirect URIs for OAuth callback
+// If oauthRedirectUris is explicitly provided, use those.
+// Otherwise, leave empty array and user must manually configure after deployment.
+// The gateway FQDN is only known after Container Apps deployment completes.
+var effectiveRedirectUris = length(oauthRedirectUris) > 0 ? oauthRedirectUris : []
+
 // Module: Container Apps (VNet and 10 microservices)
 // IMPORTANT: This module uses non-null assertions (!) for outputs from vnetModule, appInsightsModule,
 // aiSearchModule, and Key Vault secrets. These assertions are safe ONLY because this module has the same
@@ -370,6 +390,8 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     keyVaultName: keyVaultName
     appInsightsKeySecretUri: appInsightsInstrKeySecret!.properties.secretUriWithVersion
     appInsightsConnectionStringSecretUri: appInsightsConnectionStringSecret!.properties.secretUriWithVersion
+    entraTenantId: entraTenantId
+    oauthRedirectUri: length(effectiveRedirectUris) > 0 ? effectiveRedirectUris[0] : ''
     logAnalyticsWorkspaceId: appInsightsModule!.outputs.workspaceId
     logAnalyticsCustomerId: appInsightsModule!.outputs.workspaceCustomerId
     tags: tags
@@ -377,6 +399,44 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
   dependsOn: [
     jwtKeysModule  // Ensure JWT keys are generated before auth service starts
   ]
+}
+
+// Module: Microsoft Entra App Registration (for OAuth authentication)
+// Requires deployment identity to have Application.ReadWrite.All and Directory.ReadWrite.All
+// Graph API permissions. See ENTRA_APP_AUTOMATION.md for setup instructions.
+// Note: Deployment skipped if redirect URIs are not provided (length == 0)
+module entraAppModule 'modules/entra-app.bicep' = if (deployContainerApps && deployEntraApp && length(effectiveRedirectUris) > 0) {
+  name: 'entraAppDeployment'
+  params: {
+    location: location
+    appName: '${projectName}-auth-${environment}'
+    tenantId: entraTenantId
+    redirectUris: effectiveRedirectUris
+    environment: environment
+    secretExpirationDays: oauthSecretExpirationDays
+    deploymentIdentityId: identitiesModule.outputs.identityResourceIds.auth
+    tags: tags
+  }
+  dependsOn: [containerAppsModule]
+}
+
+// Store Entra app credentials in Key Vault
+resource microsoftOAuthClientIdSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps && deployEntraApp && length(effectiveRedirectUris) > 0) {
+  name: '${keyVaultName}/microsoft-oauth-client-id'
+  properties: {
+    value: entraAppModule!.outputs.clientId
+    contentType: 'text/plain'
+  }
+  dependsOn: [keyVaultModule]
+}
+
+resource microsoftOAuthClientSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployContainerApps && deployEntraApp && length(effectiveRedirectUris) > 0) {
+  name: '${keyVaultName}/microsoft-oauth-client-secret'
+  properties: {
+    value: entraAppModule!.outputs.clientSecret
+    contentType: 'text/plain'
+  }
+  dependsOn: [keyVaultModule]
 }
 
 // Outputs
@@ -412,6 +472,10 @@ output containerAppsEnvId string = deployContainerApps ? containerAppsModule!.ou
 output gatewayFqdn string = deployContainerApps ? containerAppsModule!.outputs.gatewayFqdn : ''
 output containerAppIds object = deployContainerApps ? containerAppsModule!.outputs.appIds : {}
 output vnetId string = deployContainerApps ? vnetModule!.outputs.vnetId : ''
+output entraAppClientId string = (deployContainerApps && deployEntraApp && length(effectiveRedirectUris) > 0) ? entraAppModule!.outputs.clientId : ''
+output entraAppTenantId string = (deployContainerApps && deployEntraApp && length(effectiveRedirectUris) > 0) ? entraAppModule!.outputs.tenantId : ''
+output entraAppObjectId string = (deployContainerApps && deployEntraApp && length(effectiveRedirectUris) > 0) ? entraAppModule!.outputs.objectId : ''
+output oauthRedirectUris array = (deployContainerApps && deployEntraApp && length(effectiveRedirectUris) > 0) ? effectiveRedirectUris : []
 output resourceGroupName string = resourceGroup().name
 output location string = location
 output environment string = environment

@@ -53,6 +53,9 @@
     "subnetAddressPrefix": {
       "value": "10.0.0.0/23"
     },
+    "deployEntraApp": {
+      "value": false
+    },
     "tags": {
       "value": {
         "environment": "dev",

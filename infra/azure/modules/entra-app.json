@@ -1,0 +1,164 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "languageVersion": "2.0",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.39.26.7824",
+      "templateHash": "14355944276651518638"
+    },
+    "description": "Module to create Microsoft Entra (Azure AD) app registration for OAuth authentication using deployment script",
+    "author": "Copilot-for-Consensus Team"
+  },
+  "parameters": {
+    "appName": {
+      "type": "string",
+      "metadata": {
+        "description": "Display name for the Entra app registration"
+      }
+    },
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "Location for deployment script resources"
+      }
+    },
+    "tenantId": {
+      "type": "string",
+      "metadata": {
+        "description": "Microsoft Entra tenant ID"
+      }
+    },
+    "redirectUris": {
+      "type": "array",
+      "metadata": {
+        "description": "Redirect URIs for OAuth callbacks (web platform)"
+      }
+    },
+    "environment": {
+      "type": "string",
+      "metadata": {
+        "description": "Environment name for resource tagging"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "defaultValue": {},
+      "metadata": {
+        "description": "Tags to apply to resources"
+      }
+    },
+    "secretExpirationDays": {
+      "type": "int",
+      "defaultValue": 365,
+      "minValue": 30,
+      "maxValue": 730,
+      "metadata": {
+        "description": "Client secret expiration in days"
+      }
+    },
+    "deploymentIdentityId": {
+      "type": "string",
+      "metadata": {
+        "description": "User-assigned managed identity resource ID with Graph API permissions"
+      }
+    }
+  },
+  "resources": {
+    "appRegistrationScript": {
+      "type": "Microsoft.Resources/deploymentScripts",
+      "apiVersion": "2023-08-01",
+      "name": "[format('create-entra-app-{0}', parameters('environment'))]",
+      "location": "[parameters('location')]",
+      "kind": "AzureCLI",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', parameters('deploymentIdentityId'))]": {}
+        }
+      },
+      "properties": {
+        "azCliVersion": "2.55.0",
+        "timeout": "PT10M",
+        "retentionInterval": "P1D",
+        "cleanupPreference": "OnSuccess",
+        "environmentVariables": [
+          {
+            "name": "APP_NAME",
+            "value": "[parameters('appName')]"
+          },
+          {
+            "name": "TENANT_ID",
+            "value": "[parameters('tenantId')]"
+          },
+          {
+            "name": "REDIRECT_URIS",
+            "value": "[join(parameters('redirectUris'), ',')]"
+          },
+          {
+            "name": "ENVIRONMENT",
+            "value": "[parameters('environment')]"
+          },
+          {
+            "name": "SECRET_EXPIRATION_DAYS",
+            "value": "[string(parameters('secretExpirationDays'))]"
+          }
+        ],
+        "scriptContent": "      #!/bin/bash\n      set -e\n      \n      # Install jq for JSON parsing\n      apk add --no-cache jq\n      \n      # Convert comma-separated redirect URIs to JSON array\n      IFS=',' read -ra URI_ARRAY <<< \"$REDIRECT_URIS\"\n      REDIRECT_URIS_JSON=\"[\"\n      for i in \"${!URI_ARRAY[@]}\"; do\n        if [ $i -gt 0 ]; then\n          REDIRECT_URIS_JSON+=\",\"\n        fi\n        REDIRECT_URIS_JSON+=\"\\\"${URI_ARRAY[$i]}\\\"\"\n      done\n      REDIRECT_URIS_JSON+=\"]\"\n      \n      echo \"Creating or updating Entra app: $APP_NAME\"\n      echo \"Redirect URIs: $REDIRECT_URIS_JSON\"\n      \n      # Check if app already exists\n      EXISTING_APP=$(az ad app list --display-name \"$APP_NAME\" --query \"[0]\" -o json || echo \"{}\")\n      \n      if [ \"$(echo \"$EXISTING_APP\" | jq -r '.appId // empty')\" != \"\" ]; then\n        # Update existing app\n        APP_ID=$(echo \"$EXISTING_APP\" | jq -r '.appId')\n        OBJECT_ID=$(echo \"$EXISTING_APP\" | jq -r '.id')\n        echo \"Updating existing app with ID: $APP_ID\"\n        \n        # Update redirect URIs\n        az ad app update --id \"$APP_ID\" \\\n          --web-redirect-uris $REDIRECT_URIS \\\n          --enable-id-token-issuance true\n        \n      else\n        # Create new app\n        echo \"Creating new app registration...\"\n        \n        # Create app with redirect URIs\n        NEW_APP=$(az ad app create \\\n          --display-name \"$APP_NAME\" \\\n          --sign-in-audience AzureADMyOrg \\\n          --web-redirect-uris $REDIRECT_URIS \\\n          --enable-id-token-issuance true \\\n          --required-resource-accesses '[\n            {\n              \"resourceAppId\": \"00000003-0000-0000-c000-000000000000\",\n              \"resourceAccess\": [\n                {\"id\": \"e1fe6dd8-ba31-4d61-89e7-88639da4683d\", \"type\": \"Scope\"},\n                {\"id\": \"37f7f235-527c-4136-accd-4a02d197296e\", \"type\": \"Scope\"},\n                {\"id\": \"14dad69e-099b-42c9-810b-d002981feec1\", \"type\": \"Scope\"},\n                {\"id\": \"64a6cdd6-aab1-4aaf-94b8-3cc8405e90d0\", \"type\": \"Scope\"}\n              ]\n            }\n          ]' -o json)\n        \n        APP_ID=$(echo \"$NEW_APP\" | jq -r '.appId')\n        OBJECT_ID=$(echo \"$NEW_APP\" | jq -r '.id')\n        echo \"Created app with ID: $APP_ID\"\n        \n        # Create service principal\n        SP_RESULT=$(az ad sp create --id \"$APP_ID\" -o json || echo \"{}\")\n        SP_ID=$(echo \"$SP_RESULT\" | jq -r '.id // empty')\n        if [ -z \"$SP_ID\" ]; then\n          # Service principal may already exist\n          SP_ID=$(az ad sp list --filter \"appId eq '$APP_ID'\" --query \"[0].id\" -o tsv)\n        fi\n        echo \"Service principal ID: $SP_ID\"\n      fi\n      \n      # Generate or rotate client secret\n      echo \"Generating client secret...\"\n      EXPIRATION_DATE=$(date -u -d \"+${SECRET_EXPIRATION_DAYS} days\" +\"%Y-%m-%dT%H:%M:%SZ\")\n      SECRET_RESULT=$(az ad app credential reset \\\n        --id \"$APP_ID\" \\\n        --display-name \"Primary Secret - Created by Bicep\" \\\n        --end-date \"$EXPIRATION_DATE\" \\\n        -o json)\n      \n      CLIENT_SECRET=$(echo \"$SECRET_RESULT\" | jq -r '.password')\n      SECRET_KEY_ID=$(echo \"$SECRET_RESULT\" | jq -r '.keyId // empty')\n      \n      # Get service principal ID if not set\n      if [ -z \"$SP_ID\" ]; then\n        SP_ID=$(az ad sp list --filter \"appId eq '$APP_ID'\" --query \"[0].id\" -o tsv)\n      fi\n      \n      # Output results as JSON\n      jq -n \\\n        --arg appId \"$APP_ID\" \\\n        --arg objectId \"$OBJECT_ID\" \\\n        --arg tenantId \"$TENANT_ID\" \\\n        --arg clientSecret \"$CLIENT_SECRET\" \\\n        --arg secretKeyId \"$SECRET_KEY_ID\" \\\n        --arg secretExpirationDate \"$EXPIRATION_DATE\" \\\n        --arg servicePrincipalId \"$SP_ID\" \\\n        '{\n          clientId: $appId,\n          objectId: $objectId,\n          tenantId: $tenantId,\n          clientSecret: $clientSecret,\n          secretKeyId: $secretKeyId,\n          secretExpirationDate: $secretExpirationDate,\n          servicePrincipalId: $servicePrincipalId\n        }' > $AZ_SCRIPTS_OUTPUT_PATH\n      \n      echo \"App registration completed successfully\"\n    "
+      },
+      "tags": "[parameters('tags')]"
+    }
+  },
+  "outputs": {
+    "clientId": {
+      "type": "string",
+      "metadata": {
+        "description": "Application (client) ID"
+      },
+      "value": "[reference('appRegistrationScript').outputs.clientId]"
+    },
+    "tenantId": {
+      "type": "string",
+      "metadata": {
+        "description": "Tenant ID"
+      },
+      "value": "[reference('appRegistrationScript').outputs.tenantId]"
+    },
+    "objectId": {
+      "type": "string",
+      "metadata": {
+        "description": "Application object ID"
+      },
+      "value": "[reference('appRegistrationScript').outputs.objectId]"
+    },
+    "servicePrincipalId": {
+      "type": "string",
+      "metadata": {
+        "description": "Service principal object ID"
+      },
+      "value": "[reference('appRegistrationScript').outputs.servicePrincipalId]"
+    },
+    "clientSecret": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Client secret value (sensitive - store in Key Vault immediately)"
+      },
+      "value": "[reference('appRegistrationScript').outputs.clientSecret]"
+    },
+    "secretKeyId": {
+      "type": "string",
+      "metadata": {
+        "description": "Client secret key ID for rotation tracking"
+      },
+      "value": "[reference('appRegistrationScript').outputs.secretKeyId]"
+    },
+    "secretExpirationDate": {
+      "type": "string",
+      "metadata": {
+        "description": "Client secret expiration date"
+      },
+      "value": "[reference('appRegistrationScript').outputs.secretExpirationDate]"
+    }
+  }
+}
