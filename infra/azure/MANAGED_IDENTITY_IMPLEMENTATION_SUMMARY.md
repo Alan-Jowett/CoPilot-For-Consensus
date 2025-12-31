@@ -6,6 +6,8 @@
 
 This implementation adds support for Azure Managed Identity authentication as an alternative to connection string-based authentication for Azure Service Bus in the ARM deployment template. This aligns with Azure security best practices for passwordless authentication and eliminates the need to manage and rotate Service Bus connection strings.
 
+> Update: The Container Apps module no longer accepts Service Bus or Cosmos DB connection strings; managed identity is the default path for these services. Connection string parameters were removed from the module interface to prevent secret propagation.
+
 ## Changes Made
 
 ### 1. Bicep Template (`infra/azure/main.bicep`)

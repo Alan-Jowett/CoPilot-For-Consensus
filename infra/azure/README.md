@@ -340,7 +340,6 @@ The repository includes pre-configured parameter files for each environment:
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `mongoDbConnectionString` | securestring | MongoDB or Cosmos DB connection string |
-| `serviceBusConnectionString` | securestring | Azure Service Bus connection string |
 | `storageAccountConnectionString` | securestring | Azure Storage connection string |
 
 ### Optional Parameters
@@ -360,6 +359,8 @@ The repository includes pre-configured parameter files for each environment:
 | `azureOpenAIKey` | securestring | `` | Azure OpenAI API key (required if llmBackend is azure) |
 | `vnetAddressPrefix` | string | `10.0.0.0/16` | Virtual network address prefix |
 | `subnetAddressPrefix` | string | `10.0.0.0/23` | Container Apps subnet prefix |
+
+> Note: Service Bus and Cosmos DB access now rely on managed identities; connection strings are no longer passed into the Container Apps module.
 
 ### Using Existing Managed Identities
 

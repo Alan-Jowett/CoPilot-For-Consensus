@@ -219,8 +219,6 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     containerRegistry: 'ghcr.io/alan-jowett/copilot-for-consensus'
     containerImageTag: containerImageTag
     identityResourceIds: identitiesModule.outputs.identityResourceIds
-    serviceBusConnectionString: serviceBusModule.outputs.connectionString
-    cosmosDbConnectionString: cosmosModule.outputs.connectionString
     azureOpenAIEndpoint: deployAzureOpenAI ? openaiModule!.outputs.accountEndpoint : ''
     azureOpenAIKey: deployAzureOpenAI ? openaiModule!.outputs.accountId : ''
     vnetId: vnetModule.outputs.vnetId

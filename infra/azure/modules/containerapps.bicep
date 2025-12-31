@@ -22,14 +22,6 @@ param containerImageTag string = 'latest'
 @description('User-assigned managed identity resource IDs by service')
 param identityResourceIds object
 
-#disable-next-line no-unused-params
-@description('Service Bus connection string (from Key Vault secret)')
-param serviceBusConnectionString string
-
-#disable-next-line no-unused-params
-@description('Cosmos DB connection string (from Key Vault secret)')
-param cosmosDbConnectionString string
-
 @description('Azure OpenAI endpoint URL')
 param azureOpenAIEndpoint string = ''
 

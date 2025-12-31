@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.39.26.7824",
-      "templateHash": "15244379241240590140"
+      "templateHash": "17550093012645525912"
     },
     "description": "Main orchestration template for Copilot for Consensus Azure deployment",
     "author": "Copilot-for-Consensus Team"
@@ -1318,12 +1318,6 @@
           "identityResourceIds": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'identitiesDeployment'), '2025-04-01').outputs.identityResourceIds.value]"
           },
-          "serviceBusConnectionString": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'serviceBusDeployment'), '2025-04-01').outputs.connectionString.value]"
-          },
-          "cosmosDbConnectionString": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'cosmosDeployment'), '2025-04-01').outputs.connectionString.value]"
-          },
           "azureOpenAIEndpoint": "[if(parameters('deployAzureOpenAI'), createObject('value', reference(resourceId('Microsoft.Resources/deployments', 'openaiDeployment'), '2025-04-01').outputs.accountEndpoint.value), createObject('value', ''))]",
           "azureOpenAIKey": "[if(parameters('deployAzureOpenAI'), createObject('value', reference(resourceId('Microsoft.Resources/deployments', 'openaiDeployment'), '2025-04-01').outputs.accountId.value), createObject('value', ''))]",
           "vnetId": {
@@ -1349,7 +1343,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.39.26.7824",
-              "templateHash": "5003508061140394854"
+              "templateHash": "10638260535773558984"
             },
             "description": "Module to provision Container Apps environment and all microservices",
             "author": "Copilot-for-Consensus Team"
@@ -1391,18 +1385,6 @@
               "type": "object",
               "metadata": {
                 "description": "User-assigned managed identity resource IDs by service"
-              }
-            },
-            "serviceBusConnectionString": {
-              "type": "string",
-              "metadata": {
-                "description": "Service Bus connection string (from Key Vault secret)"
-              }
-            },
-            "cosmosDbConnectionString": {
-              "type": "string",
-              "metadata": {
-                "description": "Cosmos DB connection string (from Key Vault secret)"
               }
             },
             "azureOpenAIEndpoint": {
@@ -2223,11 +2205,9 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Resources/deployments', 'appInsightsDeployment')]",
-        "[resourceId('Microsoft.Resources/deployments', 'cosmosDeployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'identitiesDeployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'keyVaultDeployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'openaiDeployment')]",
-        "[resourceId('Microsoft.Resources/deployments', 'serviceBusDeployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'vnetDeployment')]"
       ]
     },
