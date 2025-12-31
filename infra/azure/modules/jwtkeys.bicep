@@ -16,10 +16,10 @@ param scriptIdentityId string
 param forceUpdateTag string
 
 @description('Secret name for the JWT private key')
-param jwtPrivateSecretName string = 'jwt-private-key'
+param jwtPrivateSecretName string = 'jwt_private_key'
 
 @description('Secret name for the JWT public key')
-param jwtPublicSecretName string = 'jwt-public-key'
+param jwtPublicSecretName string = 'jwt_public_key'
 
 param tags object = {}
 
