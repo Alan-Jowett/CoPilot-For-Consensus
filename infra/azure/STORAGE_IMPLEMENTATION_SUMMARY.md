@@ -5,7 +5,7 @@
 
 ## Overview
 
-This implementation addresses issue #[issue_number] by adding comprehensive Azure Storage Account support and finalizing Cosmos DB collections/databases configuration for the Copilot for Consensus Azure deployment.
+This implementation addresses issue #634 by adding comprehensive Azure Storage Account support and finalizing Cosmos DB collections/databases configuration for the Copilot for Consensus Azure deployment.
 
 ## Changes Made
 

@@ -47,7 +47,13 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
     allowBlobPublicAccess: false
     isHnsEnabled: enableHierarchicalNamespace
     networkAcls: {
-      defaultAction: 'Allow'  // Change to 'Deny' and configure firewall rules for production
+      // SECURITY NOTE: Default action is 'Allow' for dev/staging to simplify development
+      // For production, change to 'Deny' and configure specific IP allowlists or VNet rules
+      // Example: 
+      //   defaultAction: 'Deny'
+      //   ipRules: [{ value: 'your-ip-address', action: 'Allow' }]
+      //   virtualNetworkRules: [{ id: subnetId, action: 'Allow' }]
+      defaultAction: 'Allow'
       bypass: 'AzureServices'
     }
     encryption: {
