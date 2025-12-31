@@ -8,7 +8,7 @@
 CERT_PATH="/etc/nginx/certs/server.crt"
 KEY_PATH="/etc/nginx/certs/server.key"
 NGINX_CONF="/etc/nginx/nginx.conf"
-ENABLE_INTERNAL_TLS="${ENABLE_INTERNAL_TLS:-false}"
+ENABLE_INTERNAL_TLS="${ENABLE_INTERNAL_TLS:-true}"
 
 # Optional internal TLS (not needed when ACA terminates HTTPS and forwards HTTP)
 if [ "$ENABLE_INTERNAL_TLS" = "true" ]; then
