@@ -191,7 +191,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'mongodb'
+              value: 'cosmos'
             }
             {
               name: 'AUTH_SERVICE_URL'
@@ -256,7 +256,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'mongodb'
+              value: 'cosmos'
             }
             {
               name: 'STORAGE_PATH'
@@ -326,7 +326,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'mongodb'
+              value: 'cosmos'
             }
             {
               name: 'AUTH_SERVICE_URL'
@@ -392,7 +392,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'mongodb'
+              value: 'cosmos'
             }
             {
               name: 'AUTH_SERVICE_URL'
@@ -458,7 +458,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'mongodb'
+              value: 'cosmos'
             }
             {
               name: 'VECTORSTORE_TYPE'
@@ -536,7 +536,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'mongodb'
+              value: 'cosmos'
             }
             {
               name: 'AUTH_SERVICE_URL'
@@ -602,7 +602,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'DOCUMENT_STORE_TYPE'
-              value: 'mongodb'
+              value: 'cosmos'
             }
             {
               name: 'LLM_BACKEND'
