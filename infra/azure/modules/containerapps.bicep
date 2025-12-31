@@ -37,6 +37,9 @@ param cosmosDbEndpoint string = ''
 @description('Container Apps subnet ID')
 param subnetId string
 
+@description('Key Vault name for secret access')
+param keyVaultName string
+
 @description('Application Insights instrumentation key secret URI (from Key Vault)')
 param appInsightsKeySecretUri string = ''
 
@@ -135,6 +138,14 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'JWT_ALGORITHM'
               value: 'RS256'
+            }
+            {
+              name: 'SECRET_PROVIDER_TYPE'
+              value: 'azurekeyvault'
+            }
+            {
+              name: 'AZURE_KEYVAULT_NAME'
+              value: keyVaultName
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'

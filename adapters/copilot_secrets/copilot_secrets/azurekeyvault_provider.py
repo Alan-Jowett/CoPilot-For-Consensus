@@ -159,11 +159,34 @@ class AzureKeyVaultProvider(SecretProvider):
             "AZURE_KEY_VAULT_URI or AZURE_KEY_VAULT_NAME environment variable"
         )
 
+    @staticmethod
+    def _normalize_secret_name(key_name: str) -> str:
+        """Normalize secret name from snake_case to hyphenated format for Azure Key Vault.
+
+        Azure Key Vault secret names can only contain alphanumeric characters and hyphens.
+        This method transforms internal secret names (using underscores) to Key Vault-compatible
+        names (using hyphens).
+
+        Args:
+            key_name: Secret name in snake_case format (e.g., "jwt_private_key")
+
+        Returns:
+            Secret name with hyphens (e.g., "jwt-private-key")
+
+        Example:
+            >>> AzureKeyVaultProvider._normalize_secret_name("jwt_private_key")
+            'jwt-private-key'
+            >>> AzureKeyVaultProvider._normalize_secret_name("mongodb_root_username")
+            'mongodb-root-username'
+        """
+        return key_name.replace("_", "-")
+
     def get_secret(self, key_name: str, version: str | None = None) -> str:
         """Retrieve a secret by name from Azure Key Vault.
 
         Args:
-            key_name: Name of the secret in Key Vault
+            key_name: Name of the secret (e.g., "jwt_private_key" or "jwt-private-key")
+                     Underscores are automatically converted to hyphens for Key Vault compatibility
             version: Optional version identifier for the secret
                     If not provided, retrieves the latest version
 
@@ -176,14 +199,17 @@ class AzureKeyVaultProvider(SecretProvider):
         """
         from azure.core.exceptions import AzureError, ResourceNotFoundError
 
+        # Normalize secret name for Azure Key Vault (convert underscores to hyphens)
+        vault_key_name = self._normalize_secret_name(key_name)
+
         try:
             if version:
-                secret = self.client.get_secret(key_name, version=version)
+                secret = self.client.get_secret(vault_key_name, version=version)
             else:
-                secret = self.client.get_secret(key_name)
+                secret = self.client.get_secret(vault_key_name)
 
             if secret.value is None:
-                raise SecretNotFoundError(f"Key '{key_name}' has no value")
+                raise SecretNotFoundError(f"Key '{key_name}' (vault name: '{vault_key_name}') has no value")
 
             return secret.value
 
@@ -191,13 +217,13 @@ class AzureKeyVaultProvider(SecretProvider):
             # Re-raise SecretNotFoundError without wrapping
             raise
         except ResourceNotFoundError as e:
-            raise SecretNotFoundError(f"Key not found: {key_name}") from e
+            raise SecretNotFoundError(f"Key not found: {key_name} (vault name: {vault_key_name})") from e
         except AzureError as e:
             # Handle Azure SDK network, service, and authentication errors
-            raise SecretProviderError(f"Failed to retrieve key '{key_name}': {e}") from e
+            raise SecretProviderError(f"Failed to retrieve key '{key_name}' (vault name: '{vault_key_name}'): {e}") from e
         except Exception as e:
             # Wrap any unexpected exceptions in SecretProviderError
-            raise SecretProviderError(f"Failed to retrieve key '{key_name}': {e}") from e
+            raise SecretProviderError(f"Failed to retrieve key '{key_name}' (vault name: '{vault_key_name}'): {e}") from e
 
     def get_secret_bytes(self, key_name: str, version: str | None = None) -> bytes:
         """Retrieve a secret as raw bytes from Azure Key Vault.
@@ -206,7 +232,8 @@ class AzureKeyVaultProvider(SecretProvider):
         the secret as a string and encodes it to UTF-8 bytes.
 
         Args:
-            key_name: Name of the secret in Key Vault
+            key_name: Name of the secret (e.g., "jwt_private_key" or "jwt-private-key")
+                     Underscores are automatically converted to hyphens for Key Vault compatibility
             version: Optional version identifier for the secret
 
         Returns:
@@ -223,16 +250,20 @@ class AzureKeyVaultProvider(SecretProvider):
         """Check if a secret exists in Azure Key Vault.
 
         Args:
-            key_name: Name of the secret to check
+            key_name: Name of the secret to check (e.g., "jwt_private_key" or "jwt-private-key")
+                     Underscores are automatically converted to hyphens for Key Vault compatibility
 
         Returns:
             True if secret exists and is enabled, False otherwise
         """
         from azure.core.exceptions import AzureError, ResourceNotFoundError
 
+        # Normalize secret name for Azure Key Vault (convert underscores to hyphens)
+        vault_key_name = self._normalize_secret_name(key_name)
+
         try:
             # Fetch secret metadata; get_secret returns value + properties
-            secret = self.client.get_secret(key_name)
+            secret = self.client.get_secret(vault_key_name)
             return bool(secret and getattr(secret.properties, "enabled", True))
 
         except ResourceNotFoundError:
@@ -241,5 +272,5 @@ class AzureKeyVaultProvider(SecretProvider):
         except AzureError as e:
             # Log Azure SDK network/service/authentication errors and return False for robustness
             # Note: Only logging the key name (metadata), not any sensitive value
-            logger.warning(f"Error checking if key '{key_name}' exists in vault: {e}")
+            logger.warning(f"Error checking if key '{key_name}' (vault name: '{vault_key_name}') exists in vault: {e}")
             return False

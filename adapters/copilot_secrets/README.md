@@ -140,6 +140,27 @@ The Azure provider uses `DefaultAzureCredential` from `azure-identity`, which tr
 4. **Visual Studio Code** (for local development)
    - Azure Account extension automatically provides credentials
 
+#### Secret Name Normalization
+
+**Important:** The Azure Key Vault provider automatically normalizes secret names to comply with Azure Key Vault naming restrictions. Azure Key Vault only allows alphanumeric characters and hyphens in secret names.
+
+The provider transparently converts underscores to hyphens when querying Key Vault, allowing you to use consistent naming conventions in your code:
+
+```python
+# Your code uses snake_case (with underscores)
+provider = create_secret_provider("azure", vault_name="my-vault")
+api_key = provider.get_secret("api_key")  # Queries "api-key" in Key Vault
+jwt_key = provider.get_secret("jwt_private_key")  # Queries "jwt-private-key" in Key Vault
+
+# You can also use hyphenated names directly
+db_pass = provider.get_secret("database-password")  # Queries "database-password" in Key Vault
+```
+
+This means:
+- **In your code**: Use snake_case secret names (e.g., `jwt_private_key`, `message_bus_password`)
+- **In Azure Key Vault**: Store secrets with hyphenated names (e.g., `jwt-private-key`, `message-bus-password`)
+- **The adapter handles the transformation automatically** - no code changes needed!
+
 #### Docker/Kubernetes Deployment
 
 ```yaml
