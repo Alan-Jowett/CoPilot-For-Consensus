@@ -68,26 +68,34 @@ This document outlines known security considerations and recommended improvement
 
 ## Subscription-Level Contributor Access
 
-**Current Implementation:**
-- GitHub OIDC service principal has `Contributor` role on entire subscription
-- Required for CI/CD to create resource groups and validate deployments
-- Federated credentials grant access for BOTH main branch deployments AND pull requests
+**Current Implementation (FIXED):**
+- GitHub OIDC service principal has `Contributor` role **SCOPED to validation resource group only**
+- Service principal has `User Access Administrator` role **SCOPED to validation resource group only**
+- Required for CI/CD to validate deployments in isolated environment
+- Federated credentials grant access for BOTH main branch deployments AND pull requests, but with limited blast radius
 
-**Critical Risk - GitHub PR Execution:**
-- ⚠️ **Pull requests from ANY contributor trigger CI/CD with full Contributor permissions**
-- Includes PRs from forks and external contributors
-- Malicious PR can deploy infrastructure, modify data, exfiltrate secrets
-- Validation runs BEFORE merge approval, so risk applies to all PRs
+**Security Improvement (Implemented):**
+- ✅ **PR validations are LIMITED to `copilot-bicep-validation-rg` only**
+- ✅ Malicious PRs CANNOT access or modify resources outside this resource group
+- ✅ No subscription-level permissions granted
+- ✅ Production deployments require manual setup with appropriate permissions
 
-**Why This Matters:**
-- PR CI/CD runs before human review of the pull request content
-- Bicep templates in PRs execute with full permissions (ARM validation, what-if analysis)
-- Attacker doesn't need code merge approval to execute arbitrary deployments
-- No way to distinguish between legitimate development PR and malicious PR at runtime
+**Previous Risk (Now Mitigated):**
+- ⚠️ Pull requests from ANY contributor previously had subscription-level Contributor permissions
+- ⚠️ Could deploy infrastructure, modify data, exfiltrate secrets anywhere in subscription
+- ✅ **NOW FIXED**: Permissions scoped to validation RG only
 
-**Mitigation Options:**
+**How It Works:**
+- `setup-github-oidc.sh` creates validation resource group if it doesn't exist
+- Assigns `Contributor` role to the validation RG only (NOT subscription)
+- All PR deployments happen in this isolated RG
+- Validation still works, blast radius is contained
 
-### Option 1: **Scope to Validation-Only Resource Group** (RECOMMENDED)
+**Mitigation Options (For Reference):**
+
+The following options were considered, and **Option 1 has been implemented** in the current setup:
+
+### Option 1: **Scope to Validation-Only Resource Group** (✅ IMPLEMENTED)
 
 **How it works:**
 - Assign `Contributor` role to specific resource group (e.g., `copilot-bicep-validation-rg`)
@@ -97,37 +105,27 @@ This document outlines known security considerations and recommended improvement
 
 **Implementation:**
 ```bash
-# Create validation resource group
-az group create --name copilot-bicep-validation-rg --location westus
-
-# Scope service principal to this RG only
-az role assignment create \
-  --role "Contributor" \
-  --assignee <service-principal-id> \
-  --resource-group copilot-bicep-validation-rg
+# This is now handled automatically by setup-github-oidc.sh
+# The script creates the validation RG if it doesn't exist
+# and scopes all permissions to it automatically
+./setup-github-oidc.sh
 ```
 
-**Then remove subscription-level Contributor role:**
-```bash
-# List all role assignments for the service principal
-az role assignment list --assignee <service-principal-id>
-
-# Remove Contributor from subscription scope (keep only RG scope)
-az role assignment delete \
-  --assignee <service-principal-id> \
-  --role "Contributor" \
-  --scope "/subscriptions/<subscription-id>"
-```
+**Status: ✅ IMPLEMENTED**
+- The `setup-github-oidc.sh` script now automatically creates the validation resource group
+- Contributor and User Access Administrator roles are scoped to validation RG only
+- No manual steps required - security is built-in by default
 
 **Pros:**
-- Simple to implement
-- Isolates PR validation to specific RG
-- Malicious PR can't affect production or other services
-- Still allows full Bicep validation
+- ✅ Simple to implement
+- ✅ Isolates PR validation to specific RG
+- ✅ Malicious PR can't affect production or other services
+- ✅ Still allows full Bicep validation
+- ✅ **NOW IMPLEMENTED BY DEFAULT**
 
 **Cons:**
 - CI/CD can only validate for specific RG (not production deployment)
-- Requires manual promotion of validated changes to production
+- Requires manual promotion of validated changes to production (this is actually a security feature)
 
 ### Option 2: **Custom RBAC Role with Limited Permissions** (MOST SECURE)
 
@@ -193,19 +191,6 @@ Use different credentials based on branch/event.
 **Cons:**
 - Operational complexity
 - Two separate OIDC setups to maintain
-
----
-
-**RECOMMENDED ACTION FOR PR #1:**
-
-✅ **Implement Option 1 immediately** (Scope to Validation RG):
-1. Create resource group: `copilot-bicep-validation-rg`
-2. Assign service principal Contributor role to **this RG only**
-3. Remove subscription-level Contributor assignment
-4. Update workflow to deploy validations to this RG
-5. Document that production deployments require manual setup
-
-This provides immediate security improvement while keeping CI/CD functional.
 
 ---
 

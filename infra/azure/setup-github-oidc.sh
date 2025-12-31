@@ -187,22 +187,27 @@ fi
 set -e
 
 # Assign roles needed for deployments
-# 1) Contributor for resource CRUD
+# 1) Contributor for resource CRUD (SCOPED TO VALIDATION RG ONLY for security)
 # 2) User Access Administrator for creating roleAssignments (least privilege that enables RBAC writes)
-#    Prefer scoping UA Admin to a specific resource group to reduce blast radius.
-DEFAULT_UAA_RG="copilot-bicep-validation-rg"
-ROLE_SCOPE_RG=${ROLE_SCOPE_RG:-$DEFAULT_UAA_RG}
-UAA_SCOPE="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$ROLE_SCOPE_RG"
+#    Scoped to validation RG to reduce blast radius.
+DEFAULT_VALIDATION_RG="copilot-bicep-validation-rg"
+VALIDATION_RG=${VALIDATION_RG:-$DEFAULT_VALIDATION_RG}
+CONTRIBUTOR_SCOPE="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$VALIDATION_RG"
+UAA_SCOPE="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$VALIDATION_RG"
 
-# Verify RG exists; if not, fall back to subscription scope with warning
-if ! az group show --name "$ROLE_SCOPE_RG" >/dev/null 2>&1; then
-    echo -e "${YELLOW}Warning: Resource group '$ROLE_SCOPE_RG' not found; falling back to subscription scope for UA Admin.${NC}"
-    UAA_SCOPE="/subscriptions/$SUBSCRIPTION_ID"
+# Verify RG exists; if not, create it (required for scoped permissions)
+if ! az group show --name "$VALIDATION_RG" >/dev/null 2>&1; then
+    echo -e "${YELLOW}Validation resource group '$VALIDATION_RG' not found. Creating it...${NC}"
+    LOCATION="eastus"  # Default location for validation RG
+    az group create --name "$VALIDATION_RG" --location "$LOCATION" >/dev/null 2>&1
+    echo -e "${GREEN}✓ Validation resource group created: $VALIDATION_RG (location: $LOCATION)${NC}"
 else
-    echo -e "${GREEN}✓ Using resource group scope for UA Admin: $UAA_SCOPE${NC}"
+    echo -e "${GREEN}✓ Validation resource group exists: $VALIDATION_RG${NC}"
 fi
 
-echo -e "${YELLOW}Assigning Contributor role on subscription...${NC}"
+echo -e "${YELLOW}Assigning Contributor role (scoped to validation RG only)...${NC}"
+echo -e "${YELLOW}  Scope: $CONTRIBUTOR_SCOPE${NC}"
+echo -e "${YELLOW}  ⚠️  Security: PR validations are limited to this resource group only.${NC}"
 sleep 10
 MAX_RETRIES=5
 RETRY_COUNT=0
@@ -210,11 +215,11 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     ROLE_OUTPUT=$(az role assignment create \
         --role "Contributor" \
         --assignee "$PRINCIPAL_ID" \
-        --scope "/subscriptions/$SUBSCRIPTION_ID" 2>&1)
+        --scope "$CONTRIBUTOR_SCOPE" 2>&1)
     ROLE_EXIT_CODE=$?
     
     if [ $ROLE_EXIT_CODE -eq 0 ]; then
-        echo -e "${GREEN}✓ Contributor role assigned${NC}"
+        echo -e "${GREEN}✓ Contributor role assigned (scoped to validation RG)${NC}"
         break
     else
         if echo "$ROLE_OUTPUT" | grep -q "The role assignment already exists"; then
@@ -235,13 +240,14 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             echo -e "${RED}Error: Failed to assign Contributor after $MAX_RETRIES attempts.${NC}"
             echo -e "${RED}Details: $ROLE_OUTPUT${NC}"
             echo -e "${YELLOW}Try running this command manually:${NC}"
-            echo "  az role assignment create --role Contributor --assignee $PRINCIPAL_ID --scope /subscriptions/$SUBSCRIPTION_ID"
+            echo "  az role assignment create --role Contributor --assignee $PRINCIPAL_ID --scope $CONTRIBUTOR_SCOPE"
             exit 1
         fi
     fi
 done
 
-echo -e "${YELLOW}Assigning User Access Administrator role (scope: $UAA_SCOPE)...${NC}"
+echo -e "${YELLOW}Assigning User Access Administrator role (scoped to validation RG)...${NC}"
+echo -e "${YELLOW}  Scope: $UAA_SCOPE${NC}"
 RETRY_COUNT=0
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     ROLE_OUTPUT=$(az role assignment create \
@@ -251,7 +257,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     ROLE_EXIT_CODE=$?
     
     if [ $ROLE_EXIT_CODE -eq 0 ]; then
-        echo -e "${GREEN}✓ User Access Administrator role assigned${NC}"
+        echo -e "${GREEN}✓ User Access Administrator role assigned (scoped to validation RG)${NC}"
         break
     else
         if echo "$ROLE_OUTPUT" | grep -q "The role assignment already exists"; then
@@ -272,7 +278,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             echo -e "${RED}Error: Failed to assign User Access Administrator after $MAX_RETRIES attempts.${NC}"
             echo -e "${RED}Details: $ROLE_OUTPUT${NC}"
             echo -e "${YELLOW}Try running this command manually:${NC}"
-            echo "  az role assignment create --role 'User Access Administrator' --assignee $PRINCIPAL_ID --scope /subscriptions/$SUBSCRIPTION_ID"
+            echo "  az role assignment create --role 'User Access Administrator' --assignee $PRINCIPAL_ID --scope $UAA_SCOPE"
             exit 1
         fi
     fi
@@ -352,10 +358,25 @@ echo "Federated credentials created for:"
 echo "  1. Main branch: repo:${GITHUB_ORG}/${GITHUB_REPO}:ref:refs/heads/main"
 echo "  2. PR branches: repo:${GITHUB_ORG}/${GITHUB_REPO}:pull_request"
 echo ""
+echo -e "${YELLOW}=== Security Configuration ===${NC}"
+echo ""
+echo "✅ Contributor role: SCOPED to resource group: $VALIDATION_RG"
+echo "✅ User Access Administrator: SCOPED to resource group: $VALIDATION_RG"
+echo ""
+echo -e "${GREEN}Security Boundary:${NC}"
+echo "  • PR validations are LIMITED to the validation resource group only"
+echo "  • Malicious PRs CANNOT access or modify resources outside this RG"
+echo "  • Production deployments require manual setup with appropriate permissions"
+echo ""
+echo -e "${YELLOW}⚠️  Important: All PR-triggered CI/CD runs will have permissions limited to:${NC}"
+echo "     Resource Group: $VALIDATION_RG"
+echo "     This reduces the blast radius of potentially malicious pull requests."
+echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo "1. Copy the secrets above to GitHub"
 echo "2. Run the workflow: Push a change to infra/azure/ or trigger manually"
 echo "3. Check GitHub Actions tab for validation results"
+echo "4. For production deployments, manually assign broader permissions as needed"
 echo ""
 
 # Cleanup
