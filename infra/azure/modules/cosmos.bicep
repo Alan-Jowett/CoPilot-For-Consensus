@@ -106,6 +106,18 @@ resource cosmosDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2023
 }
 
 // Single multi-collection container partitioned by logical collection name
+// This approach stores all document types (archives, messages, chunks, threads, summaries)
+// in a single container, using the '/collection' field as the partition key.
+// Benefits:
+// - Simplified throughput management (one RU budget for all collections)
+// - Cross-collection queries and transactions are possible
+// - Lower cost than multiple containers for small-to-medium workloads
+// Trade-offs:
+// - Collections share the same partition key space (design must avoid hot partitions)
+// - Cannot set different TTL or indexing policies per collection (would require separate containers)
+// 
+// For production scale-out, consider migrating to individual containers per collection type
+// if throughput requirements diverge or if specific indexing/TTL policies are needed.
 resource documentsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-11-15' = {
   parent: cosmosDatabase
   name: containerName
@@ -122,6 +134,55 @@ resource documentsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/
       indexingPolicy: {
         indexingMode: 'consistent'
         automatic: true
+        includedPaths: [
+          {
+            path: '/*'
+          }
+        ]
+        excludedPaths: [
+          {
+            path: '/"_etag"/?'
+          }
+        ]
+        // Composite indexes for common query patterns (archives, messages, threads, summaries)
+        compositeIndexes: [
+          // Archives: queries by source + ingestion_date
+          [
+            { path: '/collection', order: 'ascending' }
+            { path: '/source', order: 'ascending' }
+            { path: '/ingestion_date', order: 'descending' }
+          ]
+          // Messages: queries by archive_id + date
+          [
+            { path: '/collection', order: 'ascending' }
+            { path: '/archive_id', order: 'ascending' }
+            { path: '/date', order: 'descending' }
+          ]
+          // Messages: queries by thread_id + date
+          [
+            { path: '/collection', order: 'ascending' }
+            { path: '/thread_id', order: 'ascending' }
+            { path: '/date', order: 'descending' }
+          ]
+          // Threads: queries by archive_id + last_message_date
+          [
+            { path: '/collection', order: 'ascending' }
+            { path: '/archive_id', order: 'ascending' }
+            { path: '/last_message_date', order: 'descending' }
+          ]
+          // Summaries: queries by thread_id + generated_at
+          [
+            { path: '/collection', order: 'ascending' }
+            { path: '/thread_id', order: 'ascending' }
+            { path: '/generated_at', order: 'descending' }
+          ]
+          // Chunks: queries by message_id + sequence
+          [
+            { path: '/collection', order: 'ascending' }
+            { path: '/message_id', order: 'ascending' }
+            { path: '/sequence', order: 'ascending' }
+          ]
+        ]
       }
     }
     options: {}

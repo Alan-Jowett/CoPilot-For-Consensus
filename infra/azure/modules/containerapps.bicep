@@ -34,6 +34,12 @@ param serviceBusNamespace string = ''
 @description('Cosmos DB account endpoint URL for document store connection')
 param cosmosDbEndpoint string = ''
 
+@description('Storage Account name for blob storage')
+param storageAccountName string = ''
+
+@description('Storage Account blob endpoint URL')
+param storageBlobEndpoint string = ''
+
 @description('Container Apps subnet ID')
 param subnetId string
 
@@ -291,6 +297,18 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'STORAGE_PATH'
               value: '/data/raw_archives'
+            }
+            {
+              name: 'AZURE_STORAGE_ACCOUNT'
+              value: storageAccountName
+            }
+            {
+              name: 'AZURE_STORAGE_ENDPOINT'
+              value: storageBlobEndpoint
+            }
+            {
+              name: 'AZURE_STORAGE_CONTAINER'
+              value: 'archives'
             }
             {
               name: 'AUTH_SERVICE_URL'

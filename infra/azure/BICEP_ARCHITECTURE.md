@@ -15,6 +15,7 @@ The infrastructure provisions the following Azure services:
 - **Azure Container Registry**: Private image repository
 - **Azure Service Bus**: Message broker for asynchronous service communication
 - **Azure Cosmos DB**: NoSQL document store with multi-region capability
+- **Azure Storage Account**: Blob storage for raw email archives and artifacts
 - **Azure AI Search**: Vector database for semantic search and embeddings
 - **Azure OpenAI**: LLM inference via managed service
 - **Azure Key Vault**: Secrets and credential management
@@ -91,13 +92,18 @@ Internet → Gateway (HTTPS) → Internal services (HTTP)
 
 ```
 modules/
-├── identity.bicep              # Managed identities for all services
+├── identities.bicep            # Managed identities for all services
 ├── keyvault.bicep              # Key Vault for secrets
-├── cosmosdb.bicep              # Cosmos DB document store
+├── cosmos.bicep                # Cosmos DB document store
+├── storage.bicep               # Azure Storage Account for blob storage
 ├── servicebus.bicep            # Service Bus message broker
 ├── aisearch.bicep              # Azure AI Search vector store
 ├── openai.bicep                # Azure OpenAI deployment
-├── monitoring.bicep            # Application Insights & Log Analytics
+├── appinsights.bicep           # Application Insights & Log Analytics
+├── vnet.bicep                  # Virtual Network with subnet
+└── containerapps.bicep         # Container Apps environment and 10 services
+```
+
 ├── containerapps.bicep         # Container Apps environment & services
 └── vnet.bicep                  # VNet and subnets
 ```
@@ -133,7 +139,43 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 - Fine-grained RBAC role assignments
 - Audit trail of service access
 
-#### 2. **Conditional Deployments Per Environment**
+#### 2. **Data Storage Architecture**
+
+The deployment provisions two storage services with distinct purposes:
+
+##### Azure Cosmos DB (Document Store)
+- **Purpose**: Structured document storage (archives, messages, threads, summaries, chunks)
+- **Access**: All microservices via managed identity with Cosmos DB Data Contributor role
+- **Configuration**: Single database (`copilot`) with one multi-collection container (`documents`)
+- **Partition key**: `/collection` (logical collection name)
+- **Throughput**: Database-level autoscale (400-1000 RU/s for dev, higher for prod)
+- **Details**: See [COSMOS_DB_DESIGN.md](COSMOS_DB_DESIGN.md) for collection structure and indexing strategy
+
+**Collections stored** (all in `documents` container):
+- `archives`: Raw email archive metadata
+- `messages`: Individual email messages
+- `chunks`: Semantic chunks for embeddings
+- `threads`: Email conversation threads
+- `summaries`: Generated thread summaries
+
+##### Azure Storage Account (Blob Storage)
+- **Purpose**: Unstructured binary storage (raw email archives, large artifacts)
+- **Access**: All microservices via managed identity with Storage Blob Data Contributor role
+- **Containers**: `archives` (raw mbox/maildir files)
+- **Configuration**: Standard_LRS (dev/staging), Standard_GRS (prod), Hot tier
+- **Environment variables injected**: `AZURE_STORAGE_ACCOUNT`, `AZURE_STORAGE_ENDPOINT`, `AZURE_STORAGE_CONTAINER`
+
+**Usage pattern**:
+1. Ingestion service fetches raw email archives (mbox files)
+2. Archives stored in Azure Blob Storage (`archives` container)
+3. Metadata stored in Cosmos DB (`archives` collection)
+4. Parsing service reads from blob storage, writes messages to Cosmos DB
+
+**RBAC roles assigned**:
+- **Storage Blob Data Contributor**: All services (read/write blob data using managed identity)
+
+#### 3. **Conditional Deployments Per Environment**
+
 
 Services deployed conditionally based on environment flags:
 
@@ -148,7 +190,8 @@ module openai 'modules/openai.bicep' = if (deployAzureOpenAI) {
 }
 ```
 
-#### 3. **Parameter Passing for Configuration**
+#### 4. **Parameter Passing for Configuration**
+
 
 Connection strings and endpoints passed as parameters, not hardcoded:
 
