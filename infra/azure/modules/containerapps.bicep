@@ -47,8 +47,7 @@ param subnetId string
 @description('Key Vault URI for secret references')
 param keyVaultUri string
 
-#disable-next-line no-unused-params
-@description('Application Insights instrumentation key')
+@description('Application Insights instrumentation key for service telemetry')
 param appInsightsKey string = ''
 
 param tags object = {}
@@ -132,6 +131,10 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'JWT_ALGORITHM'
               value: 'RS256'
             }
+            {
+              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+              value: appInsightsKey
+            }
           ]
           resources: {
             cpu: json('0.25')
@@ -192,6 +195,10 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'AUTH_SERVICE_URL'
               value: 'http://auth:${servicePorts.auth}'
+            }
+            {
+              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+              value: appInsightsKey
             }
           ]
           resources: {
@@ -258,6 +265,10 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'AUTH_SERVICE_URL'
               value: 'http://auth:${servicePorts.auth}'
             }
+            {
+              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+              value: appInsightsKey
+            }
           ]
           resources: {
             cpu: json('0.5')
@@ -320,6 +331,10 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'AUTH_SERVICE_URL'
               value: 'http://auth:${servicePorts.auth}'
             }
+            {
+              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+              value: appInsightsKey
+            }
           ]
           resources: {
             cpu: json('0.5')
@@ -381,6 +396,10 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'AUTH_SERVICE_URL'
               value: 'http://auth:${servicePorts.auth}'
+            }
+            {
+              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+              value: appInsightsKey
             }
           ]
           resources: {
@@ -448,6 +467,10 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'AUTH_SERVICE_URL'
               value: 'http://auth:${servicePorts.auth}'
             }
+            {
+              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+              value: appInsightsKey
+            }
           ]
           resources: {
             cpu: json('1')
@@ -509,6 +532,10 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'AUTH_SERVICE_URL'
               value: 'http://auth:${servicePorts.auth}'
+            }
+            {
+              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+              value: appInsightsKey
             }
           ]
           resources: {
@@ -580,6 +607,10 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'AUTH_SERVICE_URL'
               value: 'http://auth:${servicePorts.auth}'
             }
+            {
+              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+              value: appInsightsKey
+            }
           ]
           resources: {
             cpu: json('0.5')
@@ -633,6 +664,10 @@ resource uiApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'REACT_APP_API_BASE_URL'
               value: '/api'
+            }
+            {
+              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+              value: appInsightsKey
             }
           ]
           resources: {
@@ -699,6 +734,10 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'UPSTREAM_UI'
               value: 'http://ui:${servicePorts.ui}'
+            }
+            {
+              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+              value: appInsightsKey
             }
           ]
           resources: {
