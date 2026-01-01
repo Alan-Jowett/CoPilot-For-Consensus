@@ -284,8 +284,8 @@ export function ReportsList() {
           <h3>Active Filters:</h3>
           <div className="filter-tags">
             {q.topic && <span className="filter-tag">Topic: {q.topic} <span className="remove" onClick={() => remove('topic')}>×</span></span>}
-            {q.message_start_date && <span className="filter-tag">Thread messages after: {q.message_start_date} <span className="remove" onClick={() => remove('message_start_date')}>×</span></span>}
-            {q.message_end_date && <span className="filter-tag">Thread messages before: {q.message_end_date} <span className="remove" onClick={() => remove('message_end_date')}>×</span></span>}
+            {q.message_start_date && <span className="filter-tag">Messages from: {q.message_start_date} <span className="remove" onClick={() => remove('message_start_date')}>×</span></span>}
+            {q.message_end_date && <span className="filter-tag">Messages until: {q.message_end_date} <span className="remove" onClick={() => remove('message_end_date')}>×</span></span>}
             {q.source && <span className="filter-tag">Source: {q.source} <span className="remove" onClick={() => remove('source')}>×</span></span>}
             {q.thread_id && (
               <span className="filter-tag">
