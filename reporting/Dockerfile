@@ -11,8 +11,10 @@ WORKDIR /app
 # See: https://pip.pypa.io/en/stable/topics/configuration/
 
 # Install shared adapters in dependency order using centralized script
+# Use BuildKit cache mount for pip cache to speed up rebuilds
 COPY adapters/ /app/adapters/
-RUN python /app/adapters/scripts/install_adapters.py \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python /app/adapters/scripts/install_adapters.py \
     copilot_auth \
     copilot_config \
     copilot_events \
@@ -24,19 +26,22 @@ RUN python /app/adapters/scripts/install_adapters.py \
     copilot_secrets
 
 # Install optional vectorstore backend with Qdrant support
-RUN pip install --no-cache-dir -e /app/adapters/copilot_vectorstore[qdrant]
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -e /app/adapters/copilot_vectorstore[qdrant]
 
 # Install embedding backend with sentence-transformers support
-RUN pip install --no-cache-dir -e /app/adapters/copilot_embedding[sentencetransformers]
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -e /app/adapters/copilot_embedding[sentencetransformers]
 
 # Copy schema files for validation
 COPY documents/schemas /app/documents/schemas
 
-# Install service dependencies
+# Install service dependencies with cache mount
 COPY reporting/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements.txt
 
-# Copy service code
+# Copy service code (last to maximize cache reuse)
 COPY reporting/app/ ./app/
 COPY reporting/*.py ./
 
@@ -44,4 +49,3 @@ COPY reporting/*.py ./
 EXPOSE 8080
 
 CMD ["python", "main.py"]
-

@@ -9,19 +9,22 @@ FROM python:3.11-slim@sha256:158caf0e080e2cd74ef2879ed3c4e697792ee65251c8208b7af
 WORKDIR /app
 
 # Install shared adapters in dependency order using centralized script
+# Use BuildKit cache mount for pip cache to speed up rebuilds
 COPY adapters/ /app/adapters/
-RUN python /app/adapters/scripts/install_adapters.py \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python /app/adapters/scripts/install_adapters.py \
     copilot_auth \
     copilot_config \
     copilot_logging \
     copilot_metrics \
     copilot_secrets
 
-# Install service dependencies
+# Install service dependencies with cache mount
 COPY auth/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements.txt
 
-# Copy service code
+# Copy service code (last to maximize cache reuse)
 COPY auth/app ./app
 COPY auth/main.py .
 
