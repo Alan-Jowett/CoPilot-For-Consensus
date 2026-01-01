@@ -78,8 +78,7 @@ $keyVaultName = $env:KEY_VAULT_NAME
 $privateSecretName = $env:JWT_PRIVATE_SECRET_NAME
 $publicSecretName = $env:JWT_PUBLIC_SECRET_NAME
 
-# Use .NET for RSA key generation (always available in PowerShell)
-[System.Reflection.Assembly]::LoadWithPartialName('System.Security') | Out-Null
+# Use .NET for RSA key generation (available by default in PowerShell)
 $rsa = [System.Security.Cryptography.RSA]::Create(3072)
 
 # Export private key in PEM format with proper 64-character line wrapping
