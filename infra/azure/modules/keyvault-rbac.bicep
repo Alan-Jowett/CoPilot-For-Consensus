@@ -75,19 +75,8 @@ resource appInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@20
 }
 
 // Grant all services access to App Insights secrets for telemetry
-var allServices = [
-  'ingestion'
-  'parsing'
-  'chunking'
-  'embedding'
-  'orchestrator'
-  'summarization'
-  'reporting'
-  'auth'
-  'ui'
-  'gateway'
-  'openai'
-]
+// Derive service list from servicePrincipalIds parameter to avoid desynchronization
+var allServices = [for key in items(servicePrincipalIds): key.key]
 
 resource appInsightsInstrKeyAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
   for service in allServices: if (enableRbacAuthorization) {
@@ -164,21 +153,10 @@ resource authServiceVaultSecretsAccess 'Microsoft.Authorization/roleAssignments@
 // ============================================================================
 // GRAFANA CREDENTIALS - Infrastructure/monitoring only
 // ============================================================================
-// Note: These are typically accessed by the Grafana container app directly
-// Not granting access to regular services as they don't need Grafana credentials
-
-resource grafanaAdminUserSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' existing = {
-  parent: keyVault
-  name: 'grafana-admin-user'
-}
-
-resource grafanaAdminPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' existing = {
-  parent: keyVault
-  name: 'grafana-admin-password'
-}
-
-// Grafana credentials are accessed via Container Apps secret reference
-// No service principal access needed here as Container Apps platform handles the access
+// Note: Grafana credentials are accessed directly by Container Apps platform
+// via secret references in the container app configuration. No service principal
+// access is needed, so no role assignments are created here.
+// The secrets are declared in main.bicep and referenced by the Grafana container app.
 
 // Outputs
 output deployedRbacRoleAssignments array = enableRbacAuthorization ? [

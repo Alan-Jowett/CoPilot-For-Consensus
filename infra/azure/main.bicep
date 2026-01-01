@@ -395,7 +395,10 @@ resource openaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if 
 // Module: Key Vault RBAC - Per-secret role assignments for least-privilege access control
 // This module configures fine-grained RBAC permissions, granting each service access only to
 // the specific secrets it needs. Deployed after all secrets are created and before Container Apps start.
-// Only active when enableRbacAuthorization = true (recommended for production)
+// Condition: Both deployContainerApps AND enableRbacAuthorization must be true because:
+// - Service identities are created unconditionally, but only used when Container Apps deploy
+// - JWT keys, App Insights secrets are only created when deployContainerApps = true
+// - RBAC assignments depend on these secrets existing
 module keyVaultRbacModule 'modules/keyvault-rbac.bicep' = if (deployContainerApps && enableRbacAuthorization) {
   name: 'keyVaultRbacDeployment'
   params: {
