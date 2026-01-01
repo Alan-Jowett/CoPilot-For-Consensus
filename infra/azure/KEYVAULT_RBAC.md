@@ -18,7 +18,7 @@ This document explains the Azure Key Vault per-secret RBAC access control implem
 The implementation uses Azure's built-in **Key Vault Secrets User** role (ID: `4633458b-17de-408a-b874-0445c86b69e6`) with secret-scoped assignments:
 
 - **Secret-scoped assignments**: For secrets known at deployment time (JWT keys, App Insights, OpenAI API key)
-- **Vault-scoped assignment**: For auth service only (OAuth secrets created post-deployment)
+- **Manual post-deployment configuration required**: OAuth secrets (see "Configuring OAuth Secret Access" section below)
 
 ### Access Matrix
 
@@ -26,13 +26,15 @@ The implementation uses Azure's built-in **Key Vault Secrets User** role (ID: `4
 |---------|-----------------|-------|---------------|
 | **auth** | `jwt-private-key` | Secret | Sign JWT tokens |
 | **auth** | `jwt-public-key` | Secret | Verify JWT tokens |
-| **auth** | OAuth secrets* | Vault | Read dynamically created OAuth credentials |
+| **auth** | OAuth secrets* | Manual | Read OAuth credentials (requires manual RBAC after secret creation) |
 | **openai** | `azure-openai-api-key` | Secret | Call Azure OpenAI API |
 | **All services** | `appinsights-instrumentation-key` | Secret | Send telemetry |
 | **All services** | `appinsights-connection-string` | Secret | Send telemetry |
 | **Container Apps** | `grafana-admin-*` | Platform | Grafana container startup |
 
 \* OAuth secrets: `github-oauth-client-id`, `github-oauth-client-secret`, `google-oauth-client-id`, `google-oauth-client-secret`, `microsoft-oauth-client-id`, `microsoft-oauth-client-secret`, `entra-oauth-client-id`, `entra-oauth-client-secret`
+
+**IMPORTANT:** OAuth secrets are created manually after deployment and require manual RBAC configuration. The auth service does NOT receive vault-wide access to maintain least-privilege security.
 
 ### Implementation Files
 
@@ -46,7 +48,7 @@ The implementation uses Azure's built-in **Key Vault Secrets User** role (ID: `4
 
 | Scenario | Before (Vault-Wide Access) | After (Per-Secret RBAC) |
 |----------|---------------------------|-------------------------|
-| **Auth service compromise** | Can read all secrets (JWT keys, OpenAI key, OAuth, DB credentials) | Can only read JWT keys + OAuth secrets |
+| **Auth service compromise** | Can read all secrets (JWT keys, OpenAI key, OAuth, DB credentials) | Can only read JWT keys (OAuth requires separate manual RBAC) |
 | **OpenAI service compromise** | Can read all secrets (including JWT private key → forge tokens) | Can only read OpenAI API key |
 | **Other service compromise** | Can read all secrets (including JWT private key → full takeover) | Can only read App Insights secrets |
 | **Secrets exposed per breach** | 10-15 secrets | 1-3 secrets |
@@ -122,9 +124,59 @@ Expected output:
 - JWT public key: auth service only (secret-scoped)
 - App Insights secrets: all services (secret-scoped for telemetry)
 - Azure OpenAI API key: openai service only (secret-scoped)
-- OAuth secrets: auth service only (vault-scoped for dynamically created secrets)
+- OAuth secrets: NOT CONFIGURED - must be manually assigned post-deployment
 - Grafana credentials: accessed via Container Apps platform (no service access needed)
+
+⚠️  IMPORTANT: OAuth secrets require manual RBAC configuration after creation.
 ```
+
+### Configuring OAuth Secret Access (Post-Deployment)
+
+OAuth secrets (GitHub, Google, Microsoft, Entra) are created manually after initial deployment. To grant the auth service access to these secrets:
+
+**Step 1: Create the OAuth secret in Key Vault**
+```bash
+# Example: Create GitHub OAuth client ID
+az keyvault secret set \
+  --vault-name <key-vault-name> \
+  --name github-oauth-client-id \
+  --value "YOUR_GITHUB_CLIENT_ID"
+```
+
+**Step 2: Grant auth service access to the specific secret**
+```bash
+# Get the auth service principal ID
+AUTH_PRINCIPAL_ID=$(az identity show \
+  --name copilot-<env>-auth-id \
+  --resource-group <resource-group> \
+  --query principalId -o tsv)
+
+# Get the secret resource ID
+SECRET_ID=$(az keyvault secret show \
+  --vault-name <key-vault-name> \
+  --name github-oauth-client-id \
+  --query id -o tsv)
+
+# Grant "Key Vault Secrets User" role to auth service for this specific secret
+az role assignment create \
+  --assignee $AUTH_PRINCIPAL_ID \
+  --role "Key Vault Secrets User" \
+  --scope $SECRET_ID
+```
+
+**Step 3: Repeat for all OAuth secrets**
+```bash
+# Repeat steps above for:
+# - github-oauth-client-secret
+# - google-oauth-client-id
+# - google-oauth-client-secret
+# - microsoft-oauth-client-id
+# - microsoft-oauth-client-secret
+# - entra-oauth-client-id
+# - entra-oauth-client-secret
+```
+
+**Security Note:** This approach maintains strict least-privilege principles. The auth service receives access ONLY to the specific OAuth secrets you explicitly configure, not vault-wide access to all secrets.
 
 ### Legacy Access Policy Mode (Not Recommended)
 
@@ -210,17 +262,30 @@ Expected: No role assignments (empty result). Parsing service cannot access JWT 
 **Symptom:** Auth service cannot read OAuth secrets (GitHub, Google, Microsoft, Entra).
 
 **Diagnosis:**
-Check that auth service has vault-level `Key Vault Secrets User` role:
+Check if secret-specific role assignments exist for the OAuth secret:
 
 ```bash
 AUTH_PRINCIPAL_ID=$(az identity show --name copilot-prod-auth-id --resource-group copilot-prod-rg --query principalId -o tsv)
-VAULT_ID=$(az keyvault show --name {vault-name} --query id -o tsv)
+SECRET_ID=$(az keyvault secret show --vault-name {vault-name} --name github-oauth-client-id --query id -o tsv)
 
-az role assignment list --scope $VAULT_ID --assignee $AUTH_PRINCIPAL_ID
+az role assignment list --scope $SECRET_ID --assignee $AUTH_PRINCIPAL_ID
 ```
 
 **Resolution:**
-If role assignment is missing, redeploy the `keyvault-rbac` module. The auth service needs vault-level access because OAuth secrets are created dynamically post-deployment.
+OAuth secrets require manual RBAC configuration after creation (by design, to maintain least-privilege):
+
+1. Ensure the OAuth secret has been created in Key Vault
+2. Grant auth service access to the specific secret:
+   ```bash
+   az role assignment create \
+     --assignee $AUTH_PRINCIPAL_ID \
+     --role "Key Vault Secrets User" \
+     --scope $SECRET_ID
+   ```
+3. Repeat for each OAuth secret the auth service needs to access
+4. See "Configuring OAuth Secret Access" section above for complete instructions
+
+**Security Note:** The auth service does NOT receive vault-wide access. Each OAuth secret must be explicitly granted access individually to maintain strict least-privilege security.
 
 ## Compliance
 

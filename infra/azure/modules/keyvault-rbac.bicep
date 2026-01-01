@@ -3,9 +3,6 @@
 
 metadata description = 'Module to configure per-secret RBAC role assignments for Azure Key Vault'
 
-@description('Key Vault resource ID')
-param keyVaultId string
-
 @description('Key Vault name')
 param keyVaultName string
 
@@ -14,6 +11,9 @@ param servicePrincipalIds object
 
 @description('Enable RBAC authorization (must match Key Vault configuration)')
 param enableRbacAuthorization bool = true
+
+@description('Whether Azure OpenAI is deployed (controls OpenAI secret access assignments)')
+param deployAzureOpenAI bool = true
 
 // Key Vault Secrets User role definition ID
 // This built-in role allows reading secret contents but not listing/managing secrets
@@ -39,23 +39,23 @@ resource jwtPublicKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' exist
 }
 
 // Auth service needs private key to sign tokens
-resource authJwtPrivateKeyAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableRbacAuthorization) {
-  name: guid(jwtPrivateKeySecret.id, servicePrincipalIds.auth, keyVaultSecretsUserRoleId)
+resource authJwtPrivateKeyAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableRbacAuthorization && contains(servicePrincipalIds, 'auth')) {
+  name: guid(jwtPrivateKeySecret.id, servicePrincipalIds['auth'], keyVaultSecretsUserRoleId)
   scope: jwtPrivateKeySecret
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
-    principalId: servicePrincipalIds.auth
+    principalId: servicePrincipalIds['auth']
     principalType: 'ServicePrincipal'
   }
 }
 
 // Auth service needs public key to verify tokens
-resource authJwtPublicKeyAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableRbacAuthorization) {
-  name: guid(jwtPublicKeySecret.id, servicePrincipalIds.auth, keyVaultSecretsUserRoleId)
+resource authJwtPublicKeyAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableRbacAuthorization && contains(servicePrincipalIds, 'auth')) {
+  name: guid(jwtPublicKeySecret.id, servicePrincipalIds['auth'], keyVaultSecretsUserRoleId)
   scope: jwtPublicKeySecret
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
-    principalId: servicePrincipalIds.auth
+    principalId: servicePrincipalIds['auth']
     principalType: 'ServicePrincipal'
   }
 }
@@ -106,17 +106,17 @@ resource appInsightsConnectionStringAccess 'Microsoft.Authorization/roleAssignme
 // AZURE OPENAI API KEY - OpenAI service only
 // ============================================================================
 
-resource openaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' existing = {
+resource openaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' existing = if (deployAzureOpenAI) {
   parent: keyVault
   name: 'azure-openai-api-key'
 }
 
-resource openaiServiceApiKeyAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableRbacAuthorization) {
-  name: guid(openaiApiKeySecret.id, servicePrincipalIds.openai, keyVaultSecretsUserRoleId)
+resource openaiServiceApiKeyAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableRbacAuthorization && deployAzureOpenAI && contains(servicePrincipalIds, 'openai')) {
+  name: guid(openaiApiKeySecret.id, servicePrincipalIds['openai'], keyVaultSecretsUserRoleId)
   scope: openaiApiKeySecret
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
-    principalId: servicePrincipalIds.openai
+    principalId: servicePrincipalIds['openai']
     principalType: 'ServicePrincipal'
   }
 }
@@ -124,31 +124,27 @@ resource openaiServiceApiKeyAccess 'Microsoft.Authorization/roleAssignments@2022
 // ============================================================================
 // OAUTH SECRETS - Auth service only
 // ============================================================================
-// Note: OAuth secrets are created manually or by deployment scripts after initial deployment.
-// Since we cannot reference secrets that don't exist yet, we grant the auth service
-// vault-level "Key Vault Secrets User" role with a condition that limits access.
-// This is still more secure than the legacy access policy approach because:
-// 1. Only ONE service (auth) gets this permission (not all services)
-// 2. The role is scoped to secrets operations only (no keys/certificates)
-// 3. Can be further restricted with Azure Policy if needed
-
-// Grant auth service vault-level access for OAuth and other auth-related secrets
-// This allows the auth service to read secrets like:
-// - github-oauth-client-id, github-oauth-client-secret
-// - google-oauth-client-id, google-oauth-client-secret
-// - microsoft-oauth-client-id, microsoft-oauth-client-secret
-// - entra-oauth-client-id, entra-oauth-client-secret
-// All these secrets are only needed by the auth service
-resource authServiceVaultSecretsAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableRbacAuthorization) {
-  name: guid(keyVaultId, servicePrincipalIds.auth, keyVaultSecretsUserRoleId)
-  scope: keyVault
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
-    principalId: servicePrincipalIds.auth
-    principalType: 'ServicePrincipal'
-    description: 'Allow auth service to read OAuth and authentication-related secrets (GitHub, Google, Microsoft, Entra)'
-  }
-}
+// IMPORTANT SECURITY LIMITATION:
+// OAuth secrets (github-oauth-*, google-oauth-*, microsoft-oauth-*, entra-oauth-*)
+// are created manually or by deployment scripts AFTER initial infrastructure deployment.
+// Because these secrets don't exist at deployment time, we cannot create secret-scoped
+// role assignments for them in this module.
+//
+// WORKAROUND OPTIONS:
+// 1. Create placeholder OAuth secrets during initial deployment (set to empty/dummy values)
+//    and add secret-scoped role assignments here
+// 2. Manually grant auth service access to OAuth secrets after they're created via Azure Portal
+// 3. Use a separate deployment script that creates OAuth secrets AND their role assignments
+//
+// CURRENT APPROACH: Users must manually create OAuth secrets and configure access.
+// This maintains least-privilege as auth service has NO default vault-wide access.
+// See KEYVAULT_RBAC.md for instructions on configuring OAuth secret access post-deployment.
+//
+// To grant auth service access to a specific OAuth secret after creation:
+//   az role assignment create \
+//     --assignee <auth-service-principal-id> \
+//     --role "Key Vault Secrets User" \
+//     --scope /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.KeyVault/vaults/<vault>/secrets/<secret-name>
 
 // ============================================================================
 // GRAFANA CREDENTIALS - Infrastructure/monitoring only
@@ -159,35 +155,62 @@ resource authServiceVaultSecretsAccess 'Microsoft.Authorization/roleAssignments@
 // The secrets are declared in main.bicep and referenced by the Grafana container app.
 
 // Outputs
-output deployedRbacRoleAssignments array = enableRbacAuthorization ? [
-  {
-    service: 'auth'
-    secret: 'jwt-private-key'
-    roleAssignmentId: authJwtPrivateKeyAccess.id
-  }
-  {
-    service: 'auth'
-    secret: 'jwt-public-key'
-    roleAssignmentId: authJwtPublicKeyAccess.id
-  }
-  {
-    service: 'openai'
-    secret: 'azure-openai-api-key'
-    roleAssignmentId: openaiServiceApiKeyAccess.id
-  }
-] : []
+output deployedRbacRoleAssignments array = enableRbacAuthorization ? concat(
+  // JWT key assignments
+  contains(servicePrincipalIds, 'auth') ? [
+    {
+      service: 'auth'
+      secret: 'jwt-private-key'
+      scope: 'secret'
+      roleAssignmentId: authJwtPrivateKeyAccess.id
+    }
+    {
+      service: 'auth'
+      secret: 'jwt-public-key'
+      scope: 'secret'
+      roleAssignmentId: authJwtPublicKeyAccess.id
+    }
+  ] : [],
+  // OpenAI key assignment
+  (deployAzureOpenAI && contains(servicePrincipalIds, 'openai')) ? [
+    {
+      service: 'openai'
+      secret: 'azure-openai-api-key'
+      scope: 'secret'
+      roleAssignmentId: openaiServiceApiKeyAccess.id
+    }
+  ] : [],
+  // App Insights assignments summary (not listing all 22 individual assignments)
+  [
+    {
+      service: 'all-services'
+      secret: 'appinsights-instrumentation-key'
+      scope: 'secret'
+      roleAssignmentId: 'multiple (${length(allServices)} services)'
+    }
+    {
+      service: 'all-services'
+      secret: 'appinsights-connection-string'
+      scope: 'secret'
+      roleAssignmentId: 'multiple (${length(allServices)} services)'
+    }
+  ]
+) : []
 
 output summary string = enableRbacAuthorization ? '''
 ✅ Per-secret RBAC role assignments configured:
 - JWT private key: auth service only (secret-scoped)
 - JWT public key: auth service only (secret-scoped)
-- App Insights secrets: all services (secret-scoped for telemetry)
-- Azure OpenAI API key: openai service only (secret-scoped)
-- OAuth secrets: auth service only (vault-scoped for dynamically created secrets)
+- App Insights secrets: all ${length(allServices)} services (secret-scoped for telemetry)
+${deployAzureOpenAI ? '- Azure OpenAI API key: openai service only (secret-scoped)' : '- Azure OpenAI: not deployed, no assignments created'}
+- OAuth secrets: NOT CONFIGURED - must be manually assigned post-deployment (see KEYVAULT_RBAC.md)
 - Grafana credentials: accessed via Container Apps platform (no service access needed)
 
 🔒 Security Improvement:
-- Before: All 11 services had vault-wide 'get' access to ALL secrets
+- Before: All ${length(allServices)} services had vault-wide 'get' access to ALL secrets
 - After: Each service can only access specific secrets it needs
 - Blast radius of compromised service significantly reduced
+
+⚠️  IMPORTANT: OAuth secrets require manual RBAC configuration after creation.
+   See KEYVAULT_RBAC.md for post-deployment OAuth secret access setup instructions.
 ''' : 'RBAC authorization is disabled. Using legacy access policies (NOT RECOMMENDED).'

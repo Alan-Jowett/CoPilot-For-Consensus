@@ -402,18 +402,18 @@ resource openaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if 
 module keyVaultRbacModule 'modules/keyvault-rbac.bicep' = if (deployContainerApps && enableRbacAuthorization) {
   name: 'keyVaultRbacDeployment'
   params: {
-    keyVaultId: keyVaultModule.outputs.keyVaultId
     keyVaultName: keyVaultModule.outputs.keyVaultName
     servicePrincipalIds: identitiesModule.outputs.identityPrincipalIdsByName
     enableRbacAuthorization: enableRbacAuthorization
+    deployAzureOpenAI: deployAzureOpenAI
   }
   dependsOn: [
     jwtKeysModule  // Ensure JWT secrets exist before assigning access
     appInsightsInstrKeySecret
     appInsightsConnectionStringSecret
-    grafanaAdminUserSecret
-    grafanaAdminPasswordSecret
-    openaiApiKeySecret
+    // Note: Grafana and OpenAI secrets are conditionally created
+    // Grafana secrets are not accessed by service principals (Container Apps platform handles them)
+    // OpenAI secret access is conditionally assigned in RBAC module based on deployAzureOpenAI parameter
   ]
 }
 
@@ -541,6 +541,8 @@ output location string = location
 output environment string = environment
 output deploymentId string = deployment().name
 output keyVaultRbacEnabled bool = enableRbacAuthorization
+// Safe to use non-null assertion because keyVaultRbacModule is deployed only when (deployContainerApps && enableRbacAuthorization) is true
+// The ternary operator checks the same condition before accessing the output
 output keyVaultRbacSummary string = (deployContainerApps && enableRbacAuthorization) ? keyVaultRbacModule!.outputs.summary : 'RBAC not enabled - using legacy access policies (NOT RECOMMENDED for production)'
 
 // OAuth and Grafana secret setup instructions

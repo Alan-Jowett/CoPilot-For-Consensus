@@ -9,7 +9,8 @@ param tenantId string
 param managedIdentityPrincipalIds array
 param secretWriterPrincipalIds array = []
 param enablePublicNetworkAccess bool = true
-param enableRbacAuthorization bool = false  // Set to true to use Azure RBAC instead of access policies
+@description('Enable Azure RBAC authorization for Key Vault. Default is false for backward compatibility with existing deployments, but true is STRONGLY RECOMMENDED for production (see security warnings below).')
+param enableRbacAuthorization bool = false
 param tags object
 
 // ⚠️ SECURITY WARNING: Legacy access policy mode (enableRbacAuthorization=false)
