@@ -222,7 +222,7 @@ echo "Login URL: https://$GATEWAY_FQDN/auth/login?provider=microsoft"
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `deployEntraApp` | bool | `true` | Enable/disable automatic Entra app creation |
+| `deployEntraApp` | bool | `false` | Enable/disable automatic Entra app creation |
 | `entraTenantId` | string | `subscription().tenantId` | Microsoft Entra tenant ID |
 | `oauthRedirectUris` | array | `[]` | Override redirect URIs (required for first deployment) |
 | `oauthSecretExpirationDays` | int | `365` | Client secret expiration in days (30-730) |
