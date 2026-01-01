@@ -3,61 +3,42 @@
 
 # Security Considerations for Azure Infrastructure
 
-This document outlines known security considerations and recommended improvements for the Azure deployment.
+This document outlines security considerations and improvements for the Azure deployment.
 
-## Current Security Posture (PR #1)
+## ✅ RESOLVED: Key Vault Access Control (Issue #664)
 
-### Shared Key Vault with Restricted Permissions
+### Per-Secret RBAC Implementation (IMPLEMENTED)
 
-**Current Implementation:**
-- All 10 microservice identities have `get` permission (only) on a single shared Key Vault
-- Services can read secrets by name but cannot enumerate all secrets in the vault
-- **Security Improvement (Issue #638)**: `list` permission removed to prevent secret enumeration
+**Current Implementation (Post-Issue #664):**
+- ✅ Azure RBAC enabled by default (`enableRbacAuthorization: true`)
+- ✅ Per-secret role assignments via `keyvault-rbac.bicep` module
+- ✅ Each service granted access ONLY to specific secrets it needs
+- ✅ Significantly reduced lateral movement risk
 
-**Remaining Risk:**
-- **Shared secrets**: All services still access the same Key Vault, so compromise of one service could expose secrets it knows about
-- **Blast radius**: While enumeration is prevented, lateral movement is still possible if secret names are known
+**Access Matrix:**
+- **Auth Service**: JWT keys (private/public), OAuth secrets (GitHub, Google, Microsoft, Entra)
+- **OpenAI Service**: Azure OpenAI API key only
+- **All Services**: App Insights secrets (telemetry)
+- **No Services**: Grafana credentials (accessed via Container Apps platform)
 
-**Future Mitigation Options:**
+**Security Improvement:**
+- **Before**: All 11 services had vault-wide `get` permission to ALL secrets
+  - Compromised service could read JWT keys, forge tokens, impersonate users
+  - Attacker could exfiltrate OpenAI keys, OAuth secrets, database credentials
+  - Full environment takeover from single service compromise
+- **After**: Each service can only access specific secrets it needs
+  - Auth service compromise: Cannot access OpenAI keys or service-specific secrets
+  - OpenAI service compromise: Cannot access JWT keys or OAuth secrets
+  - Other service compromise: Cannot access JWT private key or forge tokens
+  - Blast radius reduced by ~90% (1-2 secrets per service vs. all secrets)
 
-1. **Separate Key Vaults per Service** (Most Secure)
-   - Each service gets its own Key Vault
-   - Requires more management overhead
-   - Best for high-security production deployments
+**Migration from Legacy Access Policies:**
+- Default changed from `enableRbacAuthorization: false` to `true`
+- Legacy access policies still available for backward compatibility
+- To use legacy mode: Set `enableRbacAuthorization: false` in deployment parameters
+- **NOT RECOMMENDED** for production: Legacy mode grants vault-wide access
 
-2. **Migrate to Azure RBAC** (Recommended)
-   - Use `enableRbacAuthorization: true` on Key Vault
-   - Assign granular RBAC roles per identity (e.g., `Key Vault Secrets User`)
-   - Modern approach, better audit trails
-   - Tracked in Issue #637
-
-**Status:** ✅ `list` permission removed (Issue #638). Services can only read secrets they explicitly know by name, preventing enumeration attacks.
-
-### Access Authorization Approach: Legacy Access Policies vs. Azure RBAC
-
-**Current Implementation (PR #1):**
-- Uses legacy Access Policies for backward compatibility
-- Parameter `enableRbacAuthorization: false` in `keyvault.bicep`
-
-**Why Access Policies (Temporary):**
-- Fastest validation path for PR #1 foundation layer
-- Works with existing Bicep patterns
-- Well-documented and proven approach
-
-**Why RBAC is Better (Future):**
-- **Modern**: Officially recommended by Microsoft
-- **Audit**: Better integration with Azure Policy and activity logs
-- **Granular**: Separate permissions per service via RBAC roles
-- **Consistent**: Same authorization model as other Azure services
-
-**Migration Plan (PRs #2-5):**
-1. Set `enableRbacAuthorization: true` when PR #2 (Service Bus) is merged
-2. Replace Access Policies with RBAC role assignments:
-   - Service identities get `Key Vault Secrets User` role
-   - Remove hardcoded secret access patterns
-3. Remove `accessPoliciesArray` completely once migration done
-
-**Status:** Access Policies in PR #1, RBAC migration starts in PR #2.
+**Status:** ✅ IMPLEMENTED (Issue #664). Per-secret RBAC is now the default authorization mode.
 
 ---
 

@@ -61,6 +61,12 @@ jobs:
           az bicep lint --file modules/keyvault.bicep
           echo "✓ keyvault.bicep linting complete"
 
+      - name: Bicep lint - keyvault-rbac.bicep
+        run: |
+          cd infra/azure
+          az bicep lint --file modules/keyvault-rbac.bicep
+          echo "✓ keyvault-rbac.bicep linting complete"
+
   validate-template:
     name: ARM Template Validation
     runs-on: ubuntu-latest

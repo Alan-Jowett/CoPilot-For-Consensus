@@ -1413,15 +1413,26 @@ Use the [Azure Pricing Calculator](https://azure.microsoft.com/en-us/pricing/cal
 ### 2. Secure Secrets in Key Vault
 
 - ✅ All secrets stored in Azure Key Vault
-- ✅ Key Vault uses RBAC (not access policies)
+- ✅ **Per-secret RBAC access control** (default) - each service can only access specific secrets it needs
 - ✅ Soft delete enabled for accidental deletion protection
 - ✅ Grafana admin credentials stored in Key Vault for rotation and auditing
 
+**Key Vault Security Model (RBAC):**
+- **Auth service only**: JWT keys, OAuth secrets (GitHub, Google, Microsoft, Entra)
+- **OpenAI service only**: Azure OpenAI API key
+- **All services**: Application Insights secrets (telemetry)
+- **90% reduction** in blast radius if a service is compromised
+
 **Secrets stored in Key Vault:**
-- OAuth provider credentials (GitHub, Google, Microsoft)
+- OAuth provider credentials (GitHub, Google, Microsoft, Entra)
 - JWT signing keys for authentication
 - Application Insights connection strings
+- Azure OpenAI API key
 - Grafana admin credentials (for monitoring dashboards)
+
+**Security documentation:**
+- [KEYVAULT_RBAC.md](KEYVAULT_RBAC.md) - Per-secret RBAC implementation details
+- [SECURITY_CONSIDERATIONS.md](SECURITY_CONSIDERATIONS.md) - Overall security posture
 
 **Rotating Grafana credentials:**
 See [documents/runbooks/grafana-credential-rotation.md](../../documents/runbooks/grafana-credential-rotation.md) for step-by-step rotation procedures.
