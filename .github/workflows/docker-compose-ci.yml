@@ -90,19 +90,6 @@ jobs:
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-      with:
-        # Enable BuildKit cache backend for faster builds
-        driver-opts: |
-          image=moby/buildkit:latest
-          network=host
-
-    - name: Cache Docker layers
-      uses: actions/cache@v4
-      with:
-        path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-buildx-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-buildx-
 
     - name: Clean up any existing containers and volumes
       run: |
@@ -114,19 +101,37 @@ jobs:
     - name: Validate docker-compose configuration
       run: docker compose config
 
-    # Build all services in parallel with cache for faster builds
-    - name: Build all services in parallel
+    # Build all services sequentially to reduce peak disk usage
+    # BuildKit cache mounts in Dockerfiles provide caching within each build
+    - name: Build all services sequentially with cleanup
       env:
         DOCKER_BUILDKIT: 1
         COMPOSE_DOCKER_CLI_BUILD: 1
-        BUILDKIT_PROGRESS: plain
       run: |
         set -euo pipefail
-        echo "Building all services in parallel..."
-        # Use --parallel flag to build multiple services at once
-        # BuildKit cache mounts in Dockerfiles will automatically use /root/.cache/pip
-        docker compose build --parallel
-        echo "✓ All services built successfully"
+        echo "Enumerating compose services..."
+        services=$(docker compose config --services)
+        echo "Services to build:" $services
+
+        for svc in $services; do
+          echo "\n=== Building service: $svc ==="
+          docker compose build "$svc"
+
+          echo "Cleaning up build cache and dangling artifacts to save disk..."
+          # Remove build cache layers
+          docker builder prune -af || true
+          # Remove dangling images only (keep built images for later run)
+          docker image prune -f || true
+          # Remove unused containers and networks
+          docker container prune -f || true
+          docker network prune -f || true
+          # Remove unused anonymous volumes, if any
+          docker volume prune -f || true
+
+          echo "Disk usage after $svc build and prune:"
+          docker system df || true
+          df -h || true
+        done
 
     # Infrastructure Services - Start in parallel for faster startup
     - name: Start core infrastructure services in parallel
@@ -206,7 +211,7 @@ jobs:
     - name: Run validation services in parallel
       run: |
         echo "Running validation services in parallel..."
-        # Start validators that don't depend on db-init in parallel
+        # Start validators in parallel (db-init already completed in previous step)
         docker compose run --rm db-validate &
         pid_validate=$!
         docker compose run --rm vectorstore-validate &
