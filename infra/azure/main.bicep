@@ -111,8 +111,8 @@ param grafanaAdminPassword string = ''
 @description('Enable public network access to Key Vault. Set to false for production with Private Link.')
 param enablePublicNetworkAccess bool = true
 
-@description('Enable Azure RBAC authorization for Key Vault instead of legacy access policies. Recommended for production.')
-param enableRbacAuthorization bool = false
+@description('Enable Azure RBAC authorization for Key Vault with per-secret access control. STRONGLY RECOMMENDED for production to enforce least-privilege principles.')
+param enableRbacAuthorization bool = true
 
 param tags object = {
   environment: environment
@@ -392,6 +392,31 @@ resource openaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if 
   ]
 }
 
+// Module: Key Vault RBAC - Per-secret role assignments for least-privilege access control
+// This module configures fine-grained RBAC permissions, granting each service access only to
+// the specific secrets it needs. Deployed after all secrets are created and before Container Apps start.
+// Condition: Both deployContainerApps AND enableRbacAuthorization must be true because:
+// - Service identities exist unconditionally (identitiesModule has no condition)
+// - However, secrets (JWT keys, App Insights) only exist when deployContainerApps = true
+// - RBAC assignments require the secrets to exist, so we need both conditions
+module keyVaultRbacModule 'modules/keyvault-rbac.bicep' = if (deployContainerApps && enableRbacAuthorization) {
+  name: 'keyVaultRbacDeployment'
+  params: {
+    keyVaultName: keyVaultModule.outputs.keyVaultName
+    servicePrincipalIds: identitiesModule.outputs.identityPrincipalIdsByName
+    enableRbacAuthorization: enableRbacAuthorization
+    deployAzureOpenAI: deployAzureOpenAI
+  }
+  dependsOn: [
+    jwtKeysModule  // Ensure JWT secrets exist before assigning access
+    appInsightsInstrKeySecret
+    appInsightsConnectionStringSecret
+    // Note: Grafana and OpenAI secrets are conditionally created
+    // Grafana secrets are not accessed by service principals (Container Apps platform handles them)
+    // OpenAI secret access is conditionally assigned in RBAC module based on deployAzureOpenAI parameter
+  ]
+}
+
 // Module: Virtual Network (for Container Apps integration)
 module vnetModule 'modules/vnet.bicep' = if (deployContainerApps) {
   name: 'vnetDeployment'
@@ -515,6 +540,10 @@ output resourceGroupName string = resourceGroup().name
 output location string = location
 output environment string = environment
 output deploymentId string = deployment().name
+output keyVaultRbacEnabled bool = enableRbacAuthorization
+// Safe to use non-null assertion because keyVaultRbacModule is deployed only when (deployContainerApps && enableRbacAuthorization) is true
+// The ternary operator checks the same condition before accessing the output
+output keyVaultRbacSummary string = (deployContainerApps && enableRbacAuthorization) ? keyVaultRbacModule!.outputs.summary : 'RBAC not enabled - using legacy access policies (NOT RECOMMENDED for production)'
 
 // OAuth and Grafana secret setup instructions
 output oauthSecretsSetupInstructions string = '''
