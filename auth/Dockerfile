@@ -4,7 +4,7 @@
 # Authentication Service Dockerfile
 # Single-stage build aligned with other services
 
-FROM python:3.11-slim@sha256:158caf0e080e2cd74ef2879ed3c4e697792ee65251c8208b7afb56683c32ea6c
+FROM python:3.11-slim
 
 WORKDIR /app
 
