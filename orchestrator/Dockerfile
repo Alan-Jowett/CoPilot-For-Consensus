@@ -26,6 +26,9 @@ RUN python /app/adapters/scripts/install_adapters.py \
 # Copy schema files for validation
 COPY documents/schemas /app/documents/schemas
 
+# Copy prompt templates for summarization
+COPY orchestrator/prompts /app/prompts
+
 # Install service dependencies
 COPY orchestrator/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
