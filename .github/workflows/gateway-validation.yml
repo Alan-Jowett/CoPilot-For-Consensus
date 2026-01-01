@@ -133,11 +133,11 @@ jobs:
       - name: Test NGINX configuration syntax
         run: |
           # Generate nginx.conf from template with test environment variables
-          export REPORTING_BACKEND="http://reporting:8080/"
-          export AUTH_BACKEND="http://auth:8090/"
-          export INGESTION_BACKEND="http://ingestion:8001/"
+          export REPORTING_BACKEND="http://reporting:8080"
+          export AUTH_BACKEND="http://auth:8090"
+          export INGESTION_BACKEND="http://ingestion:8001"
           export GRAFANA_BACKEND="http://grafana:3000"
-          export UI_BACKEND="http://ui:80/"
+          export UI_BACKEND="http://ui:80"
           
           # Substitute environment variables into template
           envsubst '${REPORTING_BACKEND} ${AUTH_BACKEND} ${INGESTION_BACKEND} ${GRAFANA_BACKEND} ${UI_BACKEND}' \

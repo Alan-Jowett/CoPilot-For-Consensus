@@ -846,23 +846,23 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'REPORTING_BACKEND'
-              value: 'http://${projectPrefix}-reporting-${environment}:${servicePorts.reporting}/'
+              value: 'http://${projectPrefix}-reporting-${environment}:${servicePorts.reporting}'
             }
             {
               name: 'AUTH_BACKEND'
-              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}/'
+              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
             }
             {
               name: 'INGESTION_BACKEND'
-              value: 'http://${projectPrefix}-ingestion-${environment}:${servicePorts.ingestion}/'
+              value: 'http://${projectPrefix}-ingestion-${environment}:${servicePorts.ingestion}'
             }
             {
               name: 'GRAFANA_BACKEND'
-              value: 'http://${projectPrefix}-grafana-${environment}:3000/'
+              value: 'http://${projectPrefix}-grafana-${environment}:3000'
             }
             {
               name: 'UI_BACKEND'
-              value: 'http://${projectPrefix}-ui-${environment}:${servicePorts.ui}/'
+              value: 'http://${projectPrefix}-ui-${environment}:${servicePorts.ui}'
             }
             {
               name: 'ENABLE_INTERNAL_TLS'

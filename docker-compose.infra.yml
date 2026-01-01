@@ -512,11 +512,11 @@ services:
     environment:
       # Backend service URLs for Docker Compose
       # These use short service names as defined in docker-compose files
-      - REPORTING_BACKEND=http://reporting:8080/
-      - AUTH_BACKEND=http://auth:8090/
-      - INGESTION_BACKEND=http://ingestion:8001/
-      - GRAFANA_BACKEND=http://grafana:3000/
-      - UI_BACKEND=http://ui:80/
+      - REPORTING_BACKEND=http://reporting:8080
+      - AUTH_BACKEND=http://auth:8090
+      - INGESTION_BACKEND=http://ingestion:8001
+      - GRAFANA_BACKEND=http://grafana:3000
+      - UI_BACKEND=http://ui:80
     ports:
       # HTTPS on standard port 443 (mapped from internal 8443)
       - "0.0.0.0:443:8443"
