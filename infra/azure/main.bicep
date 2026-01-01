@@ -88,14 +88,6 @@ param enablePublicNetworkAccess bool = true
 @description('Enable Azure RBAC authorization for Key Vault instead of legacy access policies. Recommended for production.')
 param enableRbacAuthorization bool = false
 
-@description('Grafana admin username for monitoring dashboards (optional, stored in Key Vault)')
-@secure()
-param grafanaAdminUser string = ''
-
-@description('Grafana admin password for monitoring dashboards (optional, stored in Key Vault)')
-@secure()
-param grafanaAdminPassword string = ''
-
 param tags object = {
   environment: environment
   project: 'copilot-for-consensus'
