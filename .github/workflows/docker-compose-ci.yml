@@ -508,13 +508,24 @@ jobs:
         fi
         echo "✓ Prometheus is healthy"
         
-        # Test Loki
+        # Test Loki (may take longer to be ready, so retry with timeout)
         echo "Testing Loki..."
-        if ! curl -f http://localhost:3100/ready 2>/dev/null; then
-          echo "❌ Loki readiness check failed"
+        max_attempts=30
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+          if curl -f http://localhost:3100/ready 2>/dev/null; then
+            echo "✓ Loki is ready"
+            break
+          fi
+          echo "Attempt $attempt/$max_attempts: Loki not ready yet, waiting..."
+          sleep 5
+          attempt=$((attempt + 1))
+        done
+        
+        if [ $attempt -gt $max_attempts ]; then
+          echo "❌ Loki failed to become ready after $max_attempts attempts"
           exit 1
         fi
-        echo "✓ Loki is ready"
         
         echo "✓ All monitoring endpoints are healthy"
 
