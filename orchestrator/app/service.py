@@ -96,7 +96,7 @@ class OrchestrationService:
             if not system_path.exists():
                 raise FileNotFoundError(f"System prompt file not found: {self.system_prompt_path}")
             
-            with open(system_path, 'r') as f:
+            with open(system_path, 'r', encoding='utf-8') as f:
                 self.system_prompt = f.read()
             
             if not self.system_prompt.strip():
@@ -108,7 +108,7 @@ class OrchestrationService:
             if not user_path.exists():
                 raise FileNotFoundError(f"User prompt file not found: {self.user_prompt_path}")
             
-            with open(user_path, 'r') as f:
+            with open(user_path, 'r', encoding='utf-8') as f:
                 self.user_prompt = f.read()
             
             if not self.user_prompt.strip():
