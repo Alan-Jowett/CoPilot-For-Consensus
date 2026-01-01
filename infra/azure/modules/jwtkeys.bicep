@@ -63,6 +63,16 @@ resource jwtKeyScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
       }
     ]
     scriptContent: '''
+# Helper function to format base64 string for PEM (64 chars per line)
+function Format-Base64ForPem {
+    param([string]$base64String)
+    $lines = @()
+    for ($i = 0; $i -lt $base64String.Length; $i += 64) {
+        $lines += $base64String.Substring($i, [Math]::Min(64, $base64String.Length - $i))
+    }
+    return $lines -join "`n"
+}
+
 $VerbosePreference = 'Continue'
 $keyVaultName = $env:KEY_VAULT_NAME
 $privateSecretName = $env:JWT_PRIVATE_SECRET_NAME
@@ -72,11 +82,13 @@ $publicSecretName = $env:JWT_PUBLIC_SECRET_NAME
 [System.Reflection.Assembly]::LoadWithPartialName('System.Security') | Out-Null
 $rsa = [System.Security.Cryptography.RSA]::Create(3072)
 
-# Export private key in PEM format
-$privateKeyFormatted = "-----BEGIN RSA PRIVATE KEY-----`n" + [System.Convert]::ToBase64String($rsa.ExportRSAPrivateKey()) + "`n-----END RSA PRIVATE KEY-----"
+# Export private key in PEM format with proper 64-character line wrapping
+$privateKeyBase64 = [System.Convert]::ToBase64String($rsa.ExportRSAPrivateKey())
+$privateKeyFormatted = "-----BEGIN RSA PRIVATE KEY-----`n" + (Format-Base64ForPem -base64String $privateKeyBase64) + "`n-----END RSA PRIVATE KEY-----"
 
-# Export public key in PEM format
-$publicKeyFormatted = "-----BEGIN PUBLIC KEY-----`n" + [System.Convert]::ToBase64String($rsa.ExportSubjectPublicKeyInfo()) + "`n-----END PUBLIC KEY-----"
+# Export public key in PEM format with proper 64-character line wrapping
+$publicKeyBase64 = [System.Convert]::ToBase64String($rsa.ExportSubjectPublicKeyInfo())
+$publicKeyFormatted = "-----BEGIN PUBLIC KEY-----`n" + (Format-Base64ForPem -base64String $publicKeyBase64) + "`n-----END PUBLIC KEY-----"
 
 # Store in Key Vault using Set-AzKeyVaultSecret
 Set-AzKeyVaultSecret -VaultName $keyVaultName -Name $privateSecretName -SecretValue (ConvertTo-SecureString -String $privateKeyFormatted -AsPlainText -Force) -ErrorAction Stop | Out-Null
