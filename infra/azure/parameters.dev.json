@@ -15,7 +15,7 @@
       "value": "latest"
     },
     "deployAzureOpenAI": {
-      "value": true
+      "value": false
     },
     "azureOpenAISku": {
       "value": "S0"
