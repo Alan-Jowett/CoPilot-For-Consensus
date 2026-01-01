@@ -380,3 +380,24 @@ output location string = location
 output environment string = environment
 output deploymentId string = deployment().name
 
+// OAuth and Grafana secret setup instructions
+output oauthSecretsSetupInstructions string = '''
+JWT keys are automatically generated during deployment. To configure OAuth providers, set secrets manually in Key Vault:
+
+# Set OAuth credentials (replace with actual values):
+az keyvault secret set --vault-name ${keyVaultModule.outputs.keyVaultName} --name github-oauth-client-id --value "YOUR_GITHUB_CLIENT_ID"
+az keyvault secret set --vault-name ${keyVaultModule.outputs.keyVaultName} --name github-oauth-client-secret --value "YOUR_GITHUB_CLIENT_SECRET"
+az keyvault secret set --vault-name ${keyVaultModule.outputs.keyVaultName} --name google-oauth-client-id --value "YOUR_GOOGLE_CLIENT_ID"
+az keyvault secret set --vault-name ${keyVaultModule.outputs.keyVaultName} --name google-oauth-client-secret --value "YOUR_GOOGLE_CLIENT_SECRET"
+az keyvault secret set --vault-name ${keyVaultModule.outputs.keyVaultName} --name microsoft-oauth-client-id --value "YOUR_MICROSOFT_CLIENT_ID"
+az keyvault secret set --vault-name ${keyVaultModule.outputs.keyVaultName} --name microsoft-oauth-client-secret --value "YOUR_MICROSOFT_CLIENT_SECRET"
+
+# Set Grafana admin credentials (if deploying Grafana):
+az keyvault secret set --vault-name ${keyVaultModule.outputs.keyVaultName} --name grafana-admin-user --value "admin"
+az keyvault secret set --vault-name ${keyVaultModule.outputs.keyVaultName} --name grafana-admin-password --value "YOUR_SECURE_PASSWORD"
+
+After setting secrets, restart the auth service to pick up the new values:
+az containerapp restart --name <project>-auth-<env> --resource-group <resource-group>
+'''
+
+
