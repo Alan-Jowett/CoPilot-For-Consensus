@@ -27,11 +27,11 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 # Install optional vectorstore backend with Qdrant support
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir -e /app/adapters/copilot_vectorstore[qdrant]
+    pip install -e /app/adapters/copilot_vectorstore[qdrant]
 
 # Install embedding backend with sentence-transformers support
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir -e /app/adapters/copilot_embedding[sentencetransformers]
+    pip install -e /app/adapters/copilot_embedding[sentencetransformers]
 
 # Copy schema files for validation
 COPY documents/schemas /app/documents/schemas
@@ -39,7 +39,7 @@ COPY documents/schemas /app/documents/schemas
 # Install service dependencies with cache mount
 COPY reporting/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir -r requirements.txt
+    pip install -r requirements.txt
 
 # Copy service code (last to maximize cache reuse)
 COPY reporting/app/ ./app/

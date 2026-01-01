@@ -41,7 +41,7 @@ COPY documents/schemas /app/documents/schemas
 # Install service dependencies with cache mount
 COPY embedding/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir -r requirements.txt
+    pip install -r requirements.txt
 
 # Copy service code (last to maximize cache reuse)
 COPY embedding/*.py ./

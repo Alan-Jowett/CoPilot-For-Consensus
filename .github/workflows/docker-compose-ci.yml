@@ -124,6 +124,7 @@ jobs:
         set -euo pipefail
         echo "Building all services in parallel..."
         # Use --parallel flag to build multiple services at once
+        # BuildKit cache mounts in Dockerfiles will automatically use /root/.cache/pip
         docker compose build --parallel
         echo "✓ All services built successfully"
 
@@ -194,13 +195,18 @@ jobs:
         docker compose up -d grafana
         timeout 90s bash -c 'until docker compose ps grafana --format "{{.Status}}" | grep -q "(healthy)"; do echo "Waiting for grafana..."; sleep 3; done' || (docker compose logs grafana --tail=50 && exit 1)
 
-    # Validator Services (run in parallel for faster validation)
+    # Validator Services (run in parallel where possible, with proper dependencies)
+    - name: Run database initialization
+      run: |
+        echo "Running database initialization..."
+        docker compose run --rm db-init
+        docker compose logs db-init --tail=20 || true
+        echo "✓ Database initialized"
+
     - name: Run validation services in parallel
       run: |
         echo "Running validation services in parallel..."
-        # Start all validators in background
-        docker compose run --rm db-init &
-        pid_init=$!
+        # Start validators that don't depend on db-init in parallel
         docker compose run --rm db-validate &
         pid_validate=$!
         docker compose run --rm vectorstore-validate &
@@ -210,13 +216,11 @@ jobs:
         
         # Wait for all validators to complete
         failed=0
-        wait $pid_init || { echo "❌ db-init failed"; failed=1; }
         wait $pid_validate || { echo "❌ db-validate failed"; failed=1; }
         wait $pid_vector || { echo "❌ vectorstore-validate failed"; failed=1; }
         wait $pid_ollama || { echo "❌ ollama-validate failed"; failed=1; }
         
         # Show logs for debugging
-        docker compose logs db-init --tail=20 || true
         docker compose logs db-validate --tail=20 || true
         docker compose logs vectorstore-validate --tail=20 || true
         docker compose logs ollama-validate --tail=20 || true
@@ -470,18 +474,6 @@ jobs:
         echo "✓ UI service is accessible"
         
         echo "✓ All service health checks passed"
-        while [ $attempt -le $max_attempts ]; do
-          if curl -k -f https://localhost/auth/health 2>/dev/null; then
-            echo "✓ Auth service is healthy"
-            exit 0
-          fi
-          echo "Attempt $attempt/$max_attempts: Auth service not responding yet..."
-          sleep 3
-          attempt=$((attempt + 1))
-        done
-        echo "❌ Auth service failed to respond after $max_attempts attempts"
-        docker compose logs auth --tail=50
-        exit 1
 
     - name: Validate reports are generated (end-to-end)
       run: |
