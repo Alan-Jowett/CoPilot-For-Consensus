@@ -168,6 +168,14 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: oauthRedirectUri
             }
             {
+              name: 'SECRET_PROVIDER_TYPE'
+              value: 'azurekeyvault'
+            }
+            {
+              name: 'AZURE_KEYVAULT_NAME'
+              value: keyVaultName
+            }
+            {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
               value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }

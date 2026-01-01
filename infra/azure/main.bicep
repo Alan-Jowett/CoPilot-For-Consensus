@@ -153,6 +153,7 @@ var keyVaultName = '${projectPrefix}kv${take(uniqueSuffix, 13)}'
 var identityPrefix = '${projectName}-${environment}'
 var jwtKeysIdentityName = '${identityPrefix}-jwtkeys-id'
 var entraAppIdentityName = '${identityPrefix}-entraapp-id'
+var jwtKeysIdentityName = '${identityPrefix}-jwtkeys-id'
 
 // Module: User-Assigned Managed Identities
 module identitiesModule 'modules/identities.bicep' = {
@@ -181,8 +182,15 @@ resource entraAppIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023
   tags: tags
 }
 
+// Dedicated identity to set JWT secrets in Key Vault during deployment
+resource jwtKeysIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = if (deployContainerApps) {
+  name: jwtKeysIdentityName
+  location: location
+  tags: tags
+}
+
 // Module: Azure Key Vault
-// Note: secretWriterPrincipalIds is currently limited to jwtKeysIdentity for deployment script write access.
+// Note: secretWriterPrincipalIds includes both jwtKeysIdentity and entraAppIdentity for deployment script write access.
 // If additional deployment scripts or components require Key Vault write permissions in the future,
 // consider refactoring to a dedicated parameter or variable array for better extensibility.
 module keyVaultModule 'modules/keyvault.bicep' = {
@@ -192,32 +200,14 @@ module keyVaultModule 'modules/keyvault.bicep' = {
     keyVaultName: keyVaultName
     tenantId: subscription().tenantId
     managedIdentityPrincipalIds: identitiesModule.outputs.identityPrincipalIds
-    secretWriterPrincipalIds: deployContainerApps ? [jwtKeysIdentity!.properties.principalId] : []
+    secretWriterPrincipalIds: deployContainerApps ? concat(
+      [jwtKeysIdentity!.properties.principalId],
+      deployEntraApp ? [entraAppIdentity!.properties.principalId] : []
+    ) : []
     enablePublicNetworkAccess: enablePublicNetworkAccess
     enableRbacAuthorization: enableRbacAuthorization
     tags: tags
   }
-}
-
-// Grant Key Vault write access to Entra app deployment identity
-// Required for the deployment script to store client secrets in Key Vault
-resource entraAppKeyVaultAccess 'Microsoft.KeyVault/vaults/accessPolicies@2023-07-01' = if (deployContainerApps && deployEntraApp) {
-  name: '${keyVaultName}/add'
-  properties: {
-    accessPolicies: [
-      {
-        tenantId: subscription().tenantId
-        objectId: entraAppIdentity!.properties.principalId
-        permissions: {
-          secrets: [
-            'get'
-            'set'  // Required for deployment script to write secrets
-          ]
-        }
-      }
-    ]
-  }
-  dependsOn: [keyVaultModule]
 }
 
 // Variable for Service Bus namespace name (must be globally unique)
