@@ -34,11 +34,11 @@ jobs:
           - name: auth
             context: .
             dockerfile: ./auth/Dockerfile
-            platforms: linux/amd64,linux/arm64
+            platforms: linux/amd64
           - name: chunking
             context: .
             dockerfile: ./chunking/Dockerfile
-            platforms: linux/amd64,linux/arm64
+            platforms: linux/amd64
           - name: embedding
             context: .
             dockerfile: ./embedding/Dockerfile
@@ -46,31 +46,31 @@ jobs:
           - name: ingestion
             context: .
             dockerfile: ./ingestion/Dockerfile
-            platforms: linux/amd64,linux/arm64
+            platforms: linux/amd64
           - name: orchestrator
             context: .
             dockerfile: ./orchestrator/Dockerfile
-            platforms: linux/amd64,linux/arm64
+            platforms: linux/amd64
           - name: parsing
             context: .
             dockerfile: ./parsing/Dockerfile
-            platforms: linux/amd64,linux/arm64
+            platforms: linux/amd64
           - name: reporting
             context: .
             dockerfile: ./reporting/Dockerfile
-            platforms: linux/amd64,linux/arm64
+            platforms: linux/amd64
           - name: summarization
             context: .
             dockerfile: ./summarization/Dockerfile
-            platforms: linux/amd64,linux/arm64
+            platforms: linux/amd64
           - name: ui
             context: ./ui
             dockerfile: ./ui/Dockerfile
-            platforms: linux/amd64,linux/arm64
+            platforms: linux/amd64
           - name: gateway
             context: ./infra/nginx
             dockerfile: ./infra/nginx/Dockerfile
-            platforms: linux/amd64,linux/arm64
+            platforms: linux/amd64
 
     steps:
       - name: Checkout repository
