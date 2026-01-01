@@ -257,6 +257,86 @@ Then configure Azure Private Link/Private Endpoints to restrict access to VNet o
 
 ---
 
+## Service Secrets and Key Vault Integration (Updated)
+
+### Secrets Managed in Key Vault
+
+The following secrets are managed through Azure Key Vault:
+
+| Secret Name | Used By | Purpose | How Set |
+|-------------|---------|---------|---------|
+| `jwt-private-key` | Auth | JWT signing (RS256) | **Auto-generated** via deployment script |
+| `jwt-public-key` | Auth | JWT verification (RS256) | **Auto-generated** via deployment script |
+| `github-oauth-client-id` | Auth | GitHub OAuth authentication | Manual (post-deployment) |
+| `github-oauth-client-secret` | Auth | GitHub OAuth authentication | Manual (post-deployment) |
+| `google-oauth-client-id` | Auth | Google OAuth authentication | Manual (post-deployment) |
+| `google-oauth-client-secret` | Auth | Google OAuth authentication | Manual (post-deployment) |
+| `microsoft-oauth-client-id` | Auth | Microsoft OAuth authentication | Manual (post-deployment) |
+| `microsoft-oauth-client-secret` | Auth | Microsoft OAuth authentication | Manual (post-deployment) |
+| `grafana-admin-user` | Grafana | Grafana admin login | Manual (future use) |
+| `grafana-admin-password` | Grafana | Grafana admin login | Manual (future use) |
+| `appinsights-instrumentation-key` | All services | Application monitoring | Auto-created |
+| `appinsights-connection-string` | All services | Application monitoring | Auto-created |
+
+### Secret Access Mechanism
+
+Services access secrets via the Azure Key Vault provider (SDK-based), not environment variable injection:
+
+```python
+# Auth service configuration
+config = load_typed_config("auth")
+# Automatically reads from Key Vault using managed identity
+jwt_private_key = config.jwt_private_key
+```
+
+The `copilot_secrets` adapter with `AzureKeyVaultProvider`:
+- Uses managed identity authentication (no credentials needed)
+- Automatically normalizes secret names (underscores → hyphens)
+- Caches secrets in memory for performance
+- Works seamlessly with local file-based secrets in Docker Compose
+
+**Security Benefits:**
+- ✅ No secrets in environment variables (not exposed via `env` command)
+- ✅ Secrets never stored in Bicep templates or Git
+- ✅ Managed identity authentication (no credentials to rotate)
+- ✅ All secret access logged in Key Vault audit logs
+- ✅ Secrets encrypted at rest and in transit
+
+### JWT Key Generation
+
+JWT keys are automatically generated during each deployment via `jwtkeys.bicep`:
+- Uses Azure CLI container with openssl to generate RSA 3072-bit keypair
+- Stores keys directly in Key Vault using deployment script managed identity
+- Keys persist across deployments unless `jwtForceUpdateTag` parameter changes
+- No manual key generation or upload required
+
+**To regenerate keys** (invalidates all active sessions):
+```bash
+az deployment group create \
+  --parameters jwtForceUpdateTag="$(date +%s)"
+```
+
+### OAuth Secret Setup
+
+OAuth secrets must be set manually after deployment:
+
+```bash
+KEY_VAULT_NAME=$(az deployment group show \
+  --name copilot-deployment \
+  --resource-group copilot-rg \
+  --query properties.outputs.keyVaultName.value -o tsv)
+
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name github-oauth-client-id --value "YOUR_CLIENT_ID"
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name github-oauth-client-secret --value "YOUR_CLIENT_SECRET"
+
+# Restart auth service
+az containerapp restart --name copilot-auth-dev --resource-group copilot-rg
+```
+
+See [README.md](README.md#post-deployment-configuration) for complete OAuth setup instructions.
+
+---
+
 ## Security Testing (Recommended)
 
 Once full deployment is complete:
