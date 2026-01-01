@@ -68,6 +68,9 @@
     "enableRbacAuthorization": {
       "value": true
     },
+    "deployEntraApp": {
+      "value": false
+    },
     "tags": {
       "value": {
         "environment": "prod",

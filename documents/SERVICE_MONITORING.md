@@ -220,15 +220,9 @@ While services don't expose `/metrics`, they do provide:
     - Error rate trends over time
     - Top services by error count
   - **Container Resource Usage**: CPU, memory, network, and disk I/O per container (see section 4.1)
-=======
-- Dashboards: use or create service dashboards with Prometheus as the data source.
-  - **System Health**: Overview of all services and their health status
-  - **Service Metrics**: Processing throughput and latency for core services
-  - **Queue Status**: RabbitMQ queue depths and consumer metrics
-  - **Failed Queues**: Monitoring for messages in failed queues
-  - **Vectorstore Status**: Qdrant vector counts, storage, memory, and query performance
->>>>>>> 2c0afb6 (Add Qdrant vectorstore monitoring with exporter and Grafana dashboard)
-- Logs via Grafana Explore (Loki):
+  - **Qdrant Vectorstore Status**: Vector counts, storage, memory, and query performance (see section 5.1)
+
+### Logs via Grafana Explore (Loki)
   - Data source: Loki
   - Basic query: `{container="<service>"}`
   - Filter by severity (if structured): `{container="<service>", level="error"}`
