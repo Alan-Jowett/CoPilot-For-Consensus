@@ -681,7 +681,6 @@ curl https://$GATEWAY_URL/auth/.well-known/jwks.json
 ```
 
 ### 5. Configure OAuth Providers (for Auth Service)
->>>>>>> 4ad3e3c1e00bf5cf16806921d9d167531ff3763f
 
 JWT keys are automatically generated during deployment via the `jwtkeys.bicep` module. No manual setup is required. The deployment script:
 - Generates a fresh RSA 3072-bit keypair per deployment
