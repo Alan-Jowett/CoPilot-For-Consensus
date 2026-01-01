@@ -234,17 +234,14 @@ class SummarizationService:
                     return
 
                 # Substitute template variables with actual context data
-                substituted_prompt = self._substitute_prompt_template(
+                # The prompt_template contains {email_chunks} which will be replaced with formatted messages
+                complete_prompt = self._substitute_prompt_template(
                     prompt_template=prompt_template,
                     thread_id=thread_id,
                     context=context,
                 )
 
-                # Construct complete prompt with template and messages
                 messages = context["messages"]
-                complete_prompt = f"{substituted_prompt}\n\n"
-                for i, message in enumerate(messages[:top_k]):
-                    complete_prompt += f"Message {i+1}:\n{message}\n\n"
 
                 # Build thread object with complete prompt
                 thread = Thread(
