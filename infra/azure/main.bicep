@@ -82,6 +82,12 @@ param grafanaAdminUser string = ''
 @secure()
 param grafanaAdminPassword string = ''
 
+@description('Enable public network access to Key Vault. Set to false for production with Private Link.')
+param enablePublicNetworkAccess bool = true
+
+@description('Enable Azure RBAC authorization for Key Vault instead of legacy access policies. Recommended for production.')
+param enableRbacAuthorization bool = false
+
 param tags object = {
   environment: environment
   project: 'copilot-for-consensus'
@@ -163,8 +169,8 @@ module keyVaultModule 'modules/keyvault.bicep' = {
     tenantId: subscription().tenantId
     managedIdentityPrincipalIds: identitiesModule.outputs.identityPrincipalIds
     secretWriterPrincipalIds: deployContainerApps ? [jwtKeysIdentity!.properties.principalId] : []
-    enablePublicNetworkAccess: true  // Set to false for production with Private Link
-    enableRbacAuthorization: false  // TODO: Migrate to true in future PRs (#2-5) when services use Azure RBAC role assignments
+    enablePublicNetworkAccess: enablePublicNetworkAccess
+    enableRbacAuthorization: enableRbacAuthorization
     tags: tags
   }
 }
