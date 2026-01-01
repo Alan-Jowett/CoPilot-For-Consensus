@@ -568,7 +568,7 @@ class OrchestrationService:
                 "llm_backend": self.llm_backend,
                 "llm_model": self.llm_model,
                 "context_window_tokens": self.context_window_tokens,
-                "prompt_template": f"{self.system_prompt}\n\n{self.user_prompt}".strip(),
+                "prompt_template": f"{self.system_prompt.rstrip()}\n\n{self.user_prompt.lstrip()}",
                 "chunk_count": context.get("chunk_count", 0),
                 "message_count": len(context.get("messages", [])),
             }

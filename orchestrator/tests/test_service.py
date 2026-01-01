@@ -3,7 +3,6 @@
 
 """Unit tests for the orchestration service."""
 
-import tempfile
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -12,20 +11,24 @@ from app.service import OrchestrationService
 
 
 @pytest.fixture
-def prompt_files():
-    """Create temporary prompt files for testing."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        
-        # Create system prompt file
-        system_path = tmppath / "system.txt"
-        system_path.write_text("You are a professional summarizer. Summarize the following email thread.")
-        
-        # Create user prompt file
-        user_path = tmppath / "user.txt"
-        user_path.write_text("Thread: {thread_id}\n\nMessages:\n{email_chunks}")
-        
-        yield str(system_path), str(user_path)
+def prompt_files(tmp_path_factory):
+    """Create temporary prompt files for testing.
+    
+    Uses tmp_path_factory to ensure temporary directory persists for the entire
+    test session, avoiding file not found errors if OrchestrationService reloads
+    prompts or if tests run in different orders.
+    """
+    tmpdir = tmp_path_factory.mktemp("prompts")
+    
+    # Create system prompt file
+    system_path = tmpdir / "system.txt"
+    system_path.write_text("You are a professional summarizer. Summarize the following email thread.")
+    
+    # Create user prompt file
+    user_path = tmpdir / "user.txt"
+    user_path.write_text("Thread: {thread_id}\n\nMessages:\n{email_chunks}")
+    
+    yield str(system_path), str(user_path)
 
 
 @pytest.fixture
