@@ -56,9 +56,11 @@ class TestLlamaCppSummarizer:
 
         summarizer = LlamaCppSummarizer(model="mistral-7b-instruct-v0.2.Q4_K_M")
 
+        complete_prompt = "Summarize the following discussion thread:\n\nMessage 1:\nMessage 1\n\nMessage 2:\nMessage 2\n\n"
         thread = Thread(
             thread_id="test-thread-123",
-            messages=["Message 1", "Message 2"]
+            messages=["Message 1", "Message 2"],
+            prompt=complete_prompt
         )
 
         summary = summarizer.summarize(thread)
@@ -72,13 +74,12 @@ class TestLlamaCppSummarizer:
         assert call_args[1]["json"]["temperature"] == 0.7
         assert "stop" in call_args[1]["json"]
 
-        # Verify prompt template structure
+        # Verify complete prompt is used (not built from messages)
         prompt = call_args[1]["json"]["prompt"]
+        assert prompt == complete_prompt
         assert "Summarize the following discussion thread:" in prompt
         assert "Message 1:" in prompt
         assert "Message 2:" in prompt
-        assert "Message 1" in prompt
-        assert "Message 2" in prompt
 
         # Verify summary contains real content
         assert summary.thread_id == "test-thread-123"

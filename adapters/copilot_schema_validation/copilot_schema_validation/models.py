@@ -288,7 +288,9 @@ class SummarizationRequestedEvent(BaseEvent):
         llm_backend: LLM backend to use (e.g., "ollama")
         llm_model: Model name (e.g., "mistral")
         context_window_tokens: Maximum context window size
-        prompt_template: Prompt template to use
+        prompt_template: Full concatenated prompt text (system instructions + user template)
+        chunk_count: Number of chunks provided in context
+        message_count: Number of unique messages in context
     """
     event_type: str = field(default="SummarizationRequested", init=False)
 

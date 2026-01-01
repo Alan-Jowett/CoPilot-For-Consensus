@@ -186,8 +186,8 @@ def main():
             llm_model=config.llm_model,
             llm_temperature=config.llm_temperature,
             llm_max_tokens=config.llm_max_tokens,
-            system_prompt_path=config.system_prompt_path if hasattr(config, 'system_prompt_path') else '/app/prompts/system.txt',
-            user_prompt_path=config.user_prompt_path if hasattr(config, 'user_prompt_path') else '/app/prompts/user.txt',
+            system_prompt_path=config.system_prompt_path,
+            user_prompt_path=config.user_prompt_path,
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
         )

@@ -105,10 +105,8 @@ class OpenAISummarizer(Summarizer):
                    thread.thread_id,
                    "Azure OpenAI" if self.is_azure else "OpenAI")
 
-        # Construct prompt
-        prompt = f"{thread.prompt_template}\n\n"
-        for i, message in enumerate(thread.messages[:thread.top_k]):
-            prompt += f"Message {i+1}:\n{message}\n\n"
+        # Use the fully-constructed prompt from the service layer
+        prompt = thread.prompt
 
         try:
             response = self.client.chat.completions.create(

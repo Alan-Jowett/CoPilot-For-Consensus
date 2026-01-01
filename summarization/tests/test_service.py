@@ -192,6 +192,51 @@ def test_retrieve_context_no_messages(summarization_service, mock_document_store
     assert context["chunks"] == []
 
 
+def test_substitute_prompt_template(summarization_service):
+    """Test substituting template variables in prompt template."""
+    template = (
+        "Thread ID: {thread_id}\n"
+        "Messages: {message_count}\n"
+        "Date range: {date_range}\n"
+        "Participants: {participants}\n"
+        "Drafts: {draft_mentions}\n"
+        "Excerpts:\n{email_chunks}"
+    )
+    
+    context = {
+        "messages": [
+            "First message",
+            "Second message",
+        ],
+        "chunks": [
+            {
+                "from": {"email": "user1@example.com", "name": "User One"},
+                "date": "2023-10-15T12:00:00Z",
+                "draft_mentions": ["draft-ietf-quic-transport-34"],
+            },
+            {
+                "from": {"email": "user2@example.com", "name": "User Two"},
+                "date": "2023-10-15T13:00:00Z",
+                "draft_mentions": ["draft-ietf-http-core-99"],
+            },
+        ],
+    }
+    
+    result = summarization_service._substitute_prompt_template(
+        prompt_template=template,
+        thread_id="thread-123",
+        context=context,
+    )
+    
+    # Verify substitutions
+    assert "thread-123" in result
+    assert "Messages: 2" in result
+    assert "2023-10-15T12:00:00Z to 2023-10-15T13:00:00Z" in result
+    assert "user1@example.com" in result
+    assert "draft-ietf-quic-transport-34" in result
+    assert "First message" in result
+
+
 def test_format_citations(summarization_service):
     """Test formatting citations."""
     citations = [

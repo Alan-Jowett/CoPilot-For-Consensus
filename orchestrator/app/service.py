@@ -83,31 +83,45 @@ class OrchestrationService:
         self.last_processing_time = 0.0
 
     def _load_prompts(self):
-        """Load system and user prompts from files."""
+        """Load system and user prompts from files.
+
+        Raises:
+            FileNotFoundError: If prompt files are missing
+            IOError: If prompt files cannot be read
+        """
         from pathlib import Path
 
         try:
             system_path = Path(self.system_prompt_path)
-            if system_path.exists():
-                with open(system_path, 'r') as f:
-                    self.system_prompt = f.read()
-                logger.info(f"Loaded system prompt from {self.system_prompt_path}")
-            else:
-                logger.warning(f"System prompt file not found: {self.system_prompt_path}")
-                self.system_prompt = ""
+            if not system_path.exists():
+                raise FileNotFoundError(f"System prompt file not found: {self.system_prompt_path}")
+            
+            with open(system_path, 'r') as f:
+                self.system_prompt = f.read()
+            
+            if not self.system_prompt.strip():
+                raise ValueError(f"System prompt file is empty: {self.system_prompt_path}")
+            
+            logger.info(f"Loaded system prompt from {self.system_prompt_path}")
 
             user_path = Path(self.user_prompt_path)
-            if user_path.exists():
-                with open(user_path, 'r') as f:
-                    self.user_prompt = f.read()
-                logger.info(f"Loaded user prompt from {self.user_prompt_path}")
-            else:
-                logger.warning(f"User prompt file not found: {self.user_prompt_path}")
-                self.user_prompt = ""
+            if not user_path.exists():
+                raise FileNotFoundError(f"User prompt file not found: {self.user_prompt_path}")
+            
+            with open(user_path, 'r') as f:
+                self.user_prompt = f.read()
+            
+            if not self.user_prompt.strip():
+                raise ValueError(f"User prompt file is empty: {self.user_prompt_path}")
+            
+            logger.info(f"Loaded user prompt from {self.user_prompt_path}")
+
+        except (FileNotFoundError, ValueError) as e:
+            logger.error(f"Failed to load prompts: {e}")
+            raise
         except Exception as e:
-            logger.error(f"Failed to load prompts: {e}", exc_info=True)
-            self.system_prompt = ""
-            self.user_prompt = ""
+            logger.error(f"Unexpected error loading prompts: {e}", exc_info=True)
+            raise
 
     def start(self, enable_startup_requeue: bool = True):
         """Start the orchestration service and subscribe to events.
@@ -551,10 +565,10 @@ class OrchestrationService:
             event_data = {
                 "thread_ids": thread_ids,
                 "top_k": self.top_k,
-                "llm_backend": self.llm_backend,\n                "llm_model": self.llm_model,
+                "llm_backend": self.llm_backend,
+                "llm_model": self.llm_model,
                 "context_window_tokens": self.context_window_tokens,
-                "system_prompt": self.system_prompt,
-                "user_prompt": self.user_prompt,
+                "prompt_template": f"{self.system_prompt}\n\n{self.user_prompt}".strip(),
                 "chunk_count": context.get("chunk_count", 0),
                 "message_count": len(context.get("messages", [])),
             }
@@ -645,3 +659,4 @@ class OrchestrationService:
                 "llm_model": self.llm_model,
             }
         }
+

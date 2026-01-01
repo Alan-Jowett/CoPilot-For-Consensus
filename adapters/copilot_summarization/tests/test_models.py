@@ -36,7 +36,7 @@ class TestThread:
         assert len(thread.messages) == 2
         assert thread.top_k == 10
         assert thread.context_window_tokens == 4096
-        assert "Summarize" in thread.prompt_template
+        assert "Summarize" in thread.prompt
 
     def test_thread_custom_values(self):
         """Test thread with custom values."""
@@ -45,13 +45,13 @@ class TestThread:
             messages=["Test"],
             top_k=5,
             context_window_tokens=2048,
-            prompt_template="Custom prompt"
+            prompt="Custom prompt"
         )
 
         assert thread.thread_id == "thread-456"
         assert thread.top_k == 5
         assert thread.context_window_tokens == 2048
-        assert thread.prompt_template == "Custom prompt"
+        assert thread.prompt == "Custom prompt"
 
 
 class TestSummary:

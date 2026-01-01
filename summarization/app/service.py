@@ -211,7 +211,7 @@ class SummarizationService:
             thread_id: Thread identifier
             top_k: Number of chunks to retrieve
             context_window_tokens: Token budget for context
-            prompt_template: Prompt template to use
+            prompt_template: Prompt template with placeholders to substitute
         """
         start_time = time.time()
         retry_count = 0
@@ -233,13 +233,26 @@ class SummarizationService:
                     )
                     return
 
-                # Build thread object
+                # Substitute template variables with actual context data
+                substituted_prompt = self._substitute_prompt_template(
+                    prompt_template=prompt_template,
+                    thread_id=thread_id,
+                    context=context,
+                )
+
+                # Construct complete prompt with template and messages
+                messages = context["messages"]
+                complete_prompt = f"{substituted_prompt}\n\n"
+                for i, message in enumerate(messages[:top_k]):
+                    complete_prompt += f"Message {i+1}:\n{message}\n\n"
+
+                # Build thread object with complete prompt
                 thread = Thread(
                     thread_id=thread_id,
-                    messages=context["messages"],
+                    messages=messages,
                     top_k=top_k,
                     context_window_tokens=context_window_tokens,
-                    prompt_template=prompt_template,
+                    prompt=complete_prompt,
                 )
 
                 # Generate summary
@@ -378,6 +391,81 @@ class SummarizationService:
                         # Push metrics to Pushgateway
                         self.metrics_collector.safe_push()
 
+    def _substitute_prompt_template(self, prompt_template: str, thread_id: str, context: dict[str, Any]) -> str:
+        """Substitute placeholder variables in prompt template with actual context data.
+
+        Replaces template placeholders with values from the thread context:
+        - {thread_id}: Thread identifier
+        - {message_count}: Number of messages in context
+        - {date_range}: Date range of messages (if available)
+        - {participants}: List of message participants/senders
+        - {draft_mentions}: Referenced RFCs/draft identifiers
+        - {email_chunks}: Message text excerpts
+
+        Args:
+            prompt_template: Template string with placeholders
+            thread_id: Thread identifier
+            context: Retrieved context with messages and metadata
+
+        Returns:
+            Prompt string with placeholders substituted with actual values
+        """
+        messages = context.get("messages", [])
+        chunks = context.get("chunks", [])
+        
+        # Extract message count
+        message_count = len(messages)
+        
+        # Extract participants (senders) from chunks if available
+        participants = set()
+        for chunk in chunks:
+            sender = chunk.get("from", {})
+            if isinstance(sender, dict) and sender.get("email"):
+                participants.add(f"{sender.get('name', sender.get('email'))} <{sender.get('email')}>")
+            elif isinstance(sender, str):
+                participants.add(sender)
+        participants_str = ", ".join(sorted(participants)) if participants else "Multiple participants"
+        
+        # Extract draft mentions from chunks if available
+        draft_mentions = set()
+        for chunk in chunks:
+            mentions = chunk.get("draft_mentions", [])
+            if isinstance(mentions, list):
+                draft_mentions.update(mentions)
+        draft_mentions_str = "\n".join(sorted(draft_mentions)) if draft_mentions else "No specific drafts mentioned"
+        
+        # Extract date range from chunks if available
+        dates = []
+        for chunk in chunks:
+            date = chunk.get("date")
+            if date:
+                dates.append(date)
+        if dates:
+            dates.sort()
+            date_range = f"{dates[0]} to {dates[-1]}"
+        else:
+            date_range = "Unknown"
+        
+        # Format email chunks (first 5000 chars of message text)
+        email_chunks_text = "\n\n".join(
+            f"Message {i+1}:\n{msg[:500]}" for i, msg in enumerate(messages[:5])
+        )
+        if not email_chunks_text:
+            email_chunks_text = "(No messages available)"
+        
+        # Substitute placeholders
+        substituted = prompt_template.format(
+            thread_id=thread_id,
+            message_count=message_count,
+            date_range=date_range,
+            participants=participants_str,
+            draft_mentions=draft_mentions_str,
+            email_chunks=email_chunks_text,
+        )
+        
+        logger.debug(f"Substituted prompt template for thread {thread_id}")
+        return substituted
+
     def _retrieve_context(self, thread_id: str, top_k: int) -> dict[str, Any]:
         """Retrieve context for a thread from vector and document stores.
 
@@ -415,6 +503,10 @@ class SummarizationService:
                 "message_id": msg.get("message_id", ""),
                 "text": msg.get("body_normalized", ""),
                 "offset": 0,
+                # Include metadata for template substitution
+                "from": msg.get("from", {}),
+                "date": msg.get("date", ""),
+                "draft_mentions": msg.get("draft_mentions", []),
             })
 
         return {

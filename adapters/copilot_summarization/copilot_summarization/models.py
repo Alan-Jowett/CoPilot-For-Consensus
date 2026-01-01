@@ -29,13 +29,13 @@ class Thread:
         messages: List of message contents in the thread
         top_k: Number of top relevant chunks to retrieve
         context_window_tokens: Maximum context window size
-        prompt_template: Prompt template to use for summarization
+        prompt: Complete prompt text ready to send to LLM (with all substitutions and messages)
     """
     thread_id: str
     messages: list[str]
     top_k: int = 10
     context_window_tokens: int = 4096
-    prompt_template: str = "Summarize the following discussion thread:"
+    prompt: str = "Summarize the following discussion thread:"
 
 
 @dataclass
