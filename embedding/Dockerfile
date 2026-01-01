@@ -11,8 +11,10 @@ WORKDIR /app
 # See: https://pip.pypa.io/en/stable/topics/configuration/
 
 # Install shared adapters in dependency order using centralized script
+# Use BuildKit cache mount for pip cache to speed up rebuilds
 COPY adapters/ /app/adapters/
-RUN python /app/adapters/scripts/install_adapters.py \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python /app/adapters/scripts/install_adapters.py \
     copilot_embedding \
     copilot_config \
     copilot_events \
@@ -26,19 +28,22 @@ RUN python /app/adapters/scripts/install_adapters.py \
     copilot_startup
 
 # Install optional vectorstore backend with Qdrant support
-RUN pip install -e /app/adapters/copilot_vectorstore[qdrant]
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -e /app/adapters/copilot_vectorstore[qdrant]
 
 # Install PyTorch-based embedding backend for production
-RUN pip install -e /app/adapters/copilot_embedding[sentencetransformers]
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -e /app/adapters/copilot_embedding[sentencetransformers]
 
 # Copy schema files for validation
 COPY documents/schemas /app/documents/schemas
 
-# Install service dependencies
+# Install service dependencies with cache mount
 COPY embedding/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir -r requirements.txt
 
-# Copy service code
+# Copy service code (last to maximize cache reuse)
 COPY embedding/*.py ./
 COPY embedding/app/ ./app/
 

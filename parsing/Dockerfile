@@ -11,8 +11,10 @@ WORKDIR /app
 # See: https://pip.pypa.io/en/stable/topics/configuration/
 
 # Install shared adapters in dependency order using centralized script
+# Use BuildKit cache mount for pip cache to speed up rebuilds
 COPY adapters/ /app/adapters/
-RUN python /app/adapters/scripts/install_adapters.py \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python /app/adapters/scripts/install_adapters.py \
     copilot_config \
     copilot_events \
     copilot_storage \
@@ -26,11 +28,12 @@ RUN python /app/adapters/scripts/install_adapters.py \
 # Copy schema files for validation
 COPY documents/schemas /app/documents/schemas
 
-# Install service dependencies
+# Install service dependencies with cache mount
 COPY parsing/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir -r requirements.txt
 
-# Copy service code
+# Copy service code (last to maximize cache reuse)
 COPY parsing/app/ ./app/
 COPY parsing/*.py ./
 
