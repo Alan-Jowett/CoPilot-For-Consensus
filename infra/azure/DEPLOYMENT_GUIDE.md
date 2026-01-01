@@ -153,6 +153,77 @@ All services are configured with:
 - **Prod**: Premium Service Bus for SLA, higher Cosmos DB autoscale, and multi-region replication
 - **Container Apps**: Consumption workload profile (pay-per-execution, no minimum cost)
 
+## OAuth Authentication with Microsoft Entra
+
+The deployment includes automated provisioning of Microsoft Entra (Azure AD) app registrations for OAuth authentication. This feature automates the manual steps typically required to set up OAuth.
+
+### Automated Entra App Setup
+
+The Bicep template can automatically:
+- Create or update a Microsoft Entra app registration
+- Configure redirect URIs for the auth service callback
+- Generate and securely store client secrets in Key Vault
+- Set up required Microsoft Graph API permissions
+
+### Prerequisites
+
+The deployment identity must have Microsoft Graph API permissions:
+- `Application.ReadWrite.All` - To create/update app registrations
+- `Directory.ReadWrite.All` - To create service principals
+
+These permissions must be granted by a Global Administrator. See [ENTRA_APP_AUTOMATION.md](ENTRA_APP_AUTOMATION.md) for detailed setup instructions.
+
+### Deployment Workflow
+
+Since the gateway FQDN is only known after Container Apps deployment, use a two-stage approach:
+
+**Stage 1: Deploy infrastructure without Entra app**
+```bash
+az deployment group create \
+  --resource-group copilot-dev-rg \
+  --template-file main.bicep \
+  --parameters parameters.dev.json \
+  --parameters deployEntraApp=false
+
+# Get gateway FQDN
+GATEWAY_FQDN=$(az deployment group show \
+  --name <deployment-name> \
+  --resource-group copilot-dev-rg \
+  --query properties.outputs.gatewayFqdn.value -o tsv)
+```
+
+**Stage 2: Deploy with Entra app and redirect URI**
+```bash
+az deployment group create \
+  --resource-group copilot-dev-rg \
+  --template-file main.bicep \
+  --parameters parameters.dev.json \
+  --parameters deployEntraApp=true \
+  --parameters oauthRedirectUris="[\"https://$GATEWAY_FQDN/auth/callback\"]"
+```
+
+### Testing OAuth Login
+
+```bash
+# Access the login page
+echo "Login URL: https://$GATEWAY_FQDN/auth/login?provider=microsoft"
+```
+
+### Secret Rotation
+
+Client secrets can be automatically rotated by redeploying:
+
+```bash
+# Redeploy with new secret expiration (default 365 days)
+az deployment group create \
+  --resource-group copilot-dev-rg \
+  --template-file main.bicep \
+  --parameters parameters.dev.json \
+  --parameters oauthSecretExpirationDays=180
+```
+
+For more details, troubleshooting, and manual setup alternatives, see [ENTRA_APP_AUTOMATION.md](ENTRA_APP_AUTOMATION.md).
+
 ## Future Enhancements
 
 - [ ] Add Private Endpoints for Key Vault, Cosmos DB, Service Bus (prod only)

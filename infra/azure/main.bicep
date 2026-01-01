@@ -69,6 +69,20 @@ param vnetAddressSpace string = '10.0.0.0/16'
 @description('Container Apps subnet address prefix (CIDR notation)')
 param subnetAddressPrefix string = '10.0.0.0/23'
 
+@description('Whether to create Microsoft Entra app registration for OAuth')
+param deployEntraApp bool = false
+
+@description('Microsoft Entra (Azure AD) tenant ID for OAuth authentication')
+param entraTenantId string = subscription().tenantId
+
+@description('Override redirect URIs for OAuth (defaults to gateway FQDN callback)')
+param oauthRedirectUris array = []
+
+@description('Client secret expiration in days for Entra app (valid range: 30-730 days)')
+@minValue(30)
+@maxValue(730)
+param oauthSecretExpirationDays int = 365
+
 @minValue(400)
 @maxValue(1000000)
 #disable-next-line no-unused-params
@@ -150,6 +164,7 @@ var projectPrefix = take(replace(projectName, '-', ''), 8)
 var keyVaultName = '${projectPrefix}kv${take(uniqueSuffix, 13)}'
 var identityPrefix = '${projectName}-${environment}'
 var jwtKeysIdentityName = '${identityPrefix}-jwtkeys-id'
+var entraAppIdentityName = '${identityPrefix}-entraapp-id'
 
 // Module: User-Assigned Managed Identities
 module identitiesModule 'modules/identities.bicep' = {
@@ -169,8 +184,17 @@ resource jwtKeysIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-
   tags: tags
 }
 
+// Dedicated identity for Entra app deployment script with Graph API permissions
+// This identity must be granted Application.ReadWrite.All and Directory.ReadWrite.All
+// permissions by a Global Administrator before the deployment script can execute successfully.
+resource entraAppIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = if (deployContainerApps && deployEntraApp) {
+  name: entraAppIdentityName
+  location: location
+  tags: tags
+}
+
 // Module: Azure Key Vault
-// Note: secretWriterPrincipalIds is currently limited to jwtKeysIdentity for deployment script write access.
+// Note: secretWriterPrincipalIds includes both jwtKeysIdentity and entraAppIdentity for deployment script write access.
 // If additional deployment scripts or components require Key Vault write permissions in the future,
 // consider refactoring to a dedicated parameter or variable array for better extensibility.
 module keyVaultModule 'modules/keyvault.bicep' = {
@@ -180,7 +204,10 @@ module keyVaultModule 'modules/keyvault.bicep' = {
     keyVaultName: keyVaultName
     tenantId: subscription().tenantId
     managedIdentityPrincipalIds: identitiesModule.outputs.identityPrincipalIds
-    secretWriterPrincipalIds: deployContainerApps ? [jwtKeysIdentity!.properties.principalId] : []
+    secretWriterPrincipalIds: deployContainerApps ? concat(
+      [jwtKeysIdentity!.properties.principalId],
+      deployEntraApp ? [entraAppIdentity!.properties.principalId] : []
+    ) : []
     enablePublicNetworkAccess: enablePublicNetworkAccess
     enableRbacAuthorization: enableRbacAuthorization
     tags: tags
@@ -378,6 +405,12 @@ module vnetModule 'modules/vnet.bicep' = if (deployContainerApps) {
   }
 }
 
+// Calculate redirect URIs for OAuth callback
+// If oauthRedirectUris is explicitly provided, use those.
+// Otherwise, leave empty array and user must manually configure after deployment.
+// The gateway FQDN is only known after Container Apps deployment completes.
+var effectiveRedirectUris = length(oauthRedirectUris) > 0 ? oauthRedirectUris : []
+
 // Module: Container Apps (VNet and 10 microservices)
 // IMPORTANT: This module uses non-null assertions (!) for outputs from vnetModule, appInsightsModule,
 // aiSearchModule, and Key Vault secrets. These assertions are safe ONLY because this module has the same
@@ -405,6 +438,8 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     keyVaultName: keyVaultName
     appInsightsKeySecretUri: appInsightsInstrKeySecret!.properties.secretUriWithVersion
     appInsightsConnectionStringSecretUri: appInsightsConnectionStringSecret!.properties.secretUriWithVersion
+    entraTenantId: entraTenantId
+    oauthRedirectUri: length(effectiveRedirectUris) > 0 ? effectiveRedirectUris[0] : ''
     logAnalyticsWorkspaceId: appInsightsModule!.outputs.workspaceId
     logAnalyticsCustomerId: appInsightsModule!.outputs.workspaceCustomerId
     tags: tags
@@ -413,6 +448,29 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     jwtKeysModule  // Ensure JWT keys are generated before auth service starts
   ]
 }
+
+// Module: Microsoft Entra App Registration (for OAuth authentication)
+// Requires deployment identity to have Application.ReadWrite.All and Directory.ReadWrite.All
+// Graph API permissions. See ENTRA_APP_AUTOMATION.md for setup instructions.
+// Note: Deployment skipped if redirect URIs are not provided (length == 0)
+module entraAppModule 'modules/entra-app.bicep' = if (deployContainerApps && deployEntraApp && length(effectiveRedirectUris) > 0) {
+  name: 'entraAppDeployment'
+  params: {
+    location: location
+    appName: '${projectName}-auth-${environment}'
+    tenantId: entraTenantId
+    redirectUris: effectiveRedirectUris
+    environment: environment
+    secretExpirationDays: oauthSecretExpirationDays
+    keyVaultName: keyVaultName
+    deploymentIdentityId: entraAppIdentity!.id
+    tags: tags
+  }
+  dependsOn: [containerAppsModule, keyVaultModule]
+}
+
+// Note: Client ID and secret are stored directly in Key Vault by the entraAppModule deployment script.
+// No additional Key Vault secret resources are needed here.
 
 // Outputs
 output keyVaultUri string = keyVaultModule.outputs.keyVaultUri
@@ -449,6 +507,10 @@ output containerAppsEnvId string = deployContainerApps ? containerAppsModule!.ou
 output gatewayFqdn string = deployContainerApps ? containerAppsModule!.outputs.gatewayFqdn : ''
 output containerAppIds object = deployContainerApps ? containerAppsModule!.outputs.appIds : {}
 output vnetId string = deployContainerApps ? vnetModule!.outputs.vnetId : ''
+output entraAppClientId string = (deployContainerApps && deployEntraApp && length(effectiveRedirectUris) > 0) ? entraAppModule!.outputs.clientId : ''
+output entraAppTenantId string = (deployContainerApps && deployEntraApp && length(effectiveRedirectUris) > 0) ? entraAppModule!.outputs.tenantId : ''
+output entraAppObjectId string = (deployContainerApps && deployEntraApp && length(effectiveRedirectUris) > 0) ? entraAppModule!.outputs.objectId : ''
+output oauthRedirectUris array = (deployContainerApps && deployEntraApp && length(effectiveRedirectUris) > 0) ? effectiveRedirectUris : []
 output resourceGroupName string = resourceGroup().name
 output location string = location
 output environment string = environment

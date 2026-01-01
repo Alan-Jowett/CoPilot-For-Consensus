@@ -412,16 +412,22 @@ The system includes an authentication service that supports GitHub, Google, and 
      3. Save the files
 
    **For Microsoft:**
-   - Create an app registration at https://entra.microsoft.com/
-   - Set redirect URI: `http://localhost:8080/ui/callback`
-   - Store credentials:
-     1. Copy the example files:
-        ```bash
-        cp secrets/microsoft_oauth_client_id.example secrets/microsoft_oauth_client_id
-        cp secrets/microsoft_oauth_client_secret.example secrets/microsoft_oauth_client_secret
-        ```
-     2. Edit the copied files and replace the placeholder values with your actual Microsoft OAuth credentials
-     3. Save the files
+   - **Local Development**: Create an app registration at https://entra.microsoft.com/
+     - Set redirect URI: `http://localhost:8080/ui/callback`
+     - Store credentials:
+       1. Copy the example files:
+          ```bash
+          cp secrets/microsoft_oauth_client_id.example secrets/microsoft_oauth_client_id
+          cp secrets/microsoft_oauth_client_secret.example secrets/microsoft_oauth_client_secret
+          ```
+       2. Edit the copied files and replace the placeholder values with your actual Microsoft OAuth credentials
+       3. Save the files
+   
+   - **Azure Deployment (Automated)**: When deploying to Azure, Microsoft OAuth can be automatically configured. See [infra/azure/ENTRA_APP_AUTOMATION.md](infra/azure/ENTRA_APP_AUTOMATION.md) for details. The Bicep template will:
+     - Automatically create the Entra app registration
+     - Configure redirect URIs based on your deployed gateway
+     - Generate and store client secrets in Azure Key Vault
+     - Wire credentials to the auth service via managed identity
 
    **Note:** On Windows, use `Copy-Item` instead of `cp` in PowerShell.
 
