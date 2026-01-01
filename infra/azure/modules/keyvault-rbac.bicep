@@ -76,7 +76,7 @@ resource appInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@20
 
 // Grant all services access to App Insights secrets for telemetry
 // Derive service list from servicePrincipalIds parameter to avoid desynchronization
-var allServices = [for key in items(servicePrincipalIds): key.key]
+var allServices = [for serviceItem in items(servicePrincipalIds): serviceItem.key]
 
 resource appInsightsInstrKeyAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
   for service in allServices: if (enableRbacAuthorization) {
@@ -140,7 +140,7 @@ resource openaiServiceApiKeyAccess 'Microsoft.Authorization/roleAssignments@2022
 // - entra-oauth-client-id, entra-oauth-client-secret
 // All these secrets are only needed by the auth service
 resource authServiceVaultSecretsAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableRbacAuthorization) {
-  name: guid(keyVaultId, servicePrincipalIds.auth, keyVaultSecretsUserRoleId, 'oauth-secrets')
+  name: guid(keyVaultId, servicePrincipalIds.auth, keyVaultSecretsUserRoleId)
   scope: keyVault
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUserRoleId)
