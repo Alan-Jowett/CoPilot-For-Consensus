@@ -153,7 +153,6 @@ var keyVaultName = '${projectPrefix}kv${take(uniqueSuffix, 13)}'
 var identityPrefix = '${projectName}-${environment}'
 var jwtKeysIdentityName = '${identityPrefix}-jwtkeys-id'
 var entraAppIdentityName = '${identityPrefix}-entraapp-id'
-var jwtKeysIdentityName = '${identityPrefix}-jwtkeys-id'
 
 // Module: User-Assigned Managed Identities
 module identitiesModule 'modules/identities.bicep' = {
@@ -178,13 +177,6 @@ resource jwtKeysIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-
 // permissions by a Global Administrator before the deployment script can execute successfully.
 resource entraAppIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = if (deployContainerApps && deployEntraApp) {
   name: entraAppIdentityName
-  location: location
-  tags: tags
-}
-
-// Dedicated identity to set JWT secrets in Key Vault during deployment
-resource jwtKeysIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = if (deployContainerApps) {
-  name: jwtKeysIdentityName
   location: location
   tags: tags
 }
