@@ -25,6 +25,15 @@ param identityResourceIds object
 @description('Azure OpenAI endpoint URL')
 param azureOpenAIEndpoint string = ''
 
+@description('Azure OpenAI GPT-4o deployment name')
+param azureOpenAIGpt4DeploymentName string = ''
+
+@description('Azure OpenAI embedding deployment name')
+param azureOpenAIEmbeddingDeploymentName string = ''
+
+@description('Azure OpenAI API key secret URI (from Key Vault)')
+param azureOpenAIApiKeySecretUri string = ''
+
 @description('Azure AI Search endpoint URL')
 param aiSearchEndpoint string = ''
 
@@ -571,6 +580,22 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'document-embeddings'
             }
             {
+              name: 'EMBEDDING_BACKEND'
+              value: azureOpenAIEndpoint != '' && azureOpenAIEmbeddingDeploymentName != '' ? 'azure' : 'sentencetransformers'
+            }
+            {
+              name: 'AZURE_OPENAI_ENDPOINT'
+              value: azureOpenAIEndpoint
+            }
+            {
+              name: 'AZURE_OPENAI_DEPLOYMENT'
+              value: azureOpenAIEmbeddingDeploymentName
+            }
+            {
+              name: 'AZURE_OPENAI_KEY'
+              value: azureOpenAIApiKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${azureOpenAIApiKeySecretUri})' : ''
+            }
+            {
               name: 'AUTH_SERVICE_URL'
               value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
             }
@@ -648,6 +673,22 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'COSMOS_DB_ENDPOINT'
               value: cosmosDbEndpoint
+            }
+            {
+              name: 'LLM_BACKEND'
+              value: azureOpenAIEndpoint != '' && azureOpenAIGpt4DeploymentName != '' ? 'azure' : 'ollama'
+            }
+            {
+              name: 'AZURE_OPENAI_ENDPOINT'
+              value: azureOpenAIEndpoint
+            }
+            {
+              name: 'AZURE_OPENAI_DEPLOYMENT'
+              value: azureOpenAIGpt4DeploymentName
+            }
+            {
+              name: 'AZURE_OPENAI_KEY'
+              value: azureOpenAIApiKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${azureOpenAIApiKeySecretUri})' : ''
             }
             {
               name: 'AUTH_SERVICE_URL'
@@ -730,11 +771,19 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'LLM_BACKEND'
-              value: 'azure'
+              value: azureOpenAIEndpoint != '' && azureOpenAIGpt4DeploymentName != '' ? 'azure' : 'ollama'
             }
             {
               name: 'AZURE_OPENAI_ENDPOINT'
               value: azureOpenAIEndpoint
+            }
+            {
+              name: 'AZURE_OPENAI_DEPLOYMENT'
+              value: azureOpenAIGpt4DeploymentName
+            }
+            {
+              name: 'AZURE_OPENAI_KEY'
+              value: azureOpenAIApiKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${azureOpenAIApiKeySecretUri})' : ''
             }
             {
               name: 'AUTH_SERVICE_URL'

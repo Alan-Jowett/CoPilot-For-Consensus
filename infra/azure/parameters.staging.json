@@ -29,6 +29,15 @@
     "azureOpenAIDeploymentCapacity": {
       "value": 30
     },
+    "deployAzureOpenAIEmbeddingModel": {
+      "value": true
+    },
+    "azureOpenAIEmbeddingModelName": {
+      "value": "text-embedding-ada-002"
+    },
+    "azureOpenAIEmbeddingDeploymentCapacity": {
+      "value": 20
+    },
     "azureOpenAIAllowedCidrs": {
       "value": []
     },

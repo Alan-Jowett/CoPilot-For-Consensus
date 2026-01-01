@@ -45,6 +45,18 @@ param azureOpenAIModelVersion string = '2024-11-20'
 @description('Deployment capacity units for Azure OpenAI. Each unit represents 1K tokens per minute (TPM). For GlobalStandard SKU, capacity determines throughput allocation across global regions. Use lower values for dev, higher for prod.')
 param azureOpenAIDeploymentCapacity int = 10
 
+@description('Whether to deploy embedding model (text-embedding-ada-002 or text-embedding-3-*) to Azure OpenAI')
+param deployAzureOpenAIEmbeddingModel bool = true
+
+@allowed(['text-embedding-ada-002', 'text-embedding-3-small', 'text-embedding-3-large'])
+@description('Embedding model to deploy to Azure OpenAI')
+param azureOpenAIEmbeddingModelName string = 'text-embedding-ada-002'
+
+@minValue(1)
+@maxValue(1000)
+@description('Deployment capacity units for Azure OpenAI embedding model')
+param azureOpenAIEmbeddingDeploymentCapacity int = 10
+
 @description('IPv4 CIDR allowlist for Azure OpenAI when public network access is enabled')
 param azureOpenAIAllowedCidrs array = []
 
@@ -246,6 +258,9 @@ module openaiModule 'modules/openai.bicep' = if (deployAzureOpenAI) {
     deploymentSku: azureOpenAIDeploymentSku
     modelVersion: azureOpenAIModelVersion
     deploymentCapacity: azureOpenAIDeploymentCapacity
+    deployEmbeddingModel: deployAzureOpenAIEmbeddingModel
+    embeddingModelName: azureOpenAIEmbeddingModelName
+    embeddingDeploymentCapacity: azureOpenAIEmbeddingDeploymentCapacity
     identityResourceId: identitiesModule.outputs.identityResourceIds.openai
     enablePublicNetworkAccess: environment == 'dev'  // For dev enable public endpoint, but defaultAction remains Deny; use azureOpenAIAllowedCidrs to allow specific IPs
     networkDefaultAction: 'Deny'
@@ -333,6 +348,23 @@ resource grafanaAdminPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-0
   }
 }
 
+// Store Azure OpenAI API key securely in Key Vault when OpenAI is deployed
+// Services will access this via Key Vault reference in environment variables
+resource openaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployAzureOpenAI && deployContainerApps) {
+  name: '${keyVaultName}/azure-openai-api-key'
+  properties: {
+    value: deployAzureOpenAI ? listKeys(
+      resourceId('Microsoft.CognitiveServices/accounts', openaiAccountName),
+      '2023-10-01-preview'
+    ).key1 : ''
+    contentType: 'text/plain'
+  }
+  dependsOn: [
+    keyVaultModule
+    openaiModule
+  ]
+}
+
 // Module: Virtual Network (for Container Apps integration)
 module vnetModule 'modules/vnet.bicep' = if (deployContainerApps) {
   name: 'vnetDeployment'
@@ -361,6 +393,9 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     containerImageTag: containerImageTag
     identityResourceIds: identitiesModule.outputs.identityResourceIds
     azureOpenAIEndpoint: deployAzureOpenAI ? openaiModule!.outputs.accountEndpoint : ''
+    azureOpenAIGpt4DeploymentName: deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentName : ''
+    azureOpenAIEmbeddingDeploymentName: deployAzureOpenAI && deployAzureOpenAIEmbeddingModel ? openaiModule!.outputs.embeddingDeploymentName : ''
+    azureOpenAIApiKeySecretUri: deployAzureOpenAI ? openaiApiKeySecret!.properties.secretUriWithVersion : ''
     aiSearchEndpoint: aiSearchModule!.outputs.endpoint
     serviceBusNamespace: serviceBusModule.outputs.namespaceName
     cosmosDbEndpoint: cosmosModule.outputs.accountEndpoint
@@ -402,6 +437,8 @@ output openaiAccountEndpoint string = deployAzureOpenAI ? openaiModule!.outputs.
 output openaiCustomSubdomain string = deployAzureOpenAI ? openaiModule!.outputs.customSubdomain : ''
 output openaiGpt4DeploymentId string = deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentId : ''
 output openaiGpt4DeploymentName string = deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentName : ''
+output openaiEmbeddingDeploymentId string = deployAzureOpenAI && deployAzureOpenAIEmbeddingModel ? openaiModule!.outputs.embeddingDeploymentId : ''
+output openaiEmbeddingDeploymentName string = deployAzureOpenAI && deployAzureOpenAIEmbeddingModel ? openaiModule!.outputs.embeddingDeploymentName : ''
 output openaiSkuName string = deployAzureOpenAI ? openaiModule!.outputs.skuName : ''
 // AI Search outputs: naming follows Azure resource type (Microsoft.Search/searchServices uses "service", not "account")
 output aiSearchServiceName string = deployContainerApps ? aiSearchModule!.outputs.serviceName : ''

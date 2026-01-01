@@ -5,6 +5,12 @@
 
 This guide provides instructions for deploying Copilot for Consensus to Azure using Azure Resource Manager (ARM) templates with managed identity support.
 
+## Related Documentation
+
+- **[Azure OpenAI Configuration Guide](OPENAI_CONFIGURATION.md)** - Detailed guide for configuring Azure OpenAI, model selection, and cost optimization
+- **[Bicep Architecture](BICEP_ARCHITECTURE.md)** - Infrastructure architecture and module design
+- **[GitHub OIDC Setup](GITHUB_OIDC_SETUP.md)** - Configure GitHub Actions for automated deployments
+
 ## Table of Contents
 
 - [Overview](#overview)
@@ -262,6 +268,16 @@ The repository includes pre-configured parameter files for each environment that
 }
 ```
 
+**To disable Azure OpenAI and use local models** (saves cost):
+
+```json
+{
+  "deployAzureOpenAI": { "value": false }
+}
+```
+
+See [Azure OpenAI Configuration](#azure-openai-configuration) for detailed model selection options.
+
 **Note**: All infrastructure (Cosmos DB, Service Bus, Azure OpenAI, Key Vault, etc.) is provisioned by the Bicep template. You don't need to create these resources separately or provide connection strings.
 
 ### 3. Deploy Using Bash Script (Linux/macOS/WSL)
@@ -411,6 +427,137 @@ All parameters are configurable via the environment-specific parameter files (`p
 | `deployContainerApps` | bool | `true` | Deploy Container Apps environment and all microservices |
 | `vnetAddressSpace` | string | `10.0.0.0/16` | VNet address space for Container Apps (CIDR notation) |
 | `subnetAddressPrefix` | string | `10.0.0.0/23` | Container Apps subnet address prefix (CIDR notation) |
+
+### Azure OpenAI Configuration
+
+The deployment includes optional Azure OpenAI integration for LLM-powered summarization and embeddings. When enabled, the deployment creates:
+
+- An Azure OpenAI resource with GPT-4o model deployment for summarization
+- Optional text embedding model deployment (text-embedding-ada-002, text-embedding-3-small, or text-embedding-3-large)
+- Secure API key storage in Azure Key Vault
+- Automatic configuration of orchestrator, summarization, and embedding services
+
+#### Enable/Disable Azure OpenAI
+
+To **enable** Azure OpenAI (default):
+
+```json
+{
+  "deployAzureOpenAI": { "value": true }
+}
+```
+
+To **disable** Azure OpenAI (uses local Ollama instead):
+
+```json
+{
+  "deployAzureOpenAI": { "value": false }
+}
+```
+
+When disabled, services will automatically fall back to:
+- **LLM Backend**: Ollama (local inference)
+- **Embedding Backend**: SentenceTransformers (local models)
+
+#### Azure OpenAI Model Configuration
+
+Configure GPT-4o deployment:
+
+```json
+{
+  "azureOpenAISku": { "value": "S0" },
+  "azureOpenAIDeploymentSku": { "value": "GlobalStandard" },
+  "azureOpenAIModelVersion": { "value": "2024-11-20" },
+  "azureOpenAIDeploymentCapacity": { "value": 10 }
+}
+```
+
+**Model Version Options** (for GPT-4o):
+- `2024-11-20` - Latest GA (recommended)
+- `2024-08-06` - Previous stable
+- `2024-05-13` - Earlier stable
+
+**Deployment SKU Options**:
+- `GlobalStandard` - Global load balancing, recommended for production
+- `Standard` - Regional deployment, lower cost for dev/test
+
+**Capacity**: Each unit = 1,000 tokens per minute (TPM). Use 10 for dev, 50+ for production.
+
+#### Embedding Model Configuration
+
+Enable/disable embedding model deployment:
+
+```json
+{
+  "deployAzureOpenAIEmbeddingModel": { "value": true },
+  "azureOpenAIEmbeddingModelName": { "value": "text-embedding-ada-002" },
+  "azureOpenAIEmbeddingDeploymentCapacity": { "value": 10 }
+}
+```
+
+**Embedding Model Options**:
+- `text-embedding-ada-002` - 1536 dimensions, widely used, high quality
+- `text-embedding-3-small` - 1536 dimensions, lower cost, good quality
+- `text-embedding-3-large` - 3072 dimensions, highest quality, highest cost
+
+Set `deployAzureOpenAIEmbeddingModel` to `false` to use local SentenceTransformers models instead (e.g., `all-MiniLM-L6-v2`).
+
+#### Network Security for Azure OpenAI
+
+By default, Azure OpenAI uses network access controls:
+
+```json
+{
+  "azureOpenAIAllowedCidrs": {
+    "value": [
+      "203.0.113.0/24",
+      "198.51.100.0/24"
+    ]
+  }
+}
+```
+
+- **Dev environment**: Public endpoint enabled, default deny + allowlist
+- **Prod environment**: Public endpoint disabled, requires Private Link
+
+#### Service Backend Auto-Configuration
+
+Services automatically detect and use Azure OpenAI when available:
+
+**Summarization & Orchestrator Services**:
+- `LLM_BACKEND=azure` when Azure OpenAI is deployed
+- `LLM_BACKEND=ollama` when Azure OpenAI is disabled
+- `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_KEY` configured automatically
+
+**Embedding Service**:
+- `EMBEDDING_BACKEND=azure` when Azure OpenAI embedding model is deployed
+- `EMBEDDING_BACKEND=sentencetransformers` when embedding model is disabled
+- `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_KEY` configured automatically
+
+#### Cost Optimization
+
+To reduce costs in development:
+
+```json
+{
+  "deployAzureOpenAI": { "value": false }
+}
+```
+
+This uses free local models:
+- GPT-4o → Mistral-7B or Llama2 (via Ollama)
+- text-embedding-ada-002 → all-MiniLM-L6-v2 (via SentenceTransformers)
+
+For production with cost controls:
+
+```json
+{
+  "deployAzureOpenAI": { "value": true },
+  "azureOpenAIDeploymentSku": { "value": "Standard" },
+  "azureOpenAIDeploymentCapacity": { "value": 20 },
+  "azureOpenAIEmbeddingDeploymentCapacity": { "value": 10 }
+}
+```
 
 #### VNet Configuration
 
