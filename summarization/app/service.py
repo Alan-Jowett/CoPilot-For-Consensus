@@ -450,15 +450,50 @@ class SummarizationService:
         if not email_chunks_text:
             email_chunks_text = "(No messages available)"
         
-        # Substitute placeholders
-        substituted = prompt_template.format(
-            thread_id=thread_id,
-            message_count=message_count,
-            date_range=date_range,
-            participants=participants_str,
-            draft_mentions=draft_mentions_str,
-            email_chunks=email_chunks_text,
-        )
+        # Substitute placeholders with error handling for template mismatches
+        from string import Formatter
+
+        allowed_placeholders = {
+            "thread_id",
+            "message_count",
+            "date_range",
+            "participants",
+            "draft_mentions",
+            "email_chunks",
+        }
+
+        # Validate template placeholders before formatting to surface clear errors
+        parsed_placeholders = {
+            field_name
+            for _, field_name, _, _ in Formatter().parse(prompt_template)
+            if field_name
+        }
+        unexpected = parsed_placeholders - allowed_placeholders
+        if unexpected:
+            error_msg = (
+                f"Prompt template contains unexpected placeholders: {sorted(unexpected)}. "
+                f"Expected placeholders: {', '.join(sorted(allowed_placeholders))}"
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        try:
+            substituted = prompt_template.format(
+                thread_id=thread_id,
+                message_count=message_count,
+                date_range=date_range,
+                participants=participants_str,
+                draft_mentions=draft_mentions_str,
+                email_chunks=email_chunks_text,
+            )
+        except KeyError as e:
+            error_msg = (
+                f"Prompt template contains unexpected placeholder {e}. "
+                f"Expected placeholders: thread_id, message_count, date_range, "
+                f"participants, draft_mentions, email_chunks"
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg) from e
         
         logger.debug(f"Substituted prompt template for thread {thread_id}")
         return substituted
