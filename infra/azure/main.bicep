@@ -178,6 +178,9 @@ var cosmosAccountName = toLower('${take(projectPrefix, 10)}-cos-${environment}-$
 var openaiAccountName = toLower('${take(projectPrefix, 10)}-oai-${environment}-${take(uniqueSuffix, 5)}')
 // Azure AI Search service name must be globally unique and lowercase
 var aiSearchServiceName = toLower('${take(projectPrefix, 10)}-ais-${environment}-${take(uniqueSuffix, 5)}')
+// Storage Account name must be globally unique, lowercase, 3-24 chars (no hyphens allowed)
+// Length breakdown: 6 (projectPrefix) + 2 ('st') + 3 (environment) + 10 (uniqueSuffix) = 21 chars (within 3-24 limit)
+var storageAccountName = toLower('${take(projectPrefix, 6)}st${take(environment, 3)}${take(uniqueSuffix, 10)}')
 
 // Module: Azure Service Bus
 module serviceBusModule 'modules/servicebus.bicep' = {
@@ -201,6 +204,28 @@ module cosmosModule 'modules/cosmos.bicep' = {
     enableMultiRegion: enableMultiRegionCosmos
     cosmosDbAutoscaleMinRu: cosmosDbAutoscaleMinRu
     cosmosDbAutoscaleMaxRu: cosmosDbAutoscaleMaxRu
+    tags: tags
+  }
+}
+
+// Module: Azure Storage Account (blob storage for archives)
+// Only deployed when Container Apps are enabled (ingestion service requires blob storage)
+module storageModule 'modules/storage.bicep' = if (deployContainerApps) {
+  name: 'storageDeployment'
+  params: {
+    location: location
+    storageAccountName: storageAccountName
+    sku: environment == 'prod' ? 'Standard_GRS' : 'Standard_LRS'
+    accessTier: 'Hot'
+    enableHierarchicalNamespace: false
+    containerNames: ['archives']
+    // SECURITY: Only grant blob access to services that actually need it
+    // ingestion: stores raw email archives, parsing: reads archives for processing
+    contributorPrincipalIds: [
+      identitiesModule.outputs.identityPrincipalIdsByName.ingestion
+      identitiesModule.outputs.identityPrincipalIdsByName.parsing
+    ]
+    networkDefaultAction: environment == 'prod' ? 'Deny' : 'Allow'
     tags: tags
   }
 }
@@ -333,6 +358,8 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     aiSearchEndpoint: aiSearchModule!.outputs.endpoint
     serviceBusNamespace: serviceBusModule.outputs.namespaceName
     cosmosDbEndpoint: cosmosModule.outputs.accountEndpoint
+    storageAccountName: storageModule!.outputs.accountName
+    storageBlobEndpoint: storageModule!.outputs.blobEndpoint
     subnetId: vnetModule!.outputs.containerAppsSubnetId
     keyVaultName: keyVaultName
     appInsightsKeySecretUri: appInsightsInstrKeySecret!.properties.secretUriWithVersion
@@ -359,6 +386,10 @@ output cosmosDatabaseName string = cosmosModule.outputs.databaseName
 output cosmosContainerName string = cosmosModule.outputs.containerName
 output cosmosAutoscaleMaxRu int = cosmosModule.outputs.autoscaleMaxThroughput
 output cosmosWriteRegions array = cosmosModule.outputs.writeRegions
+output storageAccountName string = deployContainerApps ? storageModule!.outputs.accountName : ''
+output storageAccountId string = deployContainerApps ? storageModule!.outputs.accountId : ''
+output storageBlobEndpoint string = deployContainerApps ? storageModule!.outputs.blobEndpoint : ''
+output storageContainerNames array = deployContainerApps ? storageModule!.outputs.containerNames : []
 output openaiAccountName string = deployAzureOpenAI ? openaiModule!.outputs.accountName : ''
 output openaiAccountId string = deployAzureOpenAI ? openaiModule!.outputs.accountId : ''
 output openaiAccountEndpoint string = deployAzureOpenAI ? openaiModule!.outputs.accountEndpoint : ''

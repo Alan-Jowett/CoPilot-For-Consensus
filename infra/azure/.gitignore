@@ -6,3 +6,7 @@
 
 # Ignore deployment logs
 deployment-*.log
+
+# Bicep build artifacts (generated JSON files)
+main.json
+modules/*.json
