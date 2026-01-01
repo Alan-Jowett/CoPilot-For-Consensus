@@ -22,8 +22,23 @@ echo "  INGESTION_BACKEND=$INGESTION_BACKEND"
 echo "  GRAFANA_BACKEND=$GRAFANA_BACKEND"
 echo "  UI_BACKEND=$UI_BACKEND"
 
+# Verify template file exists
+if [ ! -f /etc/nginx/nginx.conf.template ]; then
+  echo "ERROR: Template file /etc/nginx/nginx.conf.template not found"
+  exit 1
+fi
+
 # Substitute environment variables in the nginx configuration
-envsubst '${REPORTING_BACKEND} ${AUTH_BACKEND} ${INGESTION_BACKEND} ${GRAFANA_BACKEND} ${UI_BACKEND}' \
-  < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+if ! envsubst '${REPORTING_BACKEND} ${AUTH_BACKEND} ${INGESTION_BACKEND} ${GRAFANA_BACKEND} ${UI_BACKEND}' \
+  < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf; then
+  echo "ERROR: Failed to substitute environment variables"
+  exit 1
+fi
+
+# Verify output file was created and is not empty
+if [ ! -s /etc/nginx/nginx.conf ]; then
+  echo "ERROR: Generated nginx.conf is missing or empty"
+  exit 1
+fi
 
 echo "NGINX configuration generated successfully"
