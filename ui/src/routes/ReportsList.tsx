@@ -11,8 +11,8 @@ function useQueryState() {
   const q = useMemo<ReportsQuery>(() => ({
     thread_id: sp.get('thread_id') ?? undefined,
     topic: sp.get('topic') ?? undefined,
-    start_date: sp.get('start_date') ?? undefined,
-    end_date: sp.get('end_date') ?? undefined,
+    message_start_date: sp.get('message_start_date') ?? undefined,
+    message_end_date: sp.get('message_end_date') ?? undefined,
     source: sp.get('source') ?? undefined,
     min_participants: sp.get('min_participants') ?? undefined,
     max_participants: sp.get('max_participants') ?? undefined,
@@ -95,12 +95,12 @@ export function ReportsList() {
       }
     })()
     return () => { cancelled = true }
-  }, [q.topic, q.thread_id, q.start_date, q.end_date, q.source, q.min_participants, q.max_participants, q.min_messages, q.max_messages, q.limit, q.skip])
+  }, [q.topic, q.thread_id, q.message_start_date, q.message_end_date, q.source, q.min_participants, q.max_participants, q.min_messages, q.max_messages, q.limit, q.skip])
 
   const [form, setForm] = useState({
     topic: q.topic ?? '',
-    start_date: q.start_date ?? '',
-    end_date: q.end_date ?? '',
+    message_start_date: q.message_start_date ?? '',
+    message_end_date: q.message_end_date ?? '',
     source: q.source ?? '',
     thread_id: q.thread_id ?? '',
     min_participants: q.min_participants ?? '',
@@ -114,8 +114,8 @@ export function ReportsList() {
     setForm(f => ({
       ...f,
       topic: q.topic ?? '',
-      start_date: q.start_date ?? '',
-      end_date: q.end_date ?? '',
+      message_start_date: q.message_start_date ?? '',
+      message_end_date: q.message_end_date ?? '',
       source: q.source ?? '',
       thread_id: q.thread_id ?? '',
       min_participants: q.min_participants ?? '',
@@ -130,8 +130,8 @@ export function ReportsList() {
     e.preventDefault()
     update({
       topic: form.topic || undefined,
-      start_date: form.start_date || undefined,
-      end_date: form.end_date || undefined,
+      message_start_date: form.message_start_date || undefined,
+      message_end_date: form.message_end_date || undefined,
       source: form.source || undefined,
       thread_id: form.thread_id || undefined,
       min_participants: form.min_participants || undefined,
@@ -147,7 +147,7 @@ export function ReportsList() {
     const start = new Date()
     start.setDate(end.getDate() - days)
     const toISO = (d: Date) => d.toISOString().split('T')[0]
-    setForm({ ...form, start_date: toISO(start), end_date: toISO(end) })
+    setForm({ ...form, message_start_date: toISO(start), message_end_date: toISO(end) })
   }
 
   function setThisMonth() {
@@ -155,7 +155,7 @@ export function ReportsList() {
     const first = new Date(now.getFullYear(), now.getMonth(), 1)
     const last = new Date(now.getFullYear(), now.getMonth() + 1, 0)
     const toISO = (d: Date) => d.toISOString().split('T')[0]
-    setForm({ ...form, start_date: toISO(first), end_date: toISO(last) })
+    setForm({ ...form, message_start_date: toISO(first), message_end_date: toISO(last) })
   }
 
   function copyToClipboard(text: string, e: React.MouseEvent<HTMLButtonElement>) {
@@ -195,17 +195,18 @@ export function ReportsList() {
           </div>
 
           <div className="filter-section">
-            <h3>📅 Date Range</h3>
+            <h3>📅 Thread Message Date Range</h3>
             <div className="filter-row">
               <div className="filter-group">
-                <label htmlFor="start_date">Start Date</label>
-                <input type="date" id="start_date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} />
+                <label htmlFor="message_start_date">Start Date</label>
+                <input type="date" id="message_start_date" value={form.message_start_date} onChange={e => setForm({ ...form, message_start_date: e.target.value })} />
               </div>
               <div className="filter-group">
-                <label htmlFor="end_date">End Date</label>
-                <input type="date" id="end_date" value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })} />
+                <label htmlFor="message_end_date">End Date</label>
+                <input type="date" id="message_end_date" value={form.message_end_date} onChange={e => setForm({ ...form, message_end_date: e.target.value })} />
               </div>
             </div>
+            <div className="help-text">Filters threads whose messages overlap with the selected date range (inclusive)</div>
             <div className="quick-dates">
               <button type="button" className="quick-date-btn" onClick={() => setDateRange(7)}>Last 7 days</button>
               <button type="button" className="quick-date-btn" onClick={() => setDateRange(30)}>Last 30 days</button>
@@ -278,13 +279,13 @@ export function ReportsList() {
         </form>
       </div>
 
-      {(q.topic || q.start_date || q.end_date || q.source || q.thread_id || q.min_participants || q.max_participants || q.min_messages || q.max_messages) && (
+      {(q.topic || q.message_start_date || q.message_end_date || q.source || q.thread_id || q.min_participants || q.max_participants || q.min_messages || q.max_messages) && (
         <div className="active-filters">
           <h3>Active Filters:</h3>
           <div className="filter-tags">
             {q.topic && <span className="filter-tag">Topic: {q.topic} <span className="remove" onClick={() => remove('topic')}>×</span></span>}
-            {q.start_date && <span className="filter-tag">After: {q.start_date} <span className="remove" onClick={() => remove('start_date')}>×</span></span>}
-            {q.end_date && <span className="filter-tag">Before: {q.end_date} <span className="remove" onClick={() => remove('end_date')}>×</span></span>}
+            {q.message_start_date && <span className="filter-tag">Thread messages after: {q.message_start_date} <span className="remove" onClick={() => remove('message_start_date')}>×</span></span>}
+            {q.message_end_date && <span className="filter-tag">Thread messages before: {q.message_end_date} <span className="remove" onClick={() => remove('message_end_date')}>×</span></span>}
             {q.source && <span className="filter-tag">Source: {q.source} <span className="remove" onClick={() => remove('source')}>×</span></span>}
             {q.thread_id && (
               <span className="filter-tag">
@@ -308,7 +309,7 @@ export function ReportsList() {
         ) : data.reports.length === 0 ? (
           <div className="no-reports">
             <p>No reports match the selected filters.</p>
-            {(q.topic || q.start_date || q.end_date || q.source || q.thread_id) && (
+            {(q.topic || q.message_start_date || q.message_end_date || q.source || q.thread_id) && (
               <p><button className="clear-btn" onClick={clearAll}>Clear Filters</button></p>
             )}
           </div>

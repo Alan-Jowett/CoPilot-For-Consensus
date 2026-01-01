@@ -399,6 +399,8 @@ class ReportingService:
         skip: int = 0,
         start_date: str | None = None,
         end_date: str | None = None,
+        message_start_date: str | None = None,
+        message_end_date: str | None = None,
         source: str | None = None,
         min_participants: int | None = None,
         max_participants: int | None = None,
@@ -411,8 +413,10 @@ class ReportingService:
             thread_id: Filter by thread ID (optional)
             limit: Maximum number of results
             skip: Number of results to skip
-            start_date: Filter reports generated after this date (ISO 8601)
-            end_date: Filter reports generated before this date (ISO 8601)
+            start_date: Filter reports generated after this date (ISO 8601) - DEPRECATED, use message_start_date
+            end_date: Filter reports generated before this date (ISO 8601) - DEPRECATED, use message_end_date
+            message_start_date: Filter by thread message dates (inclusive overlap) - start of date range (ISO 8601)
+            message_end_date: Filter by thread message dates (inclusive overlap) - end of date range (ISO 8601)
             source: Filter by archive source (optional)
             min_participants: Filter by minimum participant count (optional)
             max_participants: Filter by maximum participant count (optional)
@@ -427,7 +431,7 @@ class ReportingService:
         if thread_id:
             filter_dict["thread_id"] = thread_id
 
-        # Add date filters
+        # Add legacy date filters (filter on generated_at for backward compatibility)
         if start_date or end_date:
             date_filter = {}
             if start_date:
@@ -446,7 +450,8 @@ class ReportingService:
 
         # If we have filters that require thread/archive data, enrich the results
         if source or min_participants is not None or max_participants is not None or \
-           min_messages is not None or max_messages is not None:
+           min_messages is not None or max_messages is not None or \
+           message_start_date is not None or message_end_date is not None:
             enriched_summaries = []
 
             # Batch fetch all threads to avoid N+1 query problem
@@ -500,6 +505,25 @@ class ReportingService:
                 participant_count = len(participants)
                 message_count = thread.get("message_count", 0)
                 archive_id = thread.get("archive_id")
+
+                # Apply message date filters using inclusive overlap
+                # A thread is included if its date range [first_message_date, last_message_date]
+                # overlaps with the filter range [message_start_date, message_end_date]
+                # Overlap condition: first_message_date <= message_end_date AND last_message_date >= message_start_date
+                if message_start_date is not None or message_end_date is not None:
+                    first_msg_date = thread.get("first_message_date")
+                    last_msg_date = thread.get("last_message_date")
+                    
+                    # Skip threads without date information
+                    if not first_msg_date or not last_msg_date:
+                        continue
+                    
+                    # Check overlap condition
+                    if message_end_date is not None and first_msg_date > message_end_date:
+                        continue  # Thread starts after filter range ends
+                    
+                    if message_start_date is not None and last_msg_date < message_start_date:
+                        continue  # Thread ends before filter range starts
 
                 # Apply thread-based filters
                 if min_participants is not None:
