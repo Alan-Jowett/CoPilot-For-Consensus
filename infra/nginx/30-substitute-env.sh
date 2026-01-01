@@ -12,7 +12,7 @@ set -e
 export REPORTING_BACKEND=${REPORTING_BACKEND:-http://reporting:8080/}
 export AUTH_BACKEND=${AUTH_BACKEND:-http://auth:8090/}
 export INGESTION_BACKEND=${INGESTION_BACKEND:-http://ingestion:8001/}
-export GRAFANA_BACKEND=${GRAFANA_BACKEND:-http://grafana:3000}
+export GRAFANA_BACKEND=${GRAFANA_BACKEND:-http://grafana:3000/}
 export UI_BACKEND=${UI_BACKEND:-http://ui:80/}
 
 echo "Configuring NGINX with backend URLs:"

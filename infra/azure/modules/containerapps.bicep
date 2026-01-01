@@ -858,7 +858,7 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'GRAFANA_BACKEND'
-              value: 'http://${projectPrefix}-grafana-${environment}:3000'
+              value: 'http://${projectPrefix}-grafana-${environment}:3000/'
             }
             {
               name: 'UI_BACKEND'
