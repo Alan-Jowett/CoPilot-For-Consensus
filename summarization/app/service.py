@@ -446,9 +446,9 @@ class SummarizationService:
         else:
             date_range = "Unknown"
         
-        # Format email chunks (first 5000 chars of message text)
+        # Format email chunks (all available messages, respecting natural chunking)
         email_chunks_text = "\n\n".join(
-            f"Message {i+1}:\n{msg[:500]}" for i, msg in enumerate(messages[:5])
+            f"Message {i+1}:\n{msg}" for i, msg in enumerate(messages)
         )
         if not email_chunks_text:
             email_chunks_text = "(No messages available)"
