@@ -6,6 +6,7 @@
 import hashlib
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from copilot_events import (
@@ -89,8 +90,6 @@ class OrchestrationService:
             FileNotFoundError: If prompt files are missing
             IOError: If prompt files cannot be read
         """
-        from pathlib import Path
-
         try:
             system_path = Path(self.system_prompt_path)
             if not system_path.exists():

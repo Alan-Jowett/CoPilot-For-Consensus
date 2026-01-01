@@ -377,19 +377,14 @@ def test_substitute_prompt_template_malformed_chunk_sender_not_dict(summarizatio
         ],
     }
     
-    # Service should handle malformed chunk gracefully (or raise TypeError/KeyError)
-    # The exact behavior depends on implementation; test that it doesn't silently fail
-    try:
-        result = summarization_service._substitute_prompt_template(
-            prompt_template=template,
-            thread_id="thread-123",
-            context=context,
-        )
-        # If no error, ensure result is returned
-        assert result is not None
-    except (TypeError, KeyError, AttributeError):
-        # Expected: malformed chunk metadata causes error
-        pass
+    result = summarization_service._substitute_prompt_template(
+        prompt_template=template,
+        thread_id="thread-123",
+        context=context,
+    )
+
+    # String sender is preserved as participant label
+    assert result == "Participants: invalid-sender-string"
 
 
 def test_substitute_prompt_template_malformed_chunk_missing_date(summarization_service):
@@ -407,17 +402,14 @@ def test_substitute_prompt_template_malformed_chunk_missing_date(summarization_s
         ],
     }
     
-    # Should handle missing date gracefully
-    try:
-        result = summarization_service._substitute_prompt_template(
-            prompt_template=template,
-            thread_id="thread-123",
-            context=context,
-        )
-        assert result is not None
-    except (KeyError, TypeError):
-        # Expected: missing required field causes error
-        pass
+    result = summarization_service._substitute_prompt_template(
+        prompt_template=template,
+        thread_id="thread-123",
+        context=context,
+    )
+
+    # Missing dates should yield Unknown range
+    assert result == "Date range: Unknown"
 
 
 def test_substitute_prompt_template_chunk_with_none_from(summarization_service):
@@ -435,17 +427,14 @@ def test_substitute_prompt_template_chunk_with_none_from(summarization_service):
         ],
     }
     
-    # Should handle None gracefully
-    try:
-        result = summarization_service._substitute_prompt_template(
-            prompt_template=template,
-            thread_id="thread-123",
-            context=context,
-        )
-        assert result is not None
-    except (TypeError, KeyError, AttributeError):
-        # Expected: None value in dict access causes error
-        pass
+    result = summarization_service._substitute_prompt_template(
+        prompt_template=template,
+        thread_id="thread-123",
+        context=context,
+    )
+
+    # None sender should fall back to default participants text
+    assert result == "Participants: Multiple participants"
 
 
 def test_substitute_prompt_template_draft_mentions_not_list(summarization_service):
@@ -463,17 +452,14 @@ def test_substitute_prompt_template_draft_mentions_not_list(summarization_servic
         ],
     }
     
-    # Should handle non-list draft_mentions gracefully
-    try:
-        result = summarization_service._substitute_prompt_template(
-            prompt_template=template,
-            thread_id="thread-123",
-            context=context,
-        )
-        assert result is not None
-    except (TypeError, AttributeError):
-        # Expected: iterating on non-iterable causes error
-        pass
+    result = summarization_service._substitute_prompt_template(
+        prompt_template=template,
+        thread_id="thread-123",
+        context=context,
+    )
+
+    # Non-list draft mentions should be ignored, using default text
+    assert result == "Drafts: No specific drafts mentioned"
 
 
 def test_format_citations(summarization_service):

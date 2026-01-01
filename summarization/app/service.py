@@ -6,6 +6,7 @@
 import hashlib
 import time
 from typing import Any
+from string import Formatter
 
 from copilot_events import (
     EventPublisher,
@@ -438,6 +439,7 @@ class SummarizationService:
             if date:
                 dates.append(date)
         if dates:
+            # Dates are expected in ISO 8601; string sort preserves chronological order
             dates.sort()
             date_range = f"{dates[0]} to {dates[-1]}"
         else:
@@ -451,8 +453,6 @@ class SummarizationService:
             email_chunks_text = "(No messages available)"
         
         # Substitute placeholders with error handling for template mismatches
-        from string import Formatter
-
         allowed_placeholders = {
             "thread_id",
             "message_count",
@@ -477,23 +477,15 @@ class SummarizationService:
             logger.error(error_msg)
             raise ValueError(error_msg)
 
-        try:
-            substituted = prompt_template.format(
-                thread_id=thread_id,
-                message_count=message_count,
-                date_range=date_range,
-                participants=participants_str,
-                draft_mentions=draft_mentions_str,
-                email_chunks=email_chunks_text,
-            )
-        except KeyError as e:
-            error_msg = (
-                f"Prompt template contains unexpected placeholder {e}. "
-                f"Expected placeholders: thread_id, message_count, date_range, "
-                f"participants, draft_mentions, email_chunks"
-            )
-            logger.error(error_msg)
-            raise ValueError(error_msg) from e
+        # Placeholders are validated above; format should not raise KeyError here
+        substituted = prompt_template.format(
+            thread_id=thread_id,
+            message_count=message_count,
+            date_range=date_range,
+            participants=participants_str,
+            draft_mentions=draft_mentions_str,
+            email_chunks=email_chunks_text,
+        )
         
         logger.debug(f"Substituted prompt template for thread {thread_id}")
         return substituted

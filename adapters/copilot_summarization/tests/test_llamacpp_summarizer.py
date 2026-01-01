@@ -77,9 +77,6 @@ class TestLlamaCppSummarizer:
         # Verify complete prompt is used (not built from messages)
         prompt = call_args[1]["json"]["prompt"]
         assert prompt == complete_prompt
-        assert "Summarize the following discussion thread:" in prompt
-        assert "Message 1:" in prompt
-        assert "Message 2:" in prompt
 
         # Verify summary contains real content
         assert summary.thread_id == "test-thread-123"

@@ -3,7 +3,6 @@
 
 """Unit tests for the orchestration service."""
 
-from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
