@@ -111,8 +111,8 @@ param grafanaAdminPassword string = ''
 @description('Enable public network access to Key Vault. Set to false for production with Private Link.')
 param enablePublicNetworkAccess bool = true
 
-@description('Enable Azure RBAC authorization for Key Vault instead of legacy access policies. Recommended for production.')
-param enableRbacAuthorization bool = false
+@description('Enable Azure RBAC authorization for Key Vault with per-secret access control. STRONGLY RECOMMENDED for production to enforce least-privilege principles.')
+param enableRbacAuthorization bool = true
 
 param tags object = {
   environment: environment
@@ -392,6 +392,28 @@ resource openaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if 
   ]
 }
 
+// Module: Key Vault RBAC - Per-secret role assignments for least-privilege access control
+// This module configures fine-grained RBAC permissions, granting each service access only to
+// the specific secrets it needs. Deployed after all secrets are created and before Container Apps start.
+// Only active when enableRbacAuthorization = true (recommended for production)
+module keyVaultRbacModule 'modules/keyvault-rbac.bicep' = if (deployContainerApps && enableRbacAuthorization) {
+  name: 'keyVaultRbacDeployment'
+  params: {
+    keyVaultId: keyVaultModule.outputs.keyVaultId
+    keyVaultName: keyVaultModule.outputs.keyVaultName
+    servicePrincipalIds: identitiesModule.outputs.identityPrincipalIdsByName
+    enableRbacAuthorization: enableRbacAuthorization
+  }
+  dependsOn: [
+    jwtKeysModule  // Ensure JWT secrets exist before assigning access
+    appInsightsInstrKeySecret
+    appInsightsConnectionStringSecret
+    grafanaAdminUserSecret
+    grafanaAdminPasswordSecret
+    openaiApiKeySecret
+  ]
+}
+
 // Module: Virtual Network (for Container Apps integration)
 module vnetModule 'modules/vnet.bicep' = if (deployContainerApps) {
   name: 'vnetDeployment'
@@ -515,6 +537,8 @@ output resourceGroupName string = resourceGroup().name
 output location string = location
 output environment string = environment
 output deploymentId string = deployment().name
+output keyVaultRbacEnabled bool = enableRbacAuthorization
+output keyVaultRbacSummary string = (deployContainerApps && enableRbacAuthorization) ? keyVaultRbacModule!.outputs.summary : 'RBAC not enabled - using legacy access policies (NOT RECOMMENDED for production)'
 
 // OAuth and Grafana secret setup instructions
 output oauthSecretsSetupInstructions string = '''

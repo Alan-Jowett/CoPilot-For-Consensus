@@ -12,28 +12,31 @@ param enablePublicNetworkAccess bool = true
 param enableRbacAuthorization bool = false  // Set to true to use Azure RBAC instead of access policies
 param tags object
 
-// ⚠️ SECURITY NOTE: Access policy design follows least-privilege principles
-// All managed identities receive vault-wide 'get' permission (only) for secrets.
-// Services can read secrets by name but cannot enumerate vault contents.
-// This prevents lateral movement risk:
-// - Compromised service identity cannot discover secret names via enumeration
-// - Attacker must know secret names in advance to access them
-// - Significantly reduces blast radius of single identity compromise
+// ⚠️ SECURITY WARNING: Legacy access policy mode (enableRbacAuthorization=false)
+// When RBAC is disabled, all managed identities receive vault-wide 'get' permission.
+// While 'list' is disabled (preventing enumeration), services can still read ANY secret
+// if they know its name. This violates least-privilege principles.
 //
-// FUTURE ENHANCEMENT:
-// Migrate to Azure RBAC with per-identity secret scoping or separate vaults per service.
-// See tracked issue #637 for RBAC migration plan.
+// ✅ RECOMMENDED: Enable RBAC mode (enableRbacAuthorization=true)
+// RBAC mode combined with the keyvault-rbac module provides per-secret access control:
+// - Each service only gets access to the specific secrets it needs
+// - Auth service: JWT keys + OAuth secrets only
+// - OpenAI service: OpenAI API key only
+// - All services: App Insights secrets (telemetry)
+// - Significantly reduces lateral movement risk from a compromised service
+//
+// Migration: Set enableRbacAuthorization=true and deploy keyvault-rbac module
 
 // Build access policies array from principal IDs array
 // Used only when enableRbacAuthorization = false (legacy mode)
-// Security: Only 'get' permission granted - services can read secrets by name but cannot enumerate all secrets
+// ⚠️ SECURITY LIMITATION: Vault-wide 'get' permission allows reading ANY secret by name
 var readAccessPolicies = [
   for principalId in managedIdentityPrincipalIds: {
     objectId: principalId
     tenantId: tenantId
     permissions: {
       secrets: [
-        'get'  // Services can only read secrets they know the name of (no enumeration)
+        'get'  // ⚠️ Can read ANY secret by name (vault-wide permission)
       ]
       keys: []
       certificates: []
@@ -60,13 +63,13 @@ var combinedAccessPolicies = concat(readAccessPolicies, writeAccessPolicies)
 
 // Create Azure Key Vault
 // Authorization approach:
-// - enableRbacAuthorization = false (default): Uses legacy access policies for backward compatibility
-// - enableRbacAuthorization = true: Uses modern Azure RBAC with role assignments (recommended)
-//
-// Migration strategy:
-// PR #1 (foundation): Uses access policies as fallback for quick validation
-// PR #2-5 (services): Each new service will use Azure RBAC 'Key Vault Secrets User' role assignments
-// Future: Remove accessPolicies array when all services migrated to RBAC
+// - enableRbacAuthorization = false (default): Uses legacy access policies (NOT RECOMMENDED for production)
+//   · Grants vault-wide 'get' permission to all services (can read any secret by name)
+//   · High lateral movement risk if any service is compromised
+// - enableRbacAuthorization = true: Uses modern Azure RBAC with per-secret role assignments (RECOMMENDED)
+//   · Requires keyvault-rbac module to configure per-secret access
+//   · Each service only gets access to specific secrets it needs
+//   · Significantly improved security posture
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: keyVaultName
   location: location
@@ -90,10 +93,9 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
-// Add access policies to grant secret read permissions to each service identity (legacy approach)
-// Only deployed when enableRbacAuthorization = false
-// Future PRs will replace this with Azure RBAC role assignments (Key Vault Secrets User)
-// which provides better integration with Azure AD and more granular control
+// Legacy access policies (only deployed when RBAC is disabled)
+// ⚠️ SECURITY WARNING: Grants vault-wide 'get' permission to all services
+// Use RBAC mode + keyvault-rbac module for per-secret access control instead
 resource keyVaultAccessPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2023-07-01' = if (!enableRbacAuthorization) {
   name: 'add'
   parent: keyVault
