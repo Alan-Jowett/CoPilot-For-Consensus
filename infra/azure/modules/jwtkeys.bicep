@@ -21,6 +21,12 @@ param jwtPrivateSecretName string = 'jwt-private-key'
 @description('Secret name for the JWT public key')
 param jwtPublicSecretName string = 'jwt-public-key'
 
+@description('Maximum retries when writing JWT secrets (to allow RBAC propagation)')
+param jwtKeysMaxRetries int = 20
+
+@description('Delay in seconds between retries when writing JWT secrets')
+param jwtKeysRetryDelaySeconds int = 30
+
 param tags object = {}
 
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
@@ -82,7 +88,7 @@ function Handle-SecretError {
   )
 
   # Use case-insensitive matching because Azure error casing can vary
-  if ($errorMessage -imatch "Forbidden|ParentResourceNotFound|not authorized|does not have secrets set permission") {
+  if ($errorMessage -imatch "Forbidden|ParentResourceNotFound|is not authorized to perform action|does not have secrets/set permission") {
     if ($attempt -lt $maxRetries) {
       Write-Warning "Permission error on attempt $attempt of $maxRetries. RBAC may still be propagating. Waiting $retryDelay seconds before retry..."
       Write-Warning "Error: $errorMessage"
@@ -118,24 +124,24 @@ $publicKeyFormatted = "-----BEGIN PUBLIC KEY-----`n" + (Format-Base64ForPem -bas
 
 # Store in Key Vault with retry logic for RBAC propagation delays
 # Azure RBAC can take up to 5 minutes to propagate after role assignment
-$maxRetries = 20
-$retryDelay = 30  # 30 seconds between retries = 10 minutes max wait
+$maxRetries = ${jwtKeysMaxRetries}
+$retryDelay = ${jwtKeysRetryDelaySeconds}  # 30 seconds between retries = 10 minutes max wait
 $privateStored = $false
 $publicStored = $false
 
 Write-Host "Storing JWT keys in Key Vault (with retry for RBAC propagation)..."
 
 for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
-    try {
+  try {
     if (-not $privateStored) {
       Set-AzKeyVaultSecret -VaultName $keyVaultName -Name $privateSecretName -SecretValue (ConvertTo-SecureString -String $privateKeyFormatted -AsPlainText -Force) -ErrorAction Stop | Out-Null
       $privateStored = $true
     }
-    }
-    catch {
-        $errorMessage = $_.Exception.Message
-    if (Handle-SecretError -errorMessage $errorMessage -attempt $attempt -maxRetries $maxRetries -retryDelay $retryDelay) { continue }
-    }
+  }
+  catch {
+    $errorMessage = $_.Exception.Message
+    if (Handle-SecretError -errorMessage $errorMessage -attempt $attempt -maxRetries $maxRetries -retryDelay $retryDelay) { }
+  }
 
   try {
     if (-not $publicStored) {
@@ -145,13 +151,17 @@ for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
   }
   catch {
     $errorMessage = $_.Exception.Message
-    if (Handle-SecretError -errorMessage $errorMessage -attempt $attempt -maxRetries $maxRetries -retryDelay $retryDelay) { continue }
+    if (Handle-SecretError -errorMessage $errorMessage -attempt $attempt -maxRetries $maxRetries -retryDelay $retryDelay) { }
   }
 
   if ($privateStored -and $publicStored) {
     Write-Host "JWT keys generated and stored successfully (attempt $attempt)"
     break
   }
+}
+
+if (-not ($privateStored -and $publicStored)) {
+  throw "Failed to store both JWT secrets in Key Vault after $maxRetries attempts. Private stored: $privateStored; Public stored: $publicStored."
 }
 '''
   }
