@@ -91,7 +91,7 @@ var servicePorts = {
   embedding: 8000
   orchestrator: 8000
   summarization: 8000
-  ui: 3000
+  ui: 80
   gateway: 8080
 }
 
