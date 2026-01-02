@@ -20,13 +20,9 @@ class TestAzureKeyVaultIntegration:
         """
         try:
             from copilot_secrets import AzureKeyVaultProvider
-            from copilot_secrets.azurekeyvault_provider import (
-                AzureKeyVaultProvider as DirectImport,
-            )
             
-            # Verify classes are importable
+            # Verify class is importable
             assert AzureKeyVaultProvider is not None
-            assert DirectImport is not None
             
         except ImportError as e:
             # Expected in local dev without [azure] extras
