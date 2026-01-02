@@ -115,7 +115,13 @@ function Handle-SecretError {
 }
 
 $VerbosePreference = 'Continue'
-# Give RBAC assignments time to propagate before first write attempt
+# Give RBAC assignments time to propagate before first write attempt.
+# NOTE: This initial 90-second delay is in addition to the retry logic below.
+# With the current defaults (maxRetries = 30, retryDelay = 30s), the worst-case
+# total wait time before failing is:
+#   90s initial sleep + (maxRetries - 1) * retryDelay
+#   = 90 + (30 - 1) * 30 = 960 seconds (~16 minutes).
+# This is intentional to accommodate slow RBAC propagation in some environments.
 Start-Sleep -Seconds 90
 $keyVaultName = $env:KEY_VAULT_NAME
 $privateSecretName = $env:JWT_PRIVATE_SECRET_NAME
@@ -135,7 +141,7 @@ $publicKeyFormatted = "-----BEGIN PUBLIC KEY-----`n" + (Format-Base64ForPem -bas
 # Store in Key Vault with retry logic for RBAC propagation delays
 # Azure RBAC can take up to 5 minutes to propagate after role assignment
 $maxRetries = [int]$env:JWT_MAX_RETRIES
-$retryDelay = [int]$env:JWT_RETRY_DELAY_SECONDS  # 30 seconds between retries => 19 delays (~9.5 minutes max wait with 20 retries)
+$retryDelay = [int]$env:JWT_RETRY_DELAY_SECONDS  # 30 seconds between retries => 29 delays (~14.5 minutes max wait with 30 retries)
 $privateStored = $false
 $publicStored = $false
 
