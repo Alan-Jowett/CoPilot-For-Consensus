@@ -73,6 +73,33 @@ function Format-Base64ForPem {
     return $lines -join "`n"
 }
 
+function Handle-SecretError {
+  param(
+    [string]$errorMessage,
+    [int]$attempt,
+    [int]$maxRetries,
+    [int]$retryDelay
+  )
+
+  # Use case-insensitive matching because Azure error casing can vary
+  if ($errorMessage -imatch "Forbidden|ParentResourceNotFound|not authorized|does not have secrets set permission") {
+    if ($attempt -lt $maxRetries) {
+      Write-Warning "Permission error on attempt $attempt of $maxRetries. RBAC may still be propagating. Waiting $retryDelay seconds before retry..."
+      Write-Warning "Error: $errorMessage"
+      Start-Sleep -Seconds $retryDelay
+      return $true
+    }
+    else {
+      Write-Error "Failed after $maxRetries attempts. RBAC permissions not propagated. Error: $errorMessage"
+      throw
+    }
+  }
+  else {
+    Write-Error "Unexpected error: $errorMessage"
+    throw
+  }
+}
+
 $VerbosePreference = 'Continue'
 $keyVaultName = $env:KEY_VAULT_NAME
 $privateSecretName = $env:JWT_PRIVATE_SECRET_NAME
@@ -93,39 +120,38 @@ $publicKeyFormatted = "-----BEGIN PUBLIC KEY-----`n" + (Format-Base64ForPem -bas
 # Azure RBAC can take up to 5 minutes to propagate after role assignment
 $maxRetries = 20
 $retryDelay = 30  # 30 seconds between retries = 10 minutes max wait
+$privateStored = $false
+$publicStored = $false
 
 Write-Host "Storing JWT keys in Key Vault (with retry for RBAC propagation)..."
 
 for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
     try {
-        Set-AzKeyVaultSecret -VaultName $keyVaultName -Name $privateSecretName -SecretValue (ConvertTo-SecureString -String $privateKeyFormatted -AsPlainText -Force) -ErrorAction Stop | Out-Null
-        Set-AzKeyVaultSecret -VaultName $keyVaultName -Name $publicSecretName -SecretValue (ConvertTo-SecureString -String $publicKeyFormatted -AsPlainText -Force) -ErrorAction Stop | Out-Null
-        
-        Write-Host "JWT keys generated and stored successfully (attempt $attempt)"
-        break
+    if (-not $privateStored) {
+      Set-AzKeyVaultSecret -VaultName $keyVaultName -Name $privateSecretName -SecretValue (ConvertTo-SecureString -String $privateKeyFormatted -AsPlainText -Force) -ErrorAction Stop | Out-Null
+      $privateStored = $true
+    }
     }
     catch {
         $errorMessage = $_.Exception.Message
-        
-        # Check if error is related to permissions or RBAC propagation
-        # Use case-insensitive matching because Azure error casing can vary
-        if ($errorMessage -imatch "Forbidden|ParentResourceNotFound|not authorized|does not have secrets set permission") {
-            if ($attempt -lt $maxRetries) {
-                Write-Warning "Permission error on attempt $attempt of $maxRetries. RBAC may still be propagating. Waiting $retryDelay seconds before retry..."
-                Write-Warning "Error: $errorMessage"
-                Start-Sleep -Seconds $retryDelay
-            }
-            else {
-                Write-Error "Failed after $maxRetries attempts. RBAC permissions not propagated. Error: $errorMessage"
-                throw
-            }
-        }
-        else {
-            # Non-permission error, fail immediately
-            Write-Error "Unexpected error: $errorMessage"
-            throw
-        }
+    if (Handle-SecretError -errorMessage $errorMessage -attempt $attempt -maxRetries $maxRetries -retryDelay $retryDelay) { continue }
     }
+
+  try {
+    if (-not $publicStored) {
+      Set-AzKeyVaultSecret -VaultName $keyVaultName -Name $publicSecretName -SecretValue (ConvertTo-SecureString -String $publicKeyFormatted -AsPlainText -Force) -ErrorAction Stop | Out-Null
+      $publicStored = $true
+    }
+  }
+  catch {
+    $errorMessage = $_.Exception.Message
+    if (Handle-SecretError -errorMessage $errorMessage -attempt $attempt -maxRetries $maxRetries -retryDelay $retryDelay) { continue }
+  }
+
+  if ($privateStored -and $publicStored) {
+    Write-Host "JWT keys generated and stored successfully (attempt $attempt)"
+    break
+  }
 }
 '''
   }
