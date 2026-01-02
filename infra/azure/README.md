@@ -1081,7 +1081,7 @@ az keyvault secret set --vault-name $KEY_VAULT_NAME --name microsoft-oauth-clien
 az keyvault secret set --vault-name $KEY_VAULT_NAME --name microsoft-oauth-client-secret --value "YOUR_MICROSOFT_CLIENT_SECRET"
 ```
 
-**How it works**: The auth Container App is configured with `SECRET_PROVIDER_TYPE=azurekeyvault` and `AZURE_KEYVAULT_NAME` environment variables. This tells the auth service to use the Azure Key Vault secret provider, which reads secrets directly from Key Vault using the auth service's managed identity. No additional deployment steps are needed - the secrets are automatically available to the auth service.
+**How it works**: The auth Container App is configured with `SECRET_PROVIDER_TYPE=azurekeyvault` and `AZURE_KEY_VAULT_NAME` environment variables. This tells the auth service to use the Azure Key Vault secret provider, which reads secrets directly from Key Vault using the auth service's managed identity. No additional deployment steps are needed - the secrets are automatically available to the auth service.
 
 **Note**: The auth service's managed identity already has "Key Vault Secrets User" permissions, configured during initial deployment. JWT keys are also automatically generated and stored in Key Vault during deployment.
 
