@@ -223,13 +223,13 @@ In the dev environment, all Container Apps are configured with `minReplicas: 0` 
 - Azure Consumption plan charges only when services are running
 - **Cold Start Impact**: First HTTP request or message bus event will experience a cold start delay (typically 10-60 seconds)
 - HTTP-triggered services (gateway, reporting, ui, ingestion, auth) wake on incoming HTTP traffic
-- Message-bus-triggered services (parsing, chunking, orchestration, summarization) wake on queue messages
+- Message-bus-triggered services (parsing, chunking, orchestrator, summarization) wake on queue messages
 
 **Expected Cold Starts**:
 - First login attempt after idle period: ~10-30 seconds (auth + gateway startup)
 - First report load: ~10-30 seconds (reporting service startup)
 - First ingestion: ~10-30 seconds (ingestion service startup)
-- First message processing: ~10-60 seconds (parsing/chunking/orchestration/summarization startup)
+- First message processing: ~10-60 seconds (parsing/chunking/orchestrator/summarization startup)
 
 **Mitigation Options** (if needed):
 - Set specific services to `minReplicas: 1` in containerapps.bicep for always-on behavior

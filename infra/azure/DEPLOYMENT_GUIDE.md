@@ -33,7 +33,7 @@ Each environment uses a **non-overlapping VNet address space** to support future
 | **Service Bus** | Standard | Standard | Premium |
 | **Container Apps** | Consumption (minReplicas: 0) | Consumption (minReplicas: 1) | Consumption (minReplicas: 1) |
 | **Azure AI Search** | Basic | Basic | Standard |
-| **Azure OpenAI** | S0 Deployment | S0 Deployment | S0 Deployment (GlobalStandard for perf) |
+| **Azure OpenAI** | S0 Deployment | S0 Deployment | S0 Deployment (GlobalStandard for performance) |
 
 ## Deployment
 
