@@ -3,7 +3,6 @@
 
 """Tests for Azure Service Bus configuration helper utilities."""
 
-import os
 import sys
 from pathlib import Path
 
@@ -85,3 +84,4 @@ class TestGetAzureServiceBusKwargs:
             result = get_azure_servicebus_kwargs()
             assert "connection_string" in result
             assert result["connection_string"] == "Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=test123"
+            assert "use_managed_identity" not in result
