@@ -165,7 +165,7 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azurekeyvault'
             }
             {
-              name: 'AZURE_KEYVAULT_NAME'
+              name: 'AZURE_KEY_VAULT_NAME'
               value: keyVaultName
             }
             {
@@ -236,7 +236,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'MESSAGE_BUS_TYPE'
-              value: 'service_bus'
+              value: 'azureservicebus'
             }
             {
               name: 'SERVICE_BUS_NAMESPACE'
@@ -314,7 +314,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'MESSAGE_BUS_TYPE'
-              value: 'service_bus'
+              value: 'azureservicebus'
             }
             {
               name: 'SERVICE_BUS_NAMESPACE'
@@ -409,7 +409,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'MESSAGE_BUS_TYPE'
-              value: 'service_bus'
+              value: 'azureservicebus'
             }
             {
               name: 'SERVICE_BUS_NAMESPACE'
@@ -488,7 +488,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'MESSAGE_BUS_TYPE'
-              value: 'service_bus'
+              value: 'azureservicebus'
             }
             {
               name: 'SERVICE_BUS_NAMESPACE'
@@ -567,7 +567,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'MESSAGE_BUS_TYPE'
-              value: 'service_bus'
+              value: 'azureservicebus'
             }
             {
               name: 'SERVICE_BUS_NAMESPACE'
@@ -674,7 +674,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'MESSAGE_BUS_TYPE'
-              value: 'service_bus'
+              value: 'azureservicebus'
             }
             {
               name: 'SERVICE_BUS_NAMESPACE'
@@ -769,14 +769,14 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'MESSAGE_BUS_TYPE'
-              value: 'service_bus'
+              value: 'azureservicebus'
             }
             {
               name: 'SERVICE_BUS_NAMESPACE'
               value: serviceBusNamespace
             }
             {
-              name: 'DOCUMENT_STORE_TYPE'
+              value: 'azureservicebus'
               value: 'cosmos'
             }
             {

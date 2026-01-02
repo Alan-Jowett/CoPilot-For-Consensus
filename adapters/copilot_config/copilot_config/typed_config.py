@@ -181,10 +181,12 @@ def load_typed_config(
     secret_provider = None
     if provider_type and secrets_available:
         try:
-            secret_provider_instance = create_secret_provider(
-                provider_type=provider_type,
-                base_path=base_path,
-            )
+            # Only local provider expects base_path; Azure provider should not receive it
+            provider_kwargs: dict[str, Any] = {"provider_type": provider_type}
+            if provider_type == "local":
+                provider_kwargs["base_path"] = base_path
+
+            secret_provider_instance = create_secret_provider(**provider_kwargs)
             secret_provider = SecretConfigProvider(secret_provider=secret_provider_instance)
         except Exception as e:
             # If secret provider fails, continue without it
