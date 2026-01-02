@@ -10,10 +10,6 @@ export default defineConfig({
   // Defaults to '/ui/' for production builds; override with VITE_BASE if needed
   base: process.env.VITE_BASE || '/ui/',
   plugins: [react()],
-  // Environment variables available to the client
-  define: {
-    'process.env.REACT_APP_GRAFANA_ENABLED': JSON.stringify(process.env.REACT_APP_GRAFANA_ENABLED || 'false'),
-  },
   server: {
     port: 8084,
   },

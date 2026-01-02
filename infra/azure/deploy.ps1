@@ -197,7 +197,8 @@ function Start-Deployment {
         --resource-group $ResourceGroup `
         --query properties.outputs
 
-    $outputs
+    # Pretty-print outputs for readability
+    $outputs | ConvertFrom-Json | ConvertTo-Json -Depth 10
 
     Write-Info ""
     Write-Info "Next steps:"
