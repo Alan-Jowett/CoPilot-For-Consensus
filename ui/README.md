@@ -42,9 +42,14 @@ npm run preview  # serves on port 4173 by default
 
 ## Docker
 
-Build and run the production image:
+The UI is deployed as part of the Docker Compose stack and accessed via the API Gateway:
 
 ```bash
-docker build -t copilot-ui:local -f Dockerfile .
-docker run --rm -p 8084:80 -e VITE_REPORTING_API_URL="http://host.docker.internal:8080" copilot-ui:local
+# Start all services including the UI
+docker compose up -d
+
+# Access the UI via the gateway
+open http://localhost:8080/ui/
 ```
+
+**Note**: All testing should be done via the gateway at `http://localhost:8080/ui/`. The UI container serves static files only; the gateway handles all API routing, authentication, and service proxying.
