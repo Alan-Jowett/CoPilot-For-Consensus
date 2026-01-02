@@ -89,11 +89,43 @@ $privateKeyFormatted = "-----BEGIN RSA PRIVATE KEY-----`n" + (Format-Base64ForPe
 $publicKeyBase64 = [System.Convert]::ToBase64String($rsa.ExportSubjectPublicKeyInfo())
 $publicKeyFormatted = "-----BEGIN PUBLIC KEY-----`n" + (Format-Base64ForPem -base64String $publicKeyBase64) + "`n-----END PUBLIC KEY-----"
 
-# Store in Key Vault using Set-AzKeyVaultSecret
-Set-AzKeyVaultSecret -VaultName $keyVaultName -Name $privateSecretName -SecretValue (ConvertTo-SecureString -String $privateKeyFormatted -AsPlainText -Force) -ErrorAction Stop | Out-Null
-Set-AzKeyVaultSecret -VaultName $keyVaultName -Name $publicSecretName -SecretValue (ConvertTo-SecureString -String $publicKeyFormatted -AsPlainText -Force) -ErrorAction Stop | Out-Null
+# Store in Key Vault with retry logic for RBAC propagation delays
+# Azure RBAC can take up to 5 minutes to propagate after role assignment
+$maxRetries = 20
+$retryDelay = 30  # 30 seconds between retries = 10 minutes max wait
 
-Write-Host "JWT keys generated and stored successfully"
+Write-Host "Storing JWT keys in Key Vault (with retry for RBAC propagation)..."
+
+for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
+    try {
+        Set-AzKeyVaultSecret -VaultName $keyVaultName -Name $privateSecretName -SecretValue (ConvertTo-SecureString -String $privateKeyFormatted -AsPlainText -Force) -ErrorAction Stop | Out-Null
+        Set-AzKeyVaultSecret -VaultName $keyVaultName -Name $publicSecretName -SecretValue (ConvertTo-SecureString -String $publicKeyFormatted -AsPlainText -Force) -ErrorAction Stop | Out-Null
+        
+        Write-Host "JWT keys generated and stored successfully (attempt $attempt)"
+        break
+    }
+    catch {
+        $errorMessage = $_.Exception.Message
+        
+        # Check if error is related to permissions or RBAC propagation
+        if ($errorMessage -match "Forbidden|ParentResourceNotFound|not authorized|does not have secrets set permission") {
+            if ($attempt -lt $maxRetries) {
+                Write-Warning "Permission error on attempt $attempt of $maxRetries. RBAC may still be propagating. Waiting $retryDelay seconds before retry..."
+                Write-Warning "Error: $errorMessage"
+                Start-Sleep -Seconds $retryDelay
+            }
+            else {
+                Write-Error "Failed after $maxRetries attempts. RBAC permissions not propagated. Error: $errorMessage"
+                throw
+            }
+        }
+        else {
+            # Non-permission error, fail immediately
+            Write-Error "Unexpected error: $errorMessage"
+            throw
+        }
+    }
+}
 '''
   }
 }
