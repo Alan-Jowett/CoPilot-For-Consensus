@@ -34,11 +34,11 @@ jobs:
           - name: auth
             context: .
             dockerfile: ./auth/Dockerfile
-            platforms: linux/amd64
+            platforms: linux/amd64,linux/arm64
           - name: chunking
             context: .
             dockerfile: ./chunking/Dockerfile
-            platforms: linux/amd64
+            platforms: linux/amd64,linux/arm64
           - name: embedding
             context: .
             dockerfile: ./embedding/Dockerfile
@@ -46,15 +46,15 @@ jobs:
           - name: ingestion
             context: .
             dockerfile: ./ingestion/Dockerfile
-            platforms: linux/amd64
+            platforms: linux/amd64,linux/arm64
           - name: orchestrator
             context: .
             dockerfile: ./orchestrator/Dockerfile
-            platforms: linux/amd64
+            platforms: linux/amd64,linux/arm64
           - name: parsing
             context: .
             dockerfile: ./parsing/Dockerfile
-            platforms: linux/amd64
+            platforms: linux/amd64,linux/arm64
           - name: reporting
             context: .
             dockerfile: ./reporting/Dockerfile
@@ -62,7 +62,7 @@ jobs:
           - name: summarization
             context: .
             dockerfile: ./summarization/Dockerfile
-            platforms: linux/amd64
+            platforms: linux/amd64,linux/arm64
           - name: ui
             context: ./ui
             dockerfile: ./ui/Dockerfile
