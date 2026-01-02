@@ -88,7 +88,7 @@ function Handle-SecretError {
   )
 
   # Use case-insensitive matching because Azure error casing can vary
-  if ($errorMessage -imatch "Forbidden|ParentResourceNotFound|is not authorized to perform action|does not have secrets/set permission") {
+  if ($errorMessage -imatch "(\bForbidden\b|\bParentResourceNotFound\b|\bis not authorized to perform action\b|\bdoes not have secrets/set permission\b)") {
     if ($attempt -lt $maxRetries) {
       Write-Warning "Permission error on attempt $attempt of $maxRetries. RBAC may still be propagating. Waiting $retryDelay seconds before retry..."
       Write-Warning "Error: $errorMessage"
@@ -125,13 +125,18 @@ $publicKeyFormatted = "-----BEGIN PUBLIC KEY-----`n" + (Format-Base64ForPem -bas
 # Store in Key Vault with retry logic for RBAC propagation delays
 # Azure RBAC can take up to 5 minutes to propagate after role assignment
 $maxRetries = ${jwtKeysMaxRetries}
-$retryDelay = ${jwtKeysRetryDelaySeconds}  # 30 seconds between retries = 10 minutes max wait
+$retryDelay = ${jwtKeysRetryDelaySeconds}  # 30 seconds between retries => 19 delays (~9.5 minutes max wait with 20 retries)
 $privateStored = $false
 $publicStored = $false
 
 Write-Host "Storing JWT keys in Key Vault (with retry for RBAC propagation)..."
 
 for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
+  if ($privateStored -and $publicStored) {
+    Write-Host "JWT keys generated and stored successfully (attempt $attempt)"
+    break
+  }
+
   try {
     if (-not $privateStored) {
       Set-AzKeyVaultSecret -VaultName $keyVaultName -Name $privateSecretName -SecretValue (ConvertTo-SecureString -String $privateKeyFormatted -AsPlainText -Force) -ErrorAction Stop | Out-Null
@@ -140,7 +145,7 @@ for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
   }
   catch {
     $errorMessage = $_.Exception.Message
-    if (Handle-SecretError -errorMessage $errorMessage -attempt $attempt -maxRetries $maxRetries -retryDelay $retryDelay) { }
+    if (Handle-SecretError -errorMessage $errorMessage -attempt $attempt -maxRetries $maxRetries -retryDelay $retryDelay) { continue }
   }
 
   try {
@@ -151,7 +156,7 @@ for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
   }
   catch {
     $errorMessage = $_.Exception.Message
-    if (Handle-SecretError -errorMessage $errorMessage -attempt $attempt -maxRetries $maxRetries -retryDelay $retryDelay) { }
+    if (Handle-SecretError -errorMessage $errorMessage -attempt $attempt -maxRetries $maxRetries -retryDelay $retryDelay) { continue }
   }
 
   if ($privateStored -and $publicStored) {
