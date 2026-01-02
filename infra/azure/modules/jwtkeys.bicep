@@ -108,7 +108,8 @@ for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
         $errorMessage = $_.Exception.Message
         
         # Check if error is related to permissions or RBAC propagation
-        if ($errorMessage -match "Forbidden|ParentResourceNotFound|not authorized|does not have secrets set permission") {
+        # Use case-insensitive matching because Azure error casing can vary
+        if ($errorMessage -imatch "Forbidden|ParentResourceNotFound|not authorized|does not have secrets set permission") {
             if ($attempt -lt $maxRetries) {
                 Write-Warning "Permission error on attempt $attempt of $maxRetries. RBAC may still be propagating. Waiting $retryDelay seconds before retry..."
                 Write-Warning "Error: $errorMessage"
