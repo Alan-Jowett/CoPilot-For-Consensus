@@ -132,19 +132,10 @@ $publicStored = $false
 Write-Host "Storing JWT keys in Key Vault (with retry for RBAC propagation)..."
 
 for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
-  if ($privateStored -and $publicStored) {
-    Write-Host "JWT keys generated and stored successfully (attempt $attempt)"
-    break
-  }
-
   try {
     if (-not $privateStored) {
       Set-AzKeyVaultSecret -VaultName $keyVaultName -Name $privateSecretName -SecretValue (ConvertTo-SecureString -String $privateKeyFormatted -AsPlainText -Force) -ErrorAction Stop | Out-Null
       $privateStored = $true
-      if ($privateStored -and $publicStored) {
-        Write-Host "JWT keys generated and stored successfully (attempt $attempt)"
-        break
-      }
     }
   }
   catch {
@@ -156,15 +147,16 @@ for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
     if (-not $publicStored) {
       Set-AzKeyVaultSecret -VaultName $keyVaultName -Name $publicSecretName -SecretValue (ConvertTo-SecureString -String $publicKeyFormatted -AsPlainText -Force) -ErrorAction Stop | Out-Null
       $publicStored = $true
-      if ($privateStored -and $publicStored) {
-        Write-Host "JWT keys generated and stored successfully (attempt $attempt)"
-        break
-      }
     }
   }
   catch {
     $errorMessage = $_.Exception.Message
     if (Handle-SecretError -errorMessage $errorMessage -attempt $attempt -maxRetries $maxRetries -retryDelay $retryDelay) { continue }
+  }
+
+  if ($privateStored -and $publicStored) {
+    Write-Host "JWT keys generated and stored successfully (attempt $attempt)"
+    break
   }
 }
 
