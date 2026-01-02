@@ -173,13 +173,19 @@ All services are configured with:
 **Verification:**
 ```powershell
 # Verify scale configuration for dev environment
-az containerapp show --name copilot-auth-dev -g copilot-dev-rg --query properties.template.scale
+# Replace <project-prefix> with your project name (e.g., 'copilot')
+# Replace <environment> with 'dev'
+# Replace <resource-group> with your dev resource group name (e.g., 'copilot-dev-rg')
+az containerapp show --name <project-prefix>-auth-<environment> -g <resource-group> --query properties.template.scale
 # Expected output: {"minReplicas": 0, "maxReplicas": 2}
 
 # Check all services at once
+$projectPrefix = "copilot"  # Replace with your project name
+$environment = "dev"
+$resourceGroup = "copilot-dev-rg"  # Replace with your resource group name
 $services = @('auth', 'gateway', 'reporting', 'ui', 'ingestion', 'parsing', 'chunking', 'embedding', 'orchestrator', 'summarization')
 foreach ($svc in $services) {
-  $config = az containerapp show --name "copilot-$svc-dev" -g copilot-dev-rg --query properties.template.scale -o json | ConvertFrom-Json
+  $config = az containerapp show --name "$projectPrefix-$svc-$environment" -g $resourceGroup --query properties.template.scale -o json | ConvertFrom-Json
   Write-Host "$svc : minReplicas=$($config.minReplicas), maxReplicas=$($config.maxReplicas)"
 }
 ```
@@ -187,7 +193,8 @@ foreach ($svc in $services) {
 **Testing Cold Starts:**
 ```powershell
 # Wait for services to scale to zero (after ~5 minutes of no traffic)
-az containerapp replica list --name copilot-auth-dev -g copilot-dev-rg
+# Replace placeholders with your values
+az containerapp replica list --name <project-prefix>-auth-<environment> -g <resource-group>
 # When idle, this should show 0 replicas
 
 # Trigger a cold start by sending a request
