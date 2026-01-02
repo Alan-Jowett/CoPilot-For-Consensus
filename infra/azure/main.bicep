@@ -329,6 +329,9 @@ resource appInsightsInstrKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01
     value: appInsightsModule!.outputs.instrumentationKey
     contentType: 'text/plain'
   }
+  dependsOn: [
+    keyVaultModule
+  ]
 }
 
 // Module: Generate per-deployment JWT keys and store in Key Vault
@@ -352,6 +355,9 @@ resource appInsightsConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@20
     value: appInsightsModule!.outputs.connectionString
     contentType: 'text/plain'
   }
+  dependsOn: [
+    keyVaultModule
+  ]
 }
 
 // Store Grafana admin credentials in Key Vault
@@ -364,6 +370,9 @@ resource grafanaAdminUserSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' =
     value: grafanaAdminUser != '' ? grafanaAdminUser : 'admin'
     contentType: 'text/plain'
   }
+  dependsOn: [
+    keyVaultModule
+  ]
 }
 
 // Password is only stored if explicitly provided (no default for security)
@@ -373,6 +382,9 @@ resource grafanaAdminPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-0
     value: grafanaAdminPassword
     contentType: 'text/plain'
   }
+  dependsOn: [
+    keyVaultModule
+  ]
 }
 
 // Store Azure OpenAI API key securely in Key Vault when OpenAI is deployed
@@ -408,6 +420,7 @@ module keyVaultRbacModule 'modules/keyvault-rbac.bicep' = if (deployContainerApp
     deployAzureOpenAI: deployAzureOpenAI
   }
   dependsOn: [
+    keyVaultModule
     jwtKeysModule  // Ensure JWT secrets exist before assigning access
     appInsightsInstrKeySecret
     appInsightsConnectionStringSecret

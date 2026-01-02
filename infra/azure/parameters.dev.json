@@ -53,6 +53,9 @@
     "enableMultiRegionCosmos": {
       "value": false
     },
+    "enableRbacAuthorization": {
+      "value": false
+    },
     "deployContainerApps": {
       "value": true
     },

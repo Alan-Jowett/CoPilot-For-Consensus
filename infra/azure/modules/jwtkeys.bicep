@@ -22,7 +22,7 @@ param jwtPrivateSecretName string = 'jwt-private-key'
 param jwtPublicSecretName string = 'jwt-public-key'
 
 @description('Maximum retries when writing JWT secrets (to allow RBAC propagation)')
-param jwtKeysMaxRetries int = 20
+param jwtKeysMaxRetries int = 30
 
 @description('Delay in seconds between retries when writing JWT secrets')
 param jwtKeysRetryDelaySeconds int = 30
@@ -67,6 +67,14 @@ resource jwtKeyScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
         name: 'JWT_PUBLIC_SECRET_NAME'
         value: jwtPublicSecretName
       }
+      {
+        name: 'JWT_MAX_RETRIES'
+        value: string(jwtKeysMaxRetries)
+      }
+      {
+        name: 'JWT_RETRY_DELAY_SECONDS'
+        value: string(jwtKeysRetryDelaySeconds)
+      }
     ]
     scriptContent: '''
 # Helper function to format base64 string for PEM (64 chars per line)
@@ -107,6 +115,15 @@ function Handle-SecretError {
 }
 
 $VerbosePreference = 'Continue'
+# Give RBAC assignments time to propagate before first write attempt.
+# NOTE: This initial delay is in addition to the retry logic below.
+# With the current defaults (maxRetries = 30, retryDelay = 30s), the worst-case
+# total wait time before failing is:
+#   initialDelaySeconds + (maxRetries - 1) * retryDelay
+#   = 90 + (30 - 1) * 30 = 960 seconds (~16 minutes) with the default 90s initial delay.
+# This is intentional to accommodate slow RBAC propagation in some environments.
+$initialDelaySeconds = 90
+Start-Sleep -Seconds $initialDelaySeconds
 $keyVaultName = $env:KEY_VAULT_NAME
 $privateSecretName = $env:JWT_PRIVATE_SECRET_NAME
 $publicSecretName = $env:JWT_PUBLIC_SECRET_NAME
@@ -124,8 +141,8 @@ $publicKeyFormatted = "-----BEGIN PUBLIC KEY-----`n" + (Format-Base64ForPem -bas
 
 # Store in Key Vault with retry logic for RBAC propagation delays
 # Azure RBAC can take up to 5 minutes to propagate after role assignment
-$maxRetries = ${jwtKeysMaxRetries}
-$retryDelay = ${jwtKeysRetryDelaySeconds}  # 30 seconds between retries => 19 delays (~9.5 minutes max wait with 20 retries)
+$maxRetries = [int]$env:JWT_MAX_RETRIES
+$retryDelay = [int]$env:JWT_RETRY_DELAY_SECONDS  # 30 seconds between retries => 29 delays (~14.5 minutes retry delay with 30 retries; see total worst-case wait-time calculation above)
 $privateStored = $false
 $publicStored = $false
 
