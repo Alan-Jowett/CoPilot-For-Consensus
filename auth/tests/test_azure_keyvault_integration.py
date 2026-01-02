@@ -38,8 +38,7 @@ class TestAzureKeyVaultIntegration:
         This verifies the provider fails gracefully when vault config is missing.
         """
         try:
-            from copilot_secrets import create_secret_provider
-            from copilot_secrets.exceptions import SecretProviderError
+            from copilot_secrets import SecretProviderError, create_secret_provider
             
             # Should raise error when no vault config provided
             with pytest.raises(SecretProviderError, match="Azure Key Vault URL not configured"):
@@ -53,7 +52,7 @@ class TestAzureKeyVaultIntegration:
 
     def test_secret_provider_factory_knows_azure(self):
         """Test that the secret provider factory recognizes 'azure' provider type."""
-        from copilot_secrets.factory import create_secret_provider
+        from copilot_secrets import create_secret_provider
         
         # Factory should not raise "Unknown provider type" for azure
         # It may raise other errors (like missing config), but should recognize the type
