@@ -553,27 +553,6 @@ def test_query_documents_uses_filter_dict_parameter(reporting_service, mock_docu
     assert "query" not in call_args[1], "query_documents should not use deprecated 'query' parameter"
 
 
-def test_get_reports_with_date_filters(reporting_service, mock_document_store):
-    """Test that get_reports supports date range filtering."""
-    mock_document_store.query_documents.return_value = [
-        {"summary_id": "rpt1", "thread_id": "thread1", "generated_at": "2025-01-15T12:00:00Z"},
-    ]
-
-    reports = reporting_service.get_reports(
-        start_date="2025-01-01T00:00:00Z",
-        end_date="2025-01-31T23:59:59Z",
-    )
-
-    assert len(reports) == 1
-    call_args = mock_document_store.query_documents.call_args
-    filter_dict = call_args[1]["filter_dict"]
-
-    # Check that date filters are applied
-    assert "generated_at" in filter_dict
-    assert "$gte" in filter_dict["generated_at"]
-    assert "$lte" in filter_dict["generated_at"]
-    assert filter_dict["generated_at"]["$gte"] == "2025-01-01T00:00:00Z"
-    assert filter_dict["generated_at"]["$lte"] == "2025-01-31T23:59:59Z"
 
 
 def test_get_reports_with_message_date_filters_inclusive_overlap(reporting_service, mock_document_store):

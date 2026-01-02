@@ -397,8 +397,6 @@ class ReportingService:
         thread_id: str | None = None,
         limit: int = 10,
         skip: int = 0,
-        start_date: str | None = None,
-        end_date: str | None = None,
         message_start_date: str | None = None,
         message_end_date: str | None = None,
         source: str | None = None,
@@ -413,8 +411,6 @@ class ReportingService:
             thread_id: Filter by thread ID (optional)
             limit: Maximum number of results
             skip: Number of results to skip
-            start_date: Filter reports generated after this date (ISO 8601) - DEPRECATED, use message_start_date
-            end_date: Filter reports generated before this date (ISO 8601) - DEPRECATED, use message_end_date
             message_start_date: Filter by thread message dates (inclusive overlap) - start of date range (ISO 8601)
             message_end_date: Filter by thread message dates (inclusive overlap) - end of date range (ISO 8601)
             source: Filter by archive source (optional)
@@ -430,16 +426,6 @@ class ReportingService:
         filter_dict = {}
         if thread_id:
             filter_dict["thread_id"] = thread_id
-
-        # Add legacy date filters (filter on generated_at for backward compatibility)
-        if start_date or end_date:
-            date_filter = {}
-            if start_date:
-                date_filter["$gte"] = start_date
-            if end_date:
-                date_filter["$lte"] = end_date
-            if date_filter:
-                filter_dict["generated_at"] = date_filter
 
         # Fetch summaries (fetch more for skip and filtering)
         summaries = self.document_store.query_documents(
