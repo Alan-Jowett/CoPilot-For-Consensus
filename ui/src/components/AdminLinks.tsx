@@ -16,6 +16,7 @@ export function AdminLinks() {
   
   // Grafana is only available in Docker Compose deployments
   // For Azure deployments, this entire component is hidden
+  // @ts-ignore - process.env is defined by Vite
   const isGrafanaAvailable = process.env.REACT_APP_GRAFANA_ENABLED === 'true'
   
   if (!isAdmin || !isGrafanaAvailable) {
