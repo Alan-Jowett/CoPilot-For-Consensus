@@ -12,8 +12,8 @@ set -e
 export REPORTING_BACKEND=${REPORTING_BACKEND:-http://reporting:8080/}
 export AUTH_BACKEND=${AUTH_BACKEND:-http://auth:8090/}
 export INGESTION_BACKEND=${INGESTION_BACKEND:-http://ingestion:8001/}
-export GRAFANA_BACKEND=${GRAFANA_BACKEND:-http://grafana:3000/}
 export UI_BACKEND=${UI_BACKEND:-http://ui:80/}
+# GRAFANA_BACKEND is optional (Docker Compose only, must be set explicitly)
 
 echo "Configuring NGINX with backend URLs:"
 echo "  REPORTING_BACKEND=$REPORTING_BACKEND"
@@ -41,7 +41,9 @@ fi
 # Conditionally remove Grafana block if GRAFANA_BACKEND is not set
 if [ -z "$GRAFANA_BACKEND" ]; then
   echo "GRAFANA_BACKEND not set; removing Grafana location block from config"
-  sed -i '/__GRAFANA_BLOCK_START__/,/__GRAFANA_BLOCK_END__/d' /etc/nginx/nginx.conf.tmp
+  # Use explicit temp file for portability (macOS BSD sed requires -i'' syntax)
+  sed '/__GRAFANA_BLOCK_START__/,/__GRAFANA_BLOCK_END__/d' /etc/nginx/nginx.conf.tmp > /etc/nginx/nginx.conf.grafana-filtered
+  mv /etc/nginx/nginx.conf.grafana-filtered /etc/nginx/nginx.conf.tmp
 fi
 
 mv /etc/nginx/nginx.conf.tmp /etc/nginx/nginx.conf

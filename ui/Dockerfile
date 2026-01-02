@@ -8,13 +8,13 @@ RUN if [ -f package-lock.json ]; then npm ci; \
     elif [ -f pnpm-lock.yaml ]; then npm i -g pnpm && pnpm i --frozen-lockfile; \
     elif [ -f yarn.lock ]; then npm i -g yarn && yarn install --frozen-lockfile; \
     else npm install; fi
-COPY . .
 ARG VITE_REPORTING_API_URL
 ENV VITE_REPORTING_API_URL=${VITE_REPORTING_API_URL}
 ARG VITE_BASE
 ENV VITE_BASE=${VITE_BASE:-/ui/}
 ARG REACT_APP_GRAFANA_ENABLED
 ENV REACT_APP_GRAFANA_ENABLED=${REACT_APP_GRAFANA_ENABLED:-false}
+COPY . .
 RUN npm run build
 
 FROM nginx:1.27-alpine AS runtime

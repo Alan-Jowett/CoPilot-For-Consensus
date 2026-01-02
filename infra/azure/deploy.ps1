@@ -91,10 +91,11 @@ function Invoke-AzCli {
     )
 
     Write-Info "az $($Args -join ' ')"
-    $output = az @Args 2>&1
+    # Capture only stdout (successful output) for JSON parsing
+    # stderr is displayed directly to console if warnings/errors occur
+    $output = az @Args
     if ($LASTEXITCODE -ne 0) {
         Write-Error-Custom "Command failed: az $($Args -join ' ')"
-        $output | Out-String | Write-Error-Custom
         throw "az CLI command failed"
     }
     return $output
@@ -168,8 +169,7 @@ function Start-Deployment {
     Invoke-AzCli deployment group validate `
         --resource-group $ResourceGroup `
         --template-file $TemplatePath `
-        --parameters "@$ParametersPath" `
-        --parameters projectName=$ProjectName environment=$Environment containerImageTag=$ImageTag location=$Location | Out-Null
+        --parameters "@$ParametersPath" projectName=$ProjectName environment=$Environment containerImageTag=$ImageTag location=$Location | Out-Null
 
     Write-Info "Template validation passed."
 
@@ -186,8 +186,7 @@ function Start-Deployment {
         --name $DeploymentName `
         --resource-group $ResourceGroup `
         --template-file $TemplatePath `
-        --parameters "@$ParametersPath" `
-        --parameters projectName=$ProjectName environment=$Environment containerImageTag=$ImageTag location=$Location | Out-Null
+        --parameters "@$ParametersPath" projectName=$ProjectName environment=$Environment containerImageTag=$ImageTag location=$Location | Out-Null
 
     Write-Info "Deployment completed successfully!"
 
