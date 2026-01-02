@@ -10,6 +10,27 @@ from app.service import OrchestrationService
 
 
 @pytest.fixture
+def prompt_files(tmp_path_factory):
+    """Create temporary prompt files for testing.
+    
+    Uses tmp_path_factory to ensure temporary directory persists for the entire
+    test session, avoiding file not found errors if OrchestrationService reloads
+    prompts or if tests run in different orders.
+    """
+    tmpdir = tmp_path_factory.mktemp("prompts")
+    
+    # Create system prompt file
+    system_path = tmpdir / "system.txt"
+    system_path.write_text("You are a professional summarizer. Summarize the following email thread.")
+    
+    # Create user prompt file
+    user_path = tmpdir / "user.txt"
+    user_path.write_text("Thread: {thread_id}\n\nMessages:\n{email_chunks}")
+    
+    yield str(system_path), str(user_path)
+
+
+@pytest.fixture
 def mock_document_store():
     """Create a mock document store."""
     store = Mock()
@@ -34,8 +55,9 @@ def mock_subscriber():
 
 
 @pytest.fixture
-def orchestration_service(mock_document_store, mock_publisher, mock_subscriber):
+def orchestration_service(mock_document_store, mock_publisher, mock_subscriber, prompt_files):
     """Create an orchestration service instance."""
+    system_prompt_path, user_prompt_path = prompt_files
     return OrchestrationService(
         document_store=mock_document_store,
         publisher=mock_publisher,
@@ -44,6 +66,8 @@ def orchestration_service(mock_document_store, mock_publisher, mock_subscriber):
         context_window_tokens=3000,
         llm_backend="ollama",
         llm_model="mistral",
+        system_prompt_path=system_prompt_path,
+        user_prompt_path=user_prompt_path,
     )
 
 
@@ -476,9 +500,10 @@ def test_idempotent_orchestration(
     call_args = mock_publisher.publish.call_args
     assert call_args[1]["routing_key"] == "summarization.requested"
 
-def test_metrics_collector_uses_tags_parameter(mock_document_store, mock_publisher, mock_subscriber):
+def test_metrics_collector_uses_tags_parameter(mock_document_store, mock_publisher, mock_subscriber, prompt_files):
     """Test that metrics collector calls use tags= parameter, not labels=."""
     mock_metrics = Mock()
+    system_prompt_path, user_prompt_path = prompt_files
 
     service = OrchestrationService(
         document_store=mock_document_store,
@@ -488,6 +513,8 @@ def test_metrics_collector_uses_tags_parameter(mock_document_store, mock_publish
         context_window_tokens=3000,
         llm_backend="ollama",
         llm_model="mistral",
+        system_prompt_path=system_prompt_path,
+        user_prompt_path=user_prompt_path,
         metrics_collector=mock_metrics,
     )
 
@@ -639,14 +666,17 @@ def test_orchestrate_thread_triggers_when_no_summary_exists(
     assert mock_publisher.publish.called, "Should publish when no summary exists"
 
 
-def test_orchestrate_thread_with_metrics_collector(mock_document_store, mock_publisher, mock_subscriber):
+def test_orchestrate_thread_with_metrics_collector(mock_document_store, mock_publisher, mock_subscriber, prompt_files):
     """Test that orchestration records metrics for skipped and triggered summaries."""
     mock_metrics = Mock()
+    system_prompt_path, user_prompt_path = prompt_files
 
     service = OrchestrationService(
         document_store=mock_document_store,
         publisher=mock_publisher,
         subscriber=mock_subscriber,
+        system_prompt_path=system_prompt_path,
+        user_prompt_path=user_prompt_path,
         metrics_collector=mock_metrics,
     )
 

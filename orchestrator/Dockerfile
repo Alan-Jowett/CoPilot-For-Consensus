@@ -28,6 +28,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Copy schema files for validation
 COPY documents/schemas /app/documents/schemas
 
+# Copy prompt templates for summarization
+COPY orchestrator/prompts /app/prompts
+
 # Install service dependencies with cache mount
 COPY orchestrator/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \

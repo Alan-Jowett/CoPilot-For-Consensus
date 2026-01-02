@@ -50,9 +50,11 @@ class TestOpenAISummarizer:
         with patch.dict('sys.modules', {'openai': mock_module}):
             summarizer = OpenAISummarizer(api_key="test-key", model="gpt-4")
 
+            complete_prompt = "Summarize the following discussion thread:\n\nMessage 1:\nMessage 1\n\nMessage 2:\nMessage 2\n\n"
             thread = Thread(
                 thread_id="test-thread-123",
-                messages=["Message 1", "Message 2"]
+                messages=["Message 1", "Message 2"],
+                prompt=complete_prompt
             )
 
             summary = summarizer.summarize(thread)

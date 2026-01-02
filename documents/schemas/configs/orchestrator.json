@@ -154,6 +154,20 @@
       "env_var": "JWT_AUTH_ENABLED",
       "default": true,
       "description": "Enable JWT authentication middleware"
+    },
+    "system_prompt_path": {
+      "type": "string",
+      "source": "env",
+      "env_var": "SYSTEM_PROMPT_PATH",
+      "default": "/app/prompts/system.txt",
+      "description": "Path to system prompt file for summarization"
+    },
+    "user_prompt_path": {
+      "type": "string",
+      "source": "env",
+      "env_var": "USER_PROMPT_PATH",
+      "default": "/app/prompts/user.txt",
+      "description": "Path to user prompt template file for summarization"
     }
   }
 }

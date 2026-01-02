@@ -192,6 +192,276 @@ def test_retrieve_context_no_messages(summarization_service, mock_document_store
     assert context["chunks"] == []
 
 
+def test_substitute_prompt_template(summarization_service):
+    """Test substituting template variables in prompt template."""
+    template = (
+        "Thread ID: {thread_id}\n"
+        "Messages: {message_count}\n"
+        "Date range: {date_range}\n"
+        "Participants: {participants}\n"
+        "Drafts: {draft_mentions}\n"
+        "Excerpts:\n{email_chunks}"
+    )
+    
+    context = {
+        "messages": [
+            "First message",
+            "Second message",
+        ],
+        "chunks": [
+            {
+                "from": {"email": "user1@example.com", "name": "User One"},
+                "date": "2023-10-15T12:00:00Z",
+                "draft_mentions": ["draft-ietf-quic-transport-34"],
+            },
+            {
+                "from": {"email": "user2@example.com", "name": "User Two"},
+                "date": "2023-10-15T13:00:00Z",
+                "draft_mentions": ["draft-ietf-http-core-99"],
+            },
+        ],
+    }
+    
+    result = summarization_service._substitute_prompt_template(
+        prompt_template=template,
+        thread_id="thread-123",
+        context=context,
+    )
+    
+    # Verify substitutions
+    assert "thread-123" in result
+    assert "Messages: 2" in result
+    assert "2023-10-15T12:00:00Z to 2023-10-15T13:00:00Z" in result
+    assert "user1@example.com" in result
+    assert "draft-ietf-quic-transport-34" in result
+    assert "First message" in result
+
+
+def test_substitute_prompt_template_unexpected_placeholder(summarization_service):
+    """Test that KeyError is caught for unexpected placeholders in template.
+    
+    If the template contains a placeholder that is not in the expected set
+    ({thread_id}, {message_count}, {date_range}, {participants}, {draft_mentions},
+    {email_chunks}), the string.format() call will raise KeyError. This should be
+    caught and converted to ValueError with a descriptive message.
+    """
+    template = (
+        "Thread ID: {thread_id}\n"
+        "Summary: {unexpected_placeholder}"
+    )
+    
+    context = {
+        "messages": ["Message 1"],
+        "chunks": [{"from": {"email": "test@example.com"}, "date": "2023-10-15T12:00:00Z", "draft_mentions": []}],
+    }
+    
+    # Should raise ValueError (not KeyError) with descriptive message
+    with pytest.raises(ValueError) as exc_info:
+        summarization_service._substitute_prompt_template(
+            prompt_template=template,
+            thread_id="thread-123",
+            context=context,
+        )
+    
+    error_msg = str(exc_info.value)
+    assert "unexpected_placeholder" in error_msg
+    assert "Expected placeholders" in error_msg
+    # Verify the expected placeholders are listed in error message
+    assert "thread_id" in error_msg
+    assert "message_count" in error_msg
+    assert "email_chunks" in error_msg
+
+
+def test_substitute_prompt_template_empty_messages(summarization_service):
+    """Test substitution with empty messages list."""
+    template = (
+        "Thread ID: {thread_id}\n"
+        "Message count: {message_count}\n"
+        "Excerpts:\n{email_chunks}"
+    )
+    
+    context = {
+        "messages": [],  # Empty messages
+        "chunks": [
+            {
+                "from": {"email": "user1@example.com", "name": "User One"},
+                "date": "2023-10-15T12:00:00Z",
+                "draft_mentions": [],
+            },
+        ],
+    }
+    
+    result = summarization_service._substitute_prompt_template(
+        prompt_template=template,
+        thread_id="thread-123",
+        context=context,
+    )
+    
+    # Should handle empty messages gracefully
+    assert "thread-123" in result
+    assert "Message count: 0" in result
+    assert result is not None
+
+
+def test_substitute_prompt_template_empty_chunks(summarization_service):
+    """Test substitution with empty chunks list."""
+    template = (
+        "Thread ID: {thread_id}\n"
+        "Participants: {participants}\n"
+        "Excerpts:\n{email_chunks}"
+    )
+    
+    context = {
+        "messages": ["Message 1", "Message 2"],
+        "chunks": [],  # Empty chunks
+    }
+    
+    result = summarization_service._substitute_prompt_template(
+        prompt_template=template,
+        thread_id="thread-123",
+        context=context,
+    )
+    
+    # Should handle empty chunks gracefully
+    assert "thread-123" in result
+    assert "Participants:" in result
+    # With empty chunks, there should be no participants
+    assert result is not None
+
+
+def test_substitute_prompt_template_both_empty(summarization_service):
+    """Test substitution with both messages and chunks empty."""
+    template = (
+        "Thread ID: {thread_id}\n"
+        "Messages: {message_count}\n"
+        "Date range: {date_range}\n"
+        "Participants: {participants}\n"
+        "Drafts: {draft_mentions}\n"
+        "Excerpts:\n{email_chunks}"
+    )
+    
+    context = {
+        "messages": [],
+        "chunks": [],
+    }
+    
+    result = summarization_service._substitute_prompt_template(
+        prompt_template=template,
+        thread_id="thread-123",
+        context=context,
+    )
+    
+    # Should handle both empty gracefully
+    assert "thread-123" in result
+    assert "Messages: 0" in result
+    # Date range might be empty or a placeholder
+    assert result is not None
+
+
+def test_substitute_prompt_template_malformed_chunk_sender_not_dict(summarization_service):
+    """Test that chunks with malformed 'from' field are handled.
+    
+    If chunk['from'] is not a dict but some other type, accessing
+    chunk['from']['email'] will raise TypeError or KeyError.
+    """
+    template = "Participants: {participants}"
+    
+    context = {
+        "messages": [],
+        "chunks": [
+            {
+                "from": "invalid-sender-string",  # Should be dict
+                "date": "2023-10-15T12:00:00Z",
+                "draft_mentions": [],
+            },
+        ],
+    }
+    
+    result = summarization_service._substitute_prompt_template(
+        prompt_template=template,
+        thread_id="thread-123",
+        context=context,
+    )
+
+    # String sender is preserved as participant label
+    assert result == "Participants: invalid-sender-string"
+
+
+def test_substitute_prompt_template_malformed_chunk_missing_date(summarization_service):
+    """Test that chunks with missing 'date' field are handled."""
+    template = "Date range: {date_range}"
+    
+    context = {
+        "messages": [],
+        "chunks": [
+            {
+                "from": {"email": "user1@example.com", "name": "User One"},
+                # Missing 'date' field
+                "draft_mentions": [],
+            },
+        ],
+    }
+    
+    result = summarization_service._substitute_prompt_template(
+        prompt_template=template,
+        thread_id="thread-123",
+        context=context,
+    )
+
+    # Missing dates should yield Unknown range
+    assert result == "Date range: Unknown"
+
+
+def test_substitute_prompt_template_chunk_with_none_from(summarization_service):
+    """Test that chunks with None 'from' field are handled."""
+    template = "Participants: {participants}"
+    
+    context = {
+        "messages": [],
+        "chunks": [
+            {
+                "from": None,  # None instead of dict
+                "date": "2023-10-15T12:00:00Z",
+                "draft_mentions": [],
+            },
+        ],
+    }
+    
+    result = summarization_service._substitute_prompt_template(
+        prompt_template=template,
+        thread_id="thread-123",
+        context=context,
+    )
+
+    # None sender should fall back to default participants text
+    assert result == "Participants: Multiple participants"
+
+
+def test_substitute_prompt_template_draft_mentions_not_list(summarization_service):
+    """Test that chunks with non-list draft_mentions are handled."""
+    template = "Drafts: {draft_mentions}"
+    
+    context = {
+        "messages": [],
+        "chunks": [
+            {
+                "from": {"email": "user1@example.com", "name": "User One"},
+                "date": "2023-10-15T12:00:00Z",
+                "draft_mentions": "not-a-list",  # Should be list
+            },
+        ],
+    }
+    
+    result = summarization_service._substitute_prompt_template(
+        prompt_template=template,
+        thread_id="thread-123",
+        context=context,
+    )
+
+    # Non-list draft mentions should be ignored, using default text
+    assert result == "Drafts: No specific drafts mentioned"
+
+
 def test_format_citations(summarization_service):
     """Test formatting citations."""
     citations = [

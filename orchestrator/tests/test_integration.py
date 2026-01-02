@@ -73,6 +73,27 @@ def document_store():
 
 
 @pytest.fixture
+def prompt_files(tmp_path_factory):
+    """Create temporary prompt files for testing.
+    
+    Uses tmp_path_factory to ensure temporary directory persists for the entire
+    test session, avoiding file not found errors if OrchestrationService reloads
+    prompts or if tests run in different orders.
+    """
+    tmpdir = tmp_path_factory.mktemp("prompts")
+    
+    # Create system prompt file
+    system_path = tmpdir / "system.txt"
+    system_path.write_text("You are a professional summarizer. Summarize the following email thread.")
+    
+    # Create user prompt file
+    user_path = tmpdir / "user.txt"
+    user_path.write_text("Thread: {thread_id}\n\nMessages:\n{email_chunks}")
+    
+    yield str(system_path), str(user_path)
+
+
+@pytest.fixture
 def publisher():
     """Create a noop publisher for testing."""
     return NoopPublisher()
@@ -85,14 +106,17 @@ def subscriber():
 
 
 @pytest.fixture
-def service(document_store, publisher, subscriber):
+def service(document_store, publisher, subscriber, prompt_files):
     """Create an orchestration service for integration testing."""
+    system_path, user_path = prompt_files
     return OrchestrationService(
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
         top_k=5,
         context_window_tokens=1000,
+        system_prompt_path=system_path,
+        user_prompt_path=user_path,
     )
 
 

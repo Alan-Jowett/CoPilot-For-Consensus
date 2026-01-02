@@ -80,10 +80,8 @@ class LocalLLMSummarizer(Summarizer):
 
         logger.info("Summarizing thread %s with local LLM (%s)", thread.thread_id, self.model)
 
-        # Construct prompt
-        prompt = f"{thread.prompt_template}\n\n"
-        for i, message in enumerate(thread.messages[:thread.top_k]):
-            prompt += f"Message {i+1}:\n{message}\n\n"
+        # Use the fully-constructed prompt from the service layer
+        prompt = thread.prompt
 
         # Estimate prompt tokens (rough approximation)
         tokens_prompt = len(prompt.split())

@@ -17,3 +17,5 @@ Format your summary to highlight:
 4. Outstanding questions or disagreements
 5. Action items or next steps
 6. Referenced drafts/RFCs
+
+Please summarize the following email thread discussion:

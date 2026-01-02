@@ -6,6 +6,7 @@
 import hashlib
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from copilot_events import (
@@ -37,6 +38,8 @@ class OrchestrationService:
         llm_model: str = "mistral",
         llm_temperature: float = 0.2,
         llm_max_tokens: int = 2048,
+        system_prompt_path: str = "/app/prompts/system.txt",
+        user_prompt_path: str = "/app/prompts/user.txt",
         metrics_collector: MetricsCollector | None = None,
         error_reporter: ErrorReporter | None = None,
     ):
@@ -52,6 +55,8 @@ class OrchestrationService:
             llm_model: Model identifier
             llm_temperature: Sampling temperature
             llm_max_tokens: Maximum tokens for response
+            system_prompt_path: Path to system prompt file
+            user_prompt_path: Path to user prompt template file
             metrics_collector: Metrics collector (optional)
             error_reporter: Error reporter (optional)
         """
@@ -66,12 +71,56 @@ class OrchestrationService:
         self.llm_max_tokens = llm_max_tokens
         self.metrics_collector = metrics_collector
         self.error_reporter = error_reporter
+        self.system_prompt_path = system_prompt_path
+        self.user_prompt_path = user_prompt_path
+
+        # Load prompts from files
+        self._load_prompts()
 
         # Stats
         self.events_processed = 0
         self.threads_orchestrated = 0
         self.failures_count = 0
         self.last_processing_time = 0.0
+
+    def _load_prompts(self):
+        """Load system and user prompts from files.
+
+        Raises:
+            FileNotFoundError: If prompt files are missing
+            IOError: If prompt files cannot be read
+        """
+        try:
+            system_path = Path(self.system_prompt_path)
+            if not system_path.exists():
+                raise FileNotFoundError(f"System prompt file not found: {self.system_prompt_path}")
+            
+            with open(system_path, 'r', encoding='utf-8') as f:
+                self.system_prompt = f.read()
+            
+            if not self.system_prompt.strip():
+                raise ValueError(f"System prompt file is empty: {self.system_prompt_path}")
+            
+            logger.info(f"Loaded system prompt from {self.system_prompt_path}")
+
+            user_path = Path(self.user_prompt_path)
+            if not user_path.exists():
+                raise FileNotFoundError(f"User prompt file not found: {self.user_prompt_path}")
+            
+            with open(user_path, 'r', encoding='utf-8') as f:
+                self.user_prompt = f.read()
+            
+            if not self.user_prompt.strip():
+                raise ValueError(f"User prompt file is empty: {self.user_prompt_path}")
+            
+            logger.info(f"Loaded user prompt from {self.user_prompt_path}")
+
+        except (FileNotFoundError, ValueError) as e:
+            logger.error(f"Failed to load prompts: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error loading prompts: {e}", exc_info=True)
+            raise
 
     def start(self, enable_startup_requeue: bool = True):
         """Start the orchestration service and subscribe to events.
@@ -518,7 +567,7 @@ class OrchestrationService:
                 "llm_backend": self.llm_backend,
                 "llm_model": self.llm_model,
                 "context_window_tokens": self.context_window_tokens,
-                "prompt_template": "consensus-summary-v1",
+                "prompt_template": f"{self.system_prompt.rstrip()}\n\n{self.user_prompt.lstrip()}",
                 "chunk_count": context.get("chunk_count", 0),
                 "message_count": len(context.get("messages", [])),
             }
@@ -609,3 +658,4 @@ class OrchestrationService:
                 "llm_model": self.llm_model,
             }
         }
+
