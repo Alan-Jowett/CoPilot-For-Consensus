@@ -116,13 +116,15 @@ function Handle-SecretError {
 
 $VerbosePreference = 'Continue'
 # Give RBAC assignments time to propagate before first write attempt.
-# NOTE: This initial 90-second delay is in addition to the retry logic below.
+# NOTE: This initial delay is in addition to the retry logic below.
 # With the current defaults (maxRetries = 30, retryDelay = 30s), the worst-case
 # total wait time before failing is:
-#   90s initial sleep + (maxRetries - 1) * retryDelay
-#   = 90 + (30 - 1) * 30 = 960 seconds (~16 minutes).
+#   initialDelaySeconds + (maxRetries - 1) * retryDelay
+#   = 90 + (30 - 1) * 30 = 960 seconds (~16 minutes) with the default 90s initial delay.
 # This is intentional to accommodate slow RBAC propagation in some environments.
-Start-Sleep -Seconds 90
+# Allow overriding the initial delay via JWT_INITIAL_DELAY_SECONDS while defaulting to 90 seconds.
+$initialDelaySeconds = if ([string]::IsNullOrEmpty($env:JWT_INITIAL_DELAY_SECONDS)) { 90 } else { [int]$env:JWT_INITIAL_DELAY_SECONDS }
+Start-Sleep -Seconds $initialDelaySeconds
 $keyVaultName = $env:KEY_VAULT_NAME
 $privateSecretName = $env:JWT_PRIVATE_SECRET_NAME
 $publicSecretName = $env:JWT_PUBLIC_SECRET_NAME
