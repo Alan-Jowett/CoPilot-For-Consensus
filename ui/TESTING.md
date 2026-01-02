@@ -5,7 +5,7 @@
 
 ## Prerequisites
 
-1. Build and start all services:
+1. Build and start all services via Docker Compose:
 ```bash
 docker compose build
 docker compose up -d
@@ -15,6 +15,8 @@ docker compose up -d
 ```bash
 docker compose ps
 ```
+
+**Important**: All testing must be done via the API Gateway at `http://localhost:8080/ui/`. The UI container serves static files only; the gateway handles all API routing, authentication, and service proxying.
 
 ## Test 1: Login Flow
 

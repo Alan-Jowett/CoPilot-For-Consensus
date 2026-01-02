@@ -35,52 +35,6 @@ server {
   location / {
     try_files $uri $uri/ /index.html;
   }
-
-  # NOTE: The proxy blocks below support standalone UI deployment (docker run ui:80).
-  # When accessed via the API Gateway at http://localhost:8080/ui/, the gateway routes
-  # requests to /reporting and /ingestion directly, so these UI proxy blocks are bypassed.
-  # These blocks enable direct UI testing (docker run -p 8084:80 ui) where the UI handles
-  # its own API proxying. In production, access via gateway is recommended.
-
-  # Proxy Reporting API requests (for standalone UI runs)
-  # Using variables forces nginx to resolve at request time, not startup
-  location /reporting/ {
-    set $reporting_upstream reporting:8080;
-    proxy_pass http://$reporting_upstream/;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-  }
-
-  # Proxy ingestion source management API requests
-  # Using variables forces nginx to resolve at request time, not startup
-  location /ingestion/ {
-    set $ingestion_upstream ingestion:8001;
-    proxy_pass http://$ingestion_upstream/;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-
-    # Increase timeouts for large file uploads
-    proxy_read_timeout 300s;
-    proxy_send_timeout 300s;
-    proxy_connect_timeout 75s;
-  }
-
-  # Proxy auth service API requests
-  location /auth/ {
-    proxy_pass http://auth:8090/;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header Authorization $http_authorization;
-  }
 }
 EOF
 
