@@ -375,6 +375,8 @@ services:
     build:
       context: ./ui
       dockerfile: Dockerfile
+      args:
+        - VITE_GRAFANA_ENABLED=true
     # No host port; UI served via API Gateway at /ui/
     depends_on:
       reporting:

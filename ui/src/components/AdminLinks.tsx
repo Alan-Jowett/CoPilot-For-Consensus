@@ -9,12 +9,16 @@ import styles from './AdminLinks.module.css'
  * AdminLinks Component
  * 
  * Displays admin-only links and tools, visible only to users with admin role.
- * Includes link to Grafana for monitoring and observability.
+ * Includes link to Grafana for monitoring and observability (Docker Compose only).
  */
 export function AdminLinks() {
   const { isAdmin } = useAuth()
   
-  if (!isAdmin) {
+  // Grafana is only available in Docker Compose deployments
+  // For Azure deployments, this entire component is hidden
+  const isGrafanaAvailable = import.meta.env.VITE_GRAFANA_ENABLED === 'true'
+  
+  if (!isAdmin || !isGrafanaAvailable) {
     return null
   }
   

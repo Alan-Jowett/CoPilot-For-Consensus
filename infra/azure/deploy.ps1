@@ -84,27 +84,37 @@ function Write-Error-Custom {
     Write-Host "[ERROR] $Message" -ForegroundColor Red
 }
 
-# Function to check prerequisites
+function Invoke-AzCli {
+    param(
+        [Parameter(ValueFromRemainingArguments = $true)]
+        [string[]]$Args
+    )
+
+    Write-Info "az $($Args -join ' ')"
+    # Capture only stdout (successful output) for JSON parsing
+    # stderr is displayed directly to console if warnings/errors occur
+    $output = az @Args
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error-Custom "Command failed: az $($Args -join ' ')"
+        throw "az CLI command failed"
+    }
+    return $output
+}
+
+# Function to check prerequisites (az CLI + login)
 function Test-Prerequisites {
     Write-Info "Checking prerequisites..."
 
-    # Check if Azure PowerShell module is installed
-    if (-not (Get-Module -ListAvailable -Name Az.Resources)) {
-        Write-Error-Custom "Azure PowerShell module (Az.Resources) is not installed."
-        Write-Host "Please install it with: Install-Module -Name Az -AllowClobber -Scope CurrentUser"
+    if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
+        Write-Error-Custom "Azure CLI (az) is not installed. Install from https://learn.microsoft.com/cli/azure/install-azure-cli"
         exit 1
     }
 
-    # Check if logged in to Azure
     try {
-        $context = Get-AzContext
-        if (-not $context) {
-            Write-Error-Custom "Not logged in to Azure. Please run 'Connect-AzAccount' first."
-            exit 1
-        }
+        Invoke-AzCli account show | Out-Null
     }
     catch {
-        Write-Error-Custom "Not logged in to Azure. Please run 'Connect-AzAccount' first."
+        Write-Error-Custom "Not logged in to Azure. Please run 'az login' or 'Connect-AzAccount' in this session."
         exit 1
     }
 
@@ -142,10 +152,10 @@ function Start-Deployment {
 
     # Create resource group if it doesn't exist
     Write-Info "Checking if resource group exists..."
-    $rg = Get-AzResourceGroup -Name $ResourceGroup -ErrorAction SilentlyContinue
-    if (-not $rg) {
+    $rgCheck = az group show --name $ResourceGroup 2>$null
+    if ($LASTEXITCODE -ne 0) {
         Write-Info "Creating resource group: $ResourceGroup"
-        New-AzResourceGroup -Name $ResourceGroup -Location $Location | Out-Null
+        Invoke-AzCli group create --name $ResourceGroup --location $Location | Out-Null
     }
     else {
         Write-Info "Resource group already exists: $ResourceGroup"
@@ -156,20 +166,11 @@ function Start-Deployment {
 
     # Validate template
     Write-Info "Validating Bicep template..."
-    $validationResult = Test-AzResourceGroupDeployment `
-        -ResourceGroupName $ResourceGroup `
-        -TemplateFile $TemplatePath `
-        -TemplateParameterFile $ParametersPath `
-        -projectName $ProjectName `
-        -environment $Environment `
-        -containerImageTag $ImageTag `
-        -location $Location
+    Invoke-AzCli deployment group validate `
+        --resource-group $ResourceGroup `
+        --template-file $TemplatePath `
+        --parameters "@$ParametersPath" projectName=$ProjectName environment=$Environment containerImageTag=$ImageTag location=$Location | Out-Null
 
-    if ($validationResult) {
-        Write-Error-Custom "Template validation failed:"
-        $validationResult | Format-List
-        exit 1
-    }
     Write-Info "Template validation passed."
 
     if ($ValidateOnly) {
@@ -181,37 +182,29 @@ function Start-Deployment {
     Write-Info "Starting deployment..."
     $DeploymentName = "$ProjectName-deployment-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 
-    try {
-        $deployment = New-AzResourceGroupDeployment `
-            -Name $DeploymentName `
-            -ResourceGroupName $ResourceGroup `
-            -TemplateFile $TemplatePath `
-            -TemplateParameterFile $ParametersPath `
-            -projectName $ProjectName `
-            -environment $Environment `
-            -containerImageTag $ImageTag `
-            -location $Location `
-            -Verbose
+    Invoke-AzCli deployment group create `
+        --name $DeploymentName `
+        --resource-group $ResourceGroup `
+        --template-file $TemplatePath `
+        --parameters "@$ParametersPath" projectName=$ProjectName environment=$Environment containerImageTag=$ImageTag location=$Location | Out-Null
 
-        # NOTE: Parameters specified on the command line override those in the parameters file.
-        # This allows script arguments (projectName, environment, etc.) to take precedence.
+    Write-Info "Deployment completed successfully!"
 
-        Write-Info "Deployment completed successfully!"
+    # Show deployment outputs
+    Write-Info "Retrieving deployment outputs..."
+    $outputs = Invoke-AzCli deployment group show `
+        --name $DeploymentName `
+        --resource-group $ResourceGroup `
+        --query properties.outputs
 
-        # Show deployment outputs
-        Write-Info "Deployment outputs:"
-        $deployment.Outputs | Format-Table -AutoSize
+    # Pretty-print outputs for readability
+    $outputs | ConvertFrom-Json | ConvertTo-Json -Depth 10
 
-        Write-Info ""
-        Write-Info "Next steps:"
-        Write-Info "1. Verify the deployment in Azure Portal"
-        Write-Info "2. Configure secrets in Azure Key Vault"
-        Write-Info "3. Test the services using the gateway URL from outputs"
-    }
-    catch {
-        Write-Error-Custom "Deployment failed: $_"
-        exit 1
-    }
+    Write-Info ""
+    Write-Info "Next steps:"
+    Write-Info "1. Verify the deployment in Azure Portal"
+    Write-Info "2. Configure secrets in Azure Key Vault"
+    Write-Info "3. Test the services using the gateway URL from outputs"
 }
 
 # Run deployment

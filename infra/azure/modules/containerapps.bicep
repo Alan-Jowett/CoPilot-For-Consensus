@@ -938,10 +938,6 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'http://${projectPrefix}-ingestion-${environment}:${servicePorts.ingestion}'
             }
             {
-              name: 'GRAFANA_BACKEND'
-              value: 'http://${projectPrefix}-grafana-${environment}:3000'
-            }
-            {
               name: 'UI_BACKEND'
               value: 'http://${projectPrefix}-ui-${environment}:${servicePorts.ui}'
             }

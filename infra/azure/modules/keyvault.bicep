@@ -13,6 +13,10 @@ param enablePublicNetworkAccess bool = true
 param enableRbacAuthorization bool = false
 param tags object
 
+// Built-in role IDs
+// Key Vault Secrets Officer: allows write/read of secrets without full admin
+var keyVaultSecretsOfficerRoleId = 'b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
+
 // ⚠️ SECURITY WARNING: Legacy access policy mode (enableRbacAuthorization=false)
 // When RBAC is disabled, all managed identities receive vault-wide 'get' permission.
 // While 'list' is disabled (preventing enumeration), services can still read ANY secret
@@ -93,6 +97,19 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     enableRbacAuthorization: enableRbacAuthorization
   }
 }
+
+// RBAC role assignments for write access (used by deployment scripts when enableRbacAuthorization = true)
+resource secretWriterRoleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
+  for principalId in secretWriterPrincipalIds: if (enableRbacAuthorization) {
+    name: guid(keyVault.id, principalId, keyVaultSecretsOfficerRoleId)
+    scope: keyVault
+    properties: {
+      roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsOfficerRoleId)
+      principalId: principalId
+      principalType: 'ServicePrincipal'
+    }
+  }
+]
 
 // Legacy access policies (only deployed when RBAC is disabled)
 // ⚠️ SECURITY WARNING: Grants vault-wide 'get' permission to all services
