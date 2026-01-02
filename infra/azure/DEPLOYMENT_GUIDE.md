@@ -31,9 +31,9 @@ Each environment uses a **non-overlapping VNet address space** to support future
 |-----------|-----|---------|------|
 | **Cosmos DB** | 400-1000 RU (autoscale) | 1000-2000 RU (autoscale) | 2000-4000 RU (autoscale) + Multi-region |
 | **Service Bus** | Standard | Standard | Premium |
-| **Container Apps** | Consumption | Consumption | Consumption |
+| **Container Apps** | Consumption (minReplicas: 0) | Consumption (minReplicas: 1) | Consumption (minReplicas: 1) |
 | **Azure AI Search** | Basic | Basic | Standard |
-| **Azure OpenAI** | S0 Deployment | S0 Deployment | S0 Deployment (GlobalStandard for perf) |
+| **Azure OpenAI** | S0 Deployment | S0 Deployment | S0 Deployment (GlobalStandard for performance) |
 
 ## Deployment
 
@@ -152,6 +152,57 @@ All services are configured with:
 - **Staging**: Balanced tier with Standard Service Bus and moderate Cosmos DB (1000-2000 RU)
 - **Prod**: Premium Service Bus for SLA, higher Cosmos DB autoscale, and multi-region replication
 - **Container Apps**: Consumption workload profile (pay-per-execution, no minimum cost)
+
+### Scale-to-Zero in Dev Environment
+
+**Dev environment** is configured with `minReplicas: 0` for all Container Apps to reduce idle costs:
+
+**Benefits:**
+- **Cost Savings**: Save ~$50-100/month on Container Apps during idle periods (nights, weekends)
+- **Azure Consumption Plan**: Only charges when containers are actively running
+- **Automatic Scaling**: Services automatically scale from 0 to 1+ replicas on demand
+
+**Trade-offs:**
+- **Cold Start Delay**: First request after idle period takes 10-60 seconds to complete
+- **Acceptable for Dev**: Development workflows can tolerate the latency
+
+**Affected Services:**
+- **HTTP-triggered**: auth, gateway, reporting, ui, ingestion (wake on HTTP traffic)
+- **Message-bus-triggered**: parsing, chunking, embedding, orchestrator, summarization (wake on queue messages)
+
+**Verification:**
+```powershell
+# Verify scale configuration for dev environment
+# Replace <project-prefix> with your project name (e.g., 'copilot')
+# Replace <environment> with 'dev'
+# Replace <resource-group> with your dev resource group name (e.g., 'copilot-dev-rg')
+az containerapp show --name <project-prefix>-auth-<environment> -g <resource-group> --query properties.template.scale
+# Expected output: {"minReplicas": 0, "maxReplicas": 2}
+
+# Check all services at once
+$projectPrefix = "<project-prefix>"  # Replace with your project name (e.g., 'copilot')
+$environment = "<environment>"  # Replace with environment name (e.g., 'dev')
+$resourceGroup = "<resource-group>"  # Replace with your resource group name (e.g., 'copilot-dev-rg')
+$services = @('auth', 'gateway', 'reporting', 'ui', 'ingestion', 'parsing', 'chunking', 'embedding', 'orchestrator', 'summarization')
+foreach ($svc in $services) {
+  $config = az containerapp show --name "$projectPrefix-$svc-$environment" -g $resourceGroup --query properties.template.scale -o json | ConvertFrom-Json
+  Write-Host "$svc : minReplicas=$($config.minReplicas), maxReplicas=$($config.maxReplicas)"
+}
+```
+
+**Testing Cold Starts:**
+```powershell
+# Wait for services to scale to zero (after ~5 minutes of no traffic)
+# Replace placeholders with your values
+az containerapp replica list --name <project-prefix>-auth-<environment> -g <resource-group>
+# When idle, this should show 0 replicas
+
+# Trigger a cold start by sending a request
+Invoke-WebRequest -Uri "https://<gateway-fqdn>/health" -UseBasicParsing
+# First request will take 10-30 seconds; subsequent requests will be fast
+```
+
+**Staging/Prod:** Always maintain `minReplicas: 1` for immediate response times.
 
 ## OAuth Authentication with Microsoft Entra
 
