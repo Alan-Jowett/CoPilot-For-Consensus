@@ -15,7 +15,7 @@ import uvicorn
 from app import __version__
 from app.service import OrchestrationService
 from copilot_config import load_typed_config
-from copilot_events import create_publisher, create_subscriber
+from copilot_events import create_publisher, create_subscriber, get_azure_servicebus_kwargs
 from copilot_logging import create_logger, create_uvicorn_log_config
 from copilot_metrics import create_metrics_collector
 from copilot_reporting import create_error_reporter
@@ -112,12 +112,20 @@ def main():
 
         # Create adapters
         logger.info("Creating message bus publisher...")
+        
+        # Prepare Azure Service Bus specific parameters if needed
+        message_bus_kwargs = {}
+        if config.message_bus_type == "azureservicebus":
+            message_bus_kwargs = get_azure_servicebus_kwargs()
+            logger.info("Using Azure Service Bus configuration")
+        
         publisher = create_publisher(
             message_bus_type=config.message_bus_type,
             host=config.message_bus_host,
             port=config.message_bus_port,
             username=config.message_bus_user,
             password=config.message_bus_password,
+            **message_bus_kwargs,
         )
         try:
             publisher.connect()
@@ -134,7 +142,9 @@ def main():
             host=config.message_bus_host,
             port=config.message_bus_port,
             username=config.message_bus_user,
-            password=config.message_bus_password,            queue_name="orchestrator-service",        )
+            password=config.message_bus_password,            queue_name="orchestrator-service",
+            **message_bus_kwargs,
+        )
         try:
             subscriber.connect()
         except Exception as e:

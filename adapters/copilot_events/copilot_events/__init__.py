@@ -39,6 +39,7 @@ from copilot_schema_validation import (  # type: ignore[import-not-found]
     SummaryCompleteEvent,
 )
 
+from .azure_config import get_azure_servicebus_kwargs
 from .azureservicebuspublisher import AzureServiceBusPublisher
 from .azureservicebussubscriber import AzureServiceBusSubscriber
 from .noop_publisher import NoopPublisher
@@ -106,6 +107,8 @@ def create_subscriber(
 __all__ = [
     # Version
     "__version__",
+    # Azure Service Bus helpers
+    "get_azure_servicebus_kwargs",
     # Publishers
     "EventPublisher",
     "RabbitMQPublisher",
