@@ -776,7 +776,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: serviceBusNamespace
             }
             {
-              value: 'azureservicebus'
+              name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
             }
             {
