@@ -263,25 +263,63 @@ def test_get_reports_service_not_initialized(monkeypatch):
     assert response.status_code == 503
 
 
-@pytest.mark.integration
-def test_get_reports_with_date_filters(client, test_service, mock_document_store):
-    """Test the GET /api/reports endpoint with date filters."""
-    mock_document_store.query_documents.return_value = [
-        {"summary_id": "rpt1", "thread_id": "thread1", "generated_at": "2025-01-15T12:00:00Z"},
-    ]
 
-    response = client.get("/api/reports?start_date=2025-01-01T00:00:00Z&end_date=2025-01-31T23:59:59Z")
+
+@pytest.mark.integration
+def test_get_reports_with_message_date_filters(client, test_service, mock_document_store):
+    """Test the GET /api/reports endpoint with message date filters."""
+    # Setup mocks to return thread data
+    def mock_query(collection, filter_dict, limit):
+        if collection == "summaries":
+            return [{"summary_id": "rpt1", "thread_id": "thread1"}]
+        elif collection == "threads":
+            return [{
+                "thread_id": "thread1",
+                "first_message_date": "2025-01-10T00:00:00Z",
+                "last_message_date": "2025-01-15T00:00:00Z",
+                "participants": [],
+                "message_count": 5,
+            }]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    response = client.get("/api/reports?message_start_date=2025-01-01T00:00:00Z&message_end_date=2025-01-31T23:59:59Z")
 
     assert response.status_code == 200
     data = response.json()
 
     assert data["count"] == 1
+    assert data["reports"][0]["thread_id"] == "thread1"
 
-    # Verify the service was called with date filters
-    mock_document_store.query_documents.assert_called_once()
-    call_args = mock_document_store.query_documents.call_args
-    filter_dict = call_args[1]["filter_dict"]
-    assert "generated_at" in filter_dict
+
+@pytest.mark.integration
+def test_get_reports_with_message_date_filters_no_overlap(client, test_service, mock_document_store):
+    """Test the GET /api/reports endpoint excludes threads with no date overlap."""
+    # Setup mocks to return thread data
+    def mock_query(collection, filter_dict, limit):
+        if collection == "summaries":
+            return [{"summary_id": "rpt1", "thread_id": "thread1"}]
+        elif collection == "threads":
+            return [{
+                "thread_id": "thread1",
+                "first_message_date": "2025-01-20T00:00:00Z",
+                "last_message_date": "2025-01-25T00:00:00Z",
+                "participants": [],
+                "message_count": 5,
+            }]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    # Filter range is 2025-01-01 to 2025-01-15, thread is 2025-01-20 to 2025-01-25
+    response = client.get("/api/reports?message_start_date=2025-01-01T00:00:00Z&message_end_date=2025-01-15T23:59:59Z")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Should return 0 reports (no overlap)
+    assert data["count"] == 0
 
 
 @pytest.mark.integration

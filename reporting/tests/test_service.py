@@ -553,27 +553,226 @@ def test_query_documents_uses_filter_dict_parameter(reporting_service, mock_docu
     assert "query" not in call_args[1], "query_documents should not use deprecated 'query' parameter"
 
 
-def test_get_reports_with_date_filters(reporting_service, mock_document_store):
-    """Test that get_reports supports date range filtering."""
-    mock_document_store.query_documents.return_value = [
-        {"summary_id": "rpt1", "thread_id": "thread1", "generated_at": "2025-01-15T12:00:00Z"},
-    ]
 
+
+def test_get_reports_with_message_date_filters_inclusive_overlap(reporting_service, mock_document_store):
+    """Test that get_reports supports message date filtering with inclusive overlap."""
+    # Setup mocks - need to return thread data
+    def mock_query(collection, filter_dict, limit):
+        if collection == "summaries":
+            return [
+                {"summary_id": "rpt1", "thread_id": "thread1"},
+                {"summary_id": "rpt2", "thread_id": "thread2"},
+                {"summary_id": "rpt3", "thread_id": "thread3"},
+            ]
+        elif collection == "threads":
+            return [
+                {
+                    "thread_id": "thread1",
+                    "first_message_date": "2025-01-05T00:00:00Z",
+                    "last_message_date": "2025-01-10T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                },
+                {
+                    "thread_id": "thread2",
+                    "first_message_date": "2025-01-15T00:00:00Z",
+                    "last_message_date": "2025-01-20T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                },
+                {
+                    "thread_id": "thread3",
+                    "first_message_date": "2025-01-25T00:00:00Z",
+                    "last_message_date": "2025-01-30T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                },
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    # Filter for messages between 2025-01-08 and 2025-01-17
+    # Should include:
+    # - thread1 (2025-01-05 to 2025-01-10) - overlaps at end
+    # - thread2 (2025-01-15 to 2025-01-20) - overlaps at start
+    # Should exclude:
+    # - thread3 (2025-01-25 to 2025-01-30) - no overlap
     reports = reporting_service.get_reports(
-        start_date="2025-01-01T00:00:00Z",
-        end_date="2025-01-31T23:59:59Z",
+        message_start_date="2025-01-08T00:00:00Z",
+        message_end_date="2025-01-17T00:00:00Z",
     )
 
-    assert len(reports) == 1
-    call_args = mock_document_store.query_documents.call_args
-    filter_dict = call_args[1]["filter_dict"]
+    # Should return 2 reports (thread1 and thread2)
+    assert len(reports) == 2
+    thread_ids = {r["thread_id"] for r in reports}
+    assert "thread1" in thread_ids
+    assert "thread2" in thread_ids
+    assert "thread3" not in thread_ids
 
-    # Check that date filters are applied
-    assert "generated_at" in filter_dict
-    assert "$gte" in filter_dict["generated_at"]
-    assert "$lte" in filter_dict["generated_at"]
-    assert filter_dict["generated_at"]["$gte"] == "2025-01-01T00:00:00Z"
-    assert filter_dict["generated_at"]["$lte"] == "2025-01-31T23:59:59Z"
+
+def test_get_reports_with_message_date_filters_no_overlap(reporting_service, mock_document_store):
+    """Test that get_reports correctly excludes threads with no date overlap."""
+    # Setup mocks
+    def mock_query(collection, filter_dict, limit):
+        if collection == "summaries":
+            return [
+                {"summary_id": "rpt1", "thread_id": "thread1"},
+                {"summary_id": "rpt2", "thread_id": "thread2"},
+            ]
+        elif collection == "threads":
+            return [
+                {
+                    "thread_id": "thread1",
+                    "first_message_date": "2025-01-01T00:00:00Z",
+                    "last_message_date": "2025-01-05T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                },
+                {
+                    "thread_id": "thread2",
+                    "first_message_date": "2025-01-20T00:00:00Z",
+                    "last_message_date": "2025-01-25T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                },
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    # Filter for messages between 2025-01-10 and 2025-01-15
+    # Should exclude both threads (no overlap)
+    reports = reporting_service.get_reports(
+        message_start_date="2025-01-10T00:00:00Z",
+        message_end_date="2025-01-15T00:00:00Z",
+    )
+
+    # Should return 0 reports
+    assert len(reports) == 0
+
+
+def test_get_reports_with_message_date_filters_thread_without_dates(reporting_service, mock_document_store):
+    """Test that get_reports skips threads without date information when using message date filters."""
+    # Setup mocks
+    def mock_query(collection, filter_dict, limit):
+        if collection == "summaries":
+            return [
+                {"summary_id": "rpt1", "thread_id": "thread1"},
+                {"summary_id": "rpt2", "thread_id": "thread2"},
+            ]
+        elif collection == "threads":
+            return [
+                {
+                    "thread_id": "thread1",
+                    "first_message_date": "2025-01-10T00:00:00Z",
+                    "last_message_date": "2025-01-15T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                },
+                {
+                    "thread_id": "thread2",
+                    # Missing date information
+                    "participants": [],
+                    "message_count": 5,
+                },
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    # Filter for messages between 2025-01-08 and 2025-01-17
+    reports = reporting_service.get_reports(
+        message_start_date="2025-01-08T00:00:00Z",
+        message_end_date="2025-01-17T00:00:00Z",
+    )
+
+    # Should only return thread1 (thread2 has no dates)
+    assert len(reports) == 1
+    assert reports[0]["thread_id"] == "thread1"
+
+
+def test_get_reports_with_message_date_filters_start_only(reporting_service, mock_document_store):
+    """Test that get_reports supports message_start_date without message_end_date."""
+    # Setup mocks
+    def mock_query(collection, filter_dict, limit):
+        if collection == "summaries":
+            return [
+                {"summary_id": "rpt1", "thread_id": "thread1"},
+                {"summary_id": "rpt2", "thread_id": "thread2"},
+            ]
+        elif collection == "threads":
+            return [
+                {
+                    "thread_id": "thread1",
+                    "first_message_date": "2025-01-05T00:00:00Z",
+                    "last_message_date": "2025-01-10T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                },
+                {
+                    "thread_id": "thread2",
+                    "first_message_date": "2025-01-15T00:00:00Z",
+                    "last_message_date": "2025-01-20T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                },
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    # Filter for messages starting from 2025-01-12 (no end date)
+    # Should include thread2 only (thread1 ends before start date)
+    reports = reporting_service.get_reports(
+        message_start_date="2025-01-12T00:00:00Z",
+    )
+
+    # Should return 1 report (thread2)
+    assert len(reports) == 1
+    assert reports[0]["thread_id"] == "thread2"
+
+
+def test_get_reports_with_message_date_filters_end_only(reporting_service, mock_document_store):
+    """Test that get_reports supports message_end_date without message_start_date."""
+    # Setup mocks
+    def mock_query(collection, filter_dict, limit):
+        if collection == "summaries":
+            return [
+                {"summary_id": "rpt1", "thread_id": "thread1"},
+                {"summary_id": "rpt2", "thread_id": "thread2"},
+            ]
+        elif collection == "threads":
+            return [
+                {
+                    "thread_id": "thread1",
+                    "first_message_date": "2025-01-05T00:00:00Z",
+                    "last_message_date": "2025-01-10T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                },
+                {
+                    "thread_id": "thread2",
+                    "first_message_date": "2025-01-15T00:00:00Z",
+                    "last_message_date": "2025-01-20T00:00:00Z",
+                    "participants": [],
+                    "message_count": 5,
+                },
+            ]
+        return []
+
+    mock_document_store.query_documents.side_effect = mock_query
+
+    # Filter for messages ending before 2025-01-12 (no start date)
+    # Should include thread1 only (thread2 starts after end date)
+    reports = reporting_service.get_reports(
+        message_end_date="2025-01-12T00:00:00Z",
+    )
+
+    # Should return 1 report (thread1)
+    assert len(reports) == 1
+    assert reports[0]["thread_id"] == "thread1"
 
 
 def test_get_reports_with_metadata_filters(reporting_service, mock_document_store):

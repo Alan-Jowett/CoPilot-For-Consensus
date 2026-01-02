@@ -142,8 +142,8 @@ export async function fetchSources(): Promise<string[]> {
 export interface ReportsQuery {
   thread_id?: string
   topic?: string
-  start_date?: string
-  end_date?: string
+  message_start_date?: string  // Filter by thread message dates (inclusive overlap)
+  message_end_date?: string    // Filter by thread message dates (inclusive overlap)
   source?: string
   min_participants?: string
   max_participants?: string
@@ -167,8 +167,8 @@ export async function fetchReports(q: ReportsQuery): Promise<ReportsListResponse
     skip: q.skip ?? 0,
   }
   if (q.thread_id) params.thread_id = q.thread_id
-  if (q.start_date) params.start_date = q.start_date
-  if (q.end_date) params.end_date = q.end_date
+  if (q.message_start_date) params.message_start_date = q.message_start_date
+  if (q.message_end_date) params.message_end_date = q.message_end_date
   if (q.source) params.source = q.source
   if (q.min_participants) params.min_participants = q.min_participants
   if (q.max_participants) params.max_participants = q.max_participants
