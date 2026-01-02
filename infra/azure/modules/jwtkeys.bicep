@@ -122,8 +122,7 @@ $VerbosePreference = 'Continue'
 #   initialDelaySeconds + (maxRetries - 1) * retryDelay
 #   = 90 + (30 - 1) * 30 = 960 seconds (~16 minutes) with the default 90s initial delay.
 # This is intentional to accommodate slow RBAC propagation in some environments.
-# Allow overriding the initial delay via JWT_INITIAL_DELAY_SECONDS while defaulting to 90 seconds.
-$initialDelaySeconds = if ([string]::IsNullOrEmpty($env:JWT_INITIAL_DELAY_SECONDS)) { 90 } else { [int]$env:JWT_INITIAL_DELAY_SECONDS }
+$initialDelaySeconds = 90
 Start-Sleep -Seconds $initialDelaySeconds
 $keyVaultName = $env:KEY_VAULT_NAME
 $privateSecretName = $env:JWT_PRIVATE_SECRET_NAME
@@ -143,7 +142,7 @@ $publicKeyFormatted = "-----BEGIN PUBLIC KEY-----`n" + (Format-Base64ForPem -bas
 # Store in Key Vault with retry logic for RBAC propagation delays
 # Azure RBAC can take up to 5 minutes to propagate after role assignment
 $maxRetries = [int]$env:JWT_MAX_RETRIES
-$retryDelay = [int]$env:JWT_RETRY_DELAY_SECONDS  # 30 seconds between retries => 29 delays (~14.5 minutes max wait with 30 retries)
+$retryDelay = [int]$env:JWT_RETRY_DELAY_SECONDS  # 30 seconds between retries => 29 delays (~14.5 minutes retry delay with 30 retries; see total worst-case wait-time calculation above)
 $privateStored = $false
 $publicStored = $false
 
