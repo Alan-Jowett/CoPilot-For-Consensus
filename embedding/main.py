@@ -144,7 +144,8 @@ def main():
             host=config.message_bus_host,
             port=config.message_bus_port,
             username=config.message_bus_user,
-            password=config.message_bus_password,            queue_name="embedding-service",
+            password=config.message_bus_password,
+            queue_name="embedding-service",
             **message_bus_kwargs,
         )
         try:
