@@ -11,6 +11,7 @@ param location string
 param projectName string
 
 @description('Environment name (dev, staging, prod)')
+@allowed(['dev', 'staging', 'prod'])
 param environment string
 
 @description('Container image registry URL')

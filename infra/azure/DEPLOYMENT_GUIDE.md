@@ -180,9 +180,9 @@ az containerapp show --name <project-prefix>-auth-<environment> -g <resource-gro
 # Expected output: {"minReplicas": 0, "maxReplicas": 2}
 
 # Check all services at once
-$projectPrefix = "copilot"  # Replace with your project name
-$environment = "dev"
-$resourceGroup = "copilot-dev-rg"  # Replace with your resource group name
+$projectPrefix = "<project-prefix>"  # Replace with your project name (e.g., 'copilot')
+$environment = "<environment>"  # Replace with environment name (e.g., 'dev')
+$resourceGroup = "<resource-group>"  # Replace with your resource group name (e.g., 'copilot-dev-rg')
 $services = @('auth', 'gateway', 'reporting', 'ui', 'ingestion', 'parsing', 'chunking', 'embedding', 'orchestrator', 'summarization')
 foreach ($svc in $services) {
   $config = az containerapp show --name "$projectPrefix-$svc-$environment" -g $resourceGroup --query properties.template.scale -o json | ConvertFrom-Json
