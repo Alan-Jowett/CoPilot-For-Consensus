@@ -80,6 +80,11 @@ var uniqueSuffix = uniqueString(resourceGroup().id)
 var projectPrefix = take(replace(projectName, '-', ''), 8)
 var caEnvName = '${projectPrefix}-env-${environment}-${take(uniqueSuffix, 5)}'
 
+// Scale-to-zero configuration for cost optimization in dev environment
+// Dev: minReplicas = 0 (scale to zero when idle, accepting cold-start latency)
+// Staging/Prod: minReplicas = 1 (maintain at least one replica for faster response times)
+var minReplicaCount = environment == 'dev' ? 0 : 1
+
 // Service port mappings (internal container listen ports)
 // Note: Gateway uses 8080 internally; Container Apps platform handles TLS termination and exposes externally on 443
 var servicePorts = {
@@ -192,7 +197,7 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: minReplicaCount
         maxReplicas: 2
       }
     }
@@ -270,7 +275,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: minReplicaCount
         maxReplicas: 2
       }
     }
@@ -364,7 +369,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: minReplicaCount
         maxReplicas: 2
       }
     }
@@ -443,7 +448,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: minReplicaCount
         maxReplicas: 2
       }
     }
@@ -522,7 +527,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: minReplicaCount
         maxReplicas: 2
       }
     }
@@ -629,7 +634,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: minReplicaCount
         maxReplicas: 2
       }
     }
@@ -724,7 +729,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: minReplicaCount
         maxReplicas: 2
       }
     }
@@ -819,7 +824,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: minReplicaCount
         maxReplicas: 2
       }
     }
@@ -882,7 +887,7 @@ resource uiApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: minReplicaCount
         maxReplicas: 2
       }
     }
@@ -961,7 +966,7 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 1
+        minReplicas: minReplicaCount
         maxReplicas: 3
       }
     }

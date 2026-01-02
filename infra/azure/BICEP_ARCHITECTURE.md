@@ -214,13 +214,33 @@ Each environment (dev, staging, prod) has a dedicated parameter file:
 - **VNet**: 10.0.0.0/16
 - **Cosmos DB**: 400-1000 RU (autoscale, single-region)
 - **Service Bus**: Standard tier
+- **Container Apps Scaling**: `minReplicas: 0` (scale-to-zero enabled for cost optimization)
 - **Deployed**: When working on new features
+
+**Scale-to-Zero Behavior**:
+In the dev environment, all Container Apps are configured with `minReplicas: 0` to reduce idle costs. This means:
+- Services scale down to zero replicas when not actively handling requests or messages
+- Azure Consumption plan charges only when services are running
+- **Cold Start Impact**: First HTTP request or message bus event will experience a cold start delay (typically 10-60 seconds)
+- HTTP-triggered services (gateway, reporting, ui, ingestion, auth) wake on incoming HTTP traffic
+- Message-bus-triggered services (parsing, chunking, orchestration, summarization) wake on queue messages
+
+**Expected Cold Starts**:
+- First login attempt after idle period: ~10-30 seconds (auth + gateway startup)
+- First report load: ~10-30 seconds (reporting service startup)
+- First ingestion: ~10-30 seconds (ingestion service startup)
+- First message processing: ~10-60 seconds (parsing/chunking/orchestration/summarization startup)
+
+**Mitigation Options** (if needed):
+- Set specific services to `minReplicas: 1` in containerapps.bicep for always-on behavior
+- Implement a scheduled pre-warm task (e.g., Azure Function with timer trigger) to ping services during business hours
 
 ### parameters.staging.json
 - **Location**: eastus
 - **VNet**: 10.1.0.0/16
 - **Cosmos DB**: 1000-2000 RU (autoscale, single-region)
 - **Service Bus**: Standard tier
+- **Container Apps Scaling**: `minReplicas: 1` (at least one replica always running)
 - **Deployed**: Before production validation
 
 ### parameters.prod.json
@@ -228,6 +248,7 @@ Each environment (dev, staging, prod) has a dedicated parameter file:
 - **VNet**: 10.2.0.0/16
 - **Cosmos DB**: 2000-4000 RU (autoscale, multi-region)
 - **Service Bus**: Premium tier
+- **Container Apps Scaling**: `minReplicas: 1` (at least one replica always running)
 - **Deployed**: For production workloads
 
 ## Security Considerations
@@ -375,19 +396,41 @@ az deployment group create `
 
 **Solution**: Monitor logs via `az containerapp logs show` or Azure Portal
 
+### Cold Start Delays (Dev Environment Only)
+
+**Symptom**: First request after idle period takes 10-60 seconds to respond
+
+**Expected**: Normal for dev environment with `minReplicas: 0` (scale-to-zero enabled)
+
+**Behavior**:
+- Container Apps in dev scale to zero when idle to reduce costs
+- First HTTP request or message bus event triggers container startup
+- Subsequent requests are fast (as long as service remains active)
+
+**Affected Services**:
+- **HTTP services**: auth, gateway, reporting, ui, ingestion (wake on HTTP traffic)
+- **Message-bus services**: parsing, chunking, embedding, orchestrator, summarization (wake on queue messages)
+
+**Mitigation Options**:
+1. Accept cold starts for dev (recommended for cost savings)
+2. Override specific critical services to `minReplicas: 1` in containerapps.bicep
+3. Implement pre-warm schedule (e.g., ping services via Azure Function timer trigger during business hours)
+
 ## Cost Estimation
 
 ### Monthly Costs (Approximate)
 
 | Component | Dev | Staging | Prod |
 |-----------|-----|---------|------|
-| **Container Apps** | $50-100 | $100-200 | $200-500 |
+| **Container Apps** | $20-50 (with scale-to-zero) | $100-200 | $200-500 |
 | **Cosmos DB** | $50-150 | $150-300 | $300-800 |
 | **Service Bus** | $25 | $25 | $60 |
 | **AI Search** | $150 | $150 | $300 |
 | **Azure OpenAI** | $150 | $150 | $200 |
 | **Application Insights** | $10-50 | $50-100 | $100-200 |
-| **Total** | ~$435-495 | ~$625-825 | ~$1,160-1,860 |
+| **Total** | ~$405-445 (save ~$50-100/mo) | ~$625-825 | ~$1,160-1,860 |
+
+**Dev Cost Savings**: Scale-to-zero reduces Container Apps costs by ~50-100% during idle periods (nights, weekends).
 
 ## References
 
