@@ -19,6 +19,11 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     copilot_metrics \
     copilot_secrets
 
+# Install Azure Key Vault dependencies for copilot-secrets
+# Required for production deployments that use Azure Key Vault for secret management
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -e "/app/adapters/copilot_secrets[azure]"
+
 # Install service dependencies with cache mount
 COPY auth/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
