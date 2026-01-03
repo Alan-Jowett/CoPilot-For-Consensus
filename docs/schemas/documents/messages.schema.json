@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/documents/messages.schema.json",
+  "title": "messages collection",
+  "type": "object",
+  "properties": {
+    "_id": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 16,
+      "pattern": "^[A-Fa-f0-9]{16}$",
+      "description": "Internal canonical identifier for this message. Deterministic SHA256 (first 16 chars) computed from stable fields (e.g., archive_id|message_id|date|sender_email|subject). Used as the MongoDB _id."
+    },
+    "message_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "RFC 5322 Message-ID header value for the email (external identifier). This is NOT a hash; it is the message's original Message-ID, typically in the form '<unique@domain>'."
+    },
+    "archive_id": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 16,
+      "pattern": "^[A-Fa-f0-9]{16}$",
+      "description": "Internal identifier for the source archive (mbox file). Deterministic SHA256 (first 16 chars) of the archive content (or path), used to group messages by ingestion source."
+    },
+    "thread_id": {
+      "type": "string",
+      "minLength": 16,
+      "maxLength": 16,
+      "pattern": "^[A-Fa-f0-9]{16}$",
+      "description": "Reference to the thread's canonical identifier (threads._id). Internal usage for grouping related messages; not an RFC field."
+    },
+    "in_reply_to": {
+      "anyOf": [
+        { "type": "string", "minLength": 1 },
+        { "type": "null" }
+      ],
+      "description": "RFC 5322 In-Reply-To header: the Message-ID of the message this one replies to (external identifier)."
+    },
+    "references": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 0,
+      "description": "RFC 5322 References header: ordered list of ancestor Message-IDs forming the reply chain (external identifiers)."
+    },
+    "subject": {
+      "anyOf": [
+        { "type": "string" },
+        { "type": "null" }
+      ]
+    },
+    "from": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "email": { "type": "string", "format": "email" }
+          },
+          "required": ["email"],
+          "additionalProperties": false
+        },
+        { "type": "null" }
+      ]
+    },
+    "to": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" }
+        },
+        "required": ["email"],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "cc": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" }
+        },
+        "required": ["email"],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "date": {
+      "anyOf": [
+        { "type": "string", "format": "date-time" },
+        { "type": "null" }
+      ]
+    },
+    "body_raw": { "type": "string" },
+    "body_normalized": { "type": "string", "minLength": 1 },
+    "body_html": { "type": "string" },
+    "headers": { "type": "object" },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "filename": { "type": "string", "minLength": 1 },
+          "content_type": { "type": "string", "minLength": 1 },
+          "size_bytes": { "type": "integer", "minimum": 0 },
+          "hash_sha256": { "type": "string", "minLength": 1 }
+        },
+        "required": ["filename", "content_type", "size_bytes"],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "draft_mentions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 0,
+      "uniqueItems": true
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "processing", "completed", "failed", "failed_max_retries"],
+      "description": "Processing status for retry and workflow tracking"
+    },
+    "attemptCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of processing attempts for retry tracking"
+    },
+    "lastAttemptTime": {
+      "anyOf": [
+        { "type": "string", "format": "date-time" },
+        { "type": "null" }
+      ],
+      "description": "Timestamp of the last processing attempt"
+    },
+    "lastUpdated": { 
+      "type": "string", 
+      "format": "date-time",
+      "description": "Timestamp of last status or field update for observability and forward progress tracking"
+    },
+    "workerId": {
+      "anyOf": [
+        { "type": "string", "minLength": 1 },
+        { "type": "null" }
+      ],
+      "description": "Optional identifier of the worker/service instance processing this document for debugging and observability"
+    }
+  },
+  "required": ["_id", "message_id", "archive_id", "thread_id", "body_normalized", "created_at"]
+}

@@ -26,7 +26,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     copilot_startup
 
 # Copy schema files for validation
-COPY documents/schemas /app/documents/schemas
+COPY docs/schemas /app/docs/schemas
 
 # Copy prompt templates for summarization
 COPY orchestrator/prompts /app/prompts

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/events/archive-ingestion-failed.schema.json",
+  "title": "ArchiveIngestionFailed Event",
+  "allOf": [
+    { "$ref": "./event-envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "event_type": { "const": "ArchiveIngestionFailed" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "source_name": { "type": "string", "minLength": 1 },
+            "source_type": { "type": "string", "enum": ["rsync", "imap", "http", "local"] },
+            "source_url": { "type": "string", "minLength": 1 },
+            "error_message": { "type": "string", "minLength": 1 },
+            "error_type": { "type": "string", "minLength": 1 },
+            "retry_count": { "type": "integer", "minimum": 0 },
+            "ingestion_started_at": { "type": "string", "format": "date-time" },
+            "failed_at": { "type": "string", "format": "date-time" }
+          },
+          "required": [
+            "source_name",
+            "source_type",
+            "source_url",
+            "error_message",
+            "error_type",
+            "retry_count",
+            "ingestion_started_at",
+            "failed_at"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["event_type", "event_id", "timestamp", "version", "data"],
+      "additionalProperties": false
+    }
+  ]
+}

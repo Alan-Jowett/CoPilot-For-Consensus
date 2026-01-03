@@ -46,7 +46,7 @@ def in_memory_document_store():
 
     # Wrap with validation
     schema_provider = FileSchemaProvider(
-        schema_dir=Path(__file__).parent.parent.parent / "documents" / "schemas" / "documents"
+        schema_dir=Path(__file__).parent.parent.parent / "docs" / "schemas" / "documents"
     )
     store = ValidatingDocumentStore(store=base_store, schema_provider=schema_provider)
 

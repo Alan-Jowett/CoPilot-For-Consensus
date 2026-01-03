@@ -6,13 +6,13 @@
 This guide shows how to move services from direct environment variable access to the schema-driven configuration system provided by `copilot_config`.
 
 ## Why migrate
-- Centralize configuration in JSON schemas stored under [documents/schemas](../../documents/schemas)
+- Centralize configuration in JSON schemas stored under [docs/schemas](../../docs/schemas)
 - Strong typing with automatic conversion and validation
 - Multi-source support (env, document store, static) with provider abstraction
 - Fast-fail startup validation and attribute-style access in code
 
 ## Step 1: Define the schema
-Create `../../documents/schemas/configs/<service>.json`:
+Create `../../docs/schemas/configs/<service>.json`:
 
 ```json
 {
@@ -151,7 +151,7 @@ chunking_strategy = config.chunking_strategy
 
 ## Troubleshooting
 
-**Schema not found**: `ConfigSchemaError: Schema file not found` → verify the JSON path under `documents/schemas/configs/`.
+**Schema not found**: `ConfigSchemaError: Schema file not found` → verify the JSON path under `docs/schemas/configs/`.
 
 **Missing required field**: `ConfigValidationError` reports missing keys → set env vars, add defaults, or mark optional.
 

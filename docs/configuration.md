@@ -15,7 +15,7 @@ This document describes the configuration management system for Copilot-for-Cons
 
 ## Overview
 
-Copilot-for-Consensus uses a schema-driven configuration system built on the `copilot_config` adapter. All microservices define their configuration requirements in JSON schema files located in `documents/schemas/configs/`.
+Copilot-for-Consensus uses a schema-driven configuration system built on the `copilot_config` adapter. All microservices define their configuration requirements in JSON schema files located in `docs/schemas/configs/`.
 
 ### Key Features
 
@@ -187,8 +187,8 @@ Check schema compatibility before merging:
 ```bash
 # Compare old and new schema versions
 python -m copilot_config check_compat \
-  --old documents/schemas/configs/parsing.json.old \
-  --new documents/schemas/configs/parsing.json
+  --old docs/schemas/configs/parsing.json.old \
+  --new docs/schemas/configs/parsing.json
 
 # Use strict mode (fail on warnings)
 python -m copilot_config check_compat \
@@ -397,7 +397,7 @@ After migration period, make field required:
 
 **Cause**: Schema file missing or wrong location
 
-**Solution**: Ensure schema exists at `documents/schemas/configs/<service>.json`
+**Solution**: Ensure schema exists at `docs/schemas/configs/<service>.json`
 
 ## References
 

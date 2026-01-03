@@ -166,7 +166,7 @@ python -m pytest summarization/tests/ chunking/tests/ parsing/tests/ ingestion/t
 
 ## Event Schemas
 
-All event schemas are located in `documents/schemas/events/`:
+All event schemas are located in `docs/schemas/events/`:
 - `ArchiveIngested.schema.json`
 - `JSONParsed.schema.json`
 - `ChunksPrepared.schema.json`
@@ -251,12 +251,12 @@ def test_handle_malformed_event():
 
 ### Schema not found
 If you get "No schema found for event type X":
-- Check that the schema file exists in `documents/schemas/events/X.schema.json`
+- Check that the schema file exists in `docs/schemas/events/X.schema.json`
 - Verify the event_type in your event matches the schema filename
 
 ### Validation fails
 If validation fails unexpectedly:
-- Compare your event against the schema in `documents/schemas/events/`
+- Compare your event against the schema in `docs/schemas/events/`
 - Check for missing required fields
 - Verify field types match schema (string vs integer, array vs string, etc.)
 - Look at the validation error messages for specific issues

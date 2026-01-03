@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     copilot_startup
 
 # Copy schema files for validation
-COPY documents/schemas /app/documents/schemas
+COPY docs/schemas /app/docs/schemas
 
 # Install service dependencies with cache mount
 COPY chunking/requirements.txt .

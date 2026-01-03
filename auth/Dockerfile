@@ -34,7 +34,7 @@ COPY auth/app ./app
 COPY auth/main.py .
 
 # Copy schema configuration
-COPY documents/schemas ./documents/schemas
+COPY docs/schemas ./docs/schemas
 
 # Expose port
 EXPOSE 8090

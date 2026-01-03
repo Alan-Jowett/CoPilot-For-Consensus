@@ -38,7 +38,7 @@ def _build_registry() -> Registry:
     ]
 
     for base in candidate_bases:
-        envelope_path = base / "documents" / "schemas" / "events" / "event-envelope.schema.json"
+        envelope_path = base / "docs" / "schemas" / "events" / "event-envelope.schema.json"
         try:
             if envelope_path.exists():
                 envelope_schema = json.loads(envelope_path.read_text(encoding="utf-8"))

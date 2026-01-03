@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/events/chunks-prepared.schema.json",
+  "title": "ChunksPrepared Event",
+  "allOf": [
+    { "$ref": "./event-envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "event_type": { "const": "ChunksPrepared" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "message_doc_ids": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[0-9a-f]{16,64}$" },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "chunk_count": { "type": "integer", "minimum": 0 },
+            "chunk_ids": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[0-9a-f]{16,64}$" },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "chunks_ready": { "type": "boolean" },
+            "chunking_strategy": { "type": "string", "minLength": 1 },
+            "avg_chunk_size_tokens": { "type": "integer", "minimum": 0 }
+          },
+          "required": [
+            "message_doc_ids",
+            "chunk_count",
+            "chunk_ids",
+            "chunks_ready",
+            "chunking_strategy",
+            "avg_chunk_size_tokens"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["event_type", "event_id", "timestamp", "version", "data"],
+      "additionalProperties": false
+    }
+  ]
+}

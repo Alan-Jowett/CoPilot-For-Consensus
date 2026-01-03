@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "service_name": "reporting",
+  "schema_version": "1.0.0",
+  "min_service_version": "0.1.0",
+  "metadata": {
+    "description": "Reporting service configuration schema",
+    "version": "1.0.0"
+  },
+  "fields": {
+    "message_bus_type": {
+      "type": "string",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_TYPE",
+      "default": "rabbitmq",
+      "description": "Message bus type"
+    },
+    "message_bus_host": {
+      "type": "string",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_HOST",
+      "default": "messagebus",
+      "description": "Message bus hostname"
+    },
+    "message_bus_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_PORT",
+      "default": 5672,
+      "description": "Message bus port"
+    },
+    "message_bus_user": {
+      "type": "string",
+      "source": "secret",
+      "secret_name": "message_bus_user",
+      "required": false,
+      "description": "Message bus username (secret)"
+    },
+    "message_bus_password": {
+      "type": "string",
+      "source": "secret",
+      "secret_name": "message_bus_password",
+      "required": false,
+      "description": "Message bus password (secret)"
+    },
+    "doc_store_type": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOCUMENT_STORE_TYPE",
+      "default": "mongodb",
+      "description": "Document store type"
+    },
+    "doc_store_host": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOCUMENT_DATABASE_HOST",
+      "default": "documentdb",
+      "description": "Document store hostname"
+    },
+    "doc_store_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "DOCUMENT_DATABASE_PORT",
+      "default": 27017,
+      "description": "Document store port"
+    },
+    "doc_store_name": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOCUMENT_DATABASE_NAME",
+      "default": "copilot",
+      "description": "Document store database name"
+    },
+    "doc_store_user": {
+      "type": "string",
+      "source": "secret",
+      "secret_name": "document_database_user",
+      "required": false,
+      "description": "Document store username (secret)"
+    },
+    "doc_store_password": {
+      "type": "string",
+      "source": "secret",
+      "secret_name": "document_database_password",
+      "required": false,
+      "description": "Document store password (secret)"
+    },
+    "notify_enabled": {
+      "type": "bool",
+      "source": "env",
+      "env_var": "NOTIFY_ENABLED",
+      "default": false,
+      "description": "Enable webhook notifications"
+    },
+    "notify_webhook_url": {
+      "type": "string",
+      "source": "env",
+      "env_var": "NOTIFY_WEBHOOK_URL",
+      "default": "",
+      "description": "Webhook URL for notifications"
+    },
+    "webhook_summary_max_length": {
+      "type": "int",
+      "source": "env",
+      "env_var": "WEBHOOK_SUMMARY_MAX_LENGTH",
+      "default": 500,
+      "description": "Maximum length of summary in webhook notifications"
+    },
+    "http_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "HTTP_PORT",
+      "default": 8080,
+      "description": "HTTP server port"
+    },
+    "metrics_backend": {
+      "type": "string",
+      "source": "env",
+      "env_var": "METRICS_BACKEND",
+      "default": "noop",
+      "description": "Metrics backend"
+    },
+    "error_reporter_type": {
+      "type": "string",
+      "source": "env",
+      "env_var": "ERROR_REPORTER_TYPE",
+      "default": "console",
+      "description": "Error reporter type"
+    },
+    "jwt_auth_enabled": {
+      "type": "bool",
+      "source": "env",
+      "env_var": "JWT_AUTH_ENABLED",
+      "default": true,
+      "description": "Enable JWT authentication middleware"
+    },
+    "vector_store_type": {
+      "type": "string",
+      "source": "env",
+      "env_var": "VECTOR_STORE_TYPE",
+      "default": "",
+      "description": "Vector store type (e.g., qdrant, faiss). Leave empty to disable topic search. Set to 'qdrant' in docker-compose for production use."
+    },
+    "vector_store_host": {
+      "type": "string",
+      "source": "env",
+      "env_var": "VECTOR_DB_HOST",
+      "default": "vectorstore",
+      "description": "Vector store hostname"
+    },
+    "vector_store_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "VECTOR_DB_PORT",
+      "default": 6333,
+      "description": "Vector store port"
+    },
+    "vector_store_collection": {
+      "type": "string",
+      "source": "env",
+      "env_var": "VECTOR_DB_COLLECTION",
+      "default": "embeddings",
+      "description": "Vector store collection name"
+    },
+    "embedding_backend": {
+      "type": "string",
+      "source": "env",
+      "env_var": "EMBEDDING_BACKEND",
+      "default": "sentencetransformers",
+      "description": "Embedding backend (e.g., sentencetransformers, openai, azure)"
+    },
+    "embedding_model": {
+      "type": "string",
+      "source": "env",
+      "env_var": "EMBEDDING_MODEL",
+      "default": "all-MiniLM-L6-v2",
+      "description": "Embedding model name"
+    },
+    "device": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DEVICE",
+      "default": "cpu",
+      "description": "Device for embedding generation (cpu, cuda)"
+    }
+  }
+}

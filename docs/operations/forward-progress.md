@@ -45,4 +45,4 @@ Avoid intermediate "processing" states—RabbitMQ handles in-flight messages; id
 - [Retry policy](retry-policy.md)
 - [Service monitoring](../observability/service-monitoring.md)
 - [Schema versioning](../schemas/schema-versioning.md)
-- Schemas: `documents/schemas/documents/v1/*.schema.json`
+- Schemas: `docs/schemas/documents/v1/*.schema.json`

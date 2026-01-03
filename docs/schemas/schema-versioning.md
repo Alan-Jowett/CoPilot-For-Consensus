@@ -6,8 +6,8 @@
 Versioning strategy for JSON schemas (events and documents) to ensure compatibility and safe evolution.
 
 ## Schema Types
-- **Event Schemas**: Pub/sub messages (ArchiveIngested, SummaryComplete) under `documents/schemas/events/`.
-- **Document Schemas**: Database payloads (archives, messages, chunks, threads, summaries) under `documents/schemas/documents/`.
+- **Event Schemas**: Pub/sub messages (ArchiveIngested, SummaryComplete) under `docs/schemas/events/`.
+- **Document Schemas**: Database payloads (archives, messages, chunks, threads, summaries) under `docs/schemas/documents/`.
 
 ## Directory-Based Versioning
 ```
@@ -80,7 +80,7 @@ Process for breaking changes:
 from copilot_schema_validation import FileSchemaProvider, validate_json
 from pathlib import Path
 
-schema_dir = Path("documents/schemas/documents/v1")
+schema_dir = Path("docs/schemas/documents/v1")
 provider = FileSchemaProvider(schema_dir=schema_dir)
 messages_schema = provider.get_schema("messages")
 is_valid, errors = validate_json(document, messages_schema)

@@ -54,7 +54,7 @@ def get_schema_provider():
         FileSchemaProvider instance configured with repository schemas
     """
     from pathlib import Path
-    schema_dir = Path(__file__).parent.parent.parent / "documents" / "schemas" / "events"
+    schema_dir = Path(__file__).parent.parent.parent / "docs" / "schemas" / "events"
     return FileSchemaProvider(schema_dir=schema_dir)
 
 

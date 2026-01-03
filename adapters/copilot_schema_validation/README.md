@@ -67,7 +67,7 @@ base_store.connect()
 # Wrap with schema validation
 # Point to documents schema directory (relative to service root)
 schema_provider = FileSchemaProvider(
-    schema_dir=Path(__file__).parent.parent / "documents" / "schemas" / "documents"
+    schema_dir=Path(__file__).parent.parent / "docs" / "schemas" / "documents"
 )
 validating_store = ValidatingDocumentStore(
     store=base_store,

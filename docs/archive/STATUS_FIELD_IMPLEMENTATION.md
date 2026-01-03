@@ -106,10 +106,10 @@ Created `examples/document_status_tracking.py` demonstrating:
    - `adapters/copilot_schema_validation/tests/test_models.py`
 
 2. **JSON Schemas:**
-   - `documents/schemas/documents/archives.schema.json`
-   - `documents/schemas/documents/messages.schema.json`
-   - `documents/schemas/documents/chunks.schema.json`
-   - `documents/schemas/documents/threads.schema.json`
+   - `docs/schemas/documents/archives.schema.json`
+   - `docs/schemas/documents/messages.schema.json`
+   - `docs/schemas/documents/chunks.schema.json`
+   - `docs/schemas/documents/threads.schema.json`
 
 3. **Documentation:**
    - `docs/schemas/data-storage.md`

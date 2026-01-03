@@ -13,7 +13,7 @@ Complete implementation of the schema-driven configuration system, covering adap
 - Typed configuration (`copilot_config/typed_config.py`): `TypedConfig` for attribute/dict access and `load_typed_config()` convenience wrapper.
 
 ### 2. Configuration Schemas
-Schemas for all services in `documents/schemas/configs/` (ingestion, parsing, chunking, embedding, orchestrator, summarization, reporting) with types, defaults, required flags, and env mappings.
+Schemas for all services in `docs/schemas/configs/` (ingestion, parsing, chunking, embedding, orchestrator, summarization, reporting) with types, defaults, required flags, and env mappings.
 
 ### 3. Comprehensive Tests
 - Providers: document store loading, caching, nested values, type conversion.

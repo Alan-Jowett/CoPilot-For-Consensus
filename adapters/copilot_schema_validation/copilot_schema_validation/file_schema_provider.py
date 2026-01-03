@@ -23,13 +23,13 @@ class FileSchemaProvider(SchemaProvider):
 
         Args:
             schema_dir: Directory containing schema files. If None, defaults to
-                       the documents/schemas/events directory in the repository.
+                       the docs/schemas/events directory in the repository.
         """
         if schema_dir is None:
             # Default to repository schema location
             # Path: adapters/copilot_schema_validation/copilot_schema_validation/file_schema_provider.py
             # Go up 4 levels to reach repo root
-            schema_dir = Path(__file__).parent.parent.parent.parent / "documents" / "schemas" / "events"
+            schema_dir = Path(__file__).parent.parent.parent.parent / "docs" / "schemas" / "events"
 
         self.schema_dir = Path(schema_dir)
         if not self.schema_dir.exists():

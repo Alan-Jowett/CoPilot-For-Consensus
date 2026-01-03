@@ -16,7 +16,7 @@ from copilot_events import create_publisher, ValidatingEventPublisher
 from copilot_schema_validation import FileSchemaProvider
 
 # Wrap publisher with validation
-schema_provider = FileSchemaProvider()  # Loads schemas from documents/schemas/events
+schema_provider = FileSchemaProvider()  # Loads schemas from docs/schemas/events
 publisher = ValidatingEventPublisher(
     publisher=base_publisher,
     schema_provider=schema_provider,
@@ -68,10 +68,10 @@ except ConfigValidationError as e:
 
 | Type | Location | File Pattern |
 |------|----------|--------------|
-| **Events** | `documents/schemas/events/` | `{EventName}.schema.json` |
-| **Documents** | `documents/schemas/documents/` | `{CollectionName}.schema.json` |
-| **Configs** | `documents/schemas/configs/` | `{ServiceName}.schema.json` |
-| **Roles/Permissions** | `documents/schemas/role_store/` | `{Entity}.schema.json` |
+| **Events** | `docs/schemas/events/` | `{EventName}.schema.json` |
+| **Documents** | `docs/schemas/documents/` | `{CollectionName}.schema.json` |
+| **Configs** | `docs/schemas/configs/` | `{ServiceName}.schema.json` |
+| **Roles/Permissions** | `docs/schemas/role_store/` | `{Entity}.schema.json` |
 
 ## Validation Strategy
 

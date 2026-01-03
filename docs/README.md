@@ -32,7 +32,7 @@ This is the primary index for project documentation. Use this page first; legacy
 - Configuration & Ops: ✅ includes [docs/operations/docker-compose-structure.md](operations/docker-compose-structure.md), [docs/operations/exposed-ports.md](operations/exposed-ports.md), and [docs/operations/configuration-migration.md](operations/configuration-migration.md).
 - Observability: ✅ consolidated at [docs/observability/service-monitoring.md](observability/service-monitoring.md) and [docs/observability/metrics-integration.md](observability/metrics-integration.md).
 - Runbooks: ✅ relocated to [docs/operations/runbooks](operations/runbooks); legacy stubs remain under documents/runbooks during link updates.
-- Schemas: ✅ [docs/schemas/README.md](schemas/README.md) and [docs/schemas/schema-versioning.md](schemas/schema-versioning.md) point to [documents/schemas](../documents/schemas) JSON until versioned docs are written.
+- Schemas: ✅ [docs/schemas/README.md](schemas/README.md) and [docs/schemas/schema-versioning.md](schemas/schema-versioning.md) point to [docs/schemas](schemas) JSON until versioned docs are written.
 
 ## How to Contribute to the Reorg
 - When touching a topic with duplicates, consolidate into docs/ and replace the older file with a short pointer or remove it after updating links.
