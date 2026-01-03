@@ -116,6 +116,50 @@ def signal_handler(signum, frame):
     sys.exit(0)
 
 
+def _build_document_store_kwargs(config):
+    """Build kwargs for document store creation based on store type.
+    
+    Args:
+        config: Configuration object with document store settings
+        
+    Returns:
+        dict: Keyword arguments for create_document_store()
+    """
+    store_type = str(config.doc_store_type).lower()
+    
+    # For Cosmos DB (cosmos or azurecosmos)
+    if store_type in ("cosmos", "azurecosmos"):
+        kwargs = {}
+        
+        # Add Cosmos-specific parameters if they exist in config
+        if hasattr(config, 'cosmos_db_endpoint') and config.cosmos_db_endpoint:
+            kwargs['endpoint'] = config.cosmos_db_endpoint
+            
+        if hasattr(config, 'cosmos_db_key') and config.cosmos_db_key:
+            kwargs['key'] = config.cosmos_db_key
+            
+        if hasattr(config, 'cosmos_db_database') and config.cosmos_db_database:
+            kwargs['database'] = config.cosmos_db_database
+            
+        if hasattr(config, 'cosmos_db_container') and config.cosmos_db_container:
+            kwargs['container'] = config.cosmos_db_container
+            
+        return kwargs
+    
+    # For MongoDB
+    elif store_type == "mongodb":
+        return {
+            'host': config.doc_store_host,
+            'port': config.doc_store_port,
+            'database': config.doc_store_name,
+            'username': config.doc_store_user,
+            'password': config.doc_store_password,
+        }
+    
+    # For inmemory or other types, no additional kwargs needed
+    return {}
+
+
 def main():
     """Main entry point for the ingestion service."""
     global ingestion_service, scheduler, base_publisher, base_document_store
@@ -149,13 +193,10 @@ def main():
         sources = []
         try:
             # Create a temporary document store to load sources
+            doc_store_kwargs = _build_document_store_kwargs(config)
             temp_store = create_document_store(
                 store_type=config.doc_store_type,
-                host=config.doc_store_host,
-                port=config.doc_store_port,
-                database=config.doc_store_name,
-                username=config.doc_store_user,
-                password=config.doc_store_password,
+                **doc_store_kwargs
             )
             temp_store.connect()
 
@@ -269,19 +310,15 @@ def main():
         log.info("Event publisher configured with schema validation")
 
         # Create document store
+        doc_store_kwargs = _build_document_store_kwargs(config)
         log.info(
             "Creating document store",
             doc_store_type=config.doc_store_type,
-            doc_store_host=config.doc_store_host,
-            doc_store_port=config.doc_store_port,
+            **doc_store_kwargs
         )
         base_document_store = create_document_store(
             store_type=config.doc_store_type,
-            host=config.doc_store_host,
-            port=config.doc_store_port,
-            database=config.doc_store_name,
-            username=config.doc_store_user,
-            password=config.doc_store_password,
+            **doc_store_kwargs
         )
 
         # Connect to document store
@@ -291,16 +328,13 @@ def main():
             if str(config.doc_store_type).lower() != "inmemory":
                 log.error(
                     "Failed to connect to document store. Failing fast as doc_store_type is not inmemory.",
-                    host=config.doc_store_host,
-                    port=config.doc_store_port,
                     doc_store_type=config.doc_store_type,
                     error=str(e),
+                    **doc_store_kwargs
                 )
                 raise
             log.warning(
                 "Failed to connect to document store. Continuing with inmemory store.",
-                host=config.doc_store_host,
-                port=config.doc_store_port,
                 error=str(e),
             )
 

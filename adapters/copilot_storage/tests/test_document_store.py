@@ -44,6 +44,60 @@ class TestDocumentStoreFactory:
         with pytest.raises(ValueError, match="Unknown store_type"):
             create_document_store(store_type="invalid")
 
+    def test_create_azurecosmos_store(self, monkeypatch):
+        """Test creating an Azure Cosmos DB document store."""
+        from copilot_storage import AzureCosmosDocumentStore
+        
+        # Set environment variables for Cosmos DB
+        monkeypatch.setenv("COSMOS_DB_ENDPOINT", "https://test.documents.azure.com:443/")
+        monkeypatch.setenv("COSMOS_KEY", "test_key")
+        
+        store = create_document_store(
+            store_type="azurecosmos",
+            endpoint="https://test.documents.azure.com:443/",
+            key="test_key",
+            database="test_db",
+            container="test_container"
+        )
+
+        assert isinstance(store, AzureCosmosDocumentStore)
+        assert isinstance(store, DocumentStore)
+        assert store.endpoint == "https://test.documents.azure.com:443/"
+        assert store.database_name == "test_db"
+        assert store.container_name == "test_container"
+
+    def test_create_cosmos_alias(self, monkeypatch):
+        """Test that 'cosmos' is an alias for 'azurecosmos'."""
+        from copilot_storage import AzureCosmosDocumentStore
+        
+        # Set environment variables for Cosmos DB
+        monkeypatch.setenv("COSMOS_DB_ENDPOINT", "https://test.documents.azure.com:443/")
+        monkeypatch.setenv("COSMOS_KEY", "test_key")
+        
+        store = create_document_store(
+            store_type="cosmos",
+            endpoint="https://test.documents.azure.com:443/",
+            key="test_key",
+            database="test_db"
+        )
+
+        assert isinstance(store, AzureCosmosDocumentStore)
+        assert isinstance(store, DocumentStore)
+
+    def test_cosmos_db_endpoint_env_var(self, monkeypatch):
+        """Test that COSMOS_DB_ENDPOINT environment variable is recognized."""
+        from copilot_storage import AzureCosmosDocumentStore
+        
+        # Set COSMOS_DB_ENDPOINT (Azure infra uses this name)
+        monkeypatch.setenv("COSMOS_DB_ENDPOINT", "https://azure.documents.azure.com:443/")
+        monkeypatch.setenv("COSMOS_KEY", "test_key_from_env")
+        
+        store = create_document_store(store_type="cosmos")
+
+        assert isinstance(store, AzureCosmosDocumentStore)
+        assert store.endpoint == "https://azure.documents.azure.com:443/"
+        assert store.key == "test_key_from_env"
+
 
 class TestInMemoryDocumentStore:
     """Tests for InMemoryDocumentStore."""
