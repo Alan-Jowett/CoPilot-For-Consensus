@@ -31,6 +31,8 @@ output identityPrincipalIds array = [
 ]
 
 // Named map of principal IDs to avoid fragile index-based references in downstream modules
+// TODO: Consider using dynamic object construction with loops to reduce duplication
+// when Bicep language features support it (currently requires explicit property names)
 output identityPrincipalIdsByName object = {
   ingestion: managedIdentities[0].properties.principalId
   parsing: managedIdentities[1].properties.principalId
@@ -43,6 +45,25 @@ output identityPrincipalIdsByName object = {
   ui: managedIdentities[8].properties.principalId
   gateway: managedIdentities[9].properties.principalId
   openai: managedIdentities[10].properties.principalId
+}
+
+// Named map of client IDs for user-assigned managed identities
+// Required for Azure SDK DefaultAzureCredential to detect user-assigned managed identity
+// Note: Client IDs and principal IDs are different values - client ID is used for 
+// authentication while principal ID is used for authorization (RBAC)
+// TODO: Consider using dynamic object construction with loops to reduce duplication
+output identityClientIdsByName object = {
+  ingestion: managedIdentities[0].properties.clientId
+  parsing: managedIdentities[1].properties.clientId
+  chunking: managedIdentities[2].properties.clientId
+  embedding: managedIdentities[3].properties.clientId
+  orchestrator: managedIdentities[4].properties.clientId
+  summarization: managedIdentities[5].properties.clientId
+  reporting: managedIdentities[6].properties.clientId
+  auth: managedIdentities[7].properties.clientId
+  ui: managedIdentities[8].properties.clientId
+  gateway: managedIdentities[9].properties.clientId
+  openai: managedIdentities[10].properties.clientId
 }
 
 // IMPORTANT: The order of the services array must not change, as downstream
