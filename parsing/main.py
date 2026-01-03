@@ -165,7 +165,7 @@ def main():
         # Documents use schemas from docs/schemas/documents/
         event_schema_provider = FileSchemaProvider()
         document_schema_provider = FileSchemaProvider(
-            schema_dir=Path(__file__).parent / "documents" / "schemas" / "documents"
+            schema_dir=Path(__file__).parent / "docs" / "schemas" / "documents"
         )
 
         publisher = ValidatingEventPublisher(
