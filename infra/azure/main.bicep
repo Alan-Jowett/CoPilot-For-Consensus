@@ -468,7 +468,7 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     azureOpenAIEmbeddingDeploymentName: deployAzureOpenAI && deployAzureOpenAIEmbeddingModel ? openaiModule!.outputs.embeddingDeploymentName : ''
     azureOpenAIApiKeySecretUri: deployAzureOpenAI ? openaiApiKeySecret!.properties.secretUriWithVersion : ''
     aiSearchEndpoint: aiSearchModule!.outputs.endpoint
-    serviceBusNamespace: serviceBusModule.outputs.namespaceName
+    serviceBusNamespace: serviceBusModule.outputs.namespaceFullyQualifiedName
     cosmosDbEndpoint: cosmosModule.outputs.accountEndpoint
     storageAccountName: storageModule!.outputs.accountName
     storageBlobEndpoint: storageModule!.outputs.blobEndpoint

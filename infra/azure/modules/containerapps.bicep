@@ -38,7 +38,7 @@ param azureOpenAIApiKeySecretUri string = ''
 @description('Azure AI Search endpoint URL')
 param aiSearchEndpoint string = ''
 
-@description('Service Bus namespace name for message bus connection')
+@description('Service Bus fully qualified namespace for managed identity connection')
 param serviceBusNamespace string = ''
 
 @description('Cosmos DB account endpoint URL for document store connection')
@@ -245,7 +245,11 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azureservicebus'
             }
             {
-              name: 'SERVICE_BUS_NAMESPACE'
+              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              value: 'true'
+            }
+            {
+              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -323,7 +327,11 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azureservicebus'
             }
             {
-              name: 'SERVICE_BUS_NAMESPACE'
+              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              value: 'true'
+            }
+            {
+              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -418,7 +426,11 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azureservicebus'
             }
             {
-              name: 'SERVICE_BUS_NAMESPACE'
+              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              value: 'true'
+            }
+            {
+              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -497,7 +509,11 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azureservicebus'
             }
             {
-              name: 'SERVICE_BUS_NAMESPACE'
+              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              value: 'true'
+            }
+            {
+              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -576,7 +592,11 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azureservicebus'
             }
             {
-              name: 'SERVICE_BUS_NAMESPACE'
+              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              value: 'true'
+            }
+            {
+              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -683,7 +703,11 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azureservicebus'
             }
             {
-              name: 'SERVICE_BUS_NAMESPACE'
+              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              value: 'true'
+            }
+            {
+              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -778,7 +802,11 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azureservicebus'
             }
             {
-              name: 'SERVICE_BUS_NAMESPACE'
+              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              value: 'true'
+            }
+            {
+              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {

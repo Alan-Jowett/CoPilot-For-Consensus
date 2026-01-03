@@ -120,6 +120,9 @@ resource receiverRoleAssignments 'Microsoft.Authorization/roleAssignments@2022-0
 @description('The resource ID of the Service Bus namespace')
 output namespaceName string = serviceBusNamespace.name
 
+@description('The fully qualified domain name of the Service Bus namespace')
+output namespaceFullyQualifiedName string = '${serviceBusNamespace.name}.servicebus.windows.net'
+
 @description('The namespace resource ID for use by dependent resources')
 output namespaceResourceId string = serviceBusNamespace.id
 
