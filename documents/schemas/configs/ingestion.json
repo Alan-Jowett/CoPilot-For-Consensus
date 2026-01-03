@@ -167,14 +167,14 @@
       "source": "env",
       "env_var": "DOCUMENT_DATABASE_HOST",
       "default": "localhost",
-      "description": "Document store host (MongoDB only)"
+      "description": "Document store host"
     },
     "doc_store_port": {
       "type": "int",
       "source": "env",
       "env_var": "DOCUMENT_DATABASE_PORT",
       "default": 27017,
-      "description": "Document store port (MongoDB only)"
+      "description": "Document store port"
     },
     "doc_store_name": {
       "type": "string",
@@ -188,42 +188,14 @@
       "source": "env",
       "env_var": "DOCUMENT_DATABASE_USER",
       "default": "root",
-      "description": "Document store username (MongoDB only)"
+      "description": "Document store username"
     },
     "doc_store_password": {
       "type": "string",
       "source": "env",
       "env_var": "DOCUMENT_DATABASE_PASSWORD",
       "default": "example",
-      "description": "Document store password (MongoDB only)"
-    },
-    "cosmos_db_endpoint": {
-      "type": "string",
-      "source": "env",
-      "env_var": "COSMOS_DB_ENDPOINT",
-      "default": "",
-      "description": "Azure Cosmos DB endpoint URL (Cosmos DB only)"
-    },
-    "cosmos_db_key": {
-      "type": "string",
-      "source": "env",
-      "env_var": "COSMOS_DB_KEY",
-      "default": "",
-      "description": "Azure Cosmos DB key (Cosmos DB only, optional if using managed identity)"
-    },
-    "cosmos_db_database": {
-      "type": "string",
-      "source": "env",
-      "env_var": "COSMOS_DATABASE",
-      "default": "copilot",
-      "description": "Azure Cosmos DB database name (Cosmos DB only)"
-    },
-    "cosmos_db_container": {
-      "type": "string",
-      "source": "env",
-      "env_var": "COSMOS_CONTAINER",
-      "default": "documents",
-      "description": "Azure Cosmos DB container name (Cosmos DB only)"
+      "description": "Document store password"
     },
     "jwt_auth_enabled": {
       "type": "bool",

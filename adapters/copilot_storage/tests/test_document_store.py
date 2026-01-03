@@ -44,65 +44,18 @@ class TestDocumentStoreFactory:
         with pytest.raises(ValueError, match="Unknown store_type"):
             create_document_store(store_type="invalid")
 
-    def test_create_azurecosmos_store(self, monkeypatch):
-        """Test creating an Azure Cosmos DB document store with explicit parameters."""
-        from copilot_storage import AzureCosmosDocumentStore
-
-        store = create_document_store(
-            store_type="azurecosmos",
-            endpoint="https://test.documents.azure.com:443/",
-            key="test_key",
-            database="test_db",
-            container="test_container"
-        )
-
-        assert isinstance(store, AzureCosmosDocumentStore)
-        assert isinstance(store, DocumentStore)
-        assert store.endpoint == "https://test.documents.azure.com:443/"
-        assert store.database_name == "test_db"
-        assert store.container_name == "test_container"
-
-    def test_create_cosmos_alias(self, monkeypatch):
+    def test_create_cosmos_alias(self):
         """Test that 'cosmos' is an alias for 'azurecosmos'."""
         from copilot_storage import AzureCosmosDocumentStore
 
         store = create_document_store(
             store_type="cosmos",
             endpoint="https://test.documents.azure.com:443/",
-            key="test_key",
-            database="test_db"
+            key="test_key"
         )
 
         assert isinstance(store, AzureCosmosDocumentStore)
         assert isinstance(store, DocumentStore)
-
-    def test_cosmos_db_endpoint_env_var(self, monkeypatch):
-        """Test that COSMOS_DB_ENDPOINT environment variable is recognized."""
-        from copilot_storage import AzureCosmosDocumentStore
-
-        # Set COSMOS_DB_ENDPOINT and COSMOS_DB_KEY (Azure infra uses these names)
-        monkeypatch.setenv("COSMOS_DB_ENDPOINT", "https://azure.documents.azure.com:443/")
-        monkeypatch.setenv("COSMOS_DB_KEY", "test_key_from_env")
-
-        store = create_document_store(store_type="cosmos")
-
-        assert isinstance(store, AzureCosmosDocumentStore)
-        assert store.endpoint == "https://azure.documents.azure.com:443/"
-        assert store.key == "test_key_from_env"
-
-    def test_cosmos_key_env_var_fallback(self, monkeypatch):
-        """Test that COSMOS_KEY is also recognized for backward compatibility."""
-        from copilot_storage import AzureCosmosDocumentStore
-
-        # Set COSMOS_ENDPOINT and COSMOS_KEY (legacy names)
-        monkeypatch.setenv("COSMOS_ENDPOINT", "https://legacy.documents.azure.com:443/")
-        monkeypatch.setenv("COSMOS_KEY", "legacy_key")
-
-        store = create_document_store(store_type="cosmos")
-
-        assert isinstance(store, AzureCosmosDocumentStore)
-        assert store.endpoint == "https://legacy.documents.azure.com:443/"
-        assert store.key == "legacy_key"
 
 
 class TestInMemoryDocumentStore:
