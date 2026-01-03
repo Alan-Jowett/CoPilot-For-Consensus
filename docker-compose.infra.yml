@@ -19,7 +19,7 @@ services:
       - mongodb_root_password
     volumes:
       - ./infra/init:/init:ro
-      - ./documents/schemas:/schemas:ro
+      - ./docs/schemas:/schemas:ro
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |-
@@ -43,7 +43,7 @@ services:
       - mongodb_root_password
     volumes:
       - ./infra/test:/test:ro
-      - ./documents/schemas:/schemas:ro
+      - ./docs/schemas:/schemas:ro
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |-

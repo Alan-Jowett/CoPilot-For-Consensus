@@ -13,7 +13,7 @@ services:
       dockerfile: ./chunking/Dockerfile
     environment:
       - SERVICE_VERSION=0.1.0
-      - SCHEMA_DIR=/app/documents/schemas/configs
+      - SCHEMA_DIR=/app/docs/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
@@ -56,7 +56,7 @@ services:
       dockerfile: ./embedding/Dockerfile
     environment:
       - SERVICE_VERSION=0.1.0
-      - SCHEMA_DIR=/app/documents/schemas/configs
+      - SCHEMA_DIR=/app/docs/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
@@ -106,7 +106,7 @@ services:
       dockerfile: ./ingestion/Dockerfile
     environment:
       - SERVICE_VERSION=0.1.0
-      - SCHEMA_DIR=/app/documents/schemas/configs
+      - SCHEMA_DIR=/app/docs/schemas/configs
       - STORAGE_PATH=/data/raw_archives
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
@@ -157,7 +157,7 @@ services:
       dockerfile: ./orchestrator/Dockerfile
     environment:
       - SERVICE_VERSION=0.1.0
-      - SCHEMA_DIR=/app/documents/schemas/configs
+      - SCHEMA_DIR=/app/docs/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
@@ -214,7 +214,7 @@ services:
       dockerfile: ./parsing/Dockerfile
     environment:
       - SERVICE_VERSION=0.1.0
-      - SCHEMA_DIR=/app/documents/schemas/configs
+      - SCHEMA_DIR=/app/docs/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
@@ -258,7 +258,7 @@ services:
       dockerfile: ./reporting/Dockerfile
     environment:
       - SERVICE_VERSION=0.1.0
-      - SCHEMA_DIR=/app/documents/schemas/configs
+      - SCHEMA_DIR=/app/docs/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
@@ -397,7 +397,7 @@ services:
       dockerfile: ./summarization/Dockerfile
     environment:
       - SERVICE_VERSION=0.1.0
-      - SCHEMA_DIR=/app/documents/schemas/configs
+      - SCHEMA_DIR=/app/docs/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
