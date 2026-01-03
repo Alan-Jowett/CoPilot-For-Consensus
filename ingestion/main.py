@@ -17,7 +17,7 @@ from app.scheduler import IngestionScheduler
 from app.service import IngestionService
 from copilot_config import load_typed_config
 from copilot_config.providers import DocStoreConfigProvider
-from copilot_events import ValidatingEventPublisher, create_publisher
+from copilot_events import ValidatingEventPublisher, create_publisher, get_azure_servicebus_kwargs
 from copilot_logging import create_logger, create_uvicorn_log_config
 from copilot_metrics import create_metrics_collector
 from copilot_schema_validation import FileSchemaProvider
@@ -224,12 +224,19 @@ def main():
         log.info("Storage path prepared", storage_path=config.storage_path)
 
         # Create event publisher
+        # Prepare Azure Service Bus specific parameters if needed
+        message_bus_kwargs = {}
+        if config.message_bus_type == "azureservicebus":
+            message_bus_kwargs = get_azure_servicebus_kwargs()
+            log.info("Using Azure Service Bus configuration")
+        
         base_publisher = create_publisher(
             message_bus_type=config.message_bus_type,
             host=config.message_bus_host,
             port=config.message_bus_port,
             username=config.message_bus_user,
             password=config.message_bus_password,
+            **message_bus_kwargs,
         )
 
         # Connect publisher
