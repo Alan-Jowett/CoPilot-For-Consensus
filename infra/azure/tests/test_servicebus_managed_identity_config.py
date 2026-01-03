@@ -14,6 +14,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "adapters" / "copil
 
 from copilot_events.azure_config import get_azure_servicebus_kwargs
 
+# Minimum number of parts in a valid FQDN (namespace.servicebus.windows.net)
+MIN_FQDN_PARTS = 4
+
 
 class TestServiceBusManagedIdentityConfiguration:
     """Test that Container Apps environment variables work with get_azure_servicebus_kwargs."""
@@ -77,7 +80,7 @@ class TestServiceBusManagedIdentityConfiguration:
         # Verify FQDN format
         fqdn = result["fully_qualified_namespace"]
         assert fqdn.endswith(".servicebus.windows.net")
-        assert len(fqdn.split(".")) >= 4  # namespace.servicebus.windows.net
+        assert len(fqdn.split(".")) >= MIN_FQDN_PARTS  # namespace.servicebus.windows.net
         
     def test_backward_compatibility_with_connection_string(self, monkeypatch):
         """Test that connection string mode still works for local development.
