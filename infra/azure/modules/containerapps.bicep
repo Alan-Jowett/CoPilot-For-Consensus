@@ -249,6 +249,14 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: serviceBusNamespace
             }
             {
+              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              value: 'true'
+            }
+            {
+              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              value: '${serviceBusNamespace}.servicebus.windows.net'
+            }
+            {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
             }
@@ -325,6 +333,14 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'SERVICE_BUS_NAMESPACE'
               value: serviceBusNamespace
+            }
+            {
+              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              value: 'true'
+            }
+            {
+              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              value: '${serviceBusNamespace}.servicebus.windows.net'
             }
             {
               name: 'DOCUMENT_STORE_TYPE'
@@ -422,6 +438,14 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: serviceBusNamespace
             }
             {
+              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              value: 'true'
+            }
+            {
+              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              value: '${serviceBusNamespace}.servicebus.windows.net'
+            }
+            {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
             }
@@ -501,6 +525,14 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: serviceBusNamespace
             }
             {
+              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              value: 'true'
+            }
+            {
+              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              value: '${serviceBusNamespace}.servicebus.windows.net'
+            }
+            {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
             }
@@ -578,6 +610,14 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'SERVICE_BUS_NAMESPACE'
               value: serviceBusNamespace
+            }
+            {
+              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              value: 'true'
+            }
+            {
+              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              value: '${serviceBusNamespace}.servicebus.windows.net'
             }
             {
               name: 'DOCUMENT_STORE_TYPE'
@@ -687,6 +727,14 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: serviceBusNamespace
             }
             {
+              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              value: 'true'
+            }
+            {
+              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              value: '${serviceBusNamespace}.servicebus.windows.net'
+            }
+            {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
             }
@@ -780,6 +828,14 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'SERVICE_BUS_NAMESPACE'
               value: serviceBusNamespace
+            }
+            {
+              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              value: 'true'
+            }
+            {
+              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              value: '${serviceBusNamespace}.servicebus.windows.net'
             }
             {
               name: 'DOCUMENT_STORE_TYPE'
