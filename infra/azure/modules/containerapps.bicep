@@ -82,9 +82,9 @@ var projectPrefix = take(replace(projectName, '-', ''), 8)
 var caEnvName = '${projectPrefix}-env-${environment}-${take(uniqueSuffix, 5)}'
 
 // Scale-to-zero configuration for cost optimization in dev environment
-// Dev: minReplicas = 0 (scale to zero when idle, accepting cold-start latency)
+// Dev: minReplicas = 1 (keep running during debugging to see startup failures)
 // Staging/Prod: minReplicas = 1 (maintain at least one replica for faster response times)
-var minReplicaCount = environment == 'dev' ? 0 : 1
+var minReplicaCount = 1
 
 // Service port mappings (internal container listen ports)
 // Note: Gateway uses 8080 internally; Container Apps platform handles TLS termination and exposes externally on 443
@@ -198,7 +198,7 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: minReplicaCount
+        minReplicas: 1
         maxReplicas: 2
       }
     }
@@ -276,7 +276,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: minReplicaCount
+        minReplicas: 1
         maxReplicas: 2
       }
     }
@@ -914,7 +914,7 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
         external: true
         targetPort: servicePorts.gateway
         allowInsecure: false
-        transport: 'auto'
+        transport: 'http'
       }
     }
     template: {
