@@ -43,7 +43,7 @@ class AzureCosmosDocumentStore(DocumentStore):
 
         Args:
             endpoint: Cosmos DB endpoint URL (e.g., https://myaccount.documents.azure.com:443/)
-            key: Cosmos DB account key or managed identity credentials
+            key: Cosmos DB account key (optional; if None, managed identity via DefaultAzureCredential will be used)
             database: Database name
             container: Container name
             partition_key: Partition key path (default: /collection)
@@ -125,12 +125,25 @@ class AzureCosmosDocumentStore(DocumentStore):
         if not self.endpoint:
             raise DocumentStoreConnectionError("Cosmos DB endpoint is required")
 
-        if not self.key:
-            raise DocumentStoreConnectionError("Cosmos DB key is required")
-
         try:
             # Create Cosmos client
-            self.client = CosmosClient(self.endpoint, self.key, **self.client_options)
+            # If key is provided, use key-based authentication
+            # Otherwise, use managed identity via DefaultAzureCredential
+            if self.key:
+                self.client = CosmosClient(self.endpoint, self.key, **self.client_options)
+                logger.info("AzureCosmosDocumentStore: using key-based authentication")
+            else:
+                try:
+                    from azure.identity import DefaultAzureCredential
+                    credential = DefaultAzureCredential()
+                    self.client = CosmosClient(self.endpoint, credential=credential, **self.client_options)
+                    logger.info("AzureCosmosDocumentStore: using managed identity authentication")
+                except ImportError as e:
+                    logger.error("AzureCosmosDocumentStore: azure-identity not installed for managed identity")
+                    raise DocumentStoreConnectionError(
+                        "azure-identity package is required for managed identity authentication. "
+                        "Install it with: pip install azure-identity"
+                    ) from e
 
             # Get or create database
             try:

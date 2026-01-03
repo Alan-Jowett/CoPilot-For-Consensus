@@ -128,8 +128,9 @@ def create_document_store(
     """Factory function to create a document store.
 
     Args:
-        store_type: Type of document store ("mongodb", "azurecosmos", "inmemory").
+        store_type: Type of document store ("mongodb", "azurecosmos", "cosmos", "inmemory").
                    If None, reads from DOCUMENT_STORE_TYPE environment variable (defaults to "inmemory")
+                   Note: "cosmos" is an alias for "azurecosmos"
         **kwargs: Additional store-specific arguments. For MongoDB and Azure Cosmos, if not provided,
                  will read from corresponding environment variables.
 
@@ -144,6 +145,10 @@ def create_document_store(
     # Auto-detect store type from environment if not provided
     if store_type is None:
         store_type = os.getenv("DOCUMENT_STORE_TYPE", "inmemory")
+
+    # Normalize store type: "cosmos" is an alias for "azurecosmos"
+    if store_type == "cosmos":
+        store_type = "azurecosmos"
 
     if store_type == "mongodb":
         from .mongo_document_store import MongoDocumentStore
@@ -203,13 +208,15 @@ def create_document_store(
         if "endpoint" in kwargs:
             cosmos_kwargs["endpoint"] = kwargs["endpoint"]
         else:
-            cosmos_kwargs["endpoint"] = os.getenv("COSMOS_ENDPOINT")
+            # Check both COSMOS_ENDPOINT and COSMOS_DB_ENDPOINT (Azure infra uses the latter)
+            cosmos_kwargs["endpoint"] = os.getenv("COSMOS_ENDPOINT") or os.getenv("COSMOS_DB_ENDPOINT")
 
         # Key - use provided value or environment variable
         if "key" in kwargs:
             cosmos_kwargs["key"] = kwargs["key"]
         else:
-            cosmos_kwargs["key"] = os.getenv("COSMOS_KEY")
+            # Check both COSMOS_KEY and COSMOS_DB_KEY (Azure infra uses the latter)
+            cosmos_kwargs["key"] = os.getenv("COSMOS_KEY") or os.getenv("COSMOS_DB_KEY")
 
         # Database - use provided value or environment variable
         if "database" in kwargs:

@@ -44,6 +44,19 @@ class TestDocumentStoreFactory:
         with pytest.raises(ValueError, match="Unknown store_type"):
             create_document_store(store_type="invalid")
 
+    def test_create_cosmos_alias(self):
+        """Test that 'cosmos' is an alias for 'azurecosmos'."""
+        from copilot_storage import AzureCosmosDocumentStore
+
+        store = create_document_store(
+            store_type="cosmos",
+            endpoint="https://test.documents.azure.com:443/",
+            key="test_key"
+        )
+
+        assert isinstance(store, AzureCosmosDocumentStore)
+        assert isinstance(store, DocumentStore)
+
 
 class TestInMemoryDocumentStore:
     """Tests for InMemoryDocumentStore."""

@@ -160,7 +160,7 @@
       "source": "env",
       "env_var": "DOCUMENT_STORE_TYPE",
       "default": "mongodb",
-      "description": "Document store type (mongodb, inmemory)"
+      "description": "Document store type (mongodb, cosmos, azurecosmos, inmemory)"
     },
     "doc_store_host": {
       "type": "string",
