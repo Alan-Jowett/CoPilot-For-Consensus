@@ -50,7 +50,7 @@ def document_store():
     base_store.query_documents = create_query_with_in_support(base_store.query_documents)
 
     # Wrap with validation using document schemas
-    schema_dir = Path(__file__).parent.parent.parent / "documents" / "schemas" / "documents"
+    schema_dir = Path(__file__).parent.parent.parent / "docs" / "schemas" / "documents"
     schema_provider = FileSchemaProvider(schema_dir=schema_dir)
     validating_store = ValidatingDocumentStore(
         store=base_store,
