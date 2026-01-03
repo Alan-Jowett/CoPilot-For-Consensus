@@ -17,6 +17,14 @@ export function AdminLinks() {
   // Grafana is only available in Docker Compose deployments
   // For Azure deployments, this entire component is hidden
   const isGrafanaAvailable = import.meta.env.VITE_GRAFANA_ENABLED === 'true'
+  // Allow overriding the Grafana URL to force HTTPS (e.g., https://localhost/grafana/).
+  // Default: if running on localhost, always prefer HTTPS on the gateway; otherwise, keep current origin.
+  const defaultGrafanaUrl = typeof window !== 'undefined'
+    ? (window.location.hostname === 'localhost'
+        ? 'https://localhost/grafana/'
+        : `${window.location.origin}/grafana/`)
+    : '/grafana/'
+  const grafanaUrl = import.meta.env.VITE_GRAFANA_URL || defaultGrafanaUrl
   
   if (!isAdmin || !isGrafanaAvailable) {
     return null
@@ -27,7 +35,7 @@ export function AdminLinks() {
       <div className={styles.label}>Admin Tools</div>
       <nav className={styles.navLinks}>
         <a
-          href="/grafana/"
+          href={grafanaUrl}
           target="_blank"
           rel="noopener noreferrer"
           className={styles.link}
