@@ -1478,7 +1478,7 @@ Each managed identity has only the permissions it needs:
 - [Azure Container Apps Documentation](https://learn.microsoft.com/en-us/azure/container-apps/)
 - [Azure Managed Identities](https://learn.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview)
 - [Azure RBAC Documentation](https://learn.microsoft.com/en-us/azure/role-based-access-control/)
-- [Copilot for Consensus Architecture](../../documents/ARCHITECTURE.md)
+- [Copilot for Consensus Architecture](../../docs/architecture/overview.md)
 - [Copilot for Consensus Contributing Guide](../../CONTRIBUTING.md)
 
 ## Support

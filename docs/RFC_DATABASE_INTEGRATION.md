@@ -927,8 +927,8 @@ Enable direct Q&A over RFC content:
 
 ### Internal Documentation
 
-- [ARCHITECTURE.md](../documents/ARCHITECTURE.md)
-- [SCHEMA.md](../documents/SCHEMA.md)
+- [Architecture overview](architecture/overview.md)
+- [Schema overview](schemas/data-storage.md)
 - [OBSERVABILITY_RFC.md](./OBSERVABILITY_RFC.md)
 - [CONVENTIONS.md](../documents/CONVENTIONS.md)
 

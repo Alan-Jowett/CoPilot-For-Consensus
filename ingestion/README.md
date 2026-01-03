@@ -219,7 +219,7 @@ This workflow eliminates the need for `docker cp` and makes local mailbox ingest
 
 ## Events Published
 
-The service publishes events to RabbitMQ with automatic schema validation. All events are validated against their JSON schemas before being published, ensuring data consistency across the system. See [../documents/SCHEMA.md](../documents/SCHEMA.md) for complete schemas.
+The service publishes events to RabbitMQ with automatic schema validation. All events are validated against their JSON schemas before being published, ensuring data consistency across the system. See [../docs/schemas/data-storage.md](../docs/schemas/data-storage.md#message-bus-event-schemas) for complete schemas.
 
 ### ArchiveIngested
 

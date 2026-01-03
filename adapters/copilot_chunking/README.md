@@ -584,7 +584,7 @@ The chunking abstraction can be integrated into services following the patterns 
 
 ## References
 
-- [Event Schemas](../documents/SCHEMA.md)
+- [Event Schemas](../docs/schemas/data-storage.md#message-bus-event-schemas)
 - [Chunking Service README](../../chunking/README.md)
 - [Embedding Service README](../../embedding/README.md)
 - [Summarization Service README](../../summarization/README.md)

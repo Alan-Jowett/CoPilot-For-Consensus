@@ -95,40 +95,40 @@ LLM_MODEL=gpt-4o-mini
 
 ### Subscribes To
 
-The Orchestration Service subscribes to the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+The Orchestration Service subscribes to the following events. See [SCHEMA.md](../docs/schemas/data-storage.md#message-bus-event-schemas) for complete event schemas.
 
 1) **EmbeddingsGenerated**
    - **Exchange:** `copilot.events`
    - **Routing Key:** `embeddings.generated`
-   - See [EmbeddingsGenerated schema](../documents/SCHEMA.md#7-embeddingsgenerated) in SCHEMA.md
+   - See [EmbeddingsGenerated schema](../docs/schemas/data-storage.md#7-embeddingsgenerated) in SCHEMA.md
    - **Behavior:** Fetch chunk metadata; compute thread scope; retrieve top-k from vector store; assemble prompt; trigger summarization job.
 
 2) **JSONParsed** *(optional for thread bookkeeping)*
    - **Exchange:** `copilot.events`
    - **Routing Key:** `json.parsed`
-   - See [JSONParsed schema](../documents/SCHEMA.md#3-jsonparsed) in SCHEMA.md
+   - See [JSONParsed schema](../docs/schemas/data-storage.md#3-jsonparsed) in SCHEMA.md
    - **Behavior:** Track new threads/messages; maintain orchestration schedule.
 
 ### Publishes
 
-The Orchestration Service publishes the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+The Orchestration Service publishes the following events. See [SCHEMA.md](../docs/schemas/data-storage.md#message-bus-event-schemas) for complete event schemas.
 
 1) **SummarizationRequested**
    - **Exchange:** `copilot.events`
    - **Routing Key:** `summarization.requested`
-   - See [SummarizationRequested schema](../documents/SCHEMA.md#9-summarizationrequested) in SCHEMA.md
+   - See [SummarizationRequested schema](../docs/schemas/data-storage.md#9-summarizationrequested) in SCHEMA.md
    - **Behavior:** Triggers summarization with LLM configuration and context parameters.
 
 2) **SummaryComplete** *(relayed)*
    - **Exchange:** `copilot.events`
    - **Routing Key:** `summary.complete`
-   - See [SummaryComplete schema](../documents/SCHEMA.md#11-summarycomplete) in SCHEMA.md
+   - See [SummaryComplete schema](../docs/schemas/data-storage.md#11-summarycomplete) in SCHEMA.md
    - **Behavior:** Forward summary results or acknowledge completion to downstream services.
 
 3) **OrchestrationFailed**
    - **Exchange:** `copilot.events`
    - **Routing Key:** `orchestration.failed`
-   - See [OrchestrationFailed schema](../documents/SCHEMA.md#10-orchestrationfailed) in SCHEMA.md
+   - See [OrchestrationFailed schema](../docs/schemas/data-storage.md#10-orchestrationfailed) in SCHEMA.md
    - **Behavior:** Signals orchestration errors for specific threads.
 
 ## Data Flow

@@ -81,7 +81,7 @@ Matches:
 
 ### Events Subscribed To
 
-The Parsing Service subscribes to the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+The Parsing Service subscribes to the following events. See [SCHEMA.md](../docs/schemas/data-storage.md#message-bus-event-schemas) for complete event schemas.
 
 #### 1. ArchiveIngested
 
@@ -90,7 +90,7 @@ Consumes events from the Ingestion Service when archives are ready for parsing.
 **Exchange:** `copilot.events`
 **Routing Key:** `archive.ingested`
 
-See [ArchiveIngested schema](../documents/SCHEMA.md#1-archiveingested) in SCHEMA.md for the complete payload definition.
+See [ArchiveIngested schema](../docs/schemas/data-storage.md#1-archiveingested) in SCHEMA.md for the complete payload definition.
 
 **Processing:**
 1. Load `.mbox` file from `file_path`
@@ -102,7 +102,7 @@ See [ArchiveIngested schema](../documents/SCHEMA.md#1-archiveingested) in SCHEMA
 
 ### Events Published
 
-The Parsing Service publishes the following events. See [SCHEMA.md](../documents/SCHEMA.md#message-bus-event-schemas) for complete event schemas.
+The Parsing Service publishes the following events. See [SCHEMA.md](../docs/schemas/data-storage.md#message-bus-event-schemas) for complete event schemas.
 
 #### 1. JSONParsed
 
@@ -111,7 +111,7 @@ Published when an archive has been successfully parsed and messages are stored.
 **Exchange:** `copilot.events`
 **Routing Key:** `json.parsed`
 
-See [JSONParsed schema](../documents/SCHEMA.md#3-jsonparsed) in SCHEMA.md for the complete payload definition.
+See [JSONParsed schema](../docs/schemas/data-storage.md#3-jsonparsed) in SCHEMA.md for the complete payload definition.
 
 **Key Fields:**
 - `archive_id`: Source archive hash (SHA256, first 16 chars)
@@ -128,7 +128,7 @@ Published when archive parsing fails.
 **Exchange:** `copilot.events`
 **Routing Key:** `parsing.failed`
 
-See [ParsingFailed schema](../documents/SCHEMA.md#4-parsingfailed) in SCHEMA.md for the complete payload definition.
+See [ParsingFailed schema](../docs/schemas/data-storage.md#4-parsingfailed) in SCHEMA.md for the complete payload definition.
 
 **Key Fields:**
 - `archive_id`: Source archive hash (SHA256, first 16 chars)

@@ -4,7 +4,7 @@
 # Top-level Docker Compose configuration
 # This file orchestrates all services by including separate files for infrastructure and application services.
 #
-# Port Exposure Policy (see documents/EXPOSED_PORTS.md for details):
+# Port Exposure Policy (see docs/operations/exposed-ports.md for details):
 # - Public (0.0.0.0): Only Grafana (3000) and Reporting API (8080)
 # - Localhost (127.0.0.1): Infrastructure, monitoring, and development services
 # - No port mapping: Internal-only services (exporters, processors)
