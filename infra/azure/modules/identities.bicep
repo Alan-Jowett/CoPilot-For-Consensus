@@ -45,6 +45,22 @@ output identityPrincipalIdsByName object = {
   openai: managedIdentities[10].properties.principalId
 }
 
+// Named map of client IDs (same as principal IDs for user-assigned identities)
+// Required for Azure SDK DefaultAzureCredential to detect user-assigned managed identity
+output identityClientIdsByName object = {
+  ingestion: managedIdentities[0].properties.clientId
+  parsing: managedIdentities[1].properties.clientId
+  chunking: managedIdentities[2].properties.clientId
+  embedding: managedIdentities[3].properties.clientId
+  orchestrator: managedIdentities[4].properties.clientId
+  summarization: managedIdentities[5].properties.clientId
+  reporting: managedIdentities[6].properties.clientId
+  auth: managedIdentities[7].properties.clientId
+  ui: managedIdentities[8].properties.clientId
+  gateway: managedIdentities[9].properties.clientId
+  openai: managedIdentities[10].properties.clientId
+}
+
 // IMPORTANT: The order of the services array must not change, as downstream
 // modules depend on this specific mapping of service names to identity resource IDs
 output identityResourceIds object = {

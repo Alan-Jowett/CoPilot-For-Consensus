@@ -463,6 +463,7 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     containerRegistry: 'ghcr.io/alan-jowett/copilot-for-consensus'
     containerImageTag: containerImageTag
     identityResourceIds: identitiesModule.outputs.identityResourceIds
+    identityClientIds: identitiesModule.outputs.identityClientIdsByName
     azureOpenAIEndpoint: deployAzureOpenAI ? openaiModule!.outputs.accountEndpoint : ''
     azureOpenAIGpt4DeploymentName: deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentName : ''
     azureOpenAIEmbeddingDeploymentName: deployAzureOpenAI && deployAzureOpenAIEmbeddingModel ? openaiModule!.outputs.embeddingDeploymentName : ''

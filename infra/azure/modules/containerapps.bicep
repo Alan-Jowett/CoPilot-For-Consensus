@@ -23,6 +23,9 @@ param containerImageTag string = 'latest'
 @description('User-assigned managed identity resource IDs by service')
 param identityResourceIds object
 
+@description('User-assigned managed identity client IDs by service (required for DefaultAzureCredential to detect user-assigned identity)')
+param identityClientIds object
+
 @description('Azure OpenAI endpoint URL')
 param azureOpenAIEndpoint string = ''
 
@@ -173,6 +176,10 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'AZURE_KEY_VAULT_NAME'
               value: keyVaultName
+            }
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: identityClientIds.auth
             }
             {
               name: 'AUTH_MS_TENANT'
