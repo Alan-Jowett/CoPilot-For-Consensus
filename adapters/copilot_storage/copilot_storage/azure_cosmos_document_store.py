@@ -43,7 +43,7 @@ class AzureCosmosDocumentStore(DocumentStore):
 
         Args:
             endpoint: Cosmos DB endpoint URL (e.g., https://myaccount.documents.azure.com:443/)
-            key: Cosmos DB account key or managed identity credentials
+            key: Cosmos DB account key (optional; if None, managed identity via DefaultAzureCredential will be used)
             database: Database name
             container: Container name
             partition_key: Partition key path (default: /collection)

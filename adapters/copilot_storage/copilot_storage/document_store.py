@@ -215,7 +215,8 @@ def create_document_store(
         if "key" in kwargs:
             cosmos_kwargs["key"] = kwargs["key"]
         else:
-            cosmos_kwargs["key"] = os.getenv("COSMOS_KEY")
+            # Check both COSMOS_KEY and COSMOS_DB_KEY (Azure infra uses the latter)
+            cosmos_kwargs["key"] = os.getenv("COSMOS_KEY") or os.getenv("COSMOS_DB_KEY")
 
         # Database - use provided value or environment variable
         if "database" in kwargs:

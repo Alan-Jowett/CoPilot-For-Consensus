@@ -144,6 +144,13 @@ def _build_document_store_kwargs(config):
         if hasattr(config, 'cosmos_db_container') and config.cosmos_db_container:
             kwargs['container'] = config.cosmos_db_container
 
+        # Validate required Cosmos DB parameters
+        if 'endpoint' not in kwargs:
+            raise ValueError(
+                "Cosmos DB document store requires 'cosmos_db_endpoint' to be set "
+                "in configuration when 'doc_store_type' is 'cosmos' or 'azurecosmos'."
+            )
+
         return kwargs
 
     # For MongoDB
@@ -311,10 +318,12 @@ def main():
 
         # Create document store
         doc_store_kwargs = _build_document_store_kwargs(config)
+        # Filter sensitive fields for logging
+        log_kwargs = {k: v for k, v in doc_store_kwargs.items() if k not in ('key', 'password')}
         log.info(
             "Creating document store",
             doc_store_type=config.doc_store_type,
-            **doc_store_kwargs
+            **log_kwargs
         )
         base_document_store = create_document_store(
             store_type=config.doc_store_type,
@@ -326,11 +335,13 @@ def main():
             base_document_store.connect()
         except DocumentStoreConnectionError as e:
             if str(config.doc_store_type).lower() != "inmemory":
+                # Filter sensitive fields for error logging
+                log_kwargs = {k: v for k, v in doc_store_kwargs.items() if k not in ('key', 'password')}
                 log.error(
                     "Failed to connect to document store. Failing fast as doc_store_type is not inmemory.",
                     doc_store_type=config.doc_store_type,
                     error=str(e),
-                    **doc_store_kwargs
+                    **log_kwargs
                 )
                 raise
             log.warning(
