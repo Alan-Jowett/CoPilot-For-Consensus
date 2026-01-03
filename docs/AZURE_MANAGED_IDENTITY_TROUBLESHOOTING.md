@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
 # Azure Managed Identity Troubleshooting
 
 This document explains how to troubleshoot and fix Azure managed identity authentication issues in Container Apps.
