@@ -38,8 +38,8 @@ def _resolve_schema_directory(schema_dir: str | None = None) -> str:
         if os.path.exists(d):
             return d
 
-    # Default to documents/schemas/configs if nothing found
-    return os.path.join(os.getcwd(), "documents", "schemas", "configs")
+    # Default to docs/schemas/configs if nothing found
+    return os.path.join(os.getcwd(), "docs", "schemas", "configs")
 
 
 def _parse_semver(version: str) -> tuple[int, int, int]:
@@ -462,9 +462,9 @@ def _load_config(
                         schema_dir = d
                         break
 
-                # Default to documents/schemas/configs if nothing found
+                # Default to docs/schemas/configs if nothing found
                 if schema_dir is None:
-                    schema_dir = os.path.join(os.getcwd(), "documents", "schemas", "configs")
+                    schema_dir = os.path.join(os.getcwd(), "docs", "schemas", "configs")
 
         # Load schema from disk
         schema_path = os.path.join(schema_dir, f"{service_name}.json")
