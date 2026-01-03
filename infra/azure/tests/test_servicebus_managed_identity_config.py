@@ -3,11 +3,8 @@
 
 """Tests for Azure Service Bus managed identity configuration in Container Apps."""
 
-import os
 import sys
 from pathlib import Path
-
-import pytest
 
 # Add the copilot_events module to path for direct import
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "adapters" / "copilot_events"))
@@ -61,7 +58,7 @@ class TestServiceBusManagedIdentityConfiguration:
         monkeypatch.setenv("MESSAGE_BUS_USE_MANAGED_IDENTITY", "true")
         monkeypatch.setenv("MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE", "test-sb-env-xyz.servicebus.windows.net")
         
-        for service in services:
+        for _ in services:
             # Each service calls get_azure_servicebus_kwargs()
             result = get_azure_servicebus_kwargs()
             
