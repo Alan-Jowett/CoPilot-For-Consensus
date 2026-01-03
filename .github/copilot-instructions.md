@@ -49,6 +49,10 @@ This repository uses GitHub Copilot to assist with code suggestions, documentati
 
 Repository maintainers are responsible for reviewing Copilot-generated code and ensuring compliance with project standards.
 
+### Repository Defaults
+
+- Default GitHub repository for MCP operations (issues/PRs/comments): Alan-Jowett/CoPilot-For-Consensus. Use this unless the user explicitly specifies a different repository.
+
 ---
 
 For more information, see [CONTRIBUTING.md](documents/CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](documents/CODE_OF_CONDUCT.md).

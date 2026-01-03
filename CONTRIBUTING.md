@@ -54,7 +54,7 @@ See [GOVERNANCE.md](./GOVERNANCE.md) for details.
 
 ## Development Guidelines
 
-*   **Architecture:** Microservice-based, containerized design. See [documents/ARCHITECTURE.md](./documents/ARCHITECTURE.md) for system overview.
+*   **Architecture:** Microservice-based, containerized design. See [docs/architecture/overview.md](./docs/architecture/overview.md) for system overview.
 *   **Language:** Python-first for accessibility.
 *   **Testing:** Unit tests for core logic, integration tests for pipeline components.
 *   **Documentation:** Update README.md and relevant docs for any new feature.

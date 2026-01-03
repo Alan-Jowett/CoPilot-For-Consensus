@@ -285,4 +285,4 @@ When adding new schemas or modifying the registry:
 
 - [Schema Versioning Guide](../documents/SCHEMAS.md) - Auto-generated list of all schemas
 - [Event Envelope Schema](../documents/schemas/events/event-envelope.schema.json)
-- [Architecture Documentation](../documents/ARCHITECTURE.md)
+- [Architecture Documentation](../docs/architecture/overview.md)

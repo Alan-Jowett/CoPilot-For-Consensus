@@ -9,7 +9,7 @@
 
 **An open-source AI assistant that ingests mailing list discussions, summarizes threads, and surfaces consensus for technical working groups.**
 
-📚 **[Documentation](#documentation)** | 🚀 **[Quick Start](#quick-start)** | 🏗️ **[Architecture](./documents/ARCHITECTURE.md)** | 🤝 **[Contributing](./CONTRIBUTING.md)** | 📋 **[Governance](./GOVERNANCE.md)**
+📚 **[Documentation](#documentation)** | 🚀 **[Quick Start](#quick-start)** | 🏗️ **[Architecture](./docs/architecture/overview.md)** | 🤝 **[Contributing](./CONTRIBUTING.md)** | 📋 **[Governance](./GOVERNANCE.md)**
 
 ***
 
@@ -81,7 +81,7 @@ Beyond summarization, Copilot-for-Consensus will evolve into an **interactive su
 
 The system follows a **microservice-based, event-driven architecture** where services communicate asynchronously through a message bus (RabbitMQ) and store data in MongoDB and Qdrant. This design ensures loose coupling, scalability, and resilience.
 
-For detailed architecture documentation, design patterns, and service interactions, see [documents/ARCHITECTURE.md](./documents/ARCHITECTURE.md).
+For detailed architecture documentation, design patterns, and service interactions, see [docs/architecture/overview.md](./docs/architecture/overview.md).
 
 ### Cloud-Agnostic API Gateway
 
@@ -123,7 +123,7 @@ See [Gateway Documentation](./docs/gateway/overview.md) for architecture, deploy
 | Promtail | Log scraping from Docker containers | - | Production |
 | Pushgateway | Metrics push gateway for batch jobs | - | Production |
 
-**Note**: Services marked as "public" (0.0.0.0) are accessible from outside the host. All other services are bound to localhost (127.0.0.1) for security. See [documents/EXPOSED_PORTS.md](./documents/EXPOSED_PORTS.md) for security details.
+**Note**: Services marked as "public" (0.0.0.0) are accessible from outside the host. All other services are bound to localhost (127.0.0.1) for security. See [docs/operations/exposed-ports.md](./docs/operations/exposed-ports.md) for security details.
 
 ### Microservices
 
@@ -204,7 +204,7 @@ View active alerts: http://localhost:9090/alerts
 
 **Documentation**:
 - [Observability RFC](./docs/OBSERVABILITY_RFC.md) - Complete observability strategy
-- [Observability Implementation Summary](./documents/OBSERVABILITY_IMPLEMENTATION_SUMMARY.md) - What's been implemented
+- [Observability Implementation Summary](./docs/observability/implementation-summary.md) - What's been implemented
 - [Service Monitoring Guide](./documents/SERVICE_MONITORING.md) - Monitoring overview
 - [Metrics Integration Guide](./documents/METRICS_INTEGRATION_GUIDE.md) - Developer guide
 - See [documents/FAILED_QUEUE_OPERATIONS.md](./documents/FAILED_QUEUE_OPERATIONS.md) for operational runbook
@@ -237,7 +237,7 @@ See [adapters/README.md](./adapters/README.md) for detailed adapter documentatio
 
 ## Quick Start
 
-**For detailed local development setup, see [documents/LOCAL_DEVELOPMENT.md](./documents/LOCAL_DEVELOPMENT.md).**
+**For detailed local development setup, see [docs/LOCAL_DEVELOPMENT.md](./docs/LOCAL_DEVELOPMENT.md).**
 
 ### Prerequisites
 - Docker and Docker Compose
@@ -288,7 +288,7 @@ docker compose logs db-init
 - **Web UI**: http://localhost:8084
 - **Grafana Dashboards**: http://localhost:3000 (admin/admin)
 
-For the full list of exposed ports and security considerations, see [documents/EXPOSED_PORTS.md](documents/EXPOSED_PORTS.md).
+For the full list of exposed ports and security considerations, see [docs/operations/exposed-ports.md](docs/operations/exposed-ports.md).
 
 **Note:** The Mistral LLM model is automatically downloaded on first startup via the `ollama-model-loader` service when using the default Ollama backend. This may take several minutes depending on your internet connection. Models are stored in the `ollama_models` Docker volume for persistence.
 
@@ -371,7 +371,7 @@ Query centralized logs in Grafana:
 - Verify RabbitMQ is healthy: `docker compose ps messagebus`
 - Check management UI: http://localhost:15672 (guest/guest)
 
-For more troubleshooting, see [documents/LOCAL_DEVELOPMENT.md](./documents/LOCAL_DEVELOPMENT.md).
+For more troubleshooting, see [docs/LOCAL_DEVELOPMENT.md](./docs/LOCAL_DEVELOPMENT.md).
 
 ### Authentication Setup
 
@@ -481,7 +481,7 @@ The system includes an authentication service that supports GitHub, Google, and 
 - See **[infra/azure/README.md](./infra/azure/README.md)** for complete deployment guide
 - One-click deployment with proper RBAC, networking, and observability
 
-See [documents/ARCHITECTURE.md](./documents/ARCHITECTURE.md) for detailed production architecture guidance.
+See [docs/architecture/overview.md](./docs/architecture/overview.md) for detailed production architecture guidance.
 
 ***
 
@@ -529,11 +529,11 @@ Comprehensive documentation is available throughout the repository:
 - **[SECURITY.md](./SECURITY.md)**: Security policy and vulnerability reporting
 
 ### Technical Documentation
-- **[documents/ARCHITECTURE.md](./documents/ARCHITECTURE.md)**: Detailed system architecture, design patterns, and service interactions
-- **[documents/SCHEMA.md](./documents/SCHEMA.md)**: Database schemas and message bus event definitions
-- **[documents/FORWARD_PROGRESS.md](./documents/FORWARD_PROGRESS.md)**: Idempotency, retry logic, and error handling patterns
-- **[documents/SERVICE_MONITORING.md](./documents/SERVICE_MONITORING.md)**: Observability, metrics, and logging best practices
-- **[documents/FAILED_QUEUE_OPERATIONS.md](./documents/FAILED_QUEUE_OPERATIONS.md)**: Failed queue management and troubleshooting
+- **[docs/architecture/overview.md](./docs/architecture/overview.md)**: Detailed system architecture, design patterns, and service interactions
+- **[docs/schemas/data-storage.md](./docs/schemas/data-storage.md)**: Database schemas and message bus event definitions
+- **[docs/operations/forward-progress.md](./docs/operations/forward-progress.md)**: Idempotency, retry logic, and error handling patterns
+- **[docs/observability/service-monitoring.md](./docs/observability/service-monitoring.md)**: Observability, metrics, and logging best practices
+- **[docs/operations/runbooks/failed-queue-operations.md](./docs/operations/runbooks/failed-queue-operations.md)**: Failed queue management and troubleshooting
 
 ### Gateway Documentation
 - **[docs/openapi.md](./docs/openapi.md)**: Hybrid OpenAPI 3.0 workflow guide (spec-first gateway, code-first services)
@@ -545,11 +545,12 @@ Comprehensive documentation is available throughout the repository:
 - **[docs/gateway/extending.md](./docs/gateway/extending.md)**: How to add support for new cloud providers
 
 ### Development Guides
-- **[documents/LOCAL_DEVELOPMENT.md](./documents/LOCAL_DEVELOPMENT.md)**: Complete local development setup, debugging, and testing guide
-- **[documents/TESTING_STRATEGY.md](./documents/TESTING_STRATEGY.md)**: Integration testing strategy, test organization, and CI/CD integration
-- **[documents/CONVENTIONS.md](./documents/CONVENTIONS.md)**: Documentation conventions, style guide, and contribution standards
-- **[documents/EXPOSED_PORTS.md](./documents/EXPOSED_PORTS.md)**: Network ports reference, security considerations, and access control
-- **[documents/AUTH_INTEGRATION_EXAMPLES.md](./documents/AUTH_INTEGRATION_EXAMPLES.md)**: Authentication service integration examples and best practices
+- **[docs/LOCAL_DEVELOPMENT.md](./docs/LOCAL_DEVELOPMENT.md)**: Complete local development setup, debugging, and testing guide
+- **[docs/TESTING_STRATEGY.md](./docs/TESTING_STRATEGY.md)**: Integration testing strategy, test organization, and CI/CD integration
+- **[docs/CI_COVERAGE_STRATEGY.md](./docs/CI_COVERAGE_STRATEGY.md)**: CI/CD orchestration and code coverage aggregation strategy
+- **[docs/CONVENTIONS.md](./docs/CONVENTIONS.md)**: Documentation conventions, style guide, and contribution standards
+- **[docs/BUILDING_WITH_COPILOT.md](./docs/BUILDING_WITH_COPILOT.md)**: How GitHub Copilot was used to scaffold this project's architecture
+- **[docs/operations/exposed-ports.md](./docs/operations/exposed-ports.md)**: Network ports reference, security considerations, and access control
 
 ### Service Documentation
 Each microservice has a comprehensive README:
@@ -572,13 +573,13 @@ Each microservice has a comprehensive README:
 
 ### Local Development Setup
 
-For detailed local development instructions, see [documents/LOCAL_DEVELOPMENT.md](./documents/LOCAL_DEVELOPMENT.md).
+For detailed local development instructions, see [docs/LOCAL_DEVELOPMENT.md](./docs/LOCAL_DEVELOPMENT.md).
 
 **Quick setup:**
 1. Clone the repository
 2. Install pre-commit hooks: `pip install pre-commit && pre-commit install`
 3. Start services: `docker compose up -d`
-4. Run tests: See [documents/TESTING_STRATEGY.md](./documents/TESTING_STRATEGY.md)
+4. Run tests: See [docs/TESTING_STRATEGY.md](./docs/TESTING_STRATEGY.md)
 
 ### Pre-commit Hooks
 
@@ -620,7 +621,7 @@ python tests/test_port_exposure.py
 python tests/validate_port_changes.py
 ```
 
-For comprehensive testing documentation, see [documents/TESTING_STRATEGY.md](./documents/TESTING_STRATEGY.md).
+For comprehensive testing documentation, see [docs/TESTING_STRATEGY.md](./docs/TESTING_STRATEGY.md).
 
 ### Code Quality
 
