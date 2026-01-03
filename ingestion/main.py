@@ -118,34 +118,34 @@ def signal_handler(signum, frame):
 
 def _build_document_store_kwargs(config):
     """Build kwargs for document store creation based on store type.
-    
+
     Args:
         config: Configuration object with document store settings
-        
+
     Returns:
         dict: Keyword arguments for create_document_store()
     """
     store_type = str(config.doc_store_type).lower()
-    
+
     # For Cosmos DB (cosmos or azurecosmos)
     if store_type in ("cosmos", "azurecosmos"):
         kwargs = {}
-        
+
         # Add Cosmos-specific parameters if they exist in config
         if hasattr(config, 'cosmos_db_endpoint') and config.cosmos_db_endpoint:
             kwargs['endpoint'] = config.cosmos_db_endpoint
-            
+
         if hasattr(config, 'cosmos_db_key') and config.cosmos_db_key:
             kwargs['key'] = config.cosmos_db_key
-            
+
         if hasattr(config, 'cosmos_db_database') and config.cosmos_db_database:
             kwargs['database'] = config.cosmos_db_database
-            
+
         if hasattr(config, 'cosmos_db_container') and config.cosmos_db_container:
             kwargs['container'] = config.cosmos_db_container
-            
+
         return kwargs
-    
+
     # For MongoDB
     elif store_type == "mongodb":
         return {
@@ -155,7 +155,7 @@ def _build_document_store_kwargs(config):
             'username': config.doc_store_user,
             'password': config.doc_store_password,
         }
-    
+
     # For inmemory or other types, no additional kwargs needed
     return {}
 
@@ -270,7 +270,7 @@ def main():
         if config.message_bus_type == "azureservicebus":
             message_bus_kwargs = get_azure_servicebus_kwargs()
             log.info("Using Azure Service Bus configuration")
-        
+
         base_publisher = create_publisher(
             message_bus_type=config.message_bus_type,
             host=config.message_bus_host,
