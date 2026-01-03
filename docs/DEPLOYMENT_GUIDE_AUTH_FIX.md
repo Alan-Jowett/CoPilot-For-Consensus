@@ -16,6 +16,7 @@ This fix adds the `AZURE_CLIENT_ID` environment variable to the auth service Con
 ### Step 1: Verify Current State
 Before deploying, check the current auth service status:
 
+**Linux/macOS (bash):**
 ```bash
 # Check if auth service is running
 az containerapp show \
@@ -31,8 +32,25 @@ az containerapp show \
   --output table
 ```
 
+**Windows (PowerShell):**
+```powershell
+# Check if auth service is running
+az containerapp show `
+  --name copilot-auth-dev `
+  --resource-group copilot-dev-1197027393 `
+  --query "properties.runningStatus"
+
+# Check current environment variables
+az containerapp show `
+  --name copilot-auth-dev `
+  --resource-group copilot-dev-1197027393 `
+  --query "properties.template.containers[0].env" `
+  --output table
+```
+
 ### Step 2: Deploy the Updated Infrastructure
 
+**Linux/macOS (bash):**
 ```bash
 # Navigate to the infrastructure directory
 cd infra/azure
@@ -48,8 +66,25 @@ az deployment group create \
 # The JWT key generation script includes retry logic to handle this
 ```
 
+**Windows (PowerShell):**
+```powershell
+# Navigate to the infrastructure directory
+Set-Location infra/azure
+
+# Deploy the updated Bicep templates
+az deployment group create `
+  --resource-group copilot-dev-1197027393 `
+  --template-file main.bicep `
+  --parameters parameters.dev.json `
+  --verbose
+
+# Note: Deployment may take 15-30 minutes due to RBAC propagation delays
+# The JWT key generation script includes retry logic to handle this
+```
+
 ### Step 3: Verify Deployment Success
 
+**Linux/macOS (bash):**
 ```bash
 # Check deployment status
 az deployment group show \
@@ -64,8 +99,24 @@ az containerapp show \
   --query "properties.template.containers[0].env[?name=='AZURE_CLIENT_ID']"
 ```
 
+**Windows (PowerShell):**
+```powershell
+# Check deployment status
+az deployment group show `
+  --resource-group copilot-dev-1197027393 `
+  --name <deployment-name> `
+  --query "properties.provisioningState"
+
+# Verify AZURE_CLIENT_ID is now set
+az containerapp show `
+  --name copilot-auth-dev `
+  --resource-group copilot-dev-1197027393 `
+  --query "properties.template.containers[0].env[?name=='AZURE_CLIENT_ID']"
+```
+
 ### Step 4: Monitor Auth Service Logs
 
+**Linux/macOS (bash):**
 ```bash
 # Stream logs from the auth service
 az containerapp logs show \
@@ -80,8 +131,24 @@ az containerapp logs show \
 # ✓ "Auth Service initialized with 0 providers"
 ```
 
+**Windows (PowerShell):**
+```powershell
+# Stream logs from the auth service
+az containerapp logs show `
+  --name copilot-auth-dev `
+  --resource-group copilot-dev-1197027393 `
+  --follow
+
+# Look for these success indicators:
+# ✓ "Initialized Azure Key Vault provider for https://..."
+# ✓ "JWT private key loaded and written to temp file"
+# ✓ "JWT public key loaded and written to temp file"
+# ✓ "Auth Service initialized with 0 providers"
+```
+
 ### Step 5: Test Auth Service Health
 
+**Linux/macOS (bash):**
 ```bash
 # Get the gateway FQDN
 GATEWAY_FQDN=$(az containerapp show \
@@ -110,6 +177,35 @@ curl https://${GATEWAY_FQDN}/auth/readyz
 # }
 ```
 
+**Windows (PowerShell):**
+```powershell
+# Get the gateway FQDN
+$GATEWAY_FQDN = az containerapp show `
+  --name copilot-gateway-dev `
+  --resource-group copilot-dev-1197027393 `
+  --query "properties.configuration.ingress.fqdn" `
+  --output tsv
+
+# Test auth service health endpoint (via gateway)
+Invoke-WebRequest -Uri "https://$GATEWAY_FQDN/auth/health" -UseBasicParsing
+
+# Expected response:
+# {
+#   "status": "healthy",
+#   "service": "auth",
+#   "version": "0.1.0",
+#   ...
+# }
+
+# Test readiness endpoint
+Invoke-WebRequest -Uri "https://$GATEWAY_FQDN/auth/readyz" -UseBasicParsing
+
+# Expected response:
+# {
+#   "status": "ready"
+# }
+```
+
 ## Troubleshooting
 
 ### Issue: Deployment Script Timeout
@@ -117,20 +213,38 @@ curl https://${GATEWAY_FQDN}/auth/readyz
 
 **Solution**:
 1. Check if RBAC permissions were assigned to the JWT keys identity:
-   ```bash
-   KEYVAULT_NAME=$(az keyvault list \
-     --resource-group copilot-dev-1197027393 \
-     --query "[0].name" -o tsv)
-   
-   JWT_IDENTITY_PRINCIPAL=$(az identity show \
-     --name copilot-dev-jwtkeys-id \
-     --resource-group copilot-dev-1197027393 \
-     --query "principalId" -o tsv)
-   
-   az role assignment list \
-     --scope /subscriptions/4d9deeb6-93a1-4e1c-a09c-2908cb82fd69/resourceGroups/copilot-dev-1197027393/providers/Microsoft.KeyVault/vaults/${KEYVAULT_NAME} \
-     --assignee ${JWT_IDENTITY_PRINCIPAL}
-   ```
+
+**Linux/macOS (bash):**
+```bash
+KEYVAULT_NAME=$(az keyvault list \
+  --resource-group copilot-dev-1197027393 \
+  --query "[0].name" -o tsv)
+
+JWT_IDENTITY_PRINCIPAL=$(az identity show \
+  --name copilot-dev-jwtkeys-id \
+  --resource-group copilot-dev-1197027393 \
+  --query "principalId" -o tsv)
+
+az role assignment list \
+  --scope /subscriptions/4d9deeb6-93a1-4e1c-a09c-2908cb82fd69/resourceGroups/copilot-dev-1197027393/providers/Microsoft.KeyVault/vaults/${KEYVAULT_NAME} \
+  --assignee ${JWT_IDENTITY_PRINCIPAL}
+```
+
+**Windows (PowerShell):**
+```powershell
+$KEYVAULT_NAME = az keyvault list `
+  --resource-group copilot-dev-1197027393 `
+  --query "[0].name" -o tsv
+
+$JWT_IDENTITY_PRINCIPAL = az identity show `
+  --name copilot-dev-jwtkeys-id `
+  --resource-group copilot-dev-1197027393 `
+  --query "principalId" -o tsv
+
+az role assignment list `
+  --scope /subscriptions/4d9deeb6-93a1-4e1c-a09c-2908cb82fd69/resourceGroups/copilot-dev-1197027393/providers/Microsoft.KeyVault/vaults/$KEYVAULT_NAME `
+  --assignee $JWT_IDENTITY_PRINCIPAL
+```
 
 2. Wait 5-10 minutes and retry the deployment
 
@@ -139,89 +253,175 @@ curl https://${GATEWAY_FQDN}/auth/readyz
 
 **Solution**:
 1. Verify AZURE_CLIENT_ID is set correctly:
-   ```bash
-   # Get the expected client ID
-   EXPECTED_CLIENT_ID=$(az identity show \
-     --name copilot-dev-auth-id \
-     --resource-group copilot-dev-1197027393 \
-     --query "clientId" -o tsv)
-   
-   # Get the actual client ID from container app
-   ACTUAL_CLIENT_ID=$(az containerapp show \
-     --name copilot-auth-dev \
-     --resource-group copilot-dev-1197027393 \
-     --query "properties.template.containers[0].env[?name=='AZURE_CLIENT_ID'].value" -o tsv)
-   
-   # Compare
-   echo "Expected: ${EXPECTED_CLIENT_ID}"
-   echo "Actual:   ${ACTUAL_CLIENT_ID}"
-   ```
+
+**Linux/macOS (bash):**
+```bash
+# Get the expected client ID
+EXPECTED_CLIENT_ID=$(az identity show \
+  --name copilot-dev-auth-id \
+  --resource-group copilot-dev-1197027393 \
+  --query "clientId" -o tsv)
+
+# Get the actual client ID from container app
+ACTUAL_CLIENT_ID=$(az containerapp show \
+  --name copilot-auth-dev \
+  --resource-group copilot-dev-1197027393 \
+  --query "properties.template.containers[0].env[?name=='AZURE_CLIENT_ID'].value" -o tsv)
+
+# Compare
+echo "Expected: ${EXPECTED_CLIENT_ID}"
+echo "Actual:   ${ACTUAL_CLIENT_ID}"
+```
+
+**Windows (PowerShell):**
+```powershell
+# Get the expected client ID
+$EXPECTED_CLIENT_ID = az identity show `
+  --name copilot-dev-auth-id `
+  --resource-group copilot-dev-1197027393 `
+  --query "clientId" -o tsv
+
+# Get the actual client ID from container app
+$ACTUAL_CLIENT_ID = az containerapp show `
+  --name copilot-auth-dev `
+  --resource-group copilot-dev-1197027393 `
+  --query "properties.template.containers[0].env[?name=='AZURE_CLIENT_ID'].value" -o tsv
+
+# Compare
+Write-Host "Expected: $EXPECTED_CLIENT_ID"
+Write-Host "Actual:   $ACTUAL_CLIENT_ID"
+```
 
 2. If they don't match or ACTUAL_CLIENT_ID is empty, restart the container app:
-   ```bash
-   az containerapp restart \
-     --name copilot-auth-dev \
-     --resource-group copilot-dev-1197027393
-   ```
+
+**Linux/macOS (bash):**
+```bash
+az containerapp restart \
+  --name copilot-auth-dev \
+  --resource-group copilot-dev-1197027393
+```
+
+**Windows (PowerShell):**
+```powershell
+az containerapp restart `
+  --name copilot-auth-dev `
+  --resource-group copilot-dev-1197027393
+```
 
 ### Issue: JWT Keys Not Found in Key Vault
 **Symptom**: Auth service reports "JWT keys not found in secrets store"
 
 **Solution**:
 1. Verify JWT keys exist in Key Vault:
-   ```bash
-   KEYVAULT_NAME=$(az keyvault list \
-     --resource-group copilot-dev-1197027393 \
-     --query "[0].name" -o tsv)
-   
-   az keyvault secret list \
-     --vault-name ${KEYVAULT_NAME} \
-     --query "[?name=='jwt-private-key' || name=='jwt-public-key'].{Name:name, Enabled:attributes.enabled}"
-   ```
+
+**Linux/macOS (bash):**
+```bash
+KEYVAULT_NAME=$(az keyvault list \
+  --resource-group copilot-dev-1197027393 \
+  --query "[0].name" -o tsv)
+
+az keyvault secret list \
+  --vault-name ${KEYVAULT_NAME} \
+  --query "[?name=='jwt-private-key' || name=='jwt-public-key'].{Name:name, Enabled:attributes.enabled}"
+```
+
+**Windows (PowerShell):**
+```powershell
+$KEYVAULT_NAME = az keyvault list `
+  --resource-group copilot-dev-1197027393 `
+  --query "[0].name" -o tsv
+
+az keyvault secret list `
+  --vault-name $KEYVAULT_NAME `
+  --query "[?name=='jwt-private-key' || name=='jwt-public-key'].{Name:name, Enabled:attributes.enabled}"
+```
 
 2. If keys don't exist, check deployment script logs:
-   ```bash
-   az deployment-scripts show \
-     --resource-group copilot-dev-1197027393 \
-     --name generate-jwt-keys \
-     --query "properties.outputs"
-   ```
+
+**Linux/macOS (bash):**
+```bash
+az deployment-scripts show \
+  --resource-group copilot-dev-1197027393 \
+  --name generate-jwt-keys \
+  --query "properties.outputs"
+```
+
+**Windows (PowerShell):**
+```powershell
+az deployment-scripts show `
+  --resource-group copilot-dev-1197027393 `
+  --name generate-jwt-keys `
+  --query "properties.outputs"
+```
 
 ### Issue: 403 Forbidden Errors in Logs
 **Symptom**: Auth service logs show "403 Forbidden" when accessing Key Vault
 
 **Solution**:
 1. Verify the auth identity has Key Vault access:
-   ```bash
-   # For RBAC-enabled Key Vault
-   az role assignment list \
-     --scope /subscriptions/4d9deeb6-93a1-4e1c-a09c-2908cb82fd69/resourceGroups/copilot-dev-1197027393/providers/Microsoft.KeyVault/vaults/${KEYVAULT_NAME} \
-     --assignee $(az identity show --name copilot-dev-auth-id --resource-group copilot-dev-1197027393 --query "principalId" -o tsv)
-   ```
+
+**Linux/macOS (bash):**
+```bash
+# For RBAC-enabled Key Vault
+az role assignment list \
+  --scope /subscriptions/4d9deeb6-93a1-4e1c-a09c-2908cb82fd69/resourceGroups/copilot-dev-1197027393/providers/Microsoft.KeyVault/vaults/${KEYVAULT_NAME} \
+  --assignee $(az identity show --name copilot-dev-auth-id --resource-group copilot-dev-1197027393 --query "principalId" -o tsv)
+```
+
+**Windows (PowerShell):**
+```powershell
+# For RBAC-enabled Key Vault
+$authPrincipal = az identity show --name copilot-dev-auth-id --resource-group copilot-dev-1197027393 --query "principalId" -o tsv
+az role assignment list `
+  --scope /subscriptions/4d9deeb6-93a1-4e1c-a09c-2908cb82fd69/resourceGroups/copilot-dev-1197027393/providers/Microsoft.KeyVault/vaults/$KEYVAULT_NAME `
+  --assignee $authPrincipal
+```
 
 2. Grant access if missing:
-   ```bash
-   # Get auth identity principal ID
-   AUTH_PRINCIPAL_ID=$(az identity show \
-     --name copilot-dev-auth-id \
-     --resource-group copilot-dev-1197027393 \
-     --query "principalId" -o tsv)
-   
-   # Grant Key Vault Secrets User role
-   az role assignment create \
-     --role "Key Vault Secrets User" \
-     --assignee ${AUTH_PRINCIPAL_ID} \
-     --scope /subscriptions/4d9deeb6-93a1-4e1c-a09c-2908cb82fd69/resourceGroups/copilot-dev-1197027393/providers/Microsoft.KeyVault/vaults/${KEYVAULT_NAME}
-   
-   # Wait 5 minutes for propagation, then restart auth service
-   sleep 300
-   az containerapp restart --name copilot-auth-dev --resource-group copilot-dev-1197027393
-   ```
+
+**Linux/macOS (bash):**
+```bash
+# Get auth identity principal ID
+AUTH_PRINCIPAL_ID=$(az identity show \
+  --name copilot-dev-auth-id \
+  --resource-group copilot-dev-1197027393 \
+  --query "principalId" -o tsv)
+
+# Grant Key Vault Secrets User role
+az role assignment create \
+  --role "Key Vault Secrets User" \
+  --assignee ${AUTH_PRINCIPAL_ID} \
+  --scope /subscriptions/4d9deeb6-93a1-4e1c-a09c-2908cb82fd69/resourceGroups/copilot-dev-1197027393/providers/Microsoft.KeyVault/vaults/${KEYVAULT_NAME}
+
+# Wait 5 minutes for propagation, then restart auth service
+sleep 300
+az containerapp restart --name copilot-auth-dev --resource-group copilot-dev-1197027393
+```
+
+**Windows (PowerShell):**
+```powershell
+# Get auth identity principal ID
+$AUTH_PRINCIPAL_ID = az identity show `
+  --name copilot-dev-auth-id `
+  --resource-group copilot-dev-1197027393 `
+  --query "principalId" -o tsv
+
+# Grant Key Vault Secrets User role
+az role assignment create `
+  --role "Key Vault Secrets User" `
+  --assignee $AUTH_PRINCIPAL_ID `
+  --scope /subscriptions/4d9deeb6-93a1-4e1c-a09c-2908cb82fd69/resourceGroups/copilot-dev-1197027393/providers/Microsoft.KeyVault/vaults/$KEYVAULT_NAME
+
+# Wait 5 minutes for propagation, then restart auth service
+Start-Sleep -Seconds 300
+az containerapp restart --name copilot-auth-dev --resource-group copilot-dev-1197027393
+```
 
 ## Rollback Procedure
 
 If the deployment causes issues, you can rollback to the previous deployment:
 
+**Linux/macOS (bash):**
 ```bash
 # List recent deployments
 az deployment group list \
@@ -234,6 +434,22 @@ az deployment group create \
   --resource-group copilot-dev-1197027393 \
   --template-file main.bicep \
   --parameters parameters.dev.json \
+  --mode Incremental
+```
+
+**Windows (PowerShell):**
+```powershell
+# List recent deployments
+az deployment group list `
+  --resource-group copilot-dev-1197027393 `
+  --query "[].{Name:name, State:properties.provisioningState, Timestamp:properties.timestamp}" `
+  --output table
+
+# Redeploy a previous successful deployment
+az deployment group create `
+  --resource-group copilot-dev-1197027393 `
+  --template-file main.bicep `
+  --parameters parameters.dev.json `
   --mode Incremental
 ```
 

@@ -112,11 +112,21 @@ Other services receive Key Vault secrets via the Container Apps platform's built
 
 ### 1. Check Managed Identity Configuration
 
+**Linux/macOS (bash):**
 ```bash
 # View the Container App's managed identity
 az containerapp show \
   --name copilot-auth-dev \
   --resource-group copilot-dev-1197027393 \
+  --query "identity"
+```
+
+**Windows (PowerShell):**
+```powershell
+# View the Container App's managed identity
+az containerapp show `
+  --name copilot-auth-dev `
+  --resource-group copilot-dev-1197027393 `
   --query "identity"
 ```
 
@@ -135,6 +145,7 @@ Expected output should show:
 
 ### 2. Check Environment Variables
 
+**Linux/macOS (bash):**
 ```bash
 # View the Container App's environment variables
 az containerapp show \
@@ -143,10 +154,20 @@ az containerapp show \
   --query "properties.template.containers[0].env"
 ```
 
+**Windows (PowerShell):**
+```powershell
+# View the Container App's environment variables
+az containerapp show `
+  --name copilot-auth-dev `
+  --resource-group copilot-dev-1197027393 `
+  --query "properties.template.containers[0].env"
+```
+
 Verify that `AZURE_CLIENT_ID` is present and matches the `clientId` from step 1.
 
 ### 3. Check Key Vault Access
 
+**Linux/macOS (bash):**
 ```bash
 # Verify the managed identity has access to Key Vault
 az keyvault show \
@@ -162,13 +183,39 @@ az role assignment list \
   --assignee <principal-id>
 ```
 
+**Windows (PowerShell):**
+```powershell
+# Verify the managed identity has access to Key Vault
+az keyvault show `
+  --name <keyvault-name> `
+  --query "properties.accessPolicies[?objectId=='<principal-id>']"
+```
+
+For RBAC-enabled Key Vaults:
+```powershell
+# Check role assignments
+az role assignment list `
+  --scope /subscriptions/<subscription-id>/resourceGroups/<rg>/providers/Microsoft.KeyVault/vaults/<vault-name> `
+  --assignee <principal-id>
+```
+
 ### 4. Test JWT Key Access
 
 Once deployed, check the Container App logs:
+
+**Linux/macOS (bash):**
 ```bash
 az containerapp logs show \
   --name copilot-auth-dev \
   --resource-group copilot-dev-1197027393 \
+  --follow
+```
+
+**Windows (PowerShell):**
+```powershell
+az containerapp logs show `
+  --name copilot-auth-dev `
+  --resource-group copilot-dev-1197027393 `
   --follow
 ```
 
@@ -188,18 +235,36 @@ INFO: Auth Service initialized with 0 providers
 **Solution:**
 1. Enable RBAC authorization on Key Vault (recommended)
 2. Grant the managed identity the "Key Vault Secrets User" role:
-   ```bash
-   az role assignment create \
-     --role "Key Vault Secrets User" \
-     --assignee <principal-id> \
-     --scope /subscriptions/<sub-id>/resourceGroups/<rg>/providers/Microsoft.KeyVault/vaults/<vault-name>
-   ```
+
+**Linux/macOS (bash):**
+```bash
+az role assignment create \
+  --role "Key Vault Secrets User" \
+  --assignee <principal-id> \
+  --scope /subscriptions/<sub-id>/resourceGroups/<rg>/providers/Microsoft.KeyVault/vaults/<vault-name>
+```
 
 Or use access policies (legacy):
 ```bash
 az keyvault set-policy \
   --name <vault-name> \
   --object-id <principal-id> \
+  --secret-permissions get list
+```
+
+**Windows (PowerShell):**
+```powershell
+az role assignment create `
+  --role "Key Vault Secrets User" `
+  --assignee <principal-id> `
+  --scope /subscriptions/<sub-id>/resourceGroups/<rg>/providers/Microsoft.KeyVault/vaults/<vault-name>
+```
+
+Or use access policies (legacy):
+```powershell
+az keyvault set-policy `
+  --name <vault-name> `
+  --object-id <principal-id> `
   --secret-permissions get list
 ```
 
@@ -221,9 +286,16 @@ az keyvault set-policy \
 - Python code uses **underscore-separated names**: `jwt_private_key`, `jwt_public_key`
 - The `AzureKeyVaultProvider` automatically converts underscores to hyphens
 - Verify secrets exist in Key Vault:
-  ```bash
-  az keyvault secret list --vault-name <vault-name> --query "[].name"
-  ```
+
+**Linux/macOS (bash):**
+```bash
+az keyvault secret list --vault-name <vault-name> --query "[].name"
+```
+
+**Windows (PowerShell):**
+```powershell
+az keyvault secret list --vault-name <vault-name> --query "[].name"
+```
 
 ## Best Practices
 
