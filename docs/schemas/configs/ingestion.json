@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "service_name": "ingestion",
+  "schema_version": "1.0.0",
+  "min_service_version": "0.1.0",
+  "metadata": {
+    "description": "Ingestion service configuration schema",
+    "version": "1.0.0"
+  },
+  "fields": {
+    "storage_path": {
+      "type": "string",
+      "source": "env",
+      "env_var": "STORAGE_PATH",
+      "default": "/data/raw_archives",
+      "description": "Path to store downloaded archives"
+    },
+    "message_bus_user": {
+      "type": "string",
+      "source": "secret",
+      "secret_name": "message_bus_user",
+      "required": false,
+      "description": "Username for message bus (secret)"
+    },
+    "message_bus_password": {
+      "type": "string",
+      "source": "secret",
+      "secret_name": "message_bus_password",
+      "required": false,
+      "description": "Password for message bus (secret)"
+    },
+    "message_bus_type": {
+      "type": "string",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_TYPE",
+      "default": "rabbitmq",
+      "description": "Message bus type (rabbitmq, service_bus)"
+    },
+    "message_bus_host": {
+      "type": "string",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_HOST",
+      "default": "localhost",
+      "description": "Message bus host"
+    },
+    "message_bus_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "MESSAGE_BUS_PORT",
+      "default": 5672,
+      "description": "Message bus port"
+    },
+    "ingestion_schedule_cron": {
+      "type": "string",
+      "source": "env",
+      "env_var": "INGESTION_SCHEDULE_CRON",
+      "default": "0 */6 * * *",
+      "description": "Cron schedule for ingestion"
+    },
+    "blob_storage_enabled": {
+      "type": "bool",
+      "source": "env",
+      "env_var": "BLOB_STORAGE_ENABLED",
+      "default": false,
+      "description": "Enable blob storage"
+    },
+    "blob_storage_connection_string": {
+      "type": "string",
+      "source": "env",
+      "env_var": "BLOB_STORAGE_CONNECTION_STRING",
+      "default": "",
+      "description": "Blob storage connection string"
+    },
+    "blob_storage_container": {
+      "type": "string",
+      "source": "env",
+      "env_var": "BLOB_STORAGE_CONTAINER",
+      "default": "raw-archives",
+      "description": "Blob storage container name"
+    },
+    "log_level": {
+      "type": "string",
+      "source": "env",
+      "env_var": "LOG_LEVEL",
+      "default": "INFO",
+      "description": "Logging level"
+    },
+    "log_type": {
+      "type": "string",
+      "source": "env",
+      "env_var": "LOG_TYPE",
+      "default": "stdout",
+      "description": "Logging type (stdout, json)"
+    },
+    "logger_name": {
+      "type": "string",
+      "source": "env",
+      "env_var": "LOG_NAME",
+      "default": "ingestion-service",
+      "description": "Logger name"
+    },
+    "metrics_backend": {
+      "type": "string",
+      "source": "env",
+      "env_var": "METRICS_BACKEND",
+      "default": "noop",
+      "description": "Metrics backend (prometheus, noop)"
+    },
+    "retry_max_attempts": {
+      "type": "int",
+      "source": "env",
+      "env_var": "RETRY_MAX_ATTEMPTS",
+      "default": 3,
+      "description": "Maximum retry attempts"
+    },
+    "retry_backoff_seconds": {
+      "type": "int",
+      "source": "env",
+      "env_var": "RETRY_BACKOFF_SECONDS",
+      "default": 60,
+      "description": "Retry backoff in seconds"
+    },
+    "error_reporter_type": {
+      "type": "string",
+      "source": "env",
+      "env_var": "ERROR_REPORTER_TYPE",
+      "default": "console",
+      "description": "Error reporter type (console, silent, sentry)"
+    },
+    "sentry_dsn": {
+      "type": "string",
+      "source": "env",
+      "env_var": "SENTRY_DSN",
+      "default": "",
+      "description": "Sentry DSN for error reporting"
+    },
+    "sentry_environment": {
+      "type": "string",
+      "source": "env",
+      "env_var": "SENTRY_ENVIRONMENT",
+      "default": "production",
+      "description": "Sentry environment"
+    },
+    "doc_store_user": {
+      "type": "string",
+      "source": "secret",
+      "secret_name": "document_database_user",
+      "required": false,
+      "description": "Username for document database (secret)"
+    },
+    "doc_store_password": {
+      "type": "string",
+      "source": "secret",
+      "secret_name": "document_database_password",
+      "required": false,
+      "description": "Password for document database (secret)"
+    },
+    "doc_store_type": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOCUMENT_STORE_TYPE",
+      "default": "mongodb",
+      "description": "Document store type (mongodb, inmemory)"
+    },
+    "doc_store_host": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOCUMENT_DATABASE_HOST",
+      "default": "localhost",
+      "description": "Document store host"
+    },
+    "doc_store_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "DOCUMENT_DATABASE_PORT",
+      "default": 27017,
+      "description": "Document store port"
+    },
+    "doc_store_name": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOCUMENT_DATABASE_NAME",
+      "default": "copilot",
+      "description": "Document store database name"
+    },
+    "doc_store_user": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOCUMENT_DATABASE_USER",
+      "default": "root",
+      "description": "Document store username"
+    },
+    "doc_store_password": {
+      "type": "string",
+      "source": "env",
+      "env_var": "DOCUMENT_DATABASE_PASSWORD",
+      "default": "example",
+      "description": "Document store password"
+    },
+    "jwt_auth_enabled": {
+      "type": "bool",
+      "source": "env",
+      "env_var": "JWT_AUTH_ENABLED",
+      "default": true,
+      "description": "Enable JWT authentication middleware"
+    },
+    "sources": {
+      "type": "list",
+      "source": "storage",
+      "storage_collection": "sources",
+      "default": [],
+      "description": "List of mail archive sources to ingest (loaded from document store)",
+      "item_schema": {
+        "type": "object",
+        "required": ["name", "source_type", "url", "enabled"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Unique name for the source"
+          },
+          "source_type": {
+            "type": "string",
+            "enum": ["rsync", "imap", "http", "local"],
+            "description": "Type of source (rsync, imap, http)"
+          },
+          "url": {
+            "type": "string",
+            "description": "URL or hostname of the source"
+          },
+          "enabled": {
+            "type": "bool",
+            "description": "Whether this source is enabled for ingestion"
+          },
+          "port": {
+            "type": "int",
+            "description": "Port number (for IMAP sources)",
+            "optional": true
+          },
+          "username": {
+            "type": "string",
+            "description": "Username (for IMAP sources)",
+            "optional": true
+          },
+          "password": {
+            "type": "string",
+            "description": "Password (for IMAP sources)",
+            "optional": true
+          },
+          "folder": {
+            "type": "string",
+            "description": "Folder name (for IMAP sources)",
+            "optional": true
+          }
+        }
+      }
+    }
+  }
+}

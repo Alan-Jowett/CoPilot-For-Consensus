@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/events/summarization-requested.schema.json",
+  "title": "SummarizationRequested Event",
+  "allOf": [
+    { "$ref": "./event-envelope.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "event_type": { "const": "SummarizationRequested" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "thread_ids": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[0-9a-f]{16,64}$" },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "top_k": { "type": "integer", "minimum": 1 },
+            "llm_backend": { "type": "string", "minLength": 1 },
+            "llm_model": { "type": "string", "minLength": 1 },
+            "context_window_tokens": { "type": "integer", "minimum": 1 },
+            "prompt_template": { "type": "string", "minLength": 1 }
+          },
+          "required": [
+            "thread_ids",
+            "top_k",
+            "llm_backend",
+            "llm_model",
+            "context_window_tokens",
+            "prompt_template"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["event_type", "event_id", "timestamp", "version", "data"],
+      "additionalProperties": false
+    }
+  ]
+}
