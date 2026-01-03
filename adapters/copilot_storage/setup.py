@@ -32,6 +32,7 @@ setup(
     install_requires=[
         "pymongo>=4.6.3",  # MongoDB client
         "azure-cosmos>=4.5.0",  # Azure Cosmos DB client
+        "azure-identity>=1.12.0",  # Azure managed identity support
     ],
     extras_require={
         "dev": [

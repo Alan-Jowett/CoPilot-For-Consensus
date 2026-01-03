@@ -96,15 +96,34 @@ class TestAzureCosmosDocumentStore:
         with pytest.raises(DocumentStoreConnectionError, match="endpoint is required"):
             store.connect()
 
-    def test_connect_missing_key(self):
-        """Test that connect() raises error when key is missing."""
+    @patch("azure.identity.DefaultAzureCredential")
+    @patch("azure.cosmos.CosmosClient")
+    def test_connect_missing_key_uses_managed_identity(self, mock_cosmos_client, mock_credential):
+        """Test that connect() uses managed identity when key is missing."""
+        mock_cred_instance = MagicMock()
+        mock_credential.return_value = mock_cred_instance
+        
+        mock_client_instance = MagicMock()
+        mock_database = MagicMock()
+        mock_container = MagicMock()
+        
+        mock_cosmos_client.return_value = mock_client_instance
+        mock_client_instance.create_database_if_not_exists.return_value = mock_database
+        mock_database.create_container_if_not_exists.return_value = mock_container
+        
         store = AzureCosmosDocumentStore(
             endpoint="https://test.documents.azure.com:443/",
             key=None
         )
-
-        with pytest.raises(DocumentStoreConnectionError, match="key is required"):
-            store.connect()
+        
+        store.connect()
+        
+        # Verify DefaultAzureCredential was used
+        mock_credential.assert_called_once()
+        mock_cosmos_client.assert_called_once_with(
+            "https://test.documents.azure.com:443/",
+            credential=mock_cred_instance
+        )
 
     @patch("azure.cosmos.CosmosClient")
     def test_connect_success(self, mock_cosmos_client):
