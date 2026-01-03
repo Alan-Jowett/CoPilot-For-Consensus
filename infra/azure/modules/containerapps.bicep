@@ -198,7 +198,6 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        // Gateway should stay warm to serve external traffic
         minReplicas: 1
         maxReplicas: 2
       }
@@ -277,7 +276,6 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        // Keep UI warm so gateway can always route
         minReplicas: 1
         maxReplicas: 2
       }
