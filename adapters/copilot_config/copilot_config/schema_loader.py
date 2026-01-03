@@ -30,8 +30,8 @@ def _resolve_schema_directory(schema_dir: str | None = None) -> str:
 
     # Try common locations relative to current working directory
     possible_dirs = [
-        os.path.join(os.getcwd(), "documents", "schemas", "configs"),
-        os.path.join(os.getcwd(), "..", "documents", "schemas", "configs"),
+        os.path.join(os.getcwd(), "docs", "schemas", "configs"),
+        os.path.join(os.getcwd(), "..", "docs", "schemas", "configs"),
     ]
 
     for d in possible_dirs:
@@ -453,8 +453,8 @@ def _load_config(
             if schema_dir is None:
                 # Try common locations relative to current working directory
                 possible_dirs = [
-                    os.path.join(os.getcwd(), "documents", "schemas", "configs"),
-                    os.path.join(os.getcwd(), "..", "documents", "schemas", "configs"),
+                    os.path.join(os.getcwd(), "docs", "schemas", "configs"),
+                    os.path.join(os.getcwd(), "..", "docs", "schemas", "configs"),
                 ]
 
                 for d in possible_dirs:
