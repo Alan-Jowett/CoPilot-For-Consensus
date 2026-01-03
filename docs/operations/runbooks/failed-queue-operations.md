@@ -23,7 +23,7 @@ Platform/SRE monitors thresholds, alerts, and maintains tooling.
 - Messages landing in failed queues require manual action.
 
 ## Failed Event Shape
-Contains original event data plus `error_message`, `error_type`, `retry_count`, `failed_at`. See `documents/schemas/events/*Failed.schema.json` for details.
+Contains original event data plus `error_message`, `error_type`, `retry_count`, `failed_at`. See `docs/schemas/events/*Failed.schema.json` for details.
 
 ## Procedures
 ### Monitor
@@ -74,4 +74,4 @@ UI: Queues → failed queue → Purge/Delete.
 ## References
 - Retry policy: [docs/operations/retry-policy.md](../retry-policy.md)
 - Service monitoring: [docs/observability/service-monitoring.md](../../observability/service-monitoring.md)
-- Failed queue schemas: `documents/schemas/events/*Failed.schema.json`
+- Failed queue schemas: `docs/schemas/events/*Failed.schema.json`

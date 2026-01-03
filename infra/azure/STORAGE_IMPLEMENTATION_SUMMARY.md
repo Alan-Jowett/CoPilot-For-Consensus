@@ -242,7 +242,7 @@ Total additional infrastructure cost: **~$26-50/month for dev, $250+/month for p
 - Cosmos module: `infra/azure/modules/cosmos.bicep`
 - Main template: `infra/azure/main.bicep`
 - Design docs: `infra/azure/COSMOS_DB_DESIGN.md`, `infra/azure/BICEP_ARCHITECTURE.md`
-- Schema configs: `documents/schemas/documents/collections.config.json`
+- Schema configs: `docs/schemas/documents/collections.config.json`
 - Python adapters: `adapters/copilot_storage/`, `adapters/copilot_archive_store/`
 
 ## Acceptance Criteria Met

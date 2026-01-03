@@ -45,7 +45,7 @@ from copilot_schema_validation import get_schema_path
 
 # Get the absolute path to a schema file
 path = get_schema_path("Archive", "v1")
-# Returns: "/path/to/documents/schemas/documents/archives.schema.json"
+# Returns: "/path/to/docs/schemas/documents/archives.schema.json"
 ```
 
 ### Listing All Schemas
@@ -121,7 +121,7 @@ Output:
 ```
 Schema: ArchiveIngested (version v1)
   Relative path: events/ArchiveIngested.schema.json
-  Absolute path: /path/to/documents/schemas/events/ArchiveIngested.schema.json
+  Absolute path: /path/to/docs/schemas/events/ArchiveIngested.schema.json
   Exists: ✓
   Title: ArchiveIngested Event
   Schema ID: https://alan-jowett.github.io/...
@@ -130,7 +130,7 @@ Schema: ArchiveIngested (version v1)
 ### Generate Markdown Documentation
 
 ```bash
-python3 scripts/validate_schema_registry.py markdown > documents/SCHEMAS.md
+python3 scripts/validate_schema_registry.py markdown > docs/SCHEMAS.md
 ```
 
 This generates a formatted markdown document with all registered schemas organized by category.
@@ -152,9 +152,9 @@ Example registry keys:
 To register a new schema:
 
 1. **Add the schema file** to the appropriate directory:
-   - Events: `documents/schemas/events/`
-   - Documents: `documents/schemas/documents/`
-   - Role store: `documents/schemas/role_store/`
+   - Events: `docs/schemas/events/`
+   - Documents: `docs/schemas/documents/`
+   - Role store: `docs/schemas/role_store/`
 
 2. **Register in `schema_registry.py`**:
    ```python
@@ -181,7 +181,7 @@ When evolving schemas to new versions:
 
 1. **Create the new schema file** with version suffix (if organizing by version):
    ```
-   documents/schemas/events/v2/ArchiveIngested.schema.json
+   docs/schemas/events/v2/ArchiveIngested.schema.json
    ```
 
 2. **Register both versions**:
@@ -283,6 +283,6 @@ When adding new schemas or modifying the registry:
 
 ## Related Documentation
 
-- [Schema Versioning Guide](../documents/SCHEMAS.md) - Auto-generated list of all schemas
-- [Event Envelope Schema](../documents/schemas/events/event-envelope.schema.json)
+- [Schema Versioning Guide](../docs/SCHEMAS.md) - Auto-generated list of all schemas
+- [Event Envelope Schema](../docs/schemas/events/event-envelope.schema.json)
 - [Architecture Documentation](../docs/architecture/overview.md)

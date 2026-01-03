@@ -161,8 +161,8 @@ def main():
 
         # Wrap with schema validation
         # Create schema providers for event and document validation
-        # Events use schemas from documents/schemas/events/
-        # Documents use schemas from documents/schemas/documents/
+        # Events use schemas from docs/schemas/events/
+        # Documents use schemas from docs/schemas/documents/
         event_schema_provider = FileSchemaProvider()
         document_schema_provider = FileSchemaProvider(
             schema_dir=Path(__file__).parent / "documents" / "schemas" / "documents"

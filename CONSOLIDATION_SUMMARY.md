@@ -81,7 +81,7 @@ This consolidation **unified all substantial content into `docs/`** with a coher
 - ✅ `docs/schemas/README.md` - Schema overview + organization
 - ✅ `docs/schemas/data-storage.md` - Database + message bus schemas
 - ✅ `docs/schemas/schema-versioning.md` - Version management strategy
-- **JSON files**: Stay in documents/schemas/ (configs, documents, events, role_store)
+- **JSON files**: Moved to docs/schemas/ (configs, documents, events, role_store)
 
 #### 9. API Documentation
 - ✅ `docs/openapi.md` - Hybrid OpenAPI workflow (spec-first gateway, code-first services)
@@ -201,13 +201,13 @@ All major documentation entry points updated to point to `docs/`:
 
 ## What Remains
 
-### In documents/ (Still Valid)
-1. **JSON Schemas** (documents/schemas/)
+### In docs/schemas/ (Previously in documents/schemas/)
+1. **JSON Schemas** (docs/schemas/)
    - configs.schema.json
    - documents.schema.json
    - events.schema.json
    - role_store.schema.json
-   - These are developer-facing reference files; no consolidation needed
+   - These are developer-facing reference files; consolidated to docs/schemas/
 
 2. **Specialist/Reference Docs** (for future consolidation or deprecation)
    - CI_TEST_TIMEOUTS.md - CI timeout reference

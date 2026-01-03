@@ -32,7 +32,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -e /app/adapters/copilot_vectorstore[qdrant]
 
 # Copy schema files for validation
-COPY documents/schemas /app/documents/schemas
+COPY docs/schemas /app/docs/schemas
 
 # Install service dependencies with cache mount
 COPY summarization/requirements.txt .

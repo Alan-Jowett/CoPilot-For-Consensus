@@ -27,23 +27,23 @@ Instead of creating separate containers for each document type, we use a **singl
 The following logical collections are stored in the `documents` container:
 
 1. **archives**: Raw email archive metadata
-   - Schema: `/documents/schemas/documents/v1/archives.schema.json`
+   - Schema: `/docs/schemas/documents/v1/archives.schema.json`
    - Common queries: by source, ingestion_date, status
 
 2. **messages**: Individual email messages extracted from archives
-   - Schema: `/documents/schemas/documents/v1/messages.schema.json`
+   - Schema: `/docs/schemas/documents/v1/messages.schema.json`
    - Common queries: by message_id, archive_id, thread_id, date
 
 3. **chunks**: Semantic chunks generated from messages
-   - Schema: `/documents/schemas/documents/v1/chunks.schema.json`
+   - Schema: `/docs/schemas/documents/v1/chunks.schema.json`
    - Common queries: by message_id, thread_id, embedding_generated
 
 4. **threads**: Email conversation threads
-   - Schema: `/documents/schemas/documents/v1/threads.schema.json`
+   - Schema: `/docs/schemas/documents/v1/threads.schema.json`
    - Common queries: by archive_id, date ranges, draft_mentions, consensus flags
 
 5. **summaries**: Generated summaries for threads
-   - Schema: `/documents/schemas/documents/v1/summaries.schema.json`
+   - Schema: `/docs/schemas/documents/v1/summaries.schema.json`
    - Common queries: by thread_id, summary_type, generated_at
 
 ### Document Structure Example
@@ -191,5 +191,5 @@ This migration can be done incrementally using Azure Data Factory or custom migr
 - [Cosmos DB Partitioning Best Practices](https://learn.microsoft.com/en-us/azure/cosmos-db/partitioning-overview)
 - [Cosmos DB Indexing Policies](https://learn.microsoft.com/en-us/azure/cosmos-db/index-policy)
 - [Cosmos DB Autoscale Throughput](https://learn.microsoft.com/en-us/azure/cosmos-db/provision-throughput-autoscale)
-- Schema definitions: `/documents/schemas/documents/v1/`
-- Collection configuration: `/documents/schemas/documents/collections.config.json`
+- Schema definitions: `/docs/schemas/documents/v1/`
+- Collection configuration: `/docs/schemas/documents/collections.config.json`

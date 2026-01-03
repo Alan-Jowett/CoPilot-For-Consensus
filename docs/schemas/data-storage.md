@@ -3,7 +3,7 @@
 
 # Data Storage Schema
 
-High-level schema for the document database (MongoDB/Cosmos) and vector store (Qdrant/FAISS/Azure Cognitive Search). JSON schemas remain the source of truth under [documents/schemas](../../documents/schemas).
+High-level schema for the document database (MongoDB/Cosmos) and vector store (Qdrant/FAISS/Azure Cognitive Search). JSON schemas remain the source of truth under [docs/schemas](../../docs/schemas).
 
 ## Stores and identifiers
 - Document DB: canonical store for archives, messages, threads, chunks, and summaries.
@@ -25,7 +25,7 @@ High-level schema for the document database (MongoDB/Cosmos) and vector store (Q
 - **Use**: Enables filtering (by thread, archive, draft, sender), preserves ordering via `chunk_index`, and keeps provenance for retrieval-augmented generation.
 
 ## Message bus event schemas
-Event JSON schemas live under [documents/schemas/events](../../documents/schemas/events). Headings below keep legacy anchors for service README links; use them as a quick payload summary and follow the JSON for exact fields.
+Event JSON schemas live under [docs/schemas/events](../../docs/schemas/events). Headings below keep legacy anchors for service README links; use them as a quick payload summary and follow the JSON for exact fields.
 
 - Envelope: `event-envelope.schema.json` describes common metadata used by all events.
 
@@ -78,6 +78,6 @@ Event JSON schemas live under [documents/schemas/events](../../documents/schemas
 - Retrieval path: Vector search → payload.chunk_id → `chunks` → `messages`; reverse lookup: `messages.message_id` → chunks → embeddings.
 
 ## Operational guidance
-- Validate changes against JSON schemas in [documents/schemas](../../documents/schemas); bump `metadata.version` there when altering contracts.
+- Validate changes against JSON schemas in [docs/schemas](../../docs/schemas); bump `metadata.version` there when altering contracts.
 - Keep indexes aligned with retry and observability queries (`status`, `lastUpdated`), and avoid removing optional fields without migration handling.
 - For new fields, keep cardinality bounded (especially labels used in metrics) and update both document DB schemas and vector payload filters accordingly.
