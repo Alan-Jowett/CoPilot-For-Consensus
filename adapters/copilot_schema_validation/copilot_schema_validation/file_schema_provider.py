@@ -29,7 +29,7 @@ class FileSchemaProvider(SchemaProvider):
             # Default to repository schema location
             # Path: adapters/copilot_schema_validation/copilot_schema_validation/file_schema_provider.py
             # Go up 4 levels to reach repo root
-            schema_dir = Path(__file__).parent.parent.parent.parent / "documents" / "schemas" / "events"
+            schema_dir = Path(__file__).parent.parent.parent.parent / "docs" / "schemas" / "events"
 
         self.schema_dir = Path(schema_dir)
         if not self.schema_dir.exists():
