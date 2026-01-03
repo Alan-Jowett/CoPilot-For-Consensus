@@ -15,7 +15,7 @@ class TestFileSchemaProvider:
     def test_default_schema_dir(self):
         """Test that default schema directory is set correctly."""
         provider = FileSchemaProvider()
-        # Should default to documents/schemas/events relative to repo root
+        # Should default to docs/schemas/events relative to repo root
         assert provider.schema_dir is not None
         assert "events" in str(provider.schema_dir)
 

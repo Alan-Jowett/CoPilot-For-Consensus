@@ -23,7 +23,7 @@ class FileSchemaProvider(SchemaProvider):
 
         Args:
             schema_dir: Directory containing schema files. If None, defaults to
-                       the documents/schemas/events directory in the repository.
+                       the docs/schemas/events directory in the repository.
         """
         if schema_dir is None:
             # Default to repository schema location
