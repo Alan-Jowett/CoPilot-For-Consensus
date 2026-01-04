@@ -195,6 +195,8 @@ def main():
 
         if backend_type == "faiss":
             # Validate required config attributes
+            if not hasattr(config, "embedding_dimension"):
+                raise ValueError("embedding_dimension configuration is required for FAISS backend")
             if not hasattr(config, "vector_store_index_type"):
                 raise ValueError("vector_store_index_type configuration is required for FAISS backend")
 
@@ -205,7 +207,7 @@ def main():
             })
         elif backend_type == "qdrant":
             # Validate required config attributes
-            required_attrs = ["vector_store_host", "vector_store_port", "vector_store_collection",
+            required_attrs = ["embedding_dimension", "vector_store_host", "vector_store_port", "vector_store_collection",
                             "vector_store_distance", "vector_store_batch_size"]
             missing = [attr for attr in required_attrs if not hasattr(config, attr)]
             if missing:
