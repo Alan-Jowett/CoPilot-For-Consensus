@@ -343,6 +343,9 @@ class AzureCosmosDocumentStore(DocumentStore):
             )
             return items
 
+        except DocumentStoreError:
+            # Re-raise our own validation errors without wrapping
+            raise
         except cosmos_exceptions.CosmosHttpResponseError as e:
             if e.status_code == 429:
                 logger.warning(f"AzureCosmosDocumentStore: throttled during query - {e}")

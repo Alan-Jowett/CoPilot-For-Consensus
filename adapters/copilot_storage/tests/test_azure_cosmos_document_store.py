@@ -420,6 +420,29 @@ class TestAzureCosmosDocumentStore:
         assert "c.age = @param0" in query
         assert "c.city = @param1" in query
 
+    def test_query_documents_invalid_limit(self):
+        """Test that query with invalid limit raises error without wrapping."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock connected state
+        mock_container = MagicMock()
+        store.container = mock_container
+
+        # Test with non-integer limit
+        with pytest.raises(DocumentStoreError, match="Invalid limit value"):
+            store.query_documents("users", {"age": 30}, limit="invalid")
+
+        # Test with negative limit
+        with pytest.raises(DocumentStoreError, match="Invalid limit value"):
+            store.query_documents("users", {"age": 30}, limit=-1)
+
+        # Test with zero limit
+        with pytest.raises(DocumentStoreError, match="Invalid limit value"):
+            store.query_documents("users", {"age": 30}, limit=0)
+
     def test_update_document_not_connected(self):
         """Test that update fails when not connected."""
         store = AzureCosmosDocumentStore(
