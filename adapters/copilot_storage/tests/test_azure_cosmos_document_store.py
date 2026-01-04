@@ -645,6 +645,41 @@ class TestAzureCosmosDocumentStore:
         results = store.aggregate_documents("messages", pipeline)
         assert isinstance(results, list)
 
+    def test_aggregate_documents_invalid_limit(self):
+        """Test that aggregation with invalid limit raises error."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock connected state
+        mock_container = MagicMock()
+        store.container = mock_container
+
+        # Test with non-integer limit
+        pipeline = [
+            {"$match": {"status": "pending"}},
+            {"$limit": "invalid"}
+        ]
+        with pytest.raises(DocumentStoreError, match="Invalid limit value"):
+            store.aggregate_documents("messages", pipeline)
+
+        # Test with negative limit
+        pipeline = [
+            {"$match": {"status": "pending"}},
+            {"$limit": -1}
+        ]
+        with pytest.raises(DocumentStoreError, match="Invalid limit value"):
+            store.aggregate_documents("messages", pipeline)
+
+        # Test with zero limit
+        pipeline = [
+            {"$match": {"status": "pending"}},
+            {"$limit": 0}
+        ]
+        with pytest.raises(DocumentStoreError, match="Invalid limit value"):
+            store.aggregate_documents("messages", pipeline)
+
 
 class TestAzureCosmosDocumentStoreValidation:
     """Tests for AzureCosmosDocumentStore validation methods."""

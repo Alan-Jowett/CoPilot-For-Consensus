@@ -533,6 +533,9 @@ class AzureCosmosDocumentStore(DocumentStore):
             # Add limit if specified
             # Cosmos DB requires OFFSET...LIMIT syntax, not standalone LIMIT
             if limit_value is not None:
+                # Validate limit value to prevent SQL injection
+                if not isinstance(limit_value, int) or limit_value < 1:
+                    raise DocumentStoreError(f"Invalid limit value '{limit_value}': must be a positive integer")
                 query += f" OFFSET 0 LIMIT {limit_value}"
 
             # Execute query
@@ -549,6 +552,9 @@ class AzureCosmosDocumentStore(DocumentStore):
             )
             return items
 
+        except DocumentStoreError:
+            # Re-raise our own validation errors without wrapping
+            raise
         except cosmos_exceptions.CosmosHttpResponseError as e:
             if e.status_code == 429:
                 logger.warning(f"AzureCosmosDocumentStore: throttled during aggregation - {e}")
