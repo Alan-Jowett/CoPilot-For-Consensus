@@ -211,6 +211,10 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosAuthDatabaseName
             }
             {
+              name: 'COSMOS_CONTAINER'
+              value: 'documents'
+            }
+            {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
               value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
