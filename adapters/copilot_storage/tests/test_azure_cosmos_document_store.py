@@ -611,10 +611,10 @@ class TestAzureCosmosDocumentStore:
         ]
         store.aggregate_documents("messages", pipeline)
 
-        # Verify SQL query includes LIMIT
+        # Verify SQL query includes OFFSET 0 LIMIT (Cosmos DB syntax)
         call_args = mock_container.query_items.call_args
         query = call_args.kwargs["query"]
-        assert "LIMIT 10" in query
+        assert "OFFSET 0 LIMIT 10" in query
 
     def test_aggregate_documents_unsupported_lookup(self):
         """Test that $lookup stage is logged as unsupported."""

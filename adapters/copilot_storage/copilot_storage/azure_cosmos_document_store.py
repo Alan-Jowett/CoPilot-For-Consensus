@@ -324,9 +324,10 @@ class AzureCosmosDocumentStore(DocumentStore):
                 parameters.append({"name": param_name, "value": value})
 
             # Add limit (validate to prevent SQL injection)
+            # Cosmos DB requires OFFSET...LIMIT syntax, not standalone LIMIT
             if not isinstance(limit, int) or limit < 1:
                 raise DocumentStoreError(f"Invalid limit value '{limit}': must be a positive integer")
-            query += f" LIMIT {limit}"
+            query += f" OFFSET 0 LIMIT {limit}"
 
             # Execute query
             items = list(self.container.query_items(
@@ -530,8 +531,9 @@ class AzureCosmosDocumentStore(DocumentStore):
                     )
 
             # Add limit if specified
+            # Cosmos DB requires OFFSET...LIMIT syntax, not standalone LIMIT
             if limit_value is not None:
-                query += f" LIMIT {limit_value}"
+                query += f" OFFSET 0 LIMIT {limit_value}"
 
             # Execute query
             items = list(self.container.query_items(
