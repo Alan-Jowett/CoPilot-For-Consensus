@@ -234,6 +234,15 @@ def main():
                 "api_key": config.aisearch_api_key if hasattr(config, "aisearch_api_key") and config.aisearch_api_key else None,
                 "use_managed_identity": getattr(config, "aisearch_use_managed_identity", True),
             })
+        elif backend_type == "inmemory":
+            # In-memory backend requires no additional configuration
+            pass
+        else:
+            # Unsupported backend type
+            raise ValueError(
+                f"Unsupported vector store backend: '{backend_type}'. "
+                f"Supported backends: inmemory, faiss, qdrant, azure_ai_search (or ai_search)"
+            )
 
         vector_store = create_vector_store(**vector_store_kwargs)
 
