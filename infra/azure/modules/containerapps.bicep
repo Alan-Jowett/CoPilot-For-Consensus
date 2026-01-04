@@ -278,14 +278,6 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: serviceBusNamespace
-            }
-            {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
-              value: 'true'
-            }
-            {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
               value: '${serviceBusNamespace}.servicebus.windows.net'
             }
             {
@@ -373,14 +365,6 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'MESSAGE_BUS_TYPE'
               value: 'azureservicebus'
-            }
-            {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
-              value: 'true'
-            }
-            {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: serviceBusNamespace
             }
             {
               name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
@@ -499,14 +483,6 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: serviceBusNamespace
-            }
-            {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
-              value: 'true'
-            }
-            {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
               value: '${serviceBusNamespace}.servicebus.windows.net'
             }
             {
@@ -602,14 +578,6 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: serviceBusNamespace
-            }
-            {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
-              value: 'true'
-            }
-            {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
               value: '${serviceBusNamespace}.servicebus.windows.net'
             }
             {
@@ -698,14 +666,6 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'MESSAGE_BUS_TYPE'
               value: 'azureservicebus'
-            }
-            {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
-              value: 'true'
-            }
-            {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: serviceBusNamespace
             }
             {
               name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
@@ -836,14 +796,6 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: serviceBusNamespace
-            }
-            {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
-              value: 'true'
-            }
-            {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
               value: '${serviceBusNamespace}.servicebus.windows.net'
             }
             {
@@ -955,14 +907,6 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: serviceBusNamespace
-            }
-            {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
-              value: 'true'
-            }
-            {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
               value: '${serviceBusNamespace}.servicebus.windows.net'
             }
             {
@@ -984,6 +928,18 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'AZURE_CLIENT_ID'
               value: identityClientIds.summarization
+            }
+            {
+              name: 'VECTORSTORE_TYPE'
+              value: 'ai_search'
+            }
+            {
+              name: 'AISEARCH_ENDPOINT'
+              value: aiSearchEndpoint
+            }
+            {
+              name: 'AISEARCH_INDEX_NAME'
+              value: 'document-embeddings'
             }
             {
               name: 'LLM_BACKEND'
