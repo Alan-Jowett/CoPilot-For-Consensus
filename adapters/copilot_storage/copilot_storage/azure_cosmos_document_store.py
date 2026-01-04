@@ -293,9 +293,11 @@ class AzureCosmosDocumentStore(DocumentStore):
     ) -> list[dict[str, Any]]:
         """Query documents matching the filter criteria.
 
+        Supports MongoDB-style operators: $in, $eq
+
         Args:
             collection: Name of the logical collection
-            filter_dict: Filter criteria as dictionary (simple equality checks)
+            filter_dict: Filter criteria as dictionary (supports equality and MongoDB operators)
             limit: Maximum number of documents to return
 
         Returns:
@@ -312,16 +314,70 @@ class AzureCosmosDocumentStore(DocumentStore):
             # Build SQL query for Cosmos DB
             query = "SELECT * FROM c WHERE c.collection = @collection"
             parameters = [{"name": "@collection", "value": collection}]
+            param_counter = 0
 
             # Add filter conditions
-            for idx, (key, value) in enumerate(filter_dict.items()):
+            for key, value in filter_dict.items():
                 # Validate field name to prevent SQL injection
                 if not self._is_valid_field_name(key):
                     logger.warning(f"AzureCosmosDocumentStore: skipping invalid field name '{key}'")
                     continue
-                param_name = f"@param{idx}"
-                query += f" AND c.{key} = {param_name}"
-                parameters.append({"name": param_name, "value": value})
+
+                if isinstance(value, dict):
+                    # Handle MongoDB-style operators
+                    # Validate that all keys in the dict are operators (start with '$')
+                    non_operators = [k for k in value.keys() if not k.startswith('$')]
+                    if non_operators:
+                        logger.warning(
+                            f"AzureCosmosDocumentStore: filter dict for '{key}' contains non-operator keys "
+                            f"{non_operators}, treating as invalid - skipping field"
+                        )
+                        continue
+
+                    for op, op_value in value.items():
+                        if op == "$in":
+                            # Translate $in to Cosmos SQL IN operator
+                            # Example: {"status": {"$in": ["pending", "processing"]}}
+                            # becomes: AND c.status IN (@param0, @param1)
+                            if not isinstance(op_value, list):
+                                logger.warning(
+                                    "AzureCosmosDocumentStore: $in operator requires list value, "
+                                    f"got {type(op_value).__name__}"
+                                )
+                                continue
+                            if not op_value:
+                                # Empty list - no documents match
+                                logger.debug(
+                                    "AzureCosmosDocumentStore: $in operator with empty list "
+                                    "- returning empty result"
+                                )
+                                return []
+
+                            # Build parameter list for IN clause
+                            param_names = []
+                            for item in op_value:
+                                param_name = f"@param{param_counter}"
+                                param_counter += 1
+                                param_names.append(param_name)
+                                parameters.append({"name": param_name, "value": item})
+
+                            query += f" AND c.{key} IN ({', '.join(param_names)})"
+                        elif op == "$eq":
+                            # Explicit equality
+                            param_name = f"@param{param_counter}"
+                            param_counter += 1
+                            query += f" AND c.{key} = {param_name}"
+                            parameters.append({"name": param_name, "value": op_value})
+                        else:
+                            logger.warning(
+                                f"AzureCosmosDocumentStore: unsupported operator '{op}' in query_documents, skipping"
+                            )
+                else:
+                    # Simple equality check
+                    param_name = f"@param{param_counter}"
+                    param_counter += 1
+                    query += f" AND c.{key} = {param_name}"
+                    parameters.append({"name": param_name, "value": value})
 
             # Add limit (validate to prevent SQL injection)
             # Cosmos DB requires OFFSET...LIMIT syntax, not standalone LIMIT
@@ -496,6 +552,15 @@ class AzureCosmosDocumentStore(DocumentStore):
 
                         if isinstance(condition, dict):
                             # Handle operators
+                            # Validate that all keys in the dict are operators (start with '$')
+                            non_operators = [k for k in condition.keys() if not k.startswith('$')]
+                            if non_operators:
+                                logger.warning(
+                                    f"AzureCosmosDocumentStore: $match condition for '{key}' contains "
+                                    f"non-operator keys {non_operators}, treating as invalid - skipping field"
+                                )
+                                continue
+
                             for op, value in condition.items():
                                 if op == "$exists":
                                     if value:
@@ -507,6 +572,31 @@ class AzureCosmosDocumentStore(DocumentStore):
                                     param_counter += 1
                                     query += f" AND c.{key} = {param_name}"
                                     parameters.append({"name": param_name, "value": value})
+                                elif op == "$in":
+                                    # Translate $in to Cosmos SQL IN operator
+                                    if not isinstance(value, list):
+                                        logger.warning(
+                                            "AzureCosmosDocumentStore: $in operator requires list value, "
+                                            f"got {type(value).__name__}"
+                                        )
+                                        continue
+                                    if not value:
+                                        # Empty list - no documents match; short-circuit to avoid unnecessary query
+                                        logger.debug(
+                                            "AzureCosmosDocumentStore: $in operator with empty list in aggregation "
+                                            "- returning empty result"
+                                        )
+                                        return []
+
+                                    # Build parameter list for IN clause
+                                    param_names = []
+                                    for item in value:
+                                        param_name = f"@param{param_counter}"
+                                        param_counter += 1
+                                        param_names.append(param_name)
+                                        parameters.append({"name": param_name, "value": item})
+
+                                    query += f" AND c.{key} IN ({', '.join(param_names)})"
                                 else:
                                     logger.warning(
                                         f"AzureCosmosDocumentStore: unsupported operator '{op}' in $match, skipping"
