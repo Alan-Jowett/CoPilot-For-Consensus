@@ -285,8 +285,15 @@ class TestAzureAISearchVectorStore:
 
         results = store.query([1.0, 0.0, 0.0], top_k=5)
 
-        # Verify search was called
+        # Verify search was called with non-null search_text
         mock_search_client.search.assert_called_once()
+        call_args = mock_search_client.search.call_args
+        # Ensure search_text is not None (Azure SDK requirement)
+        assert call_args[1]['search_text'] is not None
+        assert call_args[1]['search_text'] == ""
+        # Verify vector_queries is populated
+        assert 'vector_queries' in call_args[1]
+        assert len(call_args[1]['vector_queries']) == 1
 
         # Verify results
         assert len(results) == 1

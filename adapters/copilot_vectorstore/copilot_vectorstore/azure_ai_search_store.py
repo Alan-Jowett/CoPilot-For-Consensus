@@ -381,8 +381,10 @@ class AzureAISearchVectorStore(VectorStore):
         )
 
         # Execute search
+        # Use empty string for search_text in vector-only queries
+        # (Azure SDK requires non-null string for search_text parameter)
         results = self._search_client.search(
-            search_text=None,
+            search_text="",
             vector_queries=[vector_query],
             select=["id", "embedding", "metadata"],
             top=top_k,
