@@ -67,6 +67,9 @@ class JWTMiddleware(BaseHTTPMiddleware):
         required_roles: list[str] | None = None,
         public_paths: list[str] | None = None,
         jwks_cache_ttl: int = 3600,
+        jwks_fetch_retries: int = 5,
+        jwks_fetch_retry_delay: float = 1.0,
+        jwks_fetch_timeout: float = 10.0,
     ):
         """Initialize JWT middleware.
 
@@ -77,6 +80,9 @@ class JWTMiddleware(BaseHTTPMiddleware):
             required_roles: Optional list of required roles
             public_paths: List of paths that don't require auth
             jwks_cache_ttl: JWKS cache TTL in seconds (default: 3600 = 1 hour)
+            jwks_fetch_retries: Number of retries for initial JWKS fetch (default: 5)
+            jwks_fetch_retry_delay: Initial delay between retries in seconds (default: 1.0)
+            jwks_fetch_timeout: Timeout for JWKS fetch requests in seconds (default: 10.0)
         """
         super().__init__(app)
         self.auth_service_url = auth_service_url.rstrip("/")
@@ -84,11 +90,83 @@ class JWTMiddleware(BaseHTTPMiddleware):
         self.required_roles = required_roles or []
         self.public_paths = public_paths or ["/health", "/readyz", "/docs", "/openapi.json"]
         self.jwks_cache_ttl = jwks_cache_ttl
+        self.jwks_fetch_retries = jwks_fetch_retries
+        self.jwks_fetch_retry_delay = jwks_fetch_retry_delay
+        self.jwks_fetch_timeout = jwks_fetch_timeout
 
         # JWKS cache with timestamp
         self.jwks: dict[str, Any] | None = None
         self.jwks_last_fetched: float = 0
-        self._fetch_jwks()
+        self._fetch_jwks_with_retry()
+
+    def _fetch_jwks_with_retry(self) -> None:
+        """Fetch JWKS from auth service with retry logic on startup.
+
+        This method implements exponential backoff for the initial JWKS fetch
+        to handle cases where the auth service is not yet ready during startup.
+        """
+        delay = self.jwks_fetch_retry_delay
+        last_error = None
+
+        for attempt in range(1, self.jwks_fetch_retries + 1):
+            try:
+                response = httpx.get(f"{self.auth_service_url}/keys", timeout=self.jwks_fetch_timeout)
+                response.raise_for_status()
+                jwks = response.json()
+                self.jwks = jwks
+                self.jwks_last_fetched = time.time()
+                logger.info(
+                    f"Successfully fetched JWKS from {self.auth_service_url}/keys "
+                    f"({len(jwks.get('keys', []))} keys) on attempt {attempt}/{self.jwks_fetch_retries}"
+                )
+                return
+            except (httpx.TimeoutException, httpx.ConnectError, httpx.ConnectTimeout) as e:
+                last_error = e
+                error_type = type(e).__name__
+                if attempt < self.jwks_fetch_retries:
+                    logger.warning(
+                        f"JWKS fetch attempt {attempt}/{self.jwks_fetch_retries} failed: "
+                        f"{error_type} - {e}. Retrying in {delay:.1f}s..."
+                    )
+                    time.sleep(delay)
+                    delay *= 2  # Exponential backoff
+                else:
+                    logger.error(
+                        f"JWKS fetch failed after {self.jwks_fetch_retries} attempts: "
+                        f"{error_type} - {e}"
+                    )
+            except httpx.HTTPStatusError as e:
+                last_error = e
+                # For 503 Service Unavailable, retry; for other errors, fail immediately
+                if e.response.status_code == 503:
+                    if attempt < self.jwks_fetch_retries:
+                        logger.warning(
+                            f"Auth service unavailable (503) on attempt {attempt}/{self.jwks_fetch_retries}. "
+                            f"Retrying in {delay:.1f}s..."
+                        )
+                        time.sleep(delay)
+                        delay *= 2
+                    else:
+                        logger.error(
+                            f"Auth service unavailable (503) after {self.jwks_fetch_retries} attempts"
+                        )
+                else:
+                    logger.error(
+                        f"JWKS fetch failed with HTTP {e.response.status_code}: {e}. "
+                        f"Not retrying for this error type."
+                    )
+                    break
+            except Exception as e:
+                last_error = e
+                logger.error(f"Unexpected error fetching JWKS: {type(e).__name__} - {e}")
+                break
+
+        # If we reach here, all retries failed - initialize with empty JWKS
+        logger.error(
+            f"Failed to fetch JWKS after {self.jwks_fetch_retries} attempts. "
+            f"Authentication will fail until JWKS is available. Last error: {last_error}"
+        )
+        self.jwks = {"keys": []}
 
     def _fetch_jwks(self, force: bool = False) -> None:
         """Fetch JWKS from auth service with caching.
@@ -104,7 +182,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 return
 
         try:
-            response = httpx.get(f"{self.auth_service_url}/keys", timeout=10.0)
+            response = httpx.get(f"{self.auth_service_url}/keys", timeout=self.jwks_fetch_timeout)
             response.raise_for_status()
             jwks = response.json()
             self.jwks = jwks
@@ -305,7 +383,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
         # Extract token from Authorization header or cookie
         token = None
         auth_source = None
-        
+
         # Try Authorization header first
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
@@ -316,7 +394,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 path=request.url.path,
                 token_length=len(token),
             )
-        
+
         # Fall back to cookie if no Authorization header
         if not token:
             # Check for auth_token cookie (httpOnly cookie used by UI)
@@ -329,7 +407,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                     path=request.url.path,
                     token_length=len(token),
                 )
-        
+
         # If no token found in either location, return 401
         if not token:
             logger.warning(
