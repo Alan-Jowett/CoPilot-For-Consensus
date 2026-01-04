@@ -261,6 +261,42 @@ class TestAzureServiceBusSubscriberProcessMessage:
         mock_receiver.complete_message.assert_called_once_with(mock_msg)
         callback.assert_not_called()
 
+    def test_process_message_auto_complete_true_disables_manual_completion(self):
+        """Test that auto_complete=True prevents complete_message from being called."""
+        subscriber = _build_subscriber(auto_complete=True)
+        mock_msg = Mock()
+        mock_msg.body = [b'{"event_type":"Test","value":"abc"}']
+        mock_receiver = Mock()
+        callback = Mock()
+        subscriber.callbacks["Test"] = callback
+
+        subscriber._process_message(mock_msg, mock_receiver)
+
+        callback.assert_called_once()
+        mock_receiver.complete_message.assert_not_called()
+
+    def test_process_message_auto_complete_true_no_completion_on_utf8_error(self):
+        """Test that auto_complete=True skips complete_message on UTF-8 error."""
+        subscriber = _build_subscriber(auto_complete=True)
+        mock_msg = Mock()
+        mock_msg.body = [b"\xff\xff\xff"]
+        mock_receiver = Mock()
+
+        subscriber._process_message(mock_msg, mock_receiver)
+
+        mock_receiver.complete_message.assert_not_called()
+
+    def test_process_message_auto_complete_true_no_completion_on_json_error(self):
+        """Test that auto_complete=True skips complete_message on JSON error."""
+        subscriber = _build_subscriber(auto_complete=True)
+        mock_msg = Mock()
+        mock_msg.body = [b"not-json"]
+        mock_receiver = Mock()
+
+        subscriber._process_message(mock_msg, mock_receiver)
+
+        mock_receiver.complete_message.assert_not_called()
+
 
 # Note: Integration tests would require an actual Azure Service Bus instance
 # and would be similar to test_integration_rabbitmq.py but adapted for Azure
