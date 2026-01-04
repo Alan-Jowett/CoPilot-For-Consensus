@@ -324,9 +324,10 @@ class AzureCosmosDocumentStore(DocumentStore):
                 parameters.append({"name": param_name, "value": value})
 
             # Add limit (validate to prevent SQL injection)
+            # Cosmos DB requires OFFSET...LIMIT syntax, not standalone LIMIT
             if not isinstance(limit, int) or limit < 1:
                 raise DocumentStoreError(f"Invalid limit value '{limit}': must be a positive integer")
-            query += f" LIMIT {limit}"
+            query += f" OFFSET 0 LIMIT {limit}"
 
             # Execute query
             items = list(self.container.query_items(
@@ -342,6 +343,9 @@ class AzureCosmosDocumentStore(DocumentStore):
             )
             return items
 
+        except DocumentStoreError:
+            # Re-raise our own validation errors without wrapping
+            raise
         except cosmos_exceptions.CosmosHttpResponseError as e:
             if e.status_code == 429:
                 logger.warning(f"AzureCosmosDocumentStore: throttled during query - {e}")
@@ -530,8 +534,12 @@ class AzureCosmosDocumentStore(DocumentStore):
                     )
 
             # Add limit if specified
+            # Cosmos DB requires OFFSET...LIMIT syntax, not standalone LIMIT
             if limit_value is not None:
-                query += f" LIMIT {limit_value}"
+                # Validate limit value to prevent SQL injection
+                if not isinstance(limit_value, int) or limit_value < 1:
+                    raise DocumentStoreError(f"Invalid limit value '{limit_value}': must be a positive integer")
+                query += f" OFFSET 0 LIMIT {limit_value}"
 
             # Execute query
             items = list(self.container.query_items(
@@ -547,6 +555,9 @@ class AzureCosmosDocumentStore(DocumentStore):
             )
             return items
 
+        except DocumentStoreError:
+            # Re-raise our own validation errors without wrapping
+            raise
         except cosmos_exceptions.CosmosHttpResponseError as e:
             if e.status_code == 429:
                 logger.warning(f"AzureCosmosDocumentStore: throttled during aggregation - {e}")

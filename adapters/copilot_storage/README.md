@@ -236,6 +236,10 @@ Production Azure Cosmos DB implementation with:
 - SQL query translation for common operations
 - Simplified aggregation pipeline support ($match, $limit)
 
+**Important SQL Syntax Notes:**
+- Cosmos DB SQL API uses `OFFSET n LIMIT m` syntax, not standalone `LIMIT`
+- All queries automatically use the correct pagination syntax for Cosmos DB compatibility
+
 **Configuration via Environment Variables:**
 - `COSMOS_ENDPOINT`: Cosmos DB endpoint URL (required)
 - `COSMOS_KEY`: Cosmos DB account key (required)
