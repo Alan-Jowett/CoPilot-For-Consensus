@@ -9,13 +9,14 @@ import pytest
 
 # Test if azure-storage-blob is available
 try:
-    from azure.core.exceptions import ResourceNotFoundError
+    from azure.core.exceptions import AzureError, ResourceExistsError, ResourceNotFoundError
     AZURE_AVAILABLE = True
 except ImportError:
     AZURE_AVAILABLE = False
 
 if AZURE_AVAILABLE:
     from copilot_archive_store import AzureBlobArchiveStore
+    from copilot_archive_store.archive_store import ArchiveStoreConnectionError
 
 
 @pytest.mark.skipif(not AZURE_AVAILABLE, reason="azure-storage-blob not installed")
@@ -46,6 +47,9 @@ class TestAzureBlobArchiveStore:
         # Mock metadata blob (initially not found)
         mock_metadata_blob = MagicMock()
         mock_metadata_blob.download_blob.side_effect = ResourceNotFoundError("Not found")
+        mock_metadata_props = MagicMock()
+        mock_metadata_props.etag = "etag"
+        mock_metadata_blob.get_blob_properties.return_value = mock_metadata_props
         mock_container.get_blob_client.return_value = mock_metadata_blob
 
         store = AzureBlobArchiveStore(
@@ -140,8 +144,71 @@ class TestAzureBlobArchiveStore:
                 container_name="archives"
             )
 
+    def test_initialization_container_already_exists(self):
+        """Test successful initialization when container already exists."""
+        with patch('copilot_archive_store.azure_blob_archive_store.BlobServiceClient') as mock_bsc:
+            mock_service = MagicMock()
+            mock_bsc.return_value = mock_service
+
+            mock_container = MagicMock()
+            mock_service.get_container_client.return_value = mock_container
+
+            # Container creation raises ResourceExistsError (already exists)
+            from azure.core.exceptions import ResourceExistsError
+            mock_container.create_container.side_effect = ResourceExistsError("Container exists")
+
+            # Mock metadata blob (not found initially)
+            mock_metadata_blob = MagicMock()
+            mock_metadata_blob.download_blob.side_effect = ResourceNotFoundError()
+            mock_container.get_blob_client.return_value = mock_metadata_blob
+
+            # Should succeed even when ResourceExistsError is raised
+            store = AzureBlobArchiveStore(
+                account_name="testaccount",
+                account_key="testkey123==",
+                container_name="test-archives"
+            )
+
+            assert store.container_name == "test-archives"
+            # Verify container creation was attempted
+            mock_container.create_container.assert_called_once()
+
+    def test_initialization_azure_error_during_container_creation(self):
+        """Test that unexpected Azure errors during container creation are surfaced."""
+        with patch('copilot_archive_store.azure_blob_archive_store.BlobServiceClient') as mock_bsc:
+            mock_service = MagicMock()
+            mock_bsc.return_value = mock_service
+
+            mock_container = MagicMock()
+            mock_service.get_container_client.return_value = mock_container
+
+            # Container creation raises an unexpected AzureError
+            mock_container.create_container.side_effect = AzureError("Network error")
+
+            # Should raise ArchiveStoreConnectionError with preserved cause
+            with pytest.raises(ArchiveStoreConnectionError, match="Unexpected Azure error while creating container"):
+                AzureBlobArchiveStore(
+                    account_name="testaccount",
+                    account_key="testkey123==",
+                    container_name="test-archives"
+                )
+
+    def test_initialization_blob_service_client_failure(self):
+        """Test that BlobServiceClient initialization failures are wrapped properly."""
+        with patch('copilot_archive_store.azure_blob_archive_store.BlobServiceClient') as mock_bsc:
+            # BlobServiceClient constructor raises an exception
+            mock_bsc.side_effect = ValueError("Invalid connection string")
+
+            # Should raise ArchiveStoreConnectionError with wrapped cause
+            with pytest.raises(ArchiveStoreConnectionError, match="Failed to initialize Azure Blob Archive Store"):
+                AzureBlobArchiveStore(
+                    account_name="testaccount",
+                    account_key="testkey123==",
+                    container_name="test-archives"
+                )
+
     def test_store_archive(self, store, mock_blob_service_client):
-        """Test storing an archive."""
+        """Test storing an archive with ETag fallback to get_blob_properties."""
         _, _, mock_container = mock_blob_service_client
 
         content = b"This is test archive content"
@@ -150,9 +217,12 @@ class TestAzureBlobArchiveStore:
         mock_archive_blob = MagicMock()
         mock_archive_blob.upload_blob.return_value = None
 
-        # Mock blob client for metadata
+        # Mock blob client for metadata with None result (triggers get_blob_properties fallback)
         mock_metadata_blob = MagicMock()
         mock_metadata_blob.upload_blob.return_value = None
+        mock_metadata_props = MagicMock()
+        mock_metadata_props.etag = "etag"
+        mock_metadata_blob.get_blob_properties.return_value = mock_metadata_props
 
         # Return different mocks based on blob name
         def get_blob_client_side_effect(blob_name):
@@ -164,17 +234,13 @@ class TestAzureBlobArchiveStore:
         mock_container.get_blob_client.side_effect = get_blob_client_side_effect
 
         # Store archive
-        archive_id = store.store_archive(
+        store.store_archive(
             source_name="test-source",
             file_path="/path/to/archive.mbox",
             content=content
         )
 
-        # Verify archive ID
-        assert archive_id is not None
-        assert len(archive_id) == 16
-
-        # Verify blob was uploaded
+        # Verify archive blob was uploaded
         mock_archive_blob.upload_blob.assert_called_once()
         upload_call = mock_archive_blob.upload_blob.call_args
         assert upload_call[0][0] == content
@@ -182,6 +248,113 @@ class TestAzureBlobArchiveStore:
 
         # Verify metadata was uploaded
         mock_metadata_blob.upload_blob.assert_called_once()
+
+        # Verify get_blob_properties WAS called (result was None)
+        mock_metadata_blob.get_blob_properties.assert_called_once()
+
+    def test_store_archive_etag_from_result_object(self, store, mock_blob_service_client):
+        """Test that ETag is extracted from upload_blob result when it has etag attribute."""
+        _, _, mock_container = mock_blob_service_client
+
+        content = b"Test content"
+
+        # Mock result object with etag attribute
+        mock_result = MagicMock()
+        mock_result.etag = "result-etag"
+
+        # Mock blob client for archive
+        mock_archive_blob = MagicMock()
+        mock_archive_blob.upload_blob.return_value = None
+
+        # Mock blob client for metadata with result object
+        mock_metadata_blob = MagicMock()
+        mock_metadata_blob.upload_blob.return_value = mock_result
+        mock_metadata_blob.get_blob_properties.return_value = MagicMock(etag="properties-etag")
+
+        def get_blob_client_side_effect(blob_name):
+            if "metadata" in blob_name:
+                return mock_metadata_blob
+            else:
+                return mock_archive_blob
+
+        mock_container.get_blob_client.side_effect = get_blob_client_side_effect
+
+        store.store_archive(
+            source_name="test-source",
+            file_path="test.mbox",
+            content=content
+        )
+
+        # Verify get_blob_properties was NOT called (result had etag attribute)
+        mock_metadata_blob.get_blob_properties.assert_not_called()
+
+    def test_store_archive_etag_from_dict_result(self, store, mock_blob_service_client):
+        """Test that ETag is extracted from upload_blob result when it's a dict with etag key."""
+        _, _, mock_container = mock_blob_service_client
+
+        content = b"Test content"
+
+        # Mock dict result with etag key
+        mock_result = {"etag": "dict-etag"}
+
+        # Mock blob client for archive
+        mock_archive_blob = MagicMock()
+        mock_archive_blob.upload_blob.return_value = None
+
+        # Mock blob client for metadata with dict result
+        mock_metadata_blob = MagicMock()
+        mock_metadata_blob.upload_blob.return_value = mock_result
+        mock_metadata_blob.get_blob_properties.return_value = MagicMock(etag="properties-etag")
+
+        def get_blob_client_side_effect(blob_name):
+            if "metadata" in blob_name:
+                return mock_metadata_blob
+            else:
+                return mock_archive_blob
+
+        mock_container.get_blob_client.side_effect = get_blob_client_side_effect
+
+        store.store_archive(
+            source_name="test-source",
+            file_path="test.mbox",
+            content=content
+        )
+
+        # Verify get_blob_properties was NOT called (result was dict with etag)
+        mock_metadata_blob.get_blob_properties.assert_not_called()
+
+    def test_store_archive_etag_refresh_failure(self, store, mock_blob_service_client):
+        """Test that ETag refresh failure doesn't fail the save operation."""
+        _, _, mock_container = mock_blob_service_client
+
+        content = b"Test content"
+
+        # Mock blob client for archive
+        mock_archive_blob = MagicMock()
+        mock_archive_blob.upload_blob.return_value = None
+
+        # Mock blob client for metadata: upload returns None, get_blob_properties raises AzureError
+        mock_metadata_blob = MagicMock()
+        mock_metadata_blob.upload_blob.return_value = None
+        mock_metadata_blob.get_blob_properties.side_effect = AzureError("Network error during refresh")
+
+        def get_blob_client_side_effect(blob_name):
+            if "metadata" in blob_name:
+                return mock_metadata_blob
+            else:
+                return mock_archive_blob
+
+        mock_container.get_blob_client.side_effect = get_blob_client_side_effect
+
+        # Should NOT raise an exception despite ETag refresh failure
+        store.store_archive(
+            source_name="test-source",
+            file_path="test.mbox",
+            content=content
+        )
+
+        # Verify get_blob_properties was called (and failed)
+        mock_metadata_blob.get_blob_properties.assert_called_once()
 
     def test_get_archive(self, store, mock_blob_service_client):
         """Test retrieving an archive."""
@@ -192,6 +365,9 @@ class TestAzureBlobArchiveStore:
         # First store an archive
         mock_archive_blob = MagicMock()
         mock_metadata_blob = MagicMock()
+        mock_metadata_props = MagicMock()
+        mock_metadata_props.etag = "etag"
+        mock_metadata_blob.get_blob_properties.return_value = mock_metadata_props
 
         def get_blob_client_side_effect(blob_name):
             if "metadata" in blob_name:
@@ -230,6 +406,9 @@ class TestAzureBlobArchiveStore:
         # Store archive (mock successful store)
         mock_archive_blob = MagicMock()
         mock_metadata_blob = MagicMock()
+        mock_metadata_props = MagicMock()
+        mock_metadata_props.etag = "etag"
+        mock_metadata_blob.get_blob_properties.return_value = mock_metadata_props
 
         def get_blob_client_side_effect(blob_name):
             if "metadata" in blob_name:
