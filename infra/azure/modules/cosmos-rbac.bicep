@@ -17,6 +17,14 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2023-11-15' existi
   name: cosmosAccountName
 }
 
+// SECURITY NOTE: All services currently receive Cosmos DB Built-in Data Contributor role
+// at the account scope, granting read/write access to ALL databases and containers.
+// This is broader than necessary - only the auth service requires access to the auth database.
+// TODO: Implement per-database/container scoping using custom role definitions to follow
+// principle of least privilege. See: https://learn.microsoft.com/en-us/azure/cosmos-db/how-to-setup-rbac
+// Cosmos DB RBAC currently doesn't support built-in roles scoped to specific databases/containers;
+// custom role definitions with narrower data actions are required for granular access control.
+
 // Assign Cosmos DB Built-in Data Contributor role to each principal
 resource roleAssignments 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2023-11-15' = [for (principalId, i) in principalIds: {
   parent: cosmosAccount

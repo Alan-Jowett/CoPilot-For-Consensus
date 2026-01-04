@@ -207,7 +207,7 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosDbEndpoint
             }
             {
-              name: 'DOCUMENT_DATABASE_NAME'
+              name: 'COSMOS_DATABASE'
               value: cosmosAuthDatabaseName
             }
             {
@@ -289,11 +289,11 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosDbEndpoint
             }
             {
-              name: 'DOCUMENT_DATABASE_NAME'
+              name: 'COSMOS_DATABASE'
               value: cosmosDocumentsDatabaseName
             }
             {
-              name: 'DOCUMENT_CONTAINER_NAME'
+              name: 'COSMOS_CONTAINER'
               value: cosmosContainerName
             }
             {
@@ -383,11 +383,11 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosDbEndpoint
             }
             {
-              name: 'DOCUMENT_DATABASE_NAME'
+              name: 'COSMOS_DATABASE'
               value: cosmosDocumentsDatabaseName
             }
             {
-              name: 'DOCUMENT_CONTAINER_NAME'
+              name: 'COSMOS_CONTAINER'
               value: cosmosContainerName
             }
             {
@@ -494,11 +494,11 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosDbEndpoint
             }
             {
-              name: 'DOCUMENT_DATABASE_NAME'
+              name: 'COSMOS_DATABASE'
               value: cosmosDocumentsDatabaseName
             }
             {
-              name: 'DOCUMENT_CONTAINER_NAME'
+              name: 'COSMOS_CONTAINER'
               value: cosmosContainerName
             }
             {
@@ -589,11 +589,11 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosDbEndpoint
             }
             {
-              name: 'DOCUMENT_DATABASE_NAME'
+              name: 'COSMOS_DATABASE'
               value: cosmosDocumentsDatabaseName
             }
             {
-              name: 'DOCUMENT_CONTAINER_NAME'
+              name: 'COSMOS_CONTAINER'
               value: cosmosContainerName
             }
             {
@@ -684,11 +684,11 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosDbEndpoint
             }
             {
-              name: 'DOCUMENT_DATABASE_NAME'
+              name: 'COSMOS_DATABASE'
               value: cosmosDocumentsDatabaseName
             }
             {
-              name: 'DOCUMENT_CONTAINER_NAME'
+              name: 'COSMOS_CONTAINER'
               value: cosmosContainerName
             }
             {
@@ -807,11 +807,11 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosDbEndpoint
             }
             {
-              name: 'DOCUMENT_DATABASE_NAME'
+              name: 'COSMOS_DATABASE'
               value: cosmosDocumentsDatabaseName
             }
             {
-              name: 'DOCUMENT_CONTAINER_NAME'
+              name: 'COSMOS_CONTAINER'
               value: cosmosContainerName
             }
             {
@@ -918,11 +918,11 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosDbEndpoint
             }
             {
-              name: 'DOCUMENT_DATABASE_NAME'
+              name: 'COSMOS_DATABASE'
               value: cosmosDocumentsDatabaseName
             }
             {
-              name: 'DOCUMENT_CONTAINER_NAME'
+              name: 'COSMOS_CONTAINER'
               value: cosmosContainerName
             }
             {
