@@ -325,6 +325,15 @@ class AzureCosmosDocumentStore(DocumentStore):
 
                 if isinstance(value, dict):
                     # Handle MongoDB-style operators
+                    # Validate that all keys in the dict are operators (start with '$')
+                    non_operators = [k for k in value.keys() if not k.startswith('$')]
+                    if non_operators:
+                        logger.warning(
+                            f"AzureCosmosDocumentStore: filter dict for '{key}' contains non-operator keys "
+                            f"{non_operators}, treating as invalid - skipping field"
+                        )
+                        continue
+
                     for op, op_value in value.items():
                         if op == "$in":
                             # Translate $in to Cosmos SQL IN operator
@@ -539,6 +548,15 @@ class AzureCosmosDocumentStore(DocumentStore):
 
                         if isinstance(condition, dict):
                             # Handle operators
+                            # Validate that all keys in the dict are operators (start with '$')
+                            non_operators = [k for k in condition.keys() if not k.startswith('$')]
+                            if non_operators:
+                                logger.warning(
+                                    f"AzureCosmosDocumentStore: $match condition for '{key}' contains "
+                                    f"non-operator keys {non_operators}, treating as invalid - skipping field"
+                                )
+                                continue
+
                             for op, value in condition.items():
                                 if op == "$exists":
                                     if value:
