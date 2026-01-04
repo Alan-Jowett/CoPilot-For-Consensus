@@ -190,6 +190,14 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: oauthRedirectUri
             }
             {
+              name: 'AUTH_ROLE_STORE_TYPE'
+              value: 'cosmos'
+            }
+            {
+              name: 'COSMOS_DB_ENDPOINT'
+              value: cosmosDbEndpoint
+            }
+            {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
               value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
