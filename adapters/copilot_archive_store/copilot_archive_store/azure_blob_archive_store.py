@@ -10,7 +10,7 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
-from azure.core.exceptions import AzureError, ResourceNotFoundError
+from azure.core.exceptions import AzureError, ResourceExistsError, ResourceNotFoundError
 from azure.storage.blob import BlobServiceClient, ContainerClient
 
 from .archive_store import (
@@ -131,15 +131,24 @@ class AzureBlobArchiveStore(ArchiveStore):
             try:
                 self.container_client.create_container()
                 logger.info("Created container: %s", self.container_name)
-            except Exception as e:
-                # Container might already exist, which is fine
-                if "ContainerAlreadyExists" not in str(e):
-                    logger.debug("Container check: %s", e)
+            except ResourceExistsError:
+                # Container already exists; nothing to do
+                pass
+            except AzureError as exc:
+                # Surface unexpected Azure errors with clear context and preserve cause
+                raise ArchiveStoreConnectionError(
+                    f"Unexpected Azure error while creating container "
+                    f"'{self.container_name}': {exc}"
+                ) from exc
 
-        except Exception as e:
+        except ArchiveStoreConnectionError:
+            # Preserve detailed connection errors raised above
+            raise
+        except Exception as exc:
+            # Wrap any other initialization failures in ArchiveStoreConnectionError
             raise ArchiveStoreConnectionError(
-                f"Failed to connect to Azure Blob Storage: {e}"
-            ) from e
+                f"Failed to initialize Azure Blob Archive Store: {exc}"
+            ) from exc
 
         # Metadata index blob name
         self.metadata_blob_name = f"{self.prefix}metadata/archives_index.json"
@@ -185,6 +194,13 @@ class AzureBlobArchiveStore(ArchiveStore):
         Uses ETag-based optimistic concurrency to prevent lost updates when multiple
         instances write simultaneously. If a conflict is detected, the operation fails
         and the caller should reload metadata and retry.
+
+        ETag Refresh Strategy:
+        - For optimal performance, ETags are extracted from the upload_blob result when available
+        - Azure SDK versions may return ETags as a result attribute (hasattr check) or as dict key
+        - If neither is available, falls back to get_blob_properties() to fetch fresh metadata
+        - The fallback incurs an extra network round-trip but ensures correctness for SDK versions
+          that don't include ETags in the upload response
         """
         from azure.core import MatchConditions
 
@@ -194,7 +210,6 @@ class AzureBlobArchiveStore(ArchiveStore):
 
             # Use ETag for optimistic concurrency control
             if self._metadata_etag:
-                # If we have an ETag, only update if it matches (no one else updated)
                 result = blob_client.upload_blob(
                     metadata_json.encode("utf-8"),
                     overwrite=True,
@@ -202,14 +217,27 @@ class AzureBlobArchiveStore(ArchiveStore):
                     match_condition=MatchConditions.IfNotModified
                 )
             else:
-                # First write, no ETag yet
                 result = blob_client.upload_blob(
                     metadata_json.encode("utf-8"), overwrite=True
                 )
 
-            # Update ETag after successful write (if result is a dict)
-            if result and isinstance(result, dict):
-                self._metadata_etag = result.get('etag')
+            # Refresh stored ETag from upload response when available, otherwise fall back to a properties call
+            if hasattr(result, "etag"):
+                self._metadata_etag = result.etag
+            elif isinstance(result, dict) and "etag" in result:
+                self._metadata_etag = result["etag"]
+            else:
+                # Best-effort ETag refresh: metadata has already been uploaded successfully.
+                try:
+                    properties = blob_client.get_blob_properties()
+                    self._metadata_etag = properties.etag
+                except AzureError as refresh_error:
+                    # Do not fail the save operation if the ETag refresh fails; log for observability instead.
+                    logger.warning(
+                        "Metadata saved, but failed to refresh ETag from blob properties: %s",
+                        refresh_error,
+                    )
+                    self._metadata_etag = None
             logger.debug("Saved metadata index with %d entries", len(self._metadata))
         except Exception as e:
             raise ArchiveStoreError(f"Failed to save metadata: {e}") from e
