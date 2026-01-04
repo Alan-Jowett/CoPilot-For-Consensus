@@ -120,7 +120,7 @@ resource documentsDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2
       }
     }
   }
-}document
+}
 
 // Single multi-collection container partitioned by logical collection name
 // This approach stores all document types (archives, messages, chunks, threads, summaries)
@@ -136,7 +136,7 @@ resource documentsDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2
 // For production scale-out, consider migrating to individual containers per collection type
 // if throughput requirements diverge or if specific indexing/TTL policies are needed.
 resource documentsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-11-15' = {
-  parent: cosmosDatabase
+  parent: documentsDatabase
   name: containerName
   properties: {
     resource: {
