@@ -969,7 +969,7 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
       ingress: {
         external: true
         targetPort: servicePorts.gateway
-        allowInsecure: false
+        allowInsecure: true
         transport: 'http'
       }
     }
