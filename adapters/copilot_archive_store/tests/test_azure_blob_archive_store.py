@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from azure.core.exceptions import AzureError
+
 # Test if azure-storage-blob is available
 try:
     from azure.core.exceptions import ResourceNotFoundError
@@ -144,7 +146,7 @@ class TestAzureBlobArchiveStore:
             )
 
     def test_store_archive(self, store, mock_blob_service_client):
-        """Test storing an archive."""
+        """Test storing an archive with ETag fallback to get_blob_properties."""
         _, _, mock_container = mock_blob_service_client
 
         content = b"This is test archive content"
@@ -153,7 +155,7 @@ class TestAzureBlobArchiveStore:
         mock_archive_blob = MagicMock()
         mock_archive_blob.upload_blob.return_value = None
 
-        # Mock blob client for metadata
+        # Mock blob client for metadata with None result (triggers get_blob_properties fallback)
         mock_metadata_blob = MagicMock()
         mock_metadata_blob.upload_blob.return_value = None
         mock_metadata_props = MagicMock()
@@ -180,7 +182,7 @@ class TestAzureBlobArchiveStore:
         assert archive_id is not None
         assert len(archive_id) == 16
 
-        # Verify blob was uploaded
+        # Verify archive blob was uploaded
         mock_archive_blob.upload_blob.assert_called_once()
         upload_call = mock_archive_blob.upload_blob.call_args
         assert upload_call[0][0] == content
@@ -188,6 +190,84 @@ class TestAzureBlobArchiveStore:
 
         # Verify metadata was uploaded
         mock_metadata_blob.upload_blob.assert_called_once()
+
+        # Verify get_blob_properties WAS called (result was None)
+        mock_metadata_blob.get_blob_properties.assert_called_once()
+
+    def test_store_archive_etag_from_result_object(self, store, mock_blob_service_client):
+        """Test that ETag is extracted from upload_blob result when it has etag attribute."""
+        _, _, mock_container = mock_blob_service_client
+
+        content = b"Test content"
+
+        # Mock result object with etag attribute
+        mock_result = MagicMock()
+        mock_result.etag = "result-etag"
+
+        # Mock blob client for archive
+        mock_archive_blob = MagicMock()
+        mock_archive_blob.upload_blob.return_value = None
+
+        # Mock blob client for metadata with result object
+        mock_metadata_blob = MagicMock()
+        mock_metadata_blob.upload_blob.return_value = mock_result
+        mock_metadata_blob.get_blob_properties.return_value = MagicMock(etag="properties-etag")
+
+        def get_blob_client_side_effect(blob_name):
+            if "metadata" in blob_name:
+                return mock_metadata_blob
+            else:
+                return mock_archive_blob
+
+        mock_container.get_blob_client.side_effect = get_blob_client_side_effect
+
+        archive_id = store.store_archive(
+            source_name="test-source",
+            file_path="test.mbox",
+            content=content
+        )
+
+        # Verify ETag was extracted from result object
+        assert store._metadata_etag == "result-etag"
+        # Verify get_blob_properties was NOT called (result had etag attribute)
+        mock_metadata_blob.get_blob_properties.assert_not_called()
+
+    def test_store_archive_etag_from_dict_result(self, store, mock_blob_service_client):
+        """Test that ETag is extracted from upload_blob result when it's a dict with etag key."""
+        _, _, mock_container = mock_blob_service_client
+
+        content = b"Test content"
+
+        # Mock dict result with etag key
+        mock_result = {"etag": "dict-etag"}
+
+        # Mock blob client for archive
+        mock_archive_blob = MagicMock()
+        mock_archive_blob.upload_blob.return_value = None
+
+        # Mock blob client for metadata with dict result
+        mock_metadata_blob = MagicMock()
+        mock_metadata_blob.upload_blob.return_value = mock_result
+        mock_metadata_blob.get_blob_properties.return_value = MagicMock(etag="properties-etag")
+
+        def get_blob_client_side_effect(blob_name):
+            if "metadata" in blob_name:
+                return mock_metadata_blob
+            else:
+                return mock_archive_blob
+
+        mock_container.get_blob_client.side_effect = get_blob_client_side_effect
+
+        archive_id = store.store_archive(
+            source_name="test-source",
+            file_path="test.mbox",
+            content=content
+        )
+
+        # Verify ETag was extracted from dict result
+        assert store._metadata_etag == "dict-etag"
+        # Verify get_blob_properties was NOT called (result was dict with etag)
+        mock_metadata_blob.get_blob_properties.assert_not_called()
 
     def test_get_archive(self, store, mock_blob_service_client):
         """Test retrieving an archive."""

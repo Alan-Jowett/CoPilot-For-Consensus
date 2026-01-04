@@ -134,8 +134,8 @@ class AzureBlobArchiveStore(ArchiveStore):
             except ResourceExistsError:
                 # Container already exists; nothing to do
                 pass
-            except Exception:
-                # Surface unexpected errors so callers can fail fast
+            except AzureError:
+                # Surface unexpected Azure errors so callers can fail fast
                 raise
 
         except Exception as e:
