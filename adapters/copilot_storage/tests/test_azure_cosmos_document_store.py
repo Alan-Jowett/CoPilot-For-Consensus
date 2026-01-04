@@ -761,3 +761,198 @@ class TestAzureCosmosDocumentStoreValidation:
         assert not store._is_valid_document_id("doc\x00id")
         assert not store._is_valid_document_id("doc\nid")
         assert not store._is_valid_document_id("doc\tid")
+
+
+class TestAzureCosmosDocumentStoreQueryOperators:
+    """Tests for MongoDB-style query operators in Azure Cosmos DB document store."""
+
+    def test_query_documents_with_in_operator(self):
+        """Test query_documents with $in operator translates to Cosmos SQL IN."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock container directly without patching azure.cosmos import
+        mock_container = MagicMock()
+        mock_container.query_items.return_value = [
+            {"id": "1", "collection": "archives", "status": "pending"},
+            {"id": "2", "collection": "archives", "status": "processing"},
+        ]
+        store.container = mock_container
+
+        # Query with $in operator
+        result = store.query_documents(
+            collection="archives",
+            filter_dict={"status": {"$in": ["pending", "processing"]}},
+            limit=100
+        )
+
+        # Verify query was built correctly
+        mock_container.query_items.assert_called_once()
+        call_args = mock_container.query_items.call_args
+
+        # Check the SQL query contains IN clause
+        query = call_args.kwargs["query"]
+        assert "c.status IN" in query
+        assert "@param0" in query
+        assert "@param1" in query
+
+        # Check parameters include both values
+        parameters = call_args.kwargs["parameters"]
+        param_values = [p["value"] for p in parameters if p["name"].startswith("@param")]
+        assert "pending" in param_values
+        assert "processing" in param_values
+
+        # Verify result
+        assert len(result) == 2
+        assert result[0]["status"] == "pending"
+        assert result[1]["status"] == "processing"
+
+    def test_query_documents_with_in_operator_empty_list(self):
+        """Test query_documents with $in operator and empty list returns empty result."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock container (should not be called)
+        mock_container = MagicMock()
+        store.container = mock_container
+
+        # Query with empty $in list
+        result = store.query_documents(
+            collection="archives",
+            filter_dict={"status": {"$in": []}},
+            limit=100
+        )
+
+        # Should return empty result without querying
+        assert result == []
+        mock_container.query_items.assert_not_called()
+
+    def test_query_documents_with_in_operator_single_value(self):
+        """Test query_documents with $in operator with single value."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock container
+        mock_container = MagicMock()
+        mock_container.query_items.return_value = [
+            {"id": "1", "collection": "archives", "status": "pending"}
+        ]
+        store.container = mock_container
+
+        # Query with $in operator with single value
+        result = store.query_documents(
+            collection="archives",
+            filter_dict={"status": {"$in": ["pending"]}},
+            limit=100
+        )
+
+        # Verify query was built correctly
+        call_args = mock_container.query_items.call_args
+        query = call_args.kwargs["query"]
+        assert "c.status IN" in query
+        assert "@param0" in query
+
+        # Verify result
+        assert len(result) == 1
+
+    def test_query_documents_with_eq_operator(self):
+        """Test query_documents with explicit $eq operator."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock container
+        mock_container = MagicMock()
+        mock_container.query_items.return_value = [
+            {"id": "1", "collection": "archives", "status": "completed"}
+        ]
+        store.container = mock_container
+
+        # Query with $eq operator
+        result = store.query_documents(
+            collection="archives",
+            filter_dict={"status": {"$eq": "completed"}},
+            limit=100
+        )
+
+        # Verify query was built correctly
+        call_args = mock_container.query_items.call_args
+        query = call_args.kwargs["query"]
+        assert "c.status = @param0" in query
+
+        # Verify result
+        assert len(result) == 1
+
+    def test_query_documents_mixed_operators(self):
+        """Test query_documents with mixed simple and operator filters."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock container
+        mock_container = MagicMock()
+        mock_container.query_items.return_value = [
+            {"id": "1", "collection": "archives", "status": "pending", "source": "ietf-announce"}
+        ]
+        store.container = mock_container
+
+        # Query with both simple equality and $in operator
+        result = store.query_documents(
+            collection="archives",
+            filter_dict={
+                "source": "ietf-announce",
+                "status": {"$in": ["pending", "processing"]}
+            },
+            limit=50
+        )
+
+        # Verify query was built
+        call_args = mock_container.query_items.call_args
+        query = call_args.kwargs["query"]
+        assert "c.source = @param0" in query
+        assert "c.status IN" in query
+        assert "LIMIT 50" in query
+
+        # Verify result
+        assert len(result) == 1
+
+    def test_aggregate_documents_with_in_operator(self):
+        """Test aggregate_documents with $in operator in $match stage."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock container
+        mock_container = MagicMock()
+        mock_container.query_items.return_value = [
+            {"id": "1", "collection": "archives", "status": "pending"},
+            {"id": "2", "collection": "archives", "status": "processing"},
+        ]
+        store.container = mock_container
+
+        # Aggregate with $in in $match
+        result = store.aggregate_documents(
+            collection="archives",
+            pipeline=[
+                {"$match": {"status": {"$in": ["pending", "processing"]}}},
+                {"$limit": 100}
+            ]
+        )
+
+        # Verify query was built correctly
+        call_args = mock_container.query_items.call_args
+        query = call_args.kwargs["query"]
+        assert "c.status IN" in query
+        assert "LIMIT 100" in query
+
+        # Verify result
+        assert len(result) == 2
