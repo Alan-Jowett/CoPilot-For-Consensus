@@ -494,6 +494,9 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     aiSearchEndpoint: aiSearchModule!.outputs.endpoint
     serviceBusNamespace: serviceBusModule.outputs.namespaceFullyQualifiedName
     cosmosDbEndpoint: cosmosModule.outputs.accountEndpoint
+    cosmosAuthDatabaseName: cosmosModule.outputs.authDatabaseName
+    cosmosDocumentsDatabaseName: cosmosModule.outputs.documentsDatabaseName
+    cosmosContainerName: cosmosModule.outputs.containerName
     storageAccountName: storageModule!.outputs.accountName
     storageBlobEndpoint: storageModule!.outputs.blobEndpoint
     subnetId: vnetModule!.outputs.containerAppsSubnetId
@@ -543,7 +546,8 @@ output serviceBusNamespaceId string = serviceBusModule.outputs.namespaceResource
 output serviceBusQueues array = serviceBusModule.outputs.queueNames
 output cosmosAccountName string = cosmosModule.outputs.accountName
 output cosmosAccountEndpoint string = cosmosModule.outputs.accountEndpoint
-output cosmosDatabaseName string = cosmosModule.outputs.databaseName
+output cosmosAuthDatabaseName string = cosmosModule.outputs.authDatabaseName
+output cosmosDocumentsDatabaseName string = cosmosModule.outputs.documentsDatabaseName
 output cosmosContainerName string = cosmosModule.outputs.containerName
 output cosmosAutoscaleMaxRu int = cosmosModule.outputs.autoscaleMaxThroughput
 output cosmosWriteRegions array = cosmosModule.outputs.writeRegions

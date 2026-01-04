@@ -47,6 +47,15 @@ param serviceBusNamespace string = ''
 @description('Cosmos DB account endpoint URL for document store connection')
 param cosmosDbEndpoint string = ''
 
+@description('Cosmos DB auth database name')
+param cosmosAuthDatabaseName string = 'auth'
+
+@description('Cosmos DB documents database name')
+param cosmosDocumentsDatabaseName string = 'copilot'
+
+@description('Cosmos DB container name for documents')
+param cosmosContainerName string = 'documents'
+
 @description('Storage Account name for blob storage')
 param storageAccountName string = ''
 
@@ -198,6 +207,10 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosDbEndpoint
             }
             {
+              name: 'DOCUMENT_DATABASE_NAME'
+              value: cosmosAuthDatabaseName
+            }
+            {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
               value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
@@ -282,6 +295,14 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'COSMOS_DB_ENDPOINT'
               value: cosmosDbEndpoint
+            }
+            {
+              name: 'DOCUMENT_DATABASE_NAME'
+              value: cosmosDocumentsDatabaseName
+            }
+            {
+              name: 'DOCUMENT_CONTAINER_NAME'
+              value: cosmosContainerName
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -376,6 +397,14 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'COSMOS_DB_ENDPOINT'
               value: cosmosDbEndpoint
+            }
+            {
+              name: 'DOCUMENT_DATABASE_NAME'
+              value: cosmosDocumentsDatabaseName
+            }
+            {
+              name: 'DOCUMENT_CONTAINER_NAME'
+              value: cosmosContainerName
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -489,6 +518,14 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosDbEndpoint
             }
             {
+              name: 'DOCUMENT_DATABASE_NAME'
+              value: cosmosDocumentsDatabaseName
+            }
+            {
+              name: 'DOCUMENT_CONTAINER_NAME'
+              value: cosmosContainerName
+            }
+            {
               name: 'AZURE_CLIENT_ID'
               value: identityClientIds.parsing
             }
@@ -584,6 +621,14 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosDbEndpoint
             }
             {
+              name: 'DOCUMENT_DATABASE_NAME'
+              value: cosmosDocumentsDatabaseName
+            }
+            {
+              name: 'DOCUMENT_CONTAINER_NAME'
+              value: cosmosContainerName
+            }
+            {
               name: 'AZURE_CLIENT_ID'
               value: identityClientIds.chunking
             }
@@ -677,6 +722,14 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'COSMOS_DB_ENDPOINT'
               value: cosmosDbEndpoint
+            }
+            {
+              name: 'DOCUMENT_DATABASE_NAME'
+              value: cosmosDocumentsDatabaseName
+            }
+            {
+              name: 'DOCUMENT_CONTAINER_NAME'
+              value: cosmosContainerName
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -802,6 +855,14 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosDbEndpoint
             }
             {
+              name: 'DOCUMENT_DATABASE_NAME'
+              value: cosmosDocumentsDatabaseName
+            }
+            {
+              name: 'DOCUMENT_CONTAINER_NAME'
+              value: cosmosContainerName
+            }
+            {
               name: 'AZURE_CLIENT_ID'
               value: identityClientIds.orchestrator
             }
@@ -911,6 +972,14 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'COSMOS_DB_ENDPOINT'
               value: cosmosDbEndpoint
+            }
+            {
+              name: 'DOCUMENT_DATABASE_NAME'
+              value: cosmosDocumentsDatabaseName
+            }
+            {
+              name: 'DOCUMENT_CONTAINER_NAME'
+              value: cosmosContainerName
             }
             {
               name: 'AZURE_CLIENT_ID'
