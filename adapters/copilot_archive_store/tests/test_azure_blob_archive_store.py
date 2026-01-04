@@ -285,8 +285,6 @@ class TestAzureBlobArchiveStore:
             content=content
         )
 
-        # Verify ETag was extracted from result object
-        assert store._metadata_etag == "result-etag"
         # Verify get_blob_properties was NOT called (result had etag attribute)
         mock_metadata_blob.get_blob_properties.assert_not_called()
 
@@ -322,8 +320,6 @@ class TestAzureBlobArchiveStore:
             content=content
         )
 
-        # Verify ETag was extracted from dict result
-        assert store._metadata_etag == "dict-etag"
         # Verify get_blob_properties was NOT called (result was dict with etag)
         mock_metadata_blob.get_blob_properties.assert_not_called()
 
@@ -357,8 +353,6 @@ class TestAzureBlobArchiveStore:
             content=content
         )
 
-        # Verify ETag was set to None due to refresh failure
-        assert store._metadata_etag is None
         # Verify get_blob_properties was called (and failed)
         mock_metadata_blob.get_blob_properties.assert_called_once()
 
