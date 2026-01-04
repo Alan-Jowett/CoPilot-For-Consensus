@@ -134,14 +134,16 @@ class AzureBlobArchiveStore(ArchiveStore):
             except ResourceExistsError:
                 # Container already exists; nothing to do
                 pass
-            except AzureError:
-                # Surface unexpected Azure errors so callers can fail fast
-                raise
+            except AzureError as exc:
+                # Surface unexpected Azure errors with clear context and preserve cause
+                raise ArchiveStoreConnectionError(
+                    f"Unexpected Azure error while creating container "
+                    f"'{self.container_name}': {exc}"
+                ) from exc
 
-        except Exception as e:
-            raise ArchiveStoreConnectionError(
-                f"Failed to connect to Azure Blob Storage: {e}"
-            ) from e
+        except ArchiveStoreConnectionError:
+            # Preserve detailed connection errors raised above
+            raise
 
         # Metadata index blob name
         self.metadata_blob_name = f"{self.prefix}metadata/archives_index.json"
@@ -187,6 +189,13 @@ class AzureBlobArchiveStore(ArchiveStore):
         Uses ETag-based optimistic concurrency to prevent lost updates when multiple
         instances write simultaneously. If a conflict is detected, the operation fails
         and the caller should reload metadata and retry.
+
+        ETag Refresh Strategy:
+        - For optimal performance, ETags are extracted from the upload_blob result when available
+        - Azure SDK versions may return ETags as a result attribute (hasattr check) or as dict key
+        - If neither is available, falls back to get_blob_properties() to fetch fresh metadata
+        - The fallback incurs an extra network round-trip but ensures correctness for SDK versions
+          that don't include ETags in the upload response
         """
         from azure.core import MatchConditions
 

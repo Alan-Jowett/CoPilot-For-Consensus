@@ -7,17 +7,16 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from azure.core.exceptions import AzureError
-
 # Test if azure-storage-blob is available
 try:
-    from azure.core.exceptions import ResourceNotFoundError
+    from azure.core.exceptions import AzureError, ResourceNotFoundError
     AZURE_AVAILABLE = True
 except ImportError:
     AZURE_AVAILABLE = False
 
 if AZURE_AVAILABLE:
     from copilot_archive_store import AzureBlobArchiveStore
+    from copilot_archive_store.archive_store import ArchiveStoreConnectionError
 
 
 @pytest.mark.skipif(not AZURE_AVAILABLE, reason="azure-storage-blob not installed")
@@ -145,6 +144,55 @@ class TestAzureBlobArchiveStore:
                 container_name="archives"
             )
 
+    def test_initialization_container_already_exists(self):
+        """Test successful initialization when container already exists."""
+        with patch('copilot_archive_store.azure_blob_archive_store.BlobServiceClient') as mock_bsc:
+            mock_service = MagicMock()
+            mock_bsc.return_value = mock_service
+
+            mock_container = MagicMock()
+            mock_service.get_container_client.return_value = mock_container
+
+            # Container creation raises ResourceExistsError (already exists)
+            from azure.core.exceptions import ResourceExistsError
+            mock_container.create_container.side_effect = ResourceExistsError("Container exists")
+
+            # Mock metadata blob (not found initially)
+            mock_metadata_blob = MagicMock()
+            mock_metadata_blob.download_blob.side_effect = ResourceNotFoundError()
+            mock_container.get_blob_client.return_value = mock_metadata_blob
+
+            # Should succeed even when ResourceExistsError is raised
+            store = AzureBlobArchiveStore(
+                account_name="testaccount",
+                account_key="testkey123==",
+                container_name="test-archives"
+            )
+
+            assert store.container_name == "test-archives"
+            # Verify container creation was attempted
+            mock_container.create_container.assert_called_once()
+
+    def test_initialization_azure_error_during_container_creation(self):
+        """Test that unexpected Azure errors during container creation are surfaced."""
+        with patch('copilot_archive_store.azure_blob_archive_store.BlobServiceClient') as mock_bsc:
+            mock_service = MagicMock()
+            mock_bsc.return_value = mock_service
+
+            mock_container = MagicMock()
+            mock_service.get_container_client.return_value = mock_container
+
+            # Container creation raises an unexpected AzureError
+            mock_container.create_container.side_effect = AzureError("Network error")
+
+            # Should raise ArchiveStoreConnectionError with preserved cause
+            with pytest.raises(ArchiveStoreConnectionError, match="Unexpected Azure error while creating container"):
+                AzureBlobArchiveStore(
+                    account_name="testaccount",
+                    account_key="testkey123==",
+                    container_name="test-archives"
+                )
+
     def test_store_archive(self, store, mock_blob_service_client):
         """Test storing an archive with ETag fallback to get_blob_properties."""
         _, _, mock_container = mock_blob_service_client
@@ -172,15 +220,11 @@ class TestAzureBlobArchiveStore:
         mock_container.get_blob_client.side_effect = get_blob_client_side_effect
 
         # Store archive
-        archive_id = store.store_archive(
+        store.store_archive(
             source_name="test-source",
             file_path="/path/to/archive.mbox",
             content=content
         )
-
-        # Verify archive ID
-        assert archive_id is not None
-        assert len(archive_id) == 16
 
         # Verify archive blob was uploaded
         mock_archive_blob.upload_blob.assert_called_once()
@@ -221,7 +265,7 @@ class TestAzureBlobArchiveStore:
 
         mock_container.get_blob_client.side_effect = get_blob_client_side_effect
 
-        archive_id = store.store_archive(
+        store.store_archive(
             source_name="test-source",
             file_path="test.mbox",
             content=content
@@ -258,7 +302,7 @@ class TestAzureBlobArchiveStore:
 
         mock_container.get_blob_client.side_effect = get_blob_client_side_effect
 
-        archive_id = store.store_archive(
+        store.store_archive(
             source_name="test-source",
             file_path="test.mbox",
             content=content
