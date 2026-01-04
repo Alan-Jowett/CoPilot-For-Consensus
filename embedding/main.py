@@ -197,7 +197,7 @@ def main():
             # Validate required config attributes
             if not hasattr(config, "embedding_dimension"):
                 raise ValueError("embedding_dimension configuration is required for FAISS backend")
-            if hasattr(config, "embedding_dimension") and config.embedding_dimension <= 0:
+            if config.embedding_dimension <= 0:
                 raise ValueError(f"embedding_dimension must be positive, got {config.embedding_dimension}")
             if not hasattr(config, "vector_store_index_type"):
                 raise ValueError("vector_store_index_type configuration is required for FAISS backend")
@@ -214,7 +214,7 @@ def main():
             missing = [attr for attr in required_attrs if not hasattr(config, attr)]
             if missing:
                 raise ValueError(f"Missing required Qdrant configuration: {', '.join(missing)}")
-            if hasattr(config, "embedding_dimension") and config.embedding_dimension <= 0:
+            if config.embedding_dimension <= 0:
                 raise ValueError(f"embedding_dimension must be positive, got {config.embedding_dimension}")
 
             vector_store_kwargs.update({
