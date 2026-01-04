@@ -969,8 +969,8 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
       ingress: {
         external: true
         targetPort: servicePorts.gateway
-        allowInsecure: true
-        transport: 'http'
+        allowInsecure: false
+        transport: 'auto'
       }
     }
     template: {
