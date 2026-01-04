@@ -332,14 +332,18 @@ class AzureCosmosDocumentStore(DocumentStore):
                             # becomes: AND c.status IN (@param0, @param1)
                             if not isinstance(op_value, list):
                                 logger.warning(
-                                    f"AzureCosmosDocumentStore: $in operator requires list value, got {type(op_value).__name__}"
+                                    "AzureCosmosDocumentStore: $in operator requires list value, "
+                                    f"got {type(op_value).__name__}"
                                 )
                                 continue
                             if not op_value:
                                 # Empty list - no documents match
-                                logger.debug(f"AzureCosmosDocumentStore: $in operator with empty list - returning empty result")
+                                logger.debug(
+                                    "AzureCosmosDocumentStore: $in operator with empty list "
+                                    "- returning empty result"
+                                )
                                 return []
-                            
+
                             # Build parameter list for IN clause
                             param_names = []
                             for item in op_value:
@@ -347,7 +351,7 @@ class AzureCosmosDocumentStore(DocumentStore):
                                 param_counter += 1
                                 param_names.append(param_name)
                                 parameters.append({"name": param_name, "value": item})
-                            
+
                             query += f" AND c.{key} IN ({', '.join(param_names)})"
                         elif op == "$eq":
                             # Explicit equality
@@ -550,14 +554,15 @@ class AzureCosmosDocumentStore(DocumentStore):
                                     # Translate $in to Cosmos SQL IN operator
                                     if not isinstance(value, list):
                                         logger.warning(
-                                            f"AzureCosmosDocumentStore: $in operator requires list value, got {type(value).__name__}"
+                                            "AzureCosmosDocumentStore: $in operator requires list value, "
+                                            f"got {type(value).__name__}"
                                         )
                                         continue
                                     if not value:
                                         # Empty list - no documents match, but continue building query
                                         query += " AND 1=0"
                                         continue
-                                    
+
                                     # Build parameter list for IN clause
                                     param_names = []
                                     for item in value:
@@ -565,7 +570,7 @@ class AzureCosmosDocumentStore(DocumentStore):
                                         param_counter += 1
                                         param_names.append(param_name)
                                         parameters.append({"name": param_name, "value": item})
-                                    
+
                                     query += f" AND c.{key} IN ({', '.join(param_names)})"
                                 else:
                                     logger.warning(

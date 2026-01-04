@@ -102,22 +102,22 @@ class TestAzureCosmosDocumentStore:
         """Test that connect() uses managed identity when key is missing."""
         mock_cred_instance = MagicMock()
         mock_credential.return_value = mock_cred_instance
-        
+
         mock_client_instance = MagicMock()
         mock_database = MagicMock()
         mock_container = MagicMock()
-        
+
         mock_cosmos_client.return_value = mock_client_instance
         mock_client_instance.create_database_if_not_exists.return_value = mock_database
         mock_database.create_container_if_not_exists.return_value = mock_container
-        
+
         store = AzureCosmosDocumentStore(
             endpoint="https://test.documents.azure.com:443/",
             key=None
         )
-        
+
         store.connect()
-        
+
         # Verify DefaultAzureCredential was used
         mock_credential.assert_called_once()
         mock_cosmos_client.assert_called_once_with(
