@@ -69,6 +69,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
         jwks_cache_ttl: int = 3600,
         jwks_fetch_retries: int = 5,
         jwks_fetch_retry_delay: float = 1.0,
+        jwks_fetch_timeout: float = 10.0,
     ):
         """Initialize JWT middleware.
 
@@ -81,6 +82,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
             jwks_cache_ttl: JWKS cache TTL in seconds (default: 3600 = 1 hour)
             jwks_fetch_retries: Number of retries for initial JWKS fetch (default: 5)
             jwks_fetch_retry_delay: Initial delay between retries in seconds (default: 1.0)
+            jwks_fetch_timeout: Timeout for JWKS fetch requests in seconds (default: 10.0)
         """
         super().__init__(app)
         self.auth_service_url = auth_service_url.rstrip("/")
@@ -90,6 +92,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
         self.jwks_cache_ttl = jwks_cache_ttl
         self.jwks_fetch_retries = jwks_fetch_retries
         self.jwks_fetch_retry_delay = jwks_fetch_retry_delay
+        self.jwks_fetch_timeout = jwks_fetch_timeout
 
         # JWKS cache with timestamp
         self.jwks: dict[str, Any] | None = None
@@ -107,7 +110,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
 
         for attempt in range(1, self.jwks_fetch_retries + 1):
             try:
-                response = httpx.get(f"{self.auth_service_url}/keys", timeout=10.0)
+                response = httpx.get(f"{self.auth_service_url}/keys", timeout=self.jwks_fetch_timeout)
                 response.raise_for_status()
                 jwks = response.json()
                 self.jwks = jwks
@@ -179,7 +182,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 return
 
         try:
-            response = httpx.get(f"{self.auth_service_url}/keys", timeout=10.0)
+            response = httpx.get(f"{self.auth_service_url}/keys", timeout=self.jwks_fetch_timeout)
             response.raise_for_status()
             jwks = response.json()
             self.jwks = jwks
