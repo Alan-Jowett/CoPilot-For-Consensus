@@ -771,14 +771,35 @@ class AzureCosmosDocumentStore(DocumentStore):
         foreign_field = lookup_spec.get("foreignField")
         as_field = lookup_spec.get("as")
 
-        # Validate that all required fields are present and are non-empty strings
-        if not all(
-            isinstance(value, str) and value
-            for value in (from_collection, local_field, foreign_field, as_field)
-        ):
+        # Validate that all required fields are present and have correct types
+        required_fields = {
+            "from": from_collection,
+            "localField": local_field,
+            "foreignField": foreign_field,
+            "as": as_field
+        }
+        
+        # Check for missing or non-string values
+        missing_or_invalid = [
+            field_name for field_name, value in required_fields.items()
+            if not isinstance(value, str)
+        ]
+        if missing_or_invalid:
             logger.error(
-                "AzureCosmosDocumentStore: $lookup requires non-empty string values for "
-                "'from', 'localField', 'foreignField', and 'as' fields"
+                f"AzureCosmosDocumentStore: $lookup requires string values for "
+                f"{', '.join(missing_or_invalid)}"
+            )
+            return documents
+        
+        # Check for empty strings
+        empty_fields = [
+            field_name for field_name, value in required_fields.items()
+            if not value
+        ]
+        if empty_fields:
+            logger.error(
+                f"AzureCosmosDocumentStore: $lookup requires non-empty values for "
+                f"{', '.join(empty_fields)}"
             )
             return documents
 

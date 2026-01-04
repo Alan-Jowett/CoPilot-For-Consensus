@@ -800,8 +800,6 @@ class TestAzureCosmosDocumentStore:
             {"id": "msg3", "collection": "messages", "user": {"name": "Alice", "email": "alice2@example.com"}}
         ]
         
-        mock_container.query_items.return_value = messages
-
         # Pipeline with nested field match after $lookup
         pipeline = [
             {
@@ -819,7 +817,7 @@ class TestAzureCosmosDocumentStore:
             }
         ]
 
-        # Second query for $lookup (chunks collection)
+        # Mock query results: first query returns messages, second query for $lookup returns chunks
         mock_container.query_items.side_effect = [messages, []]
 
         results = store.aggregate_documents("messages", pipeline)
