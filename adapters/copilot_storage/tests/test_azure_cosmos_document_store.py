@@ -639,8 +639,8 @@ class TestAzureCosmosDocumentStore:
         query = call_args.kwargs["query"]
         assert "OFFSET 0 LIMIT 10" in query
 
-    def test_aggregate_documents_unsupported_lookup(self):
-        """Test that $lookup stage is logged as unsupported."""
+    def test_aggregate_documents_with_lookup(self):
+        """Test that $lookup stage performs client-side join."""
         store = AzureCosmosDocumentStore(
             endpoint="https://test.documents.azure.com:443/",
             key="testkey"
@@ -650,8 +650,18 @@ class TestAzureCosmosDocumentStore:
         mock_container = MagicMock()
         store.container = mock_container
 
-        # Mock query results
-        mock_container.query_items.return_value = []
+        # Mock query results for messages and chunks
+        # First call: messages collection
+        # Second call: chunks collection (for $lookup)
+        messages = [
+            {"id": "msg1", "collection": "messages", "message_key": "key1", "text": "Hello"},
+            {"id": "msg2", "collection": "messages", "message_key": "key2", "text": "World"}
+        ]
+        chunks = [
+            {"id": "chunk1", "collection": "chunks", "message_key": "key1", "chunk_id": "c1"}
+        ]
+        
+        mock_container.query_items.side_effect = [messages, chunks]
 
         pipeline = [
             {
@@ -664,9 +674,78 @@ class TestAzureCosmosDocumentStore:
             }
         ]
 
-        # Should not raise an error, just log warning
+        # Should perform client-side join
         results = store.aggregate_documents("messages", pipeline)
         assert isinstance(results, list)
+        assert len(results) == 2
+        
+        # msg1 should have one chunk, msg2 should have empty chunks array
+        msg1_result = [r for r in results if r["message_key"] == "key1"][0]
+        msg2_result = [r for r in results if r["message_key"] == "key2"][0]
+        
+        assert len(msg1_result["chunks"]) == 1
+        assert msg1_result["chunks"][0]["chunk_id"] == "c1"
+        assert len(msg2_result["chunks"]) == 0
+
+    def test_aggregate_documents_lookup_with_match(self):
+        """Test $lookup followed by $match to find messages without chunks (chunking service use case)."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock connected state
+        mock_container = MagicMock()
+        store.container = mock_container
+
+        # Mock query results
+        # First call: messages collection with $match on _id
+        # Second call: chunks collection (for $lookup)
+        messages = [
+            {"id": "msg1", "collection": "messages", "_id": "msg1", "archive_id": 1},
+            {"id": "msg2", "collection": "messages", "_id": "msg2", "archive_id": 1},
+            {"id": "msg3", "collection": "messages", "_id": "msg3", "archive_id": 1}
+        ]
+        chunks = [
+            {"id": "chunk1", "collection": "chunks", "message_doc_id": "msg1"},
+            {"id": "chunk2", "collection": "chunks", "message_doc_id": "msg1"}
+        ]
+        
+        mock_container.query_items.side_effect = [messages, chunks]
+
+        # Pipeline that matches chunking service requeue logic
+        pipeline = [
+            {
+                "$match": {
+                    "_id": {"$exists": True}
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "chunks",
+                    "localField": "_id",
+                    "foreignField": "message_doc_id",
+                    "as": "chunks"
+                }
+            },
+            {
+                "$match": {
+                    "chunks": {"$eq": []}
+                }
+            },
+            {
+                "$limit": 1000
+            }
+        ]
+
+        results = store.aggregate_documents("messages", pipeline)
+        
+        # Should find msg2 and msg3 (messages without chunks)
+        assert len(results) == 2
+        message_ids = [r["_id"] for r in results]
+        assert "msg1" not in message_ids  # msg1 has chunks
+        assert "msg2" in message_ids
+        assert "msg3" in message_ids
 
     def test_aggregate_documents_invalid_limit(self):
         """Test that aggregation with invalid limit raises error."""

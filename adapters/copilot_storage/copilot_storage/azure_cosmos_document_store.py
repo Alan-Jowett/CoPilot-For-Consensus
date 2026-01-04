@@ -513,9 +513,10 @@ class AzureCosmosDocumentStore(DocumentStore):
 
         Note: This is a simplified implementation that supports common aggregation stages
         for compatibility with MongoDB-style pipelines. Cosmos DB uses SQL queries, so
-        we translate simple pipelines to SQL.
+        we translate simple pipelines to SQL where possible, and handle complex operations
+        like $lookup with client-side processing.
 
-        Supported stages: $match, $limit
+        Supported stages: $match, $lookup, $limit
 
         Args:
             collection: Name of the logical collection
@@ -532,118 +533,18 @@ class AzureCosmosDocumentStore(DocumentStore):
             raise DocumentStoreNotConnectedError("Not connected to Cosmos DB")
 
         try:
-            # Build SQL query from pipeline
-            query = "SELECT * FROM c WHERE c.collection = @collection"
-            parameters = [{"name": "@collection", "value": collection}]
-            limit_value = None
-            param_counter = 0  # Track unique parameter names
+            # Process pipeline stages sequentially
+            # Start by querying the initial collection with $match stages before any $lookup
+            results = self._execute_initial_query(collection, pipeline)
 
-            for stage in pipeline:
-                stage_name = list(stage.keys())[0]
-                stage_spec = stage[stage_name]
-
-                if stage_name == "$match":
-                    # Add match conditions to WHERE clause
-                    for key, condition in stage_spec.items():
-                        # Validate field name to prevent SQL injection
-                        if not self._is_valid_field_name(key):
-                            logger.warning(f"AzureCosmosDocumentStore: skipping invalid field name '{key}'")
-                            continue
-
-                        if isinstance(condition, dict):
-                            # Handle operators
-                            # Validate that all keys in the dict are operators (start with '$')
-                            non_operators = [k for k in condition.keys() if not k.startswith('$')]
-                            if non_operators:
-                                logger.warning(
-                                    f"AzureCosmosDocumentStore: $match condition for '{key}' contains "
-                                    f"non-operator keys {non_operators}, treating as invalid - skipping field"
-                                )
-                                continue
-
-                            for op, value in condition.items():
-                                if op == "$exists":
-                                    if value:
-                                        query += f" AND IS_DEFINED(c.{key})"
-                                    else:
-                                        query += f" AND NOT IS_DEFINED(c.{key})"
-                                elif op == "$eq":
-                                    param_name = f"@param{param_counter}"
-                                    param_counter += 1
-                                    query += f" AND c.{key} = {param_name}"
-                                    parameters.append({"name": param_name, "value": value})
-                                elif op == "$in":
-                                    # Translate $in to Cosmos SQL IN operator
-                                    if not isinstance(value, list):
-                                        logger.warning(
-                                            "AzureCosmosDocumentStore: $in operator requires list value, "
-                                            f"got {type(value).__name__}"
-                                        )
-                                        continue
-                                    if not value:
-                                        # Empty list - no documents match; short-circuit to avoid unnecessary query
-                                        logger.debug(
-                                            "AzureCosmosDocumentStore: $in operator with empty list in aggregation "
-                                            "- returning empty result"
-                                        )
-                                        return []
-
-                                    # Build parameter list for IN clause
-                                    param_names = []
-                                    for item in value:
-                                        param_name = f"@param{param_counter}"
-                                        param_counter += 1
-                                        param_names.append(param_name)
-                                        parameters.append({"name": param_name, "value": item})
-
-                                    query += f" AND c.{key} IN ({', '.join(param_names)})"
-                                else:
-                                    logger.warning(
-                                        f"AzureCosmosDocumentStore: unsupported operator '{op}' in $match, skipping"
-                                    )
-                        else:
-                            # Simple equality check
-                            param_name = f"@param{param_counter}"
-                            param_counter += 1
-                            query += f" AND c.{key} = {param_name}"
-                            parameters.append({"name": param_name, "value": condition})
-
-                elif stage_name == "$limit":
-                    limit_value = stage_spec
-
-                elif stage_name == "$lookup":
-                    # Cosmos DB doesn't support joins like MongoDB
-                    # This would require multiple queries and client-side joining
-                    logger.warning(
-                        "AzureCosmosDocumentStore: $lookup not supported, skipping"
-                    )
-
-                else:
-                    logger.warning(
-                        f"AzureCosmosDocumentStore: aggregation stage '{stage_name}' not implemented, skipping"
-                    )
-
-            # Add limit if specified
-            # Cosmos DB requires OFFSET...LIMIT syntax, not standalone LIMIT
-            if limit_value is not None:
-                # Validate limit value to prevent SQL injection
-                if not isinstance(limit_value, int) or limit_value < 1:
-                    raise DocumentStoreError(f"Invalid limit value '{limit_value}': must be a positive integer")
-                query += f" OFFSET 0 LIMIT {limit_value}"
-
-            # Execute query
-            items = list(self.container.query_items(
-                query=query,
-                parameters=parameters,
-                enable_cross_partition_query=False,
-                partition_key=collection
-            ))
+            # Process remaining stages that require client-side processing
+            results = self._process_client_side_stages(results, pipeline)
 
             logger.debug(
                 f"AzureCosmosDocumentStore: aggregation on {collection} "
-                f"returned {len(items)} documents"
+                f"returned {len(results)} documents"
             )
-            return items
+            return results
 
         except DocumentStoreError:
             # Re-raise our own validation errors without wrapping
@@ -657,3 +558,287 @@ class AzureCosmosDocumentStore(DocumentStore):
         except Exception as e:
             logger.error(f"AzureCosmosDocumentStore: aggregate_documents failed - {e}", exc_info=True)
             raise DocumentStoreError(f"Failed to aggregate documents from {collection}") from e
+
+    def _execute_initial_query(
+        self, collection: str, pipeline: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Execute initial SQL query for stages that can be pushed down to Cosmos DB.
+
+        This handles $match stages that appear before any $lookup stages, and
+        $limit stages if there's no $lookup in the pipeline.
+
+        Args:
+            collection: Name of the logical collection
+            pipeline: Full aggregation pipeline
+
+        Returns:
+            List of documents from initial query
+        """
+        query = "SELECT * FROM c WHERE c.collection = @collection"
+        parameters = [{"name": "@collection", "value": collection}]
+        param_counter = 0
+        has_lookup = any(list(stage.keys())[0] == "$lookup" for stage in pipeline)
+
+        # Process only initial $match stages (before any $lookup)
+        for stage in pipeline:
+            stage_name = list(stage.keys())[0]
+            
+            # Stop at first non-$match stage
+            if stage_name != "$match":
+                break
+            
+            stage_spec = stage[stage_name]
+            
+            # Add match conditions to WHERE clause
+            for key, condition in stage_spec.items():
+                # Validate field name to prevent SQL injection
+                if not self._is_valid_field_name(key):
+                    logger.warning(f"AzureCosmosDocumentStore: skipping invalid field name '{key}'")
+                    continue
+
+                if isinstance(condition, dict):
+                    # Handle operators
+                    for op, value in condition.items():
+                        if op == "$exists":
+                            if value:
+                                query += f" AND IS_DEFINED(c.{key})"
+                            else:
+                                query += f" AND NOT IS_DEFINED(c.{key})"
+                        elif op == "$eq":
+                            param_name = f"@param{param_counter}"
+                            param_counter += 1
+                            query += f" AND c.{key} = {param_name}"
+                            parameters.append({"name": param_name, "value": value})
+                        else:
+                            logger.warning(
+                                f"AzureCosmosDocumentStore: unsupported operator '{op}' in $match, skipping"
+                            )
+                else:
+                    # Simple equality check
+                    param_name = f"@param{param_counter}"
+                    param_counter += 1
+                    query += f" AND c.{key} = {param_name}"
+                    parameters.append({"name": param_name, "value": condition})
+
+        # If there's no $lookup, we can add $limit to the SQL query
+        if not has_lookup:
+            for stage in pipeline:
+                stage_name = list(stage.keys())[0]
+                if stage_name == "$limit":
+                    query += f" LIMIT {stage[stage_name]}"
+                    break
+
+        # Execute query
+        items = list(self.container.query_items(
+            query=query,
+            parameters=parameters,
+            enable_cross_partition_query=False,
+            partition_key=collection
+        ))
+
+        return items
+
+    def _process_client_side_stages(
+        self, documents: list[dict[str, Any]], pipeline: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Process pipeline stages that require client-side processing.
+
+        This handles $lookup, $match (after $lookup), and $limit stages.
+
+        Args:
+            documents: Documents from initial query
+            pipeline: Full aggregation pipeline
+
+        Returns:
+            Processed documents
+        """
+        results = documents
+        skip_initial_matches = True  # Skip $match stages already processed in SQL
+
+        for stage in pipeline:
+            stage_name = list(stage.keys())[0]
+            stage_spec = stage[stage_name]
+
+            if stage_name == "$match":
+                if skip_initial_matches:
+                    # Already processed in SQL, continue until we hit a non-$match stage
+                    continue
+                else:
+                    # Process $match that comes after $lookup
+                    results = self._apply_match_stage(results, stage_spec)
+
+            elif stage_name == "$lookup":
+                # From this point on, we need to process all stages client-side
+                skip_initial_matches = False
+                results = self._apply_lookup_stage(results, stage_spec)
+
+            elif stage_name == "$limit":
+                # Apply limit
+                results = results[:stage_spec]
+
+            else:
+                logger.warning(
+                    f"AzureCosmosDocumentStore: aggregation stage '{stage_name}' not implemented, skipping"
+                )
+
+        return results
+
+    def _apply_match_stage(
+        self, documents: list[dict[str, Any]], match_spec: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        """Apply a $match stage to filter documents.
+
+        Args:
+            documents: Documents to filter
+            match_spec: Match specification
+
+        Returns:
+            Filtered documents
+        """
+        results = []
+        
+        for doc in documents:
+            matches = True
+            
+            for key, condition in match_spec.items():
+                if isinstance(condition, dict):
+                    # Handle operators
+                    for op, value in condition.items():
+                        if op == "$eq":
+                            if doc.get(key) != value:
+                                matches = False
+                                break
+                        elif op == "$exists":
+                            if value and key not in doc:
+                                matches = False
+                                break
+                            elif not value and key in doc:
+                                matches = False
+                                break
+                        else:
+                            logger.warning(
+                                f"AzureCosmosDocumentStore: unsupported operator '{op}' in client-side $match"
+                            )
+                    if not matches:
+                        break
+                else:
+                    # Simple equality check
+                    if doc.get(key) != condition:
+                        matches = False
+                        break
+            
+            if matches:
+                results.append(doc)
+        
+        return results
+
+    def _apply_lookup_stage(
+        self, documents: list[dict[str, Any]], lookup_spec: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        """Apply a $lookup stage to join with another collection.
+
+        Performs client-side join since Cosmos DB doesn't support joins.
+
+        Args:
+            documents: Documents to join with foreign collection
+            lookup_spec: Lookup specification with from, localField, foreignField, as
+
+        Returns:
+            Documents with joined data
+        """
+        from_collection = lookup_spec.get("from")
+        local_field = lookup_spec.get("localField")
+        foreign_field = lookup_spec.get("foreignField")
+        as_field = lookup_spec.get("as")
+
+        if not all([from_collection, local_field, foreign_field, as_field]):
+            logger.error(
+                "AzureCosmosDocumentStore: $lookup requires 'from', 'localField', "
+                "'foreignField', and 'as' fields"
+            )
+            return documents
+
+        # Validate field names
+        if not self._is_valid_field_name(local_field):
+            logger.error(f"AzureCosmosDocumentStore: invalid localField '{local_field}' in $lookup")
+            return documents
+        if not self._is_valid_field_name(foreign_field):
+            logger.error(f"AzureCosmosDocumentStore: invalid foreignField '{foreign_field}' in $lookup")
+            return documents
+
+        # Query all documents from the foreign collection
+        query = "SELECT * FROM c WHERE c.collection = @collection"
+        parameters = [{"name": "@collection", "value": from_collection}]
+
+        try:
+            foreign_docs = list(self.container.query_items(
+                query=query,
+                parameters=parameters,
+                enable_cross_partition_query=False,
+                partition_key=from_collection
+            ))
+        except cosmos_exceptions.CosmosHttpResponseError as e:
+            logger.error(
+                f"AzureCosmosDocumentStore: failed to query foreign collection "
+                f"'{from_collection}' in $lookup - {e}"
+            )
+            # Return documents with empty array for the joined field
+            for doc in documents:
+                doc[as_field] = []
+            return documents
+
+        # Build an index of foreign documents by foreign_field for efficient lookup
+        foreign_index = {}
+        for foreign_doc in foreign_docs:
+            # Handle nested field access (e.g., "user.email")
+            foreign_value = self._get_nested_field(foreign_doc, foreign_field)
+            if foreign_value is not None:
+                if foreign_value not in foreign_index:
+                    foreign_index[foreign_value] = []
+                foreign_index[foreign_value].append(foreign_doc)
+
+        # Perform the join
+        results = []
+        for doc in documents:
+            # Make a copy to avoid modifying the original
+            doc_copy = dict(doc)
+            
+            # Get the local field value
+            local_value = self._get_nested_field(doc, local_field)
+            
+            # Find matching foreign documents
+            if local_value is not None and local_value in foreign_index:
+                doc_copy[as_field] = foreign_index[local_value]
+            else:
+                doc_copy[as_field] = []
+            
+            results.append(doc_copy)
+
+        return results
+
+    def _get_nested_field(self, doc: dict[str, Any], field_path: str) -> Any:
+        """Get a nested field value from a document.
+
+        Supports dot notation for nested fields (e.g., "user.email").
+
+        Args:
+            doc: Document to get field from
+            field_path: Field path (may contain dots for nested access)
+
+        Returns:
+            Field value, or None if not found
+        """
+        if "." not in field_path:
+            return doc.get(field_path)
+        
+        # Handle nested field access
+        parts = field_path.split(".")
+        value = doc
+        for part in parts:
+            if not isinstance(value, dict):
+                return None
+            value = value.get(part)
+            if value is None:
+                return None
+        
+        return value
