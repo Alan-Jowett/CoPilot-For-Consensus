@@ -134,7 +134,7 @@ class AzureBlobArchiveStore(ArchiveStore):
             except ResourceExistsError:
                 # Container already exists; nothing to do
                 pass
-            except Exception as e:
+            except Exception:
                 # Surface unexpected errors so callers can fail fast
                 raise
 
@@ -196,19 +196,24 @@ class AzureBlobArchiveStore(ArchiveStore):
 
             # Use ETag for optimistic concurrency control
             if self._metadata_etag:
-                blob_client.upload_blob(
+                result = blob_client.upload_blob(
                     metadata_json.encode("utf-8"),
                     overwrite=True,
                     etag=self._metadata_etag,
                     match_condition=MatchConditions.IfNotModified
                 )
             else:
-                blob_client.upload_blob(
+                result = blob_client.upload_blob(
                     metadata_json.encode("utf-8"), overwrite=True
                 )
 
-            # Refresh stored ETag from blob properties after successful write
-            self._metadata_etag = blob_client.get_blob_properties().etag
+            # Refresh stored ETag from upload response when available, otherwise fall back to a properties call
+            if hasattr(result, "etag"):
+                self._metadata_etag = result.etag
+            elif isinstance(result, dict) and result.get("etag"):
+                self._metadata_etag = result["etag"]
+            else:
+                self._metadata_etag = blob_client.get_blob_properties().etag
             logger.debug("Saved metadata index with %d entries", len(self._metadata))
         except Exception as e:
             raise ArchiveStoreError(f"Failed to save metadata: {e}") from e
