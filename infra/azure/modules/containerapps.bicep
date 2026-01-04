@@ -970,7 +970,7 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
         external: true
         targetPort: servicePorts.gateway
         allowInsecure: false
-        transport: 'auto'
+        transport: 'http'
       }
     }
     template: {
