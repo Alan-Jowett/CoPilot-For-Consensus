@@ -577,9 +577,12 @@ class AzureCosmosDocumentStore(DocumentStore):
                                         )
                                         continue
                                     if not value:
-                                        # Empty list - no documents match, but continue building query
-                                        query += " AND 1=0"
-                                        continue
+                                        # Empty list - no documents match; short-circuit to avoid unnecessary query
+                                        logger.debug(
+                                            "AzureCosmosDocumentStore: $in operator with empty list in aggregation "
+                                            "- returning empty result"
+                                        )
+                                        return []
 
                                     # Build parameter list for IN clause
                                     param_names = []

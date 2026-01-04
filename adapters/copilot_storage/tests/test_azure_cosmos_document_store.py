@@ -956,3 +956,214 @@ class TestAzureCosmosDocumentStoreQueryOperators:
 
         # Verify result
         assert len(result) == 2
+
+    def test_query_documents_with_in_operator_non_list_value(self):
+        """Test query_documents with $in operator given non-list value logs warning and skips field."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock container
+        mock_container = MagicMock()
+        mock_container.query_items.return_value = []
+        store.container = mock_container
+
+        # Query with $in operator with non-list value (should be skipped)
+        result = store.query_documents(
+            collection="archives",
+            filter_dict={"status": {"$in": "pending"}},
+            limit=100
+        )
+
+        # Verify query was built without the $in clause (field skipped)
+        call_args = mock_container.query_items.call_args
+        query = call_args.kwargs["query"]
+        # Should not contain IN clause since field was skipped
+        assert "c.status IN" not in query
+        # Should only have the collection filter
+        assert "c.collection = @collection" in query
+
+        # Verify result
+        assert result == []
+
+    def test_query_documents_with_non_operator_keys(self):
+        """Test query_documents with mixed operator and non-operator keys logs warning and skips field."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock container
+        mock_container = MagicMock()
+        mock_container.query_items.return_value = []
+        store.container = mock_container
+
+        # Query with mixed operator and non-operator keys (should be skipped)
+        result = store.query_documents(
+            collection="archives",
+            filter_dict={"status": {"$in": ["pending"], "invalid_key": "value"}},
+            limit=100
+        )
+
+        # Verify query was built without the status clause (field skipped)
+        call_args = mock_container.query_items.call_args
+        query = call_args.kwargs["query"]
+        # Should not contain status filter since field was skipped
+        assert "c.status" not in query
+        # Should only have the collection filter
+        assert "c.collection = @collection" in query
+
+        # Verify result
+        assert result == []
+
+    def test_query_documents_with_unsupported_operator(self):
+        """Test query_documents with unsupported operator logs warning and skips operator."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock container
+        mock_container = MagicMock()
+        mock_container.query_items.return_value = []
+        store.container = mock_container
+
+        # Query with unsupported operator like $gt
+        result = store.query_documents(
+            collection="archives",
+            filter_dict={"age": {"$gt": 30}},
+            limit=100
+        )
+
+        # Verify query was built without the unsupported operator
+        call_args = mock_container.query_items.call_args
+        query = call_args.kwargs["query"]
+        # Should not contain age filter since operator was unsupported
+        assert "c.age" not in query
+        # Should only have the collection filter
+        assert "c.collection = @collection" in query
+
+        # Verify result
+        assert result == []
+
+    def test_aggregate_documents_with_in_operator_empty_list(self):
+        """Test aggregate_documents with $in operator and empty list returns empty result."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock container (should not be called)
+        mock_container = MagicMock()
+        store.container = mock_container
+
+        # Aggregate with empty $in list
+        result = store.aggregate_documents(
+            collection="archives",
+            pipeline=[
+                {"$match": {"status": {"$in": []}}},
+                {"$limit": 100}
+            ]
+        )
+
+        # Should return empty result without querying
+        assert result == []
+        mock_container.query_items.assert_not_called()
+
+    def test_aggregate_documents_with_in_operator_non_list_value(self):
+        """Test aggregate_documents with $in operator given non-list value logs warning and skips field."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock container
+        mock_container = MagicMock()
+        mock_container.query_items.return_value = []
+        store.container = mock_container
+
+        # Aggregate with $in operator with non-list value (should be skipped)
+        result = store.aggregate_documents(
+            collection="archives",
+            pipeline=[
+                {"$match": {"status": {"$in": "pending"}}},
+                {"$limit": 100}
+            ]
+        )
+
+        # Verify query was built without the $in clause (field skipped)
+        call_args = mock_container.query_items.call_args
+        query = call_args.kwargs["query"]
+        # Should not contain IN clause since field was skipped
+        assert "c.status IN" not in query
+        # Should only have the collection filter
+        assert "c.collection = @collection" in query
+
+        # Verify result
+        assert result == []
+
+    def test_aggregate_documents_with_non_operator_keys(self):
+        """Test aggregate_documents with mixed operator and non-operator keys logs warning and skips field."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock container
+        mock_container = MagicMock()
+        mock_container.query_items.return_value = []
+        store.container = mock_container
+
+        # Aggregate with mixed operator and non-operator keys (should be skipped)
+        result = store.aggregate_documents(
+            collection="archives",
+            pipeline=[
+                {"$match": {"status": {"$in": ["pending"], "invalid_key": "value"}}},
+                {"$limit": 100}
+            ]
+        )
+
+        # Verify query was built without the status clause (field skipped)
+        call_args = mock_container.query_items.call_args
+        query = call_args.kwargs["query"]
+        # Should not contain status filter since field was skipped
+        assert "c.status" not in query
+        # Should only have the collection filter
+        assert "c.collection = @collection" in query
+
+        # Verify result
+        assert result == []
+
+    def test_aggregate_documents_with_unsupported_operator(self):
+        """Test aggregate_documents with unsupported operator logs warning and skips operator."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock container
+        mock_container = MagicMock()
+        mock_container.query_items.return_value = []
+        store.container = mock_container
+
+        # Aggregate with unsupported operator like $regex
+        result = store.aggregate_documents(
+            collection="archives",
+            pipeline=[
+                {"$match": {"name": {"$regex": "pattern"}}},
+                {"$limit": 100}
+            ]
+        )
+
+        # Verify query was built without the unsupported operator
+        call_args = mock_container.query_items.call_args
+        query = call_args.kwargs["query"]
+        # Should not contain name filter since operator was unsupported
+        assert "c.name" not in query
+        # Should only have the collection filter
+        assert "c.collection = @collection" in query
+
+        # Verify result
+        assert result == []
+
