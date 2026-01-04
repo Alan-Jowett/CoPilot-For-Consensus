@@ -3,6 +3,8 @@
 
 """Tests for Azure Service Bus publishers and subscribers."""
 
+from unittest.mock import Mock
+
 import pytest
 from copilot_events import (
     AzureServiceBusPublisher,
@@ -206,6 +208,58 @@ class TestAzureServiceBusSubscriber:
 
         with pytest.raises(RuntimeError, match="Not connected"):
             subscriber.start_consuming()
+
+
+def _build_subscriber(auto_complete: bool = False) -> AzureServiceBusSubscriber:
+    """Helper to construct a subscriber suitable for unit tests."""
+    return AzureServiceBusSubscriber(
+        connection_string="Endpoint=sb://test.servicebus.windows.net/;SharedAccessKeyName=test;SharedAccessKey=test",
+        queue_name="test-queue",
+        auto_complete=auto_complete,
+    )
+
+
+class TestAzureServiceBusSubscriberProcessMessage:
+    """Unit tests for _process_message decoding and error handling."""
+
+    def test_process_message_decodes_body_sections(self):
+        subscriber = _build_subscriber(auto_complete=False)
+        mock_msg = Mock()
+        mock_msg.body = [b'{"event_type":"Test","value":', b'"abc"}']
+        mock_receiver = Mock()
+        callback = Mock()
+        subscriber.callbacks["Test"] = callback
+
+        subscriber._process_message(mock_msg, mock_receiver)
+
+        callback.assert_called_once()
+        mock_receiver.complete_message.assert_called_once_with(mock_msg)
+
+    def test_process_message_handles_invalid_utf8(self):
+        subscriber = _build_subscriber(auto_complete=False)
+        mock_msg = Mock()
+        mock_msg.body = [b"\xff\xff\xff"]
+        mock_receiver = Mock()
+        callback = Mock()
+        subscriber.callbacks["Test"] = callback
+
+        subscriber._process_message(mock_msg, mock_receiver)
+
+        mock_receiver.complete_message.assert_called_once_with(mock_msg)
+        callback.assert_not_called()
+
+    def test_process_message_handles_invalid_json(self):
+        subscriber = _build_subscriber(auto_complete=False)
+        mock_msg = Mock()
+        mock_msg.body = [b"not-json"]
+        mock_receiver = Mock()
+        callback = Mock()
+        subscriber.callbacks["Test"] = callback
+
+        subscriber._process_message(mock_msg, mock_receiver)
+
+        mock_receiver.complete_message.assert_called_once_with(mock_msg)
+        callback.assert_not_called()
 
 
 # Note: Integration tests would require an actual Azure Service Bus instance
