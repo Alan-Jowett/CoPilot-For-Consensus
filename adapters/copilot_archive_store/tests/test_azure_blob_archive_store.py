@@ -193,6 +193,20 @@ class TestAzureBlobArchiveStore:
                     container_name="test-archives"
                 )
 
+    def test_initialization_blob_service_client_failure(self):
+        """Test that BlobServiceClient initialization failures are wrapped properly."""
+        with patch('copilot_archive_store.azure_blob_archive_store.BlobServiceClient') as mock_bsc:
+            # BlobServiceClient constructor raises an exception
+            mock_bsc.side_effect = ValueError("Invalid connection string")
+
+            # Should raise ArchiveStoreConnectionError with wrapped cause
+            with pytest.raises(ArchiveStoreConnectionError, match="Failed to initialize Azure Blob Archive Store"):
+                AzureBlobArchiveStore(
+                    account_name="testaccount",
+                    account_key="testkey123==",
+                    container_name="test-archives"
+                )
+
     def test_store_archive(self, store, mock_blob_service_client):
         """Test storing an archive with ETag fallback to get_blob_properties."""
         _, _, mock_container = mock_blob_service_client
@@ -312,6 +326,41 @@ class TestAzureBlobArchiveStore:
         assert store._metadata_etag == "dict-etag"
         # Verify get_blob_properties was NOT called (result was dict with etag)
         mock_metadata_blob.get_blob_properties.assert_not_called()
+
+    def test_store_archive_etag_refresh_failure(self, store, mock_blob_service_client):
+        """Test that ETag refresh failure doesn't fail the save operation."""
+        _, _, mock_container = mock_blob_service_client
+
+        content = b"Test content"
+
+        # Mock blob client for archive
+        mock_archive_blob = MagicMock()
+        mock_archive_blob.upload_blob.return_value = None
+
+        # Mock blob client for metadata: upload returns None, get_blob_properties raises AzureError
+        mock_metadata_blob = MagicMock()
+        mock_metadata_blob.upload_blob.return_value = None
+        mock_metadata_blob.get_blob_properties.side_effect = AzureError("Network error during refresh")
+
+        def get_blob_client_side_effect(blob_name):
+            if "metadata" in blob_name:
+                return mock_metadata_blob
+            else:
+                return mock_archive_blob
+
+        mock_container.get_blob_client.side_effect = get_blob_client_side_effect
+
+        # Should NOT raise an exception despite ETag refresh failure
+        store.store_archive(
+            source_name="test-source",
+            file_path="test.mbox",
+            content=content
+        )
+
+        # Verify ETag was set to None due to refresh failure
+        assert store._metadata_etag is None
+        # Verify get_blob_properties was called (and failed)
+        mock_metadata_blob.get_blob_properties.assert_called_once()
 
     def test_get_archive(self, store, mock_blob_service_client):
         """Test retrieving an archive."""

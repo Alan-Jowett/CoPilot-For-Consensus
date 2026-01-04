@@ -144,6 +144,11 @@ class AzureBlobArchiveStore(ArchiveStore):
         except ArchiveStoreConnectionError:
             # Preserve detailed connection errors raised above
             raise
+        except Exception as exc:
+            # Wrap any other initialization failures in ArchiveStoreConnectionError
+            raise ArchiveStoreConnectionError(
+                f"Failed to initialize Azure Blob Archive Store: {exc}"
+            ) from exc
 
         # Metadata index blob name
         self.metadata_blob_name = f"{self.prefix}metadata/archives_index.json"
@@ -219,10 +224,20 @@ class AzureBlobArchiveStore(ArchiveStore):
             # Refresh stored ETag from upload response when available, otherwise fall back to a properties call
             if hasattr(result, "etag"):
                 self._metadata_etag = result.etag
-            elif isinstance(result, dict) and result.get("etag"):
+            elif isinstance(result, dict) and "etag" in result:
                 self._metadata_etag = result["etag"]
             else:
-                self._metadata_etag = blob_client.get_blob_properties().etag
+                # Best-effort ETag refresh: metadata has already been uploaded successfully.
+                try:
+                    properties = blob_client.get_blob_properties()
+                    self._metadata_etag = properties.etag
+                except AzureError as refresh_error:
+                    # Do not fail the save operation if the ETag refresh fails; log for observability instead.
+                    logger.warning(
+                        "Metadata saved, but failed to refresh ETag from blob properties: %s",
+                        refresh_error,
+                    )
+                    self._metadata_etag = None
             logger.debug("Saved metadata index with %d entries", len(self._metadata))
         except Exception as e:
             raise ArchiveStoreError(f"Failed to save metadata: {e}") from e
