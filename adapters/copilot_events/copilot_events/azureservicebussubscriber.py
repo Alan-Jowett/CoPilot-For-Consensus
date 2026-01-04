@@ -261,8 +261,9 @@ class AzureServiceBusSubscriber(EventSubscriber):
             receiver: ServiceBusReceiver object
         """
         try:
-            # Parse message body
-            message_body = str(msg)
+            # Parse message body from the received message (body is bytes)
+            body_bytes = b"".join(section for section in msg.body)  # ServiceBus returns body as sections
+            message_body = body_bytes.decode("utf-8")
             event = json.loads(message_body)
 
             # Extract event type
@@ -298,6 +299,11 @@ class AzureServiceBusSubscriber(EventSubscriber):
                 if not self.auto_complete:
                     receiver.complete_message(msg)
 
+        except UnicodeDecodeError as e:
+            logger.error(f"Failed to decode message body as UTF-8: {e}")
+            # Complete malformed messages to avoid blocking the queue
+            if not self.auto_complete:
+                receiver.complete_message(msg)
         except json.JSONDecodeError as e:
             logger.error(f"Failed to decode message JSON: {e}")
             # Complete malformed messages to avoid blocking the queue
