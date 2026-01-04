@@ -149,6 +149,7 @@ var serviceBusSenderServices = [
 ]
 
 var serviceBusReceiverServices = [
+  'parsing'
   'chunking'
   'embedding'
   'orchestrator'
