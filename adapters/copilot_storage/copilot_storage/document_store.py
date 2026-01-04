@@ -236,9 +236,13 @@ def create_document_store(
         else:
             cosmos_kwargs["partition_key"] = os.getenv("COSMOS_PARTITION_KEY", "/collection")
 
-        # Pass any other kwargs that aren't Cosmos-specific
+        # Pass any other kwargs that aren't Cosmos-specific or MongoDB-specific
+        # MongoDB-specific parameters (host, port, username, password) should be filtered out
+        # to avoid passing them to the Azure Cosmos SDK which doesn't understand them
+        mongodb_params = {"host", "port", "username", "password"}
+        cosmos_params = {"endpoint", "key", "database", "container", "partition_key"}
         for key, value in kwargs.items():
-            if key not in ("endpoint", "key", "database", "container", "partition_key"):
+            if key not in cosmos_params and key not in mongodb_params:
                 cosmos_kwargs[key] = value
 
         return AzureCosmosDocumentStore(**cosmos_kwargs)
