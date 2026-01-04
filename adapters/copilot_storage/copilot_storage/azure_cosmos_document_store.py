@@ -719,18 +719,20 @@ class AzureCosmosDocumentStore(DocumentStore):
                     # Handle operators
                     for op, value in condition.items():
                         if op == "$eq":
-                            # Get field value, handling missing fields
-                            doc_value = doc.get(key)
+                            # Get field value, handling missing fields and nested paths
+                            doc_value = self._get_nested_field(doc, key)
                             # Direct equality comparison works for primitives and arrays
                             # Note: After $lookup, array fields will always be present (either empty [] or with items)
                             if doc_value != value:
                                 matches = False
                                 break
                         elif op == "$exists":
-                            if value and key not in doc:
+                            # For $exists, check if the nested field is present
+                            doc_value = self._get_nested_field(doc, key)
+                            if value and doc_value is None:
                                 matches = False
                                 break
-                            elif not value and key in doc:
+                            elif not value and doc_value is not None:
                                 matches = False
                                 break
                         else:
@@ -740,8 +742,8 @@ class AzureCosmosDocumentStore(DocumentStore):
                     if not matches:
                         break
                 else:
-                    # Simple equality check
-                    if doc.get(key) != condition:
+                    # Simple equality check with nested field support
+                    if self._get_nested_field(doc, key) != condition:
                         matches = False
                         break
             
@@ -769,20 +771,28 @@ class AzureCosmosDocumentStore(DocumentStore):
         foreign_field = lookup_spec.get("foreignField")
         as_field = lookup_spec.get("as")
 
-        if not all([from_collection, local_field, foreign_field, as_field]):
+        # Validate that all required fields are present and are non-empty strings
+        if not all(
+            isinstance(value, str) and value
+            for value in (from_collection, local_field, foreign_field, as_field)
+        ):
             logger.error(
-                "AzureCosmosDocumentStore: $lookup requires 'from', 'localField', "
-                "'foreignField', and 'as' fields"
+                "AzureCosmosDocumentStore: $lookup requires non-empty string values for "
+                "'from', 'localField', 'foreignField', and 'as' fields"
             )
             return documents
 
-        # Validate field names
-        if not self._is_valid_field_name(local_field):
-            logger.error(f"AzureCosmosDocumentStore: invalid localField '{local_field}' in $lookup")
-            return documents
-        if not self._is_valid_field_name(foreign_field):
-            logger.error(f"AzureCosmosDocumentStore: invalid foreignField '{foreign_field}' in $lookup")
-            return documents
+        # Validate field names (nested access allowed via dot notation)
+        for field_value, field_name in (
+            (local_field, "localField"),
+            (foreign_field, "foreignField"),
+            (as_field, "as"),
+        ):
+            if not self._is_valid_field_name(field_value):
+                logger.error(
+                    f"AzureCosmosDocumentStore: invalid {field_name} '{field_value}' in $lookup"
+                )
+                return documents
 
         # Query all documents from the foreign collection
         query = "SELECT * FROM c WHERE c.collection = @collection"
@@ -800,13 +810,12 @@ class AzureCosmosDocumentStore(DocumentStore):
                 f"AzureCosmosDocumentStore: failed to query foreign collection "
                 f"'{from_collection}' in $lookup - {e}"
             )
-            # Return copies of documents with empty array for the joined field
-            results = []
-            for doc in documents:
-                doc_copy = dict(doc)
-                doc_copy[as_field] = []
-                results.append(doc_copy)
-            return results
+            # Raise an exception rather than returning potentially incorrect results
+            # If we return documents with empty arrays, subsequent $match stages could
+            # produce incorrect results (e.g., matching all documents as having no related records)
+            raise DocumentStoreError(
+                f"Failed to query foreign collection '{from_collection}' during $lookup aggregation"
+            ) from e
 
         # Build an index of foreign documents by foreign_field for efficient lookup
         foreign_index = {}
@@ -821,7 +830,10 @@ class AzureCosmosDocumentStore(DocumentStore):
         # Perform the join
         results = []
         for doc in documents:
-            # Make a copy to avoid modifying the original
+            # Make a shallow copy to avoid modifying the original
+            # Note: This is a shallow copy which is sufficient since we only add a new top-level field
+            # The original document's nested structures remain as references, which is acceptable
+            # since we don't modify them
             doc_copy = dict(doc)
             
             # Get the local field value
@@ -829,7 +841,8 @@ class AzureCosmosDocumentStore(DocumentStore):
             
             # Find matching foreign documents
             if local_value is not None and local_value in foreign_index:
-                doc_copy[as_field] = foreign_index[local_value]
+                # Copy the list to avoid sharing mutable state across documents
+                doc_copy[as_field] = foreign_index[local_value].copy()
             else:
                 doc_copy[as_field] = []
             

@@ -782,6 +782,53 @@ class TestAzureCosmosDocumentStore:
         with pytest.raises(DocumentStoreError, match="Invalid limit value"):
             store.aggregate_documents("messages", pipeline)
 
+    def test_aggregate_documents_match_with_nested_fields(self):
+        """Test $match stage with nested field paths using dot notation."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock connected state
+        mock_container = MagicMock()
+        store.container = mock_container
+
+        # Mock query results with nested fields
+        messages = [
+            {"id": "msg1", "collection": "messages", "user": {"name": "Alice", "email": "alice@example.com"}},
+            {"id": "msg2", "collection": "messages", "user": {"name": "Bob", "email": "bob@example.com"}},
+            {"id": "msg3", "collection": "messages", "user": {"name": "Alice", "email": "alice2@example.com"}}
+        ]
+        
+        mock_container.query_items.return_value = messages
+
+        # Pipeline with nested field match after $lookup
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "chunks",
+                    "localField": "id",
+                    "foreignField": "message_id",
+                    "as": "chunks"
+                }
+            },
+            {
+                "$match": {
+                    "user.name": "Alice"
+                }
+            }
+        ]
+
+        # Second query for $lookup (chunks collection)
+        mock_container.query_items.side_effect = [messages, []]
+
+        results = store.aggregate_documents("messages", pipeline)
+        
+        # Should find only messages where user.name = "Alice"
+        assert len(results) == 2
+        for result in results:
+            assert result["user"]["name"] == "Alice"
+
 
 class TestAzureCosmosDocumentStoreValidation:
     """Tests for AzureCosmosDocumentStore validation methods."""
