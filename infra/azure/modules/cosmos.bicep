@@ -24,7 +24,8 @@ param cosmosDbAutoscaleMaxRu int
 param tags object = {}
 
 var normalizedAccountName = toLower(accountName)
-var databaseName = 'copilot'
+var authDatabaseName = 'auth'
+var documentsDatabaseName = 'copilot'
 var containerName = 'documents'
 var partitionKeyPath = '/collection'
 var autoscaleMaxRu = cosmosDbAutoscaleMaxRu >= cosmosDbAutoscaleMinRu ? cosmosDbAutoscaleMaxRu : cosmosDbAutoscaleMinRu
@@ -89,13 +90,60 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2023-11-15' = {
   }
 }
 
-// Cosmos DB database with autoscale throughput
-resource cosmosDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2023-11-15' = {
+// Auth database with autoscale throughput (for role-based access control and user management)
+resource authDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2023-11-15' = {
   parent: cosmosAccount
-  name: databaseName
+  name: authDatabaseName
   properties: {
     resource: {
-      id: databaseName
+      id: authDatabaseName
+    }
+    options: {
+      autoscaleSettings: {
+        maxThroughput: autoscaleMaxRu
+      }
+    }
+  }
+}
+
+// Auth container for roles, users, and permissions
+resource authContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-11-15' = {
+  parent: authDatabase
+  name: 'documents'
+  properties: {
+    resource: {
+      id: 'documents'
+      partitionKey: {
+        paths: ['/collection']
+        kind: 'Hash'
+        version: 2
+      }
+      indexingPolicy: {
+        indexingMode: 'consistent'
+        automatic: true
+        includedPaths: [
+          {
+            path: '/*'
+          }
+        ]
+        excludedPaths: [
+          {
+            path: '/"_etag"/?'
+          }
+        ]
+      }
+    }
+    options: {}
+  }
+}
+
+// Documents database with autoscale throughput (for archives, messages, chunks, threads, summaries)
+resource documentsDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2023-11-15' = {
+  parent: cosmosAccount
+  name: documentsDatabaseName
+  properties: {
+    resource: {
+      id: documentsDatabaseName
     }
     options: {
       autoscaleSettings: {
@@ -119,7 +167,7 @@ resource cosmosDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2023
 // For production scale-out, consider migrating to individual containers per collection type
 // if throughput requirements diverge or if specific indexing/TTL policies are needed.
 resource documentsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-11-15' = {
-  parent: cosmosDatabase
+  parent: documentsDatabase
   name: containerName
   properties: {
     resource: {
@@ -195,8 +243,11 @@ output accountName string = cosmosAccount.name
 @description('Cosmos DB account endpoint')
 output accountEndpoint string = cosmosAccount.properties.documentEndpoint
 
-@description('Database name')
-output databaseName string = cosmosDatabase.name
+@description('Auth database name')
+output authDatabaseName string = authDatabase.name
+
+@description('Documents database name')
+output documentsDatabaseName string = documentsDatabase.name
 
 @description('Container name')
 output containerName string = documentsContainer.name

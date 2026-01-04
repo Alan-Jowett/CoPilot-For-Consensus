@@ -47,6 +47,15 @@ param serviceBusNamespace string = ''
 @description('Cosmos DB account endpoint URL for document store connection')
 param cosmosDbEndpoint string = ''
 
+@description('Cosmos DB auth database name')
+param cosmosAuthDatabaseName string = 'auth'
+
+@description('Cosmos DB documents database name')
+param cosmosDocumentsDatabaseName string = 'copilot'
+
+@description('Cosmos DB container name for documents')
+param cosmosContainerName string = 'documents'
+
 @description('Storage Account name for blob storage')
 param storageAccountName string = ''
 
@@ -198,6 +207,14 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosDbEndpoint
             }
             {
+              name: 'COSMOS_DATABASE'
+              value: cosmosAuthDatabaseName
+            }
+            {
+              name: 'COSMOS_CONTAINER'
+              value: 'documents'
+            }
+            {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
               value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
             }
@@ -268,20 +285,20 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: serviceBusNamespace
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
-              value: 'true'
-            }
-            {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: '${serviceBusNamespace}.servicebus.windows.net'
-            }
-            {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
             }
             {
               name: 'COSMOS_DB_ENDPOINT'
               value: cosmosDbEndpoint
+            }
+            {
+              name: 'COSMOS_DATABASE'
+              value: cosmosDocumentsDatabaseName
+            }
+            {
+              name: 'COSMOS_CONTAINER'
+              value: cosmosContainerName
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -362,20 +379,20 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: serviceBusNamespace
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
-              value: 'true'
-            }
-            {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: '${serviceBusNamespace}.servicebus.windows.net'
-            }
-            {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
             }
             {
               name: 'COSMOS_DB_ENDPOINT'
               value: cosmosDbEndpoint
+            }
+            {
+              name: 'COSMOS_DATABASE'
+              value: cosmosDocumentsDatabaseName
+            }
+            {
+              name: 'COSMOS_CONTAINER'
+              value: cosmosContainerName
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -473,20 +490,20 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: serviceBusNamespace
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
-              value: 'true'
-            }
-            {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: '${serviceBusNamespace}.servicebus.windows.net'
-            }
-            {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
             }
             {
               name: 'COSMOS_DB_ENDPOINT'
               value: cosmosDbEndpoint
+            }
+            {
+              name: 'COSMOS_DATABASE'
+              value: cosmosDocumentsDatabaseName
+            }
+            {
+              name: 'COSMOS_CONTAINER'
+              value: cosmosContainerName
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -568,20 +585,20 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: serviceBusNamespace
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
-              value: 'true'
-            }
-            {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: '${serviceBusNamespace}.servicebus.windows.net'
-            }
-            {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
             }
             {
               name: 'COSMOS_DB_ENDPOINT'
               value: cosmosDbEndpoint
+            }
+            {
+              name: 'COSMOS_DATABASE'
+              value: cosmosDocumentsDatabaseName
+            }
+            {
+              name: 'COSMOS_CONTAINER'
+              value: cosmosContainerName
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -663,20 +680,20 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: serviceBusNamespace
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
-              value: 'true'
-            }
-            {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: '${serviceBusNamespace}.servicebus.windows.net'
-            }
-            {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
             }
             {
               name: 'COSMOS_DB_ENDPOINT'
               value: cosmosDbEndpoint
+            }
+            {
+              name: 'COSMOS_DATABASE'
+              value: cosmosDocumentsDatabaseName
+            }
+            {
+              name: 'COSMOS_CONTAINER'
+              value: cosmosContainerName
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -786,20 +803,20 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: serviceBusNamespace
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
-              value: 'true'
-            }
-            {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: '${serviceBusNamespace}.servicebus.windows.net'
-            }
-            {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
             }
             {
               name: 'COSMOS_DB_ENDPOINT'
               value: cosmosDbEndpoint
+            }
+            {
+              name: 'COSMOS_DATABASE'
+              value: cosmosDocumentsDatabaseName
+            }
+            {
+              name: 'COSMOS_CONTAINER'
+              value: cosmosContainerName
             }
             {
               name: 'AZURE_CLIENT_ID'
@@ -897,14 +914,6 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: serviceBusNamespace
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
-              value: 'true'
-            }
-            {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: '${serviceBusNamespace}.servicebus.windows.net'
-            }
-            {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
             }
@@ -913,8 +922,28 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosDbEndpoint
             }
             {
+              name: 'COSMOS_DATABASE'
+              value: cosmosDocumentsDatabaseName
+            }
+            {
+              name: 'COSMOS_CONTAINER'
+              value: cosmosContainerName
+            }
+            {
               name: 'AZURE_CLIENT_ID'
               value: identityClientIds.summarization
+            }
+            {
+              name: 'VECTORSTORE_TYPE'
+              value: 'ai_search'
+            }
+            {
+              name: 'AISEARCH_ENDPOINT'
+              value: aiSearchEndpoint
+            }
+            {
+              name: 'AISEARCH_INDEX_NAME'
+              value: 'document-embeddings'
             }
             {
               name: 'LLM_BACKEND'

@@ -254,6 +254,29 @@ module cosmosModule 'modules/cosmos.bicep' = {
   }
 }
 
+// Module: Cosmos DB RBAC - Assign Data Contributor role to services that need document store access
+// Services requiring Cosmos DB access: auth, parsing, chunking, embedding, orchestrator, summarization, reporting, ingestion
+module cosmosRbacModule 'modules/cosmos-rbac.bicep' = {
+  name: 'cosmosRbacDeployment'
+  params: {
+    cosmosAccountName: cosmosModule.outputs.accountName
+    principalIds: [
+      identitiesModule.outputs.identityPrincipalIdsByName.auth
+      identitiesModule.outputs.identityPrincipalIdsByName.parsing
+      identitiesModule.outputs.identityPrincipalIdsByName.chunking
+      identitiesModule.outputs.identityPrincipalIdsByName.embedding
+      identitiesModule.outputs.identityPrincipalIdsByName.orchestrator
+      identitiesModule.outputs.identityPrincipalIdsByName.summarization
+      identitiesModule.outputs.identityPrincipalIdsByName.reporting
+      identitiesModule.outputs.identityPrincipalIdsByName.ingestion
+    ]
+  }
+  dependsOn: [
+    cosmosModule
+    identitiesModule
+  ]
+}
+
 // Module: Azure Storage Account (blob storage for archives)
 // Only deployed when Container Apps are enabled (ingestion service requires blob storage)
 module storageModule 'modules/storage.bicep' = if (deployContainerApps) {
@@ -472,6 +495,9 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     aiSearchEndpoint: aiSearchModule!.outputs.endpoint
     serviceBusNamespace: serviceBusModule.outputs.namespaceFullyQualifiedName
     cosmosDbEndpoint: cosmosModule.outputs.accountEndpoint
+    cosmosAuthDatabaseName: cosmosModule.outputs.authDatabaseName
+    cosmosDocumentsDatabaseName: cosmosModule.outputs.documentsDatabaseName
+    cosmosContainerName: cosmosModule.outputs.containerName
     storageAccountName: storageModule!.outputs.accountName
     storageBlobEndpoint: storageModule!.outputs.blobEndpoint
     subnetId: vnetModule!.outputs.containerAppsSubnetId
@@ -521,10 +547,12 @@ output serviceBusNamespaceId string = serviceBusModule.outputs.namespaceResource
 output serviceBusQueues array = serviceBusModule.outputs.queueNames
 output cosmosAccountName string = cosmosModule.outputs.accountName
 output cosmosAccountEndpoint string = cosmosModule.outputs.accountEndpoint
-output cosmosDatabaseName string = cosmosModule.outputs.databaseName
+output cosmosAuthDatabaseName string = cosmosModule.outputs.authDatabaseName
+output cosmosDocumentsDatabaseName string = cosmosModule.outputs.documentsDatabaseName
 output cosmosContainerName string = cosmosModule.outputs.containerName
 output cosmosAutoscaleMaxRu int = cosmosModule.outputs.autoscaleMaxThroughput
 output cosmosWriteRegions array = cosmosModule.outputs.writeRegions
+output cosmosRbacSummary string = cosmosRbacModule.outputs.summary
 output storageAccountName string = deployContainerApps ? storageModule!.outputs.accountName : ''
 output storageAccountId string = deployContainerApps ? storageModule!.outputs.accountId : ''
 output storageBlobEndpoint string = deployContainerApps ? storageModule!.outputs.blobEndpoint : ''
