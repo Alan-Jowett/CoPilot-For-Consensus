@@ -106,6 +106,37 @@ resource authDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2023-1
   }
 }
 
+// Auth container for roles, users, and permissions
+resource authContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-11-15' = {
+  parent: authDatabase
+  name: 'documents'
+  properties: {
+    resource: {
+      id: 'documents'
+      partitionKey: {
+        paths: ['/collection']
+        kind: 'Hash'
+        version: 2
+      }
+      indexingPolicy: {
+        indexingMode: 'consistent'
+        automatic: true
+        includedPaths: [
+          {
+            path: '/*'
+          }
+        ]
+        excludedPaths: [
+          {
+            path: '/"_etag"/?'
+          }
+        ]
+      }
+    }
+    options: {}
+  }
+}
+
 // Documents database with autoscale throughput (for archives, messages, chunks, threads, summaries)
 resource documentsDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2023-11-15' = {
   parent: cosmosAccount
