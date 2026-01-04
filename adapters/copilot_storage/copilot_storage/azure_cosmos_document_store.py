@@ -625,7 +625,15 @@ class AzureCosmosDocumentStore(DocumentStore):
             for stage in pipeline:
                 stage_name = list(stage.keys())[0]
                 if stage_name == "$limit":
-                    query += f" LIMIT {stage[stage_name]}"
+                    limit_value = stage[stage_name]
+                    # Validate limit value to prevent SQL injection
+                    if not isinstance(limit_value, int) or limit_value < 1:
+                        logger.error(
+                            f"AzureCosmosDocumentStore: invalid $limit value '{limit_value}', "
+                            "must be a positive integer"
+                        )
+                        break
+                    query += f" LIMIT {limit_value}"
                     break
 
         # Execute query
@@ -673,8 +681,14 @@ class AzureCosmosDocumentStore(DocumentStore):
                 results = self._apply_lookup_stage(results, stage_spec)
 
             elif stage_name == "$limit":
-                # Apply limit
-                results = results[:stage_spec]
+                # Validate and apply limit
+                if not isinstance(stage_spec, int) or stage_spec < 1:
+                    logger.warning(
+                        f"AzureCosmosDocumentStore: invalid $limit value '{stage_spec}', "
+                        "must be a positive integer, skipping"
+                    )
+                else:
+                    results = results[:stage_spec]
 
             else:
                 logger.warning(
@@ -786,10 +800,13 @@ class AzureCosmosDocumentStore(DocumentStore):
                 f"AzureCosmosDocumentStore: failed to query foreign collection "
                 f"'{from_collection}' in $lookup - {e}"
             )
-            # Return documents with empty array for the joined field
+            # Return copies of documents with empty array for the joined field
+            results = []
             for doc in documents:
-                doc[as_field] = []
-            return documents
+                doc_copy = dict(doc)
+                doc_copy[as_field] = []
+                results.append(doc_copy)
+            return results
 
         # Build an index of foreign documents by foreign_field for efficient lookup
         foreign_index = {}
