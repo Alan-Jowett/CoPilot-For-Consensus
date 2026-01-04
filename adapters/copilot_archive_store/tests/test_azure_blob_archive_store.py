@@ -46,6 +46,9 @@ class TestAzureBlobArchiveStore:
         # Mock metadata blob (initially not found)
         mock_metadata_blob = MagicMock()
         mock_metadata_blob.download_blob.side_effect = ResourceNotFoundError("Not found")
+        mock_metadata_props = MagicMock()
+        mock_metadata_props.etag = "etag"
+        mock_metadata_blob.get_blob_properties.return_value = mock_metadata_props
         mock_container.get_blob_client.return_value = mock_metadata_blob
 
         store = AzureBlobArchiveStore(
@@ -153,6 +156,9 @@ class TestAzureBlobArchiveStore:
         # Mock blob client for metadata
         mock_metadata_blob = MagicMock()
         mock_metadata_blob.upload_blob.return_value = None
+        mock_metadata_props = MagicMock()
+        mock_metadata_props.etag = "etag"
+        mock_metadata_blob.get_blob_properties.return_value = mock_metadata_props
 
         # Return different mocks based on blob name
         def get_blob_client_side_effect(blob_name):
@@ -192,6 +198,9 @@ class TestAzureBlobArchiveStore:
         # First store an archive
         mock_archive_blob = MagicMock()
         mock_metadata_blob = MagicMock()
+        mock_metadata_props = MagicMock()
+        mock_metadata_props.etag = "etag"
+        mock_metadata_blob.get_blob_properties.return_value = mock_metadata_props
 
         def get_blob_client_side_effect(blob_name):
             if "metadata" in blob_name:
@@ -230,6 +239,9 @@ class TestAzureBlobArchiveStore:
         # Store archive (mock successful store)
         mock_archive_blob = MagicMock()
         mock_metadata_blob = MagicMock()
+        mock_metadata_props = MagicMock()
+        mock_metadata_props.etag = "etag"
+        mock_metadata_blob.get_blob_properties.return_value = mock_metadata_props
 
         def get_blob_client_side_effect(blob_name):
             if "metadata" in blob_name:
