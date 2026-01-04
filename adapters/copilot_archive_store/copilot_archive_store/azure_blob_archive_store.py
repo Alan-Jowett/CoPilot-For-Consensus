@@ -10,7 +10,7 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
-from azure.core.exceptions import AzureError, ResourceNotFoundError
+from azure.core.exceptions import AzureError, ResourceExistsError, ResourceNotFoundError
 from azure.storage.blob import BlobServiceClient, ContainerClient
 
 from .archive_store import (
@@ -131,10 +131,12 @@ class AzureBlobArchiveStore(ArchiveStore):
             try:
                 self.container_client.create_container()
                 logger.info("Created container: %s", self.container_name)
+            except ResourceExistsError:
+                # Container already exists; nothing to do
+                pass
             except Exception as e:
-                # Container might already exist, which is fine
-                if "ContainerAlreadyExists" not in str(e):
-                    logger.debug("Container check: %s", e)
+                # Surface unexpected errors so callers can fail fast
+                raise
 
         except Exception as e:
             raise ArchiveStoreConnectionError(
@@ -194,22 +196,19 @@ class AzureBlobArchiveStore(ArchiveStore):
 
             # Use ETag for optimistic concurrency control
             if self._metadata_etag:
-                # If we have an ETag, only update if it matches (no one else updated)
-                result = blob_client.upload_blob(
+                blob_client.upload_blob(
                     metadata_json.encode("utf-8"),
                     overwrite=True,
                     etag=self._metadata_etag,
                     match_condition=MatchConditions.IfNotModified
                 )
             else:
-                # First write, no ETag yet
-                result = blob_client.upload_blob(
+                blob_client.upload_blob(
                     metadata_json.encode("utf-8"), overwrite=True
                 )
 
-            # Update ETag after successful write (if result is a dict)
-            if result and isinstance(result, dict):
-                self._metadata_etag = result.get('etag')
+            # Refresh stored ETag from blob properties after successful write
+            self._metadata_etag = blob_client.get_blob_properties().etag
             logger.debug("Saved metadata index with %d entries", len(self._metadata))
         except Exception as e:
             raise ArchiveStoreError(f"Failed to save metadata: {e}") from e
