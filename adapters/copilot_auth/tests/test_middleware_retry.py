@@ -170,7 +170,7 @@ def test_jwks_fetch_exponential_backoff():
         mock_get.side_effect = httpx.TimeoutException("Connection timeout")
 
         with patch("copilot_auth.middleware.time.sleep") as mock_sleep:
-            middleware = JWTMiddleware(
+            JWTMiddleware(
                 app=app.router,
                 auth_service_url="http://auth:8090",
                 audience="test-service",

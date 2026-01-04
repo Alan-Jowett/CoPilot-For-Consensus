@@ -17,44 +17,65 @@ from copilot_auth.middleware import JWTMiddleware
 from fastapi import FastAPI
 
 
-class DelayedJWKSHandler(http.server.SimpleHTTPRequestHandler):
-    """HTTP handler that delays responses to simulate auth service startup."""
+def make_delayed_jwks_handler(start_time, ready_after_seconds=3):
+    """Create an HTTP handler that delays responses to simulate auth service startup.
 
-    start_time = None
-    ready_after_seconds = 3  # Auth service becomes ready after 3 seconds
+    The returned handler class captures start_time and ready_after_seconds so
+    that each mock auth server instance can have its own independent timing
+    configuration, avoiding shared mutable class state across tests.
 
-    def do_GET(self):
-        """Handle GET requests with delayed response for /keys endpoint."""
-        if self.path == "/keys":
-            elapsed = time.time() - self.start_time
-            if elapsed < self.ready_after_seconds:
-                # Not ready yet - return 503
-                self.send_response(503)
+    Args:
+        start_time: The time when the server started
+        ready_after_seconds: Seconds before the server becomes ready (default: 3)
+
+    Returns:
+        Handler class configured with the specified timing
+    """
+    class DelayedJWKSHandler(http.server.SimpleHTTPRequestHandler):
+        """HTTP handler that delays responses to simulate auth service startup."""
+
+        def do_GET(self):
+            """Handle GET requests with delayed response for /keys endpoint."""
+            if self.path == "/keys":
+                elapsed = time.time() - start_time
+                if elapsed < ready_after_seconds:
+                    # Not ready yet - return 503
+                    self.send_response(503)
+                    self.send_header("Content-type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(b'{"error": "Service starting up"}')
+                    return
+
+                # Ready - return JWKS
+                self.send_response(200)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
-                self.wfile.write(b'{"error": "Service starting up"}')
-                return
+                jwks = b'{"keys": [{"kty": "RSA", "kid": "test-key", "use": "sig"}]}'
+                self.wfile.write(jwks)
+            else:
+                self.send_response(404)
+                self.end_headers()
 
-            # Ready - return JWKS
-            self.send_response(200)
-            self.send_header("Content-type", "application/json")
-            self.end_headers()
-            jwks = b'{"keys": [{"kty": "RSA", "kid": "test-key", "use": "sig"}]}'
-            self.wfile.write(jwks)
-        else:
-            self.send_response(404)
-            self.end_headers()
+        def log_message(self, format, *args):
+            """Suppress logging output."""
+            pass
 
-    def log_message(self, format, *args):
-        """Suppress logging output."""
-        pass
+    return DelayedJWKSHandler
 
 
-def run_mock_auth_server(port, ready_event):
-    """Run a mock auth server that delays JWKS responses."""
-    DelayedJWKSHandler.start_time = time.time()
-    with socketserver.TCPServer(("", port), DelayedJWKSHandler) as httpd:
-        print(f"Mock auth server running on port {port}")
+def run_mock_auth_server(port, ready_event, actual_port_queue):
+    """Run a mock auth server that delays JWKS responses.
+
+    Args:
+        port: Port to bind to (use 0 for dynamic port assignment)
+        ready_event: Event to signal when server is ready
+        actual_port_queue: Queue to communicate the actual port used
+    """
+    handler_cls = make_delayed_jwks_handler(start_time=time.time(), ready_after_seconds=3)
+    with socketserver.TCPServer(("", port), handler_cls) as httpd:
+        actual_port = httpd.server_address[1]
+        actual_port_queue.put(actual_port)
+        print(f"Mock auth server running on port {actual_port}")
         ready_event.set()
         # Run for 20 seconds
         for _ in range(20):
@@ -63,19 +84,20 @@ def run_mock_auth_server(port, ready_event):
 
 def test_jwks_fetch_during_startup():
     """Test that middleware successfully fetches JWKS even when auth service is delayed."""
-    port = 9999
     ready_event = multiprocessing.Event()
+    actual_port_queue = multiprocessing.Queue()
 
-    # Start mock auth server in background
+    # Start mock auth server in background with dynamic port (0 = OS assigns available port)
     server_process = multiprocessing.Process(
         target=run_mock_auth_server,
-        args=(port, ready_event)
+        args=(0, ready_event, actual_port_queue)
     )
     server_process.start()
 
     try:
-        # Wait for server to start
+        # Wait for server to start and get the actual port
         ready_event.wait(timeout=5)
+        port = actual_port_queue.get(timeout=5)
         time.sleep(0.1)
 
         # Create FastAPI app with JWT middleware
