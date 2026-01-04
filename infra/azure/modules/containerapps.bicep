@@ -278,7 +278,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: '${serviceBusNamespace}.servicebus.windows.net'
+              value: serviceBusNamespace
             }
             {
               name: 'DOCUMENT_STORE_TYPE'
@@ -372,7 +372,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: '${serviceBusNamespace}.servicebus.windows.net'
+              value: serviceBusNamespace
             }
             {
               name: 'DOCUMENT_STORE_TYPE'
@@ -483,7 +483,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: '${serviceBusNamespace}.servicebus.windows.net'
+              value: serviceBusNamespace
             }
             {
               name: 'DOCUMENT_STORE_TYPE'
@@ -578,7 +578,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: '${serviceBusNamespace}.servicebus.windows.net'
+              value: serviceBusNamespace
             }
             {
               name: 'DOCUMENT_STORE_TYPE'
@@ -673,7 +673,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: '${serviceBusNamespace}.servicebus.windows.net'
+              value: serviceBusNamespace
             }
             {
               name: 'DOCUMENT_STORE_TYPE'
@@ -796,7 +796,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: '${serviceBusNamespace}.servicebus.windows.net'
+              value: serviceBusNamespace
             }
             {
               name: 'DOCUMENT_STORE_TYPE'
@@ -907,7 +907,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
-              value: '${serviceBusNamespace}.servicebus.windows.net'
+              value: serviceBusNamespace
             }
             {
               name: 'DOCUMENT_STORE_TYPE'
