@@ -3,7 +3,6 @@
 
 """Tests for JWT middleware JWKS fetch retry logic."""
 
-import time
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -31,13 +30,13 @@ def mock_jwks():
 def test_jwks_fetch_retry_success_on_first_attempt(mock_jwks):
     """Test JWKS fetch succeeds on first attempt."""
     app = FastAPI()
-    
-    with patch("httpx.get") as mock_get:
+
+    with patch("copilot_auth.middleware.httpx.get") as mock_get:
         mock_response = MagicMock()
         mock_response.json.return_value = mock_jwks
         mock_response.raise_for_status = MagicMock()
         mock_get.return_value = mock_response
-        
+
         middleware = JWTMiddleware(
             app=app.router,
             auth_service_url="http://auth:8090",
@@ -45,7 +44,7 @@ def test_jwks_fetch_retry_success_on_first_attempt(mock_jwks):
             jwks_fetch_retries=3,
             jwks_fetch_retry_delay=0.1,
         )
-        
+
         # Verify JWKS was fetched successfully
         assert middleware.jwks == mock_jwks
         assert mock_get.call_count == 1
@@ -55,7 +54,7 @@ def test_jwks_fetch_retry_success_on_second_attempt(mock_jwks):
     """Test JWKS fetch succeeds after one retry."""
     app = FastAPI()
     
-    with patch("httpx.get") as mock_get:
+    with patch("copilot_auth.middleware.httpx.get") as mock_get:
         # First call raises TimeoutException, second succeeds
         mock_response = MagicMock()
         mock_response.json.return_value = mock_jwks
@@ -66,7 +65,7 @@ def test_jwks_fetch_retry_success_on_second_attempt(mock_jwks):
             mock_response,
         ]
         
-        with patch("time.sleep"):  # Speed up test by mocking sleep
+        with patch("copilot_auth.middleware.time.sleep"):  # Speed up test by mocking sleep
             middleware = JWTMiddleware(
                 app=app.router,
                 auth_service_url="http://auth:8090",
@@ -84,11 +83,11 @@ def test_jwks_fetch_retry_failure_after_max_attempts():
     """Test JWKS fetch fails after max retry attempts."""
     app = FastAPI()
     
-    with patch("httpx.get") as mock_get:
+    with patch("copilot_auth.middleware.httpx.get") as mock_get:
         # All calls raise TimeoutException
         mock_get.side_effect = httpx.TimeoutException("Connection timeout")
         
-        with patch("time.sleep"):  # Speed up test by mocking sleep
+        with patch("copilot_auth.middleware.time.sleep"):  # Speed up test by mocking sleep
             middleware = JWTMiddleware(
                 app=app.router,
                 auth_service_url="http://auth:8090",
@@ -106,7 +105,7 @@ def test_jwks_fetch_retry_with_503_error(mock_jwks):
     """Test JWKS fetch retries on 503 Service Unavailable."""
     app = FastAPI()
     
-    with patch("httpx.get") as mock_get:
+    with patch("copilot_auth.middleware.httpx.get") as mock_get:
         # First call raises HTTPStatusError with 503, second succeeds
         mock_503_response = MagicMock()
         mock_503_response.status_code = 503
@@ -120,7 +119,7 @@ def test_jwks_fetch_retry_with_503_error(mock_jwks):
             mock_success_response,
         ]
         
-        with patch("time.sleep"):  # Speed up test by mocking sleep
+        with patch("copilot_auth.middleware.time.sleep"):  # Speed up test by mocking sleep
             middleware = JWTMiddleware(
                 app=app.router,
                 auth_service_url="http://auth:8090",
@@ -138,7 +137,7 @@ def test_jwks_fetch_no_retry_on_404_error():
     """Test JWKS fetch does not retry on 404 Not Found."""
     app = FastAPI()
     
-    with patch("httpx.get") as mock_get:
+    with patch("copilot_auth.middleware.httpx.get") as mock_get:
         # Call raises HTTPStatusError with 404
         mock_404_response = MagicMock()
         mock_404_response.status_code = 404
@@ -149,7 +148,7 @@ def test_jwks_fetch_no_retry_on_404_error():
             response=mock_404_response
         )
         
-        with patch("time.sleep"):  # Speed up test by mocking sleep
+        with patch("copilot_auth.middleware.time.sleep"):  # Speed up test by mocking sleep
             middleware = JWTMiddleware(
                 app=app.router,
                 auth_service_url="http://auth:8090",
@@ -167,10 +166,10 @@ def test_jwks_fetch_exponential_backoff():
     """Test JWKS fetch uses exponential backoff between retries."""
     app = FastAPI()
     
-    with patch("httpx.get") as mock_get:
+    with patch("copilot_auth.middleware.httpx.get") as mock_get:
         mock_get.side_effect = httpx.TimeoutException("Connection timeout")
         
-        with patch("time.sleep") as mock_sleep:
+        with patch("copilot_auth.middleware.time.sleep") as mock_sleep:
             middleware = JWTMiddleware(
                 app=app.router,
                 auth_service_url="http://auth:8090",
@@ -189,10 +188,10 @@ def test_jwks_fetch_connect_error_retry():
     """Test JWKS fetch retries on connection errors."""
     app = FastAPI()
     
-    with patch("httpx.get") as mock_get:
+    with patch("copilot_auth.middleware.httpx.get") as mock_get:
         mock_get.side_effect = httpx.ConnectError("Connection refused")
         
-        with patch("time.sleep"):
+        with patch("copilot_auth.middleware.time.sleep"):
             middleware = JWTMiddleware(
                 app=app.router,
                 auth_service_url="http://auth:8090",
@@ -210,10 +209,10 @@ def test_jwks_fetch_no_retry_on_unexpected_exception():
     """Test JWKS fetch does not retry on unexpected exceptions."""
     app = FastAPI()
     
-    with patch("httpx.get") as mock_get:
+    with patch("copilot_auth.middleware.httpx.get") as mock_get:
         mock_get.side_effect = ValueError("Unexpected error")
         
-        with patch("time.sleep"):
+        with patch("copilot_auth.middleware.time.sleep"):
             middleware = JWTMiddleware(
                 app=app.router,
                 auth_service_url="http://auth:8090",
