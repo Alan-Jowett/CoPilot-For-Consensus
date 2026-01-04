@@ -705,7 +705,11 @@ class AzureCosmosDocumentStore(DocumentStore):
                     # Handle operators
                     for op, value in condition.items():
                         if op == "$eq":
-                            if doc.get(key) != value:
+                            # Get field value, handling missing fields
+                            doc_value = doc.get(key)
+                            # Direct equality comparison works for primitives and arrays
+                            # Note: After $lookup, array fields will always be present (either empty [] or with items)
+                            if doc_value != value:
                                 matches = False
                                 break
                         elif op == "$exists":
