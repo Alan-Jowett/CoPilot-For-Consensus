@@ -276,6 +276,10 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosDbEndpoint
             }
             {
+              name: 'AZURE_CLIENT_ID'
+              value: identityClientIds.reporting
+            }
+            {
               name: 'AUTH_SERVICE_URL'
               value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
             }
@@ -364,6 +368,10 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'COSMOS_DB_ENDPOINT'
               value: cosmosDbEndpoint
+            }
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: identityClientIds.ingestion
             }
             {
               name: 'STORAGE_PATH'
@@ -473,6 +481,10 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosDbEndpoint
             }
             {
+              name: 'AZURE_CLIENT_ID'
+              value: identityClientIds.parsing
+            }
+            {
               name: 'AUTH_SERVICE_URL'
               value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
             }
@@ -564,6 +576,10 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosDbEndpoint
             }
             {
+              name: 'AZURE_CLIENT_ID'
+              value: identityClientIds.chunking
+            }
+            {
               name: 'AUTH_SERVICE_URL'
               value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
             }
@@ -653,6 +669,10 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'COSMOS_DB_ENDPOINT'
               value: cosmosDbEndpoint
+            }
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: identityClientIds.embedding
             }
             {
               name: 'VECTORSTORE_TYPE'
@@ -774,6 +794,10 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosDbEndpoint
             }
             {
+              name: 'AZURE_CLIENT_ID'
+              value: identityClientIds.orchestrator
+            }
+            {
               name: 'LLM_BACKEND'
               value: azureOpenAIEndpoint != '' && azureOpenAIGpt4DeploymentName != '' ? 'azure' : 'ollama'
             }
@@ -879,6 +903,10 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'COSMOS_DB_ENDPOINT'
               value: cosmosDbEndpoint
+            }
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: identityClientIds.summarization
             }
             {
               name: 'LLM_BACKEND'
