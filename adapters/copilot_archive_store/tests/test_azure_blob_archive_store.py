@@ -9,7 +9,7 @@ import pytest
 
 # Test if azure-storage-blob is available
 try:
-    from azure.core.exceptions import AzureError, ResourceNotFoundError
+    from azure.core.exceptions import AzureError, ResourceExistsError, ResourceNotFoundError
     AZURE_AVAILABLE = True
 except ImportError:
     AZURE_AVAILABLE = False
