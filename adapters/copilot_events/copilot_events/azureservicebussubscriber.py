@@ -261,8 +261,9 @@ class AzureServiceBusSubscriber(EventSubscriber):
             receiver: ServiceBusReceiver object
         """
         try:
-            # Parse message body
-            message_body = str(msg)
+            # Parse message body from the received message (body is bytes)
+            body_bytes = b"".join(section for section in msg.body)  # ServiceBus returns body as sections
+            message_body = body_bytes.decode("utf-8")
             event = json.loads(message_body)
 
             # Extract event type
