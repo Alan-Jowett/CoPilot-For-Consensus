@@ -224,8 +224,10 @@ def main():
             })
         elif backend_type == "azure_ai_search":
             # Validate required config attributes for Azure AI Search
-            if not hasattr(config, "embedding_dimension") or config.embedding_dimension <= 0:
-                raise ValueError("embedding_dimension configuration is required for Azure AI Search backend and must be positive")
+            if not hasattr(config, "embedding_dimension"):
+                raise ValueError("embedding_dimension configuration is required for Azure AI Search backend")
+            if config.embedding_dimension <= 0:
+                raise ValueError(f"embedding_dimension must be positive for Azure AI Search backend, got {config.embedding_dimension}")
             if not hasattr(config, "aisearch_endpoint") or not config.aisearch_endpoint:
                 raise ValueError("aisearch_endpoint configuration is required for Azure AI Search backend")
             if not hasattr(config, "aisearch_index_name") or not config.aisearch_index_name:
