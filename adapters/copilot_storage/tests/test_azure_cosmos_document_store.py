@@ -639,8 +639,8 @@ class TestAzureCosmosDocumentStore:
         query = call_args.kwargs["query"]
         assert "OFFSET 0 LIMIT 10" in query
 
-    def test_aggregate_documents_unsupported_lookup(self):
-        """Test that $lookup stage is logged as unsupported."""
+    def test_aggregate_documents_with_lookup(self):
+        """Test that $lookup stage performs client-side join."""
         store = AzureCosmosDocumentStore(
             endpoint="https://test.documents.azure.com:443/",
             key="testkey"
@@ -650,8 +650,18 @@ class TestAzureCosmosDocumentStore:
         mock_container = MagicMock()
         store.container = mock_container
 
-        # Mock query results
-        mock_container.query_items.return_value = []
+        # Mock query results for messages and chunks
+        # First call: messages collection
+        # Second call: chunks collection (for $lookup)
+        messages = [
+            {"id": "msg1", "collection": "messages", "message_key": "key1", "text": "Hello"},
+            {"id": "msg2", "collection": "messages", "message_key": "key2", "text": "World"}
+        ]
+        chunks = [
+            {"id": "chunk1", "collection": "chunks", "message_key": "key1", "chunk_id": "c1"}
+        ]
+        
+        mock_container.query_items.side_effect = [messages, chunks]
 
         pipeline = [
             {
@@ -664,9 +674,78 @@ class TestAzureCosmosDocumentStore:
             }
         ]
 
-        # Should not raise an error, just log warning
+        # Should perform client-side join
         results = store.aggregate_documents("messages", pipeline)
         assert isinstance(results, list)
+        assert len(results) == 2
+        
+        # msg1 should have one chunk, msg2 should have empty chunks array
+        msg1_result = [r for r in results if r["message_key"] == "key1"][0]
+        msg2_result = [r for r in results if r["message_key"] == "key2"][0]
+        
+        assert len(msg1_result["chunks"]) == 1
+        assert msg1_result["chunks"][0]["chunk_id"] == "c1"
+        assert len(msg2_result["chunks"]) == 0
+
+    def test_aggregate_documents_lookup_with_match(self):
+        """Test $lookup followed by $match to find messages without chunks (chunking service use case)."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock connected state
+        mock_container = MagicMock()
+        store.container = mock_container
+
+        # Mock query results
+        # First call: messages collection with $match on _id
+        # Second call: chunks collection (for $lookup)
+        messages = [
+            {"id": "msg1", "collection": "messages", "_id": "msg1", "archive_id": 1},
+            {"id": "msg2", "collection": "messages", "_id": "msg2", "archive_id": 1},
+            {"id": "msg3", "collection": "messages", "_id": "msg3", "archive_id": 1}
+        ]
+        chunks = [
+            {"id": "chunk1", "collection": "chunks", "message_doc_id": "msg1"},
+            {"id": "chunk2", "collection": "chunks", "message_doc_id": "msg1"}
+        ]
+        
+        mock_container.query_items.side_effect = [messages, chunks]
+
+        # Pipeline that matches chunking service requeue logic
+        pipeline = [
+            {
+                "$match": {
+                    "_id": {"$exists": True}
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "chunks",
+                    "localField": "_id",
+                    "foreignField": "message_doc_id",
+                    "as": "chunks"
+                }
+            },
+            {
+                "$match": {
+                    "chunks": {"$eq": []}
+                }
+            },
+            {
+                "$limit": 1000
+            }
+        ]
+
+        results = store.aggregate_documents("messages", pipeline)
+        
+        # Should find msg2 and msg3 (messages without chunks)
+        assert len(results) == 2
+        message_ids = [r["_id"] for r in results]
+        assert "msg1" not in message_ids  # msg1 has chunks
+        assert "msg2" in message_ids
+        assert "msg3" in message_ids
 
     def test_aggregate_documents_invalid_limit(self):
         """Test that aggregation with invalid limit raises error."""
@@ -701,6 +780,212 @@ class TestAzureCosmosDocumentStore:
             {"$limit": 0}
         ]
         with pytest.raises(DocumentStoreError, match="Invalid limit value"):
+            store.aggregate_documents("messages", pipeline)
+
+    def test_aggregate_documents_match_with_nested_fields(self):
+        """Test $match stage with nested field paths using dot notation."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock connected state
+        mock_container = MagicMock()
+        store.container = mock_container
+
+        # Mock query results with nested fields
+        messages = [
+            {"id": "msg1", "collection": "messages", "user": {"name": "Alice", "email": "alice@example.com"}},
+            {"id": "msg2", "collection": "messages", "user": {"name": "Bob", "email": "bob@example.com"}},
+            {"id": "msg3", "collection": "messages", "user": {"name": "Alice", "email": "alice2@example.com"}}
+        ]
+        
+        # Pipeline with nested field match after $lookup
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "chunks",
+                    "localField": "id",
+                    "foreignField": "message_id",
+                    "as": "chunks"
+                }
+            },
+            {
+                "$match": {
+                    "user.name": "Alice"
+                }
+            }
+        ]
+
+        # Mock query results: first query returns messages, second query for $lookup returns chunks
+        mock_container.query_items.side_effect = [messages, []]
+
+        results = store.aggregate_documents("messages", pipeline)
+        
+        # Should find only messages where user.name = "Alice"
+        assert len(results) == 2
+        for result in results:
+            assert result["user"]["name"] == "Alice"
+
+    def test_aggregate_documents_lookup_validation_missing_fields(self):
+        """Test that $lookup with missing required fields raises error."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock connected state
+        mock_container = MagicMock()
+        store.container = mock_container
+
+        # Test with missing 'from' field
+        pipeline = [
+            {
+                "$lookup": {
+                    "localField": "_id",
+                    "foreignField": "message_id",
+                    "as": "chunks"
+                }
+            }
+        ]
+        with pytest.raises(DocumentStoreError, match=r"\$lookup requires string values"):
+            store.aggregate_documents("messages", pipeline)
+
+        # Test with missing 'as' field
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "chunks",
+                    "localField": "_id",
+                    "foreignField": "message_id"
+                }
+            }
+        ]
+        with pytest.raises(DocumentStoreError, match=r"\$lookup requires string values"):
+            store.aggregate_documents("messages", pipeline)
+
+    def test_aggregate_documents_lookup_validation_empty_strings(self):
+        """Test that $lookup with empty string values raises error."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock connected state
+        mock_container = MagicMock()
+        store.container = mock_container
+
+        # Test with empty 'from' field
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "",
+                    "localField": "_id",
+                    "foreignField": "message_id",
+                    "as": "chunks"
+                }
+            }
+        ]
+        with pytest.raises(DocumentStoreError, match=r"\$lookup requires non-empty values"):
+            store.aggregate_documents("messages", pipeline)
+
+        # Test with empty 'localField'
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "chunks",
+                    "localField": "",
+                    "foreignField": "message_id",
+                    "as": "chunks"
+                }
+            }
+        ]
+        with pytest.raises(DocumentStoreError, match=r"\$lookup requires non-empty values"):
+            store.aggregate_documents("messages", pipeline)
+
+    def test_aggregate_documents_lookup_validation_invalid_field_names(self):
+        """Test that $lookup with invalid field names raises error."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock connected state
+        mock_container = MagicMock()
+        store.container = mock_container
+
+        # Test with invalid localField (contains special characters)
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "chunks",
+                    "localField": "id; DROP TABLE",
+                    "foreignField": "message_id",
+                    "as": "chunks"
+                }
+            }
+        ]
+        with pytest.raises(DocumentStoreError, match=r"Invalid localField.*in \$lookup"):
+            store.aggregate_documents("messages", pipeline)
+
+        # Test with invalid foreignField
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "chunks",
+                    "localField": "_id",
+                    "foreignField": "message$id",
+                    "as": "chunks"
+                }
+            }
+        ]
+        with pytest.raises(DocumentStoreError, match=r"Invalid foreignField.*in \$lookup"):
+            store.aggregate_documents("messages", pipeline)
+
+    def test_aggregate_documents_lookup_foreign_collection_query_failure(self):
+        """Test that $lookup raises error when foreign collection query fails."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock connected state
+        mock_container = MagicMock()
+        store.container = mock_container
+
+        # Mock the first query (main collection) to succeed
+        mock_container.query_items.return_value = [
+            {"id": "msg1", "collection": "messages", "_id": "msg1"}
+        ]
+
+        # Create a side effect that succeeds for first call, fails for second
+        from azure.cosmos import exceptions as cosmos_exceptions
+        
+        def query_side_effect(*args, **kwargs):
+            if query_side_effect.call_count == 0:
+                query_side_effect.call_count += 1
+                return [{"id": "msg1", "collection": "messages", "_id": "msg1"}]
+            else:
+                raise cosmos_exceptions.CosmosHttpResponseError(
+                    status_code=500,
+                    message="Internal server error"
+                )
+        
+        query_side_effect.call_count = 0
+        mock_container.query_items.side_effect = query_side_effect
+
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "chunks",
+                    "localField": "_id",
+                    "foreignField": "message_id",
+                    "as": "chunks"
+                }
+            }
+        ]
+        
+        with pytest.raises(DocumentStoreError, match=r"Failed to query foreign collection.*during \$lookup"):
             store.aggregate_documents("messages", pipeline)
 
 
