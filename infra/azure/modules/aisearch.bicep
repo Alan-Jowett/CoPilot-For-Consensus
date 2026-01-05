@@ -17,6 +17,9 @@ param sku string = 'basic'
 @description('Principal ID of embedding service identity (for RBAC role assignment)')
 param embeddingServicePrincipalId string
 
+@description('Principal ID of summarization service identity (for RBAC role assignment)')
+param summarizationServicePrincipalId string
+
 @description('Enable public network access (set to false for production with Private Link)')
 param enablePublicNetworkAccess bool = true
 
@@ -58,6 +61,17 @@ resource embeddingServiceRoleAssignment 'Microsoft.Authorization/roleAssignments
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', searchIndexDataContributorRoleId)
     principalId: embeddingServicePrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Assign summarization service identity the "Search Index Data Contributor" role
+resource summarizationServiceRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(searchService.id, summarizationServicePrincipalId, searchIndexDataContributorRoleId)
+  scope: searchService
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', searchIndexDataContributorRoleId)
+    principalId: summarizationServicePrincipalId
     principalType: 'ServicePrincipal'
   }
 }

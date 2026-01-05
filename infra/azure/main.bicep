@@ -329,6 +329,7 @@ module aiSearchModule 'modules/aisearch.bicep' = if (deployContainerApps) {
     serviceName: aiSearchServiceName
     sku: environment == 'prod' ? 'standard' : 'basic'
     embeddingServicePrincipalId: identitiesModule.outputs.identityPrincipalIdsByName.embedding  // use named mapping to avoid fragile index coupling
+    summarizationServicePrincipalId: identitiesModule.outputs.identityPrincipalIdsByName.summarization  // summarization also needs vector store access
     enablePublicNetworkAccess: environment != 'prod'  // Disable for production (Private Link), enable for dev/staging
     tags: tags
   }

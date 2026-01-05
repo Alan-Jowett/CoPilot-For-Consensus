@@ -276,6 +276,7 @@ Each service has minimal required permissions:
 | Service | Roles |
 |---------|-------|
 | Embedding | Service Bus Sender, AI Search Index Data Contributor |
+| Summarization | Service Bus Sender/Receiver, AI Search Index Data Contributor |
 | Orchestrator | Service Bus Sender/Receiver, Cosmos DB Data Contributor |
 | Ingestion | Service Bus Sender, Cosmos DB Data Contributor |
 | Reporting | Service Bus Receiver, Cosmos DB Data Contributor |
