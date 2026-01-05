@@ -816,11 +816,9 @@ class AzureCosmosDocumentStore(DocumentStore):
             if not isinstance(value, str)
         ]
         if missing_or_invalid:
-            logger.error(
-                f"AzureCosmosDocumentStore: $lookup requires string values for "
-                f"{', '.join(missing_or_invalid)}"
+            raise DocumentStoreError(
+                f"$lookup requires string values for {', '.join(missing_or_invalid)}"
             )
-            return documents
         
         # Check for empty strings
         empty_fields = [
@@ -828,11 +826,9 @@ class AzureCosmosDocumentStore(DocumentStore):
             if not value
         ]
         if empty_fields:
-            logger.error(
-                f"AzureCosmosDocumentStore: $lookup requires non-empty values for "
-                f"{', '.join(empty_fields)}"
+            raise DocumentStoreError(
+                f"$lookup requires non-empty values for {', '.join(empty_fields)}"
             )
-            return documents
 
         # Validate field names (nested access allowed via dot notation)
         for field_value, field_name in (
@@ -841,10 +837,9 @@ class AzureCosmosDocumentStore(DocumentStore):
             (as_field, "as"),
         ):
             if not self._is_valid_field_name(field_value):
-                logger.error(
-                    f"AzureCosmosDocumentStore: invalid {field_name} '{field_value}' in $lookup"
+                raise DocumentStoreError(
+                    f"Invalid {field_name} '{field_value}' in $lookup"
                 )
-                return documents
 
         # Query all documents from the foreign collection
         query = "SELECT * FROM c WHERE c.collection = @collection"
