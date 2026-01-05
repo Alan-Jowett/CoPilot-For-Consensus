@@ -1,9 +1,12 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Unit tests for vector store configuration in summarization service main.py."""
+"""Unit tests for vector store configuration in summarization service main.py.
 
-from unittest.mock import Mock, patch
+These tests validate configuration attribute patterns and requirements for different
+vector store backends. The actual integration with main.py's validation logic is
+tested during service startup and integration tests.
+"""
 
 import pytest
 
@@ -16,18 +19,10 @@ class MockConfig:
             setattr(self, key, value)
 
 
-@pytest.fixture
-def mock_create_vector_store():
-    """Mock the create_vector_store function."""
-    with patch('main.create_vector_store') as mock:
-        mock.return_value = Mock()
-        yield mock
-
-
 class TestVectorStoreConfiguration:
     """Test vector store configuration logic."""
 
-    def test_azure_ai_search_backend_normalization(self, mock_create_vector_store):
+    def test_azure_ai_search_backend_normalization(self):
         """Test that 'ai_search' is normalized to 'azure_ai_search'."""
         config = MockConfig(
             vector_store_type='ai_search',
