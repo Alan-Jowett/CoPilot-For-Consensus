@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
 # Troubleshooting Azure Service Bus Authentication Errors
 
 This guide helps diagnose and resolve Azure Service Bus authentication errors in the Orchestrator service.
