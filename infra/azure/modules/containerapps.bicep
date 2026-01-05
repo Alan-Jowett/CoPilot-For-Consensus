@@ -828,7 +828,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'LLM_BACKEND'
-              value: azureOpenAIEndpoint != '' && azureOpenAIGpt4DeploymentName != '' ? 'azure' : 'ollama'
+              value: 'azure'
             }
             {
               name: 'AZURE_OPENAI_ENDPOINT'
@@ -955,7 +955,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'LLM_BACKEND'
-              value: azureOpenAIEndpoint != '' && azureOpenAIGpt4DeploymentName != '' ? 'azure' : 'ollama'
+              value: 'azure'
             }
             {
               name: 'AZURE_OPENAI_ENDPOINT'
