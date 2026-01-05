@@ -7,6 +7,20 @@ These tests verify that the orchestrator correctly passes Azure Service Bus
 connection parameters (managed identity or connection string) to the subscriber
 when MESSAGE_BUS_TYPE is set to "azureservicebus".
 
+## Infrastructure Configuration Notes
+
+The orchestrator service requires specific Azure Service Bus RBAC roles:
+- **Azure Service Bus Data Sender** - to publish summarization.requested events
+- **Azure Service Bus Data Receiver** - to consume embeddings.generated events
+
+The orchestrator subscribes to the "orchestrator-service" queue, which receives
+"embeddings.generated" events via routing. This queue is created dynamically by
+the orchestrator service on startup.
+
+For Bicep infrastructure configuration, see:
+- infra/azure/modules/servicebus.bicep (role assignments)
+- infra/azure/main.bicep (sender/receiver service lists)
+
 Note: These tests require the copilot_events adapter to be installed.
 Run from the repository root or install adapters first:
     python adapters/scripts/install_adapters.py copilot_events
@@ -87,60 +101,6 @@ class TestOrchestratorAzureServiceBusConfig:
             assert "use_managed_identity" not in message_bus_kwargs
         except ImportError:
             pytest.skip("copilot_events adapter not installed")
-
-    def test_orchestrator_passes_queue_name_to_subscriber(self):
-        """Test that orchestrator passes the correct queue name to subscriber.
-
-        The orchestrator should create a subscriber for the "orchestrator-service" queue,
-        which will receive "embeddings.generated" events via routing.
-        """
-        # This is a documentation test - the actual queue name is hardcoded in main.py
-        # The orchestrator subscribes to "orchestrator-service" queue
-        expected_queue_name = "orchestrator-service"
-
-        # Verify this matches the documentation and architecture
-        # (This would be verified by checking the actual subscriber creation in main.py)
-        assert expected_queue_name == "orchestrator-service"
-
-    def test_orchestrator_in_rbac_service_lists(self):
-        """Test that orchestrator is included in the correct RBAC lists.
-
-        According to the Bicep templates (infra/azure/modules/servicebus.bicep):
-        - orchestrator should be in senderServices (Data Sender role)
-        - orchestrator should be in receiverServices (Data Receiver role)
-
-        This test documents the expected RBAC configuration.
-        
-        Note: This is a documentation test. If the Bicep templates change,
-        update the expected lists below to match the new configuration.
-        The actual source of truth is infra/azure/modules/servicebus.bicep.
-        """
-        # Expected configuration from servicebus.bicep
-        # Source: infra/azure/modules/servicebus.bicep
-        # Last verified: 2025-01-05
-        expected_sender_services = [
-            'parsing',
-            'chunking',
-            'embedding',
-            'orchestrator',
-            'summarization',
-            'reporting'
-        ]
-
-        expected_receiver_services = [
-            'chunking',
-            'embedding',
-            'orchestrator',
-            'summarization',
-            'reporting',
-            'ingestion'
-        ]
-
-        # Verify orchestrator is in both lists
-        assert 'orchestrator' in expected_sender_services, \
-            "orchestrator must have Data Sender role to publish summarization.requested events"
-        assert 'orchestrator' in expected_receiver_services, \
-            "orchestrator must have Data Receiver role to consume embeddings.generated events"
 
     def test_missing_managed_identity_namespace_raises_error(self, monkeypatch):
         """Test that missing namespace raises error in managed identity mode."""

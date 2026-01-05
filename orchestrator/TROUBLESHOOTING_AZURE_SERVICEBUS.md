@@ -29,9 +29,20 @@ Required environment variables:
 - `MESSAGE_BUS_CONNECTION_STRING=Endpoint=sb://...`
 
 **Verification:**
+
+Linux/macOS (bash):
 ```bash
 # Check environment variables in the running container
 docker exec <container-id> env | grep MESSAGE_BUS
+
+# Or for Azure Container Apps
+az containerapp show --name orchestrator --resource-group <rg> --query properties.template.containers[0].env
+```
+
+Windows (PowerShell):
+```powershell
+# Check environment variables in the running container
+docker exec <container-id> env | Select-String MESSAGE_BUS
 
 # Or for Azure Container Apps
 az containerapp show --name orchestrator --resource-group <rg> --query properties.template.containers[0].env
@@ -137,9 +148,18 @@ If using connection string mode, ensure the connection string:
 - Has permissions for Send and Listen operations
 
 **Verification:**
+
+Linux/macOS (bash):
 ```bash
 # Test connection string format (replace with your actual connection string)
 echo "Endpoint=sb://copilot-sb-dev-ej3rgjyh.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=..." | grep -o "Endpoint=sb://[^/]*"
+```
+
+Windows (PowerShell):
+```powershell
+# Test connection string format (replace with your actual connection string)
+$connStr = "Endpoint=sb://copilot-sb-dev-ej3rgjyh.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=..."
+$connStr.Substring(0, $connStr.IndexOf('/', $connStr.IndexOf('://') + 3))
 ```
 
 ### 6. Managed Identity Not Enabled for Container App
