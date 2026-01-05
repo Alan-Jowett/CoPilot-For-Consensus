@@ -29,7 +29,7 @@ param enableSemanticSearch bool = false
 @description('Resource tags')
 param tags object = {}
 
-// Azure AI Search service (authentication via managed identities/RBAC only)
+// Azure AI Search service (authentication via managed identities/RBAC or API keys)
 resource searchService 'Microsoft.Search/searchServices@2024-06-01-preview' = {
   name: serviceName
   location: location
