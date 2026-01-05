@@ -7,11 +7,9 @@ import time
 from unittest.mock import MagicMock, patch
 
 import httpx
-import jwt
 import pytest
 from copilot_auth.middleware import JWTMiddleware
 from fastapi import FastAPI
-from starlette.testclient import TestClient
 
 
 @pytest.fixture
@@ -105,7 +103,6 @@ def test_deferred_jwks_fetch_emergency_on_demand(mock_jwks):
             defer_jwks_fetch=True,
             jwks_fetch_retries=1,
         )
-        app.add_middleware(middleware.__class__, **middleware.__dict__)
         
         # JWKS should be None initially (background fetch still running)
         assert middleware.jwks is None
@@ -118,10 +115,12 @@ def test_deferred_jwks_fetch_emergency_on_demand(mock_jwks):
         
         # Call _get_public_key which should trigger emergency fetch
         with patch("copilot_auth.middleware.jwt.get_unverified_header", return_value=token_header):
-            key = middleware._get_public_key(token_header)
+            public_key = middleware._get_public_key(token_header)
         
         # JWKS should be loaded via emergency fetch
         assert middleware.jwks is not None
+        # Verify public key was retrieved
+        assert public_key is not None
         # At least 2 fetch attempts should have been made (background + emergency)
         assert fetch_count["count"] >= 2
 

@@ -122,6 +122,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
 
         This method implements exponential backoff for the initial JWKS fetch
         to handle cases where the auth service is not yet ready during startup.
+        Uses thread-safe locking to prevent race conditions with concurrent updates.
         """
         delay = self.jwks_fetch_retry_delay
         last_error = None
@@ -131,8 +132,12 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 response = httpx.get(f"{self.auth_service_url}/keys", timeout=self.jwks_fetch_timeout)
                 response.raise_for_status()
                 jwks = response.json()
-                self.jwks = jwks
-                self.jwks_last_fetched = time.time()
+                
+                # Thread-safe update of JWKS cache
+                with self._jwks_fetch_lock:
+                    self.jwks = jwks
+                    self.jwks_last_fetched = time.time()
+                
                 logger.info(
                     f"Successfully fetched JWKS from {self.auth_service_url}/keys "
                     f"({len(jwks.get('keys', []))} keys) on attempt {attempt}/{self.jwks_fetch_retries}"
@@ -184,7 +189,9 @@ class JWTMiddleware(BaseHTTPMiddleware):
             f"Failed to fetch JWKS after {self.jwks_fetch_retries} attempts. "
             f"Authentication will fail until JWKS is available. Last error: {last_error}"
         )
-        self.jwks = {"keys": []}
+        # Thread-safe update of JWKS cache
+        with self._jwks_fetch_lock:
+            self.jwks = {"keys": []}
 
     def _fetch_jwks(self, force: bool = False) -> None:
         """Fetch JWKS from auth service with caching.
