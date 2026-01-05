@@ -112,6 +112,7 @@ def test_jwks_fetch_during_startup():
             audience="test-service",
             jwks_fetch_retries=5,
             jwks_fetch_retry_delay=0.5,
+            defer_jwks_fetch=False,  # Use synchronous for this test to verify retries work
         )
 
         elapsed = time.time() - start_time
