@@ -30,6 +30,7 @@ Usage:
 """
 
 import os
+import threading
 import time
 import traceback
 from collections.abc import Callable
@@ -70,6 +71,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
         jwks_fetch_retries: int = 5,
         jwks_fetch_retry_delay: float = 1.0,
         jwks_fetch_timeout: float = 10.0,
+        defer_jwks_fetch: bool = True,
     ):
         """Initialize JWT middleware.
 
@@ -83,6 +85,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
             jwks_fetch_retries: Number of retries for initial JWKS fetch (default: 5)
             jwks_fetch_retry_delay: Initial delay between retries in seconds (default: 1.0)
             jwks_fetch_timeout: Timeout for JWKS fetch requests in seconds (default: 10.0)
+            defer_jwks_fetch: Defer JWKS fetch to background thread to avoid blocking startup (default: True)
         """
         super().__init__(app)
         self.auth_service_url = auth_service_url.rstrip("/")
@@ -93,11 +96,26 @@ class JWTMiddleware(BaseHTTPMiddleware):
         self.jwks_fetch_retries = jwks_fetch_retries
         self.jwks_fetch_retry_delay = jwks_fetch_retry_delay
         self.jwks_fetch_timeout = jwks_fetch_timeout
+        self.defer_jwks_fetch = defer_jwks_fetch
 
         # JWKS cache with timestamp
         self.jwks: dict[str, Any] | None = None
         self.jwks_last_fetched: float = 0
-        self._fetch_jwks_with_retry()
+        self._jwks_fetch_lock = threading.Lock()
+        self._jwks_background_thread: threading.Thread | None = None
+
+        # Start JWKS fetch in background or synchronously based on configuration
+        if self.defer_jwks_fetch:
+            logger.info("Starting background JWKS fetch to avoid blocking service startup")
+            self._jwks_background_thread = threading.Thread(
+                target=self._fetch_jwks_with_retry,
+                daemon=True,
+                name="jwks-background-fetch"
+            )
+            self._jwks_background_thread.start()
+        else:
+            # Legacy behavior: fetch synchronously during init
+            self._fetch_jwks_with_retry()
 
     def _fetch_jwks_with_retry(self) -> None:
         """Fetch JWKS from auth service with retry logic on startup.
@@ -174,26 +192,34 @@ class JWTMiddleware(BaseHTTPMiddleware):
         Args:
             force: Force refresh even if cache is valid
         """
-        # Check if cache is still valid
+        # Check if cache is still valid (without lock for performance)
         if not force and self.jwks is not None:
             cache_age = time.time() - self.jwks_last_fetched
             if cache_age < self.jwks_cache_ttl:
                 logger.debug(f"JWKS cache valid (age: {cache_age:.0f}s, TTL: {self.jwks_cache_ttl}s)")
                 return
 
-        try:
-            response = httpx.get(f"{self.auth_service_url}/keys", timeout=self.jwks_fetch_timeout)
-            response.raise_for_status()
-            jwks = response.json()
-            self.jwks = jwks
-            self.jwks_last_fetched = time.time()
-            logger.info(f"Fetched JWKS from {self.auth_service_url}/keys ({len(jwks.get('keys', []))} keys)")
+        # Use lock to prevent concurrent fetches
+        with self._jwks_fetch_lock:
+            # Double-check cache after acquiring lock
+            if not force and self.jwks is not None:
+                cache_age = time.time() - self.jwks_last_fetched
+                if cache_age < self.jwks_cache_ttl:
+                    return
 
-        except Exception as e:
-            logger.error(f"Failed to fetch JWKS: {e}")
-            # Only reset on first fetch, keep stale cache on refresh failures
-            if self.jwks is None:
-                self.jwks = {"keys": []}
+            try:
+                response = httpx.get(f"{self.auth_service_url}/keys", timeout=self.jwks_fetch_timeout)
+                response.raise_for_status()
+                jwks = response.json()
+                self.jwks = jwks
+                self.jwks_last_fetched = time.time()
+                logger.info(f"Fetched JWKS from {self.auth_service_url}/keys ({len(jwks.get('keys', []))} keys)")
+
+            except Exception as e:
+                logger.error(f"Failed to fetch JWKS: {e}")
+                # Only reset on first fetch, keep stale cache on refresh failures
+                if self.jwks is None:
+                    self.jwks = {"keys": []}
 
     def _get_public_key(self, token_header: dict[str, Any]) -> Any:
         """Get public key for token validation.
@@ -204,6 +230,31 @@ class JWTMiddleware(BaseHTTPMiddleware):
         Returns:
             Public key in PEM format or None
         """
+        # If JWKS not loaded yet and background fetch is enabled, wait briefly
+        if self.jwks is None and self.defer_jwks_fetch:
+            logger.info("JWKS not yet loaded, waiting for background fetch to complete...")
+            if self._jwks_background_thread and self._jwks_background_thread.is_alive():
+                # Wait up to 5 seconds for background thread to complete
+                self._jwks_background_thread.join(timeout=5.0)
+            
+            # If still not loaded after waiting, try one quick synchronous fetch
+            if self.jwks is None:
+                logger.warning("Background JWKS fetch incomplete, attempting immediate fetch")
+                with self._jwks_fetch_lock:
+                    if self.jwks is None:  # Double-check after acquiring lock
+                        try:
+                            response = httpx.get(
+                                f"{self.auth_service_url}/keys",
+                                timeout=5.0  # Quick timeout for on-demand fetch
+                            )
+                            response.raise_for_status()
+                            self.jwks = response.json()
+                            self.jwks_last_fetched = time.time()
+                            logger.info(f"Emergency JWKS fetch succeeded ({len(self.jwks.get('keys', []))} keys)")
+                        except Exception as e:
+                            logger.error(f"Emergency JWKS fetch failed: {e}")
+                            self.jwks = {"keys": []}
+        
         # Refresh cache if stale (periodic refresh for key rotation)
         self._fetch_jwks()
 
