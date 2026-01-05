@@ -159,7 +159,11 @@ Windows (PowerShell):
 ```powershell
 # Test connection string format (replace with your actual connection string)
 $connStr = "Endpoint=sb://copilot-sb-dev-ej3rgjyh.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=..."
-$connStr.Substring(0, $connStr.IndexOf('/', $connStr.IndexOf('://') + 3))
+if ($connStr -match "(Endpoint=sb://[^/;]+)") {
+    $matches[1]
+} else {
+    Write-Error "Invalid connection string format"
+}
 ```
 
 ### 6. Managed Identity Not Enabled for Container App
