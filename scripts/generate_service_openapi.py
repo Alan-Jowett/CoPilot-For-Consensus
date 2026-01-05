@@ -222,7 +222,6 @@ Examples:
     
     # Generate specs for each service
     all_valid = True
-    failures: dict[str, str] = {}
     for service_name in services:
         try:
             print(f"\n{'='*60}")
@@ -245,42 +244,16 @@ Examples:
             
         except Exception as e:
             print(f"❌ Failed to generate spec for {service_name}: {e}\n")
-            failures[service_name] = str(e)
-
-            # Write a stub spec so downstream steps have a file to consume
-            stub_spec = {
-                "openapi": "3.0.0",
-                "info": {
-                    "title": f"{service_name} (stub)",
-                    "version": "0.0.0-stub",
-                    "description": (
-                        "Stub spec generated because service import failed. "
-                        f"Error: {e}"
-                    ),
-                    "x-generated-by": "generate_service_openapi.py",
-                    "x-service-name": service_name,
-                    "x-generation-error": str(e),
-                },
-                "paths": {},
-            }
-
-            output_file = args.output_dir / f"{service_name}.{args.format}"
-            save_spec(stub_spec, output_file, args.format)
-            print(f"⚠️  Wrote stub spec for {service_name} to unblock CI\n")
-            # Do not mark all_valid false here; we want CI to proceed with stub
+            all_valid = False
     
     # Summary
     print(f"\n{'='*60}")
-    if all_valid and not failures:
+    if all_valid:
         print("✨ All specifications generated successfully!")
         print(f"   Output directory: {args.output_dir}")
     else:
-        print("⚠️  Some specifications were generated as stubs due to errors:")
-        for svc, err in failures.items():
-            print(f"   - {svc}: {err}")
-        print(f"   Output directory: {args.output_dir}")
-        # Exit 0 to allow CI to continue with stub specs
-        sys.exit(0)
+        print("⚠️  Some specifications failed to generate or validate")
+        sys.exit(1)
 
 
 if __name__ == '__main__':
