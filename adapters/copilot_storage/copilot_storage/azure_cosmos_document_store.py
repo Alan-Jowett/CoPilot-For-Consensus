@@ -893,8 +893,11 @@ class AzureCosmosDocumentStore(DocumentStore):
             
             # Find matching foreign documents
             if local_value is not None and local_value in foreign_index:
-                # Copy the list to avoid sharing mutable state across documents
-                doc_copy[as_field] = foreign_index[local_value].copy()
+                # Deep copy the foreign documents to avoid shared mutable state
+                # Multiple documents may join with the same foreign documents, so we need
+                # to ensure each gets independent copies to prevent modifications from
+                # affecting other joined results
+                doc_copy[as_field] = [copy.deepcopy(fdoc) for fdoc in foreign_index[local_value]]
             else:
                 doc_copy[as_field] = []
             
