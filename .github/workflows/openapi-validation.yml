@@ -133,6 +133,7 @@ jobs:
           echo "✓ Successfully generated openapi/generated/${{ matrix.service }}.yaml"
       
       - name: Validate generated spec
+        if: hashFiles('openapi/generated/${{ matrix.service }}.yaml') != ''
         run: |
           echo "Validating generated spec..."
           openapi-spec-validator openapi/generated/${{ matrix.service }}.yaml || {
@@ -144,6 +145,7 @@ jobs:
           echo "✓ Validation passed"
       
       - name: Check spec metadata
+        if: hashFiles('openapi/generated/${{ matrix.service }}.yaml') != ''
         run: |
           python -c "
           import yaml
@@ -157,6 +159,7 @@ jobs:
           "
       
       - name: Upload generated spec
+        if: hashFiles('openapi/generated/${{ matrix.service }}.yaml') != ''
         uses: actions/upload-artifact@v4
         with:
           name: openapi-${{ matrix.service }}
