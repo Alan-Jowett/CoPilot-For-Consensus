@@ -184,12 +184,21 @@ def main():
         logger.info(f"Creating vector store ({config.vector_store_type})...")
 
         # Build vector store kwargs based on backend type
+        # Normalize backend name: 'ai_search' -> 'azure_ai_search'
+        backend_type = config.vector_store_type.lower()
+        if backend_type == "ai_search":
+            backend_type = "azure_ai_search"
+
         vector_store_kwargs = {
-            "backend": config.vector_store_type,
+            "backend": backend_type,
         }
 
-        if config.vector_store_type.lower() == "faiss":
+        if backend_type == "faiss":
             # Validate required config attributes
+            if not hasattr(config, "embedding_dimension"):
+                raise ValueError("embedding_dimension configuration is required for FAISS backend")
+            if config.embedding_dimension <= 0:
+                raise ValueError(f"embedding_dimension must be positive, got {config.embedding_dimension}")
             if not hasattr(config, "vector_store_index_type"):
                 raise ValueError("vector_store_index_type configuration is required for FAISS backend")
 
@@ -198,13 +207,15 @@ def main():
                 "index_type": config.vector_store_index_type,
                 "persist_path": config.vector_store_persist_path if hasattr(config, "vector_store_persist_path") else None,
             })
-        elif config.vector_store_type.lower() == "qdrant":
+        elif backend_type == "qdrant":
             # Validate required config attributes
-            required_attrs = ["vector_store_host", "vector_store_port", "vector_store_collection",
+            required_attrs = ["embedding_dimension", "vector_store_host", "vector_store_port", "vector_store_collection",
                             "vector_store_distance", "vector_store_batch_size"]
             missing = [attr for attr in required_attrs if not hasattr(config, attr)]
             if missing:
                 raise ValueError(f"Missing required Qdrant configuration: {', '.join(missing)}")
+            if config.embedding_dimension <= 0:
+                raise ValueError(f"embedding_dimension must be positive, got {config.embedding_dimension}")
 
             vector_store_kwargs.update({
                 "dimension": config.embedding_dimension,
@@ -215,6 +226,33 @@ def main():
                 "upsert_batch_size": config.vector_store_batch_size,
                 "api_key": config.vector_store_api_key if hasattr(config, "vector_store_api_key") else None,
             })
+        elif backend_type == "azure_ai_search":
+            # Validate required config attributes for Azure AI Search
+            if not hasattr(config, "embedding_dimension"):
+                raise ValueError("embedding_dimension configuration is required for Azure AI Search backend")
+            if config.embedding_dimension <= 0:
+                raise ValueError(f"embedding_dimension must be positive, got {config.embedding_dimension}")
+            if not hasattr(config, "aisearch_endpoint") or not config.aisearch_endpoint:
+                raise ValueError("aisearch_endpoint configuration is required for Azure AI Search backend")
+            if not hasattr(config, "aisearch_index_name") or not config.aisearch_index_name:
+                raise ValueError("aisearch_index_name configuration is required for Azure AI Search backend")
+
+            vector_store_kwargs.update({
+                "dimension": config.embedding_dimension,
+                "endpoint": config.aisearch_endpoint,
+                "index_name": config.aisearch_index_name,
+                "api_key": config.aisearch_api_key if hasattr(config, "aisearch_api_key") and config.aisearch_api_key else None,
+                "use_managed_identity": getattr(config, "aisearch_use_managed_identity", True),
+            })
+        elif backend_type == "inmemory":
+            # In-memory backend requires no additional configuration
+            pass
+        else:
+            # Unsupported backend type
+            raise ValueError(
+                f"Unsupported vector store backend: '{backend_type}'. "
+                f"Supported backends: inmemory, faiss, qdrant, azure_ai_search (or ai_search)"
+            )
 
         vector_store = create_vector_store(**vector_store_kwargs)
 

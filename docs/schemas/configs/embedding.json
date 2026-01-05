@@ -203,6 +203,34 @@
       "env_var": "JWT_AUTH_ENABLED",
       "default": true,
       "description": "Enable JWT authentication middleware"
+    },
+    "aisearch_endpoint": {
+      "type": "string",
+      "source": "env",
+      "env_var": "AISEARCH_ENDPOINT",
+      "required": false,
+      "description": "Azure AI Search service endpoint URL"
+    },
+    "aisearch_index_name": {
+      "type": "string",
+      "source": "env",
+      "env_var": "AISEARCH_INDEX_NAME",
+      "required": false,
+      "description": "Azure AI Search index name"
+    },
+    "aisearch_api_key": {
+      "type": "string",
+      "source": "env",
+      "env_var": "AISEARCH_API_KEY",
+      "required": false,
+      "description": "Azure AI Search API key (optional if using managed identity)"
+    },
+    "aisearch_use_managed_identity": {
+      "type": "bool",
+      "source": "env",
+      "env_var": "AISEARCH_USE_MANAGED_IDENTITY",
+      "default": true,
+      "description": "Use Azure managed identity for AI Search authentication"
     }
   }
 }

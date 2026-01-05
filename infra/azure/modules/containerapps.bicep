@@ -700,7 +700,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: identityClientIds.embedding
             }
             {
-              name: 'VECTORSTORE_TYPE'
+              name: 'VECTOR_STORE_TYPE'
               value: 'ai_search'
             }
             {
@@ -714,6 +714,10 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'EMBEDDING_BACKEND'
               value: azureOpenAIEndpoint != '' && azureOpenAIEmbeddingDeploymentName != '' ? 'azure' : 'sentencetransformers'
+            }
+            {
+              name: 'EMBEDDING_DIMENSION'
+              value: '384'
             }
             {
               name: 'AZURE_OPENAI_ENDPOINT'
@@ -934,7 +938,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: identityClientIds.summarization
             }
             {
-              name: 'VECTORSTORE_TYPE'
+              name: 'VECTOR_STORE_TYPE'
               value: 'ai_search'
             }
             {
@@ -944,6 +948,10 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'AISEARCH_INDEX_NAME'
               value: 'document-embeddings'
+            }
+            {
+              name: 'EMBEDDING_DIMENSION'
+              value: '384'
             }
             {
               name: 'LLM_BACKEND'
