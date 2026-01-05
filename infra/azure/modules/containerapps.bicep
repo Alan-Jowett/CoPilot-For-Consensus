@@ -306,7 +306,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -416,7 +416,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -511,7 +511,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -606,7 +606,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -733,7 +733,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -844,7 +844,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -971,7 +971,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -1097,19 +1097,19 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'REPORTING_BACKEND'
-              value: 'http://${projectPrefix}-reporting-${environment}:${servicePorts.reporting}'
+              value: 'http://${projectPrefix}-reporting-${environment}'
             }
             {
               name: 'AUTH_BACKEND'
-              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+              value: 'http://${projectPrefix}-auth-${environment}'
             }
             {
               name: 'INGESTION_BACKEND'
-              value: 'http://${projectPrefix}-ingestion-${environment}:${servicePorts.ingestion}'
+              value: 'http://${projectPrefix}-ingestion-${environment}'
             }
             {
               name: 'UI_BACKEND'
-              value: 'http://${projectPrefix}-ui-${environment}:${servicePorts.ui}'
+              value: 'http://${projectPrefix}-ui-${environment}'
             }
             {
               name: 'ENABLE_INTERNAL_TLS'
