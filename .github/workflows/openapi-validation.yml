@@ -70,7 +70,15 @@ jobs:
     
     strategy:
       matrix:
-        service: [reporting, ingestion, auth, orchestrator]
+        include:
+          - service: reporting
+            adapters: "copilot_auth copilot_config copilot_events copilot_storage copilot_metrics copilot_reporting copilot_logging copilot_schema_validation copilot_secrets"
+          - service: ingestion
+            adapters: "copilot_archive_fetcher copilot_config copilot_events copilot_storage copilot_metrics copilot_reporting copilot_logging copilot_schema_validation copilot_secrets"
+          - service: auth
+            adapters: "copilot_auth copilot_config copilot_events copilot_logging copilot_metrics copilot_schema_validation copilot_secrets copilot_storage"
+          - service: orchestrator
+            adapters: "copilot_auth copilot_config copilot_events copilot_logging copilot_metrics copilot_reporting copilot_schema_validation copilot_secrets copilot_storage copilot_startup"
     
     steps:
       - name: Checkout code
@@ -81,54 +89,38 @@ jobs:
         with:
           python-version: '3.11'
       
+      - name: Install service adapters
+        run: |
+          echo "Installing adapters for ${{ matrix.service }}"
+          python adapters/scripts/install_adapters.py ${{ matrix.adapters }}
+
       - name: Install dependencies
         run: |
           pip install openapi-spec-validator pyyaml fastapi uvicorn pydantic
           # Install service-specific dependencies
           if [ -f ${{ matrix.service }}/requirements.txt ]; then
             echo "Installing ${{ matrix.service }} dependencies..."
-            pip install -r ${{ matrix.service }}/requirements.txt || {
-              echo "Warning: Failed to install some dependencies for ${{ matrix.service }}"
-              echo "This may be expected if optional dependencies are unavailable"
-            }
+            pip install -r ${{ matrix.service }}/requirements.txt
           fi
-      
-      - name: Install adapters (if needed for service imports)
-        run: |
-          # Install adapter packages that services depend on
-          # Note: Adapters may use setup.py rather than pyproject.toml
-          for adapter_dir in adapters/*/; do
-            if [ -f "${adapter_dir}pyproject.toml" ] || [ -f "${adapter_dir}setup.py" ]; then
-              echo "Installing adapter: ${adapter_dir}"
-              pip install -e "${adapter_dir}" || {
-                echo "Warning: Failed to install adapter ${adapter_dir}"
-                echo "This may be expected if adapter has optional dependencies"
-              }
-            fi
-          done
       
       - name: Generate ${{ matrix.service }} OpenAPI spec
         id: generate
         run: |
           mkdir -p openapi/generated
           python scripts/generate_service_openapi.py --service ${{ matrix.service }} --validate
-        continue-on-error: true
       
       - name: Check if spec was generated
         run: |
           if [ ! -f "openapi/generated/${{ matrix.service }}.yaml" ]; then
-            echo "⚠️  Spec generation failed for ${{ matrix.service }}"
-            echo "This usually means:"
-            echo "  1. Service has import errors"
-            echo "  2. Service dependencies are missing (expected in CI)"
-            echo "  3. FastAPI app is not properly defined"
+            echo "❌ Spec generation failed for ${{ matrix.service }}"
+            echo "Spec generation is required. Please ensure:"
+            echo "  1. Service has no import errors"
+            echo "  2. All service dependencies are installed"
+            echo "  3. FastAPI app is properly defined"
             echo ""
-            echo "To generate specs locally, run:"
-            echo "  ./scripts/generate_service_openapi.py --service ${{ matrix.service }}"
-            echo ""
-            echo "Note: Spec generation requires full service dependencies."
-            echo "CI validation will be skipped for this service."
-            exit 0
+            echo "To test locally:"
+            echo "  python scripts/generate_service_openapi.py --service ${{ matrix.service }} --validate"
+            exit 1
           fi
           echo "✓ Successfully generated openapi/generated/${{ matrix.service }}.yaml"
       
@@ -232,8 +224,8 @@ jobs:
             find /tmp/all-specs -name "*.yaml" -exec cp {} /tmp/spec-bundle/ \; 2>/dev/null || true
           fi
           
-          # Create a summary
-          cat > /tmp/spec-bundle/README.md << EOF
+          # Create spec bundle README
+          cat > /tmp/spec-bundle/README.md << 'EOF'
 # OpenAPI Specification Bundle
 
 This bundle contains OpenAPI specifications for the Copilot-for-Consensus system.
@@ -241,7 +233,10 @@ This bundle contains OpenAPI specifications for the Copilot-for-Consensus system
 ## Files
 
 - gateway.yaml - Public API Gateway specification (spec-first)
-- Service specs (if generated): reporting.yaml, ingestion.yaml, auth.yaml, orchestrator.yaml
+- reporting.yaml - Reporting service OpenAPI specification
+- ingestion.yaml - Ingestion service OpenAPI specification
+- auth.yaml - Authentication service OpenAPI specification
+- orchestrator.yaml - Orchestrator service OpenAPI specification
 
 ## Generation
 
@@ -252,8 +247,8 @@ This bundle contains OpenAPI specifications for the Copilot-for-Consensus system
 
 ## Note
 
-Service specs may not be included if they couldn't be generated due to missing dependencies in CI.
-To generate service specs locally, see docs/openapi.md
+All service specifications must be successfully generated in CI. If any spec is missing,
+the workflow will fail. To generate specs locally, see docs/openapi.md
 EOF
           
           echo "Spec bundle contents:"
