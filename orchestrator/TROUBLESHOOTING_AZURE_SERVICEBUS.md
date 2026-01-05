@@ -91,9 +91,11 @@ Azure RBAC role assignments are not instantaneous. After assigning roles:
 - Restart the orchestrator service
 - Check logs for successful connection
 
-### 4. Queue Does Not Exist
+### 4. Queue Does Not Exist or Cannot Be Created
 
-The orchestrator expects a queue named `orchestrator-service` to exist. In Azure Service Bus, queues must be pre-created unless the managed identity has management permissions.
+The orchestrator dynamically creates a queue named `orchestrator-service` on startup. Unlike the routing queues (e.g., `embeddings.generated`, `summarization.requested`) which are pre-created by the infrastructure, service-specific queues are created by the services themselves.
+
+For Azure Service Bus, the managed identity needs **Azure Service Bus Data Owner** role or explicit queue creation permissions in addition to Send/Receive permissions to auto-create queues.
 
 **Verification:**
 ```bash
@@ -104,9 +106,9 @@ az servicebus queue list \
   --query "[].name"
 ```
 
-**Fix:**
+**Fix Option 1: Pre-create the queue (recommended for production)**
 ```bash
-# Create the orchestrator-service queue if it doesn't exist
+# Create the orchestrator-service queue before starting the service
 az servicebus queue create \
   --name orchestrator-service \
   --namespace-name copilot-sb-dev-ej3rgjyh \
@@ -114,6 +116,17 @@ az servicebus queue create \
   --max-delivery-count 10 \
   --lock-duration PT5M
 ```
+
+**Fix Option 2: Grant queue creation permissions**
+```bash
+# Assign Data Owner role (includes queue creation)
+az role assignment create \
+  --role "Azure Service Bus Data Owner" \
+  --assignee $ORCHESTRATOR_PRINCIPAL_ID \
+  --scope $SERVICEBUS_ID
+```
+
+**Note:** The routing queues (`embeddings.generated`, `summarization.requested`, etc.) are already created by the Bicep infrastructure and do not need manual creation. Only the `orchestrator-service` queue needs to exist or the managed identity needs creation permissions.
 
 ### 5. Malformed Connection String
 
