@@ -19,7 +19,7 @@ class MockConfig:
 @pytest.fixture
 def mock_create_vector_store():
     """Mock the create_vector_store function."""
-    with patch('summarization.main.create_vector_store') as mock:
+    with patch('main.create_vector_store') as mock:
         mock.return_value = Mock()
         yield mock
 
