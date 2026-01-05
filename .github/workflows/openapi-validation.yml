@@ -232,8 +232,8 @@ jobs:
             find /tmp/all-specs -name "*.yaml" -exec cp {} /tmp/spec-bundle/ \; 2>/dev/null || true
           fi
           
-          # Create a summary
-          cat > /tmp/spec-bundle/README.md << EOF
+          # Create a summary (indent for YAML; strip indentation via sed)
+          cat << EOF | sed 's/^          //' > /tmp/spec-bundle/README.md
           # OpenAPI Specification Bundle
           
           This bundle contains OpenAPI specifications for the Copilot-for-Consensus system.
