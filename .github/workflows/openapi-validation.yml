@@ -74,7 +74,7 @@ jobs:
           - service: reporting
             adapters: "copilot_auth copilot_config copilot_events copilot_storage copilot_metrics copilot_reporting copilot_logging copilot_schema_validation copilot_secrets"
           - service: ingestion
-            adapters: "copilot_config copilot_events copilot_storage copilot_metrics copilot_logging copilot_schema_validation copilot_secrets"
+            adapters: "copilot_archive_fetcher copilot_config copilot_events copilot_storage copilot_metrics copilot_logging copilot_schema_validation copilot_secrets"
           - service: auth
             adapters: "copilot_auth copilot_config copilot_events copilot_logging copilot_metrics copilot_schema_validation copilot_secrets copilot_storage"
           - service: orchestrator
