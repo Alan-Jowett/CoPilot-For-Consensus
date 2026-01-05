@@ -129,14 +129,14 @@ All services are configured with:
 
 ### Managed Identity Permissions
 
-**Symptom**: Service fails with "Unauthorized" accessing Cosmos DB or Service Bus
+**Symptom**: Service fails with "Unauthorized" or "Forbidden" accessing Cosmos DB, Service Bus, or Azure AI Search
 
 **Cause**: Managed identity not assigned the correct RBAC role
 
 **Solution**: Verify role assignments in the Bicep modules:
 - Service Bus: Sender/Receiver roles per service type
 - Cosmos DB: Cosmos DB Built-in Data Contributor
-- Azure AI Search: Search Index Data Contributor
+- Azure AI Search: Search Index Data Contributor (required for embedding and summarization services)
 
 ### Container Apps Startup Delay
 
