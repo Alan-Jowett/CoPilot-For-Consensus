@@ -89,19 +89,19 @@ jobs:
         with:
           python-version: '3.11'
       
-      - name: Install dependencies
-        run: |
-          pip install openapi-spec-validator pyyaml fastapi uvicorn pydantic
-          # Install service-specific dependencies
-          if [ -f ${{ matrix.service }}/requirements.txt ]; then
-            echo "Installing ${{ matrix.service }} dependencies..."
-            pip install -r ${{ matrix.service }}/requirements.txt
-          fi
-      
       - name: Install service adapters
         run: |
           echo "Installing adapters for ${{ matrix.service }}"
           python adapters/scripts/install_adapters.py ${{ matrix.adapters }}
+
+      - name: Install dependencies
+        run: |
+          pip install openapi-spec-validator pyyaml fastapi uvicorn pydantic
+          # Install service-specific dependencies (adapters already installed)
+          if [ -f ${{ matrix.service }}/requirements.txt ]; then
+            echo "Installing ${{ matrix.service }} dependencies..."
+            pip install -r ${{ matrix.service }}/requirements.txt
+          fi
       
       - name: Generate ${{ matrix.service }} OpenAPI spec
         id: generate
