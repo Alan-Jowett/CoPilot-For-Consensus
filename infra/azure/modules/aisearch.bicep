@@ -42,7 +42,11 @@ resource searchService 'Microsoft.Search/searchServices@2024-06-01-preview' = {
     partitionCount: 1
     hostingMode: 'default'
     publicNetworkAccess: enablePublicNetworkAccess ? 'Enabled' : 'Disabled'
-    disableLocalAuth: true  // Force RBAC-only authentication, disable API keys
+    authOptions: {
+      aadOrApiKey: {
+        aadAuthFailureMode: 'http401WithBearerChallenge'
+      }
+    }
     encryptionWithCmk: {
       enforcement: 'Unspecified'
     }
