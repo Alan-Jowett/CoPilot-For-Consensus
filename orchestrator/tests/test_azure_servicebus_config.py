@@ -110,8 +110,14 @@ class TestOrchestratorAzureServiceBusConfig:
         - orchestrator should be in receiverServices (Data Receiver role)
 
         This test documents the expected RBAC configuration.
+        
+        Note: This is a documentation test. If the Bicep templates change,
+        update the expected lists below to match the new configuration.
+        The actual source of truth is infra/azure/modules/servicebus.bicep.
         """
         # Expected configuration from servicebus.bicep
+        # Source: infra/azure/modules/servicebus.bicep
+        # Last verified: 2025-01-05
         expected_sender_services = [
             'parsing',
             'chunking',

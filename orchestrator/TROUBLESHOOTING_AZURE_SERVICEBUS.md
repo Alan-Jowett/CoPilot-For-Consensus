@@ -219,7 +219,7 @@ To prevent this issue in the future:
 
 - [Azure Service Bus Integration Guide](../infra/azure/SERVICE_BUS_INTEGRATION_GUIDE.md)
 - [Managed Identity Implementation Summary](../infra/azure/MANAGED_IDENTITY_IMPLEMENTATION_SUMMARY.md)
-- [Queues and Events Architecture](docs/architecture/queues-and-events.md)
+- [Queues and Events Architecture](../docs/architecture/queues-and-events.md)
 
 ## Support
 
