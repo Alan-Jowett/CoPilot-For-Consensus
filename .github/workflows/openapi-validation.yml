@@ -78,7 +78,7 @@ jobs:
           - service: auth
             adapters: "copilot_auth copilot_config copilot_events copilot_logging copilot_metrics copilot_schema_validation copilot_secrets copilot_storage"
           - service: orchestrator
-            adapters: "copilot_auth copilot_config copilot_events copilot_logging copilot_metrics copilot_schema_validation copilot_secrets copilot_storage copilot_summarization copilot_vectorstore copilot_embedding"
+            adapters: "copilot_auth copilot_config copilot_events copilot_logging copilot_metrics copilot_reporting copilot_schema_validation copilot_secrets copilot_storage copilot_startup"
     
     steps:
       - name: Checkout code
