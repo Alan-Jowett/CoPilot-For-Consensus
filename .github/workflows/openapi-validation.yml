@@ -233,14 +233,14 @@ jobs:
           fi
           
           # Create a summary
-          cat > /tmp/spec-bundle/README.md << 'EOF'
+          cat > /tmp/spec-bundle/README.md << EOF
 # OpenAPI Specification Bundle
 
 This bundle contains OpenAPI specifications for the Copilot-for-Consensus system.
 
 ## Files
 
-- `gateway.yaml` - Public API Gateway specification (spec-first)
+- gateway.yaml - Public API Gateway specification (spec-first)
 - Service specs (if generated): reporting.yaml, ingestion.yaml, auth.yaml, orchestrator.yaml
 
 ## Generation
