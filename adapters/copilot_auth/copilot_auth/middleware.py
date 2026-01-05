@@ -554,6 +554,7 @@ def create_jwt_middleware(
     audience: str | None = None,
     required_roles: list[str] | None = None,
     public_paths: list[str] | None = None,
+    defer_jwks_fetch: bool = True,
 ) -> type[JWTMiddleware]:
     """Factory function to create JWT middleware with configuration.
 
@@ -563,6 +564,7 @@ def create_jwt_middleware(
             or SERVICE_NAME for backward compatibility, or 'copilot-for-consensus')
         required_roles: Optional list of required roles
         public_paths: List of paths that don't require auth
+        defer_jwks_fetch: Defer JWKS fetch to background thread (default: True)
 
     Returns:
         Configured JWTMiddleware class
@@ -591,6 +593,7 @@ def create_jwt_middleware(
                 audience=aud,
                 required_roles=required_roles,
                 public_paths=public_paths,
+                defer_jwks_fetch=defer_jwks_fetch,
             )
 
     return ConfiguredJWTMiddleware
