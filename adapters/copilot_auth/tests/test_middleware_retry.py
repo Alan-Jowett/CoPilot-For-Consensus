@@ -43,6 +43,7 @@ def test_jwks_fetch_retry_success_on_first_attempt(mock_jwks):
             audience="test-service",
             jwks_fetch_retries=3,
             jwks_fetch_retry_delay=0.1,
+            defer_jwks_fetch=False,  # Use synchronous fetch for deterministic testing
         )
 
         # Verify JWKS was fetched successfully
@@ -72,6 +73,7 @@ def test_jwks_fetch_retry_success_on_second_attempt(mock_jwks):
                 audience="test-service",
                 jwks_fetch_retries=3,
                 jwks_fetch_retry_delay=0.1,
+                defer_jwks_fetch=False,  # Use synchronous fetch for deterministic testing
             )
 
         # Verify JWKS was fetched successfully on second attempt
@@ -94,6 +96,7 @@ def test_jwks_fetch_retry_failure_after_max_attempts():
                 audience="test-service",
                 jwks_fetch_retries=3,
                 jwks_fetch_retry_delay=0.1,
+                defer_jwks_fetch=False,  # Use synchronous fetch for deterministic testing
             )
 
         # Verify JWKS is empty after all retries failed
@@ -126,6 +129,7 @@ def test_jwks_fetch_retry_with_503_error(mock_jwks):
                 audience="test-service",
                 jwks_fetch_retries=3,
                 jwks_fetch_retry_delay=0.1,
+                defer_jwks_fetch=False,  # Use synchronous fetch for deterministic testing
             )
 
         # Verify JWKS was fetched successfully after 503 retry
@@ -155,6 +159,7 @@ def test_jwks_fetch_no_retry_on_404_error():
                 audience="test-service",
                 jwks_fetch_retries=3,
                 jwks_fetch_retry_delay=0.1,
+                defer_jwks_fetch=False,  # Use synchronous fetch for deterministic testing
             )
 
         # Verify JWKS is empty and only 1 attempt was made (no retries for 404)
@@ -176,6 +181,7 @@ def test_jwks_fetch_exponential_backoff():
                 audience="test-service",
                 jwks_fetch_retries=4,
                 jwks_fetch_retry_delay=1.0,
+                defer_jwks_fetch=False,  # Use synchronous fetch for deterministic testing
             )
 
             # Verify exponential backoff: 1s, 2s, 4s (3 sleeps for 4 attempts)
@@ -198,6 +204,7 @@ def test_jwks_fetch_connect_error_retry():
                 audience="test-service",
                 jwks_fetch_retries=3,
                 jwks_fetch_retry_delay=0.1,
+                defer_jwks_fetch=False,  # Use synchronous fetch for deterministic testing
             )
 
         # Verify retries were attempted
@@ -219,6 +226,7 @@ def test_jwks_fetch_no_retry_on_unexpected_exception():
                 audience="test-service",
                 jwks_fetch_retries=3,
                 jwks_fetch_retry_delay=0.1,
+                defer_jwks_fetch=False,  # Use synchronous fetch for deterministic testing
             )
 
         # Verify only 1 attempt was made (no retries for unexpected errors)
