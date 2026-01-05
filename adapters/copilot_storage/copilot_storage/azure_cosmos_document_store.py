@@ -810,7 +810,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             "as": as_field
         }
         
-        # Check for missing or non-string values
+        # Check for missing or non-string values (but not empty strings yet)
         missing_or_invalid = [
             field_name for field_name, value in required_fields.items()
             if not isinstance(value, str)
@@ -820,10 +820,10 @@ class AzureCosmosDocumentStore(DocumentStore):
                 f"$lookup requires string values for {', '.join(missing_or_invalid)}"
             )
         
-        # Check for empty strings
+        # Check for empty strings (all values are strings at this point)
         empty_fields = [
             field_name for field_name, value in required_fields.items()
-            if not value
+            if value == ""
         ]
         if empty_fields:
             raise DocumentStoreError(

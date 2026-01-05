@@ -827,6 +827,167 @@ class TestAzureCosmosDocumentStore:
         for result in results:
             assert result["user"]["name"] == "Alice"
 
+    def test_aggregate_documents_lookup_validation_missing_fields(self):
+        """Test that $lookup with missing required fields raises error."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock connected state
+        mock_container = MagicMock()
+        store.container = mock_container
+
+        # Test with missing 'from' field
+        pipeline = [
+            {
+                "$lookup": {
+                    "localField": "_id",
+                    "foreignField": "message_id",
+                    "as": "chunks"
+                }
+            }
+        ]
+        with pytest.raises(DocumentStoreError, match=r"\$lookup requires string values"):
+            store.aggregate_documents("messages", pipeline)
+
+        # Test with missing 'as' field
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "chunks",
+                    "localField": "_id",
+                    "foreignField": "message_id"
+                }
+            }
+        ]
+        with pytest.raises(DocumentStoreError, match=r"\$lookup requires string values"):
+            store.aggregate_documents("messages", pipeline)
+
+    def test_aggregate_documents_lookup_validation_empty_strings(self):
+        """Test that $lookup with empty string values raises error."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock connected state
+        mock_container = MagicMock()
+        store.container = mock_container
+
+        # Test with empty 'from' field
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "",
+                    "localField": "_id",
+                    "foreignField": "message_id",
+                    "as": "chunks"
+                }
+            }
+        ]
+        with pytest.raises(DocumentStoreError, match=r"\$lookup requires non-empty values"):
+            store.aggregate_documents("messages", pipeline)
+
+        # Test with empty 'localField'
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "chunks",
+                    "localField": "",
+                    "foreignField": "message_id",
+                    "as": "chunks"
+                }
+            }
+        ]
+        with pytest.raises(DocumentStoreError, match=r"\$lookup requires non-empty values"):
+            store.aggregate_documents("messages", pipeline)
+
+    def test_aggregate_documents_lookup_validation_invalid_field_names(self):
+        """Test that $lookup with invalid field names raises error."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock connected state
+        mock_container = MagicMock()
+        store.container = mock_container
+
+        # Test with invalid localField (contains special characters)
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "chunks",
+                    "localField": "id; DROP TABLE",
+                    "foreignField": "message_id",
+                    "as": "chunks"
+                }
+            }
+        ]
+        with pytest.raises(DocumentStoreError, match=r"Invalid localField.*in \$lookup"):
+            store.aggregate_documents("messages", pipeline)
+
+        # Test with invalid foreignField
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "chunks",
+                    "localField": "_id",
+                    "foreignField": "message$id",
+                    "as": "chunks"
+                }
+            }
+        ]
+        with pytest.raises(DocumentStoreError, match=r"Invalid foreignField.*in \$lookup"):
+            store.aggregate_documents("messages", pipeline)
+
+    def test_aggregate_documents_lookup_foreign_collection_query_failure(self):
+        """Test that $lookup raises error when foreign collection query fails."""
+        store = AzureCosmosDocumentStore(
+            endpoint="https://test.documents.azure.com:443/",
+            key="testkey"
+        )
+
+        # Mock connected state
+        mock_container = MagicMock()
+        store.container = mock_container
+
+        # Mock the first query (main collection) to succeed
+        mock_container.query_items.return_value = [
+            {"id": "msg1", "collection": "messages", "_id": "msg1"}
+        ]
+
+        # Create a side effect that succeeds for first call, fails for second
+        from azure.cosmos import exceptions as cosmos_exceptions
+        
+        def query_side_effect(*args, **kwargs):
+            if query_side_effect.call_count == 0:
+                query_side_effect.call_count += 1
+                return [{"id": "msg1", "collection": "messages", "_id": "msg1"}]
+            else:
+                raise cosmos_exceptions.CosmosHttpResponseError(
+                    status_code=500,
+                    message="Internal server error"
+                )
+        
+        query_side_effect.call_count = 0
+        mock_container.query_items.side_effect = query_side_effect
+
+        pipeline = [
+            {
+                "$lookup": {
+                    "from": "chunks",
+                    "localField": "_id",
+                    "foreignField": "message_id",
+                    "as": "chunks"
+                }
+            }
+        ]
+        
+        with pytest.raises(DocumentStoreError, match=r"Failed to query foreign collection.*during \$lookup"):
+            store.aggregate_documents("messages", pipeline)
+
 
 class TestAzureCosmosDocumentStoreValidation:
     """Tests for AzureCosmosDocumentStore validation methods."""
