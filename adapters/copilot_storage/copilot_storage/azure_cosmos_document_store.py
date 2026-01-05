@@ -598,6 +598,15 @@ class AzureCosmosDocumentStore(DocumentStore):
 
                 if isinstance(condition, dict):
                     # Handle operators
+                    # Validate that all keys in the dict are operators (start with '$')
+                    non_operators = [k for k in condition.keys() if not k.startswith('$')]
+                    if non_operators:
+                        logger.warning(
+                            f"AzureCosmosDocumentStore: $match condition for '{key}' contains "
+                            f"non-operator keys {non_operators}, treating as invalid - skipping field"
+                        )
+                        continue
+                    
                     for op, value in condition.items():
                         if op == "$exists":
                             if value:
@@ -609,6 +618,31 @@ class AzureCosmosDocumentStore(DocumentStore):
                             param_counter += 1
                             query += f" AND c.{key} = {param_name}"
                             parameters.append({"name": param_name, "value": value})
+                        elif op == "$in":
+                            # Translate $in to Cosmos SQL IN operator
+                            if not isinstance(value, list):
+                                logger.warning(
+                                    "AzureCosmosDocumentStore: $in operator requires list value, "
+                                    f"got {type(value).__name__}"
+                                )
+                                continue
+                            if not value:
+                                # Empty list - no documents match; short-circuit to avoid unnecessary query
+                                logger.debug(
+                                    "AzureCosmosDocumentStore: $in operator with empty list in aggregation "
+                                    "- returning empty result"
+                                )
+                                return []
+
+                            # Build parameter list for IN clause
+                            param_names = []
+                            for item in value:
+                                param_name = f"@param{param_counter}"
+                                param_counter += 1
+                                param_names.append(param_name)
+                                parameters.append({"name": param_name, "value": item})
+
+                            query += f" AND c.{key} IN ({', '.join(param_names)})"
                         else:
                             logger.warning(
                                 f"AzureCosmosDocumentStore: unsupported operator '{op}' in $match, skipping"
@@ -621,6 +655,7 @@ class AzureCosmosDocumentStore(DocumentStore):
                     parameters.append({"name": param_name, "value": condition})
 
         # If there's no $lookup, we can add $limit to the SQL query
+        # Cosmos DB requires OFFSET...LIMIT syntax, not standalone LIMIT
         if not has_lookup:
             for stage in pipeline:
                 stage_name = list(stage.keys())[0]
@@ -628,12 +663,10 @@ class AzureCosmosDocumentStore(DocumentStore):
                     limit_value = stage[stage_name]
                     # Validate limit value to prevent SQL injection
                     if not isinstance(limit_value, int) or limit_value < 1:
-                        logger.error(
-                            f"AzureCosmosDocumentStore: invalid $limit value '{limit_value}', "
-                            "must be a positive integer"
+                        raise DocumentStoreError(
+                            f"Invalid limit value '{limit_value}': must be a positive integer"
                         )
-                        break
-                    query += f" LIMIT {limit_value}"
+                    query += f" OFFSET 0 LIMIT {limit_value}"
                     break
 
         # Execute query
@@ -683,12 +716,10 @@ class AzureCosmosDocumentStore(DocumentStore):
             elif stage_name == "$limit":
                 # Validate and apply limit
                 if not isinstance(stage_spec, int) or stage_spec < 1:
-                    logger.warning(
-                        f"AzureCosmosDocumentStore: invalid $limit value '{stage_spec}', "
-                        "must be a positive integer, skipping"
+                    raise DocumentStoreError(
+                        f"Invalid limit value '{stage_spec}': must be a positive integer"
                     )
-                else:
-                    results = results[:stage_spec]
+                results = results[:stage_spec]
 
             else:
                 logger.warning(
