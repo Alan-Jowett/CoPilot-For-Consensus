@@ -27,9 +27,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     copilot_secrets \
     copilot_startup
 
-# Install optional vectorstore backend with Qdrant support
+# Install optional vectorstore backends with Qdrant and Azure AI Search support
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -e /app/adapters/copilot_vectorstore[qdrant]
+    pip install -e /app/adapters/copilot_vectorstore[qdrant,azure]
 
 # Install PyTorch-based embedding backend for production
 RUN --mount=type=cache,target=/root/.cache/pip \
