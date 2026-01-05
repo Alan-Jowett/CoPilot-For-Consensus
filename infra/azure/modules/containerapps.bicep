@@ -1097,19 +1097,19 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'REPORTING_BACKEND'
-              value: 'http://${projectPrefix}-reporting-${environment}'
+              value: 'http://${projectPrefix}-reporting-${environment}:${servicePorts.reporting}'
             }
             {
               name: 'AUTH_BACKEND'
-              value: 'http://${projectPrefix}-auth-${environment}'
+              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
             }
             {
               name: 'INGESTION_BACKEND'
-              value: 'http://${projectPrefix}-ingestion-${environment}'
+              value: 'http://${projectPrefix}-ingestion-${environment}:${servicePorts.ingestion}'
             }
             {
               name: 'UI_BACKEND'
-              value: 'http://${projectPrefix}-ui-${environment}'
+              value: 'http://${projectPrefix}-ui-${environment}:${servicePorts.ui}'
             }
             {
               name: 'ENABLE_INTERNAL_TLS'

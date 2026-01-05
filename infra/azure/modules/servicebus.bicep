@@ -96,7 +96,7 @@ resource senderRoleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-
     name: guid(serviceBusNamespace.id, service, 'sender')
     scope: serviceBusNamespace
     properties: {
-      roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '69a216fc-b8fb-44d4-bc22-1f3c7cd27a98') // Azure Service Bus Data Sender
+      roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '69a216fc-b8fb-44d8-bc22-1f3c2cd27a39') // Azure Service Bus Data Sender
       principalId: reference(identityResourceIds[service], '2023-01-31').principalId
       principalType: 'ServicePrincipal'
     }
