@@ -24,7 +24,7 @@
       "value": "Standard"
     },
     "azureOpenAIModelVersion": {
-      "value": "2024-11-20"
+      "value": "2024-07-18"
     },
     "azureOpenAIDeploymentCapacity": {
       "value": 10

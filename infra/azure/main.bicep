@@ -32,12 +32,13 @@ param azureOpenAIDeploymentSku string = 'GlobalStandard'
 
 @allowed([
   '2024-05-13'
+  '2024-07-18'
   '2024-08-06'
   '2024-11-20'
 ])
 #disable-next-line no-unused-params
-@description('Model version for GPT-4o deployments; default tracks latest GA. Override per environment if needed.')
-param azureOpenAIModelVersion string = '2024-11-20'
+@description('Model version for GPT-4o or GPT-4o-mini deployments; 2024-11-20 for gpt-4o, 2024-07-18 for gpt-4o-mini. Override per environment if needed.')
+param azureOpenAIModelVersion string = '2024-07-18'
 
 @minValue(1)
 @maxValue(1000)

@@ -16,11 +16,12 @@ param sku string = 'S0'
 
 @allowed([
   '2024-05-13'
+  '2024-07-18'
   '2024-08-06'
   '2024-11-20'
 ])
-@description('Model version to deploy for gpt-4o (2024-11-20 is latest GA)')
-param modelVersion string = '2024-11-20'
+@description('Model version to deploy for gpt-4o or gpt-4o-mini (2024-11-20 for gpt-4o, 2024-07-18 for gpt-4o-mini)')
+param modelVersion string = '2024-07-18'
 
 @allowed(['Standard', 'GlobalStandard'])
 @description('Deployment SKU (GlobalStandard for global load balancing)')
@@ -112,7 +113,7 @@ resource gpt4Deployment 'Microsoft.CognitiveServices/accounts/deployments@2025-0
   properties: {
     model: {
       format: 'OpenAI'
-      name: 'gpt-4o'
+      name: 'gpt-4o-mini'
       version: modelVersion
     }
     versionUpgradeOption: 'OnceNewDefaultVersionAvailable'
