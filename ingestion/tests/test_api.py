@@ -220,7 +220,6 @@ class TestSourcesEndpoints:
 
         assert response.status_code == 404
 
-    @pytest.mark.xfail(reason="InMemoryDocumentStore update_document needs investigation")
     def test_update_source(self, client):
         """Test updating a source."""
         source_data = {
@@ -284,7 +283,6 @@ class TestSourcesEndpoints:
 
         assert response.status_code == 404
 
-    @pytest.mark.xfail(reason="InMemoryDocumentStore delete_document needs investigation")
     def test_delete_source(self, client):
         """Test deleting a source."""
         source_data = {
