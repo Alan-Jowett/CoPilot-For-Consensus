@@ -274,17 +274,17 @@
           "legendFormat": "Chunking Input"
         },
         {
-          "expr": "rabbitmq_queue_messages_ready{queue=\"embedding-service\"}",
+          "expr": "rabbitmq_queue_messages_ready{queue=\"chunks.prepared\"}",
           "refId": "C",
           "legendFormat": "Embedding Input"
         },
         {
-          "expr": "rabbitmq_queue_messages_ready{queue=\"orchestrator-service\"}",
+          "expr": "rabbitmq_queue_messages_ready{queue=\"embeddings.generated\"}",
           "refId": "D",
           "legendFormat": "Orchestrator Input"
         },
         {
-          "expr": "rabbitmq_queue_messages_ready{queue=\"chunks.prepared\"}",
+          "expr": "rabbitmq_queue_messages_ready{queue=\"summarization.requested\"}",
           "refId": "E",
           "legendFormat": "Summarization Input"
         },

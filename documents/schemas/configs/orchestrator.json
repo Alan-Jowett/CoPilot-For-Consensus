@@ -48,7 +48,9 @@
       "source": "env",
       "env_var": "ORCHESTRATOR_QUEUE_NAME",
       "required": false,
-      "description": "Message queue name for orchestrator service. Auto-detected based on message bus type if not provided (orchestrator-service for RabbitMQ, embeddings.generated for Azure Service Bus)"
+      "deprecated": true,
+      "default": "embeddings.generated",
+      "description": "DEPRECATED: Message queue name for orchestrator service. The queue name is hardcoded to 'embeddings.generated' in the implementation and the ORCHESTRATOR_QUEUE_NAME environment variable is ignored. This field is kept for backward compatibility and should not be relied upon"
     },
     "doc_store_type": {
       "type": "string",

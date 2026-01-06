@@ -13,12 +13,13 @@ The orchestrator service requires specific Azure Service Bus RBAC roles:
 - **Azure Service Bus Data Sender** - to publish summarization.requested events
 - **Azure Service Bus Data Receiver** - to consume embeddings.generated events
 
-The orchestrator subscribes to the "orchestrator-service" queue, which receives
-"embeddings.generated" events via routing. This queue is created dynamically by
-the orchestrator service on startup.
+The orchestrator subscribes to the "embeddings.generated" queue, which is
+pre-created by the infrastructure (Bicep templates) following the unified
+queue-per-event topology. No service-specific queues (e.g., "orchestrator-service")
+are created dynamically by the service anymore.
 
 For Bicep infrastructure configuration, see:
-- infra/azure/modules/servicebus.bicep (role assignments)
+- infra/azure/modules/servicebus.bicep (queue definitions and role assignments)
 - infra/azure/main.bicep (sender/receiver service lists)
 
 Note: These tests require the copilot_events adapter to be installed.
@@ -132,58 +133,30 @@ class TestOrchestratorAzureServiceBusConfig:
 
 
 class TestOrchestratorQueueNameConfiguration:
-    """Test queue name auto-detection for different message bus types."""
+    """Test queue name configuration for orchestrator service."""
 
-    def test_queue_name_auto_detection_azure_servicebus(self):
-        """Test queue name auto-detection for Azure Service Bus.
+    def test_hardcoded_queue_name_in_source(self):
+        """Verify orchestrator/main.py uses hardcoded 'embeddings.generated' queue.
 
-        When MESSAGE_BUS_TYPE is azureservicebus and queue_name is not provided,
-        the orchestrator should use 'embeddings.generated'.
+        The orchestrator service hardcodes the queue name in the subscriber
+        creation call. This test parses the source file to ensure the
+        queue_name parameter is set to the expected value.
         """
-        message_bus_type = "azureservicebus"
-        queue_name = None
+        import re
+        from pathlib import Path
         
-        # Simulate the auto-detection logic from main.py
-        if not queue_name:
-            if message_bus_type == "azureservicebus":
-                queue_name = "embeddings.generated"
-            else:
-                queue_name = "orchestrator-service"
-
-        assert queue_name == "embeddings.generated"
-
-    def test_queue_name_auto_detection_rabbitmq(self):
-        """Test queue name auto-detection for RabbitMQ.
-
-        When MESSAGE_BUS_TYPE is rabbitmq and queue_name is not provided,
-        the orchestrator should use 'orchestrator-service'.
-        """
-        message_bus_type = "rabbitmq"
-        queue_name = None
+        # Read the main.py file
+        main_py_path = Path(__file__).parent.parent / "main.py"
+        with open(main_py_path, 'r') as f:
+            content = f.read()
         
-        # Simulate the auto-detection logic from main.py
-        if not queue_name:
-            if message_bus_type == "azureservicebus":
-                queue_name = "embeddings.generated"
-            else:
-                queue_name = "orchestrator-service"
-
-        assert queue_name == "orchestrator-service"
-
-    def test_queue_name_explicit_configuration(self):
-        """Test that explicit queue_name configuration is respected.
-
-        When queue_name is explicitly set to a custom value, it should be used
-        regardless of MESSAGE_BUS_TYPE.
-        """
-        message_bus_type = "azureservicebus"
-        queue_name = "custom-queue-name"
+        # Find the create_subscriber call with queue_name parameter
+        pattern = r'create_subscriber\([^)]*queue_name\s*=\s*["\']([^"\']+)["\']'
+        matches = re.search(pattern, content, re.MULTILINE | re.DOTALL)
         
-        # Simulate the auto-detection logic from main.py
-        if not queue_name:
-            if message_bus_type == "azureservicebus":
-                queue_name = "embeddings.generated"
-            else:
-                queue_name = "orchestrator-service"
-
-        assert queue_name == "custom-queue-name"
+        assert matches is not None, "Could not find queue_name parameter in create_subscriber call"
+        actual_queue_name = matches.group(1)
+        
+        # Verify it matches the expected per-event queue pattern
+        assert actual_queue_name == "embeddings.generated", \
+            f"Expected queue_name='embeddings.generated', but found '{actual_queue_name}'"

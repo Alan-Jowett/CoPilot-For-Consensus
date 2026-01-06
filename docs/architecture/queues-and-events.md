@@ -14,9 +14,9 @@ Services subscribe to queues that match the input events they process, allowing 
 
 ## Queue Naming Strategy
 
-### Service Input Queues (Primary Pattern)
+### Unified Per-Event Queue Names
 
-Each service subscribes to the queue containing events it processes:
+All services now use the same queue names across both Azure Service Bus and RabbitMQ deployments:
 - `archive.ingested` - Consumed by parsing service
 - `json.parsed` - Consumed by chunking service
 - `chunks.prepared` - Consumed by embedding service
@@ -24,71 +24,39 @@ Each service subscribes to the queue containing events it processes:
 - `summarization.requested` - Consumed by summarization service
 - `summary.complete` - Consumed by reporting service
 
-### RabbitMQ Custom Queue Names (Legacy Pattern)
-
-RabbitMQ deployments may use custom queue names for services that need to subscribe to multiple routing keys:
-- `embedding-service` - Embedding service (subscribes to `chunks.prepared` routing key)
-- `orchestrator-service` - Orchestrator service (subscribes to `embeddings.generated` routing key)
-
-For the orchestrator service, this is controlled via the `ORCHESTRATOR_QUEUE_NAME` environment variable, allowing the same codebase to work across both deployment types.
+This unified approach eliminates the need for environment-specific queue naming or auto-detection logic. All services use hardcoded per-event queue names that match the event routing keys.
 
 ## Queue Configuration per Deployment Type
 
-### Azure Service Bus Deployment
+Both Azure Service Bus and Docker Compose (RabbitMQ) use the same queue topology with per-event queue names. Services are configured identically across both environments.
 
-Uses direct queue names matching the routing keys in RabbitMQ:
+### Example: Orchestrator Service
 
+**Both Azure Service Bus and RabbitMQ:**
 ```bash
-# Orchestrator configuration for Azure Service Bus
-export MESSAGE_BUS_TYPE=azureservicebus
-export ORCHESTRATOR_QUEUE_NAME=embeddings.generated  # Uses input queue directly
+export MESSAGE_BUS_TYPE=azureservicebus  # or rabbitmq
 ```
 
-### RabbitMQ Deployment (Docker Compose)
-
-Uses topic exchanges with custom service queue names:
-
-```bash
-# Orchestrator configuration for RabbitMQ
-export MESSAGE_BUS_TYPE=rabbitmq
-export ORCHESTRATOR_QUEUE_NAME=orchestrator-service  # Custom service queue
-```
-
-Or omit `ORCHESTRATOR_QUEUE_NAME` to use auto-detection based on `MESSAGE_BUS_TYPE`.
+The queue name is hardcoded to `embeddings.generated` in the service code and cannot be overridden via environment variables.
 
 ## Queue Lifecycle
 
-### Dynamic Queue Creation
-
-Queues not in `definitions.json` are created dynamically when services start:
-
-```python
-subscriber = create_subscriber(
-    message_bus_type="rabbitmq",
-    host="messagebus",
-    queue_name="embedding-service",  # Creates queue on connect
-)
-subscriber.connect()
-subscriber.subscribe(
-    event_type="ChunksPrepared",
-    routing_key="chunks.prepared",  # Binds queue to this routing key
-)
-```
-
 ### Pre-declared Queues
 
-The `infra/rabbitmq/definitions.json` file pre-declares essential queues for RabbitMQ deployments:
-- **archive.ingested** - First stage (parsing input)
-- **json.parsed** - Second stage (chunking input)
+All queues are pre-declared before services start:
+
+- **Azure Service Bus:** Queues are created via Bicep infrastructure templates (`infra/azure/modules/servicebus.bicep`)
+- **RabbitMQ:** Queues are pre-declared in `infra/rabbitmq/definitions.json`
+
+The pre-declared queues include all per-event input queues:
+- **archive.ingested** - Parsing input
+- **json.parsed** - Chunking input
+- **chunks.prepared** - Embedding input
+- **embeddings.generated** - Orchestrator input
 - **summarization.requested** - Summarization input
 - **summary.complete** - Reporting input
 
-These are declared upfront to:
-- Ensure queues exist before services start
-- Prevent message loss during service restarts
-- Provide consistent queue configuration (durable, non-auto-delete)
-
-For Azure Service Bus, all queues are pre-created via Bicep infrastructure templates.
+Plus failure/dead-letter queues for error handling and monitoring.
 
 ## Message Flow
 
@@ -97,9 +65,9 @@ Ingestion → archive.ingested queue → Parsing Service
     ↓
 Parsing → routing_key: json.parsed → json.parsed queue → Chunking Service
     ↓
-Chunking → routing_key: chunks.prepared → embedding-service queue → Embedding Service
+Chunking → routing_key: chunks.prepared → chunks.prepared queue → Embedding Service
     ↓
-Embedding → routing_key: embeddings.generated → orchestrator-service queue → Orchestrator Service
+Embedding → routing_key: embeddings.generated → embeddings.generated queue → Orchestrator Service
     ↓
 Orchestrator → routing_key: summarization.requested → summarization.requested queue → Summarization Service
     ↓
@@ -130,44 +98,45 @@ The system currently does **not** have consumers for `*.failed` events:
 - `summarization.failed`
 - `report.delivery.failed`
 
-These are **intentionally not pre-declared** in definitions.json to prevent unbounded message accumulation. Future implementations may add:
-- Dead-letter queues with TTL
-- Error handling/retry services
-- Monitoring/alerting integrations
+In the current infrastructure, these failed event queues are pre-declared in
+`infra/rabbitmq/definitions.json` to support monitoring and potential future
+integrations. Note that without active consumers, these queues may accumulate
+messages. We plan to revisit this by adding TTL-based dead-letter policies,
+retry handlers, or removing unused failed queues from the default deployment
+to prevent unbounded accumulation.
 
 ## Common Issues
 
-### Issue: Messages accumulating in unused queues
+### Issue: Messages accumulating in queues
 
-**Symptom:** Queues like `chunks.prepared`, `embeddings.generated`, or `report.published` show growing message counts.
+**Symptom:** Queues like `chunks.prepared`, `embeddings.generated`, or `summary.complete` show growing message counts.
 
-**Cause:** Duplicate queue definitions in `definitions.json` that have no active consumers.
+**Cause:** Service is not consuming from the queue (service not running, connection failed, or incorrect queue name).
 
-**Solution:** Remove unused queue declarations from `definitions.json`. Only declare queues that have active consumers.
+**Solution:**
+1. Verify service is running and connected to the message bus
+2. Check service logs for connection errors
+3. Verify the hardcoded queue_name in the service matches the expected queue
 
 ### Issue: Service can't consume messages
 
 **Symptom:** Service starts but doesn't process events.
 
-**Cause:** Service queue name doesn't match or isn't bound to the correct routing key.
+**Cause:** Service is connected but queue doesn't have the expected messages (check routing key or publisher).
 
 **Solution:**
-1. Check service code for `queue_name` parameter in `create_subscriber()`
-2. Verify queue binding in `.subscribe()` matches the published routing_key
-3. Check RabbitMQ management UI to confirm binding exists
+1. Verify the publisher is sending to the correct routing key
+2. Confirm the queue is bound to the correct routing key (RabbitMQ only)
+3. Check queue exists in Azure Service Bus or RabbitMQ management UI
+4. Verify the service is subscribed to the correct event type
 
 ## Monitoring Queue Health
 
-Use the RabbitMQ Management UI (`http://localhost:15672`) to monitor:
+Use the RabbitMQ Management UI (`http://localhost:15672`) or Azure Service Bus explorer to monitor:
 - **Ready messages** - Should drain to 0 when system is idle
 - **Unacked messages** - Should be low (processing in progress)
 - **Message rate** - Should balance publish/consume rates
 - **Consumers** - Each service queue should have 1 active consumer
-
-**Note on Grafana Dashboards:** Some Grafana dashboards may reference old queue names like `chunks.prepared`, `embeddings.generated`, and `report.published`. These queries will return no data since those queues no longer exist. To monitor the actual message flow, use the service queue names instead:
-- `embedding-service` instead of `chunks.prepared`
-- `orchestrator-service` instead of `embeddings.generated`
-- For `report.published` events, monitor the `summary.complete` queue consumption rate
 
 ### Expected Queue States When Idle
 
@@ -175,8 +144,8 @@ Use the RabbitMQ Management UI (`http://localhost:15672`) to monitor:
 |-------|---------------|-----------|
 | archive.ingested | 0 | 1 |
 | json.parsed | 0 | 1 |
-| embedding-service | 0 | 1 |
-| orchestrator-service | 0 | 1 |
+| chunks.prepared | 0 | 1 |
+| embeddings.generated | 0 | 1 |
 | summarization.requested | 0 | 1 |
 | summary.complete | 0 | 1 |
 
