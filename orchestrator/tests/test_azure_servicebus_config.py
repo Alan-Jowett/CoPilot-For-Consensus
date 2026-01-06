@@ -134,15 +134,28 @@ class TestOrchestratorAzureServiceBusConfig:
 class TestOrchestratorQueueNameConfiguration:
     """Test queue name configuration for orchestrator service."""
 
-    def test_hardcoded_queue_name(self):
-        """Test that orchestrator uses hardcoded 'embeddings.generated' queue.
+    def test_hardcoded_queue_name_in_source(self):
+        """Verify orchestrator/main.py uses hardcoded 'embeddings.generated' queue.
 
-        The orchestrator service now uses a hardcoded queue name that is
-        uniform across both Azure Service Bus and RabbitMQ deployments.
-        This queue name cannot be overridden via configuration.
+        The orchestrator service hardcodes the queue name in the subscriber
+        creation call. This test parses the source file to ensure the
+        queue_name parameter is set to the expected value.
         """
-        # The actual queue_name is hardcoded in main.py line 146
-        expected_queue_name = "embeddings.generated"
+        import re
+        from pathlib import Path
         
-        # Verify this matches the documented per-event queue pattern
-        assert expected_queue_name == "embeddings.generated"
+        # Read the main.py file
+        main_py_path = Path(__file__).parent.parent / "main.py"
+        with open(main_py_path, 'r') as f:
+            content = f.read()
+        
+        # Find the create_subscriber call with queue_name parameter
+        pattern = r'create_subscriber\([^)]*queue_name\s*=\s*["\']([^"\']+)["\']'
+        matches = re.search(pattern, content, re.MULTILINE | re.DOTALL)
+        
+        assert matches is not None, "Could not find queue_name parameter in create_subscriber call"
+        actual_queue_name = matches.group(1)
+        
+        # Verify it matches the expected per-event queue pattern
+        assert actual_queue_name == "embeddings.generated", \
+            f"Expected queue_name='embeddings.generated', but found '{actual_queue_name}'"
