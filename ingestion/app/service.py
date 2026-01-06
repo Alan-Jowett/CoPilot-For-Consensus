@@ -1172,7 +1172,7 @@ class IngestionService:
         try:
             # Get the document ID
             doc_id = self._get_source_doc_id(source_name)
-            if not doc_id:
+            if doc_id is None:
                 return None
             
             # Update in document store using the document ID
@@ -1218,7 +1218,7 @@ class IngestionService:
         try:
             # Get the document ID
             doc_id = self._get_source_doc_id(source_name)
-            if not doc_id:
+            if doc_id is None:
                 return False
             
             # Delete from document store using the document ID
