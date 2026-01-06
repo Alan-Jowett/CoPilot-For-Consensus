@@ -5,6 +5,7 @@
 
 import json
 import logging
+import os
 from typing import Any
 
 from .interface import SearchResult, VectorStore
@@ -119,7 +120,6 @@ class AzureAISearchVectorStore(VectorStore):
         # Initialize credentials
         if use_managed_identity:
             try:
-                import os
                 from azure.identity import DefaultAzureCredential
                 # Use AZURE_CLIENT_ID env var if set (for user-assigned managed identity in Container Apps)
                 client_id = os.environ.get('AZURE_CLIENT_ID')
