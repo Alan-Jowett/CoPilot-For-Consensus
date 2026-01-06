@@ -31,9 +31,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -e /app/adapters/copilot_vectorstore[qdrant,azure]
 
-# Install PyTorch-based embedding backend for production
+# Install PyTorch-based embedding backend for production and Azure OpenAI support
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -e /app/adapters/copilot_embedding[sentencetransformers]
+    pip install -e /app/adapters/copilot_embedding[sentencetransformers,openai]
 
 # Copy schema files for validation
 COPY docs/schemas /app/docs/schemas
