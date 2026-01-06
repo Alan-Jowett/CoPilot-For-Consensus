@@ -139,10 +139,16 @@ def main():
                 logger.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
 
         logger.info("Creating message bus subscriber...")
-        # Use per-event queue for Azure Service Bus; service queue for RabbitMQ
-        subscriber_queue = (
-            "chunks.prepared" if str(config.message_bus_type).lower() == "azureservicebus" else "embedding-service"
-        )
+        # Determine queue name based on message bus type if not explicitly configured
+        queue_name = getattr(config, "queue_name", None)
+        if not queue_name:
+            if config.message_bus_type == "azureservicebus":
+                queue_name = "chunks.prepared"
+            else:
+                queue_name = "embedding-service"
+            logger.info(f"Auto-detected queue name for {config.message_bus_type}: {queue_name}")
+        else:
+            logger.info(f"Using configured queue name: {queue_name}")
 
         subscriber = create_subscriber(
             message_bus_type=config.message_bus_type,
@@ -150,7 +156,7 @@ def main():
             port=config.message_bus_port,
             username=config.message_bus_user,
             password=config.message_bus_password,
-            queue_name=subscriber_queue,
+            queue_name=queue_name,
             **message_bus_kwargs,
         )
         try:
