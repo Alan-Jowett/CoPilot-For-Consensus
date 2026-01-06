@@ -171,7 +171,7 @@ resource qdrantApp 'Microsoft.App/containerApps@2024-03-01' = if (vectorStoreBac
     template: {
       containers: [
         {
-          image: 'qdrant/qdrant:v1.7.4'
+          image: 'qdrant/qdrant@sha256:dab6de32f7b2cc599985a7c764db3e8b062f70508fb85ca074aa856f829bf335'
           name: 'qdrant'
           env: [
             {
@@ -374,6 +374,22 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'AZURE_CLIENT_ID'
               value: identityClientIds.reporting
+            }
+            {
+              name: 'VECTOR_STORE_TYPE'
+              value: 'qdrant'
+            }
+            {
+              name: 'VECTOR_DB_HOST'
+              value: '${projectPrefix}-qdrant-${environment}'
+            }
+            {
+              name: 'VECTOR_DB_PORT'
+              value: '80'
+            }
+            {
+              name: 'VECTOR_DB_COLLECTION'
+              value: 'embeddings'
             }
             {
               name: 'AUTH_SERVICE_URL'
@@ -801,7 +817,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'VECTOR_DB_PORT'
-              value: vectorStoreBackend == 'qdrant' ? '6333' : ''
+              value: vectorStoreBackend == 'qdrant' ? '80' : ''
             }
             {
               name: 'VECTOR_DB_COLLECTION'
@@ -1059,7 +1075,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'VECTOR_DB_PORT'
-              value: vectorStoreBackend == 'qdrant' ? '6333' : ''
+              value: vectorStoreBackend == 'qdrant' ? '80' : ''
             }
             {
               name: 'VECTOR_DB_COLLECTION'

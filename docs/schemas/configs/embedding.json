@@ -231,6 +231,34 @@
       "env_var": "AISEARCH_USE_MANAGED_IDENTITY",
       "default": true,
       "description": "Use Azure managed identity for AI Search authentication"
+    },
+    "azure_openai_endpoint": {
+      "type": "string",
+      "source": "env",
+      "env_var": "AZURE_OPENAI_ENDPOINT",
+      "required": false,
+      "description": "Azure OpenAI service endpoint URL (https://your-resource.openai.azure.com/)"
+    },
+    "azure_openai_api_key": {
+      "type": "string",
+      "source": "env",
+      "env_var": "AZURE_OPENAI_KEY",
+      "required": false,
+      "description": "Azure OpenAI API key (for embedding backend)"
+    },
+    "azure_openai_deployment": {
+      "type": "string",
+      "source": "env",
+      "env_var": "AZURE_OPENAI_DEPLOYMENT",
+      "required": false,
+      "description": "Azure OpenAI deployment name for embeddings (e.g., text-embedding-ada-002)"
+    },
+    "azure_openai_api_version": {
+      "type": "string",
+      "source": "env",
+      "env_var": "AZURE_OPENAI_API_VERSION",
+      "required": false,
+      "description": "Azure OpenAI API version"
     }
   }
 }
