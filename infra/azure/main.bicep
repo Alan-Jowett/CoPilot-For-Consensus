@@ -131,6 +131,12 @@ param tags object = {
 @description('Force tag to control JWT key regeneration. Use utcNow() to regenerate keys on every deployment (WARNING: invalidates all active sessions). Default: keys persist across deployments unless this parameter changes.')
 param jwtForceUpdateTag string = 'stable'
 
+@description('Custom domain name for the gateway (e.g., copilot.example.com). Leave empty to use default Container Apps domain.')
+param customDomainName string = ''
+
+@description('TLS certificate resource ID for custom domain (managed certificate from Container Apps environment). Leave empty if using default domain.')
+param customDomainCertificateId string = ''
+
 // Service names for identity assignment
 var services = [
   'ingestion'
@@ -542,6 +548,8 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     oauthRedirectUri: length(effectiveRedirectUris) > 0 ? effectiveRedirectUris[0] : ''
     logAnalyticsWorkspaceId: appInsightsModule!.outputs.workspaceId
     logAnalyticsCustomerId: appInsightsModule!.outputs.workspaceCustomerId
+    customDomainName: customDomainName
+    customDomainCertificateId: customDomainCertificateId
     tags: tags
   }
   dependsOn: [
