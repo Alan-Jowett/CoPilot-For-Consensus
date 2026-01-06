@@ -166,7 +166,6 @@ resource qdrantApp 'Microsoft.App/containerApps@2024-03-01' = if (vectorStoreBac
         external: false  // Internal-only access
         targetPort: 6333
         allowInsecure: false
-        transport: 'http'
       }
     }
     template: {
@@ -192,7 +191,7 @@ resource qdrantApp 'Microsoft.App/containerApps@2024-03-01' = if (vectorStoreBac
             {
               type: 'Liveness'
               httpGet: {
-                path: '/readyz'
+                path: '/'
                 port: 6333
               }
               initialDelaySeconds: 15
@@ -1294,7 +1293,7 @@ output appIds object = vectorStoreBackend == 'qdrant' ? {
   summarization: summarizationApp.id
   ui: uiApp.id
   gateway: gatewayApp.id
-  qdrant: qdrantApp.id
+  qdrant: qdrantApp!.id
 } : {
   auth: authApp.id
   reporting: reportingApp.id
@@ -1309,8 +1308,8 @@ output appIds object = vectorStoreBackend == 'qdrant' ? {
 }
 
 @description('Qdrant vector database app name')
-output qdrantAppName string = vectorStoreBackend == 'qdrant' ? '${projectPrefix}-qdrant-${environment}' : ''
+output qdrantAppName string = vectorStoreBackend == 'qdrant' ? qdrantApp!.name : ''
 
 @description('Qdrant internal endpoint')
-output qdrantInternalEndpoint string = vectorStoreBackend == 'qdrant' ? 'http://${projectPrefix}-qdrant-${environment}' : ''
+output qdrantInternalEndpoint string = vectorStoreBackend == 'qdrant' ? 'http://${qdrantApp!.name}' : ''
 
