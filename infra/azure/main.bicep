@@ -298,8 +298,6 @@ module storageModule 'modules/storage.bicep' = if (deployContainerApps) {
 // ========================================
 // Cross-RG RBAC: Grant Env identities access to Core Key Vault
 // ========================================
-// Built-in role: Key Vault Secrets User (read-only access to secret values)
-var keyVaultSecretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6'
 
 // Parse Core Key Vault resource ID to get subscription and resource group
 var coreKvSubscriptionId = split(coreKeyVaultResourceId, '/')[2]
