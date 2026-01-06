@@ -1125,6 +1125,34 @@ class IngestionService:
             self.logger.error("Failed to create source", error=str(e), exc_info=True)
             raise ValueError(f"Failed to create source: {str(e)}")
 
+    def _get_source_doc_id(self, source_name: str) -> str | None:
+        """Get the document ID for a source by name.
+        
+        Args:
+            source_name: Name of the source
+            
+        Returns:
+            Document ID as string, or None if source not found
+            
+        Raises:
+            ValueError: If source document exists but has no id field
+        """
+        docs = self.document_store.query_documents("sources", {"name": source_name}, limit=1)
+        if not docs:
+            return None
+        
+        doc = docs[0]
+        # Try "id" first (Cosmos DB), then "_id" (MongoDB/InMemory).
+        # Use explicit None checks so falsy but valid IDs (e.g., 0, "") are preserved.
+        doc_id = doc.get("id")
+        if doc_id is None:
+            doc_id = doc.get("_id")
+        
+        if doc_id is None:
+            raise ValueError(f"Source document for '{source_name}' has no id field")
+        
+        return str(doc_id)
+
     def update_source(self, source_name: str, source_data: dict[str, Any]) -> dict[str, Any] | None:
         """Update an existing source.
 
@@ -1141,16 +1169,16 @@ class IngestionService:
         if not self.document_store:
             raise ValueError("Document store not configured")
 
-        # Check if source exists
-        existing = self.get_source(source_name)
-        if not existing:
-            return None
-
         try:
-            # Update in document store
+            # Get the document ID
+            doc_id = self._get_source_doc_id(source_name)
+            if doc_id is None:
+                return None
+            
+            # Update in document store using the document ID
             self.document_store.update_document(
                 "sources",
-                {"name": source_name},
+                doc_id,
                 source_data
             )
 
@@ -1165,6 +1193,9 @@ class IngestionService:
                 updated["password"] = None
 
             return updated
+        except ValueError:
+            # Re-raise ValueError directly (includes missing id field errors)
+            raise
         except Exception as e:
             self.logger.error("Failed to update source", error=str(e), exc_info=True)
             raise ValueError(f"Failed to update source: {str(e)}")
@@ -1184,14 +1215,14 @@ class IngestionService:
         if not self.document_store:
             raise ValueError("Document store not configured")
 
-        # Check if source exists
-        existing = self.get_source(source_name)
-        if not existing:
-            return False
-
         try:
-            # Delete from document store
-            self.document_store.delete_document("sources", {"name": source_name})
+            # Get the document ID
+            doc_id = self._get_source_doc_id(source_name)
+            if doc_id is None:
+                return False
+            
+            # Delete from document store using the document ID
+            self.document_store.delete_document("sources", doc_id)
 
             # Reload sources from config
             self._reload_sources()
@@ -1203,6 +1234,9 @@ class IngestionService:
             self.logger.info("Source deleted", source_name=source_name)
 
             return True
+        except ValueError:
+            # Re-raise ValueError directly (includes missing id field errors)
+            raise
         except Exception as e:
             self.logger.error("Failed to delete source", error=str(e), exc_info=True)
             raise ValueError(f"Failed to delete source: {str(e)}")
