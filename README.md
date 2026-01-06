@@ -470,7 +470,7 @@ The system includes an authentication service that supports GitHub, Google, and 
   - Set `LLM_BACKEND=azure` and configure `AZURE_OPENAI_KEY` and `AZURE_OPENAI_ENDPOINT`
 - **Message Queue**: Use managed RabbitMQ (e.g., CloudAMQP) or Azure Service Bus for durability
 - **Storage**: Use Azure Cosmos DB or managed MongoDB for high availability
-- **Vector Store**: Use managed Qdrant Cloud or Azure Cognitive Search
+- **Vector Store**: Use Qdrant in Azure Container Apps (default, ~$8-15/month) or Azure AI Search (optional, ~$74/month)
 - **Observability**: Use Azure Monitor, Datadog, or New Relic for production monitoring
 - **Security**: Enable TLS, authentication, and network policies (see [SECURITY.md](./SECURITY.md))
 - **Scaling**: Deploy services independently with Kubernetes or Azure Container Apps

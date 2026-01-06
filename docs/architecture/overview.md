@@ -8,7 +8,7 @@ This architecture is designed for a **containerized, microservice-based system**
 ### Deployment Models
 The system is designed to be **100% self-contained and deployable locally** with optional configurations:
 - **Fully Local (Offline):** All components run on-premises using open-source models (local micro-LLMs via Ollama, SentenceTransformers for embeddings, Qdrant/FAISS for vector storage, MongoDB for document storage).
-- **Hybrid Cloud:** Leverage Azure services (Azure OpenAI, Azure Cognitive Search, Cosmos DB) for enterprise-scale deployments while maintaining containerized, portable architecture.
+- **Hybrid Cloud:** Leverage Azure services (Azure OpenAI, Qdrant or Azure AI Search for vector store, Cosmos DB) for enterprise-scale deployments while maintaining containerized, portable architecture.
 - **Modular LLM Support:** Seamlessly swap between:
   - **Local micro-LLMs:** Ollama-compatible models (e.g., Mistral, Llama 2), enabling fully offline operation
   - **Cloud LLMs:** Azure OpenAI, OpenAI API
@@ -53,8 +53,9 @@ This design ensures the system can operate in air-gapped environments, resource-
 ### 5. Vector Store
 - **Purpose:** Enable fast similarity search and retrieval.
 - **Options:**
-  - **Azure Cognitive Search** (vector + keyword hybrid)
-  - **FAISS/Qdrant/Milvus** for open-source deployments
+  - **Qdrant** (default for Azure Container Apps, production-ready, cost-optimized)
+  - **Azure AI Search** (optional, higher cost, additional features)
+  - **FAISS** for in-memory/local deployments
 - **Responsibilities:**
   - Store embeddings with metadata.
   - Support top-k retrieval for retrieval-augmented generation (RAG) workflows.
@@ -310,7 +311,7 @@ graph LR
 
     MB -->|consume| D["🧠 Embedding Service<br/>(OpenAI/SentenceTransformers)"]
     D -->|EmbeddingsGenerated| MB
-    D -->|store embeddings| VS["🔎 Vector Store<br/>(Azure Cognitive Search/Qdrant)"]
+    D -->|store embeddings| VS["🔎 Vector Store<br/>(Qdrant)"]
 
     MB -->|consume| E["⚙️ Orchestration Layer<br/>(Semantic Kernel)"]
     E -->|REST API| VS
