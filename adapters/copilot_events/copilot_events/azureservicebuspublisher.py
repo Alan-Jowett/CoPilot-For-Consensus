@@ -117,8 +117,10 @@ class AzureServiceBusPublisher(EventPublisher):
         """Determine the target queue or topic for publishing.
 
         Topic takes precedence over queue. If both queue_name and topic_name
-        are configured, the topic is used. Otherwise, the exchange parameter
-        is used as the topic name, or the routing_key is used as the queue name.
+        are configured, the topic is used. Otherwise, prefer queue-based routing
+        using the routing_key as the queue name (aligns with queue-per-event
+        deployments), and finally fall back to using the exchange as the topic
+        name.
 
         Args:
             exchange: Exchange name (used as topic name if topic_name not set)
@@ -135,9 +137,8 @@ class AzureServiceBusPublisher(EventPublisher):
         if self.queue_name:
             return (None, self.queue_name)
 
-        # Fall back to using exchange as topic or routing_key as queue
-        # Prefer topic (exchange) over queue (routing_key) for consistency with RabbitMQ
-        return (exchange, None)
+        # Fall back to using routing_key as queue name (queue-per-event default)
+        return (None, routing_key)
 
     def publish(self, exchange: str, routing_key: str, event: dict[str, Any]) -> None:
         """Publish an event to Azure Service Bus.
