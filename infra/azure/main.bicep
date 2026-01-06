@@ -16,55 +16,33 @@ param location string = 'westus'
 #disable-next-line no-unused-params
 param containerImageTag string = 'latest'
 
-#disable-next-line no-unused-params
-param deployAzureOpenAI bool = true
+// ========================================
+// Core RG Integration Parameters
+// ========================================
+// These parameters reference resources deployed in the Core RG (rg-core-ai)
+// Obtain these values from the Core deployment outputs (core.bicep)
 
-// Azure OpenAI accounts only support S0 (S1/S2 apply to other Cognitive Services resources, not OpenAI)
-@allowed(['S0'])
-#disable-next-line no-unused-params
-@description('SKU for Azure OpenAI Service. Azure OpenAI currently only supports the S0 SKU; other SKUs are not valid for this resource type.')
-param azureOpenAISku string = 'S0'
+@description('Azure OpenAI endpoint URL from Core deployment')
+param azureOpenAIEndpoint string
 
-@allowed(['Standard', 'GlobalStandard'])
-#disable-next-line no-unused-params
-@description('Deployment SKU for Azure OpenAI (GlobalStandard recommended for production)')
-param azureOpenAIDeploymentSku string = 'GlobalStandard'
+@description('Azure OpenAI GPT deployment name from Core deployment')
+param azureOpenAIGptDeploymentName string
 
-@allowed(['gpt-4o', 'gpt-4o-mini'])
-#disable-next-line no-unused-params
-@description('GPT model to deploy: gpt-4o (full capability, higher quota) or gpt-4o-mini (80-90% capability, lower quota). Default gpt-4o for prod/staging.')
-param azureOpenAIModelName string = 'gpt-4o'
+@description('Azure OpenAI embedding deployment name from Core deployment (empty string if not deployed)')
+param azureOpenAIEmbeddingDeploymentName string = ''
 
-@allowed([
-  '2024-05-13'
-  '2024-07-18'
-  '2024-08-06'
-  '2024-11-20'
-])
-#disable-next-line no-unused-params
-@description('Model version for GPT deployments; 2024-11-20 for gpt-4o, 2024-07-18 for gpt-4o-mini. Must match the model specified in azureOpenAIModelName.')
-param azureOpenAIModelVersion string = '2024-11-20'
+@description('Core Key Vault resource ID from Core deployment')
+param coreKeyVaultResourceId string
 
-@minValue(1)
-@maxValue(1000)
-#disable-next-line no-unused-params
-@description('Deployment capacity units for Azure OpenAI. Each unit represents 1K tokens per minute (TPM). For GlobalStandard SKU, capacity determines throughput allocation across global regions. Use lower values for dev, higher for prod.')
-param azureOpenAIDeploymentCapacity int = 10
+@description('Core Key Vault name from Core deployment')
+param coreKeyVaultName string
 
-@description('Whether to deploy embedding model (text-embedding-ada-002 or text-embedding-3-*) to Azure OpenAI')
-param deployAzureOpenAIEmbeddingModel bool = true
+@description('Secret URI for Azure OpenAI API key in Core Key Vault')
+param coreKvSecretUriAoaiKey string
 
-@allowed(['text-embedding-ada-002', 'text-embedding-3-small', 'text-embedding-3-large'])
-@description('Embedding model to deploy to Azure OpenAI')
-param azureOpenAIEmbeddingModelName string = 'text-embedding-ada-002'
-
-@minValue(1)
-@maxValue(1000)
-@description('Deployment capacity units for Azure OpenAI embedding model')
-param azureOpenAIEmbeddingDeploymentCapacity int = 10
-
-@description('IPv4 CIDR allowlist for Azure OpenAI when public network access is enabled')
-param azureOpenAIAllowedCidrs array = []
+// ========================================
+// End Core RG Integration Parameters
+// ========================================
 
 @description('Whether to deploy Container Apps environment and services')
 param deployContainerApps bool = true
@@ -142,6 +120,7 @@ param tags object = {
 param jwtForceUpdateTag string = 'stable'
 
 // Service names for identity assignment
+// Note: 'openai' identity is managed in Core RG, not here
 var services = [
   'ingestion'
   'parsing'
@@ -153,7 +132,6 @@ var services = [
   'auth'
   'ui'
   'gateway'
-  'openai'
 ]
 
 // Explicit sender/receiver lists for least-privilege RBAC in Service Bus
@@ -180,8 +158,9 @@ var serviceBusReceiverServices = [
 var uniqueSuffix = uniqueString(resourceGroup().id)
 // Ensure project name prefix doesn't end with dash to avoid double-dash in resource names
 var projectPrefix = take(replace(projectName, '-', ''), 8)
-// Key Vault name must be 3-24 characters, globally unique
-var keyVaultName = '${projectPrefix}kv${take(uniqueSuffix, 13)}'
+// Env Key Vault name must be 3-24 characters, globally unique
+// Note: Core RG has its own Key Vault (coreKeyVaultName) for AOAI secrets
+var keyVaultName = '${projectPrefix}envkv${take(uniqueSuffix, 11)}'
 var identityPrefix = '${projectName}-${environment}'
 var jwtKeysIdentityName = '${identityPrefix}-jwtkeys-id'
 var entraAppIdentityName = '${identityPrefix}-entraapp-id'
@@ -239,8 +218,6 @@ module keyVaultModule 'modules/keyvault.bicep' = {
 var serviceBusNamespaceName = '${projectPrefix}-sb-${environment}-${take(uniqueSuffix, 8)}'
 // Cosmos DB account name must be globally unique and lowercase
 var cosmosAccountName = toLower('${take(projectPrefix, 10)}-cos-${environment}-${take(uniqueSuffix, 5)}')
-// OpenAI account name must be globally unique and lowercase
-var openaiAccountName = toLower('${take(projectPrefix, 10)}-oai-${environment}-${take(uniqueSuffix, 5)}')
 // Azure AI Search service name must be globally unique and lowercase
 var aiSearchServiceName = toLower('${take(projectPrefix, 10)}-ais-${environment}-${take(uniqueSuffix, 5)}')
 // Storage Account name must be globally unique, lowercase, 3-24 chars (no hyphens allowed)
@@ -318,27 +295,29 @@ module storageModule 'modules/storage.bicep' = if (deployContainerApps) {
   }
 }
 
-// Module: Azure OpenAI
-module openaiModule 'modules/openai.bicep' = if (deployAzureOpenAI) {
-  name: 'openaiDeployment'
+// ========================================
+// Cross-RG RBAC: Grant Env identities access to Core Key Vault
+// ========================================
+// Built-in role: Key Vault Secrets User (read-only access to secret values)
+var keyVaultSecretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6'
+
+// Parse Core Key Vault resource ID to get subscription and resource group
+var coreKvSubscriptionId = split(coreKeyVaultResourceId, '/')[2]
+var coreKvResourceGroupName = split(coreKeyVaultResourceId, '/')[4]
+
+// Grant all env service identities access to read secrets from Core Key Vault
+module coreKvRbacModule 'modules/keyvault-rbac-cross-rg.bicep' = {
+  name: 'coreKvRbacDeployment'
+  scope: resourceGroup(coreKvSubscriptionId, coreKvResourceGroupName)
   params: {
-    location: location
-    accountName: openaiAccountName
-    sku: azureOpenAISku
-    modelName: azureOpenAIModelName
-    deploymentSku: azureOpenAIDeploymentSku
-    modelVersion: azureOpenAIModelVersion
-    deploymentCapacity: azureOpenAIDeploymentCapacity
-    deployEmbeddingModel: deployAzureOpenAIEmbeddingModel
-    embeddingModelName: azureOpenAIEmbeddingModelName
-    embeddingDeploymentCapacity: azureOpenAIEmbeddingDeploymentCapacity
-    identityResourceId: identitiesModule.outputs.identityResourceIds.openai
-    enablePublicNetworkAccess: environment == 'dev'  // For dev enable public endpoint, but defaultAction remains Deny; use azureOpenAIAllowedCidrs to allow specific IPs
-    networkDefaultAction: 'Deny'
-    ipRules: azureOpenAIAllowedCidrs
-    tags: tags
+    keyVaultName: coreKeyVaultName
+    envServicePrincipalIds: identitiesModule.outputs.identityPrincipalIds
   }
 }
+
+// ========================================
+// End Cross-RG RBAC
+// ========================================
 
 // Module: Azure AI Search (vector store - optional, higher cost alternative to Qdrant)
 // Only deployed when vectorStoreBackend is 'azure_ai_search' and Container Apps are enabled
@@ -457,26 +436,6 @@ resource githubOAuthClientSecretSecret 'Microsoft.KeyVault/vaults/secrets@2023-0
   ]
 }
 
-// Store Azure OpenAI API key securely in Key Vault when OpenAI is deployed
-// Services will access this via Key Vault reference in environment variables
-// IMPORTANT: openaiModule must complete fully before accessing its keys to avoid race conditions
-// where the account exists but API keys aren't yet available. This explicit dependsOn ensures
-// the Azure OpenAI resource is fully provisioned and ready for key retrieval.
-resource openaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployAzureOpenAI && deployContainerApps) {
-  name: '${keyVaultName}/azure-openai-api-key'
-  properties: {
-    value: deployAzureOpenAI ? listKeys(
-      resourceId('Microsoft.CognitiveServices/accounts', openaiAccountName),
-      '2023-10-01-preview'
-    ).key1 : ''
-    contentType: 'text/plain'
-  }
-  dependsOn: [
-    keyVaultModule
-    openaiModule  // Must wait for OpenAI account to be fully created and keys available
-  ]
-}
-
 // Module: Key Vault RBAC - Per-secret role assignments for least-privilege access control
 // This module configures fine-grained RBAC permissions, granting each service access only to
 // the specific secrets it needs. Deployed after all secrets are created and before Container Apps start.
@@ -490,16 +449,14 @@ module keyVaultRbacModule 'modules/keyvault-rbac.bicep' = if (deployContainerApp
     keyVaultName: keyVaultModule.outputs.keyVaultName
     servicePrincipalIds: identitiesModule.outputs.identityPrincipalIdsByName
     enableRbacAuthorization: enableRbacAuthorization
-    deployAzureOpenAI: deployAzureOpenAI
+    deployAzureOpenAI: false  // OpenAI is in Core RG; env services access Core KV directly
   }
   dependsOn: [
     keyVaultModule
     jwtKeysModule  // Ensure JWT secrets exist before assigning access
     appInsightsInstrKeySecret
     appInsightsConnectionStringSecret
-    // Note: Grafana and OpenAI secrets are conditionally created
-    // Grafana secrets are not accessed by service principals (Container Apps platform handles them)
-    // OpenAI secret access is conditionally assigned in RBAC module based on deployAzureOpenAI parameter
+    coreKvRbacModule  // Ensure Core KV access is granted before RBAC module runs
   ]
 }
 
@@ -537,10 +494,10 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     containerImageTag: containerImageTag
     identityResourceIds: identitiesModule.outputs.identityResourceIds
     identityClientIds: identitiesModule.outputs.identityClientIdsByName
-    azureOpenAIEndpoint: deployAzureOpenAI ? openaiModule!.outputs.accountEndpoint : ''
-    azureOpenAIGpt4DeploymentName: deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentName : ''
-    azureOpenAIEmbeddingDeploymentName: deployAzureOpenAI && deployAzureOpenAIEmbeddingModel ? openaiModule!.outputs.embeddingDeploymentName : ''
-    azureOpenAIApiKeySecretUri: deployAzureOpenAI ? openaiApiKeySecret!.properties.secretUriWithVersion : ''
+    azureOpenAIEndpoint: azureOpenAIEndpoint
+    azureOpenAIGpt4DeploymentName: azureOpenAIGptDeploymentName
+    azureOpenAIEmbeddingDeploymentName: azureOpenAIEmbeddingDeploymentName
+    azureOpenAIApiKeySecretUri: coreKvSecretUriAoaiKey
     vectorStoreBackend: vectorStoreBackend
     aiSearchEndpoint: vectorStoreBackend == 'azure_ai_search' ? aiSearchModule!.outputs.endpoint : ''
     serviceBusNamespace: serviceBusModule.outputs.namespaceFullyQualifiedName
@@ -562,8 +519,8 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
   }
   dependsOn: [
     jwtKeysModule  // Ensure JWT keys are generated before auth service starts
-    openaiApiKeySecret  // Ensure OpenAI API key secret is created and available before Container Apps tries to reference it
     keyVaultRbacModule  // Ensure RBAC assignments are complete before services access secrets
+    coreKvRbacModule  // Ensure Core KV access is granted before Container Apps start
   ]
 }
 
@@ -609,15 +566,12 @@ output storageAccountName string = deployContainerApps ? storageModule!.outputs.
 output storageAccountId string = deployContainerApps ? storageModule!.outputs.accountId : ''
 output storageBlobEndpoint string = deployContainerApps ? storageModule!.outputs.blobEndpoint : ''
 output storageContainerNames array = deployContainerApps ? storageModule!.outputs.containerNames : []
-output openaiAccountName string = deployAzureOpenAI ? openaiModule!.outputs.accountName : ''
-output openaiAccountId string = deployAzureOpenAI ? openaiModule!.outputs.accountId : ''
-output openaiAccountEndpoint string = deployAzureOpenAI ? openaiModule!.outputs.accountEndpoint : ''
-output openaiCustomSubdomain string = deployAzureOpenAI ? openaiModule!.outputs.customSubdomain : ''
-output openaiGpt4DeploymentId string = deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentId : ''
-output openaiGpt4DeploymentName string = deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentName : ''
-output openaiEmbeddingDeploymentId string = deployAzureOpenAI && deployAzureOpenAIEmbeddingModel ? openaiModule!.outputs.embeddingDeploymentId : ''
-output openaiEmbeddingDeploymentName string = deployAzureOpenAI && deployAzureOpenAIEmbeddingModel ? openaiModule!.outputs.embeddingDeploymentName : ''
-output openaiSkuName string = deployAzureOpenAI ? openaiModule!.outputs.skuName : ''
+// Azure OpenAI outputs - references to Core RG resources
+output coreKeyVaultResourceId string = coreKeyVaultResourceId
+output coreKeyVaultName string = coreKeyVaultName
+output azureOpenAIEndpoint string = azureOpenAIEndpoint
+output azureOpenAIGptDeploymentName string = azureOpenAIGptDeploymentName
+output azureOpenAIEmbeddingDeploymentName string = azureOpenAIEmbeddingDeploymentName
 // Vector store outputs
 output vectorStoreBackend string = vectorStoreBackend
 // AI Search outputs: naming follows Azure resource type (Microsoft.Search/searchServices uses "service", not "account")
