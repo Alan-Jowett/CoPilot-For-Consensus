@@ -145,7 +145,8 @@ def main():
             port=config.message_bus_port,
             username=config.message_bus_user,
             password=config.message_bus_password,
-            queue_name="embedding-service",
+            # Consume from the event queue matching routing key used by chunking
+            queue_name="chunks.prepared",
             **message_bus_kwargs,
         )
         try:
