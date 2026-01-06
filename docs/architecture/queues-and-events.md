@@ -98,10 +98,12 @@ The system currently does **not** have consumers for `*.failed` events:
 - `summarization.failed`
 - `report.delivery.failed`
 
-These are **intentionally not pre-declared** in definitions.json to prevent unbounded message accumulation. Future implementations may add:
-- Dead-letter queues with TTL
-- Error handling/retry services
-- Monitoring/alerting integrations
+In the current infrastructure, these failed event queues are pre-declared in
+`infra/rabbitmq/definitions.json` to support monitoring and potential future
+integrations. Note that without active consumers, these queues may accumulate
+messages. We plan to revisit this by adding TTL-based dead-letter policies,
+retry handlers, or removing unused failed queues from the default deployment
+to prevent unbounded accumulation.
 
 ## Common Issues
 

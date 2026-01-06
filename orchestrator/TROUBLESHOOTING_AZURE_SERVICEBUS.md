@@ -214,7 +214,7 @@ Should return `true` if using managed identity mode.
 
 Use the Azure Service Bus Explorer or Azure Portal to verify:
 1. The namespace is accessible
-2. The queue `orchestrator-service` exists
+2. The queue `embeddings.generated` exists (pre-created by Bicep)
 3. The managed identity has the correct permissions
 
 ### Step 4: Redeploy Infrastructure

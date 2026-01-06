@@ -13,12 +13,13 @@ The orchestrator service requires specific Azure Service Bus RBAC roles:
 - **Azure Service Bus Data Sender** - to publish summarization.requested events
 - **Azure Service Bus Data Receiver** - to consume embeddings.generated events
 
-The orchestrator subscribes to the "orchestrator-service" queue, which receives
-"embeddings.generated" events via routing. This queue is created dynamically by
-the orchestrator service on startup.
+The orchestrator subscribes to the "embeddings.generated" queue, which is
+pre-created by the infrastructure (Bicep templates) following the unified
+queue-per-event topology. No service-specific queues (e.g., "orchestrator-service")
+are created dynamically by the service anymore.
 
 For Bicep infrastructure configuration, see:
-- infra/azure/modules/servicebus.bicep (role assignments)
+- infra/azure/modules/servicebus.bicep (queue definitions and role assignments)
 - infra/azure/main.bicep (sender/receiver service lists)
 
 Note: These tests require the copilot_events adapter to be installed.
