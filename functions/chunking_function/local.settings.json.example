@@ -1,0 +1,30 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "AzureWebJobsServiceBus": "Endpoint=sb://your-servicebus.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=YOUR_KEY_HERE",
+    
+    "DOC_STORE_TYPE": "mongodb",
+    "DOC_STORE_HOST": "localhost",
+    "DOC_STORE_PORT": "27017",
+    "DOC_STORE_NAME": "copilot",
+    "DOC_STORE_USER": "",
+    "DOC_STORE_PASSWORD": "",
+    
+    "MESSAGE_BUS_TYPE": "rabbitmq",
+    "MESSAGE_BUS_HOST": "localhost",
+    "MESSAGE_BUS_PORT": "5672",
+    "MESSAGE_BUS_USER": "guest",
+    "MESSAGE_BUS_PASSWORD": "guest",
+    
+    "CHUNKING_STRATEGY": "sentence",
+    "CHUNK_SIZE": "512",
+    "CHUNK_OVERLAP": "50",
+    "MIN_CHUNK_SIZE": "100",
+    "MAX_CHUNK_SIZE": "1024",
+    
+    "APPINSIGHTS_INSTRUMENTATIONKEY": "",
+    "APPLICATIONINSIGHTS_CONNECTION_STRING": ""
+  }
+}

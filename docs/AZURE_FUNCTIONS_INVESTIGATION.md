@@ -7,6 +7,16 @@
 **Status**: ✅ Complete - Proof of Concept Successful  
 **Recommendation**: Proceed with phased migration starting with chunking service
 
+## Related Documentation
+
+- 📊 **[Side-by-Side Comparison](./AZURE_FUNCTIONS_COMPARISON.md)** - Detailed code and architecture comparison
+- 🏗️ **[Proof of Concept Implementation](../functions/chunking_function/README.md)** - Chunking function documentation
+- 🚀 **[Functions Overview](../functions/README.md)** - Azure Functions project structure
+- 📦 **[Bicep Infrastructure Module](../infra/azure/modules/functions.bicep)** - Infrastructure as Code
+- 🔄 **[CI/CD Pipeline](../.github/workflows/deploy-functions.yml)** - Automated deployment
+
+---
+
 ## Executive Summary
 
 This investigation evaluated migrating five event-driven message consumer services (parsing, chunking, embedding, orchestrator, summarization) from Azure Container Apps to Azure Functions for cost optimization. Based on technical feasibility analysis, proof-of-concept implementation, and cost-benefit analysis, **we recommend proceeding with a phased migration**.
