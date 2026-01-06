@@ -1141,11 +1141,6 @@ class IngestionService:
         if not self.document_store:
             raise ValueError("Document store not configured")
 
-        # Check if source exists
-        existing = self.get_source(source_name)
-        if not existing:
-            return None
-
         try:
             # Query for the document to get its ID
             docs = self.document_store.query_documents("sources", {"name": source_name}, limit=1)
@@ -1192,11 +1187,6 @@ class IngestionService:
         """
         if not self.document_store:
             raise ValueError("Document store not configured")
-
-        # Check if source exists
-        existing = self.get_source(source_name)
-        if not existing:
-            return False
 
         try:
             # Query for the document to get its ID
