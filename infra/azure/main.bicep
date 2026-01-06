@@ -137,6 +137,12 @@ param customDomainName string = ''
 @description('TLS certificate resource ID for custom domain (managed certificate from Container Apps environment). Leave empty if using default domain.')
 param customDomainCertificateId string = ''
 
+@description('Azure DNS Zone name for automatic CNAME record creation (e.g., example.com). Leave empty to manage DNS records manually.')
+param azureDnsZoneName string = ''
+
+@description('Resource group where Azure DNS Zone is hosted. Defaults to current resource group.')
+param azureDnsResourceGroup string = resourceGroup().name
+
 // Service names for identity assignment
 var services = [
   'ingestion'
@@ -503,6 +509,20 @@ module vnetModule 'modules/vnet.bicep' = if (deployContainerApps) {
     environment: environment
     vnetAddressSpace: vnetAddressSpace
     subnetAddressPrefix: subnetAddressPrefix
+    tags: tags
+  }
+}
+
+// Module: Azure DNS (optional, for automatic CNAME record management)
+// Creates or references an existing Azure DNS Zone and automatically creates CNAME records
+// for custom domains when azureDnsZoneName is provided.
+module azureDnsModule 'modules/azuredns.bicep' = if (deployContainerApps && !empty(customDomainName) && !empty(azureDnsZoneName)) {
+  name: 'azureDnsDeployment'
+  scope: resourceGroup(azureDnsResourceGroup)
+  params: {
+    dnsZoneName: azureDnsZoneName
+    customDomainName: customDomainName
+    gatewayFqdn: containerAppsModule!.outputs.gatewayFqdn
     tags: tags
   }
 }
