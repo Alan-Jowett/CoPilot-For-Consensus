@@ -540,7 +540,6 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     appInsightsConnectionStringSecretUri: appInsightsConnectionStringSecret!.properties.secretUriWithVersion
     entraTenantId: entraTenantId
     oauthRedirectUri: length(effectiveRedirectUris) > 0 ? effectiveRedirectUris[0] : ''
-    githubOAuthRedirectUri: 'https://${projectName}-gateway-${environment}.${location}.azurecontainerapps.io/ui/callback'
     logAnalyticsWorkspaceId: appInsightsModule!.outputs.workspaceId
     logAnalyticsCustomerId: appInsightsModule!.outputs.workspaceCustomerId
     tags: tags
@@ -608,6 +607,7 @@ output aiSearchServiceId string = deployContainerApps ? aiSearchModule!.outputs.
 output appInsightsId string = deployContainerApps ? appInsightsModule!.outputs.appInsightsId : ''
 output containerAppsEnvId string = deployContainerApps ? containerAppsModule!.outputs.containerAppsEnvId : ''
 output gatewayFqdn string = deployContainerApps ? containerAppsModule!.outputs.gatewayFqdn : ''
+output githubOAuthRedirectUri string = deployContainerApps ? containerAppsModule!.outputs.githubOAuthRedirectUri : ''
 output containerAppIds object = deployContainerApps ? containerAppsModule!.outputs.appIds : {}
 output vnetId string = deployContainerApps ? vnetModule!.outputs.vnetId : ''
 output entraAppClientId string = (deployContainerApps && deployEntraApp && length(effectiveRedirectUris) > 0) ? entraAppModule!.outputs.clientId : ''

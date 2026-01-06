@@ -215,8 +215,34 @@ function Start-Deployment {
         --resource-group $ResourceGroup `
         --query properties.outputs
 
+    # Parse outputs
+    $outputsJson = $outputs | ConvertFrom-Json
+    $githubOAuthRedirectUri = $outputsJson.githubOAuthRedirectUri.value
+
     # Pretty-print outputs for readability
     $outputs | ConvertFrom-Json | ConvertTo-Json -Depth 10
+
+    # Post-deployment: Update auth app with GitHub OAuth redirect URI
+    if ($githubOAuthRedirectUri) {
+        Write-Info "Updating auth service with GitHub OAuth redirect URI: $githubOAuthRedirectUri"
+        
+        # Get the auth app resource
+        $authAppName = "$ProjectName-auth-$Environment"
+        
+        # Update the AUTH_GITHUB_REDIRECT_URI environment variable via az containerapp update
+        try {
+            Invoke-AzCli containerapp update `
+                --name $authAppName `
+                --resource-group $ResourceGroup `
+                --set-env-vars "AUTH_GITHUB_REDIRECT_URI=$githubOAuthRedirectUri" | Out-Null
+            
+            Write-Info "Successfully updated auth service with GitHub OAuth redirect URI"
+        }
+        catch {
+            Write-Warning-Custom "Failed to update auth service with GitHub OAuth redirect URI. This may need to be done manually."
+            Write-Warning-Custom "Command: az containerapp update --name $authAppName --resource-group $ResourceGroup --set-env-vars AUTH_GITHUB_REDIRECT_URI=$githubOAuthRedirectUri"
+        }
+    }
 
     Write-Info ""
     Write-Info "Deployment completed successfully!"

@@ -80,9 +80,6 @@ param entraTenantId string = ''
 @description('OAuth redirect URI for auth service')
 param oauthRedirectUri string = ''
 
-@description('GitHub OAuth redirect URI for auth service (gateway FQDN + /ui/callback)')
-param githubOAuthRedirectUri string = ''
-
 @description('Log Analytics workspace resource ID')
 param logAnalyticsWorkspaceId string
 
@@ -205,10 +202,6 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'AUTH_MS_REDIRECT_URI'
               value: oauthRedirectUri
-            }
-            {
-              name: 'AUTH_GITHUB_REDIRECT_URI'
-              value: githubOAuthRedirectUri
             }
             {
               name: 'AUTH_ROLE_STORE_TYPE'
@@ -1174,6 +1167,9 @@ output containerAppsEnvId string = containerAppsEnv.id
 
 @description('Gateway FQDN for external access')
 output gatewayFqdn string = gatewayApp.properties.configuration.ingress.fqdn
+
+@description('GitHub OAuth redirect URI (computed from gateway FQDN)')
+output githubOAuthRedirectUri string = 'https://${gatewayApp.properties.configuration.ingress.fqdn}/ui/callback'
 
 @description('Container App resource IDs by service')
 output appIds object = {
