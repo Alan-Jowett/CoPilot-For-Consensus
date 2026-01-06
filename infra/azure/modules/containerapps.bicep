@@ -151,6 +151,9 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
 // Qdrant Vector Database (port 6333) - Internal service for vector similarity search
 // Only deployed when vectorStoreBackend is 'qdrant' (default, lower cost option)
 // Deployed before application services that depend on it (embedding, summarization)
+// Note: Currently configured without persistent storage, suitable for development/ephemeral use.
+// For production with persistent vector data, consider adding Azure Files volume mount.
+// See: https://learn.microsoft.com/en-us/azure/container-apps/storage-mounts
 resource qdrantApp 'Microsoft.App/containerApps@2024-03-01' = if (vectorStoreBackend == 'qdrant') {
   name: '${projectPrefix}-qdrant-${environment}'
   location: location
