@@ -785,7 +785,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'VECTOR_DB_HOST'
-              value: vectorStoreBackend == 'qdrant' ? qdrantApp.name : ''
+              value: vectorStoreBackend == 'qdrant' ? '${projectPrefix}-qdrant-${environment}' : ''
             }
             {
               name: 'VECTOR_DB_PORT'
@@ -1043,7 +1043,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'VECTOR_DB_HOST'
-              value: vectorStoreBackend == 'qdrant' ? qdrantApp.name : ''
+              value: vectorStoreBackend == 'qdrant' ? '${projectPrefix}-qdrant-${environment}' : ''
             }
             {
               name: 'VECTOR_DB_PORT'
@@ -1281,7 +1281,7 @@ output appIds object = vectorStoreBackend == 'qdrant' ? {
   summarization: summarizationApp.id
   ui: uiApp.id
   gateway: gatewayApp.id
-  qdrant: qdrantApp.id
+  qdrant: resourceId('Microsoft.App/containerApps', '${projectPrefix}-qdrant-${environment}')
 } : {
   auth: authApp.id
   reporting: reportingApp.id
@@ -1296,8 +1296,8 @@ output appIds object = vectorStoreBackend == 'qdrant' ? {
 }
 
 @description('Qdrant vector database app name')
-output qdrantAppName string = vectorStoreBackend == 'qdrant' ? qdrantApp.name : ''
+output qdrantAppName string = vectorStoreBackend == 'qdrant' ? '${projectPrefix}-qdrant-${environment}' : ''
 
 @description('Qdrant internal endpoint')
-output qdrantInternalEndpoint string = vectorStoreBackend == 'qdrant' ? 'http://${qdrantApp.name}' : ''
+output qdrantInternalEndpoint string = vectorStoreBackend == 'qdrant' ? 'http://${projectPrefix}-qdrant-${environment}' : ''
 
