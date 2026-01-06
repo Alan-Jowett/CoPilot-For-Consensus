@@ -38,9 +38,6 @@ param azureOpenAIEmbeddingDeploymentName string = ''
 @description('Azure OpenAI API key secret URI (from Key Vault)')
 param azureOpenAIApiKeySecretUri string = ''
 
-@description('Azure AI Search endpoint URL')
-param aiSearchEndpoint string = ''
-
 @description('Service Bus fully qualified namespace for managed identity connection')
 param serviceBusNamespace string = ''
 
@@ -139,6 +136,52 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
       logAnalyticsConfiguration: {
         customerId: logAnalyticsCustomerId
         sharedKey: listKeys(logAnalyticsWorkspaceId, '2021-12-01-preview').primarySharedKey
+      }
+    }
+  }
+}
+
+// Qdrant Vector Database (port 6333) - Internal service for vector similarity search
+// Deployed before application services that depend on it (embedding, summarization)
+resource qdrantApp 'Microsoft.App/containerApps@2024-03-01' = {
+  name: '${projectPrefix}-qdrant-${environment}'
+  location: location
+  tags: tags
+  properties: {
+    managedEnvironmentId: containerAppsEnv.id
+    workloadProfileName: 'Consumption'
+    configuration: {
+      ingress: {
+        external: false  // Internal-only access
+        targetPort: 6333
+        allowInsecure: false
+        transport: 'http'
+      }
+    }
+    template: {
+      containers: [
+        {
+          image: 'qdrant/qdrant:latest'
+          name: 'qdrant'
+          env: [
+            {
+              name: 'QDRANT__SERVICE__HTTP_PORT'
+              value: '6333'
+            }
+            {
+              name: 'QDRANT__SERVICE__GRPC_PORT'
+              value: '6334'
+            }
+          ]
+          resources: {
+            cpu: json('0.25')
+            memory: '0.5Gi'
+          }
+        }
+      ]
+      scale: {
+        minReplicas: minReplicaCount
+        maxReplicas: environment == 'prod' ? 2 : 1
       }
     }
   }
@@ -727,15 +770,27 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'VECTOR_STORE_TYPE'
-              value: 'ai_search'
+              value: 'qdrant'
             }
             {
-              name: 'AISEARCH_ENDPOINT'
-              value: aiSearchEndpoint
+              name: 'VECTOR_DB_HOST'
+              value: '${projectPrefix}-qdrant-${environment}'
             }
             {
-              name: 'AISEARCH_INDEX_NAME'
+              name: 'VECTOR_DB_PORT'
+              value: '6333'
+            }
+            {
+              name: 'VECTOR_DB_COLLECTION'
               value: 'document-embeddings'
+            }
+            {
+              name: 'VECTOR_DB_DISTANCE'
+              value: 'cosine'
+            }
+            {
+              name: 'VECTOR_DB_BATCH_SIZE'
+              value: '100'
             }
             {
               name: 'EMBEDDING_BACKEND'
@@ -782,7 +837,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
       }
     }
   }
-  dependsOn: [authApp]
+  dependsOn: [authApp, qdrantApp]
 }
 
 // Orchestrator service (port 8000)
@@ -965,15 +1020,27 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'VECTOR_STORE_TYPE'
-              value: 'ai_search'
+              value: 'qdrant'
             }
             {
-              name: 'AISEARCH_ENDPOINT'
-              value: aiSearchEndpoint
+              name: 'VECTOR_DB_HOST'
+              value: '${projectPrefix}-qdrant-${environment}'
             }
             {
-              name: 'AISEARCH_INDEX_NAME'
+              name: 'VECTOR_DB_PORT'
+              value: '6333'
+            }
+            {
+              name: 'VECTOR_DB_COLLECTION'
               value: 'document-embeddings'
+            }
+            {
+              name: 'VECTOR_DB_DISTANCE'
+              value: 'cosine'
+            }
+            {
+              name: 'VECTOR_DB_BATCH_SIZE'
+              value: '100'
             }
             {
               name: 'EMBEDDING_DIMENSION'
@@ -1020,7 +1087,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
       }
     }
   }
-  dependsOn: [authApp]
+  dependsOn: [authApp, qdrantApp]
 }
 
 // UI service (port 3000)
@@ -1187,5 +1254,12 @@ output appIds object = {
   summarization: summarizationApp.id
   ui: uiApp.id
   gateway: gatewayApp.id
+  qdrant: qdrantApp.id
 }
+
+@description('Qdrant vector database app name')
+output qdrantAppName string = qdrantApp.name
+
+@description('Qdrant internal endpoint')
+output qdrantInternalEndpoint string = 'http://${qdrantApp.name}'
 

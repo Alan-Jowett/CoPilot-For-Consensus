@@ -230,8 +230,6 @@ var serviceBusNamespaceName = '${projectPrefix}-sb-${environment}-${take(uniqueS
 var cosmosAccountName = toLower('${take(projectPrefix, 10)}-cos-${environment}-${take(uniqueSuffix, 5)}')
 // OpenAI account name must be globally unique and lowercase
 var openaiAccountName = toLower('${take(projectPrefix, 10)}-oai-${environment}-${take(uniqueSuffix, 5)}')
-// Azure AI Search service name must be globally unique and lowercase
-var aiSearchServiceName = toLower('${take(projectPrefix, 10)}-ais-${environment}-${take(uniqueSuffix, 5)}')
 // Storage Account name must be globally unique, lowercase, 3-24 chars (no hyphens allowed)
 // Length breakdown: 6 (projectPrefix) + 2 ('st') + 3 (environment) + 10 (uniqueSuffix) = 21 chars (within 3-24 limit)
 var storageAccountName = toLower('${take(projectPrefix, 6)}st${take(environment, 3)}${take(uniqueSuffix, 10)}')
@@ -324,21 +322,6 @@ module openaiModule 'modules/openai.bicep' = if (deployAzureOpenAI) {
     enablePublicNetworkAccess: environment == 'dev'  // For dev enable public endpoint, but defaultAction remains Deny; use azureOpenAIAllowedCidrs to allow specific IPs
     networkDefaultAction: 'Deny'
     ipRules: azureOpenAIAllowedCidrs
-    tags: tags
-  }
-}
-
-// Module: Azure AI Search (vector store)
-// Only deployed when Container Apps are enabled (required for embedding service)
-module aiSearchModule 'modules/aisearch.bicep' = if (deployContainerApps) {
-  name: 'aiSearchDeployment'
-  params: {
-    location: location
-    serviceName: aiSearchServiceName
-    sku: environment == 'prod' ? 'standard' : 'basic'
-    embeddingServicePrincipalId: identitiesModule.outputs.identityPrincipalIdsByName.embedding  // use named mapping to avoid fragile index coupling
-    summarizationServicePrincipalId: identitiesModule.outputs.identityPrincipalIdsByName.summarization
-    enablePublicNetworkAccess: environment != 'prod'  // Disable for production (Private Link), enable for dev/staging
     tags: tags
   }
 }
@@ -509,7 +492,7 @@ var effectiveRedirectUris = length(oauthRedirectUris) > 0 ? oauthRedirectUris : 
 
 // Module: Container Apps (VNet and 10 microservices)
 // IMPORTANT: This module uses non-null assertions (!) for outputs from vnetModule, appInsightsModule,
-// aiSearchModule, and Key Vault secrets. These assertions are safe ONLY because this module has the same
+// and Key Vault secrets. These assertions are safe ONLY because this module has the same
 // conditional guard (if (deployContainerApps)) as those resources. Changing this condition independently
 // will cause deployment failures. Keep all Container Apps-related conditionals synchronized.
 module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerApps) {
@@ -526,7 +509,6 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     azureOpenAIGpt4DeploymentName: deployAzureOpenAI ? openaiModule!.outputs.gpt4DeploymentName : ''
     azureOpenAIEmbeddingDeploymentName: deployAzureOpenAI && deployAzureOpenAIEmbeddingModel ? openaiModule!.outputs.embeddingDeploymentName : ''
     azureOpenAIApiKeySecretUri: deployAzureOpenAI ? openaiApiKeySecret!.properties.secretUriWithVersion : ''
-    aiSearchEndpoint: aiSearchModule!.outputs.endpoint
     serviceBusNamespace: serviceBusModule.outputs.namespaceFullyQualifiedName
     cosmosDbEndpoint: cosmosModule.outputs.accountEndpoint
     cosmosAuthDatabaseName: cosmosModule.outputs.authDatabaseName
@@ -600,10 +582,9 @@ output openaiGpt4DeploymentName string = deployAzureOpenAI ? openaiModule!.outpu
 output openaiEmbeddingDeploymentId string = deployAzureOpenAI && deployAzureOpenAIEmbeddingModel ? openaiModule!.outputs.embeddingDeploymentId : ''
 output openaiEmbeddingDeploymentName string = deployAzureOpenAI && deployAzureOpenAIEmbeddingModel ? openaiModule!.outputs.embeddingDeploymentName : ''
 output openaiSkuName string = deployAzureOpenAI ? openaiModule!.outputs.skuName : ''
-// AI Search outputs: naming follows Azure resource type (Microsoft.Search/searchServices uses "service", not "account")
-output aiSearchServiceName string = deployContainerApps ? aiSearchModule!.outputs.serviceName : ''
-output aiSearchEndpoint string = deployContainerApps ? aiSearchModule!.outputs.endpoint : ''
-output aiSearchServiceId string = deployContainerApps ? aiSearchModule!.outputs.serviceId : ''
+// Qdrant outputs
+output qdrantAppName string = deployContainerApps ? containerAppsModule!.outputs.qdrantAppName : ''
+output qdrantInternalEndpoint string = deployContainerApps ? containerAppsModule!.outputs.qdrantInternalEndpoint : ''
 output appInsightsId string = deployContainerApps ? appInsightsModule!.outputs.appInsightsId : ''
 output containerAppsEnvId string = deployContainerApps ? containerAppsModule!.outputs.containerAppsEnvId : ''
 output gatewayFqdn string = deployContainerApps ? containerAppsModule!.outputs.gatewayFqdn : ''
