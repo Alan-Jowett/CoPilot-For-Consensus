@@ -30,7 +30,7 @@ RabbitMQ deployments may use custom queue names for services that need to subscr
 - `embedding-service` - Embedding service (subscribes to `chunks.prepared` routing key)
 - `orchestrator-service` - Orchestrator service (subscribes to `embeddings.generated` routing key)
 
-This is controlled via the `ORCHESTRATOR_QUEUE_NAME` and similar environment variables, allowing the same codebase to work across both deployment types.
+For the orchestrator service, this is controlled via the `ORCHESTRATOR_QUEUE_NAME` environment variable, allowing the same codebase to work across both deployment types.
 
 ## Queue Configuration per Deployment Type
 
