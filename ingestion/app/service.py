@@ -1142,10 +1142,11 @@ class IngestionService:
             return None
         
         doc = docs[0]
-        # Try "id" first (Cosmos DB), then "_id" (MongoDB/InMemory)
-        doc_id = doc.get("id") or doc.get("_id")
+        # Try "id" first (Cosmos DB), then "_id" (MongoDB/InMemory).
+        # Use explicit None checks so falsy but valid IDs (e.g., 0, "") are preserved.
+        doc_id = doc.get("id") if doc.get("id") is not None else doc.get("_id")
         
-        if not doc_id:
+        if doc_id is None:
             raise ValueError(f"Source document for '{source_name}' has no id field")
         
         return str(doc_id)
@@ -1175,7 +1176,7 @@ class IngestionService:
             # Update in document store using the document ID
             self.document_store.update_document(
                 "sources",
-                str(doc_id),
+                doc_id,
                 source_data
             )
 
@@ -1219,7 +1220,7 @@ class IngestionService:
                 return False
             
             # Delete from document store using the document ID
-            self.document_store.delete_document("sources", str(doc_id))
+            self.document_store.delete_document("sources", doc_id)
 
             # Reload sources from config
             self._reload_sources()
