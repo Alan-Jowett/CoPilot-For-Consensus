@@ -287,6 +287,13 @@
       "env_var": "AZURE_OPENAI_DEPLOYMENT",
       "required": false,
       "description": "Azure OpenAI deployment name for LLM (e.g., gpt-4o)"
+    },
+    "azure_openai_api_version": {
+      "type": "string",
+      "source": "env",
+      "env_var": "AZURE_OPENAI_API_VERSION",
+      "required": false,
+      "description": "Azure OpenAI API version for the LLM backend (e.g., 2024-02-15-preview)"
     }
   }
 }

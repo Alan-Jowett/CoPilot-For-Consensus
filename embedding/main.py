@@ -290,18 +290,18 @@ def main():
                 raise ValueError("openai_api_key configuration is required for OpenAI embedding backend and cannot be empty")
         elif config.embedding_backend.lower() == "azure":
             # Validate required Azure config attributes
-            required_attrs = ["azure_openai_key", "azure_openai_endpoint"]
+            required_attrs = ["azure_openai_api_key", "azure_openai_endpoint"]
             missing = [attr for attr in required_attrs if not hasattr(config, attr)]
             if missing:
                 raise ValueError(f"Missing required Azure embedding configuration: {', '.join(missing)}")
 
-            embedding_kwargs["api_key"] = config.azure_openai_key
+            embedding_kwargs["api_key"] = config.azure_openai_api_key
             embedding_kwargs["api_base"] = config.azure_openai_endpoint
             embedding_kwargs["api_version"] = config.azure_openai_api_version if hasattr(config, "azure_openai_api_version") else None
             embedding_kwargs["deployment_name"] = config.azure_openai_deployment if hasattr(config, "azure_openai_deployment") else None
 
             if not embedding_kwargs["api_key"]:
-                raise ValueError("azure_openai_key configuration is required for Azure embedding backend and cannot be empty")
+                raise ValueError("azure_openai_api_key configuration is required for Azure embedding backend and cannot be empty")
             if not embedding_kwargs["api_base"]:
                 raise ValueError("azure_openai_endpoint configuration is required for Azure embedding backend and cannot be empty")
 

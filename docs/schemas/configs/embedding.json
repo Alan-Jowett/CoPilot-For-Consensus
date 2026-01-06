@@ -239,7 +239,7 @@
       "required": false,
       "description": "Azure OpenAI service endpoint URL (https://your-resource.openai.azure.com/)"
     },
-    "azure_openai_key": {
+    "azure_openai_api_key": {
       "type": "string",
       "source": "env",
       "env_var": "AZURE_OPENAI_KEY",
