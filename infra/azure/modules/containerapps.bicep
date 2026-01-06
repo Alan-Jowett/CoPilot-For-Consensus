@@ -424,6 +424,10 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: string(servicePorts.ingestion)
             }
             {
+              name: 'HTTP_HOST'
+              value: '0.0.0.0'
+            }
+            {
               name: 'AUTH_SERVICE_URL'
               value: 'http://${projectPrefix}-auth-${environment}'
             }
