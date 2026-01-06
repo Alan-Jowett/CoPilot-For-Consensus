@@ -139,7 +139,7 @@ def main():
         logger.info("Creating message bus subscriber...")
         
         # Determine queue name based on message bus type if not explicitly configured
-        queue_name = config.queue_name
+        queue_name = getattr(config, "queue_name", None)
         if not queue_name:
             if config.message_bus_type == "azureservicebus":
                 queue_name = "embeddings.generated"
