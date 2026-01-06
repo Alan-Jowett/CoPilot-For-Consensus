@@ -5,6 +5,7 @@
 
 import json
 import logging
+import os
 from typing import Any
 
 from .interface import SearchResult, VectorStore
@@ -120,7 +121,12 @@ class AzureAISearchVectorStore(VectorStore):
         if use_managed_identity:
             try:
                 from azure.identity import DefaultAzureCredential
-                self._credential = DefaultAzureCredential()
+                # Use AZURE_CLIENT_ID env var if set (for user-assigned managed identity in Container Apps)
+                client_id = os.environ.get('AZURE_CLIENT_ID')
+                if client_id:
+                    self._credential = DefaultAzureCredential(managed_identity_client_id=client_id)
+                else:
+                    self._credential = DefaultAzureCredential()
             except ImportError as e:
                 raise ImportError(
                     "azure-identity is required for managed identity. "

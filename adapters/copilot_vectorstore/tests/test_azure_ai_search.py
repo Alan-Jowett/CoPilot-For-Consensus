@@ -3,6 +3,7 @@
 
 """Unit tests for AzureAISearchVectorStore implementation."""
 
+import os
 from unittest.mock import Mock, patch
 
 import pytest
@@ -468,3 +469,63 @@ class TestAzureAISearchVectorStore:
         # Verify delete_index and create_index were called
         mock_index_client.delete_index.assert_called_once()
         assert mock_index_client.create_index.call_count >= 1
+    @patch('azure.search.documents.SearchClient')
+    @patch('azure.search.documents.indexes.SearchIndexClient')
+    @patch('azure.identity.DefaultAzureCredential')
+    def test_managed_identity_with_client_id(self, mock_credential_class, mock_index_client_class, mock_search_client_class):
+        """Test that managed identity uses client ID from AZURE_CLIENT_ID env var."""
+        mock_index_client = Mock()
+        mock_search_client = Mock()
+        mock_credential = Mock()
+        mock_index_client_class.return_value = mock_index_client
+        mock_search_client_class.return_value = mock_search_client
+        mock_credential_class.return_value = mock_credential
+
+        # Mock get_index to return existing index
+        mock_index = Mock()
+        mock_index.fields = [Mock(name="embedding", vector_search_dimensions=128)]
+        mock_index_client.get_index.return_value = mock_index
+
+        # Set AZURE_CLIENT_ID environment variable
+        test_client_id = "test-client-id-12345"
+        with patch.dict(os.environ, {'AZURE_CLIENT_ID': test_client_id}):
+            store = AzureAISearchVectorStore(
+                endpoint="https://test.search.windows.net",
+                index_name="test_index",
+                vector_size=128,
+                use_managed_identity=True,
+            )
+
+            # Verify DefaultAzureCredential was called with managed_identity_client_id
+            mock_credential_class.assert_called_once_with(managed_identity_client_id=test_client_id)
+            assert store._endpoint == "https://test.search.windows.net"
+
+    @patch('azure.search.documents.SearchClient')
+    @patch('azure.search.documents.indexes.SearchIndexClient')
+    @patch('azure.identity.DefaultAzureCredential')
+    def test_managed_identity_without_client_id(self, mock_credential_class, mock_index_client_class, mock_search_client_class):
+        """Test that managed identity works without AZURE_CLIENT_ID (system-assigned)."""
+        mock_index_client = Mock()
+        mock_search_client = Mock()
+        mock_credential = Mock()
+        mock_index_client_class.return_value = mock_index_client
+        mock_search_client_class.return_value = mock_search_client
+        mock_credential_class.return_value = mock_credential
+
+        # Mock get_index to return existing index
+        mock_index = Mock()
+        mock_index.fields = [Mock(name="embedding", vector_search_dimensions=128)]
+        mock_index_client.get_index.return_value = mock_index
+
+        # Ensure AZURE_CLIENT_ID is not set
+        with patch.dict(os.environ, {}, clear=True):
+            store = AzureAISearchVectorStore(
+                endpoint="https://test.search.windows.net",
+                index_name="test_index",
+                vector_size=128,
+                use_managed_identity=True,
+            )
+
+            # Verify DefaultAzureCredential was called without managed_identity_client_id
+            mock_credential_class.assert_called_once_with()
+            assert store._endpoint == "https://test.search.windows.net"
