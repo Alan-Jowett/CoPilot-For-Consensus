@@ -175,13 +175,24 @@ def main():
 
         # Create event subscriber with schema validation
         logger.info(f"Creating event subscriber ({config.message_bus_type})")
+        # Determine queue name based on message bus type if not explicitly configured
+        queue_name = getattr(config, "queue_name", None)
+        if not queue_name:
+            if config.message_bus_type == "azureservicebus":
+                queue_name = "archive.ingested"
+            else:
+                queue_name = "parsing-service"
+            logger.info(f"Auto-detected queue name for {config.message_bus_type}: {queue_name}")
+        else:
+            logger.info(f"Using configured queue name: {queue_name}")
+        
         base_subscriber = create_subscriber(
             message_bus_type=config.message_bus_type,
             host=config.message_bus_host,
             port=config.message_bus_port,
             username=config.message_bus_user,
             password=config.message_bus_password,
-            queue_name="archive.ingested",
+            queue_name=queue_name,
             **message_bus_kwargs,
         )
 
