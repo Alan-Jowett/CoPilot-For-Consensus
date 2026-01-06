@@ -89,6 +89,37 @@ if (-not (Test-Path $ParametersPath)) {
     exit 1
 }
 
+# Validate that Core outputs are populated in parameters file
+function Test-CoreParametersPopulated {
+    param([string]$ParametersPath)
+    
+    $content = Get-Content -Path $ParametersPath -Raw
+    
+    # Check for placeholder values that indicate missing Core outputs
+    if ($content -match "REPLACE-WITH-CORE-DEPLOYMENT-OUTPUT" -or 
+        $content -match "SUBSCRIPTION-ID" -or 
+        $content -match "CORE-KV-NAME") {
+        Write-Error "================================================"
+        Write-Error "DEPLOYMENT BLOCKED: Core parameters not configured!"
+        Write-Error "================================================"
+        Write-Error "The parameters file contains placeholder values:"
+        Write-Error "  $ParametersPath"
+        Write-Error ""
+        Write-Error "You must first deploy Core infrastructure and update"
+        Write-Error "the parameters file with the Core deployment outputs."
+        Write-Error ""
+        Write-Error "Steps:"
+        Write-Error "  1. Deploy Core: .\deploy.core.ps1 -ResourceGroup rg-core-ai -Environment $Environment"
+        Write-Error "  2. Note the Core outputs (aoaiEndpoint, coreKvName, etc.)"
+        Write-Error "  3. Update $ParametersFile with these values"
+        Write-Error "  4. Re-run this script"
+        Write-Error "================================================"
+        exit 1
+    }
+}
+
+Test-CoreParametersPopulated -ParametersPath $ParametersPath
+
 # Check prerequisites
 Write-Info "Checking prerequisites..."
 if (-not (Get-Command az -ErrorAction SilentlyContinue)) {

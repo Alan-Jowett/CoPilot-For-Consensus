@@ -156,6 +156,35 @@ if [ ! -f "$SCRIPT_DIR/$PARAMETERS_FILE" ]; then
     exit 1
 fi
 
+# Validate that Core outputs are populated in parameters file
+validate_core_parameters() {
+    local param_file="$SCRIPT_DIR/$PARAMETERS_FILE"
+    
+    # Check for placeholder values that indicate missing Core outputs
+    if grep -q "REPLACE-WITH-CORE-DEPLOYMENT-OUTPUT" "$param_file" || \
+       grep -q "SUBSCRIPTION-ID" "$param_file" || \
+       grep -q "CORE-KV-NAME" "$param_file"; then
+        print_error "================================================"
+        print_error "DEPLOYMENT BLOCKED: Core parameters not configured!"
+        print_error "================================================"
+        print_error "The parameters file contains placeholder values:"
+        print_error "  $PARAMETERS_FILE"
+        print_error ""
+        print_error "You must first deploy Core infrastructure and update"
+        print_error "the parameters file with the Core deployment outputs."
+        print_error ""
+        print_error "Steps:"
+        print_error "  1. Deploy Core: ./deploy.core.sh -g rg-core-ai -e $ENVIRONMENT"
+        print_error "  2. Note the Core outputs (aoaiEndpoint, coreKvName, etc.)"
+        print_error "  3. Update $PARAMETERS_FILE with these values"
+        print_error "  4. Re-run this script"
+        print_error "================================================"
+        exit 1
+    fi
+}
+
+validate_core_parameters
+
 # Main deployment
 main() {
     check_prerequisites
