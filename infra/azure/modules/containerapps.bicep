@@ -80,6 +80,9 @@ param entraTenantId string = ''
 @description('OAuth redirect URI for auth service')
 param oauthRedirectUri string = ''
 
+@description('GitHub OAuth redirect URI for auth service (gateway + /ui/callback)')
+param githubOAuthRedirectUri string = ''
+
 @description('Log Analytics workspace resource ID')
 param logAnalyticsWorkspaceId string
 
@@ -197,6 +200,10 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'AUTH_MS_REDIRECT_URI'
               value: oauthRedirectUri
+            }
+            {
+              name: 'AUTH_GITHUB_REDIRECT_URI'
+              value: githubOAuthRedirectUri
             }
             {
               name: 'AUTH_ROLE_STORE_TYPE'
