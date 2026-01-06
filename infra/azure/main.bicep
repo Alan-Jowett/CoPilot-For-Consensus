@@ -164,6 +164,7 @@ var serviceBusSenderServices = [
   'orchestrator'
   'summarization'
   'reporting'
+  'ingestion'
 ]
 
 var serviceBusReceiverServices = [

@@ -41,12 +41,19 @@ param receiverServices array = [
 
 var queueDefinitions = [
   'archive.ingested'
+  'archive.ingestion.failed'
   'json.parsed'
+  'parsing.failed'
   'chunks.prepared'
+  'chunking.failed'
   'embeddings.generated'
+  'embedding.generation.failed'
   'summarization.requested'
+  'orchestration.failed'
   'summary.complete'
+  'summarization.failed'
   'report.published'
+  'report.delivery.failed'
   'dlq.dead-letter'
 ]
 
