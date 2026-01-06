@@ -540,7 +540,7 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
     appInsightsConnectionStringSecretUri: appInsightsConnectionStringSecret!.properties.secretUriWithVersion
     entraTenantId: entraTenantId
     oauthRedirectUri: length(effectiveRedirectUris) > 0 ? effectiveRedirectUris[0] : ''
-    githubOAuthRedirectUri: 'https://${projectName}-gateway-${environment}.azurecontainerapps.io/ui/callback'
+    githubOAuthRedirectUri: 'https://${projectName}-gateway-${environment}.${location}.azurecontainerapps.io/ui/callback'
     logAnalyticsWorkspaceId: appInsightsModule!.outputs.workspaceId
     logAnalyticsCustomerId: appInsightsModule!.outputs.workspaceCustomerId
     tags: tags

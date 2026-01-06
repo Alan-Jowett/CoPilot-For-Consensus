@@ -80,7 +80,7 @@ param entraTenantId string = ''
 @description('OAuth redirect URI for auth service')
 param oauthRedirectUri string = ''
 
-@description('GitHub OAuth redirect URI for auth service (gateway + /ui/callback)')
+@description('GitHub OAuth redirect URI for auth service (gateway FQDN + /ui/callback)')
 param githubOAuthRedirectUri string = ''
 
 @description('Log Analytics workspace resource ID')
@@ -115,6 +115,11 @@ var servicePorts = {
   ui: 80
   gateway: 8080
 }
+
+// Compute GitHub OAuth redirect URI based on gateway name pattern
+// Format: https://{projectPrefix}-gateway-{environment}.{domain}/ui/callback
+// The domain is auto-assigned by Container Apps and includes a unique suffix
+var githubOAuthRedirectUriBase = 'https://${projectPrefix}-gateway-${environment}'
 
 // Container Apps Environment (VNet-integrated, consumption tier for dev)
 resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
