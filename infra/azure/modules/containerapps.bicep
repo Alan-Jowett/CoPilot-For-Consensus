@@ -376,6 +376,22 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: identityClientIds.reporting
             }
             {
+              name: 'VECTOR_STORE_TYPE'
+              value: 'qdrant'
+            }
+            {
+              name: 'VECTOR_DB_HOST'
+              value: '${projectPrefix}-qdrant-${environment}'
+            }
+            {
+              name: 'VECTOR_DB_PORT'
+              value: '80'
+            }
+            {
+              name: 'VECTOR_DB_COLLECTION'
+              value: 'embeddings'
+            }
+            {
               name: 'AUTH_SERVICE_URL'
               value: 'http://${projectPrefix}-auth-${environment}'
             }
