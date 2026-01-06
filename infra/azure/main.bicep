@@ -108,6 +108,14 @@ param grafanaAdminUser string = ''
 @secure()
 param grafanaAdminPassword string = ''
 
+@description('GitHub OAuth application client ID (optional, stored in Key Vault)')
+@secure()
+param githubOAuthClientId string = ''
+
+@description('GitHub OAuth application client secret (optional, stored in Key Vault)')
+@secure()
+param githubOAuthClientSecret string = ''
+
 @description('Enable public network access to Key Vault. Set to false for production with Private Link.')
 param enablePublicNetworkAccess bool = true
 
@@ -329,7 +337,7 @@ module aiSearchModule 'modules/aisearch.bicep' = if (deployContainerApps) {
     serviceName: aiSearchServiceName
     sku: environment == 'prod' ? 'standard' : 'basic'
     embeddingServicePrincipalId: identitiesModule.outputs.identityPrincipalIdsByName.embedding  // use named mapping to avoid fragile index coupling
-    summarizationServicePrincipalId: identitiesModule.outputs.identityPrincipalIdsByName.summarization  // summarization also needs vector store access
+    summarizationServicePrincipalId: identitiesModule.outputs.identityPrincipalIdsByName.summarization
     enablePublicNetworkAccess: environment != 'prod'  // Disable for production (Private Link), enable for dev/staging
     tags: tags
   }
@@ -405,6 +413,31 @@ resource grafanaAdminPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-0
   name: '${keyVaultName}/grafana-admin-password'
   properties: {
     value: grafanaAdminPassword
+    contentType: 'text/plain'
+  }
+  dependsOn: [
+    keyVaultModule
+  ]
+}
+
+// Store GitHub OAuth credentials in Key Vault
+// Client ID is only stored if explicitly provided
+resource githubOAuthClientIdSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (githubOAuthClientId != '') {
+  name: '${keyVaultName}/github-oauth-client-id'
+  properties: {
+    value: githubOAuthClientId
+    contentType: 'text/plain'
+  }
+  dependsOn: [
+    keyVaultModule
+  ]
+}
+
+// Client secret is only stored if explicitly provided
+resource githubOAuthClientSecretSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (githubOAuthClientSecret != '') {
+  name: '${keyVaultName}/github-oauth-client-secret'
+  properties: {
+    value: githubOAuthClientSecret
     contentType: 'text/plain'
   }
   dependsOn: [
@@ -574,6 +607,7 @@ output aiSearchServiceId string = deployContainerApps ? aiSearchModule!.outputs.
 output appInsightsId string = deployContainerApps ? appInsightsModule!.outputs.appInsightsId : ''
 output containerAppsEnvId string = deployContainerApps ? containerAppsModule!.outputs.containerAppsEnvId : ''
 output gatewayFqdn string = deployContainerApps ? containerAppsModule!.outputs.gatewayFqdn : ''
+output githubOAuthRedirectUri string = deployContainerApps ? containerAppsModule!.outputs.githubOAuthRedirectUri : ''
 output containerAppIds object = deployContainerApps ? containerAppsModule!.outputs.appIds : {}
 output vnetId string = deployContainerApps ? vnetModule!.outputs.vnetId : ''
 output entraAppClientId string = (deployContainerApps && deployEntraApp && length(effectiveRedirectUris) > 0) ? entraAppModule!.outputs.clientId : ''

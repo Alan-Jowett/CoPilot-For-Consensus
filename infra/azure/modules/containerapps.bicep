@@ -113,6 +113,11 @@ var servicePorts = {
   gateway: 8080
 }
 
+// Compute GitHub OAuth redirect URI based on gateway name pattern
+// Format: https://{projectPrefix}-gateway-{environment}.{domain}/ui/callback
+// The domain is auto-assigned by Container Apps and includes a unique suffix
+var githubOAuthRedirectUriBase = 'https://${projectPrefix}-gateway-${environment}'
+
 // Container Apps Environment (VNet-integrated, consumption tier for dev)
 resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: caEnvName
@@ -415,6 +420,10 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'archives'
             }
             {
+              name: 'HTTP_PORT'
+              value: string(servicePorts.ingestion)
+            }
+            {
               name: 'AUTH_SERVICE_URL'
               value: 'http://${projectPrefix}-auth-${environment}'
             }
@@ -425,6 +434,19 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
+          ]
+          probes: [
+            {
+              type: 'Liveness'
+              httpGet: {
+                path: '/health'
+                port: servicePorts.ingestion
+              }
+              initialDelaySeconds: 15
+              periodSeconds: 30
+              timeoutSeconds: 10
+              failureThreshold: 3
             }
           ]
           resources: {
@@ -1145,6 +1167,9 @@ output containerAppsEnvId string = containerAppsEnv.id
 
 @description('Gateway FQDN for external access')
 output gatewayFqdn string = gatewayApp.properties.configuration.ingress.fqdn
+
+@description('GitHub OAuth redirect URI (computed from gateway FQDN)')
+output githubOAuthRedirectUri string = 'https://${gatewayApp.properties.configuration.ingress.fqdn}/ui/callback'
 
 @description('Container App resource IDs by service')
 output appIds object = {

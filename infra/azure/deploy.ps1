@@ -164,12 +164,30 @@ function Start-Deployment {
     # Prepare template and parameters
     $TemplatePath = Join-Path $ScriptDir "main.bicep"
 
+    # Read GitHub OIDC secrets if they exist
+    $SecretsDir = Join-Path $ScriptDir "../../secrets"
+    $githubClientId = ""
+    $githubClientSecret = ""
+    
+    $clientIdFile = Join-Path $SecretsDir "github_oauth_client_id"
+    $clientSecretFile = Join-Path $SecretsDir "github_oauth_client_secret"
+    
+    if (Test-Path $clientIdFile) {
+        $githubClientId = (Get-Content $clientIdFile -Raw).Trim()
+        Write-Info "Found GitHub OAuth client ID secret"
+    }
+    
+    if (Test-Path $clientSecretFile) {
+        $githubClientSecret = (Get-Content $clientSecretFile -Raw).Trim()
+        Write-Info "Found GitHub OAuth client secret"
+    }
+
     # Validate template
     Write-Info "Validating Bicep template..."
     Invoke-AzCli deployment group validate `
         --resource-group $ResourceGroup `
         --template-file $TemplatePath `
-        --parameters "@$ParametersPath" projectName=$ProjectName environment=$Environment containerImageTag=$ImageTag location=$Location | Out-Null
+        --parameters "@$ParametersPath" projectName=$ProjectName environment=$Environment containerImageTag=$ImageTag location=$Location githubOAuthClientId="$githubClientId" githubOAuthClientSecret="$githubClientSecret" | Out-Null
 
     Write-Info "Template validation passed."
 
@@ -186,7 +204,7 @@ function Start-Deployment {
         --name $DeploymentName `
         --resource-group $ResourceGroup `
         --template-file $TemplatePath `
-        --parameters "@$ParametersPath" projectName=$ProjectName environment=$Environment containerImageTag=$ImageTag location=$Location | Out-Null
+        --parameters "@$ParametersPath" projectName=$ProjectName environment=$Environment containerImageTag=$ImageTag location=$Location githubOAuthClientId="$githubClientId" githubOAuthClientSecret="$githubClientSecret" | Out-Null
 
     Write-Info "Deployment completed successfully!"
 
@@ -197,13 +215,41 @@ function Start-Deployment {
         --resource-group $ResourceGroup `
         --query properties.outputs
 
+    # Parse outputs
+    $outputsJson = $outputs | ConvertFrom-Json
+    $githubOAuthRedirectUri = $outputsJson.githubOAuthRedirectUri.value
+
     # Pretty-print outputs for readability
     $outputs | ConvertFrom-Json | ConvertTo-Json -Depth 10
 
+    # Post-deployment: Update auth app with GitHub OAuth redirect URI
+    if ($githubOAuthRedirectUri) {
+        Write-Info "Updating auth service with GitHub OAuth redirect URI: $githubOAuthRedirectUri"
+        
+        # Get the auth app resource
+        $authAppName = "$ProjectName-auth-$Environment"
+        
+        # Update the AUTH_GITHUB_REDIRECT_URI environment variable via az containerapp update
+        try {
+            Invoke-AzCli containerapp update `
+                --name $authAppName `
+                --resource-group $ResourceGroup `
+                --set-env-vars "AUTH_GITHUB_REDIRECT_URI=$githubOAuthRedirectUri" | Out-Null
+            
+            Write-Info "Successfully updated auth service with GitHub OAuth redirect URI"
+        }
+        catch {
+            Write-Warning-Custom "Failed to update auth service with GitHub OAuth redirect URI. This may need to be done manually."
+            Write-Warning-Custom "Command: az containerapp update --name $authAppName --resource-group $ResourceGroup --set-env-vars AUTH_GITHUB_REDIRECT_URI=$githubOAuthRedirectUri"
+        }
+    }
+
+    Write-Info ""
+    Write-Info "Deployment completed successfully!"
     Write-Info ""
     Write-Info "Next steps:"
     Write-Info "1. Verify the deployment in Azure Portal"
-    Write-Info "2. Configure secrets in Azure Key Vault"
+    Write-Info "2. Check Azure Key Vault for secrets: github-oauth-client-id, github-oauth-client-secret"
     Write-Info "3. Test the services using the gateway URL from outputs"
 }
 
