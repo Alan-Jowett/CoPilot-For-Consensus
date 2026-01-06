@@ -31,6 +31,10 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -e /app/adapters/copilot_vectorstore[qdrant,azure]
 
+# Install OpenAI support for Azure OpenAI summarization
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -e /app/adapters/copilot_summarization[openai]
+
 # Copy schema files for validation
 COPY docs/schemas /app/docs/schemas
 

@@ -30,13 +30,19 @@ param azureOpenAISku string = 'S0'
 @description('Deployment SKU for Azure OpenAI (GlobalStandard recommended for production)')
 param azureOpenAIDeploymentSku string = 'GlobalStandard'
 
+@allowed(['gpt-4o', 'gpt-4o-mini'])
+#disable-next-line no-unused-params
+@description('GPT model to deploy: gpt-4o (full capability, higher quota) or gpt-4o-mini (80-90% capability, lower quota). Default gpt-4o for prod/staging.')
+param azureOpenAIModelName string = 'gpt-4o'
+
 @allowed([
   '2024-05-13'
+  '2024-07-18'
   '2024-08-06'
   '2024-11-20'
 ])
 #disable-next-line no-unused-params
-@description('Model version for GPT-4o deployments; default tracks latest GA. Override per environment if needed.')
+@description('Model version for GPT deployments; 2024-11-20 for gpt-4o, 2024-07-18 for gpt-4o-mini. Must match the model specified in azureOpenAIModelName.')
 param azureOpenAIModelVersion string = '2024-11-20'
 
 @minValue(1)
@@ -318,6 +324,7 @@ module openaiModule 'modules/openai.bicep' = if (deployAzureOpenAI) {
     location: location
     accountName: openaiAccountName
     sku: azureOpenAISku
+    modelName: azureOpenAIModelName
     deploymentSku: azureOpenAIDeploymentSku
     modelVersion: azureOpenAIModelVersion
     deploymentCapacity: azureOpenAIDeploymentCapacity
