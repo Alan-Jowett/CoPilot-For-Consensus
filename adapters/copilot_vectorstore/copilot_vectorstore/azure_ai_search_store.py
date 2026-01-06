@@ -119,8 +119,14 @@ class AzureAISearchVectorStore(VectorStore):
         # Initialize credentials
         if use_managed_identity:
             try:
+                import os
                 from azure.identity import DefaultAzureCredential
-                self._credential = DefaultAzureCredential()
+                # Use AZURE_CLIENT_ID env var if set (for user-assigned managed identity in Container Apps)
+                client_id = os.environ.get('AZURE_CLIENT_ID')
+                if client_id:
+                    self._credential = DefaultAzureCredential(managed_identity_client_id=client_id)
+                else:
+                    self._credential = DefaultAzureCredential()
             except ImportError as e:
                 raise ImportError(
                     "azure-identity is required for managed identity. "
