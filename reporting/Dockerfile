@@ -29,9 +29,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -e /app/adapters/copilot_vectorstore[qdrant]
 
-# Install embedding backend with sentence-transformers support
+# Install embedding backend with sentence-transformers and Azure OpenAI support
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -e /app/adapters/copilot_embedding[sentencetransformers]
+    pip install -e /app/adapters/copilot_embedding[sentencetransformers,openai]
 
 # Copy schema files for validation
 COPY docs/schemas /app/docs/schemas
