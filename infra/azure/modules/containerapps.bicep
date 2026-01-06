@@ -161,7 +161,7 @@ resource qdrantApp 'Microsoft.App/containerApps@2024-03-01' = {
     template: {
       containers: [
         {
-          image: 'qdrant/qdrant:latest'
+          image: 'qdrant/qdrant:v1.7.4'
           name: 'qdrant'
           env: [
             {
@@ -774,7 +774,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'VECTOR_DB_HOST'
-              value: '${projectPrefix}-qdrant-${environment}'
+              value: qdrantApp.name
             }
             {
               name: 'VECTOR_DB_PORT'
@@ -837,7 +837,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
       }
     }
   }
-  dependsOn: [authApp, qdrantApp]
+  dependsOn: [authApp]
 }
 
 // Orchestrator service (port 8000)
@@ -1024,7 +1024,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'VECTOR_DB_HOST'
-              value: '${projectPrefix}-qdrant-${environment}'
+              value: qdrantApp.name
             }
             {
               name: 'VECTOR_DB_PORT'
@@ -1087,7 +1087,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
       }
     }
   }
-  dependsOn: [authApp, qdrantApp]
+  dependsOn: [authApp]
 }
 
 // UI service (port 3000)
