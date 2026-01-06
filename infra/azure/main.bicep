@@ -451,6 +451,9 @@ resource githubOAuthClientSecretSecret 'Microsoft.KeyVault/vaults/secrets@2023-0
 
 // Store Azure OpenAI API key securely in Key Vault when OpenAI is deployed
 // Services will access this via Key Vault reference in environment variables
+// IMPORTANT: openaiModule must complete fully before accessing its keys to avoid race conditions
+// where the account exists but API keys aren't yet available. This explicit dependsOn ensures
+// the Azure OpenAI resource is fully provisioned and ready for key retrieval.
 resource openaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (deployAzureOpenAI && deployContainerApps) {
   name: '${keyVaultName}/azure-openai-api-key'
   properties: {
@@ -462,7 +465,7 @@ resource openaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if 
   }
   dependsOn: [
     keyVaultModule
-    openaiModule
+    openaiModule  // Must wait for OpenAI account to be fully created and keys available
   ]
 }
 
@@ -551,6 +554,8 @@ module containerAppsModule 'modules/containerapps.bicep' = if (deployContainerAp
   }
   dependsOn: [
     jwtKeysModule  // Ensure JWT keys are generated before auth service starts
+    openaiApiKeySecret  // Ensure OpenAI API key secret is created and available before Container Apps tries to reference it
+    keyVaultRbacModule  // Ensure RBAC assignments are complete before services access secrets
   ]
 }
 
