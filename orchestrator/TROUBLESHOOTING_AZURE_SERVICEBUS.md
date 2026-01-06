@@ -106,9 +106,7 @@ Azure RBAC role assignments are not instantaneous. After assigning roles:
 
 ### 4. Queue Does Not Exist or Cannot Be Created
 
-The orchestrator dynamically creates a queue named `orchestrator-service` on startup. Unlike the routing queues (e.g., `embeddings.generated`, `summarization.requested`) which are pre-created by the infrastructure, service-specific queues are created by the services themselves.
-
-For Azure Service Bus, the managed identity needs **Azure Service Bus Data Owner** role or explicit queue creation permissions in addition to Send/Receive permissions to auto-create queues.
+The orchestrator subscribes to the pre-created `embeddings.generated` queue. All input queues (e.g., `embeddings.generated`, `summarization.requested`, `chunks.prepared`) are pre-created by the Bicep infrastructure during deployment.
 
 **Verification:**
 ```bash
@@ -119,27 +117,17 @@ az servicebus queue list \
   --query "[].name"
 ```
 
-**Fix Option 1: Pre-create the queue (recommended for production)**
+Ensure the `embeddings.generated` queue exists in the output. If it's missing, re-run the Bicep infrastructure deployment:
+
 ```bash
-# Create the orchestrator-service queue before starting the service
-az servicebus queue create \
-  --name orchestrator-service \
-  --namespace-name copilot-sb-dev-ej3rgjyh \
+# Redeploy Service Bus infrastructure
+az deployment group create \
   --resource-group cfc-dev-rg \
-  --max-delivery-count 10 \
-  --lock-duration PT5M
+  --template-file infra/azure/main.bicep \
+  --parameters infra/azure/main.bicepparam
 ```
 
-**Fix Option 2: Grant queue creation permissions**
-```bash
-# Assign Data Owner role (includes queue creation)
-az role assignment create \
-  --role "Azure Service Bus Data Owner" \
-  --assignee $ORCHESTRATOR_PRINCIPAL_ID \
-  --scope $SERVICEBUS_ID
-```
-
-**Note:** The routing queues (`embeddings.generated`, `summarization.requested`, etc.) are already created by the Bicep infrastructure and do not need manual creation. Only the `orchestrator-service` queue needs to exist or the managed identity needs creation permissions.
+**Note:** All queue names follow a uniform queue-per-event pattern across both Azure Service Bus and Docker Compose (RabbitMQ) deployments. The orchestrator always subscribes to `embeddings.generated` regardless of the message bus type.
 
 ### 5. Malformed Connection String
 

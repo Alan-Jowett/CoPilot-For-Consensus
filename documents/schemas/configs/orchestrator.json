@@ -48,7 +48,7 @@
       "source": "env",
       "env_var": "ORCHESTRATOR_QUEUE_NAME",
       "required": false,
-      "description": "Message queue name for orchestrator service. Auto-detected based on message bus type if not provided (orchestrator-service for RabbitMQ, embeddings.generated for Azure Service Bus)"
+      "description": "Message queue name for orchestrator service. Defaults to 'embeddings.generated' for both Azure Service Bus and RabbitMQ deployments"
     },
     "doc_store_type": {
       "type": "string",
