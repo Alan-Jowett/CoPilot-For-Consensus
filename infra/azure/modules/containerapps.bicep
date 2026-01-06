@@ -188,6 +188,19 @@ resource qdrantApp 'Microsoft.App/containerApps@2024-03-01' = if (vectorStoreBac
             cpu: json('0.25')
             memory: '0.5Gi'
           }
+          probes: [
+            {
+              type: 'Liveness'
+              httpGet: {
+                path: '/readyz'
+                port: 6333
+              }
+              initialDelaySeconds: 15
+              periodSeconds: 30
+              timeoutSeconds: 10
+              failureThreshold: 3
+            }
+          ]
         }
       ]
       scale: {
@@ -856,7 +869,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
       }
     }
   }
-  dependsOn: [authApp]
+  dependsOn: vectorStoreBackend == 'qdrant' ? [authApp, qdrantApp] : [authApp]
 }
 
 // Orchestrator service (port 8000)
@@ -1114,7 +1127,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
       }
     }
   }
-  dependsOn: [authApp]
+  dependsOn: vectorStoreBackend == 'qdrant' ? [authApp, qdrantApp] : [authApp]
 }
 
 // UI service (port 3000)
@@ -1281,7 +1294,7 @@ output appIds object = vectorStoreBackend == 'qdrant' ? {
   summarization: summarizationApp.id
   ui: uiApp.id
   gateway: gatewayApp.id
-  qdrant: resourceId('Microsoft.App/containerApps', '${projectPrefix}-qdrant-${environment}')
+  qdrant: qdrantApp.id
 } : {
   auth: authApp.id
   reporting: reportingApp.id
