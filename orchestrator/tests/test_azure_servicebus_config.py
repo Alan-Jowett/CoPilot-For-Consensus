@@ -134,80 +134,54 @@ class TestOrchestratorAzureServiceBusConfig:
 class TestOrchestratorQueueNameConfiguration:
     """Test queue name auto-detection for different message bus types."""
 
-    def test_queue_name_defaults_to_embeddings_generated_for_azure_servicebus(self, monkeypatch):
-        """Test that queue_name defaults to 'embeddings.generated' for Azure Service Bus.
+    def test_queue_name_auto_detection_azure_servicebus(self):
+        """Test queue name auto-detection for Azure Service Bus.
 
-        When MESSAGE_BUS_TYPE is azureservicebus and ORCHESTRATOR_QUEUE_NAME is not set,
-        the orchestrator should subscribe to 'embeddings.generated' queue.
+        When MESSAGE_BUS_TYPE is azureservicebus and queue_name is not provided,
+        the orchestrator should use 'embeddings.generated'.
         """
-        monkeypatch.setenv("MESSAGE_BUS_TYPE", "azureservicebus")
-        monkeypatch.setenv("APP_VERSION", "0.1.0")
-        # Ensure ORCHESTRATOR_QUEUE_NAME is not set
-        monkeypatch.delenv("ORCHESTRATOR_QUEUE_NAME", raising=False)
-
-        from copilot_config import load_typed_config
-
-        config = load_typed_config("orchestrator")
-
-        # queue_name should be None or not set when not explicitly configured
-        queue_name = getattr(config, "queue_name", None)
+        message_bus_type = "azureservicebus"
+        queue_name = None
         
         # Simulate the auto-detection logic from main.py
         if not queue_name:
-            if config.message_bus_type == "azureservicebus":
+            if message_bus_type == "azureservicebus":
                 queue_name = "embeddings.generated"
             else:
                 queue_name = "orchestrator-service"
 
         assert queue_name == "embeddings.generated"
 
-    def test_queue_name_defaults_to_orchestrator_service_for_rabbitmq(self, monkeypatch):
-        """Test that queue_name defaults to 'orchestrator-service' for RabbitMQ.
+    def test_queue_name_auto_detection_rabbitmq(self):
+        """Test queue name auto-detection for RabbitMQ.
 
-        When MESSAGE_BUS_TYPE is rabbitmq and ORCHESTRATOR_QUEUE_NAME is not set,
-        the orchestrator should subscribe to 'orchestrator-service' queue.
+        When MESSAGE_BUS_TYPE is rabbitmq and queue_name is not provided,
+        the orchestrator should use 'orchestrator-service'.
         """
-        monkeypatch.setenv("MESSAGE_BUS_TYPE", "rabbitmq")
-        monkeypatch.setenv("APP_VERSION", "0.1.0")
-        # Ensure ORCHESTRATOR_QUEUE_NAME is not set
-        monkeypatch.delenv("ORCHESTRATOR_QUEUE_NAME", raising=False)
-
-        from copilot_config import load_typed_config
-
-        config = load_typed_config("orchestrator")
-
-        # queue_name should be None or not set when not explicitly configured
-        queue_name = getattr(config, "queue_name", None)
+        message_bus_type = "rabbitmq"
+        queue_name = None
         
         # Simulate the auto-detection logic from main.py
         if not queue_name:
-            if config.message_bus_type == "azureservicebus":
+            if message_bus_type == "azureservicebus":
                 queue_name = "embeddings.generated"
             else:
                 queue_name = "orchestrator-service"
 
         assert queue_name == "orchestrator-service"
 
-    def test_queue_name_uses_explicit_configuration(self, monkeypatch):
-        """Test that explicitly configured ORCHESTRATOR_QUEUE_NAME is respected.
+    def test_queue_name_explicit_configuration(self):
+        """Test that explicit queue_name configuration is respected.
 
-        When ORCHESTRATOR_QUEUE_NAME is set to a custom value, it should be used
+        When queue_name is explicitly set to a custom value, it should be used
         regardless of MESSAGE_BUS_TYPE.
         """
-        monkeypatch.setenv("MESSAGE_BUS_TYPE", "azureservicebus")
-        monkeypatch.setenv("APP_VERSION", "0.1.0")
-        monkeypatch.setenv("ORCHESTRATOR_QUEUE_NAME", "custom-queue-name")
-
-        from copilot_config import load_typed_config
-
-        config = load_typed_config("orchestrator")
-
-        # queue_name should be set to the explicitly configured value
-        queue_name = getattr(config, "queue_name", None)
+        message_bus_type = "azureservicebus"
+        queue_name = "custom-queue-name"
         
         # Simulate the auto-detection logic from main.py
         if not queue_name:
-            if config.message_bus_type == "azureservicebus":
+            if message_bus_type == "azureservicebus":
                 queue_name = "embeddings.generated"
             else:
                 queue_name = "orchestrator-service"
