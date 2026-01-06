@@ -415,6 +415,10 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'archives'
             }
             {
+              name: 'HTTP_PORT'
+              value: string(servicePorts.ingestion)
+            }
+            {
               name: 'AUTH_SERVICE_URL'
               value: 'http://${projectPrefix}-auth-${environment}'
             }
@@ -427,6 +431,16 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
             }
           ]
+          livenessProbe: {
+            httpGet: {
+              path: '/health'
+              port: servicePorts.ingestion
+            }
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          }
           resources: {
             cpu: json('0.5')
             memory: '1Gi'
