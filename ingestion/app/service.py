@@ -1142,9 +1142,8 @@ class IngestionService:
             return None
         
         doc = docs[0]
-        doc_id = doc.get("id")
-        if doc_id is None:
-            doc_id = doc.get("_id")
+        # Try "id" first (Cosmos DB), then "_id" (MongoDB/InMemory)
+        doc_id = doc.get("id") or doc.get("_id")
         
         if not doc_id:
             raise ValueError(f"Source document for '{source_name}' has no id field")
@@ -1191,6 +1190,9 @@ class IngestionService:
                 updated["password"] = None
 
             return updated
+        except ValueError:
+            # Re-raise ValueError directly (includes missing id field errors)
+            raise
         except Exception as e:
             self.logger.error("Failed to update source", error=str(e), exc_info=True)
             raise ValueError(f"Failed to update source: {str(e)}")
@@ -1229,6 +1231,9 @@ class IngestionService:
             self.logger.info("Source deleted", source_name=source_name)
 
             return True
+        except ValueError:
+            # Re-raise ValueError directly (includes missing id field errors)
+            raise
         except Exception as e:
             self.logger.error("Failed to delete source", error=str(e), exc_info=True)
             raise ValueError(f"Failed to delete source: {str(e)}")
