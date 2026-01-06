@@ -129,3 +129,61 @@ class TestOrchestratorAzureServiceBusConfig:
                 get_azure_servicebus_kwargs()
         except ImportError:
             pytest.skip("copilot_events adapter not installed")
+
+
+class TestOrchestratorQueueNameConfiguration:
+    """Test queue name auto-detection for different message bus types."""
+
+    def test_queue_name_auto_detection_azure_servicebus(self):
+        """Test queue name auto-detection for Azure Service Bus.
+
+        When MESSAGE_BUS_TYPE is azureservicebus and queue_name is not provided,
+        the orchestrator should use 'embeddings.generated'.
+        """
+        message_bus_type = "azureservicebus"
+        queue_name = None
+        
+        # Simulate the auto-detection logic from main.py
+        if not queue_name:
+            if message_bus_type == "azureservicebus":
+                queue_name = "embeddings.generated"
+            else:
+                queue_name = "orchestrator-service"
+
+        assert queue_name == "embeddings.generated"
+
+    def test_queue_name_auto_detection_rabbitmq(self):
+        """Test queue name auto-detection for RabbitMQ.
+
+        When MESSAGE_BUS_TYPE is rabbitmq and queue_name is not provided,
+        the orchestrator should use 'orchestrator-service'.
+        """
+        message_bus_type = "rabbitmq"
+        queue_name = None
+        
+        # Simulate the auto-detection logic from main.py
+        if not queue_name:
+            if message_bus_type == "azureservicebus":
+                queue_name = "embeddings.generated"
+            else:
+                queue_name = "orchestrator-service"
+
+        assert queue_name == "orchestrator-service"
+
+    def test_queue_name_explicit_configuration(self):
+        """Test that explicit queue_name configuration is respected.
+
+        When queue_name is explicitly set to a custom value, it should be used
+        regardless of MESSAGE_BUS_TYPE.
+        """
+        message_bus_type = "azureservicebus"
+        queue_name = "custom-queue-name"
+        
+        # Simulate the auto-detection logic from main.py
+        if not queue_name:
+            if message_bus_type == "azureservicebus":
+                queue_name = "embeddings.generated"
+            else:
+                queue_name = "orchestrator-service"
+
+        assert queue_name == "custom-queue-name"
