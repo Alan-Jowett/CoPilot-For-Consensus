@@ -171,7 +171,7 @@ resource qdrantApp 'Microsoft.App/containerApps@2024-03-01' = if (vectorStoreBac
     template: {
       containers: [
         {
-          image: 'qdrant/qdrant:v1.7.4'
+          image: 'qdrant/qdrant:v1.16.2'
           name: 'qdrant'
           env: [
             {
