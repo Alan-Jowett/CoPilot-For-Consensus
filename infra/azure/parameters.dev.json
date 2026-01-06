@@ -23,6 +23,9 @@
     "azureOpenAIDeploymentSku": {
       "value": "Standard"
     },
+    "azureOpenAIModelName": {
+      "value": "gpt-4o-mini"
+    },
     "azureOpenAIModelVersion": {
       "value": "2024-07-18"
     },
