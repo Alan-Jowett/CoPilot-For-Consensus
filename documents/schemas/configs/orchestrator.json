@@ -43,6 +43,13 @@
       "required": false,
       "description": "Message bus password (secret)"
     },
+    "queue_name": {
+      "type": "string",
+      "source": "env",
+      "env_var": "ORCHESTRATOR_QUEUE_NAME",
+      "required": false,
+      "description": "Message queue name for orchestrator service. Auto-detected based on message bus type if not provided (orchestrator-service for RabbitMQ, embeddings.generated for Azure Service Bus)"
+    },
     "doc_store_type": {
       "type": "string",
       "source": "env",

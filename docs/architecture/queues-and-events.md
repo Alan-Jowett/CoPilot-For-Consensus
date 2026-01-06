@@ -2,32 +2,59 @@
   Copyright (c) 2025 Copilot-for-Consensus contributors -->
 # Queue Architecture
 
-This document explains the RabbitMQ queue architecture used in the Copilot-for-Consensus system.
+This document explains the queue architecture for both RabbitMQ (Docker Compose) and Azure Service Bus deployments.
 
 ## Overview
 
-The system uses a **topic exchange** (`copilot.events`) with routing keys to distribute events between microservices. Services create their own **named durable queues** and bind them to specific routing keys they want to consume.
+The system uses message queues to distribute events between microservices:
+- **RabbitMQ**: Uses a topic exchange (`copilot.events`) with routing keys and named durable queues
+- **Azure Service Bus**: Uses queues directly as the primary delivery mechanism
+
+Services subscribe to queues that match the input events they process, allowing for flexible deployment across both message bus types.
 
 ## Queue Naming Strategy
 
-### Service-Named Queues (Preferred)
+### Service Input Queues (Primary Pattern)
 
-Services create queues using their service name pattern:
+Each service subscribes to the queue containing events it processes:
 - `archive.ingested` - Consumed by parsing service
 - `json.parsed` - Consumed by chunking service
-- `embedding-service` - Created by embedding service (consumes `chunks.prepared` events)
-- `orchestrator-service` - Created by orchestrator service (consumes `embeddings.generated` events)
+- `chunks.prepared` - Consumed by embedding service
+- `embeddings.generated` - Consumed by orchestrator service
 - `summarization.requested` - Consumed by summarization service
 - `summary.complete` - Consumed by reporting service
 
-### Why Services Use Custom Queue Names
+### RabbitMQ Custom Queue Names (Legacy Pattern)
 
-Some services (embedding, orchestrator) use custom queue names like `embedding-service` instead of routing-key-based names. This approach:
+RabbitMQ deployments may use custom queue names for services that need to subscribe to multiple routing keys:
+- `embedding-service` - Embedding service (subscribes to `chunks.prepared` routing key)
+- `orchestrator-service` - Orchestrator service (subscribes to `embeddings.generated` routing key)
 
-1. **Prevents duplicate queue creation** - Avoids having both `embeddings.generated` (unused) and `orchestrator-service` (active consumer)
-2. **Supports multiple bindings** - A single queue can consume from multiple routing keys if needed
-3. **Enables clear service identification** - Queue names directly map to the consuming service
-4. **Simplifies monitoring** - Easy to identify which service owns which queue
+This is controlled via the `ORCHESTRATOR_QUEUE_NAME` and similar environment variables, allowing the same codebase to work across both deployment types.
+
+## Queue Configuration per Deployment Type
+
+### Azure Service Bus Deployment
+
+Uses direct queue names matching the routing keys in RabbitMQ:
+
+```bash
+# Orchestrator configuration for Azure Service Bus
+export MESSAGE_BUS_TYPE=azureservicebus
+export ORCHESTRATOR_QUEUE_NAME=embeddings.generated  # Uses input queue directly
+```
+
+### RabbitMQ Deployment (Docker Compose)
+
+Uses topic exchanges with custom service queue names:
+
+```bash
+# Orchestrator configuration for RabbitMQ
+export MESSAGE_BUS_TYPE=rabbitmq
+export ORCHESTRATOR_QUEUE_NAME=orchestrator-service  # Custom service queue
+```
+
+Or omit `ORCHESTRATOR_QUEUE_NAME` to use auto-detection based on `MESSAGE_BUS_TYPE`.
 
 ## Queue Lifecycle
 
@@ -50,7 +77,7 @@ subscriber.subscribe(
 
 ### Pre-declared Queues
 
-The `infra/rabbitmq/definitions.json` file pre-declares essential queues that match routing keys:
+The `infra/rabbitmq/definitions.json` file pre-declares essential queues for RabbitMQ deployments:
 - **archive.ingested** - First stage (parsing input)
 - **json.parsed** - Second stage (chunking input)
 - **summarization.requested** - Summarization input
@@ -60,6 +87,8 @@ These are declared upfront to:
 - Ensure queues exist before services start
 - Prevent message loss during service restarts
 - Provide consistent queue configuration (durable, non-auto-delete)
+
+For Azure Service Bus, all queues are pre-created via Bicep infrastructure templates.
 
 ## Message Flow
 
