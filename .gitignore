@@ -28,3 +28,12 @@ infra/azure/modules/*.json
 **/secrets/*
 !**/secrets/*.example
 !**/secrets/README.md
+
+# Azure Functions
+local.settings.json
+.python_packages/
+__azurite*
+__blobstorage__
+__queuestorage__
+__tablestorage__
+.funcignore

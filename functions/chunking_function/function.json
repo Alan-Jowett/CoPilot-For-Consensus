@@ -1,0 +1,20 @@
+{
+  "scriptFile": "__init__.py",
+  "bindings": [
+    {
+      "name": "msg",
+      "type": "serviceBusTrigger",
+      "direction": "in",
+      "queueName": "json.parsed",
+      "connection": "AzureWebJobsServiceBus",
+      "cardinality": "one",
+      "isSessionsEnabled": false
+    }
+  ],
+  "retry": {
+    "strategy": "exponentialBackoff",
+    "maxRetryCount": 5,
+    "minimumInterval": "00:00:05",
+    "maximumInterval": "00:05:00"
+  }
+}
