@@ -38,6 +38,13 @@ param azureOpenAIEmbeddingDeploymentName string = ''
 @description('Azure OpenAI API key secret URI (from Key Vault)')
 param azureOpenAIApiKeySecretUri string = ''
 
+@allowed(['qdrant', 'azure_ai_search'])
+@description('Vector store backend to use: qdrant (default) or azure_ai_search')
+param vectorStoreBackend string = 'qdrant'
+
+@description('Azure AI Search endpoint URL (only used when vectorStoreBackend is azure_ai_search)')
+param aiSearchEndpoint string = ''
+
 @description('Service Bus fully qualified namespace for managed identity connection')
 param serviceBusNamespace string = ''
 
@@ -142,8 +149,9 @@ resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
 }
 
 // Qdrant Vector Database (port 6333) - Internal service for vector similarity search
+// Only deployed when vectorStoreBackend is 'qdrant' (default, lower cost option)
 // Deployed before application services that depend on it (embedding, summarization)
-resource qdrantApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource qdrantApp 'Microsoft.App/containerApps@2024-03-01' = if (vectorStoreBackend == 'qdrant') {
   name: '${projectPrefix}-qdrant-${environment}'
   location: location
   tags: tags
@@ -770,27 +778,35 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'VECTOR_STORE_TYPE'
-              value: 'qdrant'
+              value: vectorStoreBackend == 'qdrant' ? 'qdrant' : 'ai_search'
             }
             {
               name: 'VECTOR_DB_HOST'
-              value: qdrantApp.name
+              value: vectorStoreBackend == 'qdrant' ? qdrantApp.name : ''
             }
             {
               name: 'VECTOR_DB_PORT'
-              value: '6333'
+              value: vectorStoreBackend == 'qdrant' ? '6333' : ''
             }
             {
               name: 'VECTOR_DB_COLLECTION'
-              value: 'document-embeddings'
+              value: vectorStoreBackend == 'qdrant' ? 'document-embeddings' : ''
             }
             {
               name: 'VECTOR_DB_DISTANCE'
-              value: 'cosine'
+              value: vectorStoreBackend == 'qdrant' ? 'cosine' : ''
             }
             {
               name: 'VECTOR_DB_BATCH_SIZE'
-              value: '100'
+              value: vectorStoreBackend == 'qdrant' ? '100' : ''
+            }
+            {
+              name: 'AISEARCH_ENDPOINT'
+              value: vectorStoreBackend == 'azure_ai_search' ? aiSearchEndpoint : ''
+            }
+            {
+              name: 'AISEARCH_INDEX_NAME'
+              value: vectorStoreBackend == 'azure_ai_search' ? 'document-embeddings' : ''
             }
             {
               name: 'EMBEDDING_BACKEND'
@@ -1020,27 +1036,35 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'VECTOR_STORE_TYPE'
-              value: 'qdrant'
+              value: vectorStoreBackend == 'qdrant' ? 'qdrant' : 'ai_search'
             }
             {
               name: 'VECTOR_DB_HOST'
-              value: qdrantApp.name
+              value: vectorStoreBackend == 'qdrant' ? qdrantApp.name : ''
             }
             {
               name: 'VECTOR_DB_PORT'
-              value: '6333'
+              value: vectorStoreBackend == 'qdrant' ? '6333' : ''
             }
             {
               name: 'VECTOR_DB_COLLECTION'
-              value: 'document-embeddings'
+              value: vectorStoreBackend == 'qdrant' ? 'document-embeddings' : ''
             }
             {
               name: 'VECTOR_DB_DISTANCE'
-              value: 'cosine'
+              value: vectorStoreBackend == 'qdrant' ? 'cosine' : ''
             }
             {
               name: 'VECTOR_DB_BATCH_SIZE'
-              value: '100'
+              value: vectorStoreBackend == 'qdrant' ? '100' : ''
+            }
+            {
+              name: 'AISEARCH_ENDPOINT'
+              value: vectorStoreBackend == 'azure_ai_search' ? aiSearchEndpoint : ''
+            }
+            {
+              name: 'AISEARCH_INDEX_NAME'
+              value: vectorStoreBackend == 'azure_ai_search' ? 'document-embeddings' : ''
             }
             {
               name: 'EMBEDDING_DIMENSION'
@@ -1243,7 +1267,7 @@ output gatewayFqdn string = gatewayApp.properties.configuration.ingress.fqdn
 output githubOAuthRedirectUri string = 'https://${gatewayApp.properties.configuration.ingress.fqdn}/ui/callback'
 
 @description('Container App resource IDs by service')
-output appIds object = {
+output appIds object = vectorStoreBackend == 'qdrant' ? {
   auth: authApp.id
   reporting: reportingApp.id
   ingestion: ingestionApp.id
@@ -1255,11 +1279,22 @@ output appIds object = {
   ui: uiApp.id
   gateway: gatewayApp.id
   qdrant: qdrantApp.id
+} : {
+  auth: authApp.id
+  reporting: reportingApp.id
+  ingestion: ingestionApp.id
+  parsing: parsingApp.id
+  chunking: chunkingApp.id
+  embedding: embeddingApp.id
+  orchestrator: orchestratorApp.id
+  summarization: summarizationApp.id
+  ui: uiApp.id
+  gateway: gatewayApp.id
 }
 
 @description('Qdrant vector database app name')
-output qdrantAppName string = qdrantApp.name
+output qdrantAppName string = vectorStoreBackend == 'qdrant' ? qdrantApp.name : ''
 
 @description('Qdrant internal endpoint')
-output qdrantInternalEndpoint string = 'http://${qdrantApp.name}'
+output qdrantInternalEndpoint string = vectorStoreBackend == 'qdrant' ? 'http://${qdrantApp.name}' : ''
 
