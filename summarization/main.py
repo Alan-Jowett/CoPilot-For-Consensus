@@ -136,24 +136,13 @@ def main():
                 logger.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
 
         logger.info("Creating message bus subscriber...")
-        # Determine queue name based on message bus type if not explicitly configured
-        queue_name = getattr(config, "queue_name", None)
-        if not queue_name:
-            if config.message_bus_type == "azureservicebus":
-                queue_name = "summarization.requested"
-            else:
-                queue_name = "summarization-service"
-            logger.info(f"Auto-detected queue name for {config.message_bus_type}: {queue_name}")
-        else:
-            logger.info(f"Using configured queue name: {queue_name}")
-        
         subscriber = create_subscriber(
             message_bus_type=config.message_bus_type,
             host=config.message_bus_host,
             port=config.message_bus_port,
             username=config.message_bus_user,
             password=config.message_bus_password,
-            queue_name=queue_name,
+            queue_name="summarization.requested",
             **message_bus_kwargs,
         )
         try:
