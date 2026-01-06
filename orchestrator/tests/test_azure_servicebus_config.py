@@ -141,6 +141,7 @@ class TestOrchestratorQueueNameConfiguration:
         the orchestrator should subscribe to 'embeddings.generated' queue.
         """
         monkeypatch.setenv("MESSAGE_BUS_TYPE", "azureservicebus")
+        monkeypatch.setenv("APP_VERSION", "0.1.0")
         # Ensure ORCHESTRATOR_QUEUE_NAME is not set
         monkeypatch.delenv("ORCHESTRATOR_QUEUE_NAME", raising=False)
 
@@ -167,6 +168,7 @@ class TestOrchestratorQueueNameConfiguration:
         the orchestrator should subscribe to 'orchestrator-service' queue.
         """
         monkeypatch.setenv("MESSAGE_BUS_TYPE", "rabbitmq")
+        monkeypatch.setenv("APP_VERSION", "0.1.0")
         # Ensure ORCHESTRATOR_QUEUE_NAME is not set
         monkeypatch.delenv("ORCHESTRATOR_QUEUE_NAME", raising=False)
 
@@ -193,6 +195,7 @@ class TestOrchestratorQueueNameConfiguration:
         regardless of MESSAGE_BUS_TYPE.
         """
         monkeypatch.setenv("MESSAGE_BUS_TYPE", "azureservicebus")
+        monkeypatch.setenv("APP_VERSION", "0.1.0")
         monkeypatch.setenv("ORCHESTRATOR_QUEUE_NAME", "custom-queue-name")
 
         from copilot_config import load_typed_config
