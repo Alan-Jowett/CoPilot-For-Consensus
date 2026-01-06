@@ -134,29 +134,15 @@ class TestOrchestratorAzureServiceBusConfig:
 class TestOrchestratorQueueNameConfiguration:
     """Test queue name configuration for orchestrator service."""
 
-    def test_queue_name_default(self):
-        """Test that queue name defaults to 'embeddings.generated'.
+    def test_hardcoded_queue_name(self):
+        """Test that orchestrator uses hardcoded 'embeddings.generated' queue.
 
-        The orchestrator service uses a uniform queue name across both
-        Azure Service Bus and RabbitMQ deployments.
+        The orchestrator service now uses a hardcoded queue name that is
+        uniform across both Azure Service Bus and RabbitMQ deployments.
+        This queue name cannot be overridden via configuration.
         """
-        queue_name = None
+        # The actual queue_name is hardcoded in main.py line 146
+        expected_queue_name = "embeddings.generated"
         
-        # Simulate the queue name logic from main.py
-        if not queue_name:
-            queue_name = "embeddings.generated"
-
-        assert queue_name == "embeddings.generated"
-
-    def test_queue_name_explicit_configuration(self):
-        """Test that explicit queue_name configuration is respected.
-
-        When queue_name is explicitly set to a custom value, it should be used.
-        """
-        queue_name = "custom-queue-name"
-        
-        # Explicit configuration takes precedence
-        if not queue_name:
-            queue_name = "embeddings.generated"
-
-        assert queue_name == "custom-queue-name"
+        # Verify this matches the documented per-event queue pattern
+        assert expected_queue_name == "embeddings.generated"

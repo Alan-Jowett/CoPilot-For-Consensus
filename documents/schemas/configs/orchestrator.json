@@ -48,7 +48,7 @@
       "source": "env",
       "env_var": "ORCHESTRATOR_QUEUE_NAME",
       "required": false,
-      "description": "Message queue name for orchestrator service. Defaults to 'embeddings.generated' for both Azure Service Bus and RabbitMQ deployments"
+      "description": "Message queue name for orchestrator service. Hardcoded to 'embeddings.generated' and not configurable via environment variable in current implementation"
     },
     "doc_store_type": {
       "type": "string",

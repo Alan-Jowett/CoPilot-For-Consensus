@@ -35,10 +35,9 @@ Both Azure Service Bus and Docker Compose (RabbitMQ) use the same queue topology
 **Both Azure Service Bus and RabbitMQ:**
 ```bash
 export MESSAGE_BUS_TYPE=azureservicebus  # or rabbitmq
-export ORCHESTRATOR_QUEUE_NAME=embeddings.generated
 ```
 
-The queue name is always `embeddings.generated` regardless of the message bus type.
+The queue name is hardcoded to `embeddings.generated` in the service code and cannot be overridden via environment variables.
 
 ## Queue Lifecycle
 
