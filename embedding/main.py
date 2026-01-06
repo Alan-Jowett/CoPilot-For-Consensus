@@ -139,14 +139,18 @@ def main():
                 logger.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
 
         logger.info("Creating message bus subscriber...")
+        # Use per-event queue for Azure Service Bus; service queue for RabbitMQ
+        subscriber_queue = (
+            "chunks.prepared" if str(config.message_bus_type).lower() == "azureservicebus" else "embedding-service"
+        )
+
         subscriber = create_subscriber(
             message_bus_type=config.message_bus_type,
             host=config.message_bus_host,
             port=config.message_bus_port,
             username=config.message_bus_user,
             password=config.message_bus_password,
-            # Consume from the event queue matching routing key used by chunking
-            queue_name="chunks.prepared",
+            queue_name=subscriber_queue,
             **message_bus_kwargs,
         )
         try:
