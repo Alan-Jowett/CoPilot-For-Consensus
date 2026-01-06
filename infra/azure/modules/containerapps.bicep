@@ -801,7 +801,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'VECTOR_DB_PORT'
-              value: vectorStoreBackend == 'qdrant' ? '6333' : ''
+              value: vectorStoreBackend == 'qdrant' ? '80' : ''
             }
             {
               name: 'VECTOR_DB_COLLECTION'
@@ -1059,7 +1059,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'VECTOR_DB_PORT'
-              value: vectorStoreBackend == 'qdrant' ? '6333' : ''
+              value: vectorStoreBackend == 'qdrant' ? '80' : ''
             }
             {
               name: 'VECTOR_DB_COLLECTION'
