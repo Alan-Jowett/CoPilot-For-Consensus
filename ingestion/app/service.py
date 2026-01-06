@@ -1147,7 +1147,7 @@ class IngestionService:
             if not docs:
                 return None
             
-            doc_id = docs[0].get("id") or docs[0].get("_id")
+            doc_id = docs[0].get("id") if docs[0].get("id") is not None else docs[0].get("_id")
             if not doc_id:
                 raise ValueError(f"Source document for '{source_name}' has no id field")
             
@@ -1194,7 +1194,7 @@ class IngestionService:
             if not docs:
                 return False
             
-            doc_id = docs[0].get("id") or docs[0].get("_id")
+            doc_id = docs[0].get("id") if docs[0].get("id") is not None else docs[0].get("_id")
             if not doc_id:
                 raise ValueError(f"Source document for '{source_name}' has no id field")
             
