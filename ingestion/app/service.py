@@ -1147,10 +1147,19 @@ class IngestionService:
             return None
 
         try:
-            # Update in document store
+            # Query for the document to get its ID
+            docs = self.document_store.query_documents("sources", {"name": source_name}, limit=1)
+            if not docs:
+                return None
+            
+            doc_id = docs[0].get("id") or docs[0].get("_id")
+            if not doc_id:
+                raise ValueError(f"Source document for '{source_name}' has no id field")
+            
+            # Update in document store using the document ID
             self.document_store.update_document(
                 "sources",
-                {"name": source_name},
+                str(doc_id),
                 source_data
             )
 
@@ -1190,8 +1199,17 @@ class IngestionService:
             return False
 
         try:
-            # Delete from document store
-            self.document_store.delete_document("sources", {"name": source_name})
+            # Query for the document to get its ID
+            docs = self.document_store.query_documents("sources", {"name": source_name}, limit=1)
+            if not docs:
+                return False
+            
+            doc_id = docs[0].get("id") or docs[0].get("_id")
+            if not doc_id:
+                raise ValueError(f"Source document for '{source_name}' has no id field")
+            
+            # Delete from document store using the document ID
+            self.document_store.delete_document("sources", str(doc_id))
 
             # Reload sources from config
             self._reload_sources()
