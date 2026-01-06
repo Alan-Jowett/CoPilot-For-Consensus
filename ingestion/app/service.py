@@ -1125,6 +1125,32 @@ class IngestionService:
             self.logger.error("Failed to create source", error=str(e), exc_info=True)
             raise ValueError(f"Failed to create source: {str(e)}")
 
+    def _get_source_doc_id(self, source_name: str) -> str | None:
+        """Get the document ID for a source by name.
+        
+        Args:
+            source_name: Name of the source
+            
+        Returns:
+            Document ID as string, or None if source not found
+            
+        Raises:
+            ValueError: If source document exists but has no id field
+        """
+        docs = self.document_store.query_documents("sources", {"name": source_name}, limit=1)
+        if not docs:
+            return None
+        
+        doc = docs[0]
+        doc_id = doc.get("id")
+        if doc_id is None:
+            doc_id = doc.get("_id")
+        
+        if not doc_id:
+            raise ValueError(f"Source document for '{source_name}' has no id field")
+        
+        return str(doc_id)
+
     def update_source(self, source_name: str, source_data: dict[str, Any]) -> dict[str, Any] | None:
         """Update an existing source.
 
@@ -1142,14 +1168,10 @@ class IngestionService:
             raise ValueError("Document store not configured")
 
         try:
-            # Query for the document to get its ID
-            docs = self.document_store.query_documents("sources", {"name": source_name}, limit=1)
-            if not docs:
-                return None
-            
-            doc_id = docs[0].get("id") if docs[0].get("id") is not None else docs[0].get("_id")
+            # Get the document ID
+            doc_id = self._get_source_doc_id(source_name)
             if not doc_id:
-                raise ValueError(f"Source document for '{source_name}' has no id field")
+                return None
             
             # Update in document store using the document ID
             self.document_store.update_document(
@@ -1189,14 +1211,10 @@ class IngestionService:
             raise ValueError("Document store not configured")
 
         try:
-            # Query for the document to get its ID
-            docs = self.document_store.query_documents("sources", {"name": source_name}, limit=1)
-            if not docs:
-                return False
-            
-            doc_id = docs[0].get("id") if docs[0].get("id") is not None else docs[0].get("_id")
+            # Get the document ID
+            doc_id = self._get_source_doc_id(source_name)
             if not doc_id:
-                raise ValueError(f"Source document for '{source_name}' has no id field")
+                return False
             
             # Delete from document store using the document ID
             self.document_store.delete_document("sources", str(doc_id))
