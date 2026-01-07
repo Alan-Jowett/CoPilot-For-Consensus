@@ -5,6 +5,7 @@
 
 import hashlib
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -47,7 +48,6 @@ class LocalVolumeArchiveStore(ArchiveStore):
             # If we can't create directories, assume read-only mode
             # This is acceptable if we're only reading archives (e.g., parsing service)
             self._read_only = True
-            import logging
             logging.info(f"ArchiveStore initialized in read-only mode: {e}")
 
         # Load metadata index
@@ -64,7 +64,6 @@ class LocalVolumeArchiveStore(ArchiveStore):
                 # Start with empty metadata if load fails
                 self._metadata = {}
                 # Log warning but don't fail initialization
-                import logging
                 logging.warning(f"Failed to load archive metadata: {e}")
 
     def _save_metadata(self) -> None:
