@@ -292,7 +292,11 @@ class TestMongoDBEdgeCases:
 
     def test_insert_without_connection(self):
         """Test that operations fail gracefully without connection."""
-        store = MongoDocumentStore(host="nonexistent_host", port=27017)
+        store = MongoDocumentStore(
+            host="nonexistent_host",
+            port=27017,
+            database="test_db",
+        )
         # Don't connect
 
         with pytest.raises(DocumentStoreNotConnectedError) as excinfo:
