@@ -246,6 +246,10 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
+              name: 'METRICS_BACKEND'
+              value: 'azure_monitor'
+            }
+            {
               name: 'JWT_ALGORITHM'
               value: 'RS256'
             }
@@ -342,6 +346,14 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'LOG_LEVEL'
               value: 'INFO'
+            }
+            {
+              name: 'METRICS_BACKEND'
+              value: 'azure_monitor'
+            }
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
             }
             {
               name: 'MESSAGE_BUS_TYPE'
@@ -452,6 +464,14 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'LOG_LEVEL'
               value: 'INFO'
+            }
+            {
+              name: 'METRICS_BACKEND'
+              value: 'azure_monitor'
+            }
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
             }
             {
               name: 'MESSAGE_BUS_TYPE'
@@ -602,6 +622,14 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
+              name: 'METRICS_BACKEND'
+              value: 'azure_monitor'
+            }
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
+            }
+            {
               name: 'MESSAGE_BUS_TYPE'
               value: 'azureservicebus'
             }
@@ -713,6 +741,14 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
+              name: 'METRICS_BACKEND'
+              value: 'azure_monitor'
+            }
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
+            }
+            {
               name: 'MESSAGE_BUS_TYPE'
               value: 'azureservicebus'
             }
@@ -806,6 +842,14 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'LOG_LEVEL'
               value: 'INFO'
+            }
+            {
+              name: 'METRICS_BACKEND'
+              value: 'azure_monitor'
+            }
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
             }
             {
               name: 'MESSAGE_BUS_TYPE'
@@ -955,6 +999,14 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
+              name: 'METRICS_BACKEND'
+              value: 'azure_monitor'
+            }
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
+            }
+            {
               name: 'MESSAGE_BUS_TYPE'
               value: 'azureservicebus'
             }
@@ -1064,6 +1116,14 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'LOG_LEVEL'
               value: 'INFO'
+            }
+            {
+              name: 'METRICS_BACKEND'
+              value: 'azure_monitor'
+            }
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
             }
             {
               name: 'MESSAGE_BUS_TYPE'

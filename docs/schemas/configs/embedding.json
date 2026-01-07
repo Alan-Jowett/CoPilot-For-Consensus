@@ -12,7 +12,7 @@
       "type": "string",
       "source": "env",
       "env_var": "MESSAGE_BUS_TYPE",
-      "default": "rabbitmq",
+      "required": true,
       "description": "Message bus type"
     },
     "message_bus_host": {
@@ -47,7 +47,7 @@
       "type": "string",
       "source": "env",
       "env_var": "DOCUMENT_STORE_TYPE",
-      "default": "mongodb",
+      "required": true,
       "description": "Document store type"
     },
     "doc_store_host": {
@@ -89,7 +89,7 @@
       "type": "string",
       "source": "env",
       "env_var": "VECTOR_STORE_TYPE",
-      "default": "faiss",
+      "required": true,
       "description": "Vector store type"
     },
     "vector_store_host": {
@@ -110,7 +110,7 @@
       "type": "string",
       "source": "env",
       "env_var": "EMBEDDING_BACKEND",
-      "default": "sentencetransformers",
+      "required": true,
       "description": "Embedding backend"
     },
     "embedding_model": {
@@ -166,14 +166,14 @@
       "type": "string",
       "source": "env",
       "env_var": "METRICS_BACKEND",
-      "default": "noop",
+      "required": true,
       "description": "Metrics backend"
     },
     "error_reporter_type": {
       "type": "string",
       "source": "env",
       "env_var": "ERROR_REPORTER_TYPE",
-      "default": "console",
+      "required": true,
       "description": "Error reporter type"
     },
     "vector_store_collection": {

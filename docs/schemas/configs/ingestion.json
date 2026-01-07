@@ -33,7 +33,7 @@
       "type": "string",
       "source": "env",
       "env_var": "MESSAGE_BUS_TYPE",
-      "default": "rabbitmq",
+      "required": true,
       "description": "Message bus type (rabbitmq, service_bus)"
     },
     "message_bus_host": {
@@ -61,7 +61,7 @@
       "type": "string",
       "source": "env",
       "env_var": "ARCHIVE_STORE_TYPE",
-      "default": "local",
+      "required": true,
       "description": "Archive store backend (local, azure_blob)"
     },
     "archive_store_path": {
@@ -117,7 +117,7 @@
       "type": "string",
       "source": "env",
       "env_var": "METRICS_BACKEND",
-      "default": "noop",
+      "required": true,
       "description": "Metrics backend (prometheus, noop)"
     },
     "retry_max_attempts": {
@@ -138,7 +138,7 @@
       "type": "string",
       "source": "env",
       "env_var": "ERROR_REPORTER_TYPE",
-      "default": "console",
+      "required": true,
       "description": "Error reporter type (console, silent, sentry)"
     },
     "sentry_dsn": {
@@ -155,25 +155,11 @@
       "default": "production",
       "description": "Sentry environment"
     },
-    "doc_store_user": {
-      "type": "string",
-      "source": "secret",
-      "secret_name": "document_database_user",
-      "required": false,
-      "description": "Username for document database (secret)"
-    },
-    "doc_store_password": {
-      "type": "string",
-      "source": "secret",
-      "secret_name": "document_database_password",
-      "required": false,
-      "description": "Password for document database (secret)"
-    },
     "doc_store_type": {
       "type": "string",
       "source": "env",
       "env_var": "DOCUMENT_STORE_TYPE",
-      "default": "mongodb",
+      "required": true,
       "description": "Document store type (mongodb, inmemory)"
     },
     "doc_store_host": {

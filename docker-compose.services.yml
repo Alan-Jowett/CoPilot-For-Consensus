@@ -333,6 +333,8 @@ services:
       - JWT_DEFAULT_EXPIRY=${JWT_DEFAULT_EXPIRY:-1800}
       - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
       - SECRETS_BASE_PATH=${SECRETS_BASE_PATH:-/run/secrets}
+      - METRICS_BACKEND=noop
+      - AUTH_ROLE_STORE_TYPE=${AUTH_ROLE_STORE_TYPE:-mongodb}
       # Document database (MongoDB) connection for role store
       - DOCUMENT_DATABASE_HOST=documentdb
       - DOCUMENT_DATABASE_PORT=27017
