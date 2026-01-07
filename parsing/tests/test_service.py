@@ -603,7 +603,7 @@ class TestParsingService:
         assert event1["exchange"] == "copilot.events"
         assert event1["routing_key"] == "json.parsed"
         assert event1["event"]["event_type"] == "JSONParsed"
-        assert event1["event"]["data"]["archive_id"] == "test-archive-9"
+        assert event1["event"]["data"]["archive_id"] == archive_data["archive_id"]  # Use generated ID
         assert event1["event"]["data"]["message_count"] == 1  # Single message per event
         assert len(event1["event"]["data"]["message_doc_ids"]) == 1
 
@@ -612,7 +612,7 @@ class TestParsingService:
         assert event2["exchange"] == "copilot.events"
         assert event2["routing_key"] == "json.parsed"
         assert event2["event"]["event_type"] == "JSONParsed"
-        assert event2["event"]["data"]["archive_id"] == "test-archive-9"
+        assert event2["event"]["data"]["archive_id"] == archive_data["archive_id"]  # Use generated ID
         assert event2["event"]["data"]["message_count"] == 1  # Single message per event
         assert len(event2["event"]["data"]["message_doc_ids"]) == 1
 
