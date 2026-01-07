@@ -98,7 +98,8 @@ function Test-CoreParametersPopulated {
     # Check for placeholder values that indicate missing Core outputs
     if ($content -match "REPLACE-WITH-CORE-DEPLOYMENT-OUTPUT" -or 
         $content -match "SUBSCRIPTION-ID" -or 
-        $content -match "CORE-KV-NAME") {
+        $content -match "CORE-KV-NAME" -or 
+        $content -match "VERSION") {
         Write-Error "================================================"
         Write-Error "DEPLOYMENT BLOCKED: Core parameters not configured!"
         Write-Error "================================================"

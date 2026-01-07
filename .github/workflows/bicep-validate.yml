@@ -43,11 +43,23 @@ jobs:
           az bicep build --file main.bicep
           echo "✓ main.bicep syntax valid"
 
+      - name: Bicep build & lint - core.bicep
+        run: |
+          cd infra/azure
+          az bicep build --file core.bicep
+          echo "✓ core.bicep syntax valid"
+
       - name: Bicep lint - main.bicep
         run: |
           cd infra/azure
           az bicep lint --file main.bicep
           echo "✓ main.bicep linting complete"
+
+      - name: Bicep lint - core.bicep
+        run: |
+          cd infra/azure
+          az bicep lint --file core.bicep
+          echo "✓ core.bicep linting complete"
 
       - name: Bicep lint - identities.bicep
         run: |
@@ -95,17 +107,17 @@ jobs:
           fi
           echo "✓ Using validation RG: $RG_NAME"
 
-      - name: Validate main.bicep template
+      - name: Validate core.bicep template
         run: |
           cd infra/azure
           az deployment group validate \
             --resource-group ${{ env.VALIDATION_RESOURCE_GROUP }} \
-            --template-file main.bicep \
-            --parameters parameters.dev.json \
+            --template-file core.bicep \
+            --parameters parameters.core.dev.json \
             --query "validationLevel" -o tsv
-          echo "✓ Template validation passed"
+          echo "✓ Core template validation passed"
 
-      - name: Run what-if analysis (dev)
+      - name: Run what-if analysis (core-dev)
         id: whatif-step
         continue-on-error: true
         run: |
@@ -115,8 +127,8 @@ jobs:
           set +e
           az deployment group what-if \
             --resource-group ${{ env.VALIDATION_RESOURCE_GROUP }} \
-            --template-file main.bicep \
-            --parameters parameters.dev.json \
+            --template-file core.bicep \
+            --parameters parameters.core.dev.json \
             --output json > what-if-output.json
           WHATIF_EXIT_CODE=$?
           set -e

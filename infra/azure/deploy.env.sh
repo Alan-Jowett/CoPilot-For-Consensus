@@ -163,7 +163,8 @@ validate_core_parameters() {
     # Check for placeholder values that indicate missing Core outputs
     if grep -q "REPLACE-WITH-CORE-DEPLOYMENT-OUTPUT" "$param_file" || \
        grep -q "SUBSCRIPTION-ID" "$param_file" || \
-       grep -q "CORE-KV-NAME" "$param_file"; then
+       grep -q "CORE-KV-NAME" "$param_file" || \
+       grep -q "VERSION" "$param_file"; then
         print_error "================================================"
         print_error "DEPLOYMENT BLOCKED: Core parameters not configured!"
         print_error "================================================"
