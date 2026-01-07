@@ -685,6 +685,8 @@ class TestParsingService:
 
     def test_handle_archive_ingested_event(self, document_store, publisher, subscriber, sample_mbox_file):
         """Test that _handle_archive_ingested processes events correctly."""
+        import hashlib
+        
         service = ParsingService(
             document_store=document_store,
             publisher=publisher,
@@ -692,12 +694,30 @@ class TestParsingService:
             archive_store=create_test_archive_store(),
         )
 
-        # Store file in archive store first
+        # Store file in archive store first (without custom archive_id so it gets stored correctly)
         archive_data = prepare_archive_for_processing(
             service.archive_store,
             sample_mbox_file,
-            archive_id="test-archive-11"
         )
+
+        # Compute actual file hash for document store validation
+        with open(sample_mbox_file, 'rb') as f:
+            file_hash = hashlib.sha256(f.read()).hexdigest()
+
+        # Create archive document in document store for status updates
+        document_store.insert_document("archives", {
+            "_id": archive_data["archive_id"],
+            "file_hash": file_hash,
+            "file_size_bytes": archive_data["file_size_bytes"],
+            "source": archive_data["source_name"],
+            "source_url": archive_data["source_url"],
+            "format": "mbox",
+            "ingestion_date": archive_data["ingestion_completed_at"],
+            "status": "pending",
+            "message_count": 0,
+            "storage_backend": "local",
+            "created_at": archive_data["ingestion_started_at"],
+        })
 
         # Simulate receiving an event (storage-agnostic format)
         event = {
@@ -797,6 +817,8 @@ def test_parsing_failed_event_schema_validation(document_store):
 
 def test_consume_archive_ingested_event(document_store, sample_mbox_file):
     """Test consuming an ArchiveIngested event."""
+    import hashlib
+    
     publisher = MockPublisher()
     publisher.connect()
     subscriber = NoopSubscriber()
@@ -809,12 +831,30 @@ def test_consume_archive_ingested_event(document_store, sample_mbox_file):
             archive_store=create_test_archive_store(),
         )
 
-    # Store file in archive store first
+    # Store file in archive store first (without custom archive_id so it gets stored correctly)
     archive_data = prepare_archive_for_processing(
         service.archive_store,
         sample_mbox_file,
-        archive_id="cccccccccccccccc"
     )
+
+    # Compute actual file hash for document store validation
+    with open(sample_mbox_file, 'rb') as f:
+        file_hash = hashlib.sha256(f.read()).hexdigest()
+
+    # Create archive document in document store for status updates
+    document_store.insert_document("archives", {
+        "_id": archive_data["archive_id"],
+        "file_hash": file_hash,
+        "file_size_bytes": archive_data["file_size_bytes"],
+        "source": archive_data["source_name"],
+        "source_url": archive_data["source_url"],
+        "format": "mbox",
+        "ingestion_date": archive_data["ingestion_completed_at"],
+        "status": "pending",
+        "message_count": 0,
+        "storage_backend": "local",
+        "created_at": archive_data["ingestion_started_at"],
+    })
 
     # Simulate receiving an ArchiveIngested event (storage-agnostic format)
     event = {
@@ -875,7 +915,11 @@ def test_handle_malformed_event_missing_data(document_store):
 
 
 def test_handle_event_missing_required_fields(document_store):
-    """Test handling event with missing required fields in data."""
+    """Test handling event where archive is not found in ArchiveStore.
+    
+    The service should handle this gracefully by logging an error and publishing
+    a ParsingFailed event, rather than raising an exception.
+    """
     publisher = MockPublisher()
     subscriber = NoopSubscriber()
 
@@ -886,20 +930,38 @@ def test_handle_event_missing_required_fields(document_store):
             archive_store=create_test_archive_store(),
         )
 
-    # Event missing required 'file_path' field
+    # Event with archive_id that doesn't exist in ArchiveStore
     event = {
         "event_type": "ArchiveIngested",
         "event_id": "test-123",
         "timestamp": "2023-10-15T12:00:00Z",
         "version": "1.0",
         "data": {
-            "archive_id": "test-archive",
+            "archive_id": "test-archive-nonexistent",
+            "source_name": "test-source",
+            "source_type": "local",
+            "source_url": "test.mbox",
+            "file_size_bytes": 100,
+            "file_hash_sha256": "abc123",
+            "ingestion_started_at": "2024-01-01T00:00:00Z",
+            "ingestion_completed_at": "2024-01-01T00:00:01Z",
         }
     }
 
-    # Service should raise an exception for missing required fields
-    with pytest.raises((KeyError, FileNotFoundError)):
-        service._handle_archive_ingested(event)
+    # Service should handle this gracefully (no exception)
+    service._handle_archive_ingested(event)
+    
+    # Verify that a ParsingFailed event was published
+    failed_events = [
+        e for e in publisher.published_events
+        if e["event"]["event_type"] == "ParsingFailed"
+    ]
+    assert len(failed_events) == 1
+    
+    # Verify the error message is appropriate
+    failed_event = failed_events[0]["event"]
+    assert "not found in ArchiveStore" in failed_event["data"]["error_message"]
+    assert failed_event["data"]["archive_id"] == "test-archive-nonexistent"
 
 
 def test_publish_json_parsed_with_publisher_failure(document_store):
@@ -970,13 +1032,23 @@ def test_publish_parsing_failed_with_publisher_failure(document_store):
 
 
 def test_handle_archive_ingested_with_publish_json_parsed_failure(document_store, sample_mbox_file):
-    """Test that _handle_archive_ingested handles publisher failure for success event."""
+    """Test that _handle_archive_ingested handles publisher failure for success event gracefully.
+    
+    When the publisher fails on json.parsed events, the service should:
+    1. Catch the exception
+    2. Update archive status to 'failed'
+    3. Publish a ParsingFailed event
+    4. Return gracefully (no exception raised)
+    """
+    import hashlib
+    
     class FailingPublisher(MockPublisher):
         """Publisher that fails on json.parsed routing key."""
         def publish(self, exchange, routing_key, event):
             if routing_key == "json.parsed":
                 raise Exception("Publish failed")
-            return True
+            # Call parent's publish to record the event
+            return super().publish(exchange, routing_key, event)
 
     publisher = FailingPublisher()
     subscriber = NoopSubscriber()
@@ -988,20 +1060,54 @@ def test_handle_archive_ingested_with_publish_json_parsed_failure(document_store
             archive_store=create_test_archive_store(),
         )
 
+    # Store file in archive store first
+    archive_data = prepare_archive_for_processing(
+        service.archive_store,
+        sample_mbox_file,
+    )
+
+    # Compute actual file hash for document store validation
+    with open(sample_mbox_file, 'rb') as f:
+        file_hash = hashlib.sha256(f.read()).hexdigest()
+
+    # Create archive document in document store for status updates
+    document_store.insert_document("archives", {
+        "_id": archive_data["archive_id"],
+        "file_hash": file_hash,
+        "file_size_bytes": archive_data["file_size_bytes"],
+        "source": archive_data["source_name"],
+        "source_url": archive_data["source_url"],
+        "format": "mbox",
+        "ingestion_date": archive_data["ingestion_completed_at"],
+        "status": "pending",
+        "message_count": 0,
+        "storage_backend": "local",
+        "created_at": archive_data["ingestion_started_at"],
+    })
+
     event = {
         "event_type": "ArchiveIngested",
         "event_id": "test-123",
         "timestamp": "2023-10-15T12:00:00Z",
         "version": "1.0",
-        "data": {
-            "archive_id": "test-archive",
-            "file_path": sample_mbox_file,
-        }
+        "data": archive_data
     }
 
-    # Should raise exception when publisher fails on json.parsed event
-    with pytest.raises(Exception):
-        service._handle_archive_ingested(event)
+    # Should handle publisher failure gracefully (no exception)
+    service._handle_archive_ingested(event)
+    
+    # Verify that archive status was updated to 'failed'
+    updated_archive = document_store.get_document("archives", archive_data["archive_id"])
+    assert updated_archive is not None
+    assert updated_archive["status"] == "failed"
+    
+    # Verify that a ParsingFailed event was published
+    failed_events = [
+        e for e in publisher.published_events
+        if e["event"]["event_type"] == "ParsingFailed"
+    ]
+    assert len(failed_events) == 1
+    assert "Publish failed" in failed_events[0]["event"]["data"]["error_message"]
 
 
 def test_handle_archive_ingested_with_publish_parsing_failed_failure(document_store):
