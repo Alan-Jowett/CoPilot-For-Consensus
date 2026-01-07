@@ -360,7 +360,7 @@ class ParsingService:
 
                 self._publish_parsing_failed(
                     archive_id,
-                    temp_file_path,
+                    None,  # Storage-agnostic mode - temp file path is internal detail
                     error_msg,
                     type(parse_error).__name__,
                     0,
