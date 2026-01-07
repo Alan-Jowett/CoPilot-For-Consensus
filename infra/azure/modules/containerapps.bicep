@@ -490,6 +490,18 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '/data/raw_archives'
             }
             {
+              name: 'BLOB_STORAGE_ENABLED'
+              value: 'false'
+            }
+            {
+              name: 'BLOB_STORAGE_CONNECTION_STRING'
+              value: ''
+            }
+            {
+              name: 'BLOB_STORAGE_CONTAINER'
+              value: 'raw-archives'
+            }
+            {
               name: 'AZURE_STORAGE_ACCOUNT'
               value: storageAccountName
             }
@@ -499,7 +511,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'AZURE_STORAGE_CONTAINER'
-              value: 'archives'
+              value: 'raw-archives'
             }
             {
               name: 'HTTP_PORT'
