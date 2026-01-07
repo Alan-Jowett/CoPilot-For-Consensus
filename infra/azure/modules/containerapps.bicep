@@ -490,15 +490,19 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '/data/raw_archives'
             }
             {
-              name: 'BLOB_STORAGE_ENABLED'
-              value: 'false'
+              name: 'ARCHIVE_STORE_TYPE'
+              value: 'azure_blob'
             }
             {
-              name: 'BLOB_STORAGE_CONNECTION_STRING'
+              name: 'ARCHIVE_STORE_PATH'
+              value: '/data/raw_archives'
+            }
+            {
+              name: 'ARCHIVE_STORE_CONNECTION_STRING'
               value: ''
             }
             {
-              name: 'BLOB_STORAGE_CONTAINER'
+              name: 'ARCHIVE_STORE_CONTAINER'
               value: 'raw-archives'
             }
             {
@@ -628,6 +632,22 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'AZURE_CLIENT_ID'
               value: identityClientIds.parsing
+            }
+            {
+              name: 'ARCHIVE_STORE_TYPE'
+              value: 'azure_blob'
+            }
+            {
+              name: 'ARCHIVE_STORE_PATH'
+              value: '/data/raw_archives'
+            }
+            {
+              name: 'ARCHIVE_STORE_CONNECTION_STRING'
+              value: ''
+            }
+            {
+              name: 'ARCHIVE_STORE_CONTAINER'
+              value: 'raw-archives'
             }
             {
               name: 'AUTH_SERVICE_URL'
