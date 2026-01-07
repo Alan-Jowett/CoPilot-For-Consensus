@@ -30,7 +30,8 @@ def prepare_archive_for_processing(archive_store, file_path, archive_id=None):
     Args:
         archive_store: ArchiveStore instance
         file_path: Path to the mbox file to store
-        archive_id: Optional custom archive_id (defaults to generated from store_archive)
+        archive_id: Optional custom archive_id - if provided, will be used in the returned
+                   data but may not match what's actually in the store (for testing error cases)
     
     Returns:
         dict: Storage-agnostic archive_data suitable for process_archive()
@@ -38,22 +39,18 @@ def prepare_archive_for_processing(archive_store, file_path, archive_id=None):
     with open(file_path, 'rb') as f:
         content = f.read()
     
-    if archive_id is None:
-        archive_id = archive_store.store_archive(
-            source_name="test-source",
-            file_path=file_path,
-            content=content,
-        )
-    else:
-        # Use custom archive_id for tests that need specific IDs
-        archive_store.store_archive(
-            source_name="test-source",
-            file_path=file_path,
-            content=content,
-        )
+    # Always store the archive and get the actual ID
+    actual_archive_id = archive_store.store_archive(
+        source_name="test-source",
+        file_path=file_path,
+        content=content,
+    )
+    
+    # Use the provided ID if given (for tests), otherwise use the actual one
+    result_archive_id = archive_id if archive_id is not None else actual_archive_id
     
     return {
-        "archive_id": archive_id,
+        "archive_id": result_archive_id,
         "source_name": "test-source",
         "source_type": "local",
         "source_url": file_path,
@@ -237,7 +234,13 @@ class TestParsingService:
         """Test processing nonexistent archive."""
         archive_data = {
             "archive_id": "test-archive-3",
-            "file_path": "/nonexistent/file.mbox",
+            "source_name": "test-source",
+            "source_type": "local",
+            "source_url": "/nonexistent/file.mbox",
+            "file_size_bytes": 0,
+            "file_hash_sha256": "abc123",
+            "ingestion_started_at": "2024-01-01T00:00:00Z",
+            "ingestion_completed_at": "2024-01-01T00:00:01Z",
         }
 
         # Should handle gracefully without crashing
@@ -249,10 +252,7 @@ class TestParsingService:
 
     def test_message_persistence(self, service, sample_mbox_file):
         """Test that messages are persisted correctly."""
-        archive_data = {
-            "archive_id": "test-archive-4",
-            "file_path": sample_mbox_file,
-        }
+        archive_data = prepare_archive_for_processing(service.archive_store, sample_mbox_file)
 
         service.process_archive(archive_data)
 
@@ -263,7 +263,7 @@ class TestParsingService:
         for msg in messages:
             assert "message_id" in msg
             assert "archive_id" in msg
-            assert msg["archive_id"] == "test-archive-4"
+            assert msg["archive_id"] == archive_data["archive_id"]  # Use the generated archive_id
             assert "thread_id" in msg
             assert "subject" in msg
             assert "from" in msg
@@ -273,10 +273,7 @@ class TestParsingService:
 
     def test_thread_persistence(self, service, sample_mbox_file):
         """Test that threads are persisted correctly."""
-        archive_data = {
-            "archive_id": "test-archive-5",
-            "file_path": sample_mbox_file,
-        }
+        archive_data = prepare_archive_for_processing(service.archive_store, sample_mbox_file)
 
         service.process_archive(archive_data)
 
@@ -289,7 +286,7 @@ class TestParsingService:
         # Check required fields
         assert "thread_id" in thread
         assert "archive_id" in thread
-        assert thread["archive_id"] == "test-archive-5"
+        assert thread["archive_id"] == archive_data["archive_id"]
         assert "subject" in thread
         assert "participants" in thread
         assert "message_count" in thread
@@ -301,10 +298,7 @@ class TestParsingService:
 
     def test_draft_detection_integration(self, service, sample_mbox_file):
         """Test draft detection in full pipeline."""
-        archive_data = {
-            "archive_id": "test-archive-6",
-            "file_path": sample_mbox_file,
-        }
+        archive_data = prepare_archive_for_processing(service.archive_store, sample_mbox_file)
 
         service.process_archive(archive_data)
 
@@ -322,10 +316,7 @@ class TestParsingService:
 
     def test_thread_relationships(self, service, sample_mbox_file):
         """Test thread relationship building."""
-        archive_data = {
-            "archive_id": "test-archive-7",
-            "file_path": sample_mbox_file,
-        }
+        archive_data = prepare_archive_for_processing(service.archive_store, sample_mbox_file)
 
         service.process_archive(archive_data)
 
@@ -349,10 +340,7 @@ class TestParsingService:
         assert stats["threads_created"] == 0
 
         # Process archive
-        archive_data = {
-            "archive_id": "test-archive-8",
-            "file_path": sample_mbox_file,
-        }
+        archive_data = prepare_archive_for_processing(service.archive_store, sample_mbox_file)
         service.process_archive(archive_data)
 
         # Updated stats
@@ -369,10 +357,7 @@ class TestParsingService:
         Using time.monotonic() ensures duration is never negative even if system clock
         is adjusted backwards (e.g., NTP sync, DST transitions, VM time sync).
         """
-        archive_data = {
-            "archive_id": "test-archive-duration",
-            "file_path": sample_mbox_file,
-        }
+        archive_data = prepare_archive_for_processing(service.archive_store, sample_mbox_file)
         
         service.process_archive(archive_data)
         
@@ -389,7 +374,13 @@ class TestParsingService:
         """
         archive_data = {
             "archive_id": "test-archive-error-duration",
-            "file_path": "/nonexistent/file.mbox",
+            "source_name": "test-source",
+            "source_type": "local",
+            "source_url": "/nonexistent/file.mbox",
+            "file_size_bytes": 0,
+            "file_hash_sha256": "abc123",
+            "ingestion_started_at": "2024-01-01T00:00:00Z",
+            "ingestion_completed_at": "2024-01-01T00:00:01Z",
         }
         
         # Process should handle error gracefully
@@ -599,10 +590,7 @@ class TestParsingService:
             archive_store=create_test_archive_store(),
         )
 
-        archive_data = {
-            "archive_id": "test-archive-9",
-            "file_path": sample_mbox_file,
-        }
+        archive_data = prepare_archive_for_processing(service.archive_store, sample_mbox_file)
 
         service.process_archive(archive_data)
 
@@ -651,7 +639,13 @@ class TestParsingService:
 
         archive_data = {
             "archive_id": "test-archive-10",
-            "file_path": "/nonexistent/file.mbox",
+            "source_name": "test-source",
+            "source_type": "local",
+            "source_url": "/nonexistent/file.mbox",
+            "file_size_bytes": 0,
+            "file_hash_sha256": "abc123",
+            "ingestion_started_at": "2024-01-01T00:00:00Z",
+            "ingestion_completed_at": "2024-01-01T00:00:01Z",
         }
 
         service.process_archive(archive_data)
@@ -698,13 +692,17 @@ class TestParsingService:
             archive_store=create_test_archive_store(),
         )
 
-        # Simulate receiving an event
+        # Store file in archive store first
+        archive_data = prepare_archive_for_processing(
+            service.archive_store,
+            sample_mbox_file,
+            archive_id="test-archive-11"
+        )
+
+        # Simulate receiving an event (storage-agnostic format)
         event = {
             "event_type": "ArchiveIngested",
-            "data": {
-                "archive_id": "test-archive-11",
-                "file_path": sample_mbox_file,
-            }
+            "data": archive_data
         }
 
         service._handle_archive_ingested(event)
@@ -734,10 +732,7 @@ def test_json_parsed_event_schema_validation(document_store, sample_mbox_file):
             archive_store=create_test_archive_store(),
         )
 
-    archive_data = {
-        "archive_id": "aaaaaaaaaaaaaaaa",
-        "file_path": sample_mbox_file,
-    }
+    archive_data = prepare_archive_for_processing(service.archive_store, sample_mbox_file)
 
     service.process_archive(archive_data)
 
@@ -770,9 +765,15 @@ def test_parsing_failed_event_schema_validation(document_store):
 
     # Try to process a non-existent file
     archive_data = {
-        "archive_id": "bbbbbbbbbbbbbbbb",
-        "file_path": "/nonexistent/file.mbox",
-    }
+            "archive_id": "bbbbbbbbbbbbbbbb",
+            "source_name": "test-source",
+            "source_type": "local",
+            "source_url": "/nonexistent/file.mbox",
+            "file_size_bytes": 0,
+            "file_hash_sha256": "abc123",
+            "ingestion_started_at": "2024-01-01T00:00:00Z",
+            "ingestion_completed_at": "2024-01-01T00:00:01Z",
+        }
 
     service.process_archive(archive_data)
 
@@ -808,23 +809,20 @@ def test_consume_archive_ingested_event(document_store, sample_mbox_file):
             archive_store=create_test_archive_store(),
         )
 
-    # Simulate receiving an ArchiveIngested event
+    # Store file in archive store first
+    archive_data = prepare_archive_for_processing(
+        service.archive_store,
+        sample_mbox_file,
+        archive_id="cccccccccccccccc"
+    )
+
+    # Simulate receiving an ArchiveIngested event (storage-agnostic format)
     event = {
         "event_type": "ArchiveIngested",
         "event_id": "test-123",
         "timestamp": "2023-10-15T12:00:00Z",
         "version": "1.0",
-        "data": {
-            "archive_id": "cccccccccccccccc",
-            "source_name": "test-source",
-            "source_type": "local",
-            "source_url": sample_mbox_file,
-            "file_path": sample_mbox_file,
-            "file_size_bytes": 1234,
-            "file_hash_sha256": "abc123",
-            "ingestion_started_at": "2023-10-15T12:00:00Z",
-            "ingestion_completed_at": "2023-10-15T12:01:00Z",
-        }
+        "data": archive_data
     }
 
     # Validate incoming event
