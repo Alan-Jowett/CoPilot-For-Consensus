@@ -604,10 +604,6 @@ class IngestionService:
                         self.config.archive_store_type,
                         ingestion_completed_at,
                     )
-                    self._save_ingestion_log(metadata)
-
-                    # Write to archives collection in document store
-                    self._write_archive_record(archive_id, source, file_path, ingestion_completed_at)
 
                     # Publish success event
                     self._publish_success_event(metadata)

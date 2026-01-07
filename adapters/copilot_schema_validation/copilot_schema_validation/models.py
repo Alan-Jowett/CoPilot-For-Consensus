@@ -424,18 +424,25 @@ class ArchiveMetadata:
         source_name: Source identifier (e.g., "ietf-quic")
         source_type: Archive source type (e.g., "rsync")
         source_url: URL or path to original archive
-        file_path: Storage path for raw archive
+        file_path: (DEPRECATED for internal use) Storage path for raw archive
+                   This field is kept for backward compatibility but should not
+                   be used for storage-agnostic deployments. Use archive_id with
+                   ArchiveStore instead.
         file_size_bytes: Size of archive file in bytes
         file_hash_sha256: SHA256 hash of archive file
         ingestion_started_at: When ingestion began (ISO 8601)
         ingestion_completed_at: When ingestion completed (ISO 8601)
         status: Status of ingestion ("success" or "failed")
+    
+    Note:
+        The file_path field is deprecated and will be removed from
+        ArchiveIngested events for storage-agnostic deployments.
     """
     archive_id: str
     source_name: str
     source_type: str
     source_url: str
-    file_path: str
+    file_path: str  # Deprecated for storage-agnostic deployments
     file_size_bytes: int
     file_hash_sha256: str
     ingestion_started_at: str
