@@ -3,10 +3,13 @@
 
 """Main parsing service implementation."""
 
+import os
+import tempfile
 import time
 from datetime import datetime, timezone
 from typing import Any
 
+from copilot_archive_store import ArchiveStore, create_archive_store
 from copilot_events import (
     ArchiveIngestedEvent,
     EventPublisher,
@@ -38,6 +41,8 @@ class ParsingService:
         subscriber: EventSubscriber,
         metrics_collector: MetricsCollector | None = None,
         error_reporter: ErrorReporter | None = None,
+        archive_store: ArchiveStore | None = None,
+        archive_store_type: str = None,
     ):
         """Initialize parsing service.
 
@@ -47,12 +52,47 @@ class ParsingService:
             subscriber: Event subscriber for consuming events
             metrics_collector: Metrics collector (optional)
             error_reporter: Error reporter (optional)
+            archive_store: Archive store for retrieving raw archives (optional, will be created if None)
+            archive_store_type: Type of archive store to create if archive_store is None
+                               (defaults to ARCHIVE_STORE_TYPE env var or "local")
         """
         self.document_store = document_store
         self.publisher = publisher
         self.subscriber = subscriber
         self.metrics_collector = metrics_collector
         self.error_reporter = error_reporter
+
+        # Initialize ArchiveStore
+        if archive_store is None:
+            try:
+                if archive_store_type is None:
+                    archive_store_type = os.getenv("ARCHIVE_STORE_TYPE", "local")
+                
+                # Get base path for local backend
+                archive_store_base_path = os.getenv("ARCHIVE_STORE_PATH", "/data/raw_archives")
+                
+                self.archive_store = create_archive_store(
+                    store_type=archive_store_type,
+                    base_path=archive_store_base_path,
+                )
+                logger.info(
+                    "Initialized ArchiveStore",
+                    store_type=archive_store_type,
+                    base_path=archive_store_base_path,
+                )
+            except Exception as e:
+                logger.error("Failed to initialize ArchiveStore", error=str(e), exc_info=True)
+                if error_reporter:
+                    error_reporter.report(
+                        e,
+                        context={
+                            "operation": "initialize_archive_store",
+                            "store_type": archive_store_type,
+                        }
+                    )
+                raise
+        else:
+            self.archive_store = archive_store
 
         # Create parser and thread builder
         self.parser = MessageParser()
@@ -107,10 +147,14 @@ class ParsingService:
                 routing_key="archive.ingested",
                 id_field="archive_id",
                 build_event_data=lambda doc: {
-                    "archive_id": doc.get("archive_id"),
-                    "file_path": doc.get("file_path"),
-                    "source": doc.get("source"),
-                    "message_count": doc.get("message_count", 0),
+                    "archive_id": doc.get("archive_id") or doc.get("_id"),
+                    "source_name": doc.get("source"),
+                    "source_type": doc.get("source_type", "unknown"),
+                    "source_url": doc.get("source_url", ""),
+                    "file_size_bytes": doc.get("file_size_bytes", 0),
+                    "file_hash_sha256": doc.get("file_hash", ""),
+                    "ingestion_started_at": doc.get("created_at", doc.get("ingestion_date", "")),
+                    "ingestion_completed_at": doc.get("ingestion_date", ""),
                 },
                 limit=1000,
             )
@@ -163,39 +207,105 @@ class ParsingService:
             KeyError: If required fields are missing from archive_data
         """
         archive_id = archive_data.get("archive_id")
-        file_path = archive_data.get("file_path")
 
-        if not archive_id or not file_path:
-            error_msg = "Missing required fields in archive data"
+        if not archive_id:
+            error_msg = "Missing required field 'archive_id' in archive data"
             logger.error(error_msg)
             raise KeyError(error_msg)
 
         start_time = time.monotonic()
 
         try:
-            logger.info(f"Parsing archive {archive_id} from {file_path}")
+            logger.info(f"Parsing archive {archive_id}")
 
-            # Parse mbox file - raises exceptions on failure
+            # Retrieve archive content from ArchiveStore
             try:
-                parsed_messages = self.parser.parse_mbox(file_path, archive_id)
-            except Exception as parse_error:
-                # Parsing failed - update archive status and publish event
-                error_msg = f"Failed to parse archive: {str(parse_error)}"
+                archive_content = self.archive_store.get_archive(archive_id)
+                if archive_content is None:
+                    error_msg = f"Archive {archive_id} not found in ArchiveStore"
+                    logger.error(error_msg)
+                    
+                    # Update archive status to 'failed'
+                    self._update_archive_status(archive_id, "failed", 0)
+                    
+                    self._publish_parsing_failed(
+                        archive_id,
+                        "",  # No file path in storage-agnostic mode
+                        error_msg,
+                        "ArchiveNotFoundError",
+                        0,
+                    )
+                    return
+            except Exception as e:
+                error_msg = f"Failed to retrieve archive from ArchiveStore: {str(e)}"
                 logger.error(error_msg, exc_info=True)
-
+                
                 # Update archive status to 'failed'
                 self._update_archive_status(archive_id, "failed", 0)
-
+                
                 self._publish_parsing_failed(
                     archive_id,
-                    file_path,
+                    "",  # No file path in storage-agnostic mode
                     error_msg,
-                    type(parse_error).__name__,
+                    type(e).__name__,
                     0,
                 )
+                return
 
-                # Don't re-raise - let event processing continue gracefully
-                # The error has been recorded in the archive status and event
+            # Write archive content to temporary file for parsing
+            # The parser expects a file path, so we create a temporary file
+            temp_file_path = None
+            try:
+                with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.mbox') as temp_file:
+                    temp_file.write(archive_content)
+                    temp_file_path = temp_file.name
+                
+                logger.debug(f"Wrote archive {archive_id} to temporary file {temp_file_path}")
+
+                # Parse mbox file - raises exceptions on failure
+                try:
+                    parsed_messages = self.parser.parse_mbox(temp_file_path, archive_id)
+                except Exception as parse_error:
+                    # Parsing failed - update archive status and publish event
+                    error_msg = f"Failed to parse archive: {str(parse_error)}"
+                    logger.error(error_msg, exc_info=True)
+
+                    # Update archive status to 'failed'
+                    self._update_archive_status(archive_id, "failed", 0)
+
+                    self._publish_parsing_failed(
+                        archive_id,
+                        temp_file_path,
+                        error_msg,
+                        type(parse_error).__name__,
+                        0,
+                    )
+
+                    # Don't re-raise - let event processing continue gracefully
+                    # The error has been recorded in the archive status and event
+                    return
+                finally:
+                    # Clean up temporary file
+                    if temp_file_path and os.path.exists(temp_file_path):
+                        try:
+                            os.unlink(temp_file_path)
+                            logger.debug(f"Cleaned up temporary file {temp_file_path}")
+                        except Exception as cleanup_error:
+                            logger.warning(f"Failed to clean up temporary file: {cleanup_error}")
+            except Exception as temp_file_error:
+                error_msg = f"Failed to create temporary file for parsing: {str(temp_file_error)}"
+                logger.error(error_msg, exc_info=True)
+                
+                # Update archive status to 'failed'
+                self._update_archive_status(archive_id, "failed", 0)
+                
+                self._publish_parsing_failed(
+                    archive_id,
+                    "",
+                    error_msg,
+                    type(temp_file_error).__name__,
+                    0,
+                )
                 return
 
             if not parsed_messages:
