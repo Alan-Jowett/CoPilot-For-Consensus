@@ -403,7 +403,6 @@ class ParsingService:
                     e,
                     context={
                         "archive_id": archive_id,
-                        "file_path": file_path,
                         "operation": "process_archive",
                     }
                 )
@@ -412,7 +411,7 @@ class ParsingService:
             try:
                 self._publish_parsing_failed(
                     archive_id,
-                    file_path,
+                    "",  # No file path in storage-agnostic mode
                     str(e),
                     type(e).__name__,
                     0,
