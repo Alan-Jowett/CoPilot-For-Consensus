@@ -376,9 +376,7 @@ class ParsingService:
                     except Exception as cleanup_error:
                         # Make cleanup failures clearly visible in logs and error reporting
                         logger.error(
-                            "Failed to clean up temporary file %s: %s",
-                            temp_file_path,
-                            cleanup_error,
+                            f"Failed to clean up temporary file {temp_file_path}: {cleanup_error}",
                             exc_info=True,
                         )
                         if self.error_reporter:
