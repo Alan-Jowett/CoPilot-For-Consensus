@@ -4,16 +4,64 @@
 """Integration tests for parsing service."""
 
 import logging
+import tempfile
 from unittest.mock import Mock
 
 import pytest
 from app.service import ParsingService
+from copilot_archive_store import LocalVolumeArchiveStore
 from copilot_events import EventPublisher, EventSubscriber, NoopPublisher, NoopSubscriber
 from copilot_storage import DocumentStore, InMemoryDocumentStore
 from copilot_storage.validating_document_store import DocumentValidationError
 from pymongo.errors import DuplicateKeyError
 
 from .test_helpers import assert_valid_event_schema
+
+
+def create_test_archive_store():
+    """Create a test archive store with temporary directory."""
+    tmpdir = tempfile.mkdtemp()
+    return LocalVolumeArchiveStore(base_path=tmpdir)
+
+
+def prepare_archive_for_processing(archive_store, file_path, archive_id=None):
+    """Store a file in the archive store and return storage-agnostic archive_data.
+    
+    Args:
+        archive_store: ArchiveStore instance
+        file_path: Path to the mbox file to store
+        archive_id: Optional custom archive_id (defaults to generated from store_archive)
+    
+    Returns:
+        dict: Storage-agnostic archive_data suitable for process_archive()
+    """
+    with open(file_path, 'rb') as f:
+        content = f.read()
+    
+    if archive_id is None:
+        archive_id = archive_store.store_archive(
+            source_name="test-source",
+            file_path=file_path,
+            content=content,
+        )
+    else:
+        # Use custom archive_id for tests that need specific IDs
+        archive_store.store_archive(
+            source_name="test-source",
+            file_path=file_path,
+            content=content,
+        )
+    
+    return {
+        "archive_id": archive_id,
+        "source_name": "test-source",
+        "source_type": "local",
+        "source_url": file_path,
+        "file_size_bytes": len(content),
+        "file_hash_sha256": "abc123",  # Simplified for tests
+        "ingestion_started_at": "2024-01-01T00:00:00Z",
+        "ingestion_completed_at": "2024-01-01T00:00:01Z",
+    }
 
 
 class MockPublisher:
@@ -64,25 +112,51 @@ class TestParsingService:
         return sub
 
     @pytest.fixture
-    def service(self, document_store, publisher, subscriber):
-        """Create parsing service."""
-        return ParsingService(
-            document_store=document_store,
-            publisher=publisher,
-            subscriber=subscriber,
+    def service(self, document_store, publisher, subscriber, temp_dir):
+        """Create parsing service with temp directory for ArchiveStore."""
+        # Set env var for ArchiveStore path to use temp directory
+        import os
+        old_path = os.environ.get("ARCHIVE_STORE_PATH")
+        os.environ["ARCHIVE_STORE_PATH"] = temp_dir
+        
+        try:
+            service = ParsingService(
+                document_store=document_store,
+                publisher=publisher,
+                subscriber=subscriber,
+            archive_store=create_test_archive_store(),
         )
+            yield service
+        finally:
+            # Restore old env var
+            if old_path is None:
+                os.environ.pop("ARCHIVE_STORE_PATH", None)
+            else:
+                os.environ["ARCHIVE_STORE_PATH"] = old_path
 
     @pytest.fixture
-    def mock_service(self):
+    def mock_service(self, temp_dir):
         """Create a parsing service with mocked dependencies."""
-        store = Mock(spec=DocumentStore)
-        publisher = Mock(spec=EventPublisher)
-        subscriber = Mock(spec=EventSubscriber)
-        return ParsingService(
-            document_store=store,
-            publisher=publisher,
-            subscriber=subscriber,
-        ), store
+        import os
+        old_path = os.environ.get("ARCHIVE_STORE_PATH")
+        os.environ["ARCHIVE_STORE_PATH"] = temp_dir
+        
+        try:
+            store = Mock(spec=DocumentStore)
+            publisher = Mock(spec=EventPublisher)
+            subscriber = Mock(spec=EventSubscriber)
+            service = ParsingService(
+                document_store=store,
+                publisher=publisher,
+                subscriber=subscriber,
+            archive_store=create_test_archive_store(),
+        )
+            yield service, store
+        finally:
+            if old_path is None:
+                os.environ.pop("ARCHIVE_STORE_PATH", None)
+            else:
+                os.environ["ARCHIVE_STORE_PATH"] = old_path
 
     def test_service_initialization(self, service):
         """Test service initialization."""
@@ -94,9 +168,24 @@ class TestParsingService:
 
     def test_process_archive_success(self, service, sample_mbox_file):
         """Test successful archive processing."""
+        # Store the file in ArchiveStore first
+        with open(sample_mbox_file, 'rb') as f:
+            content = f.read()
+        archive_id = service.archive_store.store_archive(
+            source_name="test-source",
+            file_path=sample_mbox_file,
+            content=content,
+        )
+        
         archive_data = {
-            "archive_id": "test-archive-1",
-            "file_path": sample_mbox_file,
+            "archive_id": archive_id,
+            "source_name": "test-source",
+            "source_type": "local",
+            "source_url": sample_mbox_file,
+            "file_size_bytes": len(content),
+            "file_hash_sha256": "abc123",
+            "ingestion_started_at": "2024-01-01T00:00:00Z",
+            "ingestion_completed_at": "2024-01-01T00:00:01Z",
         }
 
         service.process_archive(archive_data)
@@ -117,9 +206,24 @@ class TestParsingService:
 
     def test_process_archive_with_corrupted_file(self, service, corrupted_mbox_file):
         """Test processing corrupted archive."""
+        # Store the corrupted file in ArchiveStore first
+        with open(corrupted_mbox_file, 'rb') as f:
+            content = f.read()
+        archive_id = service.archive_store.store_archive(
+            source_name="test-source",
+            file_path=corrupted_mbox_file,
+            content=content,
+        )
+        
         archive_data = {
-            "archive_id": "test-archive-2",
-            "file_path": corrupted_mbox_file,
+            "archive_id": archive_id,
+            "source_name": "test-source",
+            "source_type": "local",
+            "source_url": corrupted_mbox_file,
+            "file_size_bytes": len(content),
+            "file_hash_sha256": "abc123",
+            "ingestion_started_at": "2024-01-01T00:00:00Z",
+            "ingestion_completed_at": "2024-01-01T00:00:01Z",
         }
 
         # Should handle gracefully
@@ -341,6 +445,7 @@ class TestParsingService:
             publisher=publisher,
             subscriber=subscriber,
             metrics_collector=metrics,
+            archive_store=create_test_archive_store(),
         )
         
         # Test different skip reasons
@@ -446,6 +551,7 @@ class TestParsingService:
             publisher=publisher,
             subscriber=subscriber,
             metrics_collector=metrics,
+            archive_store=create_test_archive_store(),
         )
 
         # Test different skip reasons
@@ -490,6 +596,7 @@ class TestParsingService:
             document_store=document_store,
             publisher=mock_publisher,
             subscriber=subscriber,
+            archive_store=create_test_archive_store(),
         )
 
         archive_data = {
@@ -539,6 +646,7 @@ class TestParsingService:
             document_store=document_store,
             publisher=mock_publisher,
             subscriber=subscriber,
+            archive_store=create_test_archive_store(),
         )
 
         archive_data = {
@@ -568,6 +676,7 @@ class TestParsingService:
             document_store=document_store,
             publisher=publisher,
             subscriber=mock_subscriber,
+            archive_store=create_test_archive_store(),
         )
 
         # Start the service
@@ -586,6 +695,7 @@ class TestParsingService:
             document_store=document_store,
             publisher=publisher,
             subscriber=subscriber,
+            archive_store=create_test_archive_store(),
         )
 
         # Simulate receiving an event
@@ -621,7 +731,8 @@ def test_json_parsed_event_schema_validation(document_store, sample_mbox_file):
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
-    )
+            archive_store=create_test_archive_store(),
+        )
 
     archive_data = {
         "archive_id": "aaaaaaaaaaaaaaaa",
@@ -654,7 +765,8 @@ def test_parsing_failed_event_schema_validation(document_store):
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
-    )
+            archive_store=create_test_archive_store(),
+        )
 
     # Try to process a non-existent file
     archive_data = {
@@ -693,7 +805,8 @@ def test_consume_archive_ingested_event(document_store, sample_mbox_file):
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
-    )
+            archive_store=create_test_archive_store(),
+        )
 
     # Simulate receiving an ArchiveIngested event
     event = {
@@ -747,7 +860,8 @@ def test_handle_malformed_event_missing_data(document_store):
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
-    )
+            archive_store=create_test_archive_store(),
+        )
 
     # Event missing 'data' field
     event = {
@@ -771,7 +885,8 @@ def test_handle_event_missing_required_fields(document_store):
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
-    )
+            archive_store=create_test_archive_store(),
+        )
 
     # Event missing required 'file_path' field
     event = {
@@ -803,7 +918,8 @@ def test_publish_json_parsed_with_publisher_failure(document_store):
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
-    )
+            archive_store=create_test_archive_store(),
+        )
 
     # Should raise exception when publisher fails on any message
     parsed_messages = [
@@ -839,7 +955,8 @@ def test_publish_parsing_failed_with_publisher_failure(document_store):
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
-    )
+            archive_store=create_test_archive_store(),
+        )
 
     # Should raise exception when publisher fails
     with pytest.raises(Exception) as exc_info:
@@ -870,7 +987,8 @@ def test_handle_archive_ingested_with_publish_json_parsed_failure(document_store
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
-    )
+            archive_store=create_test_archive_store(),
+        )
 
     event = {
         "event_type": "ArchiveIngested",
@@ -904,7 +1022,8 @@ def test_handle_archive_ingested_with_publish_parsing_failed_failure(document_st
         document_store=document_store,
         publisher=publisher,
         subscriber=subscriber,
-    )
+            archive_store=create_test_archive_store(),
+        )
 
     event = {
         "event_type": "ArchiveIngested",
@@ -934,7 +1053,8 @@ def test_publish_json_parsed_raises_on_missing_message_id(document_store):
         document_store=document_store,
         publisher=mock_publisher,
         subscriber=subscriber,
-    )
+            archive_store=create_test_archive_store(),
+        )
 
     # Create messages with one missing _id
     parsed_messages = [

@@ -59,12 +59,18 @@ class FakeDocumentStore:
 
 
 def make_service_with_store(store):
+    import tempfile
+    from copilot_archive_store import LocalVolumeArchiveStore
+    # Create a temp directory-based archive store to avoid /data permission issues
+    tmpdir = tempfile.mkdtemp()
+    archive_store = LocalVolumeArchiveStore(base_path=tmpdir)
     return ParsingService(
         document_store=store,
         publisher=DummyPublisher(),
         subscriber=DummySubscriber(),
         metrics_collector=DummyMetrics(),
         error_reporter=DummyErrorReporter(),
+        archive_store=archive_store,
     )
 
 
