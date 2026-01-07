@@ -49,8 +49,12 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Authentication Service...")
     config = load_auth_config()
+    # Read metrics backend from config and normalize known aliases
+    backend_value = getattr(config, "metrics_backend", "noop")
+    if backend_value in ("prometheus_pushgateway", "prometheus-pushgateway"):
+        backend_value = "pushgateway"
     metrics = create_metrics_collector(
-        backend=config.metrics_backend,
+        backend=backend_value,
         service_name="auth"
     )
     auth_service = AuthService(config=config)
