@@ -374,7 +374,22 @@ class ParsingService:
                         os.unlink(temp_file_path)
                         logger.debug(f"Cleaned up temporary file {temp_file_path}")
                     except Exception as cleanup_error:
-                        logger.warning(f"Failed to clean up temporary file: {cleanup_error}")
+                        # Make cleanup failures clearly visible in logs and error reporting
+                        logger.error(
+                            "Failed to clean up temporary file %s: %s",
+                            temp_file_path,
+                            cleanup_error,
+                            exc_info=True,
+                        )
+                        if self.error_reporter:
+                            self.error_reporter.report(
+                                cleanup_error,
+                                context={
+                                    "archive_id": archive_id,
+                                    "operation": "cleanup_temp_file",
+                                    "temp_file_path": temp_file_path,
+                                },
+                            )
 
         except Exception as e:
             duration = time.monotonic() - start_time

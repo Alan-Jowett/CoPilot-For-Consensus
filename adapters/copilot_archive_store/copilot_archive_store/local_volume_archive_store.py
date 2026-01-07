@@ -41,6 +41,9 @@ class LocalVolumeArchiveStore(ArchiveStore):
         self.metadata_path = self.base_path / "metadata" / "archives.json"
         self._read_only = False
 
+        # Initialize logger instance for structured logging
+        self.logger = logging.getLogger(__name__)
+        
         # Try to ensure directories exist (may fail in read-only or permission-restricted mode)
         try:
             self.base_path.mkdir(parents=True, exist_ok=True)
@@ -50,7 +53,7 @@ class LocalVolumeArchiveStore(ArchiveStore):
             if e.errno in (errno.EROFS, errno.EACCES, errno.EPERM):
                 # Read-only or permission-restricted filesystem: acceptable for services that only read archives
                 self._read_only = True
-                logging.info(f"ArchiveStore initialized in read-only mode: {e}")
+                self.logger.info(f"ArchiveStore initialized in read-only mode: {e}")
             else:
                 # Other error (disk space, invalid path, etc.): re-raise
                 raise

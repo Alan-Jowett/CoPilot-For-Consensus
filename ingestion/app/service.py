@@ -270,6 +270,9 @@ class IngestionService:
             "total_files_ingested": 0,
             "last_ingestion_at": None,
         }
+        
+        # Initialize archive metadata cache for performance optimization
+        self._archive_metadata_cache: dict[str, dict[str, dict[str, Any]]] = {}
 
     @staticmethod
     def _ensure_storage_path(storage_path: str) -> None:
@@ -773,12 +776,18 @@ class IngestionService:
         except Exception as e:
             # If query fails, log warning but allow processing to continue
             # This ensures ingestion doesn't fail due to temporary document store issues
+            # However, we report the error prominently via metrics and error reporting
             self.logger.warning(
-                "Failed to check if archive already stored",
+                "Failed to check if archive already stored - processing may result in duplicates",
                 error=str(e),
                 file_hash=file_hash,
                 exc_info=True,
             )
+            
+            # Increment metric for document store query failures to make silent failures visible
+            if self.metrics:
+                self.metrics.increment("ingestion.deduplication_check_failed")
+            
             if self.error_reporter:
                 self.error_reporter.report(
                     e,
@@ -822,11 +831,8 @@ class IngestionService:
             # Get archive metadata from ArchiveStore
             archive_metadata = None
             if self.archive_store:
-                # Lazily initialize per-source in-memory cache to avoid repeated
+                # Use per-source in-memory cache (initialized in __init__) to avoid repeated
                 # list_archives calls when processing multiple archives for a source.
-                if not hasattr(self, "_archive_metadata_cache"):
-                    self._archive_metadata_cache = {}
-
                 archive_lookup = self._archive_metadata_cache.get(source.name)
                 if archive_lookup is None:
                     archives = self.archive_store.list_archives(source.name)

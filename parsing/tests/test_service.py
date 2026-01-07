@@ -30,8 +30,10 @@ def prepare_archive_for_processing(archive_store, file_path, archive_id=None):
     Args:
         archive_store: ArchiveStore instance
         file_path: Path to the mbox file to store
-        archive_id: Optional custom archive_id - if provided, will be used in the returned
-                   data but may not match what's actually in the store (for testing error cases)
+        archive_id: Optional custom archive_id. WARNING: If provided and it does not match
+                   the ID returned by the archive store, the store's ID will be used to avoid
+                   mismatches between returned data and stored archives. Use archive_id=None
+                   for normal tests; only provide a custom ID for error case testing.
     
     Returns:
         dict: Storage-agnostic archive_data suitable for process_archive()
@@ -46,8 +48,18 @@ def prepare_archive_for_processing(archive_store, file_path, archive_id=None):
         content=content,
     )
     
-    # Use the provided ID if given (for tests), otherwise use the actual one
-    result_archive_id = archive_id if archive_id is not None else actual_archive_id
+    # Ensure the archive_id in returned data matches what is stored
+    if archive_id is not None and archive_id != actual_archive_id:
+        import logging
+        logging.warning(
+            "prepare_archive_for_processing: provided archive_id %s does not "
+            "match stored archive_id %s; using stored ID instead",
+            archive_id,
+            actual_archive_id,
+        )
+        result_archive_id = actual_archive_id
+    else:
+        result_archive_id = archive_id if archive_id is not None else actual_archive_id
     
     return {
         "archive_id": result_archive_id,
@@ -114,9 +126,9 @@ class TestParsingService:
         # Set env var for ArchiveStore path to use temp directory
         import os
         old_path = os.environ.get("ARCHIVE_STORE_PATH")
-        os.environ["ARCHIVE_STORE_PATH"] = temp_dir
         
         try:
+            os.environ["ARCHIVE_STORE_PATH"] = temp_dir
             service = ParsingService(
                 document_store=document_store,
                 publisher=publisher,
@@ -136,9 +148,9 @@ class TestParsingService:
         """Create a parsing service with mocked dependencies."""
         import os
         old_path = os.environ.get("ARCHIVE_STORE_PATH")
-        os.environ["ARCHIVE_STORE_PATH"] = temp_dir
         
         try:
+            os.environ["ARCHIVE_STORE_PATH"] = temp_dir
             store = Mock(spec=DocumentStore)
             publisher = Mock(spec=EventPublisher)
             subscriber = Mock(spec=EventSubscriber)
