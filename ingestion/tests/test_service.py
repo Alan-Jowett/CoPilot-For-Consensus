@@ -740,8 +740,9 @@ def test_archive_ingested_event_without_file_path():
         for event_wrapper in success_events:
             event = event_wrapper["event"]
             # file_path should NOT be in the event data (storage-agnostic design)
-            assert "file_path" not in event["data"], \
+            assert "file_path" not in event["data"], (
                 "ArchiveIngested events should not include file_path for storage-agnostic design"
+            )
             # But archive_id, source_name, etc. should be present
             assert "archive_id" in event["data"]
             assert "source_name" in event["data"]

@@ -721,8 +721,9 @@ class ParsingService:
             error_type: Error type
             messages_parsed_before_failure: Partial progress
         """
-        # Use placeholder for file_path if not provided (storage-agnostic backends)
-        # This maintains compatibility with the event schema while not requiring a real path
+        # Use archive:// URI placeholder for file_path if not provided (storage-agnostic backends).
+        # This is not a resolvable URI - it's a placeholder format: archive://{archive_id}
+        # that uniquely identifies the archive without requiring a filesystem path.
         event_file_path = file_path if file_path else f"archive://{archive_id}"
 
         event = ParsingFailedEvent(
