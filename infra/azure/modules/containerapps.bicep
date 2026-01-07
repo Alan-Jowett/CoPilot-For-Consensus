@@ -498,8 +498,8 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '/data/raw_archives'
             }
             {
-              name: 'ARCHIVE_STORE_CONNECTION_STRING'
-              value: ''
+              name: 'ARCHIVE_STORE_ACCOUNT_NAME'
+              value: storageAccountName
             }
             {
               name: 'ARCHIVE_STORE_CONTAINER'
@@ -642,8 +642,8 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '/data/raw_archives'
             }
             {
-              name: 'ARCHIVE_STORE_CONNECTION_STRING'
-              value: ''
+              name: 'ARCHIVE_STORE_ACCOUNT_NAME'
+              value: storageAccountName
             }
             {
               name: 'ARCHIVE_STORE_CONTAINER'

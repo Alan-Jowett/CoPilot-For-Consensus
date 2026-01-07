@@ -235,6 +235,7 @@ def main():
             subscriber=subscriber,
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
+            config=config,
         )
 
         # Start subscriber in a separate thread (non-daemon to fail fast)

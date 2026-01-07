@@ -32,8 +32,8 @@ class AzureCosmosDocumentStore(DocumentStore):
 
     def __init__(
         self,
-        endpoint: str = None,
-        key: str = None,
+        endpoint: str | None = None,
+        key: str | None = None,
         database: str = "copilot",
         container: str = "documents",
         partition_key: str = "/collection",
@@ -42,13 +42,21 @@ class AzureCosmosDocumentStore(DocumentStore):
         """Initialize Azure Cosmos DB document store.
 
         Args:
-            endpoint: Cosmos DB endpoint URL (e.g., https://myaccount.documents.azure.com:443/)
-            key: Cosmos DB account key (optional; if None, managed identity via DefaultAzureCredential will be used)
-            database: Database name
-            container: Container name
+            endpoint: Cosmos DB endpoint URL (e.g., https://myaccount.documents.azure.com:443/).
+                     Required parameter.
+            key: Cosmos DB account key (optional; if None, managed identity via DefaultAzureCredential will be used).
+                 Either key or managed identity support required.
+            database: Database name (default: "copilot")
+            container: Container name (default: "documents")
             partition_key: Partition key path (default: /collection)
             **kwargs: Additional Cosmos client options (e.g., connection_timeout, request_timeout)
+
+        Raises:
+            ValueError: If endpoint is not provided
         """
+        if not endpoint:
+            raise ValueError("endpoint is required for AzureCosmosDocumentStore")
+
         self.endpoint = endpoint
         self.key = key
         self.database_name = database

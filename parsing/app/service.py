@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from copilot_archive_store import ArchiveStore, create_archive_store
+from copilot_config import load_typed_config
 from copilot_events import (
     ArchiveIngestedEvent,
     EventPublisher,
@@ -43,6 +44,7 @@ class ParsingService:
         error_reporter: ErrorReporter | None = None,
         archive_store: ArchiveStore | None = None,
         archive_store_type: str = None,
+        config: Any | None = None,
     ):
         """Initialize parsing service.
 
@@ -53,8 +55,8 @@ class ParsingService:
             metrics_collector: Metrics collector (optional)
             error_reporter: Error reporter (optional)
             archive_store: Archive store for retrieving raw archives (optional, will be created if None)
-            archive_store_type: Type of archive store to create if archive_store is None
-                               (defaults to ARCHIVE_STORE_TYPE env var or "local")
+            archive_store_type: Optional override for archive store type (defaults to validated config)
+            config: Validated parsing configuration (loaded via copilot_config when omitted)
         """
         self.document_store = document_store
         self.publisher = publisher
@@ -62,26 +64,34 @@ class ParsingService:
         self.metrics_collector = metrics_collector
         self.error_reporter = error_reporter
 
+        # Always load validated configuration (either provided or via adapter)
+        self.config = config or load_typed_config("parsing")
+
         # Initialize ArchiveStore
         if archive_store is None:
+            resolved_archive_store_type = archive_store_type or self.config.archive_store_type
             try:
-                if archive_store_type is None:
-                    archive_store_type = os.getenv("ARCHIVE_STORE_TYPE", "local")
-                
-                # Get base path and connection settings for archive store
-                archive_store_base_path = os.getenv("ARCHIVE_STORE_PATH", "/data/raw_archives")
-                archive_store_connection_string = os.getenv("ARCHIVE_STORE_CONNECTION_STRING")
-                archive_store_container = os.getenv("ARCHIVE_STORE_CONTAINER", "raw-archives")
+                archive_store_base_path = self.config.archive_store_path
+                archive_store_connection_string = getattr(
+                    self.config,
+                    "archive_store_connection_string",
+                    None,
+                ) or None
+                archive_store_container = getattr(
+                    self.config,
+                    "archive_store_container",
+                    None,
+                ) or "raw-archives"
 
                 self.archive_store = create_archive_store(
-                    store_type=archive_store_type,
+                    store_type=resolved_archive_store_type,
                     base_path=archive_store_base_path,
                     connection_string=archive_store_connection_string,
                     container_name=archive_store_container,
                 )
                 logger.info(
                     "Initialized ArchiveStore",
-                    store_type=archive_store_type,
+                    store_type=resolved_archive_store_type,
                     base_path=archive_store_base_path,
                     container=archive_store_container,
                 )
@@ -92,7 +102,7 @@ class ParsingService:
                         e,
                         context={
                             "operation": "initialize_archive_store",
-                            "store_type": archive_store_type,
+                            "store_type": resolved_archive_store_type,
                         }
                     )
                 raise

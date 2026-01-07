@@ -40,25 +40,26 @@ class EventPublisher(ABC):
 
 
 def create_publisher(
-    message_bus_type: str = "rabbitmq",
-    host: str = "localhost",
-    port: int = 5672,
-    username: str = "guest",
-    password: str = "guest",
+    message_bus_type: str | None = None,
+    host: str | None = None,
+    port: int | None = None,
+    username: str | None = None,
+    password: str | None = None,
     **kwargs: Any
 ) -> EventPublisher:
     """Factory function to create an event publisher.
 
     Args:
-        message_bus_type: Type of message bus ("rabbitmq", "azureservicebus", or "noop")
-        host: Message bus host (for RabbitMQ)
-        port: Message bus port (for RabbitMQ)
-        username: Message bus username (for RabbitMQ)
-        password: Message bus password (for RabbitMQ)
+        message_bus_type: Type of message bus ("rabbitmq", "azureservicebus", or "noop").
+                         Required parameter - must be explicitly provided.
+        host: Message bus host (required for RabbitMQ)
+        port: Message bus port (required for RabbitMQ)
+        username: Message bus username (required for RabbitMQ)
+        password: Message bus password (required for RabbitMQ)
         **kwargs: Additional publisher-specific arguments
             For Azure Service Bus:
-                - connection_string: Azure Service Bus connection string
-                - fully_qualified_namespace: Namespace hostname (for managed identity)
+                - connection_string: Azure Service Bus connection string (required if using connection string auth)
+                - fully_qualified_namespace: Namespace hostname (required if using managed identity)
                 - queue_name: Default queue name
                 - topic_name: Default topic name
                 - use_managed_identity: Use Azure managed identity (default: False)
@@ -67,8 +68,13 @@ def create_publisher(
         EventPublisher instance
 
     Raises:
+        ValueError: If message_bus_type is not provided
+        ValueError: If required parameters are missing for the specified message bus type
         ValueError: If message_bus_type is not recognized
     """
+    if not message_bus_type:
+        raise ValueError("message_bus_type is required for create_publisher (choose: 'rabbitmq', 'azureservicebus', or 'noop')")
+
     if message_bus_type == "rabbitmq":
         from .rabbitmq_publisher import RabbitMQPublisher
         return RabbitMQPublisher(

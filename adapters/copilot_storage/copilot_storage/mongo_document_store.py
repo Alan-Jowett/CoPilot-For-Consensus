@@ -22,23 +22,42 @@ class MongoDocumentStore(DocumentStore):
 
     def __init__(
         self,
-        host: str = "localhost",
-        port: int = 27017,
+        host: str = None,
+        port: int = None,
         username: str | None = None,
         password: str | None = None,
-        database: str = "copilot",
+        database: str = None,
         **kwargs
     ):
         """Initialize MongoDB document store.
 
         Args:
-            host: MongoDB host
-            port: MongoDB port
+            host: MongoDB host (required)
+            port: MongoDB port (required)
             username: MongoDB username (optional)
             password: MongoDB password (optional)
-            database: Database name
+            database: Database name (required)
             **kwargs: Additional MongoDB client options
+
+        Raises:
+            ValueError: If required parameters (host, port, database) are not provided
         """
+        if not host:
+            raise ValueError(
+                "MongoDB host is required. "
+                "Provide the MongoDB server hostname or IP address."
+            )
+        if not port:
+            raise ValueError(
+                "MongoDB port is required. "
+                "Provide the MongoDB server port number."
+            )
+        if not database:
+            raise ValueError(
+                "MongoDB database is required. "
+                "Provide the database name to use."
+            )
+
         self.host = host
         self.port = port
         self.username = username

@@ -23,10 +23,10 @@ class RabbitMQPublisher(EventPublisher):
 
     def __init__(
         self,
-        host: str = "localhost",
-        port: int = 5672,
-        username: str = "guest",
-        password: str = "guest",
+        host: str = None,
+        port: int = None,
+        username: str = None,
+        password: str = None,
         exchange: str = "copilot.events",
         exchange_type: str = "topic",
         enable_publisher_confirms: bool = True,
@@ -36,16 +36,40 @@ class RabbitMQPublisher(EventPublisher):
         """Initialize RabbitMQ publisher.
 
         Args:
-            host: RabbitMQ host
-            port: RabbitMQ port
-            username: RabbitMQ username
-            password: RabbitMQ password
+            host: RabbitMQ host (required)
+            port: RabbitMQ port (required)
+            username: RabbitMQ username (required)
+            password: RabbitMQ password (required)
             exchange: Default exchange name
             exchange_type: Exchange type (topic, direct, fanout, headers)
             enable_publisher_confirms: Enable publisher confirms for guaranteed delivery
             max_reconnect_attempts: Maximum number of reconnection attempts
             reconnect_delay: Delay between reconnection attempts in seconds
+
+        Raises:
+            ValueError: If required parameters (host, port, username, password) are not provided
         """
+        if not host:
+            raise ValueError(
+                "RabbitMQ host is required. "
+                "Provide the RabbitMQ server hostname or IP address."
+            )
+        if not port:
+            raise ValueError(
+                "RabbitMQ port is required. "
+                "Provide the RabbitMQ server port number."
+            )
+        if not username:
+            raise ValueError(
+                "RabbitMQ username is required. "
+                "Provide the username for authentication."
+            )
+        if not password:
+            raise ValueError(
+                "RabbitMQ password is required. "
+                "Provide the password for authentication."
+            )
+
         self.host = host
         self.port = port
         self.username = username

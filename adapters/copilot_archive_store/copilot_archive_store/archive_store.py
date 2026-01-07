@@ -137,36 +137,30 @@ class ArchiveStore(ABC):
         pass
 
 
-def create_archive_store(store_type: str = None, **kwargs) -> ArchiveStore:
+def create_archive_store(store_type: str | None = None, **kwargs) -> ArchiveStore:
     """Factory function to create an archive store instance.
 
     Args:
         store_type: Type of archive store ("local", "mongodb", "azure_blob", "s3").
-                   If None, reads from ARCHIVE_STORE_TYPE environment variable
-                   (defaults to "local" for backward compatibility)
+                   Required parameter - must be explicitly provided.
         **kwargs: Additional store-specific arguments
 
     Returns:
         ArchiveStore instance
 
     Raises:
+        ValueError: If store_type is not provided
         ValueError: If store_type is not recognized
 
     Examples:
-        # Local volume storage (default)
+        # Local volume storage
         >>> store = create_archive_store("local", base_path="/data/raw_archives")
 
         # MongoDB storage
         >>> store = create_archive_store("mongodb", host="documentdb", port=27017)
-
-        # Auto-detect from environment
-        >>> store = create_archive_store()  # Uses ARCHIVE_STORE_TYPE env var
     """
-    import os
-
-    # Auto-detect store type from environment if not provided
-    if store_type is None:
-        store_type = os.getenv("ARCHIVE_STORE_TYPE", "local")
+    if not store_type:
+        raise ValueError("store_type is required for create_archive_store (choose: 'local', 'mongodb', 'azure_blob', or 's3')")
 
     if store_type == "local":
         from .local_volume_archive_store import LocalVolumeArchiveStore

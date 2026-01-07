@@ -56,7 +56,9 @@ class AzureMonitorMetricsCollector(MetricsCollector):
         """Initialize Azure Monitor metrics collector.
 
         Args:
-            connection_string: Azure Monitor connection string (or use env var)
+            connection_string: Azure Monitor connection string (required).
+                              Can be a full connection string or InstrumentationKey=<key> format.
+                              Must be provided explicitly (no env var fallback).
             namespace: Namespace prefix for all metrics (default: "copilot")
             export_interval_millis: Export interval in milliseconds (default: 60000)
             raise_on_error: If True, raise exceptions on metric errors (useful for testing).
@@ -64,7 +66,7 @@ class AzureMonitorMetricsCollector(MetricsCollector):
 
         Raises:
             ImportError: If required Azure Monitor packages are not installed
-            ValueError: If connection string is not provided
+            ValueError: If connection_string is not provided
         """
         if not AZURE_MONITOR_AVAILABLE:
             raise ImportError(
@@ -72,27 +74,18 @@ class AzureMonitorMetricsCollector(MetricsCollector):
                 "Install with: pip install azure-monitor-opentelemetry-exporter opentelemetry-sdk"
             )
 
-        # Get connection string from parameter or environment
-        self.connection_string = connection_string or os.getenv("AZURE_MONITOR_CONNECTION_STRING")
-
-        # Fallback to instrumentation key if connection string not provided
-        if not self.connection_string:
-            instrumentation_key = os.getenv("AZURE_MONITOR_INSTRUMENTATION_KEY")
-            if instrumentation_key:
-                self.connection_string = f"InstrumentationKey={instrumentation_key}"
-
-        if not self.connection_string:
+        if not connection_string:
             raise ValueError(
-                "Azure Monitor connection string is required. "
-                "Set AZURE_MONITOR_CONNECTION_STRING or AZURE_MONITOR_INSTRUMENTATION_KEY environment variable, "
-                "or pass connection_string parameter."
+                "Azure Monitor connection_string is required for AzureMonitorMetricsCollector. "
+                "Pass connection_string parameter explicitly."
             )
 
-        self.namespace = namespace or os.getenv("AZURE_MONITOR_METRIC_NAMESPACE", "copilot")
+        self.connection_string = connection_string
+        self.namespace = namespace or "copilot"
         self.raise_on_error = raise_on_error
         self._metrics_errors_count = 0
 
-        # Configure export interval from parameter or environment
+        # Configure export interval from parameter
         export_interval_env = os.getenv("AZURE_MONITOR_EXPORT_INTERVAL_MILLIS")
         if export_interval_env:
             try:

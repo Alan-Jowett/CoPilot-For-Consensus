@@ -65,10 +65,11 @@ def create_subscriber(
     Args:
         message_bus_type: Type of message bus ("rabbitmq", "azureservicebus", or "noop")
         host: Message bus hostname (required for rabbitmq)
-        port: Message bus port (optional for rabbitmq)
-        username: Authentication username (optional for rabbitmq)
-        password: Authentication password (optional for rabbitmq)
+        port: Message bus port (required for rabbitmq)
+        username: Authentication username (required for rabbitmq)
+        password: Authentication password (required for rabbitmq)
         **kwargs: Additional subscriber-specific arguments
+            For RabbitMQ: exchange_name, exchange_type, queue_name, queue_durable, auto_ack
             For Azure Service Bus:
                 - connection_string: Azure Service Bus connection string
                 - fully_qualified_namespace: Namespace hostname (for managed identity)
@@ -83,20 +84,18 @@ def create_subscriber(
         EventSubscriber instance
 
     Raises:
+        ValueError: If required parameters for the message bus type are not provided
         ValueError: If message_bus_type is unknown
     """
     if message_bus_type == "rabbitmq":
-        if not host:
-            raise ValueError("host is required for rabbitmq subscriber")
         return RabbitMQSubscriber(
             host=host,
-            port=port or 5672,
-            username=username or "guest",
-            password=password or "guest",
+            port=port,
+            username=username,
+            password=password,
             **kwargs
         )
     elif message_bus_type == "azureservicebus":
-        from .azureservicebussubscriber import AzureServiceBusSubscriber
         return AzureServiceBusSubscriber(**kwargs)
     elif message_bus_type == "noop":
         return NoopSubscriber()

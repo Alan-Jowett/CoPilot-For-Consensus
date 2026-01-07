@@ -23,10 +23,10 @@ class RabbitMQSubscriber(EventSubscriber):
 
     def __init__(
         self,
-        host: str,
-        port: int = 5672,
-        username: str = "guest",
-        password: str = "guest",
+        host: str | None = None,
+        port: int | None = None,
+        username: str | None = None,
+        password: str | None = None,
         exchange_name: str = "copilot.events",
         exchange_type: str = "topic",
         queue_name: str | None = None,
@@ -36,16 +36,28 @@ class RabbitMQSubscriber(EventSubscriber):
         """Initialize RabbitMQ subscriber.
 
         Args:
-            host: RabbitMQ server hostname
-            port: RabbitMQ server port
-            username: Authentication username
-            password: Authentication password
+            host: RabbitMQ server hostname (required)
+            port: RabbitMQ server port (required)
+            username: Authentication username (required)
+            password: Authentication password (required)
             exchange_name: Name of the exchange to subscribe to
             exchange_type: Type of exchange (topic, direct, fanout)
             queue_name: Name of the queue (generated if None)
             queue_durable: Whether the queue survives broker restart
             auto_ack: Whether to automatically acknowledge messages
+
+        Raises:
+            ValueError: If host, port, username, or password is not provided
         """
+        if not host:
+            raise ValueError("host is required for RabbitMQ subscriber")
+        if port is None:
+            raise ValueError("port is required for RabbitMQ subscriber")
+        if not username:
+            raise ValueError("username is required for RabbitMQ subscriber")
+        if not password:
+            raise ValueError("password is required for RabbitMQ subscriber")
+
         self.host = host
         self.port = port
         self.username = username

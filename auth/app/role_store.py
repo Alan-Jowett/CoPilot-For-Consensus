@@ -39,9 +39,8 @@ class RoleStore:
         # For password/username, read directly from Docker secrets if available
         import os
 
-        # Helper to read from Docker secrets first, then environment variables
-        def get_secret_or_env(key_name: str, env_var: str) -> str | None:
-            # Try reading from Docker secrets first (mounted at /run/secrets/)
+        # Helper to read from Docker secrets only (no environment fallback)
+        def get_secret(key_name: str) -> str | None:
             secret_file = f"/run/secrets/{key_name}"
             if os.path.exists(secret_file):
                 try:
@@ -51,24 +50,20 @@ class RoleStore:
                             return content
                 except OSError as exc:
                     logger.warning(f"Failed to read Docker secret '{key_name}' from {secret_file}: {exc}")
-
-            # Fallback to environment variable
-            value = os.getenv(env_var)
-            # Only return if it's not empty string
-            return value if value else None
+            return None
 
         store_kwargs = {
-            "host": getattr(config, "role_store_host", None) or os.getenv("DOCUMENT_DATABASE_HOST"),
-            "port": getattr(config, "role_store_port", None) or os.getenv("DOCUMENT_DATABASE_PORT"),
+            "host": getattr(config, "role_store_host", None) or "documentdb",
+            "port": getattr(config, "role_store_port", None) or 27017,
             "username": (
                 getattr(config, "role_store_username", None)
-                or get_secret_or_env("document_database_user", "DOCUMENT_DATABASE_USER")
+                or get_secret("document_database_user")
             ),
             "password": (
                 getattr(config, "role_store_password", None)
-                or get_secret_or_env("document_database_password", "DOCUMENT_DATABASE_PASSWORD")
+                or get_secret("document_database_password")
             ),
-            "database": (getattr(config, "role_store_database", None) or os.getenv("DOCUMENT_DATABASE_NAME", "auth")),
+            "database": getattr(config, "role_store_database", None) or "auth",
         }
 
         # Convert port to int if it's a string
@@ -76,7 +71,7 @@ class RoleStore:
             if isinstance(store_kwargs["port"], str):
                 store_kwargs["port"] = int(store_kwargs["port"])
 
-        # Drop keys that are None or 0 (for port) to allow copilot_storage env defaults
+        # Drop keys that are None or 0 (for port) to allow copilot_storage defaults
         store_kwargs = {k: v for k, v in store_kwargs.items() if v is not None and (k != "port" or v != 0)}
 
         base_store: DocumentStore = create_document_store(

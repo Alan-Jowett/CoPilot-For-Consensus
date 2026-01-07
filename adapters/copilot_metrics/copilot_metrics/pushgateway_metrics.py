@@ -35,22 +35,41 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
         grouping_key: dict[str, str] | None = None,
         **kwargs,
     ) -> None:
+        """Initialize Prometheus Pushgateway metrics collector.
+
+        Args:
+            gateway: Pushgateway URL (e.g., "pushgateway:9091" or "http://pushgateway:9091")
+                     Required parameter
+            job: Job name for metrics (e.g., "ingestion", "orchestrator")
+                 Required parameter
+            grouping_key: Optional grouping key dict for metric grouping
+            **kwargs: Additional arguments passed to PrometheusMetricsCollector
+
+        Raises:
+            ImportError: If prometheus_client is not installed
+            ValueError: If gateway or job is not provided
+        """
         if not PROMETHEUS_AVAILABLE:
             raise ImportError(
                 "prometheus_client is required for PrometheusPushGatewayMetricsCollector. "
                 "Install with: pip install prometheus-client"
             )
 
+        if not gateway:
+            raise ValueError("gateway is required for PrometheusPushGatewayMetricsCollector")
+        if not job:
+            raise ValueError("job is required for PrometheusPushGatewayMetricsCollector")
+
         # Use a dedicated registry by default to keep pushed metrics scoped
         registry = kwargs.pop("registry", CollectorRegistry())
 
         super().__init__(registry=registry, **kwargs)
 
-        self.gateway = gateway or os.getenv("PROMETHEUS_PUSHGATEWAY", "pushgateway:9091")
+        self.gateway = gateway
         if not self.gateway.startswith("http"):
             self.gateway = f"http://{self.gateway}"
 
-        self.job = job or os.getenv("METRICS_JOB_NAME", "ingestion")
+        self.job = job
         self.grouping_key = grouping_key or {}
 
     def push(self) -> None:

@@ -8,7 +8,6 @@ adopt the ArchiveStore pattern incrementally without breaking existing
 functionality.
 """
 
-import os
 from pathlib import Path
 
 from .archive_store import ArchiveStore, create_archive_store
@@ -34,23 +33,14 @@ class ArchiveAccessor:
         """Initialize archive accessor.
 
         Args:
-            archive_store: Optional ArchiveStore instance. If None, attempts to create
-                          one from environment variables.
+            archive_store: Optional ArchiveStore instance. If None, archive-store lookups are disabled.
             enable_fallback: If True, falls back to direct file access when archive
                            store access fails. Default True for backward compatibility.
         """
         self.enable_fallback = enable_fallback
 
-        # Try to initialize archive store
-        try:
-            if archive_store is None:
-                # Auto-detect from environment
-                self.archive_store = create_archive_store()
-            else:
-                self.archive_store = archive_store
-        except Exception:
-            # If archive store initialization fails, disable it
-            self.archive_store = None
+        # Use provided archive store only; do not auto-create from environment
+        self.archive_store = archive_store
 
     def get_archive_content(
         self,
@@ -148,7 +138,6 @@ def create_archive_accessor(
 
     Args:
         store_type: Type of archive store ("local", "mongodb", etc.)
-                   If None, reads from ARCHIVE_STORE_TYPE environment variable
         enable_fallback: Enable fallback to direct file access
         **kwargs: Additional arguments passed to archive store creation
 
@@ -156,24 +145,16 @@ def create_archive_accessor(
         Configured ArchiveAccessor instance
 
     Example:
-        >>> # Auto-detect from environment
-        >>> accessor = create_archive_accessor()
-
         >>> # Explicit configuration
         >>> accessor = create_archive_accessor(
         ...     store_type="local",
         ...     base_path="/data/raw_archives"
         ... )
     """
-    try:
-        if store_type is not None or os.getenv("ARCHIVE_STORE_TYPE"):
-            archive_store = create_archive_store(store_type=store_type, **kwargs)
-        else:
-            # No store type configured, use None (file-only mode)
-            archive_store = None
-    except Exception:
-        # If creation fails, use None (file-only mode)
-        archive_store = None
+    archive_store = None
+    if store_type is not None:
+        # Fail fast if creation fails instead of silently disabling archive store usage
+        archive_store = create_archive_store(store_type=store_type, **kwargs)
 
     return ArchiveAccessor(
         archive_store=archive_store,

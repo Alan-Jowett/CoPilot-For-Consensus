@@ -122,29 +122,26 @@ class DocumentStore(ABC):
 
 
 def create_document_store(
-    store_type: str = None,
+    store_type: str | None = None,
     **kwargs
 ) -> DocumentStore:
     """Factory function to create a document store.
 
     Args:
         store_type: Type of document store ("mongodb", "azurecosmos", "cosmos", "inmemory").
-                   If None, reads from DOCUMENT_STORE_TYPE environment variable (defaults to "inmemory")
-                   Note: "cosmos" is an alias for "azurecosmos"
-        **kwargs: Additional store-specific arguments. For MongoDB and Azure Cosmos, if not provided,
-                 will read from corresponding environment variables.
+               Required parameter - must be explicitly provided.
+               Note: "cosmos" is an alias for "azurecosmos"
+        **kwargs: Additional store-specific arguments.
 
     Returns:
         DocumentStore instance
 
     Raises:
+        ValueError: If store_type is not provided
         ValueError: If store_type is not recognized
     """
-    import os
-
-    # Auto-detect store type from environment if not provided
-    if store_type is None:
-        store_type = os.getenv("DOCUMENT_STORE_TYPE", "inmemory")
+    if not store_type:
+        raise ValueError("store_type is required for create_document_store (choose: 'mongodb', 'azurecosmos', 'cosmos', or 'inmemory')")
 
     # Normalize store type: "cosmos" is an alias for "azurecosmos"
     if store_type == "cosmos":
@@ -153,43 +150,26 @@ def create_document_store(
     if store_type == "mongodb":
         from .mongo_document_store import MongoDocumentStore
 
-        # Build kwargs with environment variable fallback for individual parameters
-        # Explicit parameters take precedence over environment variables
+        # Build kwargs with caller-provided values (no defaults - let adapter validate)
         mongo_kwargs = {}
 
-        # Host - use provided value or environment variable
+        # Host - use provided value only
         if "host" in kwargs:
             mongo_kwargs["host"] = kwargs["host"]
-        else:
-            mongo_kwargs["host"] = os.getenv("DOCUMENT_DATABASE_HOST", "localhost")
 
-        # Port - use provided value or environment variable
+        # Port - use provided value only
         if "port" in kwargs:
             mongo_kwargs["port"] = kwargs["port"]
-        else:
-            mongo_kwargs["port"] = int(os.getenv("DOCUMENT_DATABASE_PORT", "27017"))
 
-        # Database - use provided value or environment variable
+        # Database - use provided value only
         if "database" in kwargs:
             mongo_kwargs["database"] = kwargs["database"]
-        else:
-            mongo_kwargs["database"] = os.getenv("DOCUMENT_DATABASE_NAME", "copilot")
 
-        # Username - use provided value or environment variable (only if set)
+        # Username/password - use provided values if present
         if "username" in kwargs:
             mongo_kwargs["username"] = kwargs["username"]
-        else:
-            doc_db_user = os.getenv("DOCUMENT_DATABASE_USER")
-            if doc_db_user is not None:
-                mongo_kwargs["username"] = doc_db_user
-
-        # Password - use provided value or environment variable (only if set)
         if "password" in kwargs:
             mongo_kwargs["password"] = kwargs["password"]
-        else:
-            doc_db_password = os.getenv("DOCUMENT_DATABASE_PASSWORD")
-            if doc_db_password is not None:
-                mongo_kwargs["password"] = doc_db_password
 
         # Pass any other kwargs that aren't MongoDB-specific
         for key, value in kwargs.items():
@@ -200,41 +180,38 @@ def create_document_store(
     elif store_type == "azurecosmos":
         from .azure_cosmos_document_store import AzureCosmosDocumentStore
 
-        # Build kwargs with environment variable fallback for individual parameters
-        # Explicit parameters take precedence over environment variables
+        # Build kwargs with caller-provided values or safe defaults
         cosmos_kwargs = {}
 
-        # Endpoint - use provided value or environment variable
+        # Endpoint - use provided value only
         if "endpoint" in kwargs:
             cosmos_kwargs["endpoint"] = kwargs["endpoint"]
-        else:
-            # Check both COSMOS_ENDPOINT and COSMOS_DB_ENDPOINT (Azure infra uses the latter)
-            cosmos_kwargs["endpoint"] = os.getenv("COSMOS_ENDPOINT") or os.getenv("COSMOS_DB_ENDPOINT")
 
-        # Key - use provided value or environment variable
+        # Key - use provided value only
         if "key" in kwargs:
             cosmos_kwargs["key"] = kwargs["key"]
-        else:
-            # Check both COSMOS_KEY and COSMOS_DB_KEY (Azure infra uses the latter)
-            cosmos_kwargs["key"] = os.getenv("COSMOS_KEY") or os.getenv("COSMOS_DB_KEY")
 
-        # Database - use provided value or environment variable
+        # Database - use provided value or default
         if "database" in kwargs:
             cosmos_kwargs["database"] = kwargs["database"]
         else:
-            cosmos_kwargs["database"] = os.getenv("COSMOS_DATABASE", "copilot")
+            cosmos_kwargs["database"] = "copilot"
 
-        # Container - use provided value or environment variable
+        # Container - use provided value or default
         if "container" in kwargs:
             cosmos_kwargs["container"] = kwargs["container"]
         else:
-            cosmos_kwargs["container"] = os.getenv("COSMOS_CONTAINER", "documents")
+            cosmos_kwargs["container"] = "documents"
 
-        # Partition key - use provided value or environment variable
+        # Partition key - use provided value or default
         if "partition_key" in kwargs:
             cosmos_kwargs["partition_key"] = kwargs["partition_key"]
         else:
-            cosmos_kwargs["partition_key"] = os.getenv("COSMOS_PARTITION_KEY", "/collection")
+            cosmos_kwargs["partition_key"] = "/collection"
+
+        # Validate required parameters
+        if not cosmos_kwargs.get("endpoint") or not cosmos_kwargs.get("key"):
+            raise ValueError("Azure Cosmos configuration requires 'endpoint' and 'key'")
 
         # Pass any other kwargs that aren't Cosmos-specific or MongoDB-specific
         # MongoDB-specific parameters (host, port, username, password) should be filtered out

@@ -49,36 +49,8 @@ def test_create_archive_store_local():
 
 
 def test_create_archive_store_default(tmp_path):
-    """Test factory defaults to local store."""
-    import os
-    # Temporarily remove env var if set
-    old_value = os.environ.get("ARCHIVE_STORE_TYPE")
-    old_path = os.environ.get("ARCHIVE_STORE_PATH")
-    if "ARCHIVE_STORE_TYPE" in os.environ:
-        del os.environ["ARCHIVE_STORE_TYPE"]
-
-    try:
-        # Set a temporary path to avoid permission issues
-        os.environ["ARCHIVE_STORE_PATH"] = str(tmp_path)
-        store = create_archive_store()
-        assert store is not None
-        from copilot_archive_store import LocalVolumeArchiveStore
-        assert isinstance(store, LocalVolumeArchiveStore)
-    finally:
-        # Restore env vars
-        if old_value is not None:
-            os.environ["ARCHIVE_STORE_TYPE"] = old_value
-        if old_path is not None:
-            os.environ["ARCHIVE_STORE_PATH"] = old_path
-        elif "ARCHIVE_STORE_PATH" in os.environ:
-            del os.environ["ARCHIVE_STORE_PATH"]
-
-
-def test_create_archive_store_from_env(monkeypatch, tmp_path):
-    """Test factory reads from environment variable."""
-    monkeypatch.setenv("ARCHIVE_STORE_TYPE", "local")
-    monkeypatch.setenv("ARCHIVE_STORE_PATH", str(tmp_path))
-    store = create_archive_store()
+    """Test factory defaults to local store with constant defaults."""
+    store = create_archive_store(base_path=str(tmp_path))
     assert store is not None
     from copilot_archive_store import LocalVolumeArchiveStore
     assert isinstance(store, LocalVolumeArchiveStore)
