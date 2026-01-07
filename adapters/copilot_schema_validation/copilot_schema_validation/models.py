@@ -418,12 +418,17 @@ class ArchiveMetadata:
         source_name: Source identifier (e.g., "ietf-quic")
         source_type: Archive source type (e.g., "rsync")
         source_url: URL or path to original archive
-        file_path: Original file path (for logging/auditing purposes only)
+        file_path: Original fetched file path (used only for audit logging, not for storage location)
         file_size_bytes: Size of archive file in bytes
         file_hash_sha256: SHA256 hash of archive file
         ingestion_started_at: When ingestion began (ISO 8601)
         ingestion_completed_at: When ingestion completed (ISO 8601)
         status: Status of ingestion ("success" or "failed")
+    
+    Note:
+        The file_path field represents the temporary location where the file was
+        initially fetched, used for logging only. Archive retrieval uses archive_id
+        with ArchiveStore, which is storage-backend agnostic.
     """
     archive_id: str
     source_name: str
