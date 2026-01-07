@@ -950,11 +950,9 @@ class IngestionService:
         Raises:
             Exception: Re-raises any exception from publisher to ensure visibility
         """
-        # Convert metadata to dict and remove status and file_path fields
-        # file_path is removed to make the event storage-agnostic
+        # Convert metadata to dict and remove status (not part of event schema)
         event_data = metadata.to_dict()
         event_data.pop('status', None)  # Remove status field if present
-        event_data.pop('file_path', None)  # Remove file_path - not storage-agnostic
 
         try:
             event = ArchiveIngestedEvent(data=event_data)
