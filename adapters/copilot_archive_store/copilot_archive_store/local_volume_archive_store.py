@@ -46,8 +46,8 @@ class LocalVolumeArchiveStore(ArchiveStore):
             self.base_path.mkdir(parents=True, exist_ok=True)
             self.metadata_path.parent.mkdir(parents=True, exist_ok=True)
         except OSError as e:
-            # Check if failure is due to read-only filesystem (EROFS = 30 on Linux)
-            if e.errno in (errno.EROFS, 30):
+            # Check if failure is due to read-only filesystem
+            if e.errno == errno.EROFS:
                 # Read-only filesystem: acceptable for services that only read archives
                 self._read_only = True
                 logging.info(f"ArchiveStore initialized in read-only mode: {e}")
