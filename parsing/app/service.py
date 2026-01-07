@@ -82,12 +82,18 @@ class ParsingService:
                     self.config,
                     "archive_store_connection_string",
                     None,
-                ) or None
+                )
                 archive_store_account_name = getattr(
                     self.config,
                     "archive_store_account_name",
                     None,
-                ) or None
+                )
+
+                # Normalize empty strings to None to align with ingestion service behavior
+                if archive_store_connection_string == "":
+                    archive_store_connection_string = None
+                if archive_store_account_name == "":
+                    archive_store_account_name = None
                 archive_store_container = getattr(
                     self.config,
                     "archive_store_container",
@@ -99,11 +105,11 @@ class ParsingService:
                 if resolved_archive_store_type == "local":
                     store_kwargs = {"base_path": archive_store_base_path}
                 elif resolved_archive_store_type == "azure_blob":
-                    if archive_store_connection_string and archive_store_account_name:
+                    if archive_store_connection_string is not None and archive_store_account_name is not None:
                         raise ValueError(
                             "Provide either archive_store_connection_string or archive_store_account_name, not both."
                         )
-                    if not archive_store_connection_string and not archive_store_account_name:
+                    if archive_store_connection_string is None and archive_store_account_name is None:
                         raise ValueError(
                             "archive_store_connection_string or archive_store_account_name is required for azure_blob archive store."
                         )
@@ -111,9 +117,9 @@ class ParsingService:
                     store_kwargs = {
                         "container_name": archive_store_container,
                     }
-                    if archive_store_connection_string:
+                    if archive_store_connection_string is not None:
                         store_kwargs["connection_string"] = archive_store_connection_string
-                    if archive_store_account_name:
+                    if archive_store_account_name is not None:
                         store_kwargs["account_name"] = archive_store_account_name
                 elif resolved_archive_store_type == "mongodb":
                     store_kwargs = {}
