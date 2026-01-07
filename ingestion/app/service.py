@@ -786,7 +786,7 @@ class IngestionService:
             
             # Increment metric for document store query failures to make silent failures visible
             if self.metrics:
-                self.metrics.increment("ingestion.deduplication_check_failed")
+                self.metrics.increment("ingestion_deduplication_check_failed_total")
             
             if self.error_reporter:
                 self.error_reporter.report(

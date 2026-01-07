@@ -19,7 +19,12 @@ from .test_helpers import assert_valid_event_schema
 
 
 def create_test_archive_store():
-    """Create a test archive store with temporary directory."""
+    """Create a test archive store with temporary directory.
+    
+    Note: Returns ArchiveStore using a temp directory that will NOT be automatically
+    cleaned up. Tests should use this for short-lived stores or accept temp dir accumulation.
+    For production code, use TemporaryDirectory context manager.
+    """
     tmpdir = tempfile.mkdtemp()
     return LocalVolumeArchiveStore(base_path=tmpdir)
 
@@ -50,7 +55,6 @@ def prepare_archive_for_processing(archive_store, file_path, archive_id=None):
     
     # Ensure the archive_id in returned data matches what is stored
     if archive_id is not None and archive_id != actual_archive_id:
-        import logging
         logging.warning(
             "prepare_archive_for_processing: provided archive_id %s does not "
             "match stored archive_id %s; using stored ID instead",
@@ -123,49 +127,27 @@ class TestParsingService:
     @pytest.fixture
     def service(self, document_store, publisher, subscriber, temp_dir):
         """Create parsing service with temp directory for ArchiveStore."""
-        # Set env var for ArchiveStore path to use temp directory
-        import os
-        old_path = os.environ.get("ARCHIVE_STORE_PATH")
-        
-        try:
-            os.environ["ARCHIVE_STORE_PATH"] = temp_dir
-            service = ParsingService(
-                document_store=document_store,
-                publisher=publisher,
-                subscriber=subscriber,
+        service = ParsingService(
+            document_store=document_store,
+            publisher=publisher,
+            subscriber=subscriber,
             archive_store=create_test_archive_store(),
         )
-            yield service
-        finally:
-            # Restore old env var
-            if old_path is None:
-                os.environ.pop("ARCHIVE_STORE_PATH", None)
-            else:
-                os.environ["ARCHIVE_STORE_PATH"] = old_path
+        yield service
 
     @pytest.fixture
     def mock_service(self, temp_dir):
         """Create a parsing service with mocked dependencies."""
-        import os
-        old_path = os.environ.get("ARCHIVE_STORE_PATH")
-        
-        try:
-            os.environ["ARCHIVE_STORE_PATH"] = temp_dir
-            store = Mock(spec=DocumentStore)
-            publisher = Mock(spec=EventPublisher)
-            subscriber = Mock(spec=EventSubscriber)
-            service = ParsingService(
-                document_store=store,
-                publisher=publisher,
-                subscriber=subscriber,
+        store = Mock(spec=DocumentStore)
+        publisher = Mock(spec=EventPublisher)
+        subscriber = Mock(spec=EventSubscriber)
+        service = ParsingService(
+            document_store=store,
+            publisher=publisher,
+            subscriber=subscriber,
             archive_store=create_test_archive_store(),
         )
-            yield service, store
-        finally:
-            if old_path is None:
-                os.environ.pop("ARCHIVE_STORE_PATH", None)
-            else:
-                os.environ["ARCHIVE_STORE_PATH"] = old_path
+        yield service, store
 
     def test_service_initialization(self, service):
         """Test service initialization."""

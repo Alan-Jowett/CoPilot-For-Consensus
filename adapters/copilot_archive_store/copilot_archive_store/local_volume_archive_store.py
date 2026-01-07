@@ -72,7 +72,7 @@ class LocalVolumeArchiveStore(ArchiveStore):
                 # Start with empty metadata if load fails
                 self._metadata = {}
                 # Log warning but don't fail initialization
-                logging.warning(f"Failed to load archive metadata: {e}")
+                self.logger.warning(f"Failed to load archive metadata: {e}")
 
     def _save_metadata(self) -> None:
         """Save metadata index to disk."""
