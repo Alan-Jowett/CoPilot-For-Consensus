@@ -33,24 +33,26 @@ from pydantic import BaseModel, Field
 # Configure structured JSON logging
 logger = create_logger(logger_type="stdout", level="INFO", name="auth")
 
-# Configure metrics
-metrics = create_metrics_collector(
-    backend=os.environ.get("METRICS_BACKEND", "noop"),
-    service_name="auth"
-)
-
 # Global service instance
 auth_service: AuthService | None = None
+
+# Global metrics instance
+metrics: Any | None = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage service lifecycle."""
     global auth_service
+    global metrics
 
     # Startup
     logger.info("Starting Authentication Service...")
     config = load_auth_config()
+    metrics = create_metrics_collector(
+        backend=config.metrics_backend,
+        service_name="auth"
+    )
     auth_service = AuthService(config=config)
     logger.info("Authentication Service started successfully")
 
