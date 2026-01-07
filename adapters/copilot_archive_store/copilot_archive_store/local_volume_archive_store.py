@@ -37,10 +37,18 @@ class LocalVolumeArchiveStore(ArchiveStore):
 
         self.base_path = Path(base_path)
         self.metadata_path = self.base_path / "metadata" / "archives.json"
+        self._read_only = False
 
-        # Ensure directories exist
-        self.base_path.mkdir(parents=True, exist_ok=True)
-        self.metadata_path.parent.mkdir(parents=True, exist_ok=True)
+        # Try to ensure directories exist (may fail in read-only mode)
+        try:
+            self.base_path.mkdir(parents=True, exist_ok=True)
+            self.metadata_path.parent.mkdir(parents=True, exist_ok=True)
+        except (OSError, PermissionError) as e:
+            # If we can't create directories, assume read-only mode
+            # This is acceptable if we're only reading archives (e.g., parsing service)
+            self._read_only = True
+            import logging
+            logging.info(f"ArchiveStore initialized in read-only mode: {e}")
 
         # Load metadata index
         self._metadata: dict[str, dict[str, Any]] = {}
@@ -61,6 +69,8 @@ class LocalVolumeArchiveStore(ArchiveStore):
 
     def _save_metadata(self) -> None:
         """Save metadata index to disk."""
+        if self._read_only:
+            raise ArchiveStoreError("Cannot save metadata: ArchiveStore is in read-only mode")
         try:
             with open(self.metadata_path, "w") as f:
                 json.dump(self._metadata, f, indent=2)
@@ -82,6 +92,9 @@ class LocalVolumeArchiveStore(ArchiveStore):
         Returns:
             Archive ID (first 16 chars of content hash)
         """
+        if self._read_only:
+            raise ArchiveStoreError("Cannot store archive: ArchiveStore is in read-only mode")
+        
         try:
             # Calculate content hash for deduplication and ID generation
             content_hash = self._calculate_hash(content)
@@ -180,6 +193,9 @@ class LocalVolumeArchiveStore(ArchiveStore):
         Returns:
             True if archive was deleted, False if not found
         """
+        if self._read_only:
+            raise ArchiveStoreError("Cannot delete archive: ArchiveStore is in read-only mode")
+        
         try:
             metadata = self._metadata.get(archive_id)
             if not metadata:
