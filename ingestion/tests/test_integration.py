@@ -287,7 +287,7 @@ class TestIngestionIntegration:
             assert "version" in event
             assert "data" in event
 
-            # Verify event data (schema-required fields, including file_path)
+            # Verify event data (schema-required fields including file_path per event schema)
             if event["event_type"] == "ArchiveIngested":
                 data = event["data"]
                 assert "archive_id" in data

@@ -71,8 +71,8 @@ class RoleStore:
             if isinstance(store_kwargs["port"], str):
                 store_kwargs["port"] = int(store_kwargs["port"])
 
-        # Drop keys that are None or 0 (for port) to allow copilot_storage defaults
-        store_kwargs = {k: v for k, v in store_kwargs.items() if v is not None and (k != "port" or v != 0)}
+        # Filter None values for optional username/password (required params have inline defaults)
+        store_kwargs = {k: v for k, v in store_kwargs.items() if v is not None}
 
         base_store: DocumentStore = create_document_store(
             store_type=getattr(config, "role_store_type", "mongodb"),
