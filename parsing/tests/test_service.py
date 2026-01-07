@@ -1020,12 +1020,20 @@ Test message body.
         )
         
         # Create archive record in document store to test status updates
+        import hashlib
+        file_hash = hashlib.sha256(mbox_content).hexdigest()
         document_store.insert_document("archives", {
             "_id": archive_id,
-            "file_hash": "abc123",
+            "file_hash": file_hash,
+            "file_size_bytes": len(mbox_content),
             "source": "test-source",
+            "source_url": "test.mbox",
+            "format": "mbox",
+            "ingestion_date": "2024-01-01T00:00:00Z",
             "status": "pending",
             "message_count": 0,
+            "storage_backend": "local",
+            "created_at": "2024-01-01T00:00:00Z",
         })
         
         # Track temp files before processing
@@ -1038,7 +1046,7 @@ Test message body.
             "source_type": "local",
             "source_url": "test.mbox",
             "file_size_bytes": len(mbox_content),
-            "file_hash_sha256": "abc123",
+            "file_hash_sha256": file_hash,
             "ingestion_started_at": "2024-01-01T00:00:00Z",
             "ingestion_completed_at": "2024-01-01T00:00:01Z",
         }

@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from copilot_events import NoopPublisher, NoopSubscriber
 from copilot_schema_validation import FileSchemaProvider
 from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
 
@@ -32,6 +33,22 @@ def document_store():
     )
 
     return validating_store
+
+
+@pytest.fixture
+def publisher():
+    """Create a noop publisher for testing."""
+    pub = NoopPublisher()
+    pub.connect()
+    return pub
+
+
+@pytest.fixture
+def subscriber():
+    """Create a noop subscriber for testing."""
+    sub = NoopSubscriber()
+    sub.connect()
+    return sub
 
 
 @pytest.fixture
