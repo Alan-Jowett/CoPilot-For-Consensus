@@ -106,6 +106,13 @@
       "default": "",
       "description": "Connection string for archive store (azure_blob)"
     },
+    "archive_store_account_name": {
+      "type": "string",
+      "source": "env",
+      "env_var": "ARCHIVE_STORE_ACCOUNT_NAME",
+      "default": "",
+      "description": "Storage account name for managed identity authentication (azure_blob)"
+    },
     "archive_store_container": {
       "type": "string",
       "source": "env",
