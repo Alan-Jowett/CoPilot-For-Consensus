@@ -686,3 +686,64 @@ def test_delete_archives_for_source_deletes_from_document_store(tmp_path):
     remaining = document_store.query_documents("archives", {})
     assert len(remaining) == 1
     assert remaining[0]["_id"] == "archive-2"
+
+
+def test_archive_ingested_event_without_file_path():
+    """Test that ArchiveIngested events do not include file_path (storage-agnostic)."""
+    from pathlib import Path
+    
+    from copilot_storage import InMemoryDocumentStore
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config = make_config(storage_path=tmpdir)
+        
+        base_publisher = NoopPublisher()
+        base_publisher.connect()
+        # Wrap with schema validation for events
+        schema_dir = Path(__file__).parent.parent.parent / "documents" / "schemas" / "events"
+        schema_provider = FileSchemaProvider(schema_dir=schema_dir)
+        publisher = ValidatingEventPublisher(
+            publisher=base_publisher,
+            schema_provider=schema_provider,
+            strict=True,
+        )
+        logger = create_logger(logger_type="silent", level="INFO", name="ingestion-test")
+        metrics = NoOpMetricsCollector()
+        
+        document_store = InMemoryDocumentStore()
+        document_store.connect()
+        
+        service = IngestionService(
+            config,
+            publisher,
+            document_store=document_store,
+            logger=logger,
+            metrics=metrics,
+        )
+        
+        # Create test file
+        with tempfile.TemporaryDirectory() as source_dir:
+            test_file = os.path.join(source_dir, "test.mbox")
+            with open(test_file, "w") as f:
+                f.write("From: test@example.com\nTo: dev@example.com\nSubject: Test\n\nContent")
+            
+            source = make_source(name="test-source", url=test_file)
+            service.ingest_archive(source, max_retries=1)
+        
+        # Verify ArchiveIngested events do not contain file_path
+        success_events = [
+            e for e in publisher.published_events
+            if e["event"]["event_type"] == "ArchiveIngested"
+        ]
+        assert len(success_events) >= 1
+        
+        for event_wrapper in success_events:
+            event = event_wrapper["event"]
+            # file_path should NOT be in the event data (storage-agnostic design)
+            assert "file_path" not in event["data"], \
+                "ArchiveIngested events should not include file_path for storage-agnostic design"
+            # But archive_id, source_name, etc. should be present
+            assert "archive_id" in event["data"]
+            assert "source_name" in event["data"]
+            assert "file_hash_sha256" in event["data"]
+

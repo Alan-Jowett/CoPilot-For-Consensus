@@ -1,0 +1,199 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+"""Tests for storage-agnostic archive handling (optional file_path)."""
+
+import tempfile
+from unittest.mock import Mock
+
+import pytest
+from app.service import ParsingService
+from copilot_archive_store import LocalVolumeArchiveStore
+from copilot_events import NoopPublisher, NoopSubscriber
+from copilot_storage import InMemoryDocumentStore
+
+
+def create_test_archive_store():
+    """Create a test archive store with automatic temporary directory cleanup."""
+    tmpdir = tempfile.TemporaryDirectory()
+    archive_store = LocalVolumeArchiveStore(base_path=tmpdir.name)
+    # Attach the TemporaryDirectory to the store so it stays alive
+    archive_store._tmpdir = tmpdir
+    return archive_store
+
+
+class TestStorageAgnosticArchives:
+    """Test that parsing service handles archives without file_path."""
+
+    @pytest.fixture
+    def document_store(self):
+        """Create in-memory document store."""
+        store = InMemoryDocumentStore()
+        store.connect()
+        return store
+
+    @pytest.fixture
+    def publisher(self):
+        """Create noop publisher that tracks events."""
+        class TrackingPublisher(NoopPublisher):
+            def __init__(self):
+                super().__init__()
+                self.published_events = []
+            
+            def publish(self, exchange, routing_key, event):
+                self.published_events.append({
+                    "exchange": exchange,
+                    "routing_key": routing_key,
+                    "event": event,
+                })
+                return True
+        
+        pub = TrackingPublisher()
+        pub.connect()
+        return pub
+
+    @pytest.fixture
+    def subscriber(self):
+        """Create noop subscriber."""
+        sub = NoopSubscriber()
+        sub.connect()
+        return sub
+
+    @pytest.fixture
+    def service(self, document_store, publisher, subscriber):
+        """Create parsing service."""
+        return ParsingService(
+            document_store=document_store,
+            publisher=publisher,
+            subscriber=subscriber,
+            archive_store=create_test_archive_store(),
+        )
+
+    def test_parsing_failed_event_without_file_path(self, service):
+        """Test that ParsingFailed events can be published without file_path."""
+        # Publish a ParsingFailed event with None file_path
+        service._publish_parsing_failed(
+            archive_id="test123",
+            file_path=None,
+            error_message="Test error",
+            error_type="TestError",
+            messages_parsed_before_failure=0,
+        )
+        
+        # Check that event was published with placeholder
+        events = service.publisher.published_events
+        assert len(events) == 1
+        
+        event = events[0]
+        assert event["routing_key"] == "parsing.failed"
+        assert event["event"]["event_type"] == "ParsingFailed"
+        
+        # file_path should have archive:// placeholder instead of None
+        data = event["event"]["data"]
+        assert data["file_path"] == "archive://test123"
+        assert data["archive_id"] == "test123"
+        assert data["error_message"] == "Test error"
+
+    def test_parsing_failed_event_with_file_path(self, service):
+        """Test that ParsingFailed events preserve file_path when provided."""
+        # Publish a ParsingFailed event with actual file_path
+        service._publish_parsing_failed(
+            archive_id="test456",
+            file_path="/data/archives/test.mbox",
+            error_message="Test error",
+            error_type="TestError",
+            messages_parsed_before_failure=5,
+        )
+        
+        # Check that event was published with actual file_path
+        events = service.publisher.published_events
+        assert len(events) == 1
+        
+        event = events[0]
+        data = event["event"]["data"]
+        assert data["file_path"] == "/data/archives/test.mbox"
+        assert data["archive_id"] == "test456"
+
+    def test_process_archive_without_file_path_in_event_data(self, service, tmp_path):
+        """Test processing archive without file_path in ArchiveIngested event data."""
+        # Create a test mbox file
+        test_mbox = tmp_path / "test.mbox"
+        test_mbox.write_text(
+            "From test@example.com Mon Jan 1 00:00:00 2024\n"
+            "From: test@example.com\n"
+            "To: dev@example.com\n"
+            "Subject: Test Message\n"
+            "Message-ID: <test123@example.com>\n"
+            "Date: Mon, 1 Jan 2024 00:00:00 +0000\n"
+            "\n"
+            "Test content\n"
+        )
+        
+        # Store archive in archive store
+        with open(test_mbox, 'rb') as f:
+            content = f.read()
+        
+        archive_id = service.archive_store.store_archive(
+            source_name="test-source",
+            file_path=str(test_mbox),
+            content=content,
+        )
+        
+        # Create archive data WITHOUT file_path (storage-agnostic)
+        archive_data = {
+            "archive_id": archive_id,
+            "source_name": "test-source",
+            "source_type": "local",
+            "source_url": "https://example.com/archives",
+            "file_size_bytes": len(content),
+            "file_hash_sha256": "abc123",
+            "ingestion_started_at": "2024-01-01T00:00:00Z",
+            "ingestion_completed_at": "2024-01-01T00:00:01Z",
+            # NOTE: no file_path field - this is the key test scenario
+        }
+        
+        # Process should succeed without file_path
+        service.process_archive(archive_data)
+        
+        # Verify messages were parsed and stored
+        messages = service.document_store.query_documents("messages", {})
+        assert len(messages) > 0
+        
+        # Verify JSONParsed events were published
+        json_parsed_events = [
+            e for e in service.publisher.published_events
+            if e["routing_key"] == "json.parsed"
+        ]
+        assert len(json_parsed_events) > 0
+
+    def test_archive_not_found_publishes_event_without_file_path(self, service):
+        """Test that archive not found errors publish ParsingFailed without file_path."""
+        # Try to process archive that doesn't exist
+        archive_data = {
+            "archive_id": "nonexistent123",
+            "source_name": "test-source",
+            "source_type": "local",
+            "source_url": "https://example.com/archives",
+            "file_size_bytes": 1000,
+            "file_hash_sha256": "abc123",
+            "ingestion_started_at": "2024-01-01T00:00:00Z",
+            "ingestion_completed_at": "2024-01-01T00:00:01Z",
+            # No file_path
+        }
+        
+        # Process should handle missing archive gracefully
+        service.process_archive(archive_data)
+        
+        # Verify ParsingFailed event was published
+        parsing_failed_events = [
+            e for e in service.publisher.published_events
+            if e["routing_key"] == "parsing.failed"
+        ]
+        assert len(parsing_failed_events) == 1
+        
+        event = parsing_failed_events[0]
+        data = event["event"]["data"]
+        assert data["archive_id"] == "nonexistent123"
+        # file_path should be archive:// URI since we had no path
+        assert data["file_path"].startswith("archive://")
+        assert "not found" in data["error_message"].lower()
