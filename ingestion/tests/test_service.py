@@ -67,35 +67,7 @@ class TestIngestionService:
         """Test service initialization."""
         assert service.config is not None
         assert service.publisher is not None
-        assert isinstance(service.checksums, dict)
-
-    def test_add_and_check_checksum(self, service):
-        """Test adding and checking checksums."""
-        file_hash = "abc123def456"
-        archive_id = "archive-1"
-        file_path = "/path/to/file"
-        timestamp = "2023-01-01T00:00:00Z"
-
-        service.add_checksum(file_hash, archive_id, file_path, timestamp)
-        assert service.is_file_already_ingested(file_hash) is True
-
-    def test_save_and_load_checksums(self, temp_storage):
-        """Test saving and loading checksums."""
-        config = make_config(storage_path=temp_storage)
-        publisher = NoopPublisher()
-        publisher.connect()
-        service1 = IngestionService(config, publisher)
-
-        file_hash = "hash123"
-        archive_id = "archive-1"
-        file_path = "/path/to/file"
-        timestamp = "2023-01-01T00:00:00Z"
-
-        service1.add_checksum(file_hash, archive_id, file_path, timestamp)
-        service1.save_checksums()
-
-        service2 = IngestionService(config, publisher)
-        assert service2.is_file_already_ingested(file_hash) is True
+        assert service.archive_store is not None
 
     def test_ingest_archive_success(self, service, temp_storage):
         """Test successful archive ingestion."""
@@ -828,8 +800,8 @@ def test_archive_deduplication_via_document_store(tmp_path):
     assert service._is_archive_already_stored(file_hash) is True
 
 
-def test_delete_checksums_for_source_deletes_from_document_store(tmp_path):
-    """Test that delete_checksums_for_source deletes archives from document store."""
+def test_delete_archives_for_source_deletes_from_document_store(tmp_path):
+    """Test that delete_archives_for_source deletes archives from document store."""
     from copilot_storage import InMemoryDocumentStore
     
     config = make_config(storage_path=str(tmp_path))
@@ -867,7 +839,7 @@ def test_delete_checksums_for_source_deletes_from_document_store(tmp_path):
     })
     
     # Delete archives for test-source
-    deleted_count = service.delete_checksums_for_source("test-source")
+    deleted_count = service.delete_archives_for_source("test-source")
     
     # Should have deleted 2 archives
     assert deleted_count == 2

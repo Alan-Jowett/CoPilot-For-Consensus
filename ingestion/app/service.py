@@ -218,7 +218,6 @@ class IngestionService:
         self.config = _apply_defaults(config)
         self.publisher = publisher
         self.document_store = document_store
-        self.checksums: dict[str, dict[str, Any]] = {}
         self.logger = logger or create_logger(
             logger_type=config.log_type,
             level=config.log_level,
@@ -226,7 +225,6 @@ class IngestionService:
         )
         self.metrics = metrics or create_metrics_collector(backend=config.metrics_backend)
         self._ensure_storage_path(self.config.storage_path)
-        self._initial_storage_path = self.config.storage_path
 
         # Initialize error reporter
         if error_reporter is None:
@@ -272,92 +270,16 @@ class IngestionService:
             "last_ingestion_at": None,
         }
 
-        self.load_checksums()
-
     @staticmethod
     def _ensure_storage_path(storage_path: str) -> None:
         storage_dir = Path(storage_path)
         storage_dir.mkdir(parents=True, exist_ok=True)
         (storage_dir / "metadata").mkdir(exist_ok=True)
 
-    def load_checksums(self) -> None:
-        """Load checksums from metadata file (DEPRECATED).
-
-        This method is kept for backward compatibility but is no longer used.
-        Deduplication now relies on querying the document store's archives collection
-        by SHA-256 hash instead of maintaining a local checksums.json cache.
-
-        If loading fails, starts with empty checksums to allow service to continue.
-        """
-        # Note: checksums.json is no longer actively used for deduplication
-        # This is kept for backward compatibility only
-        checksums_path = os.path.join(self.config.storage_path, "metadata", "checksums.json")
-
-        if os.path.exists(checksums_path):
-            try:
-                with open(checksums_path) as f:
-                    self.checksums = json.load(f)
-                self.logger.info(
-                    "Loaded checksums (deprecated - not used for deduplication)",
-                    checksum_count=len(self.checksums),
-                    checksums_path=checksums_path,
-                )
-            except Exception as e:
-                self.logger.warning("Failed to load checksums", error=str(e), exc_info=True)
-                self.checksums = {}
-        else:
-            self.checksums = {}
-
-    def save_checksums(self) -> None:
-        """Save checksums to metadata file (DEPRECATED).
-
-        This method is kept for backward compatibility but is no longer used.
-        Deduplication now relies on querying the document store's archives collection.
-        """
-        # No-op: checksums.json is deprecated, deduplication now uses document store
-        pass  # No-op to avoid filesystem writes
-
-    def is_file_already_ingested(self, file_hash: str) -> bool:
-        """Check if a file has already been ingested (DEPRECATED).
-
-        Args:
-            file_hash: SHA256 hash of the file
-
-        Returns:
-            True if file has been ingested, False otherwise
-
-        Note:
-            This method is deprecated. Use _is_archive_already_stored() instead,
-            which queries the document store.
-        """
-        return self._is_archive_already_stored(file_hash)
-
-    def add_checksum(
-        self,
-        file_hash: str,
-        archive_id: str,
-        file_path: str,
-        first_seen: str,
-    ) -> None:
-        """Add a checksum entry (DEPRECATED).
-
-        This method is kept for backward compatibility but is no longer used.
-        Archive metadata is now stored in the document store only.
-
-        Args:
-            file_hash: SHA256 hash of the file
-            archive_id: Unique identifier for the archive
-            file_path: Path where the archive is stored
-            first_seen: ISO 8601 timestamp when first ingested
-        """
-        # No-op: archive metadata is now stored only in document store, not local cache
-        pass  # No-op
-
-    def delete_checksums_for_source(self, source_name: str) -> int:
-        """Delete all checksums/archives associated with a source.
+    def delete_archives_for_source(self, source_name: str) -> int:
+        """Delete all archives associated with a source from document store.
 
         This allows re-ingestion of previously processed files from the source.
-        Now deletes from both the document store and the deprecated checksums cache.
 
         Args:
             source_name: Name of the source
@@ -1361,7 +1283,7 @@ class IngestionService:
 
         try:
             # Delete existing archives to force re-ingestion
-            deleted_count = self.delete_checksums_for_source(source_name)
+            deleted_count = self.delete_archives_for_source(source_name)
             if deleted_count > 0:
                 self.logger.info(
                     "Trigger ingestion: deleted archives to force re-ingestion",
