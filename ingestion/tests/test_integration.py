@@ -287,15 +287,14 @@ class TestIngestionIntegration:
             assert "version" in event
             assert "data" in event
 
-            # Verify event data (storage-agnostic - no file_path)
+            # Verify event data (schema-required fields, including file_path)
             if event["event_type"] == "ArchiveIngested":
                 data = event["data"]
                 assert "archive_id" in data
                 assert "source_name" in data
                 assert "source_type" in data
                 assert "source_url" in data
-                # file_path removed for storage-agnostic events
-                assert "file_path" not in data
+                assert "file_path" in data
                 assert "file_size_bytes" in data
                 assert "file_hash_sha256" in data
                 assert "ingestion_started_at" in data
