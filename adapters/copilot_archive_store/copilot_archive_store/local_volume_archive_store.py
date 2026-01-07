@@ -3,6 +3,7 @@
 
 """Local volume-based archive store implementation."""
 
+import errno
 import hashlib
 import json
 import logging
@@ -44,11 +45,15 @@ class LocalVolumeArchiveStore(ArchiveStore):
         try:
             self.base_path.mkdir(parents=True, exist_ok=True)
             self.metadata_path.parent.mkdir(parents=True, exist_ok=True)
-        except (OSError, PermissionError) as e:
-            # If we can't create directories, assume read-only mode
-            # This is acceptable if we're only reading archives (e.g., parsing service)
-            self._read_only = True
-            logging.info(f"ArchiveStore initialized in read-only mode: {e}")
+        except OSError as e:
+            # Check if failure is due to read-only filesystem (EROFS = 30 on Linux)
+            if e.errno in (errno.EROFS, 30):
+                # Read-only filesystem: acceptable for services that only read archives
+                self._read_only = True
+                logging.info(f"ArchiveStore initialized in read-only mode: {e}")
+            else:
+                # Other error (permissions, disk space, etc.): re-raise
+                raise
 
         # Load metadata index
         self._metadata: dict[str, dict[str, Any]] = {}
