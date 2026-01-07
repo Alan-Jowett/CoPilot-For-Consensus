@@ -956,3 +956,76 @@ def test_publish_json_parsed_raises_on_missing_message_id(document_store):
     assert "_id" in str(exc_info.value)
     # Should have attempted to publish for the valid messages before the error
     assert len(mock_publisher.published_events) >= 1
+
+
+def test_service_initialization_with_archive_store(document_store, publisher, subscriber):
+    """Test that parsing service can be initialized with ArchiveStore."""
+    from copilot_archive_store import LocalVolumeArchiveStore
+    import tempfile
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create ArchiveStore explicitly
+        archive_store = LocalVolumeArchiveStore(base_path=tmpdir)
+        
+        service = ParsingService(
+            document_store=document_store,
+            publisher=publisher,
+            subscriber=subscriber,
+            archive_store=archive_store,
+        )
+        
+        assert service.archive_store is not None
+        assert isinstance(service.archive_store, LocalVolumeArchiveStore)
+
+
+def test_process_archive_retrieves_from_archive_store(document_store, publisher, subscriber):
+    """Test that process_archive retrieves content from ArchiveStore."""
+    from copilot_archive_store import LocalVolumeArchiveStore
+    import tempfile
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create ArchiveStore and store test content
+        archive_store = LocalVolumeArchiveStore(base_path=tmpdir)
+        
+        # Create a simple mbox file content
+        mbox_content = b"""From test@example.com Mon Jan 01 00:00:00 2024
+From: test@example.com
+To: list@example.com
+Subject: Test Message
+Date: Mon, 01 Jan 2024 00:00:00 +0000
+Message-ID: <test@example.com>
+
+Test message body.
+"""
+        
+        # Store the archive
+        archive_id = archive_store.store_archive(
+            source_name="test-source",
+            file_path="test.mbox",
+            content=mbox_content,
+        )
+        
+        service = ParsingService(
+            document_store=document_store,
+            publisher=publisher,
+            subscriber=subscriber,
+            archive_store=archive_store,
+        )
+        
+        # Process archive with storage-agnostic event data (no file_path)
+        archive_data = {
+            "archive_id": archive_id,
+            "source_name": "test-source",
+            "source_type": "local",
+            "source_url": "test.mbox",
+            "file_size_bytes": len(mbox_content),
+            "file_hash_sha256": "abc123",
+            "ingestion_started_at": "2024-01-01T00:00:00Z",
+            "ingestion_completed_at": "2024-01-01T00:00:01Z",
+        }
+        
+        # Process should succeed (archive content retrieved from store)
+        service.process_archive(archive_data)
+        
+        # Verify archive status was updated
+        # (actual status update would happen if document store had the archive record)

@@ -770,3 +770,109 @@ def test_exception_prevents_silent_failure():
             assert e.retry_count > 0
 
         assert exception_was_raised, "Exception-based approach successfully prevented silent failure"
+
+
+def test_service_initialization_with_archive_store(tmp_path):
+    """Test that service can be initialized with ArchiveStore."""
+    from copilot_archive_store import LocalVolumeArchiveStore
+    
+    config = make_config(storage_path=str(tmp_path))
+    publisher = NoopPublisher()
+    publisher.connect()
+    
+    # Create ArchiveStore explicitly
+    archive_store = LocalVolumeArchiveStore(base_path=str(tmp_path))
+    
+    service = IngestionService(
+        config=config,
+        publisher=publisher,
+        archive_store=archive_store,
+    )
+    
+    assert service.archive_store is not None
+    assert isinstance(service.archive_store, LocalVolumeArchiveStore)
+
+
+def test_archive_deduplication_via_document_store(tmp_path):
+    """Test that _is_archive_already_stored checks document store instead of checksums."""
+    from copilot_storage import InMemoryDocumentStore
+    
+    config = make_config(storage_path=str(tmp_path))
+    publisher = NoopPublisher()
+    publisher.connect()
+    
+    # Create in-memory document store
+    document_store = InMemoryDocumentStore()
+    document_store.connect()
+    
+    service = IngestionService(
+        config=config,
+        publisher=publisher,
+        document_store=document_store,
+    )
+    
+    file_hash = "abc123def456"
+    
+    # Initially, archive should not be stored
+    assert service._is_archive_already_stored(file_hash) is False
+    
+    # Add archive to document store
+    document_store.insert_document("archives", {
+        "_id": "archive-1",
+        "file_hash": file_hash,
+        "source": "test",
+        "status": "pending",
+    })
+    
+    # Now it should be found
+    assert service._is_archive_already_stored(file_hash) is True
+
+
+def test_delete_checksums_for_source_deletes_from_document_store(tmp_path):
+    """Test that delete_checksums_for_source deletes archives from document store."""
+    from copilot_storage import InMemoryDocumentStore
+    
+    config = make_config(storage_path=str(tmp_path))
+    publisher = NoopPublisher()
+    publisher.connect()
+    
+    # Create in-memory document store
+    document_store = InMemoryDocumentStore()
+    document_store.connect()
+    
+    service = IngestionService(
+        config=config,
+        publisher=publisher,
+        document_store=document_store,
+    )
+    
+    # Add some archives to document store
+    document_store.insert_document("archives", {
+        "_id": "archive-1",
+        "file_hash": "hash1",
+        "source": "test-source",
+        "status": "completed",
+    })
+    document_store.insert_document("archives", {
+        "_id": "archive-2",
+        "file_hash": "hash2",
+        "source": "other-source",
+        "status": "completed",
+    })
+    document_store.insert_document("archives", {
+        "_id": "archive-3",
+        "file_hash": "hash3",
+        "source": "test-source",
+        "status": "pending",
+    })
+    
+    # Delete archives for test-source
+    deleted_count = service.delete_checksums_for_source("test-source")
+    
+    # Should have deleted 2 archives
+    assert deleted_count == 2
+    
+    # Verify archives were deleted
+    remaining = document_store.query_documents("archives", {})
+    assert len(remaining) == 1
+    assert remaining[0]["_id"] == "archive-2"
