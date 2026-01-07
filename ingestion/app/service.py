@@ -314,8 +314,7 @@ class IngestionService:
         This method is kept for backward compatibility but is no longer used.
         Deduplication now relies on querying the document store's archives collection.
         """
-        # Note: checksums.json is no longer actively used for deduplication
-        # This is kept for backward compatibility only
+        # No-op: checksums.json is deprecated, deduplication now uses document store
         pass  # No-op to avoid filesystem writes
 
     def is_file_already_ingested(self, file_hash: str) -> bool:
@@ -351,8 +350,7 @@ class IngestionService:
             file_path: Path where the archive is stored
             first_seen: ISO 8601 timestamp when first ingested
         """
-        # Note: checksums.json is no longer actively used
-        # This is kept for backward compatibility only
+        # No-op: archive metadata is now stored only in document store, not local cache
         pass  # No-op
 
     def delete_checksums_for_source(self, source_name: str) -> int:
@@ -521,12 +519,13 @@ class IngestionService:
                 files_skipped = 0
 
                 for file_path in file_paths:
-                    # Read file content
+                    # Read file content once
                     with open(file_path, "rb") as f:
                         file_content = f.read()
 
-                    # Calculate hash for this file
-                    file_hash = calculate_file_hash(file_path)
+                    # Calculate hash from content (avoids re-reading file)
+                    import hashlib
+                    file_hash = hashlib.sha256(file_content).hexdigest()
                     file_size = len(file_content)
 
                     # Check if already ingested using document store

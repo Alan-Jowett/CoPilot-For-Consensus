@@ -257,8 +257,8 @@ class ParsingService:
             # Use try-finally to ensure cleanup
             temp_file_path = None
             try:
-                # Create temp file
-                with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.mbox') as temp_file:
+                # Create temp file with prefix for easier identification
+                with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.mbox', prefix='parsing_') as temp_file:
                     temp_file.write(archive_content)
                     temp_file_path = temp_file.name
                 
