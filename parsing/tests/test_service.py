@@ -982,6 +982,7 @@ def test_process_archive_retrieves_from_archive_store(document_store, publisher,
     """Test that process_archive retrieves content from ArchiveStore."""
     from copilot_archive_store import LocalVolumeArchiveStore
     import tempfile
+    import os
     
     with tempfile.TemporaryDirectory() as tmpdir:
         # Create ArchiveStore and store test content
@@ -1005,12 +1006,30 @@ Test message body.
             content=mbox_content,
         )
         
+        # Verify archive_id is valid (16-64 hex chars)
+        assert archive_id is not None
+        assert len(archive_id) >= 16
+        assert len(archive_id) <= 64
+        assert all(c in '0123456789abcdef' for c in archive_id)
+        
         service = ParsingService(
             document_store=document_store,
             publisher=publisher,
             subscriber=subscriber,
             archive_store=archive_store,
         )
+        
+        # Create archive record in document store to test status updates
+        document_store.insert_document("archives", {
+            "_id": archive_id,
+            "file_hash": "abc123",
+            "source": "test-source",
+            "status": "pending",
+            "message_count": 0,
+        })
+        
+        # Track temp files before processing
+        temp_files_before = set(os.listdir(tempfile.gettempdir()))
         
         # Process archive with storage-agnostic event data (no file_path)
         archive_data = {
@@ -1027,5 +1046,13 @@ Test message body.
         # Process should succeed (archive content retrieved from store)
         service.process_archive(archive_data)
         
-        # Verify archive status was updated
-        # (actual status update would happen if document store had the archive record)
+        # Verify archive status was updated to completed
+        updated_archive = document_store.get_document("archives", archive_id)
+        assert updated_archive is not None
+        assert updated_archive["status"] == "completed"
+        assert updated_archive["message_count"] == 1
+        
+        # Verify no new parsing_ temp files remain (cleanup worked)
+        temp_files_after = set(os.listdir(tempfile.gettempdir()))
+        new_parsing_files = [f for f in temp_files_after - temp_files_before if f.startswith('parsing_')]
+        assert len(new_parsing_files) == 0, f"Temporary files not cleaned up: {new_parsing_files}"

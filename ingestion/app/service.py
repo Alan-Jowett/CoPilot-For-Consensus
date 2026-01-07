@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
+import hashlib
 import json
 import logging
 import os
@@ -446,7 +447,6 @@ class IngestionService:
                         file_content = f.read()
 
                     # Calculate hash from content (avoids re-reading file)
-                    import hashlib
                     file_hash = hashlib.sha256(file_content).hexdigest()
                     file_size = len(file_content)
 
@@ -779,6 +779,15 @@ class IngestionService:
                 file_hash=file_hash,
                 exc_info=True,
             )
+            if self.error_reporter:
+                self.error_reporter.report(
+                    e,
+                    context={
+                        "operation": "check_archive_already_stored",
+                        "collection": "archives",
+                        "file_hash": file_hash,
+                    },
+                )
             return False
 
     def _write_archive_record(
@@ -813,11 +822,14 @@ class IngestionService:
             # Get archive metadata from ArchiveStore
             archive_metadata = None
             if self.archive_store:
+                # Build a dictionary of archive_id -> metadata for efficient lookup
                 archives = self.archive_store.list_archives(source.name)
-                for archive in archives:
-                    if archive.get("archive_id") == archive_id:
-                        archive_metadata = archive
-                        break
+                archive_lookup = {
+                    archive.get("archive_id"): archive
+                    for archive in archives
+                    if archive.get("archive_id") is not None
+                }
+                archive_metadata = archive_lookup.get(archive_id)
 
             # Determine archive format from stored metadata or default to mbox
             archive_format = "mbox"
@@ -827,6 +839,16 @@ class IngestionService:
                 file_ext = os.path.splitext(file_path)[1].lstrip('.')
                 archive_format = file_ext if file_ext else "mbox"
                 file_size_bytes = archive_metadata.get("size_bytes", 0)
+            elif self.archive_store:
+                # ArchiveStore is configured but no metadata was found for this archive.
+                # Log a warning to highlight a potential ArchiveStore consistency issue
+                # while still falling back to safe default values.
+                self.logger.warning(
+                    "Archive metadata not found in ArchiveStore; using default values",
+                    archive_id=archive_id,
+                    source=source.name,
+                    storage_backend=storage_backend,
+                )
 
             archive_doc = {
                 "_id": archive_id,  # Canonical identifier

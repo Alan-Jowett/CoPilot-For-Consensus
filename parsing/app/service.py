@@ -230,7 +230,7 @@ class ParsingService:
                     
                     self._publish_parsing_failed(
                         archive_id,
-                        "",  # No file path in storage-agnostic mode
+                        None,  # Storage-agnostic mode - no file path available
                         error_msg,
                         "ArchiveNotFoundError",
                         0,
@@ -245,7 +245,7 @@ class ParsingService:
                 
                 self._publish_parsing_failed(
                     archive_id,
-                    "",  # No file path in storage-agnostic mode
+                    None,  # Storage-agnostic mode - no file path available
                     error_msg,
                     type(e).__name__,
                     0,
@@ -259,8 +259,8 @@ class ParsingService:
             try:
                 # Create temp file with prefix for easier identification
                 with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.mbox', prefix='parsing_') as temp_file:
-                    temp_file.write(archive_content)
                     temp_file_path = temp_file.name
+                    temp_file.write(archive_content)
                 
                 logger.debug(f"Wrote archive {archive_id} to temporary file {temp_file_path}")
 
@@ -358,7 +358,7 @@ class ParsingService:
 
                 self._publish_parsing_failed(
                     archive_id,
-                    temp_file_path or "",
+                    temp_file_path,
                     error_msg,
                     type(parse_error).__name__,
                     0,
@@ -692,7 +692,7 @@ class ParsingService:
     def _publish_parsing_failed(
         self,
         archive_id: str,
-        file_path: str,
+        file_path: str | None,
         error_message: str,
         error_type: str,
         messages_parsed_before_failure: int,
@@ -701,7 +701,7 @@ class ParsingService:
 
         Args:
             archive_id: Archive identifier
-            file_path: Path to mbox file
+            file_path: Path to mbox file (None for storage-agnostic mode)
             error_message: Error description
             error_type: Error type
             messages_parsed_before_failure: Partial progress
@@ -709,7 +709,7 @@ class ParsingService:
         event = ParsingFailedEvent(
             data={
                 "archive_id": archive_id,
-                "file_path": file_path,
+                "file_path": file_path or "storage-agnostic",  # Use placeholder for schema compatibility
                 "error_message": error_message,
                 "error_type": error_type,
                 "messages_parsed_before_failure": messages_parsed_before_failure,
