@@ -254,8 +254,10 @@ class ParsingService:
 
             # Write archive content to temporary file for parsing
             # The parser expects a file path, so we create a temporary file
+            # Use try-finally to ensure cleanup
             temp_file_path = None
             try:
+                # Create temp file
                 with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.mbox') as temp_file:
                     temp_file.write(archive_content)
                     temp_file_path = temp_file.name
@@ -263,131 +265,116 @@ class ParsingService:
                 logger.debug(f"Wrote archive {archive_id} to temporary file {temp_file_path}")
 
                 # Parse mbox file - raises exceptions on failure
-                try:
-                    parsed_messages = self.parser.parse_mbox(temp_file_path, archive_id)
-                except Exception as parse_error:
-                    # Parsing failed - update archive status and publish event
-                    error_msg = f"Failed to parse archive: {str(parse_error)}"
-                    logger.error(error_msg, exc_info=True)
+                parsed_messages = self.parser.parse_mbox(temp_file_path, archive_id)
 
-                    # Update archive status to 'failed'
-                    self._update_archive_status(archive_id, "failed", 0)
+                if not parsed_messages:
+                    # No messages parsed (empty archive)
+                    error_msg = "No messages found in archive"
+                    logger.warning(error_msg)
 
-                    self._publish_parsing_failed(
-                        archive_id,
-                        temp_file_path,
-                        error_msg,
-                        type(parse_error).__name__,
-                        0,
-                    )
-
-                    # Don't re-raise - let event processing continue gracefully
-                    # The error has been recorded in the archive status and event
+                    # Update archive status to 'completed' with 0 messages
+                    # This is not an error - just an empty archive
+                    self._update_archive_status(archive_id, "completed", 0)
                     return
-                finally:
-                    # Clean up temporary file
-                    if temp_file_path and os.path.exists(temp_file_path):
-                        try:
-                            os.unlink(temp_file_path)
-                            logger.debug(f"Cleaned up temporary file {temp_file_path}")
-                        except Exception as cleanup_error:
-                            logger.warning(f"Failed to clean up temporary file: {cleanup_error}")
-            except Exception as temp_file_error:
-                error_msg = f"Failed to create temporary file for parsing: {str(temp_file_error)}"
-                logger.error(error_msg, exc_info=True)
-                
-                # Update archive status to 'failed'
-                self._update_archive_status(archive_id, "failed", 0)
-                
-                self._publish_parsing_failed(
-                    archive_id,
-                    "",
-                    error_msg,
-                    type(temp_file_error).__name__,
-                    0,
-                )
-                return
 
-            if not parsed_messages:
-                # No messages parsed (empty archive)
-                error_msg = "No messages found in archive"
-                logger.warning(error_msg)
+                # Generate canonical _id for each message (needed for thread building)
+                for message in parsed_messages:
+                    if "_id" not in message:
+                        message["_id"] = generate_message_doc_id(
+                            archive_id=archive_id,
+                            message_id=message.get("message_id", ""),
+                            date=message.get("date"),
+                            sender_email=(message.get("from") or {}).get("email"),
+                            subject=message.get("subject"),
+                        )
 
-                # Update archive status to 'completed' with 0 messages
-                # This is not an error - just an empty archive
-                self._update_archive_status(archive_id, "completed", 0)
-                return
+                # Build threads
+                threads = self.thread_builder.build_threads(parsed_messages)
 
-            # Generate canonical _id for each message (needed for thread building)
-            for message in parsed_messages:
-                if "_id" not in message:
-                    message["_id"] = generate_message_doc_id(
-                        archive_id=archive_id,
-                        message_id=message.get("message_id", ""),
-                        date=message.get("date"),
-                        sender_email=(message.get("from") or {}).get("email"),
-                        subject=message.get("subject"),
+                # Store messages in document store
+                if parsed_messages:
+                    self._store_messages(parsed_messages)
+                    logger.info(f"Stored {len(parsed_messages)} messages")
+
+                # Store threads
+                if threads:
+                    self._store_threads(threads)
+                    logger.info(f"Created {len(threads)} threads")
+
+                # Update archive status to 'completed'
+                self._update_archive_status(archive_id, "completed", len(parsed_messages))
+
+                # Calculate duration
+                duration = time.monotonic() - start_time
+                self.last_processing_time = duration
+
+                # Update stats
+                self.archives_processed += 1
+                self.messages_parsed += len(parsed_messages)
+                self.threads_created += len(threads)
+
+                # Collect metrics
+                if self.metrics_collector:
+                    self.metrics_collector.increment(
+                        "parsing_archives_processed_total",
+                        tags={"status": "success"},
                     )
+                    self.metrics_collector.increment(
+                        "parsing_messages_parsed_total",
+                        value=len(parsed_messages),
+                    )
+                    self.metrics_collector.increment(
+                        "parsing_threads_created_total",
+                        value=len(threads),
+                    )
+                    self.metrics_collector.observe(
+                        "parsing_duration_seconds",
+                        duration,
+                    )
+                    # Push metrics to Pushgateway
+                    self.metrics_collector.safe_push()
 
-            # Build threads
-            threads = self.thread_builder.build_threads(parsed_messages)
-
-            # Store messages in document store
-            if parsed_messages:
-                self._store_messages(parsed_messages)
-                logger.info(f"Stored {len(parsed_messages)} messages")
-
-            # Store threads
-            if threads:
-                self._store_threads(threads)
-                logger.info(f"Created {len(threads)} threads")
-
-            # Update archive status to 'completed'
-            self._update_archive_status(archive_id, "completed", len(parsed_messages))
-
-            # Calculate duration
-            duration = time.monotonic() - start_time
-            self.last_processing_time = duration
-
-            # Update stats
-            self.archives_processed += 1
-            self.messages_parsed += len(parsed_messages)
-            self.threads_created += len(threads)
-
-            # Collect metrics
-            if self.metrics_collector:
-                self.metrics_collector.increment(
-                    "parsing_archives_processed_total",
-                    tags={"status": "success"},
-                )
-                self.metrics_collector.increment(
-                    "parsing_messages_parsed_total",
-                    value=len(parsed_messages),
-                )
-                self.metrics_collector.increment(
-                    "parsing_threads_created_total",
-                    value=len(threads),
-                )
-                self.metrics_collector.observe(
-                    "parsing_duration_seconds",
+                # Publish JSONParsed events (one per message for fine-grained retry)
+                self._publish_json_parsed_per_message(
+                    archive_id,
+                    parsed_messages,
+                    threads,
                     duration,
                 )
-                # Push metrics to Pushgateway
-                self.metrics_collector.safe_push()
 
-            # Publish JSONParsed events (one per message for fine-grained retry)
-            self._publish_json_parsed_per_message(
-                archive_id,
-                parsed_messages,
-                threads,
-                duration,
-            )
+                logger.info(
+                    f"Successfully parsed archive {archive_id}: "
+                    f"{len(parsed_messages)} messages, {len(threads)} threads, "
+                    f"{duration:.2f}s"
+                )
 
-            logger.info(
-                f"Successfully parsed archive {archive_id}: "
-                f"{len(parsed_messages)} messages, {len(threads)} threads, "
-                f"{duration:.2f}s"
-            )
+            except Exception as parse_error:
+                # Parsing or processing failed - update archive status and publish event
+                error_msg = f"Failed to parse archive: {str(parse_error)}"
+                logger.error(error_msg, exc_info=True)
+
+                # Update archive status to 'failed'
+                self._update_archive_status(archive_id, "failed", 0)
+
+                self._publish_parsing_failed(
+                    archive_id,
+                    temp_file_path or "",
+                    error_msg,
+                    type(parse_error).__name__,
+                    0,
+                )
+
+                # Don't re-raise - let event processing continue gracefully
+                # The error has been recorded in the archive status and event
+                return
+            finally:
+                # Always clean up temporary file
+                if temp_file_path and os.path.exists(temp_file_path):
+                    try:
+                        os.unlink(temp_file_path)
+                        logger.debug(f"Cleaned up temporary file {temp_file_path}")
+                    except Exception as cleanup_error:
+                        logger.warning(f"Failed to clean up temporary file: {cleanup_error}")
 
         except Exception as e:
             duration = time.monotonic() - start_time
