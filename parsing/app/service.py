@@ -68,17 +68,22 @@ class ParsingService:
                 if archive_store_type is None:
                     archive_store_type = os.getenv("ARCHIVE_STORE_TYPE", "local")
                 
-                # Get base path for local backend
+                # Get base path and connection settings for archive store
                 archive_store_base_path = os.getenv("ARCHIVE_STORE_PATH", "/data/raw_archives")
-                
+                archive_store_connection_string = os.getenv("ARCHIVE_STORE_CONNECTION_STRING")
+                archive_store_container = os.getenv("ARCHIVE_STORE_CONTAINER", "raw-archives")
+
                 self.archive_store = create_archive_store(
                     store_type=archive_store_type,
                     base_path=archive_store_base_path,
+                    connection_string=archive_store_connection_string,
+                    container_name=archive_store_container,
                 )
                 logger.info(
                     "Initialized ArchiveStore",
                     store_type=archive_store_type,
                     base_path=archive_store_base_path,
+                    container=archive_store_container,
                 )
             except Exception as e:
                 logger.error("Failed to initialize ArchiveStore", error=str(e), exc_info=True)

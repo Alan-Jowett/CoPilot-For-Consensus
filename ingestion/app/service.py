@@ -53,6 +53,8 @@ DEFAULT_CONFIG = {
     "doc_store_password": "example",
     "archive_store_type": "local",  # ArchiveStore backend: local, mongodb, azure_blob
     "archive_store_base_path": None,  # Base path for local backend (defaults to storage_path)
+    "archive_store_connection_string": None,  # Connection string for cloud backends
+    "archive_store_container": "raw-archives",
     "sources": [],
 }
 
@@ -245,6 +247,8 @@ class IngestionService:
                 self.archive_store = create_archive_store(
                     store_type=self.config.archive_store_type,
                     base_path=archive_store_base_path,
+                    connection_string=self.config.archive_store_connection_string,
+                    container_name=self.config.archive_store_container,
                 )
                 self.logger.info(
                     "Initialized ArchiveStore",
