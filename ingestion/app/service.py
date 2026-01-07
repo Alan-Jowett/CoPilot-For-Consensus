@@ -270,7 +270,7 @@ class IngestionService:
             "total_files_ingested": 0,
             "last_ingestion_at": None,
         }
-        
+
         # Initialize archive metadata cache for performance optimization
         self._archive_metadata_cache: dict[str, dict[str, dict[str, Any]]] = {}
 
@@ -783,11 +783,11 @@ class IngestionService:
                 file_hash=file_hash,
                 exc_info=True,
             )
-            
+
             # Increment metric for document store query failures to make silent failures visible
             if self.metrics:
                 self.metrics.increment("ingestion_deduplication_check_failed_total")
-            
+
             if self.error_reporter:
                 self.error_reporter.report(
                     e,
@@ -842,7 +842,7 @@ class IngestionService:
                         if archive.get("archive_id") is not None
                     }
                     self._archive_metadata_cache[source.name] = archive_lookup
-                
+
                 archive_metadata = archive_lookup.get(archive_id)
 
             # Determine archive format from stored metadata or default to mbox
@@ -1062,7 +1062,10 @@ class IngestionService:
     def _metric_tags(source: SourceConfig) -> dict[str, str]:
         """Build consistent metric tags for a source."""
         name = getattr(source, "name", None) or (source.get("name") if isinstance(source, dict) else None)
-        src_type = getattr(source, "source_type", None) or (source.get("source_type") if isinstance(source, dict) else None)
+        src_type = (
+            getattr(source, "source_type", None)
+            or (source.get("source_type") if isinstance(source, dict) else None)
+        )
         return {
             "source_name": name or "unknown",
             "source_type": src_type or "unknown",
@@ -1188,30 +1191,30 @@ class IngestionService:
 
     def _get_source_doc_id(self, source_name: str) -> str | None:
         """Get the document ID for a source by name.
-        
+
         Args:
             source_name: Name of the source
-            
+
         Returns:
             Document ID as string, or None if source not found
-            
+
         Raises:
             ValueError: If source document exists but has no id field
         """
         docs = self.document_store.query_documents("sources", {"name": source_name}, limit=1)
         if not docs:
             return None
-        
+
         doc = docs[0]
         # Try "id" first (Cosmos DB), then "_id" (MongoDB/InMemory).
         # Use explicit None checks so falsy but valid IDs (e.g., 0, "") are preserved.
         doc_id = doc.get("id")
         if doc_id is None:
             doc_id = doc.get("_id")
-        
+
         if doc_id is None:
             raise ValueError(f"Source document for '{source_name}' has no id field")
-        
+
         return str(doc_id)
 
     def update_source(self, source_name: str, source_data: dict[str, Any]) -> dict[str, Any] | None:
@@ -1235,7 +1238,7 @@ class IngestionService:
             doc_id = self._get_source_doc_id(source_name)
             if doc_id is None:
                 return None
-            
+
             # Update in document store using the document ID
             self.document_store.update_document(
                 "sources",
@@ -1281,7 +1284,7 @@ class IngestionService:
             doc_id = self._get_source_doc_id(source_name)
             if doc_id is None:
                 return False
-            
+
             # Delete from document store using the document ID
             self.document_store.delete_document("sources", doc_id)
 

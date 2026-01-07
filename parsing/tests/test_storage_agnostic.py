@@ -4,7 +4,6 @@
 """Tests for storage-agnostic archive handling (optional file_path)."""
 
 import tempfile
-from unittest.mock import Mock
 
 import pytest
 from app.service import ParsingService
@@ -39,7 +38,7 @@ class TestStorageAgnosticArchives:
             def __init__(self):
                 super().__init__()
                 self.published_events = []
-            
+
             def publish(self, exchange, routing_key, event):
                 self.published_events.append({
                     "exchange": exchange,
@@ -47,7 +46,7 @@ class TestStorageAgnosticArchives:
                     "event": event,
                 })
                 return True
-        
+
         pub = TrackingPublisher()
         pub.connect()
         return pub
@@ -79,15 +78,15 @@ class TestStorageAgnosticArchives:
             error_type="TestError",
             messages_parsed_before_failure=0,
         )
-        
+
         # Check that event was published with placeholder
         events = service.publisher.published_events
         assert len(events) == 1
-        
+
         event = events[0]
         assert event["routing_key"] == "parsing.failed"
         assert event["event"]["event_type"] == "ParsingFailed"
-        
+
         # file_path should have archive:// placeholder instead of None
         data = event["event"]["data"]
         assert data["file_path"] == "archive://test123"
@@ -104,11 +103,11 @@ class TestStorageAgnosticArchives:
             error_type="TestError",
             messages_parsed_before_failure=5,
         )
-        
+
         # Check that event was published with actual file_path
         events = service.publisher.published_events
         assert len(events) == 1
-        
+
         event = events[0]
         data = event["event"]["data"]
         assert data["file_path"] == "/data/archives/test.mbox"
@@ -128,17 +127,17 @@ class TestStorageAgnosticArchives:
             "\n"
             "Test content\n"
         )
-        
+
         # Store archive in archive store
         with open(test_mbox, 'rb') as f:
             content = f.read()
-        
+
         archive_id = service.archive_store.store_archive(
             source_name="test-source",
             file_path=str(test_mbox),
             content=content,
         )
-        
+
         # Create archive data WITHOUT file_path (storage-agnostic)
         archive_data = {
             "archive_id": archive_id,
@@ -151,14 +150,14 @@ class TestStorageAgnosticArchives:
             "ingestion_completed_at": "2024-01-01T00:00:01Z",
             # NOTE: no file_path field - this is the key test scenario
         }
-        
+
         # Process should succeed without file_path
         service.process_archive(archive_data)
-        
+
         # Verify messages were parsed and stored
         messages = service.document_store.query_documents("messages", {})
         assert len(messages) > 0
-        
+
         # Verify JSONParsed events were published
         json_parsed_events = [
             e for e in service.publisher.published_events
@@ -180,17 +179,17 @@ class TestStorageAgnosticArchives:
             "ingestion_completed_at": "2024-01-01T00:00:01Z",
             # No file_path
         }
-        
+
         # Process should handle missing archive gracefully
         service.process_archive(archive_data)
-        
+
         # Verify ParsingFailed event was published
         parsing_failed_events = [
             e for e in service.publisher.published_events
             if e["routing_key"] == "parsing.failed"
         ]
         assert len(parsing_failed_events) == 1
-        
+
         event = parsing_failed_events[0]
         data = event["event"]["data"]
         assert data["archive_id"] == "nonexistent123"

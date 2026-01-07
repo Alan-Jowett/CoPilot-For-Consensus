@@ -67,10 +67,10 @@ class ParsingService:
             try:
                 if archive_store_type is None:
                     archive_store_type = os.getenv("ARCHIVE_STORE_TYPE", "local")
-                
+
                 # Get base path for local backend
                 archive_store_base_path = os.getenv("ARCHIVE_STORE_PATH", "/data/raw_archives")
-                
+
                 self.archive_store = create_archive_store(
                     store_type=archive_store_type,
                     base_path=archive_store_base_path,
@@ -224,10 +224,10 @@ class ParsingService:
                 if archive_content is None:
                     error_msg = f"Archive {archive_id} not found in ArchiveStore"
                     logger.error(error_msg)
-                    
+
                     # Update archive status to 'failed'
                     self._update_archive_status(archive_id, "failed", 0)
-                    
+
                     self._publish_parsing_failed(
                         archive_id,
                         None,  # Storage-agnostic mode - no file path available
@@ -239,10 +239,10 @@ class ParsingService:
             except Exception as e:
                 error_msg = f"Failed to retrieve archive from ArchiveStore: {str(e)}"
                 logger.error(error_msg, exc_info=True)
-                
+
                 # Update archive status to 'failed'
                 self._update_archive_status(archive_id, "failed", 0)
-                
+
                 self._publish_parsing_failed(
                     archive_id,
                     None,  # Storage-agnostic mode - no file path available
@@ -258,10 +258,12 @@ class ParsingService:
             temp_file_path = None
             try:
                 # Create temp file with prefix for easier identification
-                with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.mbox', prefix='parsing_') as temp_file:
+                with tempfile.NamedTemporaryFile(
+                    mode='wb', delete=False, suffix='.mbox', prefix='parsing_'
+                ) as temp_file:
                     temp_file_path = temp_file.name
                     temp_file.write(archive_content)
-                
+
                 logger.debug(f"Wrote archive {archive_id} to temporary file {temp_file_path}")
 
                 # Parse mbox file - raises exceptions on failure
@@ -722,7 +724,7 @@ class ParsingService:
         # Use placeholder for file_path if not provided (storage-agnostic backends)
         # This maintains compatibility with the event schema while not requiring a real path
         event_file_path = file_path if file_path else f"archive://{archive_id}"
-        
+
         event = ParsingFailedEvent(
             data={
                 "archive_id": archive_id,
