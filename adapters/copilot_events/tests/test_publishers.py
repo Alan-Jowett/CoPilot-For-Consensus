@@ -16,6 +16,8 @@ class TestPublisherFactory:
             message_bus_type="rabbitmq",
             host="localhost",
             port=5672,
+            username="guest",
+            password="guest",
         )
 
         assert isinstance(publisher, RabbitMQPublisher)
@@ -135,27 +137,32 @@ class TestRabbitMQPublisher:
         assert publisher.password == "testpass"
         assert publisher.exchange == "test.exchange"
 
-    def test_default_values(self):
-        """Test default initialization values."""
-        publisher = RabbitMQPublisher()
-
-        assert publisher.host == "localhost"
-        assert publisher.port == 5672
-        assert publisher.username == "guest"
-        assert publisher.password == "guest"
-        assert publisher.exchange == "copilot.events"
-        assert publisher.exchange_type == "topic"
-        assert publisher.enable_publisher_confirms is True
+    def test_missing_required_parameters(self):
+        """Test initialization requires explicit connection parameters."""
+        import pytest
+        with pytest.raises(ValueError):
+            RabbitMQPublisher()
 
     def test_publisher_confirms_disabled(self):
         """Test initialization with publisher confirms disabled."""
-        publisher = RabbitMQPublisher(enable_publisher_confirms=False)
+        publisher = RabbitMQPublisher(
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
+            enable_publisher_confirms=False,
+        )
 
         assert publisher.enable_publisher_confirms is False
 
     def test_declared_queues_tracking(self):
         """Test that declared queues are tracked."""
-        publisher = RabbitMQPublisher()
+        publisher = RabbitMQPublisher(
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
+        )
 
         # Initially no queues declared
         assert len(publisher._declared_queues) == 0

@@ -56,11 +56,9 @@ class TestMetricsFactory:
         with pytest.raises(ValueError, match="Unknown metrics backend"):
             create_metrics_collector(backend="invalid")
 
-    def test_create_with_env_default(self, monkeypatch):
-        """Test factory uses environment variable for default backend."""
-        monkeypatch.setenv("METRICS_BACKEND", "noop")
-
-        collector = create_metrics_collector()
+    def test_create_with_explicit_backend(self):
+        """Test factory requires explicit backend parameter."""
+        collector = create_metrics_collector(backend="noop")
 
         assert isinstance(collector, NoOpMetricsCollector)
 
@@ -257,28 +255,27 @@ class TestPrometheusPushGatewayMetricsCollector:
         sys.modules.get('prometheus_client') is None,
         reason="prometheus_client not installed"
     )
-    def test_initialization_defaults(self, monkeypatch):
-        """Collector should initialize with default gateway and job, normalizing URL."""
-        # Ensure no env overrides
-        monkeypatch.delenv("PROMETHEUS_PUSHGATEWAY", raising=False)
-        monkeypatch.delenv("METRICS_JOB_NAME", raising=False)
-
-        collector = PrometheusPushGatewayMetricsCollector()
-        assert collector.gateway.startswith("http://")
+    def test_initialization_with_explicit_params(self):
+        """Collector requires explicit gateway and job parameters."""
+        collector = PrometheusPushGatewayMetricsCollector(
+            gateway="pushgateway:9091",
+            job="ingestion"
+        )
+        assert collector.gateway == "http://pushgateway:9091"
         assert collector.job == "ingestion"
 
     @pytest.mark.skipif(
         sys.modules.get('prometheus_client') is None,
         reason="prometheus_client not installed"
     )
-    def test_initialization_with_env(self, monkeypatch):
-        """Gateway and job can be configured via environment variables."""
-        monkeypatch.setenv("PROMETHEUS_PUSHGATEWAY", "monitoring:9091")
-        monkeypatch.setenv("METRICS_JOB_NAME", "ingestion-test")
-
-        collector = PrometheusPushGatewayMetricsCollector()
+    def test_initialization_url_normalization(self):
+        """Gateway URL should normalize with http:// prefix."""
+        collector = PrometheusPushGatewayMetricsCollector(
+            gateway="monitoring:9091",
+            job="orchestrator"
+        )
         assert collector.gateway == "http://monitoring:9091"
-        assert collector.job == "ingestion-test"
+        assert collector.job == "orchestrator"
 
     @pytest.mark.skipif(
         sys.modules.get('prometheus_client') is None,

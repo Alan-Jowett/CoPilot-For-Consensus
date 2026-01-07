@@ -25,6 +25,8 @@ class TestRabbitMQReconnection:
         publisher = RabbitMQPublisher(
             host="localhost",
             port=5672,
+            username="guest",
+            password="guest",
             max_reconnect_attempts=2,
             reconnect_delay=0.1,
         )
@@ -69,7 +71,12 @@ class TestRabbitMQReconnection:
 
     def test_is_connected_checks_channel_state(self):
         """Test _is_connected properly checks connection and channel state."""
-        publisher = RabbitMQPublisher()
+        publisher = RabbitMQPublisher(
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
+        )
 
         # No connection
         assert publisher._is_connected() is False
@@ -95,6 +102,10 @@ class TestRabbitMQReconnection:
     def test_circuit_breaker_prevents_rapid_reconnects(self):
         """Test circuit breaker throttles reconnection attempts."""
         publisher = RabbitMQPublisher(
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
             reconnect_delay=1.0,  # 1 second delay
         )
 
@@ -114,6 +125,10 @@ class TestRabbitMQReconnection:
     def test_circuit_breaker_time_based_throttling(self):
         """Test circuit breaker respects time delay and allows reconnect after backoff."""
         publisher = RabbitMQPublisher(
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
             reconnect_delay=2.0,
         )
 
@@ -150,6 +165,10 @@ class TestRabbitMQReconnection:
     def test_reconnect_limit_enforced(self):
         """Test maximum reconnection attempts are enforced."""
         publisher = RabbitMQPublisher(
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
             max_reconnect_attempts=2,
             reconnect_delay=0.0,  # No delay for testing
         )
@@ -168,6 +187,10 @@ class TestRabbitMQReconnection:
     def test_reconnect_resets_count_on_success(self):
         """Test reconnection count resets after successful reconnect."""
         publisher = RabbitMQPublisher(
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
             max_reconnect_attempts=3,
             reconnect_delay=0.0,
         )
@@ -195,6 +218,10 @@ class TestRabbitMQReconnection:
     def test_reconnect_redeclares_queues(self):
         """Test that reconnection re-declares previously declared queues."""
         publisher = RabbitMQPublisher(
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
             reconnect_delay=0.0,
         )
 
@@ -216,6 +243,10 @@ class TestRabbitMQReconnection:
     def test_publish_retries_after_reconnection(self):
         """Test that publish retries once after successful reconnection."""
         publisher = RabbitMQPublisher(
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
             reconnect_delay=0.0,
         )
 
@@ -254,6 +285,10 @@ class TestRabbitMQReconnection:
     def test_publish_connection_error_and_reconnect_failure(self):
         """Test that publish raises ConnectionError when reconnection fails after a connection error."""
         publisher = RabbitMQPublisher(
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
             reconnect_delay=0.0,
         )
 
@@ -288,6 +323,10 @@ class TestRabbitMQReconnection:
     def test_publish_retry_failure_propagates_exception(self):
         """Test that when reconnection succeeds but retry publish fails, the exception is propagated."""
         publisher = RabbitMQPublisher(
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
             reconnect_delay=0.0,
         )
 

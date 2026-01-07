@@ -31,8 +31,14 @@ class TestSubscriberFactory:
         assert subscriber.password == "pass"
 
     def test_create_rabbitmq_subscriber_defaults(self):
-        """Test RabbitMQ subscriber with default values."""
-        subscriber = create_subscriber("rabbitmq", host="localhost")
+        """Test RabbitMQ subscriber requires explicit connection details."""
+        subscriber = create_subscriber(
+            "rabbitmq",
+            host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
+        )
 
         assert isinstance(subscriber, RabbitMQSubscriber)
         assert subscriber.port == 5672
@@ -242,6 +248,9 @@ class TestRabbitMQSubscriber:
         """Test subscriber with custom exchange."""
         subscriber = RabbitMQSubscriber(
             host="localhost",
+            port=5672,
+            username="guest",
+            password="guest",
             exchange_name="custom.exchange",
             exchange_type="fanout"
         )
@@ -251,7 +260,7 @@ class TestRabbitMQSubscriber:
 
     def test_event_type_to_routing_key(self):
         """Test conversion of event type to routing key."""
-        subscriber = RabbitMQSubscriber(host="localhost")
+        subscriber = RabbitMQSubscriber(host="localhost", port=5672, username="guest", password="guest")
 
         assert subscriber._event_type_to_routing_key("ArchiveIngested") == "archive.ingested"
         assert subscriber._event_type_to_routing_key("JSONParsed") == "json.parsed"
@@ -262,7 +271,7 @@ class TestRabbitMQSubscriber:
         """Test that start_consuming handles pika transport state errors gracefully."""
         from unittest.mock import MagicMock
 
-        subscriber = RabbitMQSubscriber(host="localhost")
+        subscriber = RabbitMQSubscriber(host="localhost", port=5672, username="guest", password="guest")
 
         # Mock channel to simulate connected state
         mock_channel = MagicMock()
@@ -299,7 +308,7 @@ class TestRabbitMQSubscriber:
         """Test that start_consuming re-raises non-transport assertion errors."""
         from unittest.mock import MagicMock
 
-        subscriber = RabbitMQSubscriber(host="localhost")
+        subscriber = RabbitMQSubscriber(host="localhost", port=5672, username="guest", password="guest")
 
         # Mock channel to simulate connected state
         mock_channel = MagicMock()
@@ -321,7 +330,7 @@ class TestRabbitMQSubscriber:
         """Test that stop_consuming handles expected exceptions during shutdown."""
         from unittest.mock import MagicMock
 
-        subscriber = RabbitMQSubscriber(host="localhost")
+        subscriber = RabbitMQSubscriber(host="localhost", port=5672, username="guest", password="guest")
 
         # Test AssertionError (transport state issues)
         mock_channel = MagicMock()
@@ -339,7 +348,7 @@ class TestRabbitMQSubscriber:
         """Test that stop_consuming logs unexpected exceptions at warning level."""
         from unittest.mock import MagicMock
 
-        subscriber = RabbitMQSubscriber(host="localhost")
+        subscriber = RabbitMQSubscriber(host="localhost", port=5672, username="guest", password="guest")
 
         # Test unexpected exception type
         mock_channel = MagicMock()

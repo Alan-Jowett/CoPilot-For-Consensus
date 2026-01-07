@@ -73,6 +73,7 @@ def prepare_archive_for_processing(archive_store, file_path, archive_id=None):
         "source_name": "test-source",
         "source_type": "local",
         "source_url": file_path,
+        "file_path": file_path,
         "file_size_bytes": len(content),
         "file_hash_sha256": "abc123",  # Simplified for tests
         "ingestion_started_at": "2024-01-01T00:00:00Z",

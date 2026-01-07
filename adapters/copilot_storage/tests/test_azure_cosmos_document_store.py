@@ -91,10 +91,9 @@ class TestAzureCosmosDocumentStore:
 
     def test_connect_missing_endpoint(self):
         """Test that connect() raises error when endpoint is missing."""
-        store = AzureCosmosDocumentStore(endpoint=None, key="testkey")
-
-        with pytest.raises(DocumentStoreConnectionError, match="endpoint is required"):
-            store.connect()
+        # Attempting to create store with endpoint=None should raise ValueError in __init__
+        with pytest.raises(ValueError, match="endpoint is required"):
+            AzureCosmosDocumentStore(endpoint=None, key="testkey")
 
     @patch("azure.identity.DefaultAzureCredential")
     @patch("azure.cosmos.CosmosClient")

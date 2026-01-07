@@ -548,8 +548,8 @@ class TestMongoDocumentStore:
         assert store.database_name == "testdb"
 
     def test_default_values(self):
-        """Test default initialization values."""
-        store = MongoDocumentStore()
+        """Test initialization with explicit required parameters."""
+        store = MongoDocumentStore(host="localhost", port=27017, database="copilot")
 
         assert store.host == "localhost"
         assert store.port == 27017
@@ -559,7 +559,7 @@ class TestMongoDocumentStore:
 
     def test_connect_pymongo_not_installed(self, monkeypatch):
         """Test that connect() raises DocumentStoreConnectionError when pymongo is not installed."""
-        store = MongoDocumentStore()
+        store = MongoDocumentStore(host="localhost", port=27017, database="test_db")
 
         # Mock the pymongo import to raise ImportError
         import builtins
@@ -577,7 +577,7 @@ class TestMongoDocumentStore:
 
     def test_connect_connection_failure(self, monkeypatch):
         """Test that connect() raises DocumentStoreConnectionError on connection failure."""
-        store = MongoDocumentStore(host="nonexistent.host.invalid", port=27017)
+        store = MongoDocumentStore(host="nonexistent.host.invalid", port=27017, database="test_db")
 
         # Mock pymongo to raise ConnectionFailure
         from unittest.mock import MagicMock, patch
@@ -593,7 +593,7 @@ class TestMongoDocumentStore:
 
     def test_connect_unexpected_error(self, monkeypatch):
         """Test that connect() raises DocumentStoreConnectionError on unexpected errors."""
-        store = MongoDocumentStore()
+        store = MongoDocumentStore(host="localhost", port=27017, database="test_db")
 
         # Mock pymongo to raise an unexpected exception
         from unittest.mock import MagicMock, patch

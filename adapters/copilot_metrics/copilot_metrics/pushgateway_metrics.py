@@ -39,9 +39,9 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
 
         Args:
             gateway: Pushgateway URL (e.g., "pushgateway:9091" or "http://pushgateway:9091")
-                     Required parameter
+                     Required parameter - must be explicitly provided
             job: Job name for metrics (e.g., "ingestion", "orchestrator")
-                 Required parameter
+                 Required parameter - must be explicitly provided
             grouping_key: Optional grouping key dict for metric grouping
             **kwargs: Additional arguments passed to PrometheusMetricsCollector
 

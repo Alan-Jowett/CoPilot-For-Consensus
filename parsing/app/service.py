@@ -28,8 +28,14 @@ from pymongo.errors import DuplicateKeyError
 
 from .parser import MessageParser
 from .thread_builder import ThreadBuilder
+from . import __version__
 
 logger = create_logger(name="parsing")
+
+# Ensure schema loader sees the correct service version during tests/runtime
+# The config adapter reads SERVICE_VERSION from the environment with default "0.0.0"
+# which causes a mismatch with schema min version. Set it from our package version if absent.
+os.environ.setdefault("SERVICE_VERSION", __version__)
 
 
 class ParsingService:
@@ -83,11 +89,21 @@ class ParsingService:
                     None,
                 ) or "raw-archives"
 
+                # Pass only backend-appropriate kwargs to the factory
+                store_kwargs: dict[str, Any] = {}
+                if resolved_archive_store_type == "local":
+                    store_kwargs = {"base_path": archive_store_base_path}
+                elif resolved_archive_store_type == "azure_blob":
+                    store_kwargs = {
+                        "connection_string": archive_store_connection_string,
+                        "container_name": archive_store_container,
+                    }
+                elif resolved_archive_store_type == "mongodb":
+                    store_kwargs = {}
+
                 self.archive_store = create_archive_store(
                     store_type=resolved_archive_store_type,
-                    base_path=archive_store_base_path,
-                    connection_string=archive_store_connection_string,
-                    container_name=archive_store_container,
+                    **store_kwargs,
                 )
                 logger.info(
                     "Initialized ArchiveStore",

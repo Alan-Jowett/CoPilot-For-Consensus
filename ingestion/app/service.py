@@ -244,16 +244,34 @@ class IngestionService:
         if archive_store is None:
             try:
                 archive_store_base_path = self.config.archive_store_base_path or self.config.storage_path
+
+                store_type = self.config.archive_store_type
+                store_kwargs: dict[str, Any] = {}
+
+                if store_type == "local":
+                    # Local backend only requires base_path
+                    store_kwargs = {"base_path": archive_store_base_path}
+                elif store_type == "azure_blob":
+                    # Azure backend uses connection_string and container_name
+                    store_kwargs = {
+                        "connection_string": self.config.archive_store_connection_string,
+                        "container_name": self.config.archive_store_container,
+                    }
+                elif store_type == "mongodb":
+                    # MongoDB backend not yet implemented; pass through future params here if added
+                    store_kwargs = {}
+                else:
+                    # Unknown store type handled by factory; no kwargs
+                    store_kwargs = {}
+
                 self.archive_store = create_archive_store(
-                    store_type=self.config.archive_store_type,
-                    base_path=archive_store_base_path,
-                    connection_string=self.config.archive_store_connection_string,
-                    container_name=self.config.archive_store_container,
+                    store_type=store_type,
+                    **store_kwargs,
                 )
                 self.logger.info(
                     "Initialized ArchiveStore",
-                    store_type=self.config.archive_store_type,
-                    base_path=archive_store_base_path,
+                    store_type=store_type,
+                    base_path=archive_store_base_path if store_type == "local" else None,
                 )
             except Exception as e:
                 self.logger.error("Failed to initialize ArchiveStore", error=str(e), exc_info=True)
