@@ -34,7 +34,10 @@ from pydantic import BaseModel, Field
 logger = create_logger(logger_type="stdout", level="INFO", name="auth")
 
 # Configure metrics
-metrics = create_metrics_collector(service_name="auth")
+metrics = create_metrics_collector(
+    backend=os.environ.get("METRICS_BACKEND", "noop"),
+    service_name="auth"
+)
 
 # Global service instance
 auth_service: AuthService | None = None
