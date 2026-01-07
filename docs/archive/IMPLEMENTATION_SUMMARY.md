@@ -62,7 +62,7 @@ This implementation delivers a complete **schema-driven configuration system** f
 
 ### 2. Configuration Schemas
 
-Created comprehensive JSON schemas for all microservices in `documents/schemas/configs/`:
+Created comprehensive JSON schemas for all microservices in `docs/schemas/configs/`:
 
 - **ingestion.json**: 18 configuration fields
 - **parsing.json**: 14 configuration fields
@@ -204,7 +204,7 @@ config = load_typed_config(
 
 All acceptance criteria from the issue have been met:
 
-- ✓ Each microservice has a schema file under `documents/schemas/configs/`
+- ✓ Each microservice has a schema file under `docs/schemas/configs/`
 - ✓ `copilot_config` supports schema-driven loading and validation
 - ✓ All configuration retrieval can occur through the unified loader
 - ✓ Services will crash with clear errors when config is missing or invalid
@@ -265,13 +265,13 @@ All tests pass:
 - `adapters/copilot_config/tests/test_schema_loader.py`
 - `adapters/copilot_config/tests/test_typed_config.py`
 - `adapters/copilot_config/examples/schema_driven_config.py`
-- `documents/schemas/configs/ingestion.json`
-- `documents/schemas/configs/parsing.json`
-- `documents/schemas/configs/chunking.json`
-- `documents/schemas/configs/embedding.json`
-- `documents/schemas/configs/orchestrator.json`
-- `documents/schemas/configs/summarization.json`
-- `documents/schemas/configs/reporting.json`
+- `docs/schemas/configs/ingestion.json`
+- `docs/schemas/configs/parsing.json`
+- `docs/schemas/configs/chunking.json`
+- `docs/schemas/configs/embedding.json`
+- `docs/schemas/configs/orchestrator.json`
+- `docs/schemas/configs/summarization.json`
+- `docs/schemas/configs/reporting.json`
 - `docs/operations/configuration-migration.md`
 
 ### Modified Files

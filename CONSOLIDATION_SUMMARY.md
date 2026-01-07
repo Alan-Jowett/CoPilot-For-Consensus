@@ -81,7 +81,7 @@ This consolidation **unified all substantial content into `docs/`** with a coher
 - ✅ `docs/schemas/README.md` - Schema overview + organization
 - ✅ `docs/schemas/data-storage.md` - Database + message bus schemas
 - ✅ `docs/schemas/schema-versioning.md` - Version management strategy
-- **JSON files**: Moved to docs/schemas/ (configs, documents, events, role_store)
+- **JSON files**: Located in docs/schemas/ (configs, documents, events, role_store)
 
 #### 9. API Documentation
 - ✅ `docs/openapi.md` - Hybrid OpenAPI workflow (spec-first gateway, code-first services)
@@ -141,15 +141,10 @@ docs/
     └── schema-versioning.md
 ```
 
-### documents/ (Transitional - Schemas + Redirects)
+### documents/ (Historical Reference Only)
 ```
 documents/
 ├── README.md                         # Index note: Legacy area, refer to docs/
-├── schemas/                          # JSON schema definitions (persistent)
-│   ├── configs.schema.json
-│   ├── documents.schema.json
-│   ├── events.schema.json
-│   └── role_store.schema.json
 ├── runbooks/                         # Redirect stubs to docs/operations/runbooks/
 │   └── (legacy stubs)
 ├── CONVENTIONS.md                    # REDIRECT → docs/CONVENTIONS.md
@@ -201,15 +196,7 @@ All major documentation entry points updated to point to `docs/`:
 
 ## What Remains
 
-### In docs/schemas/ (Previously in documents/schemas/)
-1. **JSON Schemas** (docs/schemas/)
-   - configs.schema.json
-   - documents.schema.json
-   - events.schema.json
-   - role_store.schema.json
-   - These are developer-facing reference files; consolidated to docs/schemas/
-
-2. **Specialist/Reference Docs** (for future consolidation or deprecation)
+### Specialist/Reference Docs (for future consolidation or deprecation)
    - CI_TEST_TIMEOUTS.md - CI timeout reference
    - DEPLOYMENT_GUIDE.md - Admin setup procedures
    - CONVENTION variations
@@ -222,8 +209,8 @@ All major documentation entry points updated to point to `docs/`:
 
 ### Action: Future Phases
 - **Phase 3** (Optional): Consolidate remaining utility docs into docs/operations/ or deprecate as needed
-- **Phase 4** (Optional): Consider moving JSON schemas to docs/schemas/ with versioned metadata
-- **Phase 5** (Cleanup): Remove documents/ directory entirely once all content is migrated or archived
+- **Phase 4** (Completed): JSON schemas consolidated to docs/schemas/
+- **Phase 5** (Completed): Removed documents/schemas/ directory (schemas now in docs/schemas/)
 
 ---
 

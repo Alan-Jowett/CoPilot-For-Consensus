@@ -3,16 +3,15 @@
 
 # documents/ (Reference Area)
 
-This directory contains JSON schemas and historical implementation notes. **All user-facing documentation now lives in [docs/](../docs/).**
+This directory is reserved for historical implementation notes. **All user-facing documentation now lives in [docs/](../docs/).**
 
-## Current Contents
+## Schema Location
 
-### schemas/
-JSON schema definitions for runtime validation:
-- **configs.schema.json** - Configuration validation schema
-- **documents.schema.json** - Document structure schema
-- **events.schema.json** - Message bus event schemas
-- **role_store.schema.json** - RBAC role definitions
+JSON schema definitions have been moved to [docs/schemas/](../docs/schemas/):
+- **configs/** - Configuration validation schemas
+- **documents/** - Document structure schemas
+- **events/** - Message bus event schemas
+- **role_store/** - RBAC role definitions
 
 See [docs/schemas/data-storage.md](../docs/schemas/data-storage.md) for schema documentation.
 
@@ -34,5 +33,5 @@ All operational guides, architecture docs, feature integration guides, and devel
 When adding new documentation:
 1. Add content to [docs/](../docs/) with appropriate subdirectory structure
 2. Update [docs/README.md](../docs/README.md) index
-3. Use JSON schemas from documents/schemas/ for validation
+3. Use JSON schemas from [docs/schemas/](../docs/schemas/) for validation
 4. Do not add new docs to documents/ (this is reference-only)
