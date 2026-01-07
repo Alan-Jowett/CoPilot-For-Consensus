@@ -257,20 +257,26 @@ class IngestionService:
                     account_name = getattr(self.config, "archive_store_account_name", None)
                     container_name = self.config.archive_store_container
 
+                    # Normalize empty strings to None to avoid false "missing" validation failures
+                    if connection_string == "":
+                        connection_string = None
+                    if account_name == "":
+                        account_name = None
+
                     # Enforce mutually exclusive auth modes
-                    if connection_string and account_name:
+                    if connection_string is not None and account_name is not None:
                         raise ValueError(
                             "Provide either archive_store_connection_string or archive_store_account_name, not both."
                         )
-                    if not connection_string and not account_name:
+                    if connection_string is None and account_name is None:
                         raise ValueError(
                             "archive_store_connection_string or archive_store_account_name is required for azure_blob archive store."
                         )
 
                     store_kwargs = {"container_name": container_name}
-                    if connection_string:
+                    if connection_string is not None:
                         store_kwargs["connection_string"] = connection_string
-                    if account_name:
+                    if account_name is not None:
                         store_kwargs["account_name"] = account_name
                 elif store_type == "mongodb":
                     # MongoDB backend not yet implemented; pass through future params here if added
