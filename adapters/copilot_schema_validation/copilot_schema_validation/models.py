@@ -95,15 +95,20 @@ class ArchiveIngestedEvent(BaseEvent):
     Routing Key: archive.ingested
 
     Data fields:
-        archive_id: Unique identifier for the archive
+        archive_id: Unique identifier for the archive (use with ArchiveStore.get_archive())
         source_name: Source identifier (e.g., "ietf-quic")
         source_type: Archive source type (e.g., "rsync")
         source_url: URL or path to original archive
-        file_path: Storage path for raw archive
+        file_path: (DEPRECATED) Storage path for raw archive - use archive_id with ArchiveStore instead
         file_size_bytes: Size of archive file in bytes
         file_hash_sha256: SHA256 hash of archive file
         ingestion_started_at: When ingestion began (ISO 8601)
         ingestion_completed_at: When ingestion completed (ISO 8601)
+
+    Migration Note:
+        The file_path field is deprecated for storage-agnostic deployments.
+        Consumers should use archive_id with ArchiveStore.get_archive() to
+        retrieve archive content instead of accessing file_path directly.
     """
     event_type: str = field(default="ArchiveIngested", init=False)
 
