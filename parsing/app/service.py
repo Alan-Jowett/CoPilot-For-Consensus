@@ -714,15 +714,19 @@ class ParsingService:
 
         Args:
             archive_id: Archive identifier
-            file_path: Path to mbox file (None for storage-agnostic mode)
+            file_path: Path to mbox file (None for storage-agnostic mode, will use placeholder)
             error_message: Error description
             error_type: Error type
             messages_parsed_before_failure: Partial progress
         """
+        # Use placeholder for file_path if not provided (storage-agnostic backends)
+        # This maintains compatibility with the event schema while not requiring a real path
+        event_file_path = file_path if file_path else f"archive://{archive_id}"
+        
         event = ParsingFailedEvent(
             data={
                 "archive_id": archive_id,
-                "file_path": file_path or "storage-agnostic",  # Use placeholder for schema compatibility
+                "file_path": event_file_path,
                 "error_message": error_message,
                 "error_type": error_type,
                 "messages_parsed_before_failure": messages_parsed_before_failure,
