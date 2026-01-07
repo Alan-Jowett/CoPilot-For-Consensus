@@ -120,11 +120,11 @@ class AzureBlobArchiveStore(ArchiveStore):
                     "Choose one credential method: account_key or sas_token (or neither for managed identity)"
                 )
 
-        # If using connection_string, ensure no conflicting parameters
+        # If using connection_string, ensure no conflicting credentials (account_name already excluded above)
         if has_connection_string:
-            if self.account_name or self.account_key or self.sas_token:
+            if self.account_key or self.sas_token:
                 raise ValueError(
-                    "Cannot provide account_name, account_key, or sas_token when using connection_string. "
+                    "Cannot provide account_key or sas_token when using connection_string. "
                     "Use only connection_string for connection string authentication"
                 )
 
