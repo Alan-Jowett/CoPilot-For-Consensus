@@ -145,7 +145,11 @@ class LocalVolumeArchiveStore(ArchiveStore):
         try:
             metadata = self._metadata.get(archive_id)
             if not metadata:
-                return None
+                # Metadata not in cache - reload from disk in case another service added it
+                self._load_metadata()
+                metadata = self._metadata.get(archive_id)
+                if not metadata:
+                    return None
 
             file_path = Path(metadata["file_path"])
             if not file_path.exists():
@@ -183,7 +187,11 @@ class LocalVolumeArchiveStore(ArchiveStore):
         """
         metadata = self._metadata.get(archive_id)
         if not metadata:
-            return False
+            # Metadata not in cache - reload from disk in case another service added it
+            self._load_metadata()
+            metadata = self._metadata.get(archive_id)
+            if not metadata:
+                return False
 
         file_path = Path(metadata["file_path"])
         return file_path.exists()
