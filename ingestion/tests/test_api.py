@@ -365,7 +365,7 @@ class TestTriggerIngestionEndpoint:
         assert "disabled" in response.json()["detail"]
 
     def test_trigger_ingestion_deletes_hash_for_reprocessing(self, client, service):
-        """Test that triggering ingestion deletes hashes to allow reprocessing."""
+        """Test that triggering ingestion deletes archives from document store to allow reprocessing."""
         import os
         import tempfile
 
@@ -388,17 +388,17 @@ class TestTriggerIngestionEndpoint:
             response1 = client.post("/api/sources/test-source/trigger")
             assert response1.status_code == 200
 
-            # Verify a checksum was created
-            checksums_before = len(service.checksums)
-            assert checksums_before > 0
+            # Verify an archive was created in document store
+            archives_before = service.document_store.query_documents("archives", {"source": "test-source"})
+            assert len(archives_before) > 0
 
-            # Second trigger - should delete the hash and re-ingest
+            # Second trigger - should delete the archives and re-ingest
             response2 = client.post("/api/sources/test-source/trigger")
             assert response2.status_code == 200
 
-            # Verify the file was re-ingested (checksum exists)
-            checksums_after = len(service.checksums)
-            assert checksums_after > 0
+            # Verify archives still exist (re-ingested)
+            archives_after = service.document_store.query_documents("archives", {"source": "test-source"})
+            assert len(archives_after) > 0
 
 
 class TestUploadEndpoint:

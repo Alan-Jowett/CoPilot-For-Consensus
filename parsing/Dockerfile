@@ -15,6 +15,7 @@ WORKDIR /app
 COPY adapters/ /app/adapters/
 RUN --mount=type=cache,target=/root/.cache/pip \
     python /app/adapters/scripts/install_adapters.py \
+    copilot_archive_store \
     copilot_config \
     copilot_events \
     copilot_storage \

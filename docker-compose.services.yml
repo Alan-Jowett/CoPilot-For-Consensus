@@ -120,6 +120,13 @@ services:
       - DOCUMENT_DATABASE_NAME=copilot
       - HTTP_HOST=0.0.0.0
       - HTTP_PORT=8001
+      # ArchiveStore configuration
+      - ARCHIVE_STORE_TYPE=${ARCHIVE_STORE_TYPE:-local}
+      - ARCHIVE_STORE_PATH=${ARCHIVE_STORE_PATH:-/data/raw_archives}
+      # Azure Blob Storage configuration (for azure_blob backend)
+      # - AZURE_STORAGE_ACCOUNT=${AZURE_STORAGE_ACCOUNT}
+      # - AZURE_STORAGE_KEY=${AZURE_STORAGE_KEY}
+      # - AZURE_STORAGE_CONTAINER=${AZURE_STORAGE_CONTAINER:-archives}
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
@@ -224,6 +231,13 @@ services:
       - DOCUMENT_DATABASE_NAME=copilot
       - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
+      # ArchiveStore configuration
+      - ARCHIVE_STORE_TYPE=${ARCHIVE_STORE_TYPE:-local}
+      - ARCHIVE_STORE_PATH=${ARCHIVE_STORE_PATH:-/data/raw_archives}
+      # Azure Blob Storage configuration (for azure_blob backend)
+      # - AZURE_STORAGE_ACCOUNT=${AZURE_STORAGE_ACCOUNT}
+      # - AZURE_STORAGE_KEY=${AZURE_STORAGE_KEY}
+      # - AZURE_STORAGE_CONTAINER=${AZURE_STORAGE_CONTAINER:-archives}
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus

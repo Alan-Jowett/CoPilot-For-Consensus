@@ -3,8 +3,10 @@
 
 """Local volume-based archive store implementation."""
 
+import errno
 import hashlib
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,10 +39,24 @@ class LocalVolumeArchiveStore(ArchiveStore):
 
         self.base_path = Path(base_path)
         self.metadata_path = self.base_path / "metadata" / "archives.json"
+        self._read_only = False
 
-        # Ensure directories exist
-        self.base_path.mkdir(parents=True, exist_ok=True)
-        self.metadata_path.parent.mkdir(parents=True, exist_ok=True)
+        # Initialize logger instance for structured logging
+        self.logger = logging.getLogger(__name__)
+        
+        # Try to ensure directories exist (may fail in read-only or permission-restricted mode)
+        try:
+            self.base_path.mkdir(parents=True, exist_ok=True)
+            self.metadata_path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            # Check if failure is due to write restrictions (read-only filesystem or permissions)
+            if e.errno in (errno.EROFS, errno.EACCES, errno.EPERM):
+                # Read-only or permission-restricted filesystem: acceptable for services that only read archives
+                self._read_only = True
+                self.logger.info(f"ArchiveStore initialized in read-only mode: {e}")
+            else:
+                # Other error (disk space, invalid path, etc.): re-raise
+                raise
 
         # Load metadata index
         self._metadata: dict[str, dict[str, Any]] = {}
@@ -56,11 +72,12 @@ class LocalVolumeArchiveStore(ArchiveStore):
                 # Start with empty metadata if load fails
                 self._metadata = {}
                 # Log warning but don't fail initialization
-                import logging
-                logging.warning(f"Failed to load archive metadata: {e}")
+                self.logger.warning(f"Failed to load archive metadata: {e}")
 
     def _save_metadata(self) -> None:
         """Save metadata index to disk."""
+        if self._read_only:
+            raise ArchiveStoreError("Cannot save metadata: ArchiveStore is in read-only mode")
         try:
             with open(self.metadata_path, "w") as f:
                 json.dump(self._metadata, f, indent=2)
@@ -82,6 +99,9 @@ class LocalVolumeArchiveStore(ArchiveStore):
         Returns:
             Archive ID (first 16 chars of content hash)
         """
+        if self._read_only:
+            raise ArchiveStoreError("Cannot store archive: ArchiveStore is in read-only mode")
+        
         try:
             # Calculate content hash for deduplication and ID generation
             content_hash = self._calculate_hash(content)
@@ -128,7 +148,11 @@ class LocalVolumeArchiveStore(ArchiveStore):
         try:
             metadata = self._metadata.get(archive_id)
             if not metadata:
-                return None
+                # Metadata not in cache - reload from disk in case another service added it
+                self._load_metadata()
+                metadata = self._metadata.get(archive_id)
+                if not metadata:
+                    return None
 
             file_path = Path(metadata["file_path"])
             if not file_path.exists():
@@ -166,7 +190,11 @@ class LocalVolumeArchiveStore(ArchiveStore):
         """
         metadata = self._metadata.get(archive_id)
         if not metadata:
-            return False
+            # Metadata not in cache - reload from disk in case another service added it
+            self._load_metadata()
+            metadata = self._metadata.get(archive_id)
+            if not metadata:
+                return False
 
         file_path = Path(metadata["file_path"])
         return file_path.exists()
@@ -180,6 +208,9 @@ class LocalVolumeArchiveStore(ArchiveStore):
         Returns:
             True if archive was deleted, False if not found
         """
+        if self._read_only:
+            raise ArchiveStoreError("Cannot delete archive: ArchiveStore is in read-only mode")
+        
         try:
             metadata = self._metadata.get(archive_id)
             if not metadata:

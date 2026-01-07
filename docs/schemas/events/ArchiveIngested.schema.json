@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://alan-jowett.github.io/CoPilot-For-Consensus/schemas/events/archive-ingested.schema.json",
   "title": "ArchiveIngested Event",
+  "description": "Event published when an archive is successfully ingested. Use archive_id with ArchiveStore to retrieve archive content.",
   "allOf": [
     { "$ref": "./event-envelope.schema.json" },
     {
@@ -16,12 +17,11 @@
               "minLength": 16,
               "maxLength": 64,
               "pattern": "^[0-9a-f]{16,64}$",
-              "description": "archives._id (16-64 hex)"
+              "description": "archives._id (16-64 hex) - Use with ArchiveStore.get_archive() to retrieve content"
             },
             "source_name": { "type": "string", "minLength": 1 },
             "source_type": { "type": "string", "enum": ["rsync", "imap", "http", "local"] },
             "source_url": { "type": "string", "minLength": 1 },
-            "file_path": { "type": "string", "minLength": 1 },
             "file_size_bytes": { "type": "integer", "minimum": 0 },
             "file_hash_sha256": { "type": "string", "minLength": 1 },
             "ingestion_started_at": { "type": "string", "format": "date-time" },
@@ -32,7 +32,6 @@
             "source_name",
             "source_type",
             "source_url",
-            "file_path",
             "file_size_bytes",
             "file_hash_sha256",
             "ingestion_started_at",

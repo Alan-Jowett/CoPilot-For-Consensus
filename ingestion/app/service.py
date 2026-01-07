@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
+import hashlib
 import json
 import logging
 import os
@@ -11,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from copilot_archive_fetcher import SourceConfig, calculate_file_hash, create_fetcher
+from copilot_archive_store import ArchiveStore, create_archive_store
 from copilot_events import ArchiveIngestedEvent, ArchiveIngestionFailedEvent, ArchiveMetadata, EventPublisher
 from copilot_logging import Logger, create_logger
 from copilot_metrics import MetricsCollector, create_metrics_collector
@@ -49,6 +51,8 @@ DEFAULT_CONFIG = {
     "doc_store_name": "copilot",
     "doc_store_user": "root",
     "doc_store_password": "example",
+    "archive_store_type": "local",  # ArchiveStore backend: local, mongodb, azure_blob
+    "archive_store_base_path": None,  # Base path for local backend (defaults to storage_path)
     "sources": [],
 }
 
@@ -199,6 +203,7 @@ class IngestionService:
         error_reporter: ErrorReporter | None = None,
         logger: Logger | None = None,
         metrics: MetricsCollector | None = None,
+        archive_store: ArchiveStore | None = None,
     ):
         """Initialize ingestion service.
 
@@ -209,11 +214,11 @@ class IngestionService:
             error_reporter: Error reporter for structured error reporting (optional)
             logger: Structured logger for observability (optional)
             metrics: Metrics collector for observability (optional)
+            archive_store: Archive store for storing raw archives (optional, will be created if None)
         """
         self.config = _apply_defaults(config)
         self.publisher = publisher
         self.document_store = document_store
-        self.checksums: dict[str, dict[str, Any]] = {}
         self.logger = logger or create_logger(
             logger_type=config.log_type,
             level=config.log_level,
@@ -221,7 +226,6 @@ class IngestionService:
         )
         self.metrics = metrics or create_metrics_collector(backend=config.metrics_backend)
         self._ensure_storage_path(self.config.storage_path)
-        self._initial_storage_path = self.config.storage_path
 
         # Initialize error reporter
         if error_reporter is None:
@@ -234,14 +238,41 @@ class IngestionService:
         else:
             self.error_reporter = error_reporter
 
+        # Initialize ArchiveStore
+        if archive_store is None:
+            try:
+                archive_store_base_path = self.config.archive_store_base_path or self.config.storage_path
+                self.archive_store = create_archive_store(
+                    store_type=self.config.archive_store_type,
+                    base_path=archive_store_base_path,
+                )
+                self.logger.info(
+                    "Initialized ArchiveStore",
+                    store_type=self.config.archive_store_type,
+                    base_path=archive_store_base_path,
+                )
+            except Exception as e:
+                self.logger.error("Failed to initialize ArchiveStore", error=str(e), exc_info=True)
+                self.error_reporter.report(
+                    e,
+                    context={
+                        "operation": "initialize_archive_store",
+                        "store_type": self.config.archive_store_type,
+                    }
+                )
+                raise
+        else:
+            self.archive_store = archive_store
+
         # Source status tracking
         self._source_status: dict[str, dict[str, Any]] = {}
         self._stats = {
             "total_files_ingested": 0,
             "last_ingestion_at": None,
         }
-
-        self.load_checksums()
+        
+        # Initialize archive metadata cache for performance optimization
+        self._archive_metadata_cache: dict[str, dict[str, dict[str, Any]]] = {}
 
     @staticmethod
     def _ensure_storage_path(storage_path: str) -> None:
@@ -249,102 +280,8 @@ class IngestionService:
         storage_dir.mkdir(parents=True, exist_ok=True)
         (storage_dir / "metadata").mkdir(exist_ok=True)
 
-    def load_checksums(self) -> None:
-        """Load checksums from metadata file.
-
-        If loading fails, starts with empty checksums to allow service to continue.
-        This is intentional recovery - the service can start even if checksums
-        can't be loaded (though files may be reprocessed).
-        """
-        checksums_path = os.path.join(self.config.storage_path, "metadata", "checksums.json")
-
-        if os.path.exists(checksums_path):
-            try:
-                with open(checksums_path) as f:
-                    self.checksums = json.load(f)
-                self.logger.info(
-                    "Loaded checksums",
-                    checksum_count=len(self.checksums),
-                    checksums_path=checksums_path,
-                )
-            except Exception as e:
-                self.logger.warning("Failed to load checksums", error=str(e), exc_info=True)
-                self.error_reporter.report(
-                    e,
-                    context={
-                        "operation": "load_checksums",
-                        "checksums_path": checksums_path,
-                    }
-                )
-                self.checksums = {}
-        else:
-            self.checksums = {}
-
-    def save_checksums(self) -> None:
-        """Save checksums to metadata file.
-
-        Raises on failure to ensure caller is aware that checksums weren't persisted.
-        """
-        checksums_path = os.path.join(self.config.storage_path, "metadata", "checksums.json")
-        try:
-            if self.config.storage_path != self._initial_storage_path:
-                raise ValueError("Storage path changed after initialization")
-            if not os.path.exists(self.config.storage_path):
-                raise FileNotFoundError(f"Storage path does not exist: {self.config.storage_path}")
-            os.makedirs(os.path.dirname(checksums_path), exist_ok=True)
-            with open(checksums_path, "w") as f:
-                json.dump(self.checksums, f, indent=2)
-            self.logger.info(
-                "Saved checksums",
-                checksum_count=len(self.checksums),
-                checksums_path=checksums_path,
-            )
-        except Exception as e:
-            self.logger.error("Failed to save checksums", error=str(e), exc_info=True)
-            self.error_reporter.report(
-                e,
-                context={
-                    "operation": "save_checksums",
-                    "checksums_path": checksums_path,
-                    "checksum_count": len(self.checksums),
-                }
-            )
-            raise
-
-    def is_file_already_ingested(self, file_hash: str) -> bool:
-        """Check if a file has already been ingested.
-
-        Args:
-            file_hash: SHA256 hash of the file
-
-        Returns:
-            True if file has been ingested, False otherwise
-        """
-        return file_hash in self.checksums
-
-    def add_checksum(
-        self,
-        file_hash: str,
-        archive_id: str,
-        file_path: str,
-        first_seen: str,
-    ) -> None:
-        """Add a checksum entry.
-
-        Args:
-            file_hash: SHA256 hash of the file
-            archive_id: Unique identifier for the archive
-            file_path: Path where the archive is stored
-            first_seen: ISO 8601 timestamp when first ingested
-        """
-        self.checksums[file_hash] = {
-            "archive_id": archive_id,
-            "file_path": file_path,
-            "first_seen": first_seen,
-        }
-
-    def delete_checksums_for_source(self, source_name: str) -> int:
-        """Delete all checksums associated with a source.
+    def delete_archives_for_source(self, source_name: str) -> int:
+        """Delete all archives associated with a source from document store.
 
         This allows re-ingestion of previously processed files from the source.
 
@@ -352,43 +289,47 @@ class IngestionService:
             source_name: Name of the source
 
         Returns:
-            Number of checksums deleted
+            Number of archives deleted
         """
-        # Find all checksums that have file paths belonging to this source
-        # Files from a source are stored in: {storage_path}/{source_name}/*
-        # Normalize the base source path so comparisons work across platforms
-        source_root = os.path.normpath(os.path.join(self.config.storage_path, source_name))
+        deleted_count = 0
 
-        hashes_to_delete = []
-        for file_hash, metadata in self.checksums.items():
-            file_path = metadata.get("file_path", "")
-            # Skip empty or whitespace-only paths
-            if not file_path or not file_path.strip():
-                continue
-            normalized_file_path = os.path.normpath(file_path)
+        if self.document_store:
+            try:
+                # Query all archives for this source
+                archives = self.document_store.query_documents(
+                    "archives",
+                    {"source": source_name}
+                )
 
-            # Check if this file belongs to the source
-            # Use path comparison that checks if file is in the source directory
-            # by verifying the normalized path is equal to or starts with source_root followed by separator
-            if normalized_file_path == source_root:
-                # Exact match - the file is the source root itself
-                hashes_to_delete.append(file_hash)
-            elif normalized_file_path.startswith(source_root + os.sep):
-                # File is in a subdirectory of source_root
-                hashes_to_delete.append(file_hash)
+                # Delete each archive
+                for archive in archives:
+                    archive_id = archive.get("_id") or archive.get("id")
+                    if archive_id:
+                        try:
+                            self.document_store.delete_document("archives", str(archive_id))
+                            deleted_count += 1
+                        except Exception as e:
+                            self.logger.warning(
+                                "Failed to delete archive from document store",
+                                archive_id=archive_id,
+                                error=str(e),
+                            )
 
-        # Delete the identified hashes
-        for file_hash in hashes_to_delete:
-            del self.checksums[file_hash]
+                if deleted_count > 0:
+                    self.logger.info(
+                        "Deleted archives for source from document store",
+                        source_name=source_name,
+                        count=deleted_count,
+                    )
+            except Exception as e:
+                self.logger.error(
+                    "Failed to delete archives for source",
+                    source_name=source_name,
+                    error=str(e),
+                    exc_info=True,
+                )
 
-        if hashes_to_delete:
-            self.logger.info(
-                "Deleted checksums for source",
-                source_name=source_name,
-                count=len(hashes_to_delete),
-            )
-
-        return len(hashes_to_delete)
+        return deleted_count
 
     def ingest_archive(
         self,
@@ -504,12 +445,16 @@ class IngestionService:
                 files_skipped = 0
 
                 for file_path in file_paths:
-                    # Calculate hash for this file
-                    file_hash = calculate_file_hash(file_path)
-                    file_size = os.path.getsize(file_path)
+                    # Read file content once
+                    with open(file_path, "rb") as f:
+                        file_content = f.read()
 
-                    # Check if already ingested
-                    if self.is_file_already_ingested(file_hash):
+                    # Calculate hash from content (avoids re-reading file)
+                    file_hash = hashlib.sha256(file_content).hexdigest()
+                    file_size = len(file_content)
+
+                    # Check if already ingested using document store
+                    if self._is_archive_already_stored(file_hash):
                         self.logger.debug(
                             "File already ingested",
                             file_path=file_path,
@@ -523,9 +468,38 @@ class IngestionService:
                         )
                         continue
 
-                    # Generate deterministic archive ID from file hash (first 16 chars)
-                    # This ensures same file always produces same archive_id for idempotent ingestion
-                    archive_id = file_hash[:16]
+                    # Store archive via ArchiveStore
+                    try:
+                        archive_id = self.archive_store.store_archive(
+                            source_name=source.name,
+                            file_path=file_path,
+                            content=file_content,
+                        )
+                        self.logger.info(
+                            "Stored archive via ArchiveStore",
+                            archive_id=archive_id,
+                            source_name=source.name,
+                            file_path=file_path,
+                            file_size=file_size,
+                        )
+                    except Exception as e:
+                        self.logger.error(
+                            "Failed to store archive via ArchiveStore",
+                            error=str(e),
+                            file_path=file_path,
+                            source_name=source.name,
+                            exc_info=True,
+                        )
+                        self.error_reporter.report(
+                            e,
+                            context={
+                                "operation": "store_archive",
+                                "file_path": file_path,
+                                "source_name": source.name,
+                            }
+                        )
+                        # Skip this file and continue with others
+                        continue
 
                     # Create metadata
                     ingestion_completed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -543,14 +517,17 @@ class IngestionService:
                         status="success",
                     )
 
-                    # Store checksum
-                    self.add_checksum(file_hash, archive_id, file_path, ingestion_started_at)
-
                     # Save metadata to log
                     self._save_ingestion_log(metadata)
 
                     # Write to archives collection in document store
-                    self._write_archive_record(archive_id, source, file_path, ingestion_completed_at)
+                    self._write_archive_record(
+                        archive_id,
+                        source,
+                        file_hash,
+                        self.config.archive_store_type,
+                        ingestion_completed_at,
+                    )
 
                     # Publish success event
                     self._publish_success_event(metadata)
@@ -570,9 +547,6 @@ class IngestionService:
                     )
 
                     files_processed += 1
-
-                # Save all checksums at once
-                self.save_checksums()
 
                 duration_seconds = time.monotonic() - started_monotonic
                 self.logger.info(
@@ -776,11 +750,61 @@ class IngestionService:
                 }
             )
 
+    def _is_archive_already_stored(self, file_hash: str) -> bool:
+        """Check if an archive with the given hash is already stored.
+
+        Uses the document store to check for existing archives with the same SHA-256 hash.
+        This replaces the local checksums.json cache.
+
+        Args:
+            file_hash: SHA256 hash of the file
+
+        Returns:
+            True if archive with this hash exists in document store, False otherwise
+        """
+        if self.document_store is None:
+            return False
+
+        try:
+            # Query document store for archives with this hash
+            existing_archives = self.document_store.query_documents(
+                "archives",
+                {"file_hash": file_hash},
+                limit=1
+            )
+            return len(existing_archives) > 0
+        except Exception as e:
+            # If query fails, log warning but allow processing to continue
+            # This ensures ingestion doesn't fail due to temporary document store issues
+            # However, we report the error prominently via metrics and error reporting
+            self.logger.warning(
+                "Failed to check if archive already stored - processing may result in duplicates",
+                error=str(e),
+                file_hash=file_hash,
+                exc_info=True,
+            )
+            
+            # Increment metric for document store query failures to make silent failures visible
+            if self.metrics:
+                self.metrics.increment("ingestion_deduplication_check_failed_total")
+            
+            if self.error_reporter:
+                self.error_reporter.report(
+                    e,
+                    context={
+                        "operation": "check_archive_already_stored",
+                        "collection": "archives",
+                        "file_hash": file_hash,
+                    },
+                )
+            return False
+
     def _write_archive_record(
         self,
         archive_id: str,
         source: SourceConfig,
-        file_path: str,
+        file_hash: str,
+        storage_backend: str,
         ingestion_date: str,
     ) -> None:
         """Write archive record to document store.
@@ -792,7 +816,8 @@ class IngestionService:
         Args:
             archive_id: Unique identifier for the archive
             source: Source configuration
-            file_path: Path where the archive is stored
+            file_hash: SHA-256 hash of the archive content
+            storage_backend: ArchiveStore backend type (local, mongodb, azure_blob)
             ingestion_date: ISO 8601 timestamp when ingestion completed
         """
         if self.document_store is None:
@@ -803,13 +828,47 @@ class IngestionService:
             return
 
         try:
-            # Determine archive format from file extension
-            file_ext = os.path.splitext(file_path)[1].lstrip('.')
-            archive_format = file_ext if file_ext else "mbox"  # default to mbox
+            # Get archive metadata from ArchiveStore
+            archive_metadata = None
+            if self.archive_store:
+                # Use per-source in-memory cache (initialized in __init__) to avoid repeated
+                # list_archives calls when processing multiple archives for a source.
+                archive_lookup = self._archive_metadata_cache.get(source.name)
+                if archive_lookup is None:
+                    archives = self.archive_store.list_archives(source.name)
+                    archive_lookup = {
+                        archive.get("archive_id"): archive
+                        for archive in archives
+                        if archive.get("archive_id") is not None
+                    }
+                    self._archive_metadata_cache[source.name] = archive_lookup
+                
+                archive_metadata = archive_lookup.get(archive_id)
 
-            # Compute required fields for schema validation
-            file_hash = calculate_file_hash(file_path)
-            file_size_bytes = os.path.getsize(file_path)
+            # Determine archive format from stored metadata or default to mbox
+            archive_format = "mbox"
+            file_size_bytes = 0
+            if archive_metadata:
+                file_path = archive_metadata.get("original_path", "")
+                file_ext = os.path.splitext(file_path)[1].lstrip('.')
+                archive_format = file_ext if file_ext else "mbox"
+                file_size_bytes = archive_metadata.get("size_bytes", 0)
+            elif self.archive_store:
+                # ArchiveStore is configured but no metadata was found for this archive.
+                # This indicates a critical inconsistency: the archive was just stored
+                # but cannot be found immediately afterwards. Abort ingestion for this
+                # archive rather than creating an archive document with incorrect data.
+                self.logger.error(
+                    "Archive metadata not found in ArchiveStore after storing archive; "
+                    "aborting ingestion to avoid inconsistent archive document",
+                    archive_id=archive_id,
+                    source=source.name,
+                    storage_backend=storage_backend,
+                )
+                raise IngestionError(
+                    f"Archive metadata for archive_id '{archive_id}' not found in "
+                    f"ArchiveStore backend '{storage_backend}'"
+                )
 
             archive_doc = {
                 "_id": archive_id,  # Canonical identifier
@@ -820,7 +879,7 @@ class IngestionService:
                 "format": archive_format,
                 "ingestion_date": ingestion_date,
                 "message_count": 0,  # Will be updated by parsing service
-                "file_path": file_path,
+                "storage_backend": storage_backend,  # Track which backend is storing this
                 "status": "pending",  # Will be updated to 'processed' or 'failed' by parsing
                 "created_at": ingestion_date,
             }
@@ -830,7 +889,7 @@ class IngestionService:
                 "Wrote archive record to document store",
                 archive_id=archive_id,
                 source=source.name,
-                file_path=file_path,
+                storage_backend=storage_backend,
             )
 
             # Emit metric for archive creation with pending status
@@ -856,7 +915,7 @@ class IngestionService:
                         "operation": "write_archive_record",
                         "archive_id": archive_id,
                         "source": source.name,
-                        "file_path": file_path,
+                        "storage_backend": storage_backend,
                     }
                 )
 
@@ -869,9 +928,11 @@ class IngestionService:
         Raises:
             Exception: Re-raises any exception from publisher to ensure visibility
         """
-        # Convert metadata to dict and remove status field (not part of event schema)
+        # Convert metadata to dict and remove status and file_path fields
+        # file_path is removed to make the event storage-agnostic
         event_data = metadata.to_dict()
         event_data.pop('status', None)  # Remove status field if present
+        event_data.pop('file_path', None)  # Remove file_path - not storage-agnostic
 
         try:
             event = ArchiveIngestedEvent(data=event_data)
@@ -1263,22 +1324,19 @@ class IngestionService:
             return False, f"Source '{source_name}' is disabled"
 
         try:
-            # Delete existing checksums to force re-ingestion
-            deleted_count = self.delete_checksums_for_source(source_name)
+            # Delete existing archives to force re-ingestion
+            deleted_count = self.delete_archives_for_source(source_name)
             if deleted_count > 0:
                 self.logger.info(
-                    "Trigger ingestion: deleted checksums to force re-ingestion",
+                    "Trigger ingestion: deleted archives to force re-ingestion",
                     source_name=source_name,
-                    checksums_deleted=deleted_count,
+                    archives_deleted=deleted_count,
                 )
-                # Save checksums after deletion to persist the change immediately
-                self.save_checksums()
 
             # Convert to SourceConfig
             source_cfg = _source_from_mapping(source)
 
             # Run ingestion
-            # Note: ingest_archive will save checksums again after adding new ones
             self.ingest_archive(source_cfg)
 
             return True, f"Ingestion triggered successfully for '{source_name}'"

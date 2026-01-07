@@ -67,35 +67,7 @@ class TestIngestionService:
         """Test service initialization."""
         assert service.config is not None
         assert service.publisher is not None
-        assert isinstance(service.checksums, dict)
-
-    def test_add_and_check_checksum(self, service):
-        """Test adding and checking checksums."""
-        file_hash = "abc123def456"
-        archive_id = "archive-1"
-        file_path = "/path/to/file"
-        timestamp = "2023-01-01T00:00:00Z"
-
-        service.add_checksum(file_hash, archive_id, file_path, timestamp)
-        assert service.is_file_already_ingested(file_hash) is True
-
-    def test_save_and_load_checksums(self, temp_storage):
-        """Test saving and loading checksums."""
-        config = make_config(storage_path=temp_storage)
-        publisher = NoopPublisher()
-        publisher.connect()
-        service1 = IngestionService(config, publisher)
-
-        file_hash = "hash123"
-        archive_id = "archive-1"
-        file_path = "/path/to/file"
-        timestamp = "2023-01-01T00:00:00Z"
-
-        service1.add_checksum(file_hash, archive_id, file_path, timestamp)
-        service1.save_checksums()
-
-        service2 = IngestionService(config, publisher)
-        assert service2.is_file_already_ingested(file_hash) is True
+        assert service.archive_store is not None
 
     def test_ingest_archive_success(self, service, temp_storage):
         """Test successful archive ingestion."""
@@ -109,7 +81,9 @@ class TestIngestionService:
             # Should not raise exception on success
             service.ingest_archive(source, max_retries=1)
 
-            assert len(service.checksums) == 1
+            # Verify archives were stored in document store
+            archives = service.document_store.query_documents("archives", {})
+            assert len(archives) == 1
 
     def test_archives_collection_populated(self, service, temp_storage):
         """Test that archives collection is populated after ingestion."""
@@ -127,14 +101,15 @@ class TestIngestionService:
             archives = service.document_store.query_documents("archives", {})
             assert len(archives) == 1
 
-            # Verify archive document structure
+            # Verify archive document structure (storage-agnostic - no file_path)
             archive = archives[0]
             assert "_id" in archive
             assert archive["source"] == "test-source"
             assert archive["status"] == "pending"
             assert archive["message_count"] == 0
             assert "ingestion_date" in archive
-            assert "file_path" in archive
+            # file_path no longer stored in archive documents for storage-agnostic mode
+            assert "file_path" not in archive or archive["file_path"] == ""
 
     def test_metrics_emitted_on_success(self, service, temp_storage):
         """Ensure metrics are emitted for successful ingestion."""
@@ -178,10 +153,12 @@ class TestIngestionService:
             # First ingestion should succeed
             service.ingest_archive(source, max_retries=1)
 
-            # Second ingestion should also succeed (skips duplicate files)
+            # Second ingestion should also succeed (skips duplicate files via document store)
             service.ingest_archive(source, max_retries=1)
 
-            assert len(service.checksums) == 1
+            # Should still have only one archive in document store
+            archives = service.document_store.query_documents("archives", {})
+            assert len(archives) == 1
 
     def test_ingest_all_enabled_sources(self, temp_storage):
         """Test ingesting from all enabled sources."""
@@ -264,6 +241,7 @@ class TestIngestionService:
     def test_error_reporter_integration(self, temp_storage):
         """Test error reporter integration."""
         from copilot_reporting import SilentErrorReporter
+        from copilot_storage import InMemoryDocumentStore
 
         config = make_config(storage_path=temp_storage)
         config.log_type = "silent"
@@ -272,10 +250,15 @@ class TestIngestionService:
         error_reporter = SilentErrorReporter()
         logger = create_logger(logger_type="silent", level="INFO", name="ingestion-test")
         metrics = NoOpMetricsCollector()
+        
+        # Add document store
+        document_store = InMemoryDocumentStore()
+        document_store.connect()
 
         service = IngestionService(
             config,
             publisher,
+            document_store=document_store,
             error_reporter=error_reporter,
             logger=logger,
             metrics=metrics,
@@ -283,18 +266,16 @@ class TestIngestionService:
 
         assert service.error_reporter is error_reporter
         assert isinstance(service.error_reporter, SilentErrorReporter)
-
-        service.config.storage_path = "/invalid/path/that/does/not/exist"
-        try:
-            service.save_checksums()
-        except ValueError:
-            # Expected: save_checksums raises after reporting to error_reporter
-            pass
-
+        
+        # Test that error_reporter can be called and records errors
+        test_error = Exception("Test error")
+        error_reporter.report(test_error, context={"test": "value"})
+        
+        # Verify error was recorded
         assert error_reporter.has_errors()
         errors = error_reporter.get_errors()
-        assert len(errors) >= 1
-        assert errors[0]["context"]["operation"] == "save_checksums"
+        assert len(errors) == 1
+        assert errors[0]["context"]["test"] == "value"
 
     def test_error_reporter_default_initialization(self, config):
         """Test default error reporter initialization from config."""
@@ -309,131 +290,6 @@ class TestIngestionService:
 
         from copilot_reporting import SilentErrorReporter
         assert isinstance(service.error_reporter, SilentErrorReporter)
-
-    def test_delete_checksums_for_source(self, service, temp_storage):
-        """Test deleting checksums for a specific source."""
-        # Add checksums for multiple sources
-        storage_path = service.config.storage_path
-
-        # Checksums for source1
-        service.add_checksum(
-            "hash1", "archive1",
-            os.path.join(storage_path, "source1", "file1.mbox"),
-            "2023-01-01T00:00:00Z"
-        )
-        service.add_checksum(
-            "hash2", "archive2",
-            os.path.join(storage_path, "source1", "file2.mbox"),
-            "2023-01-01T00:00:00Z"
-        )
-
-        # Checksums for source2
-        service.add_checksum(
-            "hash3", "archive3",
-            os.path.join(storage_path, "source2", "file3.mbox"),
-            "2023-01-01T00:00:00Z"
-        )
-
-        assert len(service.checksums) == 3
-
-        # Delete checksums for source1
-        deleted_count = service.delete_checksums_for_source("source1")
-
-        assert deleted_count == 2
-        assert len(service.checksums) == 1
-        assert not service.is_file_already_ingested("hash1")
-        assert not service.is_file_already_ingested("hash2")
-        assert service.is_file_already_ingested("hash3")
-
-    def test_delete_checksums_for_nonexistent_source(self, service):
-        """Test deleting checksums for a source with no checksums."""
-        # Add a checksum for a different source
-        service.add_checksum(
-            "hash1", "archive1",
-            os.path.join(service.config.storage_path, "source1", "file1.mbox"),
-            "2023-01-01T00:00:00Z"
-        )
-
-        # Try to delete checksums for a source that doesn't exist
-        deleted_count = service.delete_checksums_for_source("nonexistent-source")
-
-        assert deleted_count == 0
-        assert len(service.checksums) == 1
-
-    def test_delete_checksums_only_deletes_exact_source_match(self, service):
-        """Test that delete_checksums_for_source doesn't match similar source names."""
-        storage_path = service.config.storage_path
-
-        # Add checksums for sources with similar names
-        service.add_checksum(
-            "hash1", "archive1",
-            os.path.join(storage_path, "source1", "file1.mbox"),
-            "2023-01-01T00:00:00Z"
-        )
-        service.add_checksum(
-            "hash2", "archive2",
-            os.path.join(storage_path, "source10", "file2.mbox"),
-            "2023-01-01T00:00:00Z"
-        )
-        service.add_checksum(
-            "hash3", "archive3",
-            os.path.join(storage_path, "source1-backup", "file3.mbox"),
-            "2023-01-01T00:00:00Z"
-        )
-
-        assert len(service.checksums) == 3
-
-        # Delete checksums for source1 only
-        deleted_count = service.delete_checksums_for_source("source1")
-
-        # Should only delete hash1, not hash2 or hash3
-        assert deleted_count == 1
-        assert len(service.checksums) == 2
-        assert not service.is_file_already_ingested("hash1")
-        assert service.is_file_already_ingested("hash2")
-        assert service.is_file_already_ingested("hash3")
-
-    def test_trigger_ingestion_deletes_checksums(self, service, temp_storage):
-        """Test that trigger_ingestion deletes checksums before re-ingestion."""
-        from copilot_storage import InMemoryDocumentStore
-
-        # Setup document store with a source
-        if not service.document_store:
-            service.document_store = InMemoryDocumentStore()
-            service.document_store.connect()
-
-        # Create a test file
-        with tempfile.TemporaryDirectory() as source_dir:
-            test_file = os.path.join(source_dir, "test.mbox")
-            with open(test_file, "w") as f:
-                f.write("From: test@example.com\nTo: dev@example.com\nSubject: Test\n\nContent")
-
-            # Create a source
-            source_data = {
-                "name": "test-source",
-                "source_type": "local",
-                "url": test_file,
-                "enabled": True,
-            }
-            service.create_source(source_data)
-
-            # First ingestion - should create a checksum
-            success, message = service.trigger_ingestion("test-source")
-            assert success is True
-            assert len(service.checksums) == 1
-            first_hash = list(service.checksums.keys())[0]
-
-            # Verify the file would be skipped on next ingest
-            assert service.is_file_already_ingested(first_hash)
-
-            # Trigger ingestion again - should delete the checksum and re-ingest
-            success, message = service.trigger_ingestion("test-source")
-            assert success is True
-
-            # The file should have been re-ingested, creating a new checksum entry
-            # (same hash, but the checksum should have been deleted and re-added)
-            assert len(service.checksums) == 1
-            assert service.is_file_already_ingested(first_hash)
 
 
 # ============================================================================
@@ -499,52 +355,6 @@ def test_archive_ingestion_failed_event_schema_validation():
 
         for event_record in failure_events:
             assert_valid_event_schema(event_record["event"])
-
-
-def test_save_checksums_raises_on_write_error(tmp_path):
-    """Test that save_checksums raises exception on write errors."""
-    from unittest.mock import patch
-
-    from app.service import IngestionService
-    from copilot_events import NoopPublisher
-
-    from .test_helpers import make_config
-
-    config = make_config(storage_path=str(tmp_path))
-
-    publisher = NoopPublisher()
-    service = IngestionService(config=config, publisher=publisher)
-
-    # Add a checksum
-    service.checksums["test"] = "abc123"
-
-    # Mock open to raise PermissionError when writing checksums file
-    with patch("builtins.open", side_effect=PermissionError("Permission denied")):
-        # Verify exception is raised, not swallowed
-        with pytest.raises(PermissionError):
-            service.save_checksums()
-
-
-def test_load_checksums_recovers_on_read_error(tmp_path):
-    """Test that load_checksums recovers gracefully on read errors (intentional)."""
-    from app.service import IngestionService
-    from copilot_events import NoopPublisher
-
-    from .test_helpers import make_config
-
-    # Create a corrupted checksums file
-    metadata_dir = tmp_path / "metadata"
-    metadata_dir.mkdir(exist_ok=True)
-    checksums_file = metadata_dir / "checksums.json"
-    checksums_file.write_text("{ invalid json }")
-
-    config = make_config(storage_path=str(tmp_path))
-
-    publisher = NoopPublisher()
-
-    # Service should start with empty checksums (intentional recovery)
-    service = IngestionService(config=config, publisher=publisher)
-    assert service.checksums == {}
 
 
 def test_publish_success_event_raises_on_publisher_failure(tmp_path):
@@ -770,3 +580,109 @@ def test_exception_prevents_silent_failure():
             assert e.retry_count > 0
 
         assert exception_was_raised, "Exception-based approach successfully prevented silent failure"
+
+
+def test_service_initialization_with_archive_store(tmp_path):
+    """Test that service can be initialized with ArchiveStore."""
+    from copilot_archive_store import LocalVolumeArchiveStore
+    
+    config = make_config(storage_path=str(tmp_path))
+    publisher = NoopPublisher()
+    publisher.connect()
+    
+    # Create ArchiveStore explicitly
+    archive_store = LocalVolumeArchiveStore(base_path=str(tmp_path))
+    
+    service = IngestionService(
+        config=config,
+        publisher=publisher,
+        archive_store=archive_store,
+    )
+    
+    assert service.archive_store is not None
+    assert isinstance(service.archive_store, LocalVolumeArchiveStore)
+
+
+def test_archive_deduplication_via_document_store(tmp_path):
+    """Test that _is_archive_already_stored checks document store instead of checksums."""
+    from copilot_storage import InMemoryDocumentStore
+    
+    config = make_config(storage_path=str(tmp_path))
+    publisher = NoopPublisher()
+    publisher.connect()
+    
+    # Create in-memory document store
+    document_store = InMemoryDocumentStore()
+    document_store.connect()
+    
+    service = IngestionService(
+        config=config,
+        publisher=publisher,
+        document_store=document_store,
+    )
+    
+    file_hash = "abc123def456"
+    
+    # Initially, archive should not be stored
+    assert service._is_archive_already_stored(file_hash) is False
+    
+    # Add archive to document store
+    document_store.insert_document("archives", {
+        "_id": "archive-1",
+        "file_hash": file_hash,
+        "source": "test",
+        "status": "pending",
+    })
+    
+    # Now it should be found
+    assert service._is_archive_already_stored(file_hash) is True
+
+
+def test_delete_archives_for_source_deletes_from_document_store(tmp_path):
+    """Test that delete_archives_for_source deletes archives from document store."""
+    from copilot_storage import InMemoryDocumentStore
+    
+    config = make_config(storage_path=str(tmp_path))
+    publisher = NoopPublisher()
+    publisher.connect()
+    
+    # Create in-memory document store
+    document_store = InMemoryDocumentStore()
+    document_store.connect()
+    
+    service = IngestionService(
+        config=config,
+        publisher=publisher,
+        document_store=document_store,
+    )
+    
+    # Add some archives to document store
+    document_store.insert_document("archives", {
+        "_id": "archive-1",
+        "file_hash": "hash1",
+        "source": "test-source",
+        "status": "completed",
+    })
+    document_store.insert_document("archives", {
+        "_id": "archive-2",
+        "file_hash": "hash2",
+        "source": "other-source",
+        "status": "completed",
+    })
+    document_store.insert_document("archives", {
+        "_id": "archive-3",
+        "file_hash": "hash3",
+        "source": "test-source",
+        "status": "pending",
+    })
+    
+    # Delete archives for test-source
+    deleted_count = service.delete_archives_for_source("test-source")
+    
+    # Should have deleted 2 archives
+    assert deleted_count == 2
+    
+    # Verify archives were deleted
+    remaining = document_store.query_documents("archives", {})
+    assert len(remaining) == 1
+    assert remaining[0]["_id"] == "archive-2"
