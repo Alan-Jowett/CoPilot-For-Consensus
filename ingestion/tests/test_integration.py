@@ -109,24 +109,14 @@ class TestIngestionIntegration:
         archives = document_store.query_documents("archives", {})
         assert len(archives) == 3
 
-        # Verify each archive has correct structure
+        # Verify each archive has correct structure (storage-agnostic)
         for archive in archives:
             assert "_id" in archive
             assert archive["status"] == "pending"
             assert archive["message_count"] == 0
             assert "ingestion_date" in archive
-            assert "file_path" in archive
+            # file_path no longer stored for storage-agnostic mode
             assert "source" in archive
-
-        # Verify checksums were saved
-        checksums_path = os.path.join(
-            temp_environment["storage_path"], "metadata", "checksums.json"
-        )
-        assert os.path.exists(checksums_path)
-
-        with open(checksums_path) as f:
-            checksums = json.load(f)
-            assert len(checksums) == 3
 
         # Verify ingestion log
         log_path = os.path.join(
@@ -148,6 +138,8 @@ class TestIngestionIntegration:
 
     def test_ingestion_with_duplicates(self, temp_environment, test_sources):
         """Test ingestion handling of duplicate archives."""
+        from copilot_storage import InMemoryDocumentStore
+        
         config = make_config(
             storage_path=temp_environment["storage_path"],
             sources=test_sources,
@@ -155,8 +147,12 @@ class TestIngestionIntegration:
 
         publisher = NoopPublisher()
         publisher.connect()
+        
+        # Create document store for deduplication
+        document_store = InMemoryDocumentStore()
+        document_store.connect()
 
-        service = IngestionService(config, publisher)
+        service = IngestionService(config, publisher, document_store=document_store)
 
         # First ingestion
         results1 = service.ingest_all_enabled_sources()
@@ -165,14 +161,13 @@ class TestIngestionIntegration:
 
         initial_event_count = len(publisher.published_events)
 
-        # Second ingestion (should skip duplicates)
+        # Second ingestion (should skip duplicates via document store)
         results2 = service.ingest_all_enabled_sources()
         # All results should be None (success), not exceptions
         assert all(exc is None for exc in results2.values()), f"Some sources failed on retry: {results2}"
 
         # Should have same number of events (no new success events for duplicates)
-        # Note: actual behavior depends on implementation
-        # For now we expect same count if duplicates are skipped
+        # Deduplication via document store prevents re-ingestion
         assert len(publisher.published_events) == initial_event_count
 
     def test_ingestion_with_mixed_sources(self, temp_environment, test_sources):
@@ -198,28 +193,41 @@ class TestIngestionIntegration:
         # Result should be None (success), not an exception
         assert results["test-list-0"] is None
 
-    def test_checksums_persist_across_instances(self, temp_environment, test_sources):
-        """Test that checksums persist across service instances."""
+    def test_deduplication_persists_across_instances(self, temp_environment, test_sources):
+        """Test that deduplication via document store works across service instances."""
+        from copilot_storage import InMemoryDocumentStore
+        
         config = make_config(
             storage_path=temp_environment["storage_path"],
             sources=test_sources[:1],  # Just first source
         )
 
+        # Create shared document store
+        document_store = InMemoryDocumentStore()
+        document_store.connect()
+
         # First service instance
         publisher1 = NoopPublisher()
         publisher1.connect()
-        service1 = IngestionService(config, publisher1)
+        service1 = IngestionService(config, publisher1, document_store=document_store)
         service1.ingest_all_enabled_sources()
 
-        first_checksum = list(service1.checksums.keys())[0]
+        # Get the first archive record
+        archives = document_store.query_documents("archives", {})
+        assert len(archives) > 0
+        first_archive_hash = archives[0]["file_hash"]
 
-        # Second service instance
+        # Second service instance with same document store
         publisher2 = NoopPublisher()
         publisher2.connect()
-        service2 = IngestionService(config, publisher2)
-
-        # Verify checksum was loaded
-        assert first_checksum in service2.checksums
+        service2 = IngestionService(config, publisher2, document_store=document_store)
+        
+        # Ingest again - should skip because hash exists in document store
+        service2.ingest_all_enabled_sources()
+        
+        # Should still have only the original archives (no duplicates)
+        archives_after = document_store.query_documents("archives", {})
+        assert len(archives_after) == len(archives)
 
     def test_ingestion_log_format(self, temp_environment, test_sources):
         """Test that ingestion log has correct format."""
@@ -280,14 +288,15 @@ class TestIngestionIntegration:
             assert "version" in event
             assert "data" in event
 
-            # Verify event data
+            # Verify event data (storage-agnostic - no file_path)
             if event["event_type"] == "ArchiveIngested":
                 data = event["data"]
                 assert "archive_id" in data
                 assert "source_name" in data
                 assert "source_type" in data
                 assert "source_url" in data
-                assert "file_path" in data
+                # file_path removed for storage-agnostic events
+                assert "file_path" not in data
                 assert "file_size_bytes" in data
                 assert "file_hash_sha256" in data
                 assert "ingestion_started_at" in data
@@ -312,11 +321,10 @@ class TestIngestionIntegration:
         assert os.path.exists(storage_path)
         assert os.path.exists(os.path.join(storage_path, "metadata"))
 
-        # Verify source directories were created
+        # Verify source directories were created by ArchiveStore
         for source in test_sources[:2]:
             source_dir = os.path.join(storage_path, source["name"])
             assert os.path.exists(source_dir)
 
-        # Verify metadata files
-        assert os.path.exists(os.path.join(storage_path, "metadata", "checksums.json"))
+        # Verify metadata files (checksums.json no longer created)
         assert os.path.exists(os.path.join(storage_path, "metadata", "ingestion_log.jsonl"))
