@@ -215,7 +215,6 @@ class TestIngestionIntegration:
         # Get the first archive record
         archives = document_store.query_documents("archives", {})
         assert len(archives) > 0
-        first_archive_hash = archives[0]["file_hash"]
 
         # Second service instance with same document store
         publisher2 = NoopPublisher()

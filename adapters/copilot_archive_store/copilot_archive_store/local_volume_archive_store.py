@@ -41,18 +41,18 @@ class LocalVolumeArchiveStore(ArchiveStore):
         self.metadata_path = self.base_path / "metadata" / "archives.json"
         self._read_only = False
 
-        # Try to ensure directories exist (may fail in read-only mode)
+        # Try to ensure directories exist (may fail in read-only or permission-restricted mode)
         try:
             self.base_path.mkdir(parents=True, exist_ok=True)
             self.metadata_path.parent.mkdir(parents=True, exist_ok=True)
         except OSError as e:
-            # Check if failure is due to read-only filesystem
-            if e.errno == errno.EROFS:
-                # Read-only filesystem: acceptable for services that only read archives
+            # Check if failure is due to write restrictions (read-only filesystem or permissions)
+            if e.errno in (errno.EROFS, errno.EACCES, errno.EPERM):
+                # Read-only or permission-restricted filesystem: acceptable for services that only read archives
                 self._read_only = True
                 logging.info(f"ArchiveStore initialized in read-only mode: {e}")
             else:
-                # Other error (permissions, disk space, etc.): re-raise
+                # Other error (disk space, invalid path, etc.): re-raise
                 raise
 
         # Load metadata index

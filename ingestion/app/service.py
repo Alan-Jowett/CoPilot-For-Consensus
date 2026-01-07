@@ -822,13 +822,21 @@ class IngestionService:
             # Get archive metadata from ArchiveStore
             archive_metadata = None
             if self.archive_store:
-                # Build a dictionary of archive_id -> metadata for efficient lookup
-                archives = self.archive_store.list_archives(source.name)
-                archive_lookup = {
-                    archive.get("archive_id"): archive
-                    for archive in archives
-                    if archive.get("archive_id") is not None
-                }
+                # Lazily initialize per-source in-memory cache to avoid repeated
+                # list_archives calls when processing multiple archives for a source.
+                if not hasattr(self, "_archive_metadata_cache"):
+                    self._archive_metadata_cache = {}
+
+                archive_lookup = self._archive_metadata_cache.get(source.name)
+                if archive_lookup is None:
+                    archives = self.archive_store.list_archives(source.name)
+                    archive_lookup = {
+                        archive.get("archive_id"): archive
+                        for archive in archives
+                        if archive.get("archive_id") is not None
+                    }
+                    self._archive_metadata_cache[source.name] = archive_lookup
+                
                 archive_metadata = archive_lookup.get(archive_id)
 
             # Determine archive format from stored metadata or default to mbox
@@ -841,13 +849,19 @@ class IngestionService:
                 file_size_bytes = archive_metadata.get("size_bytes", 0)
             elif self.archive_store:
                 # ArchiveStore is configured but no metadata was found for this archive.
-                # Log a warning to highlight a potential ArchiveStore consistency issue
-                # while still falling back to safe default values.
-                self.logger.warning(
-                    "Archive metadata not found in ArchiveStore; using default values",
+                # This indicates a critical inconsistency: the archive was just stored
+                # but cannot be found immediately afterwards. Abort ingestion for this
+                # archive rather than creating an archive document with incorrect data.
+                self.logger.error(
+                    "Archive metadata not found in ArchiveStore after storing archive; "
+                    "aborting ingestion to avoid inconsistent archive document",
                     archive_id=archive_id,
                     source=source.name,
                     storage_backend=storage_backend,
+                )
+                raise IngestionError(
+                    f"Archive metadata for archive_id '{archive_id}' not found in "
+                    f"ArchiveStore backend '{storage_backend}'"
                 )
 
             archive_doc = {
