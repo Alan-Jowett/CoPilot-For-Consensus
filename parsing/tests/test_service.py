@@ -19,14 +19,17 @@ from .test_helpers import assert_valid_event_schema
 
 
 def create_test_archive_store():
-    """Create a test archive store with temporary directory.
+    """Create a test archive store with automatic temporary directory cleanup.
     
-    Note: Returns ArchiveStore using a temp directory that will NOT be automatically
-    cleaned up. Tests should use this for short-lived stores or accept temp dir accumulation.
-    For production code, use TemporaryDirectory context manager.
+    Returns an ArchiveStore backed by a temporary directory that will be
+    automatically cleaned up when the store instance is garbage-collected.
     """
-    tmpdir = tempfile.mkdtemp()
-    return LocalVolumeArchiveStore(base_path=tmpdir)
+    tmpdir = tempfile.TemporaryDirectory()
+    archive_store = LocalVolumeArchiveStore(base_path=tmpdir.name)
+    # Attach the TemporaryDirectory to the store so it stays alive for the
+    # lifetime of the archive_store and is cleaned up automatically afterwards.
+    archive_store._tmpdir = tmpdir
+    return archive_store
 
 
 def prepare_archive_for_processing(archive_store, file_path, archive_id=None):
@@ -61,9 +64,9 @@ def prepare_archive_for_processing(archive_store, file_path, archive_id=None):
             archive_id,
             actual_archive_id,
         )
-        result_archive_id = actual_archive_id
-    else:
-        result_archive_id = archive_id if archive_id is not None else actual_archive_id
+    
+    # Always use the ID returned by the archive store to avoid mismatches
+    result_archive_id = actual_archive_id
     
     return {
         "archive_id": result_archive_id,
