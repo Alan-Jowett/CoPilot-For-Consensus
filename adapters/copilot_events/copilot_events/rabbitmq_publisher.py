@@ -54,7 +54,7 @@ class RabbitMQPublisher(EventPublisher):
                 "RabbitMQ host is required. "
                 "Provide the RabbitMQ server hostname or IP address."
             )
-        if not port:
+        if port is None:
             raise ValueError(
                 "RabbitMQ port is required. "
                 "Provide the RabbitMQ server port number."

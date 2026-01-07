@@ -54,6 +54,7 @@ DEFAULT_CONFIG = {
     "archive_store_type": "local",  # ArchiveStore backend: local, mongodb, azure_blob
     "archive_store_base_path": None,  # Base path for local backend (defaults to storage_path)
     "archive_store_connection_string": None,  # Connection string for cloud backends
+    "archive_store_account_name": None,  # Storage account name for managed identity (azure_blob)
     "archive_store_container": "raw-archives",
     "sources": [],
 }
@@ -252,11 +253,25 @@ class IngestionService:
                     # Local backend only requires base_path
                     store_kwargs = {"base_path": archive_store_base_path}
                 elif store_type == "azure_blob":
-                    # Azure backend uses connection_string and container_name
-                    store_kwargs = {
-                        "connection_string": self.config.archive_store_connection_string,
-                        "container_name": self.config.archive_store_container,
-                    }
+                    connection_string = self.config.archive_store_connection_string
+                    account_name = getattr(self.config, "archive_store_account_name", None)
+                    container_name = self.config.archive_store_container
+
+                    # Enforce mutually exclusive auth modes
+                    if connection_string and account_name:
+                        raise ValueError(
+                            "Provide either archive_store_connection_string or archive_store_account_name, not both."
+                        )
+                    if not connection_string and not account_name:
+                        raise ValueError(
+                            "archive_store_connection_string or archive_store_account_name is required for azure_blob archive store."
+                        )
+
+                    store_kwargs = {"container_name": container_name}
+                    if connection_string:
+                        store_kwargs["connection_string"] = connection_string
+                    if account_name:
+                        store_kwargs["account_name"] = account_name
                 elif store_type == "mongodb":
                     # MongoDB backend not yet implemented; pass through future params here if added
                     store_kwargs = {}

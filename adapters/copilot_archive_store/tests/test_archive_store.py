@@ -50,7 +50,7 @@ def test_create_archive_store_local():
 
 def test_create_archive_store_default(tmp_path):
     """Test factory defaults to local store with constant defaults."""
-    store = create_archive_store(base_path=str(tmp_path))
+    store = create_archive_store(store_type="local", base_path=str(tmp_path))
     assert store is not None
     from copilot_archive_store import LocalVolumeArchiveStore
     assert isinstance(store, LocalVolumeArchiveStore)
@@ -72,6 +72,11 @@ def test_create_archive_store_mongodb_not_implemented():
 
 def test_create_archive_store_azure_blob():
     """Test that Azure Blob store can be created with proper credentials."""
+    try:
+        import azure.storage.blob  # noqa: F401
+    except ImportError:
+        pytest.skip("azure-storage-blob not installed")
+
     # Azure backend is now implemented
     # Without credentials, it should raise ValueError (not NotImplementedError)
     with pytest.raises(ValueError, match="Azure Storage"):
@@ -79,12 +84,9 @@ def test_create_archive_store_azure_blob():
 
     # With credentials, it should create an AzureBlobArchiveStore
     # (We can't fully test this without mocking, but we verify it doesn't raise NotImplementedError)
-    try:
-        from copilot_archive_store import AzureBlobArchiveStore
-        # If we can import it, the backend is implemented
-        assert AzureBlobArchiveStore is not None
-    except ImportError:
-        pytest.skip("azure-storage-blob not installed")
+    from copilot_archive_store import AzureBlobArchiveStore
+    # If we can import it, the backend is implemented
+    assert AzureBlobArchiveStore is not None
 
 
 def test_create_archive_store_s3_not_implemented():

@@ -47,7 +47,7 @@ class MongoDocumentStore(DocumentStore):
                 "MongoDB host is required. "
                 "Provide the MongoDB server hostname or IP address."
             )
-        if not port:
+        if port is None:
             raise ValueError(
                 "MongoDB port is required. "
                 "Provide the MongoDB server port number."
