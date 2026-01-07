@@ -209,9 +209,9 @@ def create_document_store(
         else:
             cosmos_kwargs["partition_key"] = "/collection"
 
-        # Validate required parameters
-        if not cosmos_kwargs.get("endpoint") or not cosmos_kwargs.get("key"):
-            raise ValueError("Azure Cosmos configuration requires 'endpoint' and 'key'")
+        # Validate required parameters (key may be None when using managed identity)
+        if not cosmos_kwargs.get("endpoint"):
+            raise ValueError("Azure Cosmos configuration requires 'endpoint'")
 
         # Pass any other kwargs that aren't Cosmos-specific or MongoDB-specific
         # MongoDB-specific parameters (host, port, username, password) should be filtered out
