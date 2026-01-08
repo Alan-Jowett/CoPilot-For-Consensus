@@ -28,4 +28,4 @@ pydantic-settings>=2.0.0
 jsonschema>=4.0.0
 
 # Dependency management (for generating lockfiles)
-pip-tools>=7.4.0
+pip-tools==7.5.2
