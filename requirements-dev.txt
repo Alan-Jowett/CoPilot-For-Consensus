@@ -26,3 +26,6 @@ azure-keyvault-secrets>=4.9.0
 pydantic>=2.4.0,<3.0.0
 pydantic-settings>=2.0.0
 jsonschema>=4.0.0
+
+# Dependency management (for generating lockfiles)
+pip-tools==7.5.2

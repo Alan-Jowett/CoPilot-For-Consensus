@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+# Auth Service Dependencies
+# This file lists direct external dependencies with version ranges.
+# Run `pip-compile requirements.in` to generate requirements.txt with pinned versions.
+#
+# Note: Local adapters (copilot-*) are installed separately and not included in this file.
+# See Dockerfile for adapter installation via scripts/install_adapters.py
+
+# Web framework
+fastapi>=0.127.0
+uvicorn[standard]>=0.40.0
+python-multipart>=0.0.20
+
+# Monitoring
+prometheus-client>=0.23.1
+
+# HTTP client for OIDC
+httpx>=0.28.1
+
+# JWT
+PyJWT>=2.10.1
+cryptography>=46.0.3
+
+# Configuration and validation
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# For health checks in Docker
+requests>=2.32.5
+

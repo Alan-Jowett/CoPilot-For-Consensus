@@ -48,7 +48,7 @@ def find_python_packages(root_dir: Path) -> list[tuple[str, str]]:
         dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
 
         # Check if this directory has Python package files
-        has_requirements = 'requirements.txt' in filenames
+        has_requirements = 'requirements.txt' in filenames or 'requirements.in' in filenames
         has_setup = 'setup.py' in filenames
 
         if has_requirements or has_setup:
@@ -99,6 +99,9 @@ def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
     content += "    schedule:\n"
     content += "      interval: \"weekly\"\n"
     content += "    open-pull-requests-limit: 10\n"
+    content += "    labels:\n"
+    content += "      - \"dependencies\"\n"
+    content += "      - \"python\"\n"
     content += "    groups:\n"
     content += "      pip-minor-patch:\n"
     content += "        patterns:\n"
@@ -114,6 +117,9 @@ def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
     content += "    schedule:\n"
     content += "      interval: \"weekly\"\n"
     content += "    open-pull-requests-limit: 5\n"
+    content += "    labels:\n"
+    content += "      - \"dependencies\"\n"
+    content += "      - \"javascript\"\n"
     content += "    groups:\n"
     content += "      npm-minor-patch:\n"
     content += "        patterns:\n"
@@ -129,6 +135,9 @@ def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
     content += "    schedule:\n"
     content += "      interval: \"weekly\"\n"
     content += "    open-pull-requests-limit: 5\n"
+    content += "    labels:\n"
+    content += "      - \"dependencies\"\n"
+    content += "      - \"docker\"\n"
     content += "    groups:\n"
     content += "      docker-minor-patch:\n"
     content += "        patterns:\n"
@@ -144,6 +153,9 @@ def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
     content += "    schedule:\n"
     content += "      interval: \"weekly\"\n"
     content += "    open-pull-requests-limit: 5\n"
+    content += "    labels:\n"
+    content += "      - \"dependencies\"\n"
+    content += "      - \"github-actions\"\n"
     content += "    groups:\n"
     content += "      github-actions-minor-patch:\n"
     content += "        patterns:\n"

@@ -11,6 +11,7 @@ on:
   pull_request:
     paths:
       - '**/requirements.txt'
+      - '**/requirements.in'
       - '**/setup.py'
       - '.github/dependabot.yml'
       - 'scripts/update-dependabot.py'

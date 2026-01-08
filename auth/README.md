@@ -467,6 +467,8 @@ Configuration is provided via environment variables and secrets (mounted at `/ru
    pip install -e ../adapters/copilot_logging
    pip install -e ../adapters/copilot_metrics
    ```
+   
+   **Note:** Dependencies are managed with pip-tools lockfiles. The `requirements.txt` file is generated from `requirements.in`. See [Dependency Management](#dependency-management) below.
 
 2. **Generate JWT keys** (required for first-time setup):
    ```bash

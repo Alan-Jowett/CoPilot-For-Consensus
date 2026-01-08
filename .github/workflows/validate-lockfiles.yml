@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Validate Dependency Lockfiles
+
+on:
+  pull_request:
+    paths:
+      - '**/requirements.in'
+      - '**/requirements.txt'
+      - '.github/workflows/validate-lockfiles.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-lockfiles:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - auth
+          - chunking
+          - embedding
+          - ingestion
+          - orchestrator
+          - parsing
+          - reporting
+          - summarization
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6
+        with:
+          python-version: '3.11'
+
+      - name: Install pip-tools
+        run: pip install pip-tools==7.5.2
+
+      - name: Check if requirements.in exists
+        id: check-in-file
+        run: |
+          if [ -f "${{ matrix.service }}/requirements.in" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Compile requirements.in
+        if: steps.check-in-file.outputs.exists == 'true'
+        run: |
+          cd ${{ matrix.service }}
+          pip-compile requirements.in --output-file requirements.txt.expected --allow-unsafe --strip-extras
+
+      - name: Compare lockfiles
+        if: steps.check-in-file.outputs.exists == 'true'
+        run: |
+          cd ${{ matrix.service }}
+          # Extract only the package specifications (package==version lines)
+          # Pattern matches package names with letters, numbers, underscores, and hyphens
+          grep -E '^[a-zA-Z0-9_\-]+=='  requirements.txt | sort > requirements.txt.sorted
+          grep -E '^[a-zA-Z0-9_\-]+=='  requirements.txt.expected | sort > requirements.txt.expected.sorted
+          
+          if ! diff requirements.txt.sorted requirements.txt.expected.sorted; then
+            echo "❌ Lockfile is out of sync!"
+            echo "Run: cd ${{ matrix.service }} && pip-compile requirements.in"
+            exit 1
+          else
+            echo "✅ Lockfile is in sync"
+          fi
+
+      - name: Skip if no requirements.in
+        if: steps.check-in-file.outputs.exists == 'false'
+        run: |
+          echo "ℹ️  No requirements.in file found for ${{ matrix.service }}, skipping validation"

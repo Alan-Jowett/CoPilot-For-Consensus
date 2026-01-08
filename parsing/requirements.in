@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+# Parsing Service Dependencies
+# This file lists direct external dependencies with version ranges.
+# Run `pip-compile requirements.in` to generate requirements.txt with pinned versions.
+#
+# Note: Local adapters (copilot-*) are installed separately in the Dockerfile
+# via scripts/install_adapters.py and are not included in this lockfile.
+
+beautifulsoup4>=4.14.3
+fastapi>=0.127.0
+uvicorn>=0.40.0
+prometheus-client>=0.23.1
+# Authentication
+PyJWT>=2.10.1
+cryptography>=46.0.3
