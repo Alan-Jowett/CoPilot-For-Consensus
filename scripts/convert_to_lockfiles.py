@@ -79,7 +79,7 @@ def convert_to_in_file(requirements_txt: Path, service_name: str) -> list[str]:
         # Convert pinned versions (==) to ranged versions (>=)
         if '==' in line:
             # Extract package name and version
-            match = re.match(r'^([a-zA-Z0-9_\-\[\]]+)==(.+)$', line)
+            match = re.match(r'^([a-zA-Z0-9_\[\]\-]+)==(.+)$', line)
             if match:
                 package, version = match.groups()
                 lines.append(f"{package}>={version}")
