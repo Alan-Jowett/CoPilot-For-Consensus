@@ -81,7 +81,7 @@ Storage-agnostic deployments had to manufacture fake paths or carry meaningless 
       "file_path": {
         "type": "string",
         "minLength": 1,
-        "description": "Optional file path for local storage backends. May be a placeholder for storage-agnostic backends."
+        "description": "Optional file path for local storage backends. For storage-agnostic backends, this field should be omitted entirely."
       }
     },
     "required": [
