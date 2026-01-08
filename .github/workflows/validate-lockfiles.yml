@@ -11,6 +11,9 @@ on:
       - '.github/workflows/validate-lockfiles.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   validate-lockfiles:
     runs-on: ubuntu-latest
