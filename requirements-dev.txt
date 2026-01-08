@@ -23,7 +23,7 @@ azure-search-documents>=11.6.0
 azure-keyvault-secrets>=4.9.0
 
 # Schema validation (Pydantic for runtime validation)
-pydantic>=2.0.0,<3.0.0
+pydantic>=2.4.0,<3.0.0
 pydantic-settings>=2.0.0
 jsonschema>=4.0.0
 
