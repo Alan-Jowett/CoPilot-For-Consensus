@@ -1,4 +1,4 @@
-{
+﻿{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "service_name": "reporting",
   "schema_version": "1.0.0",
@@ -53,21 +53,21 @@
     "doc_store_host": {
       "type": "string",
       "source": "env",
-      "env_var": "DOCUMENT_DATABASE_HOST",
+      "env_var": "COSMOS_ENDPOINT",
       "default": "documentdb",
       "description": "Document store hostname"
     },
     "doc_store_port": {
       "type": "int",
       "source": "env",
-      "env_var": "DOCUMENT_DATABASE_PORT",
+      "env_var": "COSMOS_PORT",
       "default": 27017,
       "description": "Document store port"
     },
     "doc_store_name": {
       "type": "string",
       "source": "env",
-      "env_var": "DOCUMENT_DATABASE_NAME",
+      "env_var": "COSMOS_DATABASE",
       "default": "copilot",
       "description": "Document store database name"
     },
@@ -151,21 +151,21 @@
     "vector_store_host": {
       "type": "string",
       "source": "env",
-      "env_var": "VECTOR_DATABASE_HOST",
+      "env_var": "QDRANT_HOST",
       "default": "vectorstore",
       "description": "Vector store hostname"
     },
     "vector_store_port": {
       "type": "int",
       "source": "env",
-      "env_var": "VECTOR_DATABASE_PORT",
+      "env_var": "QDRANT_PORT",
       "default": 6333,
       "description": "Vector store port"
     },
     "vector_store_collection": {
       "type": "string",
       "source": "env",
-      "env_var": "VECTOR_DATABASE_COLLECTION",
+      "env_var": "QDRANT_COLLECTION",
       "default": "embeddings",
       "description": "Vector store collection name"
     },
@@ -176,19 +176,19 @@
       "required": true,
       "description": "Embedding backend (e.g., sentencetransformers, openai, azure)"
     },
-    "embedding_model": {
+    "SENTENCETRANSFORMERS_MODEL": {
       "type": "string",
       "source": "env",
-      "env_var": "EMBEDDING_MODEL",
+      "env_var": "SENTENCETRANSFORMERS_MODEL",
       "default": "all-MiniLM-L6-v2",
       "description": "Embedding model name"
     },
-    "device": {
+    "SENTENCETRANSFORMERS_DEVICE": {
       "type": "string",
       "source": "env",
-      "env_var": "DEVICE",
+      "env_var": "SENTENCETRANSFORMERS_DEVICE",
       "default": "cpu",
-      "description": "Device for embedding generation (cpu, cuda)"
+      "description": "SENTENCETRANSFORMERS_DEVICE for embedding generation (cpu, cuda)"
     }
   }
 }

@@ -1,4 +1,4 @@
-{
+﻿{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "service_name": "embedding",
   "schema_version": "1.0.0",
@@ -53,21 +53,21 @@
     "doc_store_host": {
       "type": "string",
       "source": "env",
-      "env_var": "DOCUMENT_DATABASE_HOST",
+      "env_var": "COSMOS_ENDPOINT",
       "default": "documentdb",
       "description": "Document store hostname"
     },
     "doc_store_port": {
       "type": "int",
       "source": "env",
-      "env_var": "DOCUMENT_DATABASE_PORT",
+      "env_var": "COSMOS_PORT",
       "default": 27017,
       "description": "Document store port"
     },
     "doc_store_name": {
       "type": "string",
       "source": "env",
-      "env_var": "DOCUMENT_DATABASE_NAME",
+      "env_var": "COSMOS_DATABASE",
       "default": "copilot",
       "description": "Document store database name"
     },
@@ -95,14 +95,14 @@
     "vector_store_host": {
       "type": "string",
       "source": "env",
-      "env_var": "VECTOR_DATABASE_HOST",
+      "env_var": "QDRANT_HOST",
       "default": "vectorstore",
       "description": "Vector store hostname"
     },
     "vector_store_port": {
       "type": "int",
       "source": "env",
-      "env_var": "VECTOR_DATABASE_PORT",
+      "env_var": "QDRANT_PORT",
       "default": 6333,
       "description": "Vector store port"
     },
@@ -113,33 +113,33 @@
       "required": true,
       "description": "Embedding backend"
     },
-    "embedding_model": {
+    "SENTENCETRANSFORMERS_MODEL": {
       "type": "string",
       "source": "env",
-      "env_var": "EMBEDDING_MODEL",
+      "env_var": "SENTENCETRANSFORMERS_MODEL",
       "default": "all-MiniLM-L6-v2",
       "description": "Embedding model name"
     },
-    "embedding_dimension": {
+    "SENTENCETRANSFORMERS_DIMENSION": {
       "type": "int",
       "source": "env",
-      "env_var": "EMBEDDING_DIMENSION",
+      "env_var": "SENTENCETRANSFORMERS_DIMENSION",
       "default": 384,
       "description": "Embedding dimension"
     },
-    "batch_size": {
+    "SENTENCETRANSFORMERS_BATCH_SIZE": {
       "type": "int",
       "source": "env",
-      "env_var": "BATCH_SIZE",
+      "env_var": "SENTENCETRANSFORMERS_BATCH_SIZE",
       "default": 32,
       "description": "Batch size for embedding generation"
     },
-    "device": {
+    "SENTENCETRANSFORMERS_DEVICE": {
       "type": "string",
       "source": "env",
-      "env_var": "DEVICE",
+      "env_var": "SENTENCETRANSFORMERS_DEVICE",
       "default": "cpu",
-      "description": "Device for embedding generation (cpu, cuda)"
+      "description": "SENTENCETRANSFORMERS_DEVICE for embedding generation (cpu, cuda)"
     },
     "max_retries": {
       "type": "int",
@@ -151,7 +151,7 @@
     "retry_backoff": {
       "type": "int",
       "source": "env",
-      "env_var": "RETRY_BACKOFF_SECONDS",
+      "env_var": "SENTENCETRANSFORMERS_RETRY_BACKOFF_SECONDS",
       "default": 5,
       "description": "Retry backoff in seconds"
     },
@@ -179,21 +179,21 @@
     "vector_store_collection": {
       "type": "string",
       "source": "env",
-      "env_var": "VECTOR_DATABASE_COLLECTION",
+      "env_var": "QDRANT_COLLECTION",
       "default": "embeddings",
       "description": "Qdrant vector store collection name"
     },
-    "vector_store_distance": {
+    "QDRANT_DISTANCE": {
       "type": "string",
       "source": "env",
-      "env_var": "VECTOR_STORE_DISTANCE",
+      "env_var": "QDRANT_DISTANCE",
       "default": "cosine",
       "description": "Qdrant vector store distance metric"
     },
-    "vector_store_batch_size": {
+    "QDRANT_SENTENCETRANSFORMERS_BATCH_SIZE": {
       "type": "int",
       "source": "env",
-      "env_var": "VECTOR_STORE_BATCH_SIZE",
+      "env_var": "QDRANT_SENTENCETRANSFORMERS_BATCH_SIZE",
       "default": 100,
       "description": "Qdrant vector store upsert batch size"
     },

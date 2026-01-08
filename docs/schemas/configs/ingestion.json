@@ -1,4 +1,4 @@
-{
+﻿{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "service_name": "ingestion",
   "schema_version": "1.0.0",
@@ -64,31 +64,31 @@
       "required": true,
       "description": "Archive store backend (local, azure_blob)"
     },
-    "archive_store_path": {
+    "LOCAL_ARCHIVE_STORE_PATH": {
       "type": "string",
       "source": "env",
-      "env_var": "ARCHIVE_STORE_PATH",
+      "env_var": "LOCAL_ARCHIVE_STORE_PATH",
       "default": "/data/raw_archives",
       "description": "Base path for local archive storage"
     },
-    "archive_store_connection_string": {
+    "AZUREBLOB_CONNECTION_STRING": {
       "type": "string",
       "source": "env",
-      "env_var": "ARCHIVE_STORE_CONNECTION_STRING",
+      "env_var": "AZUREBLOB_CONNECTION_STRING",
       "default": "",
       "description": "Connection string for archive store (azure_blob)"
     },
-    "archive_store_account_name": {
+    "AZUREBLOB_ACCOUNT_NAME": {
       "type": "string",
       "source": "env",
-      "env_var": "ARCHIVE_STORE_ACCOUNT_NAME",
+      "env_var": "AZUREBLOB_ACCOUNT_NAME",
       "default": "",
       "description": "Storage account name for managed identity authentication (azure_blob)"
     },
-    "archive_store_container": {
+    "AZUREBLOB_CONTAINER": {
       "type": "string",
       "source": "env",
-      "env_var": "ARCHIVE_STORE_CONTAINER",
+      "env_var": "AZUREBLOB_CONTAINER",
       "default": "raw-archives",
       "description": "Container name for archive store (azure_blob)"
     },
@@ -127,10 +127,10 @@
       "default": 3,
       "description": "Maximum retry attempts"
     },
-    "retry_backoff_seconds": {
+    "SENTENCETRANSFORMERS_RETRY_BACKOFF_SECONDS": {
       "type": "int",
       "source": "env",
-      "env_var": "RETRY_BACKOFF_SECONDS",
+      "env_var": "SENTENCETRANSFORMERS_RETRY_BACKOFF_SECONDS",
       "default": 60,
       "description": "Retry backoff in seconds"
     },
@@ -165,21 +165,21 @@
     "doc_store_host": {
       "type": "string",
       "source": "env",
-      "env_var": "DOCUMENT_DATABASE_HOST",
+      "env_var": "COSMOS_ENDPOINT",
       "default": "localhost",
       "description": "Document store host"
     },
     "doc_store_port": {
       "type": "int",
       "source": "env",
-      "env_var": "DOCUMENT_DATABASE_PORT",
+      "env_var": "COSMOS_PORT",
       "default": 27017,
       "description": "Document store port"
     },
     "doc_store_name": {
       "type": "string",
       "source": "env",
-      "env_var": "DOCUMENT_DATABASE_NAME",
+      "env_var": "COSMOS_DATABASE",
       "default": "copilot",
       "description": "Document store database name"
     },

@@ -1,0 +1,66 @@
+MESSAGE_BUS_HOST,RABBITMQ_HOST,message_bus_host,chunking;embedding;ingestion;orchestrator;parsing;reporting;summarization,Message bus hostname for RabbitMQ adapter
+MESSAGE_BUS_PORT,RABBITMQ_PORT,message_bus_port,chunking;embedding;ingestion;orchestrator;parsing;reporting;summarization,Message bus port for RabbitMQ adapter
+MESSAGE_BUS_USER,RABBITMQ_USER,message_bus_user,chunking;embedding;ingestion;orchestrator;parsing;reporting;summarization,Message bus username for RabbitMQ adapter
+MESSAGE_BUS_PASSWORD,RABBITMQ_PASSWORD,message_bus_password,chunking;embedding;ingestion;orchestrator;parsing;reporting;summarization,Message bus password for RabbitMQ adapter
+MESSAGE_BUS_HOST,SERVICEBUS_HOST,message_bus_host,chunking;embedding;ingestion;orchestrator;parsing;reporting;summarization,Message bus hostname for Service Bus adapter
+MESSAGE_BUS_PORT,SERVICEBUS_PORT,message_bus_port,chunking;embedding;ingestion;orchestrator;parsing;reporting;summarization,Message bus port for Service Bus adapter
+MESSAGE_BUS_USER,SERVICEBUS_USER,message_bus_user,chunking;embedding;ingestion;orchestrator;parsing;reporting;summarization,Message bus username for Service Bus adapter
+MESSAGE_BUS_PASSWORD,SERVICEBUS_PASSWORD,message_bus_password,chunking;embedding;ingestion;orchestrator;parsing;reporting;summarization,Message bus password for Service Bus adapter
+DOCUMENT_DATABASE_HOST,MONGODB_HOST,doc_store_host,chunking;embedding;ingestion;orchestrator;parsing;reporting;summarization,Document store hostname for MongoDB adapter
+DOCUMENT_DATABASE_PORT,MONGODB_PORT,doc_store_port,chunking;embedding;ingestion;orchestrator;parsing;reporting;summarization,Document store port for MongoDB adapter
+DOCUMENT_DATABASE_NAME,MONGODB_NAME,doc_store_name,chunking;embedding;ingestion;orchestrator;parsing;reporting;summarization,Document store database name for MongoDB adapter
+DOCUMENT_DATABASE_USER,MONGODB_USER,doc_store_user,chunking;embedding;ingestion;orchestrator;parsing;reporting;summarization,Document store username for MongoDB adapter
+DOCUMENT_DATABASE_PASSWORD,MONGODB_PASSWORD,doc_store_password,chunking;embedding;ingestion;orchestrator;parsing;reporting;summarization,Document store password for MongoDB adapter
+DOCUMENT_DATABASE_HOST,COSMOS_HOST,doc_store_host,chunking;embedding;orchestrator;parsing;reporting;summarization,Document store hostname for Cosmos DB adapter
+DOCUMENT_DATABASE_PORT,COSMOS_PORT,doc_store_port,chunking;embedding;orchestrator;parsing;reporting;summarization,Document store port for Cosmos DB adapter
+DOCUMENT_DATABASE_NAME,COSMOS_NAME,doc_store_name,chunking;embedding;orchestrator;parsing;reporting;summarization,Document store database name for Cosmos DB adapter
+DOCUMENT_DATABASE_USER,COSMOS_USER,doc_store_user,chunking;embedding;orchestrator;parsing;reporting;summarization,Document store username for Cosmos DB adapter
+DOCUMENT_DATABASE_PASSWORD,COSMOS_PASSWORD,doc_store_password,chunking;embedding;orchestrator;parsing;reporting;summarization,Document store password for Cosmos DB adapter
+VECTOR_DATABASE_HOST,QDRANT_HOST,vector_store_host,embedding;reporting;summarization,Vector store hostname for Qdrant adapter
+VECTOR_DATABASE_PORT,QDRANT_PORT,vector_store_port,embedding;reporting;summarization,Vector store port for Qdrant adapter
+VECTOR_DATABASE_COLLECTION,QDRANT_COLLECTION,vector_store_collection,embedding;reporting;summarization,Vector store collection name for Qdrant adapter
+VECTOR_STORE_DISTANCE,QDRANT_DISTANCE,vector_store_distance,embedding;summarization,Vector store distance metric for Qdrant adapter
+VECTOR_STORE_BATCH_SIZE,QDRANT_BATCH_SIZE,vector_store_batch_size,embedding;summarization,Vector store batch size for Qdrant adapter
+EMBEDDING_MODEL,SENTENCETRANSFORMERS_MODEL,embedding_model,embedding;reporting;summarization,Embedding model name for Sentence Transformers backend
+BATCH_SIZE,SENTENCETRANSFORMERS_BATCH_SIZE,batch_size,embedding,Batch size for embedding generation with Sentence Transformers
+DEVICE,SENTENCETRANSFORMERS_DEVICE,device,embedding,Device for Sentence Transformers (cpu or cuda)
+EMBEDDING_MODEL,OLLAMA_MODEL,embedding_model,reporting;summarization,Embedding model name for Ollama backend
+DEVICE,OLLAMA_DEVICE,device,reporting;summarization,Device for Ollama embedding generation (cpu or cuda)
+LLM_MODEL,OLLAMA_MODEL,llm_model,orchestrator;summarization,LLM model name for Ollama backend
+LLM_TEMPERATURE,OLLAMA_TEMPERATURE,llm_temperature,orchestrator;summarization,LLM temperature setting for Ollama backend
+LLM_MAX_TOKENS,OLLAMA_MAX_TOKENS,llm_max_tokens,orchestrator;summarization,LLM maximum tokens for Ollama backend
+OLLAMA_HOST,OLLAMA_HOST,local_llm_endpoint,summarization,Local LLM Ollama endpoint URL
+LLM_MODEL,LLAMACPP_MODEL,llm_model,orchestrator;summarization,LLM model name for llama.cpp backend
+LLM_TEMPERATURE,LLAMACPP_TEMPERATURE,llm_temperature,orchestrator;summarization,LLM temperature setting for llama.cpp backend
+LLM_MAX_TOKENS,LLAMACPP_MAX_TOKENS,llm_max_tokens,orchestrator;summarization,LLM maximum tokens for llama.cpp backend
+LLAMACPP_HOST,LLAMACPP_HOST,llamacpp_endpoint,summarization,llama.cpp server endpoint URL
+ARCHIVE_STORE_PATH,LOCAL_ARCHIVE_PATH,archive_store_path,ingestion;parsing,Local archive storage path
+ARCHIVE_STORE_CONNECTION_STRING,AZUREBLOB_CONNECTION_STRING,archive_store_connection_string,ingestion;parsing,Connection string for Azure Blob Storage
+ARCHIVE_STORE_ACCOUNT_NAME,AZUREBLOB_ACCOUNT_NAME,archive_store_account_name,ingestion;parsing,Storage account name for Azure Blob managed identity
+ARCHIVE_STORE_CONTAINER,AZUREBLOB_CONTAINER,archive_store_container,ingestion;parsing,Container name for Azure Blob Storage
+AUTH_ROLE_STORE_HOST,AUTH_MONGODB_HOST,role_store_host,auth,Role store hostname for MongoDB backend
+AUTH_ROLE_STORE_PORT,AUTH_MONGODB_PORT,role_store_port,auth,Role store port for MongoDB backend
+AUTH_ROLE_STORE_USERNAME,AUTH_MONGODB_USERNAME,role_store_username,auth,Role store username for MongoDB backend
+AUTH_ROLE_STORE_PASSWORD,AUTH_MONGODB_PASSWORD,role_store_password,auth,Role store password for MongoDB backend
+AUTH_ROLE_STORE_DATABASE,AUTH_MONGODB_DATABASE,role_store_database,auth,Role store database for MongoDB backend
+AUTH_ROLE_STORE_COLLECTION,AUTH_MONGODB_COLLECTION,role_store_collection,auth,Role store collection for MongoDB backend
+AUTH_ROLE_STORE_SCHEMA_DIR,AUTH_MONGODB_SCHEMA_DIR,role_store_schema_dir,auth,Role store schema directory for MongoDB backend
+AUTH_ROLE_STORE_HOST,AUTH_COSMOS_HOST,role_store_host,auth,Role store hostname for Cosmos DB backend
+AUTH_ROLE_STORE_PORT,AUTH_COSMOS_PORT,role_store_port,auth,Role store port for Cosmos DB backend
+AUTH_ROLE_STORE_USERNAME,AUTH_COSMOS_USERNAME,role_store_username,auth,Role store username for Cosmos DB backend
+AUTH_ROLE_STORE_PASSWORD,AUTH_COSMOS_PASSWORD,role_store_password,auth,Role store password for Cosmos DB backend
+AUTH_ROLE_STORE_DATABASE,AUTH_COSMOS_DATABASE,role_store_database,auth,Role store database for Cosmos DB backend
+AUTH_ROLE_STORE_COLLECTION,AUTH_COSMOS_COLLECTION,role_store_collection,auth,Role store collection for Cosmos DB backend
+AUTH_ROLE_STORE_SCHEMA_DIR,AUTH_COSMOS_SCHEMA_DIR,role_store_schema_dir,auth,Role store schema directory for Cosmos DB backend
+AUTH_ROLE_STORE_SCHEMA_DIR,AUTH_MEMORY_SCHEMA_DIR,role_store_schema_dir,auth,Role store schema directory for in-memory backend
+PROMETHEUS_PUSHGATEWAY,PROMETHEUS_PUSHGATEWAY,prometheus_pushgateway,auth;reporting,Prometheus Pushgateway base URL
+SENTRY_DSN,SENTRY_DSN,sentry_dsn,ingestion,Sentry DSN for error reporting
+SENTRY_ENVIRONMENT,SENTRY_ENVIRONMENT,sentry_environment,ingestion,Sentry environment for error reporting
+AZURE_OPENAI_ENDPOINT,AZURE_OPENAI_ENDPOINT,azure_openai_endpoint,embedding;summarization,Azure OpenAI service endpoint
+AZURE_OPENAI_API_KEY,AZURE_OPENAI_API_KEY,azure_openai_api_key,embedding;summarization,Azure OpenAI API key
+AZURE_OPENAI_DEPLOYMENT,AZURE_OPENAI_DEPLOYMENT,azure_openai_deployment,embedding;summarization,Azure OpenAI deployment name for embeddings or LLM
+AZURE_OPENAI_API_VERSION,AZURE_OPENAI_API_VERSION,azure_openai_api_version,embedding;summarization,Azure OpenAI API version
+AISEARCH_ENDPOINT,AISEARCH_ENDPOINT,aisearch_endpoint,embedding;reporting;summarization,Azure AI Search service endpoint
+AISEARCH_INDEX_NAME,AISEARCH_INDEX_NAME,aisearch_index_name,embedding;reporting;summarization,Azure AI Search index name
+AISEARCH_API_KEY,AISEARCH_API_KEY,aisearch_api_key,embedding;reporting;summarization,Azure AI Search API key
+AISEARCH_USE_MANAGED_IDENTITY,AISEARCH_USE_MANAGED_IDENTITY,aisearch_use_managed_identity,embedding;reporting;summarization,Use Azure managed identity for AI Search

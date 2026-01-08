@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+﻿# SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
 # Application Services
@@ -18,9 +18,9 @@ services:
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
       - DOCUMENT_STORE_TYPE=mongodb
-      - DOCUMENT_DATABASE_HOST=documentdb
-      - DOCUMENT_DATABASE_PORT=27017
-      - DOCUMENT_DATABASE_NAME=copilot
+      - COSMOS_ENDPOINT=documentdb
+      - COSMOS_PORT=27017
+      - COSMOS_DATABASE=copilot
       - METRICS_TYPE=${METRICS_TYPE:-noop}
       - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY:-http://pushgateway:9091}
       - ERROR_REPORTER_TYPE=console
@@ -62,12 +62,12 @@ services:
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
       - DOCUMENT_STORE_TYPE=mongodb
-      - DOCUMENT_DATABASE_HOST=documentdb
-      - DOCUMENT_DATABASE_PORT=27017
-      - DOCUMENT_DATABASE_NAME=copilot
+      - COSMOS_ENDPOINT=documentdb
+      - COSMOS_PORT=27017
+      - COSMOS_DATABASE=copilot
       - VECTOR_STORE_TYPE=qdrant
-      - VECTOR_DATABASE_HOST=vectorstore
-      - VECTOR_DATABASE_PORT=6333
+      - QDRANT_HOST=vectorstore
+      - QDRANT_PORT=6333
       - EMBEDDING_BACKEND=${EMBEDDING_BACKEND:-sentencetransformers}
       - OLLAMA_HOST=http://ollama:11434
       - METRICS_TYPE=${METRICS_TYPE:-prometheus_pushgateway}
@@ -116,18 +116,18 @@ services:
       - PROMETHEUS_PUSHGATEWAY=pushgateway:9091
       - ERROR_REPORTER_TYPE=console
       - DOCUMENT_STORE_TYPE=mongodb
-      - DOCUMENT_DATABASE_HOST=documentdb
-      - DOCUMENT_DATABASE_PORT=27017
-      - DOCUMENT_DATABASE_NAME=copilot
+      - COSMOS_ENDPOINT=documentdb
+      - COSMOS_PORT=27017
+      - COSMOS_DATABASE=copilot
       - HTTP_HOST=0.0.0.0
       - HTTP_PORT=8001
       # ArchiveStore configuration
       - ARCHIVE_STORE_TYPE=${ARCHIVE_STORE_TYPE:-local}
-      - ARCHIVE_STORE_PATH=${ARCHIVE_STORE_PATH:-/data/raw_archives}
+      - LOCAL_ARCHIVE_STORE_PATH=${LOCAL_ARCHIVE_STORE_PATH:-/data/raw_archives}
       # Azure Blob Storage configuration (for azure_blob backend)
-      # - AZURE_STORAGE_ACCOUNT=${AZURE_STORAGE_ACCOUNT}
+      # - AZUREBLOB_ACCOUNT=${AZUREBLOB_ACCOUNT}
       # - AZURE_STORAGE_KEY=${AZURE_STORAGE_KEY}
-      # - AZURE_STORAGE_CONTAINER=${AZURE_STORAGE_CONTAINER:-archives}
+      # - AZUREBLOB_STORAGE_CONTAINER=${AZUREBLOB_STORAGE_CONTAINER:-archives}
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
@@ -170,11 +170,11 @@ services:
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
       - DOCUMENT_STORE_TYPE=mongodb
-      - DOCUMENT_DATABASE_HOST=documentdb
-      - DOCUMENT_DATABASE_PORT=27017
-      - DOCUMENT_DATABASE_NAME=copilot
-      - VECTOR_DATABASE_HOST=vectorstore
-      - VECTOR_DATABASE_PORT=6333
+      - COSMOS_ENDPOINT=documentdb
+      - COSMOS_PORT=27017
+      - COSMOS_DATABASE=copilot
+      - QDRANT_HOST=vectorstore
+      - QDRANT_PORT=6333
       - LLM_BACKEND=${LLM_BACKEND:-local}
       - OLLAMA_HOST=http://ollama:11434
       - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
@@ -227,18 +227,18 @@ services:
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
       - DOCUMENT_STORE_TYPE=mongodb
-      - DOCUMENT_DATABASE_HOST=documentdb
-      - DOCUMENT_DATABASE_PORT=27017
-      - DOCUMENT_DATABASE_NAME=copilot
+      - COSMOS_ENDPOINT=documentdb
+      - COSMOS_PORT=27017
+      - COSMOS_DATABASE=copilot
       - METRICS_TYPE=${METRICS_TYPE:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
       # ArchiveStore configuration
       - ARCHIVE_STORE_TYPE=${ARCHIVE_STORE_TYPE:-local}
-      - ARCHIVE_STORE_PATH=${ARCHIVE_STORE_PATH:-/data/raw_archives}
+      - LOCAL_ARCHIVE_STORE_PATH=${LOCAL_ARCHIVE_STORE_PATH:-/data/raw_archives}
       # Azure Blob Storage configuration (for azure_blob backend)
-      # - AZURE_STORAGE_ACCOUNT=${AZURE_STORAGE_ACCOUNT}
+      # - AZUREBLOB_ACCOUNT=${AZUREBLOB_ACCOUNT}
       # - AZURE_STORAGE_KEY=${AZURE_STORAGE_KEY}
-      # - AZURE_STORAGE_CONTAINER=${AZURE_STORAGE_CONTAINER:-archives}
+      # - AZUREBLOB_STORAGE_CONTAINER=${AZUREBLOB_STORAGE_CONTAINER:-archives}
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
@@ -278,16 +278,16 @@ services:
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
       - DOCUMENT_STORE_TYPE=mongodb
-      - DOCUMENT_DATABASE_HOST=documentdb
-      - DOCUMENT_DATABASE_PORT=27017
-      - DOCUMENT_DATABASE_NAME=copilot
+      - COSMOS_ENDPOINT=documentdb
+      - COSMOS_PORT=27017
+      - COSMOS_DATABASE=copilot
       - VECTOR_STORE_TYPE=qdrant
-      - VECTOR_DATABASE_HOST=vectorstore
-      - VECTOR_DATABASE_PORT=6333
-      - VECTOR_DATABASE_COLLECTION=embeddings
+      - QDRANT_HOST=vectorstore
+      - QDRANT_PORT=6333
+      - QDRANT_COLLECTION=embeddings
       - EMBEDDING_BACKEND=${EMBEDDING_BACKEND:-sentencetransformers}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-all-MiniLM-L6-v2}
-      - DEVICE=${DEVICE:-cpu}
+      - SENTENCETRANSFORMERS_MODEL=${SENTENCETRANSFORMERS_MODEL:-all-MiniLM-L6-v2}
+      - SENTENCETRANSFORMERS_DEVICE=${SENTENCETRANSFORMERS_DEVICE:-cpu}
       - METRICS_TYPE=${METRICS_TYPE:-noop}
       - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY:-http://pushgateway:9091}
       - ERROR_REPORTER_TYPE=console
@@ -338,9 +338,9 @@ services:
       - METRICS_TYPE=noop
       - AUTH_ROLE_STORE_TYPE=${AUTH_ROLE_STORE_TYPE:-mongodb}
       # Role store (MongoDB) connection for auth credentials
-      - AUTH_ROLE_STORE_HOST=documentdb
-      - AUTH_ROLE_STORE_PORT=27017
-      - AUTH_ROLE_STORE_DATABASE=auth
+      - AUTH_COSMOS_ENDPOINT=documentdb
+      - AUTH_COSMOS_PORT=27017
+      - AUTH_COSMOS_DATABASE=auth
       # OIDC Providers - OAuth secrets read via copilot_secrets from /run/secrets
       - AUTH_GITHUB_REDIRECT_URI=${AUTH_GITHUB_REDIRECT_URI:-http://localhost:8080/ui/callback}
       - AUTH_GOOGLE_CLIENT_ID=${AUTH_GOOGLE_CLIENT_ID:-}
@@ -418,12 +418,12 @@ services:
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
       - DOCUMENT_STORE_TYPE=mongodb
-      - DOCUMENT_DATABASE_HOST=documentdb
-      - DOCUMENT_DATABASE_PORT=27017
-      - DOCUMENT_DATABASE_NAME=copilot
+      - COSMOS_ENDPOINT=documentdb
+      - COSMOS_PORT=27017
+      - COSMOS_DATABASE=copilot
       - VECTOR_STORE_TYPE=qdrant
-      - VECTOR_DATABASE_HOST=vectorstore
-      - VECTOR_DATABASE_PORT=6333
+      - QDRANT_HOST=vectorstore
+      - QDRANT_PORT=6333
       - LLM_BACKEND=${LLM_BACKEND:-mock}
       - LLM_MODEL=${LLM_MODEL:-mistral}
       - OLLAMA_HOST=http://ollama:11434

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+﻿// SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
 metadata description = 'Module to provision Container Apps environment and all microservices'
@@ -278,15 +278,15 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'cosmos'
             }
             {
-              name: 'AUTH_ROLE_STORE_HOST'
+              name: 'AUTH_COSMOS_ENDPOINT'
               value: cosmosDbEndpoint
             }
             {
-              name: 'AUTH_ROLE_STORE_PORT'
+              name: 'AUTH_COSMOS_PORT'
               value: '443'
             }
             {
-              name: 'AUTH_ROLE_STORE_DATABASE'
+              name: 'AUTH_COSMOS_DATABASE'
               value: cosmosAuthDatabaseName
             }
             {
@@ -404,15 +404,15 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'qdrant'
             }
             {
-              name: 'VECTOR_DATABASE_HOST'
+              name: 'QDRANT_HOST'
               value: '${projectPrefix}-qdrant-${environment}'
             }
             {
-              name: 'VECTOR_DATABASE_PORT'
+              name: 'QDRANT_PORT'
               value: '80'
             }
             {
-              name: 'VECTOR_DATABASE_COLLECTION'
+              name: 'QDRANT_COLLECTION'
               value: 'embeddings'
             }
             {
@@ -530,27 +530,27 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azure_blob'
             }
             {
-              name: 'ARCHIVE_STORE_PATH'
+              name: 'LOCAL_ARCHIVE_STORE_PATH'
               value: '/data/raw_archives'
             }
             {
-              name: 'ARCHIVE_STORE_ACCOUNT_NAME'
+              name: 'AZUREBLOB_ACCOUNT_NAME'
               value: storageAccountName
             }
             {
-              name: 'ARCHIVE_STORE_CONTAINER'
+              name: 'AZUREBLOB_CONTAINER'
               value: 'raw-archives'
             }
             {
-              name: 'AZURE_STORAGE_ACCOUNT'
+              name: 'AZUREBLOB_ACCOUNT'
               value: storageAccountName
             }
             {
-              name: 'AZURE_STORAGE_ENDPOINT'
+              name: 'AZUREBLOB_ENDPOINT'
               value: storageBlobEndpoint
             }
             {
-              name: 'AZURE_STORAGE_CONTAINER'
+              name: 'AZUREBLOB_STORAGE_CONTAINER'
               value: 'raw-archives'
             }
             {
@@ -682,15 +682,15 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azure_blob'
             }
             {
-              name: 'ARCHIVE_STORE_PATH'
+              name: 'LOCAL_ARCHIVE_STORE_PATH'
               value: '/data/raw_archives'
             }
             {
-              name: 'ARCHIVE_STORE_ACCOUNT_NAME'
+              name: 'AZUREBLOB_ACCOUNT_NAME'
               value: storageAccountName
             }
             {
-              name: 'ARCHIVE_STORE_CONTAINER'
+              name: 'AZUREBLOB_CONTAINER'
               value: 'raw-archives'
             }
             {
@@ -904,15 +904,15 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: vectorStoreBackend == 'qdrant' ? 'qdrant' : 'ai_search'
             }
             {
-              name: 'VECTOR_DATABASE_HOST'
+              name: 'QDRANT_HOST'
               value: vectorStoreBackend == 'qdrant' ? '${projectPrefix}-qdrant-${environment}' : ''
             }
             {
-              name: 'VECTOR_DATABASE_PORT'
+              name: 'QDRANT_PORT'
               value: vectorStoreBackend == 'qdrant' ? '80' : ''
             }
             {
-              name: 'VECTOR_DATABASE_COLLECTION'
+              name: 'QDRANT_COLLECTION'
               value: vectorStoreBackend == 'qdrant' ? 'document-embeddings' : ''
             }
             {
@@ -920,7 +920,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: vectorStoreBackend == 'qdrant' ? 'cosine' : ''
             }
             {
-              name: 'VECTOR_DB_BATCH_SIZE'
+              name: 'VECTOR_DB_SENTENCETRANSFORMERS_BATCH_SIZE'
               value: vectorStoreBackend == 'qdrant' ? '100' : ''
             }
             {
@@ -936,7 +936,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: azureOpenAIEndpoint != '' && azureOpenAIEmbeddingDeploymentName != '' ? 'azure' : 'sentencetransformers'
             }
             {
-              name: 'EMBEDDING_DIMENSION'
+              name: 'SENTENCETRANSFORMERS_DIMENSION'
               value: '384'
             }
             {
@@ -1178,15 +1178,15 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: vectorStoreBackend == 'qdrant' ? 'qdrant' : 'ai_search'
             }
             {
-              name: 'VECTOR_DATABASE_HOST'
+              name: 'QDRANT_HOST'
               value: vectorStoreBackend == 'qdrant' ? '${projectPrefix}-qdrant-${environment}' : ''
             }
             {
-              name: 'VECTOR_DATABASE_PORT'
+              name: 'QDRANT_PORT'
               value: vectorStoreBackend == 'qdrant' ? '80' : ''
             }
             {
-              name: 'VECTOR_DATABASE_COLLECTION'
+              name: 'QDRANT_COLLECTION'
               value: vectorStoreBackend == 'qdrant' ? 'document-embeddings' : ''
             }
             {
@@ -1194,7 +1194,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: vectorStoreBackend == 'qdrant' ? 'cosine' : ''
             }
             {
-              name: 'VECTOR_DB_BATCH_SIZE'
+              name: 'VECTOR_DB_SENTENCETRANSFORMERS_BATCH_SIZE'
               value: vectorStoreBackend == 'qdrant' ? '100' : ''
             }
             {
@@ -1206,7 +1206,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: vectorStoreBackend == 'azure_ai_search' ? 'document-embeddings' : ''
             }
             {
-              name: 'EMBEDDING_DIMENSION'
+              name: 'SENTENCETRANSFORMERS_DIMENSION'
               value: '384'
             }
             {

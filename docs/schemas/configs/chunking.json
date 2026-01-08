@@ -1,4 +1,4 @@
-{
+﻿{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "service_name": "chunking",
   "schema_version": "1.0.0",
@@ -53,21 +53,21 @@
     "doc_store_host": {
       "type": "string",
       "source": "env",
-      "env_var": "DOCUMENT_DATABASE_HOST",
+      "env_var": "COSMOS_ENDPOINT",
       "default": "documentdb",
       "description": "Document store hostname"
     },
     "doc_store_port": {
       "type": "int",
       "source": "env",
-      "env_var": "DOCUMENT_DATABASE_PORT",
+      "env_var": "COSMOS_PORT",
       "default": 27017,
       "description": "Document store port"
     },
     "doc_store_name": {
       "type": "string",
       "source": "env",
-      "env_var": "DOCUMENT_DATABASE_NAME",
+      "env_var": "COSMOS_DATABASE",
       "default": "copilot",
       "description": "Document store database name"
     },
