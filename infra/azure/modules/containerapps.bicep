@@ -416,6 +416,10 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'embeddings'
             }
             {
+              name: 'EMBEDDING_BACKEND'
+              value: azureOpenAIEndpoint != '' && azureOpenAIEmbeddingDeploymentName != '' ? 'azure' : 'sentencetransformers'
+            }
+            {
               name: 'AUTH_SERVICE_URL'
               value: 'http://${projectPrefix}-auth-${environment}'
             }
