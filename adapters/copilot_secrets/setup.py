@@ -22,7 +22,7 @@ setup(
         ],
         "azure": [
             "azure-keyvault-secrets>=4.7.0",
-            "azure-identity>=1.12.0",
+            "azure-identity>=1.16.1",
         ],
         # Future cloud provider extras:
         # "aws": ["boto3>=1.26.0"],
