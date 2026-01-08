@@ -15,7 +15,7 @@ permissions:
 concurrency:
   # Cancel any in-progress instance of this workflow for the same PR.
   # Allow running concurrently with any commits on any other branch.
-  group: cicd-${{ github.event.pull_request.number || github.sha || github.ref }}
+  group: mutable-defaults-check-${{ github.event.pull_request.number || github.sha || github.ref }}
   cancel-in-progress: true
 
 jobs:
