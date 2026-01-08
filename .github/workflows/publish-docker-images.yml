@@ -17,9 +17,9 @@ permissions:
   packages: write
 
 concurrency:
-  # Cancel any in-progress instance of this workflow for the same PR.
+  # Cancel any in-progress instance of this workflow for the same workflow run or ref.
   # Allow running concurrently with any commits on any other branch.
-  group: cicd-publish-${{ github.event.pull_request.number || github.event.after || github.ref }}
+  group: cicd-publish-${{ github.sha || github.ref }}
   cancel-in-progress: true
 
 env:
