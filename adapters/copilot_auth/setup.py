@@ -33,7 +33,7 @@ setup(
         "fastapi>=0.109.0",  # For HTTP exception handling and request/response types
         "httpx>=0.27.0",  # For OIDC HTTP requests and middleware JWKS fetching
         "PyJWT>=2.8.0",  # For JWT token minting and validation
-        "cryptography>=44.0.1",  # For JWT key management
+        "cryptography>=46.0.3",  # For JWT key management (aligned with service requirements)
         "pydantic>=2.4.0",  # For configuration and validation
         "starlette>=0.49.1",  # For middleware base classes
         "copilot-logging>=0.1.0",  # For logging utilities

@@ -38,7 +38,7 @@ setup(
             "imapclient>=2.3.0",
         ],
         "http": [
-            "requests>=2.28.0",
+            "requests>=2.32.4",
         ],
         "dev": [
             "pytest>=7.0.0",
@@ -47,7 +47,7 @@ setup(
             "pylint>=3.0.0",
             "mypy>=1.0.0",
             "imapclient>=2.3.0",
-            "requests>=2.28.0",
+            "requests>=2.32.4",
         ],
     },
 )

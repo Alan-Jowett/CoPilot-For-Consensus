@@ -50,7 +50,7 @@ setup(
         ],
         "azure": [
             "azure-search-documents>=11.4.0",  # Azure AI Search for vector search
-            "azure-identity>=1.15.0",  # For managed identity authentication
+            "azure-identity>=1.16.1",  # For managed identity authentication
         ],
     },
 )
