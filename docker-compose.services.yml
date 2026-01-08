@@ -21,7 +21,7 @@ services:
       - DOCUMENT_DATABASE_HOST=documentdb
       - DOCUMENT_DATABASE_PORT=27017
       - DOCUMENT_DATABASE_NAME=copilot
-      - METRICS_BACKEND=${METRICS_BACKEND:-noop}
+      - METRICS_TYPE=${METRICS_TYPE:-noop}
       - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY:-http://pushgateway:9091}
       - ERROR_REPORTER_TYPE=console
       # Authentication configuration
@@ -66,11 +66,11 @@ services:
       - DOCUMENT_DATABASE_PORT=27017
       - DOCUMENT_DATABASE_NAME=copilot
       - VECTOR_STORE_TYPE=qdrant
-      - VECTOR_DB_HOST=vectorstore
-      - VECTOR_DB_PORT=6333
+      - VECTOR_DATABASE_HOST=vectorstore
+      - VECTOR_DATABASE_PORT=6333
       - EMBEDDING_BACKEND=${EMBEDDING_BACKEND:-sentencetransformers}
       - OLLAMA_HOST=http://ollama:11434
-      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - METRICS_TYPE=${METRICS_TYPE:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
@@ -112,7 +112,7 @@ services:
       - MESSAGE_BUS_TYPE=rabbitmq
       - MESSAGE_BUS_HOST=messagebus
       - MESSAGE_BUS_PORT=5672
-      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - METRICS_TYPE=${METRICS_TYPE:-prometheus_pushgateway}
       - PROMETHEUS_PUSHGATEWAY=pushgateway:9091
       - ERROR_REPORTER_TYPE=console
       - DOCUMENT_STORE_TYPE=mongodb
@@ -173,12 +173,12 @@ services:
       - DOCUMENT_DATABASE_HOST=documentdb
       - DOCUMENT_DATABASE_PORT=27017
       - DOCUMENT_DATABASE_NAME=copilot
-      - VECTOR_DB_HOST=vectorstore
-      - VECTOR_DB_PORT=6333
+      - VECTOR_DATABASE_HOST=vectorstore
+      - VECTOR_DATABASE_PORT=6333
       - LLM_BACKEND=${LLM_BACKEND:-local}
       - OLLAMA_HOST=http://ollama:11434
       - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
-      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - METRICS_TYPE=${METRICS_TYPE:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
@@ -230,7 +230,7 @@ services:
       - DOCUMENT_DATABASE_HOST=documentdb
       - DOCUMENT_DATABASE_PORT=27017
       - DOCUMENT_DATABASE_NAME=copilot
-      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - METRICS_TYPE=${METRICS_TYPE:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
       # ArchiveStore configuration
       - ARCHIVE_STORE_TYPE=${ARCHIVE_STORE_TYPE:-local}
@@ -282,13 +282,13 @@ services:
       - DOCUMENT_DATABASE_PORT=27017
       - DOCUMENT_DATABASE_NAME=copilot
       - VECTOR_STORE_TYPE=qdrant
-      - VECTOR_DB_HOST=vectorstore
-      - VECTOR_DB_PORT=6333
-      - VECTOR_DB_COLLECTION=embeddings
+      - VECTOR_DATABASE_HOST=vectorstore
+      - VECTOR_DATABASE_PORT=6333
+      - VECTOR_DATABASE_COLLECTION=embeddings
       - EMBEDDING_BACKEND=${EMBEDDING_BACKEND:-sentencetransformers}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-all-MiniLM-L6-v2}
       - DEVICE=${DEVICE:-cpu}
-      - METRICS_BACKEND=${METRICS_BACKEND:-noop}
+      - METRICS_TYPE=${METRICS_TYPE:-noop}
       - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY:-http://pushgateway:9091}
       - ERROR_REPORTER_TYPE=console
       - HTTP_PORT=8080
@@ -335,7 +335,7 @@ services:
       - JWT_DEFAULT_EXPIRY=${JWT_DEFAULT_EXPIRY:-1800}
       - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
       - SECRETS_BASE_PATH=${SECRETS_BASE_PATH:-/run/secrets}
-      - METRICS_BACKEND=noop
+      - METRICS_TYPE=noop
       - AUTH_ROLE_STORE_TYPE=${AUTH_ROLE_STORE_TYPE:-mongodb}
       # Role store (MongoDB) connection for auth credentials
       - AUTH_ROLE_STORE_HOST=documentdb
@@ -422,13 +422,13 @@ services:
       - DOCUMENT_DATABASE_PORT=27017
       - DOCUMENT_DATABASE_NAME=copilot
       - VECTOR_STORE_TYPE=qdrant
-      - VECTOR_DB_HOST=vectorstore
-      - VECTOR_DB_PORT=6333
+      - VECTOR_DATABASE_HOST=vectorstore
+      - VECTOR_DATABASE_PORT=6333
       - LLM_BACKEND=${LLM_BACKEND:-mock}
       - LLM_MODEL=${LLM_MODEL:-mistral}
       - OLLAMA_HOST=http://ollama:11434
       - LLAMACPP_HOST=${LLAMACPP_HOST:-http://llama-cpp:8081}
-      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - METRICS_TYPE=${METRICS_TYPE:-prometheus_pushgateway}
       - ERROR_REPORTER_TYPE=console
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090

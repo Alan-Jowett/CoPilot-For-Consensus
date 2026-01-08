@@ -116,7 +116,7 @@
     "metrics_type": {
       "type": "string",
       "source": "env",
-      "env_var": "METRICS_BACKEND",
+      "env_var": "METRICS_TYPE",
       "required": true,
       "description": "Metrics backend type (prometheus, pushgateway, azure_monitor, noop)"
     },
@@ -151,21 +151,21 @@
     "vector_store_host": {
       "type": "string",
       "source": "env",
-      "env_var": "VECTOR_DB_HOST",
+      "env_var": "VECTOR_DATABASE_HOST",
       "default": "vectorstore",
       "description": "Vector store hostname"
     },
     "vector_store_port": {
       "type": "int",
       "source": "env",
-      "env_var": "VECTOR_DB_PORT",
+      "env_var": "VECTOR_DATABASE_PORT",
       "default": 6333,
       "description": "Vector store port"
     },
     "vector_store_collection": {
       "type": "string",
       "source": "env",
-      "env_var": "VECTOR_DB_COLLECTION",
+      "env_var": "VECTOR_DATABASE_COLLECTION",
       "default": "embeddings",
       "description": "Vector store collection name"
     },

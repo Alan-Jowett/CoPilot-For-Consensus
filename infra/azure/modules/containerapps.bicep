@@ -246,7 +246,7 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
-              name: 'METRICS_BACKEND'
+              name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
             {
@@ -360,7 +360,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
-              name: 'METRICS_BACKEND'
+              name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
             {
@@ -404,15 +404,15 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'qdrant'
             }
             {
-              name: 'VECTOR_DB_HOST'
+              name: 'VECTOR_DATABASE_HOST'
               value: '${projectPrefix}-qdrant-${environment}'
             }
             {
-              name: 'VECTOR_DB_PORT'
+              name: 'VECTOR_DATABASE_PORT'
               value: '80'
             }
             {
-              name: 'VECTOR_DB_COLLECTION'
+              name: 'VECTOR_DATABASE_COLLECTION'
               value: 'embeddings'
             }
             {
@@ -482,7 +482,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
-              name: 'METRICS_BACKEND'
+              name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
             {
@@ -638,7 +638,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
-              name: 'METRICS_BACKEND'
+              name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
             {
@@ -757,7 +757,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
-              name: 'METRICS_BACKEND'
+              name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
             {
@@ -860,7 +860,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
-              name: 'METRICS_BACKEND'
+              name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
             {
@@ -904,15 +904,15 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: vectorStoreBackend == 'qdrant' ? 'qdrant' : 'ai_search'
             }
             {
-              name: 'VECTOR_DB_HOST'
+              name: 'VECTOR_DATABASE_HOST'
               value: vectorStoreBackend == 'qdrant' ? '${projectPrefix}-qdrant-${environment}' : ''
             }
             {
-              name: 'VECTOR_DB_PORT'
+              name: 'VECTOR_DATABASE_PORT'
               value: vectorStoreBackend == 'qdrant' ? '80' : ''
             }
             {
-              name: 'VECTOR_DB_COLLECTION'
+              name: 'VECTOR_DATABASE_COLLECTION'
               value: vectorStoreBackend == 'qdrant' ? 'document-embeddings' : ''
             }
             {
@@ -948,7 +948,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: azureOpenAIEmbeddingDeploymentName
             }
             {
-              name: 'AZURE_OPENAI_KEY'
+              name: 'AZURE_OPENAI_API_KEY'
               value: azureOpenAIApiKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${azureOpenAIApiKeySecretUri})' : ''
             }
             {
@@ -1015,7 +1015,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
-              name: 'METRICS_BACKEND'
+              name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
             {
@@ -1067,7 +1067,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: azureOpenAIGpt4DeploymentName
             }
             {
-              name: 'AZURE_OPENAI_KEY'
+              name: 'AZURE_OPENAI_API_KEY'
               value: azureOpenAIApiKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${azureOpenAIApiKeySecretUri})' : ''
             }
             {
@@ -1134,7 +1134,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
-              name: 'METRICS_BACKEND'
+              name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
             {
@@ -1178,15 +1178,15 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: vectorStoreBackend == 'qdrant' ? 'qdrant' : 'ai_search'
             }
             {
-              name: 'VECTOR_DB_HOST'
+              name: 'VECTOR_DATABASE_HOST'
               value: vectorStoreBackend == 'qdrant' ? '${projectPrefix}-qdrant-${environment}' : ''
             }
             {
-              name: 'VECTOR_DB_PORT'
+              name: 'VECTOR_DATABASE_PORT'
               value: vectorStoreBackend == 'qdrant' ? '80' : ''
             }
             {
-              name: 'VECTOR_DB_COLLECTION'
+              name: 'VECTOR_DATABASE_COLLECTION'
               value: vectorStoreBackend == 'qdrant' ? 'document-embeddings' : ''
             }
             {
@@ -1222,7 +1222,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: azureOpenAIGpt4DeploymentName
             }
             {
-              name: 'AZURE_OPENAI_KEY'
+              name: 'AZURE_OPENAI_API_KEY'
               value: azureOpenAIApiKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${azureOpenAIApiKeySecretUri})' : ''
             }
             {
