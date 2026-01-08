@@ -120,6 +120,13 @@
       "required": true,
       "description": "Metrics backend type (prometheus, pushgateway, azure_monitor, noop)"
     },
+    "prometheus_pushgateway": {
+      "type": "string",
+      "source": "env",
+      "env_var": "PROMETHEUS_PUSHGATEWAY",
+      "required": false,
+      "description": "Pushgateway base URL when metrics_type=pushgateway (e.g., http://pushgateway:9091)"
+    },
     "error_reporter_type": {
       "type": "string",
       "source": "env",

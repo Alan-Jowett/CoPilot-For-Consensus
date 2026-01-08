@@ -498,7 +498,15 @@ def main():
 
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")
-        metrics_collector = create_metrics_collector(backend=config.metrics_type)
+        backend_value = getattr(config, "metrics_type", None)
+        metrics_kwargs = {"service_name": "reporting"}
+        if backend_value in ("prometheus_pushgateway", "pushgateway"):
+            gateway = getattr(config, "prometheus_pushgateway", None)
+            if not gateway:
+                raise ValueError("metrics_type=pushgateway requires 'prometheus_pushgateway' to be set in config")
+            metrics_kwargs["gateway"] = gateway
+            metrics_kwargs["job"] = "reporting"
+        metrics_collector = create_metrics_collector(backend=backend_value, **metrics_kwargs)
 
         # Create error reporter - fail fast on errors
         logger.info("Creating error reporter...")
