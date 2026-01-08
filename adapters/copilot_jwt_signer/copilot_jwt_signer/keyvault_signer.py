@@ -108,6 +108,7 @@ class KeyVaultJWTSigner(JWTSigner):
     - Circuit breaker to prevent cascading failures
     - Health check with dummy sign operation
     - Public key caching for JWKS generation
+    - Context manager support for automatic resource cleanup
     
     Attributes:
         algorithm: JWT signing algorithm
@@ -117,6 +118,11 @@ class KeyVaultJWTSigner(JWTSigner):
         key_version: Optional specific version of the key
         crypto_client: Azure CryptographyClient for sign operations
         key_client: Azure KeyClient for key metadata operations
+    
+    Example:
+        >>> with KeyVaultJWTSigner(...) as signer:
+        ...     signature = signer.sign(message)
+        # Resources automatically released
     """
     
     # Algorithm mapping to Key Vault SignatureAlgorithm
@@ -507,3 +513,21 @@ class KeyVaultJWTSigner(JWTSigner):
             except Exception as e:
                 # Other unexpected errors - log but don't raise
                 logger.warning(f"Unexpected error closing credential: {e}")
+    
+    def __enter__(self):
+        """Enter context manager - returns self for use in with statement."""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit context manager - automatically releases resources.
+        
+        Args:
+            exc_type: Exception type if an exception occurred
+            exc_val: Exception value if an exception occurred
+            exc_tb: Exception traceback if an exception occurred
+            
+        Returns:
+            False to propagate any exception that occurred
+        """
+        self.close()
+        return False
