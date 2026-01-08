@@ -69,7 +69,7 @@ class TestStorageAgnosticArchives:
         )
 
     def test_parsing_failed_event_without_file_path(self, service):
-        """Test that ParsingFailed events can be published without file_path."""
+        """Test that ParsingFailed events can be published without file_path (truly omitted)."""
         # Publish a ParsingFailed event with None file_path
         service._publish_parsing_failed(
             archive_id="test123",
@@ -79,7 +79,7 @@ class TestStorageAgnosticArchives:
             messages_parsed_before_failure=0,
         )
 
-        # Check that event was published with placeholder
+        # Check that event was published WITHOUT file_path field
         events = service.publisher.published_events
         assert len(events) == 1
 
@@ -87,9 +87,9 @@ class TestStorageAgnosticArchives:
         assert event["routing_key"] == "parsing.failed"
         assert event["event"]["event_type"] == "ParsingFailed"
 
-        # file_path should have archive:// placeholder instead of None
+        # file_path should NOT be in event data (truly optional/omitted for storage-agnostic)
         data = event["event"]["data"]
-        assert data["file_path"] == "archive://test123"
+        assert "file_path" not in data, "file_path should be omitted entirely for storage-agnostic backends"
         assert data["archive_id"] == "test123"
         assert data["error_message"] == "Test error"
 
@@ -193,6 +193,6 @@ class TestStorageAgnosticArchives:
         event = parsing_failed_events[0]
         data = event["event"]["data"]
         assert data["archive_id"] == "nonexistent123"
-        # file_path should be archive:// URI since we had no path
-        assert data["file_path"].startswith("archive://")
+        # file_path should be omitted entirely (storage-agnostic mode)
+        assert "file_path" not in data, "file_path should be omitted for storage-agnostic backends"
         assert "not found" in data["error_message"].lower()

@@ -46,7 +46,8 @@
     },
     "file_path": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "description": "Optional file path for local storage backends. When present, this MUST be a valid non-empty path string (do not use empty string). For storage-agnostic backends (e.g., Azure Blob), omit this field entirely. Archive location is determined by archive_id and backend type."
     },
     "status": {
       "type": "string",

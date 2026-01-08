@@ -716,27 +716,26 @@ class ParsingService:
 
         Args:
             archive_id: Archive identifier
-            file_path: Path to mbox file (None for storage-agnostic mode, will use placeholder)
+            file_path: Path to mbox file (None for storage-agnostic mode - field will be omitted)
             error_message: Error description
             error_type: Error type
             messages_parsed_before_failure: Partial progress
         """
-        # Use archive:// URI placeholder for file_path if not provided (storage-agnostic backends).
-        # This is not a resolvable URI - it's a placeholder format: archive://{archive_id}
-        # that uniquely identifies the archive without requiring a filesystem path.
-        event_file_path = file_path if file_path else f"archive://{archive_id}"
+        # Build event data - omit file_path entirely for storage-agnostic backends (when None)
+        event_data = {
+            "archive_id": archive_id,
+            "error_message": error_message,
+            "error_type": error_type,
+            "messages_parsed_before_failure": messages_parsed_before_failure,
+            "retry_count": 0,
+            "failed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        }
+        
+        # Only include file_path if provided (local filesystem storage)
+        if file_path is not None:
+            event_data["file_path"] = file_path
 
-        event = ParsingFailedEvent(
-            data={
-                "archive_id": archive_id,
-                "file_path": event_file_path,
-                "error_message": error_message,
-                "error_type": error_type,
-                "messages_parsed_before_failure": messages_parsed_before_failure,
-                "retry_count": 0,
-                "failed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            }
-        )
+        event = ParsingFailedEvent(data=event_data)
 
         try:
             self.publisher.publish(

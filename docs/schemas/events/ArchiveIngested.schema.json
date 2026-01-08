@@ -22,6 +22,11 @@
             "source_name": { "type": "string", "minLength": 1 },
             "source_type": { "type": "string", "enum": ["rsync", "imap", "http", "local"] },
             "source_url": { "type": "string", "minLength": 1 },
+            "file_path": { 
+              "type": "string", 
+              "minLength": 1,
+              "description": "Optional file path for local or storage-coupled backends. When present, this MUST be a valid non-empty path (do not use an empty string). For storage-agnostic backends (e.g., Azure Blob), omit this field entirely."
+            },
             "file_size_bytes": { "type": "integer", "minimum": 0 },
             "file_hash_sha256": { "type": "string", "minLength": 1 },
             "ingestion_started_at": { "type": "string", "format": "date-time" },

@@ -107,25 +107,11 @@ Archive location is represented differently depending on the backend:
 | Backend | Location Identifier | file_path Value |
 |---------|-------------------|-----------------|
 | **Local Filesystem** | File path | `/data/raw_archives/source/file.mbox` |
-| **Azure Blob** | archive_id + container | Omitted or `archive://{archive_id}` |
-| **MongoDB GridFS** | archive_id | Omitted or `archive://{archive_id}` |
-| **AWS S3** | archive_id + bucket | Omitted or `archive://{archive_id}` |
+| **Azure Blob** | archive_id + container | **Omitted** (field not included) |
+| **MongoDB GridFS** | archive_id | **Omitted** (field not included) |
+| **AWS S3** | archive_id + bucket | **Omitted** (field not included) |
 
-### Archive URI Scheme
-
-For storage-agnostic backends, we use an `archive://` URI scheme as a placeholder when needed for compatibility:
-
-```
-archive://{archive_id}
-```
-
-**Example**: `archive://abc123def456`
-
-This URI:
-- Uniquely identifies the archive via `archive_id`
-- Works with all storage backends
-- Makes it clear the path is storage-agnostic
-- Can be used in error messages and logs
+**Note**: For storage-agnostic backends, the `file_path` field should be omitted entirely from documents and events, not set to a placeholder value.
 
 ## Service Implementation
 
@@ -147,11 +133,13 @@ event_data.pop('file_path', None)  # Remove file_path - not storage-agnostic
 The parsing service:
 1. ✅ Retrieves archives using `ArchiveStore.get_archive(archive_id)` - no path needed
 2. ✅ Handles `ArchiveIngested` events **without** `file_path` field
-3. ✅ Uses `archive://` URI placeholder for `ParsingFailed` events when `file_path` is None
+3. ✅ Omits `file_path` from `ParsingFailed` events when it's None (storage-agnostic mode)
 
 ```python
 # parsing/app/service.py
-event_file_path = file_path if file_path else f"archive://{archive_id}"
+# Only include file_path if provided (local filesystem storage)
+if file_path is not None:
+    event_data["file_path"] = file_path
 ```
 
 ## Migration Path
@@ -182,9 +170,10 @@ event_file_path = file_path if file_path else f"archive://{archive_id}"
 New tests validate storage-agnostic behavior:
 
 1. **`test_storage_agnostic.py`** (parsing service)
-   - ParsingFailed events without file_path
-   - Processing archives without file_path in event data
-   - Archive not found error handling
+   - ParsingFailed events with file_path truly omitted (not present in event data)
+   - ParsingFailed events with file_path included for local storage
+   - Processing archives without file_path in ArchiveIngested event data
+   - Archive not found error handling with file_path omitted
 
 2. **`test_service.py`** (ingestion service)
    - ArchiveIngested events do not include file_path
