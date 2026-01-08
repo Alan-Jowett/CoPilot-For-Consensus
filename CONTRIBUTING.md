@@ -237,6 +237,65 @@ For complete details, code examples, and testing patterns, see [documents/FORWAR
 
 ***
 
+## Dependency Management
+
+This project uses **pip-tools** to manage Python dependencies with lockfiles for repeatable builds and better security.
+
+### Understanding the Dependency System
+
+*   **`requirements.in`**: Lists direct dependencies with version ranges (e.g., `fastapi>=0.109.0`)
+*   **`requirements.txt`**: Auto-generated lockfile with pinned versions including all transitive dependencies
+*   **Local adapters**: Installed separately via `scripts/install_adapters.py` (not in lockfiles)
+
+### Updating Dependencies
+
+#### For Services (auth, chunking, embedding, etc.)
+
+To add or update a dependency:
+
+1.  Edit the `requirements.in` file in the service directory
+2.  Regenerate the lockfile:
+    ```bash
+    cd <service-name>
+    pip-compile requirements.in
+    ```
+3.  Commit both `requirements.in` and `requirements.txt`
+
+#### For Development Tools
+
+Development dependencies are in `requirements-dev.txt` at the repository root. Update this file directly.
+
+### Dependabot Integration
+
+Dependabot monitors all dependencies and creates PRs for updates:
+
+*   **Labels**: PRs are automatically labeled with `dependencies` and ecosystem tags (`python`, `javascript`, `docker`, `github-actions`)
+*   **Lockfiles**: Dependabot will update `requirements.in` files; you may need to regenerate lockfiles in the PR
+*   **Transitive dependencies**: Now tracked! Updates to packages like `starlette` (via `fastapi`) will appear in PRs
+
+### CI Validation
+
+The CI pipeline validates that lockfiles are in sync with `.in` files. If you see a failure:
+
+```bash
+# Regenerate the lockfile
+cd <service-name>
+pip-compile requirements.in
+
+# Commit the changes
+git add requirements.txt
+git commit -m "chore: regenerate lockfile"
+```
+
+### Security Benefits
+
+*   **Repeatable builds**: Exact versions locked across environments
+*   **Supply chain security**: Deliberate upgrades via reviewed PRs
+*   **Transitive tracking**: Security updates for indirect dependencies are visible
+*   **Audit trail**: Git history shows exactly when each dependency changed
+
+***
+
 ## Review Process
 
 *   PRs reviewed by at least two maintainers.
