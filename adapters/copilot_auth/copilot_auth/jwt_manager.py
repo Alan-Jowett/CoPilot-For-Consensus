@@ -276,7 +276,9 @@ class JWTManager:
             else:
                 # HMAC or other symmetric algorithm - get from signer
                 # For HMAC, the signer should provide the secret
-                raise ValueError("Cannot validate tokens signed with symmetric algorithms in signer mode")
+                raise jwt.InvalidTokenError(
+                    "Cannot validate tokens signed with symmetric algorithms in signer mode"
+                )
             
             return jwt.decode(  # type: ignore[no-any-return]
                 token,

@@ -10,7 +10,7 @@ from typing import Any
 
 from copilot_logging import create_logger
 
-from .exceptions import CircuitBreakerOpenError, JWTSignerError, KeyVaultSignerError, SigningTimeoutError
+from .exceptions import CircuitBreakerOpenError, KeyVaultSignerError
 from .signer import JWTSigner
 
 logger = create_logger(logger_type="stdout", level="INFO", name="copilot_jwt_signer.keyvault")
@@ -464,11 +464,14 @@ class KeyVaultJWTSigner(JWTSigner):
                 close_method = getattr(crypto_client, "close", None)
                 if callable(close_method):
                     close_method()
-            except (AttributeError, TypeError) as e:
-                # Expected errors during normal cleanup
+            except AttributeError as e:
+                # Expected errors during normal cleanup (attribute doesn't exist)
                 logger.debug(f"Expected error closing crypto client: {e}")
+            except TypeError as e:
+                # Unexpected - typically indicates a bug in the code
+                logger.warning(f"Unexpected TypeError closing crypto client: {e}")
             except Exception as e:
-                # Unexpected errors - log but don't raise
+                # Other unexpected errors - log but don't raise
                 logger.warning(f"Unexpected error closing crypto client: {e}")
         
         # Close the key client
@@ -478,11 +481,14 @@ class KeyVaultJWTSigner(JWTSigner):
                 close_method = getattr(key_client, "close", None)
                 if callable(close_method):
                     close_method()
-            except (AttributeError, TypeError) as e:
-                # Expected errors during normal cleanup
+            except AttributeError as e:
+                # Expected errors during normal cleanup (attribute doesn't exist)
                 logger.debug(f"Expected error closing key client: {e}")
+            except TypeError as e:
+                # Unexpected - typically indicates a bug in the code
+                logger.warning(f"Unexpected TypeError closing key client: {e}")
             except Exception as e:
-                # Unexpected errors - log but don't raise
+                # Other unexpected errors - log but don't raise
                 logger.warning(f"Unexpected error closing key client: {e}")
         
         # Close the credential
@@ -492,22 +498,12 @@ class KeyVaultJWTSigner(JWTSigner):
                 close_method = getattr(credential, "close", None)
                 if callable(close_method):
                     close_method()
-            except (AttributeError, TypeError) as e:
-                # Expected errors during normal cleanup
+            except AttributeError as e:
+                # Expected errors during normal cleanup (attribute doesn't exist)
                 logger.debug(f"Expected error closing credential: {e}")
+            except TypeError as e:
+                # Unexpected - typically indicates a bug in the code
+                logger.warning(f"Unexpected TypeError closing credential: {e}")
             except Exception as e:
-                # Unexpected errors - log but don't raise
+                # Other unexpected errors - log but don't raise
                 logger.warning(f"Unexpected error closing credential: {e}")
-    
-    def __del__(self) -> None:
-        """Best-effort cleanup when garbage collected."""
-        try:
-            self.close()
-        except (AttributeError, TypeError) as e:
-            # Expected errors during interpreter shutdown
-            # Don't log here as logger may not be available
-            pass
-        except Exception:
-            # Unexpected errors during garbage collection
-            # Silently ignore to avoid issues during interpreter shutdown
-            pass
