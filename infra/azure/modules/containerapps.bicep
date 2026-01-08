@@ -274,19 +274,19 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: oauthRedirectUri
             }
             {
-              name: 'ROLE_STORE_TYPE'
+              name: 'AUTH_ROLE_STORE_TYPE'
               value: 'cosmos'
             }
             {
-              name: 'ROLE_STORE_HOST'
+              name: 'AUTH_ROLE_STORE_HOST'
               value: cosmosDbEndpoint
             }
             {
-              name: 'ROLE_STORE_PORT'
+              name: 'AUTH_ROLE_STORE_PORT'
               value: '443'
             }
             {
-              name: 'ROLE_STORE_DATABASE'
+              name: 'AUTH_ROLE_STORE_DATABASE'
               value: cosmosAuthDatabaseName
             }
             {

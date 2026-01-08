@@ -334,11 +334,11 @@ services:
       - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
       - SECRETS_BASE_PATH=${SECRETS_BASE_PATH:-/run/secrets}
       - METRICS_BACKEND=noop
-      - ROLE_STORE_TYPE=${ROLE_STORE_TYPE:-mongodb}
+      - AUTH_ROLE_STORE_TYPE=${AUTH_ROLE_STORE_TYPE:-mongodb}
       # Role store (MongoDB) connection for auth credentials
-      - ROLE_STORE_HOST=documentdb
-      - ROLE_STORE_PORT=27017
-      - ROLE_STORE_DATABASE=auth
+      - AUTH_ROLE_STORE_HOST=documentdb
+      - AUTH_ROLE_STORE_PORT=27017
+      - AUTH_ROLE_STORE_DATABASE=auth
       # OIDC Providers - OAuth secrets read via copilot_secrets from /run/secrets
       - AUTH_GITHUB_REDIRECT_URI=${AUTH_GITHUB_REDIRECT_URI:-http://localhost:8080/ui/callback}
       - AUTH_GOOGLE_CLIENT_ID=${AUTH_GOOGLE_CLIENT_ID:-}
