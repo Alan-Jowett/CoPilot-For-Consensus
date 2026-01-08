@@ -48,7 +48,7 @@ def find_python_packages(root_dir: Path) -> list[tuple[str, str]]:
         dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
 
         # Check if this directory has Python package files
-        has_requirements = 'requirements.txt' in filenames
+        has_requirements = 'requirements.txt' in filenames or 'requirements.in' in filenames
         has_setup = 'setup.py' in filenames
 
         if has_requirements or has_setup:
