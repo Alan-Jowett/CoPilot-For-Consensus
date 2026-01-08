@@ -63,42 +63,63 @@
       "source": "env",
       "env_var": "DOCUMENT_STORE_TYPE",
       "required": true,
-      "description": "Document store type"
+      "description": "Document store type (mongodb, cosmosdb)"
     },
-    "doc_store_host": {
+    "mongodb_host": {
+      "type": "string",
+      "source": "env",
+      "env_var": "MONGODB_HOST",
+      "default": "documentdb",
+      "description": "MongoDB hostname (when DOCUMENT_STORE_TYPE=mongodb)"
+    },
+    "mongodb_port": {
+      "type": "int",
+      "source": "env",
+      "env_var": "MONGODB_PORT",
+      "default": 27017,
+      "description": "MongoDB port (when DOCUMENT_STORE_TYPE=mongodb)"
+    },
+    "mongodb_database": {
+      "type": "string",
+      "source": "env",
+      "env_var": "MONGODB_DATABASE",
+      "default": "copilot",
+      "description": "MongoDB database name (when DOCUMENT_STORE_TYPE=mongodb)"
+    },
+    "cosmos_endpoint": {
       "type": "string",
       "source": "env",
       "env_var": "COSMOS_ENDPOINT",
       "default": "documentdb",
-      "description": "Document store hostname"
+      "description": "Cosmos DB endpoint URL (when DOCUMENT_STORE_TYPE=cosmosdb)"
     },
-    "doc_store_port": {
+    "cosmos_port": {
       "type": "int",
       "source": "env",
       "env_var": "COSMOS_PORT",
       "default": 27017,
-      "description": "Document store port"
+      "description": "Cosmos DB port (when DOCUMENT_STORE_TYPE=cosmosdb)"
     },
-    "doc_store_name": {
+    "cosmos_database": {
       "type": "string",
       "source": "env",
       "env_var": "COSMOS_DATABASE",
       "default": "copilot",
-      "description": "Document store database name"
+      "description": "Cosmos DB database name (when DOCUMENT_STORE_TYPE=cosmosdb)"
     },
-    "doc_store_user": {
+    "mongodb_username": {
       "type": "string",
       "source": "secret",
-      "secret_name": "document_database_user",
+      "secret_name": "mongodb_username",
       "required": false,
-      "description": "Document store username (secret)"
+      "description": "MongoDB username (secret, when DOCUMENT_STORE_TYPE=mongodb)"
     },
-    "doc_store_password": {
+    "mongodb_password": {
       "type": "string",
       "source": "secret",
-      "secret_name": "document_database_password",
+      "secret_name": "mongodb_password",
       "required": false,
-      "description": "Document store password (secret)"
+      "description": "MongoDB password (secret, when DOCUMENT_STORE_TYPE=mongodb)"
     },
     "archive_store_type": {
       "type": "string",
