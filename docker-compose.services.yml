@@ -334,11 +334,11 @@ services:
       - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
       - SECRETS_BASE_PATH=${SECRETS_BASE_PATH:-/run/secrets}
       - METRICS_BACKEND=noop
-      - AUTH_ROLE_STORE_TYPE=${AUTH_ROLE_STORE_TYPE:-mongodb}
-      # Document database (MongoDB) connection for role store
-      - DOCUMENT_DATABASE_HOST=documentdb
-      - DOCUMENT_DATABASE_PORT=27017
-      - DOCUMENT_DATABASE_NAME=auth
+      - ROLE_STORE_TYPE=${ROLE_STORE_TYPE:-mongodb}
+      # Role store (MongoDB) connection for auth credentials
+      - ROLE_STORE_HOST=documentdb
+      - ROLE_STORE_PORT=27017
+      - ROLE_STORE_DATABASE=auth
       # OIDC Providers - OAuth secrets read via copilot_secrets from /run/secrets
       - AUTH_GITHUB_REDIRECT_URI=${AUTH_GITHUB_REDIRECT_URI:-http://localhost:8080/ui/callback}
       - AUTH_GOOGLE_CLIENT_ID=${AUTH_GOOGLE_CLIENT_ID:-}
@@ -355,8 +355,6 @@ services:
       - COOKIE_SECURE=${COOKIE_SECURE:-false}
       - PORT=8090
       - HOST=0.0.0.0
-      - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
-      - SECRETS_BASE_PATH=/run/secrets
       # Bootstrap token for initial admin setup (one-time use)
       - BOOTSTRAP_TOKEN=${BOOTSTRAP_TOKEN:-}
     volumes:
