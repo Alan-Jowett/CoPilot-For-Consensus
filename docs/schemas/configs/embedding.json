@@ -15,17 +15,17 @@
       "required": true,
       "description": "Message bus type"
     },
-    "message_bus_host": {
+    "RABBITMQ_HOST": {
       "type": "string",
       "source": "env",
-      "env_var": "MESSAGE_BUS_HOST",
+      "env_var": "RABBITMQ_HOST",
       "default": "messagebus",
       "description": "Message bus hostname"
     },
-    "message_bus_port": {
+    "RABBITMQ_PORT": {
       "type": "int",
       "source": "env",
-      "env_var": "MESSAGE_BUS_PORT",
+      "env_var": "RABBITMQ_PORT",
       "default": 5672,
       "description": "Message bus port"
     },
@@ -127,19 +127,19 @@
       "default": 384,
       "description": "Embedding dimension"
     },
-    "SENTENCETRANSFORMERS_BATCH_SIZE": {
+    "SENTENCETRANSFORMERS_SENTENCETRANSFORMERS_BATCH_SIZE": {
       "type": "int",
       "source": "env",
-      "env_var": "SENTENCETRANSFORMERS_BATCH_SIZE",
+      "env_var": "SENTENCETRANSFORMERS_SENTENCETRANSFORMERS_BATCH_SIZE",
       "default": 32,
       "description": "Batch size for embedding generation"
     },
-    "SENTENCETRANSFORMERS_DEVICE": {
+    "SENTENCETRANSFORMERS_SENTENCETRANSFORMERS_DEVICE": {
       "type": "string",
       "source": "env",
-      "env_var": "SENTENCETRANSFORMERS_DEVICE",
+      "env_var": "SENTENCETRANSFORMERS_SENTENCETRANSFORMERS_DEVICE",
       "default": "cpu",
-      "description": "SENTENCETRANSFORMERS_DEVICE for embedding generation (cpu, cuda)"
+      "description": "SENTENCETRANSFORMERS_SENTENCETRANSFORMERS_DEVICE for embedding generation (cpu, cuda)"
     },
     "max_retries": {
       "type": "int",
@@ -151,7 +151,7 @@
     "retry_backoff": {
       "type": "int",
       "source": "env",
-      "env_var": "SENTENCETRANSFORMERS_RETRY_BACKOFF_SECONDS",
+      "env_var": "SENTENCETRANSFORMERS_SENTENCETRANSFORMERS_RETRY_BACKOFF_SECONDS",
       "default": 5,
       "description": "Retry backoff in seconds"
     },
@@ -190,10 +190,10 @@
       "default": "cosine",
       "description": "Qdrant vector store distance metric"
     },
-    "QDRANT_SENTENCETRANSFORMERS_BATCH_SIZE": {
+    "QDRANT_SENTENCETRANSFORMERS_SENTENCETRANSFORMERS_BATCH_SIZE": {
       "type": "int",
       "source": "env",
-      "env_var": "QDRANT_SENTENCETRANSFORMERS_BATCH_SIZE",
+      "env_var": "QDRANT_SENTENCETRANSFORMERS_SENTENCETRANSFORMERS_BATCH_SIZE",
       "default": 100,
       "description": "Qdrant vector store upsert batch size"
     },

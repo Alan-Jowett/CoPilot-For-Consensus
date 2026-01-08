@@ -15,17 +15,17 @@
       "required": true,
       "description": "Message bus type"
     },
-    "message_bus_host": {
+    "RABBITMQ_HOST": {
       "type": "string",
       "source": "env",
-      "env_var": "MESSAGE_BUS_HOST",
+      "env_var": "RABBITMQ_HOST",
       "default": "messagebus",
       "description": "Message bus hostname"
     },
-    "message_bus_port": {
+    "RABBITMQ_PORT": {
       "type": "int",
       "source": "env",
-      "env_var": "MESSAGE_BUS_PORT",
+      "env_var": "RABBITMQ_PORT",
       "default": 5672,
       "description": "Message bus port"
     },
@@ -127,10 +127,10 @@
       "default": "cosine",
       "description": "Distance metric for vector store (cosine, euclidean, dot)"
     },
-    "QDRANT_SENTENCETRANSFORMERS_BATCH_SIZE": {
+    "QDRANT_SENTENCETRANSFORMERS_SENTENCETRANSFORMERS_BATCH_SIZE": {
       "type": "int",
       "source": "env",
-      "env_var": "QDRANT_SENTENCETRANSFORMERS_BATCH_SIZE",
+      "env_var": "QDRANT_SENTENCETRANSFORMERS_SENTENCETRANSFORMERS_BATCH_SIZE",
       "default": 100,
       "description": "Batch size for vector store operations"
     },

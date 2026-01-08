@@ -372,11 +372,11 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -494,11 +494,11 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -530,7 +530,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azure_blob'
             }
             {
-              name: 'LOCAL_ARCHIVE_STORE_PATH'
+              name: 'LOCAL_LOCAL_ARCHIVE_STORE_PATH'
               value: '/data/raw_archives'
             }
             {
@@ -650,11 +650,11 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -682,7 +682,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azure_blob'
             }
             {
-              name: 'LOCAL_ARCHIVE_STORE_PATH'
+              name: 'LOCAL_LOCAL_ARCHIVE_STORE_PATH'
               value: '/data/raw_archives'
             }
             {
@@ -769,11 +769,11 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -872,11 +872,11 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -920,7 +920,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: vectorStoreBackend == 'qdrant' ? 'cosine' : ''
             }
             {
-              name: 'VECTOR_DB_SENTENCETRANSFORMERS_BATCH_SIZE'
+              name: 'VECTOR_DB_SENTENCETRANSFORMERS_SENTENCETRANSFORMERS_BATCH_SIZE'
               value: vectorStoreBackend == 'qdrant' ? '100' : ''
             }
             {
@@ -1027,11 +1027,11 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -1146,11 +1146,11 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -1194,7 +1194,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: vectorStoreBackend == 'qdrant' ? 'cosine' : ''
             }
             {
-              name: 'VECTOR_DB_SENTENCETRANSFORMERS_BATCH_SIZE'
+              name: 'VECTOR_DB_SENTENCETRANSFORMERS_SENTENCETRANSFORMERS_BATCH_SIZE'
               value: vectorStoreBackend == 'qdrant' ? '100' : ''
             }
             {

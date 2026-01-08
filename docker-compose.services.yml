@@ -15,8 +15,8 @@ services:
       - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/docs/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
-      - MESSAGE_BUS_HOST=messagebus
-      - MESSAGE_BUS_PORT=5672
+      - RABBITMQ_HOST=messagebus
+      - RABBITMQ_PORT=5672
       - DOCUMENT_STORE_TYPE=mongodb
       - COSMOS_ENDPOINT=documentdb
       - COSMOS_PORT=27017
@@ -59,8 +59,8 @@ services:
       - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/docs/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
-      - MESSAGE_BUS_HOST=messagebus
-      - MESSAGE_BUS_PORT=5672
+      - RABBITMQ_HOST=messagebus
+      - RABBITMQ_PORT=5672
       - DOCUMENT_STORE_TYPE=mongodb
       - COSMOS_ENDPOINT=documentdb
       - COSMOS_PORT=27017
@@ -110,8 +110,8 @@ services:
       - SCHEMA_DIR=/app/docs/schemas/configs
       - STORAGE_PATH=/data/raw_archives
       - MESSAGE_BUS_TYPE=rabbitmq
-      - MESSAGE_BUS_HOST=messagebus
-      - MESSAGE_BUS_PORT=5672
+      - RABBITMQ_HOST=messagebus
+      - RABBITMQ_PORT=5672
       - METRICS_TYPE=${METRICS_TYPE:-prometheus_pushgateway}
       - PROMETHEUS_PUSHGATEWAY=pushgateway:9091
       - ERROR_REPORTER_TYPE=console
@@ -123,7 +123,7 @@ services:
       - HTTP_PORT=8001
       # ArchiveStore configuration
       - ARCHIVE_STORE_TYPE=${ARCHIVE_STORE_TYPE:-local}
-      - LOCAL_ARCHIVE_STORE_PATH=${LOCAL_ARCHIVE_STORE_PATH:-/data/raw_archives}
+      - LOCAL_LOCAL_ARCHIVE_STORE_PATH=${LOCAL_LOCAL_ARCHIVE_STORE_PATH:-/data/raw_archives}
       # Azure Blob Storage configuration (for azure_blob backend)
       # - AZUREBLOB_ACCOUNT=${AZUREBLOB_ACCOUNT}
       # - AZURE_STORAGE_KEY=${AZURE_STORAGE_KEY}
@@ -167,8 +167,8 @@ services:
       - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/docs/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
-      - MESSAGE_BUS_HOST=messagebus
-      - MESSAGE_BUS_PORT=5672
+      - RABBITMQ_HOST=messagebus
+      - RABBITMQ_PORT=5672
       - DOCUMENT_STORE_TYPE=mongodb
       - COSMOS_ENDPOINT=documentdb
       - COSMOS_PORT=27017
@@ -224,8 +224,8 @@ services:
       - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/docs/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
-      - MESSAGE_BUS_HOST=messagebus
-      - MESSAGE_BUS_PORT=5672
+      - RABBITMQ_HOST=messagebus
+      - RABBITMQ_PORT=5672
       - DOCUMENT_STORE_TYPE=mongodb
       - COSMOS_ENDPOINT=documentdb
       - COSMOS_PORT=27017
@@ -234,7 +234,7 @@ services:
       - ERROR_REPORTER_TYPE=console
       # ArchiveStore configuration
       - ARCHIVE_STORE_TYPE=${ARCHIVE_STORE_TYPE:-local}
-      - LOCAL_ARCHIVE_STORE_PATH=${LOCAL_ARCHIVE_STORE_PATH:-/data/raw_archives}
+      - LOCAL_LOCAL_ARCHIVE_STORE_PATH=${LOCAL_LOCAL_ARCHIVE_STORE_PATH:-/data/raw_archives}
       # Azure Blob Storage configuration (for azure_blob backend)
       # - AZUREBLOB_ACCOUNT=${AZUREBLOB_ACCOUNT}
       # - AZURE_STORAGE_KEY=${AZURE_STORAGE_KEY}
@@ -275,8 +275,8 @@ services:
       - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/docs/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
-      - MESSAGE_BUS_HOST=messagebus
-      - MESSAGE_BUS_PORT=5672
+      - RABBITMQ_HOST=messagebus
+      - RABBITMQ_PORT=5672
       - DOCUMENT_STORE_TYPE=mongodb
       - COSMOS_ENDPOINT=documentdb
       - COSMOS_PORT=27017
@@ -287,7 +287,7 @@ services:
       - QDRANT_COLLECTION=embeddings
       - EMBEDDING_BACKEND=${EMBEDDING_BACKEND:-sentencetransformers}
       - SENTENCETRANSFORMERS_MODEL=${SENTENCETRANSFORMERS_MODEL:-all-MiniLM-L6-v2}
-      - SENTENCETRANSFORMERS_DEVICE=${SENTENCETRANSFORMERS_DEVICE:-cpu}
+      - SENTENCETRANSFORMERS_SENTENCETRANSFORMERS_DEVICE=${SENTENCETRANSFORMERS_SENTENCETRANSFORMERS_DEVICE:-cpu}
       - METRICS_TYPE=${METRICS_TYPE:-noop}
       - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY:-http://pushgateway:9091}
       - ERROR_REPORTER_TYPE=console
@@ -415,8 +415,8 @@ services:
       - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/docs/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
-      - MESSAGE_BUS_HOST=messagebus
-      - MESSAGE_BUS_PORT=5672
+      - RABBITMQ_HOST=messagebus
+      - RABBITMQ_PORT=5672
       - DOCUMENT_STORE_TYPE=mongodb
       - COSMOS_ENDPOINT=documentdb
       - COSMOS_PORT=27017

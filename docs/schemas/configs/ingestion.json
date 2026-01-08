@@ -36,17 +36,17 @@
       "required": true,
       "description": "Message bus type (rabbitmq, service_bus)"
     },
-    "message_bus_host": {
+    "RABBITMQ_HOST": {
       "type": "string",
       "source": "env",
-      "env_var": "MESSAGE_BUS_HOST",
+      "env_var": "RABBITMQ_HOST",
       "default": "localhost",
       "description": "Message bus host"
     },
-    "message_bus_port": {
+    "RABBITMQ_PORT": {
       "type": "int",
       "source": "env",
-      "env_var": "MESSAGE_BUS_PORT",
+      "env_var": "RABBITMQ_PORT",
       "default": 5672,
       "description": "Message bus port"
     },
@@ -64,10 +64,10 @@
       "required": true,
       "description": "Archive store backend (local, azure_blob)"
     },
-    "LOCAL_ARCHIVE_STORE_PATH": {
+    "LOCAL_LOCAL_ARCHIVE_STORE_PATH": {
       "type": "string",
       "source": "env",
-      "env_var": "LOCAL_ARCHIVE_STORE_PATH",
+      "env_var": "LOCAL_LOCAL_ARCHIVE_STORE_PATH",
       "default": "/data/raw_archives",
       "description": "Base path for local archive storage"
     },
@@ -127,10 +127,10 @@
       "default": 3,
       "description": "Maximum retry attempts"
     },
-    "SENTENCETRANSFORMERS_RETRY_BACKOFF_SECONDS": {
+    "SENTENCETRANSFORMERS_SENTENCETRANSFORMERS_RETRY_BACKOFF_SECONDS": {
       "type": "int",
       "source": "env",
-      "env_var": "SENTENCETRANSFORMERS_RETRY_BACKOFF_SECONDS",
+      "env_var": "SENTENCETRANSFORMERS_SENTENCETRANSFORMERS_RETRY_BACKOFF_SECONDS",
       "default": 60,
       "description": "Retry backoff in seconds"
     },
