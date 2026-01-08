@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # Dependency Management Improvements - Implementation Summary
 
 This document summarizes the improvements made to Dependabot coverage and dependency management for the CoPilot-for-Consensus project.
