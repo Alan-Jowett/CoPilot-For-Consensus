@@ -174,6 +174,7 @@ def main():
     
     # Services to convert
     services = [
+        'auth',
         'chunking',
         'embedding',
         'ingestion',
