@@ -700,7 +700,7 @@ def test_archive_ingested_event_without_file_path():
         base_publisher = NoopPublisher()
         base_publisher.connect()
         # Wrap with schema validation for events
-        schema_dir = Path(__file__).parent.parent.parent / "documents" / "schemas" / "events"
+        schema_dir = Path(__file__).parent.parent.parent / "docs" / "schemas" / "events"
         schema_provider = FileSchemaProvider(schema_dir=schema_dir)
         publisher = ValidatingEventPublisher(
             publisher=base_publisher,
