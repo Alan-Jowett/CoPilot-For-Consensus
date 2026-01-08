@@ -180,17 +180,17 @@ def main():
             name=config.logger_name,
         )
 
-        metrics_backend = config.metrics_backend.lower()
+        metrics_backend = config.metrics_type.lower()
 
         # Build metrics collector, fall back to NoOp if backend unavailable
         try:
-            metrics = create_metrics_collector(backend=config.metrics_backend)
+            metrics = create_metrics_collector(backend=config.metrics_type)
         except Exception as e:  # graceful fallback for missing optional deps
             from copilot_metrics import NoOpMetricsCollector
 
             service_logger.warning(
                 "Metrics backend unavailable; falling back to NoOp",
-                backend=config.metrics_backend,
+                backend=config.metrics_type,
                 error=str(e),
             )
             metrics = NoOpMetricsCollector()
@@ -201,7 +201,7 @@ def main():
             "Logger configured",
             log_level=config.log_level,
             log_type=config.log_type,
-            metrics_backend=config.metrics_backend,
+            metrics_backend=config.metrics_type,
         )
 
         # Start Prometheus metrics endpoint when enabled so Prometheus can scrape /metrics
@@ -215,7 +215,7 @@ def main():
             except Exception as e:
                 log.warning(
                     "Failed to start Prometheus metrics server",
-                    metrics_backend=config.metrics_backend,
+                    metrics_backend=config.metrics_type,
                     error=str(e),
                 )
 

@@ -50,7 +50,7 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Authentication Service...")
     config = load_auth_config()
     # Read metrics backend from config and normalize known aliases
-    backend_value = getattr(config, "metrics_backend", "noop")
+    backend_value = getattr(config, "metrics_type", "noop")
     if backend_value in ("prometheus_pushgateway", "prometheus-pushgateway"):
         backend_value = "pushgateway"
     
@@ -60,7 +60,7 @@ async def lifespan(app: FastAPI):
         # Pushgateway requires gateway URL and job name; require explicit config
         gateway = getattr(config, "prometheus_pushgateway", None)
         if not gateway:
-            raise ValueError("metrics_backend=pushgateway requires 'prometheus_pushgateway' to be set in config")
+            raise ValueError("metrics_type=pushgateway requires 'prometheus_pushgateway' to be set in config")
         metrics_kwargs["gateway"] = gateway
         metrics_kwargs["job"] = "auth"
     

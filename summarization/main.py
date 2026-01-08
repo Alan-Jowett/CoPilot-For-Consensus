@@ -313,7 +313,7 @@ def main():
 
         # Create metrics collector - fail fast on errors
         logger.info("Creating metrics collector...")
-        metrics_collector = create_metrics_collector()
+        metrics_collector = create_metrics_collector(backend=config.metrics_type)
 
         # Create error reporter - fail fast on errors
         logger.info("Creating error reporter...")

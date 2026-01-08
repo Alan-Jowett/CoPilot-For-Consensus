@@ -211,12 +211,12 @@
       "default": 5,
       "description": "Retry delay in seconds"
     },
-    "metrics_backend": {
+    "metrics_type": {
       "type": "string",
       "source": "env",
       "env_var": "METRICS_BACKEND",
       "required": true,
-      "description": "Metrics backend"
+      "description": "Metrics backend type (prometheus, pushgateway, azure_monitor, noop)"
     },
     "error_reporter_type": {
       "type": "string",

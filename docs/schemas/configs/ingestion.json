@@ -113,12 +113,12 @@
       "default": "ingestion-service",
       "description": "Logger name"
     },
-    "metrics_backend": {
+    "metrics_type": {
       "type": "string",
       "source": "env",
       "env_var": "METRICS_BACKEND",
       "required": true,
-      "description": "Metrics backend (prometheus, noop)"
+      "description": "Metrics backend type (prometheus, pushgateway, azure_monitor, noop)"
     },
     "retry_max_attempts": {
       "type": "int",

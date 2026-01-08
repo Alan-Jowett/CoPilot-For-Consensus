@@ -227,7 +227,7 @@ class IngestionService:
             level=config.log_level,
             name=config.logger_name,
         )
-        self.metrics = metrics or create_metrics_collector(backend=config.metrics_backend)
+        self.metrics = metrics or create_metrics_collector(backend=config.metrics_type)
         self._ensure_storage_path(self.config.storage_path)
 
         # Initialize error reporter
