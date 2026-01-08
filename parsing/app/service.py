@@ -32,12 +32,6 @@ from . import __version__
 
 logger = create_logger(name="parsing")
 
-# Ensure schema loader sees the correct service version during tests/runtime
-# The config adapter reads SERVICE_VERSION from the environment with default "0.0.0"
-# which causes a mismatch with schema min version. Set it from our package version if absent.
-os.environ.setdefault("SERVICE_VERSION", __version__)
-
-
 class ParsingService:
     """Main parsing service for converting mbox archives to structured JSON."""
 
@@ -105,18 +99,8 @@ class ParsingService:
                 if resolved_archive_store_type == "local":
                     store_kwargs = {"base_path": archive_store_base_path}
                 elif resolved_archive_store_type == "azure_blob":
-                    if archive_store_connection_string is not None and archive_store_account_name is not None:
-                        raise ValueError(
-                            "Provide either archive_store_connection_string or archive_store_account_name, not both."
-                        )
-                    if archive_store_connection_string is None and archive_store_account_name is None:
-                        raise ValueError(
-                            "archive_store_connection_string or archive_store_account_name is required for azure_blob archive store."
-                        )
-
-                    store_kwargs = {
-                        "container_name": archive_store_container,
-                    }
+                    # Let adapter enforce mutual exclusivity and required parameters
+                    store_kwargs = {"container_name": archive_store_container}
                     if archive_store_connection_string is not None:
                         store_kwargs["connection_string"] = archive_store_connection_string
                     if archive_store_account_name is not None:

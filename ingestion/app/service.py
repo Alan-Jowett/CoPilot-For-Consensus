@@ -263,16 +263,7 @@ class IngestionService:
                     if account_name == "":
                         account_name = None
 
-                    # Enforce mutually exclusive auth modes
-                    if connection_string is not None and account_name is not None:
-                        raise ValueError(
-                            "Provide either archive_store_connection_string or archive_store_account_name, not both."
-                        )
-                    if connection_string is None and account_name is None:
-                        raise ValueError(
-                            "archive_store_connection_string or archive_store_account_name is required for azure_blob archive store."
-                        )
-
+                    # Delegate validation to adapter; pass through provided parameters
                     store_kwargs = {"container_name": container_name}
                     if connection_string is not None:
                         store_kwargs["connection_string"] = connection_string
