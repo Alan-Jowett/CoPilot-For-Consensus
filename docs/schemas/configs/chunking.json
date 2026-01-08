@@ -13,35 +13,50 @@
       "source": "env",
       "env_var": "MESSAGE_BUS_TYPE",
       "required": true,
-      "description": "Message bus type"
+      "description": "Message bus type (rabbitmq, servicebus)"
     },
-    "RABBITMQ_HOST": {
+    "servicebus_use_managed_identity": {
+      "type": "bool",
+      "source": "env",
+      "env_var": "SERVICEBUS_USE_MANAGED_IDENTITY",
+      "default": true,
+      "required": false,
+      "description": "Use Azure managed identity for Service Bus authentication (when MESSAGE_BUS_TYPE=servicebus)"
+    },
+    "servicebus_fully_qualified_namespace": {
+      "type": "string",
+      "source": "env",
+      "env_var": "SERVICEBUS_FULLY_QUALIFIED_NAMESPACE",
+      "required": false,
+      "description": "Azure Service Bus fully qualified namespace (when MESSAGE_BUS_TYPE=servicebus, e.g., mybus.servicebus.windows.net)"
+    },
+    "rabbitmq_host": {
       "type": "string",
       "source": "env",
       "env_var": "RABBITMQ_HOST",
       "default": "messagebus",
       "description": "Message bus hostname"
     },
-    "RABBITMQ_PORT": {
+    "rabbitmq_port": {
       "type": "int",
       "source": "env",
       "env_var": "RABBITMQ_PORT",
       "default": 5672,
       "description": "Message bus port"
     },
-    "message_bus_user": {
+    "rabbitmq_username": {
       "type": "string",
       "source": "secret",
-      "secret_name": "message_bus_user",
+      "secret_name": "rabbitmq_username",
       "required": false,
-      "description": "Message bus username (secret)"
+      "description": "RabbitMQ username (secret)"
     },
-    "message_bus_password": {
+    "rabbitmq_password": {
       "type": "string",
       "source": "secret",
-      "secret_name": "message_bus_password",
+      "secret_name": "rabbitmq_password",
       "required": false,
-      "description": "Message bus password (secret)"
+      "description": "RabbitMQ password (secret)"
     },
     "doc_store_type": {
       "type": "string",

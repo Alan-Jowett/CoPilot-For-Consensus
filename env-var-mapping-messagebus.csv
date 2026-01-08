@@ -1,0 +1,5 @@
+old_name,new_name,files
+RABBITMQ_HOST,rabbitmq_host,chunking.json;parsing.json;embedding.json;orchestrator.json;reporting.json;summarization.json;ingestion.json
+RABBITMQ_PORT,rabbitmq_port,chunking.json;parsing.json;embedding.json;orchestrator.json;reporting.json;summarization.json;ingestion.json
+message_bus_user,rabbitmq_username,chunking.json;parsing.json;embedding.json;orchestrator.json;reporting.json;summarization.json;ingestion.json
+message_bus_password,rabbitmq_password,chunking.json;parsing.json;embedding.json;orchestrator.json;reporting.json;summarization.json;ingestion.json

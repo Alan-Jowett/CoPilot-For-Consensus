@@ -15,17 +15,17 @@
       "default": "/data/raw_archives",
       "description": "Path to store downloaded archives"
     },
-    "message_bus_user": {
+    "rabbitmq_username": {
       "type": "string",
       "source": "secret",
-      "secret_name": "message_bus_user",
+      "secret_name": "rabbitmq_username",
       "required": false,
       "description": "Username for message bus (secret)"
     },
-    "message_bus_password": {
+    "rabbitmq_password": {
       "type": "string",
       "source": "secret",
-      "secret_name": "message_bus_password",
+      "secret_name": "rabbitmq_password",
       "required": false,
       "description": "Password for message bus (secret)"
     },
@@ -34,16 +34,31 @@
       "source": "env",
       "env_var": "MESSAGE_BUS_TYPE",
       "required": true,
-      "description": "Message bus type (rabbitmq, service_bus)"
+      "description": "Message bus type (rabbitmq, servicebus)"
     },
-    "RABBITMQ_HOST": {
+    "servicebus_use_managed_identity": {
+      "type": "bool",
+      "source": "env",
+      "env_var": "SERVICEBUS_USE_MANAGED_IDENTITY",
+      "default": true,
+      "required": false,
+      "description": "Use Azure managed identity for Service Bus authentication (when MESSAGE_BUS_TYPE=servicebus)"
+    },
+    "servicebus_fully_qualified_namespace": {
+      "type": "string",
+      "source": "env",
+      "env_var": "SERVICEBUS_FULLY_QUALIFIED_NAMESPACE",
+      "required": false,
+      "description": "Azure Service Bus fully qualified namespace (when MESSAGE_BUS_TYPE=servicebus, e.g., mybus.servicebus.windows.net)"
+    },
+    "rabbitmq_host": {
       "type": "string",
       "source": "env",
       "env_var": "RABBITMQ_HOST",
       "default": "localhost",
       "description": "Message bus host"
     },
-    "RABBITMQ_PORT": {
+    "rabbitmq_port": {
       "type": "int",
       "source": "env",
       "env_var": "RABBITMQ_PORT",
