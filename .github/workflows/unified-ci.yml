@@ -50,7 +50,7 @@ concurrency:
   # Allow running concurrently with any commits on any other branch.
   # Using the ref or event-specific identifiers as the group key allows
   # parallel runs on different branches even when they share the same HEAD commit.
-  group: cicd-${{ github.event.schedule || github.event.pull_request.number || github.event.after || github.ref }}
+  group: cicd-${{ github.event.schedule || github.event.pull_request.number || github.sha || github.ref }}
   cancel-in-progress: true
 
 jobs:

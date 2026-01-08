@@ -18,9 +18,9 @@ on:
 concurrency:
   # Cancel any in-progress instance of this workflow for the same PR.
   # Allow running concurrently with any commits on any other branch.
-  # Using github.ref and github.event.after (instead of a pure SHA) allows
-  # parallel runs on different branches that share the same HEAD commit.
-  group: cicd-${{ github.event.schedule || github.event.pull_request.number || github.event.after || github.ref }}
+  # Using github.ref and github.sha allows parallel runs on different branches
+  # that share the same HEAD commit, while still grouping by PR or schedule.
+  group: cicd-${{ github.event.schedule || github.event.pull_request.number || github.sha || github.ref }}
   cancel-in-progress: true
 
 jobs:
