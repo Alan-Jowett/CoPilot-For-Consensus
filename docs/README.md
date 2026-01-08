@@ -14,12 +14,12 @@ This is the primary index for project documentation. Use this page first; legacy
 - Features: Authentication & token refresh ([docs/features/authentication.md](features/authentication.md)); Vectorstore ([docs/features/vectorstore.md](features/vectorstore.md)); Microservices Auth ([docs/features/microservices-auth.md](features/microservices-auth.md)); Gateway TLS ([docs/features/gateway-tls.md](features/gateway-tls.md)); Metrics ([documents/METRICS_INTEGRATION_GUIDE.md](../documents/METRICS_INTEGRATION_GUIDE.md))
 - Observability: [docs/observability/implementation-summary.md](observability/implementation-summary.md), [docs/observability/service-monitoring.md](observability/service-monitoring.md), [docs/observability/metrics-integration.md](observability/metrics-integration.md), [docs/observability/retry-policy-dashboard.md](observability/retry-policy-dashboard.md), [docs/GRAFANA_JWT_IMPLEMENTATION.md](GRAFANA_JWT_IMPLEMENTATION.md), [docs/GRAFANA_JWT_TESTING.md](GRAFANA_JWT_TESTING.md)
 - APIs: [docs/openapi.md](openapi.md), gateway notes ([docs/gateway](gateway))
-- Schemas: [docs/schemas/README.md](schemas/README.md), [docs/schemas/data-storage.md](schemas/data-storage.md), and [docs/schemas/schema-versioning.md](schemas/schema-versioning.md) → JSON under [documents/schemas](../documents/schemas) (configs, documents, events, role_store)
+- Schemas: [docs/schemas/README.md](schemas/README.md), [docs/schemas/data-storage.md](schemas/data-storage.md), and [docs/schemas/schema-versioning.md](schemas/schema-versioning.md) → JSON schemas under [docs/schemas/](schemas/) (configs, documents, events, role_store)
 - Migrations & Policies: [docs/operations/configuration-migration.md](operations/configuration-migration.md), [docs/operations/security-migration-summary.md](operations/security-migration-summary.md), [docs/operations/retry-policy.md](operations/retry-policy.md), [docs/operations/forward-progress.md](operations/forward-progress.md)
 
 ## Directory Purposes
 - docs/: Canonical, user-facing and contributor-facing docs. New or consolidated content should land here. The archive/ subdirectory contains historical implementation notes preserved for audit purposes.
-- documents/: JSON schema definitions only.
+- documents/: Historical implementation notes only (schemas moved to docs/schemas/).
 
 ## Naming & Link Conventions
 - Prefer kebab-case for new filenames.
