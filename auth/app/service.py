@@ -72,6 +72,26 @@ class AuthService:
         """Initialize OIDC providers and JWT manager."""
         logger.info("Initializing Auth Service...")
 
+        # Determine signer type
+        signer_type = getattr(self.config, 'jwt_signer_type', 'local')
+        
+        if signer_type == 'keyvault':
+            # Key Vault signer mode
+            self._initialize_keyvault_jwt_manager()
+        else:
+            # Local signer mode (legacy)
+            self._initialize_local_jwt_manager()
+
+        # Initialize role store
+        self.role_store = RoleStore(self.config)
+
+        # Initialize OIDC providers from config
+        self._initialize_providers()
+
+        logger.info(f"Auth Service initialized with {len(self.providers)} providers")
+
+    def _initialize_local_jwt_manager(self) -> None:
+        """Initialize JWT manager with local file-based signing (legacy mode)."""
         # Get JWT keys from secrets store (via copilot_secrets adapter)
         private_key = getattr(self.config, 'jwt_private_key', None)
         public_key = getattr(self.config, 'jwt_public_key', None)
@@ -100,14 +120,56 @@ class AuthService:
             key_id=self.config.jwt_key_id,
             default_expiry=self.config.jwt_default_expiry,
         )
+        
+        logger.info(f"JWT manager initialized with local signer (algorithm={self.config.jwt_algorithm})")
 
-        # Initialize role store
-        self.role_store = RoleStore(self.config)
+    def _initialize_keyvault_jwt_manager(self) -> None:
+        """Initialize JWT manager with Key Vault signing."""
+        try:
+            # Import signer factory
+            from copilot_jwt_signer import create_jwt_signer
+        except ImportError as e:
+            raise ValueError(
+                "Key Vault signing requires copilot_jwt_signer adapter. "
+                "Install with: pip install copilot-jwt-signer[azure]"
+            ) from e
 
-        # Initialize OIDC providers from config
-        self._initialize_providers()
+        # Get Key Vault configuration
+        key_vault_url = getattr(self.config, 'jwt_key_vault_url', None)
+        key_name = getattr(self.config, 'jwt_key_vault_key_name', None)
+        
+        if not key_vault_url:
+            raise ValueError(
+                "JWT_KEY_VAULT_URL is required when jwt_signer_type=keyvault"
+            )
+        if not key_name:
+            raise ValueError(
+                "JWT_KEY_VAULT_KEY_NAME is required when jwt_signer_type=keyvault"
+            )
 
-        logger.info(f"Auth Service initialized with {len(self.providers)} providers")
+        # Create Key Vault signer
+        signer = create_jwt_signer(
+            signer_type="keyvault",
+            algorithm=self.config.jwt_algorithm,
+            key_vault_url=key_vault_url,
+            key_name=key_name,
+            key_version=getattr(self.config, 'jwt_key_vault_key_version', None),
+            key_id=self.config.jwt_key_id,
+        )
+
+        # Initialize JWT manager with signer
+        self.jwt_manager = JWTManager(
+            issuer=self.config.issuer,
+            algorithm=self.config.jwt_algorithm,
+            key_id=self.config.jwt_key_id,
+            default_expiry=self.config.jwt_default_expiry,
+            signer=signer,
+        )
+        
+        logger.info(
+            f"JWT manager initialized with Key Vault signer "
+            f"(algorithm={self.config.jwt_algorithm}, key={key_name})"
+        )
 
     def _initialize_providers(self) -> None:
         """Initialize OIDC providers from configuration."""
