@@ -17,6 +17,15 @@ from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
+@pytest.fixture(scope="session", autouse=True)
+def set_service_version():
+    """Set SERVICE_VERSION for all tests to satisfy schema version requirements."""
+    os.environ["SERVICE_VERSION"] = "0.1.0"
+    yield
+    # Cleanup not strictly necessary for tests, but good practice
+    os.environ.pop("SERVICE_VERSION", None)
+
+
 @pytest.fixture
 def document_store():
     """Create in-memory document store with schema validation."""
