@@ -75,7 +75,7 @@ class AzureBlobArchiveStore(ArchiveStore):
                         Incompatible with connection_string.
             sas_token: SAS token as credential (requires account_name).
                       Incompatible with connection_string and account_key.
-            container_name: Container name for archives (default: "archives").
+            container_name: Container name for archives (default: "raw-archives").
             prefix: Optional path prefix for organizing blobs (default: empty string).
 
         Raises:
@@ -85,7 +85,7 @@ class AzureBlobArchiveStore(ArchiveStore):
         self.account_name = account_name
         self.account_key = account_key
         self.sas_token = sas_token
-        self.container_name = container_name or "archives"
+        self.container_name = container_name or "raw-archives"
         self.prefix = prefix or ""
         self.connection_string = connection_string
 
