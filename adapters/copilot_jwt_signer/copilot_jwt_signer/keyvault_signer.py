@@ -4,6 +4,7 @@
 """Azure Key Vault JWT signing implementation."""
 
 import base64
+import hashlib
 import time
 from typing import Any
 
@@ -307,8 +308,6 @@ class KeyVaultJWTSigner(JWTSigner):
         Returns:
             Hashed message bytes
         """
-        import hashlib
-        
         if self.algorithm in ("RS256", "ES256"):
             return hashlib.sha256(message).digest()
         elif self.algorithm in ("RS384", "ES384"):
@@ -410,14 +409,14 @@ class KeyVaultJWTSigner(JWTSigner):
         Raises:
             KeyVaultSignerError: If public key retrieval fails
         """
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import ec, rsa
+        
         try:
             # Fetch key from Key Vault
             key = self.key_client.get_key(self.key_name, version=self.key_version)
             
             # Convert to PEM format using cryptography library
-            from cryptography.hazmat.primitives import serialization
-            from cryptography.hazmat.primitives.asymmetric import ec, rsa
-            
             if key.key_type.value == "RSA":
                 # Reconstruct RSA public key
                 public_key = rsa.RSAPublicNumbers(
@@ -465,8 +464,12 @@ class KeyVaultJWTSigner(JWTSigner):
                 close_method = getattr(crypto_client, "close", None)
                 if callable(close_method):
                     close_method()
-            except (AttributeError, TypeError, RuntimeError):
-                pass
+            except (AttributeError, TypeError) as e:
+                # Expected errors during normal cleanup
+                logger.debug(f"Expected error closing crypto client: {e}")
+            except Exception as e:
+                # Unexpected errors - log but don't raise
+                logger.warning(f"Unexpected error closing crypto client: {e}")
         
         # Close the key client
         key_client = getattr(self, "key_client", None)
@@ -475,8 +478,12 @@ class KeyVaultJWTSigner(JWTSigner):
                 close_method = getattr(key_client, "close", None)
                 if callable(close_method):
                     close_method()
-            except (AttributeError, TypeError, RuntimeError):
-                pass
+            except (AttributeError, TypeError) as e:
+                # Expected errors during normal cleanup
+                logger.debug(f"Expected error closing key client: {e}")
+            except Exception as e:
+                # Unexpected errors - log but don't raise
+                logger.warning(f"Unexpected error closing key client: {e}")
         
         # Close the credential
         credential = getattr(self, "_credential", None)
@@ -485,12 +492,22 @@ class KeyVaultJWTSigner(JWTSigner):
                 close_method = getattr(credential, "close", None)
                 if callable(close_method):
                     close_method()
-            except (AttributeError, TypeError, RuntimeError):
-                pass
+            except (AttributeError, TypeError) as e:
+                # Expected errors during normal cleanup
+                logger.debug(f"Expected error closing credential: {e}")
+            except Exception as e:
+                # Unexpected errors - log but don't raise
+                logger.warning(f"Unexpected error closing credential: {e}")
     
     def __del__(self) -> None:
         """Best-effort cleanup when garbage collected."""
         try:
             self.close()
-        except (AttributeError, TypeError, RuntimeError):
+        except (AttributeError, TypeError) as e:
+            # Expected errors during interpreter shutdown
+            # Don't log here as logger may not be available
+            pass
+        except Exception:
+            # Unexpected errors during garbage collection
+            # Silently ignore to avoid issues during interpreter shutdown
             pass

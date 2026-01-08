@@ -4,6 +4,8 @@
 """Local file-based JWT signing implementation."""
 
 import base64
+import hashlib
+import hmac
 from pathlib import Path
 from typing import Any
 
@@ -205,9 +207,6 @@ class LocalJWTSigner(JWTSigner):
         Returns:
             HMAC signature bytes
         """
-        import hmac
-        import hashlib
-        
         # Select hash algorithm based on variant
         if self.algorithm == "HS256":
             hash_func = hashlib.sha256
