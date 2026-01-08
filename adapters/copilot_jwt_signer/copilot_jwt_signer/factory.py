@@ -144,7 +144,6 @@ def _create_keyvault_signer(algorithm: str, key_id: str, **kwargs) -> JWTSigner:
             - key_version: Optional specific version of the key
             - max_retries: Maximum retry attempts (default: 3)
             - retry_delay: Initial retry delay in seconds (default: 1.0)
-            - timeout_seconds: Timeout for operations (default: 10.0)
             - circuit_breaker_threshold: Failures before opening circuit (default: 5)
             - circuit_breaker_timeout: Seconds to wait before retry (default: 60)
             
@@ -187,7 +186,6 @@ def _create_keyvault_signer(algorithm: str, key_id: str, **kwargs) -> JWTSigner:
         key_id=key_id,
         max_retries=kwargs.get("max_retries", 3),
         retry_delay=kwargs.get("retry_delay", 1.0),
-        timeout_seconds=kwargs.get("timeout_seconds", 10.0),
         circuit_breaker_threshold=kwargs.get("circuit_breaker_threshold", 5),
         circuit_breaker_timeout=kwargs.get("circuit_breaker_timeout", 60),
     )
