@@ -65,9 +65,13 @@ class CircuitBreaker:
                 logger.info("Circuit breaker transitioning to HALF_OPEN")
                 self.state = "HALF_OPEN"
             else:
+                remaining_timeout = max(
+                    0.0,
+                    self.timeout_seconds - (time.time() - self.last_failure_time),
+                )
                 raise CircuitBreakerOpenError(
                     f"Circuit breaker is OPEN. Will retry after "
-                    f"{self.timeout_seconds - (time.time() - self.last_failure_time):.0f} seconds"
+                    f"{remaining_timeout:.0f} seconds"
                 )
         
         try:
@@ -144,7 +148,6 @@ class KeyVaultJWTSigner(JWTSigner):
         key_id: str | None = None,
         max_retries: int = 3,
         retry_delay: float = 1.0,
-        timeout_seconds: float = 10.0,
         circuit_breaker_threshold: int = 5,
         circuit_breaker_timeout: int = 60,
     ):
@@ -158,12 +161,16 @@ class KeyVaultJWTSigner(JWTSigner):
             key_id: Key identifier for JWT header (defaults to key_name)
             max_retries: Maximum number of retry attempts for transient failures
             retry_delay: Initial delay between retries (exponential backoff)
-            timeout_seconds: Timeout for sign operations
             circuit_breaker_threshold: Number of failures before opening circuit
             circuit_breaker_timeout: Seconds to wait before retrying after circuit opens
             
         Raises:
             KeyVaultSignerError: If algorithm is unsupported or Key Vault client initialization fails
+            
+        Note:
+            Public keys are cached indefinitely. When using key_version=None (latest),
+            the service must be restarted after key rotation to pick up the new key version.
+            For zero-downtime key rotation, specify an explicit key_version.
         """
         # Validate algorithm
         if algorithm not in self._ALGORITHM_MAP:
@@ -179,7 +186,6 @@ class KeyVaultJWTSigner(JWTSigner):
         self.key_version = key_version
         self.max_retries = max_retries
         self.retry_delay = retry_delay
-        self.timeout_seconds = timeout_seconds
         
         # Initialize circuit breaker
         self.circuit_breaker = CircuitBreaker(
@@ -336,7 +342,6 @@ class KeyVaultJWTSigner(JWTSigner):
         # Import Azure exceptions for error checking
         try:
             from azure.core.exceptions import (
-                AzureError,
                 ClientAuthenticationError,
                 HttpResponseError,
                 ServiceRequestError,
