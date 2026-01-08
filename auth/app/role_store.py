@@ -53,8 +53,8 @@ class RoleStore:
             return None
 
         store_kwargs = {
-            "host": getattr(config, "role_store_host", None) or "documentdb",
-            "port": getattr(config, "role_store_port", None) or 27017,
+            "host": getattr(config, "role_store_host", None),
+            "port": getattr(config, "role_store_port", None),
             "username": (
                 getattr(config, "role_store_username", None)
                 or get_secret("document_database_user")
@@ -63,7 +63,7 @@ class RoleStore:
                 getattr(config, "role_store_password", None)
                 or get_secret("document_database_password")
             ),
-            "database": getattr(config, "role_store_database", None) or "auth",
+            "database": getattr(config, "role_store_database", None),
         }
 
         # Convert port to int if it's a string
@@ -75,7 +75,7 @@ class RoleStore:
         store_kwargs = {k: v for k, v in store_kwargs.items() if v is not None}
 
         base_store: DocumentStore = create_document_store(
-            store_type=getattr(config, "role_store_type", "mongodb"),
+            store_type=getattr(config, "role_store_type", None),
             **store_kwargs,
         )
 
