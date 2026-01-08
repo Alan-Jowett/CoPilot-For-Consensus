@@ -67,10 +67,10 @@ class ParsingService:
             try:
                 if archive_store_type is None:
                     archive_store_type = os.getenv("ARCHIVE_STORE_TYPE", "local")
-                
+
                 # Get base path for local backend
                 archive_store_base_path = os.getenv("ARCHIVE_STORE_PATH", "/data/raw_archives")
-                
+
                 self.archive_store = create_archive_store(
                     store_type=archive_store_type,
                     base_path=archive_store_base_path,
@@ -224,10 +224,10 @@ class ParsingService:
                 if archive_content is None:
                     error_msg = f"Archive {archive_id} not found in ArchiveStore"
                     logger.error(error_msg)
-                    
+
                     # Update archive status to 'failed'
                     self._update_archive_status(archive_id, "failed", 0)
-                    
+
                     self._publish_parsing_failed(
                         archive_id,
                         None,  # Storage-agnostic mode - no file path available
@@ -239,10 +239,10 @@ class ParsingService:
             except Exception as e:
                 error_msg = f"Failed to retrieve archive from ArchiveStore: {str(e)}"
                 logger.error(error_msg, exc_info=True)
-                
+
                 # Update archive status to 'failed'
                 self._update_archive_status(archive_id, "failed", 0)
-                
+
                 self._publish_parsing_failed(
                     archive_id,
                     None,  # Storage-agnostic mode - no file path available
@@ -258,10 +258,12 @@ class ParsingService:
             temp_file_path = None
             try:
                 # Create temp file with prefix for easier identification
-                with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.mbox', prefix='parsing_') as temp_file:
+                with tempfile.NamedTemporaryFile(
+                    mode='wb', delete=False, suffix='.mbox', prefix='parsing_'
+                ) as temp_file:
                     temp_file_path = temp_file.name
                     temp_file.write(archive_content)
-                
+
                 logger.debug(f"Wrote archive {archive_id} to temporary file {temp_file_path}")
 
                 # Parse mbox file - raises exceptions on failure
@@ -358,7 +360,7 @@ class ParsingService:
 
                 self._publish_parsing_failed(
                     archive_id,
-                    temp_file_path,
+                    None,  # Storage-agnostic mode - temp file path is internal detail
                     error_msg,
                     type(parse_error).__name__,
                     0,
@@ -714,22 +716,26 @@ class ParsingService:
 
         Args:
             archive_id: Archive identifier
-            file_path: Path to mbox file (None for storage-agnostic mode)
+            file_path: Path to mbox file (None for storage-agnostic mode - field will be omitted)
             error_message: Error description
             error_type: Error type
             messages_parsed_before_failure: Partial progress
         """
-        event = ParsingFailedEvent(
-            data={
-                "archive_id": archive_id,
-                "file_path": file_path or "storage-agnostic",  # Use placeholder for schema compatibility
-                "error_message": error_message,
-                "error_type": error_type,
-                "messages_parsed_before_failure": messages_parsed_before_failure,
-                "retry_count": 0,
-                "failed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            }
-        )
+        # Build event data - omit file_path entirely for storage-agnostic backends (when None)
+        event_data = {
+            "archive_id": archive_id,
+            "error_message": error_message,
+            "error_type": error_type,
+            "messages_parsed_before_failure": messages_parsed_before_failure,
+            "retry_count": 0,
+            "failed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        }
+        
+        # Only include file_path if provided (local filesystem storage)
+        if file_path is not None:
+            event_data["file_path"] = file_path
+
+        event = ParsingFailedEvent(data=event_data)
 
         try:
             self.publisher.publish(

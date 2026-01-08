@@ -250,7 +250,7 @@ class TestIngestionService:
         error_reporter = SilentErrorReporter()
         logger = create_logger(logger_type="silent", level="INFO", name="ingestion-test")
         metrics = NoOpMetricsCollector()
-        
+
         # Add document store
         document_store = InMemoryDocumentStore()
         document_store.connect()
@@ -266,11 +266,11 @@ class TestIngestionService:
 
         assert service.error_reporter is error_reporter
         assert isinstance(service.error_reporter, SilentErrorReporter)
-        
+
         # Test that error_reporter can be called and records errors
         test_error = Exception("Test error")
         error_reporter.report(test_error, context={"test": "value"})
-        
+
         # Verify error was recorded
         assert error_reporter.has_errors()
         errors = error_reporter.get_errors()
@@ -585,20 +585,20 @@ def test_exception_prevents_silent_failure():
 def test_service_initialization_with_archive_store(tmp_path):
     """Test that service can be initialized with ArchiveStore."""
     from copilot_archive_store import LocalVolumeArchiveStore
-    
+
     config = make_config(storage_path=str(tmp_path))
     publisher = NoopPublisher()
     publisher.connect()
-    
+
     # Create ArchiveStore explicitly
     archive_store = LocalVolumeArchiveStore(base_path=str(tmp_path))
-    
+
     service = IngestionService(
         config=config,
         publisher=publisher,
         archive_store=archive_store,
     )
-    
+
     assert service.archive_store is not None
     assert isinstance(service.archive_store, LocalVolumeArchiveStore)
 
@@ -606,26 +606,26 @@ def test_service_initialization_with_archive_store(tmp_path):
 def test_archive_deduplication_via_document_store(tmp_path):
     """Test that _is_archive_already_stored checks document store instead of checksums."""
     from copilot_storage import InMemoryDocumentStore
-    
+
     config = make_config(storage_path=str(tmp_path))
     publisher = NoopPublisher()
     publisher.connect()
-    
+
     # Create in-memory document store
     document_store = InMemoryDocumentStore()
     document_store.connect()
-    
+
     service = IngestionService(
         config=config,
         publisher=publisher,
         document_store=document_store,
     )
-    
+
     file_hash = "abc123def456"
-    
+
     # Initially, archive should not be stored
     assert service._is_archive_already_stored(file_hash) is False
-    
+
     # Add archive to document store
     document_store.insert_document("archives", {
         "_id": "archive-1",
@@ -633,7 +633,7 @@ def test_archive_deduplication_via_document_store(tmp_path):
         "source": "test",
         "status": "pending",
     })
-    
+
     # Now it should be found
     assert service._is_archive_already_stored(file_hash) is True
 
@@ -641,21 +641,21 @@ def test_archive_deduplication_via_document_store(tmp_path):
 def test_delete_archives_for_source_deletes_from_document_store(tmp_path):
     """Test that delete_archives_for_source deletes archives from document store."""
     from copilot_storage import InMemoryDocumentStore
-    
+
     config = make_config(storage_path=str(tmp_path))
     publisher = NoopPublisher()
     publisher.connect()
-    
+
     # Create in-memory document store
     document_store = InMemoryDocumentStore()
     document_store.connect()
-    
+
     service = IngestionService(
         config=config,
         publisher=publisher,
         document_store=document_store,
     )
-    
+
     # Add some archives to document store
     document_store.insert_document("archives", {
         "_id": "archive-1",
@@ -675,14 +675,76 @@ def test_delete_archives_for_source_deletes_from_document_store(tmp_path):
         "source": "test-source",
         "status": "pending",
     })
-    
+
     # Delete archives for test-source
     deleted_count = service.delete_archives_for_source("test-source")
-    
+
     # Should have deleted 2 archives
     assert deleted_count == 2
-    
+
     # Verify archives were deleted
     remaining = document_store.query_documents("archives", {})
     assert len(remaining) == 1
     assert remaining[0]["_id"] == "archive-2"
+
+
+def test_archive_ingested_event_without_file_path():
+    """Test that ArchiveIngested events do not include file_path (storage-agnostic)."""
+    from pathlib import Path
+
+    from copilot_storage import InMemoryDocumentStore
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config = make_config(storage_path=tmpdir)
+
+        base_publisher = NoopPublisher()
+        base_publisher.connect()
+        # Wrap with schema validation for events
+        schema_dir = Path(__file__).parent.parent.parent / "docs" / "schemas" / "events"
+        schema_provider = FileSchemaProvider(schema_dir=schema_dir)
+        publisher = ValidatingEventPublisher(
+            publisher=base_publisher,
+            schema_provider=schema_provider,
+            strict=True,
+        )
+        logger = create_logger(logger_type="silent", level="INFO", name="ingestion-test")
+        metrics = NoOpMetricsCollector()
+
+        document_store = InMemoryDocumentStore()
+        document_store.connect()
+
+        service = IngestionService(
+            config,
+            publisher,
+            document_store=document_store,
+            logger=logger,
+            metrics=metrics,
+        )
+
+        # Create test file
+        with tempfile.TemporaryDirectory() as source_dir:
+            test_file = os.path.join(source_dir, "test.mbox")
+            with open(test_file, "w") as f:
+                f.write("From: test@example.com\nTo: dev@example.com\nSubject: Test\n\nContent")
+
+            source = make_source(name="test-source", url=test_file)
+            service.ingest_archive(source, max_retries=1)
+
+        # Verify ArchiveIngested events do not contain file_path
+        success_events = [
+            e for e in publisher.published_events
+            if e["event"]["event_type"] == "ArchiveIngested"
+        ]
+        assert len(success_events) >= 1
+
+        for event_wrapper in success_events:
+            event = event_wrapper["event"]
+            # file_path should NOT be in the event data (storage-agnostic design)
+            assert "file_path" not in event["data"], (
+                "ArchiveIngested events should not include file_path for storage-agnostic design"
+            )
+            # But archive_id, source_name, etc. should be present
+            assert "archive_id" in event["data"]
+            assert "source_name" in event["data"]
+            assert "file_hash_sha256" in event["data"]
+

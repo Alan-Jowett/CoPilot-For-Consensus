@@ -18,7 +18,11 @@
               "pattern": "^[0-9a-f]{16,64}$",
               "description": "archives._id (16-64 hex)"
             },
-            "file_path": { "type": "string", "minLength": 1 },
+            "file_path": { 
+              "type": "string", 
+              "minLength": 1,
+              "description": "Optional file path for local storage backends. When present, this value MUST be a non-empty string containing a concrete file path. For storage-agnostic backends, this field MUST be omitted and MUST NOT be set to a placeholder value."
+            },
             "error_message": { "type": "string", "minLength": 1 },
             "error_type": { "type": "string", "minLength": 1 },
             "messages_parsed_before_failure": { "type": "integer", "minimum": 0 },
@@ -27,7 +31,6 @@
           },
           "required": [
             "archive_id",
-            "file_path",
             "error_message",
             "error_type",
             "messages_parsed_before_failure",
