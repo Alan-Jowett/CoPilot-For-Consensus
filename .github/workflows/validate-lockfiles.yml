@@ -19,14 +19,13 @@ jobs:
       matrix:
         service:
           - auth
-          # Add more services as they adopt pip-tools
-          # - chunking
-          # - embedding
-          # - ingestion
-          # - orchestrator
-          # - parsing
-          # - reporting
-          # - summarization
+          - chunking
+          - embedding
+          - ingestion
+          - orchestrator
+          - parsing
+          - reporting
+          - summarization
 
     steps:
       - name: Checkout repository
@@ -59,9 +58,9 @@ jobs:
         if: steps.check-in-file.outputs.exists == 'true'
         run: |
           cd ${{ matrix.service }}
-          # Extract only the dependency lines (skip comments and headers)
-          grep -v '^#' requirements.txt | grep -v '^$' | sort > requirements.txt.sorted
-          grep -v '^#' requirements.txt.expected | grep -v '^$' | sort > requirements.txt.expected.sorted
+          # Extract only the package specifications (package==version lines)
+          grep -E '^[a-zA-Z0-9_\-\[\]]+==' requirements.txt | sort > requirements.txt.sorted
+          grep -E '^[a-zA-Z0-9_\-\[\]]+==' requirements.txt.expected | sort > requirements.txt.expected.sorted
           
           if ! diff requirements.txt.sorted requirements.txt.expected.sorted; then
             echo "❌ Lockfile is out of sync!"
