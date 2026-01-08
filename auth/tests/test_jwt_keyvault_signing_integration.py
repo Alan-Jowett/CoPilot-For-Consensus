@@ -3,8 +3,7 @@
 
 """Integration tests for JWT signing with Key Vault."""
 
-import os
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -35,53 +34,47 @@ class TestJWTKeyVaultSigningIntegration:
 
     def test_auth_service_initialization_with_keyvault_signer_missing_adapter(self):
         """Test that auth service fails gracefully when JWT signer adapter is not installed."""
-        from app.config import load_auth_config
-        
         # Mock configuration for Key Vault signing
-        with patch('app.config.load_typed_config') as mock_config:
-            config = Mock()
-            config.issuer = "http://localhost:8090"
-            config.jwt_algorithm = "RS256"
-            config.jwt_key_id = "test-key"
-            config.jwt_default_expiry = 1800
-            config.jwt_signer_type = "keyvault"
-            config.jwt_key_vault_url = "https://test.vault.azure.net/"
-            config.jwt_key_vault_key_name = "test-key"
-            mock_config.return_value = config
+        config = Mock()
+        config.issuer = "http://localhost:8090"
+        config.jwt_algorithm = "RS256"
+        config.jwt_key_id = "test-key"
+        config.jwt_default_expiry = 1800
+        config.jwt_signer_type = "keyvault"
+        config.jwt_key_vault_url = "https://test.vault.azure.net/"
+        config.jwt_key_vault_key_name = "test-key"
+        
+        # Mock the import to fail
+        with patch('builtins.__import__', side_effect=ImportError("No module named 'copilot_jwt_signer'")):
+            from app.service import AuthService
             
-            # Mock the import to fail
-            with patch('builtins.__import__', side_effect=ImportError("No module named 'copilot_jwt_signer'")):
-                from app.service import AuthService
-                
-                # Should raise ValueError about missing adapter
-                with pytest.raises(ValueError, match="copilot_jwt_signer adapter"):
-                    AuthService()
+            # Should raise ValueError about missing adapter
+            with pytest.raises(ValueError, match="copilot_jwt_signer adapter"):
+                AuthService(config)
 
     def test_auth_service_initialization_with_keyvault_missing_config(self):
         """Test that auth service fails gracefully when Key Vault config is missing."""
         # Only run if copilot_jwt_signer is available
         try:
-            import copilot_jwt_signer
+            from copilot_jwt_signer import KeyVaultJWTSigner  # noqa: F401
         except ImportError:
             pytest.skip("copilot_jwt_signer not installed")
         
         from app.service import AuthService
         
         # Mock configuration with missing Key Vault URL
-        with patch('app.config.load_typed_config') as mock_config:
-            config = Mock()
-            config.issuer = "http://localhost:8090"
-            config.jwt_algorithm = "RS256"
-            config.jwt_key_id = "test-key"
-            config.jwt_default_expiry = 1800
-            config.jwt_signer_type = "keyvault"
-            config.jwt_key_vault_url = None  # Missing!
-            config.jwt_key_vault_key_name = "test-key"
-            mock_config.return_value = config
-            
-            # Should raise ValueError about missing URL
-            with pytest.raises(ValueError, match="JWT_KEY_VAULT_URL is required"):
-                AuthService()
+        config = Mock()
+        config.issuer = "http://localhost:8090"
+        config.jwt_algorithm = "RS256"
+        config.jwt_key_id = "test-key"
+        config.jwt_default_expiry = 1800
+        config.jwt_signer_type = "keyvault"
+        config.jwt_key_vault_url = None  # Missing!
+        config.jwt_key_vault_key_name = "test-key"
+        
+        # Should raise ValueError about missing URL
+        with pytest.raises(ValueError, match="JWT_KEY_VAULT_URL is required"):
+            AuthService(config)
 
     @patch('azure.identity.DefaultAzureCredential')
     @patch('azure.keyvault.keys.KeyClient')
@@ -95,7 +88,7 @@ class TestJWTKeyVaultSigningIntegration:
         """
         # Only run if copilot_jwt_signer is available
         try:
-            import copilot_jwt_signer
+            from copilot_jwt_signer import KeyVaultJWTSigner  # noqa: F401
         except ImportError:
             pytest.skip("copilot_jwt_signer not installed")
         
@@ -119,35 +112,32 @@ class TestJWTKeyVaultSigningIntegration:
         mock_credential.return_value = mock_credential_instance
         
         # Mock configuration for Key Vault signing
-        with patch('app.config.load_typed_config') as mock_config:
-            config = Mock()
-            config.issuer = "http://localhost:8090"
-            config.jwt_algorithm = "RS256"
-            config.jwt_key_id = "test-key"
-            config.jwt_default_expiry = 1800
-            config.jwt_signer_type = "keyvault"
-            config.jwt_key_vault_url = "https://test.vault.azure.net/"
-            config.jwt_key_vault_key_name = "test-key"
-            config.jwt_key_vault_key_version = None
+        config = Mock()
+        config.issuer = "http://localhost:8090"
+        config.jwt_algorithm = "RS256"
+        config.jwt_key_id = "test-key"
+        config.jwt_default_expiry = 1800
+        config.jwt_signer_type = "keyvault"
+        config.jwt_key_vault_url = "https://test.vault.azure.net/"
+        config.jwt_key_vault_key_name = "test-key"
+        config.jwt_key_vault_key_version = None
+        
+        # Add role store config
+        config.role_store_type = "mongodb"
+        config.role_store_host = "localhost"
+        config.role_store_port = 27017
+        config.role_store_database = "auth"
+        config.role_store_collection = "user_roles"
+        
+        # Mock role store to avoid MongoDB dependency
+        with patch('app.service.RoleStore'):
+            # Initialize auth service
+            service = AuthService(config)
             
-            # Add role store config
-            config.role_store_type = "mongodb"
-            config.role_store_host = "localhost"
-            config.role_store_port = 27017
-            config.role_store_database = "auth"
-            config.role_store_collection = "user_roles"
-            
-            mock_config.return_value = config
-            
-            # Mock role store to avoid MongoDB dependency
-            with patch('app.service.RoleStore'):
-                # Initialize auth service
-                service = AuthService()
-                
-                # Verify JWT manager was initialized
-                assert service.jwt_manager is not None
-                assert service.jwt_manager.algorithm == "RS256"
-                assert service.jwt_manager.use_signer is True
+            # Verify JWT manager was initialized
+            assert service.jwt_manager is not None
+            assert service.jwt_manager.algorithm == "RS256"
+            assert service.jwt_manager.use_signer is True
 
     @patch('azure.identity.DefaultAzureCredential')
     @patch('azure.keyvault.keys.KeyClient')
@@ -158,7 +148,7 @@ class TestJWTKeyVaultSigningIntegration:
         """Test that auth service can mint tokens using Key Vault signer."""
         # Only run if copilot_jwt_signer is available
         try:
-            import copilot_jwt_signer
+            from copilot_jwt_signer import KeyVaultJWTSigner  # noqa: F401
         except ImportError:
             pytest.skip("copilot_jwt_signer not installed")
         
@@ -187,51 +177,48 @@ class TestJWTKeyVaultSigningIntegration:
         mock_credential.return_value = mock_credential_instance
         
         # Mock configuration
-        with patch('app.config.load_typed_config') as mock_config:
-            config = Mock()
-            config.issuer = "http://localhost:8090"
-            config.jwt_algorithm = "RS256"
-            config.jwt_key_id = "test-key"
-            config.jwt_default_expiry = 1800
-            config.jwt_signer_type = "keyvault"
-            config.jwt_key_vault_url = "https://test.vault.azure.net/"
-            config.jwt_key_vault_key_name = "test-key"
-            config.jwt_key_vault_key_version = None
+        config = Mock()
+        config.issuer = "http://localhost:8090"
+        config.jwt_algorithm = "RS256"
+        config.jwt_key_id = "test-key"
+        config.jwt_default_expiry = 1800
+        config.jwt_signer_type = "keyvault"
+        config.jwt_key_vault_url = "https://test.vault.azure.net/"
+        config.jwt_key_vault_key_name = "test-key"
+        config.jwt_key_vault_key_version = None
+        
+        # Add role store config
+        config.role_store_type = "mongodb"
+        config.role_store_host = "localhost"
+        config.role_store_port = 27017
+        config.role_store_database = "auth"
+        config.role_store_collection = "user_roles"
+        
+        # Mock role store
+        with patch('app.service.RoleStore'):
+            # Initialize auth service
+            service = AuthService(config)
             
-            # Add role store config
-            config.role_store_type = "mongodb"
-            config.role_store_host = "localhost"
-            config.role_store_port = 27017
-            config.role_store_database = "auth"
-            config.role_store_collection = "user_roles"
+            # Create a test user
+            user = User(
+                id="github:12345",
+                email="test@example.com",
+                name="Test User",
+                roles=["user"]
+            )
             
-            mock_config.return_value = config
+            # Mint a token
+            token = service.jwt_manager.mint_token(
+                user=user,
+                audience="test-audience"
+            )
             
-            # Mock role store
-            with patch('app.service.RoleStore'):
-                # Initialize auth service
-                service = AuthService()
-                
-                # Create a test user
-                user = User(
-                    id="github:12345",
-                    email="test@example.com",
-                    name="Test User",
-                    roles=["user"]
-                )
-                
-                # Mint a token
-                token = service.jwt_manager.mint_token(
-                    user=user,
-                    audience="test-audience"
-                )
-                
-                # Verify token was minted (should be a string)
-                assert isinstance(token, str)
-                assert len(token) > 0
-                
-                # Verify sign was called
-                assert mock_crypto_client_instance.sign.called
+            # Verify token was minted (should be a string)
+            assert isinstance(token, str)
+            assert len(token) > 0
+            
+            # Verify sign was called
+            assert mock_crypto_client_instance.sign.called
 
     @patch('azure.identity.DefaultAzureCredential')
     @patch('azure.keyvault.keys.KeyClient')
@@ -242,7 +229,7 @@ class TestJWTKeyVaultSigningIntegration:
         """Test that JWKS endpoint returns correct public keys from Key Vault."""
         # Only run if copilot_jwt_signer is available
         try:
-            import copilot_jwt_signer
+            from copilot_jwt_signer import KeyVaultJWTSigner  # noqa: F401
         except ImportError:
             pytest.skip("copilot_jwt_signer not installed")
         
@@ -267,62 +254,59 @@ class TestJWTKeyVaultSigningIntegration:
         mock_credential.return_value = mock_credential_instance
         
         # Mock configuration
-        with patch('app.config.load_typed_config') as mock_config:
-            config = Mock()
-            config.issuer = "http://localhost:8090"
-            config.jwt_algorithm = "RS256"
-            config.jwt_key_id = "test-key"
-            config.jwt_default_expiry = 1800
-            config.jwt_signer_type = "keyvault"
-            config.jwt_key_vault_url = "https://test.vault.azure.net/"
-            config.jwt_key_vault_key_name = "test-key"
-            config.jwt_key_vault_key_version = None
+        config = Mock()
+        config.issuer = "http://localhost:8090"
+        config.jwt_algorithm = "RS256"
+        config.jwt_key_id = "test-key"
+        config.jwt_default_expiry = 1800
+        config.jwt_signer_type = "keyvault"
+        config.jwt_key_vault_url = "https://test.vault.azure.net/"
+        config.jwt_key_vault_key_name = "test-key"
+        config.jwt_key_vault_key_version = None
+        
+        # Add role store config
+        config.role_store_type = "mongodb"
+        config.role_store_host = "localhost"
+        config.role_store_port = 27017
+        config.role_store_database = "auth"
+        config.role_store_collection = "user_roles"
+        
+        # Mock role store
+        with patch('app.service.RoleStore'):
+            # Initialize auth service
+            service = AuthService(config)
             
-            # Add role store config
-            config.role_store_type = "mongodb"
-            config.role_store_host = "localhost"
-            config.role_store_port = 27017
-            config.role_store_database = "auth"
-            config.role_store_collection = "user_roles"
+            # Get JWKS
+            jwks = service.jwt_manager.get_jwks()
             
-            mock_config.return_value = config
+            # Verify JWKS structure
+            assert "keys" in jwks
+            assert len(jwks["keys"]) > 0
             
-            # Mock role store
-            with patch('app.service.RoleStore'):
-                # Initialize auth service
-                service = AuthService()
-                
-                # Get JWKS
-                jwks = service.jwt_manager.get_jwks()
-                
-                # Verify JWKS structure
-                assert "keys" in jwks
-                assert len(jwks["keys"]) > 0
-                
-                # Verify first key has required fields
-                key = jwks["keys"][0]
-                assert key["kty"] == "RSA"
-                assert key["use"] == "sig"
-                assert key["kid"] == "test-key"
-                assert key["alg"] == "RS256"
-                assert "n" in key
-                assert "e" in key
-                
-                # Verify Key Vault was queried
-                assert mock_key_client_instance.get_key.called
+            # Verify first key has required fields
+            key = jwks["keys"][0]
+            assert key["kty"] == "RSA"
+            assert key["use"] == "sig"
+            assert key["kid"] == "test-key"
+            assert key["alg"] == "RS256"
+            assert "n" in key
+            assert "e" in key
+            
+            # Verify Key Vault was queried
+            assert mock_key_client_instance.get_key.called
 
     def test_context_manager_support(self):
         """Test that KeyVaultJWTSigner supports context manager protocol."""
         # Only run if copilot_jwt_signer and Azure SDK are available
         try:
-            from copilot_jwt_signer import KeyVaultJWTSigner
+            from copilot_jwt_signer import KeyVaultJWTSigner  # noqa: F401
         except ImportError:
             pytest.skip("copilot_jwt_signer not installed")
         
         try:
-            import azure.identity
-            import azure.keyvault.keys
-            import azure.keyvault.keys.crypto
+            import azure.identity  # noqa: F401
+            import azure.keyvault.keys  # noqa: F401
+            import azure.keyvault.keys.crypto  # noqa: F401
         except ImportError:
             pytest.skip("Azure SDK not installed")
         
@@ -336,15 +320,16 @@ class TestJWTKeyVaultSigningIntegration:
             mock_key.id = "https://test.vault.azure.net/keys/test-key/version123"
             mock_key_client.return_value.get_key.return_value = mock_key
             
-            # Test context manager
-            with KeyVaultJWTSigner(
-                algorithm="RS256",
-                key_vault_url="https://test.vault.azure.net/",
-                key_name="test-key"
-            ) as signer:
-                assert signer is not None
-                assert hasattr(signer, 'sign')
-            
-            # Verify close was called (implicitly via __exit__)
-            # We can't directly verify close was called, but if no exception
-            # was raised, the context manager worked correctly
+            # Test context manager - patch close to verify it's called
+            from copilot_jwt_signer import KeyVaultJWTSigner
+            with patch.object(KeyVaultJWTSigner, 'close') as mock_close:
+                with KeyVaultJWTSigner(
+                    algorithm="RS256",
+                    key_vault_url="https://test.vault.azure.net/",
+                    key_name="test-key"
+                ) as signer:
+                    assert signer is not None
+                    assert hasattr(signer, 'sign')
+                
+                # Verify close was called when exiting context
+                assert mock_close.called
