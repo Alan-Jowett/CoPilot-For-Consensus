@@ -16,6 +16,12 @@ permissions:
   contents: read
   packages: write
 
+concurrency:
+  # Cancel any in-progress instance of this workflow for the same workflow run or ref.
+  # Allow running concurrently with any commits on any other branch.
+  group: cicd-publish-${{ github.sha || github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}/

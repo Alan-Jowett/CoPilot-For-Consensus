@@ -12,6 +12,12 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  # Cancel any in-progress instance of this workflow for the same PR.
+  # Allow running concurrently with any commits on any other branch.
+  group: docker-compose-ci-${{ github.event.pull_request.number || github.sha || github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ghcr.io/${{ github.repository }}/
