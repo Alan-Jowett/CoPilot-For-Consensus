@@ -57,15 +57,12 @@ async def lifespan(app: FastAPI):
     # Build metrics collector kwargs based on backend
     metrics_kwargs = {"service_name": "auth"}
     if backend_value == "pushgateway":
-        # Pushgateway requires gateway URL and job name
-        gateway = os.environ.get("PROMETHEUS_PUSHGATEWAY") or getattr(config, "prometheus_pushgateway", None)
-        if gateway:
-            metrics_kwargs["gateway"] = gateway
-            metrics_kwargs["job"] = "auth"
-        else:
-            # Fall back to noop if gateway not configured
-            logger.warning("PROMETHEUS_PUSHGATEWAY not configured; falling back to noop metrics")
-            backend_value = "noop"
+        # Pushgateway requires gateway URL and job name; require explicit config
+        gateway = getattr(config, "prometheus_pushgateway", None)
+        if not gateway:
+            raise ValueError("metrics_backend=pushgateway requires 'prometheus_pushgateway' to be set in config")
+        metrics_kwargs["gateway"] = gateway
+        metrics_kwargs["job"] = "auth"
     
     metrics = create_metrics_collector(
         backend=backend_value,
