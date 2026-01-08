@@ -10,7 +10,6 @@ This script helps migrate services to the pip-tools lockfile workflow:
 2. Runs pip-compile to generate new lockfiles with full transitive dependencies
 """
 
-import os
 import re
 import subprocess
 import sys
@@ -133,7 +132,7 @@ def compile_lockfile(service_path: Path):
     
     try:
         # Run pip-compile
-        result = subprocess.run(
+        subprocess.run(
             ['pip-compile', 'requirements.in', '--output-file', 'requirements.txt.new', 
              '--allow-unsafe', '--strip-extras'],
             cwd=service_path,

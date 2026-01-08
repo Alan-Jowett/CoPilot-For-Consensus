@@ -38,7 +38,7 @@ We implemented a comprehensive dependency management strategy using **pip-tools*
 ### Phase 2: pip-tools Foundation
 
 **Updated Files:**
-- `requirements-dev.txt` (added pip-tools>=7.4.0)
+- `requirements-dev.txt` (added pip-tools==7.5.2)
 - `.github/workflows/validate-lockfiles.yml` (new CI workflow)
 - `scripts/convert_to_lockfiles.py` (new helper script)
 
