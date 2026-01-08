@@ -19,6 +19,12 @@ permissions:
   id-token: write
   pull-requests: write
 
+concurrency:
+  # Cancel any in-progress instance of this workflow for the same PR.
+  # Allow running concurrently with any commits on any other branch.
+  group: cicd-${{ github.event.pull_request.number || github.event.after || github.ref }}
+  cancel-in-progress: true
+
 env:
   AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}

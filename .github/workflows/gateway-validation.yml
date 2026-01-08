@@ -6,6 +6,12 @@ name: Gateway Configuration Validation
 permissions:
   contents: read
 
+concurrency:
+  # Cancel any in-progress instance of this workflow for the same PR.
+  # Allow running concurrently with any commits on any other branch.
+  group: cicd-${{ github.event.pull_request.number || github.event.after || github.ref }}
+  cancel-in-progress: true
+
 on:
   pull_request:
     paths:
