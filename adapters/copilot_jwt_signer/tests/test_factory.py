@@ -85,6 +85,8 @@ class TestCreateJWTSigner:
             import azure.keyvault.keys
             pytest.skip("Azure SDK is installed, cannot test import error")
         except ImportError:
+            # Azure SDK is not installed; proceed to verify that the factory
+            # raises JWTSignerError due to the missing dependency.
             pass
         
         with pytest.raises(JWTSignerError, match="Azure SDK"):

@@ -5,7 +5,7 @@
 
 import pytest
 
-from copilot_jwt_signer.exceptions import CircuitBreakerOpenError, JWTSignerError, KeyVaultSignerError
+from copilot_jwt_signer.exceptions import CircuitBreakerOpenError, KeyVaultSignerError
 
 
 # Skip all tests if Azure SDK not installed
