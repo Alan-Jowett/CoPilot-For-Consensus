@@ -9,4 +9,5 @@ deployment-*.log
 
 # Bicep build artifacts (generated JSON files)
 main.json
+core.json
 modules/*.json

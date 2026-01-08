@@ -3,7 +3,46 @@
 
 # Azure Deployment Guide for Copilot for Consensus
 
-This guide provides instructions for deploying Copilot for Consensus to Azure using Azure Resource Manager (ARM) templates with managed identity support.
+This guide provides instructions for deploying Copilot for Consensus to Azure using a two-resource-group architecture with managed identity support.
+
+## 🏗️ Two-Resource-Group Architecture
+
+**IMPORTANT**: Starting with this version, the infrastructure is split into two resource groups:
+
+1. **Core RG (`rg-core-ai`)** - Long-lived, contains Azure OpenAI + Key Vault
+   - ⚠️ **NEVER DELETE** - Azure OpenAI has a 24-48 hour capacity cooldown after deletion
+   - Deploy once per environment using `deploy.core.sh` or `deploy.core.ps1`
+   - Contains: Azure OpenAI account, Core Key Vault, AOAI secrets
+
+2. **Env RG (`rg-env-<env>`)** - Disposable, contains everything else
+   - ✅ Safe to delete and redeploy at any time
+   - Deploy using `deploy.env.sh` or `deploy.env.ps1`
+   - Contains: Container Apps, Cosmos DB, Storage, Service Bus, networking, observability
+
+### Why Two Resource Groups?
+
+- **Problem**: Azure OpenAI imposes a 24-48 hour capacity lock after deletion, blocking redeployments
+- **Solution**: Isolate AOAI in a durable Core RG, keep everything else in disposable Env RGs
+- **Benefit**: Full deployment velocity—delete/recreate envs without AOAI disruption
+
+### Quick Start (Two-RG Pattern)
+
+```bash
+# 1. Deploy Core infrastructure (once per environment)
+cd infra/azure
+./deploy.core.sh -g rg-core-ai -e dev
+
+# 2. Note the Core outputs (aoaiEndpoint, coreKvName, etc.)
+# Update parameters.dev.json with these values
+
+# 3. Deploy environment infrastructure (repeatable)
+./deploy.env.sh -g rg-env-dev -e dev
+
+# 4. To delete environment (safe, no AOAI impact)
+./delete.env.sh -g rg-env-dev
+```
+
+See [Two-RG Deployment Guide](#two-rg-deployment-guide) for detailed instructions.
 
 ## Related Documentation
 
@@ -14,8 +53,10 @@ This guide provides instructions for deploying Copilot for Consensus to Azure us
 ## Table of Contents
 
 - [Overview](#overview)
+- [Two-Resource-Group Architecture](#️-two-resource-group-architecture)
 - [CI/CD Validation](#cicd-validation)
 - [Prerequisites](#prerequisites)
+- [Two-RG Deployment Guide](#two-rg-deployment-guide)
 - [Architecture](#architecture)
 - [Deployment Modes](#deployment-modes)
 - [Quick Start](#quick-start)
@@ -169,13 +210,238 @@ The Bicep template (`main.bicep`) automates the deployment of the entire Copilot
 - Outbound internet access for pulling container images from GHCR
 - Access to Azure services (Key Vault, Storage, Service Bus, etc.)
 
+## Two-RG Deployment Guide
+
+### Overview
+
+The infrastructure is split into two resource groups to avoid Azure OpenAI capacity cooldown issues:
+
+| Resource Group | Scope | Deletion Policy | Contents |
+|---------------|-------|-----------------|----------|
+| `rg-core-ai` | Long-lived | ⚠️ **NEVER DELETE** | Azure OpenAI, Core Key Vault |
+| `rg-env-<env>` | Disposable | ✅ Safe to delete | Container Apps, Cosmos DB, Storage, Service Bus, networking |
+
+### Step 1: Deploy Core Infrastructure
+
+Deploy the Core RG **once per environment** (dev/staging/prod):
+
+**Linux/macOS/WSL:**
+```bash
+cd infra/azure
+
+# Deploy Core for dev
+./deploy.core.sh -g rg-core-ai -e dev -l westus
+
+# Deploy Core for prod
+./deploy.core.sh -g rg-core-ai -e prod -l westus -p parameters.core.prod.json
+```
+
+**Windows (PowerShell):**
+```powershell
+cd infra\azure
+
+# Deploy Core for dev
+.\deploy.core.ps1 -ResourceGroup rg-core-ai -Environment dev -Location westus
+
+# Deploy Core for prod
+.\deploy.core.ps1 -ResourceGroup rg-core-ai -Environment prod -Location westus -ParametersFile parameters.core.prod.json
+```
+
+**Important**: Save the Core deployment outputs—you'll need them for Step 2:
+- `coreKvResourceId`
+- `coreKvName`
+- `aoaiEndpoint`
+- `aoaiGptDeploymentName`
+- `aoaiEmbeddingDeploymentName`
+- `kvSecretUris.aoaiKey`
+
+### Step 2: Update Environment Parameters
+
+Edit `parameters.dev.json`, `parameters.staging.json`, or `parameters.prod.json` to include the Core outputs:
+
+```json
+{
+  "parameters": {
+    "azureOpenAIEndpoint": {
+      "value": "https://copilot-oai-core-abc123.openai.azure.com/"
+    },
+    "azureOpenAIGptDeploymentName": {
+      "value": "gpt-4o-deployment"
+    },
+    "azureOpenAIEmbeddingDeploymentName": {
+      "value": "embedding-deployment"
+    },
+    "coreKeyVaultResourceId": {
+      "value": "/subscriptions/<sub-id>/resourceGroups/rg-core-ai/providers/Microsoft.KeyVault/vaults/copilotcorekv1234567890"
+    },
+    "coreKeyVaultName": {
+      "value": "copilotcorekv1234567890"
+    },
+    "coreKvSecretUriAoaiKey": {
+      "value": "https://copilotcorekv1234567890.vault.azure.net/secrets/azure-openai-api-key/abc123def456"
+    }
+  }
+}
+```
+
+### Step 3: Deploy Environment Infrastructure
+
+Deploy the Env RG (repeatable, safe to delete):
+
+**Linux/macOS/WSL:**
+```bash
+cd infra/azure
+
+# Deploy environment for dev
+./deploy.env.sh -g rg-env-dev -e dev -l westus
+
+# Deploy environment for staging
+./deploy.env.sh -g rg-env-staging -e staging -l eastus -t v1.2.3
+```
+
+**Windows (PowerShell):**
+```powershell
+cd infra\azure
+
+# Deploy environment for dev
+.\deploy.env.ps1 -ResourceGroup rg-env-dev -Environment dev -Location westus
+
+# Deploy environment for staging
+.\deploy.env.ps1 -ResourceGroup rg-env-staging -Environment staging -Location eastus -ImageTag v1.2.3
+```
+
+### Step 4: Verify Deployment
+
+1. Check Container Apps are running:
+   ```bash
+   az containerapp list --resource-group rg-env-dev --output table
+   ```
+
+2. Test the gateway endpoint (from deployment outputs):
+   ```bash
+   curl https://<gateway-fqdn>/health
+   ```
+
+3. Verify cross-RG RBAC:
+   ```bash
+   # Env identities should have 'Key Vault Secrets User' role on Core KV
+   az role assignment list --scope <coreKvResourceId> --output table
+   ```
+
+### Safe Environment Deletion
+
+To delete an environment without impacting Core:
+
+**Linux/macOS/WSL:**
+```bash
+# Safe deletion (with confirmation)
+./delete.env.sh -g rg-env-dev
+
+# Skip confirmation
+./delete.env.sh -g rg-env-staging -y
+```
+
+**Windows (PowerShell):**
+```powershell
+# Safe deletion (with confirmation)
+.\delete.env.ps1 -ResourceGroup rg-env-dev
+
+# Skip confirmation
+.\delete.env.ps1 -ResourceGroup rg-env-staging -Yes
+```
+
+**Safety Guardrails:**
+- The script refuses to delete resource groups with "core" in the name
+- Core RG is never touched—Azure OpenAI remains available
+- Redeploy the environment at any time using `deploy.env.sh`
+
+### Troubleshooting Two-RG Setup
+
+#### Issue: "azureOpenAIEndpoint parameter is missing"
+**Cause**: Environment parameters not updated with Core outputs.
+**Fix**: Follow Step 2 to populate parameters.*.json with Core deployment outputs.
+
+#### Issue: "Failed to retrieve secret from Core Key Vault"
+**Cause**: Cross-RG RBAC not configured correctly.
+**Fix**: 
+1. Verify Core KV RBAC module deployed successfully
+2. Check role assignments:
+   ```bash
+   az role assignment list --scope <coreKvResourceId> --assignee <env-identity-principal-id>
+   ```
+3. Redeploy environment if needed
+
+#### Issue: "Container Apps stuck in 'Provisioning Failed'"
+**Cause**: Env identities cannot access Core KV secrets.
+**Fix**:
+1. Check Core KV network settings (public access enabled for dev?)
+2. Verify secret URIs in parameters.*.json are correct
+3. Check Container App logs for RBAC errors
+
+#### Issue: "ACA deletion hangs in 'Deleting' state"
+**Cause**: Azure platform issue (not related to two-RG split).
+**Workaround**: 
+1. Wait 30+ minutes for timeout
+2. If stuck, contact Azure Support
+3. **Do NOT** delete Core RG—this is why we isolated AOAI!
+
+### AOAI Capacity Cooldown Behavior
+
+**What is it?**
+- When you delete Azure OpenAI, the capacity is locked for 24-48 hours
+- During this cooldown, you CANNOT redeploy AOAI with the same quota
+- This prevents quick iteration on infrastructure
+
+**How Two-RG Pattern Solves It:**
+- Core RG is never deleted—AOAI remains available
+- Env RG can be deleted/recreated at will
+- Full deployment velocity restored
+
+**If You Accidentally Delete Core RG:**
+1. Wait 48 hours for capacity to be released
+2. Redeploy Core RG with `deploy.core.sh`
+3. Update all Env parameter files with new Core outputs
+4. Redeploy Env RGs
+
+### Network Requirements
+
+- Outbound internet access for pulling container images from GHCR
+- Access to Azure services (Key Vault, Storage, Service Bus, etc.)
+
 ## Architecture
 
-The deployment creates the following Azure resources:
+The deployment creates resources across two resource groups:
+
+### Core RG Architecture (rg-core-ai)
+
+```
+┌──────────────────────────────────────────────────────┐
+│         Core Resource Group (Long-lived)             │
+├──────────────────────────────────────────────────────┤
+│                                                        │
+│  ┌──────────────────────────────────────────────┐   │
+│  │        Azure OpenAI Service                   │   │
+│  │  - GPT-4o or GPT-4o-mini deployment          │   │
+│  │  - text-embedding-ada-002 deployment         │   │
+│  │  - User-assigned managed identity            │   │
+│  └──────────────────────────────────────────────┘   │
+│                                                        │
+│  ┌──────────────────────────────────────────────┐   │
+│  │        Core Key Vault                         │   │
+│  │  - azure-openai-api-key (secret)             │   │
+│  │  - azure-openai-endpoint (secret)            │   │
+│  │  - azure-openai-gpt-deployment-name          │   │
+│  │  - azure-openai-embedding-deployment-name    │   │
+│  └──────────────────────────────────────────────┘   │
+│                                                        │
+└──────────────────────────────────────────────────────┘
+```
+
+### Env RG Architecture (rg-env-<env>)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     Azure Resource Group                     │
+│         Environment Resource Group (Disposable)              │
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
 │  ┌────────────────────────────────────────────────────────┐ │
@@ -192,21 +458,32 @@ The deployment creates the following Azure resources:
 │  │  - auth (w/ managed identity)                          │ │
 │  │  - ui (w/ managed identity)                            │ │
 │  │  - gateway (w/ managed identity)                       │ │
+│  │                                                          │ │
+│  │  All services read AOAI secrets from Core KV via RBAC │ │
 │  └────────────────────────────────────────────────────────┘ │
 │                                                               │
 │  ┌────────────────┐  ┌──────────────┐  ┌─────────────────┐ │
-│  │  Key Vault     │  │  Storage     │  │  App Insights   │ │
-│  │  (secrets)     │  │  (blobs)     │  │  (monitoring)   │ │
+│  │  Env Key Vault │  │  Storage     │  │  App Insights   │ │
+│  │  (JWT, OAuth)  │  │  (blobs)     │  │  (monitoring)   │ │
+│  └────────────────┘  └──────────────┘  └─────────────────┘ │
+│                                                               │
+│  ┌────────────────┐  ┌──────────────┐  ┌─────────────────┐ │
+│  │  Cosmos DB     │  │ Service Bus  │  │  Virtual Net    │ │
+│  │  (documents)   │  │  (messaging) │  │  (ACA subnet)   │ │
 │  └────────────────┘  └──────────────┘  └─────────────────┘ │
 │                                                               │
 │  ┌─────────────────────────────────────────────────────────┐│
 │  │         Log Analytics Workspace (logs)                  ││
 │  └─────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────┘
-         │                    │                    │
-         ▼                    ▼                    ▼
-  Cosmos DB/MongoDB   Azure Service Bus    Azure OpenAI
-  (external)          (external)           (external)
+                             │
+                             │ Cross-RG RBAC: Env identities →
+                             │ 'Key Vault Secrets User' role →
+                             ▼ on Core KV
+┌─────────────────────────────────────────────────────────────┐
+│                   Core Resource Group                        │
+│              (Azure OpenAI + Core Key Vault)                 │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 Each Container App has its own user-assigned managed identity with RBAC permissions to access only the resources it needs:

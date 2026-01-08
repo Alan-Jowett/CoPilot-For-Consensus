@@ -1,0 +1,56 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "projectName": {
+      "value": "copilot"
+    },
+    "environment": {
+      "value": "staging"
+    },
+    "location": {
+      "value": "westus"
+    },
+    "azureOpenAISku": {
+      "value": "S0"
+    },
+    "azureOpenAIDeploymentSku": {
+      "value": "GlobalStandard"
+    },
+    "azureOpenAIModelName": {
+      "value": "gpt-4o"
+    },
+    "azureOpenAIModelVersion": {
+      "value": "2024-11-20"
+    },
+    "azureOpenAIDeploymentCapacity": {
+      "value": 50
+    },
+    "deployAzureOpenAIEmbeddingModel": {
+      "value": true
+    },
+    "azureOpenAIEmbeddingModelName": {
+      "value": "text-embedding-ada-002"
+    },
+    "azureOpenAIEmbeddingDeploymentCapacity": {
+      "value": 25
+    },
+    "azureOpenAIAllowedCidrs": {
+      "value": []
+    },
+    "enablePublicNetworkAccess": {
+      "value": true
+    },
+    "enableRbacAuthorization": {
+      "value": true
+    },
+    "tags": {
+      "value": {
+        "environment": "staging",
+        "project": "copilot-for-consensus",
+        "createdBy": "bicep",
+        "scope": "core"
+      }
+    }
+  }
+}
