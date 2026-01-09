@@ -226,12 +226,13 @@ class KeyVaultJWTSigner(JWTSigner):
             )
             
             # Get full key identifier
+            # When key_version is None, use versionless key identifier
+            # CryptographyClient will lazily resolve the latest version on first use
+            # This avoids blocking on a Key Vault network call during initialization
             if self.key_version:
                 key_id = f"{self.key_vault_url}/keys/{self.key_name}/{self.key_version}"
             else:
-                # Get latest version
-                key = self.key_client.get_key(self.key_name)
-                key_id = key.id
+                key_id = f"{self.key_vault_url}/keys/{self.key_name}"
             
             # Initialize cryptography client for sign operations
             self.crypto_client = CryptographyClient(
