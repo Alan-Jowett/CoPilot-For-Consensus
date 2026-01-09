@@ -474,42 +474,21 @@ class KeyVaultJWTSigner(JWTSigner):
         if crypto_client is not None:
             close_method = getattr(crypto_client, "close", None)
             if callable(close_method):
-                try:
-                    close_method()
-                except TypeError as e:
-                    # Unexpected - typically indicates a bug in the code
-                    logger.warning(f"Unexpected TypeError closing crypto client: {e}")
-                except Exception as e:
-                    # Other unexpected errors - log but don't raise
-                    logger.warning(f"Unexpected error closing crypto client: {e}")
+                close_method()
         
         # Close the key client
         key_client = getattr(self, "key_client", None)
         if key_client is not None:
             close_method = getattr(key_client, "close", None)
             if callable(close_method):
-                try:
-                    close_method()
-                except TypeError as e:
-                    # Unexpected - typically indicates a bug in the code
-                    logger.warning(f"Unexpected TypeError closing key client: {e}")
-                except Exception as e:
-                    # Other unexpected errors - log but don't raise
-                    logger.warning(f"Unexpected error closing key client: {e}")
+                close_method()
         
         # Close the credential
         credential = getattr(self, "_credential", None)
         if credential is not None:
             close_method = getattr(credential, "close", None)
             if callable(close_method):
-                try:
-                    close_method()
-                except TypeError as e:
-                    # Unexpected - typically indicates a bug in the code
-                    logger.warning(f"Unexpected TypeError closing credential: {e}")
-                except Exception as e:
-                    # Other unexpected errors - log but don't raise
-                    logger.warning(f"Unexpected error closing credential: {e}")
+                close_method()
     
     def __enter__(self):
         """Enter context manager - returns self for use in with statement."""
