@@ -222,6 +222,12 @@ class JWTManager:
             
         Returns:
             Signed JWT token string
+            
+        Note:
+            Uses json.dumps with compact separators to match PyJWT's encoding.
+            PyJWT uses the same approach (json.dumps with separators=(',', ':'))
+            as seen in jwt/api_jwt.py:_encode_payload. This ensures full compatibility
+            with standard JWT libraries for token verification.
         """
         # Encode header and payload as base64url
         header_b64 = self._base64url_encode(json.dumps(headers, separators=(',', ':')).encode('utf-8'))
