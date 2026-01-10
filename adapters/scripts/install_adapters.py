@@ -41,16 +41,16 @@ PRIORITY_ADAPTERS = [
 # Dependency map - what each adapter depends on
 ADAPTER_DEPENDENCIES = {
     "copilot_config": [],  # Config has no dependencies - must install first!
-    "copilot_storage": ["copilot_config"],  # Storage depends on copilot-config
     "copilot_schema_validation": [],  # Schema validation has no dependencies
-    "copilot_message_bus": ["copilot_config"],  # Message-bus depends on copilot-config
+    "copilot_storage": ["copilot_config"],  # Storage depends on copilot-config
+    "copilot_message_bus": ["copilot_config", "copilot_schema_validation"],  # Message-bus depends on both
     "copilot_secrets": ["copilot_logging"],  # Secrets depends on logging
-    "copilot_chunking": ["copilot_config"],  # Chunking depends on copilot-config
+    "copilot_chunking": ["copilot_config", "copilot_schema_validation"],  # Chunking depends on both
     "copilot_logging": ["copilot_config"],  # Logging depends on copilot-config
     "copilot_metrics": ["copilot_config"],  # Metrics depends on copilot-config
     "copilot_error_reporting": ["copilot_config"],  # Error reporting depends on copilot-config
     "copilot_embedding": ["copilot_config"],  # Embedding depends on copilot-config
-    "copilot_vectorstore": [],  # Vectorstore has no adapter dependencies (only numpy)
+    "copilot_vectorstore": ["copilot_config"],  # Vectorstore depends on copilot-config (for tests)
     "copilot_summarization": ["copilot_config"],  # Summarization depends on copilot-config
     "copilot_archive_fetcher": [],  # Archive fetcher has no adapter dependencies
     "copilot_archive_store": [],  # Archive store has no adapter dependencies

@@ -31,6 +31,7 @@ setup(
     python_requires=">=3.10",
     install_requires=[
         "numpy>=1.24.0",  # Required for InMemoryVectorStore
+        "copilot-config>=0.1.0",  # For DriverConfig in tests and factory
     ],
     extras_require={
         "dev": [
