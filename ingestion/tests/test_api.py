@@ -6,10 +6,11 @@
 import pytest
 from app.api import create_api_router
 from app.service import IngestionService
-from copilot_events import NoopPublisher
+from copilot_config import load_driver_config
+from copilot_message_bus import create_publisher
 from copilot_logging import create_logger
-from copilot_metrics import NoOpMetricsCollector
-from copilot_storage import InMemoryDocumentStore
+from copilot_metrics import create_metrics_collector
+from copilot_storage import create_document_store
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -19,7 +20,10 @@ from .test_helpers import make_config
 @pytest.fixture
 def document_store():
     """Create in-memory document store for testing."""
-    store = InMemoryDocumentStore()
+    store_config = load_driver_config(
+        service=None, adapter="document_store", driver="inmemory", fields={}
+    )
+    store = create_document_store(driver_name="inmemory", driver_config=store_config)
     store.connect()
     return store
 
@@ -27,16 +31,22 @@ def document_store():
 @pytest.fixture
 def service(document_store, tmp_path):
     """Create ingestion service for testing."""
+    from .test_helpers import make_archive_store
+    
     config = make_config(
         sources=[],
         storage_path=str(tmp_path / "raw_archives"),
     )
 
-    publisher = NoopPublisher()
+    publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
+    publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
     publisher.connect()
 
-    logger = create_logger(logger_type="silent", level="INFO", name="ingestion-test")
-    metrics = NoOpMetricsCollector()
+    logger_config = load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"})
+    logger = create_logger(driver_name="silent", driver_config=logger_config)
+    metrics_config = load_driver_config(service=None, adapter="metrics", driver="noop", fields={})
+    metrics = create_metrics_collector(driver_name="noop", driver_config=metrics_config)
+    archive_store = make_archive_store(base_path=config.storage_path)
 
     service = IngestionService(
         config,
@@ -44,6 +54,7 @@ def service(document_store, tmp_path):
         document_store=document_store,
         logger=logger,
         metrics=metrics,
+        archive_store=archive_store,
     )
     service.version = "test-1.0.0"
 
@@ -53,7 +64,8 @@ def service(document_store, tmp_path):
 @pytest.fixture
 def client(service):
     """Create test client for API."""
-    logger = create_logger(logger_type="silent", level="INFO", name="api-test")
+    logger_config = load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "api-test"})
+    logger = create_logger(driver_name="silent", driver_config=logger_config)
 
     app = FastAPI()
     api_router = create_api_router(service, logger)
@@ -520,5 +532,7 @@ class TestUploadEndpoint:
         # Verify compound extension is preserved
         assert data["filename"].endswith(".tar.gz")
         assert "archive" in data["filename"]
+
+
 
 

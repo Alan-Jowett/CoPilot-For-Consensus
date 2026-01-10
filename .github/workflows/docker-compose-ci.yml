@@ -43,16 +43,12 @@ jobs:
         mkdir -p secrets
 
         # Message bus credentials
-        echo "guest" > secrets/message_bus_user
-        echo "guest" > secrets/message_bus_password
         echo "guest" > secrets/rabbitmq_user
-        echo "guest" > secrets/rabbitmq_pass
+        echo "guest" > secrets/rabbitmq_password
 
         # MongoDB credentials
-        echo "root" > secrets/document_database_user
-        echo "example" > secrets/document_database_password
-        echo "root" > secrets/mongodb_root_username
-        echo "example" > secrets/mongodb_root_password
+        echo "root" > secrets/mongodb_user
+        echo "example" > secrets/mongodb_password
 
         # Grafana admin
         echo "admin" > secrets/grafana_admin_user

@@ -1,0 +1,44 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "MongoDB driver settings",
+    "type": "object",
+    "properties": {
+        "host": {
+            "type": "string",
+            "source": "env",
+            "env_var": "MONGODB_HOST",
+            "default": "documentdb",
+            "description": "MongoDB hostname"
+        },
+        "port": {
+            "type": "integer",
+            "source": "env",
+            "env_var": "MONGODB_PORT",
+            "default": 27017,
+            "description": "MongoDB port"
+        },
+        "database": {
+            "type": "string",
+            "source": "env",
+            "env_var": "MONGODB_DATABASE",
+            "default": "copilot",
+            "description": "MongoDB database name"
+        },
+        "username": {
+            "type": "string",
+            "source": "secret",
+            "secret_name": ["mongodb_user", "mongodb_username", "document_database_user"],
+            "required": false,
+            "description": "MongoDB username"
+        },
+        "password": {
+            "type": "string",
+            "source": "secret",
+            "secret_name": ["mongodb_password", "document_database_password"],
+            "required": false,
+            "description": "MongoDB password"
+        }
+    },
+    "required": ["host", "port", "database"]
+}

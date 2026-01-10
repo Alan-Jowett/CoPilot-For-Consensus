@@ -5,6 +5,8 @@
 
 from typing import Any
 
+from copilot_config import DriverConfig
+
 from .archive_store import ArchiveStore
 
 
@@ -20,6 +22,22 @@ class MongoDBArchiveStore(ArchiveStore):
 
     def __init__(self, **kwargs):
         """Initialize MongoDB archive store."""
+        raise NotImplementedError("MongoDB backend not yet implemented")
+
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "MongoDBArchiveStore":
+        """Create MongoDBArchiveStore from DriverConfig.
+
+        Args:
+            driver_config: DriverConfig object containing MongoDB configuration
+                          Expected keys: host, port, database, collection, etc.
+
+        Returns:
+            MongoDBArchiveStore instance
+
+        Raises:
+            NotImplementedError: MongoDB backend not yet implemented
+        """
         raise NotImplementedError("MongoDB backend not yet implemented")
 
     def store_archive(self, source_name: str, file_path: str, content: bytes) -> str:

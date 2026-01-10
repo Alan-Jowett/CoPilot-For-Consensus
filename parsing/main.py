@@ -14,17 +14,23 @@ sys.path.insert(0, os.path.dirname(__file__))
 import uvicorn
 from app import __version__
 from app.service import ParsingService
-from copilot_config import get_configuration_schema_response, load_typed_config
-from copilot_events import ValidatingEventPublisher, ValidatingEventSubscriber, create_publisher, create_subscriber, get_azure_servicebus_kwargs
+from copilot_config import load_service_config, load_driver_config
+from copilot_message_bus import (
+    create_publisher,
+    create_subscriber,
+)
 from copilot_logging import create_logger, create_uvicorn_log_config
 from copilot_metrics import create_metrics_collector
-from copilot_reporting import create_error_reporter
-from copilot_schema_validation import FileSchemaProvider
-from copilot_storage import ValidatingDocumentStore, create_document_store
+from copilot_error_reporting import create_error_reporter
+from copilot_schema_validation import create_schema_provider, get_configuration_schema_response
+from copilot_storage import create_document_store
+from copilot_archive_store import create_archive_store
 from fastapi import FastAPI, HTTPException
 
 # Configure structured JSON logging
-logger = create_logger(logger_type="stdout", level="INFO", name="parsing")
+bootstrap_logger_config = load_driver_config(service=None, adapter="logger", driver="stdout", fields={"level": "INFO", "name": "parsing-bootstrap"})
+bootstrap_logger = create_logger("stdout", bootstrap_logger_config)
+logger = bootstrap_logger
 
 # Create FastAPI app
 app = FastAPI(title="Parsing Service", version=__version__)
@@ -64,24 +70,16 @@ def stats():
 
 @app.get("/.well-known/configuration-schema")
 def configuration_schema():
-    """Configuration schema discovery endpoint.
-
-    Returns the configuration schema for this service, including:
-    - Service name and version
-    - Schema version
-    - Minimum service version required
-    - Full configuration schema
-    """
+    """Configuration schema discovery endpoint."""
     try:
-        response = get_configuration_schema_response(
+        return get_configuration_schema_response(
             service_name="parsing",
             service_version=__version__,
         )
-        return response
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Schema not found")
-    except Exception as e:
-        logger.error(f"Failed to load configuration schema: {e}", exc_info=True)
+    except Exception as exc:
+        logger.error("Failed to load configuration schema: %s", exc, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to load schema")
 
 
@@ -110,123 +108,166 @@ def main():
     """Main entry point for the parsing service."""
     global parsing_service
 
-    logger.info(f"Starting Parsing Service (version {__version__})")
+    log = bootstrap_logger
+    log.info(f"Starting Parsing Service (version {__version__})")
 
     try:
-        # Load configuration using config adapter
-        config = load_typed_config("parsing")
-        logger.info("Configuration loaded successfully")
+        # Load configuration using schema-driven service config
+        config = load_service_config("parsing")
+        log.info("Configuration loaded successfully")
 
         # Conditionally add JWT authentication middleware based on config
-        if getattr(config, 'jwt_auth_enabled', True):
-            logger.info("JWT authentication is enabled")
+        if config.jwt_auth_enabled:
+            log.info("JWT authentication is enabled")
             try:
                 from copilot_auth import create_jwt_middleware
+                auth_service_url = getattr(config, 'auth_service_url', None)
+                audience = getattr(config, 'service_audience', None)
                 auth_middleware = create_jwt_middleware(
+                    auth_service_url=auth_service_url,
+                    audience=audience,
                     required_roles=["processor"],
                     public_paths=["/health", "/readyz", "/docs", "/openapi.json"],
                 )
                 app.add_middleware(auth_middleware)
             except ImportError:
-                logger.debug("copilot_auth module not available - JWT authentication disabled")
+                log.debug("copilot_auth module not available - JWT authentication disabled")
         else:
-            logger.warning("JWT authentication is DISABLED - all endpoints are public")
+            log.warning("JWT authentication is DISABLED - all endpoints are public")
+
+        # Replace bootstrap logger with config-based logger
+        logger_adapter = config.get_adapter("logger")
+        if logger_adapter is not None:
+            log = create_logger(
+                driver_name=logger_adapter.driver_name,
+                driver_config=logger_adapter.driver_config
+            )
+            log.info("Logger initialized from service configuration")
+        else:
+            log.warning("No logger adapter found, keeping bootstrap logger")
 
         # Create event publisher with schema validation
-        logger.info(f"Creating event publisher ({config.message_bus_type})")
-        
-        # Prepare Azure Service Bus specific parameters if needed
-        message_bus_kwargs = {}
-        if config.message_bus_type == "azureservicebus":
-            message_bus_kwargs = get_azure_servicebus_kwargs()
-            logger.info("Using Azure Service Bus configuration")
-        
-        base_publisher = create_publisher(
-            message_bus_type=config.message_bus_type,
-            host=config.message_bus_host,
-            port=config.message_bus_port,
-            username=config.message_bus_user,
-            password=config.message_bus_password,
-            **message_bus_kwargs,
+        log.info("Creating event publisher from adapter configuration")
+        message_bus_adapter = config.get_adapter("message_bus")
+        if message_bus_adapter is None:
+            raise ValueError("message_bus adapter is required")
+
+        publisher = create_publisher(
+            driver_name=message_bus_adapter.driver_name,
+            driver_config=message_bus_adapter.driver_config,
+            enable_validation=True,
+            strict_validation=True,
         )
 
         try:
-            base_publisher.connect()
+            publisher.connect()
         except Exception as e:
             if str(config.message_bus_type).lower() != "noop":
-                logger.error("Failed to connect publisher to message bus. Failing fast: %s", e)
+                log.error("Failed to connect publisher to message bus. Failing fast: %s", e)
                 raise ConnectionError("Publisher failed to connect to message bus")
             else:
-                logger.warning("Failed to connect publisher to message bus. Continuing with noop publisher: %s", e)
+                log.warning("Failed to connect publisher to message bus. Continuing with noop publisher: %s", e)
 
-        # Wrap with schema validation
-        # Create schema providers for event and document validation
-        # Events use schemas from docs/schemas/events/
-        # Documents use schemas from docs/schemas/documents/
-        event_schema_provider = FileSchemaProvider()
-        document_schema_provider = FileSchemaProvider(
-            schema_dir=Path(__file__).parent / "docs" / "schemas" / "documents"
+        # Create event subscriber with built-in schema validation
+        log.info("Creating event subscriber from adapter configuration")
+        # Add queue_name to subscriber config
+        from copilot_config import DriverConfig
+        subscriber_config = {**message_bus_adapter.driver_config.config, "queue_name": "archive.ingested"}
+        subscriber_driver_config = DriverConfig(
+            driver_name=message_bus_adapter.driver_name,
+            config=subscriber_config,
+            allowed_keys=message_bus_adapter.driver_config.allowed_keys
         )
-
-        publisher = ValidatingEventPublisher(
-            publisher=base_publisher,
-            schema_provider=event_schema_provider,
-        )
-
-        # Create event subscriber with schema validation
-        logger.info(f"Creating event subscriber ({config.message_bus_type})")
-        base_subscriber = create_subscriber(
-            message_bus_type=config.message_bus_type,
-            host=config.message_bus_host,
-            port=config.message_bus_port,
-            username=config.message_bus_user,
-            password=config.message_bus_password,
-            queue_name="archive.ingested",
-            **message_bus_kwargs,
+        subscriber = create_subscriber(
+            driver_name=message_bus_adapter.driver_name,
+            driver_config=subscriber_driver_config,
+            enable_validation=True,
+            strict_validation=True,
         )
 
         try:
-            base_subscriber.connect()
+            subscriber.connect()
         except Exception as e:
-            logger.error("Failed to connect subscriber to message bus: %s", e)
+            log.error("Failed to connect subscriber to message bus: %s", e)
             raise ConnectionError("Subscriber failed to connect to message bus")
 
-        # Wrap with schema validation
-        subscriber = ValidatingEventSubscriber(
-            subscriber=base_subscriber,
-            schema_provider=event_schema_provider,
-        )
-
         # Create document store with schema validation
-        logger.info(f"Creating document store ({config.doc_store_type})")
-        base_document_store = create_document_store(
-            store_type=config.doc_store_type,
-            host=config.doc_store_host,
-            port=config.doc_store_port,
-            database=config.doc_store_name,
-            username=config.doc_store_user,
-            password=config.doc_store_password,
+        log.info("Creating document store from adapter configuration")
+        document_store_adapter = config.get_adapter("document_store")
+        if document_store_adapter is None:
+            raise ValueError("document_store adapter is required")
+
+        document_store = create_document_store(
+            driver_name=document_store_adapter.driver_name,
+            driver_config=document_store_adapter.driver_config,
+            enable_validation=True,
+            strict_validation=True,
         )
 
         try:
-            base_document_store.connect()
+            document_store.connect()
         except Exception as e:
-            logger.error(f"Failed to connect to document store: {e}")
+            log.error(f"Failed to connect to document store: {e}")
             raise  # Re-raise the original exception
 
-        # Wrap with schema validation
-        document_store = ValidatingDocumentStore(
-            store=base_document_store,
-            schema_provider=document_schema_provider,
-        )
-
         # Create metrics collector - fail fast on errors
-        logger.info(f"Creating metrics collector ({config.metrics_backend})...")
-        metrics_collector = create_metrics_collector(backend=config.metrics_backend)
+        log.info("Creating metrics collector...")
+        try:
+            metrics_adapter = config.get_adapter("metrics")
+            if metrics_adapter is not None:
+                from copilot_config import DriverConfig
+                metrics_driver_config = DriverConfig(
+                    driver_name=metrics_adapter.driver_name,
+                    config={**metrics_adapter.driver_config.config, "job": "parsing"},
+                    allowed_keys=metrics_adapter.driver_config.allowed_keys
+                )
+                metrics_collector = create_metrics_collector(
+                    driver_name=metrics_adapter.driver_name,
+                    driver_config=metrics_driver_config,
+                )
+            else:
+                from copilot_config import DriverConfig
+                metrics_collector = create_metrics_collector(
+                    driver_name="noop",
+                    driver_config=DriverConfig(driver_name="noop")
+                )
+        except Exception as e:
+            from copilot_config import DriverConfig
+            from copilot_config import DriverConfig
+            log.warning(
+                "Metrics backend unavailable; falling back to NoOp",
+                backend=config.metrics_type,
+                error=str(e),
+            )
+            metrics_collector = create_metrics_collector(
+                driver_name="noop",
+                driver_config=DriverConfig(driver_name="noop")
+            )
 
-        # Create error reporter - fail fast on errors
-        logger.info(f"Creating error reporter ({config.error_reporter_type})...")
-        error_reporter = create_error_reporter(reporter_type=config.error_reporter_type)
+        # Create error reporter using adapter configuration (optional)
+        log.info("Creating error reporter...")
+        error_reporter_adapter = config.get_adapter("error_reporter")
+        if error_reporter_adapter is not None:
+            error_reporter = create_error_reporter(
+                driver_name=error_reporter_adapter.driver_name,
+                driver_config=error_reporter_adapter.driver_config,
+            )
+        else:
+            error_reporter = create_error_reporter(
+                driver_name="silent",
+                driver_config={"logger_name": config.logger_name},
+            )
+
+        # Create archive store from adapter configuration (required)
+        log.info("Creating archive store from adapter configuration...")
+        archive_store_adapter = config.get_adapter("archive_store")
+        if archive_store_adapter is None:
+            raise ValueError("archive_store adapter is required")
+
+        archive_store = create_archive_store(
+            driver_name=archive_store_adapter.driver_name,
+            driver_config=archive_store_adapter.driver_config,
+        )
 
         # Create parsing service
         parsing_service = ParsingService(
@@ -235,6 +276,7 @@ def main():
             subscriber=subscriber,
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
+            archive_store=archive_store,
         )
 
         # Start subscriber in a separate thread (non-daemon to fail fast)
@@ -246,16 +288,16 @@ def main():
         subscriber_thread.start()
 
         # Start FastAPI server (blocking)
-        logger.info(f"Starting FastAPI server on port {config.http_port}")
+        log.info(f"Starting FastAPI server on port {config.http_port}")
 
         # Configure Uvicorn with structured JSON logging
-        log_config = create_uvicorn_log_config(service_name="parsing", log_level="INFO")
-        uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config, access_log=False)
+        log_config = create_uvicorn_log_config(service_name="parsing", log_level=config.log_level)
+        uvicorn.run(app, host=config.http_host, port=config.http_port, log_config=log_config, access_log=False)
 
     except KeyboardInterrupt:
-        logger.info("Shutting down parsing service")
+        log.info("Shutting down parsing service")
     except Exception as e:
-        logger.error(f"Fatal error in parsing service: {e}")
+        log.error(f"Fatal error in parsing service: {e}", exc_info=True)
         sys.exit(1)
     finally:
         # Cleanup

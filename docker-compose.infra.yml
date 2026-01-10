@@ -15,8 +15,8 @@ services:
     environment:
       - MONGO_APP_DB=${MONGO_APP_DB:-copilot}
     secrets:
-      - mongodb_root_username
-      - mongodb_root_password
+      - mongodb_user
+      - mongodb_password
     volumes:
       - ./infra/init:/init:ro
       - ./docs/schemas:/schemas:ro
@@ -24,8 +24,8 @@ services:
     command:
       - |-
         set -e
-        MONGO_USER="$(cat /run/secrets/mongodb_root_username)"
-        MONGO_PASS="$(cat /run/secrets/mongodb_root_password)"
+        MONGO_USER="$(cat /run/secrets/mongodb_user)"
+        MONGO_PASS="$(cat /run/secrets/mongodb_password)"
         mongosh "mongodb://$${MONGO_USER}:$${MONGO_PASS}@documentdb:27017/admin" /init/mongo-init.js
     restart: "no"
 
@@ -39,8 +39,8 @@ services:
     environment:
       - MONGO_APP_DB=${MONGO_APP_DB:-copilot}
     secrets:
-      - mongodb_root_username
-      - mongodb_root_password
+      - mongodb_user
+      - mongodb_password
     volumes:
       - ./infra/test:/test:ro
       - ./docs/schemas:/schemas:ro
@@ -48,8 +48,8 @@ services:
     command:
       - |-
         set -e
-        MONGO_USER="$(cat /run/secrets/mongodb_root_username)"
-        MONGO_PASS="$(cat /run/secrets/mongodb_root_password)"
+        MONGO_USER="$(cat /run/secrets/mongodb_user)"
+        MONGO_PASS="$(cat /run/secrets/mongodb_password)"
         mongosh "mongodb://$${MONGO_USER}:$${MONGO_PASS}@documentdb:27017/admin" /test/validate-mongo.js
     restart: "no"
 
@@ -60,13 +60,13 @@ services:
     volumes:
       - mongo_data:/data/db
     secrets:
-      - mongodb_root_username
-      - mongodb_root_password
+      - mongodb_user
+      - mongodb_password
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |-
-        export MONGO_INITDB_ROOT_USERNAME="$(cat /run/secrets/mongodb_root_username)"
-        export MONGO_INITDB_ROOT_PASSWORD="$(cat /run/secrets/mongodb_root_password)"
+        export MONGO_INITDB_ROOT_USERNAME="$(cat /run/secrets/mongodb_user)"
+        export MONGO_INITDB_ROOT_PASSWORD="$(cat /run/secrets/mongodb_password)"
         exec docker-entrypoint.sh mongod
     healthcheck:
       test: ["CMD", "mongosh", "mongodb://localhost:27017/admin", "--eval", "db.adminCommand('ping')"]
@@ -145,12 +145,12 @@ services:
       - ./infra/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
     secrets:
       - rabbitmq_user
-      - rabbitmq_pass
-    entrypoint: ["/bin/sh", "-c"]
+      - rabbitmq_password
+    entrypoint: ["/bin/bash", "-c"]
     command:
       - |-
         export RABBITMQ_DEFAULT_USER="$(cat /run/secrets/rabbitmq_user)"
-        export RABBITMQ_DEFAULT_PASS="$(cat /run/secrets/rabbitmq_pass)"
+        export RABBITMQ_DEFAULT_PASS="$(cat /run/secrets/rabbitmq_password)"
         export RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS='-rabbitmq_management load_definitions "/etc/rabbitmq/definitions.json"'
         export PROMETHEUS_RETURN_PER_OBJECT_METRICS=true
         exec docker-entrypoint.sh rabbitmq-server
@@ -174,14 +174,14 @@ services:
       context: ./infra/mongodb-exporter
       dockerfile: Dockerfile
     secrets:
-      - mongodb_root_username
-      - mongodb_root_password
+      - mongodb_user
+      - mongodb_password
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |-
         set -e
-        MONGO_USER=$$(cat /run/secrets/mongodb_root_username)
-        MONGO_PASS=$$(cat /run/secrets/mongodb_root_password)
+        MONGO_USER=$$(cat /run/secrets/mongodb_user)
+        MONGO_PASS=$$(cat /run/secrets/mongodb_password)
         export MONGODB_URI="mongodb://$${MONGO_USER}:$${MONGO_PASS}@documentdb:27017/admin"
         exec /mongodb_exporter --collect-all
     depends_on:
@@ -344,14 +344,14 @@ services:
   mongo-doc-count-exporter:
     image: python:3.11-slim
     secrets:
-      - mongodb_root_username
-      - mongodb_root_password
+      - mongodb_user
+      - mongodb_password
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |-
         set -e
-        MONGO_USER="$(cat /run/secrets/mongodb_root_username)"
-        MONGO_PASS="$(cat /run/secrets/mongodb_root_password)"
+        MONGO_USER="$(cat /run/secrets/mongodb_user)"
+        MONGO_PASS="$(cat /run/secrets/mongodb_password)"
         export MONGO_URI="mongodb://$${MONGO_USER}:$${MONGO_PASS}@documentdb:27017/admin"
         export MONGO_DB=copilot
         export PORT=9500
@@ -368,14 +368,14 @@ services:
   mongo-collstats-exporter:
     image: python:3.11-slim
     secrets:
-      - mongodb_root_username
-      - mongodb_root_password
+      - mongodb_user
+      - mongodb_password
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |-
         set -e
-        MONGO_USER="$(cat /run/secrets/mongodb_root_username)"
-        MONGO_PASS="$(cat /run/secrets/mongodb_root_password)"
+        MONGO_USER="$(cat /run/secrets/mongodb_user)"
+        MONGO_PASS="$(cat /run/secrets/mongodb_password)"
         export MONGO_URI="mongodb://$${MONGO_USER}:$${MONGO_PASS}@documentdb:27017/admin"
         export MONGO_DB=copilot
         export PORT=9503
@@ -392,14 +392,14 @@ services:
   document-processing-exporter:
     image: python:3.11-slim
     secrets:
-      - mongodb_root_username
-      - mongodb_root_password
+      - mongodb_user
+      - mongodb_password
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |-
         set -e
-        MONGO_USER="$(cat /run/secrets/mongodb_root_username)"
-        MONGO_PASS="$(cat /run/secrets/mongodb_root_password)"
+        MONGO_USER="$(cat /run/secrets/mongodb_user)"
+        MONGO_PASS="$(cat /run/secrets/mongodb_password)"
         export MONGO_URI="mongodb://$${MONGO_USER}:$${MONGO_PASS}@documentdb:27017/admin"
         export MONGO_DB=copilot
         export PORT=9502

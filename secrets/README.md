@@ -183,7 +183,7 @@ For Azure deployments with Grafana, credentials should be stored in Azure Key Va
 Examples for infrastructure:
 ```bash
 echo "guest" > secrets/rabbitmq_user
-echo "guest" > secrets/rabbitmq_pass
+echo "guest" > secrets/rabbitmq_password
 ```
 
 ## Security Notes

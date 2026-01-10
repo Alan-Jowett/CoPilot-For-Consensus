@@ -14,11 +14,11 @@ from copilot_summarization.models import Thread
 class TestLlamaCppSummarizer:
     """Tests for LlamaCppSummarizer implementation."""
 
-    def test_llamacpp_summarizer_creation(self):
+    def test_llamacpp_summarizer_creation(self, llm_driver_config):
         """Test creating a llama.cpp summarizer."""
-        summarizer = LlamaCppSummarizer()
+        summarizer = LlamaCppSummarizer.from_config(llm_driver_config("llamacpp"))
         assert summarizer.model == "mistral"
-        assert summarizer.base_url == "http://localhost:8080"
+        assert summarizer.base_url == "http://llama-cpp:8081"
         assert summarizer.timeout == 300
 
     def test_llamacpp_summarizer_custom_config(self):
@@ -35,16 +35,16 @@ class TestLlamaCppSummarizer:
     def test_llamacpp_summarizer_invalid_timeout(self):
         """Test creating a llama.cpp summarizer with invalid timeout raises ValueError."""
         with pytest.raises(ValueError, match="timeout must be a positive integer"):
-            LlamaCppSummarizer(timeout=0)
+            LlamaCppSummarizer(model="mistral", base_url="http://test:8080", timeout=0)
 
         with pytest.raises(ValueError, match="timeout must be a positive integer"):
-            LlamaCppSummarizer(timeout=-1)
+            LlamaCppSummarizer(model="mistral", base_url="http://test:8080", timeout=-1)
 
         with pytest.raises(ValueError, match="timeout must be a positive integer"):
-            LlamaCppSummarizer(timeout="120")  # type: ignore
+            LlamaCppSummarizer(model="mistral", base_url="http://test:8080", timeout="120")  # type: ignore
 
     @patch('copilot_summarization.llamacpp_summarizer.requests.post')
-    def test_llamacpp_summarize_success(self, mock_post):
+    def test_llamacpp_summarize_success(self, mock_post, llm_driver_config):
         """Test llama.cpp summarize returns real content from API."""
         # Mock successful API response
         mock_response = Mock()
@@ -54,7 +54,15 @@ class TestLlamaCppSummarizer:
         mock_response.raise_for_status = Mock()
         mock_post.return_value = mock_response
 
-        summarizer = LlamaCppSummarizer(model="mistral-7b-instruct-v0.2.Q4_K_M")
+        summarizer = LlamaCppSummarizer.from_config(
+            llm_driver_config(
+                "llamacpp",
+                fields={
+                    "llamacpp_model": "mistral-7b-instruct-v0.2.Q4_K_M",
+                    "llamacpp_endpoint": "http://localhost:8080",
+                }
+            )
+        )
 
         complete_prompt = "Summarize the following discussion thread:\n\nMessage 1:\nMessage 1\n\nMessage 2:\nMessage 2\n\n"
         thread = Thread(
@@ -88,7 +96,7 @@ class TestLlamaCppSummarizer:
         assert summary.latency_ms >= 0
 
     @patch('copilot_summarization.llamacpp_summarizer.requests.post')
-    def test_llamacpp_summarize_empty_response(self, mock_post):
+    def test_llamacpp_summarize_empty_response(self, mock_post, llm_driver_config):
         """Test llama.cpp handles empty response gracefully."""
         # Mock empty API response
         mock_response = Mock()
@@ -96,7 +104,12 @@ class TestLlamaCppSummarizer:
         mock_response.raise_for_status = Mock()
         mock_post.return_value = mock_response
 
-        summarizer = LlamaCppSummarizer(model="mistral-7b-instruct-v0.2.Q4_K_M")
+        summarizer = LlamaCppSummarizer.from_config(
+            llm_driver_config(
+                "llamacpp",
+                fields={"llamacpp_model": "mistral-7b-instruct-v0.2.Q4_K_M"}
+            )
+        )
 
         thread = Thread(
             thread_id="test-thread-456",
@@ -111,11 +124,16 @@ class TestLlamaCppSummarizer:
         assert summary.tokens_completion == 0
 
     @patch('copilot_summarization.llamacpp_summarizer.requests.post')
-    def test_llamacpp_summarize_timeout(self, mock_post):
+    def test_llamacpp_summarize_timeout(self, mock_post, llm_driver_config):
         """Test llama.cpp handles timeout errors."""
         mock_post.side_effect = requests.Timeout("Request timed out")
 
-        summarizer = LlamaCppSummarizer(model="mistral-7b-instruct-v0.2.Q4_K_M")
+        summarizer = LlamaCppSummarizer.from_config(
+            llm_driver_config(
+                "llamacpp",
+                fields={"llamacpp_model": "mistral-7b-instruct-v0.2.Q4_K_M"}
+            )
+        )
 
         thread = Thread(
             thread_id="test-thread-789",
@@ -126,11 +144,16 @@ class TestLlamaCppSummarizer:
             summarizer.summarize(thread)
 
     @patch('copilot_summarization.llamacpp_summarizer.requests.post')
-    def test_llamacpp_summarize_connection_error(self, mock_post):
+    def test_llamacpp_summarize_connection_error(self, mock_post, llm_driver_config):
         """Test llama.cpp handles connection errors."""
         mock_post.side_effect = requests.ConnectionError("Failed to connect")
 
-        summarizer = LlamaCppSummarizer(model="mistral-7b-instruct-v0.2.Q4_K_M")
+        summarizer = LlamaCppSummarizer.from_config(
+            llm_driver_config(
+                "llamacpp",
+                fields={"llamacpp_model": "mistral-7b-instruct-v0.2.Q4_K_M"}
+            )
+        )
 
         thread = Thread(
             thread_id="test-thread-999",
@@ -141,13 +164,18 @@ class TestLlamaCppSummarizer:
             summarizer.summarize(thread)
 
     @patch('copilot_summarization.llamacpp_summarizer.requests.post')
-    def test_llamacpp_summarize_http_error(self, mock_post):
+    def test_llamacpp_summarize_http_error(self, mock_post, llm_driver_config):
         """Test llama.cpp handles HTTP errors."""
         mock_response = Mock()
         mock_response.raise_for_status.side_effect = requests.HTTPError("500 Server Error")
         mock_post.return_value = mock_response
 
-        summarizer = LlamaCppSummarizer(model="mistral-7b-instruct-v0.2.Q4_K_M")
+        summarizer = LlamaCppSummarizer.from_config(
+            llm_driver_config(
+                "llamacpp",
+                fields={"llamacpp_model": "mistral-7b-instruct-v0.2.Q4_K_M"}
+            )
+        )
 
         thread = Thread(
             thread_id="test-thread-500",

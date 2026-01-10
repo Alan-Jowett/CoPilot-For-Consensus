@@ -1,141 +1,33 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Typed configuration wrapper for services."""
+"""Service configuration loader with hierarchical adapter structure."""
 
+import json
 import os
 from typing import Any
 
-
-class TypedConfig:
-    """Typed configuration wrapper that provides attribute-only access to config values.
-
-    This class wraps the configuration dictionary from _load_config()
-    and provides ATTRIBUTE-ONLY access to configuration values.
-
-    Dictionary-style access is intentionally NOT supported to enable static
-    type checking, IDE autocomplete, and verification that all accessed keys
-    are actually defined in the schema.
-
-    Example:
-        >>> config = load_typed_config("ingestion")
-        >>> print(config.message_bus_host)  # ✓ Attribute style
-        'messagebus'
-        >>> print(config.message_bus_port)  # ✓ Works
-        5672
-        >>> print(config["host"])  # ✗ Will raise AttributeError
-        AttributeError: TypedConfig does not support dict-style access
-    """
-
-    def __init__(
-        self,
-        config_dict: dict[str, Any],
-        *,
-        schema_version: str | None = None,
-        min_service_version: str | None = None
-    ):
-        """Initialize typed config wrapper.
-
-        Args:
-            config_dict: Configuration dictionary from _load_config()
-            schema_version: Schema version string (semver format)
-            min_service_version: Minimum service version required (semver format)
-        """
-        object.__setattr__(self, '_config', config_dict)
-        object.__setattr__(self, '_schema_version', schema_version)
-        object.__setattr__(self, '_min_service_version', min_service_version)
-
-    def get_schema_version(self) -> str | None:
-        """Get the schema version.
-
-        Returns:
-            Schema version string or None
-        """
-        return object.__getattribute__(self, '_schema_version')
-
-    def get_min_service_version(self) -> str | None:
-        """Get the minimum service version.
-
-        Returns:
-            Minimum service version string or None
-        """
-        return object.__getattribute__(self, '_min_service_version')
-
-    def __getattr__(self, name: str) -> Any:
-        """Get configuration value by attribute name only.
-
-        Args:
-            name: Configuration key
-
-        Returns:
-            Configuration value
-
-        Raises:
-            AttributeError: If configuration key does not exist
-        """
-        if name.startswith('_'):
-            # Block access to private attributes
-            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
-
-        config = object.__getattribute__(self, '_config')
-        if name not in config:
-            raise AttributeError(
-                f"Configuration key '{name}' not found. "
-                f"Available keys: {sorted(config.keys())}"
-            )
-
-        return config[name]
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Prevent modification of configuration at runtime.
-
-        Configuration should be immutable after loading.
-        """
-        if name == '_config':
-            object.__setattr__(self, name, value)
-        else:
-            raise AttributeError(
-                f"Cannot modify configuration. '{name}' is read-only. "
-                "Configuration is immutable after loading."
-            )
-
-    def __getitem__(self, key: str) -> Any:
-        """Explicitly block dictionary-style access.
-
-        This ensures all config access goes through attributes for better
-        verification and static analysis.
-        """
-        raise TypeError(
-            f"TypedConfig does not support dict-style access (config['{key}']). "
-            f"Use attribute-style instead: config.{key}"
-        )
-
-    def __repr__(self) -> str:
-        """String representation."""
-        config = object.__getattribute__(self, '_config')
-        return f"TypedConfig({config!r})"
-
-    def __dir__(self) -> list:
-        """Show available configuration keys for IDE autocomplete."""
-        config = object.__getattribute__(self, '_config')
-        return sorted(config.keys())
+from .load_driver_config import load_driver_config  # noqa: F401
+from .models import AdapterConfig, DriverConfig, ServiceConfig
 
 
-def load_typed_config(
+def load_service_config(
     service_name: str,
     schema_dir: str | None = None,
     **kwargs
-) -> TypedConfig:
-    """Load and validate configuration, returning a typed config object.
+) -> ServiceConfig:
+    """Load and validate service configuration with hierarchical adapters.
 
-    This is the ONLY recommended way to load configuration in services.
-    It ensures all configuration is validated against the service schema,
-    providing type safety and compile-time guarantees.
+    This is the RECOMMENDED way to load configuration in services going forward.
+    Returns a ServiceConfig object with:
+    - service_settings: Dictionary of service-specific configuration
+    - adapters: Array of configured adapters with driver names and driver configs
+    - schema_version and min_service_version metadata
 
-    Automatically integrates with the secrets system:
-    - Reads secret_provider_type from service config (e.g., "local", "vault")
-    - Reads secrets_base_path from service config
-    - Creates secret provider based on config and transparently merges secrets
+    Services should then iterate over adapters and call adapter factory methods:
+        config = load_service_config("summarization")
+        llm_adapter = config.get_adapter("llm_backend")
+        llm = create_llm_backend(llm_adapter.driver_name, llm_adapter.driver_config.config)
 
     Args:
         service_name: Name of the service
@@ -143,71 +35,287 @@ def load_typed_config(
         **kwargs: Additional arguments to pass to internal loader
 
     Returns:
-        TypedConfig instance with validated configuration
+        ServiceConfig instance with hierarchical structure
 
     Raises:
         ConfigSchemaError: If schema is missing or invalid
         ConfigValidationError: If configuration validation fails
-
-    Example:
-        >>> config = load_typed_config("ingestion")
-        >>> print(config.message_bus_host)
-        'messagebus'
     """
     from .schema_loader import ConfigSchema, _load_config, _resolve_schema_directory
 
     # Try to import secrets support (optional)
     try:
-        from copilot_secrets import create_secret_provider
-
-        from .secret_provider import SecretConfigProvider
+        import copilot_secrets  # noqa: F401
         secrets_available = True
     except ImportError:
         secrets_available = False
 
-    # Load the schema to get version information
+    # Resolve schema directory
     schema_dir_path = _resolve_schema_directory(schema_dir)
-    schema_path = os.path.join(schema_dir_path, f"{service_name}.json")
-    schema = ConfigSchema.from_json_file(schema_path)
 
-    # First pass: load config without secrets to read secret provider config from fields
-    # Pass pre-loaded schema to avoid redundant I/O
-    initial_config = _load_config(service_name, schema_dir=schema_dir, schema=schema, **kwargs)
+    # Load the main service schema
+    service_schema_path = os.path.join(schema_dir_path, "services", f"{service_name}.json")
+    service_schema = ConfigSchema.from_json_file(service_schema_path)
 
-    # Read secret provider configuration from config fields
-    provider_type = initial_config.get("secret_provider_type", "local")
-    base_path = initial_config.get("secrets_base_path", "/run/secrets")
+    def _extract_config_from_driver_schema(
+        driver_schema_data: dict[str, Any],
+        secret_provider: Any | None,
+    ) -> dict[str, Any]:
+        """Extract configuration values from a driver schema."""
+        driver_config_dict: dict[str, Any] = {}
+        driver_properties = driver_schema_data.get("properties", {})
 
+        for prop_name, prop_spec in driver_properties.items():
+            if prop_spec.get("source") == "env":
+                env_var = prop_spec.get("env_var")
+                env_vars = env_var if isinstance(env_var, list) else [env_var]
+                value = None
+                for candidate in env_vars:
+                    if not candidate:
+                        continue
+                    candidate_value = os.environ.get(candidate)
+                    if candidate_value is not None:
+                        value = candidate_value
+                        break
+
+                if value is not None:
+                    # Type conversion
+                    if prop_spec.get("type") in ("int", "integer"):
+                        try:
+                            driver_config_dict[prop_name] = int(value)
+                        except ValueError:
+                            driver_config_dict[prop_name] = value
+                    elif prop_spec.get("type") in ("bool", "boolean"):
+                        driver_config_dict[prop_name] = value.lower() in ("true", "1", "yes")
+                    else:
+                        driver_config_dict[prop_name] = value
+                elif prop_spec.get("default") is not None:
+                    driver_config_dict[prop_name] = prop_spec.get("default")
+            elif prop_spec.get("source") == "secret" and secret_provider:
+                secret_name = prop_spec.get("secret_name")
+                secret_names = secret_name if isinstance(secret_name, list) else [secret_name]
+                for candidate in secret_names:
+                    if not candidate:
+                        continue
+                    try:
+                        value = secret_provider.get(candidate)
+                        if value is not None:
+                            driver_config_dict[prop_name] = value
+                            break
+                    except Exception:
+                        continue
+            else:
+                # Field has no source (not env or secret) - apply default if present
+                if prop_spec.get("default") is not None:
+                    driver_config_dict[prop_name] = prop_spec.get("default")
+
+        return driver_config_dict
+
+    def _append_adapter_configs_from_schema(
+        *,
+        adapter_configs: list[AdapterConfig],
+        adapter_name: str,
+        adapter_schema_path: str,
+        adapter_schema_data: dict[str, Any],
+        secret_provider: Any | None,
+    ) -> None:
+        """Append one or more AdapterConfig entries for a single adapter schema."""
+        discriminant_info = adapter_schema_data.get("properties", {}).get("discriminant", {})
+        discriminant_env_var = discriminant_info.get("env_var")
+
+        if not discriminant_env_var:
+            # Special case: composite adapters that are not discriminant-based.
+            # Currently used for oidc_providers which supports multiple concurrent providers.
+            composite_root = adapter_schema_data.get("properties", {}).get(adapter_name)
+            composite_properties = (composite_root or {}).get("properties", {})
+
+            if not composite_properties:
+                raise ValueError(
+                    f"Adapter {adapter_name} has no discriminant and no composite properties defined in schema"
+                )
+
+            composite_config: dict[str, Any] = {}
+            for child_name, child_info in composite_properties.items():
+                child_ref = child_info.get("$ref") if isinstance(child_info, dict) else None
+                if not child_ref:
+                    continue
+
+                child_schema_path = os.path.join(
+                    os.path.dirname(adapter_schema_path),
+                    child_ref.lstrip("./"),
+                )
+                if not os.path.exists(child_schema_path):
+                    continue
+
+                with open(child_schema_path) as f:
+                    child_schema_data = json.load(f)
+
+                child_config = _extract_config_from_driver_schema(child_schema_data, secret_provider)
+
+                # Only include provider entries that are actually configured.
+                # For known OIDC providers, require both client_id and client_secret.
+                if adapter_name == "oidc_providers":
+                    client_id_key = f"{child_name}_client_id"
+                    client_secret_key = f"{child_name}_client_secret"
+                    if not child_config.get(client_id_key) or not child_config.get(client_secret_key):
+                        continue
+
+                composite_config[child_name] = child_config
+
+            if composite_config:
+                adapter_configs.append(
+                    AdapterConfig(
+                        adapter_type=adapter_name,
+                        driver_name="multi",
+                        driver_config=DriverConfig(
+                            driver_name="multi",
+                            config=composite_config,
+                            allowed_keys=set(composite_config.keys()),
+                        ),
+                    )
+                )
+            return
+
+        selected_driver = os.environ.get(discriminant_env_var)
+        if not selected_driver:
+            discriminant_info = adapter_schema_data.get("properties", {}).get("discriminant", {})
+            is_required = discriminant_info.get("required", False)
+            default_driver = discriminant_info.get("default")
+            
+            if is_required and not default_driver:
+                raise ValueError(
+                    f"Adapter {adapter_name} requires discriminant configuration: "
+                    f"set environment variable {discriminant_env_var}"
+                )
+            
+            if default_driver:
+                selected_driver = default_driver
+            else:
+                # Optional adapter with no default - skip it
+                return
+
+        drivers_data = adapter_schema_data.get("properties", {}).get("drivers", {}).get("properties", {})
+        driver_schema_ref = None
+
+        for driver_name, driver_info in drivers_data.items():
+            if driver_name == selected_driver and "$ref" in driver_info:
+                driver_schema_ref = driver_info["$ref"]
+                break
+
+        if not driver_schema_ref:
+            raise ValueError(
+                f"Adapter {adapter_name} has no schema reference for driver {selected_driver}"
+            )
+
+        driver_schema_path = os.path.join(
+            os.path.dirname(adapter_schema_path),
+            driver_schema_ref.lstrip("./"),
+        )
+
+        if not os.path.exists(driver_schema_path):
+            raise FileNotFoundError(
+                f"Driver schema file not found: {driver_schema_path}"
+            )
+
+        with open(driver_schema_path) as f:
+            driver_schema_data = json.load(f)
+
+        driver_config_dict = _extract_config_from_driver_schema(driver_schema_data, secret_provider)
+        allowed_keys = set((driver_schema_data.get("properties") or {}).keys())
+        driver_config = DriverConfig(
+            driver_name=selected_driver,
+            config=driver_config_dict,
+            allowed_keys=allowed_keys,
+        )
+        adapter_configs.append(
+            AdapterConfig(
+                adapter_type=adapter_name,
+                driver_name=selected_driver,
+                driver_config=driver_config,
+            )
+        )
+
+    def _build_adapter_configs(*, secret_provider: Any | None) -> list[AdapterConfig]:
+        adapter_configs: list[AdapterConfig] = []
+
+        for adapter_name, adapter_schema_ref in service_schema.adapters_schema.items():
+            adapter_schema_path = os.path.join(schema_dir_path, adapter_schema_ref.lstrip("../"))
+
+            if not os.path.exists(adapter_schema_path):
+                raise FileNotFoundError(
+                    f"Adapter schema file not found: {adapter_schema_path}"
+                )
+
+            with open(adapter_schema_path) as f:
+                adapter_schema_data = json.load(f)
+
+            _append_adapter_configs_from_schema(
+                adapter_configs=adapter_configs,
+                adapter_name=adapter_name,
+                adapter_schema_path=adapter_schema_path,
+                adapter_schema_data=adapter_schema_data,
+                secret_provider=secret_provider,
+            )
+
+        # Back-compat: allow secret provider configuration via env even if the
+        # service schema has not yet been updated to declare a secret_provider adapter.
+        if "secret_provider" not in service_schema.adapters_schema and os.environ.get("SECRET_PROVIDER_TYPE"):
+            secret_adapter_schema_path = os.path.join(schema_dir_path, "adapters", "secret_provider.json")
+            if os.path.exists(secret_adapter_schema_path):
+                with open(secret_adapter_schema_path) as f:
+                    secret_adapter_schema_data = json.load(f)
+
+                _append_adapter_configs_from_schema(
+                    adapter_configs=adapter_configs,
+                    adapter_name="secret_provider",
+                    adapter_schema_path=secret_adapter_schema_path,
+                    adapter_schema_data=secret_adapter_schema_data,
+                    secret_provider=secret_provider,
+                )
+
+        return adapter_configs
+
+    # Phase 1: load non-secret adapter configs (including secret_provider)
+    adapter_configs_phase1 = _build_adapter_configs(secret_provider=None)
+
+    # Phase 2: instantiate the secrets adapter via the standard factory API
     secret_provider = None
-    if provider_type and secrets_available:
+    if secrets_available:
         try:
-            # Only local provider expects base_path; Azure provider should not receive it
-            provider_kwargs: dict[str, Any] = {"provider_type": provider_type}
-            if provider_type == "local":
-                provider_kwargs["base_path"] = base_path
+            from copilot_secrets import create_secret_provider as create_secrets_provider
+            from .secret_provider import SecretConfigProvider
 
-            secret_provider_instance = create_secret_provider(**provider_kwargs)
-            secret_provider = SecretConfigProvider(secret_provider=secret_provider_instance)
-        except Exception as e:
-            # If secret provider fails, continue without it
-            import sys
-            print(f"[DEBUG typed_config] Failed to create secret provider: {e}", file=sys.stderr)
+            secret_adapter = next(
+                (a for a in adapter_configs_phase1 if a.adapter_type == "secret_provider"),
+                None,
+            )
+
+            if secret_adapter is not None:
+                secret_provider_instance = create_secrets_provider(
+                    secret_adapter.driver_name,
+                    secret_adapter.driver_config.config,
+                )
+                secret_provider = SecretConfigProvider(secret_provider=secret_provider_instance)
+        except Exception:
             secret_provider = None
 
-    # Second pass: reload config with secret provider if one was created
-    if secret_provider:
-        config_dict = _load_config(
-            service_name,
-            schema_dir=schema_dir,
-            secret_provider=secret_provider,
-            schema=schema,
-            **kwargs
-        )
-    else:
-        config_dict = initial_config
+    # Phase 3: load full service settings and rebuild adapter configs with secrets resolved
+    config_dict = _load_config(
+        service_name,
+        schema_dir=schema_dir,
+        schema=service_schema,
+        secret_provider=secret_provider,
+        **kwargs,
+    )
 
-    return TypedConfig(
-        config_dict,
-        schema_version=schema.schema_version,
-        min_service_version=schema.min_service_version
+    adapter_configs = _build_adapter_configs(secret_provider=secret_provider)
+
+    # Return hierarchical ServiceConfig
+    return ServiceConfig(
+        service_name=service_name,
+        service_settings=config_dict,
+        adapters=adapter_configs,
+        schema_version=service_schema.schema_version,
+        min_service_version=service_schema.min_service_version,
+        allowed_service_settings=set(service_schema.service_settings.keys()),
     )

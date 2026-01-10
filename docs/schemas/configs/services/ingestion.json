@@ -1,0 +1,145 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "service_name": "ingestion",
+    "schema_version": "1.0.0",
+    "min_service_version": "0.1.0",
+    "metadata": {
+        "description": "Ingestion service configuration schema",
+        "version": "1.0.0"
+    },
+    "service_settings": {
+        "batch_size": {
+            "type": "int",
+            "source": "env",
+            "env_var": "INGESTION_BATCH_SIZE",
+            "default": 100,
+            "description": "Batch size for ingesting documents"
+        },
+        "concurrent_sources": {
+            "type": "int",
+            "source": "env",
+            "env_var": "INGESTION_CONCURRENT_SOURCES",
+            "default": 5,
+            "description": "Number of concurrent archive sources to process"
+        },
+        "enable_incremental": {
+            "type": "bool",
+            "source": "env",
+            "env_var": "INGESTION_ENABLE_INCREMENTAL",
+            "default": true,
+            "description": "Enable incremental ingestion (only new/changed documents)"
+        },
+        "http_port": {
+            "type": "int",
+            "source": "env",
+            "env_var": "INGESTION_HTTP_PORT",
+            "default": 8000,
+            "description": "HTTP server port"
+        },
+        "jwt_auth_enabled": {
+            "type": "bool",
+            "source": "env",
+            "env_var": "INGESTION_JWT_AUTH_ENABLED",
+            "default": true,
+            "description": "Enable JWT authentication middleware"
+        },
+        "auth_service_url": {
+            "type": "string",
+            "source": "env",
+            "env_var": "INGESTION_AUTH_SERVICE_URL",
+            "default": "http://auth:8090",
+            "description": "URL of the authentication service"
+        },
+        "service_audience": {
+            "type": "string",
+            "source": "env",
+            "env_var": "INGESTION_SERVICE_AUDIENCE",
+            "default": "copilot-for-consensus",
+            "description": "JWT audience for this service"
+        },
+        "max_retries": {
+            "type": "int",
+            "source": "env",
+            "env_var": "INGESTION_RETRY_MAX_ATTEMPTS",
+            "default": 3,
+            "description": "Maximum retry attempts for failed ingestion"
+        },
+        "poll_interval_seconds": {
+            "type": "int",
+            "source": "env",
+            "env_var": "INGESTION_POLL_INTERVAL_SECONDS",
+            "default": 3600,
+            "description": "Polling interval for source updates in seconds (1 hour)"
+        },
+        "request_timeout_seconds": {
+            "type": "int",
+            "source": "env",
+            "env_var": "INGESTION_REQUEST_TIMEOUT_SECONDS",
+            "default": 60,
+            "description": "Request timeout in seconds"
+        },
+        "storage_path": {
+            "type": "string",
+            "source": "env",
+            "env_var": "INGESTION_STORAGE_PATH",
+            "default": "/tmp/ingestion",
+            "description": "Path for storing ingestion data"
+        },
+        "log_type": {
+            "type": "string",
+            "source": "env",
+            "env_var": "INGESTION_LOG_TYPE",
+            "default": "stdout",
+            "description": "Logger type (stdout, file, etc.)"
+        },
+        "log_level": {
+            "type": "string",
+            "source": "env",
+            "env_var": "INGESTION_LOG_LEVEL",
+            "default": "INFO",
+            "description": "Logging level"
+        },
+        "http_host": {
+            "type": "string",
+            "source": "env",
+            "env_var": "INGESTION_HTTP_HOST",
+            "default": "0.0.0.0",
+            "description": "HTTP server host"
+        },
+        "schedule_interval_seconds": {
+            "type": "int",
+            "source": "env",
+            "env_var": "INGESTION_SCHEDULE_INTERVAL_SECONDS",
+            "default": 21600,
+            "description": "Scheduler interval for periodic ingestion in seconds (default: 6 hours)"
+        },
+        "metrics_type": {
+            "type": "string",
+            "source": "env",
+            "env_var": "INGESTION_METRICS_TYPE",
+            "default": "noop",
+            "description": "Metrics type (noop, prometheus_pushgateway, etc.)"
+        }
+    },
+    "adapters": {
+        "archive_store": {
+            "$ref": "../adapters/archive_store.json"
+        },
+        "document_store": {
+            "$ref": "../adapters/document_store.json"
+        },
+        "error_reporter": {
+            "$ref": "../adapters/error_reporter.json"
+        },
+        "message_bus": {
+            "$ref": "../adapters/message_bus.json"
+        },
+        "metrics": {
+            "$ref": "../adapters/metrics.json"
+        },
+        "secret_provider": {
+            "$ref": "../adapters/secret_provider.json"
+        }
+    }
+}

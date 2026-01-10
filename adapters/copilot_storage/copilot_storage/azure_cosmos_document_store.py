@@ -30,10 +30,59 @@ except ImportError:
 class AzureCosmosDocumentStore(DocumentStore):
     """Azure Cosmos DB document store implementation using Core (SQL) API."""
 
+    @classmethod
+    def from_config(cls, config: Any) -> "AzureCosmosDocumentStore":
+        """Create an AzureCosmosDocumentStore from configuration.
+        
+        Args:
+            config: Configuration object with endpoint, key, database, container,
+                    and partition_key attributes. Database, container, and partition_key
+                    defaults are provided by the schema.
+        
+        Returns:
+            Configured AzureCosmosDocumentStore instance
+        
+        Raises:
+            AttributeError: If required config attributes are missing
+        """
+        extra_kwargs: dict[str, Any] = {}
+        if isinstance(config, dict):
+            for k, v in config.items():
+                if k not in {"endpoint", "key", "database", "container", "partition_key"}:
+                    extra_kwargs[k] = v
+
+        kwargs: dict[str, Any] = {}
+        
+        # All fields are accessed via getattr for consistency
+        endpoint = getattr(config, "endpoint", None)
+        if endpoint is not None:
+            kwargs["endpoint"] = endpoint
+        
+        key = getattr(config, "key", None)
+        if key is not None:
+            kwargs["key"] = key
+
+        database = getattr(config, "database", None)
+        if database is not None:
+            kwargs["database"] = database
+
+        container = getattr(config, "container", None)
+        if container is not None:
+            kwargs["container"] = container
+
+        partition_key = getattr(config, "partition_key", None)
+        if partition_key is not None:
+            kwargs["partition_key"] = partition_key
+        
+        # Merge extra kwargs
+        kwargs.update(extra_kwargs)
+
+        return cls(**kwargs)
+
     def __init__(
         self,
-        endpoint: str = None,
-        key: str = None,
+        endpoint: str | None = None,
+        key: str | None = None,
         database: str = "copilot",
         container: str = "documents",
         partition_key: str = "/collection",
@@ -42,13 +91,21 @@ class AzureCosmosDocumentStore(DocumentStore):
         """Initialize Azure Cosmos DB document store.
 
         Args:
-            endpoint: Cosmos DB endpoint URL (e.g., https://myaccount.documents.azure.com:443/)
-            key: Cosmos DB account key (optional; if None, managed identity via DefaultAzureCredential will be used)
-            database: Database name
-            container: Container name
+            endpoint: Cosmos DB endpoint URL (e.g., https://myaccount.documents.azure.com:443/).
+                     Required parameter.
+            key: Cosmos DB account key (optional; if None, managed identity via DefaultAzureCredential will be used).
+                 Either key or managed identity support required.
+            database: Database name (default: "copilot")
+            container: Container name (default: "documents")
             partition_key: Partition key path (default: /collection)
             **kwargs: Additional Cosmos client options (e.g., connection_timeout, request_timeout)
+
+        Raises:
+            ValueError: If endpoint is not provided
         """
+        if not endpoint:
+            raise ValueError("endpoint is required for AzureCosmosDocumentStore")
+
         self.endpoint = endpoint
         self.key = key
         self.database_name = database

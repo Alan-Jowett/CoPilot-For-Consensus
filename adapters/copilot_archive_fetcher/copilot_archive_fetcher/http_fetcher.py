@@ -15,6 +15,18 @@ logger = logging.getLogger(__name__)
 class HTTPFetcher(ArchiveFetcher):
     """Fetcher for HTTP sources."""
 
+    @classmethod
+    def from_config(cls, config: SourceConfig) -> "HTTPFetcher":
+        """Create HTTPFetcher from SourceConfig.
+
+        Args:
+            config: SourceConfig object
+
+        Returns:
+            HTTPFetcher instance
+        """
+        return cls(config)
+
     def __init__(self, source: SourceConfig):
         """Initialize HTTP fetcher.
 

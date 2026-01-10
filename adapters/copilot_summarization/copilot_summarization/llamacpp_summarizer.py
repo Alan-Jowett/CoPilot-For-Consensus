@@ -6,6 +6,8 @@
 import logging
 import time
 
+from copilot_config import DriverConfig
+
 import requests
 
 from .models import Summary, Thread
@@ -29,16 +31,16 @@ class LlamaCppSummarizer(Summarizer):
 
     def __init__(
         self,
-        model: str = "mistral",
-        base_url: str = "http://localhost:8080",
-        timeout: int = 300
+        model: str,
+        base_url: str,
+        timeout: int
     ):
         """Initialize llama.cpp summarizer.
 
         Args:
             model: Model name (used for logging and metrics)
             base_url: Base URL for llama.cpp server endpoint
-            timeout: Request timeout in seconds (default: 120)
+            timeout: Request timeout in seconds
 
         Raises:
             ValueError: If timeout is not a positive integer
@@ -50,6 +52,28 @@ class LlamaCppSummarizer(Summarizer):
         self.base_url = base_url
         self.timeout = timeout
         logger.info("Initialized LlamaCppSummarizer with model: %s", model)
+
+    @classmethod
+    def from_config(cls, config: DriverConfig) -> "LlamaCppSummarizer":
+        """Create a LlamaCppSummarizer from configuration.
+        
+        Configuration defaults are defined in schema:
+        docs/schemas/configs/adapters/drivers/llm_backend/llm_llamacpp.json
+        
+        Args:
+            config: DriverConfig with fields:
+                    - llamacpp_model: Model name (str)
+                    - llamacpp_endpoint: Base URL for llama.cpp (str)
+                    - llamacpp_timeout_seconds: Request timeout (int)
+        
+        Returns:
+            Configured LlamaCppSummarizer instance
+        """
+        return cls(
+            model=config.llamacpp_model,
+            base_url=config.llamacpp_endpoint,
+            timeout=config.llamacpp_timeout_seconds,
+        )
 
     def summarize(self, thread: Thread) -> Summary:
         """Generate a summary using llama.cpp server API.

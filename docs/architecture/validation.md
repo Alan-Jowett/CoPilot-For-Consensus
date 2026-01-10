@@ -12,7 +12,7 @@ Application-layer validation ensuring centralized, consistent, evolving logic wi
 Message bus events validated using `ValidatingEventPublisher` and `ValidatingEventSubscriber`:
 
 ```python
-from copilot_events import create_publisher, ValidatingEventPublisher
+from copilot_message_bus import create_publisher, ValidatingEventPublisher
 from copilot_schema_validation import FileSchemaProvider
 
 # Wrap publisher with validation
@@ -26,7 +26,7 @@ publisher = ValidatingEventPublisher(
 publisher.publish(event)  # Validated against JSON schema
 ```
 
-**Adapter**: `copilot_events/`
+**Adapter**: `copilot_message_bus/`
 
 ### 2. Document Validation
 

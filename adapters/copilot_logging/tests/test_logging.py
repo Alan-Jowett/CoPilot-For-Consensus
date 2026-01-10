@@ -8,12 +8,12 @@ from io import StringIO
 from unittest.mock import patch
 
 import pytest
-from copilot_logging import (
-    Logger,
-    SilentLogger,
-    StdoutLogger,
-    create_logger,
-)
+from copilot_config import load_driver_config
+
+from copilot_logging.factory import create_logger
+from copilot_logging.logger import Logger
+from copilot_logging.silent_logger import SilentLogger
+from copilot_logging.stdout_logger import StdoutLogger
 
 
 class TestLoggerFactory:
@@ -21,7 +21,8 @@ class TestLoggerFactory:
 
     def test_create_stdout_logger(self):
         """Test creating a stdout logger."""
-        logger = create_logger(logger_type="stdout", level="INFO")
+        config = load_driver_config(None, "logger", "stdout", fields={"level": "INFO"})
+        logger = create_logger("stdout", config)
 
         assert isinstance(logger, StdoutLogger)
         assert isinstance(logger, Logger)
@@ -29,49 +30,43 @@ class TestLoggerFactory:
 
     def test_create_silent_logger(self):
         """Test creating a silent logger."""
-        logger = create_logger(logger_type="silent", level="INFO")
+        config = load_driver_config(None, "logger", "silent", fields={"level": "INFO"})
+        logger = create_logger("silent", config)
 
         assert isinstance(logger, SilentLogger)
         assert isinstance(logger, Logger)
 
     def test_create_logger_with_name(self):
         """Test creating a logger with a custom name."""
-        logger = create_logger(logger_type="stdout", level="INFO", name="test-service")
+        config = load_driver_config(None, "logger", "stdout", fields={"level": "INFO", "name": "test-service"})
+        logger = create_logger("stdout", config)
 
         assert isinstance(logger, StdoutLogger)
         assert logger.name == "test-service"
 
     def test_create_logger_with_debug_level(self):
         """Test creating a logger with DEBUG level."""
-        logger = create_logger(logger_type="stdout", level="DEBUG")
+        config = load_driver_config(None, "logger", "stdout", fields={"level": "DEBUG"})
+        logger = create_logger("stdout", config)
 
         assert isinstance(logger, StdoutLogger)
         assert logger.level == "DEBUG"
 
     def test_create_unknown_logger_type(self):
         """Test that unknown logger type raises ValueError."""
-        with pytest.raises(ValueError, match="Unknown logger_type"):
-            create_logger(logger_type="invalid", level="INFO")
+        config = load_driver_config(None, "logger", "stdout", fields={"level": "INFO"})
+        with pytest.raises(ValueError, match="Unknown logger driver"):
+            create_logger("invalid", config)
 
-    def test_create_logger_from_env_defaults(self, monkeypatch):
-        """Defaults come from env or fall back to stdout/INFO/copilot."""
-        monkeypatch.delenv("LOG_TYPE", raising=False)
-        monkeypatch.delenv("LOG_LEVEL", raising=False)
-        monkeypatch.delenv("LOG_NAME", raising=False)
+    def test_create_logger_from_env_defaults(self):
+        """Test that driver_name and driver_config are required."""
+        with pytest.raises(TypeError, match="missing 2 required positional arguments"):
+            create_logger()
 
-        logger = create_logger()
-
-        assert isinstance(logger, StdoutLogger)
-        assert logger.level == "INFO"
-        assert logger.name == "copilot"
-
-    def test_create_logger_from_env_overrides(self, monkeypatch):
-        """Env variables override defaults when args are omitted."""
-        monkeypatch.setenv("LOG_TYPE", "silent")
-        monkeypatch.setenv("LOG_LEVEL", "WARNING")
-        monkeypatch.setenv("LOG_NAME", "env-service")
-
-        logger = create_logger()
+    def test_create_logger_with_config_dict(self):
+        """Test creating logger with explicit config."""
+        config = load_driver_config(None, "logger", "silent", fields={"level": "WARNING", "name": "env-service"})
+        logger = create_logger("silent", config)
 
         assert isinstance(logger, SilentLogger)
         assert logger.level == "WARNING"

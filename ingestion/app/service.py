@@ -3,7 +3,6 @@
 
 import hashlib
 import json
-import logging
 import os
 import time
 from collections.abc import Iterable
@@ -12,85 +11,20 @@ from pathlib import Path
 from typing import Any
 
 from copilot_archive_fetcher import SourceConfig, calculate_file_hash, create_fetcher
-from copilot_archive_store import ArchiveStore, create_archive_store
-from copilot_events import ArchiveIngestedEvent, ArchiveIngestionFailedEvent, ArchiveMetadata, EventPublisher
-from copilot_logging import Logger, create_logger
+from copilot_archive_store import ArchiveStore
+from copilot_message_bus import ArchiveIngestedEvent, ArchiveIngestionFailedEvent, EventPublisher
+from copilot_schema_validation import ArchiveMetadata
+from copilot_logging import Logger
 from copilot_metrics import MetricsCollector, create_metrics_collector
-from copilot_reporting import ErrorReporter, create_error_reporter
+from copilot_error_reporting import ErrorReporter, create_error_reporter
 from copilot_storage import DocumentStore
+from copilot_config import load_driver_config
 
 from .exceptions import (
     FetchError,
     IngestionError,
     SourceConfigurationError,
 )
-
-DEFAULT_CONFIG = {
-    "storage_path": "/data/raw_archives",
-    "message_bus_host": "messagebus",
-    "message_bus_port": 5672,
-    "message_bus_user": "guest",
-    "message_bus_password": "guest",
-    "message_bus_type": "rabbitmq",
-    "ingestion_schedule_cron": "0 */6 * * *",
-    "blob_storage_enabled": False,
-    "blob_storage_connection_string": None,
-    "blob_storage_container": "raw-archives",
-    "log_level": "INFO",
-    "log_type": "stdout",
-    "logger_name": "ingestion-service",
-    "metrics_backend": "noop",
-    "retry_max_attempts": 3,
-    "retry_backoff_seconds": 60,
-    "error_reporter_type": "console",
-    "sentry_dsn": None,
-    "sentry_environment": "production",
-    "doc_store_type": "mongodb",
-    "doc_store_host": "documentdb",
-    "doc_store_port": 27017,
-    "doc_store_name": "copilot",
-    "doc_store_user": "root",
-    "doc_store_password": "example",
-    "archive_store_type": "local",  # ArchiveStore backend: local, mongodb, azure_blob
-    "archive_store_base_path": None,  # Base path for local backend (defaults to storage_path)
-    "sources": [],
-}
-
-
-class _ConfigWithDefaults:
-    """Wrapper that combines a loaded config with defaults, without modifying the original."""
-
-    def __init__(self, config: object):
-        # Store base config and allow per-instance overrides without mutating base
-        self._config = config
-        self._overrides: dict[str, Any] = {}
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Allow overrides while keeping base config immutable."""
-        if name in {"_config", "_overrides"}:
-            object.__setattr__(self, name, value)
-            return
-        # Record overrides instead of mutating the base config
-        overrides = object.__getattribute__(self, "_overrides")
-        overrides[name] = value
-
-    def __getattr__(self, name: str) -> Any:
-        overrides = object.__getattribute__(self, "_overrides")
-        if name in overrides:
-            return overrides[name]
-        # Try to get from loaded config first
-        if hasattr(self._config, name):
-            return getattr(self._config, name)
-        # Fall back to defaults
-        if name in DEFAULT_CONFIG:
-            return DEFAULT_CONFIG[name]
-        # Raise AttributeError if not found
-        raise AttributeError(f"Configuration key '{name}' not found")
-
-
-def _apply_defaults(config: object) -> object:
-    """Ensure all expected config fields exist with defaults, without modifying the original config."""
-    return _ConfigWithDefaults(config)
 
 
 def _expand(value: str | None) -> str | None:
@@ -216,53 +150,59 @@ class IngestionService:
             metrics: Metrics collector for observability (optional)
             archive_store: Archive store for storing raw archives (optional, will be created if None)
         """
-        self.config = _apply_defaults(config)
+        self.config = config
         self.publisher = publisher
         self.document_store = document_store
-        self.logger = logger or create_logger(
-            logger_type=config.log_type,
-            level=config.log_level,
-            name=config.logger_name,
-        )
-        self.metrics = metrics or create_metrics_collector(backend=config.metrics_backend)
-        self._ensure_storage_path(self.config.storage_path)
+        if logger is None:
+            raise ValueError("logger is required and must be provided by the caller")
+        self.logger = logger
+        if metrics is None:
+            metrics_config = load_driver_config(service=None, adapter="metrics", driver="noop", fields={})
+            metrics = create_metrics_collector(driver_name="noop", driver_config=metrics_config)
+        self.metrics = metrics
+        
+        # Get storage path from config or use default (store as instance variable for use throughout service)
+        self.storage_path = config.storage_path
+        self._ensure_storage_path(self.storage_path)
 
-        # Initialize error reporter
+        # Initialize error reporter from adapter if not provided
         if error_reporter is None:
-            self.error_reporter = create_error_reporter(
-                reporter_type=config.error_reporter_type,
-                dsn=config.sentry_dsn,
-                environment=config.sentry_environment,
-                logger_name=config.logger_name,
-            )
+            try:
+                error_reporter_adapter = config.get_adapter("error_reporter")
+                if error_reporter_adapter is not None:
+                    adapter_driver_config = getattr(error_reporter_adapter, "driver_config", None)
+                    if adapter_driver_config is None:
+                        fields: dict[str, Any] = {}
+                    elif hasattr(adapter_driver_config, "config"):
+                        fields = dict(getattr(adapter_driver_config, "config"))  # type: ignore[arg-type]
+                    else:
+                        fields = dict(adapter_driver_config)  # type: ignore[arg-type]
+
+                    # Use load_driver_config to create proper DriverConfig
+                    driver_config = load_driver_config(
+                        service=None,
+                        adapter="error_reporter",
+                        driver=error_reporter_adapter.driver_name,
+                        fields=fields,
+                    )
+                    self.error_reporter = create_error_reporter(
+                        driver_name=error_reporter_adapter.driver_name,
+                        driver_config=driver_config,
+                    )
+                else:
+                    # No error_reporter adapter in config, use silent with empty config
+                    silent_config = load_driver_config(service=None, adapter="error_reporter", driver="silent", fields={})
+                    self.error_reporter = create_error_reporter(driver_name="silent", driver_config=silent_config)
+            except Exception:
+                # Exception during error_reporter creation, fallback to silent
+                silent_config = load_driver_config(service=None, adapter="error_reporter", driver="silent", fields={})
+                self.error_reporter = create_error_reporter(driver_name="silent", driver_config=silent_config)
         else:
             self.error_reporter = error_reporter
 
-        # Initialize ArchiveStore
         if archive_store is None:
-            try:
-                archive_store_base_path = self.config.archive_store_base_path or self.config.storage_path
-                self.archive_store = create_archive_store(
-                    store_type=self.config.archive_store_type,
-                    base_path=archive_store_base_path,
-                )
-                self.logger.info(
-                    "Initialized ArchiveStore",
-                    store_type=self.config.archive_store_type,
-                    base_path=archive_store_base_path,
-                )
-            except Exception as e:
-                self.logger.error("Failed to initialize ArchiveStore", error=str(e), exc_info=True)
-                self.error_reporter.report(
-                    e,
-                    context={
-                        "operation": "initialize_archive_store",
-                        "store_type": self.config.archive_store_type,
-                    }
-                )
-                raise
-        else:
-            self.archive_store = archive_store
+            raise ValueError("archive_store is required and must be provided by the caller")
+        self.archive_store = archive_store
 
         # Source status tracking
         self._source_status: dict[str, dict[str, Any]] = {}
@@ -273,6 +213,9 @@ class IngestionService:
 
         # Initialize archive metadata cache for performance optimization
         self._archive_metadata_cache: dict[str, dict[str, dict[str, Any]]] = {}
+        
+        # Sources cache for dynamic source management from document store
+        self._sources_cache: list[dict[str, Any]] | None = None
 
     @staticmethod
     def _ensure_storage_path(storage_path: str) -> None:
@@ -382,7 +325,7 @@ class IngestionService:
                 fetcher = create_fetcher(source)
 
                 # Create output directory
-                output_dir = os.path.join(self.config.storage_path, source.name)
+                output_dir = os.path.join(self.storage_path, source.name)
 
                 # Fetch archives
                 success, file_paths, error_message = fetcher.fetch(output_dir)
@@ -728,7 +671,7 @@ class IngestionService:
         Args:
             metadata: Archive metadata to log
         """
-        log_path = os.path.join(self.config.storage_path, "metadata", "ingestion_log.jsonl")
+        log_path = os.path.join(self.storage_path, "metadata", "ingestion_log.jsonl")
 
         try:
             os.makedirs(os.path.dirname(log_path), exist_ok=True)
@@ -928,11 +871,10 @@ class IngestionService:
         Raises:
             Exception: Re-raises any exception from publisher to ensure visibility
         """
-        # Convert metadata to dict and remove status and file_path fields
-        # file_path is removed to make the event storage-agnostic
+        # Convert metadata to dict and remove storage-specific fields
         event_data = metadata.to_dict()
         event_data.pop('status', None)  # Remove status field if present
-        event_data.pop('file_path', None)  # Remove file_path - not storage-agnostic
+        event_data.pop('file_path', None)  # Remove file_path (storage-specific, not for events)
 
         try:
             event = ArchiveIngestedEvent(data=event_data)
@@ -1098,7 +1040,11 @@ class IngestionService:
         Returns:
             List of source configurations
         """
-        sources = getattr(self.config, "sources", [])
+        # Try to load from document store cache first
+        if self._sources_cache is None:
+            self._reload_sources()
+        
+        sources = self._sources_cache or []
 
         result = []
         for source in sources:
@@ -1374,26 +1320,32 @@ class IngestionService:
         }
 
     def _reload_sources(self):
-        """Reload sources from document store."""
+        """Reload sources from document store after CRUD operations.
+        
+        Sources are stored separately in the document store as a dynamic configuration,
+        independent of the static service config loaded at startup. This method is called
+        after create_source(), update_source(), and delete_source() operations to refresh
+        the in-memory sources cache.
+        """
         if not self.document_store:
+            self._sources_cache = []
             return
-
+        
         try:
-            from copilot_config.providers import DocStoreConfigProvider
-
-            doc_store_provider = DocStoreConfigProvider(self.document_store)
-            sources = doc_store_provider.query_documents_from_collection("sources") or []
-
-            # Update config sources - handle both _ConfigWithDefaults and SimpleNamespace
-            if hasattr(self.config, "_overrides"):
-                self.config._overrides["sources"] = sources
-            else:
-                # For SimpleNamespace, just update the attribute
-                self.config.sources = sources
-
-            self.logger.info("Sources reloaded", source_count=len(sources))
+            # Query all sources from the document store
+            sources = self.document_store.query_documents("sources", {})
+            self._sources_cache = sources or []
+            self.logger.debug(
+                "Reloaded sources from document store",
+                sources_count=len(self._sources_cache)
+            )
         except Exception as e:
-            self.logger.warning("Failed to reload sources", error=str(e), exc_info=True)
+            self.logger.warning(
+                "Failed to reload sources from document store",
+                error=str(e),
+                exc_info=True
+            )
+            self._sources_cache = []
 
     def _update_source_status(
         self,

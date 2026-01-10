@@ -1,0 +1,43 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Message Bus adapter",
+    "type": "object",
+    "properties": {
+        "discriminant": {
+            "field": "message_bus_type",
+            "type": "string",
+            "source": "env",
+            "env_var": "MESSAGE_BUS_TYPE",
+            "enum": [
+                "rabbitmq",
+                "servicebus",
+                "azureservicebus",
+                "noop"
+            ],
+            "description": "Message bus backend type (rabbitmq, servicebus/azureservicebus, noop)"
+        },
+        "drivers": {
+            "type": "object",
+            "properties": {
+                "rabbitmq": {
+                    "$ref": "./drivers/message_bus/rabbitmq.json"
+                },
+                "servicebus": {
+                    "$ref": "./drivers/message_bus/servicebus.json"
+                },
+                "azureservicebus": {
+                    "$ref": "./drivers/message_bus/servicebus.json"
+                },
+                "noop": {
+                    "$ref": "./drivers/message_bus/noop.json"
+                }
+            },
+            "additionalProperties": false
+        }
+    },
+    "required": [
+        "discriminant",
+        "drivers"
+    ]
+}

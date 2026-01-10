@@ -33,7 +33,7 @@ updates:
       - "/adapters/copilot_events"
       - "/adapters/copilot_logging"
       - "/adapters/copilot_metrics"
-      - "/adapters/copilot_reporting"
+      - "/adapters/copilot_error_reporting"
       - "/adapters/copilot_schema_validation"
       - "/adapters/copilot_secrets"
       - "/adapters/copilot_startup"

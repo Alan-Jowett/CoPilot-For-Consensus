@@ -5,13 +5,15 @@
 
 import logging
 import tempfile
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
 from app.service import ParsingService
-from copilot_archive_store import LocalVolumeArchiveStore
-from copilot_events import EventPublisher, EventSubscriber, NoopPublisher, NoopSubscriber
-from copilot_storage import DocumentStore, InMemoryDocumentStore
+from copilot_archive_store import create_archive_store
+from copilot_message_bus import EventPublisher, EventSubscriber, create_publisher, create_subscriber
+from copilot_schema_validation import create_schema_provider
+from copilot_storage import DocumentStore, create_document_store
 from copilot_storage.validating_document_store import DocumentValidationError
 from pymongo.errors import DuplicateKeyError
 
@@ -19,17 +21,43 @@ from .test_helpers import assert_valid_event_schema
 
 
 def create_test_archive_store():
-    """Create a test archive store with automatic temporary directory cleanup.
-    
-    Returns an ArchiveStore backed by a temporary directory that will be
-    automatically cleaned up when the store instance is garbage-collected.
-    """
+    """Create a test archive store with automatic temporary directory cleanup."""
+    from copilot_config import DriverConfig
     tmpdir = tempfile.TemporaryDirectory()
-    archive_store = LocalVolumeArchiveStore(base_path=tmpdir.name)
-    # Attach the TemporaryDirectory to the store so it stays alive for the
-    # lifetime of the archive_store and is cleaned up automatically afterwards.
-    archive_store._tmpdir = tmpdir
+    archive_store = create_archive_store("local", DriverConfig(driver_name="local", config={"archive_base_path": tmpdir.name}))
+    archive_store._tmpdir = tmpdir  # keep tempdir alive for duration of store
     return archive_store
+
+
+def create_validating_document_store():
+    """Create an in-memory document store with schema validation enabled."""
+    schema_dir = Path(__file__).parent.parent.parent / "docs" / "schemas" / "documents"
+    schema_provider = create_schema_provider(schema_dir=schema_dir, schema_type="documents")
+    store = create_document_store(
+        driver_name="inmemory",
+        driver_config={"schema_provider": schema_provider},
+        enable_validation=True,
+    )
+    store.connect()
+    return store
+
+
+def create_noop_publisher():
+    """Create a noop publisher using the factory API."""
+    publisher = create_publisher(driver_name="noop", driver_config={}, enable_validation=False)
+    publisher.connect()
+    return publisher
+
+
+def create_noop_subscriber():
+    """Create a noop subscriber using the factory API."""
+    subscriber = create_subscriber(
+        driver_name="noop",
+        driver_config={"queue_name": "json.parsed"},
+        enable_validation=False,
+    )
+    subscriber.connect()
+    return subscriber
 
 
 def prepare_archive_for_processing(archive_store, file_path, archive_id=None):
@@ -73,6 +101,7 @@ def prepare_archive_for_processing(archive_store, file_path, archive_id=None):
         "source_name": "test-source",
         "source_type": "local",
         "source_url": file_path,
+        "file_path": file_path,
         "file_size_bytes": len(content),
         "file_hash_sha256": "abc123",  # Simplified for tests
         "ingestion_started_at": "2024-01-01T00:00:00Z",
@@ -109,23 +138,17 @@ class TestParsingService:
     @pytest.fixture
     def document_store(self):
         """Create in-memory document store."""
-        store = InMemoryDocumentStore()
-        store.connect()
-        return store
+        return create_validating_document_store()
 
     @pytest.fixture
     def publisher(self):
         """Create noop publisher."""
-        pub = NoopPublisher()
-        pub.connect()
-        return pub
+        return create_noop_publisher()
 
     @pytest.fixture
     def subscriber(self):
         """Create noop subscriber."""
-        sub = NoopSubscriber()
-        sub.connect()
-        return sub
+        return create_noop_subscriber()
 
     @pytest.fixture
     def service(self, document_store, publisher, subscriber, temp_dir):
@@ -739,8 +762,7 @@ def test_json_parsed_event_schema_validation(document_store, sample_mbox_file):
     """Test that JSONParsed events validate against schema."""
     publisher = MockPublisher()
     publisher.connect()
-    subscriber = NoopSubscriber()
-    subscriber.connect()
+    subscriber = create_noop_subscriber()
 
     service = ParsingService(
         document_store=document_store,
@@ -770,8 +792,7 @@ def test_parsing_failed_event_schema_validation(document_store):
     """Test that ParsingFailed events validate against schema."""
     publisher = MockPublisher()
     publisher.connect()
-    subscriber = NoopSubscriber()
-    subscriber.connect()
+    subscriber = create_noop_subscriber()
 
     service = ParsingService(
         document_store=document_store,
@@ -818,8 +839,7 @@ def test_consume_archive_ingested_event(document_store, sample_mbox_file):
     
     publisher = MockPublisher()
     publisher.connect()
-    subscriber = NoopSubscriber()
-    subscriber.connect()
+    subscriber = create_noop_subscriber()
 
     service = ParsingService(
         document_store=document_store,
@@ -889,7 +909,7 @@ def test_consume_archive_ingested_event(document_store, sample_mbox_file):
 def test_handle_malformed_event_missing_data(document_store):
     """Test handling event with missing data field."""
     publisher = MockPublisher()
-    subscriber = NoopSubscriber()
+    subscriber = create_noop_subscriber()
 
     service = ParsingService(
         document_store=document_store,
@@ -918,7 +938,7 @@ def test_handle_event_missing_required_fields(document_store):
     a ParsingFailed event, rather than raising an exception.
     """
     publisher = MockPublisher()
-    subscriber = NoopSubscriber()
+    subscriber = create_noop_subscriber()
 
     service = ParsingService(
         document_store=document_store,
@@ -969,7 +989,7 @@ def test_publish_json_parsed_with_publisher_failure(document_store):
             raise Exception("Publish failed")
 
     publisher = FailingPublisher()
-    subscriber = NoopSubscriber()
+    subscriber = create_noop_subscriber()
 
     service = ParsingService(
         document_store=document_store,
@@ -1006,7 +1026,7 @@ def test_publish_parsing_failed_with_publisher_failure(document_store):
             raise Exception("Publish failed")
 
     publisher = FailingPublisher()
-    subscriber = NoopSubscriber()
+    subscriber = create_noop_subscriber()
 
     service = ParsingService(
         document_store=document_store,
@@ -1048,7 +1068,7 @@ def test_handle_archive_ingested_with_publish_json_parsed_failure(document_store
             return super().publish(exchange, routing_key, event)
 
     publisher = FailingPublisher()
-    subscriber = NoopSubscriber()
+    subscriber = create_noop_subscriber()
 
     service = ParsingService(
         document_store=document_store,
@@ -1117,7 +1137,7 @@ def test_handle_archive_ingested_with_publish_parsing_failed_failure(document_st
             return True
 
     publisher = FailingPublisher()
-    subscriber = NoopSubscriber()
+    subscriber = create_noop_subscriber()
 
     service = ParsingService(
         document_store=document_store,
@@ -1147,7 +1167,7 @@ def test_publish_json_parsed_raises_on_missing_message_id(document_store):
     mock_publisher = MockPublisher()
     mock_publisher.connect()
 
-    subscriber = NoopSubscriber()
+    subscriber = create_noop_subscriber()
     subscriber.connect()
 
     service = ParsingService(
@@ -1181,33 +1201,32 @@ def test_publish_json_parsed_raises_on_missing_message_id(document_store):
 
 def test_service_initialization_with_archive_store(document_store, publisher, subscriber):
     """Test that parsing service can be initialized with ArchiveStore."""
-    from copilot_archive_store import LocalVolumeArchiveStore
     import tempfile
-    
+    from copilot_config import DriverConfig
+
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Create ArchiveStore explicitly
-        archive_store = LocalVolumeArchiveStore(base_path=tmpdir)
-        
+        archive_store = create_archive_store("local", DriverConfig(driver_name="local", config={"archive_base_path": tmpdir}))
+
         service = ParsingService(
             document_store=document_store,
             publisher=publisher,
             subscriber=subscriber,
             archive_store=archive_store,
         )
-        
+
         assert service.archive_store is not None
-        assert isinstance(service.archive_store, LocalVolumeArchiveStore)
+        assert service.archive_store.__class__.__name__ == "LocalVolumeArchiveStore"
 
 
 def test_process_archive_retrieves_from_archive_store(document_store, publisher, subscriber):
     """Test that process_archive retrieves content from ArchiveStore."""
-    from copilot_archive_store import LocalVolumeArchiveStore
     import tempfile
     import os
-    
+    from copilot_config import DriverConfig
+
     with tempfile.TemporaryDirectory() as tmpdir:
         # Create ArchiveStore and store test content
-        archive_store = LocalVolumeArchiveStore(base_path=tmpdir)
+        archive_store = create_archive_store("local", DriverConfig(driver_name="local", config={"archive_base_path": tmpdir}))
         
         # Create a simple mbox file content
         mbox_content = b"""From test@example.com Mon Jan 01 00:00:00 2024

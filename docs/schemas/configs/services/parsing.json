@@ -1,0 +1,110 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "service_name": "parsing",
+    "schema_version": "1.0.0",
+    "min_service_version": "0.1.0",
+    "metadata": {
+        "description": "Parsing service configuration schema",
+        "version": "1.0.0"
+    },
+    "service_settings": {
+        "http_port": {
+            "type": "int",
+            "source": "env",
+            "env_var": "PARSING_HTTP_PORT",
+            "default": 8000,
+            "description": "HTTP server port"
+        },
+        "http_host": {
+            "type": "string",
+            "source": "env",
+            "env_var": "PARSING_HTTP_HOST",
+            "default": "0.0.0.0",
+            "description": "HTTP server host"
+        },
+        "jwt_auth_enabled": {
+            "type": "bool",
+            "source": "env",
+            "env_var": "PARSING_JWT_AUTH_ENABLED",
+            "default": true,
+            "description": "Enable JWT authentication middleware"
+        },
+        "auth_service_url": {
+            "type": "string",
+            "source": "env",
+            "env_var": "PARSING_AUTH_SERVICE_URL",
+            "default": "http://auth:8090",
+            "description": "URL of the authentication service"
+        },
+        "service_audience": {
+            "type": "string",
+            "source": "env",
+            "env_var": "PARSING_SERVICE_AUDIENCE",
+            "default": "copilot-for-consensus",
+            "description": "JWT audience for this service"
+        },
+        "log_type": {
+            "type": "string",
+            "source": "env",
+            "env_var": "PARSING_LOG_TYPE",
+            "default": "stdout",
+            "description": "Logger type (stdout, file, etc.)"
+        },
+        "logger_name": {
+            "type": "string",
+            "source": "env",
+            "env_var": "PARSING_LOGGER_NAME",
+            "default": "parsing",
+            "description": "Logger name"
+        },
+        "log_level": {
+            "type": "string",
+            "source": "env",
+            "env_var": "PARSING_LOG_LEVEL",
+            "default": "INFO",
+            "description": "Logging level"
+        },
+        "max_retries": {
+            "type": "int",
+            "source": "env",
+            "env_var": "PARSING_RETRY_MAX_ATTEMPTS",
+            "default": 3,
+            "description": "Maximum retry attempts"
+        },
+        "retry_delay_seconds": {
+            "type": "int",
+            "source": "env",
+            "env_var": "PARSING_RETRY_DELAY_SECONDS",
+            "default": 5,
+            "description": "Retry delay in seconds"
+        },
+        "metrics_type": {
+            "type": "string",
+            "source": "env",
+            "env_var": "PARSING_METRICS_TYPE",
+            "default": "noop",
+            "description": "Metrics type (noop, prometheus_pushgateway, etc.)"
+        }
+    },
+    "adapters": {
+        "archive_store": {
+            "$ref": "../adapters/archive_store.json"
+        },
+        "document_store": {
+            "$ref": "../adapters/document_store.json"
+        },
+        "error_reporter": {
+            "$ref": "../adapters/error_reporter.json"
+        },
+        "message_bus": {
+            "$ref": "../adapters/message_bus.json"
+        },
+        "metrics": {
+            "$ref": "../adapters/metrics.json"
+        },
+        "secret_provider": {
+            "$ref": "../adapters/secret_provider.json"
+        }
+    }
+}

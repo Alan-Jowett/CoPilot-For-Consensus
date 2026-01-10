@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
+from copilot_config import DriverConfig
+
 from .thread import Thread
 
 
@@ -111,9 +113,9 @@ class HeuristicConsensusDetector(ConsensusDetector):
     ]
 
     def __init__(self,
-                 agreement_threshold: int = 3,
-                 min_participants: int = 2,
-                 stagnation_days: int = 7):
+                 agreement_threshold: int,
+                 min_participants: int,
+                 stagnation_days: int):
         """Initialize the heuristic detector.
 
         Args:
@@ -124,6 +126,28 @@ class HeuristicConsensusDetector(ConsensusDetector):
         self.agreement_threshold = agreement_threshold
         self.min_participants = min_participants
         self.stagnation_days = stagnation_days
+
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "HeuristicConsensusDetector":
+        """Create detector from configuration.
+        
+        Configuration defaults are defined in schema:
+        docs/schemas/configs/adapters/drivers/consensus_detector/heuristic.json
+        
+        Args:
+            driver_config: Configuration object with attributes:
+                          - agreement_threshold: Threshold for consensus (int)
+                          - min_participants: Minimum participants needed (int)
+                          - stagnation_days: Days before stagnation (int)
+        
+        Returns:
+            Configured HeuristicConsensusDetector
+        """
+        return cls(
+            agreement_threshold=driver_config.agreement_threshold,
+            min_participants=driver_config.min_participants,
+            stagnation_days=driver_config.stagnation_days,
+        )
 
     def detect(self, thread: Thread) -> ConsensusSignal:
         """Detect consensus using heuristic rules."""
@@ -257,8 +281,8 @@ class MockConsensusDetector(ConsensusDetector):
     """
 
     def __init__(self,
-                 level: ConsensusLevel = ConsensusLevel.CONSENSUS,
-                 confidence: float = 0.8):
+                 level: ConsensusLevel,
+                 confidence: float):
         """Initialize mock detector.
 
         Args:
@@ -267,6 +291,34 @@ class MockConsensusDetector(ConsensusDetector):
         """
         self.level = level
         self.confidence = confidence
+
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "MockConsensusDetector":
+        """Create mock detector from configuration.
+        
+        Configuration defaults are defined in schema:
+        docs/schemas/configs/adapters/drivers/consensus_detector/mock.json
+        
+        Args:
+            driver_config: Configuration object with attributes:
+                          - level: Consensus level
+                          - confidence: Confidence value
+        
+        Returns:
+            Configured MockConsensusDetector
+        """
+        level_val = driver_config.level
+        if isinstance(level_val, ConsensusLevel):
+            level = level_val
+        else:
+            s = str(level_val).strip().lower().replace("-", "_").replace(" ", "_")
+            try:
+                level = ConsensusLevel[s.upper()]
+            except KeyError:
+                raise ValueError(f"Invalid consensus level: {level_val}")
+
+        confidence = driver_config.confidence
+        return cls(level=level, confidence=confidence)
 
     def detect(self, thread: Thread) -> ConsensusSignal:
         """Return predefined consensus signal."""
@@ -299,6 +351,19 @@ class MLConsensusDetector(ConsensusDetector):
         self.model = None
         # TODO: Load model when implemented
 
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "MLConsensusDetector":
+        """Create ML detector from configuration.
+        
+        Args:
+            driver_config: Configuration object with attribute:
+                          - model_path: Path to ML model
+        
+        Returns:
+            Configured MLConsensusDetector
+        """
+        return cls(driver_config.model_path)
+
     def detect(self, thread: Thread) -> ConsensusSignal:
         """Detect consensus using ML model.
 
@@ -311,35 +376,40 @@ class MLConsensusDetector(ConsensusDetector):
         )
 
 
-def create_consensus_detector(detector_type: str | None = None) -> ConsensusDetector:
-    """Factory method to create consensus detector based on configuration.
+def create_consensus_detector(driver_name: str, driver_config: DriverConfig) -> ConsensusDetector:
+    """Create a consensus detector from DriverConfig.
 
     Args:
-        detector_type: Type of detector to create. Can be:
-            - "heuristic": HeuristicConsensusDetector (default)
-            - "mock": MockConsensusDetector
-            - "ml": MLConsensusDetector
-            If None, checks CONSENSUS_DETECTOR_TYPE environment variable.
+        driver_name: Detector type ("heuristic", "mock", "ml")
+        driver_config: DriverConfig object for the selected detector
 
     Returns:
-        Instance of the requested ConsensusDetector
+        ConsensusDetector instance
 
     Raises:
-        ValueError: If unknown detector type is specified
+        ValueError: If driver_name is unknown
     """
-    if detector_type is None:
-        detector_type = os.environ.get("CONSENSUS_DETECTOR_TYPE", "heuristic")
+    if not driver_name:
+        raise ValueError(
+            "driver_name parameter is required. "
+            "Must be one of: heuristic, mock, ml"
+        )
 
-    detector_type = detector_type.lower()
+    if not isinstance(driver_config, DriverConfig):
+        raise TypeError(
+            "driver_config must be a DriverConfig instance"
+        )
 
-    if detector_type == "heuristic":
-        return HeuristicConsensusDetector()
-    elif detector_type == "mock":
-        return MockConsensusDetector()
-    elif detector_type == "ml":
-        return MLConsensusDetector()
+    name = str(driver_name).lower()
+
+    if name == "heuristic":
+        return HeuristicConsensusDetector.from_config(driver_config)
+    elif name == "mock":
+        return MockConsensusDetector.from_config(driver_config)
+    elif name == "ml":
+        return MLConsensusDetector.from_config(driver_config)
     else:
         raise ValueError(
-            f"Unknown consensus detector type: {detector_type}. "
+            f"Unknown consensus detector driver: {driver_name}. "
             f"Valid types are: heuristic, mock, ml"
         )

@@ -9,8 +9,8 @@ import time
 from datetime import datetime, timezone
 from typing import Any
 
-from copilot_archive_store import ArchiveStore, create_archive_store
-from copilot_events import (
+from copilot_archive_store import ArchiveStore
+from copilot_message_bus import (
     ArchiveIngestedEvent,
     EventPublisher,
     EventSubscriber,
@@ -18,8 +18,9 @@ from copilot_events import (
     ParsingFailedEvent,
 )
 from copilot_logging import create_logger
+from copilot_config import load_driver_config
 from copilot_metrics import MetricsCollector
-from copilot_reporting import ErrorReporter
+from copilot_error_reporting import ErrorReporter
 from copilot_schema_validation import generate_message_doc_id
 from copilot_storage import DocumentStore
 from copilot_storage.validating_document_store import DocumentValidationError
@@ -27,9 +28,10 @@ from pymongo.errors import DuplicateKeyError
 
 from .parser import MessageParser
 from .thread_builder import ThreadBuilder
+from . import __version__
 
-logger = create_logger(name="parsing")
-
+logger_config = load_driver_config(service=None, adapter="logger", driver="stdout", fields={"name": "parsing", "level": "INFO"})
+logger = create_logger("stdout", logger_config)
 
 class ParsingService:
     """Main parsing service for converting mbox archives to structured JSON."""
@@ -42,7 +44,6 @@ class ParsingService:
         metrics_collector: MetricsCollector | None = None,
         error_reporter: ErrorReporter | None = None,
         archive_store: ArchiveStore | None = None,
-        archive_store_type: str = None,
     ):
         """Initialize parsing service.
 
@@ -52,47 +53,16 @@ class ParsingService:
             subscriber: Event subscriber for consuming events
             metrics_collector: Metrics collector (optional)
             error_reporter: Error reporter (optional)
-            archive_store: Archive store for retrieving raw archives (optional, will be created if None)
-            archive_store_type: Type of archive store to create if archive_store is None
-                               (defaults to ARCHIVE_STORE_TYPE env var or "local")
+            archive_store: Archive store for retrieving raw archives (required)
         """
         self.document_store = document_store
         self.publisher = publisher
         self.subscriber = subscriber
         self.metrics_collector = metrics_collector
         self.error_reporter = error_reporter
-
-        # Initialize ArchiveStore
         if archive_store is None:
-            try:
-                if archive_store_type is None:
-                    archive_store_type = os.getenv("ARCHIVE_STORE_TYPE", "local")
-
-                # Get base path for local backend
-                archive_store_base_path = os.getenv("ARCHIVE_STORE_PATH", "/data/raw_archives")
-
-                self.archive_store = create_archive_store(
-                    store_type=archive_store_type,
-                    base_path=archive_store_base_path,
-                )
-                logger.info(
-                    "Initialized ArchiveStore",
-                    store_type=archive_store_type,
-                    base_path=archive_store_base_path,
-                )
-            except Exception as e:
-                logger.error("Failed to initialize ArchiveStore", error=str(e), exc_info=True)
-                if error_reporter:
-                    error_reporter.report(
-                        e,
-                        context={
-                            "operation": "initialize_archive_store",
-                            "store_type": archive_store_type,
-                        }
-                    )
-                raise
-        else:
-            self.archive_store = archive_store
+            raise ValueError("archive_store is required and must be provided by the caller")
+        self.archive_store = archive_store
 
         # Create parser and thread builder
         self.parser = MessageParser()

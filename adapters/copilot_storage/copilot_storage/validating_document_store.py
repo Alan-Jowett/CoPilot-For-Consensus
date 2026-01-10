@@ -217,6 +217,29 @@ class ValidatingDocumentStore(DocumentStore):
 
         return doc
 
+    def set_query_wrapper(self, wrapper_fn: callable) -> None:
+        """Wrap the query_documents method with custom logic.
+
+        Allows tests or extensions to customize query behavior without
+        accessing private attributes. The wrapper receives the original
+        query method and should return a callable with the same signature.
+
+        Example:
+            >>> def custom_query_wrapper(original_query):
+            ...     def wrapped_query(collection, filter_dict, limit=100):
+            ...         # Custom logic here
+            ...         return original_query(collection, filter_dict, limit)
+            ...     return wrapped_query
+            >>>
+            >>> store.set_query_wrapper(custom_query_wrapper)
+
+        Args:
+            wrapper_fn: Function that takes the original query method and returns
+                       a wrapped version with the same signature
+        """
+        original_query = self._store.query_documents
+        self._store.query_documents = wrapper_fn(original_query)
+
     def query_documents(
         self, collection: str, filter_dict: dict[str, Any], limit: int = 100
     ) -> list[dict[str, Any]]:

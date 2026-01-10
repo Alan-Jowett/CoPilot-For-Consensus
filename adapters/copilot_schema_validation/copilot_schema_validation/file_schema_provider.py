@@ -15,21 +15,55 @@ from .schema_provider import SchemaProvider
 logger = logging.getLogger(__name__)
 
 
+def create_schema_provider(
+    schema_dir: Path | str | None = None,
+    schema_type: str = "events"
+) -> SchemaProvider:
+    """Create a schema provider instance.
+
+    Factory function that returns a SchemaProvider implementation.
+    This is the public API for obtaining schema providers.
+
+    Args:
+        schema_dir: Directory containing schema files. If None, defaults to
+                   docs/schemas/{schema_type} in the repository.
+        schema_type: Type of schemas to load ("events", "documents", "configs").
+                    Defaults to "events". Ignored if schema_dir is provided.
+
+    Returns:
+        A SchemaProvider instance (currently FileSchemaProvider)
+
+    Example:
+        >>> provider = create_schema_provider()  # events schemas
+        >>> schema = provider.get_schema("ArchiveIngested")
+        >>> doc_provider = create_schema_provider(schema_type="documents")
+        >>> doc_schema = doc_provider.get_schema("Message")
+    """
+    return FileSchemaProvider(schema_dir=schema_dir, schema_type=schema_type)
+
+
 class FileSchemaProvider(SchemaProvider):
     """Schema provider that loads schemas from JSON files on disk."""
 
-    def __init__(self, schema_dir: Path | None = None):
+    def __init__(
+        self,
+        schema_dir: Path | str | None = None,
+        schema_type: str = "events"
+    ):
         """Initialize the file-based schema provider.
 
         Args:
             schema_dir: Directory containing schema files. If None, defaults to
-                       the docs/schemas/events directory in the repository.
+                       docs/schemas/{schema_type} in the repository.
+            schema_type: Type of schemas to load ("events", "documents", "configs").
+                        Defaults to "events". Ignored if schema_dir is provided.
         """
         if schema_dir is None:
             # Default to repository schema location
             # Path: adapters/copilot_schema_validation/copilot_schema_validation/file_schema_provider.py
             # Go up 4 levels to reach repo root
-            schema_dir = Path(__file__).parent.parent.parent.parent / "docs" / "schemas" / "events"
+            repo_root = Path(__file__).parent.parent.parent.parent
+            schema_dir = repo_root / "docs" / "schemas" / schema_type
 
         self.schema_dir = Path(schema_dir)
         if not self.schema_dir.exists():

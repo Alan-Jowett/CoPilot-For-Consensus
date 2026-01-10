@@ -3,14 +3,15 @@
 
 """Azure Key Vault secret provider."""
 
+import logging
 import os
 
-from copilot_logging import create_logger
+from copilot_config import DriverConfig
 
 from .exceptions import SecretNotFoundError, SecretProviderError
 from .provider import SecretProvider
 
-logger = create_logger(logger_type="stdout", level="INFO", name="copilot_secrets.azurekeyvault")
+logger = logging.getLogger("copilot_secrets.azurekeyvault")
 
 
 class AzureKeyVaultProvider(SecretProvider):
@@ -25,15 +26,13 @@ class AzureKeyVaultProvider(SecretProvider):
     2. Environment variables (AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID)
     3. Azure CLI credentials (for local development)
 
-    Configuration via environment variables:
-    - AZURE_KEY_VAULT_NAME: Name of the Key Vault (e.g., "my-vault")
-    - AZURE_KEY_VAULT_URI: Full URI (e.g., "https://my-vault.vault.azure.net/")
-      If both are provided, URI takes precedence.
+    Configuration via driver_config:
+    - vault_url: Full Key Vault URL (e.g., "https://my-vault.vault.azure.net/")
+    - vault_name: Key Vault name (e.g., "my-vault") - used to construct URL if vault_url not provided
 
     Example:
-        >>> # Using vault name
-        >>> os.environ["AZURE_KEY_VAULT_NAME"] = "my-production-vault"
-        >>> provider = AzureKeyVaultProvider()
+        >>> # Using vault name via from_config
+        >>> provider = AzureKeyVaultProvider.from_config({"vault_name": "my-production-vault"})
         >>> api_key = provider.get_secret("api-key")
 
         >>> # Using full URI
@@ -51,13 +50,13 @@ class AzureKeyVaultProvider(SecretProvider):
 
         Args:
             vault_url: Full Azure Key Vault URL (e.g., "https://my-vault.vault.azure.net/")
-                      If not provided, uses AZURE_KEY_VAULT_URI environment variable
+                      Required if vault_name is not provided
             vault_name: Name of the Key Vault (e.g., "my-vault")
-                       If not provided, uses AZURE_KEY_VAULT_NAME environment variable
+                       Used to construct URL if vault_url is not provided
                        Ignored if vault_url is provided
 
         Raises:
-            SecretProviderError: If vault URL cannot be determined or authentication fails
+            SecretProviderError: If neither vault_url nor vault_name is provided, or if authentication fails
         """
         try:
             from azure.core.exceptions import AzureError, ClientAuthenticationError, ResourceNotFoundError
@@ -86,32 +85,46 @@ class AzureKeyVaultProvider(SecretProvider):
             # Catch other Azure SDK exceptions (network, service errors, etc.)
             raise SecretProviderError(f"Azure Key Vault client error: {e}") from e
 
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "AzureKeyVaultProvider":
+        """Create AzureKeyVaultProvider from driver_config.
+        
+        Args:
+            driver_config: DriverConfig instance with vault_url or vault_name attribute.
+                          At least one must be provided.
+            
+        Returns:
+            AzureKeyVaultProvider instance
+            
+        Raises:
+            AttributeError: If both vault_url and vault_name are missing
+        """
+        vault_url = getattr(driver_config, "vault_url", None)
+        vault_name = getattr(driver_config, "vault_name", None)
+        return cls(vault_url=vault_url, vault_name=vault_name)
+
     def close(self) -> None:
-        """Release any resources held by this provider."""
-        # Close the SecretClient first
-        client = getattr(self, "client", None)
-        if client is not None:
+        """Close the Azure Key Vault client and credential connections.
+        
+        Attempts to close both the SecretClient and DefaultAzureCredential.
+        Gracefully handles cases where close methods don't exist or raise exceptions.
+        """
+        # Close client if it has a close method
+        if hasattr(self.client, "close"):
             try:
-                close_method = getattr(client, "close", None)
-                if callable(close_method):
-                    close_method()
-            except (AttributeError, TypeError, RuntimeError):
-                # Suppress expected errors during cleanup
+                self.client.close()
+            except Exception:
+                # Suppress exceptions during cleanup
                 pass
 
-        # Then close the credential
-        credential = getattr(self, "_credential", None)
-        if credential is not None:
+        # Close credential if it has a close method
+        if hasattr(self._credential, "close"):
             try:
-                close_method = getattr(credential, "close", None)
-                if callable(close_method):
-                    close_method()
-            except (AttributeError, TypeError, RuntimeError):
-                # Suppress expected errors during cleanup to avoid impacting application shutdown
-                # AttributeError: close method not available
-                # TypeError: close is not callable
-                # RuntimeError: cleanup during shutdown
+                self._credential.close()
+            except Exception:
+                # Suppress exceptions during cleanup
                 pass
+
 
     def __del__(self) -> None:
         """Best-effort cleanup of underlying Azure credential when garbage collected."""
@@ -123,7 +136,7 @@ class AzureKeyVaultProvider(SecretProvider):
             pass
 
     def _determine_vault_url(self, vault_url: str | None, vault_name: str | None) -> str:
-        """Determine the vault URL from parameters or environment variables.
+        """Determine the vault URL from parameters.
 
         Args:
             vault_url: Explicitly provided vault URL
@@ -139,24 +152,13 @@ class AzureKeyVaultProvider(SecretProvider):
         if vault_url:
             return vault_url
 
-        # Priority 2: AZURE_KEY_VAULT_URI environment variable
-        env_uri = os.getenv("AZURE_KEY_VAULT_URI")
-        if env_uri:
-            return env_uri
-
-        # Priority 3: vault_name parameter
+        # Priority 2: vault_name parameter
         if vault_name:
             return f"https://{vault_name}.vault.azure.net/"
 
-        # Priority 4: AZURE_KEY_VAULT_NAME environment variable
-        env_name = os.getenv("AZURE_KEY_VAULT_NAME")
-        if env_name:
-            return f"https://{env_name}.vault.azure.net/"
-
         # No vault configuration found
         raise SecretProviderError(
-            "Azure Key Vault URL not configured. Provide vault_url parameter or set "
-            "AZURE_KEY_VAULT_URI or AZURE_KEY_VAULT_NAME environment variable"
+            "Azure Key Vault URL not configured. Provide vault_url or vault_name in driver_config."
         )
 
     @staticmethod
