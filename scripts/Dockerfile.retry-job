@@ -13,6 +13,9 @@ RUN python /app/adapters/scripts/install_adapters.py \
     copilot_storage \
     copilot_secrets
 
+# Copy schema files for copilot-config
+COPY docs/schemas/ /app/docs/schemas/
+
 # Install dependencies with pinned versions for security and reproducibility
 # Version notes:
 # - pymongo 4.8.0: Stable MongoDB driver with Python 3.11 support
