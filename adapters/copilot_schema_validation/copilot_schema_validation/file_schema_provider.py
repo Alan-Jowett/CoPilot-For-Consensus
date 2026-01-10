@@ -25,8 +25,9 @@ def create_schema_provider(
     This is the public API for obtaining schema providers.
 
     Args:
-        schema_dir: Directory containing schema files. If None, defaults to
-                   docs/schemas/{schema_type} in the repository.
+        schema_dir: Directory containing schema files as a Path object or string path.
+                   If a string is provided, it will be converted to a Path object.
+                   If None, defaults to docs/schemas/{schema_type} in the repository.
         schema_type: Type of schemas to load ("events", "documents", "configs").
                     Defaults to "events". Ignored if schema_dir is provided.
 
@@ -38,6 +39,8 @@ def create_schema_provider(
         >>> schema = provider.get_schema("ArchiveIngested")
         >>> doc_provider = create_schema_provider(schema_type="documents")
         >>> doc_schema = doc_provider.get_schema("Message")
+        >>> # String paths are automatically converted to Path objects
+        >>> custom_provider = create_schema_provider(schema_dir="/path/to/schemas")
     """
     return FileSchemaProvider(schema_dir=schema_dir, schema_type=schema_type)
 
@@ -53,8 +56,9 @@ class FileSchemaProvider(SchemaProvider):
         """Initialize the file-based schema provider.
 
         Args:
-            schema_dir: Directory containing schema files. If None, defaults to
-                       docs/schemas/{schema_type} in the repository.
+            schema_dir: Directory containing schema files as a Path object or string path.
+                       If a string is provided, it will be converted to a Path object internally.
+                       If None, defaults to docs/schemas/{schema_type} in the repository.
             schema_type: Type of schemas to load ("events", "documents", "configs").
                         Defaults to "events". Ignored if schema_dir is provided.
         """
