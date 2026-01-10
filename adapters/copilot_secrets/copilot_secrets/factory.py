@@ -15,42 +15,19 @@ from .provider import SecretProvider
 logger = logging.getLogger(__name__)
 
 
-class _DictConfig:
-    """Wrapper to allow attribute access on a dictionary or empty config.
-
-    This class intentionally accepts None and creates an empty config object.
-    This design allows graceful handling of cases where no configuration is
-    provided. Required field validation (e.g., vault_url, base_path) is the
-    responsibility of individual provider classes via their from_config()
-    methods, not this wrapper.
-
-    For providers that require specific configuration fields, those fields
-    will be validated when the provider's from_config() method accesses them.
-    """
-
-    def __init__(self, data: dict | None = None):
-        """Initialize with optional dictionary data.
-
-        Args:
-            data: Optional dictionary of configuration fields. If None or empty,
-                  creates an empty config object. Individual providers are
-                  responsible for validating required fields.
-        """
-        if data:
-            self.__dict__.update(data)
-
-
 def create_secret_provider(
     driver_name: str,
-    driver_config: DriverConfig | dict | None = None
+    driver_config: DriverConfig
 ) -> SecretProvider:
     """Create a secret provider based on driver type and configuration.
 
-    This factory accepts a DriverConfig object or a dictionary.
+    This factory requires a DriverConfig object to ensure consistent configuration
+    handling throughout the codebase. Configuration validation and defaults are
+    applied by the DriverConfig object before being passed to this factory.
 
     Args:
         driver_name: Type of provider to create ("local", "azure", "azurekeyvault")
-        driver_config: DriverConfig instance or dict with attributes:
+        driver_config: DriverConfig instance with provider-specific attributes:
                       - local: base_path (optional)
                       - azure/azurekeyvault: vault_url or vault_name (at least one required)
 
@@ -59,6 +36,7 @@ def create_secret_provider(
 
     Raises:
         SecretProviderError: If driver_name is unknown
+        SecretProviderError: If driver_config is not a DriverConfig instance
         AttributeError: If required config attributes are missing
     """
     if not driver_name:
@@ -67,13 +45,13 @@ def create_secret_provider(
             "Must be one of: local, azure, azurekeyvault"
         )
 
-    driver_lower = driver_name.lower()
+    if not isinstance(driver_config, DriverConfig):
+        raise SecretProviderError(
+            f"driver_config must be a DriverConfig instance, "
+            f"got {type(driver_config).__name__}"
+        )
 
-    # Wrap dict in a config object that allows attribute access
-    if isinstance(driver_config, dict):
-        driver_config = _DictConfig(driver_config)
-    elif driver_config is None:
-        driver_config = _DictConfig()
+    driver_lower = driver_name.lower()
 
     if driver_lower == "local":
         return LocalFileSecretProvider.from_config(driver_config)
