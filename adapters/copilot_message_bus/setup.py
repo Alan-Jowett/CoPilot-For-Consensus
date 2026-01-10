@@ -35,6 +35,7 @@ setup(
     python_requires=">=3.10",
     install_requires=[
         "pika>=1.3.0",  # RabbitMQ client
+        "copilot-config>=0.1.0",  # For DriverConfig
         "copilot-schema-validation>=0.1.0",  # Event models and validation
         "azure-servicebus>=7.11.0",  # Azure Service Bus client
         "azure-identity>=1.16.1",  # Azure authentication for managed identity
