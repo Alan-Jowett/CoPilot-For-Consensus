@@ -32,8 +32,8 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
 
     def __init__(
         self,
-        gateway: str | None = None,
-        job: str | None = None,
+        gateway: str,
+        job: str,
         grouping_key: dict[str, str] | None = None,
         **kwargs,
     ) -> None:
@@ -49,7 +49,6 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
 
         Raises:
             ImportError: If prometheus_client is not installed
-            ValueError: If gateway or job is not provided
         """
         if not PROMETHEUS_AVAILABLE:
             raise ImportError(
@@ -62,9 +61,6 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
 
         super().__init__(registry=registry, **kwargs)
 
-        if gateway is None:
-            raise ValueError("gateway parameter is required")
-        
         self.gateway = gateway
         if not self.gateway.startswith("http"):
             self.gateway = f"http://{self.gateway}"
