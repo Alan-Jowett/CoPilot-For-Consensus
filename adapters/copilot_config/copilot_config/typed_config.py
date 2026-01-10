@@ -181,13 +181,13 @@ def load_service_config(
             discriminant_info = adapter_schema_data.get("properties", {}).get("discriminant", {})
             is_required = discriminant_info.get("required", False)
             default_driver = discriminant_info.get("default")
-            
+
             if is_required and not default_driver:
                 raise ValueError(
                     f"Adapter {adapter_name} requires discriminant configuration: "
                     f"set environment variable {discriminant_env_var}"
                 )
-            
+
             if default_driver:
                 selected_driver = default_driver
             else:
@@ -222,7 +222,7 @@ def load_service_config(
 
         # Extract config from driver schema
         driver_config_dict = _extract_config_from_driver_schema(driver_schema_data, secret_provider)
-        
+
         # Also extract config from common properties in the adapter schema
         common_properties = adapter_schema_data.get("properties", {}).get("common", {}).get("properties", {})
         if common_properties:
@@ -233,13 +233,13 @@ def load_service_config(
             for key, value in common_config.items():
                 if key not in driver_config_dict:
                     driver_config_dict[key] = value
-        
+
         # Extract allowed keys from driver schema
         allowed_keys = set((driver_schema_data.get("properties") or {}).keys())
-        
+
         # Merge in common properties from adapter schema if they exist
         allowed_keys.update(common_properties.keys())
-        
+
         driver_config = DriverConfig(
             driver_name=selected_driver,
             config=driver_config_dict,

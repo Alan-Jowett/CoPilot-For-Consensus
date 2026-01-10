@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 def set_test_environment():
     """Set required environment variables for all chunking tests."""
     os.environ["SERVICE_VERSION"] = "0.1.0"
-    
+
     # Set discriminant types for adapters (use noop/inmemory for tests)
     os.environ["CHUNKER_TYPE"] = "token_window"
     os.environ["DOCUMENT_STORE_TYPE"] = "inmemory"
@@ -68,7 +68,7 @@ def document_store():
     # Create in-memory store via factory (already wrapped with validation)
     schema_dir = Path(__file__).parent.parent.parent / "docs" / "schemas" / "documents"
     schema_provider = create_schema_provider(schema_dir=schema_dir, schema_type="documents")
-    
+
     document_store = create_document_store(
         driver_name="inmemory",
         driver_config={"schema_provider": schema_provider},
@@ -79,7 +79,7 @@ def document_store():
     # Extend query_documents to support $in operator for tests
     # Store original method
     original_query = document_store.query_documents
-    
+
     def enhanced_query(collection, filter_dict, limit=100):
         """Query that supports MongoDB-style $in operator."""
         # Handle $in operator for _id
@@ -91,7 +91,7 @@ def document_store():
                     docs = original_query(collection, {"_id": doc_id}, limit)
                     results.extend(docs)
                 return results[:limit]
-        
+
         # Handle $in operator for message_doc_id
         if "message_doc_id" in filter_dict and isinstance(filter_dict["message_doc_id"], dict):
             if "$in" in filter_dict["message_doc_id"]:
@@ -101,10 +101,10 @@ def document_store():
                     docs = original_query(collection, {"message_doc_id": message_doc_id}, limit)
                     results.extend(docs)
                 return results[:limit]
-        
+
         # Default: use original query
         return original_query(collection, filter_dict, limit)
-    
+
     # Replace the query method on the document store
     document_store.query_documents = enhanced_query
 

@@ -31,23 +31,23 @@ class SilentLogger(Logger):
     @classmethod
     def from_config(cls, driver_config: DriverConfig) -> "SilentLogger":
         """Create a SilentLogger from driver configuration.
-        
+
         Args:
             driver_config: DriverConfig with level and name attributes.
                           Defaults are provided by the schema.
-        
+
         Returns:
             Configured SilentLogger instance
-        
+
         Raises:
             TypeError: If driver_config is not a DriverConfig instance
         """
         # Required field with schema default
         level = driver_config.level
-        
+
         # Optional field
         name = driver_config.name
-        
+
         return cls(level=level, name=name)
 
     def _log(self, level: str, message: str, **kwargs: Any) -> None:

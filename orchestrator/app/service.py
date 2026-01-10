@@ -96,25 +96,25 @@ class OrchestrationService:
             system_path = Path(self.system_prompt_path)
             if not system_path.exists():
                 raise FileNotFoundError(f"System prompt file not found: {self.system_prompt_path}")
-            
+
             with open(system_path, 'r', encoding='utf-8') as f:
                 self.system_prompt = f.read()
-            
+
             if not self.system_prompt.strip():
                 raise ValueError(f"System prompt file is empty: {self.system_prompt_path}")
-            
+
             logger.info(f"Loaded system prompt from {self.system_prompt_path}")
 
             user_path = Path(self.user_prompt_path)
             if not user_path.exists():
                 raise FileNotFoundError(f"User prompt file not found: {self.user_prompt_path}")
-            
+
             with open(user_path, 'r', encoding='utf-8') as f:
                 self.user_prompt = f.read()
-            
+
             if not self.user_prompt.strip():
                 raise ValueError(f"User prompt file is empty: {self.user_prompt_path}")
-            
+
             logger.info(f"Loaded user prompt from {self.user_prompt_path}")
 
         except (FileNotFoundError, ValueError) as e:

@@ -91,20 +91,20 @@ class AzureMonitorLogger(Logger):
     @classmethod
     def from_config(cls, driver_config: DriverConfig) -> "AzureMonitorLogger":
         """Create an AzureMonitorLogger from driver configuration.
-        
+
         Args:
             driver_config: DriverConfig with level, name, instrumentation_key, and console_log attributes.
                           Defaults are provided by the schema.
-        
+
         Returns:
             Configured AzureMonitorLogger instance
-        
+
         Raises:
             TypeError: If driver_config is not a DriverConfig instance
         """
         # Required field with schema default
         level = driver_config.level
-        
+
         # Optional fields
         name = driver_config.name
         instrumentation_key = driver_config.instrumentation_key

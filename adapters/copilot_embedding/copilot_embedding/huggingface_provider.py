@@ -57,17 +57,17 @@ class HuggingFaceEmbeddingProvider(EmbeddingProvider):
     @classmethod
     def from_config(cls, driver_config: DriverConfig) -> "HuggingFaceEmbeddingProvider":
         """Create provider from configuration.
-        
+
         Configuration defaults are defined in schema:
         docs/schemas/configs/adapters/drivers/embedding_backend/embedding_huggingface.json
-        
+
         Args:
             driver_config: Configuration object with attributes:
                           - model_name: Model name (required)
                           - device: Compute device (required)
                           - cache_dir: Cache directory (optional)
                           - max_length: Max token length (default: 512)
-        
+
         Returns:
             Configured HuggingFaceEmbeddingProvider
         """

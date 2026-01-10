@@ -18,10 +18,10 @@ from uuid import uuid4
 
 class DocumentStatus(str, Enum):
     """Processing status for documents to track forward progress.
-    
+
     This enum is used across multiple document collections (archives, messages,
     chunks, threads) to track processing state and enable retry logic.
-    
+
     Values:
         PENDING: Document is waiting to be processed
         PROCESSING: Document is currently being processed
@@ -424,7 +424,7 @@ class ArchiveMetadata:
         ingestion_started_at: When ingestion began (ISO 8601)
         ingestion_completed_at: When ingestion completed (ISO 8601)
         status: Status of ingestion ("success" or "failed")
-    
+
     Note:
         The file_path field represents the temporary location where the file was
         initially fetched, used for logging only. Archive retrieval uses archive_id

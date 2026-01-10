@@ -12,17 +12,17 @@ from copilot_archive_store.local_volume_archive_store import LocalVolumeArchiveS
 
 class MockDriverConfig:
     """Mock DriverConfig for testing."""
-    
+
     def __init__(self, driver_name: str, config: dict):
         self.driver_name = driver_name
         self._config = config
-    
+
     def __getattr__(self, name: str):
         """Support attribute access to config values."""
         if name.startswith('_'):
             raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
         return self._config.get(name)
-    
+
     def get(self, key, default=None):
         return self._config.get(key, default)
 
@@ -34,9 +34,9 @@ class TestArchiveStoreFactory:
         """Test factory call with DriverConfig object."""
         base_path = str(tmp_path / "archives")
         driver_config = MockDriverConfig("local", {"base_path": base_path})
-        
+
         store = create_archive_store("local", driver_config)
-        
+
         assert isinstance(store, LocalVolumeArchiveStore)
         assert str(store.base_path) == base_path
 
@@ -44,7 +44,7 @@ class TestArchiveStoreFactory:
         """Test local store with default base_path."""
         driver_config = MockDriverConfig("local", {})
         store = create_archive_store("local", driver_config)
-        
+
         assert isinstance(store, LocalVolumeArchiveStore)
         # Path comparison - normalize for cross-platform compatibility
         assert str(store.base_path).replace("\\", "/") == "/data/raw_archives"
@@ -73,7 +73,7 @@ class TestArchiveStoreFactory:
         # config = load_service_config("parsing")
         # archive_adapter = config.get_adapter("archive_store")
         # store = create_archive_store(archive_adapter.driver_name, archive_adapter.driver_config)
-        
+
         base_path = str(tmp_path / "test_archives")
         driver_config = MockDriverConfig(
             "local",
@@ -81,9 +81,9 @@ class TestArchiveStoreFactory:
                 "base_path": base_path,
             }
         )
-        
+
         # Factory call using new config model
         store = create_archive_store(driver_config.driver_name, driver_config)
-        
+
         assert isinstance(store, LocalVolumeArchiveStore)
         assert str(store.base_path) == base_path

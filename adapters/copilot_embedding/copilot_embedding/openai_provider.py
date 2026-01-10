@@ -58,9 +58,9 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
     @classmethod
     def from_config(cls, driver_config: DriverConfig):
         """Create provider from a DriverConfig.
-        
+
         Supports both OpenAI and Azure OpenAI backends. Uses Azure mode if api_base is provided.
-        
+
         Args:
             driver_config: DriverConfig containing:
                            - api_key: API key (required)
@@ -68,10 +68,10 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
                            - api_base: API endpoint (required for Azure)
                            - api_version: API version (optional, for Azure)
                            - deployment_name: Deployment name (optional, for Azure)
-        
+
         Returns:
             Configured OpenAIEmbeddingProvider
-        
+
         Raises:
             ValueError: If required attributes are missing
             TypeError: If driver_config is not a DriverConfig instance

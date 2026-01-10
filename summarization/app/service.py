@@ -412,10 +412,10 @@ class SummarizationService:
         """
         messages = context.get("messages", [])
         chunks = context.get("chunks", [])
-        
+
         # Extract message count
         message_count = len(messages)
-        
+
         # Extract participants (senders) from chunks if available
         participants = set()
         for chunk in chunks:
@@ -425,7 +425,7 @@ class SummarizationService:
             elif isinstance(sender, str):
                 participants.add(sender)
         participants_str = ", ".join(sorted(participants)) if participants else "Multiple participants"
-        
+
         # Extract draft mentions from chunks if available
         draft_mentions = set()
         for chunk in chunks:
@@ -433,7 +433,7 @@ class SummarizationService:
             if isinstance(mentions, list):
                 draft_mentions.update(mentions)
         draft_mentions_str = "\n".join(sorted(draft_mentions)) if draft_mentions else "No specific drafts mentioned"
-        
+
         # Extract date range from chunks if available
         dates = []
         for chunk in chunks:
@@ -446,14 +446,14 @@ class SummarizationService:
             date_range = f"{dates[0]} to {dates[-1]}"
         else:
             date_range = "Unknown"
-        
+
         # Format email chunks (all available messages, respecting natural chunking)
         email_chunks_text = "\n\n".join(
             f"Message {i+1}:\n{msg}" for i, msg in enumerate(messages)
         )
         if not email_chunks_text:
             email_chunks_text = "(No messages available)"
-        
+
         # Substitute placeholders with error handling for template mismatches
         allowed_placeholders = {
             "thread_id",
@@ -488,7 +488,7 @@ class SummarizationService:
             draft_mentions=draft_mentions_str,
             email_chunks=email_chunks_text,
         )
-        
+
         logger.debug(f"Substituted prompt template for thread {thread_id}")
         return substituted
 

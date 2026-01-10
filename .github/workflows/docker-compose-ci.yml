@@ -141,7 +141,7 @@ jobs:
         echo "Starting core infrastructure services in parallel..."
         docker compose up -d documentdb messagebus vectorstore ollama monitoring pushgateway loki
         echo "Waiting for services to become healthy..."
-        
+
         # Wait for each service with healthcheck to become healthy
         for service in documentdb messagebus vectorstore ollama monitoring pushgateway; do
           echo "Waiting for $service..."
@@ -152,7 +152,7 @@ jobs:
           }
           echo "✓ $service is healthy"
         done
-        
+
         # Wait for loki (no healthcheck, just needs to be Up)
         echo "Waiting for loki..."
         timeout 60s bash -c 'until docker compose ps loki --format "{{.Status}}" | grep -q "Up"; do sleep 3; done' || {
@@ -167,7 +167,7 @@ jobs:
       run: |
         echo "Starting dependent infrastructure services in parallel..."
         docker compose up -d mongodb-exporter promtail document-processing-exporter
-        
+
         # Wait for services to be Up (these have no healthchecks)
         for service in mongodb-exporter document-processing-exporter; do
           echo "Waiting for $service..."
@@ -178,7 +178,7 @@ jobs:
           }
           echo "✓ $service is running"
         done
-        
+
         # Wait for promtail (has healthcheck)
         echo "Waiting for promtail..."
         timeout 60s bash -c 'until docker compose ps promtail --format "{{.Status}}" | grep -q "(healthy)"; do sleep 3; done' || {
@@ -220,18 +220,18 @@ jobs:
         pid_vector=$!
         docker compose run --rm ollama-validate &
         pid_ollama=$!
-        
+
         # Wait for all validators to complete
         failed=0
         wait $pid_validate || { echo "❌ db-validate failed"; failed=1; }
         wait $pid_vector || { echo "❌ vectorstore-validate failed"; failed=1; }
         wait $pid_ollama || { echo "❌ ollama-validate failed"; failed=1; }
-        
+
         # Show logs for debugging
         docker compose logs db-validate --tail=20 || true
         docker compose logs vectorstore-validate --tail=20 || true
         docker compose logs ollama-validate --tail=20 || true
-        
+
         if [ $failed -eq 1 ]; then
           echo "❌ One or more validators failed"
           exit 1
@@ -261,7 +261,7 @@ jobs:
       run: |
         echo "Starting processing services in parallel..."
         docker compose up -d parsing chunking embedding summarization
-        
+
         # Wait for all processing services to become healthy
         for service in parsing chunking embedding summarization; do
           echo "Waiting for $service..."
@@ -279,7 +279,7 @@ jobs:
       run: |
         echo "Starting orchestrator and reporting services..."
         docker compose up -d orchestrator reporting
-        
+
         for service in orchestrator reporting; do
           echo "Waiting for $service..."
           timeout 120s bash -c "until docker compose ps $service --format '{{.Status}}' | grep -q '(healthy)'; do sleep 3; done" || {
@@ -296,7 +296,7 @@ jobs:
       run: |
         echo "Starting ui and ingestion services..."
         docker compose up -d ui ingestion
-        
+
         for service in ui ingestion; do
           echo "Waiting for $service..."
           timeout 120s bash -c "until docker compose ps $service --format '{{.Status}}' | grep -q '(healthy)'; do sleep 3; done" || {
@@ -443,7 +443,7 @@ jobs:
     - name: Test service health endpoints
       run: |
         echo "Testing service health endpoints via gateway..."
-        
+
         # Test gateway health
         echo "Testing gateway health..."
         if ! curl -k -f https://localhost/health 2>/dev/null; then
@@ -452,7 +452,7 @@ jobs:
           exit 1
         fi
         echo "✓ Gateway is healthy"
-        
+
         # Test reporting service
         echo "Testing reporting service..."
         if ! curl -k -f https://localhost/reporting/health 2>/dev/null; then
@@ -461,7 +461,7 @@ jobs:
           exit 1
         fi
         echo "✓ Reporting service is healthy"
-        
+
         # Test auth service
         echo "Testing auth service..."
         if ! curl -k -f https://localhost/auth/health 2>/dev/null; then
@@ -470,7 +470,7 @@ jobs:
           exit 1
         fi
         echo "✓ Auth service is healthy"
-        
+
         # Test UI service
         echo "Testing ui service..."
         if ! curl -k -f https://localhost/ui/ 2>/dev/null; then
@@ -479,7 +479,7 @@ jobs:
           exit 1
         fi
         echo "✓ UI service is accessible"
-        
+
         echo "✓ All service health checks passed"
 
     - name: Validate reports are generated (end-to-end)
@@ -493,7 +493,7 @@ jobs:
     - name: Test monitoring endpoints
       run: |
         echo "Testing monitoring services..."
-        
+
         # Test Grafana
         echo "Testing Grafana (via gateway)..."
         if ! curl -k -f https://localhost/grafana/api/health 2>/dev/null; then
@@ -501,7 +501,7 @@ jobs:
           exit 1
         fi
         echo "✓ Grafana is healthy"
-        
+
         # Test Prometheus
         echo "Testing Prometheus..."
         if ! curl -f http://localhost:9090/-/healthy 2>/dev/null; then
@@ -509,7 +509,7 @@ jobs:
           exit 1
         fi
         echo "✓ Prometheus is healthy"
-        
+
         # Test Loki (may take longer to be ready, so retry with timeout)
         echo "Testing Loki..."
         max_attempts=30
@@ -523,12 +523,12 @@ jobs:
           sleep 5
           attempt=$((attempt + 1))
         done
-        
+
         if [ $attempt -gt $max_attempts ]; then
           echo "❌ Loki failed to become ready after $max_attempts attempts"
           exit 1
         fi
-        
+
         echo "✓ All monitoring endpoints are healthy"
 
     - name: View service logs

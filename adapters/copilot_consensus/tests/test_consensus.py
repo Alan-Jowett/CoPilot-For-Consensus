@@ -350,7 +350,7 @@ class TestConsensusDetectorFactory:
         )
         config_mock = _driver_config("mock", {"level": "consensus", "confidence": 0.8})
         config_ml = _driver_config("ml", {"model_path": None})
-        
+
         detector1 = create_consensus_detector("HEURISTIC", config_heuristic)
         detector2 = create_consensus_detector("Mock", config_mock)
         detector3 = create_consensus_detector("Ml", config_ml)

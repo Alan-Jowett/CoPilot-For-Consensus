@@ -51,19 +51,19 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
     @classmethod
     def from_config(cls, driver_config: DriverConfig):
         """Create provider from configuration.
-        
+
         Configuration defaults are defined in schema:
         docs/schemas/configs/adapters/drivers/embedding_backend/sentencetransformers.json
-        
+
         Args:
             driver_config: Configuration object with attributes:
                           - model_name: Model name
                           - device: Compute device (cpu or cuda)
                           - cache_dir: Cache directory (optional)
-        
+
         Returns:
             Configured SentenceTransformerEmbeddingProvider
-        
+
         Raises:
             ValueError: If required attributes are missing
         """

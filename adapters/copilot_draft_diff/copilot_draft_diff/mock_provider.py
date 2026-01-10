@@ -36,15 +36,15 @@ class MockDiffProvider(DraftDiffProvider):
     @classmethod
     def from_config(cls, driver_config):
         """Create provider from configuration.
-        
+
         Configuration defaults are defined in schema:
         docs/schemas/configs/adapters/drivers/draft_diff_provider/mock.json
-        
+
         Args:
             driver_config: Configuration object with attributes:
                           - mock_diffs: Mock diffs mapping (optional)
                           - default_format: Default format
-        
+
         Returns:
             Configured MockDraftDiffProvider
         """

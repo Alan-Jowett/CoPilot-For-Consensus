@@ -700,7 +700,7 @@ class ParsingService:
             "retry_count": 0,
             "failed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
-        
+
         # Only include file_path if provided (local filesystem storage)
         if file_path is not None:
             event_data["file_path"] = file_path

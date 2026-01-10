@@ -422,7 +422,7 @@ The system includes an authentication service that supports GitHub, Google, and 
           ```
        2. Edit the copied files and replace the placeholder values with your actual Microsoft OAuth credentials
        3. Save the files
-   
+
    - **Azure Deployment (Automated)**: When deploying to Azure, Microsoft OAuth can be automatically configured. See [infra/azure/ENTRA_APP_AUTOMATION.md](infra/azure/ENTRA_APP_AUTOMATION.md) for details. The Bicep template will:
      - Automatically create the Entra app registration
      - Configure redirect URIs based on your deployed gateway

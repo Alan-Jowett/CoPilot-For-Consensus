@@ -12,7 +12,7 @@ import pytest
 def set_test_environment():
     """Set required environment variables for all auth tests."""
     os.environ["SERVICE_VERSION"] = "0.1.0"
-    
+
     # Set discriminant types for adapters (use noop/local for tests)
     os.environ["METRICS_TYPE"] = "noop"
     os.environ["DOCUMENT_STORE_TYPE"] = "mongodb"

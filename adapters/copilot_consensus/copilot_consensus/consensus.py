@@ -130,16 +130,16 @@ class HeuristicConsensusDetector(ConsensusDetector):
     @classmethod
     def from_config(cls, driver_config: DriverConfig) -> "HeuristicConsensusDetector":
         """Create detector from configuration.
-        
+
         Configuration defaults are defined in schema:
         docs/schemas/configs/adapters/drivers/consensus_detector/heuristic.json
-        
+
         Args:
             driver_config: Configuration object with attributes:
                           - agreement_threshold: Threshold for consensus (int)
                           - min_participants: Minimum participants needed (int)
                           - stagnation_days: Days before stagnation (int)
-        
+
         Returns:
             Configured HeuristicConsensusDetector
         """
@@ -295,15 +295,15 @@ class MockConsensusDetector(ConsensusDetector):
     @classmethod
     def from_config(cls, driver_config: DriverConfig) -> "MockConsensusDetector":
         """Create mock detector from configuration.
-        
+
         Configuration defaults are defined in schema:
         docs/schemas/configs/adapters/drivers/consensus_detector/mock.json
-        
+
         Args:
             driver_config: Configuration object with attributes:
                           - level: Consensus level
                           - confidence: Confidence value
-        
+
         Returns:
             Configured MockConsensusDetector
         """
@@ -354,11 +354,11 @@ class MLConsensusDetector(ConsensusDetector):
     @classmethod
     def from_config(cls, driver_config: DriverConfig) -> "MLConsensusDetector":
         """Create ML detector from configuration.
-        
+
         Args:
             driver_config: Configuration object with attribute:
                           - model_path: Path to ML model
-        
+
         Returns:
             Configured MLConsensusDetector
         """

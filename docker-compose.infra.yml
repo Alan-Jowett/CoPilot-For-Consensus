@@ -26,7 +26,7 @@ services:
         set -e
         MONGO_USER="$(cat /run/secrets/mongodb_user)"
         MONGO_PASS="$(cat /run/secrets/mongodb_password)"
-        
+
         # Retry logic to handle timing issues after healthcheck passes
         max_attempts=5
         attempt=1
@@ -101,12 +101,12 @@ services:
     environment:
       - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-http://localhost:8080/grafana/}
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
-      
+
       # SSO Rollback: Disable JWT-based authentication for Grafana
       # (Dec 29, 2025) Temporarily rely on local admin credentials
       # until a robust auth_proxy/cookie-based approach is implemented.
       # NOTE: All GF_AUTH_JWT_* variables removed as part of rollback.
-      
+
       # User account defaults
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_USERS_AUTO_ASSIGN_ORG=true

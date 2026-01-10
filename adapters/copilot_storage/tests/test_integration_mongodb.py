@@ -35,7 +35,7 @@ def get_mongodb_config():
 
 def get_underlying_database(store):
     """Get the underlying MongoDB database from a ValidatingDocumentStore.
-    
+
     This is used for test cleanup only. In production, tests should not
     access driver-specific implementation details.
     """
@@ -368,7 +368,7 @@ class TestValidationAtAdapterLayer:
         db = get_underlying_database(mongodb_store)
         if db is None:
             pytest.skip("Could not access underlying MongoDB database")
-        
+
         collection_infos = list(db.list_collections(
             filter={"name": clean_collection}
         ))

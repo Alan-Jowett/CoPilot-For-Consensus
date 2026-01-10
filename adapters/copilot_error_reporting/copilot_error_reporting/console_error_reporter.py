@@ -32,10 +32,10 @@ class ConsoleErrorReporter(ErrorReporter):
     @classmethod
     def from_config(cls, config: DriverConfig) -> "ConsoleErrorReporter":
         """Create ConsoleErrorReporter from DriverConfig.
-        
+
         Args:
             config: DriverConfig with optional logger_name attribute.
-        
+
         Returns:
             ConsoleErrorReporter instance
         """

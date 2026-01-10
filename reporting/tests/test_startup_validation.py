@@ -168,16 +168,16 @@ def test_service_allows_noop_publisher_failure():
                                         config.notify_enabled = False
                                         config.notify_webhook_url = None
                                         config.webhook_summary_max_length = 500
-                                        
+
                                         # Setup adapter mocks using adapter pattern
                                         message_bus_adapter = Mock()
                                         message_bus_adapter.driver_name = "noop"
                                         message_bus_adapter.driver_config.config = {}
-                                        
+
                                         document_store_adapter = Mock()
                                         document_store_adapter.driver_name = "inmemory"
                                         document_store_adapter.driver_config.config = {}
-                                        
+
                                         def get_adapter_side_effect(name):
                                             if name == "message_bus":
                                                 return message_bus_adapter
@@ -186,7 +186,7 @@ def test_service_allows_noop_publisher_failure():
                                             elif name in ("vector_store", "embedding_provider", "metrics"):
                                                 return None
                                             return None
-                                        
+
                                         config.get_adapter = Mock(side_effect=get_adapter_side_effect)
                                         mock_config.return_value = config
 

@@ -26,17 +26,17 @@ class MockEmbeddingProvider(EmbeddingProvider):
     @classmethod
     def from_config(cls, driver_config: DriverConfig) -> "MockEmbeddingProvider":
         """Create provider from configuration.
-        
+
         Configuration defaults are defined in schema:
         docs/schemas/configs/adapters/drivers/embedding_backend/mock.json
-        
+
         Args:
             driver_config: Configuration object with attribute:
                           - dimension: Embedding dimension
-        
+
         Returns:
             Configured MockEmbeddingProvider
-        
+
         Raises:
             ValueError: If dimension is missing or invalid
         """

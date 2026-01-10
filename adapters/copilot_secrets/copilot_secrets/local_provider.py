@@ -56,14 +56,14 @@ class LocalFileSecretProvider(SecretProvider):
     @classmethod
     def from_config(cls, driver_config: DriverConfig) -> "LocalFileSecretProvider":
         """Create LocalFileSecretProvider from driver_config.
-        
+
         Args:
             driver_config: DriverConfig instance with base_path attribute.
                           Value must be provided (no default).
-            
+
         Returns:
             LocalFileSecretProvider instance
-            
+
         Raises:
             AttributeError: If base_path attribute is missing
         """

@@ -15,13 +15,13 @@ def _get_service_schema(service: str, schema_dir: str | None = None) -> tuple[di
     """Load service schema and return (schema_dict, schema_path)."""
     schema_dir_path = _resolve_schema_directory(schema_dir)
     service_schema_path = os.path.join(schema_dir_path, "services", f"{service}.json")
-    
+
     if not os.path.exists(service_schema_path):
         raise FileNotFoundError(f"Service schema not found: {service_schema_path}")
-    
+
     with open(service_schema_path) as f:
         service_schema = json.load(f)
-    
+
     return service_schema, service_schema_path
 
 
@@ -31,24 +31,24 @@ def _get_adapter_schema(
     schema_dir: str | None = None,
 ) -> tuple[dict[str, Any], str]:
     """Load adapter schema by following reference from service schema.
-    
+
     Returns (adapter_schema_dict, adapter_schema_path).
     If service is None, loads adapter schema directly from adapters/ directory.
     Otherwise validates that the service declares this adapter.
     """
     schema_dir_path = _resolve_schema_directory(schema_dir)
-    
+
     # If no service specified, load adapter schema directly
     if service is None:
         adapter_schema_path = os.path.join(schema_dir_path, "adapters", f"{adapter}.json")
         if not os.path.exists(adapter_schema_path):
             raise FileNotFoundError(f"Adapter schema not found: {adapter_schema_path}")
-        
+
         with open(adapter_schema_path) as f:
             adapter_schema = json.load(f)
-        
+
         return adapter_schema, adapter_schema_path
-    
+
     # Otherwise validate via service schema
     service_schema, _ = _get_service_schema(service, schema_dir)
 
@@ -66,18 +66,18 @@ def _get_adapter_schema(
             f"Service '{service}' does not declare adapter '{adapter}'. "
             f"Available adapters: {sorted(service_adapters.keys())}"
         )
-    
+
     adapter_ref = service_adapters[adapter].get("$ref")
     if not adapter_ref:
         raise ValueError(f"Adapter '{adapter}' has no schema reference in service schema")
-    
+
     adapter_schema_path = os.path.join(schema_dir_path, adapter_ref.lstrip("../"))
     if not os.path.exists(adapter_schema_path):
         raise FileNotFoundError(f"Adapter schema not found: {adapter_schema_path}")
-    
+
     with open(adapter_schema_path) as f:
         adapter_schema = json.load(f)
-    
+
     return adapter_schema, adapter_schema_path
 
 
@@ -88,34 +88,34 @@ def _get_driver_schema(
     schema_dir: str | None = None,
 ) -> tuple[dict[str, Any], str]:
     """Load driver schema by following references from service -> adapter -> driver.
-    
+
     Returns (driver_schema_dict, driver_schema_path).
     If service is None, skips service validation.
     Validates that the adapter supports this driver.
     """
     adapter_schema, adapter_schema_path = _get_adapter_schema(service, adapter, schema_dir)
-    
+
     drivers_section = adapter_schema.get("properties", {}).get("drivers", {}).get("properties", {})
     if driver not in drivers_section:
         raise ValueError(
             f"Adapter '{adapter}' does not support driver '{driver}'. "
             f"Supported drivers: {sorted(drivers_section.keys())}"
         )
-    
+
     driver_ref = drivers_section[driver].get("$ref")
     if not driver_ref:
         raise ValueError(f"Driver '{driver}' has no schema reference in adapter schema")
-    
+
     driver_schema_path = os.path.join(
         os.path.dirname(adapter_schema_path),
         driver_ref.lstrip("./"),
     )
     if not os.path.exists(driver_schema_path):
         raise FileNotFoundError(f"Driver schema not found: {driver_schema_path}")
-    
+
     with open(driver_schema_path) as f:
         driver_schema = json.load(f)
-    
+
     return driver_schema, driver_schema_path
 
 
@@ -136,7 +136,7 @@ def load_driver_config(
     4. Creates a DriverConfig with schema-validated allowed_keys
 
     Args:
-        service: Optional service name (e.g., "chunking", "embedding"). 
+        service: Optional service name (e.g., "chunking", "embedding").
                 If None, skips service schema validation and loads adapter directly.
         adapter: Adapter type (e.g., "message_bus", "document_store", "logger")
         driver: Driver name (e.g., "rabbitmq", "mongodb", "stdout")
@@ -161,14 +161,14 @@ def load_driver_config(
 
     # Load driver schema (also validates service/adapter/driver exist)
     driver_schema, _ = _get_driver_schema(service, adapter, driver, schema_dir)
-    
+
     # Also load adapter schema to get common properties
     adapter_schema, _ = _get_adapter_schema(service, adapter, schema_dir)
 
     # Extract allowed keys from driver schema
     schema_properties: dict[str, Any] = driver_schema.get("properties") or {}
     allowed_keys = set(schema_properties.keys())
-    
+
     # Merge in common properties from adapter schema if they exist
     common_properties: dict[str, Any] = adapter_schema.get("properties", {}).get("common", {}).get("properties", {})
     schema_properties.update(common_properties)

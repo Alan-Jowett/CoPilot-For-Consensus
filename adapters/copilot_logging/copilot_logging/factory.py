@@ -67,19 +67,19 @@ def create_stdout_logger(
     name: str | None = None
 ) -> StdoutLogger:
     """Create a stdout logger for early initialization before config is loaded.
-    
+
     This is a convenience function for services that need logging before
     their configuration system is fully initialized. It uses the same
     DriverConfig-based factory path as other loggers to ensure consistent
     initialization behavior.
-    
+
     Args:
         level: Logging level (DEBUG, INFO, WARNING, ERROR). Defaults to INFO.
         name: Optional logger name for identification.
-    
+
     Returns:
         StdoutLogger instance
-    
+
     Example:
         >>> from copilot_logging import create_stdout_logger
         >>> logger = create_stdout_logger(level="DEBUG", name="startup")

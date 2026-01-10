@@ -471,10 +471,10 @@ class TestSecretNameNormalization:
         mock_client.get_secret.return_value = mock_secret
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
-        
+
         # Request with underscores
         result = provider.get_secret("jwt_private_key")
-        
+
         # Verify it queries with hyphens
         mock_client.get_secret.assert_called_with("jwt-private-key")
         assert result == "test-value"
@@ -492,10 +492,10 @@ class TestSecretNameNormalization:
         mock_client.get_secret.return_value = mock_secret
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
-        
+
         # Check with underscores
         result = provider.secret_exists("message_bus_password")
-        
+
         # Verify it queries with hyphens
         mock_client.get_secret.assert_called_with("message-bus-password")
         assert result is True

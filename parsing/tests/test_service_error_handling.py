@@ -198,7 +198,7 @@ def test_store_threads_transient_errors_are_reraised(caplog):
 
 def test_store_messages_handles_none_from_field():
     """Test that messages with None 'from' field are handled gracefully.
-    
+
     This tests the fix for AttributeError when message["from"] is None.
     Previously, message.get("from", {}).get("email") would fail because
     .get(key, default) only returns default when key is missing, not when

@@ -60,14 +60,14 @@ async def lifespan(app: FastAPI):
     get_adapter = getattr(config, "get_adapter", None)
     if callable(get_adapter):
         logger_adapter = get_adapter("logger")
-    
+
     if logger_adapter is not None:
         logger = create_logger(
             driver_name=logger_adapter.driver_name,
             driver_config=logger_adapter.driver_config
         )
         logger.info("Logger initialized from service configuration")
-    
+
     # Initialize metrics from config
     metrics_adapter = None
     if callable(get_adapter):
@@ -280,7 +280,7 @@ async def callback(
                 "expires_in": auth_service.config.jwt_default_expiry,
             }
         )
-        
+
         # Set JWT as httpOnly cookie for SSO with browser navigation
         # - httpOnly: prevents XSS attacks (JavaScript cannot access)
         # - secure: requires HTTPS (read from environment, defaults to False for dev)
@@ -297,7 +297,7 @@ async def callback(
             path="/",
             max_age=auth_service.config.jwt_default_expiry,
         )
-        
+
         return response
 
     except ValueError as e:
@@ -313,26 +313,26 @@ async def callback(
 @app.post("/logout")
 async def logout() -> JSONResponse:
     """Logout endpoint that clears the auth cookie.
-    
+
     This endpoint clears the httpOnly cookie used for SSO integration.
     The UI should also clear localStorage.
-    
+
     Returns:
         Success message
     """
     global auth_service
-    
+
     if not auth_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     logger.info("Logout requested")
     metrics.increment("logout_total")
-    
+
     # Create response
     response = JSONResponse(
         content={"message": "Logged out successfully"}
     )
-    
+
     # Clear the auth cookie by setting it with max_age=0
     # Use same secure flag as when setting the cookie
     cookie_secure = getattr(auth_service.config, "cookie_secure", False)
@@ -342,7 +342,7 @@ async def logout() -> JSONResponse:
         samesite="lax",
         secure=cookie_secure,
     )
-    
+
     return response
 
 
@@ -399,7 +399,7 @@ def userinfo(request: Request) -> JSONResponse:
     else:
         # Try to get token from cookie
         token = request.cookies.get("auth_token")
-    
+
     if not token:
         raise HTTPException(status_code=401, detail="Missing authentication token")
 
@@ -462,12 +462,12 @@ def jwks() -> JSONResponse:
 @app.get("/.well-known/jwks.json")
 def well_known_jwks() -> JSONResponse:
     """Get JSON Web Key Set (JWKS) at standard OIDC discovery endpoint.
-    
+
     Standard OIDC endpoint that provides the keys needed to validate
     tokens signed by this auth service.
-    
+
     Format: https://tools.ietf.org/html/rfc7517
-    
+
     Returns:
         JWKS with public keys
     """
@@ -477,27 +477,27 @@ def well_known_jwks() -> JSONResponse:
 @app.get("/.well-known/public_key.pem")
 async def get_public_key() -> Response:
     """Expose public key for JWT validation by external services (e.g., Grafana).
-    
+
     Grafana will fetch this endpoint and use the public key to validate
     JWT tokens before auto-login.
-    
+
     Returns:
         Public key in PEM format
     """
     global auth_service
-    
+
     if not auth_service:
         raise HTTPException(status_code=503, detail="Service not initialized")
-    
+
     try:
         # Get public key from JWT manager
         public_key_pem = auth_service.jwt_manager.get_public_key_pem()
-        
+
         if not public_key_pem:
             raise HTTPException(status_code=404, detail="Public key not available")
-        
+
         metrics.increment("public_key_requests_total")
-        
+
         # Return as plain text with PEM content type
         return Response(
             content=public_key_pem,
@@ -909,7 +909,7 @@ async def revoke_user_roles(
 if __name__ == "__main__":
     # Load configuration
     config = load_auth_config()
-    
+
     # Run with uvicorn
     uvicorn.run(
         "main:app",

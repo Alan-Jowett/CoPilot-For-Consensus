@@ -77,7 +77,7 @@ class GitHubIdentityProvider(OIDCProvider):
         client_secret = driver_config.github_client_secret
         redirect_uri = driver_config.github_redirect_uri
         api_base_url = driver_config.github_api_base_url
-        
+
         return cls(
             client_id=client_id,
             client_secret=client_secret,

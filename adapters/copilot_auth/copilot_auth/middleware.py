@@ -135,12 +135,12 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 response = httpx.get(f"{self.auth_service_url}/keys", timeout=self.jwks_fetch_timeout)
                 response.raise_for_status()
                 jwks = response.json()
-                
+
                 # Thread-safe update of JWKS cache
                 with self._jwks_fetch_lock:
                     self.jwks = jwks
                     self.jwks_last_fetched = time.time()
-                
+
                 logger.info(
                     f"Successfully fetched JWKS from {self.auth_service_url}/keys "
                     f"({len(jwks.get('keys', []))} keys) on attempt {attempt}/{self.jwks_fetch_retries}"
@@ -246,7 +246,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
             if self._jwks_background_thread and self._jwks_background_thread.is_alive():
                 # Wait up to 5 seconds for background thread to complete
                 self._jwks_background_thread.join(timeout=5.0)
-            
+
             # If still not loaded after waiting, try one quick synchronous fetch
             if self.jwks is None:
                 logger.warning("Background JWKS fetch incomplete, attempting immediate fetch")
@@ -264,7 +264,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                         except Exception as e:
                             logger.error(f"Emergency JWKS fetch failed: {e}")
                             self.jwks = {"keys": []}
-        
+
         # Refresh cache if stale (periodic refresh for key rotation)
         self._fetch_jwks()
 

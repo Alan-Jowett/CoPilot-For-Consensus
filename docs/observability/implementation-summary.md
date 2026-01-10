@@ -6,7 +6,7 @@
 
 This document summarizes the comprehensive production-ready observability strategy implemented for Copilot-for-Consensus. The implementation establishes standards for metrics, logging, alerting, and distributed tracing, with a focus on actionable insights and operational excellence.
 
-**Date**: 2025-12-24  
+**Date**: 2025-12-24
 **Status**: Implemented (Dashboard updates and additional runbooks pending)
 
 ---
@@ -426,5 +426,5 @@ Submit improvements via:
 
 ## License
 
-SPDX-License-Identifier: MIT  
+SPDX-License-Identifier: MIT
 Copyright (c) 2025 Copilot-for-Consensus contributors

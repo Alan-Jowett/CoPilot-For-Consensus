@@ -670,7 +670,7 @@ class TestAzureCosmosDocumentStore:
         chunks = [
             {"id": "chunk1", "collection": "chunks", "message_key": "key1", "chunk_id": "c1"}
         ]
-        
+
         mock_container.query_items.side_effect = [messages, chunks]
 
         pipeline = [
@@ -688,11 +688,11 @@ class TestAzureCosmosDocumentStore:
         results = store.aggregate_documents("messages", pipeline)
         assert isinstance(results, list)
         assert len(results) == 2
-        
+
         # msg1 should have one chunk, msg2 should have empty chunks array
         msg1_result = [r for r in results if r["message_key"] == "key1"][0]
         msg2_result = [r for r in results if r["message_key"] == "key2"][0]
-        
+
         assert len(msg1_result["chunks"]) == 1
         assert msg1_result["chunks"][0]["chunk_id"] == "c1"
         assert len(msg2_result["chunks"]) == 0
@@ -720,7 +720,7 @@ class TestAzureCosmosDocumentStore:
             {"id": "chunk1", "collection": "chunks", "message_doc_id": "msg1"},
             {"id": "chunk2", "collection": "chunks", "message_doc_id": "msg1"}
         ]
-        
+
         mock_container.query_items.side_effect = [messages, chunks]
 
         # Pipeline that matches chunking service requeue logic
@@ -749,7 +749,7 @@ class TestAzureCosmosDocumentStore:
         ]
 
         results = store.aggregate_documents("messages", pipeline)
-        
+
         # Should find msg2 and msg3 (messages without chunks)
         assert len(results) == 2
         message_ids = [r["_id"] for r in results]
@@ -809,7 +809,7 @@ class TestAzureCosmosDocumentStore:
             {"id": "msg2", "collection": "messages", "user": {"name": "Bob", "email": "bob@example.com"}},
             {"id": "msg3", "collection": "messages", "user": {"name": "Alice", "email": "alice2@example.com"}}
         ]
-        
+
         # Pipeline with nested field match after $lookup
         pipeline = [
             {
@@ -831,7 +831,7 @@ class TestAzureCosmosDocumentStore:
         mock_container.query_items.side_effect = [messages, []]
 
         results = store.aggregate_documents("messages", pipeline)
-        
+
         # Should find only messages where user.name = "Alice"
         assert len(results) == 2
         for result in results:
@@ -970,7 +970,7 @@ class TestAzureCosmosDocumentStore:
 
         # Create a side effect that succeeds for first call, fails for second
         from azure.cosmos import exceptions as cosmos_exceptions
-        
+
         def query_side_effect(*args, **kwargs):
             if query_side_effect.call_count == 0:
                 query_side_effect.call_count += 1
@@ -980,7 +980,7 @@ class TestAzureCosmosDocumentStore:
                     status_code=500,
                     message="Internal server error"
                 )
-        
+
         query_side_effect.call_count = 0
         mock_container.query_items.side_effect = query_side_effect
 
@@ -994,7 +994,7 @@ class TestAzureCosmosDocumentStore:
                 }
             }
         ]
-        
+
         with pytest.raises(DocumentStoreError, match=r"Failed to query foreign collection.*during \$lookup"):
             store.aggregate_documents("messages", pipeline)
 

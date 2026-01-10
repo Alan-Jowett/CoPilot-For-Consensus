@@ -47,7 +47,7 @@ class DatatrackerIdentityProvider(IdentityProvider):
         api_base_url = driver_config.api_base_url
         if not api_base_url:
             raise ValueError("DatatrackerIdentityProvider requires 'api_base_url' in driver configuration")
-        
+
         return cls(api_base_url=api_base_url)
 
     def get_user(self, token: str) -> User | None:

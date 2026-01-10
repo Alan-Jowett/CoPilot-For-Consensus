@@ -54,7 +54,7 @@ def load_auth_config():
 
             private_key_path.write_text(config.jwt_private_key)
             logger.info("JWT private key loaded and written to temp file")
-            
+
             if hasattr(config, 'jwt_public_key') and config.jwt_public_key:
                 public_key_path.write_text(config.jwt_public_key)
                 logger.info("JWT public key loaded and written to temp file")

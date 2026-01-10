@@ -38,11 +38,11 @@ class SentryErrorReporter(ErrorReporter):
     @classmethod
     def from_config(cls, config: DriverConfig) -> "SentryErrorReporter":
         """Create a SentryErrorReporter from DriverConfig.
-        
+
         Args:
             config: DriverConfig with dsn and environment attributes.
                     Environment default is provided by the schema.
-        
+
         Returns:
             Configured SentryErrorReporter instance
         """

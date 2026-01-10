@@ -96,10 +96,10 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
 
 1. **`infra/azure/modules/identities.bicep`**
    - Added `identityClientIdsByName` output that provides client IDs for all service identities
-   
+
 2. **`infra/azure/main.bicep`**
    - Pass `identityClientIds` parameter to `containerAppsModule`
-   
+
 3. **`infra/azure/modules/containerapps.bicep`**
    - Added `identityClientIds` parameter
    - Set `AZURE_CLIENT_ID` environment variable for the auth service

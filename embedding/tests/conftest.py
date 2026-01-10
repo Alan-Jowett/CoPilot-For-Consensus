@@ -12,7 +12,7 @@ import pytest
 def set_test_environment():
     """Set required environment variables for all embedding tests."""
     os.environ["SERVICE_VERSION"] = "0.1.0"
-    
+
     # Set discriminant types for adapters (use noop/inmemory for tests)
     os.environ["DOCUMENT_STORE_TYPE"] = "inmemory"
     os.environ["EMBEDDING_BACKEND_TYPE"] = "mock"

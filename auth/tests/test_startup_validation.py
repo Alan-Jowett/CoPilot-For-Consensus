@@ -64,7 +64,7 @@ def test_service_starts_with_valid_config():
         mock_auth_config.jwt_access_token_expire_minutes = 30
         mock_auth_config.providers = []
         mock_config.return_value = mock_auth_config
-        
+
         # Just verify imports work - auth service doesn't use standard document_store pattern
         import main as auth_main
         assert auth_main is not None

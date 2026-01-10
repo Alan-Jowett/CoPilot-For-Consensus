@@ -157,7 +157,7 @@ class AzureBlobArchiveStore(ArchiveStore):
                         "azure-identity is required for managed identity authentication. "
                         "Install with: pip install azure-identity"
                     ) from e
-                
+
                 account_url = f"https://{self.account_name}.blob.core.windows.net"
                 credential = DefaultAzureCredential()
                 self.blob_service_client = BlobServiceClient(
@@ -219,19 +219,19 @@ class AzureBlobArchiveStore(ArchiveStore):
         # Extract authentication settings (one of these must be present)
         connection_string = driver_config.connection_string
         account_name = driver_config.account_name
-        
+
         if not connection_string and not account_name:
             raise ValueError(
                 "AzureBlobArchiveStore requires either 'connection_string' or 'account_name' "
                 "in driver configuration"
             )
-        
+
         # Extract optional credentials and container settings
         account_key = driver_config.account_key
         sas_token = driver_config.sas_token
         container_name = driver_config.container_name or "raw-archives"
         prefix = driver_config.prefix
-        
+
         return cls(
             connection_string=connection_string,
             account_name=account_name,

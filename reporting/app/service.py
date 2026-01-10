@@ -501,15 +501,15 @@ class ReportingService:
                 if message_start_date is not None or message_end_date is not None:
                     first_msg_date = thread.get("first_message_date")
                     last_msg_date = thread.get("last_message_date")
-                    
+
                     # Skip threads without date information
                     if not first_msg_date or not last_msg_date:
                         continue
-                    
+
                     # Check overlap condition
                     if message_end_date is not None and first_msg_date > message_end_date:
                         continue  # Thread starts after filter range ends
-                    
+
                     if message_start_date is not None and last_msg_date < message_start_date:
                         continue  # Thread ends before filter range starts
 

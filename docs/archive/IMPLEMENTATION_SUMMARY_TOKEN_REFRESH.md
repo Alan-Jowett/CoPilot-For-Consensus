@@ -32,7 +32,7 @@ if (response.status === 403) {
   const attemptedRefresh = (options as any)._attemptedRefresh === true
   const currentToken = localStorage.getItem('auth_token')
   const tokenAlreadyRefreshed = currentToken === lastRefreshToken && lastRefreshToken !== null
-  
+
   if (!attemptedRefresh && !tokenAlreadyRefreshed) {
     // Attempt refresh...
   }
@@ -98,29 +98,29 @@ Detailed manual testing guide including:
 ## Features Implemented
 
 ### Core Functionality
-✅ Automatic 403 detection  
-✅ Silent OAuth re-authentication  
-✅ Token refresh with updated claims  
-✅ Original page context preservation  
-✅ Query parameter preservation  
+✅ Automatic 403 detection
+✅ Silent OAuth re-authentication
+✅ Token refresh with updated claims
+✅ Original page context preservation
+✅ Query parameter preservation
 
 ### Loop Prevention
-✅ Per-request refresh blocking  
-✅ Cross-page refresh blocking  
-✅ Token comparison logic  
-✅ Clear error messages  
+✅ Per-request refresh blocking
+✅ Cross-page refresh blocking
+✅ Token comparison logic
+✅ Clear error messages
 
 ### User Experience
-✅ Seamless redirect flow  
-✅ No manual logout/login required  
-✅ No context loss  
-✅ Graceful fallback handling  
+✅ Seamless redirect flow
+✅ No manual logout/login required
+✅ No context loss
+✅ Graceful fallback handling
 
 ### Developer Experience
-✅ Comprehensive console logging  
-✅ Clear code comments  
-✅ Extensive documentation  
-✅ Testing guides provided  
+✅ Comprehensive console logging
+✅ Clear code comments
+✅ Extensive documentation
+✅ Testing guides provided
 
 ## Technical Details
 
@@ -141,7 +141,7 @@ Detailed manual testing guide including:
 ```
 First 403 with token A:
   lastRefreshToken = null → Trigger refresh, set lastRefreshToken = A
-  
+
 After OAuth:
   If new token B issued: currentToken ≠ lastRefreshToken → Allow future refresh
   If same token A issued: currentToken === lastRefreshToken → Block future refresh
@@ -166,10 +166,10 @@ After OAuth:
 
 ## Build Verification
 
-✅ **TypeScript Compilation:** Success  
-✅ **Vite Build:** Success (469.48 KB bundle, 143.94 KB gzip)  
-✅ **No Errors:** Build completed without errors  
-✅ **Assets Generated:** All files created correctly  
+✅ **TypeScript Compilation:** Success
+✅ **Vite Build:** Success (469.48 KB bundle, 143.94 KB gzip)
+✅ **No Errors:** Build completed without errors
+✅ **Assets Generated:** All files created correctly
 
 **Build Command:**
 ```bash
@@ -272,18 +272,18 @@ d512f6d Implement automatic token refresh on 403 responses
 
 All success criteria from the original issue have been met:
 
-✅ 403 responses detected automatically  
-✅ User experiences seamless redirect to OAuth  
-✅ No manual logout/login required  
-✅ Page context preserved (URL, query params)  
-✅ No infinite loops even if role still not granted  
-✅ Clear error shown if permission truly denied  
-✅ All edge cases handled gracefully  
-✅ Console logs aid debugging  
-✅ No TypeScript errors  
-✅ Consistent with existing code style  
-✅ Minimal surgical changes (92 lines of code)  
-✅ Comprehensive documentation provided  
+✅ 403 responses detected automatically
+✅ User experiences seamless redirect to OAuth
+✅ No manual logout/login required
+✅ Page context preserved (URL, query params)
+✅ No infinite loops even if role still not granted
+✅ Clear error shown if permission truly denied
+✅ All edge cases handled gracefully
+✅ Console logs aid debugging
+✅ No TypeScript errors
+✅ Consistent with existing code style
+✅ Minimal surgical changes (92 lines of code)
+✅ Comprehensive documentation provided
 
 ## Next Steps
 
@@ -303,8 +303,8 @@ All success criteria from the original issue have been met:
 
 ---
 
-**Implementation Date:** 2025-12-24  
-**Implementation Status:** Complete  
-**Build Status:** Passing  
-**Documentation Status:** Complete  
+**Implementation Date:** 2025-12-24
+**Implementation Status:** Complete
+**Build Status:** Passing
+**Documentation Status:** Complete
 **Ready for:** Manual Testing & Code Review

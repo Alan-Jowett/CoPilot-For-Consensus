@@ -63,14 +63,14 @@ class TestProviderInitialization:
         provider.exchange_code_for_token = MagicMock(
             return_value={"access_token": "token123", "id_token": "idtoken123"}
         )
-        
+
         # Mock user object
         user = MagicMock()
         user.sub = "user123"
         user.email = "user@example.com"
         user.name = "Test User"
         user.roles = []
-        
+
         provider.validate_and_get_user = MagicMock(return_value=user)
         return provider
 
@@ -79,7 +79,7 @@ class TestProviderInitialization:
         # Patch JWT and file operations
         monkeypatch.setattr(Path, "write_text", lambda self, content: None)
         monkeypatch.setattr(Path, "mkdir", lambda self, **kwargs: None)
-        
+
         class MockJWTManager:
             def __init__(self, **kwargs):
                 pass
@@ -113,7 +113,7 @@ class TestProviderInitialization:
         """Test initialization with Google provider configuration."""
         monkeypatch.setattr(Path, "write_text", lambda self, content: None)
         monkeypatch.setattr(Path, "mkdir", lambda self, **kwargs: None)
-        
+
         class MockJWTManager:
             def __init__(self, **kwargs):
                 pass
@@ -144,7 +144,7 @@ class TestProviderInitialization:
         """Test initialization with Microsoft provider configuration."""
         monkeypatch.setattr(Path, "write_text", lambda self, content: None)
         monkeypatch.setattr(Path, "mkdir", lambda self, **kwargs: None)
-        
+
         class MockJWTManager:
             def __init__(self, **kwargs):
                 pass
@@ -175,7 +175,7 @@ class TestProviderInitialization:
         """Test initialization with multiple providers configured."""
         monkeypatch.setattr(Path, "write_text", lambda self, content: None)
         monkeypatch.setattr(Path, "mkdir", lambda self, **kwargs: None)
-        
+
         class MockJWTManager:
             def __init__(self, **kwargs):
                 pass
@@ -219,7 +219,7 @@ class TestProviderInitialization:
         """Test that custom redirect URIs from config are preserved."""
         monkeypatch.setattr(Path, "write_text", lambda self, content: None)
         monkeypatch.setattr(Path, "mkdir", lambda self, **kwargs: None)
-        
+
         class MockJWTManager:
             def __init__(self, **kwargs):
                 pass
@@ -255,7 +255,7 @@ class TestProviderInitialization:
         """Test that service issuer is used as default redirect URI if not configured."""
         monkeypatch.setattr(Path, "write_text", lambda self, content: None)
         monkeypatch.setattr(Path, "mkdir", lambda self, **kwargs: None)
-        
+
         class MockJWTManager:
             def __init__(self, **kwargs):
                 pass
@@ -290,7 +290,7 @@ class TestProviderInitialization:
         """Test that provider initialization failures are caught and logged."""
         monkeypatch.setattr(Path, "write_text", lambda self, content: None)
         monkeypatch.setattr(Path, "mkdir", lambda self, **kwargs: None)
-        
+
         class MockJWTManager:
             def __init__(self, **kwargs):
                 pass
@@ -325,7 +325,7 @@ class TestProviderInitialization:
         """Test that create_identity_provider is called with correct driver_name and driver_config."""
         monkeypatch.setattr(Path, "write_text", lambda self, content: None)
         monkeypatch.setattr(Path, "mkdir", lambda self, **kwargs: None)
-        
+
         class MockJWTManager:
             def __init__(self, **kwargs):
                 pass
@@ -339,20 +339,20 @@ class TestProviderInitialization:
             "github_client_secret": "test_secret",
             "github_redirect_uri": "http://localhost:8090/callback",
         }
-        
+
         mock_config._oidc_adapter.driver_config.config = {
             "github": provider_config
         }
 
         with patch("app.service.create_identity_provider") as mock_create:
             mock_create.return_value = self._create_mock_identity_provider()
-            
+
             AuthService(config=mock_config)
 
             # Verify factory was called with driver_name and driver_config
             mock_create.assert_called()
             call_args = mock_create.call_args
-            
+
             # Check keyword arguments
             assert call_args.kwargs.get("driver_name") == "github"
             assert "driver_config" in call_args.kwargs

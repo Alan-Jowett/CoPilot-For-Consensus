@@ -163,7 +163,7 @@ class TestIngestionIntegration:
         publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
         publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
         publisher.connect()
-        
+
         # Create document store for deduplication
         store_config = load_driver_config(service=None, adapter="document_store", driver="inmemory", fields={})
         document_store = create_document_store(driver_name="inmemory", driver_config=store_config)
@@ -254,10 +254,10 @@ class TestIngestionIntegration:
         service2 = IngestionService(
             config, publisher2, document_store=document_store, archive_store=archive_store, logger=test_logger
         )
-        
+
         # Ingest again - should skip because hash exists in document store
         service2.ingest_all_enabled_sources()
-        
+
         # Should still have only the original archives (no duplicates)
         archives_after = document_store.query_documents("archives", {})
         assert len(archives_after) == len(archives)

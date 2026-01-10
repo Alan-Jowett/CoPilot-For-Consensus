@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 def _get_schema_provider() -> Any:
     """Load a schema provider for validation.
-    
+
     Returns:
         Schema provider instance.
 
@@ -77,7 +77,7 @@ def create_publisher(
             f"Unknown driver_name: {driver_name}. "
             "Supported: 'rabbitmq', 'azureservicebus', 'noop'"
         )
-    
+
     # Wrap in validating publisher if enabled
     if enable_validation:
         from .validating_publisher import ValidatingEventPublisher
@@ -87,7 +87,7 @@ def create_publisher(
             schema_provider=schema_provider,
             strict=strict_validation,
         )
-    
+
     return base_publisher
 
 
@@ -137,7 +137,7 @@ def create_subscriber(
             f"Unknown driver_name: {driver_name}. "
             "Supported: 'rabbitmq', 'azureservicebus', 'noop'"
         )
-    
+
     # Wrap in validating subscriber if enabled
     if enable_validation:
         from .validating_subscriber import ValidatingEventSubscriber
@@ -147,5 +147,5 @@ def create_subscriber(
             schema_provider=schema_provider,
             strict=strict_validation,
         )
-    
+
     return base_subscriber

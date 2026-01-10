@@ -94,7 +94,7 @@ def main():
         # Load configuration using schema-driven service config
         config = load_service_config("chunking")
         logger.info("Configuration loaded successfully")
-        
+
         # Replace bootstrap logger with config-based logger
         logger_adapter = config.get_adapter("logger")
         if logger_adapter is not None:

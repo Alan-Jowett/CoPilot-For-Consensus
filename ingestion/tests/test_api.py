@@ -32,7 +32,7 @@ def document_store():
 def service(document_store, tmp_path):
     """Create ingestion service for testing."""
     from .test_helpers import make_archive_store
-    
+
     config = make_config(
         sources=[],
         storage_path=str(tmp_path / "raw_archives"),

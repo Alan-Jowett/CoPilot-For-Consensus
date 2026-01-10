@@ -161,7 +161,7 @@ class IngestionService:
             metrics_config = load_driver_config(service=None, adapter="metrics", driver="noop", fields={})
             metrics = create_metrics_collector(driver_name="noop", driver_config=metrics_config)
         self.metrics = metrics
-        
+
         # Get storage path from config or use default (store as instance variable for use throughout service)
         self.storage_path = config.storage_path
         self._ensure_storage_path(self.storage_path)
@@ -214,7 +214,7 @@ class IngestionService:
 
         # Initialize archive metadata cache for performance optimization
         self._archive_metadata_cache: dict[str, dict[str, dict[str, Any]]] = {}
-        
+
         # Sources cache for dynamic source management from document store
         self._sources_cache: list[dict[str, Any]] | None = None
 
@@ -1044,7 +1044,7 @@ class IngestionService:
         # Try to load from document store cache first
         if self._sources_cache is None:
             self._reload_sources()
-        
+
         sources = self._sources_cache or []
 
         result = []
@@ -1322,7 +1322,7 @@ class IngestionService:
 
     def _reload_sources(self):
         """Reload sources from document store after CRUD operations.
-        
+
         Sources are stored separately in the document store as a dynamic configuration,
         independent of the static service config loaded at startup. This method is called
         after create_source(), update_source(), and delete_source() operations to refresh
@@ -1331,7 +1331,7 @@ class IngestionService:
         if not self.document_store:
             self._sources_cache = []
             return
-        
+
         try:
             # Query all sources from the document store
             sources = self.document_store.query_documents("sources", {})

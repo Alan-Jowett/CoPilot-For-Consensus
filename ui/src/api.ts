@@ -19,8 +19,8 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
   console.log('[fetchWithAuth] URL:', url, 'Using cookie-based auth')
 
   // Send cookies with the request (includes httpOnly auth_token cookie)
-  const response = await fetch(url, { 
-    ...options, 
+  const response = await fetch(url, {
+    ...options,
     headers,
     credentials: 'include'  // Always include cookies for authentication
   })

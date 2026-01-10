@@ -248,7 +248,7 @@ class ConfigSchema:
         """
         service_name = data.get("service_name", "unknown")
         metadata = data.get("metadata", {})
-        
+
         # Support both 'fields' (old style) and 'service_settings' (new style)
         fields_data = data.get("service_settings") or data.get("fields", {})
         schema_version = data.get("schema_version")

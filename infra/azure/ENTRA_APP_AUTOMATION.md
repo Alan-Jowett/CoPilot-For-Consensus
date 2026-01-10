@@ -161,7 +161,7 @@ az deployment group create \
   --template-file main.bicep \
   --parameters parameters.dev.json \
   --parameters deployEntraApp=false
-  
+
 # Get the gateway FQDN from outputs
 GATEWAY_FQDN=$(az deployment group show \
   --name <deployment-name> \
@@ -507,5 +507,5 @@ Disable Entra app automation in parameter file:
 
 ---
 
-**License**: MIT  
+**License**: MIT
 **Copyright**: © 2025 Copilot-for-Consensus contributors

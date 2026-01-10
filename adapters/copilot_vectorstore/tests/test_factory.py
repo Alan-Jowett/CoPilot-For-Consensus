@@ -30,7 +30,7 @@ class SimpleConfig:
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             setattr(self, key, value)
-    
+
     def __getattr__(self, name):
         """Return None for missing attributes to allow validation in store code."""
         return None
@@ -138,7 +138,7 @@ class TestCreateVectorStore:
             create_vector_store(driver_name="azure_ai_search", driver_config=config1)
 
         # Should raise error about missing authentication when endpoint is None
-        # (auth check happens after endpoint access, but endpoint=None and index_name=None 
+        # (auth check happens after endpoint access, but endpoint=None and index_name=None
         # will still trigger auth validation)
         config2 = SimpleConfig(vector_size=384)
         with pytest.raises(ValueError, match="Either api_key must be provided"):

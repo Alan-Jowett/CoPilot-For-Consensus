@@ -30,14 +30,14 @@ def service(tmp_path):
     publisher.connect()
 
     logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
-    
+
     metrics_config = load_driver_config(service=None, adapter="metrics", driver="noop", fields={})
     metrics = create_metrics_collector(driver_name="noop", driver_config=metrics_config)
 
     store_config = load_driver_config(service=None, adapter="document_store", driver="inmemory", fields={})
     document_store = create_document_store(driver_name="inmemory", driver_config=store_config)
     document_store.connect()
-    
+
     archive_store = make_archive_store(base_path=config.storage_path)
 
     return IngestionService(

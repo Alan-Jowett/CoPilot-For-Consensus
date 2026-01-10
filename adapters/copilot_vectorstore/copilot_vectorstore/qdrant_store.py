@@ -116,15 +116,15 @@ class QdrantVectorStore(VectorStore):
     @classmethod
     def from_config(cls, config: Any) -> "QdrantVectorStore":
         """Create a QdrantVectorStore from configuration.
-        
+
         Args:
             config: Configuration object with host, port, collection_name, vector_size,
                     distance, upsert_batch_size, and api_key attributes.
                     Distance and upsert_batch_size defaults are provided by the schema.
-        
+
         Returns:
             Configured QdrantVectorStore instance
-        
+
         Raises:
             ValueError: If required attributes are missing or invalid
             AttributeError: If required config attributes are missing

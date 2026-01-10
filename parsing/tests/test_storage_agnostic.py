@@ -61,13 +61,13 @@ class TestStorageAgnosticArchives:
     def document_store(self):
         """Create in-memory document store."""
         return create_validating_document_store()
-        
+
 
     @pytest.fixture
     def publisher(self):
         """Create noop publisher that tracks events."""
         return create_tracking_publisher()
-        
+
 
     @pytest.fixture
     def subscriber(self):

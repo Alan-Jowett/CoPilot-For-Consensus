@@ -25,10 +25,10 @@ class SilentErrorReporter(ErrorReporter):
     @classmethod
     def from_config(cls, config: DriverConfig) -> "SilentErrorReporter":
         """Create SilentErrorReporter from DriverConfig.
-        
+
         Args:
             config: DriverConfig (ignored, no configuration needed)
-        
+
         Returns:
             SilentErrorReporter instance
         """

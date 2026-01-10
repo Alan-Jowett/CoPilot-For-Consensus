@@ -73,13 +73,13 @@ class FAISSVectorStore(VectorStore):
     @classmethod
     def from_config(cls, config: Any) -> "FAISSVectorStore":
         """Create a FAISSVectorStore from configuration.
-        
+
         Args:
             config: Configuration object with dimension, index_type, and persist_path attributes.
-        
+
         Returns:
             Configured FAISSVectorStore instance
-        
+
         Raises:
             ValueError: If required attributes are missing or invalid
             AttributeError: If required config attributes are missing

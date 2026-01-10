@@ -43,12 +43,12 @@ class TestIngestionService:
         base_publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
         base_publisher = create_publisher(driver_name="noop", driver_config=base_publisher_config)
         base_publisher.connect()
-        
+
         schema_provider = create_schema_provider(schema_type="events")
         publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
         publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
         publisher.connect()
-        
+
         logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
         metrics_config = load_driver_config(service=None, adapter="metrics", driver="noop", fields={})
         metrics = create_metrics_collector(driver_name="noop", driver_config=metrics_config)
@@ -810,7 +810,7 @@ def test_archive_ingested_event_without_file_path():
         schema_provider = create_schema_provider(schema_type="events")
         publisher = create_publisher(driver_name="noop", driver_config={"schema_provider": schema_provider, "strict": True})
         publisher.connect()
-        
+
         logger = create_logger(driver_name="silent", driver_config=load_driver_config(service=None, adapter="logger", driver="silent", fields={"level": "INFO", "name": "ingestion-test"}))
         metrics_config = load_driver_config(service=None, adapter="metrics", driver="noop", fields={})
         metrics = create_metrics_collector(driver_name="noop", driver_config=metrics_config)

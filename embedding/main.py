@@ -97,7 +97,7 @@ def main():
         # Load configuration using schema-driven service config
         config = load_service_config("embedding")
         logger.info("Configuration loaded successfully")
-        
+
         # Replace bootstrap logger with config-based logger
         logger_adapter = config.get_adapter("logger")
         if logger_adapter is not None:
@@ -209,7 +209,7 @@ def main():
             # Get dimension from a sample embedding
             sample_embedding = embedding_provider.embed("test")
             embedding_dimension = len(sample_embedding)
-        
+
         embedding_model = getattr(embedding_adapter.driver_config, "model_name", provider_driver_name)
         embedding_backend_label = backend_name
         embedding_driver_config = embedding_adapter.driver_config

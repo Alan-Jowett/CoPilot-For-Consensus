@@ -486,7 +486,7 @@ def main():
             enable_validation=True,
             strict_validation=True,
         )
-        
+
         # connect() raises on failure; None return indicates success
         document_store.connect()
         logger.info("Document store connected successfully")
@@ -544,7 +544,7 @@ def main():
         # Check if we have vector store configuration via adapter
         vector_store_adapter = config.get_adapter("vector_store")
         embedding_adapter = config.get_adapter("embedding_provider")
-        
+
         if vector_store_adapter is not None and embedding_adapter is not None:
             try:
                 logger.info("Creating embedding provider for topic search from adapter configuration")
@@ -554,7 +554,7 @@ def main():
                     driver_config=embedding_adapter.driver_config,
                 )
                 logger.info("Embedding provider created successfully")
-                
+
                 # Get embedding dimension from adapter config
                 embedding_dimension = embedding_adapter.driver_config.get("dimension")
                 if embedding_dimension is None:
@@ -562,7 +562,7 @@ def main():
                     test_embedding = embedding_provider.embed("test")
                     embedding_dimension = len(test_embedding)
                 logger.info(f"Using embedding dimension: {embedding_dimension}")
-                
+
                 logger.info("Creating vector store for topic search from adapter configuration")
                 from copilot_vectorstore import create_vector_store
                 vector_store = create_vector_store(

@@ -113,19 +113,19 @@ Expected results:
 
 ### Checkpoint 1 (Foundation Layer)
 
-✅ Bicep build: All modules compile without errors  
-✅ Bicep lint: All modules pass linting  
-✅ ARM validation: Template validates against Azure API  
-✅ Live deployment: Successfully deployed 10 identities + Key Vault  
-✅ RBAC verification: All 10 identities have Key Vault access  
-✅ Cleanup: Test resource group deleted  
+✅ Bicep build: All modules compile without errors
+✅ Bicep lint: All modules pass linting
+✅ ARM validation: Template validates against Azure API
+✅ Live deployment: Successfully deployed 10 identities + Key Vault
+✅ RBAC verification: All 10 identities have Key Vault access
+✅ Cleanup: Test resource group deleted
 
 ### CI/CD Workflow
 
-✅ Workflow syntax: Valid GitHub Actions YAML  
-✅ Setup script: Tested locally, creates proper federated credentials  
-✅ Tier 1 (lint): Passes without Azure secrets  
-✅ Tier 2 (what-if): Ready to test once secrets configured  
+✅ Workflow syntax: Valid GitHub Actions YAML
+✅ Setup script: Tested locally, creates proper federated credentials
+✅ Tier 1 (lint): Passes without Azure secrets
+✅ Tier 2 (what-if): Ready to test once secrets configured
 
 ## Next Steps
 

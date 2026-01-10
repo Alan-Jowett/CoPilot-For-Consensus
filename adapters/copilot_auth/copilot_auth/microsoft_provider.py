@@ -72,7 +72,7 @@ class MicrosoftIdentityProvider(OIDCProvider):
         client_secret = driver_config.microsoft_client_secret
         redirect_uri = driver_config.microsoft_redirect_uri
         tenant = driver_config.microsoft_tenant
-        
+
         return cls(
             client_id=client_id,
             client_secret=client_secret,

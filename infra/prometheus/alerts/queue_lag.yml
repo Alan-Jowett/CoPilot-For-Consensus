@@ -23,16 +23,16 @@ groups:
           description: |
             The parsing queue has accumulated {{ $value }} messages.
             Processing may be falling behind ingestion rate.
-            
+
             SLO: Max age < 5 minutes
-            
+
             Actions:
               1. Check parsing service: docker compose ps parsing
               2. Check throughput: rate(copilot_parsing_messages_processed_total[5m])
               3. Check consumer count: RabbitMQ UI
               4. Scale parsing service if needed: docker compose up -d --scale parsing=3
               5. Monitor queue drain rate
-            
+
             Runbook: documents/runbooks/high-queue-lag.md
             Dashboard: Grafana > Queue Status
 
@@ -48,16 +48,16 @@ groups:
           description: |
             The parsing queue has {{ $value }} messages - CRITICAL threshold exceeded.
             Significant processing backlog detected.
-            
+
             SLO Violation: Max age < 5 minutes
-            
+
             Actions:
               1. URGENT: Check parsing service health
               2. Check error rate: rate(copilot_parsing_failures_total[5m])
               3. Review recent deployments/changes
               4. Scale immediately: docker compose up -d --scale parsing=5
               5. Escalate if not resolved in 30 minutes
-            
+
             Runbook: documents/runbooks/high-queue-lag.md
             Dashboard: Grafana > Queue Status
 
@@ -72,14 +72,14 @@ groups:
           summary: "Chunking queue has {{ $value }} messages pending"
           description: |
             The chunking queue has accumulated {{ $value }} messages.
-            
+
             SLO: Max age < 2 minutes
-            
+
             Actions:
               1. Check chunking service: docker compose ps chunking
               2. Check throughput: rate(copilot_chunking_messages_processed_total[5m])
               3. Scale if needed: docker compose up -d --scale chunking=3
-            
+
             Runbook: documents/runbooks/high-queue-lag.md
             Dashboard: Grafana > Queue Status
 
@@ -95,15 +95,15 @@ groups:
           description: |
             The embedding queue has accumulated {{ $value }} chunks.
             This is normal during high ingestion but monitor for growth.
-            
+
             SLO: Max age < 10 minutes
-            
+
             Actions:
               1. Check embedding service: docker compose ps embedding
               2. Check Qdrant: docker compose ps vectorstore
               3. Check Ollama: docker compose ps ollama
               4. Scale if needed: docker compose up -d --scale embedding=3
-            
+
             Runbook: documents/runbooks/high-queue-lag.md
             Dashboard: Grafana > Queue Status
 
@@ -118,16 +118,16 @@ groups:
           summary: "Embedding queue has {{ $value }} chunks (HIGH)"
           description: |
             The embedding queue has {{ $value }} chunks - sustained high backlog.
-            
+
             SLO Violation: Max age < 10 minutes
-            
+
             Actions:
               1. Check embedding service health
               2. Verify Ollama is responding: curl http://localhost:11434/api/tags
               3. Check Qdrant disk space
               4. Scale aggressively: docker compose up -d --scale embedding=5
               5. Consider temporary ingestion pause
-            
+
             Runbook: documents/runbooks/high-queue-lag.md
             Dashboard: Grafana > Queue Status
 
@@ -143,15 +143,15 @@ groups:
           description: |
             The summarization queue has {{ $value }} requests.
             LLM processing is slower than request rate.
-            
+
             SLO: Max age < 15 minutes
-            
+
             Actions:
               1. Check summarization service: docker compose ps summarization
               2. Check LLM backend (Ollama/Azure): verify connectivity
               3. Check P95 latency: histogram_quantile(0.95, rate(copilot_summarization_latency_seconds_bucket[5m]))
               4. Scale if using local LLM: docker compose up -d --scale summarization=2
-            
+
             Runbook: documents/runbooks/high-queue-lag.md
             Dashboard: Grafana > Queue Status
 
@@ -167,15 +167,15 @@ groups:
           description: |
             The oldest message in {{ $labels.queue }} has been pending for {{ $value | humanizeDuration }}.
             Messages are not being processed fast enough.
-            
+
             SLO Violation: Max age exceeded
-            
+
             Actions:
               1. Check consumer health
               2. Verify service is processing messages
               3. Check for errors in service logs
               4. Scale service horizontally
-            
+
             Runbook: documents/runbooks/high-queue-lag.md
             Dashboard: Grafana > Queue Status
 
@@ -190,14 +190,14 @@ groups:
           description: |
             The oldest message in {{ $labels.queue }} has been pending for {{ $value | humanizeDuration }}.
             Severe processing delay detected.
-            
+
             Actions:
               1. URGENT: Investigate service health immediately
               2. Check for deadlocks or infinite loops
               3. Review error logs
               4. Consider service restart
               5. Escalate to on-call
-            
+
             Runbook: documents/runbooks/high-queue-lag.md
             Dashboard: Grafana > Queue Status
 
@@ -213,16 +213,16 @@ groups:
           description: |
             Queue {{ $labels.queue }} has no active consumers.
             Messages will accumulate indefinitely.
-            
+
             Impact: CRITICAL - No processing happening
-            
+
             Actions:
               1. Check service is running: docker compose ps
               2. Check service logs for consumer connection errors
               3. Verify RabbitMQ credentials
               4. Restart service: docker compose restart {{ $labels.queue }}
               5. Verify consumer reconnects
-            
+
             Runbook: documents/runbooks/service-down.md
             Dashboard: Grafana > Queue Status
 
@@ -244,12 +244,12 @@ groups:
           description: |
             Queue {{ $labels.queue }} has only {{ $value }} consumer(s) but {{ with query "rabbitmq_queue_messages_ready{queue=\"" }}{{ . | first | value }}{{ end }} pending messages.
             Consider scaling the service.
-            
+
             Actions:
               1. Scale service: docker compose up -d --scale {{ $labels.queue }}=3
               2. Monitor queue drain rate
               3. Verify all consumers are processing efficiently
-            
+
             Dashboard: Grafana > Queue Status
 
       # Queue Growth Rate
@@ -267,13 +267,13 @@ groups:
           description: |
             Queue {{ $labels.queue }} is growing at {{ $value | humanize }} messages/second.
             Ingestion rate exceeds processing capacity.
-            
+
             Actions:
               1. Check ingestion rate vs processing rate
               2. Scale processing service: docker compose up -d --scale {{ $labels.queue }}=3
               3. Consider temporary ingestion throttling
               4. Monitor for continued growth
-            
+
             Runbook: documents/runbooks/high-queue-lag.md
             Dashboard: Grafana > Queue Status
 
@@ -289,14 +289,14 @@ groups:
           description: |
             Queue {{ $labels.queue }} has a high message redelivery rate ({{ $value | humanize }} msg/sec).
             This indicates processing failures or consumer crashes.
-            
+
             Actions:
               1. Check service logs for errors
               2. Check for service restarts/crashes
               3. Review error patterns in failed queue
               4. Verify message format/schema validity
               5. Check dependency health (DB, external APIs)
-            
+
             Runbook: documents/runbooks/high-error-rate.md
             Dashboard: Grafana > Queue Status
 
@@ -315,13 +315,13 @@ groups:
           description: |
             Dead letter queue {{ $labels.queue }} received {{ $value }} messages in the last 10 minutes.
             This indicates systematic processing failures.
-            
+
             Actions:
               1. Investigate failure patterns
               2. Check source queue and service
               3. Review message schemas/formats
               4. Verify dependencies are healthy
               5. Consider manual reprocessing after fix
-            
+
             Runbook: documents/runbooks/failed-queue-growing.md
             Dashboard: Grafana > Failed Queues

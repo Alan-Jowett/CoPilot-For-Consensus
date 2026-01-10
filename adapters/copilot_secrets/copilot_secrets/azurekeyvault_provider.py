@@ -88,14 +88,14 @@ class AzureKeyVaultProvider(SecretProvider):
     @classmethod
     def from_config(cls, driver_config: DriverConfig) -> "AzureKeyVaultProvider":
         """Create AzureKeyVaultProvider from driver_config.
-        
+
         Args:
             driver_config: DriverConfig instance with vault_url or vault_name attribute.
                           At least one must be provided.
-            
+
         Returns:
             AzureKeyVaultProvider instance
-            
+
         Raises:
             AttributeError: If both vault_url and vault_name are missing
         """
@@ -105,7 +105,7 @@ class AzureKeyVaultProvider(SecretProvider):
 
     def close(self) -> None:
         """Close the Azure Key Vault client and credential connections.
-        
+
         Attempts to close both the SecretClient and DefaultAzureCredential.
         Gracefully handles cases where close methods don't exist or raise exceptions.
         """

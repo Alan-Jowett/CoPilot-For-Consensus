@@ -58,7 +58,7 @@ class IdentityProvider(ABC):
         access_token = token_response.get("access_token")
         if not access_token:
             raise AuthenticationError("No access token in response")
-        
+
         return self.get_user(access_token)
 
 

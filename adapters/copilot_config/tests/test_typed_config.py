@@ -301,7 +301,7 @@ class TestLoadServiceConfig:
 
     def test_load_config_with_defaults_no_source(self, tmp_path, monkeypatch):
         """Test that fields with only defaults (no source) are properly loaded.
-        
+
         This test ensures the bug where fields like 'exchange' and 'exchange_type'
         with only defaults (no source="env" or source="secret") were being ignored
         is properly fixed.
@@ -411,7 +411,7 @@ class TestLoadServiceConfig:
 
     def test_load_config_integer_type_conversion(self, tmp_path, monkeypatch):
         """Test that environment variables with type 'integer' are properly converted to int.
-        
+
         This test ensures the bug where schema type 'integer' wasn't recognized
         (only 'int' was checked) is properly fixed.
         """

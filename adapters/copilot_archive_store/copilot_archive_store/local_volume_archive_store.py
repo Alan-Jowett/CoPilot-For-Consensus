@@ -45,7 +45,7 @@ class LocalVolumeArchiveStore(ArchiveStore):
 
         # Initialize logger instance for structured logging
         self.logger = logging.getLogger(__name__)
-        
+
         # Try to ensure directories exist (may fail in read-only or permission-restricted mode)
         try:
             self.base_path.mkdir(parents=True, exist_ok=True)
@@ -78,7 +78,7 @@ class LocalVolumeArchiveStore(ArchiveStore):
             ValueError: If required configuration is missing
         """
         base_path = driver_config.archive_base_path
-        
+
         return cls(base_path=base_path)
 
     def _load_metadata(self) -> None:
@@ -120,7 +120,7 @@ class LocalVolumeArchiveStore(ArchiveStore):
         """
         if self._read_only:
             raise ArchiveStoreError("Cannot store archive: ArchiveStore is in read-only mode")
-        
+
         try:
             # Calculate content hash for deduplication and ID generation
             content_hash = self._calculate_hash(content)
@@ -229,7 +229,7 @@ class LocalVolumeArchiveStore(ArchiveStore):
         """
         if self._read_only:
             raise ArchiveStoreError("Cannot delete archive: ArchiveStore is in read-only mode")
-        
+
         try:
             metadata = self._metadata.get(archive_id)
             if not metadata:
