@@ -34,7 +34,7 @@ setup(
     ],
     python_requires=">=3.10",
     install_requires=[
-        # No required dependencies for basic functionality
+        "copilot-config>=0.1.0",  # For DriverConfig
     ],
     extras_require={
         "dev": [
