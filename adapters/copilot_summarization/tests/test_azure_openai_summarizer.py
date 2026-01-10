@@ -158,31 +158,37 @@ class TestAzureOpenAISummarizer:
                 )
 
             assert "openai is required" in str(exc_info.value)
-    def test_azure_deployment_name_without_api_version_raises_error(self, llm_driver_config):
+    def test_azure_deployment_name_without_api_version_raises_error(self, mock_openai_module, llm_driver_config):
         """Test that deployment_name without api_version raises ValueError."""
-        config = llm_driver_config(
-            "azure",
-            fields={
-                "azure_openai_api_key": "test-key",
-                "azure_openai_model": "gpt-4",
-                "azure_openai_endpoint": "https://test.openai.azure.com/",
-                "azure_openai_deployment": "test-deployment",
-                # Intentionally omit azure_openai_api_version to trigger validation error
-            }
-        )
-        with pytest.raises(ValueError, match="requires 'api_version'"):
-            OpenAISummarizer.from_config(config)
+        mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
 
-    def test_azure_with_api_version_enables_azure_mode(self, llm_driver_config):
+        with patch.dict('sys.modules', {'openai': mock_module}):
+            config = llm_driver_config(
+                "azure",
+                fields={
+                    "azure_openai_api_key": "test-key",
+                    "azure_openai_model": "gpt-4",
+                    "azure_openai_endpoint": "https://test.openai.azure.com/",
+                    "azure_openai_deployment": "test-deployment",
+                    # Intentionally omit azure_openai_api_version to trigger validation error
+                }
+            )
+            with pytest.raises(ValueError, match="requires 'api_version'"):
+                OpenAISummarizer.from_config(config)
+
+    def test_azure_with_api_version_enables_azure_mode(self, mock_openai_module, llm_driver_config):
         """Test that api_version alone enables Azure mode."""
-        config = llm_driver_config(
-            "azure",
-            fields={
-                "azure_openai_api_key": "test-key",
-                "azure_openai_model": "gpt-4",
-                "azure_openai_endpoint": "https://test.openai.azure.com/",
-                "azure_openai_api_version": "2024-02-15-preview",
-            }
-        )
-        summarizer = OpenAISummarizer.from_config(config)
-        assert summarizer.is_azure is True
+        mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
+
+        with patch.dict('sys.modules', {'openai': mock_module}):
+            config = llm_driver_config(
+                "azure",
+                fields={
+                    "azure_openai_api_key": "test-key",
+                    "azure_openai_model": "gpt-4",
+                    "azure_openai_endpoint": "https://test.openai.azure.com/",
+                    "azure_openai_api_version": "2024-02-15-preview",
+                }
+            )
+            summarizer = OpenAISummarizer.from_config(config)
+            assert summarizer.is_azure is True

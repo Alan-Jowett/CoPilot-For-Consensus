@@ -96,10 +96,9 @@ class TestMongoDBIntegration:
 
     def test_connection(self, mongodb_store):
         """Test that we can connect to MongoDB."""
-        # Access underlying MongoDB store
-        mongo_store = mongodb_store._store
-        assert mongo_store.client is not None
-        assert mongo_store.database is not None
+        # mongodb_store is now a raw MongoDocumentStore (not wrapped)
+        assert mongodb_store.client is not None
+        assert mongodb_store.database is not None
 
     def test_insert_and_get_document(self, mongodb_store, clean_collection):
         """Test inserting and retrieving a document."""
