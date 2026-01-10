@@ -42,7 +42,7 @@ PRIORITY_ADAPTERS = [
 ADAPTER_DEPENDENCIES = {
     "copilot_config": [],  # Config has no dependencies - must install first!
     "copilot_schema_validation": [],  # Schema validation has no dependencies
-    "copilot_storage": ["copilot_config"],  # Storage depends on copilot-config
+    "copilot_storage": ["copilot_config", "copilot_schema_validation"],  # Storage depends on copilot-config and schema-validation for tests
     "copilot_message_bus": ["copilot_config", "copilot_schema_validation"],  # Message-bus depends on both
     "copilot_secrets": ["copilot_logging"],  # Secrets depends on logging
     "copilot_chunking": ["copilot_config", "copilot_schema_validation"],  # Chunking depends on both
