@@ -30,17 +30,17 @@ services:
         # Retry logic to handle timing issues after healthcheck passes
         max_attempts=5
         attempt=1
-        while [ $attempt -le $max_attempts ]; do
-          echo "Attempting MongoDB initialization (attempt $attempt/$max_attempts)..."
+        while [ $$attempt -le $$max_attempts ]; do
+          echo "Attempting MongoDB initialization (attempt $$attempt/$$max_attempts)..."
           if mongosh "mongodb://$${MONGO_USER}:$${MONGO_PASS}@documentdb:27017/admin" /init/mongo-init.js; then
             echo "MongoDB initialization completed successfully"
             exit 0
           fi
-          echo "Attempt $attempt failed, retrying in 3 seconds..."
+          echo "Attempt $$attempt failed, retrying in 3 seconds..."
           sleep 3
-          attempt=$((attempt + 1))
+          attempt=$$((attempt + 1))
         done
-        echo "MongoDB initialization failed after $max_attempts attempts"
+        echo "MongoDB initialization failed after $$max_attempts attempts"
         exit 1
     restart: "no"
 
