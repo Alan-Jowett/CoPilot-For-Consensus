@@ -85,13 +85,16 @@ def create_stdout_logger(
         >>> logger = create_stdout_logger(level="DEBUG", name="startup")
         >>> logger.info("Service initializing...")
     """
+    # Build complete config dict before creating DriverConfig
+    config = {"level": level}
+    if name is not None:
+        config["name"] = name
+    
     driver_config = DriverConfig(
         driver_name="stdout",
-        config={"level": level},
+        config=config,
         allowed_keys=["level", "name"]
     )
-    if name is not None:
-        driver_config.config["name"] = name
     
     # Delegate to the main factory to keep initialization logic consistent.
     return create_logger("stdout", driver_config)
