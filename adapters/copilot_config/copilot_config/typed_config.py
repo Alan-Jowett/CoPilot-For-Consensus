@@ -220,8 +220,26 @@ def load_service_config(
         with open(driver_schema_path) as f:
             driver_schema_data = json.load(f)
 
+        # Extract config from driver schema
         driver_config_dict = _extract_config_from_driver_schema(driver_schema_data, secret_provider)
+        
+        # Also extract config from common properties in the adapter schema
+        common_properties = adapter_schema_data.get("properties", {}).get("common", {}).get("properties", {})
+        if common_properties:
+            # Create a temporary schema with just common properties to reuse extraction logic
+            common_schema = {"properties": common_properties}
+            common_config = _extract_config_from_driver_schema(common_schema, secret_provider)
+            # Common properties should not override driver-specific ones
+            for key, value in common_config.items():
+                if key not in driver_config_dict:
+                    driver_config_dict[key] = value
+        
+        # Extract allowed keys from driver schema
         allowed_keys = set((driver_schema_data.get("properties") or {}).keys())
+        
+        # Merge in common properties from adapter schema if they exist
+        allowed_keys.update(common_properties.keys())
+        
         driver_config = DriverConfig(
             driver_name=selected_driver,
             config=driver_config_dict,
