@@ -230,13 +230,27 @@ class ValidatingDocumentStore(DocumentStore):
             time before the store is actively used in production.
 
         Example:
+            >>> from copilot_storage import create_document_store
+            >>> from copilot_schema_validation import FileSchemaProvider
+            >>>
+            >>> # Create and initialize store BEFORE using it
+            >>> base_store = create_document_store("inmemory")
+            >>> validating_store = ValidatingDocumentStore(
+            ...     store=base_store,
+            ...     schema_provider=FileSchemaProvider()
+            ... )
+            >>>
+            >>> # Set up wrapper at initialization time, BEFORE any queries
             >>> def custom_query_wrapper(original_query):
             ...     def wrapped_query(collection, filter_dict, limit=100):
-            ...         # Custom logic here
+            ...         # Custom validation logic here
             ...         return original_query(collection, filter_dict, limit)
             ...     return wrapped_query
             >>>
             >>> store.set_query_wrapper(custom_query_wrapper)
+            >>>
+            >>> # NOW use the store - wrapper will be active for all queries
+            >>> results = validating_store.query_documents("messages", {"status": "active"})
 
         Args:
             wrapper_fn: Function that takes the original query method and returns
