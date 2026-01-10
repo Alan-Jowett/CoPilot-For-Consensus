@@ -158,7 +158,7 @@ class TestAzureOpenAISummarizer:
                 )
 
             assert "openai is required" in str(exc_info.value)
-    def test_azure_deployment_name_without_api_version_raises_error(self):
+    def test_azure_deployment_name_without_api_version_raises_error(self, llm_driver_config):
         """Test that deployment_name without api_version raises ValueError."""
         config = llm_driver_config(
             "azure",
@@ -171,7 +171,7 @@ class TestAzureOpenAISummarizer:
         with pytest.raises(ValueError, match="requires 'api_version'"):
             OpenAISummarizer.from_config(config)
 
-    def test_azure_with_api_version_enables_azure_mode(self):
+    def test_azure_with_api_version_enables_azure_mode(self, llm_driver_config):
         """Test that api_version alone enables Azure mode."""
         config = llm_driver_config(
             "azure",
