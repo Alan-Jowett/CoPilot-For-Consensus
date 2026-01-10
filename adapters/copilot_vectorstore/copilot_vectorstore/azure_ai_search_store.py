@@ -64,6 +64,27 @@ class AzureAISearchVectorStore(VectorStore):
             ValueError: If endpoint is invalid or authentication is not provided
             RuntimeError: If cannot connect to Azure AI Search
         """
+        # Validate parameters before attempting imports
+        if not endpoint:
+            raise ValueError("endpoint parameter is required")
+
+        if not endpoint.startswith("https://"):
+            raise ValueError(
+                f"Invalid endpoint '{endpoint}'. Must start with 'https://'"
+            )
+
+        if not use_managed_identity and not api_key:
+            raise ValueError(
+                "Either api_key must be provided or use_managed_identity must be True"
+            )
+
+        if not index_name:
+            raise ValueError("index_name is required")
+
+        if vector_size <= 0:
+            raise ValueError(f"Vector size must be positive, got {vector_size}")
+
+        # Import Azure SDK components after parameter validation
         try:
             from azure.core.credentials import AzureKeyCredential
             from azure.search.documents import SearchClient
@@ -82,22 +103,6 @@ class AzureAISearchVectorStore(VectorStore):
                 "azure-search-documents is not installed. "
                 "Install it with: pip install azure-search-documents"
             ) from e
-
-        if not endpoint:
-            raise ValueError("endpoint parameter is required")
-
-        if not endpoint.startswith("https://"):
-            raise ValueError(
-                f"Invalid endpoint '{endpoint}'. Must start with 'https://'"
-            )
-
-        if not use_managed_identity and not api_key:
-            raise ValueError(
-                "Either api_key must be provided or use_managed_identity must be True"
-            )
-
-        if vector_size <= 0:
-            raise ValueError(f"Vector size must be positive, got {vector_size}")
 
         self._endpoint = endpoint
         self._api_key = api_key
