@@ -718,7 +718,13 @@ For full documentation, see documents/RETRY_POLICY.md
     # Configure logging
     global logger
     if args.verbose:
-        logger = create_logger("stdout", {"name": __name__, "level": "DEBUG"})
+        logger_config = load_driver_config(
+            service=None,
+            adapter="logger",
+            driver="stdout",
+            fields={"level": "DEBUG", "name": __name__}
+        )
+        logger = create_logger(driver_name="stdout", driver_config=logger_config)
 
     mongodb_username = _get_env_or_secret("MONGODB_USERNAME", "document_database_user")
     mongodb_password = _get_env_or_secret("MONGODB_PASSWORD", "document_database_password")
