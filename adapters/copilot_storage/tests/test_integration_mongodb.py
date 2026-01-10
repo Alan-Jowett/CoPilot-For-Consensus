@@ -34,11 +34,13 @@ def get_mongodb_config():
 
 
 def get_underlying_database(store):
-    """Get the underlying MongoDB database from a ValidatingDocumentStore.
+    """Get the underlying MongoDB database from a document store.
 
     This is used for test cleanup only. In production, tests should not
     access driver-specific implementation details.
     """
+    if hasattr(store, 'database'):
+        return store.database
     if hasattr(store, '_store') and hasattr(store._store, 'database'):
         return store._store.database
     return None
@@ -48,9 +50,9 @@ def get_underlying_database(store):
 def mongodb_store():
     """Create and connect to a real MongoDB instance for integration tests."""
     config = get_mongodb_config()
-    store = create_document_store(driver_name="mongodb", driver_config=config)
-    assert isinstance(store, ValidatingDocumentStore)
-    assert isinstance(store._store, MongoDocumentStore)
+    # Disable validation for integration tests - we're testing the raw MongoDB store
+    store = create_document_store(driver_name="mongodb", driver_config=config, enable_validation=False)
+    assert isinstance(store, MongoDocumentStore)
 
     # Attempt to connect with retries
     max_retries = 5
