@@ -13,19 +13,23 @@ from .base import EventPublisher, EventSubscriber
 logger = logging.getLogger(__name__)
 
 
-def _get_schema_provider() -> Any | None:
-    """Attempt to load a schema provider for validation.
+def _get_schema_provider() -> Any:
+    """Load a schema provider for validation.
     
-    Returns None if schema validation is not available.
+    Returns:
+        Schema provider instance.
+
+    Raises:
+        ImportError: If copilot_schema_validation is not installed.
     """
     try:
         from copilot_schema_validation import create_schema_provider  # type: ignore[import-not-found]
         return create_schema_provider()
-    except ImportError:
-        logger.warning(
-            "copilot_schema_validation not available; message bus will not validate event schemas"
-        )
-        return None
+    except ImportError as e:
+        raise ImportError(
+            "Schema validation requested but copilot_schema_validation is not installed. "
+            "Install with: pip install copilot-message-bus[validation]"
+        ) from e
 
 def create_publisher(
     driver_name: str,

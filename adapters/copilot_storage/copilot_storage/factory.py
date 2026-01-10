@@ -19,26 +19,29 @@ from .validating_document_store import ValidatingDocumentStore
 logger = logging.getLogger(__name__)
 
 
-def _get_schema_provider() -> Any | None:
-    """Attempt to load a schema provider for validation.
+def _get_schema_provider() -> Any:
+    """Load a schema provider for validation.
 
     This factory uses a fixed schema type of 'documents' for all document store
     instances. This is intentional as the factory creates document stores, which
     should always validate against document schemas regardless of the driver type.
 
     Returns:
-        None if schema validation is not available.
+        Schema provider instance.
+
+    Raises:
+        ImportError: If copilot_schema_validation is not installed.
     """
 
     try:
         from copilot_schema_validation import create_schema_provider  # type: ignore[import-not-found]
 
         return create_schema_provider(schema_type="documents")
-    except ImportError:
-        logger.warning(
-            "copilot_schema_validation not available; document store will not validate schemas"
-        )
-        return None
+    except ImportError as e:
+        raise ImportError(
+            "Schema validation requested but copilot_schema_validation is not installed. "
+            "Install with: pip install copilot-storage[validation]"
+        ) from e
 
 
 def create_document_store(
