@@ -181,4 +181,4 @@ When adding new events to the pipeline:
 - [RabbitMQ Topic Exchange Tutorial](https://www.rabbitmq.com/tutorials/tutorial-five-python.html)
 - [RabbitMQ Queues Documentation](https://www.rabbitmq.com/queues.html)
 - [Schema index](../schemas/README.md)
-- [copilot_events Adapter README](../../adapters/copilot_events/README.md)
+- [copilot_message_bus Adapter README](../../adapters/copilot_message_bus/README.md)

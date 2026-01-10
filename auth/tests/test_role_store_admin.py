@@ -20,14 +20,17 @@ class MockConfig:
     """Mock configuration for testing."""
 
     def __init__(self):
-        self.role_store_type = "mongodb"
         self.role_store_collection = "user_roles"
-        self.role_store_database = "auth"
-        self.role_store_host = None
-        self.role_store_port = None
-        self.role_store_username = None
-        self.role_store_password = None
         self.role_store_schema_dir = None
+
+    def get_adapter(self, adapter_type: str):
+        if adapter_type != "document_store":
+            return None
+        adapter = MagicMock()
+        adapter.driver_name = "mongodb"
+        adapter.driver_config = MagicMock()
+        adapter.driver_config.config = {}
+        return adapter
 
 
 @pytest.fixture
@@ -44,11 +47,9 @@ def mock_store():
 def role_store(mock_store):
     """Create a RoleStore instance with mocked dependencies."""
     with patch("app.role_store.create_document_store", return_value=mock_store):
-        with patch("app.role_store.FileSchemaProvider"):
-            with patch("app.role_store.ValidatingDocumentStore") as mock_val_store:
-                mock_val_store.return_value = mock_store
-                config = MockConfig()
-                return RoleStore(config)
+        with patch("app.role_store.create_schema_provider"):
+            config = MockConfig()
+            return RoleStore(config)
 
 
 class TestListPendingRoleAssignments:

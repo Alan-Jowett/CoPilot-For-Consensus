@@ -12,6 +12,7 @@ This service provides:
 
 import os
 import sys
+import inspect
 from contextlib import asynccontextmanager
 from enum import Enum
 from typing import Any
@@ -24,30 +25,62 @@ import uvicorn
 from app import SUPPORTED_PROVIDERS, __version__
 from app.config import load_auth_config
 from app.service import AuthService
-from copilot_logging import create_logger, create_uvicorn_log_config
+from copilot_logging import create_logger, create_stdout_logger, create_uvicorn_log_config
 from copilot_metrics import create_metrics_collector
 from fastapi import FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
-# Configure structured JSON logging
-logger = create_logger(logger_type="stdout", level="INFO", name="auth")
-
-# Configure metrics
-metrics = create_metrics_collector(service_name="auth")
+# Bootstrap logger for early initialization (before config is loaded)
+logger = create_stdout_logger(level="INFO", name="auth")
 
 # Global service instance
 auth_service: AuthService | None = None
+
+# Global metrics instance
+# Default to a no-op collector so unit tests (and imports) don't crash when
+# lifespan/startup hasn't executed yet.
+metrics: Any = create_metrics_collector(driver_name="noop")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage service lifecycle."""
     global auth_service
+    global metrics
+    global logger
 
     # Startup
     logger.info("Starting Authentication Service...")
     config = load_auth_config()
+
+    # Replace bootstrap logger with config-based logger
+    logger_adapter = None
+    get_adapter = getattr(config, "get_adapter", None)
+    if callable(get_adapter):
+        logger_adapter = get_adapter("logger")
+    
+    if logger_adapter is not None:
+        logger = create_logger(
+            driver_name=logger_adapter.driver_name,
+            driver_config=logger_adapter.driver_config
+        )
+        logger.info("Logger initialized from service configuration")
+    
+    # Initialize metrics from config
+    metrics_adapter = None
+    if callable(get_adapter):
+        metrics_adapter = get_adapter("metrics")
+
+    if metrics_adapter is not None:
+        driver_name = metrics_adapter.driver_name
+        driver_config = dict(metrics_adapter.driver_config.config)
+        if driver_name.lower() in ("prometheus_pushgateway", "pushgateway"):
+            driver_config.setdefault("job", "auth")
+        metrics = create_metrics_collector(driver_name=driver_name, driver_config=driver_config)
+    else:
+        metrics = create_metrics_collector(driver_name="noop")
+
     auth_service = AuthService(config=config)
     logger.info("Authentication Service started successfully")
 
@@ -219,10 +252,12 @@ async def callback(
 
     try:
         # Handle callback - provider and audience retrieved from session via state
-        local_jwt = await auth_service.handle_callback(
+        callback_result = auth_service.handle_callback(
             code=code,
             state=state,
         )
+
+        local_jwt = await callback_result if inspect.isawaitable(callback_result) else callback_result
 
         logger.info(f"Successful callback for state={state[:8]}...")
 
@@ -246,7 +281,7 @@ async def callback(
         # - samesite=lax: allows cookie on top-level navigation (clicking links)
         # - path=/: makes cookie available to all paths
         # - max_age: matches JWT expiry time
-        cookie_secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+        cookie_secure = getattr(auth_service.config, "cookie_secure", False)
         response.set_cookie(
             key="auth_token",
             value=local_jwt,
@@ -294,7 +329,7 @@ async def logout() -> JSONResponse:
     
     # Clear the auth cookie by setting it with max_age=0
     # Use same secure flag as when setting the cookie
-    cookie_secure = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+    cookie_secure = getattr(auth_service.config, "cookie_secure", False)
     response.delete_cookie(
         key="auth_token",
         path="/",
@@ -866,15 +901,14 @@ async def revoke_user_roles(
 
 
 if __name__ == "__main__":
+    # Load configuration
+    config = load_auth_config()
+    
     # Run with uvicorn
-    port = int(os.getenv("PORT", "8090"))
-    host = os.getenv("HOST", "0.0.0.0")
-    log_level = os.getenv("LOG_LEVEL", "INFO")
-
     uvicorn.run(
         "main:app",
-        host=host,
-        port=port,
-        log_config=create_uvicorn_log_config("auth", log_level),
+        host=config.host,
+        port=config.port,
+        log_config=create_uvicorn_log_config("auth", config.log_level),
         access_log=True,
     )

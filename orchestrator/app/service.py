@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from copilot_events import (
+from copilot_message_bus import (
     EmbeddingsGeneratedEvent,
     EventPublisher,
     EventSubscriber,
@@ -17,11 +17,13 @@ from copilot_events import (
     SummarizationRequestedEvent,
 )
 from copilot_logging import create_logger
+from copilot_config import load_driver_config
 from copilot_metrics import MetricsCollector
-from copilot_reporting import ErrorReporter
+from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
 
-logger = create_logger(name="orchestrator")
+logger_config = load_driver_config(service=None, adapter="logger", driver="stdout", fields={"name": "orchestrator", "level": "INFO"})
+logger = create_logger("stdout", logger_config)
 
 
 class OrchestrationService:
@@ -568,8 +570,6 @@ class OrchestrationService:
                 "llm_model": self.llm_model,
                 "context_window_tokens": self.context_window_tokens,
                 "prompt_template": f"{self.system_prompt.rstrip()}\n\n{self.user_prompt.lstrip()}",
-                "chunk_count": context.get("chunk_count", 0),
-                "message_count": len(context.get("messages", [])),
             }
 
             event = SummarizationRequestedEvent(data=event_data)

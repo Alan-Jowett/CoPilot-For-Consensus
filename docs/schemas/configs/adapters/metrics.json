@@ -1,0 +1,29 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Metrics adapter",
+    "type": "object",
+    "properties": {
+        "discriminant": {
+            "field": "metrics_type",
+            "type": "string",
+            "source": "env",
+            "env_var": "METRICS_TYPE",
+            "enum": ["prometheus", "pushgateway", "azure_monitor", "noop"],
+            "required": true,
+            "description": "Metrics backend type (prometheus, pushgateway, azure_monitor, noop)"
+        },
+        "drivers": {
+            "type": "object",
+            "properties": {
+                "prometheus": { "$ref": "./drivers/metrics/metrics_prometheus.json" },
+                "pushgateway": { "$ref": "./drivers/metrics/metrics_pushgateway.json" },
+                "azure_monitor": { "$ref": "./drivers/metrics/metrics_azure_monitor.json" },
+                "azuremonitor": { "$ref": "./drivers/metrics/metrics_azure_monitor.json" },
+                "noop": { "$ref": "./drivers/metrics/metrics_noop.json" }
+            },
+            "additionalProperties": false
+        }
+    },
+    "required": ["discriminant", "drivers"]
+}

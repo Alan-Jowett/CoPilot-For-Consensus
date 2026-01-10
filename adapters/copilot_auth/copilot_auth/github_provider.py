@@ -11,6 +11,8 @@ from typing import Any
 
 import httpx
 
+from copilot_config import DriverConfig
+
 from .models import User
 from .oidc_provider import OIDCProvider
 from .provider import AuthenticationError
@@ -26,7 +28,7 @@ class GitHubIdentityProvider(OIDCProvider):
         client_id: GitHub OAuth application client ID
         client_secret: GitHub OAuth application client secret
         redirect_uri: OAuth callback URL
-        api_base_url: Base URL for GitHub API (default: https://api.github.com)
+        api_base_url: Base URL for GitHub API
     """
 
     def __init__(
@@ -34,7 +36,7 @@ class GitHubIdentityProvider(OIDCProvider):
         client_id: str,
         client_secret: str,
         redirect_uri: str,
-        api_base_url: str = "https://api.github.com",
+        api_base_url: str,
     ):
         """Initialize the GitHub identity provider.
 
@@ -59,6 +61,29 @@ class GitHubIdentityProvider(OIDCProvider):
         )
 
         self.api_base_url = api_base_url
+
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "GitHubIdentityProvider":
+        """Create GitHubIdentityProvider from DriverConfig.
+
+        Args:
+            driver_config: DriverConfig object with GitHub OAuth configuration
+
+        Returns:
+            GitHubIdentityProvider instance
+
+        """
+        client_id = driver_config.github_client_id
+        client_secret = driver_config.github_client_secret
+        redirect_uri = driver_config.github_redirect_uri
+        api_base_url = driver_config.github_api_base_url
+        
+        return cls(
+            client_id=client_id,
+            client_secret=client_secret,
+            redirect_uri=redirect_uri,
+            api_base_url=api_base_url,
+        )
 
     def discover(self) -> None:
         """Set GitHub OAuth endpoints explicitly (no OIDC discovery)."""

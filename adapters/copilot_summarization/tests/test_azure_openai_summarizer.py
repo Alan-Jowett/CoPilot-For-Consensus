@@ -50,15 +50,9 @@ class TestAzureOpenAISummarizer:
                 base_url="https://test.openai.azure.com/"
             )
 
-            # Verify summarizer was created as Azure instance
-            assert summarizer.is_azure is True
-
-            # Verify default API version was used
-            mock_azure_class.assert_called_once_with(
-                api_key="test-azure-key",
-                api_version="2023-12-01",
-                azure_endpoint="https://test.openai.azure.com/"
-            )
+            # With only base_url provided and no Azure-specific args, this is treated as
+            # an OpenAI-compatible base URL (not Azure).
+            assert summarizer.is_azure is False
 
     def test_azure_openai_summarizer_deployment_name_defaults_to_model(self, mock_openai_module):
         """Test that deployment_name defaults to model if not provided."""
@@ -68,7 +62,8 @@ class TestAzureOpenAISummarizer:
             summarizer = OpenAISummarizer(
                 api_key="test-azure-key",
                 model="gpt-4",
-                base_url="https://test.openai.azure.com/"
+                base_url="https://test.openai.azure.com/",
+                api_version="2023-12-01"
             )
 
             assert summarizer.deployment_name == "gpt-4"
@@ -89,7 +84,8 @@ class TestAzureOpenAISummarizer:
                 api_key="test-azure-key",
                 model="gpt-4",
                 base_url="https://test.openai.azure.com/",
-                deployment_name="gpt-4-deployment"
+                deployment_name="gpt-4-deployment",
+                api_version="2023-12-01"
             )
 
             thread = Thread(
@@ -126,7 +122,8 @@ class TestAzureOpenAISummarizer:
                 api_key="test-azure-key",
                 model="gpt-4",
                 base_url="https://test.openai.azure.com/",
-                deployment_name="gpt-4-deployment"
+                deployment_name="gpt-4-deployment",
+                api_version="2023-12-01"
             )
 
             thread = Thread(

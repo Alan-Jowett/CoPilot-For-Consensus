@@ -72,7 +72,7 @@ def test_callback_sets_cookie(test_client: TestClient):
     set_cookie_header = response.headers.get("set-cookie", "")
     assert "auth_token=mock.jwt.token" in set_cookie_header
     assert "HttpOnly" in set_cookie_header
-    assert "SameSite=lax" in set_cookie_header.lower()
+    assert "samesite=lax" in set_cookie_header.lower()
     assert "Path=/" in set_cookie_header
 
 
@@ -106,14 +106,17 @@ def test_callback_cookie_expiry_matches_jwt(test_client: TestClient):
 
 
 def test_cookie_secure_flag_from_env(mock_auth_service):
-    """Test that COOKIE_SECURE environment variable controls secure flag."""
+    """Test that AUTH_COOKIE_SECURE environment variable controls secure flag."""
     import os
     from unittest.mock import patch
     
-    # Test with COOKIE_SECURE=true
-    with patch.dict(os.environ, {"COOKIE_SECURE": "true"}):
+    # Test with AUTH_COOKIE_SECURE=true
+    with patch.dict(os.environ, {"AUTH_COOKIE_SECURE": "true"}):
         with patch("sys.path", [str(Path(__file__).parent.parent)] + sys.path):
             import main
+            
+            # Configure mock to return cookie_secure=True
+            mock_auth_service.config.cookie_secure = True
             main.auth_service = mock_auth_service
             client = TestClient(main.app)
             
@@ -121,16 +124,19 @@ def test_cookie_secure_flag_from_env(mock_auth_service):
             assert response.status_code == 200
             
             set_cookie_header = response.headers.get("set-cookie", "")
-            # When COOKIE_SECURE=true, secure flag should be present
+            # When AUTH_COOKIE_SECURE=true, secure flag should be present
             assert "Secure" in set_cookie_header or "secure" in set_cookie_header.lower()
     
-    # Test with COOKIE_SECURE=false (default)
-    with patch.dict(os.environ, {"COOKIE_SECURE": "false"}, clear=False):
+    # Test with AUTH_COOKIE_SECURE=false (default)
+    with patch.dict(os.environ, {"AUTH_COOKIE_SECURE": "false"}, clear=False):
         with patch("sys.path", [str(Path(__file__).parent.parent)] + sys.path):
             # Need to reload the module to pick up new env var
             import importlib
             import main
             importlib.reload(main)
+            
+            # Configure mock to return cookie_secure=False
+            mock_auth_service.config.cookie_secure = False
             main.auth_service = mock_auth_service
             client = TestClient(main.app)
             
@@ -138,7 +144,7 @@ def test_cookie_secure_flag_from_env(mock_auth_service):
             assert response.status_code == 200
             
             set_cookie_header = response.headers.get("set-cookie", "")
-            # When COOKIE_SECURE=false, we check that either:
+            # When AUTH_COOKIE_SECURE=false, we check that either:
             # - "Secure" is not a standalone attribute (it could be in "SameSite" or other words)
             # - or the cookie doesn't have secure flag at all
             # This is a bit tricky because "Secure" could appear in other contexts

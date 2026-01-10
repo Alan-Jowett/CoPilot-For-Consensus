@@ -60,11 +60,11 @@ class FakeDocumentStore:
 
 def make_service_with_store(store):
     import tempfile
-    from copilot_archive_store import LocalVolumeArchiveStore
+    from copilot_archive_store import create_archive_store
     # Create a temp directory-based archive store to avoid /data permission issues.
     # Use TemporaryDirectory to ensure automatic cleanup.
     tmpdir = tempfile.TemporaryDirectory()
-    archive_store = LocalVolumeArchiveStore(base_path=tmpdir.name)
+    archive_store = create_archive_store("local", {"base_path": tmpdir.name})
     # Attach the TemporaryDirectory to the store so it stays alive for the
     # lifetime of the archive_store and is cleaned up automatically afterwards.
     archive_store._tmpdir = tmpdir

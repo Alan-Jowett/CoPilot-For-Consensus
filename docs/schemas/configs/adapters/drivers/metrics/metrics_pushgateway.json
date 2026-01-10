@@ -1,0 +1,43 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Prometheus Pushgateway metrics driver settings",
+    "type": "object",
+    "properties": {
+        "gateway": {
+            "type": "string",
+            "source": "env",
+            "env_var": "PUSHGATEWAY_GATEWAY",
+            "required": true,
+            "description": "Pushgateway address (e.g., pushgateway:9091 or http://pushgateway:9091)"
+        },
+        "job": {
+            "type": "string",
+            "source": "env",
+            "env_var": "PUSHGATEWAY_JOB",
+            "required": true,
+            "description": "Prometheus job name for this service"
+        },
+        "grouping_key": {
+            "type": "object",
+            "required": false,
+            "description": "Optional grouping key dictionary for metric grouping"
+        },
+        "namespace": {
+            "type": "string",
+            "source": "env",
+            "env_var": "PUSHGATEWAY_NAMESPACE",
+            "required": false,
+            "default": "copilot",
+            "description": "Metric namespace prefix"
+        },
+        "raise_on_error": {
+            "type": "boolean",
+            "source": "env",
+            "env_var": "PUSHGATEWAY_RAISE_ON_ERROR",
+            "required": false,
+            "default": false,
+            "description": "Whether to raise on metric collection errors"
+        }
+    }
+}

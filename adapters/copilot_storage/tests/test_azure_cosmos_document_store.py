@@ -6,8 +6,8 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from copilot_config import load_driver_config
 from copilot_storage import (
-    AzureCosmosDocumentStore,
     DocumentNotFoundError,
     DocumentStore,
     DocumentStoreConnectionError,
@@ -15,6 +15,8 @@ from copilot_storage import (
     DocumentStoreNotConnectedError,
     create_document_store,
 )
+from copilot_storage.azure_cosmos_document_store import AzureCosmosDocumentStore
+from copilot_storage.validating_document_store import ValidatingDocumentStore
 
 
 class TestDocumentStoreFactoryAzureCosmos:
@@ -22,20 +24,29 @@ class TestDocumentStoreFactoryAzureCosmos:
 
     def test_create_azurecosmos_store(self):
         """Test creating an Azure Cosmos DB document store."""
+        config = load_driver_config(
+            service=None,
+            adapter="document_store",
+            driver="azurecosmos",
+            fields={
+                "endpoint": "https://test.documents.azure.com:443/",
+                "key": "test_key",
+                "database": "test_db",
+                "container": "test_container",
+            },
+        )
         store = create_document_store(
-            store_type="azurecosmos",
-            endpoint="https://test.documents.azure.com:443/",
-            key="test_key",
-            database="test_db",
-            container="test_container"
+            driver_name="azurecosmos",
+            driver_config=config,
         )
 
-        assert isinstance(store, AzureCosmosDocumentStore)
+        assert isinstance(store, ValidatingDocumentStore)
         assert isinstance(store, DocumentStore)
-        assert store.endpoint == "https://test.documents.azure.com:443/"
-        assert store.key == "test_key"
-        assert store.database_name == "test_db"
-        assert store.container_name == "test_container"
+        assert isinstance(store._store, AzureCosmosDocumentStore)
+        assert store._store.endpoint == "https://test.documents.azure.com:443/"
+        assert store._store.key == "test_key"
+        assert store._store.database_name == "test_db"
+        assert store._store.container_name == "test_container"
 
 
 class TestAzureCosmosDocumentStore:
@@ -91,10 +102,9 @@ class TestAzureCosmosDocumentStore:
 
     def test_connect_missing_endpoint(self):
         """Test that connect() raises error when endpoint is missing."""
-        store = AzureCosmosDocumentStore(endpoint=None, key="testkey")
-
-        with pytest.raises(DocumentStoreConnectionError, match="endpoint is required"):
-            store.connect()
+        # Attempting to create store with endpoint=None should raise ValueError in __init__
+        with pytest.raises(ValueError, match="endpoint is required"):
+            AzureCosmosDocumentStore(endpoint=None, key="testkey")
 
     @patch("azure.identity.DefaultAzureCredential")
     @patch("azure.cosmos.CosmosClient")

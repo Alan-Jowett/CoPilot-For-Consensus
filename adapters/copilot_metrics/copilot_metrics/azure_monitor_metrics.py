@@ -7,7 +7,9 @@ import logging
 import os
 from typing import Any
 
-from .metrics import MetricsCollector
+from copilot_config import DriverConfig
+
+from .base import MetricsCollector
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +38,11 @@ class AzureMonitorMetricsCollector(MetricsCollector):
     Azure Monitor (Application Insights). Supports batching and asynchronous
     export for production workloads.
 
-    Configuration via environment variables:
-    - AZURE_MONITOR_CONNECTION_STRING: Azure Monitor connection string (required)
-    - AZURE_MONITOR_INSTRUMENTATION_KEY: Alternative to connection string (legacy)
-    - AZURE_MONITOR_METRIC_NAMESPACE: Metric namespace prefix (default: "copilot")
-    - AZURE_MONITOR_EXPORT_INTERVAL_MILLIS: Export interval in ms (default: 60000)
+    Configuration via driver_config in from_config() method:
+    - connection_string: Azure Monitor connection string (required)
+    - namespace: Metric namespace prefix (default: "copilot")
+    - export_interval_millis: Export interval in ms (default: 60000)
+    - raise_on_error: Whether to raise on metric errors (default: False)
 
     Note: Requires azure-monitor-opentelemetry-exporter and opentelemetry-sdk packages.
     Install with: pip install azure-monitor-opentelemetry-exporter opentelemetry-sdk
@@ -56,7 +58,9 @@ class AzureMonitorMetricsCollector(MetricsCollector):
         """Initialize Azure Monitor metrics collector.
 
         Args:
-            connection_string: Azure Monitor connection string (or use env var)
+            connection_string: Azure Monitor connection string (required).
+                              Can be a full connection string or InstrumentationKey=<key> format.
+                              Must be provided explicitly (no env var fallback).
             namespace: Namespace prefix for all metrics (default: "copilot")
             export_interval_millis: Export interval in milliseconds (default: 60000)
             raise_on_error: If True, raise exceptions on metric errors (useful for testing).
@@ -64,7 +68,7 @@ class AzureMonitorMetricsCollector(MetricsCollector):
 
         Raises:
             ImportError: If required Azure Monitor packages are not installed
-            ValueError: If connection string is not provided
+            ValueError: If connection_string is not provided
         """
         if not AZURE_MONITOR_AVAILABLE:
             raise ImportError(
@@ -72,37 +76,16 @@ class AzureMonitorMetricsCollector(MetricsCollector):
                 "Install with: pip install azure-monitor-opentelemetry-exporter opentelemetry-sdk"
             )
 
-        # Get connection string from parameter or environment
-        self.connection_string = connection_string or os.getenv("AZURE_MONITOR_CONNECTION_STRING")
-
-        # Fallback to instrumentation key if connection string not provided
-        if not self.connection_string:
-            instrumentation_key = os.getenv("AZURE_MONITOR_INSTRUMENTATION_KEY")
-            if instrumentation_key:
-                self.connection_string = f"InstrumentationKey={instrumentation_key}"
-
-        if not self.connection_string:
+        if not connection_string:
             raise ValueError(
-                "Azure Monitor connection string is required. "
-                "Set AZURE_MONITOR_CONNECTION_STRING or AZURE_MONITOR_INSTRUMENTATION_KEY environment variable, "
-                "or pass connection_string parameter."
+                "Azure Monitor connection_string is required for AzureMonitorMetricsCollector. "
+                "Pass connection_string parameter explicitly."
             )
 
-        self.namespace = namespace or os.getenv("AZURE_MONITOR_METRIC_NAMESPACE", "copilot")
+        self.connection_string = connection_string
+        self.namespace = namespace or "copilot"
         self.raise_on_error = raise_on_error
         self._metrics_errors_count = 0
-
-        # Configure export interval from parameter or environment
-        export_interval_env = os.getenv("AZURE_MONITOR_EXPORT_INTERVAL_MILLIS")
-        if export_interval_env:
-            try:
-                export_interval_millis = int(export_interval_env)
-            except ValueError:
-                logger.warning(
-                    "Invalid AZURE_MONITOR_EXPORT_INTERVAL_MILLIS value: %s. Using default: %s",
-                    export_interval_env,
-                    export_interval_millis
-                )
 
         # Initialize cache dictionaries first to ensure object is always in consistent state
         self._counters: dict[str, Any] = {}
@@ -341,3 +324,29 @@ class AzureMonitorMetricsCollector(MetricsCollector):
                 logger.info("Azure Monitor metrics collector shut down successfully")
         except Exception as e:
             logger.error(f"Error during Azure Monitor metrics collector shutdown: {e}")
+
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "AzureMonitorMetricsCollector":
+        """Create an AzureMonitorMetricsCollector from configuration.
+
+        Args:
+            driver_config: DriverConfig instance with required attributes:
+                - connection_string: Azure Monitor connection string
+                Optional attributes:
+                - namespace: Namespace prefix (default: "copilot")
+                - export_interval_millis: Export interval in ms (default: 60000)
+                - raise_on_error: Whether to raise on metric errors (default: False)
+
+        Returns:
+            Configured AzureMonitorMetricsCollector instance
+
+        Raises:
+            ImportError: If Azure Monitor packages are not installed
+            ValueError: If connection_string is not provided
+        """
+        return cls(
+            connection_string=driver_config.connection_string,
+            namespace=driver_config.namespace,
+            export_interval_millis=driver_config.export_interval_millis,
+            raise_on_error=driver_config.raise_on_error
+        )

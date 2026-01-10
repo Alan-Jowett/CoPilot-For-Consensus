@@ -48,7 +48,7 @@ class TestSchemaRegistry:
     def test_get_schema_path_success(self):
         """Test successfully getting a schema path."""
         path = get_schema_path("ArchiveIngested", "v1")
-        assert path.endswith("events/ArchiveIngested.schema.json")
+        assert Path(path).as_posix().endswith("events/ArchiveIngested.schema.json")
         assert Path(path).exists()
 
     def test_get_schema_path_invalid_type(self):

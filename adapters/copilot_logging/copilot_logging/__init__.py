@@ -13,36 +13,25 @@ and debugging.
 Example:
     >>> from copilot_logging import create_logger
     >>>
-    >>> # Create a logger with structured JSON output
-    >>> logger = create_logger(logger_type="stdout", level="INFO")
+    >>> # Create a logger with structured output
+    >>> logger = create_logger("stdout", {"level": "INFO", "name": "my-service"})
     >>> logger.info("Service started", service="ingestion", version="1.0.0")
     >>>
     >>> # Create a silent logger for testing
-    >>> test_logger = create_logger(logger_type="silent")
+    >>> test_logger = create_logger("silent")
     >>> test_logger.info("Test message")
-    >>> assert test_logger.has_log("Test message")
 """
 
 __version__ = "0.1.0"
 
-from .azure_monitor_logger import AzureMonitorLogger
-from .factory import create_logger
+from .factory import create_logger, create_stdout_logger
 from .logger import Logger
-from .silent_logger import SilentLogger
-from .stdout_logger import StdoutLogger
 from .uvicorn_config import create_uvicorn_log_config
 
 __all__ = [
-    # Version
     "__version__",
-    # Core interface
     "Logger",
-    # Implementations
-    "StdoutLogger",
-    "SilentLogger",
-    "AzureMonitorLogger",
-    # Factory
     "create_logger",
-    # Uvicorn integration
+    "create_stdout_logger",
     "create_uvicorn_log_config",
 ]

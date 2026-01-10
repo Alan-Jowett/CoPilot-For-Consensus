@@ -4,46 +4,38 @@
 """Copilot-for-Consensus Authentication Adapter.
 
 A shared library for identity and authentication across microservices
-in the Copilot-for-Consensus system. Supports multiple authentication
-providers including GitHub OAuth, Google OIDC, Microsoft Entra ID,
-IETF Datatracker, and mock providers for testing.
+in the Copilot-for-Consensus system.
+
+Minimal exports - services should use create_identity_provider():
+
+    from copilot_config import load_service_config
+    from copilot_auth import create_identity_provider
+
+    config = load_service_config("auth")
+    auth_adapter = config.get_adapter("identity_provider")
+    provider = create_identity_provider(auth_adapter.driver_name, auth_adapter.driver_config)
 """
 
 __version__ = "0.2.0"
 
-from .datatracker_provider import DatatrackerIdentityProvider
 from .factory import create_identity_provider
-from .github_provider import GitHubIdentityProvider
-from .google_provider import GoogleIdentityProvider
 from .jwt_manager import JWTManager
-from .microsoft_provider import MicrosoftIdentityProvider
 from .middleware import JWTMiddleware, create_jwt_middleware
-from .mock_provider import MockIdentityProvider
 from .models import User
-from .oidc_provider import OIDCProvider
 from .provider import AuthenticationError, IdentityProvider, ProviderError
 
 __all__ = [
-    # Version
-    "__version__",
-    # Models
-    "User",
-    # Providers
-    "IdentityProvider",
-    "OIDCProvider",
-    "MockIdentityProvider",
-    "GitHubIdentityProvider",
-    "GoogleIdentityProvider",
-    "MicrosoftIdentityProvider",
-    "DatatrackerIdentityProvider",
-    # JWT
-    "JWTManager",
-    # Factory
+    # Factory function (all services should use this)
     "create_identity_provider",
-    # Exceptions
-    "AuthenticationError",
-    "ProviderError",
-    # Middleware
+    # Base class (for type hints)
+    "IdentityProvider",
+    # JWT components
+    "JWTManager",
     "JWTMiddleware",
     "create_jwt_middleware",
+    # Models
+    "User",
+    # Exceptions (for error handling)
+    "AuthenticationError",
+    "ProviderError",
 ]

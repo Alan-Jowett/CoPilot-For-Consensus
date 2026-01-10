@@ -8,7 +8,8 @@ import tempfile
 from types import SimpleNamespace
 from typing import Any
 
-from copilot_schema_validation import FileSchemaProvider, validate_json
+from copilot_schema_validation import create_schema_provider, validate_json
+from copilot_archive_store.local_volume_archive_store import LocalVolumeArchiveStore
 
 
 def make_config(**overrides):
@@ -23,15 +24,22 @@ def make_config(**overrides):
         "log_type": "stdout",
         "logger_name": "ingestion-test",
         "metrics_backend": "noop",
+        "metrics_type": "noop",
         "retry_max_attempts": 3,
         "retry_backoff_seconds": 1,
         "error_reporter_type": "console",
         "sentry_dsn": None,
         "sentry_environment": "test",
+        "archive_store_type": "local",
         "sources": [],
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)
+
+
+def make_archive_store(base_path: str) -> LocalVolumeArchiveStore:
+    """Create a local archive store for tests."""
+    return LocalVolumeArchiveStore(base_path=base_path)
 
 
 def make_source(**overrides) -> dict:
@@ -48,14 +56,14 @@ def make_source(**overrides) -> dict:
 
 
 def get_schema_provider():
-    """Get a FileSchemaProvider for testing.
+    """Get a schema provider for testing.
 
     Returns:
-        FileSchemaProvider instance configured with repository schemas
+        SchemaProvider instance configured with repository schemas
     """
     from pathlib import Path
     schema_dir = Path(__file__).parent.parent.parent / "docs" / "schemas" / "events"
-    return FileSchemaProvider(schema_dir=schema_dir)
+    return create_schema_provider(schema_dir=str(schema_dir))
 
 
 def validate_event_against_schema(event: dict[str, Any]) -> tuple[bool, list[str]]:

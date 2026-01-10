@@ -53,6 +53,15 @@
         { "keys": { "summary_type": 1 }, "options": { "name": "summary_type_idx" } },
         { "keys": { "generated_at": 1 }, "options": { "name": "generated_at_idx" } }
       ]
+    },
+    {
+      "name": "sources",
+      "schema": "/schemas/documents/v1/sources.schema.json",
+      "indexes": [
+        { "keys": { "name": 1 }, "options": { "name": "name_idx", "unique": true } },
+        { "keys": { "enabled": 1 }, "options": { "name": "enabled_idx" } },
+        { "keys": { "source_type": 1 }, "options": { "name": "source_type_idx" } }
+      ]
     }
   ]
 }

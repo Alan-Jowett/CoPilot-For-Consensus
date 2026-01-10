@@ -4,65 +4,68 @@
 """Integration tests for the embedding service."""
 
 from pathlib import Path
-from typing import Any
 from unittest.mock import Mock
 
 import pytest
 from app.service import EmbeddingService
-from copilot_embedding import MockEmbeddingProvider
-from copilot_schema_validation import FileSchemaProvider
-from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
-from copilot_vectorstore import InMemoryVectorStore
+from copilot_embedding import create_embedding_provider
+from copilot_schema_validation import create_schema_provider
+from copilot_storage import create_document_store
+from copilot_vectorstore import create_vector_store
+
+pytestmark = pytest.mark.integration
+
+
+def _add_in_operator_support(store):
+    original_query = store.query_documents
+
+    def query_with_in_support(collection: str, filter_dict: dict[str, object], limit: int = 100):
+        if isinstance(filter_dict, dict):
+            if "_id" in filter_dict and isinstance(filter_dict["_id"], dict):
+                doc_ids = filter_dict["_id"].get("$in", [])
+                results = []
+                for doc_id in doc_ids:
+                    results.extend(original_query(collection, {"_id": doc_id}, limit))
+                return results[:limit]
+        return original_query(collection, filter_dict, limit)
+
+    return query_with_in_support
 
 
 @pytest.fixture
 def in_memory_document_store():
-    """Create an in-memory document store with MongoDB-like query support."""
-    import copy
-
-    base_store = InMemoryDocumentStore()
-    base_store.connect()
-
-    # Wrap query_documents to support $in operator
-    original_query = base_store.query_documents
-
-    def query_with_in_support(collection: str, filter_dict: dict[str, Any], limit: int = 100):
-        # Check if filter uses $in operator
-        for key, value in filter_dict.items():
-            if isinstance(value, dict) and "$in" in value:
-                # Handle $in operator
-                target_values = value["$in"]
-                results = []
-                for doc in base_store.collections.get(collection, {}).values():
-                    if doc.get(key) in target_values:
-                        results.append(copy.deepcopy(doc))
-                        if len(results) >= limit:
-                            break
-                return results
-        # Fallback to original implementation for simple queries
-        return original_query(collection, filter_dict, limit)
-
-    base_store.query_documents = query_with_in_support
-
-    # Wrap with validation
-    schema_provider = FileSchemaProvider(
-        schema_dir=Path(__file__).parent.parent.parent / "docs" / "schemas" / "documents"
+    """Create an in-memory document store with MongoDB-like $in support."""
+    schema_provider = create_schema_provider(
+        schema_dir=str(Path(__file__).parent.parent.parent / "docs" / "schemas" / "documents"),
+        schema_type="documents"
     )
-    store = ValidatingDocumentStore(store=base_store, schema_provider=schema_provider)
 
-    return store
+    document_store = create_document_store(
+        driver_name="inmemory",
+        driver_config={"schema_provider": schema_provider},
+        enable_validation=True,
+    )
+    document_store.connect()
+
+    # Add $in operator support on the underlying store
+    if hasattr(document_store, "_store"):
+        document_store._store.query_documents = _add_in_operator_support(document_store._store)
+    else:
+        document_store.query_documents = _add_in_operator_support(document_store)
+
+    return document_store
 
 
 @pytest.fixture
 def in_memory_vector_store():
     """Create an in-memory vector store."""
-    return InMemoryVectorStore()
+    return create_vector_store(driver_name="inmemory", driver_config={})
 
 
 @pytest.fixture
 def mock_embedding_provider():
     """Create a mock embedding provider."""
-    return MockEmbeddingProvider(dimension=384)
+    return create_embedding_provider(driver_name="mock", driver_config={"dimension": 384})
 
 
 @pytest.fixture

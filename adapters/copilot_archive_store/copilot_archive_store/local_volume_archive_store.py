@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from copilot_config import DriverConfig
+
 from .archive_store import (
     ArchiveStore,
     ArchiveStoreError,
@@ -27,15 +29,15 @@ class LocalVolumeArchiveStore(ArchiveStore):
     Metadata is stored in a separate JSON file for efficient querying.
     """
 
-    def __init__(self, base_path: str = None):
+    def __init__(self, base_path: str | None = None):
         """Initialize local volume archive store.
 
         Args:
             base_path: Base directory for archive storage.
-                      Defaults to ARCHIVE_STORE_PATH env var or "/data/raw_archives"
+                      Defaults to "/data/raw_archives" if not provided
         """
         if base_path is None:
-            base_path = os.getenv("ARCHIVE_STORE_PATH", "/data/raw_archives")
+            base_path = "/data/raw_archives"
 
         self.base_path = Path(base_path)
         self.metadata_path = self.base_path / "metadata" / "archives.json"
@@ -61,6 +63,23 @@ class LocalVolumeArchiveStore(ArchiveStore):
         # Load metadata index
         self._metadata: dict[str, dict[str, Any]] = {}
         self._load_metadata()
+
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "LocalVolumeArchiveStore":
+        """Create LocalVolumeArchiveStore from DriverConfig.
+
+        Args:
+            driver_config: DriverConfig object containing archive store configuration
+
+        Returns:
+            LocalVolumeArchiveStore instance
+
+        Raises:
+            ValueError: If required configuration is missing
+        """
+        base_path = driver_config.base_path
+        
+        return cls(base_path=base_path)
 
     def _load_metadata(self) -> None:
         """Load metadata index from disk."""

@@ -33,12 +33,12 @@ ADAPTER_MODULES = [
     "copilot_config",
     "copilot_consensus",
     "copilot_embedding",
-    "copilot_events",
+    "copilot_message_bus",
     "copilot_logging",
     "copilot_metrics",
     "copilot_archive_fetcher",
     "copilot_archive_store",
-    "copilot_reporting",
+    "copilot_error_reporting",
     "copilot_schema_validation",
     "copilot_storage",
     "copilot_summarization",
@@ -274,7 +274,7 @@ def test_no_warnings_on_import() -> None:
         warnings.simplefilter("always")
 
         # Try importing a few key adapters
-        for adapter in ["copilot_config", "copilot_logging", "copilot_events"]:
+        for adapter in ["copilot_config", "copilot_logging", "copilot_message_bus"]:
             try:
                 importlib.import_module(adapter)
             except ModuleNotFoundError:

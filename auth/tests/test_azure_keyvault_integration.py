@@ -18,59 +18,43 @@ class TestAzureKeyVaultIntegration:
         Note: This test will be skipped if Azure dependencies are not installed,
         which is expected in local development environments.
         """
-        try:
-            from copilot_secrets import AzureKeyVaultProvider
-            
-            # Verify class is importable
-            assert AzureKeyVaultProvider is not None
-            
-        except ImportError as e:
-            # Expected in local dev without [azure] extras
-            if "Azure SDK dependencies" in str(e):
-                pytest.skip("Azure SDK dependencies not installed (expected in local dev)")
-            else:
-                # Re-raise unexpected import errors
-                raise
+        # The class should always be importable; Azure SDK is only required when
+        # the provider is instantiated.
+        from copilot_secrets.azurekeyvault_provider import AzureKeyVaultProvider
+
+        assert AzureKeyVaultProvider is not None
 
     def test_azure_provider_initialization_requires_config(self):
         """Test that Azure provider requires vault configuration.
         
         This verifies the provider fails gracefully when vault config is missing.
         """
-        # First check if Azure dependencies are available
-        try:
-            from copilot_secrets import SecretProviderError, create_secret_provider
-        except ImportError as e:
-            if "Azure SDK dependencies" in str(e):
-                pytest.skip("Azure SDK dependencies not installed (expected in local dev)")
-            else:
-                raise
+        from copilot_secrets import SecretProviderError, create_secret_provider
+
+        # Factory should raise an error when vault config is missing
+        with pytest.raises(SecretProviderError) as exc_info:
+            create_secret_provider("azure", driver_config=None)
         
-        # Now test that missing config raises appropriate error
-        with pytest.raises(SecretProviderError, match="Azure Key Vault URL not configured"):
-            create_secret_provider("azure")
+        # Check the error message
+        message = str(exc_info.value)
+        if "Azure SDK dependencies" in message:
+            pytest.skip("Azure SDK dependencies not installed (expected in local dev)")
+        assert "Azure Key Vault URL not configured" in message
 
     def test_secret_provider_factory_knows_azure(self):
         """Test that the secret provider factory recognizes 'azure' provider type."""
-        # First check if Azure dependencies are available
-        try:
-            from copilot_secrets import SecretProviderError, create_secret_provider
-        except ImportError as e:
-            # Expected in environments without [azure] extras installed
-            if "Azure SDK dependencies" in str(e):
-                pytest.skip("Azure SDK dependencies not installed (expected in local dev)")
-            else:
-                # Re-raise unexpected import errors
-                raise
+        from copilot_secrets import SecretProviderError, create_secret_provider
         
         # Factory should not raise "Unknown provider type" for azure.
         # It may raise other errors (like missing config), but should recognize the type.
         with pytest.raises(SecretProviderError) as exc_info:
-            # This should fail with a config-related error, not "unknown provider"
-            create_secret_provider("azure")
+            create_secret_provider("azure", driver_config=None)
         
         # Should be a config error, not unknown provider type
         message = str(exc_info.value)
         assert "Unknown provider type" not in message
-        # Prefer the specific Azure Key Vault config error, if raised
+        # In CI images with azure extras installed, this should be the config error.
+        # In local dev without extras installed, skip.
+        if "Azure SDK dependencies" in message:
+            pytest.skip("Azure SDK dependencies not installed (expected in local dev)")
         assert "Azure Key Vault URL not configured" in message

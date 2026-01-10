@@ -221,10 +221,10 @@ The system uses adapter modules to decouple core business logic from external de
 - **copilot_consensus**: Consensus detection logic
 - **copilot_draft_diff**: RFC draft difference tracking
 - **copilot_embedding**: Embedding generation abstraction
-- **copilot_events**: Event publishing, subscription, and schema validation
+- **copilot_message_bus**: Event publishing, subscription, and schema validation
 - **copilot_logging**: Structured logging
 - **copilot_metrics**: Metrics collection (Prometheus)
-- **copilot_reporting**: Error reporting
+- **copilot_error_reporting**: Error reporting
 - **copilot_schema_validation**: JSON schema validation for messages and events
 - **copilot_startup**: Service startup coordination
 - **copilot_storage**: Document store abstraction (MongoDB, in-memory)

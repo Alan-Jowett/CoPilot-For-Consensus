@@ -12,6 +12,7 @@ from typing import Any
 
 from azure.core.exceptions import AzureError, ResourceExistsError, ResourceNotFoundError
 from azure.storage.blob import BlobServiceClient, ContainerClient
+from copilot_config import DriverConfig
 
 from .archive_store import (
     ArchiveStore,
@@ -52,74 +53,115 @@ class AzureBlobArchiveStore(ArchiveStore):
 
     def __init__(
         self,
-        account_name: str = None,
-        account_key: str = None,
-        sas_token: str = None,
-        container_name: str = None,
-        prefix: str = None,
-        connection_string: str = None,
+        account_name: str | None = None,
+        account_key: str | None = None,
+        sas_token: str | None = None,
+        container_name: str | None = None,
+        prefix: str | None = None,
+        connection_string: str | None = None,
     ):
         """Initialize Azure Blob archive store.
 
+        Supports two authentication modes:
+        1. Connection String: Pass connection_string parameter (simplest, includes credentials)
+        2. Managed Identity: Pass account_name only (no credentials; uses Azure credentials)
+
         Args:
+            connection_string: Full Azure Storage connection string.
+                             Either connection_string OR account_name must be provided, but not both.
             account_name: Azure storage account name.
-                         Defaults to AZURE_STORAGE_ACCOUNT env var
-            account_key: Storage account key.
-                        Defaults to AZURE_STORAGE_KEY env var
-            sas_token: SAS token (alternative to account_key).
-                      Defaults to AZURE_STORAGE_SAS_TOKEN env var
-            container_name: Container name for archives.
-                           Defaults to AZURE_STORAGE_CONTAINER env var or "archives"
-            prefix: Optional path prefix for organizing blobs.
-                   Defaults to AZURE_STORAGE_PREFIX env var or empty string
-            connection_string: Full connection string (alternative to account_name/key).
-                              Defaults to AZURE_STORAGE_CONNECTION_STRING env var
+                         Use with managed identity (no account_key or sas_token) or with credentials.
+                         Either connection_string OR account_name must be provided, but not both.
+            account_key: Storage account key (requires account_name).
+                        Incompatible with connection_string.
+            sas_token: SAS token as credential (requires account_name).
+                      Incompatible with connection_string and account_key.
+            container_name: Container name for archives (default: "raw-archives").
+            prefix: Optional path prefix for organizing blobs (default: empty string).
+
+        Raises:
+            ValueError: If configuration is inconsistent or incomplete
         """
-        # Load configuration from environment if not provided
-        self.account_name = account_name or os.getenv("AZURE_STORAGE_ACCOUNT")
-        self.account_key = account_key or os.getenv("AZURE_STORAGE_KEY")
-        self.sas_token = sas_token or os.getenv("AZURE_STORAGE_SAS_TOKEN")
-        self.container_name = container_name or os.getenv(
-            "AZURE_STORAGE_CONTAINER", "archives"
-        )
-        self.prefix = prefix or os.getenv("AZURE_STORAGE_PREFIX", "")
-        self.connection_string = connection_string or os.getenv(
-            "AZURE_STORAGE_CONNECTION_STRING"
-        )
+        # Use caller-provided configuration only (no environment fallbacks)
+        self.account_name = account_name
+        self.account_key = account_key
+        self.sas_token = sas_token
+        self.container_name = container_name or "raw-archives"
+        self.prefix = prefix or ""
+        self.connection_string = connection_string
 
         # Ensure prefix ends with / if provided
         if self.prefix and not self.prefix.endswith("/"):
             self.prefix += "/"
 
-        # Validate configuration
-        if not self.connection_string:
-            if not self.account_name:
+        # Validate authentication configuration: must use EITHER connection_string OR account_name, not both or neither
+        has_connection_string = bool(self.connection_string)
+        has_account_name = bool(self.account_name)
+
+        if has_connection_string and has_account_name:
+            raise ValueError(
+                "Cannot provide both connection_string and account_name. "
+                "Choose one authentication method: "
+                "1) connection_string (includes embedded credentials), or "
+                "2) account_name (with managed identity or explicit credentials)"
+            )
+
+        if not has_connection_string and not has_account_name:
+            raise ValueError(
+                "Authentication configuration required. Provide either: "
+                "1) connection_string (full connection string), or "
+                "2) account_name (with managed identity or account_key/sas_token)"
+            )
+
+        # If using account_name, validate credentials are not mixed
+        if has_account_name:
+            if self.account_key and self.sas_token:
                 raise ValueError(
-                    "Azure Storage account name must be provided via "
-                    "account_name parameter or AZURE_STORAGE_ACCOUNT env var"
+                    "Cannot provide both account_key and sas_token. "
+                    "Choose one credential method: account_key or sas_token (or neither for managed identity)"
                 )
-            if not self.account_key and not self.sas_token:
+
+        # If using connection_string, ensure no conflicting credentials (account_name already excluded above)
+        if has_connection_string:
+            if self.account_key or self.sas_token:
                 raise ValueError(
-                    "Azure Storage credentials must be provided via "
-                    "account_key/AZURE_STORAGE_KEY or "
-                    "sas_token/AZURE_STORAGE_SAS_TOKEN"
+                    "Cannot provide account_key or sas_token when using connection_string. "
+                    "Use only connection_string for connection string authentication"
                 )
 
         # Initialize Azure Blob Service Client
         try:
             if self.connection_string:
+                # Connection string authentication (includes embedded credentials)
                 self.blob_service_client = BlobServiceClient.from_connection_string(
                     self.connection_string
                 )
             elif self.sas_token:
+                # SAS token authentication
                 account_url = f"https://{self.account_name}.blob.core.windows.net"
                 self.blob_service_client = BlobServiceClient(
                     account_url=account_url, credential=self.sas_token
                 )
-            else:
+            elif self.account_key:
+                # Account key authentication
                 account_url = f"https://{self.account_name}.blob.core.windows.net"
                 self.blob_service_client = BlobServiceClient(
                     account_url=account_url, credential=self.account_key
+                )
+            else:
+                # Managed identity authentication (no explicit credentials; uses DefaultAzureCredential)
+                try:
+                    from azure.identity import DefaultAzureCredential
+                except ImportError as e:
+                    raise ImportError(
+                        "azure-identity is required for managed identity authentication. "
+                        "Install with: pip install azure-identity"
+                    ) from e
+                
+                account_url = f"https://{self.account_name}.blob.core.windows.net"
+                credential = DefaultAzureCredential()
+                self.blob_service_client = BlobServiceClient(
+                    account_url=account_url, credential=credential
                 )
 
             # Get container client (create if not exists)
@@ -158,6 +200,46 @@ class AzureBlobArchiveStore(ArchiveStore):
         self._metadata_etag: str | None = None
         self._hash_index: dict[str, str] = {}  # content_hash -> archive_id mapping
         self._load_metadata()
+
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "AzureBlobArchiveStore":
+        """Create AzureBlobArchiveStore from DriverConfig.
+
+        Args:
+            driver_config: DriverConfig object containing archive store configuration
+                          Expected keys: connection_string OR account_name, plus optional
+                          account_key, sas_token, container_name, prefix
+
+        Returns:
+            AzureBlobArchiveStore instance
+
+        Raises:
+            ValueError: If required configuration is missing or invalid
+        """
+        # Extract authentication settings (one of these must be present)
+        connection_string = driver_config.connection_string
+        account_name = driver_config.account_name
+        
+        if not connection_string and not account_name:
+            raise ValueError(
+                "AzureBlobArchiveStore requires either 'connection_string' or 'account_name' "
+                "in driver configuration"
+            )
+        
+        # Extract optional credentials and container settings
+        account_key = driver_config.account_key
+        sas_token = driver_config.sas_token
+        container_name = driver_config.container_name or "raw-archives"
+        prefix = driver_config.prefix
+        
+        return cls(
+            connection_string=connection_string,
+            account_name=account_name,
+            account_key=account_key,
+            sas_token=sas_token,
+            container_name=container_name,
+            prefix=prefix,
+        )
 
     def _load_metadata(self) -> None:
         """Load metadata index from Azure Blob Storage."""

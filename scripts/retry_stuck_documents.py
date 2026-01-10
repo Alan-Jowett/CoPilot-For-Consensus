@@ -68,7 +68,7 @@ except ImportError:
     Histogram = None  # type: ignore
     push_to_gateway = None  # type: ignore
 
-logger = create_logger(name=__name__)
+logger = create_logger("stdout", {"name": __name__})
 
 
 def _get_env_or_secret(env_var: str, secret_name: str) -> str | None:
@@ -711,7 +711,7 @@ For full documentation, see documents/RETRY_POLICY.md
     # Configure logging
     global logger
     if args.verbose:
-        logger = create_logger(name=__name__, level="DEBUG")
+        logger = create_logger("stdout", {"name": __name__, "level": "DEBUG"})
 
     mongodb_username = _get_env_or_secret("MONGODB_USERNAME", "document_database_user")
     mongodb_password = _get_env_or_secret("MONGODB_PASSWORD", "document_database_password")

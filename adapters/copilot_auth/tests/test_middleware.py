@@ -225,21 +225,20 @@ def test_middleware_role_enforcement():
 
 def test_create_jwt_middleware_factory():
     """Test factory function creates middleware with defaults."""
-    with patch.dict("os.environ", {
-        "AUTH_SERVICE_URL": "http://custom-auth:9000",
-        "SERVICE_NAME": "custom-service"
-    }):
-        middleware_class = create_jwt_middleware()
+    middleware_class = create_jwt_middleware(
+        auth_service_url="http://custom-auth:9000",
+        audience="custom-service",
+    )
 
-        app = FastAPI()
+    app = FastAPI()
 
-        with patch("httpx.get") as mock_get:
-            mock_get.return_value.json.return_value = {"keys": []}
+    with patch("httpx.get") as mock_get:
+        mock_get.return_value.json.return_value = {"keys": []}
 
-            instance = middleware_class(app.router)
+        instance = middleware_class(app.router)
 
-            assert instance.auth_service_url == "http://custom-auth:9000"
-            assert instance.audience == "custom-service"
+        assert instance.auth_service_url == "http://custom-auth:9000"
+        assert instance.audience == "custom-service"
 
 
 def test_create_jwt_middleware_with_overrides():

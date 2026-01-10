@@ -34,6 +34,9 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0Z6Wr1nN3dkp1pL5JHQN
         }]
     }
     service.jwt_manager = jwt_manager
+
+    # main.py calls auth_service.get_jwks()
+    service.get_jwks.return_value = jwt_manager.get_jwks.return_value
     
     return service
 

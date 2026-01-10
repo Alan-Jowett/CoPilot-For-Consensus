@@ -33,6 +33,25 @@ class MockDiffProvider(DraftDiffProvider):
         self.mock_diffs = mock_diffs or {}
         self.default_format = default_format
 
+    @classmethod
+    def from_config(cls, driver_config):
+        """Create provider from configuration.
+        
+        Configuration defaults are defined in schema:
+        docs/schemas/configs/adapters/drivers/draft_diff_provider/mock.json
+        
+        Args:
+            driver_config: Configuration object with attributes:
+                          - mock_diffs: Mock diffs mapping (optional)
+                          - default_format: Default format
+        
+        Returns:
+            Configured MockDraftDiffProvider
+        """
+        mock_diffs = getattr(driver_config, "mock_diffs", None)
+        default_format = driver_config.default_format
+        return cls(mock_diffs=mock_diffs, default_format=str(default_format))
+
     def getdiff(self, draft_name: str, version_a: str, version_b: str) -> DraftDiff:
         """Fetch a mock diff between two versions of a draft.
 

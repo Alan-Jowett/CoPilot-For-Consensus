@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+﻿// SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
 metadata description = 'Module to provision Container Apps environment and all microservices'
@@ -246,6 +246,10 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
+              name: 'METRICS_TYPE'
+              value: 'azure_monitor'
+            }
+            {
               name: 'JWT_ALGORITHM'
               value: 'RS256'
             }
@@ -274,7 +278,19 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'cosmos'
             }
             {
-              name: 'COSMOS_DB_ENDPOINT'
+              name: 'AUTH_COSMOS_ENDPOINT'
+              value: cosmosDbEndpoint
+            }
+            {
+              name: 'AUTH_COSMOS_PORT'
+              value: '443'
+            }
+            {
+              name: 'AUTH_COSMOS_DATABASE'
+              value: cosmosAuthDatabaseName
+            }
+            {
+              name: 'COSMOS_ENDPOINT'
               value: cosmosDbEndpoint
             }
             {
@@ -344,15 +360,23 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
+              name: 'METRICS_TYPE'
+              value: 'azure_monitor'
+            }
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
+            }
+            {
               name: 'MESSAGE_BUS_TYPE'
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -360,7 +384,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'cosmos'
             }
             {
-              name: 'COSMOS_DB_ENDPOINT'
+              name: 'COSMOS_ENDPOINT'
               value: cosmosDbEndpoint
             }
             {
@@ -380,16 +404,20 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'qdrant'
             }
             {
-              name: 'VECTOR_DB_HOST'
+              name: 'QDRANT_HOST'
               value: '${projectPrefix}-qdrant-${environment}'
             }
             {
-              name: 'VECTOR_DB_PORT'
+              name: 'QDRANT_PORT'
               value: '80'
             }
             {
-              name: 'VECTOR_DB_COLLECTION'
+              name: 'QDRANT_COLLECTION'
               value: 'embeddings'
+            }
+            {
+              name: 'EMBEDDING_BACKEND_TYPE'
+              value: azureOpenAIEndpoint != '' && azureOpenAIEmbeddingDeploymentName != '' ? 'azure_openai' : 'sentencetransformers'
             }
             {
               name: 'AUTH_SERVICE_URL'
@@ -454,15 +482,23 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
+              name: 'METRICS_TYPE'
+              value: 'azure_monitor'
+            }
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
+            }
+            {
               name: 'MESSAGE_BUS_TYPE'
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -470,7 +506,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'cosmos'
             }
             {
-              name: 'COSMOS_DB_ENDPOINT'
+              name: 'COSMOS_ENDPOINT'
               value: cosmosDbEndpoint
             }
             {
@@ -490,16 +526,20 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '/data/raw_archives'
             }
             {
-              name: 'AZURE_STORAGE_ACCOUNT'
+              name: 'ARCHIVE_STORE_TYPE'
+              value: 'azureblob'
+            }
+            {
+              name: 'LOCAL_LOCAL_ARCHIVE_STORE_PATH'
+              value: '/data/raw_archives'
+            }
+            {
+              name: 'AZUREBLOB_ACCOUNT_NAME'
               value: storageAccountName
             }
             {
-              name: 'AZURE_STORAGE_ENDPOINT'
-              value: storageBlobEndpoint
-            }
-            {
-              name: 'AZURE_STORAGE_CONTAINER'
-              value: 'archives'
+              name: 'AZUREBLOB_CONTAINER_NAME'
+              value: 'raw-archives'
             }
             {
               name: 'HTTP_PORT'
@@ -586,15 +626,23 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
+              name: 'METRICS_TYPE'
+              value: 'azure_monitor'
+            }
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
+            }
+            {
               name: 'MESSAGE_BUS_TYPE'
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -602,7 +650,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'cosmos'
             }
             {
-              name: 'COSMOS_DB_ENDPOINT'
+              name: 'COSMOS_ENDPOINT'
               value: cosmosDbEndpoint
             }
             {
@@ -616,6 +664,22 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'AZURE_CLIENT_ID'
               value: identityClientIds.parsing
+            }
+            {
+              name: 'ARCHIVE_STORE_TYPE'
+              value: 'azureblob'
+            }
+            {
+              name: 'LOCAL_LOCAL_ARCHIVE_STORE_PATH'
+              value: '/data/raw_archives'
+            }
+            {
+              name: 'AZUREBLOB_ACCOUNT_NAME'
+              value: storageAccountName
+            }
+            {
+              name: 'AZUREBLOB_CONTAINER_NAME'
+              value: 'raw-archives'
             }
             {
               name: 'AUTH_SERVICE_URL'
@@ -681,15 +745,23 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
+              name: 'METRICS_TYPE'
+              value: 'azure_monitor'
+            }
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
+            }
+            {
               name: 'MESSAGE_BUS_TYPE'
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -697,7 +769,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'cosmos'
             }
             {
-              name: 'COSMOS_DB_ENDPOINT'
+              name: 'COSMOS_ENDPOINT'
               value: cosmosDbEndpoint
             }
             {
@@ -776,15 +848,23 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
+              name: 'METRICS_TYPE'
+              value: 'azure_monitor'
+            }
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
+            }
+            {
               name: 'MESSAGE_BUS_TYPE'
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -792,7 +872,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'cosmos'
             }
             {
-              name: 'COSMOS_DB_ENDPOINT'
+              name: 'COSMOS_ENDPOINT'
               value: cosmosDbEndpoint
             }
             {
@@ -809,39 +889,39 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'VECTOR_STORE_TYPE'
-              value: vectorStoreBackend == 'qdrant' ? 'qdrant' : 'ai_search'
+              value: vectorStoreBackend == 'qdrant' ? 'qdrant' : 'azure_ai_search'
             }
             {
-              name: 'VECTOR_DB_HOST'
+              name: 'QDRANT_HOST'
               value: vectorStoreBackend == 'qdrant' ? '${projectPrefix}-qdrant-${environment}' : ''
             }
             {
-              name: 'VECTOR_DB_PORT'
+              name: 'QDRANT_PORT'
               value: vectorStoreBackend == 'qdrant' ? '80' : ''
             }
             {
-              name: 'VECTOR_DB_COLLECTION'
+              name: 'QDRANT_COLLECTION'
               value: vectorStoreBackend == 'qdrant' ? 'document-embeddings' : ''
             }
             {
-              name: 'VECTOR_DB_DISTANCE'
+              name: 'QDRANT_DISTANCE'
               value: vectorStoreBackend == 'qdrant' ? 'cosine' : ''
             }
             {
-              name: 'VECTOR_DB_BATCH_SIZE'
+              name: 'QDRANT_UPSERT_BATCH_SIZE'
               value: vectorStoreBackend == 'qdrant' ? '100' : ''
             }
             {
-              name: 'AISEARCH_ENDPOINT'
+              name: 'AZURE_SEARCH_ENDPOINT'
               value: vectorStoreBackend == 'azure_ai_search' ? aiSearchEndpoint : ''
             }
             {
-              name: 'AISEARCH_INDEX_NAME'
+              name: 'AZURE_SEARCH_INDEX_NAME'
               value: vectorStoreBackend == 'azure_ai_search' ? 'document-embeddings' : ''
             }
             {
-              name: 'EMBEDDING_BACKEND'
-              value: azureOpenAIEndpoint != '' && azureOpenAIEmbeddingDeploymentName != '' ? 'azure' : 'sentencetransformers'
+              name: 'EMBEDDING_BACKEND_TYPE'
+              value: azureOpenAIEndpoint != '' && azureOpenAIEmbeddingDeploymentName != '' ? 'azure_openai' : 'sentencetransformers'
             }
             {
               name: 'EMBEDDING_DIMENSION'
@@ -856,7 +936,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: azureOpenAIEmbeddingDeploymentName
             }
             {
-              name: 'AZURE_OPENAI_KEY'
+              name: 'AZURE_OPENAI_API_KEY'
               value: azureOpenAIApiKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${azureOpenAIApiKeySecretUri})' : ''
             }
             {
@@ -923,15 +1003,23 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
+              name: 'METRICS_TYPE'
+              value: 'azure_monitor'
+            }
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
+            }
+            {
               name: 'MESSAGE_BUS_TYPE'
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -939,7 +1027,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'cosmos'
             }
             {
-              name: 'COSMOS_DB_ENDPOINT'
+              name: 'COSMOS_ENDPOINT'
               value: cosmosDbEndpoint
             }
             {
@@ -967,7 +1055,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: azureOpenAIGpt4DeploymentName
             }
             {
-              name: 'AZURE_OPENAI_KEY'
+              name: 'AZURE_OPENAI_API_KEY'
               value: azureOpenAIApiKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${azureOpenAIApiKeySecretUri})' : ''
             }
             {
@@ -1034,15 +1122,23 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'INFO'
             }
             {
+              name: 'METRICS_TYPE'
+              value: 'azure_monitor'
+            }
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
+            }
+            {
               name: 'MESSAGE_BUS_TYPE'
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
             {
@@ -1050,7 +1146,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'cosmos'
             }
             {
-              name: 'COSMOS_DB_ENDPOINT'
+              name: 'COSMOS_ENDPOINT'
               value: cosmosDbEndpoint
             }
             {
@@ -1067,34 +1163,34 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'VECTOR_STORE_TYPE'
-              value: vectorStoreBackend == 'qdrant' ? 'qdrant' : 'ai_search'
+              value: vectorStoreBackend == 'qdrant' ? 'qdrant' : 'azure_ai_search'
             }
             {
-              name: 'VECTOR_DB_HOST'
+              name: 'QDRANT_HOST'
               value: vectorStoreBackend == 'qdrant' ? '${projectPrefix}-qdrant-${environment}' : ''
             }
             {
-              name: 'VECTOR_DB_PORT'
+              name: 'QDRANT_PORT'
               value: vectorStoreBackend == 'qdrant' ? '80' : ''
             }
             {
-              name: 'VECTOR_DB_COLLECTION'
+              name: 'QDRANT_COLLECTION'
               value: vectorStoreBackend == 'qdrant' ? 'document-embeddings' : ''
             }
             {
-              name: 'VECTOR_DB_DISTANCE'
+              name: 'QDRANT_DISTANCE'
               value: vectorStoreBackend == 'qdrant' ? 'cosine' : ''
             }
             {
-              name: 'VECTOR_DB_BATCH_SIZE'
+              name: 'QDRANT_UPSERT_BATCH_SIZE'
               value: vectorStoreBackend == 'qdrant' ? '100' : ''
             }
             {
-              name: 'AISEARCH_ENDPOINT'
+              name: 'AZURE_SEARCH_ENDPOINT'
               value: vectorStoreBackend == 'azure_ai_search' ? aiSearchEndpoint : ''
             }
             {
-              name: 'AISEARCH_INDEX_NAME'
+              name: 'AZURE_SEARCH_INDEX_NAME'
               value: vectorStoreBackend == 'azure_ai_search' ? 'document-embeddings' : ''
             }
             {
@@ -1114,7 +1210,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: azureOpenAIGpt4DeploymentName
             }
             {
-              name: 'AZURE_OPENAI_KEY'
+              name: 'AZURE_OPENAI_API_KEY'
               value: azureOpenAIApiKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${azureOpenAIApiKeySecretUri})' : ''
             }
             {

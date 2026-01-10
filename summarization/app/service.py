@@ -8,7 +8,7 @@ import time
 from typing import Any
 from string import Formatter
 
-from copilot_events import (
+from copilot_message_bus import (
     EventPublisher,
     EventSubscriber,
     SummarizationFailedEvent,
@@ -16,13 +16,15 @@ from copilot_events import (
     SummaryCompleteEvent,
 )
 from copilot_logging import create_logger
+from copilot_config import load_driver_config
 from copilot_metrics import MetricsCollector
-from copilot_reporting import ErrorReporter
+from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
 from copilot_summarization import Citation, Summarizer, Thread
 from copilot_vectorstore import VectorStore
 
-logger = create_logger(name="summarization")
+logger_config = load_driver_config(service=None, adapter="logger", driver="stdout", fields={"name": "summarization", "level": "INFO"})
+logger = create_logger("stdout", logger_config)
 
 
 class SummarizationService:

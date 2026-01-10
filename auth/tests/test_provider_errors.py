@@ -28,12 +28,25 @@ class TestProviderErrors:
         config.jwt_key_id = "default"
         config.jwt_default_expiry = 1800
         config.max_skew_seconds = 90
-        config.jwt_private_key = None
-        config.jwt_public_key = None
+        # Provide dummy keys so AuthService can initialize.
+        config.jwt_private_key = "-----BEGIN PRIVATE KEY-----\nTEST\n-----END PRIVATE KEY-----\n"
+        config.jwt_public_key = "-----BEGIN PUBLIC KEY-----\nTEST\n-----END PUBLIC KEY-----\n"
         config.jwt_secret_key = None
-        config.github_client_id = None
-        config.google_client_id = None
-        config.microsoft_client_id = None
+        config.role_store_schema_dir = None
+
+        # Configure providers via the new composite adapter (stable object).
+        oidc_adapter = MagicMock()
+        oidc_adapter.driver_name = "multi"
+        oidc_adapter.driver_config = MagicMock()
+        oidc_adapter.driver_config.config = {}
+        config._oidc_adapter = oidc_adapter
+
+        def get_adapter(adapter_type: str):
+            if adapter_type == "oidc_providers":
+                return config._oidc_adapter
+            return None
+
+        config.get_adapter = get_adapter
         return config
 
     @pytest.fixture
@@ -64,7 +77,7 @@ class TestProviderErrors:
 
         return auth_svc
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_error_message_for_unconfigured_google(self, auth_service_no_providers):
         """Test that attempting to use Google provider gives helpful error when not configured."""
         with pytest.raises(ValueError) as exc_info:
@@ -79,7 +92,7 @@ class TestProviderErrors:
         assert "oauth credentials" in error_msg.lower()
         assert "documentation" in error_msg.lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_error_message_for_unconfigured_microsoft(self, auth_service_no_providers):
         """Test that attempting to use Microsoft provider gives helpful error when not configured."""
         with pytest.raises(ValueError) as exc_info:
@@ -93,7 +106,7 @@ class TestProviderErrors:
         assert "not configured" in error_msg.lower()
         assert "oauth credentials" in error_msg.lower()
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_error_message_for_unknown_provider(self, auth_service_no_providers):
         """Test that using an unknown provider gives appropriate error."""
         with pytest.raises(ValueError) as exc_info:
@@ -117,8 +130,15 @@ class TestProviderErrors:
     @pytest.fixture
     def auth_service_with_github(self, mock_config, monkeypatch):
         """Create an auth service with only GitHub configured."""
-        mock_config.github_client_id = "test_client_id"
-        mock_config.github_client_secret = "test_client_secret"
+        # Populate composite adapter config with a GitHub provider entry.
+        oidc_adapter = mock_config.get_adapter("oidc_providers")
+        oidc_adapter.driver_config.config = {
+            "github": {
+                "github_client_id": "test_client_id",
+                "github_client_secret": "test_client_secret",
+                "github_redirect_uri": "http://localhost:8090/callback",
+            }
+        }
 
         # Mock to avoid actual provider initialization
         def mock_write_text(self, content):
@@ -156,7 +176,7 @@ class TestProviderErrors:
 
         return auth_svc
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_configured_provider_listed_in_error(self, auth_service_with_github):
         """Test that configured providers are listed in error message."""
         with pytest.raises(ValueError) as exc_info:
