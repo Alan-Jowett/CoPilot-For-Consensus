@@ -15,6 +15,15 @@ from .provider import SecretProvider
 logger = logging.getLogger(__name__)
 
 
+class _DictConfig:
+    """Wrapper to allow attribute access on a dictionary or empty config."""
+
+    def __init__(self, data: dict | None = None):
+        """Initialize with optional dictionary data."""
+        if data:
+            self.__dict__.update(data)
+
+
 def create_secret_provider(
     driver_name: str,
     driver_config: DriverConfig | dict | None = None
@@ -44,16 +53,11 @@ def create_secret_provider(
 
     driver_lower = driver_name.lower()
 
-    # Wrap dict in a simple object that allows attribute access
+    # Wrap dict in a config object that allows attribute access
     if isinstance(driver_config, dict):
-        class DictConfig:
-            def __init__(self, data):
-                self.__dict__.update(data)
-        driver_config = DictConfig(driver_config)
+        driver_config = _DictConfig(driver_config)
     elif driver_config is None:
-        class DictConfig:
-            pass
-        driver_config = DictConfig()
+        driver_config = _DictConfig()
 
     if driver_lower == "local":
         return LocalFileSecretProvider.from_config(driver_config)
