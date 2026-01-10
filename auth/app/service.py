@@ -127,9 +127,9 @@ class AuthService:
                 provider_cfg.setdefault("redirect_uri", redirect_uri)
 
                 provider = create_identity_provider(driver_name=provider_name, driver_config=provider_cfg)
-                discover = getattr(provider, "discover", None)
-                if callable(discover):
-                    discover()
+                # Call discovery method if it exists (e.g., for OIDC well-known discovery)
+                if hasattr(provider, "discover") and callable(getattr(provider, "discover")):
+                    provider.discover()
                 self.providers[provider_name] = provider
                 logger.info(f"Initialized provider: {provider_name}")
             except Exception as e:
