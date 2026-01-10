@@ -62,6 +62,9 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
 
         super().__init__(registry=registry, **kwargs)
 
+        if gateway is None:
+            raise ValueError("gateway parameter is required")
+        
         self.gateway = gateway
         if not self.gateway.startswith("http"):
             self.gateway = f"http://{self.gateway}"

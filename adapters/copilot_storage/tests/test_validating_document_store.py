@@ -8,6 +8,9 @@ from copilot_storage import DocumentNotFoundError, create_document_store
 from copilot_storage.inmemory_document_store import InMemoryDocumentStore
 from copilot_storage.validating_document_store import DocumentValidationError, ValidatingDocumentStore
 
+# Note: InMemoryDocumentStore is imported from internal module for testing purposes.
+# Production code should use create_document_store() with enable_validation=False instead.
+
 # Check if copilot_schema_validation is available
 try:
     import copilot_schema_validation  # noqa: F401

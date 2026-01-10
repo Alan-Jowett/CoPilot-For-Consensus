@@ -4,7 +4,7 @@
 """Validating document store that enforces schema validation."""
 
 import logging
-from typing import Any
+from typing import Any, Callable
 
 from .document_store import DocumentNotFoundError, DocumentStore
 
@@ -217,7 +217,7 @@ class ValidatingDocumentStore(DocumentStore):
 
         return doc
 
-    def set_query_wrapper(self, wrapper_fn: callable) -> None:
+    def set_query_wrapper(self, wrapper_fn: Callable) -> None:
         """Wrap the query_documents method with custom logic.
 
         Allows tests or extensions to customize query behavior without

@@ -51,11 +51,11 @@ class MongoDocumentStore(DocumentStore):
 
     def __init__(
         self,
-        host: str = None,
-        port: int = None,
+        host: str | None = None,
+        port: int | None = None,
         username: str | None = None,
         password: str | None = None,
-        database: str = None,
+        database: str | None = None,
         **kwargs
     ):
         """Initialize MongoDB document store.

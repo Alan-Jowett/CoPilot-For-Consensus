@@ -25,10 +25,10 @@ class RabbitMQSubscriber(EventSubscriber):
 
     def __init__(
         self,
-        host: str | None = None,
-        port: int | None = None,
-        username: str | None = None,
-        password: str | None = None,
+        host: str,
+        port: int,
+        username: str,
+        password: str,
         exchange_name: str = "copilot.events",
         exchange_type: str = "topic",
         queue_name: str | None = None,

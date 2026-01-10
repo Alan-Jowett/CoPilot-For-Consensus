@@ -99,19 +99,19 @@ class OpenAISummarizer(Summarizer):
     def from_config(cls, driver_config: DriverConfig) -> "OpenAISummarizer":
         """Create an OpenAISummarizer from configuration.
 
-        Uses the driver name to select the correct schema fields:
-        - OpenAI schema: docs/schemas/configs/adapters/drivers/llm_backend/llm_openai.json
-        - Azure schema: docs/schemas/configs/adapters/drivers/llm_backend/llm_azure.json
+        Supported driver names are:
+        - "openai" for the OpenAI backend
+        - "azure" for the Azure OpenAI backend
         
         Args:
-            driver_config: DriverConfig instance.
+            driver_config: DriverConfig instance whose ``driver_name`` is either
+                "openai" or "azure".
         
         Returns:
-            Configured OpenAISummarizer instance
+            Configured OpenAISummarizer instance.
         
         Raises:
-            ValueError: If required config attributes are missing
-            AttributeError: If required config attributes are missing
+            ValueError: If ``driver_name`` is not "openai" or "azure".
         """
         driver_lower = driver_config.driver_name.lower()
 

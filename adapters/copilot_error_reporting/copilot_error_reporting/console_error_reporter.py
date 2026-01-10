@@ -40,7 +40,7 @@ class ConsoleErrorReporter(ErrorReporter):
             ConsoleErrorReporter instance
         """
         # ConsoleErrorReporter has optional logger_name configuration
-        logger_name = config.config.get("logger_name")
+        logger_name = getattr(config, "logger_name", None)
         return cls(logger_name=logger_name)
 
     def report(self, error: Exception, context: dict[str, Any] | None = None) -> None:
