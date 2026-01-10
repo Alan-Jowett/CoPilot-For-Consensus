@@ -87,7 +87,8 @@ def create_stdout_logger(
     """
     driver_config = DriverConfig(
         driver_name="stdout",
-        config={"level": level}
+        config={"level": level},
+        allowed_keys=["level", "name"]
     )
     if name is not None:
         driver_config.config["name"] = name

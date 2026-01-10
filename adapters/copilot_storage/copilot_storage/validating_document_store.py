@@ -224,6 +224,11 @@ class ValidatingDocumentStore(DocumentStore):
         accessing private attributes. The wrapper receives the original
         query method and should return a callable with the same signature.
 
+        Warning:
+            This method modifies internal state. Calling it multiple times will
+            overwrite the previous wrapper. It should be called at initialization
+            time before the store is actively used in production.
+
         Example:
             >>> def custom_query_wrapper(original_query):
             ...     def wrapped_query(collection, filter_dict, limit=100):
@@ -236,7 +241,12 @@ class ValidatingDocumentStore(DocumentStore):
         Args:
             wrapper_fn: Function that takes the original query method and returns
                        a wrapped version with the same signature
+
+        Raises:
+            ValueError: If wrapper_fn is not callable.
         """
+        if not callable(wrapper_fn):
+            raise ValueError("Query wrapper must be callable")
         original_query = self._store.query_documents
         self._store.query_documents = wrapper_fn(original_query)
 

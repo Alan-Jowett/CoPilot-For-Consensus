@@ -25,6 +25,11 @@ def create_llm_backend(
 ) -> Summarizer:
     """Create an LLM backend (summarizer) instance.
 
+    The term 'LLM backend' is used because this factory creates summarizers which are
+    implementations of language model-based text summarization. All summarizers in this
+    module (OpenAI, Azure OpenAI, Local LLM, LlamaCpp, and Mock) are powered by large
+    language models, hence they are referred to as 'LLM backends'.
+
     Args:
         driver_name: Backend type (required). Options: "openai", "azure", "local", "llamacpp", "mock".
         driver_config: Backend configuration as DriverConfig instance.

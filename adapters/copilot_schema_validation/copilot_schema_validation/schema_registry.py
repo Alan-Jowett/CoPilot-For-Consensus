@@ -321,7 +321,11 @@ def get_configuration_schema_response(service_name: str, service_version: str) -
     schema_path = schema_base_dir / "configs" / "services" / f"{service_name}.json"
 
     if not schema_path.exists():
-        raise FileNotFoundError(f"Configuration schema not found: {schema_path}")
+        relative_location = f"configs/services/{service_name}.json"
+        raise FileNotFoundError(
+            f"Configuration schema not found for service '{service_name}' "
+            f"(expected at {relative_location})"
+        )
 
     try:
         with open(schema_path, encoding='utf-8') as f:
