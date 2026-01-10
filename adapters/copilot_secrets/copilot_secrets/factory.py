@@ -16,10 +16,26 @@ logger = logging.getLogger(__name__)
 
 
 class _DictConfig:
-    """Wrapper to allow attribute access on a dictionary or empty config."""
+    """Wrapper to allow attribute access on a dictionary or empty config.
+
+    This class intentionally accepts None and creates an empty config object.
+    This design allows graceful handling of cases where no configuration is
+    provided. Required field validation (e.g., vault_url, base_path) is the
+    responsibility of individual provider classes via their from_config()
+    methods, not this wrapper.
+
+    For providers that require specific configuration fields, those fields
+    will be validated when the provider's from_config() method accesses them.
+    """
 
     def __init__(self, data: dict | None = None):
-        """Initialize with optional dictionary data."""
+        """Initialize with optional dictionary data.
+
+        Args:
+            data: Optional dictionary of configuration fields. If None or empty,
+                  creates an empty config object. Individual providers are
+                  responsible for validating required fields.
+        """
         if data:
             self.__dict__.update(data)
 
