@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from copilot_config import DriverConfig
@@ -14,6 +15,9 @@ from .document_store import DocumentStore
 from .inmemory_document_store import InMemoryDocumentStore
 from .mongo_document_store import MongoDocumentStore
 from .validating_document_store import ValidatingDocumentStore
+
+logger = logging.getLogger(__name__)
+
 
 def _get_schema_provider() -> Any | None:
     """Attempt to load a schema provider for validation.
@@ -26,6 +30,9 @@ def _get_schema_provider() -> Any | None:
 
         return create_schema_provider(schema_type="documents")
     except ImportError:
+        logger.warning(
+            "copilot_schema_validation not available; document store will not validate schemas"
+        )
         return None
 
 

@@ -66,9 +66,16 @@ class OpenAISummarizer(Summarizer):
         self.model = model
         self.base_url = base_url
 
-        # Azure mode is inferred from explicit Azure parameters.
-        # This allows OpenAI-compatible custom base URLs without forcing Azure.
-        self.is_azure = api_version is not None or deployment_name is not None
+        # If a deployment_name is provided, an api_version must also be supplied
+        # to avoid enabling Azure mode with an incomplete configuration.
+        if deployment_name is not None and api_version is None:
+            raise ValueError(
+                "Azure OpenAI configuration requires 'api_version' when "
+                "'deployment_name' is provided."
+            )
+
+        # Azure mode is enabled only when an explicit Azure api_version is set.
+        self.is_azure = api_version is not None
 
         if self.is_azure:
             if not base_url:

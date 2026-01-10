@@ -68,21 +68,10 @@ def create_stdout_logger(
 ) -> StdoutLogger:
     """Create a stdout logger for early initialization before config is loaded.
     
-    This helper is intended for *bootstrap* scenarios where logging is required
-    before the configuration system has produced a :class:`DriverConfig` and
-    before :func:`create_logger` can be used. It allows services to emit basic
-    startup or diagnostic messages to stdout while configuration is being
-    discovered or validated.
-
-    Once configuration is available, callers should prefer :func:`create_logger`,
-    which creates loggers based on the configured driver (``stdout``, ``silent``,
-    ``azuremonitor``, etc.) and centralizes logging behavior.
-
-    Note:
-        This function is primarily a convenience for early initialization and may
-        not be exposed as part of the top-level public API of this package. It is
-        not intended to replace :func:`create_logger` for normal, configured
-        operation.
+    This is a convenience function for services that need logging before
+    their configuration system is fully initialized. It uses the same
+    DriverConfig-based factory path as other loggers to ensure consistent
+    initialization behavior.
     
     Args:
         level: Logging level (DEBUG, INFO, WARNING, ERROR). Defaults to INFO.
@@ -96,4 +85,12 @@ def create_stdout_logger(
         >>> logger = create_stdout_logger(level="DEBUG", name="startup")
         >>> logger.info("Service initializing...")
     """
-    return StdoutLogger(level=level, name=name)
+    driver_config = DriverConfig(
+        driver_name="stdout",
+        config={"level": level}
+    )
+    if name is not None:
+        driver_config.config["name"] = name
+    
+    # Delegate to the main factory to keep initialization logic consistent.
+    return create_logger("stdout", driver_config)

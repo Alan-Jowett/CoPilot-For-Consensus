@@ -112,7 +112,7 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
         return cls(
             gateway=driver_config.gateway,
             job=driver_config.job,
-            grouping_key=driver_config.grouping_key,
-            namespace=driver_config.namespace,
-            raise_on_error=driver_config.raise_on_error
+            grouping_key=getattr(driver_config, "grouping_key", None),
+            namespace=getattr(driver_config, "namespace", "copilot"),
+            raise_on_error=getattr(driver_config, "raise_on_error", False)
         )

@@ -3,11 +3,15 @@
 
 """Factory functions for creating message bus publishers and subscribers."""
 
+import logging
 from typing import Any
 
 from copilot_config.models import DriverConfig
 
 from .base import EventPublisher, EventSubscriber
+
+logger = logging.getLogger(__name__)
+
 
 def _get_schema_provider() -> Any | None:
     """Attempt to load a schema provider for validation.
@@ -18,6 +22,9 @@ def _get_schema_provider() -> Any | None:
         from copilot_schema_validation import create_schema_provider  # type: ignore[import-not-found]
         return create_schema_provider()
     except ImportError:
+        logger.warning(
+            "copilot_schema_validation not available; message bus will not validate event schemas"
+        )
         return None
 
 def create_publisher(

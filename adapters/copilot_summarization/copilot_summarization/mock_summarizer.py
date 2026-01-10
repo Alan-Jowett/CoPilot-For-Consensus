@@ -21,13 +21,13 @@ class MockSummarizer(Summarizer):
     Useful for unit tests and development.
     """
 
-    def __init__(self, latency_ms: int | None = None):
+    def __init__(self, latency_ms: int = 100):
         """Initialize mock summarizer.
 
         Args:
-            latency_ms: Simulated latency in milliseconds (optional)
+            latency_ms: Simulated latency in milliseconds (defaults to 100 ms for backward compatibility)
         """
-        self.latency_ms = latency_ms or 0
+        self.latency_ms = latency_ms
         logger.info("Initialized MockSummarizer")
 
     @classmethod
