@@ -132,6 +132,9 @@
         "error_reporter": {
             "$ref": "../adapters/error_reporter.json"
         },
+        "logger": {
+            "$ref": "../adapters/logger.json"
+        },
         "message_bus": {
             "$ref": "../adapters/message_bus.json"
         },

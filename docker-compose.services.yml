@@ -129,6 +129,8 @@ services:
     environment:
       - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/docs/schemas/configs
+      - LOG_TYPE=stdout
+      - LOG_LEVEL=INFO
       - MESSAGE_BUS_TYPE=rabbitmq
       - RABBITMQ_HOST=messagebus
       - RABBITMQ_PORT=5672
