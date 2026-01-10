@@ -22,7 +22,12 @@ logger = logging.getLogger(__name__)
 def _get_schema_provider() -> Any | None:
     """Attempt to load a schema provider for validation.
 
-    Returns None if schema validation is not available.
+    This factory uses a fixed schema type of 'documents' for all document store
+    instances. This is intentional as the factory creates document stores, which
+    should always validate against document schemas regardless of the driver type.
+
+    Returns:
+        None if schema validation is not available.
     """
 
     try:

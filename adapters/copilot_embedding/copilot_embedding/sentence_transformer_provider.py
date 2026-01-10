@@ -84,6 +84,8 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
         Raises:
             ValueError: If text is None or empty
         """
+        if text is None:
+            raise ValueError("Text cannot be None")
         if not text.strip():
             raise ValueError("Text cannot be empty or whitespace-only")
 
