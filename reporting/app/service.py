@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 import requests
-from copilot_events import (
+from copilot_message_bus import (
     EventPublisher,
     EventSubscriber,
     ReportDeliveryFailedEvent,
@@ -18,7 +18,7 @@ from copilot_events import (
 )
 from copilot_logging import create_logger
 from copilot_metrics import MetricsCollector
-from copilot_reporting import ErrorReporter
+from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
 
 # Optional dependencies for search/filtering features
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from copilot_embedding import EmbeddingProvider
     from copilot_vectorstore import VectorStore
 
-logger = create_logger(name="reporting")
+logger = create_logger("stdout", {"name": "reporting", "level": "INFO"})
 
 # Buffer size for fetching additional documents when metadata filtering is applied.
 # This ensures we have enough documents to filter and still return the requested limit.

@@ -113,6 +113,85 @@ class QdrantVectorStore(VectorStore):
             f"host={host}:{port}, vector_size={vector_size}, distance={distance}"
         )
 
+    @classmethod
+    def from_config(cls, config: Any) -> "QdrantVectorStore":
+        """Create a QdrantVectorStore from configuration.
+        
+        Args:
+            config: Configuration object with host, port, collection_name, vector_size,
+                    distance, upsert_batch_size, and api_key attributes.
+                    Distance and upsert_batch_size defaults are provided by the schema.
+        
+        Returns:
+            Configured QdrantVectorStore instance
+        
+        Raises:
+            ValueError: If required attributes are missing or invalid
+            AttributeError: If required config attributes are missing
+        """
+        host = config.host
+        if not host:
+            raise ValueError(
+                "host is required for Qdrant backend. "
+                "Provide 'host' in driver_config (e.g., 'localhost')."
+            )
+
+        port = config.port
+        if port is None:
+            raise ValueError(
+                "port is required for Qdrant backend. "
+                "Provide 'port' in driver_config (e.g., 6333)."
+            )
+
+        try:
+            port_int = int(port)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Invalid value for port: '{port}'. Must be an integer.") from exc
+
+        collection_name = config.collection_name
+        if not collection_name:
+            raise ValueError(
+                "collection_name is required for Qdrant backend. "
+                "Provide 'collection_name' in driver_config."
+            )
+
+        # Try vector_size first, fall back to dimension for backward compatibility
+        vector_size = getattr(config, "vector_size", None) or getattr(config, "dimension", None)
+        if vector_size is None:
+            raise ValueError(
+                "vector_size is required for Qdrant backend. "
+                "Provide 'vector_size' (or 'dimension') in driver_config."
+            )
+
+        try:
+            vector_size_int = int(vector_size)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Invalid value for vector_size: '{vector_size}'. Must be an integer."
+            ) from exc
+
+        distance = config.distance
+        upsert_batch_size = config.upsert_batch_size
+
+        try:
+            upsert_batch_size_int = int(upsert_batch_size)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Invalid value for upsert_batch_size: '{upsert_batch_size}'. Must be an integer."
+            ) from exc
+
+        api_key = getattr(config, "api_key", None)
+
+        return cls(
+            host=str(host),
+            port=port_int,
+            api_key=api_key,
+            collection_name=str(collection_name),
+            vector_size=vector_size_int,
+            distance=str(distance),
+            upsert_batch_size=upsert_batch_size_int,
+        )
+
     def _ensure_collection(self) -> None:
         """Ensure the collection exists, create it if not."""
         # Check if collection exists

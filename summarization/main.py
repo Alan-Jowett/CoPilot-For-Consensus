@@ -14,19 +14,20 @@ sys.path.insert(0, os.path.dirname(__file__))
 import uvicorn
 from app import __version__
 from app.service import SummarizationService
-from copilot_config import load_typed_config
-from copilot_events import create_publisher, create_subscriber, get_azure_servicebus_kwargs
+from copilot_config import load_service_config
+from copilot_message_bus import create_publisher, create_subscriber
 from copilot_logging import create_logger, create_uvicorn_log_config
 from copilot_metrics import create_metrics_collector
-from copilot_reporting import create_error_reporter
-from copilot_schema_validation import FileSchemaProvider
-from copilot_storage import DocumentStoreConnectionError, ValidatingDocumentStore, create_document_store
-from copilot_summarization import SummarizerFactory
+from copilot_error_reporting import create_error_reporter
+from copilot_schema_validation import create_schema_provider
+from copilot_storage import DocumentStoreConnectionError, create_document_store
+from copilot_summarization import create_llm_backend
 from copilot_vectorstore import create_vector_store
 from fastapi import FastAPI
 
 # Configure structured JSON logging
-logger = create_logger(logger_type="stdout", level="INFO", name="summarization")
+bootstrap_logger = create_logger("stdout", {"level": "INFO", "name": "summarization-bootstrap"})
+logger = bootstrap_logger
 
 # Create FastAPI app
 app = FastAPI(title="Summarization Service", version=__version__)
@@ -88,238 +89,151 @@ def main():
     """Main entry point for the summarization service."""
     global summarization_service
 
-    logger.info(f"Starting Summarization Service (version {__version__})")
+    log = bootstrap_logger
+    log.info(f"Starting Summarization Service (version {__version__})")
 
     try:
-        # Load configuration from schema with typed access
-        config = load_typed_config("summarization")
+        config = load_service_config("summarization")
+
+        # Configure logger based on service settings
+        log_type = config.log_type
+        logger_name = config.logger_name
+        log_level = config.log_level
+        service_logger = create_logger(
+            log_type,
+            {"level": log_level, "name": logger_name},
+        )
+        # Update module-level logger for shared helpers
+        global logger
+        logger = service_logger
+        log = service_logger
 
         # Conditionally add JWT authentication middleware based on config
-        if getattr(config, 'jwt_auth_enabled', True):
-            logger.info("JWT authentication is enabled")
+        if config.jwt_auth_enabled:
+            log.info("JWT authentication is enabled")
             try:
                 from copilot_auth import create_jwt_middleware
+                auth_service_url = getattr(config, 'auth_service_url', None)
+                audience = getattr(config, 'service_audience', None)
                 auth_middleware = create_jwt_middleware(
+                    auth_service_url=auth_service_url,
+                    audience=audience,
                     required_roles=["processor"],
                     public_paths=["/health", "/readyz", "/docs", "/openapi.json"],
                 )
                 app.add_middleware(auth_middleware)
             except ImportError:
-                logger.debug("copilot_auth module not available - JWT authentication disabled")
+                log.debug("copilot_auth module not available - JWT authentication disabled")
         else:
-            logger.warning("JWT authentication is DISABLED - all endpoints are public")
+            log.warning("JWT authentication is DISABLED - all endpoints are public")
 
-        # Create adapters
-        logger.info("Creating message bus publisher...")
-        
-        # Prepare Azure Service Bus specific parameters if needed
-        message_bus_kwargs = {}
-        if config.message_bus_type == "azureservicebus":
-            message_bus_kwargs = get_azure_servicebus_kwargs()
-            logger.info("Using Azure Service Bus configuration")
-        
+        log.info("Creating message bus publisher from adapter configuration...")
+        message_bus_adapter = config.get_adapter("message_bus")
+        if message_bus_adapter is None:
+            raise ValueError("message_bus adapter is required")
+
+        publisher_driver_config = dict(message_bus_adapter.driver_config.config)
         publisher = create_publisher(
-            message_bus_type=config.message_bus_type,
-            host=config.message_bus_host,
-            port=config.message_bus_port,
-            username=config.message_bus_user,
-            password=config.message_bus_password,
-            **message_bus_kwargs,
+            driver_name=message_bus_adapter.driver_name,
+            driver_config=publisher_driver_config,
         )
         try:
             publisher.connect()
         except Exception as e:
             if str(config.message_bus_type).lower() != "noop":
-                logger.error(f"Failed to connect publisher to message bus. Failing fast: {e}")
+                log.error(f"Failed to connect publisher to message bus. Failing fast: {e}")
                 raise ConnectionError("Publisher failed to connect to message bus")
-            else:
-                logger.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
+            log.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
 
-        logger.info("Creating message bus subscriber...")
+        log.info("Creating message bus subscriber from adapter configuration...")
+        subscriber_driver_config = dict(message_bus_adapter.driver_config.config)
+        subscriber_driver_config.setdefault("queue_name", "summarization.requested")
         subscriber = create_subscriber(
-            message_bus_type=config.message_bus_type,
-            host=config.message_bus_host,
-            port=config.message_bus_port,
-            username=config.message_bus_user,
-            password=config.message_bus_password,
-            queue_name="summarization.requested",
-            **message_bus_kwargs,
+            driver_name=message_bus_adapter.driver_name,
+            driver_config=subscriber_driver_config,
         )
         try:
             subscriber.connect()
         except Exception as e:
-            logger.error(f"Failed to connect subscriber to message bus: {e}")
+            log.error(f"Failed to connect subscriber to message bus: {e}")
             raise ConnectionError("Subscriber failed to connect to message bus")
 
-        logger.info("Creating document store...")
-        base_document_store = create_document_store(
-            store_type=config.doc_store_type,
-            host=config.doc_store_host,
-            port=config.doc_store_port,
-            database=config.doc_store_name,
-            username=config.doc_store_user if config.doc_store_user else None,
-            password=config.doc_store_password if config.doc_store_password else None,
+        log.info("Creating document store from adapter configuration...")
+        document_store_adapter = config.get_adapter("document_store")
+        if document_store_adapter is None:
+            raise ValueError("document_store adapter is required")
+
+        document_store_driver_config = dict(document_store_adapter.driver_config.config)
+        document_store = create_document_store(
+            driver_name=document_store_adapter.driver_name,
+            driver_config=document_store_driver_config,
+            enable_validation=True,
+            strict_validation=True,
         )
         try:
-            base_document_store.connect()
+            document_store.connect()
         except DocumentStoreConnectionError as e:
-            logger.error(f"Failed to connect to document store: {e}")
+            log.error(f"Failed to connect to document store: {e}")
             raise
 
-        # Wrap with schema validation
-        logger.info("Wrapping document store with schema validation...")
-        document_schema_provider = FileSchemaProvider(
-            schema_dir=Path(__file__).parent / "docs" / "schemas" / "documents"
+        log.info("Creating vector store from adapter configuration...")
+        vector_store_adapter = config.get_adapter("vector_store")
+        if vector_store_adapter is None:
+            raise ValueError("vector_store adapter is required")
+
+        vector_store = create_vector_store(
+            driver_name=vector_store_adapter.driver_name,
+            driver_config=vector_store_adapter.driver_config,
         )
-        document_store = ValidatingDocumentStore(
-            store=base_document_store,
-            schema_provider=document_schema_provider,
-            strict=True,
-        )
 
-        logger.info("Creating vector store...")
-
-        # Build vector store kwargs based on backend type
-        # Normalize backend name: 'ai_search' -> 'azure_ai_search'
-        backend_type = config.vector_store_type.lower()
-        if backend_type == "ai_search":
-            backend_type = "azure_ai_search"
-
-        vector_store_kwargs = {
-            "backend": backend_type,
-        }
-
-        if backend_type == "faiss":
-            # Validate required config attributes
-            if not hasattr(config, "embedding_dimension"):
-                raise ValueError("embedding_dimension configuration is required for FAISS backend")
-            if config.embedding_dimension <= 0:
-                raise ValueError(f"embedding_dimension must be positive, got {config.embedding_dimension}")
-            if not hasattr(config, "vector_store_index_type"):
-                raise ValueError("vector_store_index_type configuration is required for FAISS backend")
-
-            vector_store_kwargs.update({
-                "dimension": config.embedding_dimension,
-                "index_type": config.vector_store_index_type,
-                "persist_path": config.vector_store_persist_path if hasattr(config, "vector_store_persist_path") else None,
-            })
-        elif backend_type == "qdrant":
-            # Validate required config attributes
-            required_attrs = ["embedding_dimension", "vector_store_host", "vector_store_port",
-                            "vector_store_collection", "vector_store_distance", "vector_store_batch_size"]
-            missing = [attr for attr in required_attrs if not hasattr(config, attr)]
-            if missing:
-                raise ValueError(f"Missing required Qdrant configuration: {', '.join(missing)}")
-            if config.embedding_dimension <= 0:
-                raise ValueError(f"embedding_dimension must be positive, got {config.embedding_dimension}")
-
-            vector_store_kwargs.update({
-                "dimension": config.embedding_dimension,
-                "host": config.vector_store_host,
-                "port": config.vector_store_port,
-                "collection_name": config.vector_store_collection,
-                "distance": config.vector_store_distance,
-                "upsert_batch_size": config.vector_store_batch_size,
-                "api_key": config.vector_store_api_key if hasattr(config, "vector_store_api_key") else None,
-            })
-        elif backend_type == "azure_ai_search":
-            # Validate required config attributes for Azure AI Search
-            if not hasattr(config, "embedding_dimension"):
-                raise ValueError("embedding_dimension configuration is required for Azure AI Search backend")
-            if config.embedding_dimension <= 0:
-                raise ValueError(f"embedding_dimension must be positive for Azure AI Search backend, got {config.embedding_dimension}")
-            if not hasattr(config, "aisearch_endpoint") or not config.aisearch_endpoint:
-                raise ValueError("aisearch_endpoint configuration is required for Azure AI Search backend")
-            if not hasattr(config, "aisearch_index_name") or not config.aisearch_index_name:
-                raise ValueError("aisearch_index_name configuration is required for Azure AI Search backend")
-
-            vector_store_kwargs.update({
-                "dimension": config.embedding_dimension,
-                "endpoint": config.aisearch_endpoint,
-                "index_name": config.aisearch_index_name,
-                "api_key": config.aisearch_api_key if hasattr(config, "aisearch_api_key") and config.aisearch_api_key else None,
-                "use_managed_identity": getattr(config, "aisearch_use_managed_identity", True),
-            })
-        elif backend_type == "inmemory":
-            # In-memory backend requires no additional configuration
-            pass
-        else:
-            # Unsupported backend type
-            raise ValueError(
-                f"Unsupported vector store backend: '{backend_type}'. "
-                f"Supported backends: inmemory, faiss, qdrant, azure_ai_search (or ai_search)"
-            )
-
-        vector_store = create_vector_store(**vector_store_kwargs)
-
-        # Connect vector store if required; in-memory typically doesn't need connect
         if hasattr(vector_store, "connect"):
             try:
                 result = vector_store.connect()
                 if result is False and str(config.vector_store_type).lower() != "inmemory":
-                    logger.error("Failed to connect to vector store.")
+                    log.error("Failed to connect to vector store.")
                     raise ConnectionError("Vector store failed to connect")
             except Exception as e:
                 if str(config.vector_store_type).lower() != "inmemory":
-                    logger.error(f"Failed to connect to vector store: {e}")
+                    log.error(f"Failed to connect to vector store: {e}")
                     raise ConnectionError("Vector store failed to connect")
 
-        # Create summarizer
-        logger.info(f"Creating summarizer with backend: {config.llm_backend}")
+        log.info("Creating summarizer from adapter configuration...")
+        llm_backend_adapter = config.get_adapter("llm_backend")
+        if llm_backend_adapter is None:
+            raise ValueError("llm_backend adapter is required")
 
-        # Build summarizer kwargs based on backend type
-        summarizer_kwargs = {
-            "provider": config.llm_backend,
-            "model": config.llm_model,
-        }
+        summarizer = create_llm_backend(
+            driver_name=llm_backend_adapter.driver_name,
+            driver_config=llm_backend_adapter.driver_config,
+        )
 
-        # Always pass a timeout; default to 300s to match schema when not set in config
-        summarizer_kwargs["timeout"] = getattr(config, "llm_timeout_seconds", 300)
+        log.info("Creating metrics collector...")
+        try:
+            metrics_adapter = config.get_adapter("metrics")
+            if metrics_adapter is not None:
+                metrics_driver_config = dict(metrics_adapter.driver_config.config)
+                metrics_driver_config.setdefault("job", "summarization")
+                metrics_collector = create_metrics_collector(
+                    driver_name=metrics_adapter.driver_name,
+                    driver_config=metrics_driver_config,
+                )
+            else:
+                metrics_collector = create_metrics_collector(driver_name="noop")
+        except Exception as e:
+            from copilot_metrics import NoOpMetricsCollector
 
-        if config.llm_backend.lower() in ("openai", "azure", "local", "llamacpp"):
-            if config.llm_backend.lower() == "openai":
-                if not hasattr(config, "openai_api_key"):
-                    raise ValueError("openai_api_key configuration is required for OpenAI summarizer")
-                summarizer_kwargs["api_key"] = config.openai_api_key
-                if not summarizer_kwargs["api_key"]:
-                    raise ValueError("openai_api_key configuration is required for OpenAI summarizer and cannot be empty")
-            elif config.llm_backend.lower() == "azure":
-                # Validate required Azure config attributes
-                required_attrs = ["azure_openai_api_key", "azure_openai_endpoint"]
-                missing = [attr for attr in required_attrs if not hasattr(config, attr)]
-                if missing:
-                    raise ValueError(f"Missing required Azure summarizer configuration: {', '.join(missing)}")
+            log.warning(
+                "Metrics backend unavailable; falling back to NoOp",
+                backend=config.metrics_type,
+                error=str(e),
+            )
+            metrics_collector = NoOpMetricsCollector()
 
-                summarizer_kwargs["api_key"] = config.azure_openai_api_key
-                summarizer_kwargs["base_url"] = config.azure_openai_endpoint
-                if not summarizer_kwargs["api_key"]:
-                    raise ValueError("azure_openai_api_key configuration is required for Azure summarizer and cannot be empty")
-                if not summarizer_kwargs["base_url"]:
-                    raise ValueError("azure_openai_endpoint configuration is required for Azure summarizer and cannot be empty")
-            elif config.llm_backend.lower() == "local":
-                if not hasattr(config, "local_llm_endpoint"):
-                    raise ValueError("local_llm_endpoint configuration is required for local LLM summarizer")
-                summarizer_kwargs["base_url"] = config.local_llm_endpoint
-                if not summarizer_kwargs["base_url"]:
-                    raise ValueError("local_llm_endpoint configuration is required for local LLM summarizer and cannot be empty")
-            elif config.llm_backend.lower() == "llamacpp":
-                if not hasattr(config, "llamacpp_endpoint"):
-                    raise ValueError("llamacpp_endpoint configuration is required for llama.cpp summarizer")
-                summarizer_kwargs["base_url"] = config.llamacpp_endpoint
-                if not summarizer_kwargs["base_url"]:
-                    raise ValueError("llamacpp_endpoint configuration is required for llama.cpp summarizer and cannot be empty")
+        log.info("Creating error reporter...")
+        error_reporter = create_error_reporter(
+            driver_name=config.error_reporter_type,
+        )
 
-        summarizer = SummarizerFactory.create_summarizer(**summarizer_kwargs)
-
-        # Create metrics collector - fail fast on errors
-        logger.info("Creating metrics collector...")
-        metrics_collector = create_metrics_collector()
-
-        # Create error reporter - fail fast on errors
-        logger.info("Creating error reporter...")
-        error_reporter = create_error_reporter()
-
-        # Create summarization service
         summarization_service = SummarizationService(
             document_store=document_store,
             vector_store=vector_store,
@@ -328,30 +242,27 @@ def main():
             summarizer=summarizer,
             top_k=config.top_k,
             citation_count=config.citation_count,
-            retry_max_attempts=config.max_retries,
-            retry_backoff_seconds=config.retry_delay,
+            retry_max_attempts=config.retry_max_attempts,
+            retry_backoff_seconds=config.retry_backoff_seconds,
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
         )
 
-        # Start subscriber in a separate thread (non-daemon to fail fast)
         subscriber_thread = threading.Thread(
             target=start_subscriber_thread,
             args=(summarization_service,),
             daemon=False,
         )
         subscriber_thread.start()
-        logger.info("Subscriber thread started")
+        log.info("Subscriber thread started")
 
-        # Start FastAPI server
-        logger.info(f"Starting HTTP server on port {config.http_port}...")
+        log.info(f"Starting HTTP server on {config.http_host}:{config.http_port}...")
 
-        # Configure Uvicorn with structured JSON logging
-        log_config = create_uvicorn_log_config(service_name="summarization", log_level="INFO")
-        uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config, access_log=False)
+        log_config = create_uvicorn_log_config(service_name="summarization", log_level=config.log_level)
+        uvicorn.run(app, host=config.http_host, port=config.http_port, log_config=log_config, access_log=False)
 
     except Exception as e:
-        logger.error(f"Failed to start summarization service: {e}")
+        log.error(f"Failed to start summarization service: {e}", exc_info=True)
         sys.exit(1)
 
 

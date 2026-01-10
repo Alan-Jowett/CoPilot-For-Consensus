@@ -18,11 +18,10 @@ from typing import Any
 from copilot_auth.models import User
 from copilot_auth.provider import AuthenticationError
 from copilot_logging import create_logger
-from copilot_schema_validation import FileSchemaProvider
+from copilot_schema_validation import create_schema_provider
 from copilot_storage import DocumentStore, create_document_store
-from copilot_storage.validating_document_store import ValidatingDocumentStore
 
-logger = create_logger(logger_type="stdout", level="INFO", name="auth.role_store")
+logger = create_logger("stdout", {"level": "INFO", "name": "auth.role_store"})
 
 
 class RoleStore:
@@ -33,68 +32,48 @@ class RoleStore:
     VALID_ROLES = {"admin", "contributor", "reviewer", "reader"}
 
     def __init__(self, config: object):
-        self.collection = getattr(config, "role_store_collection", "user_roles")
+        self.collection = config.role_store_collection
 
-        # Get values from config with fallback to environment variables
-        # For password/username, read directly from Docker secrets if available
-        import os
+        document_store_adapter = None
+        get_adapter = getattr(config, "get_adapter", None)
+        if callable(get_adapter):
+            document_store_adapter = get_adapter("document_store")
 
-        # Helper to read from Docker secrets first, then environment variables
-        def get_secret_or_env(key_name: str, env_var: str) -> str | None:
-            # Try reading from Docker secrets first (mounted at /run/secrets/)
-            secret_file = f"/run/secrets/{key_name}"
-            if os.path.exists(secret_file):
-                try:
-                    with open(secret_file) as f:
-                        content = f.read().strip()
-                        if content:  # Only return if not empty
-                            return content
-                except OSError as exc:
-                    logger.warning(f"Failed to read Docker secret '{key_name}' from {secret_file}: {exc}")
-
-            # Fallback to environment variable
-            value = os.getenv(env_var)
-            # Only return if it's not empty string
-            return value if value else None
-
-        store_kwargs = {
-            "host": getattr(config, "role_store_host", None) or os.getenv("DOCUMENT_DATABASE_HOST"),
-            "port": getattr(config, "role_store_port", None) or os.getenv("DOCUMENT_DATABASE_PORT"),
-            "username": (
-                getattr(config, "role_store_username", None)
-                or get_secret_or_env("document_database_user", "DOCUMENT_DATABASE_USER")
-            ),
-            "password": (
-                getattr(config, "role_store_password", None)
-                or get_secret_or_env("document_database_password", "DOCUMENT_DATABASE_PASSWORD")
-            ),
-            "database": (getattr(config, "role_store_database", None) or os.getenv("DOCUMENT_DATABASE_NAME", "auth")),
-        }
-
-        # Convert port to int if it's a string
-        if store_kwargs.get("port") is not None:
-            if isinstance(store_kwargs["port"], str):
-                store_kwargs["port"] = int(store_kwargs["port"])
-
-        # Drop keys that are None or 0 (for port) to allow copilot_storage env defaults
-        store_kwargs = {k: v for k, v in store_kwargs.items() if v is not None and (k != "port" or v != 0)}
-
-        base_store: DocumentStore = create_document_store(
-            store_type=getattr(config, "role_store_type", "mongodb"),
-            **store_kwargs,
+        driver_name = getattr(document_store_adapter, "driver_name", None) if document_store_adapter else None
+        driver_config = (
+            getattr(getattr(document_store_adapter, "driver_config", None), "config", None)
+            if document_store_adapter
+            else None
         )
+        if not isinstance(driver_config, dict):
+            driver_config = {}
+
+        driver_config = dict(driver_config)
+
+        if not driver_name:
+            driver_name = "inmemory"
 
         schema_dir = getattr(config, "role_store_schema_dir", None)
         if schema_dir is None:
-            # Default to repository schema location
-            schema_dir = Path(__file__).resolve().parents[1] / "docs" / "schemas" / "role_store"
+            # Try to find schema directory relative to this file
+            # In container: /app/app/role_store.py -> parents[1] is /app
+            # Locally: .../auth/app/role_store.py -> parents[1] is .../auth
+            # Check both locations
+            local_candidate = Path(__file__).resolve().parents[1].parent / "docs" / "schemas" / "role_store"
+            if local_candidate.exists():
+                schema_dir = local_candidate
+            else:
+                # Fallback: assume we're in the repo and go up to find docs
+                schema_dir = Path(__file__).resolve().parents[1] / "docs" / "schemas" / "role_store"
 
-        schema_provider = FileSchemaProvider(Path(schema_dir))
+        schema_provider = create_schema_provider(schema_dir=str(schema_dir))
+        driver_config["schema_provider"] = schema_provider
 
-        self.store: DocumentStore = ValidatingDocumentStore(
-            store=base_store,
-            schema_provider=schema_provider,
-            strict=True,
+        self.store = create_document_store(
+            driver_name=driver_name,
+            driver_config=driver_config,
+            enable_validation=True,
+            strict_validation=True,
             validate_reads=False,
         )
 

@@ -5,6 +5,9 @@
 
 import logging
 import time
+from typing import Any
+
+from copilot_config import DriverConfig
 
 import requests
 
@@ -28,16 +31,16 @@ class LocalLLMSummarizer(Summarizer):
 
     def __init__(
         self,
-        model: str = "mistral",
-        base_url: str = "http://localhost:11434",
-        timeout: int = 300
+        model: str,
+        base_url: str,
+        timeout: int
     ):
         """Initialize local LLM summarizer.
 
         Args:
             model: Local model name
-            base_url: Base URL for local inference endpoint (e.g., Ollama)
-            timeout: Request timeout in seconds (default: 120)
+            base_url: Base URL for local inference endpoint
+            timeout: Request timeout in seconds
 
         Raises:
             ValueError: If timeout is not a positive integer
@@ -49,6 +52,28 @@ class LocalLLMSummarizer(Summarizer):
         self.base_url = base_url
         self.timeout = timeout
         logger.info("Initialized LocalLLMSummarizer with model: %s", model)
+
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "LocalLLMSummarizer":
+        """Create a LocalLLMSummarizer from configuration.
+        
+        Configuration defaults are defined in schema:
+        docs/schemas/configs/adapters/drivers/llm_backend/llm_local.json
+        
+        Args:
+            driver_config: DriverConfig with fields:
+                    - local_llm_model: Model name (str)
+                    - local_llm_endpoint: Base URL for local LLM (str)
+                    - local_llm_timeout_seconds: Request timeout (int)
+        
+        Returns:
+            Configured LocalLLMSummarizer instance
+        """
+        return cls(
+            model=driver_config.local_llm_model,
+            base_url=driver_config.local_llm_endpoint,
+            timeout=driver_config.local_llm_timeout_seconds,
+        )
 
     def summarize(self, thread: Thread) -> Summary:
         """Generate a summary using local LLM via Ollama API.

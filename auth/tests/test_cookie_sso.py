@@ -72,7 +72,7 @@ def test_callback_sets_cookie(test_client: TestClient):
     set_cookie_header = response.headers.get("set-cookie", "")
     assert "auth_token=mock.jwt.token" in set_cookie_header
     assert "HttpOnly" in set_cookie_header
-    assert "SameSite=lax" in set_cookie_header.lower()
+    assert "samesite=lax" in set_cookie_header.lower()
     assert "Path=/" in set_cookie_header
 
 

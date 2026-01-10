@@ -6,7 +6,7 @@ This guide explains how to update services to use Azure Managed Identity for Ser
 
 ## Background
 
-The Azure Service Bus publisher and subscriber classes (`AzureServiceBusPublisher` and `AzureServiceBusSubscriber` in `adapters/copilot_events`) already support managed identity authentication using `DefaultAzureCredential`. The ARM template now supports two authentication modes:
+The Azure Service Bus publisher and subscriber classes (`AzureServiceBusPublisher` and `AzureServiceBusSubscriber` in `adapters/copilot_message_bus`) already support managed identity authentication using `DefaultAzureCredential`. The ARM template now supports two authentication modes:
 
 1. **Connection String Mode** (default): Uses `MESSAGE_BUS_CONNECTION_STRING` environment variable
 2. **Managed Identity Mode**: Uses `MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE` and `MESSAGE_BUS_USE_MANAGED_IDENTITY` environment variables
@@ -32,7 +32,7 @@ Here's how to update a service (e.g., `parsing/main.py`) to support both modes:
 
 ```python
 import os
-from copilot_events import create_publisher, create_subscriber
+from copilot_message_bus import create_publisher, create_subscriber
 
 # Load configuration
 config = load_typed_config("parsing")

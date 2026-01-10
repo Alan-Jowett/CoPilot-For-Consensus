@@ -24,13 +24,13 @@ from pathlib import Path
 # Dependency order - install these first, then others
 # Storage has no dependencies
 # Schema-validation depends on storage
-# Events depends on schema-validation
+# Message-bus depends on schema-validation
 # Config has no dependencies
 # Everything else can come after
 PRIORITY_ADAPTERS = [
     "copilot_storage",
     "copilot_schema_validation",
-    "copilot_events",
+    "copilot_message_bus",
     "copilot_config",
     "copilot_summarization",
     "copilot_logging",
@@ -40,13 +40,13 @@ PRIORITY_ADAPTERS = [
 ADAPTER_DEPENDENCIES = {
     "copilot_storage": ["copilot_schema_validation"],
     "copilot_schema_validation": ["copilot_storage"],
-    "copilot_events": ["copilot_schema_validation", "copilot_storage"],
+    "copilot_message_bus": ["copilot_schema_validation"],
     "copilot_config": ["copilot_schema_validation", "copilot_storage", "copilot_logging", "copilot_secrets"],
     "copilot_secrets": [],
     "copilot_chunking": ["copilot_schema_validation", "copilot_storage"],
     "copilot_logging": [],
     "copilot_metrics": [],
-    "copilot_reporting": [],
+    "copilot_error_reporting": [],
     "copilot_embedding": [],
     "copilot_vectorstore": [],
     "copilot_summarization": [],

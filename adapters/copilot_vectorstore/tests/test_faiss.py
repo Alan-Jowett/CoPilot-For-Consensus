@@ -8,7 +8,8 @@ import random
 import pytest
 
 try:
-    from copilot_vectorstore import FAISSVectorStore, SearchResult
+    from copilot_vectorstore.faiss_store import FAISSVectorStore
+    from copilot_vectorstore.interface import SearchResult
     FAISS_AVAILABLE = True
 except ImportError:
     FAISS_AVAILABLE = False

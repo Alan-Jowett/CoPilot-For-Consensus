@@ -5,7 +5,9 @@
 
 import logging
 
-from .metrics import MetricsCollector
+from copilot_config import DriverConfig
+
+from .base import MetricsCollector
 
 logger = logging.getLogger(__name__)
 
@@ -117,3 +119,15 @@ class NoOpMetricsCollector(MetricsCollector):
             if gauge_name == name and (tags is None or gauge_tags == tags)
         ]
         return matching_gauges[-1] if matching_gauges else None
+
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "NoOpMetricsCollector":
+        """Create a NoOpMetricsCollector from configuration.
+
+        Args:
+            driver_config: DriverConfig instance (currently ignored, for consistency)
+
+        Returns:
+            Configured NoOpMetricsCollector instance
+        """
+        return cls()

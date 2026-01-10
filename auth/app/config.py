@@ -3,17 +3,17 @@
 
 """Auth service configuration.
 
-Uses copilot_config adapter with TypedConfig for schema-driven configuration.
-Secrets are automatically integrated based on schema metadata.
+Uses copilot_config adapter with ServiceConfig for schema-driven configuration.
+Secrets are integrated based on schema metadata.
 """
 
 import tempfile
 from pathlib import Path
 
-from copilot_config import load_typed_config
+from copilot_config import load_service_config
 from copilot_logging import create_logger
 
-logger = create_logger(logger_type="stdout", level="INFO", name="auth.config")
+logger = create_logger("stdout", {"level": "INFO", "name": "auth.config"})
 
 
 def load_auth_config():
@@ -24,7 +24,7 @@ def load_auth_config():
     based on configuration in docs/schemas/configs/auth.json.
 
     In Azure Container Apps, secrets are accessed directly from Azure Key Vault
-    using the copilot_secrets.AzureKeyVaultProvider with managed identity
+    using the copilot_secrets.create_secret_provider("azure", ...) factory with managed identity
     authentication (SDK-based, not environment variable injection).
 
     Returns:
@@ -37,7 +37,7 @@ def load_auth_config():
         >>> print(config.jwt_algorithm)
         'RS256'
     """
-    config = load_typed_config("auth")
+    config = load_service_config("auth")
     logger.info("Auth configuration loaded successfully")
 
     # Handle JWT key file setup for RS256

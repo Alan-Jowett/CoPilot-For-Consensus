@@ -8,7 +8,7 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
 
-from copilot_events import EventPublisher
+from copilot_message_bus import EventPublisher
 from copilot_metrics import MetricsCollector
 from copilot_storage import DocumentStore
 

@@ -7,15 +7,18 @@ This module provides middleware for validating JWT tokens in FastAPI application
 enforcing audience and role-based access control.
 
 Usage:
-    from copilot_auth import JWTMiddleware, create_jwt_middleware
+    from copilot_auth import (
+        JWTMiddleware,
+        create_jwt_middleware,
+    )
     from fastapi import FastAPI
 
     app = FastAPI()
 
-    # Option 1: Use factory function
+    # Option 1: Use explicit factory
     middleware = create_jwt_middleware(
-        auth_service_url="http://auth:8090",
-        audience="my-service",
+        auth_service_url=service_config.auth_service_url,
+        audience=service_config.service_name,
         required_roles=["reader"]
     )
     app.add_middleware(middleware)
@@ -43,7 +46,7 @@ from fastapi import HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-logger = create_logger(logger_type="stdout", level="INFO", name="copilot_auth.middleware")
+logger = create_logger("stdout", {"name": "copilot_auth.middleware", "level": "INFO"})
 
 
 class JWTMiddleware(BaseHTTPMiddleware):
@@ -557,8 +560,8 @@ class JWTMiddleware(BaseHTTPMiddleware):
 
 
 def create_jwt_middleware(
-    auth_service_url: str | None = None,
-    audience: str | None = None,
+    auth_service_url: str,
+    audience: str,
     required_roles: list[str] | None = None,
     public_paths: list[str] | None = None,
     defer_jwks_fetch: bool = True,
@@ -566,9 +569,8 @@ def create_jwt_middleware(
     """Factory function to create JWT middleware with configuration.
 
     Args:
-        auth_service_url: URL of auth service (default: from AUTH_SERVICE_URL env)
-        audience: Expected audience (default: from SERVICE_AUDIENCE env,
-            or SERVICE_NAME for backward compatibility, or 'copilot-for-consensus')
+        auth_service_url: URL of auth service
+        audience: Expected audience
         required_roles: Optional list of required roles
         public_paths: List of paths that don't require auth
         defer_jwks_fetch: Defer JWKS fetch to background thread (default: True)
@@ -583,13 +585,16 @@ def create_jwt_middleware(
         >>> app = FastAPI()
         >>> middleware = create_jwt_middleware(
         ...     auth_service_url="http://auth:8090",
-        ...     audience="orchestrator"
+        ...     audience="orchestrator",
+        ...     required_roles=["reader"]
         ... )
         >>> app.add_middleware(middleware)
     """
-    # Get defaults from environment - these will always be strings due to defaults
-    auth_url = cast(str, auth_service_url or os.getenv("AUTH_SERVICE_URL", "http://auth:8090"))
-    aud = cast(str, audience or os.getenv("SERVICE_AUDIENCE", os.getenv("SERVICE_NAME", "copilot-for-consensus")))
+    auth_url = auth_service_url
+    aud = audience
+    roles = required_roles
+    paths = public_paths
+    defer = defer_jwks_fetch
 
     # Create configured middleware class
     class ConfiguredJWTMiddleware(JWTMiddleware):
@@ -598,9 +603,9 @@ def create_jwt_middleware(
                 app=app,
                 auth_service_url=auth_url,
                 audience=aud,
-                required_roles=required_roles,
-                public_paths=public_paths,
-                defer_jwks_fetch=defer_jwks_fetch,
+                required_roles=roles,
+                public_paths=paths,
+                defer_jwks_fetch=defer,
             )
 
     return ConfiguredJWTMiddleware

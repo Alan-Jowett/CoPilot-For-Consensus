@@ -14,17 +14,17 @@ sys.path.insert(0, os.path.dirname(__file__))
 import uvicorn
 from app import __version__
 from app.service import OrchestrationService
-from copilot_config import load_typed_config
-from copilot_events import create_publisher, create_subscriber, get_azure_servicebus_kwargs
+from copilot_config import load_service_config
+from copilot_message_bus import create_publisher, create_subscriber
 from copilot_logging import create_logger, create_uvicorn_log_config
 from copilot_metrics import create_metrics_collector
-from copilot_reporting import create_error_reporter
-from copilot_schema_validation import FileSchemaProvider
-from copilot_storage import DocumentStoreConnectionError, ValidatingDocumentStore, create_document_store
+from copilot_error_reporting import create_error_reporter
+from copilot_schema_validation import create_schema_provider
+from copilot_storage import DocumentStoreConnectionError, create_document_store
 from fastapi import FastAPI
 
 # Configure structured JSON logging
-logger = create_logger(logger_type="stdout", level="INFO", name="orchestrator")
+bootstrap_logger = create_logger("stdout", {"level": "INFO", "name": "orchestrator-bootstrap"})
 
 # Create FastAPI app
 app = FastAPI(title="Orchestration Service", version=__version__)
@@ -88,103 +88,130 @@ def main():
     """Main entry point for the orchestration service."""
     global orchestration_service
 
-    logger.info(f"Starting Orchestration Service (version {__version__})")
+    log = bootstrap_logger
+    log.info(f"Starting Orchestration Service (version {__version__})")
 
     try:
-        # Load configuration using config adapter
-        config = load_typed_config("orchestrator")
-        logger.info("Configuration loaded successfully")
+        # Load configuration using schema-driven service config
+        config = load_service_config("orchestrator")
+        log.info("Configuration loaded successfully")
 
         # Conditionally add JWT authentication middleware based on config
         if getattr(config, 'jwt_auth_enabled', True):
-            logger.info("JWT authentication is enabled")
+            log.info("JWT authentication is enabled")
             try:
                 from copilot_auth import create_jwt_middleware
+                auth_service_url = getattr(config, 'auth_service_url', None)
+                audience = getattr(config, 'service_audience', None)
                 auth_middleware = create_jwt_middleware(
+                    auth_service_url=auth_service_url,
+                    audience=audience,
                     required_roles=["orchestrator"],
                     public_paths=["/health", "/readyz", "/docs", "/openapi.json"],
                 )
                 app.add_middleware(auth_middleware)
             except ImportError:
-                logger.debug("copilot_auth module not available - JWT authentication disabled")
+                log.debug("copilot_auth module not available - JWT authentication disabled")
         else:
-            logger.warning("JWT authentication is DISABLED - all endpoints are public")
+            log.warning("JWT authentication is DISABLED - all endpoints are public")
+
+        # Configure logger based on service settings
+        log_type = config.log_type
+        logger_name = config.logger_name
+        log_level = config.log_level
+        service_logger = create_logger(
+            log_type,
+            {"level": log_level, "name": logger_name},
+        )
+        log = service_logger
 
         # Create adapters
-        logger.info("Creating message bus publisher...")
-        
-        # Prepare Azure Service Bus specific parameters if needed
-        message_bus_kwargs = {}
-        if config.message_bus_type == "azureservicebus":
-            message_bus_kwargs = get_azure_servicebus_kwargs()
-            logger.info("Using Azure Service Bus configuration")
-        
+        log.info("Creating message bus publisher from adapter configuration...")
+        message_bus_adapter = config.get_adapter("message_bus")
+        if message_bus_adapter is None:
+            raise ValueError("message_bus adapter is required")
+
+        publisher_driver_config = dict(message_bus_adapter.driver_config.config)
         publisher = create_publisher(
-            message_bus_type=config.message_bus_type,
-            host=config.message_bus_host,
-            port=config.message_bus_port,
-            username=config.message_bus_user,
-            password=config.message_bus_password,
-            **message_bus_kwargs,
+            driver_name=message_bus_adapter.driver_name,
+            driver_config=publisher_driver_config,
         )
         try:
             publisher.connect()
         except Exception as e:
             if str(config.message_bus_type).lower() != "noop":
-                logger.error(f"Failed to connect publisher to message bus. Failing fast: {e}")
+                log.error(f"Failed to connect publisher to message bus. Failing fast: {e}")
                 raise ConnectionError("Publisher failed to connect to message bus")
             else:
-                logger.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
+                log.warning(f"Failed to connect publisher to message bus. Continuing with noop publisher: {e}")
 
-        logger.info("Creating message bus subscriber...")
+        log.info("Creating message bus subscriber from adapter configuration...")
+        subscriber_driver_config = dict(message_bus_adapter.driver_config.config)
+        subscriber_driver_config.setdefault("queue_name", "embeddings.generated")
         subscriber = create_subscriber(
-            message_bus_type=config.message_bus_type,
-            host=config.message_bus_host,
-            port=config.message_bus_port,
-            username=config.message_bus_user,
-            password=config.message_bus_password,
-            queue_name="embeddings.generated",
-            **message_bus_kwargs,
+            driver_name=message_bus_adapter.driver_name,
+            driver_config=subscriber_driver_config,
         )
         try:
             subscriber.connect()
         except Exception as e:
-            logger.error(f"Failed to connect subscriber to message bus: {e}")
+            log.error(f"Failed to connect subscriber to message bus: {e}")
             raise ConnectionError("Subscriber failed to connect to message bus")
 
-        logger.info("Creating document store...")
-        base_document_store = create_document_store(
-            store_type=config.doc_store_type,
-            host=config.doc_store_host,
-            port=config.doc_store_port,
-            database=config.doc_store_name,
-            username=config.doc_store_user if config.doc_store_user else None,
-            password=config.doc_store_password if config.doc_store_password else None,
+        log.info("Creating document store from adapter configuration...")
+        document_store_adapter = config.get_adapter("document_store")
+        if document_store_adapter is None:
+            raise ValueError("document_store adapter is required")
+
+        document_store_driver_config = dict(document_store_adapter.driver_config.config)
+        document_store = create_document_store(
+            driver_name=document_store_adapter.driver_name,
+            driver_config=document_store_driver_config,
+            enable_validation=True,
+            strict_validation=True,
         )
         try:
-            base_document_store.connect()
+            document_store.connect()
         except DocumentStoreConnectionError as e:
-            logger.error(f"Failed to connect to document store: {e}")
+            log.error(f"Failed to connect to document store: {e}")
             raise
 
-        # Wrap with schema validation
-        logger.info("Wrapping document store with schema validation...")
-        document_schema_provider = FileSchemaProvider(
-            schema_dir=Path(__file__).parent / "docs" / "schemas" / "documents"
-        )
-        document_store = ValidatingDocumentStore(
-            store=base_document_store,
-            schema_provider=document_schema_provider,
-            strict=True,
-        )
-
         # Create metrics collector - fail fast on errors
-        logger.info("Creating metrics collector...")
-        metrics_collector = create_metrics_collector()
+        log.info("Creating metrics collector...")
+        try:
+            metrics_adapter = config.get_adapter("metrics")
+            if metrics_adapter is not None:
+                metrics_driver_config = dict(metrics_adapter.driver_config.config)
+                metrics_driver_config.setdefault("job", "orchestrator")
+                metrics_collector = create_metrics_collector(
+                    driver_name=metrics_adapter.driver_name,
+                    driver_config=metrics_driver_config,
+                )
+            else:
+                metrics_collector = create_metrics_collector(driver_name="noop")
+        except Exception as e:
+            from copilot_metrics import NoOpMetricsCollector
 
-        # Create error reporter - fail fast on errors
-        logger.info("Creating error reporter...")
-        error_reporter = create_error_reporter()
+            log.warning(
+                "Metrics backend unavailable; falling back to NoOp",
+                backend=config.metrics_type,
+                error=str(e),
+            )
+            metrics_collector = NoOpMetricsCollector()
+
+        # Create error reporter using adapter configuration (optional)
+        log.info("Creating error reporter...")
+        error_reporter_adapter = config.get_adapter("error_reporter")
+        if error_reporter_adapter is not None:
+            error_reporter = create_error_reporter(
+                driver_name=error_reporter_adapter.driver_name,
+                driver_config=dict(error_reporter_adapter.driver_config.config),
+            )
+        else:
+            error_reporter = create_error_reporter(
+                driver_name="silent",
+                driver_config={"logger_name": config.logger_name},
+            )
 
         # Create orchestration service
         orchestration_service = OrchestrationService(
@@ -210,17 +237,17 @@ def main():
             daemon=False,
         )
         subscriber_thread.start()
-        logger.info("Subscriber thread started")
+        log.info("Subscriber thread started")
 
         # Start FastAPI server
-        logger.info(f"Starting HTTP server on port {config.http_port}...")
+        log.info(f"Starting HTTP server on port {config.http_port}...")
 
         # Configure Uvicorn with structured JSON logging
-        log_config = create_uvicorn_log_config(service_name="orchestrator", log_level="INFO")
+        log_config = create_uvicorn_log_config(service_name="orchestrator", log_level=config.log_level)
         uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config, access_log=False)
 
     except Exception as e:
-        logger.error(f"Failed to start orchestration service: {e}")
+        log.error(f"Failed to start orchestration service: {e}", exc_info=True)
         sys.exit(1)
 
 

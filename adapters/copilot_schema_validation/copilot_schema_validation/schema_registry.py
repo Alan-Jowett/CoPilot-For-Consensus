@@ -293,3 +293,39 @@ def get_schema_metadata(schema_type: str, version: str) -> dict[str, str] | None
         "absolute_path": str(full_path) if full_path else None,
         "exists": exists,
     }
+
+
+def get_configuration_schema_response(service_name: str, service_version: str) -> dict:
+    """Load and return a configuration schema for a service's .well-known endpoint.
+
+    This helper provides a standardized way for services to expose their
+    configuration schema at the /.well-known/configuration-schema endpoint.
+
+    Args:
+        service_name: Name of the service (e.g., "parsing", "chunking")
+        service_version: Current version of the service
+
+    Returns:
+        Dictionary containing the service configuration schema
+
+    Raises:
+        FileNotFoundError: If the schema file doesn't exist
+        json.JSONDecodeError: If the schema file contains invalid JSON
+
+    Example:
+        >>> response = get_configuration_schema_response("parsing", "1.0.0")
+        >>> response['$schema']
+        'http://json-schema.org/draft-07/schema#'
+    """
+    schema_base_dir = _get_schema_base_dir()
+    schema_path = schema_base_dir / "configs" / "services" / f"{service_name}.json"
+
+    if not schema_path.exists():
+        raise FileNotFoundError(f"Configuration schema not found: {schema_path}")
+
+    try:
+        with open(schema_path, encoding='utf-8') as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        logger.error("Failed to parse configuration schema for %s: %s", service_name, e)
+        raise

@@ -9,38 +9,79 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from copilot_config.models import AdapterConfig, DriverConfig, ServiceConfig
+
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
+def _make_service_config(
+    *,
+    message_bus_driver: str = "rabbitmq",
+    document_store_driver: str = "mongodb",
+    http_port: int = 8000,
+    jwt_auth_enabled: bool = True,
+    error_reporter_type: str = "console",
+) -> ServiceConfig:
+    return ServiceConfig(
+        service_name="chunking",
+        service_settings={
+            "http_port": http_port,
+            "jwt_auth_enabled": jwt_auth_enabled,
+            "error_reporter_type": error_reporter_type,
+        },
+        adapters=[
+            AdapterConfig(
+                adapter_type="message_bus",
+                driver_name=message_bus_driver,
+                driver_config=DriverConfig(
+                    driver_name=message_bus_driver,
+                    config={
+                        "rabbitmq_host": "localhost",
+                        "rabbitmq_port": 5672,
+                        "rabbitmq_username": "guest",
+                        "rabbitmq_password": "guest",
+                    },
+                ),
+            ),
+            AdapterConfig(
+                adapter_type="document_store",
+                driver_name=document_store_driver,
+                driver_config=DriverConfig(
+                    driver_name=document_store_driver,
+                    config={
+                        "mongodb_host": "localhost",
+                        "mongodb_port": 27017,
+                        "mongodb_database": "test_db",
+                    },
+                ),
+            ),
+            AdapterConfig(
+                adapter_type="chunker",
+                driver_name="token_window",
+                driver_config=DriverConfig(
+                    driver_name="token_window",
+                    config={"chunk_size": 384, "overlap": 50},
+                ),
+            ),
+            AdapterConfig(
+                adapter_type="metrics",
+                driver_name="noop",
+                driver_config=DriverConfig(driver_name="noop", config={}),
+            ),
+        ],
+    )
+
+
 def test_service_fails_when_publisher_connection_fails():
     """Test that service fails fast when publisher cannot connect."""
-    with patch("main.load_typed_config") as mock_config:
+    with patch("main.load_service_config") as mock_config:
         with patch("main.create_publisher") as mock_create_publisher:
-            # Setup mock config
-            config = Mock()
-            config.message_bus_type = "rabbitmq"
-            config.message_bus_host = "localhost"
-            config.message_bus_port = 5672
-            config.message_bus_user = "guest"
-            config.message_bus_password = "guest"
-            config.doc_store_type = "mongodb"
-            config.doc_store_host = "localhost"
-            config.doc_store_port = 27017
-            config.doc_store_name = "test_db"
-            config.doc_store_user = None
-            config.doc_store_password = None
-            config.chunking_strategy = "token_window"
-            config.chunk_size = 384
-            config.chunk_overlap = 50
-            config.min_chunk_size = 100
-            config.max_chunk_size = 1000
-            config.http_port = 8000
-            mock_config.return_value = config
+            mock_config.return_value = _make_service_config(message_bus_driver="rabbitmq")
 
             # Setup mock publisher that fails to connect
             mock_publisher = Mock()
-            mock_publisher.connect = Mock(return_value=False)
+            mock_publisher.connect = Mock(side_effect=ConnectionError("Connection failed"))
             mock_create_publisher.return_value = mock_publisher
 
             # Import main after setting up mocks
@@ -56,29 +97,10 @@ def test_service_fails_when_publisher_connection_fails():
 
 def test_service_fails_when_subscriber_connection_fails():
     """Test that service fails fast when subscriber cannot connect."""
-    with patch("main.load_typed_config") as mock_config:
+    with patch("main.load_service_config") as mock_config:
         with patch("main.create_publisher") as mock_create_publisher:
             with patch("main.create_subscriber") as mock_create_subscriber:
-                # Setup mock config
-                config = Mock()
-                config.message_bus_type = "rabbitmq"
-                config.message_bus_host = "localhost"
-                config.message_bus_port = 5672
-                config.message_bus_user = "guest"
-                config.message_bus_password = "guest"
-                config.doc_store_type = "mongodb"
-                config.doc_store_host = "localhost"
-                config.doc_store_port = 27017
-                config.doc_store_name = "test_db"
-                config.doc_store_user = None
-                config.doc_store_password = None
-                config.chunking_strategy = "token_window"
-                config.chunk_size = 384
-                config.chunk_overlap = 50
-                config.min_chunk_size = 100
-                config.max_chunk_size = 1000
-                config.http_port = 8000
-                mock_config.return_value = config
+                mock_config.return_value = _make_service_config(message_bus_driver="rabbitmq")
 
                 # Setup mock publisher that connects successfully
                 mock_publisher = Mock()
@@ -87,7 +109,7 @@ def test_service_fails_when_subscriber_connection_fails():
 
                 # Setup mock subscriber that fails to connect
                 mock_subscriber = Mock()
-                mock_subscriber.connect = Mock(return_value=False)
+                mock_subscriber.connect = Mock(side_effect=ConnectionError("Connection failed"))
                 mock_create_subscriber.return_value = mock_subscriber
 
                 # Import main after setting up mocks
@@ -103,41 +125,22 @@ def test_service_fails_when_subscriber_connection_fails():
 
 def test_service_fails_when_document_store_connection_fails():
     """Test that service fails fast when document store cannot connect."""
-    with patch("main.load_typed_config") as mock_config:
+    with patch("main.load_service_config") as mock_config:
         with patch("main.create_publisher") as mock_create_publisher:
             with patch("main.create_subscriber") as mock_create_subscriber:
                 with patch("main.create_document_store") as mock_create_store:
                     with patch("threading.Thread.start"):  # Prevent thread creation
                         with patch("uvicorn.run"):  # Prevent uvicorn from blocking
-                            # Setup mock config
-                            config = Mock()
-                            config.message_bus_type = "rabbitmq"
-                            config.message_bus_host = "localhost"
-                            config.message_bus_port = 5672
-                            config.message_bus_user = "guest"
-                            config.message_bus_password = "guest"
-                            config.doc_store_type = "mongodb"
-                            config.doc_store_host = "localhost"
-                            config.doc_store_port = 27017
-                            config.doc_store_name = "test_db"
-                            config.doc_store_user = None
-                            config.doc_store_password = None
-                            config.chunking_strategy = "token_window"
-                            config.chunk_size = 384
-                            config.chunk_overlap = 50
-                            config.min_chunk_size = 100
-                            config.max_chunk_size = 1000
-                            config.http_port = 8000
-                            mock_config.return_value = config
+                            mock_config.return_value = _make_service_config(message_bus_driver="rabbitmq")
 
                             # Setup mock publisher that connects successfully
                             mock_publisher = Mock()
-                            mock_publisher.connect = Mock(return_value=True)
+                            mock_publisher.connect = Mock(return_value=None)
                             mock_create_publisher.return_value = mock_publisher
 
                             # Setup mock subscriber that connects successfully
                             mock_subscriber = Mock()
-                            mock_subscriber.connect = Mock(return_value=True)
+                            mock_subscriber.connect = Mock(return_value=None)
                             mock_create_subscriber.return_value = mock_subscriber
 
                             # Setup mock document store that fails to connect
@@ -158,50 +161,34 @@ def test_service_fails_when_document_store_connection_fails():
 
 def test_service_allows_noop_publisher_failure():
     """Test that service continues when noop publisher fails to connect."""
-    with patch("main.load_typed_config") as mock_config:
+    with patch("main.load_service_config") as mock_config:
         with patch("main.create_publisher") as mock_create_publisher:
             with patch("main.create_subscriber") as mock_create_subscriber:
                 with patch("main.create_document_store") as mock_create_store:
                     with patch("main.create_chunker") as mock_create_chunker:
                         with patch("main.create_metrics_collector") as mock_metrics:
                             with patch("main.create_error_reporter") as mock_reporter:
-                                with patch("main.FileSchemaProvider") as mock_schema_provider:
+                                with patch("main.create_schema_provider") as mock_schema_provider:
                                     with patch("threading.Thread.start"):  # Prevent thread creation
                                         with patch("uvicorn.run"):  # Prevent uvicorn from blocking
-                                            # Setup mock config with noop message bus
-                                            config = Mock()
-                                            config.message_bus_type = "noop"
-                                            config.message_bus_host = "localhost"
-                                            config.message_bus_port = 5672
-                                            config.message_bus_user = "guest"
-                                            config.message_bus_password = "guest"
-                                            config.doc_store_type = "inmemory"
-                                            config.doc_store_host = "localhost"
-                                            config.doc_store_port = 27017
-                                            config.doc_store_name = "test_db"
-                                            config.doc_store_user = None
-                                            config.doc_store_password = None
-                                            config.chunking_strategy = "token_window"
-                                            config.chunk_size = 384
-                                            config.chunk_overlap = 50
-                                            config.min_chunk_size = 100
-                                            config.max_chunk_size = 1000
-                                            config.http_port = 8000
-                                            mock_config.return_value = config
+                                            mock_config.return_value = _make_service_config(
+                                                message_bus_driver="noop",
+                                                document_store_driver="inmemory",
+                                            )
 
                                             # Setup mock publisher that fails to connect (but is noop)
                                             mock_publisher = Mock()
-                                            mock_publisher.connect = Mock(return_value=False)
+                                            mock_publisher.connect = Mock(side_effect=ConnectionError("Connection failed"))
                                             mock_create_publisher.return_value = mock_publisher
 
                                             # Setup mock subscriber that connects successfully
                                             mock_subscriber = Mock()
-                                            mock_subscriber.connect = Mock(return_value=True)
+                                            mock_subscriber.connect = Mock(return_value=None)
                                             mock_create_subscriber.return_value = mock_subscriber
 
                                             # Setup mock document store that connects successfully
                                             mock_store = Mock()
-                                            mock_store.connect = Mock(return_value=True)
+                                            mock_store.connect = Mock(return_value=None)
                                             mock_create_store.return_value = mock_store
 
                                             # Setup schema provider mock
@@ -231,11 +218,11 @@ def test_service_allows_noop_publisher_failure():
 @pytest.mark.skip(reason="Schema validation at startup not yet implemented")
 def test_service_fails_when_schema_missing():
     """Test that service fails fast when required schemas cannot be loaded."""
-    with patch("main.load_typed_config") as mock_config:
+    with patch("main.load_service_config") as mock_config:
         with patch("main.create_publisher") as mock_create_publisher:
             with patch("main.create_subscriber") as mock_create_subscriber:
                 with patch("main.create_document_store") as mock_create_store:
-                    with patch("main.FileSchemaProvider") as mock_schema_provider:
+                    with patch("main.create_schema_provider") as mock_schema_provider:
                         with patch("threading.Thread.start"):  # Prevent thread creation
                             with patch("uvicorn.run"):  # Prevent uvicorn from blocking
                                 # Setup mock config
@@ -296,7 +283,7 @@ def test_service_fails_when_schema_missing():
 @pytest.mark.skip(reason="Document store write permission validation at startup not yet implemented")
 def test_service_fails_when_doc_store_lacks_write_permission():
     """Test that service fails fast when document store lacks write permission."""
-    with patch("main.load_typed_config") as mock_config:
+    with patch("main.load_service_config") as mock_config:
         with patch("main.create_publisher") as mock_create_publisher:
             with patch("main.create_subscriber") as mock_create_subscriber:
                 with patch("main.create_document_store") as mock_create_store:

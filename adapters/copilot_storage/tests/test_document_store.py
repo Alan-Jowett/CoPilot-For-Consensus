@@ -4,14 +4,12 @@
 """Tests for document stores."""
 
 import pytest
-from copilot_storage import (
-    DocumentNotFoundError,
-    DocumentStore,
-    DocumentStoreConnectionError,
-    InMemoryDocumentStore,
-    MongoDocumentStore,
-    create_document_store,
-)
+from copilot_config import load_driver_config
+from copilot_storage import DocumentNotFoundError, DocumentStore, DocumentStoreConnectionError, create_document_store
+from copilot_storage.azure_cosmos_document_store import AzureCosmosDocumentStore
+from copilot_storage.inmemory_document_store import InMemoryDocumentStore
+from copilot_storage.mongo_document_store import MongoDocumentStore
+from copilot_storage.validating_document_store import ValidatingDocumentStore
 
 
 class TestDocumentStoreFactory:
@@ -19,43 +17,89 @@ class TestDocumentStoreFactory:
 
     def test_create_inmemory_store(self):
         """Test creating an in-memory document store."""
-        store = create_document_store(store_type="inmemory")
+        config = load_driver_config(service=None, adapter="document_store", driver="inmemory")
+        store = create_document_store(driver_name="inmemory", driver_config=config)
+
+        assert isinstance(store, ValidatingDocumentStore)
+        assert isinstance(store, DocumentStore)
+        assert isinstance(store._store, InMemoryDocumentStore)
+
+    def test_create_inmemory_store_without_validation(self):
+        """Test creating an in-memory store without validation wrapper."""
+        config = load_driver_config(service=None, adapter="document_store", driver="inmemory")
+        store = create_document_store(
+            driver_name="inmemory",
+            driver_config=config,
+            enable_validation=False,
+        )
 
         assert isinstance(store, InMemoryDocumentStore)
-        assert isinstance(store, DocumentStore)
 
     def test_create_mongodb_store(self):
         """Test creating a MongoDB document store."""
+        config = load_driver_config(
+            service=None,
+            adapter="document_store",
+            driver="mongodb",
+            fields={"host": "localhost", "port": 27017, "database": "test_db"},
+        )
         store = create_document_store(
-            store_type="mongodb",
-            host="localhost",
-            port=27017,
-            database="test_db"
+            driver_name="mongodb",
+            driver_config=config,
+        )
+
+        assert isinstance(store, ValidatingDocumentStore)
+        assert isinstance(store, DocumentStore)
+        assert isinstance(store._store, MongoDocumentStore)
+        assert store._store.host == "localhost"
+        assert store._store.port == 27017
+        assert store._store.database_name == "test_db"
+
+    def test_create_mongodb_store_without_validation(self):
+        """Test creating a MongoDB document store without validation wrapper."""
+        config = load_driver_config(
+            service=None,
+            adapter="document_store",
+            driver="mongodb",
+            fields={"host": "localhost", "port": 27017, "database": "test_db"},
+        )
+        store = create_document_store(
+            driver_name="mongodb",
+            driver_config=config,
+            enable_validation=False,
         )
 
         assert isinstance(store, MongoDocumentStore)
-        assert isinstance(store, DocumentStore)
         assert store.host == "localhost"
         assert store.port == 27017
         assert store.database_name == "test_db"
 
     def test_create_unknown_store_type(self):
         """Test that unknown store type raises ValueError."""
-        with pytest.raises(ValueError, match="Unknown store_type"):
-            create_document_store(store_type="invalid")
+        config = load_driver_config(service=None, adapter="document_store", driver="inmemory")
+        with pytest.raises(ValueError, match="Unknown document store driver"):
+            create_document_store(driver_name="invalid", driver_config=config)
 
-    def test_create_cosmos_alias(self):
-        """Test that 'cosmos' is an alias for 'azurecosmos'."""
-        from copilot_storage import AzureCosmosDocumentStore
-
+    def test_create_azurecosmos_store(self):
+        """Test creating Azure Cosmos DB document store."""
+        config = load_driver_config(
+            service=None,
+            adapter="document_store",
+            driver="azurecosmos",
+            fields={
+                "endpoint": "https://test.documents.azure.com:443/",
+                "key": "test_key",
+            },
+        )
         store = create_document_store(
-            store_type="cosmos",
-            endpoint="https://test.documents.azure.com:443/",
-            key="test_key"
+            driver_name="azurecosmos",
+            driver_config=config,
         )
 
-        assert isinstance(store, AzureCosmosDocumentStore)
+        assert isinstance(store, ValidatingDocumentStore)
         assert isinstance(store, DocumentStore)
+        assert isinstance(store._store, AzureCosmosDocumentStore)
+
 
 
 class TestInMemoryDocumentStore:
@@ -548,8 +592,8 @@ class TestMongoDocumentStore:
         assert store.database_name == "testdb"
 
     def test_default_values(self):
-        """Test default initialization values."""
-        store = MongoDocumentStore()
+        """Test initialization with explicit required parameters."""
+        store = MongoDocumentStore(host="localhost", port=27017, database="copilot")
 
         assert store.host == "localhost"
         assert store.port == 27017
@@ -559,7 +603,7 @@ class TestMongoDocumentStore:
 
     def test_connect_pymongo_not_installed(self, monkeypatch):
         """Test that connect() raises DocumentStoreConnectionError when pymongo is not installed."""
-        store = MongoDocumentStore()
+        store = MongoDocumentStore(host="localhost", port=27017, database="test_db")
 
         # Mock the pymongo import to raise ImportError
         import builtins
@@ -577,7 +621,7 @@ class TestMongoDocumentStore:
 
     def test_connect_connection_failure(self, monkeypatch):
         """Test that connect() raises DocumentStoreConnectionError on connection failure."""
-        store = MongoDocumentStore(host="nonexistent.host.invalid", port=27017)
+        store = MongoDocumentStore(host="nonexistent.host.invalid", port=27017, database="test_db")
 
         # Mock pymongo to raise ConnectionFailure
         from unittest.mock import MagicMock, patch
@@ -593,7 +637,7 @@ class TestMongoDocumentStore:
 
     def test_connect_unexpected_error(self, monkeypatch):
         """Test that connect() raises DocumentStoreConnectionError on unexpected errors."""
-        store = MongoDocumentStore()
+        store = MongoDocumentStore(host="localhost", port=27017, database="test_db")
 
         # Mock pymongo to raise an unexpected exception
         from unittest.mock import MagicMock, patch

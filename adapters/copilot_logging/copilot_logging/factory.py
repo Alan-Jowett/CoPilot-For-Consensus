@@ -3,7 +3,7 @@
 
 """Factory functions for creating logger instances."""
 
-import os
+from copilot_config import DriverConfig
 
 from .azure_monitor_logger import AzureMonitorLogger
 from .logger import Logger
@@ -11,57 +11,76 @@ from .silent_logger import SilentLogger
 from .stdout_logger import StdoutLogger
 
 
-def _default(value: str | None, env_var: str, fallback: str) -> str:
-    """Helper to pick an explicit value, then env var, then fallback."""
-    return (value or os.getenv(env_var) or fallback)
-
-
 def create_logger(
-    logger_type: str | None = None,
-    level: str | None = None,
-    name: str | None = None,
+    driver_name: str,
+    driver_config: DriverConfig,
 ) -> Logger:
-    """Factory function to create a logger instance.
+    """Create a logger instance based on driver type and configuration.
+
+    This factory is typically called by service configuration loaders that provide
+    DriverConfig objects with attribute access. Configuration properties are accessed
+    via attributes (config.level, config.name) with defaults defined in schemas.
 
     Args:
-        logger_type: Type of logger to create. Options: "stdout", "silent",
-            "azuremonitor". Defaults to LOG_TYPE env or "stdout".
-        level: Logging level. Options: DEBUG, INFO, WARNING, ERROR.
-            Defaults to LOG_LEVEL env or "INFO".
-        name: Logger name for identification. Defaults to LOG_NAME env or "copilot".
+        driver_name: Logger driver type. Options: 'stdout', 'silent', 'azuremonitor'
+        driver_config: DriverConfig with driver-specific attributes.
+                      Expected attributes (with schema-provided defaults):
+                      - level: Logging level (DEBUG, INFO, WARNING, ERROR)
+                      - name: Logger name for identification
+                      - instrumentation_key: Azure Monitor key (azuremonitor only)
+                      - console_log: Also log to console (azuremonitor only)
 
     Returns:
         Logger instance
 
     Raises:
-        ValueError: If logger_type is not recognized
+        ValueError: If driver_name is not recognized
+        TypeError: If driver_config is not a DriverConfig instance
 
     Example:
-        >>> # Create stdout logger with INFO level
-        >>> logger = create_logger(logger_type="stdout", level="INFO")
-        >>>
-        >>> # Create debug logger with name
-        >>> logger = create_logger(logger_type="stdout", level="DEBUG", name="my-service")
-        >>>
-        >>> # Create silent logger for testing
-        >>> logger = create_logger(logger_type="silent", level="INFO")
-        >>>
-        >>> # Create Azure Monitor logger
-        >>> logger = create_logger(logger_type="azuremonitor", level="INFO", name="prod-service")
+        >>> # Typically called by config loader:
+        >>> from copilot_config import load_service_config
+        >>> config = load_service_config("my-service")
+        >>> logger_adapter = config.get_adapter("logger")
+        >>> logger = create_logger(
+        ...     logger_adapter.driver_name,
+        ...     logger_adapter.driver_config
+        ... )
     """
-    logger_type = _default(logger_type, "LOG_TYPE", "stdout").lower()
-    level = _default(level, "LOG_LEVEL", "INFO").upper()
-    name = _default(name, "LOG_NAME", "copilot")
+    driver_lower = driver_name.lower()
 
-    # Create appropriate logger
-    if logger_type == "stdout":
-        return StdoutLogger(level=level, name=name)
-    elif logger_type == "silent":
-        return SilentLogger(level=level, name=name)
-    elif logger_type == "azuremonitor":
-        return AzureMonitorLogger(level=level, name=name)
+    if driver_lower == "stdout":
+        return StdoutLogger.from_config(driver_config)
+    elif driver_lower == "silent":
+        return SilentLogger.from_config(driver_config)
+    elif driver_lower == "azuremonitor":
+        return AzureMonitorLogger.from_config(driver_config)
     else:
         raise ValueError(
-            f"Unknown logger_type: {logger_type}. "
+            f"Unknown logger driver: {driver_name}. "
             f"Must be one of: stdout, silent, azuremonitor"
         )
+
+
+def create_stdout_logger(
+    level: str = "INFO",
+    name: str | None = None
+) -> StdoutLogger:
+    """Create a stdout logger for early initialization before config is loaded.
+    
+    This is a convenience function for services that need logging before
+    their configuration system is fully initialized.
+    
+    Args:
+        level: Logging level (DEBUG, INFO, WARNING, ERROR). Defaults to INFO.
+        name: Optional logger name for identification.
+    
+    Returns:
+        StdoutLogger instance
+    
+    Example:
+        >>> from copilot_logging import create_stdout_logger
+        >>> logger = create_stdout_logger(level="DEBUG", name="startup")
+        >>> logger.info("Service initializing...")
+    """
+    return StdoutLogger(level=level, name=name)

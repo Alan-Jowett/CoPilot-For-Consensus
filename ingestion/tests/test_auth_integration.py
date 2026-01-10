@@ -237,7 +237,7 @@ def client_with_auth(mock_service, mock_jwks):
     test_app.add_middleware(MockAuthMiddleware)
 
     # Add the API router to the app
-    logger = create_logger(logger_type="stdout", level="INFO", name="test")
+    logger = create_logger(driver_name="stdout", driver_config={"level": "INFO", "name": "test"})
     api_router = create_api_router(mock_service, logger)
     test_app.include_router(api_router)
 

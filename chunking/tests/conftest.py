@@ -8,8 +8,8 @@ import sys
 from pathlib import Path
 
 import pytest
-from copilot_schema_validation import FileSchemaProvider
-from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
+from copilot_schema_validation import create_schema_provider
+from copilot_storage import create_document_store
 
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -42,19 +42,19 @@ def create_query_with_in_support(original_query):
 @pytest.fixture
 def document_store():
     """Create in-memory document store with schema validation."""
-    # Create base in-memory store
-    base_store = InMemoryDocumentStore()
-    base_store.connect()
-
-    # Override query_documents to support $in operator
-    base_store.query_documents = create_query_with_in_support(base_store.query_documents)
-
-    # Wrap with validation using document schemas
+    # Create in-memory store via factory (already wrapped with validation)
     schema_dir = Path(__file__).parent.parent.parent / "docs" / "schemas" / "documents"
-    schema_provider = FileSchemaProvider(schema_dir=schema_dir)
-    validating_store = ValidatingDocumentStore(
-        store=base_store,
-        schema_provider=schema_provider
+    schema_provider = create_schema_provider(schema_dir=schema_dir, schema_type="documents")
+    
+    document_store = create_document_store(
+        driver_name="inmemory",
+        driver_config={"schema_provider": schema_provider},
+        enable_validation=True,
     )
+    document_store.connect()
 
-    return validating_store
+    # Customize query to support $in operator for tests
+    # Use public API instead of accessing private attributes
+    document_store.set_query_wrapper(create_query_with_in_support)
+
+    return document_store

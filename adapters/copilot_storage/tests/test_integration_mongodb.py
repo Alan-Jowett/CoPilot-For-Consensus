@@ -7,30 +7,50 @@ import os
 import time
 
 import pytest
+from copilot_config import load_driver_config
 from copilot_storage import (
     DocumentNotFoundError,
     DocumentStoreNotConnectedError,
-    MongoDocumentStore,
     create_document_store,
 )
+from copilot_storage.mongo_document_store import MongoDocumentStore
+from copilot_storage.validating_document_store import ValidatingDocumentStore
 
 
 def get_mongodb_config():
     """Get MongoDB configuration from environment variables."""
-    return {
-        "host": os.getenv("MONGODB_HOST", "localhost"),
-        "port": int(os.getenv("MONGODB_PORT", "27017")),
-        "username": os.getenv("MONGODB_USERNAME", "testuser"),
-        "password": os.getenv("MONGODB_PASSWORD", "testpass"),
-        "database": os.getenv("MONGODB_DATABASE", "test_copilot"),
-    }
+    return load_driver_config(
+        service=None,
+        adapter="document_store",
+        driver="mongodb",
+        fields={
+            "host": os.getenv("MONGODB_HOST", "localhost"),
+            "port": int(os.getenv("MONGODB_PORT", "27017")),
+            "username": os.getenv("MONGODB_USERNAME", "testuser"),
+            "password": os.getenv("MONGODB_PASSWORD", "testpass"),
+            "database": os.getenv("MONGODB_DATABASE", "test_copilot"),
+        },
+    )
+
+
+def get_underlying_database(store):
+    """Get the underlying MongoDB database from a ValidatingDocumentStore.
+    
+    This is used for test cleanup only. In production, tests should not
+    access driver-specific implementation details.
+    """
+    if hasattr(store, '_store') and hasattr(store._store, 'database'):
+        return store._store.database
+    return None
 
 
 @pytest.fixture(scope="module")
 def mongodb_store():
     """Create and connect to a real MongoDB instance for integration tests."""
     config = get_mongodb_config()
-    store = create_document_store(store_type="mongodb", **config)
+    store = create_document_store(driver_name="mongodb", driver_config=config)
+    assert isinstance(store, ValidatingDocumentStore)
+    assert isinstance(store._store, MongoDocumentStore)
 
     # Attempt to connect with retries
     max_retries = 5
@@ -55,15 +75,17 @@ def clean_collection(mongodb_store):
     """Ensure a clean collection for each test."""
     collection_name = "test_integration"
 
-    # Clean up before test
-    if mongodb_store.database is not None:
-        mongodb_store.database[collection_name].drop()
+    # Clean up before test (access underlying MongoDB store)
+    db = get_underlying_database(mongodb_store)
+    if db is not None:
+        db[collection_name].drop()
 
     yield collection_name
 
-    # Clean up after test
-    if mongodb_store.database is not None:
-        mongodb_store.database[collection_name].drop()
+    # Clean up after test (access underlying MongoDB store)
+    db = get_underlying_database(mongodb_store)
+    if db is not None:
+        db[collection_name].drop()
 
 
 @pytest.mark.integration
@@ -72,8 +94,10 @@ class TestMongoDBIntegration:
 
     def test_connection(self, mongodb_store):
         """Test that we can connect to MongoDB."""
-        assert mongodb_store.client is not None
-        assert mongodb_store.database is not None
+        # Access underlying MongoDB store
+        mongo_store = mongodb_store._store
+        assert mongo_store.client is not None
+        assert mongo_store.database is not None
 
     def test_insert_and_get_document(self, mongodb_store, clean_collection):
         """Test inserting and retrieving a document."""
@@ -292,7 +316,17 @@ class TestMongoDBEdgeCases:
 
     def test_insert_without_connection(self):
         """Test that operations fail gracefully without connection."""
-        store = MongoDocumentStore(host="nonexistent_host", port=27017)
+        config = load_driver_config(
+            service=None,
+            adapter="document_store",
+            driver="mongodb",
+            fields={
+                "host": "nonexistent_host",
+                "port": 27017,
+                "database": "test_db",
+            },
+        )
+        store = MongoDocumentStore.from_config(config)
         # Don't connect
 
         with pytest.raises(DocumentStoreNotConnectedError) as excinfo:
@@ -330,8 +364,12 @@ class TestValidationAtAdapterLayer:
         # Insert a test document to ensure collection exists
         mongodb_store.insert_document(clean_collection, {"test": "data"})
 
-        # Get the collection info
-        collection_infos = list(mongodb_store.database.list_collections(
+        # Get the collection info (access underlying MongoDB database)
+        db = get_underlying_database(mongodb_store)
+        if db is None:
+            pytest.skip("Could not access underlying MongoDB database")
+        
+        collection_infos = list(db.list_collections(
             filter={"name": clean_collection}
         ))
 
@@ -396,9 +434,10 @@ class TestMongoDBAggregate:
 
         try:
             # Clean up collections
-            if mongodb_store.database is not None:
-                mongodb_store.database[messages_col].drop()
-                mongodb_store.database[chunks_col].drop()
+            db = get_underlying_database(mongodb_store)
+            if db is not None:
+                db[messages_col].drop()
+                db[chunks_col].drop()
 
             # Insert messages
             mongodb_store.insert_document(messages_col, {"message_key": "msg1", "text": "Hello"})
@@ -434,9 +473,10 @@ class TestMongoDBAggregate:
 
         finally:
             # Clean up
-            if mongodb_store.database is not None:
-                mongodb_store.database[messages_col].drop()
-                mongodb_store.database[chunks_col].drop()
+            db = get_underlying_database(mongodb_store)
+            if db is not None:
+                db[messages_col].drop()
+                db[chunks_col].drop()
 
     def test_aggregate_complex_pipeline(self, mongodb_store):
         """Test aggregation with complex pipeline similar to chunking requeue."""
@@ -445,9 +485,10 @@ class TestMongoDBAggregate:
 
         try:
             # Clean up collections
-            if mongodb_store.database is not None:
-                mongodb_store.database[messages_col].drop()
-                mongodb_store.database[chunks_col].drop()
+            db = get_underlying_database(mongodb_store)
+            if db is not None:
+                db[messages_col].drop()
+                db[chunks_col].drop()
 
             # Insert messages
             mongodb_store.insert_document(messages_col, {"message_key": "msg1", "archive_id": 1})
@@ -493,9 +534,10 @@ class TestMongoDBAggregate:
 
         finally:
             # Clean up
-            if mongodb_store.database is not None:
-                mongodb_store.database[messages_col].drop()
-                mongodb_store.database[chunks_col].drop()
+            db = get_underlying_database(mongodb_store)
+            if db is not None:
+                db[messages_col].drop()
+                db[chunks_col].drop()
 
     def test_aggregate_objectid_serialization(self, mongodb_store):
         """Test that ObjectIds are properly serialized to strings in aggregation results."""
@@ -504,9 +546,10 @@ class TestMongoDBAggregate:
 
         try:
             # Clean up collections
-            if mongodb_store.database is not None:
-                mongodb_store.database[messages_col].drop()
-                mongodb_store.database[refs_col].drop()
+            db = get_underlying_database(mongodb_store)
+            if db is not None:
+                db[messages_col].drop()
+                db[refs_col].drop()
 
             # Insert messages and references
             mongodb_store.insert_document(messages_col, {"message_key": "msg1", "text": "Test"})
@@ -541,9 +584,10 @@ class TestMongoDBAggregate:
 
         finally:
             # Clean up
-            if mongodb_store.database is not None:
-                mongodb_store.database[messages_col].drop()
-                mongodb_store.database[refs_col].drop()
+            db = get_underlying_database(mongodb_store)
+            if db is not None:
+                db[messages_col].drop()
+                db[refs_col].drop()
 
     def test_aggregate_empty_collection(self, mongodb_store, clean_collection):
         """Test aggregation on an empty collection."""

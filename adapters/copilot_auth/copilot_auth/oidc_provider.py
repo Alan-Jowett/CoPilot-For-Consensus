@@ -281,6 +281,33 @@ class OIDCProvider(IdentityProvider):
         userinfo = self.get_userinfo(token)
         return self._map_userinfo_to_user(userinfo, self.__class__.__name__.replace("IdentityProvider", "").lower())
 
+    def validate_and_get_user(self, token_response: dict, nonce: str | None = None) -> User | None:
+        """Validate OIDC token response and retrieve user info.
+
+        OIDC providers should have id_token in response. This method validates it
+        before retrieving user info.
+
+        Args:
+            token_response: OAuth token response containing access_token and id_token
+            nonce: Nonce value for id_token validation (required for OIDC)
+
+        Returns:
+            User object if validation succeeds, None otherwise
+
+        Raises:
+            AuthenticationError: If token validation or user retrieval fails
+        """
+        access_token = token_response.get("access_token")
+        if not access_token:
+            raise AuthenticationError("No access token in response")
+        
+        id_token = token_response.get("id_token")
+        if id_token and nonce:
+            # Validate id_token if present
+            self.validate_id_token(id_token=id_token, nonce=nonce)
+        
+        return self.get_user(access_token)
+
     def validate_id_token(self, id_token: str, nonce: str, leeway: int = 60) -> dict[str, Any]:
         """Validate ID token using provider JWKS.
 

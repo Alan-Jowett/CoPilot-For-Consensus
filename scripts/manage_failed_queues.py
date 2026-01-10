@@ -30,7 +30,7 @@ except ImportError:
     print("Error: pika library not installed. Run: pip install pika", file=sys.stderr)
     sys.exit(1)
 
-logger = create_logger(name=__name__)
+logger = create_logger("stdout", {"name": __name__})
 
 
 class FailedQueueManager:
@@ -444,7 +444,7 @@ For full operational guide, see documents/FAILED_QUEUE_OPERATIONS.md
     # Configure logging
     global logger
     if args.verbose:
-        logger = create_logger(name=__name__, level="DEBUG")
+        logger = create_logger("stdout", {"name": __name__, "level": "DEBUG"})
 
     # Create manager
     manager = FailedQueueManager(

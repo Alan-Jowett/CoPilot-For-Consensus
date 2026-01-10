@@ -1,18 +1,18 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""OpenAI-based summarization implementation."""
+"""OpenAI/Azure OpenAI summarization implementation."""
 
 import logging
 import time
+
+from copilot_config import DriverConfig
 
 from .models import Summary, Thread
 from .summarizer import Summarizer
 
 logger = logging.getLogger(__name__)
 
-# Default API version for Azure OpenAI
-DEFAULT_AZURE_API_VERSION = "2023-12-01"
 
 class OpenAISummarizer(Summarizer):
     """OpenAI GPT-based summarization engine.
@@ -65,19 +65,73 @@ class OpenAISummarizer(Summarizer):
         self.api_key = api_key
         self.model = model
         self.base_url = base_url
-        self.is_azure = base_url is not None
+
+        # Azure mode is inferred from explicit Azure parameters.
+        # This allows OpenAI-compatible custom base URLs without forcing Azure.
+        self.is_azure = api_version is not None or deployment_name is not None
 
         if self.is_azure:
-            logger.info("Initialized OpenAISummarizer with Azure OpenAI deployment: %s", deployment_name or model)
+            if not base_url:
+                raise ValueError(
+                    "Azure OpenAI requires a base_url (azure endpoint). "
+                    "Provide the Azure OpenAI endpoint URL."
+                )
+
+            logger.info(
+                "Initialized OpenAISummarizer with Azure OpenAI deployment: %s",
+                deployment_name or model,
+            )
             self.client = AzureOpenAI(
                 api_key=api_key,
-                api_version=api_version or DEFAULT_AZURE_API_VERSION,
-                azure_endpoint=base_url
+                api_version=api_version,
+                azure_endpoint=base_url,
             )
             self.deployment_name = deployment_name or model
         else:
             logger.info("Initialized OpenAISummarizer with OpenAI model: %s", model)
-            self.client = OpenAI(api_key=api_key)
+            # OpenAI client supports optional custom base URL.
+            if base_url is not None:
+                self.client = OpenAI(api_key=api_key, base_url=base_url)
+            else:
+                self.client = OpenAI(api_key=api_key)
+
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "OpenAISummarizer":
+        """Create an OpenAISummarizer from configuration.
+
+        Uses the driver name to select the correct schema fields:
+        - OpenAI schema: docs/schemas/configs/adapters/drivers/llm_backend/llm_openai.json
+        - Azure schema: docs/schemas/configs/adapters/drivers/llm_backend/llm_azure.json
+        
+        Args:
+            driver_config: DriverConfig instance.
+        
+        Returns:
+            Configured OpenAISummarizer instance
+        
+        Raises:
+            ValueError: If required config attributes are missing
+            AttributeError: If required config attributes are missing
+        """
+        driver_lower = driver_config.driver_name.lower()
+
+        if driver_lower == "azure":
+            return cls(
+                api_key=driver_config.azure_openai_api_key,
+                model=driver_config.azure_openai_model,
+                base_url=driver_config.azure_openai_endpoint,
+                api_version=driver_config.azure_openai_api_version,
+                deployment_name=driver_config.azure_openai_deployment
+            )
+
+        if driver_lower == "openai":
+            return cls(
+                api_key=driver_config.openai_api_key,
+                model=driver_config.openai_model,
+                base_url=driver_config.openai_base_url
+            )
+
+        raise ValueError(f"Unknown OpenAI driver type: {driver_config.driver_name}")
 
     @property
     def effective_model(self) -> str:

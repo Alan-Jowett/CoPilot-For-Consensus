@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from copilot_embedding import EmbeddingProvider
-from copilot_events import (
+from copilot_message_bus import (
     ChunksPreparedEvent,
     EmbeddingGenerationFailedEvent,
     EmbeddingsGeneratedEvent,
@@ -17,11 +17,11 @@ from copilot_events import (
 )
 from copilot_logging import create_logger
 from copilot_metrics import MetricsCollector
-from copilot_reporting import ErrorReporter
+from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
 from copilot_vectorstore import VectorStore
 
-logger = create_logger(name="embedding")
+logger = create_logger("stdout", {"name": "embedding", "level": "INFO"})
 
 
 class EmbeddingService:

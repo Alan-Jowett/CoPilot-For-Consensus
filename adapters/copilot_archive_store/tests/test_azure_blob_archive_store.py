@@ -10,12 +10,13 @@ import pytest
 # Test if azure-storage-blob is available
 try:
     from azure.core.exceptions import AzureError, ResourceExistsError, ResourceNotFoundError
+    from azure.storage.blob import BlobServiceClient  # noqa: F401 - availability check
     AZURE_AVAILABLE = True
 except ImportError:
     AZURE_AVAILABLE = False
 
 if AZURE_AVAILABLE:
-    from copilot_archive_store import AzureBlobArchiveStore
+    from copilot_archive_store.azure_blob_archive_store import AzureBlobArchiveStore
     from copilot_archive_store.archive_store import ArchiveStoreConnectionError
 
 
@@ -130,7 +131,8 @@ class TestAzureBlobArchiveStore:
 
     def test_initialization_missing_credentials(self):
         """Test that initialization fails without credentials."""
-        with pytest.raises(ValueError, match="credentials must be provided"):
+        # Managed identity path requires azure-identity; expect a clear connection error when absent
+        with pytest.raises(ArchiveStoreConnectionError, match="azure-identity is required"):
             AzureBlobArchiveStore(
                 account_name="testaccount",
                 container_name="archives"
@@ -138,7 +140,7 @@ class TestAzureBlobArchiveStore:
 
     def test_initialization_missing_account_name(self):
         """Test that initialization fails without account name."""
-        with pytest.raises(ValueError, match="account name must be provided"):
+        with pytest.raises(ValueError, match="Authentication configuration required"):
             AzureBlobArchiveStore(
                 account_key="testkey123==",
                 container_name="archives"
@@ -687,9 +689,5 @@ class TestAzureBlobArchiveStore:
         mock_metadata_blob.download_blob.side_effect = ResourceNotFoundError()
         mock_container.get_blob_client.return_value = mock_metadata_blob
 
-        store = AzureBlobArchiveStore()
-
-        assert store.account_name == "envaccount"
-        assert store.account_key == "envkey=="
-        assert store.container_name == "envcontainer"
-        assert store.prefix == "env/prefix/"
+        with pytest.raises(ValueError, match="Authentication configuration required"):
+            AzureBlobArchiveStore()

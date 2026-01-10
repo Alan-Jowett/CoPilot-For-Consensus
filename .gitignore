@@ -28,3 +28,4 @@ infra/azure/modules/*.json
 **/secrets/*
 !**/secrets/*.example
 !**/secrets/README.md
+**/*.xml

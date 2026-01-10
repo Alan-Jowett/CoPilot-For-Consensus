@@ -9,7 +9,7 @@ import pytest
 
 # Check if qdrant-client is available
 try:
-    from copilot_vectorstore import QdrantVectorStore
+    from copilot_vectorstore.qdrant_store import QdrantVectorStore
     QDRANT_AVAILABLE = True
 except ImportError:
     QDRANT_AVAILABLE = False
@@ -263,5 +263,5 @@ def test_qdrant_not_available_raises_import_error():
     # This test only makes sense when qdrant-client is NOT installed
     # If it is installed, we skip this test
     with pytest.raises(ImportError):
-        from copilot_vectorstore import QdrantVectorStore
+        from copilot_vectorstore.qdrant_store import QdrantVectorStore
         QdrantVectorStore()

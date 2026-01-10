@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from copilot_chunking import Thread, ThreadChunker
-from copilot_events import (
+from copilot_message_bus import (
     ChunkingFailedEvent,
     ChunksPreparedEvent,
     EventPublisher,
@@ -17,11 +17,11 @@ from copilot_events import (
 )
 from copilot_logging import create_logger
 from copilot_metrics import MetricsCollector
-from copilot_reporting import ErrorReporter
+from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
 from pymongo.errors import DuplicateKeyError
 
-logger = create_logger(name="chunking")
+logger = create_logger("stdout", {"name": "chunking", "level": "INFO"})
 
 
 class ChunkingService:

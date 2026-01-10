@@ -9,10 +9,14 @@ import tempfile
 
 import pytest
 from app.service import IngestionService
-from copilot_events import NoopPublisher, ValidatingEventPublisher
-from copilot_schema_validation import FileSchemaProvider
+from copilot_archive_store import create_archive_store
+from copilot_message_bus import create_publisher
+from copilot_schema_validation import create_schema_provider
+from copilot_storage import create_document_store
 
 from .test_helpers import make_config, make_source
+
+pytestmark = pytest.mark.integration
 
 
 class TestIngestionIntegration:
@@ -69,8 +73,6 @@ class TestIngestionIntegration:
         """Test complete end-to-end ingestion workflow."""
         from pathlib import Path
 
-        from copilot_storage import InMemoryDocumentStore
-
         # Create configuration
         config = make_config(
             storage_path=temp_environment["storage_path"],
@@ -79,22 +81,27 @@ class TestIngestionIntegration:
         )
 
         # Create publisher and service
-        base_publisher = NoopPublisher()
-        base_publisher.connect()
-        # Wrap with schema validation for events
         schema_dir = Path(__file__).parent.parent.parent / "docs" / "schemas" / "events"
-        schema_provider = FileSchemaProvider(schema_dir=schema_dir)
-        publisher = ValidatingEventPublisher(
-            publisher=base_publisher,
-            schema_provider=schema_provider,
-            strict=True,
+        publisher = create_publisher(
+            driver_name="noop",
+            driver_config={
+                "schema_provider": create_schema_provider(schema_dir=str(schema_dir)),
+                "validation_enabled": True,
+                "strict": True,
+            },
         )
 
         # Create in-memory document store for testing
-        document_store = InMemoryDocumentStore()
+        document_store = create_document_store(driver_name="inmemory")
         document_store.connect()
 
-        service = IngestionService(config, publisher, document_store=document_store)
+        # Create archive store for local file operations
+        archive_store = create_archive_store(
+            driver_name="local",
+            driver_config={"base_path": temp_environment["storage_path"]},
+        )
+
+        service = IngestionService(config, publisher, document_store=document_store, archive_store=archive_store)
 
         # Ingest all sources
         results = service.ingest_all_enabled_sources()
@@ -128,31 +135,34 @@ class TestIngestionIntegration:
             lines = f.readlines()
             assert len(lines) == 3
 
-        # Verify events were published
-        # Validate events published on underlying NoopPublisher
-        assert len(base_publisher.published_events) == 3
+        # Verify events were published (noop publisher exposes published_events directly)
+        assert len(publisher.published_events) == 3
 
         # All should be success events
-        for event_wrapper in base_publisher.published_events:
+        for event_wrapper in publisher.published_events:
             assert event_wrapper["event"]["event_type"] == "ArchiveIngested"
 
     def test_ingestion_with_duplicates(self, temp_environment, test_sources):
         """Test ingestion handling of duplicate archives."""
-        from copilot_storage import InMemoryDocumentStore
-        
         config = make_config(
             storage_path=temp_environment["storage_path"],
             sources=test_sources,
         )
 
-        publisher = NoopPublisher()
+        publisher = create_publisher(driver_name="noop")
         publisher.connect()
         
         # Create document store for deduplication
-        document_store = InMemoryDocumentStore()
+        document_store = create_document_store(driver_name="inmemory")
         document_store.connect()
 
-        service = IngestionService(config, publisher, document_store=document_store)
+        # Create archive store for local file operations
+        archive_store = create_archive_store(
+            driver_name="local",
+            driver_config={"base_path": temp_environment["storage_path"]},
+        )
+
+        service = IngestionService(config, publisher, document_store=document_store, archive_store=archive_store)
 
         # First ingestion
         results1 = service.ingest_all_enabled_sources()
@@ -181,10 +191,16 @@ class TestIngestionIntegration:
             sources=test_sources,
         )
 
-        publisher = NoopPublisher()
+        publisher = create_publisher(driver_name="noop")
         publisher.connect()
 
-        service = IngestionService(config, publisher)
+        # Create archive store for local file operations
+        archive_store = create_archive_store(
+            driver_name="local",
+            driver_config={"base_path": temp_environment["storage_path"]},
+        )
+
+        service = IngestionService(config, publisher, archive_store=archive_store)
 
         results = service.ingest_all_enabled_sources()
 
@@ -195,21 +211,23 @@ class TestIngestionIntegration:
 
     def test_deduplication_persists_across_instances(self, temp_environment, test_sources):
         """Test that deduplication via document store works across service instances."""
-        from copilot_storage import InMemoryDocumentStore
-        
         config = make_config(
             storage_path=temp_environment["storage_path"],
             sources=test_sources[:1],  # Just first source
         )
 
         # Create shared document store
-        document_store = InMemoryDocumentStore()
+        document_store = create_document_store(driver_name="inmemory")
         document_store.connect()
 
         # First service instance
-        publisher1 = NoopPublisher()
+        publisher1 = create_publisher(driver_name="noop")
         publisher1.connect()
-        service1 = IngestionService(config, publisher1, document_store=document_store)
+        archive_store = create_archive_store(
+            driver_name="local",
+            driver_config={"base_path": temp_environment["storage_path"]},
+        )
+        service1 = IngestionService(config, publisher1, document_store=document_store, archive_store=archive_store)
         service1.ingest_all_enabled_sources()
 
         # Get the first archive record
@@ -217,9 +235,9 @@ class TestIngestionIntegration:
         assert len(archives) > 0
 
         # Second service instance with same document store
-        publisher2 = NoopPublisher()
+        publisher2 = create_publisher(driver_name="noop")
         publisher2.connect()
-        service2 = IngestionService(config, publisher2, document_store=document_store)
+        service2 = IngestionService(config, publisher2, document_store=document_store, archive_store=archive_store)
         
         # Ingest again - should skip because hash exists in document store
         service2.ingest_all_enabled_sources()
@@ -235,10 +253,16 @@ class TestIngestionIntegration:
             sources=test_sources[:1],
         )
 
-        publisher = NoopPublisher()
+        publisher = create_publisher(driver_name="noop")
         publisher.connect()
 
-        service = IngestionService(config, publisher)
+        # Create archive store for local file operations
+        archive_store = create_archive_store(
+            driver_name="local",
+            driver_config={"base_path": temp_environment["storage_path"]},
+        )
+
+        service = IngestionService(config, publisher, archive_store=archive_store)
         service.ingest_all_enabled_sources()
 
         log_path = os.path.join(
@@ -268,10 +292,16 @@ class TestIngestionIntegration:
             sources=test_sources[:1],
         )
 
-        publisher = NoopPublisher()
+        publisher = create_publisher(driver_name="noop")
         publisher.connect()
 
-        service = IngestionService(config, publisher)
+        # Create archive store for local file operations
+        archive_store = create_archive_store(
+            driver_name="local",
+            driver_config={"base_path": temp_environment["storage_path"]},
+        )
+
+        service = IngestionService(config, publisher, archive_store=archive_store)
         service.ingest_all_enabled_sources()
 
         # Get published events
@@ -287,15 +317,14 @@ class TestIngestionIntegration:
             assert "version" in event
             assert "data" in event
 
-            # Verify event data (storage-agnostic - no file_path)
+            # Verify event data (schema-required fields; file_path is optional per storage-agnostic design)
             if event["event_type"] == "ArchiveIngested":
                 data = event["data"]
                 assert "archive_id" in data
                 assert "source_name" in data
                 assert "source_type" in data
                 assert "source_url" in data
-                # file_path removed for storage-agnostic events
-                assert "file_path" not in data
+                # file_path is optional (omitted for storage-agnostic mode)
                 assert "file_size_bytes" in data
                 assert "file_hash_sha256" in data
                 assert "ingestion_started_at" in data
@@ -308,10 +337,16 @@ class TestIngestionIntegration:
             sources=test_sources[:2],
         )
 
-        publisher = NoopPublisher()
+        publisher = create_publisher(driver_name="noop")
         publisher.connect()
 
-        service = IngestionService(config, publisher)
+        # Create archive store for local file operations
+        archive_store = create_archive_store(
+            driver_name="local",
+            driver_config={"base_path": temp_environment["storage_path"]},
+        )
+
+        service = IngestionService(config, publisher, archive_store=archive_store)
         service.ingest_all_enabled_sources()
 
         storage_path = temp_environment["storage_path"]

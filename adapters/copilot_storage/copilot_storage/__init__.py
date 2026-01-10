@@ -9,33 +9,26 @@ in the Copilot-for-Consensus system.
 
 __version__ = "0.1.0"
 
-from .azure_cosmos_document_store import AzureCosmosDocumentStore
-from .document_store import (
+from .document_store import (  # noqa: E402
     DocumentNotFoundError,
     DocumentStore,
     DocumentStoreConnectionError,
     DocumentStoreError,
     DocumentStoreNotConnectedError,
-    create_document_store,
 )
-from .inmemory_document_store import InMemoryDocumentStore
-from .mongo_document_store import MongoDocumentStore
-from .validating_document_store import DocumentValidationError, ValidatingDocumentStore
+from .factory import create_document_store  # noqa: E402
+from .validating_document_store import (  # noqa: E402
+    DocumentValidationError,
+)
 
 __all__ = [
-    # Version
     "__version__",
-    # Document Stores
-    "DocumentStore",
-    "MongoDocumentStore",
-    "InMemoryDocumentStore",
-    "AzureCosmosDocumentStore",
     "create_document_store",
-    "ValidatingDocumentStore",
-    # Exceptions
+    "DocumentStore",
     "DocumentStoreError",
     "DocumentStoreNotConnectedError",
     "DocumentStoreConnectionError",
     "DocumentNotFoundError",
     "DocumentValidationError",
 ]
+

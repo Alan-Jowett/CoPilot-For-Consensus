@@ -3,14 +3,15 @@
 
 """Local filesystem secret provider."""
 
+import logging
 from pathlib import Path
 
-from copilot_logging import create_logger
+from copilot_config import DriverConfig
 
 from .exceptions import SecretNotFoundError, SecretProviderError
 from .provider import SecretProvider
 
-logger = create_logger(logger_type="stdout", level="INFO", name="copilot_secrets.local")
+logger = logging.getLogger("copilot_secrets.local")
 
 
 class LocalFileSecretProvider(SecretProvider):
@@ -52,19 +53,35 @@ class LocalFileSecretProvider(SecretProvider):
 
         logger.info("Initialized local secret provider")
 
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "LocalFileSecretProvider":
+        """Create LocalFileSecretProvider from driver_config.
+        
+        Args:
+            driver_config: DriverConfig instance with base_path attribute.
+                          Value must be provided (no default).
+            
+        Returns:
+            LocalFileSecretProvider instance
+            
+        Raises:
+            AttributeError: If base_path attribute is missing
+        """
+        base_path = getattr(driver_config, "base_path", None)
+        return cls(base_path=base_path)
+
     def _get_secret_path(self, key_name: str) -> Path:
-        """Get the filesystem path for a secret.
+        """Get the resolved path for a secret, validating against path traversal.
 
         Args:
             key_name: Name of the secret
 
         Returns:
-            Path to the secret file
+            Resolved path to the secret file
 
         Raises:
-            SecretProviderError: If key_name contains path traversal attempts
+            SecretProviderError: If path traversal is attempted
         """
-        # Construct potential path and resolve to absolute path
         potential_path = (self.base_path / key_name).resolve()
         base_resolved = self.base_path.resolve()
 

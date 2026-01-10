@@ -7,7 +7,8 @@ from unittest.mock import Mock
 
 import pytest
 from app.service import ChunkingService
-from copilot_chunking import TokenWindowChunker
+from copilot_config import load_driver_config
+from copilot_chunking import create_chunker
 
 from .test_helpers import assert_valid_event_schema
 
@@ -40,7 +41,15 @@ def mock_subscriber():
 @pytest.fixture
 def mock_chunker():
     """Create a mock chunker."""
-    return TokenWindowChunker(chunk_size=384, overlap=50)
+    return create_chunker(
+        "token_window",
+        load_driver_config(
+            "chunking",
+            "chunker",
+            "token_window",
+            fields={"chunk_size": 384, "overlap": 50},
+        ),
+    )
 
 
 @pytest.fixture
@@ -463,7 +472,15 @@ def test_schema_validation_chunks_prepared():
     mock_store.insert_document = Mock(return_value="chunk_123")
     mock_publisher = Mock()
     mock_subscriber = Mock()
-    mock_chunker = TokenWindowChunker(chunk_size=384, overlap=50)
+    mock_chunker = create_chunker(
+        "token_window",
+        load_driver_config(
+            "chunking",
+            "chunker",
+            "token_window",
+            fields={"chunk_size": 384, "overlap": 50},
+        ),
+    )
 
     service = ChunkingService(
         document_store=mock_store,
@@ -491,7 +508,15 @@ def test_schema_validation_chunking_failed():
     mock_store = Mock()
     mock_publisher = Mock()
     mock_subscriber = Mock()
-    mock_chunker = TokenWindowChunker(chunk_size=384, overlap=50)
+    mock_chunker = create_chunker(
+        "token_window",
+        load_driver_config(
+            "chunking",
+            "chunker",
+            "token_window",
+            fields={"chunk_size": 384, "overlap": 50},
+        ),
+    )
 
     service = ChunkingService(
         document_store=mock_store,
@@ -524,10 +549,6 @@ def test_consume_json_parsed_event():
     mock_store = Mock()
     mock_store.insert_document = Mock(return_value="chunk_123")
     mock_store.query_documents = Mock(return_value=[])
-
-    Mock()
-    Mock()
-    TokenWindowChunker(chunk_size=384, overlap=50)
 
     # Simulate receiving a JSONParsed event
     event = {
@@ -590,7 +611,15 @@ def test_handle_malformed_event_missing_data():
     mock_store = Mock()
     mock_publisher = Mock()
     mock_subscriber = Mock()
-    mock_chunker = TokenWindowChunker(chunk_size=384, overlap=50)
+    mock_chunker = create_chunker(
+        "token_window",
+        load_driver_config(
+            "chunking",
+            "chunker",
+            "token_window",
+            fields={"chunk_size": 384, "overlap": 50},
+        ),
+    )
 
     service = ChunkingService(
         document_store=mock_store,
@@ -617,7 +646,15 @@ def test_handle_event_with_invalid_message_doc_ids_type():
     mock_store = Mock()
     mock_publisher = Mock()
     mock_subscriber = Mock()
-    mock_chunker = TokenWindowChunker(chunk_size=384, overlap=50)
+    mock_chunker = create_chunker(
+        "token_window",
+        load_driver_config(
+            "chunking",
+            "chunker",
+            "token_window",
+            fields={"chunk_size": 384, "overlap": 50},
+        ),
+    )
 
     service = ChunkingService(
         document_store=mock_store,
@@ -802,7 +839,15 @@ def test_metrics_collector_uses_observe_for_histograms():
 
     mock_publisher = Mock()
     mock_subscriber = Mock()
-    mock_chunker = TokenWindowChunker(chunk_size=384, overlap=50)
+    mock_chunker = create_chunker(
+        "token_window",
+        load_driver_config(
+            "chunking",
+            "chunker",
+            "token_window",
+            fields={"chunk_size": 384, "overlap": 50},
+        ),
+    )
     mock_metrics = Mock()
 
     service = ChunkingService(
@@ -837,10 +882,10 @@ def test_metrics_collector_uses_observe_for_histograms():
 
 def test_requeue_incomplete_messages_with_aggregation_support():
     """Test startup requeue using aggregation with canonical fields."""
-    from copilot_storage import InMemoryDocumentStore
+    from copilot_storage import create_document_store
 
-    # Use real InMemoryDocumentStore which supports aggregation
-    store = InMemoryDocumentStore()
+    # Use inmemory document store which supports aggregation
+    store = create_document_store(driver_name="inmemory", enable_validation=False)
     store.connect()
 
     # Canonical hex IDs
@@ -866,7 +911,15 @@ def test_requeue_incomplete_messages_with_aggregation_support():
 
     mock_publisher = Mock()
     mock_subscriber = Mock()
-    mock_chunker = TokenWindowChunker(chunk_size=384, overlap=50)
+    mock_chunker = create_chunker(
+        "token_window",
+        load_driver_config(
+            "chunking",
+            "chunker",
+            "token_window",
+            fields={"chunk_size": 384, "overlap": 50},
+        ),
+    )
 
     service = ChunkingService(
         document_store=store,
@@ -897,7 +950,15 @@ def test_requeue_skips_when_aggregation_not_supported():
 
     mock_publisher = Mock()
     mock_subscriber = Mock()
-    mock_chunker = TokenWindowChunker(chunk_size=384, overlap=50)
+    mock_chunker = create_chunker(
+        "token_window",
+        load_driver_config(
+            "chunking",
+            "chunker",
+            "token_window",
+            fields={"chunk_size": 384, "overlap": 50},
+        ),
+    )
 
     service = ChunkingService(
         document_store=mock_store,
