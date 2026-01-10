@@ -28,7 +28,45 @@ PR #804 is a **major architectural refactoring** with **54 commits**, **483 chan
 
 ## Critical Issues
 
-### 1. Breaking API Changes Without Migration Path
+### 1. Secret Provider Factory Call Broken (FIXED)
+
+**Severity:** CRITICAL  
+**Impact:** Auth service crashes on startup, all services cannot load secrets  
+**Status:** ✅ FIXED in typed_config.py
+
+**Root Cause:**
+Commit 84e937d5 changed `create_secret_provider` to require `DriverConfig` instances instead of dict, but `load_service_config()` in typed_config.py line 314 was still passing `secret_adapter.driver_config.config` (a dict).
+
+**Impact:**
+- Auth service failed to start with "JWT keys not found in secrets store"
+- Secret provider initialization silently failed (exception caught and ignored)
+- Phase 3 config loading proceeded without secret provider, leaving all secret fields as None
+- All services using secrets (MongoDB passwords, JWT keys, OAuth secrets, etc.) would fail
+
+**Fix Applied:**
+Changed line 314 from:
+```python
+secret_provider_instance = create_secrets_provider(
+    secret_adapter.driver_name,
+    secret_adapter.driver_config.config,  # ❌ dict
+)
+```
+
+To:
+```python
+secret_provider_instance = create_secrets_provider(
+    secret_adapter.driver_name,
+    secret_adapter.driver_config,  # ✅ DriverConfig
+)
+```
+
+**Verification:**
+- Auth service now starts successfully and shows "healthy" status
+- JWT keys properly loaded from `/run/secrets/jwt_private_key` and `/run/secrets/jwt_public_key`
+
+---
+
+### 2. Breaking API Changes Without Migration Path
 
 **Severity:** CRITICAL  
 **Impact:** Will break existing integrations

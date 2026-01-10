@@ -163,11 +163,11 @@ class TestAzureOpenAISummarizer:
         config = llm_driver_config(
             "azure",
             fields={
-                "api_key": "test-key",
-                "model": "gpt-4",
-                "base_url": "https://test.openai.azure.com/",
-                "deployment_name": "test-deployment",
-                # Intentionally omit api_version to trigger validation error
+                "azure_openai_api_key": "test-key",
+                "azure_openai_model": "gpt-4",
+                "azure_openai_endpoint": "https://test.openai.azure.com/",
+                "azure_openai_deployment": "test-deployment",
+                # Intentionally omit azure_openai_api_version to trigger validation error
             }
         )
         with pytest.raises(ValueError, match="requires 'api_version'"):
@@ -178,10 +178,10 @@ class TestAzureOpenAISummarizer:
         config = llm_driver_config(
             "azure",
             fields={
-                "api_key": "test-key",
-                "model": "gpt-4",
-                "base_url": "https://test.openai.azure.com/",
-                "api_version": "2024-02-15-preview",
+                "azure_openai_api_key": "test-key",
+                "azure_openai_model": "gpt-4",
+                "azure_openai_endpoint": "https://test.openai.azure.com/",
+                "azure_openai_api_version": "2024-02-15-preview",
             }
         )
         summarizer = OpenAISummarizer.from_config(config)

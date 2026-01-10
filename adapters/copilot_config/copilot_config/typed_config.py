@@ -27,7 +27,7 @@ def load_service_config(
     Services should then iterate over adapters and call adapter factory methods:
         config = load_service_config("summarization")
         llm_adapter = config.get_adapter("llm_backend")
-        llm = create_llm_backend(llm_adapter.driver_name, llm_adapter.driver_config.config)
+        llm = create_llm_backend(llm_adapter.driver_name, llm_adapter.driver_config)
 
     Args:
         service_name: Name of the service
@@ -311,7 +311,7 @@ def load_service_config(
             if secret_adapter is not None:
                 secret_provider_instance = create_secrets_provider(
                     secret_adapter.driver_name,
-                    secret_adapter.driver_config.config,
+                    secret_adapter.driver_config,
                 )
                 secret_provider = SecretConfigProvider(secret_provider=secret_provider_instance)
         except Exception:
