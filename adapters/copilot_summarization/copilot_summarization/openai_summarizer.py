@@ -109,14 +109,14 @@ class OpenAISummarizer(Summarizer):
         Supported driver names are:
         - "openai" for the OpenAI backend
         - "azure" for the Azure OpenAI backend
-        
+
         Args:
             driver_config: DriverConfig instance whose ``driver_name`` is either
                 "openai" or "azure".
-        
+
         Returns:
             Configured OpenAISummarizer instance.
-        
+
         Raises:
             ValueError: If ``driver_name`` is not "openai" or "azure".
         """

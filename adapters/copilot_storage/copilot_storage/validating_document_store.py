@@ -252,6 +252,12 @@ class ValidatingDocumentStore(DocumentStore):
             >>> # NOW use the store - wrapper will be active for all queries
             >>> results = validating_store.query_documents("messages", {"status": "active"})
 
+        Warning:
+            This method modifies internal state and is **not thread-safe**. It should only
+            be called during initialization, before any queries are executed in any thread.
+            Calling this method after initialization in a multi-threaded environment may
+            cause race conditions or unexpected behavior.
+
         Args:
             wrapper_fn: Function that takes the original query method and returns
                        a wrapped version with the same signature

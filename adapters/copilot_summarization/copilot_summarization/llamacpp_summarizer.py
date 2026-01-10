@@ -56,16 +56,16 @@ class LlamaCppSummarizer(Summarizer):
     @classmethod
     def from_config(cls, config: DriverConfig) -> "LlamaCppSummarizer":
         """Create a LlamaCppSummarizer from configuration.
-        
+
         Configuration defaults are defined in schema:
         docs/schemas/configs/adapters/drivers/llm_backend/llm_llamacpp.json
-        
+
         Args:
             config: DriverConfig with fields:
                     - llamacpp_model: Model name (str)
                     - llamacpp_endpoint: Base URL for llama.cpp (str)
                     - llamacpp_timeout_seconds: Request timeout (int)
-        
+
         Returns:
             Configured LlamaCppSummarizer instance
         """

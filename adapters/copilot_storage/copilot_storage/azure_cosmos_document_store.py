@@ -33,17 +33,18 @@ class AzureCosmosDocumentStore(DocumentStore):
     @classmethod
     def from_config(cls, config: Any) -> "AzureCosmosDocumentStore":
         """Create an AzureCosmosDocumentStore from configuration.
-        
+
         Args:
             config: Configuration object with endpoint, key, database, container,
                     and partition_key attributes. Database, container, and partition_key
                     defaults are provided by the schema.
-        
+
         Returns:
             Configured AzureCosmosDocumentStore instance
-        
+
         Raises:
             AttributeError: If required config attributes are missing
+        """
         """
         extra_kwargs: dict[str, Any] = {}
         if isinstance(config, dict):

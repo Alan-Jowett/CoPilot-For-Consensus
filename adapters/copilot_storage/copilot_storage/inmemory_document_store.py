@@ -22,12 +22,13 @@ class InMemoryDocumentStore(DocumentStore):
     @classmethod
     def from_config(cls, driver_config: DriverConfig) -> "InMemoryDocumentStore":
         """Create an InMemoryDocumentStore from configuration.
-        
+
         Args:
             driver_config: Configuration object (ignored, no configuration needed)
-        
+
         Returns:
             InMemoryDocumentStore instance
+        """
         """
         # InMemoryDocumentStore has no configuration parameters
         return cls()

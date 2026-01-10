@@ -33,14 +33,14 @@ class MockSummarizer(Summarizer):
     @classmethod
     def from_config(cls, driver_config: DriverConfig) -> "MockSummarizer":
         """Create a MockSummarizer from configuration.
-        
+
         Configuration defaults are defined in schema:
         docs/schemas/configs/adapters/drivers/llm_backend/llm_mock.json
-        
+
         Args:
             driver_config: DriverConfig with field:
                     - mock_latency_ms: Simulated latency in ms
-        
+
         Returns:
             Configured MockSummarizer instance
         """

@@ -56,16 +56,16 @@ class LocalLLMSummarizer(Summarizer):
     @classmethod
     def from_config(cls, driver_config: DriverConfig) -> "LocalLLMSummarizer":
         """Create a LocalLLMSummarizer from configuration.
-        
+
         Configuration defaults are defined in schema:
         docs/schemas/configs/adapters/drivers/llm_backend/llm_local.json
-        
+
         Args:
             driver_config: DriverConfig with fields:
                     - local_llm_model: Model name (str)
                     - local_llm_endpoint: Base URL for local LLM (str)
                     - local_llm_timeout_seconds: Request timeout (int)
-        
+
         Returns:
             Configured LocalLLMSummarizer instance
         """

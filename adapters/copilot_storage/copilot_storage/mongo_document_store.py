@@ -25,15 +25,16 @@ class MongoDocumentStore(DocumentStore):
     @classmethod
     def from_config(cls, driver_config: DriverConfig) -> "MongoDocumentStore":
         """Create a MongoDocumentStore from configuration.
-        
+
         Args:
             driver_config: Configuration object with host, port, database, username, password attributes.
-        
+
         Returns:
             Configured MongoDocumentStore instance
-        
+
         Raises:
             AttributeError: If required config attributes are missing
+        """
         """
         host = getattr(driver_config, "host", None)
         port = getattr(driver_config, "port", None)
