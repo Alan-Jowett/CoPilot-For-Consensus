@@ -75,6 +75,8 @@ class OpenAISummarizer(Summarizer):
             )
 
         # Azure mode is enabled only when an explicit Azure api_version is set.
+        # Both deployment_name and api_version are required together to configure
+        # Azure OpenAI properly, but is_azure status is determined by api_version presence.
         self.is_azure = api_version is not None
 
         if self.is_azure:

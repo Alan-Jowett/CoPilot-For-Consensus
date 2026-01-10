@@ -25,7 +25,7 @@ class MockSummarizer(Summarizer):
         """Initialize mock summarizer.
 
         Args:
-            latency_ms: Simulated latency in milliseconds (defaults to 100 ms for backward compatibility)
+            latency_ms: Simulated latency in milliseconds.
         """
         self.latency_ms = latency_ms
         logger.info("Initialized MockSummarizer")

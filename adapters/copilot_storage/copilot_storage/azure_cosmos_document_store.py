@@ -45,7 +45,6 @@ class AzureCosmosDocumentStore(DocumentStore):
         Raises:
             AttributeError: If required config attributes are missing
         """
-        """
         extra_kwargs: dict[str, Any] = {}
         if isinstance(config, dict):
             for k, v in config.items():

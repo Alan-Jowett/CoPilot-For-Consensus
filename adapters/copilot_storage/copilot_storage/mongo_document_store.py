@@ -35,7 +35,6 @@ class MongoDocumentStore(DocumentStore):
         Raises:
             AttributeError: If required config attributes are missing
         """
-        """
         host = getattr(driver_config, "host", None)
         port = getattr(driver_config, "port", None)
         username = getattr(driver_config, "username", None)

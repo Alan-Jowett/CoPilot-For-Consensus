@@ -29,7 +29,6 @@ class InMemoryDocumentStore(DocumentStore):
         Returns:
             InMemoryDocumentStore instance
         """
-        """
         # InMemoryDocumentStore has no configuration parameters
         return cls()
 
