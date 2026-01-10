@@ -27,6 +27,7 @@ from app.config import load_auth_config
 from app.service import AuthService
 from copilot_logging import create_logger, create_stdout_logger, create_uvicorn_log_config
 from copilot_metrics import create_metrics_collector
+from copilot_config import DriverConfig
 from fastapi import FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
@@ -74,10 +75,15 @@ async def lifespan(app: FastAPI):
 
     if metrics_adapter is not None:
         driver_name = metrics_adapter.driver_name
-        driver_config = dict(metrics_adapter.driver_config.config)
+        metrics_config = dict(metrics_adapter.driver_config.config)
         if driver_name.lower() in ("prometheus_pushgateway", "pushgateway"):
-            driver_config.setdefault("job", "auth")
-        metrics = create_metrics_collector(driver_name=driver_name, driver_config=driver_config)
+            metrics_config.setdefault("job", "auth")
+        metrics_driver_config = DriverConfig(
+            driver_name=metrics_adapter.driver_config.driver_name,
+            config=metrics_config,
+            allowed_keys=metrics_adapter.driver_config.allowed_keys,
+        )
+        metrics = create_metrics_collector(driver_name=driver_name, driver_config=metrics_driver_config)
     else:
         metrics = create_metrics_collector(driver_name="noop")
 

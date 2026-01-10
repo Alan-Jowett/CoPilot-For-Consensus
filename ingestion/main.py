@@ -15,7 +15,7 @@ from app import __version__
 from app.api import create_api_router
 from app.scheduler import IngestionScheduler
 from app.service import IngestionService
-from copilot_config import load_service_config, load_driver_config
+from copilot_config import load_service_config, load_driver_config, DriverConfig
 from copilot_message_bus import create_publisher
 from copilot_logging import create_logger, create_stdout_logger, create_uvicorn_log_config
 from copilot_metrics import create_metrics_collector
@@ -167,8 +167,14 @@ def main():
         try:
             metrics_adapter = config.get_adapter("metrics")
             if metrics_adapter is not None:
-                metrics_driver_config = dict(metrics_adapter.driver_config.config)
-                metrics_driver_config.setdefault("job", "ingestion")
+                # Create new DriverConfig with modified config dict
+                metrics_config = dict(metrics_adapter.driver_config.config)
+                metrics_config.setdefault("job", "ingestion")
+                metrics_driver_config = DriverConfig(
+                    driver_name=metrics_adapter.driver_config.driver_name,
+                    config=metrics_config,
+                    allowed_keys=metrics_adapter.driver_config.allowed_keys,
+                )
                 metrics = create_metrics_collector(
                     driver_name=metrics_adapter.driver_name,
                     driver_config=metrics_driver_config,
@@ -200,7 +206,13 @@ def main():
 
         log.info("Creating message bus publisher...")
 
-        publisher_driver_config = dict(message_bus_adapter.driver_config.config)
+        # Create new DriverConfig for publisher
+        publisher_config = dict(message_bus_adapter.driver_config.config)
+        publisher_driver_config = DriverConfig(
+            driver_name=message_bus_adapter.driver_config.driver_name,
+            config=publisher_config,
+            allowed_keys=message_bus_adapter.driver_config.allowed_keys,
+        )
         base_publisher = create_publisher(
             driver_name=message_bus_adapter.driver_name,
             driver_config=publisher_driver_config,
@@ -234,8 +246,14 @@ def main():
         if document_store_adapter is None:
             raise ValueError("document_store adapter is required")
 
-        document_store_driver_config = dict(document_store_adapter.driver_config.config)
-        document_store_driver_config.setdefault("schema_provider", schema_provider)
+        # Create new DriverConfig for document store with schema provider
+        document_store_config = dict(document_store_adapter.driver_config.config)
+        document_store_config["schema_provider"] = schema_provider
+        document_store_driver_config = DriverConfig(
+            driver_name=document_store_adapter.driver_config.driver_name,
+            config=document_store_config,
+            allowed_keys=document_store_adapter.driver_config.allowed_keys,
+        )
         base_document_store = create_document_store(
             driver_name=document_store_adapter.driver_name,
             driver_config=document_store_driver_config,
