@@ -6,6 +6,7 @@
 import os
 
 import pytest
+from copilot_config import DriverConfig
 from copilot_vectorstore import create_vector_store
 from copilot_vectorstore.inmemory import InMemoryVectorStore
 
@@ -61,14 +62,14 @@ class TestCreateVectorStore:
     def test_create_faiss_store_missing_index_type(self):
         """Test that creating FAISS store without index_type raises error."""
         with pytest.raises(ValueError, match="index_type is required"):
-            create_vector_store(driver_name="faiss", driver_config={"dimension": 256})
+            create_vector_store(driver_name="faiss", driver_config=DriverConfig(driver_name="faiss", config={"dimension": 256}))
 
     @pytest.mark.skipif(not FAISS_AVAILABLE, reason="FAISS not installed")
     def test_create_faiss_store_with_options(self):
         """Test creating a FAISS store with custom options."""
         store = create_vector_store(
             driver_name="faiss",
-            driver_config={"dimension": 256, "index_type": "flat"},
+            driver_config=DriverConfig(driver_name="faiss", config={"dimension": 256, "index_type": "flat"}),
         )
         assert isinstance(store, FAISSVectorStore)
 
@@ -115,56 +116,56 @@ class TestCreateVectorStore:
         """Test that Qdrant backend requires all parameters."""
         # Should raise error about missing required parameters
         with pytest.raises(ValueError, match="host is required"):
-            create_vector_store(driver_name="qdrant", driver_config={"vector_size": 384})
+            create_vector_store(driver_name="qdrant", driver_config=DriverConfig(driver_name="qdrant", config={"vector_size": 384}))
 
     def test_azure_backend_alias(self):
         """Test that legacy 'azure' backend is treated as an alias for Azure AI Search."""
         with pytest.raises(ValueError, match="vector_size is required"):
-            create_vector_store(driver_name="azure", driver_config={})
+            create_vector_store(driver_name="azure", driver_config=DriverConfig(driver_name="azure", config={}))
 
     def test_azure_ai_search_backend_requires_parameters(self):
         """Test that Azure AI Search backend requires all parameters."""
         # Should raise error about missing vector_size
         with pytest.raises(ValueError, match="vector_size is required"):
-            create_vector_store(driver_name="azure_ai_search", driver_config={})
+            create_vector_store(driver_name="azure_ai_search", driver_config=DriverConfig(driver_name="azure_ai_search", config={}))
 
         # Should raise error about missing endpoint
         with pytest.raises(ValueError, match="endpoint is required"):
-            create_vector_store(driver_name="azure_ai_search", driver_config={"vector_size": 384})
+            create_vector_store(driver_name="azure_ai_search", driver_config=DriverConfig(driver_name="azure_ai_search", config={"vector_size": 384}))
 
         # Should raise error about missing authentication
         with pytest.raises(ValueError, match="Either api_key must be provided"):
             create_vector_store(
                 driver_name="azure_ai_search",
-                driver_config={
+                driver_config=DriverConfig(driver_name="azure_ai_search", config={
                     "vector_size": 384,
                     "endpoint": "https://test.search.windows.net",
                     "use_managed_identity": False,
                     "index_name": "embeddings",
-                },
+                }),
             )
 
         # Should raise error about missing index_name
         with pytest.raises(ValueError, match="index_name is required"):
             create_vector_store(
                 driver_name="azure_ai_search",
-                driver_config={
+                driver_config=DriverConfig(driver_name="azure_ai_search", config={
                     "vector_size": 384,
                     "endpoint": "https://test.search.windows.net",
                     "api_key": "test-key",
-                },
+                }),
             )
 
     def test_unsupported_backend_raises_error(self):
         """Test that unsupported backend raises ValueError."""
         with pytest.raises(ValueError, match="Unknown vector store driver"):
-            create_vector_store(driver_name="unsupported", driver_config={})
+            create_vector_store(driver_name="unsupported", driver_config=DriverConfig(driver_name="unsupported", config={}))
 
     def test_backend_case_insensitive(self):
         """Test that backend specification is case-insensitive."""
-        store1 = create_vector_store(driver_name="INMEMORY", driver_config={})
-        store2 = create_vector_store(driver_name="InMemory", driver_config={})
-        store3 = create_vector_store(driver_name="inmemory", driver_config={})
+        store1 = create_vector_store(driver_name="INMEMORY", driver_config=DriverConfig(driver_name="INMEMORY", config={}))
+        store2 = create_vector_store(driver_name="InMemory", driver_config=DriverConfig(driver_name="InMemory", config={}))
+        store3 = create_vector_store(driver_name="inmemory", driver_config=DriverConfig(driver_name="inmemory", config={}))
 
         assert isinstance(store1, InMemoryVectorStore)
         assert isinstance(store2, InMemoryVectorStore)
