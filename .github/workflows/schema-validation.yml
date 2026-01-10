@@ -153,14 +153,14 @@ jobs:
 
           errors = []
           for schema_file in [
-              'docs/schemas/configs/auth.json',
-              'docs/schemas/configs/chunking.json',
-              'docs/schemas/configs/embedding.json',
-              'docs/schemas/configs/ingestion.json',
-              'docs/schemas/configs/orchestrator.json',
-              'docs/schemas/configs/parsing.json',
-              'docs/schemas/configs/reporting.json',
-              'docs/schemas/configs/summarization.json',
+              'docs/schemas/configs/services/auth.json',
+              'docs/schemas/configs/services/chunking.json',
+              'docs/schemas/configs/services/embedding.json',
+              'docs/schemas/configs/services/ingestion.json',
+              'docs/schemas/configs/services/orchestrator.json',
+              'docs/schemas/configs/services/parsing.json',
+              'docs/schemas/configs/services/reporting.json',
+              'docs/schemas/configs/services/summarization.json',
           ]:
               try:
                   with open(schema_file, 'r') as f:
