@@ -522,9 +522,12 @@ module azureDnsModule 'modules/azuredns.bicep' = if (deployContainerApps && !emp
   params: {
     dnsZoneName: azureDnsZoneName
     customDomainName: customDomainName
-    gatewayFqdn: containerAppsModule!.outputs.gatewayFqdn
+    gatewayFqdn: containerAppsModule!.outputs.defaultGatewayFqdn
     tags: tags
   }
+  dependsOn: [
+    containerAppsModule
+  ]
 }
 
 // Calculate redirect URIs for OAuth callback

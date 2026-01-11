@@ -16,9 +16,11 @@ param gatewayFqdn string
 @description('Resource tags')
 param tags object = {}
 
-// Extract subdomain name from custom domain
+// Extract subdomain name from custom domain with validation
 // e.g., "copilot.example.com" with zone "example.com" → "copilot"
-var subdomainName = take(customDomainName, length(customDomainName) - length(dnsZoneName) - 1)
+var subdomainName = endsWith(customDomainName, dnsZoneName) && length(customDomainName) > length(dnsZoneName) + 1
+  ? take(customDomainName, length(customDomainName) - length(dnsZoneName) - 1)
+  : customDomainName
 
 // Create or reference existing DNS Zone
 resource dnsZone 'Microsoft.Network/dnsZones@2018-05-01' = {
