@@ -94,6 +94,8 @@ def find_dockerfiles(root_dir: Path) -> list[str]:
     dockerfile_dirs.add('/')
 
     # Exclude directories we don't want to scan
+    # Note: This differs from find_python_packages() - we intentionally include 'infra'
+    # because it contains Dockerfiles (mongodb-exporter, nginx) but no Python packages
     exclude_dirs = {'.git', '.github', '__pycache__', 'node_modules', '.pytest_cache', '.venv', 'venv', 'env', 'documents'}
 
     # Walk through the directory tree
