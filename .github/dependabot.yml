@@ -10,7 +10,7 @@
 version: 2
 updates:
   # Monitor Python dependencies across all services and adapters
-  # Each directory requires its own update entry (Dependabot does not support 'directories' field)
+  # Each directory requires its own update entry (Dependabot does not support a 'directories' field for the pip ecosystem)
   # Groups are scoped per-directory and will create separate PRs for each directory
   # auth service
   - package-ecosystem: "pip"
