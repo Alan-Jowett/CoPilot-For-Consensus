@@ -130,13 +130,15 @@ jobs:
               # Get the old version from base branch
               if git show origin/${{ github.base_ref }}:"$schema" > /tmp/old_schema.json 2>/dev/null; then
                 # Basic compatibility check (inline Python)
-                python - <<'PYTHON_COMPAT_CHECK'
+                python - "$schema" <<'PYTHON_COMPAT_CHECK'
           import json
           import sys
 
+          new_schema_path = sys.argv[1]
+
           with open('/tmp/old_schema.json', 'r') as f:
               old = json.load(f)
-          with open('$schema', 'r') as f:
+          with open(new_schema_path, 'r') as f:
               new = json.load(f)
 
           # Check for removed required fields (breaking change)
