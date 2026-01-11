@@ -148,8 +148,6 @@ def get_logger(name: str | None = None) -> Logger:
         >>> logger = get_logger(__name__)
         >>> logger.info("Message", key="value")
     """
-    global _default_logger, _logger_registry
-
     # If name is provided and we have a cached instance, return it
     if name and name in _logger_registry:
         return _logger_registry[name]
