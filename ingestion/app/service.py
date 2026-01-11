@@ -14,7 +14,7 @@ from copilot_archive_fetcher import SourceConfig, calculate_file_hash, create_fe
 from copilot_archive_store import ArchiveStore
 from copilot_message_bus import ArchiveIngestedEvent, ArchiveIngestionFailedEvent, EventPublisher
 from copilot_schema_validation import ArchiveMetadata
-from copilot_logging import Logger
+from copilot_logging import Logger, get_logger
 from copilot_metrics import MetricsCollector, create_metrics_collector
 from copilot_error_reporting import ErrorReporter, create_error_reporter
 from copilot_storage import DocumentStore
@@ -74,16 +74,16 @@ def _sanitize_source_dict(source_dict: dict[str, Any]) -> dict[str, Any]:
     return sanitized
 
 
-def _enabled_sources(raw_sources: Iterable[Any], logger: Logger | None = None) -> list[SourceConfig]:
+def _enabled_sources(raw_sources: Iterable[Any]) -> list[SourceConfig]:
     """Normalize and filter enabled sources.
 
     Args:
         raw_sources: Iterable of raw source configurations
-        logger: Optional logger for warnings
 
     Returns:
         List of enabled SourceConfig objects
     """
+    logger = get_logger(__name__)
     enabled_sources: list[SourceConfig] = []
 
     for raw in raw_sources or []:
@@ -119,8 +119,7 @@ def _enabled_sources(raw_sources: Iterable[Any], logger: Logger | None = None) -
                 enabled_sources.append(source_cfg)
         except SourceConfigurationError as e:
             # Log but skip invalid source configurations
-            if logger:
-                logger.warning("Skipping invalid source configuration", error=str(e))
+            logger.warning("Skipping invalid source configuration", error=str(e))
             continue
 
     return enabled_sources
@@ -601,7 +600,7 @@ class IngestionService:
         """
         results = {}
 
-        for source in _enabled_sources(getattr(self.config, "sources", []), self.logger):
+        for source in _enabled_sources(getattr(self.config, "sources", [])):
             self.logger.info("Starting source ingestion", source_name=source.name)
             try:
                 self.ingest_archive(source)
@@ -1021,7 +1020,7 @@ class IngestionService:
         Returns:
             Dictionary with service statistics
         """
-        sources = _enabled_sources(getattr(self.config, "sources", []), self.logger)
+        sources = _enabled_sources(getattr(self.config, "sources", []))
 
         return {
             "sources_configured": len(getattr(self.config, "sources", [])),

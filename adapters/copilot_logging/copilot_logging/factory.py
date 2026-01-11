@@ -10,6 +10,10 @@ from .logger import Logger
 from .silent_logger import SilentLogger
 from .stdout_logger import StdoutLogger
 
+# Global logger registry (similar to logging.getLogger)
+_logger_registry: dict[str, Logger] = {}
+_default_logger: Logger | None = None
+
 
 def create_logger(
     driver_name: str,
@@ -97,3 +101,63 @@ def create_stdout_logger(
 
     # Delegate to the main factory to keep initialization logic consistent.
     return create_logger("stdout", driver_config)
+
+
+def set_default_logger(logger: Logger) -> None:
+    """Set the default logger for the application.
+
+    This should be called during service initialization after the configuration
+    is loaded. Once set, any module can use get_logger() to retrieve loggers.
+
+    Args:
+        logger: The logger instance to use as default
+
+    Example:
+        >>> from copilot_logging import create_logger, set_default_logger
+        >>> # In main.py or startup
+        >>> logger = create_logger("stdout", config.logger.driver_config)
+        >>> set_default_logger(logger)
+    """
+    global _default_logger
+    _default_logger = logger
+
+
+def get_logger(name: str | None = None) -> Logger:
+    """Get a logger instance by name, similar to logging.getLogger().
+
+    If a default logger has been set via set_default_logger(), returns either
+    a cached named instance or the default logger. If no default is set,
+    creates a basic stdout logger as a fallback.
+
+    Args:
+        name: Optional logger name (e.g., __name__). Used for namespacing
+              in the logger registry.
+
+    Returns:
+        Logger instance
+
+    Example:
+        >>> from copilot_logging import get_logger
+        >>>
+        >>> # In any module after set_default_logger() was called
+        >>> logger = get_logger(__name__)
+        >>> logger.info("Message", key="value")
+    """
+    global _default_logger, _logger_registry
+
+    # If name is provided and we have a cached instance, return it
+    if name and name in _logger_registry:
+        return _logger_registry[name]
+
+    # If we have a default logger, use it (optionally cache by name)
+    if _default_logger:
+        if name:
+            _logger_registry[name] = _default_logger
+        return _default_logger
+
+    # Fallback: create a basic stdout logger if no default is set
+    # This ensures get_logger() never fails, similar to logging.getLogger()
+    fallback = create_stdout_logger(level="INFO", name=name)
+    if name:
+        _logger_registry[name] = fallback
+    return fallback

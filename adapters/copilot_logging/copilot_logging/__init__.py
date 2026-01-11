@@ -24,7 +24,7 @@ Example:
 
 __version__ = "0.1.0"
 
-from .factory import create_logger, create_stdout_logger
+from .factory import create_logger, create_stdout_logger, get_logger, set_default_logger
 from .logger import Logger
 from .uvicorn_config import create_uvicorn_log_config
 
@@ -34,4 +34,6 @@ __all__ = [
     "create_logger",
     "create_stdout_logger",
     "create_uvicorn_log_config",
+    "get_logger",
+    "set_default_logger",
 ]

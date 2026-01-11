@@ -17,7 +17,12 @@ from app.scheduler import IngestionScheduler
 from app.service import IngestionService
 from copilot_config import load_service_config, load_driver_config, DriverConfig
 from copilot_message_bus import create_publisher
-from copilot_logging import create_logger, create_stdout_logger, create_uvicorn_log_config
+from copilot_logging import (
+    create_logger,
+    create_stdout_logger,
+    create_uvicorn_log_config,
+    set_default_logger,
+)
 from copilot_metrics import create_metrics_collector
 from copilot_schema_validation import create_schema_provider
 from copilot_storage import (
@@ -178,6 +183,9 @@ def main():
                 fields={"level": "INFO", "name": "ingestion"},
             )
             service_logger = create_logger(driver_name="stdout", driver_config=logger_config)
+
+        # Set the default logger for the application so any module can use get_logger()
+        set_default_logger(service_logger)
 
         # Build metrics collector, fall back to NoOp if backend unavailable
         try:
