@@ -242,6 +242,8 @@ services:
       retries: 12
       start_period: 30s
     restart: unless-stopped
+    profiles:
+      - local-llm
 
   ollama-validate:
     image: curlimages/curl:8.10.1@sha256:d9b4541e214bcd85196d6e92e2753ac6d0ea699f0af5741f8c6cccbfcf00ef4b
@@ -258,6 +260,8 @@ services:
         done
         echo "Ollama validation failed"; exit 1
     restart: "no"
+    profiles:
+      - local-llm
 
   ollama-model-loader:
     image: ollama/ollama:latest@sha256:6c76395793f40a5e78f120e880ca82c67e39eb908ad90eee8ce755535529d0ec
@@ -278,6 +282,8 @@ services:
         done
         echo "Failed to pull model after 5 attempts"; exit 1
     restart: "no"
+    profiles:
+      - local-llm
 
   llama-cpp:
     image: ghcr.io/ggerganov/llama.cpp:server
@@ -321,6 +327,7 @@ services:
     # Note: This service is optional. Only needed when using LLM_BACKEND=llamacpp
     profiles:
       - llamacpp
+      - local-llm
 
   # WARNING: The Promtail service mounts the Docker socket (/var/run/docker.sock) with read-only access.
   # This is required for Promtail to discover and label logs from Docker containers.

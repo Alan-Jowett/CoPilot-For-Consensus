@@ -24,6 +24,9 @@ env:
   # Use mock LLM backend in CI for fast, reliable tests
   # Real LLM (LocalLLMSummarizer) is tested in unit/integration tests
   SUMMARIZATION_LLM_BACKEND: mock
+  # Disable local LLM services in CI (not needed with mock backend)
+  # This speeds up CI by skipping Ollama/llama-cpp service builds
+  COMPOSE_PROFILES: ""
   # Disable JWT authentication for integration testing (OAuth not available in CI)
   # JWT auth is tested separately in unit/integration tests for each service
   JWT_AUTH_ENABLED: "false"
