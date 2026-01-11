@@ -179,7 +179,10 @@ class TestListPendingAssignments:
 
         assert response.status_code == 200
         # Ensure validate_token was called with the header token first
-        called_tokens = [call.kwargs.get("token", call.args[0]) for call in mock_auth_service.validate_token.call_args_list]
+        called_tokens = [
+            (call.kwargs.get("token") or (call.args[0] if call.args else None))
+            for call in mock_auth_service.validate_token.call_args_list
+        ]
         assert "header.jwt.token" in called_tokens
 
 

@@ -107,29 +107,29 @@ starlette==0.50.0  # ← Now explicitly tracked!
 
 ### 1. Transitive Dependency Tracking
 
-**Before:** Dependabot couldn't detect updates to `starlette` because it's not directly required  
+**Before:** Dependabot couldn't detect updates to `starlette` because it's not directly required
 **After:** `starlette==0.50.0` is explicitly listed in all service lockfiles
 
 This means security updates for transitive dependencies will now appear in Dependabot PRs!
 
 ### 2. Repeatable Builds
 
-**Before:** Different environments could install different versions of dependencies  
+**Before:** Different environments could install different versions of dependencies
 **After:** Exact versions locked in `requirements.txt` ensure identical builds everywhere
 
 ### 3. Supply Chain Security
 
-**Before:** New releases installed automatically without review  
+**Before:** New releases installed automatically without review
 **After:** All version changes require PR review and CI validation
 
 ### 4. Better Dependabot Integration
 
-**Before:** Generic PRs with no labels, hard to triage  
+**Before:** Generic PRs with no labels, hard to triage
 **After:** Labeled PRs that are easy to filter and prioritize
 
 ### 5. CI Validation
 
-**Before:** No validation of dependency consistency  
+**Before:** No validation of dependency consistency
 **After:** CI fails if lockfiles are out of sync with `.in` files
 
 ## Workflow for Developers
@@ -168,7 +168,7 @@ chunking/
 ### Workflow: validate-lockfiles.yml
 
 - **Trigger**: On PR with changes to `requirements.in` or `requirements.txt`
-- **Action**: 
+- **Action**:
   1. Runs `pip-compile requirements.in`
   2. Compares output with committed `requirements.txt`
   3. Fails if they don't match

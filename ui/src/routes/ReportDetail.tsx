@@ -22,7 +22,7 @@ export function ReportDetail() {
     setAccessDenied(null)
     fetchReport(reportId)
       .then(r => { if (!cancelled) setReport(r) })
-      .catch(e => { 
+      .catch(e => {
         if (!cancelled) {
           if (e?.message?.startsWith('ACCESS_DENIED:')) {
             setAccessDenied(e.message.replace('ACCESS_DENIED: ', ''))

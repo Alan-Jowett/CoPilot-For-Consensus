@@ -145,31 +145,31 @@ jobs:
             cat > /tmp/parse-whatif.py << 'PYTHON'
           import json
           import sys
-          
+
           try:
               with open('what-if-output.json') as f:
                   data = json.load(f)
           except (json.JSONDecodeError, FileNotFoundError, IOError) as e:
               print(f"Error reading what-if output: {e}")
               sys.exit(0)
-          
+
           # Azure CLI what-if output has 'changes' array at top level
           changes = data.get('changes', [])
           if not changes:
               print("No resource changes detected")
               sys.exit(0)
-          
+
           # Categorize changes by type
           creates = [c for c in changes if c.get('changeType') == 'Create']
           modifies = [c for c in changes if c.get('changeType') == 'Modify']
           deletes = [c for c in changes if c.get('changeType') == 'Delete']
-          
+
           print("📋 What-If Analysis Results:")
           print(f"  🟢 Creates: {len(creates)}")
           print(f"  🟡 Modifies: {len(modifies)}")
           print(f"  🔴 Deletes: {len(deletes)}")
           print()
-          
+
           if creates:
               print("**Resources to Create:**")
               for r in creates:
@@ -178,7 +178,7 @@ jobs:
                   print(f"  - `{resource_id}`")
                   if change_desc and change_desc != 'Create':
                       print(f"    ({change_desc})")
-          
+
           if modifies:
               print("\n**Resources to Modify:**")
               for r in modifies:
@@ -187,7 +187,7 @@ jobs:
                   print(f"  - `{resource_id}`")
                   if change_desc and change_desc != 'Modify':
                       print(f"    ({change_desc})")
-          
+
           if deletes:
               print("\n**Resources to Delete:**")
               for r in deletes:
@@ -217,10 +217,10 @@ jobs:
             const lint_result = '${{ needs.bicep-lint.result }}';
             const validate_result = '${{ needs.validate-template.result }}';
             const whatif_status = '${{ needs.validate-template.outputs.whatif-status }}';
-            
+
             let status = '✅';
             let details = '';
-            
+
             if (lint_result !== 'success') {
               status = '❌';
               details += '- Bicep linting failed\n';
@@ -228,7 +228,7 @@ jobs:
               details += '- ✓ Bicep syntax valid\n';
               details += '- ✓ Bicep linting passed\n';
             }
-            
+
             if (validate_result === 'skipped') {
               details += '- ⚠️ ARM validation skipped (Azure secrets not configured)\n';
             } else if (validate_result !== 'success') {
@@ -248,7 +248,7 @@ jobs:
             }
 
             const body = `## ${status} Bicep Validation Results\n\n${details}`;
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,

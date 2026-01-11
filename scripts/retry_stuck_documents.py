@@ -40,6 +40,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from copilot_config import load_driver_config
 from copilot_logging import create_logger
 
 # Import dependencies - these will fail gracefully in main() if not installed
@@ -68,7 +69,13 @@ except ImportError:
     Histogram = None  # type: ignore
     push_to_gateway = None  # type: ignore
 
-logger = create_logger(name=__name__)
+logger_config = load_driver_config(
+    service=None,
+    adapter="logger",
+    driver="stdout",
+    fields={"level": "INFO", "name": __name__}
+)
+logger = create_logger(driver_name="stdout", driver_config=logger_config)
 
 
 def _get_env_or_secret(env_var: str, secret_name: str) -> str | None:
@@ -711,7 +718,13 @@ For full documentation, see documents/RETRY_POLICY.md
     # Configure logging
     global logger
     if args.verbose:
-        logger = create_logger(name=__name__, level="DEBUG")
+        logger_config = load_driver_config(
+            service=None,
+            adapter="logger",
+            driver="stdout",
+            fields={"level": "DEBUG", "name": __name__}
+        )
+        logger = create_logger(driver_name="stdout", driver_config=logger_config)
 
     mongodb_username = _get_env_or_secret("MONGODB_USERNAME", "document_database_user")
     mongodb_password = _get_env_or_secret("MONGODB_PASSWORD", "document_database_password")

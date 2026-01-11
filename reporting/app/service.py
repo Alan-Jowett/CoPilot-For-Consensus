@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 import requests
-from copilot_events import (
+from copilot_message_bus import (
     EventPublisher,
     EventSubscriber,
     ReportDeliveryFailedEvent,
@@ -17,8 +17,9 @@ from copilot_events import (
     SummaryCompleteEvent,
 )
 from copilot_logging import create_logger
+from copilot_config import load_driver_config
 from copilot_metrics import MetricsCollector
-from copilot_reporting import ErrorReporter
+from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
 
 # Optional dependencies for search/filtering features
@@ -26,7 +27,8 @@ if TYPE_CHECKING:
     from copilot_embedding import EmbeddingProvider
     from copilot_vectorstore import VectorStore
 
-logger = create_logger(name="reporting")
+logger_config = load_driver_config(service=None, adapter="logger", driver="stdout", fields={"name": "reporting", "level": "INFO"})
+logger = create_logger("stdout", logger_config)
 
 # Buffer size for fetching additional documents when metadata filtering is applied.
 # This ensures we have enough documents to filter and still return the requested limit.
@@ -499,15 +501,15 @@ class ReportingService:
                 if message_start_date is not None or message_end_date is not None:
                     first_msg_date = thread.get("first_message_date")
                     last_msg_date = thread.get("last_message_date")
-                    
+
                     # Skip threads without date information
                     if not first_msg_date or not last_msg_date:
                         continue
-                    
+
                     # Check overlap condition
                     if message_end_date is not None and first_msg_date > message_end_date:
                         continue  # Thread starts after filter range ends
-                    
+
                     if message_start_date is not None and last_msg_date < message_start_date:
                         continue  # Thread ends before filter range starts
 

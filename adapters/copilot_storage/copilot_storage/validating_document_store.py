@@ -4,7 +4,7 @@
 """Validating document store that enforces schema validation."""
 
 import logging
-from typing import Any
+from typing import Any, Callable
 
 from .document_store import DocumentNotFoundError, DocumentStore
 
@@ -216,6 +216,59 @@ class ValidatingDocumentStore(DocumentStore):
                 self._handle_validation_failure(collection, errors)
 
         return doc
+
+    def set_query_wrapper(self, wrapper_fn: Callable) -> None:
+        """Wrap the query_documents method with custom logic.
+
+        Allows tests or extensions to customize query behavior without
+        accessing private attributes. The wrapper receives the original
+        query method and should return a callable with the same signature.
+
+        Warning:
+            This method modifies internal state. Calling it multiple times will
+            overwrite the previous wrapper. It should be called at initialization
+            time before the store is actively used in production.
+
+        Example:
+            >>> from copilot_storage import create_document_store
+            >>> from copilot_schema_validation import FileSchemaProvider
+            >>>
+            >>> # Create and initialize store BEFORE using it
+            >>> base_store = create_document_store("inmemory")
+            >>> validating_store = ValidatingDocumentStore(
+            ...     store=base_store,
+            ...     schema_provider=FileSchemaProvider()
+            ... )
+            >>>
+            >>> # Set up wrapper at initialization time, BEFORE any queries
+            >>> def custom_query_wrapper(original_query):
+            ...     def wrapped_query(collection, filter_dict, limit=100):
+            ...         # Custom validation logic here
+            ...         return original_query(collection, filter_dict, limit)
+            ...     return wrapped_query
+            >>>
+            >>> store.set_query_wrapper(custom_query_wrapper)
+            >>>
+            >>> # NOW use the store - wrapper will be active for all queries
+            >>> results = validating_store.query_documents("messages", {"status": "active"})
+
+        Warning:
+            This method modifies internal state and is **not thread-safe**. It should only
+            be called during initialization, before any queries are executed in any thread.
+            Calling this method after initialization in a multi-threaded environment may
+            cause race conditions or unexpected behavior.
+
+        Args:
+            wrapper_fn: Function that takes the original query method and returns
+                       a wrapped version with the same signature
+
+        Raises:
+            ValueError: If wrapper_fn is not callable.
+        """
+        if not callable(wrapper_fn):
+            raise ValueError("Query wrapper must be callable")
+        original_query = self._store.query_documents
+        self._store.query_documents = wrapper_fn(original_query)
 
     def query_documents(
         self, collection: str, filter_dict: dict[str, Any], limit: int = 100

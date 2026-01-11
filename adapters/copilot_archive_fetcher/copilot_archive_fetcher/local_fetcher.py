@@ -16,6 +16,18 @@ logger = logging.getLogger(__name__)
 class LocalFetcher(ArchiveFetcher):
     """Fetcher for local filesystem sources."""
 
+    @classmethod
+    def from_config(cls, config: SourceConfig) -> "LocalFetcher":
+        """Create LocalFetcher from SourceConfig.
+
+        Args:
+            config: SourceConfig object
+
+        Returns:
+            LocalFetcher instance
+        """
+        return cls(config)
+
     def __init__(self, source: SourceConfig):
         """Initialize local fetcher.
 

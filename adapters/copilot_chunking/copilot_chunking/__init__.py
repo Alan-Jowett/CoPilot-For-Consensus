@@ -10,10 +10,13 @@ This module provides an abstraction layer for different chunking strategies,
 enabling flexible experimentation without modifying downstream services.
 
 Example:
+    >>> from copilot_config import load_service_config
     >>> from copilot_chunking import Thread, create_chunker
     >>>
-    >>> # Create a chunker with token window strategy
-    >>> chunker = create_chunker("token_window", chunk_size=384, overlap=50)
+    >>> # Load chunker adapter from service config
+    >>> config = load_service_config("chunking")
+    >>> chunker_adapter = config.get_adapter("chunker")
+    >>> chunker = create_chunker(chunker_adapter.driver_name, chunker_adapter.driver_config)
     >>>
     >>> # Create a thread
     >>> thread = Thread(
@@ -34,11 +37,8 @@ __version__ = "0.1.0"
 
 from .chunkers import (
     Chunk,
-    FixedSizeChunker,
-    SemanticChunker,
     Thread,
     ThreadChunker,
-    TokenWindowChunker,
     create_chunker,
 )
 
@@ -47,10 +47,6 @@ __all__ = [
     "__version__",
     # Core interface
     "ThreadChunker",
-    # Implementations
-    "TokenWindowChunker",
-    "FixedSizeChunker",
-    "SemanticChunker",
     # Data classes
     "Chunk",
     "Thread",

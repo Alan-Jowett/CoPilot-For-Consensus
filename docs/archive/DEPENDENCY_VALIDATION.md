@@ -160,7 +160,7 @@ def test_service_fails_when_publisher_connection_fails():
             assert exc_info.value.code == 1
 ```
 
-Note: When mocking imports, patch them where they are used (e.g., `main.create_publisher`) rather than where they are defined (e.g., `copilot_events.create_publisher`). This ensures the patches work correctly even if the module has already been imported.
+Note: When mocking imports, patch them where they are used (e.g., `main.create_publisher`) rather than where they are defined (e.g., `copilot_message_bus.create_publisher`). This ensures the patches work correctly even if the module has already been imported.
 
 ## Checklist for Adding New Services
 

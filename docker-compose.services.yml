@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+﻿# SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
 # Application Services
@@ -15,23 +15,34 @@ services:
       - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/docs/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
-      - MESSAGE_BUS_HOST=messagebus
-      - MESSAGE_BUS_PORT=5672
+      - RABBITMQ_HOST=messagebus
+      - RABBITMQ_PORT=5672
       - DOCUMENT_STORE_TYPE=mongodb
-      - DOCUMENT_DATABASE_HOST=documentdb
-      - DOCUMENT_DATABASE_PORT=27017
-      - DOCUMENT_DATABASE_NAME=copilot
-      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
-      - ERROR_REPORTER_TYPE=console
+      - MONGODB_HOST=documentdb
+      - MONGODB_PORT=27017
+      - MONGODB_DATABASE=copilot
+      - METRICS_TYPE=${METRICS_TYPE:-noop}
+      - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY:-http://pushgateway:9091}
+      - ERROR_REPORTER_TYPE=${ERROR_REPORTER_TYPE:-console}
+      - CHUNK_ERROR_REPORTER_TYPE=${CHUNK_ERROR_REPORTER_TYPE:-console}
+      - CHUNK_STRATEGY=${CHUNK_STRATEGY:-token_window}
+      - CHUNK_SIZE_TOKENS=${CHUNK_SIZE_TOKENS:-384}
+      - CHUNK_OVERLAP_TOKENS=${CHUNK_OVERLAP_TOKENS:-50}
+      - CHUNK_MAX_SIZE_TOKENS=${CHUNK_MAX_SIZE_TOKENS:-512}
+      - CHUNK_MIN_SIZE_TOKENS=${CHUNK_MIN_SIZE_TOKENS:-100}
+      - CHUNK_RETRY_MAX_ATTEMPTS=${CHUNK_RETRY_MAX_ATTEMPTS:-3}
+      - CHUNK_HTTP_PORT=${CHUNK_HTTP_PORT:-8000}
+      - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
+      - LOCAL_SECRETS_BASE_PATH=${LOCAL_SECRETS_BASE_PATH:-/run/secrets}
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
       - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
-      - message_bus_user
-      - message_bus_password
-      - document_database_user
-      - document_database_password
+      - rabbitmq_user
+      - rabbitmq_password
+      - mongodb_user
+      - mongodb_password
     volumes:
       - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
     depends_on:
@@ -58,28 +69,39 @@ services:
       - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/docs/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
-      - MESSAGE_BUS_HOST=messagebus
-      - MESSAGE_BUS_PORT=5672
+      - RABBITMQ_HOST=messagebus
+      - RABBITMQ_PORT=5672
       - DOCUMENT_STORE_TYPE=mongodb
-      - DOCUMENT_DATABASE_HOST=documentdb
-      - DOCUMENT_DATABASE_PORT=27017
-      - DOCUMENT_DATABASE_NAME=copilot
+      - MONGODB_HOST=documentdb
+      - MONGODB_PORT=27017
+      - MONGODB_DATABASE=copilot
       - VECTOR_STORE_TYPE=qdrant
-      - VECTOR_DB_HOST=vectorstore
-      - VECTOR_DB_PORT=6333
-      - EMBEDDING_BACKEND=${EMBEDDING_BACKEND:-sentencetransformers}
+      - QDRANT_HOST=vectorstore
+      - QDRANT_PORT=6333
+      - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-32}
+      - EMBEDDING_ENABLE_CACHE=${EMBEDDING_ENABLE_CACHE:-true}
+      - EMBEDDING_CACHE_TTL_SECONDS=${EMBEDDING_CACHE_TTL_SECONDS:-86400}
+      - EMBEDDING_HTTP_PORT=${EMBEDDING_HTTP_PORT:-8000}
+      - EMBEDDING_RETRY_MAX_ATTEMPTS=${EMBEDDING_RETRY_MAX_ATTEMPTS:-3}
+      - EMBEDDING_REQUEST_TIMEOUT_SECONDS=${EMBEDDING_REQUEST_TIMEOUT_SECONDS:-30}
+      - EMBEDDING_BACKEND_TYPE=${EMBEDDING_BACKEND_TYPE:-sentencetransformers}
+      - SENTENCETRANSFORMERS_MODEL_NAME=${SENTENCETRANSFORMERS_MODEL_NAME:-all-MiniLM-L6-v2}
+      - SENTENCETRANSFORMERS_DEVICE=${SENTENCETRANSFORMERS_DEVICE:-cpu}
       - OLLAMA_HOST=http://ollama:11434
-      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - METRICS_TYPE=${METRICS_TYPE:-prometheus_pushgateway}
+      - PROMETHEUS_PUSHGATEWAY=pushgateway:9091
       - ERROR_REPORTER_TYPE=console
+      - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
+      - LOCAL_SECRETS_BASE_PATH=${LOCAL_SECRETS_BASE_PATH:-/run/secrets}
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
       - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
-      - message_bus_user
-      - message_bus_password
-      - document_database_user
-      - document_database_password
+      - rabbitmq_user
+      - rabbitmq_password
+      - mongodb_user
+      - mongodb_password
     volumes:
       - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
     depends_on:
@@ -107,35 +129,40 @@ services:
     environment:
       - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/docs/schemas/configs
-      - STORAGE_PATH=/data/raw_archives
+      - LOG_TYPE=stdout
+      - LOG_LEVEL=INFO
       - MESSAGE_BUS_TYPE=rabbitmq
-      - MESSAGE_BUS_HOST=messagebus
-      - MESSAGE_BUS_PORT=5672
-      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - RABBITMQ_HOST=messagebus
+      - RABBITMQ_PORT=5672
+      - INGESTION_BATCH_SIZE=${INGESTION_BATCH_SIZE:-100}
+      - INGESTION_CONCURRENT_SOURCES=${INGESTION_CONCURRENT_SOURCES:-5}
+      - INGESTION_ENABLE_INCREMENTAL=${INGESTION_ENABLE_INCREMENTAL:-true}
+      - INGESTION_RETRY_MAX_ATTEMPTS=${INGESTION_RETRY_MAX_ATTEMPTS:-3}
+      - INGESTION_POLL_INTERVAL_SECONDS=${INGESTION_POLL_INTERVAL_SECONDS:-3600}
+      - INGESTION_REQUEST_TIMEOUT_SECONDS=${INGESTION_REQUEST_TIMEOUT_SECONDS:-60}
+      - METRICS_TYPE=${METRICS_TYPE:-prometheus_pushgateway}
       - PROMETHEUS_PUSHGATEWAY=pushgateway:9091
       - ERROR_REPORTER_TYPE=console
       - DOCUMENT_STORE_TYPE=mongodb
-      - DOCUMENT_DATABASE_HOST=documentdb
-      - DOCUMENT_DATABASE_PORT=27017
-      - DOCUMENT_DATABASE_NAME=copilot
+      - MONGODB_HOST=documentdb
+      - MONGODB_PORT=27017
+      - MONGODB_DATABASE=copilot
       - HTTP_HOST=0.0.0.0
-      - HTTP_PORT=8001
+      - INGESTION_HTTP_PORT=8001
+      - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
+      - LOCAL_SECRETS_BASE_PATH=${LOCAL_SECRETS_BASE_PATH:-/run/secrets}
       # ArchiveStore configuration
       - ARCHIVE_STORE_TYPE=${ARCHIVE_STORE_TYPE:-local}
-      - ARCHIVE_STORE_PATH=${ARCHIVE_STORE_PATH:-/data/raw_archives}
-      # Azure Blob Storage configuration (for azure_blob backend)
-      # - AZURE_STORAGE_ACCOUNT=${AZURE_STORAGE_ACCOUNT}
-      # - AZURE_STORAGE_KEY=${AZURE_STORAGE_KEY}
-      # - AZURE_STORAGE_CONTAINER=${AZURE_STORAGE_CONTAINER:-archives}
+      - ARCHIVE_BASE_PATH=${ARCHIVE_BASE_PATH:-/data/raw_archives}
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
       - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
-      - message_bus_user
-      - message_bus_password
-      - document_database_user
-      - document_database_password
+      - rabbitmq_user
+      - rabbitmq_password
+      - mongodb_user
+      - mongodb_password
     volumes:
       - raw_archives:/data/raw_archives
     depends_on:
@@ -166,28 +193,39 @@ services:
       - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/docs/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
-      - MESSAGE_BUS_HOST=messagebus
-      - MESSAGE_BUS_PORT=5672
+      - RABBITMQ_HOST=messagebus
+      - RABBITMQ_PORT=5672
       - DOCUMENT_STORE_TYPE=mongodb
-      - DOCUMENT_DATABASE_HOST=documentdb
-      - DOCUMENT_DATABASE_PORT=27017
-      - DOCUMENT_DATABASE_NAME=copilot
-      - VECTOR_DB_HOST=vectorstore
-      - VECTOR_DB_PORT=6333
+      - MONGODB_HOST=documentdb
+      - MONGODB_PORT=27017
+      - MONGODB_DATABASE=copilot
+      - ORCHESTRATOR_CONSENSUS_TIMEOUT_SECONDS=${ORCHESTRATOR_CONSENSUS_TIMEOUT_SECONDS:-300}
+      - ORCHESTRATOR_HTTP_PORT=${ORCHESTRATOR_HTTP_PORT:-8000}
+      - ORCHESTRATOR_MAX_PARALLEL_REVIEWS=${ORCHESTRATOR_MAX_PARALLEL_REVIEWS:-10}
+      - ORCHESTRATOR_RETRY_MAX_ATTEMPTS=${ORCHESTRATOR_RETRY_MAX_ATTEMPTS:-3}
+      - ORCHESTRATOR_REQUEST_TIMEOUT_SECONDS=${ORCHESTRATOR_REQUEST_TIMEOUT_SECONDS:-60}
+      - ORCHESTRATOR_WORKFLOW_HISTORY_RETENTION_DAYS=${ORCHESTRATOR_WORKFLOW_HISTORY_RETENTION_DAYS:-90}
+      - QDRANT_HOST=vectorstore
+      - QDRANT_PORT=6333
+      - EMBEDDING_BACKEND_TYPE=${EMBEDDING_BACKEND_TYPE:-sentencetransformers}
+      - SENTENCETRANSFORMERS_MODEL=${SENTENCETRANSFORMERS_MODEL:-all-MiniLM-L6-v2}
       - LLM_BACKEND=${LLM_BACKEND:-local}
       - OLLAMA_HOST=http://ollama:11434
       - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
-      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - METRICS_TYPE=${METRICS_TYPE:-prometheus_pushgateway}
+      - PROMETHEUS_PUSHGATEWAY=pushgateway:9091
       - ERROR_REPORTER_TYPE=console
+      - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
+      - LOCAL_SECRETS_BASE_PATH=${LOCAL_SECRETS_BASE_PATH:-/run/secrets}
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
       - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
-      - message_bus_user
-      - message_bus_password
-      - document_database_user
-      - document_database_password
+      - rabbitmq_user
+      - rabbitmq_password
+      - mongodb_user
+      - mongodb_password
       - azure_openai_key
     volumes:
       - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
@@ -199,10 +237,6 @@ services:
       vectorstore:
         condition: service_healthy
       vectorstore-validate:
-        condition: service_completed_successfully
-      ollama-validate:
-        condition: service_completed_successfully
-      ollama-model-loader:
         condition: service_completed_successfully
       auth:
         condition: service_healthy
@@ -223,30 +257,37 @@ services:
       - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/docs/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
-      - MESSAGE_BUS_HOST=messagebus
-      - MESSAGE_BUS_PORT=5672
+      - RABBITMQ_HOST=messagebus
+      - RABBITMQ_PORT=5672
       - DOCUMENT_STORE_TYPE=mongodb
-      - DOCUMENT_DATABASE_HOST=documentdb
-      - DOCUMENT_DATABASE_PORT=27017
-      - DOCUMENT_DATABASE_NAME=copilot
-      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - MONGODB_HOST=documentdb
+      - MONGODB_PORT=27017
+      - MONGODB_DATABASE=copilot
+      - PARSING_HTTP_PORT=${PARSING_HTTP_PORT:-8000}
+      - PARSING_LOG_LEVEL=${PARSING_LOG_LEVEL:-INFO}
+      - PARSING_RETRY_MAX_ATTEMPTS=${PARSING_RETRY_MAX_ATTEMPTS:-3}
+      - PARSING_RETRY_DELAY_SECONDS=${PARSING_RETRY_DELAY_SECONDS:-5}
+      - METRICS_TYPE=${METRICS_TYPE:-prometheus_pushgateway}
+      - PROMETHEUS_PUSHGATEWAY=pushgateway:9091
       - ERROR_REPORTER_TYPE=console
+      - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
+      - LOCAL_SECRETS_BASE_PATH=${LOCAL_SECRETS_BASE_PATH:-/run/secrets}
       # ArchiveStore configuration
       - ARCHIVE_STORE_TYPE=${ARCHIVE_STORE_TYPE:-local}
-      - ARCHIVE_STORE_PATH=${ARCHIVE_STORE_PATH:-/data/raw_archives}
+      - ARCHIVE_BASE_PATH=${ARCHIVE_BASE_PATH:-/data/raw_archives}
       # Azure Blob Storage configuration (for azure_blob backend)
-      # - AZURE_STORAGE_ACCOUNT=${AZURE_STORAGE_ACCOUNT}
+      # - AZUREBLOB_ACCOUNT=${AZUREBLOB_ACCOUNT}
       # - AZURE_STORAGE_KEY=${AZURE_STORAGE_KEY}
-      # - AZURE_STORAGE_CONTAINER=${AZURE_STORAGE_CONTAINER:-archives}
+      # - AZUREBLOB_STORAGE_CONTAINER=${AZUREBLOB_STORAGE_CONTAINER:-archives}
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
       - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
-      - message_bus_user
-      - message_bus_password
-      - document_database_user
-      - document_database_password
+      - rabbitmq_user
+      - rabbitmq_password
+      - mongodb_user
+      - mongodb_password
     volumes:
       - raw_archives:/data/raw_archives:ro
       - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
@@ -274,31 +315,39 @@ services:
       - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/docs/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
-      - MESSAGE_BUS_HOST=messagebus
-      - MESSAGE_BUS_PORT=5672
+      - RABBITMQ_HOST=messagebus
+      - RABBITMQ_PORT=5672
       - DOCUMENT_STORE_TYPE=mongodb
-      - DOCUMENT_DATABASE_HOST=documentdb
-      - DOCUMENT_DATABASE_PORT=27017
-      - DOCUMENT_DATABASE_NAME=copilot
+      - MONGODB_HOST=documentdb
+      - MONGODB_PORT=27017
+      - MONGODB_DATABASE=copilot
       - VECTOR_STORE_TYPE=qdrant
-      - VECTOR_DB_HOST=vectorstore
-      - VECTOR_DB_PORT=6333
-      - VECTOR_DB_COLLECTION=embeddings
-      - EMBEDDING_BACKEND=${EMBEDDING_BACKEND:-sentencetransformers}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-all-MiniLM-L6-v2}
-      - DEVICE=${DEVICE:-cpu}
-      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - QDRANT_HOST=vectorstore
+      - QDRANT_PORT=6333
+      - QDRANT_COLLECTION=embeddings
+      - REPORTING_HTTP_PORT=${REPORTING_HTTP_PORT:-8080}
+      - REPORTING_NOTIFY_ENABLED=${REPORTING_NOTIFY_ENABLED:-false}
+      - REPORTING_NOTIFY_WEBHOOK_URL=${REPORTING_NOTIFY_WEBHOOK_URL:-}
+      - REPORTING_WEBHOOK_SUMMARY_MAX_LENGTH=${REPORTING_WEBHOOK_SUMMARY_MAX_LENGTH:-500}
+      - EMBEDDING_BACKEND_TYPE=${EMBEDDING_BACKEND_TYPE:-sentencetransformers}
+      - SENTENCETRANSFORMERS_MODEL=${SENTENCETRANSFORMERS_MODEL:-all-MiniLM-L6-v2}
+      - SENTENCETRANSFORMERS_SENTENCETRANSFORMERS_DEVICE=${SENTENCETRANSFORMERS_SENTENCETRANSFORMERS_DEVICE:-cpu}
+      - METRICS_TYPE=${METRICS_TYPE:-noop}
+      - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY:-http://pushgateway:9091}
       - ERROR_REPORTER_TYPE=console
-      - HTTP_PORT=8080
+      - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
+      - LOCAL_SECRETS_BASE_PATH=${LOCAL_SECRETS_BASE_PATH:-/run/secrets}
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
       - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
-      - message_bus_user
-      - message_bus_password
-      - document_database_user
-      - document_database_password
+      - rabbitmq_user
+      - rabbitmq_password
+      - mongodb_user
+      - mongodb_password
+    volumes:
+      - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
     # Reporting service listens on internal port 8080 within the Docker network
     # External access is via the API Gateway's host port 8080 at the /reporting path
     # No direct host port mapping here to avoid conflict with gateway's :8080
@@ -328,22 +377,24 @@ services:
       - SERVICE_VERSION=0.1.0
       - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/ui}
       - AUTH_AUDIENCES=${AUTH_AUDIENCES:-copilot-for-consensus}
-      - JWT_ALGORITHM=${JWT_ALGORITHM:-RS256}
-      - JWT_KEY_ID=${JWT_KEY_ID:-default}
-      - JWT_DEFAULT_EXPIRY=${JWT_DEFAULT_EXPIRY:-1800}
+      - AUTH_JWT_ALGORITHM=${AUTH_JWT_ALGORITHM:-RS256}
+      - AUTH_JWT_KEY_ID=${AUTH_JWT_KEY_ID:-default}
+      - AUTH_JWT_DEFAULT_EXPIRY=${AUTH_JWT_DEFAULT_EXPIRY:-1800}
       - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
-      - SECRETS_BASE_PATH=${SECRETS_BASE_PATH:-/run/secrets}
-      # Document database (MongoDB) connection for role store
-      - DOCUMENT_DATABASE_HOST=documentdb
-      - DOCUMENT_DATABASE_PORT=27017
-      - DOCUMENT_DATABASE_NAME=auth
+      - LOCAL_SECRETS_BASE_PATH=${LOCAL_SECRETS_BASE_PATH:-/run/secrets}
+      - METRICS_TYPE=noop
+      - AUTH_ROLE_STORE_TYPE=${AUTH_ROLE_STORE_TYPE:-mongodb}
+      # Role store (MongoDB) connection for auth credentials
+      - AUTH_MONGODB_HOST=documentdb
+      - AUTH_MONGODB_PORT=27017
+      - AUTH_MONGODB_DATABASE=auth
+      - AUTH_MONGODB_COLLECTION=user_roles
+      - AUTH_ROLE_STORE_SCHEMA_DIR=/app/docs/schemas/role_store
       # OIDC Providers - OAuth secrets read via copilot_secrets from /run/secrets
-      - AUTH_GITHUB_REDIRECT_URI=${AUTH_GITHUB_REDIRECT_URI:-http://localhost:8080/ui/callback}
-      - AUTH_GOOGLE_CLIENT_ID=${AUTH_GOOGLE_CLIENT_ID:-}
-      - AUTH_GOOGLE_REDIRECT_URI=${AUTH_GOOGLE_REDIRECT_URI:-http://localhost:8080/ui/callback}
-      - AUTH_MS_CLIENT_ID=${AUTH_MS_CLIENT_ID:-}
-      - AUTH_MS_REDIRECT_URI=${AUTH_MS_REDIRECT_URI:-http://localhost:8080/ui/callback}
-      - AUTH_MS_TENANT=${AUTH_MS_TENANT:-common}
+      - GITHUB_REDIRECT_URI=${GITHUB_REDIRECT_URI:-https://localhost/ui/callback}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-https://localhost/ui/callback}
+      - MICROSOFT_REDIRECT_URI=${MICROSOFT_REDIRECT_URI:-https://localhost/ui/callback}
+      - MICROSOFT_TENANT=${MICROSOFT_TENANT:-common}
       # Security
       - AUTH_REQUIRE_PKCE=${AUTH_REQUIRE_PKCE:-true}
       - AUTH_REQUIRE_NONCE=${AUTH_REQUIRE_NONCE:-true}
@@ -353,8 +404,6 @@ services:
       - COOKIE_SECURE=${COOKIE_SECURE:-false}
       - PORT=8090
       - HOST=0.0.0.0
-      - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
-      - SECRETS_BASE_PATH=/run/secrets
       # Bootstrap token for initial admin setup (one-time use)
       - BOOTSTRAP_TOKEN=${BOOTSTRAP_TOKEN:-}
     volumes:
@@ -370,8 +419,8 @@ services:
       - google_oauth_client_secret
       - microsoft_oauth_client_secret
       - role_store_password
-      - document_database_user
-      - document_database_password
+      - mongodb_user
+      - mongodb_password
     depends_on:
       documentdb:
         condition: service_healthy
@@ -413,30 +462,35 @@ services:
       - SERVICE_VERSION=0.1.0
       - SCHEMA_DIR=/app/docs/schemas/configs
       - MESSAGE_BUS_TYPE=rabbitmq
-      - MESSAGE_BUS_HOST=messagebus
-      - MESSAGE_BUS_PORT=5672
+      - RABBITMQ_HOST=messagebus
+      - RABBITMQ_PORT=5672
       - DOCUMENT_STORE_TYPE=mongodb
-      - DOCUMENT_DATABASE_HOST=documentdb
-      - DOCUMENT_DATABASE_PORT=27017
-      - DOCUMENT_DATABASE_NAME=copilot
+      - MONGODB_HOST=documentdb
+      - MONGODB_PORT=27017
+      - MONGODB_DATABASE=copilot
       - VECTOR_STORE_TYPE=qdrant
-      - VECTOR_DB_HOST=vectorstore
-      - VECTOR_DB_PORT=6333
-      - LLM_BACKEND=${LLM_BACKEND:-mock}
-      - LLM_MODEL=${LLM_MODEL:-mistral}
-      - OLLAMA_HOST=http://ollama:11434
-      - LLAMACPP_HOST=${LLAMACPP_HOST:-http://llama-cpp:8081}
-      - METRICS_BACKEND=${METRICS_BACKEND:-prometheus_pushgateway}
+      - QDRANT_HOST=vectorstore
+      - QDRANT_PORT=6333
+      - EMBEDDING_BACKEND_TYPE=${EMBEDDING_BACKEND_TYPE:-sentencetransformers}
+      - SENTENCETRANSFORMERS_MODEL=${SENTENCETRANSFORMERS_MODEL:-all-MiniLM-L6-v2}
+      - SUMMARIZATION_LLM_BACKEND=${SUMMARIZATION_LLM_BACKEND:-local}
+      - SUMMARIZATION_LLM_MODEL=${SUMMARIZATION_LLM_MODEL:-mistral}
+      - SUMMARIZATION_LOCAL_LLM_ENDPOINT=${SUMMARIZATION_LOCAL_LLM_ENDPOINT:-http://ollama:11434}
+      - SUMMARIZATION_LLM_TIMEOUT_SECONDS=${SUMMARIZATION_LLM_TIMEOUT_SECONDS:-300}
+      - METRICS_TYPE=${METRICS_TYPE:-prometheus_pushgateway}
+      - PROMETHEUS_PUSHGATEWAY=pushgateway:9091
       - ERROR_REPORTER_TYPE=console
+      - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
+      - LOCAL_SECRETS_BASE_PATH=${LOCAL_SECRETS_BASE_PATH:-/run/secrets}
       # Authentication configuration
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
       - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
     secrets:
-      - message_bus_user
-      - message_bus_password
-      - document_database_user
-      - document_database_password
+      - rabbitmq_user
+      - rabbitmq_password
+      - mongodb_user
+      - mongodb_password
     volumes:
       - ./adapters/copilot_auth:/app/adapters/copilot_auth:ro
     depends_on:
@@ -450,8 +504,6 @@ services:
         condition: service_completed_successfully
       auth:
         condition: service_healthy
-      ollama-model-loader:
-        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -476,11 +528,13 @@ services:
       - RETRY_JOB_BASE_DELAY_SECONDS=${RETRY_JOB_BASE_DELAY_SECONDS:-300}
       - RETRY_JOB_MAX_DELAY_SECONDS=${RETRY_JOB_MAX_DELAY_SECONDS:-3600}
       - RETRY_JOB_STUCK_THRESHOLD_HOURS=${RETRY_JOB_STUCK_THRESHOLD_HOURS:-24}
+      - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
+      - LOCAL_SECRETS_BASE_PATH=${LOCAL_SECRETS_BASE_PATH:-/run/secrets}
     secrets:
-      - message_bus_user
-      - message_bus_password
-      - document_database_user
-      - document_database_password
+      - rabbitmq_user
+      - rabbitmq_password
+      - mongodb_user
+      - mongodb_password
     depends_on:
       documentdb:
         condition: service_healthy

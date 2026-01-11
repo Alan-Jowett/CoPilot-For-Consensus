@@ -53,9 +53,11 @@ def azure_store():
     for i in range(max_retries):
         try:
             store = create_vector_store(
-                backend="azure_ai_search",
-                dimension=384,
-                **config
+                driver_name="azure_ai_search",
+                driver_config={
+                    **config,
+                    "vector_size": 384,
+                },
             )
             # Test connection by getting count
             store.count()

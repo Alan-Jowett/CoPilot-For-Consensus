@@ -7,8 +7,10 @@ from datetime import datetime, timezone
 from unittest.mock import Mock
 
 import pytest
+
+from copilot_config import load_driver_config
 from app.service import ChunkingService
-from copilot_chunking import TokenWindowChunker, create_chunker
+from copilot_chunking import Thread, create_chunker
 from copilot_schema_validation import generate_message_doc_id
 
 
@@ -16,7 +18,15 @@ from copilot_schema_validation import generate_message_doc_id
 def test_end_to_end_chunking(document_store):
     """Test end-to-end chunking with real chunker."""
     # Create real chunker
-    chunker = TokenWindowChunker(chunk_size=100, overlap=20, min_chunk_size=50)
+    chunker = create_chunker(
+        "token_window",
+        load_driver_config(
+            "chunking",
+            "chunker",
+            "token_window",
+            fields={"chunk_size": 100, "overlap": 20, "min_chunk_size": 50},
+        ),
+    )
 
     # Create mocks for publisher/subscriber
     mock_publisher = Mock()
@@ -96,12 +106,16 @@ def test_different_chunking_strategies(document_store):
     """Test chunking with different strategies."""
     strategies = [
         ("token_window", {"chunk_size": 100, "overlap": 20}),
-        ("semantic", {"chunk_size": 100}),
+        ("semantic", {"target_chunk_size": 100}),
     ]
 
     for strategy_name, params in strategies:
         # Create chunker with strategy
-        chunker = create_chunker(strategy_name, **params)
+        # Use the adapter driver schema defaults, overriding only what the test specifies.
+        chunker = create_chunker(
+            strategy_name,
+            load_driver_config("chunking", "chunker", strategy_name, fields=params),
+        )
 
         # Create mocks for publisher/subscriber
         mock_publisher = Mock()
@@ -171,7 +185,15 @@ def test_different_chunking_strategies(document_store):
 def test_oversize_message_handling(document_store):
     """Test handling of very large messages."""
     # Create chunker with small chunk size to force many chunks
-    chunker = TokenWindowChunker(chunk_size=50, overlap=10, min_chunk_size=20)
+    chunker = create_chunker(
+        "token_window",
+        load_driver_config(
+            "chunking",
+            "chunker",
+            "token_window",
+            fields={"chunk_size": 50, "overlap": 10, "min_chunk_size": 20},
+        ),
+    )
 
     # Create mocks for publisher/subscriber
     mock_publisher = Mock()

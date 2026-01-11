@@ -221,10 +221,10 @@ The system uses adapter modules to decouple core business logic from external de
 - **copilot_consensus**: Consensus detection logic
 - **copilot_draft_diff**: RFC draft difference tracking
 - **copilot_embedding**: Embedding generation abstraction
-- **copilot_events**: Event publishing, subscription, and schema validation
+- **copilot_message_bus**: Event publishing, subscription, and schema validation
 - **copilot_logging**: Structured logging
 - **copilot_metrics**: Metrics collection (Prometheus)
-- **copilot_reporting**: Error reporting
+- **copilot_error_reporting**: Error reporting
 - **copilot_schema_validation**: JSON schema validation for messages and events
 - **copilot_startup**: Service startup coordination
 - **copilot_storage**: Document store abstraction (MongoDB, in-memory)
@@ -422,7 +422,7 @@ The system includes an authentication service that supports GitHub, Google, and 
           ```
        2. Edit the copied files and replace the placeholder values with your actual Microsoft OAuth credentials
        3. Save the files
-   
+
    - **Azure Deployment (Automated)**: When deploying to Azure, Microsoft OAuth can be automatically configured. See [infra/azure/ENTRA_APP_AUTOMATION.md](infra/azure/ENTRA_APP_AUTOMATION.md) for details. The Bicep template will:
      - Automatically create the Entra app registration
      - Configure redirect URIs based on your deployed gateway

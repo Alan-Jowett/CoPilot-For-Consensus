@@ -9,6 +9,8 @@ import uuid
 from collections import defaultdict
 from typing import Any
 
+from copilot_config import DriverConfig
+
 from .document_store import DocumentNotFoundError, DocumentStore
 
 logger = logging.getLogger(__name__)
@@ -16,6 +18,19 @@ logger = logging.getLogger(__name__)
 
 class InMemoryDocumentStore(DocumentStore):
     """In-memory document store implementation for testing."""
+
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "InMemoryDocumentStore":
+        """Create an InMemoryDocumentStore from configuration.
+
+        Args:
+            driver_config: Configuration object (ignored, no configuration needed)
+
+        Returns:
+            InMemoryDocumentStore instance
+        """
+        # InMemoryDocumentStore has no configuration parameters
+        return cls()
 
     def __init__(self):
         """Initialize in-memory document store."""

@@ -7,6 +7,8 @@ import logging
 import os
 from typing import Any
 
+from copilot_config import DriverConfig
+
 from .logger import Logger
 
 
@@ -22,33 +24,44 @@ class AzureMonitorLogger(Logger):
     - Automatic fallback to console logging if Azure Monitor is unavailable
     - Configurable via environment variables
 
-    Environment Variables:
-    - AZURE_MONITOR_CONNECTION_STRING: Connection string for Azure Monitor
-      (required for Azure Monitor logging, falls back to console if not set)
-    - AZURE_MONITOR_INSTRUMENTATION_KEY: Legacy instrumentation key (deprecated, use connection string)
-    - AZURE_MONITOR_LOG_LEVEL: Log level (DEBUG, INFO, WARNING, ERROR)
-    - AZURE_MONITOR_LOG_NAME: Logger name for identification
+    Config attributes (via driver_config):
+    - level: Logging level (DEBUG, INFO, WARNING, ERROR). Defaults to INFO.
+    - name: Logger name for identification. Defaults to 'copilot'.
+    - instrumentation_key: Azure Monitor instrumentation key (optional)
+    - console_log: Also log to console when using Azure Monitor (default: False)
 
     Example:
-        >>> # With Azure Monitor configured
-        >>> os.environ['AZURE_MONITOR_CONNECTION_STRING'] = 'InstrumentationKey=xxx;...'
-        >>> logger = AzureMonitorLogger(level="INFO", name="my-service")
+        >>> # With Azure Monitor configured via driver_config
+        >>> logger = AzureMonitorLogger.from_config({
+        ...     "level": "INFO",
+        ...     "name": "my-service",
+        ...     "instrumentation_key": "InstrumentationKey=..."
+        ... })
         >>> logger.info("Service started", version="1.0.0")
         >>>
         >>> # Fallback to console if not configured
-        >>> logger = AzureMonitorLogger(level="INFO", name="my-service")
+        >>> logger = AzureMonitorLogger.from_config()
         >>> logger.info("Service started")  # Logs to console with warning
     """
 
-    def __init__(self, level: str = "INFO", name: str | None = None):
+    def __init__(
+        self,
+        level: str = "INFO",
+        name: str | None = None,
+        instrumentation_key: str | None = None,
+        console_log: bool = False,
+    ):
         """Initialize Azure Monitor logger.
 
         Args:
             level: Logging level (DEBUG, INFO, WARNING, ERROR)
             name: Optional logger name for identification
+            instrumentation_key: Optional legacy instrumentation key (deprecated)
+            console_log: Also log to console when using Azure Monitor (default: False)
         """
         self.level = level.upper()
         self.name = name or "copilot"
+        self.console_log = console_log
         self._fallback_mode = False
         self._logger_provider = None  # Store reference for shutdown
 
@@ -62,17 +75,47 @@ class AzureMonitorLogger(Logger):
 
         # Validate level
         if self.level not in self._level_map:
-            raise ValueError(f"Invalid log level: {level}. Must be one of {list(self._level_map.keys())}")
+            raise ValueError(f"Invalid log level: {self.level}. Must be one of {list(self._level_map.keys())}")
 
-        # Get connection string from environment
-        connection_string = os.getenv("AZURE_MONITOR_CONNECTION_STRING")
-        instrumentation_key = os.getenv("AZURE_MONITOR_INSTRUMENTATION_KEY")
+        # Build connection string (legacy path uses instrumentation key)
+        connection_string = None
+        if instrumentation_key:
+            connection_string = f"InstrumentationKey={instrumentation_key}"
 
         # Configure Azure Monitor or fallback
         if connection_string or instrumentation_key:
             self._configure_azure_monitor(connection_string, instrumentation_key)
         else:
             self._configure_fallback()
+
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "AzureMonitorLogger":
+        """Create an AzureMonitorLogger from driver configuration.
+
+        Args:
+            driver_config: DriverConfig with level, name, instrumentation_key, and console_log attributes.
+                          Defaults are provided by the schema.
+
+        Returns:
+            Configured AzureMonitorLogger instance
+
+        Raises:
+            TypeError: If driver_config is not a DriverConfig instance
+        """
+        # Required field with schema default
+        level = driver_config.level
+
+        # Optional fields
+        name = driver_config.name
+        instrumentation_key = driver_config.instrumentation_key
+        console_log = driver_config.console_log
+
+        return cls(
+            level=level,
+            name=name,
+            instrumentation_key=instrumentation_key,
+            console_log=console_log
+        )
 
     def _configure_azure_monitor(
         self,
@@ -165,7 +208,7 @@ class AzureMonitorLogger(Logger):
                 self._stdlib_logger.addHandler(handler)
 
             # Add console handler for local debugging (optional)
-            if os.getenv("AZURE_MONITOR_CONSOLE_LOG", "false").lower() == "true":
+            if self.console_log:
                 # Check if console handler already exists
                 console_handler = None
                 for existing_handler in self._stdlib_logger.handlers:
@@ -243,7 +286,7 @@ class AzureMonitorLogger(Logger):
         # Log warning about fallback mode
         self._stdlib_logger.warning(
             "Azure Monitor not configured - using console fallback. "
-            "Set AZURE_MONITOR_CONNECTION_STRING environment variable for Azure Monitor logging."
+            "Configure instrumentation_key in driver_config for Azure Monitor logging."
         )
 
     def _log(self, level: str, message: str, **kwargs: Any) -> None:

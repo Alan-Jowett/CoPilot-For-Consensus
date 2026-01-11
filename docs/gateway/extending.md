@@ -35,17 +35,17 @@ from adapter_base import GatewayAdapter
 
 class MyProviderAdapter(GatewayAdapter):
     """Adapter for <Provider Name>.
-    
+
     Generates:
     - Configuration format 1
     - Configuration format 2
     - Deployment scripts
     """
-    
+
     @property
     def provider_name(self) -> str:
         return "myprovider"
-    
+
     @property
     def deployment_instructions(self) -> str:
         return """
@@ -64,14 +64,14 @@ Deployment Steps:
 Monitoring:
 - How to monitor the deployment
 """
-    
+
     def load_spec(self) -> None:
         """Load the OpenAPI specification from YAML file."""
         import yaml
-        
+
         with open(self.openapi_spec_path, 'r') as f:
             self.openapi_spec = yaml.safe_load(f)
-    
+
     def validate_spec(self) -> bool:
         """Validate OpenAPI spec for this provider."""
         # Check required fields
@@ -79,59 +79,59 @@ Monitoring:
         for field in required_fields:
             if field not in self.openapi_spec:
                 raise ValueError(f"OpenAPI spec missing required field: {field}")
-        
+
         # Check OpenAPI version compatibility
         version = self.openapi_spec.get('openapi', '')
         if not version.startswith('3.'):
             raise ValueError(f"Provider requires OpenAPI 3.x, got {version}")
-        
+
         return True
-    
+
     def generate_config(self, output_dir: Path) -> Dict[str, Path]:
         """Generate provider-specific gateway configuration."""
         output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Generate your configuration files
         config1 = self._generate_main_config()
         config1_path = output_dir / "main-config.json"
         with open(config1_path, 'w') as f:
             json.dump(config1, f, indent=2)
-        
+
         # Generate additional files as needed
         script = self._generate_deploy_script()
         script_path = output_dir / "deploy.sh"
         with open(script_path, 'w') as f:
             f.write(script)
         script_path.chmod(0o755)
-        
+
         return {
             "main_config": config1_path,
             "deploy_script": script_path
         }
-    
+
     def validate_config(self, config_files: Dict[str, Path]) -> bool:
         """Validate generated configuration files."""
         # Check files exist
         for file_path in config_files.values():
             if not file_path.exists():
                 raise ValueError(f"Generated file does not exist: {file_path}")
-        
+
         # Add provider-specific validation
         # For example, validate JSON structure, required fields, etc.
-        
+
         return True
-    
+
     def _generate_main_config(self) -> Dict[str, Any]:
         """Generate the main configuration structure."""
         info = self.openapi_spec.get('info', {})
-        
+
         # Transform OpenAPI spec to provider's format
         return {
             "name": info.get('title', 'API Gateway'),
             "version": info.get('version', '1.0.0'),
             "routes": self._extract_routes()
         }
-    
+
     def _extract_routes(self) -> list:
         """Extract routes from OpenAPI spec."""
         routes = []
@@ -144,7 +144,7 @@ Monitoring:
                         "summary": operation.get('summary', ''),
                     })
         return routes
-    
+
     def _generate_deploy_script(self) -> str:
         """Generate deployment script."""
         return """#!/bin/bash
@@ -203,7 +203,7 @@ def get_adapter(provider: str, openapi_spec_path: Path) -> GatewayAdapter:
         'gcp': GcpAdapter,
         'myprovider': MyProviderAdapter,  # Register adapter
     }
-    
+
     # ... rest of function
 ```
 
@@ -273,25 +273,25 @@ def test_basic_generation():
     """Test basic configuration generation."""
     spec_path = Path(__file__).parent / "openapi.yaml"
     adapter = MyProviderAdapter(spec_path)
-    
+
     # Load and validate
     adapter.load_spec()
     assert adapter.validate_spec()
-    
+
     # Generate config
     with tempfile.TemporaryDirectory() as tmpdir:
         output_dir = Path(tmpdir)
         config_files = adapter.generate_config(output_dir)
-        
+
         # Verify files were created
         assert len(config_files) > 0
         for path in config_files.values():
             assert path.exists()
             assert path.stat().st_size > 0
-        
+
         # Validate generated config
         assert adapter.validate_config(config_files)
-    
+
     print("✓ Basic generation test passed")
 
 
@@ -419,15 +419,15 @@ Here's a concrete example for Kubernetes Ingress:
 ```python
 class KubernetesAdapter(GatewayAdapter):
     """Adapter for Kubernetes Ingress resources."""
-    
+
     @property
     def provider_name(self) -> str:
         return "kubernetes"
-    
+
     def generate_config(self, output_dir: Path) -> Dict[str, Path]:
         """Generate Kubernetes manifests."""
         output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Generate Ingress resource
         ingress = {
             'apiVersion': 'networking.k8s.io/v1',
@@ -442,20 +442,20 @@ class KubernetesAdapter(GatewayAdapter):
                 'rules': self._generate_ingress_rules()
             }
         }
-        
+
         import yaml
         ingress_path = output_dir / "ingress.yaml"
         with open(ingress_path, 'w') as f:
             yaml.dump(ingress, f)
-        
+
         return {"ingress": ingress_path}
-    
+
     def _generate_ingress_rules(self) -> list:
         """Generate Ingress rules from OpenAPI paths."""
         rules = []
         gateway_config = self.openapi_spec.get('x-gateway-config', {})
         backends = gateway_config.get('backends', {})
-        
+
         for service, config in backends.items():
             rules.append({
                 'host': 'copilot.example.com',
@@ -474,9 +474,9 @@ class KubernetesAdapter(GatewayAdapter):
                     }]
                 }
             })
-        
+
         return rules
-    
+
     def _extract_port(self, url: str) -> int:
         """Extract port from backend URL."""
         # Parse URL and return port
@@ -582,11 +582,11 @@ def _determine_backend(self, path: str) -> str:
 def _generate_from_template(self, template_name: str, context: dict) -> str:
     """Generate config from Jinja2 template."""
     from jinja2 import Template
-    
+
     template_path = Path(__file__).parent / 'templates' / template_name
     with open(template_path) as f:
         template = Template(f.read())
-    
+
     return template.render(**context)
 ```
 
@@ -596,23 +596,23 @@ def _generate_from_template(self, template_name: str, context: dict) -> str:
 def generate_config(self, output_dir: Path) -> Dict[str, Path]:
     """Generate multiple related configuration files."""
     files = {}
-    
+
     # Main configuration
     files['main'] = self._generate_file(
         output_dir / 'main.yaml',
         self._generate_main_config()
     )
-    
+
     # Backend configurations (one per service)
     backends_dir = output_dir / 'backends'
     backends_dir.mkdir(exist_ok=True)
-    
+
     for service, config in self._get_backends().items():
         files[f'backend_{service}'] = self._generate_file(
             backends_dir / f'{service}.yaml',
             config
         )
-    
+
     return files
 
 def _generate_file(self, path: Path, content: Any) -> Path:

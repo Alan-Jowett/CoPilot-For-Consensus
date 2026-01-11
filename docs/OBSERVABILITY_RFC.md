@@ -3,9 +3,9 @@
 
 # Observability RFC: Production-Ready Metrics, Logs, and Tracing
 
-**Status**: Draft  
-**Author**: Copilot-for-Consensus Team  
-**Date**: 2025-12-24  
+**Status**: Draft
+**Author**: Copilot-for-Consensus Team
+**Date**: 2025-12-24
 **Version**: 1.0
 
 ## Table of Contents
@@ -188,8 +188,8 @@ Use exemplars or structured logs for high-cardinality data.
 ### Metric Types
 
 #### Counter
-**Definition**: Monotonically increasing value (resets on restart).  
-**Use Cases**: Total messages processed, errors, requests.  
+**Definition**: Monotonically increasing value (resets on restart).
+**Use Cases**: Total messages processed, errors, requests.
 **Suffix**: `_total`
 
 ```python
@@ -197,8 +197,8 @@ copilot_parsing_messages_parsed_total{service="parsing", status="success"} 1234
 ```
 
 #### Gauge
-**Definition**: Value that can increase or decrease.  
-**Use Cases**: Queue depth, active connections, memory usage.  
+**Definition**: Value that can increase or decrease.
+**Use Cases**: Queue depth, active connections, memory usage.
 **Suffix**: None (or `_current`, `_bytes`, `_messages`)
 
 ```python
@@ -206,8 +206,8 @@ copilot_queue_depth_messages{queue="parsing", service="parsing"} 42
 ```
 
 #### Histogram
-**Definition**: Distribution of values (buckets + sum/count).  
-**Use Cases**: Latencies, sizes, durations.  
+**Definition**: Distribution of values (buckets + sum/count).
+**Use Cases**: Latencies, sizes, durations.
 **Suffix**: `_seconds`, `_bytes`, `_tokens`
 
 ```python
@@ -347,14 +347,14 @@ All logs MUST be JSON-formatted with these fields:
     summary: "One-line description with {{ $value }}"
     description: |
       Detailed explanation with context.
-      
+
       Impact: What users/operators will observe.
-      
+
       Actions:
         1. Check X
         2. Verify Y
         3. Escalate if Z
-      
+
       Runbook: documents/<RUNBOOK>.md
       Dashboard: <Grafana dashboard link>
 ```
@@ -589,9 +589,9 @@ rate(copilot_${service}_messages_processed_total{environment="$environment"}[5m]
 
 ### Sampling Strategy
 
-**Development**: 100% sampling (all traces)  
-**Staging**: 50% sampling (performance testing)  
-**Production**: 10% sampling (reduce storage costs)  
+**Development**: 100% sampling (all traces)
+**Staging**: 50% sampling (performance testing)
+**Production**: 10% sampling (reduce storage costs)
 **On Error**: 100% sampling (always sample failed requests)
 
 ### Trace Backend Options

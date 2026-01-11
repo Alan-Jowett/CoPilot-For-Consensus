@@ -4,21 +4,54 @@
 """Tests for storage-agnostic archive handling (optional file_path)."""
 
 import tempfile
+from pathlib import Path
 
 import pytest
 from app.service import ParsingService
-from copilot_archive_store import LocalVolumeArchiveStore
-from copilot_events import NoopPublisher, NoopSubscriber
-from copilot_storage import InMemoryDocumentStore
+from copilot_archive_store import create_archive_store
+from copilot_message_bus import create_publisher, create_subscriber
+from copilot_schema_validation import create_schema_provider
+from copilot_storage import create_document_store
 
 
 def create_test_archive_store():
     """Create a test archive store with automatic temporary directory cleanup."""
+    from copilot_config import DriverConfig
     tmpdir = tempfile.TemporaryDirectory()
-    archive_store = LocalVolumeArchiveStore(base_path=tmpdir.name)
-    # Attach the TemporaryDirectory to the store so it stays alive
-    archive_store._tmpdir = tmpdir
+    archive_store = create_archive_store("local", DriverConfig(driver_name="local", config={"archive_base_path": tmpdir.name}))
+    archive_store._tmpdir = tmpdir  # keep tempdir alive for store lifetime
     return archive_store
+
+
+def create_validating_document_store():
+    """Create an in-memory document store with document schema validation."""
+    schema_dir = Path(__file__).parent.parent.parent / "docs" / "schemas" / "documents"
+    schema_provider = create_schema_provider(schema_dir=schema_dir, schema_type="documents")
+    store = create_document_store(
+        driver_name="inmemory",
+        driver_config={"schema_provider": schema_provider},
+        enable_validation=True,
+    )
+    store.connect()
+    return store
+
+
+def create_tracking_publisher():
+    """Create a noop publisher that records published events."""
+    publisher = create_publisher(driver_name="noop", driver_config={}, enable_validation=False)
+    publisher.connect()
+    return publisher
+
+
+def create_noop_subscriber():
+    """Create a noop subscriber using the factory API."""
+    subscriber = create_subscriber(
+        driver_name="noop",
+        driver_config={"queue_name": "json.parsed"},
+        enable_validation=False,
+    )
+    subscriber.connect()
+    return subscriber
 
 
 class TestStorageAgnosticArchives:
@@ -27,36 +60,19 @@ class TestStorageAgnosticArchives:
     @pytest.fixture
     def document_store(self):
         """Create in-memory document store."""
-        store = InMemoryDocumentStore()
-        store.connect()
-        return store
+        return create_validating_document_store()
+
 
     @pytest.fixture
     def publisher(self):
         """Create noop publisher that tracks events."""
-        class TrackingPublisher(NoopPublisher):
-            def __init__(self):
-                super().__init__()
-                self.published_events = []
+        return create_tracking_publisher()
 
-            def publish(self, exchange, routing_key, event):
-                self.published_events.append({
-                    "exchange": exchange,
-                    "routing_key": routing_key,
-                    "event": event,
-                })
-                return True
-
-        pub = TrackingPublisher()
-        pub.connect()
-        return pub
 
     @pytest.fixture
     def subscriber(self):
         """Create noop subscriber."""
-        sub = NoopSubscriber()
-        sub.connect()
-        return sub
+        return create_noop_subscriber()
 
     @pytest.fixture
     def service(self, document_store, publisher, subscriber):

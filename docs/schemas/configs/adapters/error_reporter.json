@@ -1,0 +1,28 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Error reporter adapter",
+    "type": "object",
+    "properties": {
+        "discriminant": {
+            "field": "error_reporter_type",
+            "type": "string",
+            "source": "env",
+            "env_var": "ERROR_REPORTER_TYPE",
+            "enum": ["console", "sentry", "silent"],
+            "default": "console",
+            "required": false,
+            "description": "Error reporter type (console, sentry, silent)"
+        },
+        "drivers": {
+            "type": "object",
+            "properties": {
+                "console": { "$ref": "./drivers/error_reporter/error_reporter_console.json" },
+                "sentry": { "$ref": "./drivers/error_reporter/error_reporter_sentry.json" },
+                "silent": { "$ref": "./drivers/error_reporter/error_reporter_silent.json" }
+            },
+            "additionalProperties": false
+        }
+    },
+    "required": ["discriminant", "drivers"]
+}

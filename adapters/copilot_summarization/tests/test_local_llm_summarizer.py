@@ -14,11 +14,11 @@ from copilot_summarization.models import Thread
 class TestLocalLLMSummarizer:
     """Tests for LocalLLMSummarizer implementation."""
 
-    def test_local_llm_summarizer_creation(self):
+    def test_local_llm_summarizer_creation(self, llm_driver_config):
         """Test creating a local LLM summarizer."""
-        summarizer = LocalLLMSummarizer()
+        summarizer = LocalLLMSummarizer.from_config(llm_driver_config("local"))
         assert summarizer.model == "mistral"
-        assert summarizer.base_url == "http://localhost:11434"
+        assert summarizer.base_url == "http://ollama:11434"
         assert summarizer.timeout == 300
 
     def test_local_llm_summarizer_custom_config(self):
@@ -35,16 +35,16 @@ class TestLocalLLMSummarizer:
     def test_local_llm_summarizer_invalid_timeout(self):
         """Test creating a local LLM summarizer with invalid timeout raises ValueError."""
         with pytest.raises(ValueError, match="timeout must be a positive integer"):
-            LocalLLMSummarizer(timeout=0)
+            LocalLLMSummarizer(model="mistral", base_url="http://test:8080", timeout=0)
 
         with pytest.raises(ValueError, match="timeout must be a positive integer"):
-            LocalLLMSummarizer(timeout=-1)
+            LocalLLMSummarizer(model="mistral", base_url="http://test:8080", timeout=-1)
 
         with pytest.raises(ValueError, match="timeout must be a positive integer"):
-            LocalLLMSummarizer(timeout="120")  # type: ignore
+            LocalLLMSummarizer(model="mistral", base_url="http://test:8080", timeout="120")  # type: ignore
 
     @patch('copilot_summarization.local_llm_summarizer.requests.post')
-    def test_local_llm_summarize_success(self, mock_post):
+    def test_local_llm_summarize_success(self, mock_post, llm_driver_config):
         """Test local LLM summarize returns real content from API."""
         # Mock successful API response
         mock_response = Mock()
@@ -54,7 +54,9 @@ class TestLocalLLMSummarizer:
         mock_response.raise_for_status = Mock()
         mock_post.return_value = mock_response
 
-        summarizer = LocalLLMSummarizer(model="mistral")
+        summarizer = LocalLLMSummarizer.from_config(
+            llm_driver_config("local", fields={"local_llm_model": "mistral"})
+        )
 
         complete_prompt = "Summarize the following discussion thread:\n\nMessage 1:\nMessage 1\n\nMessage 2:\nMessage 2\n\n"
         thread = Thread(
@@ -68,7 +70,7 @@ class TestLocalLLMSummarizer:
         # Verify API was called
         mock_post.assert_called_once()
         call_args = mock_post.call_args
-        assert call_args[0][0] == "http://localhost:11434/api/generate"
+        assert call_args[0][0] == "http://ollama:11434/api/generate"
         assert call_args[1]["json"]["model"] == "mistral"
         assert call_args[1]["json"]["stream"] is False
 
@@ -88,7 +90,7 @@ class TestLocalLLMSummarizer:
         assert summary.latency_ms >= 0
 
     @patch('copilot_summarization.local_llm_summarizer.requests.post')
-    def test_local_llm_summarize_empty_response(self, mock_post):
+    def test_local_llm_summarize_empty_response(self, mock_post, llm_driver_config):
         """Test local LLM handles empty response gracefully."""
         # Mock empty API response
         mock_response = Mock()
@@ -96,7 +98,9 @@ class TestLocalLLMSummarizer:
         mock_response.raise_for_status = Mock()
         mock_post.return_value = mock_response
 
-        summarizer = LocalLLMSummarizer(model="mistral")
+        summarizer = LocalLLMSummarizer.from_config(
+            llm_driver_config("local", fields={"local_llm_model": "mistral"})
+        )
 
         thread = Thread(
             thread_id="test-thread-456",
@@ -110,11 +114,13 @@ class TestLocalLLMSummarizer:
         assert summary.thread_id == "test-thread-456"
 
     @patch('copilot_summarization.local_llm_summarizer.requests.post')
-    def test_local_llm_summarize_timeout(self, mock_post):
+    def test_local_llm_summarize_timeout(self, mock_post, llm_driver_config):
         """Test local LLM handles timeout errors."""
         mock_post.side_effect = requests.Timeout("Request timed out")
 
-        summarizer = LocalLLMSummarizer(model="mistral")
+        summarizer = LocalLLMSummarizer.from_config(
+            llm_driver_config("local", fields={"local_llm_model": "mistral"})
+        )
 
         thread = Thread(
             thread_id="test-thread-789",
@@ -125,11 +131,13 @@ class TestLocalLLMSummarizer:
             summarizer.summarize(thread)
 
     @patch('copilot_summarization.local_llm_summarizer.requests.post')
-    def test_local_llm_summarize_connection_error(self, mock_post):
+    def test_local_llm_summarize_connection_error(self, mock_post, llm_driver_config):
         """Test local LLM handles connection errors."""
         mock_post.side_effect = requests.ConnectionError("Failed to connect")
 
-        summarizer = LocalLLMSummarizer(model="mistral")
+        summarizer = LocalLLMSummarizer.from_config(
+            llm_driver_config("local", fields={"local_llm_model": "mistral"})
+        )
 
         thread = Thread(
             thread_id="test-thread-999",

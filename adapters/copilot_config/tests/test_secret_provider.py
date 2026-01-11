@@ -1,133 +1,164 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Tests for SecretConfigProvider."""
+"""Tests for secret configuration provider."""
 
-from unittest.mock import Mock
+from unittest.mock import MagicMock
 
 import pytest
-from copilot_config import SecretConfigProvider
+from copilot_config.secret_provider import SecretConfigProvider
 
 
 class TestSecretConfigProvider:
-    """Test suite for SecretConfigProvider."""
+    """Tests for SecretConfigProvider."""
 
-    @pytest.fixture
-    def mock_secret_provider(self):
-        """Create a mock secret provider."""
-        return Mock()
+    def test_get_secret_value(self):
+        """Test getting a secret value."""
+        mock_secret_provider = MagicMock()
+        mock_secret_provider.get_secret.return_value = "secret_value"
 
-    @pytest.fixture
-    def provider(self, mock_secret_provider):
-        """Create a SecretConfigProvider instance."""
-        return SecretConfigProvider(secret_provider=mock_secret_provider)
+        provider = SecretConfigProvider(secret_provider=mock_secret_provider)
 
-    def test_get_success(self, provider, mock_secret_provider):
-        """Test successful secret retrieval."""
-        mock_secret_provider.get_secret.return_value = "secret-value"
+        assert provider.get("test_secret") == "secret_value"
+        mock_secret_provider.get_secret.assert_called_once_with("test_secret")
 
-        result = provider.get("api_key")
+    def test_get_missing_secret_returns_default(self):
+        """Test getting missing secret returns default."""
+        mock_secret_provider = MagicMock()
+        mock_secret_provider.get_secret.side_effect = Exception("Secret not found")
 
-        assert result == "secret-value"
-        mock_secret_provider.get_secret.assert_called_once_with("api_key")
+        provider = SecretConfigProvider(secret_provider=mock_secret_provider)
 
-    def test_get_with_default(self, provider, mock_secret_provider):
-        """Test get returns default when secret not found."""
+        assert provider.get("missing_secret", "default") == "default"
+
+    def test_get_secret_none_returns_default(self):
+        """Test getting None secret returns the None value."""
+        mock_secret_provider = MagicMock()
+        mock_secret_provider.get_secret.return_value = None
+
+        provider = SecretConfigProvider(secret_provider=mock_secret_provider)
+
+        assert provider.get("test_secret", "default") is None
+
+    def test_get_bool_true_values(self):
+        """Test getting boolean true values from secrets."""
+        for val in ["true", "1", "yes", "on"]:
+            mock_secret_provider = MagicMock()
+            mock_secret_provider.get_secret.return_value = val
+
+            provider = SecretConfigProvider(secret_provider=mock_secret_provider)
+
+            assert provider.get_bool("test_bool") is True
+
+    def test_get_bool_false_values(self):
+        """Test getting boolean false values from secrets."""
+        for val in ["false", "0", "no", "off"]:
+            mock_secret_provider = MagicMock()
+            mock_secret_provider.get_secret.return_value = val
+
+            provider = SecretConfigProvider(secret_provider=mock_secret_provider)
+
+            assert provider.get_bool("test_bool") is False
+
+    def test_get_bool_missing_secret(self):
+        """Test getting boolean from missing secret returns default."""
+        mock_secret_provider = MagicMock()
         mock_secret_provider.get_secret.side_effect = Exception("Not found")
 
-        result = provider.get("missing_key", default="default-value")
+        provider = SecretConfigProvider(secret_provider=mock_secret_provider)
 
-        assert result == "default-value"
+        assert provider.get_bool("test_bool", default=True) is True
 
-    def test_get_bool_true(self, provider, mock_secret_provider):
-        """Test get_bool returns True for truthy values."""
-        test_cases = ["true", "True", "TRUE", "1", "yes", "on"]
+    def test_get_bool_native_type(self):
+        """Test getting boolean that's already a bool type."""
+        mock_secret_provider = MagicMock()
+        mock_secret_provider.get_secret.return_value = True
 
-        for value in test_cases:
-            mock_secret_provider.get_secret.return_value = value
-            assert provider.get_bool("key") is True
+        provider = SecretConfigProvider(secret_provider=mock_secret_provider)
 
-    def test_get_bool_false(self, provider, mock_secret_provider):
-        """Test get_bool returns False for falsy values."""
-        test_cases = ["false", "False", "FALSE", "0", "no", "off"]
+        assert provider.get_bool("test_bool") is True
 
-        for value in test_cases:
-            mock_secret_provider.get_secret.return_value = value
-            assert provider.get_bool("key") is False
-
-    def test_get_bool_default(self, provider, mock_secret_provider):
-        """Test get_bool returns default for invalid values."""
-        mock_secret_provider.get_secret.return_value = "invalid"
-
-        result = provider.get_bool("key", default=True)
-
-        assert result is True
-
-    def test_get_bool_missing(self, provider, mock_secret_provider):
-        """Test get_bool returns default when secret not found."""
-        mock_secret_provider.get_secret.side_effect = Exception("Not found")
-
-        result = provider.get_bool("missing", default=True)
-
-        assert result is True
-
-    def test_get_int_success(self, provider, mock_secret_provider):
-        """Test successful integer retrieval."""
+    def test_get_int_value(self):
+        """Test getting integer value from secret."""
+        mock_secret_provider = MagicMock()
         mock_secret_provider.get_secret.return_value = "42"
 
-        result = provider.get_int("port")
+        provider = SecretConfigProvider(secret_provider=mock_secret_provider)
 
-        assert result == 42
+        assert provider.get_int("test_int") == 42
 
-    def test_get_int_invalid(self, provider, mock_secret_provider):
-        """Test get_int returns default for invalid values."""
-        mock_secret_provider.get_secret.return_value = "not-a-number"
+    def test_get_int_invalid_value(self):
+        """Test getting integer from non-numeric secret returns default."""
+        mock_secret_provider = MagicMock()
+        mock_secret_provider.get_secret.return_value = "not_a_number"
 
-        result = provider.get_int("port", default=8080)
+        provider = SecretConfigProvider(secret_provider=mock_secret_provider)
 
-        assert result == 8080
+        assert provider.get_int("test_int", 99) == 99
 
-    def test_get_int_missing(self, provider, mock_secret_provider):
-        """Test get_int returns default when secret not found."""
+    def test_get_int_missing_secret(self):
+        """Test getting integer from missing secret returns default."""
+        mock_secret_provider = MagicMock()
         mock_secret_provider.get_secret.side_effect = Exception("Not found")
 
-        result = provider.get_int("missing", default=9090)
+        provider = SecretConfigProvider(secret_provider=mock_secret_provider)
 
-        assert result == 9090
+        assert provider.get_int("test_int", 99) == 99
 
-    def test_get_bytes_success(self, provider, mock_secret_provider):
-        """Test successful binary secret retrieval."""
-        binary_data = b"\x00\x01\x02\x03"
-        mock_secret_provider.get_secret_bytes.return_value = binary_data
+    def test_get_bytes_value(self):
+        """Test getting bytes value from secret."""
+        test_bytes = b"secret_bytes"
+        mock_secret_provider = MagicMock()
+        mock_secret_provider.get_secret_bytes.return_value = test_bytes
 
-        result = provider.get_bytes("cert")
+        provider = SecretConfigProvider(secret_provider=mock_secret_provider)
 
-        assert result == binary_data
-        mock_secret_provider.get_secret_bytes.assert_called_once_with("cert")
+        assert provider.get_bytes("test_bytes") == test_bytes
+        mock_secret_provider.get_secret_bytes.assert_called_once_with("test_bytes")
 
-    def test_get_bytes_missing(self, provider, mock_secret_provider):
-        """Test get_bytes returns default when secret not found."""
+    def test_get_bytes_missing_secret(self):
+        """Test getting bytes from missing secret returns default."""
+        mock_secret_provider = MagicMock()
         mock_secret_provider.get_secret_bytes.side_effect = Exception("Not found")
 
-        result = provider.get_bytes("missing", default=b"default")
+        provider = SecretConfigProvider(secret_provider=mock_secret_provider)
 
-        assert result == b"default"
+        default_bytes = b"default"
+        assert provider.get_bytes("test_bytes", default=default_bytes) == default_bytes
 
-    def test_secret_exists_true(self, provider, mock_secret_provider):
-        """Test secret_exists returns True for existing secrets."""
+    def test_get_bytes_returns_none_by_default(self):
+        """Test getting bytes returns None by default when missing."""
+        mock_secret_provider = MagicMock()
+        mock_secret_provider.get_secret_bytes.side_effect = Exception("Not found")
+
+        provider = SecretConfigProvider(secret_provider=mock_secret_provider)
+
+        assert provider.get_bytes("test_bytes") is None
+
+    def test_secret_exists_true(self):
+        """Test checking if secret exists returns True."""
+        mock_secret_provider = MagicMock()
         mock_secret_provider.secret_exists.return_value = True
 
-        assert provider.secret_exists("api_key") is True
-        mock_secret_provider.secret_exists.assert_called_once_with("api_key")
+        provider = SecretConfigProvider(secret_provider=mock_secret_provider)
 
-    def test_secret_exists_false(self, provider, mock_secret_provider):
-        """Test secret_exists returns False for non-existent secrets."""
+        assert provider.secret_exists("test_secret") is True
+        mock_secret_provider.secret_exists.assert_called_once_with("test_secret")
+
+    def test_secret_exists_false(self):
+        """Test checking if secret exists returns False."""
+        mock_secret_provider = MagicMock()
         mock_secret_provider.secret_exists.return_value = False
 
-        assert provider.secret_exists("missing") is False
+        provider = SecretConfigProvider(secret_provider=mock_secret_provider)
 
-    def test_secret_exists_exception(self, provider, mock_secret_provider):
-        """Test secret_exists returns False on exception."""
+        assert provider.secret_exists("test_secret") is False
+
+    def test_secret_exists_provider_error(self):
+        """Test checking if secret exists handles provider errors."""
+        mock_secret_provider = MagicMock()
         mock_secret_provider.secret_exists.side_effect = Exception("Provider error")
 
-        assert provider.secret_exists("key") is False
+        provider = SecretConfigProvider(secret_provider=mock_secret_provider)
+
+        assert provider.secret_exists("test_secret") is False

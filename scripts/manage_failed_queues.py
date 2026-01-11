@@ -22,6 +22,7 @@ import sys
 from datetime import datetime, timezone
 from typing import Any
 
+from copilot_config import load_driver_config
 from copilot_logging import create_logger
 
 try:
@@ -30,7 +31,13 @@ except ImportError:
     print("Error: pika library not installed. Run: pip install pika", file=sys.stderr)
     sys.exit(1)
 
-logger = create_logger(name=__name__)
+logger_config = load_driver_config(
+    service=None,
+    adapter="logger",
+    driver="stdout",
+    fields={"level": "INFO", "name": __name__}
+)
+logger = create_logger(driver_name="stdout", driver_config=logger_config)
 
 
 class FailedQueueManager:
@@ -444,7 +451,13 @@ For full operational guide, see documents/FAILED_QUEUE_OPERATIONS.md
     # Configure logging
     global logger
     if args.verbose:
-        logger = create_logger(name=__name__, level="DEBUG")
+        logger_config = load_driver_config(
+            service=None,
+            adapter="logger",
+            driver="stdout",
+            fields={"level": "DEBUG", "name": __name__}
+        )
+        logger = create_logger(driver_name="stdout", driver_config=logger_config)
 
     # Create manager
     manager = FailedQueueManager(

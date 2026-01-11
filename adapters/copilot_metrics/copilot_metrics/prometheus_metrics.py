@@ -6,7 +6,9 @@
 import logging
 from typing import Optional
 
-from .metrics import MetricsCollector
+from copilot_config import DriverConfig
+
+from .base import MetricsCollector
 
 logger = logging.getLogger(__name__)
 
@@ -201,3 +203,25 @@ class PrometheusMetricsCollector(MetricsCollector):
             Number of errors that occurred during metrics collection
         """
         return self._metrics_errors_count
+
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "PrometheusMetricsCollector":
+        """Create a PrometheusMetricsCollector from configuration.
+
+        Args:
+            driver_config: DriverConfig instance with optional attributes:
+                - registry: Optional Prometheus registry (default: None)
+                - namespace: Namespace prefix (default: "copilot")
+                - raise_on_error: Whether to raise on metric errors (default: False)
+
+        Returns:
+            Configured PrometheusMetricsCollector instance
+
+        Raises:
+            ImportError: If prometheus_client is not installed
+        """
+        return cls(
+            registry=driver_config.registry,
+            namespace=driver_config.namespace,
+            raise_on_error=driver_config.raise_on_error
+        )

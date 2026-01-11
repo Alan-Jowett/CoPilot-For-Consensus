@@ -17,11 +17,11 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     python /app/adapters/scripts/install_adapters.py \
     copilot_embedding \
     copilot_config \
-    copilot_events \
+    copilot_message_bus \
     copilot_storage \
     copilot_vectorstore \
     copilot_metrics \
-    copilot_reporting \
+    copilot_error_reporting \
     copilot_schema_validation \
     copilot_logging \
     copilot_secrets \

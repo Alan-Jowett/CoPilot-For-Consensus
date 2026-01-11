@@ -1,0 +1,16 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Console error reporter driver settings",
+    "type": "object",
+    "properties": {
+        "logger_name": {
+            "type": "string",
+            "source": "env",
+            "env_var": "LOGGER_NAME",
+            "required": false,
+            "description": "Logger name used by the console reporter (defaults to service logger)"
+        }
+    },
+    "additionalProperties": false
+}

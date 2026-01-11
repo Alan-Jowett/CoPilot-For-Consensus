@@ -31,6 +31,7 @@ setup(
     ],
     python_requires=">=3.10",
     install_requires=[
+        "copilot-config>=0.1.0",  # For DriverConfig
         "python-dotenv>=1.0.0",
         "requests>=2.32.4",
     ],

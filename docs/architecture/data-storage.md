@@ -24,10 +24,10 @@ Interface-based abstraction supporting multiple backends:
 class ArchiveStore(ABC):
     def store(self, path: str, content: bytes) -> str:
         """Store archive, return storage_id"""
-    
+
     def retrieve(self, storage_id: str) -> bytes:
         """Retrieve archive by storage_id"""
-    
+
     def delete(self, storage_id: str) -> None:
         """Delete archive"""
 ```

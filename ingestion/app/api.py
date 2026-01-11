@@ -345,15 +345,15 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
                 raise HTTPException(status_code=400, detail="File is empty")
 
             # Write file to disk
-            logger.debug("Writing file to disk", path=str(file_path))
+            logger.debug("Writing file to disk", file_path=str(file_path))
             try:
                 with open(file_path, "wb") as f:
                     f.write(content)
-                logger.debug("File written successfully", path=str(file_path))
+                logger.debug("File written successfully", file_path=str(file_path))
             except OSError as e:
                 logger.error(
                     "Failed to write file to disk",
-                    path=str(file_path),
+                    file_path=str(file_path),
                     error=str(e),
                     exc_info=True,
                 )
@@ -365,7 +365,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
                 "File uploaded successfully",
                 filename=file_path.name,
                 size_bytes=file_size,
-                path=str(file_path),
+                file_path=str(file_path),
                 uploaded_at=uploaded_at,
             )
 
