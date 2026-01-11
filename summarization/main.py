@@ -16,7 +16,7 @@ from app import __version__
 from app.service import SummarizationService
 from copilot_config import load_service_config, load_driver_config
 from copilot_message_bus import create_publisher, create_subscriber
-from copilot_logging import create_logger, create_uvicorn_log_config
+from copilot_logging import create_logger, create_uvicorn_log_config, set_default_logger
 from copilot_metrics import create_metrics_collector
 from copilot_error_reporting import create_error_reporter
 from copilot_schema_validation import create_schema_provider
@@ -105,9 +105,11 @@ def main():
             )
             logger = service_logger
             log = service_logger
+            set_default_logger(service_logger)
             log.info("Logger initialized from service configuration")
         else:
             logger = log
+            set_default_logger(bootstrap_logger)
             log.warning("No logger adapter found, keeping bootstrap logger")
 
         # Conditionally add JWT authentication middleware based on config

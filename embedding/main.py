@@ -17,7 +17,12 @@ from app.service import EmbeddingService
 from copilot_config import load_service_config
 from copilot_embedding import create_embedding_provider
 from copilot_message_bus import create_publisher, create_subscriber
-from copilot_logging import create_logger, create_stdout_logger, create_uvicorn_log_config
+from copilot_logging import (
+    create_logger,
+    create_stdout_logger,
+    create_uvicorn_log_config,
+    set_default_logger,
+)
 from copilot_metrics import create_metrics_collector
 from copilot_error_reporting import create_error_reporter
 from copilot_schema_validation import create_schema_provider
@@ -105,6 +110,7 @@ def main():
                 driver_name=logger_adapter.driver_name,
                 driver_config=logger_adapter.driver_config
             )
+            set_default_logger(logger)
             logger.info("Logger initialized from service configuration")
 
         # Conditionally add JWT authentication middleware based on config

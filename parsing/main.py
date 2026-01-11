@@ -19,7 +19,7 @@ from copilot_message_bus import (
     create_publisher,
     create_subscriber,
 )
-from copilot_logging import create_logger, create_uvicorn_log_config
+from copilot_logging import create_logger, create_uvicorn_log_config, set_default_logger
 from copilot_metrics import create_metrics_collector
 from copilot_error_reporting import create_error_reporter
 from copilot_schema_validation import create_schema_provider, get_configuration_schema_response
@@ -142,8 +142,10 @@ def main():
                 driver_name=logger_adapter.driver_name,
                 driver_config=logger_adapter.driver_config
             )
+            set_default_logger(log)
             log.info("Logger initialized from service configuration")
         else:
+            set_default_logger(bootstrap_logger)
             log.warning("No logger adapter found, keeping bootstrap logger")
 
         # Create event publisher with schema validation

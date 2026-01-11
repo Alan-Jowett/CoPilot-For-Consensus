@@ -25,7 +25,12 @@ import uvicorn
 from app import SUPPORTED_PROVIDERS, __version__
 from app.config import load_auth_config
 from app.service import AuthService
-from copilot_logging import create_logger, create_stdout_logger, create_uvicorn_log_config
+from copilot_logging import (
+    create_logger,
+    create_stdout_logger,
+    create_uvicorn_log_config,
+    set_default_logger,
+)
 from copilot_metrics import create_metrics_collector
 from copilot_config import DriverConfig
 from fastapi import FastAPI, HTTPException, Query, Request, Response, status
@@ -66,6 +71,7 @@ async def lifespan(app: FastAPI):
             driver_name=logger_adapter.driver_name,
             driver_config=logger_adapter.driver_config
         )
+        set_default_logger(logger)
         logger.info("Logger initialized from service configuration")
 
     # Initialize metrics from config
