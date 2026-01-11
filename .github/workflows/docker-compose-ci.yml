@@ -27,6 +27,14 @@ env:
   # Disable JWT authentication for integration testing (OAuth not available in CI)
   # JWT auth is tested separately in unit/integration tests for each service
   JWT_AUTH_ENABLED: "false"
+  # Explicitly disable per-service JWT auth to override compose defaults
+  CHUNK_JWT_AUTH_ENABLED: "false"
+  EMBEDDING_JWT_AUTH_ENABLED: "false"
+  INGESTION_JWT_AUTH_ENABLED: "false"
+  ORCHESTRATOR_JWT_AUTH_ENABLED: "false"
+  PARSING_JWT_AUTH_ENABLED: "false"
+  REPORTING_JWT_AUTH_ENABLED: "false"
+  SUMMARIZATION_JWT_AUTH_ENABLED: "false"
 
 jobs:
   # Test docker-compose with cached images
