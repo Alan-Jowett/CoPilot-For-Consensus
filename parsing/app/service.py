@@ -3,8 +3,6 @@
 
 """Main parsing service implementation."""
 
-import os
-import tempfile
 import time
 from datetime import datetime, timezone
 from typing import Any
@@ -222,22 +220,10 @@ class ParsingService:
                 )
                 return
 
-            # Write archive content to temporary file for parsing
-            # The parser expects a file path, so we create a temporary file
-            # Use try-finally to ensure cleanup
-            temp_file_path = None
+            # Parse mbox content directly from bytes - no temporary file needed
             try:
-                # Create temp file with prefix for easier identification
-                with tempfile.NamedTemporaryFile(
-                    mode='wb', delete=False, suffix='.mbox', prefix='parsing_'
-                ) as temp_file:
-                    temp_file_path = temp_file.name
-                    temp_file.write(archive_content)
-
-                logger.debug(f"Wrote archive {archive_id} to temporary file {temp_file_path}")
-
-                # Parse mbox file - raises exceptions on failure
-                parsed_messages = self.parser.parse_mbox(temp_file_path, archive_id)
+                # Parse mbox content from bytes - raises exceptions on failure
+                parsed_messages = self.parser.parse_mbox_from_bytes(archive_content, archive_id)
 
                 if not parsed_messages:
                     # No messages parsed (empty archive)
@@ -330,7 +316,7 @@ class ParsingService:
 
                 self._publish_parsing_failed(
                     archive_id,
-                    None,  # Storage-agnostic mode - temp file path is internal detail
+                    None,  # Storage-agnostic mode - no file path
                     error_msg,
                     type(parse_error).__name__,
                     0,
@@ -339,27 +325,7 @@ class ParsingService:
                 # Don't re-raise - let event processing continue gracefully
                 # The error has been recorded in the archive status and event
                 return
-            finally:
-                # Always clean up temporary file
-                if temp_file_path and os.path.exists(temp_file_path):
-                    try:
-                        os.unlink(temp_file_path)
-                        logger.debug(f"Cleaned up temporary file {temp_file_path}")
-                    except Exception as cleanup_error:
-                        # Make cleanup failures clearly visible in logs and error reporting
-                        logger.error(
-                            f"Failed to clean up temporary file {temp_file_path}: {cleanup_error}",
-                            exc_info=True,
-                        )
-                        if self.error_reporter:
-                            self.error_reporter.report(
-                                cleanup_error,
-                                context={
-                                    "archive_id": archive_id,
-                                    "operation": "cleanup_temp_file",
-                                    "temp_file_path": temp_file_path,
-                                },
-                            )
+
 
         except Exception as e:
             duration = time.monotonic() - start_time

@@ -4,8 +4,10 @@
 """Email message parsing from mbox format."""
 
 import email
+import io
 import logging
 import mailbox
+import re
 from datetime import datetime, timezone
 from email.utils import parseaddr, parsedate_to_datetime
 from typing import Any
@@ -93,6 +95,102 @@ class MessageParser:
             error_msg = f"Failed to open or read mbox file {mbox_path}: {str(e)}"
             logger.error(error_msg)
             raise MboxFileError(error_msg, file_path=mbox_path) from e
+
+        return parsed_messages
+
+    def parse_mbox_from_bytes(self, content: bytes, archive_id: str) -> list[dict[str, Any]]:
+        """Parse mbox content from bytes and extract all messages.
+
+        This method parses mbox format directly from bytes without requiring
+        a file path, enabling true storage-agnostic architecture.
+
+        Args:
+            content: Raw mbox content as bytes
+            archive_id: Archive identifier for tracking
+
+        Returns:
+            List of parsed message dictionaries
+
+        Raises:
+            MessageParsingError: If critical parsing errors occur (aggregated)
+        """
+        parsed_messages = []
+        errors = []
+
+        try:
+            # Decode bytes to string for processing
+            # Use 'replace' error handling to avoid UnicodeDecodeError
+            try:
+                text = content.decode('utf-8', errors='replace')
+            except Exception as e:
+                raise MessageParsingError(
+                    f"Failed to decode mbox content: {str(e)}"
+                ) from e
+
+            # Split mbox content into individual messages
+            # Mbox format uses "From " at the start of a line to separate messages
+            # Pattern: "From " at line start (possibly with leading newline)
+            messages_raw = re.split(r'\n(?=From )', text)
+            
+            # Filter out empty sections and trim
+            messages_raw = [msg.strip() for msg in messages_raw if msg.strip()]
+
+            logger.debug(f"Split mbox content into {len(messages_raw)} raw messages")
+
+            # Parse each message
+            for idx, message_text in enumerate(messages_raw):
+                try:
+                    # Skip the "From " line if present and parse the email
+                    # The "From " line is an mbox envelope, not part of the RFC 822 message
+                    lines = message_text.split('\n', 1)
+                    if lines[0].startswith('From '):
+                        # Skip the envelope line
+                        if len(lines) > 1:
+                            email_content = lines[1]
+                        else:
+                            # Empty message after envelope
+                            continue
+                    else:
+                        email_content = message_text
+
+                    # Parse the email message from string
+                    message = email.message_from_string(email_content)
+                    
+                    # Use existing parse_message method
+                    parsed = self.parse_message(message, archive_id)
+                    parsed_messages.append(parsed)
+                    
+                except RequiredFieldMissingError as e:
+                    # Required field missing - skip message but collect error
+                    error_msg = f"Message {idx}: {str(e)}"
+                    logger.warning(error_msg)
+                    errors.append(error_msg)
+                    continue
+                except Exception as e:
+                    # Unexpected parsing error - skip message but collect error
+                    error_msg = f"Failed to parse message {idx}: {str(e)}"
+                    logger.warning(error_msg)
+                    errors.append(error_msg)
+                    continue
+
+            logger.info(f"Parsed {len(parsed_messages)} messages from bytes (archive_id={archive_id})")
+
+            # If we have messages but also errors, just log warnings (already done above)
+            # If we have NO messages and errors, that might indicate a serious problem
+            if not parsed_messages and errors:
+                # All messages failed to parse - raise exception
+                raise MessageParsingError(
+                    f"Failed to parse any messages from bytes. Errors: {'; '.join(errors[:5])}"
+                )
+
+        except MessageParsingError:
+            # Re-raise message parsing errors
+            raise
+        except Exception as e:
+            # Unexpected errors during parsing
+            error_msg = f"Failed to parse mbox content from bytes: {str(e)}"
+            logger.error(error_msg)
+            raise MessageParsingError(error_msg) from e
 
         return parsed_messages
 
