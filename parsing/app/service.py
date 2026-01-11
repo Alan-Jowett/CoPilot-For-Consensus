@@ -8,6 +8,9 @@ from datetime import datetime, timezone
 from typing import Any
 
 from copilot_archive_store import ArchiveStore
+from copilot_config import load_driver_config
+from copilot_error_reporting import ErrorReporter
+from copilot_logging import create_logger
 from copilot_message_bus import (
     ArchiveIngestedEvent,
     EventPublisher,
@@ -15,10 +18,7 @@ from copilot_message_bus import (
     JSONParsedEvent,
     ParsingFailedEvent,
 )
-from copilot_logging import create_logger
-from copilot_config import load_driver_config
 from copilot_metrics import MetricsCollector
-from copilot_error_reporting import ErrorReporter
 from copilot_schema_validation import generate_message_doc_id
 from copilot_storage import DocumentStore
 from copilot_storage.validating_document_store import DocumentValidationError
@@ -26,9 +26,10 @@ from pymongo.errors import DuplicateKeyError
 
 from .parser import MessageParser
 from .thread_builder import ThreadBuilder
-from . import __version__
 
-logger_config = load_driver_config(service=None, adapter="logger", driver="stdout", fields={"name": "parsing", "level": "INFO"})
+logger_config = load_driver_config(
+    service=None, adapter="logger", driver="stdout", fields={"name": "parsing", "level": "INFO"}
+)
 logger = create_logger("stdout", logger_config)
 
 class ParsingService:

@@ -4,7 +4,6 @@
 """Email message parsing from mbox format."""
 
 import email
-import io
 import logging
 import mailbox
 import re
@@ -131,7 +130,7 @@ class MessageParser:
             # Mbox format uses "From " at the start of a line to separate messages
             # Pattern: "From " at line start (possibly with leading newline)
             messages_raw = re.split(r'\n(?=From )', text)
-            
+
             # Filter out empty sections and trim
             messages_raw = [msg.strip() for msg in messages_raw if msg.strip()]
 
@@ -155,11 +154,11 @@ class MessageParser:
 
                     # Parse the email message from string
                     message = email.message_from_string(email_content)
-                    
+
                     # Use existing parse_message method
                     parsed = self.parse_message(message, archive_id)
                     parsed_messages.append(parsed)
-                    
+
                 except RequiredFieldMissingError as e:
                     # Required field missing - skip message but collect error
                     error_msg = f"Message {idx}: {str(e)}"

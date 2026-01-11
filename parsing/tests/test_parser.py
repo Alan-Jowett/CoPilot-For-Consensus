@@ -201,7 +201,7 @@ Body with invalid UTF-8 \xff\xfe sequence
 
         # Should handle gracefully with 'replace' error handling
         messages = parser.parse_mbox_from_bytes(content, "test-archive-bytes-3")
-        
+
         # Should still parse the message
         assert len(messages) == 1
         assert messages[0]["message_id"] == "test@example.com"
