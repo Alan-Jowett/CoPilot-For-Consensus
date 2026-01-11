@@ -316,3 +316,42 @@ class TestKeyVaultJWTSignerEC:
         assert jwk["crv"] == "P-256"
         assert "x" in jwk
         assert "y" in jwk
+
+    def test_health_check_failure(self, mock_azure_clients):
+        """Test health_check returns False when signer is in unhealthy state."""
+        mock_azure_clients["crypto_client"].sign.side_effect = ServiceRequestError("Network error")
+        
+        signer = KeyVaultJWTSigner(
+            algorithm="RS256",
+            key_vault_url="https://test.vault.azure.net/",
+            key_name="test-key"
+        )
+        
+        # Health check should return False when sign fails
+        result = signer.health_check()
+        assert result is False
+
+    def test_health_check_with_circuit_breaker_open(self, mock_azure_clients):
+        """Test health_check returns False when circuit breaker is open."""
+        mock_azure_clients["crypto_client"].sign.side_effect = ServiceRequestError("Network error")
+        
+        signer = KeyVaultJWTSigner(
+            algorithm="RS256",
+            key_vault_url="https://test.vault.azure.net/",
+            key_name="test-key",
+            max_retries=1,
+            circuit_breaker_threshold=2,
+            circuit_breaker_timeout=60
+        )
+        
+        # Fail sign operations to open circuit breaker
+        for _ in range(2):
+            try:
+                signer.sign(b"test")
+            except KeyVaultSignerError:
+                pass
+        
+        # Health check should return False when circuit is open
+        result = signer.health_check()
+        assert result is False
+

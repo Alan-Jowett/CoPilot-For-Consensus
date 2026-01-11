@@ -313,6 +313,17 @@ class TestJWTKeyVaultSigningIntegration:
             
             # Verify sign was called
             assert mock_crypto_client_instance.sign.called
+            
+            # NEW: Verify token can be validated (end-to-end test)
+            # This tests that tokens minted with Key Vault signer can be decoded
+            try:
+                decoded = service.jwt_manager.validate_token(token, audience="test-audience")
+                assert decoded is not None
+                assert decoded["sub"] == "github:12345"
+                assert decoded["email"] == "test@example.com"
+            except Exception as e:
+                # If validation fails, it indicates encoding incompatibility
+                pytest.fail(f"Token validation failed: {e}")
 
     @patch('azure.identity.DefaultAzureCredential')
     @patch('azure.keyvault.keys.KeyClient')

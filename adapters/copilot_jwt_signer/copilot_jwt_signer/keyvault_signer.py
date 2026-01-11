@@ -5,15 +5,14 @@
 
 import base64
 import hashlib
+import logging
 import time
 from typing import Any
-
-from copilot_logging import create_logger
 
 from .exceptions import CircuitBreakerOpenError, KeyVaultSignerError
 from .signer import JWTSigner
 
-logger = create_logger(logger_type="stdout", level="INFO", name="copilot_jwt_signer.keyvault")
+logger = logging.getLogger("copilot_jwt_signer.keyvault")
 
 
 class CircuitBreaker:
@@ -373,9 +372,24 @@ class KeyVaultJWTSigner(JWTSigner):
             
         Raises:
             KeyVaultSignerError: If public key retrieval fails
+            
+        Note:
+            Public keys are cached indefinitely. When using key_version=None (latest),
+            the CryptographyClient will automatically use new key versions for signing,
+            but this method will continue returning the cached old public key. This creates
+            a critical mismatch where tokens are signed with the new key but JWKS advertises
+            the old public key, causing all token validations to fail.
+            
+            For production use with automatic key rotation:
+            - Either restart the service after key rotation to reload public keys
+            - Or specify an explicit key_version for predictable behavior
+            
+            For zero-downtime rotation with key_version=None, implement cache invalidation
+            or TTL logic.
         """
         try:
             # Use cached public key if available
+            # WARNING: When key_version=None, this cache can become stale after key rotation
             if self._public_key_cache:
                 return self._public_key_cache
             

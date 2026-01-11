@@ -57,7 +57,7 @@ class JWTManager:
         secret_key: str | None = None,
         key_id: str | None = None,
         default_expiry: int = 1800,  # 30 minutes
-        signer = None,  # Optional: JWTSigner instance from copilot_jwt_signer
+        signer: "JWTSigner | None" = None,  # Optional: JWTSigner instance from copilot_jwt_signer
     ):
         """Initialize JWT manager.
 
@@ -224,10 +224,10 @@ class JWTManager:
             Signed JWT token string
             
         Note:
-            Uses json.dumps with compact separators to match PyJWT's encoding.
-            PyJWT uses the same approach (json.dumps with separators=(',', ':'))
-            as seen in jwt/api_jwt.py:_encode_payload. This ensures full compatibility
-            with standard JWT libraries for token verification.
+            Uses json.dumps with compact separators (separators=(',', ':')) and
+            base64url encoding to follow the JWT compact serialization defined in
+            RFC 7519. This ensures interoperability with standard JWT libraries
+            for token verification.
         """
         # Encode header and payload as base64url
         header_b64 = self._base64url_encode(json.dumps(headers, separators=(',', ':')).encode('utf-8'))

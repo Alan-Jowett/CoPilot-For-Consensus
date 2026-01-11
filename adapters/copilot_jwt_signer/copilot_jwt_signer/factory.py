@@ -3,15 +3,14 @@
 
 """Factory for creating JWT signer instances."""
 
+import logging
 from pathlib import Path
-
-from copilot_logging import create_logger
 
 from .exceptions import JWTSignerError
 from .local_signer import LocalJWTSigner
 from .signer import JWTSigner
 
-logger = create_logger(logger_type="stdout", level="INFO", name="copilot_jwt_signer.factory")
+logger = logging.getLogger("copilot_jwt_signer.factory")
 
 
 def create_jwt_signer(

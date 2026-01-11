@@ -231,7 +231,16 @@ New instances use the new key immediately. Old tokens remain valid.
 
 **Option B: Latest Version (Automatic)**
 
-If `JWT_KEY_VAULT_KEY_VERSION` is not set, the service always uses the latest key version. This allows automatic rotation but requires careful coordination.
+If `JWT_KEY_VAULT_KEY_VERSION` is not set, the service always uses the latest key version. This allows automatic rotation but requires careful coordination, because the auth service maintains an in-memory cache of public keys for the JWKS endpoint.
+
+When running with `JWT_KEY_VAULT_KEY_VERSION` unset, a key rotation in Azure Key Vault will cause the service to start signing with the new key version, but it may continue serving the old public key from JWKS until the service process is restarted or the cache is explicitly refreshed. During this window, newly issued tokens can fail validation by clients that rely on JWKS.
+
+If you use this automatic-latest mode, you MUST either:
+
+- restart all auth service instances immediately after rotating the Key Vault key so they reload the latest public key(s), or
+- implement a cache invalidation / reload strategy in the auth service so that JWKS always reflects the active key version(s).
+
+Coordinate this behavior with your clients' JWKS refresh intervals to avoid token validation failures during rotation.
 
 #### 3. Verify JWKS Endpoint
 
