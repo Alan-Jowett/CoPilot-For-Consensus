@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Semantic Chunker driver",
+    "type": "object",
+    "properties": {
+        "target_chunk_size": {
+            "type": "integer",
+            "source": "env",
+            "env_var": "CHUNK_SIZE_TOKENS",
+            "default": 400,
+            "description": "Target chunk size in tokens"
+        },
+        "split_on_speaker": {
+            "type": "boolean",
+            "source": "env",
+            "env_var": "CHUNK_SPLIT_ON_SPEAKER",
+            "default": false,
+            "description": "Split on speaker changes"
+        }
+    },
+    "additionalProperties": false
+}

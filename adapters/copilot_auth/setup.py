@@ -36,6 +36,7 @@ setup(
         "cryptography>=46.0.3",  # For JWT key management (aligned with service requirements)
         "pydantic>=2.4.0",  # For configuration and validation
         "starlette>=0.49.1",  # For middleware base classes
+        "copilot-config>=0.1.0",  # For DriverConfig
         "copilot-logging>=0.1.0",  # For logging utilities
     ],
     extras_require={

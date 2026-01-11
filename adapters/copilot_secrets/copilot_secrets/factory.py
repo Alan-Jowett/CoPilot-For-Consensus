@@ -3,43 +3,64 @@
 
 """Factory for creating secret providers."""
 
-from typing import Any
+import logging
+
+from copilot_config import DriverConfig
 
 from .azurekeyvault_provider import AzureKeyVaultProvider
 from .exceptions import SecretProviderError
 from .local_provider import LocalFileSecretProvider
 from .provider import SecretProvider
 
+logger = logging.getLogger(__name__)
 
-def create_secret_provider(provider_type: str, **kwargs: Any) -> SecretProvider:
-    """Factory function to create secret providers.
+
+def create_secret_provider(
+    driver_name: str,
+    driver_config: DriverConfig
+) -> SecretProvider:
+    """Create a secret provider based on driver type and configuration.
+
+    This factory requires a DriverConfig object to ensure consistent configuration
+    handling throughout the codebase. Configuration validation and defaults are
+    applied by the DriverConfig object before being passed to this factory.
 
     Args:
-        provider_type: Type of provider to create ("local", "azure", etc.)
-        **kwargs: Provider-specific configuration
+        driver_name: Type of provider to create ("local", "azure", "azurekeyvault")
+        driver_config: DriverConfig instance with provider-specific attributes:
+                      - local: base_path (optional)
+                      - azure/azurekeyvault: vault_url or vault_name (at least one required)
 
     Returns:
         SecretProvider instance
 
     Raises:
-        SecretProviderError: If provider_type is unknown
-
-    Example:
-        >>> provider = create_secret_provider("local", base_path="/app/secrets")
+        SecretProviderError: If driver_name is unknown
+        SecretProviderError: If driver_config is not a DriverConfig instance
+        AttributeError: If required config attributes are missing
     """
-    providers: dict[str, type] = {
-        "local": LocalFileSecretProvider,
-        "azure": AzureKeyVaultProvider,
-        "azurekeyvault": AzureKeyVaultProvider,  # Alias for azure
-        # Future: "aws": AWSSecretsManagerProvider,
-        # Future: "gcp": GCPSecretManagerProvider,
-    }
-
-    if provider_type not in providers:
+    if not driver_name:
         raise SecretProviderError(
-            f"Unknown provider type: {provider_type}. "
-            f"Available: {', '.join(providers.keys())}"
+            "driver_name parameter is required. "
+            "Must be one of: local, azure, azurekeyvault"
         )
 
-    provider_class = providers[provider_type]
-    return provider_class(**kwargs)
+    if not isinstance(driver_config, DriverConfig):
+        raise SecretProviderError(
+            f"driver_config must be a DriverConfig instance, "
+            f"got {type(driver_config).__name__}"
+        )
+
+    driver_lower = driver_name.lower()
+
+    if driver_lower == "local":
+        return LocalFileSecretProvider.from_config(driver_config)
+
+    elif driver_lower in ("azure", "azurekeyvault"):
+        return AzureKeyVaultProvider.from_config(driver_config)
+
+    else:
+        raise SecretProviderError(
+            f"Unknown secret provider driver: {driver_name}. "
+            f"Supported drivers: local, azure, azurekeyvault"
+        )

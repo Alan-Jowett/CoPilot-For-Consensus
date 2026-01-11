@@ -30,7 +30,7 @@ setup(
     ],
     python_requires=">=3.10",
     install_requires=[
-        # No required dependencies for NoOp collector
+        "copilot-config>=0.1.0",  # For DriverConfig
     ],
     extras_require={
         "dev": [

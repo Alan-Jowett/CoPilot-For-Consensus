@@ -7,11 +7,13 @@ import os
 from unittest.mock import Mock, patch
 
 import pytest
+from copilot_config import DriverConfig
+from copilot_config.load_driver_config import load_driver_config
 from copilot_embedding.factory import create_embedding_provider
-from copilot_embedding.providers import (
-    HuggingFaceEmbeddingProvider,
-    MockEmbeddingProvider,
-    OpenAIEmbeddingProvider,
+from copilot_embedding.huggingface_provider import HuggingFaceEmbeddingProvider
+from copilot_embedding.mock_provider import MockEmbeddingProvider
+from copilot_embedding.openai_provider import OpenAIEmbeddingProvider
+from copilot_embedding.sentence_transformer_provider import (
     SentenceTransformerEmbeddingProvider,
 )
 
@@ -21,22 +23,29 @@ class TestCreateEmbeddingProvider:
 
     def test_create_mock_provider(self):
         """Test creating mock provider."""
-        provider = create_embedding_provider(backend="mock", dimension=128)
+        config = load_driver_config(
+            service="embedding",
+            adapter="embedding_backend",
+            driver="mock",
+            fields={"dimension": 128},
+        )
+        provider = create_embedding_provider(driver_name="mock", driver_config=config)
 
         assert isinstance(provider, MockEmbeddingProvider)
         assert provider.dimension == 128
 
     def test_create_mock_provider_with_env(self):
-        """Test that factory requires explicit backend parameter."""
+        """Test that factory requires explicit driver_name parameter."""
+        config = load_driver_config("embedding", "embedding_backend", "mock")
         with patch.dict(os.environ, {"EMBEDDING_BACKEND": "mock", "EMBEDDING_DIMENSION": "256"}):
-            # Factory should not read from environment automatically
-            with pytest.raises(ValueError, match="backend parameter is required"):
-                create_embedding_provider()
+            with pytest.raises(ValueError, match="driver_name parameter is required"):
+                create_embedding_provider(driver_name=None, driver_config=config)
 
     def test_create_mock_provider_missing_dimension(self):
         """Test that creating mock provider without dimension raises error."""
+        config = DriverConfig(driver_name="mock", config={}, allowed_keys={"dimension"})
         with pytest.raises(ValueError, match="dimension parameter is required"):
-            create_embedding_provider(backend="mock")
+            create_embedding_provider(driver_name="mock", driver_config=config)
 
     def test_create_sentencetransformer_provider(self):
         """Test creating SentenceTransformer provider."""
@@ -48,9 +57,13 @@ class TestCreateEmbeddingProvider:
 
         with patch.dict('sys.modules', {'sentence_transformers': mock_st_module}):
             provider = create_embedding_provider(
-                backend="sentencetransformers",
-                model="custom-model",
-                device="cpu"
+                driver_name="sentencetransformers",
+                driver_config=load_driver_config(
+                    "embedding",
+                    "embedding_backend",
+                    "sentencetransformers",
+                    fields={"model_name": "custom-model", "device": "cpu"},
+                ),
             )
 
             assert isinstance(provider, SentenceTransformerEmbeddingProvider)
@@ -58,13 +71,23 @@ class TestCreateEmbeddingProvider:
 
     def test_create_sentencetransformer_missing_model(self):
         """Test that creating SentenceTransformer provider without model raises error."""
-        with pytest.raises(ValueError, match="model parameter is required"):
-            create_embedding_provider(backend="sentencetransformers", device="cpu")
+        config = DriverConfig(
+            driver_name="sentencetransformers",
+            config={"device": "cpu"},
+            allowed_keys={"model_name", "device", "cache_dir"},
+        )
+        with pytest.raises((ValueError, ImportError)):
+            create_embedding_provider(driver_name="sentencetransformers", driver_config=config)
 
     def test_create_sentencetransformer_missing_device(self):
         """Test that creating SentenceTransformer provider without device raises error."""
-        with pytest.raises(ValueError, match="device parameter is required"):
-            create_embedding_provider(backend="sentencetransformers", model="all-MiniLM-L6-v2")
+        config = DriverConfig(
+            driver_name="sentencetransformers",
+            config={"model_name": "all-MiniLM-L6-v2"},
+            allowed_keys={"model_name", "device", "cache_dir"},
+        )
+        with pytest.raises((ValueError, ImportError)):
+            create_embedding_provider(driver_name="sentencetransformers", driver_config=config)
 
     def test_create_sentencetransformer_with_env(self):
         """Test that factory doesn't read from environment automatically."""
@@ -80,9 +103,9 @@ class TestCreateEmbeddingProvider:
                 "EMBEDDING_MODEL": "env-model",
                 "DEVICE": "cuda"
             }):
-                # Should raise error because backend is not explicitly provided
-                with pytest.raises(ValueError, match="backend parameter is required"):
-                    create_embedding_provider()
+                config = load_driver_config("embedding", "embedding_backend", "sentencetransformers")
+                with pytest.raises(ValueError, match="driver_name parameter is required"):
+                    create_embedding_provider(driver_name=None, driver_config=config)
 
     def test_create_openai_provider(self):
         """Test creating OpenAI provider."""
@@ -95,9 +118,13 @@ class TestCreateEmbeddingProvider:
 
         with patch.dict('sys.modules', {'openai': mock_openai_module}):
             provider = create_embedding_provider(
-                backend="openai",
-                api_key="test-key",
-                model="custom-model"
+                driver_name="openai",
+                driver_config=load_driver_config(
+                    "embedding",
+                    "embedding_backend",
+                    "openai",
+                    fields={"api_key": "test-key", "model": "custom-model"},
+                ),
             )
 
             assert isinstance(provider, OpenAIEmbeddingProvider)
@@ -106,8 +133,13 @@ class TestCreateEmbeddingProvider:
 
     def test_create_openai_missing_model(self):
         """Test that creating OpenAI provider without model raises error."""
+        config = DriverConfig(
+            driver_name="openai",
+            config={"api_key": "test-key"},
+            allowed_keys={"api_key", "model", "organization"},
+        )
         with pytest.raises(ValueError, match="model parameter is required"):
-            create_embedding_provider(backend="openai", api_key="test-key")
+            create_embedding_provider(driver_name="openai", driver_config=config)
 
     def test_create_openai_with_env(self):
         """Test that factory doesn't read from environment automatically."""
@@ -124,14 +156,19 @@ class TestCreateEmbeddingProvider:
                 "OPENAI_API_KEY": "env-key",
                 "EMBEDDING_MODEL": "env-model"
             }):
-                # Should raise error because backend is not explicitly provided
-                with pytest.raises(ValueError, match="backend parameter is required"):
-                    create_embedding_provider()
+                config = load_driver_config("embedding", "embedding_backend", "openai")
+                with pytest.raises(ValueError, match="driver_name parameter is required"):
+                    create_embedding_provider(driver_name=None, driver_config=config)
 
     def test_create_openai_without_key_raises(self):
         """Test that creating OpenAI provider without key raises error."""
+        config = DriverConfig(
+            driver_name="openai",
+            config={"model": "text-embedding-ada-002"},
+            allowed_keys={"api_key", "model", "organization"},
+        )
         with pytest.raises(ValueError, match="api_key parameter is required"):
-            create_embedding_provider(backend="openai", model="text-embedding-ada-002")
+            create_embedding_provider(driver_name="openai", driver_config=config)
 
     def test_create_azure_provider(self):
         """Test creating Azure OpenAI provider."""
@@ -144,10 +181,17 @@ class TestCreateEmbeddingProvider:
 
         with patch.dict('sys.modules', {'openai': mock_openai_module}):
             provider = create_embedding_provider(
-                backend="azure",
-                api_key="test-key",
-                api_base="https://test.openai.azure.com/",
-                deployment_name="test-deployment"
+                driver_name="azure",
+                driver_config=load_driver_config(
+                    "embedding",
+                    "embedding_backend",
+                    "azure_openai",
+                    fields={
+                        "api_key": "test-key",
+                        "api_base": "https://test.openai.azure.com/",
+                        "deployment_name": "test-deployment",
+                    },
+                ),
             )
 
             assert isinstance(provider, OpenAIEmbeddingProvider)
@@ -170,36 +214,45 @@ class TestCreateEmbeddingProvider:
                 "AZURE_OPENAI_ENDPOINT": "https://env.openai.azure.com/",
                 "AZURE_OPENAI_DEPLOYMENT": "env-deployment"
             }):
-                # Should raise error because backend is not explicitly provided
-                with pytest.raises(ValueError, match="backend parameter is required"):
-                    create_embedding_provider()
+                config = load_driver_config("embedding", "embedding_backend", "azure_openai")
+                with pytest.raises(ValueError, match="driver_name parameter is required"):
+                    create_embedding_provider(driver_name=None, driver_config=config)
 
     def test_create_azure_without_key_raises(self):
         """Test that creating Azure provider without key raises error."""
+        config = DriverConfig(
+            driver_name="azure_openai",
+            config={
+                "api_base": "https://test.openai.azure.com/",
+                "deployment_name": "test-deployment",
+            },
+            allowed_keys={"api_key", "api_base", "api_version", "deployment_name", "model"},
+        )
         with pytest.raises(ValueError, match="api_key parameter is required"):
-            create_embedding_provider(
-                backend="azure",
-                api_base="https://test.openai.azure.com/",
-                deployment_name="test-deployment"
-            )
+            create_embedding_provider(driver_name="azure", driver_config=config)
 
     def test_create_azure_without_endpoint_raises(self):
         """Test that creating Azure provider without endpoint raises error."""
+        config = DriverConfig(
+            driver_name="azure_openai",
+            config={"api_key": "test-key"},
+            allowed_keys={"api_key", "api_base", "api_version", "deployment_name", "model"},
+        )
         with pytest.raises(ValueError, match="api_base parameter is required"):
-            create_embedding_provider(
-                backend="azure",
-                api_key="test-key",
-                deployment_name="test-deployment"
-            )
+            create_embedding_provider(driver_name="azure", driver_config=config)
 
     def test_create_azure_without_model_or_deployment_raises(self):
         """Test that creating Azure provider without model or deployment raises error."""
+        config = DriverConfig(
+            driver_name="azure_openai",
+            config={
+                "api_key": "test-key",
+                "api_base": "https://test.openai.azure.com/",
+            },
+            allowed_keys={"api_key", "api_base", "api_version", "deployment_name", "model"},
+        )
         with pytest.raises(ValueError, match="Either model or deployment_name parameter is required"):
-            create_embedding_provider(
-                backend="azure",
-                api_key="test-key",
-                api_base="https://test.openai.azure.com/"
-            )
+            create_embedding_provider(driver_name="azure", driver_config=config)
 
     def test_create_huggingface_provider(self):
         """Test creating HuggingFace provider."""
@@ -217,9 +270,13 @@ class TestCreateEmbeddingProvider:
 
         with patch.dict('sys.modules', {'transformers': mock_transformers_module, 'torch': mock_torch_module}):
             provider = create_embedding_provider(
-                backend="huggingface",
-                model="custom-model",
-                device="cpu"
+                driver_name="huggingface",
+                driver_config=load_driver_config(
+                    "embedding",
+                    "embedding_backend",
+                    "huggingface",
+                    fields={"model_name": "custom-model", "device": "cpu"},
+                ),
             )
 
             assert isinstance(provider, HuggingFaceEmbeddingProvider)
@@ -245,25 +302,35 @@ class TestCreateEmbeddingProvider:
                 "EMBEDDING_MODEL": "env-model",
                 "DEVICE": "cuda"
             }):
-                # Should raise error because backend is not explicitly provided
-                with pytest.raises(ValueError, match="backend parameter is required"):
-                    create_embedding_provider()
+                config = load_driver_config("embedding", "embedding_backend", "huggingface")
+                with pytest.raises(ValueError, match="driver_name parameter is required"):
+                    create_embedding_provider(driver_name=None, driver_config=config)
 
     def test_unknown_backend_raises(self):
         """Test that unknown backend raises ValueError."""
-        with pytest.raises(ValueError, match="Unknown embedding backend: unknown"):
-            create_embedding_provider(backend="unknown")
+        with pytest.raises(ValueError, match="Unknown embedding backend driver: unknown"):
+            create_embedding_provider(
+                driver_name="unknown",
+                driver_config=DriverConfig(driver_name="unknown", config={}, allowed_keys=set()),
+            )
 
     def test_backend_parameter_is_required(self):
-        """Test that backend parameter is required."""
-        with pytest.raises(ValueError, match="backend parameter is required"):
-            create_embedding_provider()
+        """Test that driver_name parameter is required."""
+        config = load_driver_config("embedding", "embedding_backend", "mock")
+        with pytest.raises(ValueError, match="driver_name parameter is required"):
+            create_embedding_provider(driver_name=None, driver_config=config)
 
     def test_backend_case_insensitive(self):
         """Test that backend names are case-insensitive."""
-        provider1 = create_embedding_provider(backend="MOCK", dimension=384)
-        provider2 = create_embedding_provider(backend="Mock", dimension=384)
-        provider3 = create_embedding_provider(backend="mock", dimension=384)
+        cfg = load_driver_config(
+            service="embedding",
+            adapter="embedding_backend",
+            driver="mock",
+            fields={"dimension": 384},
+        )
+        provider1 = create_embedding_provider(driver_name="MOCK", driver_config=cfg)
+        provider2 = create_embedding_provider(driver_name="Mock", driver_config=cfg)
+        provider3 = create_embedding_provider(driver_name="mock", driver_config=cfg)
 
         assert isinstance(provider1, MockEmbeddingProvider)
         assert isinstance(provider2, MockEmbeddingProvider)

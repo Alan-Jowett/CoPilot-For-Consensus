@@ -21,7 +21,7 @@ The `copilot_startup` adapter enables services to scan for incomplete documents 
 ```python
 from copilot_startup import StartupRequeue
 from copilot_storage import DocumentStore
-from copilot_events import EventPublisher
+from copilot_message_bus import EventPublisher
 from copilot_metrics import MetricsCollector
 
 # Initialize requeue utility

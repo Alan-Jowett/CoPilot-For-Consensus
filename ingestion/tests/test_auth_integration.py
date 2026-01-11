@@ -125,6 +125,7 @@ def client_with_auth(mock_service, mock_jwks):
     """Create test client with mocked auth."""
     from app import __version__
     from app.api import create_api_router
+    from copilot_config import load_driver_config
     from copilot_logging import create_logger
     from fastapi import FastAPI, Request
     from fastapi.responses import JSONResponse
@@ -237,7 +238,8 @@ def client_with_auth(mock_service, mock_jwks):
     test_app.add_middleware(MockAuthMiddleware)
 
     # Add the API router to the app
-    logger = create_logger(logger_type="stdout", level="INFO", name="test")
+    logger_config = load_driver_config(service=None, adapter="logger", driver="stdout", fields={"level": "INFO", "name": "test"})
+    logger = create_logger(driver_name="stdout", driver_config=logger_config)
     api_router = create_api_router(mock_service, logger)
     test_app.include_router(api_router)
 

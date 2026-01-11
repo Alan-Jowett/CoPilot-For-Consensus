@@ -6,13 +6,15 @@
 
 import os
 import sys
+from pathlib import Path
 
 # Add app to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.service import ParsingService
-from copilot_events import NoopPublisher, NoopSubscriber
-from copilot_storage import InMemoryDocumentStore
+from copilot_message_bus import create_publisher, create_subscriber
+from copilot_schema_validation import create_schema_provider
+from copilot_storage import create_document_store
 
 
 def main():
@@ -20,13 +22,24 @@ def main():
 
     # Setup
     print("Setting up parsing service...")
-    document_store = InMemoryDocumentStore()
+    schema_dir = Path(__file__).parent.parent.parent / "docs" / "schemas" / "documents"
+    schema_provider = create_schema_provider(schema_dir=schema_dir, schema_type="documents")
+
+    document_store = create_document_store(
+        driver_name="inmemory",
+        driver_config={"schema_provider": schema_provider},
+        enable_validation=True,
+    )
     document_store.connect()
 
-    publisher = NoopPublisher()
+    publisher = create_publisher(driver_name="noop", driver_config={}, enable_validation=False)
     publisher.connect()
 
-    subscriber = NoopSubscriber()
+    subscriber = create_subscriber(
+        driver_name="noop",
+        driver_config={"queue_name": "json.parsed"},
+        enable_validation=False,
+    )
     subscriber.connect()
 
     service = ParsingService(
@@ -81,7 +94,7 @@ def main():
         print(f"    Drafts: {thread['draft_mentions']}")
         print()
 
-    print("\n✅ Test completed successfully!")
+        print("\nOK: Test completed successfully!")
     return 0
 
 if __name__ == "__main__":

@@ -204,25 +204,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
         run: |
           pip install pyyaml openapi-spec-validator
-      
+
       - name: Validate OpenAPI spec
         run: |
           openapi-spec-validator infra/gateway/openapi.yaml
-      
+
       - name: Generate all provider configurations
         run: |
           cd infra/gateway
           ./generate_gateway_config.py --provider all --output ../../dist/gateway
-      
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:

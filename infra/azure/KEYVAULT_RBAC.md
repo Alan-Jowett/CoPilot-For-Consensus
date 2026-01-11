@@ -337,6 +337,6 @@ When adding a new service that needs Key Vault access:
 
 ---
 
-**Last Updated:** 2026-01-01  
-**Related Issues:** #664 (Critical: Key Vault access policies grant excessive permissions)  
+**Last Updated:** 2026-01-01
+**Related Issues:** #664 (Critical: Key Vault access policies grant excessive permissions)
 **Related PRs:** [This PR implementing per-secret RBAC]

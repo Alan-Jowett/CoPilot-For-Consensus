@@ -58,10 +58,10 @@ Grafana admin credentials should be rotated regularly as part of security best p
    ```bash
    # Update username (if needed)
    echo -n "admin" > secrets/grafana_admin_user
-   
+
    # Update password
    echo -n "$NEW_PASSWORD" > secrets/grafana_admin_password
-   
+
    # Or use your preferred method to edit the files
    ```
 
@@ -69,7 +69,7 @@ Grafana admin credentials should be rotated regularly as part of security best p
    ```powershell
    # Update username (if needed)
    "admin" | Out-File -FilePath secrets/grafana_admin_user -NoNewline
-   
+
    # Update password
    $NEW_PASSWORD | Out-File -FilePath secrets/grafana_admin_password -NoNewline
    ```
@@ -137,20 +137,20 @@ Grafana admin credentials should be rotated regularly as part of security best p
    ```bash
    # Set the Key Vault name
    KV_NAME="<your-keyvault-name>"
-   
+
    # Update admin username (if needed)
    az keyvault secret set \
      --vault-name "$KV_NAME" \
      --name grafana-admin-user \
      --value "admin"
-   
+
    # Update admin password with a strong random password
    NEW_PASSWORD=$(openssl rand -base64 32 | tr -d '\n')
    az keyvault secret set \
      --vault-name "$KV_NAME" \
      --name grafana-admin-password \
      --value "$NEW_PASSWORD"
-   
+
    # Save the password securely for verification
    echo "New Grafana admin password: $NEW_PASSWORD"
    ```
@@ -158,13 +158,13 @@ Grafana admin credentials should be rotated regularly as part of security best p
    **PowerShell (Windows):**
    ```powershell
    $KV_NAME = "<your-keyvault-name>"
-   
+
    # Generate a 24-character password using uppercase, lowercase, digits, and special characters
    # Character ranges: 65-90 (A-Z), 97-122 (a-z), 48-57 (0-9), special chars (!#$%&*+)
    $NEW_PASSWORD = -join ((65..90) + (97..122) + (48..57) + (33,35,36,37,38,42,43) | Get-Random -Count 24 | % {[char]$_})
    az keyvault secret set --vault-name $KV_NAME --name grafana-admin-user --value "admin"
    az keyvault secret set --vault-name $KV_NAME --name grafana-admin-password --value $NEW_PASSWORD
-   
+
    Write-Host "New Grafana admin password: $NEW_PASSWORD"
    ```
 
@@ -177,7 +177,7 @@ Grafana admin credentials should be rotated regularly as part of security best p
    GRAFANA_APP_NAME=$(az containerapp list \
      --resource-group <resource-group-name> \
      --query "[?contains(name, 'grafana')].name" -o tsv)
-   
+
    # Restart the Container App to create a new revision
    az containerapp revision restart \
      --resource-group <resource-group-name> \
@@ -318,7 +318,7 @@ Azure Key Vault maintains version history, making rollback straightforward:
 
    ```bash
    PREVIOUS_SECRET_URI="<previous-version-uri-from-step-1>"
-   
+
    # Update to use specific secret version
    az containerapp update \
      --resource-group <resource-group-name> \
@@ -345,7 +345,7 @@ Azure Key Vault maintains version history, making rollback straightforward:
    # Local
    cat secrets/grafana_admin_user
    cat secrets/grafana_admin_password
-   
+
    # Azure
    az keyvault secret show --vault-name "$KV_NAME" --name grafana-admin-user --query value -o tsv
    ```

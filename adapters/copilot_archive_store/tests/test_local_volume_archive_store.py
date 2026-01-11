@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from copilot_archive_store import LocalVolumeArchiveStore
+from copilot_archive_store.local_volume_archive_store import LocalVolumeArchiveStore
 
 
 @pytest.fixture

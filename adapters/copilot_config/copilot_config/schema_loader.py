@@ -5,10 +5,92 @@
 
 import json
 import os
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from .config import ConfigProvider, EnvConfigProvider, StaticConfigProvider
+
+class ConfigProvider(ABC):
+    """Abstract base class for configuration providers."""
+
+    @abstractmethod
+    def get(self, key: str, default: Any = None) -> Any:
+        """Get a configuration value."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_bool(self, key: str, default: bool = False) -> bool:
+        """Get a boolean configuration value."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_int(self, key: str, default: int = 0) -> int:
+        """Get an integer configuration value."""
+        raise NotImplementedError
+
+
+class EnvConfigProvider(ConfigProvider):
+    """Configuration provider that reads from environment variables."""
+
+    def __init__(self, environ: dict[str, str] | None = None):
+        self._environ = environ if environ is not None else os.environ
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return self._environ.get(key, default)
+
+    def get_bool(self, key: str, default: bool = False) -> bool:
+        value = self._environ.get(key)
+        if value is None:
+            return default
+
+        value_lower = value.lower()
+        if value_lower in ("true", "1", "yes", "on"):
+            return True
+        if value_lower in ("false", "0", "no", "off"):
+            return False
+        return default
+
+    def get_int(self, key: str, default: int = 0) -> int:
+        value = self._environ.get(key)
+        if value is None:
+            return default
+        try:
+            return int(value)
+        except ValueError:
+            return default
+
+
+class StaticConfigProvider(ConfigProvider):
+    """Configuration provider that reads from a static dictionary."""
+
+    def __init__(self, config: dict[str, Any] | None = None):
+        self._config = config or {}
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return self._config.get(key, default)
+
+    def get_bool(self, key: str, default: bool = False) -> bool:
+        value = self._config.get(key)
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            value_lower = value.lower()
+            if value_lower in ("true", "1", "yes", "on"):
+                return True
+            if value_lower in ("false", "0", "no", "off"):
+                return False
+        return default
+
+    def get_int(self, key: str, default: int = 0) -> int:
+        value = self._config.get(key)
+        if value is None:
+            return default
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return default
 
 
 def _resolve_schema_directory(schema_dir: str | None = None) -> str:
@@ -29,17 +111,29 @@ def _resolve_schema_directory(schema_dir: str | None = None) -> str:
         return schema_dir_env
 
     # Try common locations relative to current working directory
-    possible_dirs = [
-        os.path.join(os.getcwd(), "docs", "schemas", "configs"),
-        os.path.join(os.getcwd(), "..", "docs", "schemas", "configs"),
-    ]
+    cwd = os.getcwd()
+    possible_dirs: list[str] = []
+
+    for base in (cwd, os.path.join(cwd, "..")):
+        possible_dirs.append(os.path.join(base, "docs", "schemas", "configs"))
+
+    # Also search upward from this module's location (more robust for tests)
+    try:
+        from pathlib import Path
+
+        here = Path(__file__).resolve()
+        for parent in here.parents:
+            possible_dirs.append(str(parent / "docs" / "schemas" / "configs"))
+    except Exception:
+        # Fall back to cwd-based resolution
+        pass
 
     for d in possible_dirs:
         if os.path.exists(d):
             return d
 
     # Default to docs/schemas/configs if nothing found
-    return os.path.join(os.getcwd(), "docs", "schemas", "configs")
+    return os.path.join(cwd, "docs", "schemas", "configs")
 
 
 def _parse_semver(version: str) -> tuple[int, int, int]:
@@ -118,13 +212,18 @@ class ConfigSchemaError(Exception):
 
 @dataclass
 class FieldSpec:
-    """Specification for a single configuration field."""
+    """Specification for a single configuration field.
+
+    env_var may be a single string or a list of strings (aliases). When a list
+    is provided for env_var, the loader will resolve the first variable that is
+    present in the environment, falling back to the first item if none are set.
+    """
     name: str
     field_type: str  # "string", "int", "bool", "float", "object", "array"
     required: bool = False
     default: Any = None
     source: str = "env"  # "env", "document_store", "static", "secret"
-    env_var: str | None = None
+    env_var: Any = None
     doc_store_path: str | None = None
     secret_name: str | None = None
     description: str | None = None
@@ -139,6 +238,8 @@ class ConfigSchema:
     metadata: dict[str, Any] = field(default_factory=dict)
     schema_version: str | None = None
     min_service_version: str | None = None
+    service_settings: dict[str, FieldSpec] = field(default_factory=dict)
+    adapters_schema: dict[str, str] = field(default_factory=dict)  # adapter_type -> schema file path
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> 'ConfigSchema':
@@ -152,7 +253,9 @@ class ConfigSchema:
         """
         service_name = data.get("service_name", "unknown")
         metadata = data.get("metadata", {})
-        fields_data = data.get("fields", {})
+
+        # Support both 'fields' (old style) and 'service_settings' (new style)
+        fields_data = data.get("service_settings") or data.get("fields", {})
         schema_version = data.get("schema_version")
         min_service_version = data.get("min_service_version")
 
@@ -160,12 +263,21 @@ class ConfigSchema:
         for field_name, field_data in fields_data.items():
             fields[field_name] = cls._parse_field_spec(field_name, field_data)
 
+        # Parse adapters section (new style)
+        adapters_schema = {}
+        adapters_data = data.get("adapters", {})
+        for adapter_name, adapter_info in adapters_data.items():
+            if isinstance(adapter_info, dict) and "$ref" in adapter_info:
+                adapters_schema[adapter_name] = adapter_info["$ref"]
+
         return cls(
             service_name=service_name,
             fields=fields,
             metadata=metadata,
             schema_version=schema_version,
             min_service_version=min_service_version,
+            service_settings=fields,  # Keep service_settings in sync with fields
+            adapters_schema=adapters_schema,
         )
 
     @classmethod
@@ -403,7 +515,18 @@ class SchemaConfigLoader:
             Key string
         """
         if field_spec.source == "env":
-            return field_spec.env_var or field_spec.name.upper()
+            env_key = field_spec.env_var
+            # Support alias list: search for the first variable that exists
+            if isinstance(env_key, list):
+                for candidate in env_key:
+                    # Only EnvConfigProvider supports direct environment lookup
+                    # Fallback: treat any non-empty value as present
+                    if self.env_provider and self.env_provider.get(candidate) is not None:
+                        return candidate
+                # None found set; fall back to the first alias for defaulting
+                return env_key[0] if env_key else field_spec.name.upper()
+            # Single string or None
+            return env_key or field_spec.name.upper()
         elif field_spec.source == "secret":
             # For secrets, use secret_name if provided, otherwise use field name
             return getattr(field_spec, 'secret_name', None) or field_spec.name
@@ -445,29 +568,16 @@ def _load_config(
     """
     # Load schema from disk if not provided
     if schema is None:
-        # Determine schema directory
-        if schema_dir is None:
-            # First check environment variable
-            schema_dir = os.environ.get("SCHEMA_DIR")
+        schema_dir_path = _resolve_schema_directory(schema_dir)
 
-            if schema_dir is None:
-                # Try common locations relative to current working directory
-                possible_dirs = [
-                    os.path.join(os.getcwd(), "docs", "schemas", "configs"),
-                    os.path.join(os.getcwd(), "..", "docs", "schemas", "configs"),
-                ]
+        # Service schemas typically live under <schema_dir>/services/<service>.json,
+        # but keep a fallback to <schema_dir>/<service>.json for backward compatibility.
+        schema_path = os.path.join(schema_dir_path, "services", f"{service_name}.json")
+        if not os.path.exists(schema_path):
+            fallback_path = os.path.join(schema_dir_path, f"{service_name}.json")
+            if os.path.exists(fallback_path):
+                schema_path = fallback_path
 
-                for d in possible_dirs:
-                    if os.path.exists(d):
-                        schema_dir = d
-                        break
-
-                # Default to docs/schemas/configs if nothing found
-                if schema_dir is None:
-                    schema_dir = os.path.join(os.getcwd(), "docs", "schemas", "configs")
-
-        # Load schema from disk
-        schema_path = os.path.join(schema_dir, f"{service_name}.json")
         schema = ConfigSchema.from_json_file(schema_path)
 
     # Validate schema version if min_service_version is specified

@@ -7,15 +7,18 @@ This module provides middleware for validating JWT tokens in FastAPI application
 enforcing audience and role-based access control.
 
 Usage:
-    from copilot_auth import JWTMiddleware, create_jwt_middleware
+    from copilot_auth import (
+        JWTMiddleware,
+        create_jwt_middleware,
+    )
     from fastapi import FastAPI
 
     app = FastAPI()
 
-    # Option 1: Use factory function
+    # Option 1: Use explicit factory
     middleware = create_jwt_middleware(
-        auth_service_url="http://auth:8090",
-        audience="my-service",
+        auth_service_url=service_config.auth_service_url,
+        audience=service_config.service_name,
         required_roles=["reader"]
     )
     app.add_middleware(middleware)
@@ -29,6 +32,7 @@ Usage:
     )
 """
 
+from copilot_logging import get_logger, Logger
 import os
 import threading
 import time
@@ -38,12 +42,11 @@ from typing import Any, cast
 
 import httpx
 import jwt
-from copilot_logging import create_logger  # type: ignore[import-not-found]
 from fastapi import HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-logger = create_logger(logger_type="stdout", level="INFO", name="copilot_auth.middleware")
+logger: Logger = get_logger(__name__)
 
 
 class JWTMiddleware(BaseHTTPMiddleware):
@@ -132,12 +135,12 @@ class JWTMiddleware(BaseHTTPMiddleware):
                 response = httpx.get(f"{self.auth_service_url}/keys", timeout=self.jwks_fetch_timeout)
                 response.raise_for_status()
                 jwks = response.json()
-                
+
                 # Thread-safe update of JWKS cache
                 with self._jwks_fetch_lock:
                     self.jwks = jwks
                     self.jwks_last_fetched = time.time()
-                
+
                 logger.info(
                     f"Successfully fetched JWKS from {self.auth_service_url}/keys "
                     f"({len(jwks.get('keys', []))} keys) on attempt {attempt}/{self.jwks_fetch_retries}"
@@ -243,7 +246,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
             if self._jwks_background_thread and self._jwks_background_thread.is_alive():
                 # Wait up to 5 seconds for background thread to complete
                 self._jwks_background_thread.join(timeout=5.0)
-            
+
             # If still not loaded after waiting, try one quick synchronous fetch
             if self.jwks is None:
                 logger.warning("Background JWKS fetch incomplete, attempting immediate fetch")
@@ -261,7 +264,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
                         except Exception as e:
                             logger.error(f"Emergency JWKS fetch failed: {e}")
                             self.jwks = {"keys": []}
-        
+
         # Refresh cache if stale (periodic refresh for key rotation)
         self._fetch_jwks()
 
@@ -557,8 +560,8 @@ class JWTMiddleware(BaseHTTPMiddleware):
 
 
 def create_jwt_middleware(
-    auth_service_url: str | None = None,
-    audience: str | None = None,
+    auth_service_url: str,
+    audience: str,
     required_roles: list[str] | None = None,
     public_paths: list[str] | None = None,
     defer_jwks_fetch: bool = True,
@@ -566,9 +569,8 @@ def create_jwt_middleware(
     """Factory function to create JWT middleware with configuration.
 
     Args:
-        auth_service_url: URL of auth service (default: from AUTH_SERVICE_URL env)
-        audience: Expected audience (default: from SERVICE_AUDIENCE env,
-            or SERVICE_NAME for backward compatibility, or 'copilot-for-consensus')
+        auth_service_url: URL of auth service
+        audience: Expected audience
         required_roles: Optional list of required roles
         public_paths: List of paths that don't require auth
         defer_jwks_fetch: Defer JWKS fetch to background thread (default: True)
@@ -583,13 +585,16 @@ def create_jwt_middleware(
         >>> app = FastAPI()
         >>> middleware = create_jwt_middleware(
         ...     auth_service_url="http://auth:8090",
-        ...     audience="orchestrator"
+        ...     audience="orchestrator",
+        ...     required_roles=["reader"]
         ... )
         >>> app.add_middleware(middleware)
     """
-    # Get defaults from environment - these will always be strings due to defaults
-    auth_url = cast(str, auth_service_url or os.getenv("AUTH_SERVICE_URL", "http://auth:8090"))
-    aud = cast(str, audience or os.getenv("SERVICE_AUDIENCE", os.getenv("SERVICE_NAME", "copilot-for-consensus")))
+    auth_url = auth_service_url
+    aud = audience
+    roles = required_roles
+    paths = public_paths
+    defer = defer_jwks_fetch
 
     # Create configured middleware class
     class ConfiguredJWTMiddleware(JWTMiddleware):
@@ -598,9 +603,9 @@ def create_jwt_middleware(
                 app=app,
                 auth_service_url=auth_url,
                 audience=aud,
-                required_roles=required_roles,
-                public_paths=public_paths,
-                defer_jwks_fetch=defer_jwks_fetch,
+                required_roles=roles,
+                public_paths=paths,
+                defer_jwks_fetch=defer,
             )
 
     return ConfiguredJWTMiddleware

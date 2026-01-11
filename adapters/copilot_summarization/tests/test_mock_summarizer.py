@@ -10,9 +10,9 @@ from copilot_summarization.models import Thread
 class TestMockSummarizer:
     """Tests for MockSummarizer implementation."""
 
-    def test_mock_summarizer_creation(self):
+    def test_mock_summarizer_creation(self, llm_driver_config):
         """Test creating a mock summarizer."""
-        summarizer = MockSummarizer()
+        summarizer = MockSummarizer.from_config(llm_driver_config("mock"))
         assert summarizer.latency_ms == 100
 
     def test_mock_summarizer_custom_latency(self):

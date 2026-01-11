@@ -44,9 +44,11 @@ def qdrant_store():
     for i in range(max_retries):
         try:
             store = create_vector_store(
-                backend="qdrant",
-                dimension=384,
-                **config
+                driver_name="qdrant",
+                driver_config={
+                    **config,
+                    "vector_size": 384,
+                },
             )
             # Test connection by getting count
             store.count()

@@ -6,7 +6,7 @@
 import json
 from unittest.mock import Mock
 
-from copilot_schema_validation import FileSchemaProvider, validate_json
+from copilot_schema_validation import create_schema_provider, validate_json
 
 
 class TestValidationIntegration:
@@ -30,7 +30,7 @@ class TestValidationIntegration:
 
         (schema_dir / "TestEvent.schema.json").write_text(json.dumps(schema))
 
-        provider = FileSchemaProvider(schema_dir=schema_dir)
+        provider = create_schema_provider(schema_dir=schema_dir)
         loaded_schema = provider.get_schema("TestEvent")
 
         # Valid document

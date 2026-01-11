@@ -106,7 +106,7 @@ const checkAuth = async () => {
   const response = await fetch('/auth/userinfo', {
     credentials: 'include'  // Include httpOnly cookies
   })
-  
+
   if (response.ok) {
     const data = await response.json()
     setUserInfo(data)

@@ -37,11 +37,11 @@ export function Callback() {
       // Token received directly from auth service
       // The token is already set as an httpOnly cookie by the auth service
       console.log('[Callback] Token found in URL params, cookie should be set by auth service')
-      
+
       // Check if this is a token refresh (automatic permission re-sync)
       const isRefresh = searchParams.get('refresh') === 'true'
       let redirectUrl = '/ui/reports'
-      
+
       if (isRefresh) {
         // Return to original page
         const postLoginUrl = sessionStorage.getItem('postLoginUrl')
@@ -55,7 +55,7 @@ export function Callback() {
       } else {
         console.log('[Callback] Normal login, redirecting to reports')
       }
-      
+
       // Redirect to destination
       console.log('[Callback] Redirecting to', redirectUrl)
       window.location.href = redirectUrl
@@ -103,7 +103,7 @@ export function Callback() {
         // Check if this is a token refresh (automatic permission re-sync)
         const isRefresh = searchParams.get('refresh') === 'true'
         let redirectUrl = '/ui/reports'
-        
+
         if (isRefresh) {
           // Return to original page
           const postLoginUrl = sessionStorage.getItem('postLoginUrl')

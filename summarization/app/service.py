@@ -8,7 +8,7 @@ import time
 from typing import Any
 from string import Formatter
 
-from copilot_events import (
+from copilot_message_bus import (
     EventPublisher,
     EventSubscriber,
     SummarizationFailedEvent,
@@ -16,13 +16,15 @@ from copilot_events import (
     SummaryCompleteEvent,
 )
 from copilot_logging import create_logger
+from copilot_config import load_driver_config
 from copilot_metrics import MetricsCollector
-from copilot_reporting import ErrorReporter
+from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
 from copilot_summarization import Citation, Summarizer, Thread
 from copilot_vectorstore import VectorStore
 
-logger = create_logger(name="summarization")
+logger_config = load_driver_config(service=None, adapter="logger", driver="stdout", fields={"name": "summarization", "level": "INFO"})
+logger = create_logger("stdout", logger_config)
 
 
 class SummarizationService:
@@ -41,6 +43,10 @@ class SummarizationService:
         retry_backoff_seconds: int = 5,
         metrics_collector: MetricsCollector | None = None,
         error_reporter: ErrorReporter | None = None,
+        llm_backend: str = "local",
+        llm_model: str = "mistral",
+        context_window_tokens: int = 4096,
+        prompt_template: str = "",
     ):
         """Initialize summarization service.
 
@@ -56,6 +62,10 @@ class SummarizationService:
             retry_backoff_seconds: Base backoff interval for retries
             metrics_collector: Metrics collector (optional)
             error_reporter: Error reporter (optional)
+            llm_backend: LLM backend name (default: local)
+            llm_model: LLM model name (default: mistral)
+            context_window_tokens: LLM context window size (default: 4096)
+            prompt_template: Prompt template for summarization (default: empty)
         """
         self.document_store = document_store
         self.vector_store = vector_store
@@ -68,6 +78,10 @@ class SummarizationService:
         self.retry_backoff_seconds = retry_backoff_seconds
         self.metrics_collector = metrics_collector
         self.error_reporter = error_reporter
+        self.llm_backend = llm_backend
+        self.llm_model = llm_model
+        self.context_window_tokens = context_window_tokens
+        self.prompt_template = prompt_template
 
         # Stats
         self.summaries_generated = 0
@@ -119,7 +133,11 @@ class SummarizationService:
                 id_field="thread_id",
                 build_event_data=lambda doc: {
                     "thread_ids": [doc.get("thread_id")],
-                    "archive_id": doc.get("archive_id"),
+                    "top_k": self.top_k,
+                    "llm_backend": self.llm_backend,
+                    "llm_model": self.llm_model,
+                    "context_window_tokens": self.context_window_tokens,
+                    "prompt_template": self.prompt_template,
                 },
                 limit=500,
             )
@@ -410,10 +428,10 @@ class SummarizationService:
         """
         messages = context.get("messages", [])
         chunks = context.get("chunks", [])
-        
+
         # Extract message count
         message_count = len(messages)
-        
+
         # Extract participants (senders) from chunks if available
         participants = set()
         for chunk in chunks:
@@ -423,7 +441,7 @@ class SummarizationService:
             elif isinstance(sender, str):
                 participants.add(sender)
         participants_str = ", ".join(sorted(participants)) if participants else "Multiple participants"
-        
+
         # Extract draft mentions from chunks if available
         draft_mentions = set()
         for chunk in chunks:
@@ -431,7 +449,7 @@ class SummarizationService:
             if isinstance(mentions, list):
                 draft_mentions.update(mentions)
         draft_mentions_str = "\n".join(sorted(draft_mentions)) if draft_mentions else "No specific drafts mentioned"
-        
+
         # Extract date range from chunks if available
         dates = []
         for chunk in chunks:
@@ -444,14 +462,14 @@ class SummarizationService:
             date_range = f"{dates[0]} to {dates[-1]}"
         else:
             date_range = "Unknown"
-        
+
         # Format email chunks (all available messages, respecting natural chunking)
         email_chunks_text = "\n\n".join(
             f"Message {i+1}:\n{msg}" for i, msg in enumerate(messages)
         )
         if not email_chunks_text:
             email_chunks_text = "(No messages available)"
-        
+
         # Substitute placeholders with error handling for template mismatches
         allowed_placeholders = {
             "thread_id",
@@ -486,7 +504,7 @@ class SummarizationService:
             draft_mentions=draft_mentions_str,
             email_chunks=email_chunks_text,
         )
-        
+
         logger.debug(f"Substituted prompt template for thread {thread_id}")
         return substituted
 
@@ -559,19 +577,20 @@ class SummarizationService:
             if chunk.get("_id") is not None
         }
 
-        formatted = []
+        formatted: list[dict[str, Any]] = []
 
         # Limit to citation_count
         for citation in citations[:self.citation_count]:
-            # Find the corresponding chunk to get the text
-            chunk = chunk_map.get(citation.chunk_id, {})
-            # citation.chunk_id now contains the _id value
-            text = chunk.get("text", "")
+            chunk = chunk_map.get(citation.chunk_id)
+            
+            # Always include the citation, even if chunk is missing
+            # If chunk exists, use its _id and text; otherwise use empty text
+            chunk_id = chunk.get("_id") if chunk else citation.chunk_id
+            text = chunk.get("text", "") if chunk else ""
 
             formatted.append({
-                "_id": chunk.get("_id"),
                 "message_id": citation.message_id,
-                "chunk_id": citation.chunk_id,
+                "chunk_id": chunk_id,
                 "offset": citation.offset,
                 "text": text,
             })
@@ -594,7 +613,7 @@ class SummarizationService:
             Hex string of SHA256 hash (64 characters)
         """
         # Extract and sort chunk IDs to ensure consistent ordering, ignoring missing/empty IDs
-        chunk_ids = sorted({c.get("_id") for c in citations if c.get("_id")})
+        chunk_ids = sorted({c.get("chunk_id") for c in citations if c.get("chunk_id")})
 
         # Combine thread_id and canonical _ids into a single string
         id_input = f"{thread_id}:{','.join(chunk_ids)}"

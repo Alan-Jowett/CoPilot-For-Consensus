@@ -294,7 +294,7 @@ When documenting JSON/YAML configs:
 
 ### Adapters
 
-- Prefix with `copilot_`: `copilot_storage`, `copilot_events`
+- Prefix with `copilot_`: `copilot_storage`, `copilot_message_bus`
 - Use singular nouns: `copilot_config`, not `copilot_configs`
 
 ### Documentation Files

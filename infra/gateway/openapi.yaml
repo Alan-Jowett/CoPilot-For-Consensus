@@ -10,21 +10,21 @@ info:
   title: Copilot-for-Consensus API Gateway
   description: |
     Unified API Gateway for Copilot-for-Consensus microservices.
-    
+
     This OpenAPI specification serves as the canonical definition of all public
     endpoints exposed by the Copilot-for-Consensus system. It is used to:
     - Generate NGINX configuration for local deployments
     - Generate cloud provider gateway configurations (Azure, AWS, GCP)
     - Validate API compatibility across deployment targets
     - Document the public API surface
-    
+
     ## Authentication
-    
+
     Most endpoints require JWT-based authentication using Bearer tokens.
     Tokens can be obtained via the `/auth/` endpoints.
-    
+
     ## Rate Limiting
-    
+
     Rate limits may be enforced at the gateway level depending on the deployment:
     - Local (NGINX): No rate limiting by default
     - Cloud providers: Configurable per deployment
@@ -66,7 +66,7 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: JWT token obtained from /auth/ endpoints
-  
+
   schemas:
     Error:
       type: object
@@ -76,7 +76,7 @@ components:
           description: Error message
       required:
         - detail
-    
+
     HealthCheck:
       type: object
       properties:
@@ -89,7 +89,7 @@ components:
           type: string
       required:
         - status
-  
+
   parameters:
     ThreadId:
       name: thread_id
@@ -97,7 +97,7 @@ components:
       description: Filter by thread ID
       schema:
         type: string
-    
+
     Limit:
       name: limit
       in: query
@@ -107,7 +107,7 @@ components:
         minimum: 1
         maximum: 100
         default: 10
-    
+
     Skip:
       name: skip
       in: query
@@ -129,7 +129,7 @@ paths:
       tags:
         - ui
       security: []
-  
+
   /health:
     get:
       summary: Gateway health check
@@ -145,7 +145,7 @@ paths:
       tags:
         - reporting
       security: []
-  
+
   # Reporting API
   /reporting/health:
     get:
@@ -160,7 +160,7 @@ paths:
       tags:
         - reporting
       security: []
-  
+
   /reporting/api/reports:
     get:
       summary: List reports
@@ -232,7 +232,7 @@ paths:
                 $ref: '#/components/schemas/Error'
       tags:
         - reporting
-  
+
   /reporting/api/reports/search:
     get:
       summary: Search reports by topic
@@ -285,7 +285,7 @@ paths:
                 $ref: '#/components/schemas/Error'
       tags:
         - reporting
-  
+
   /reporting/api/reports/{report_id}:
     get:
       summary: Get a specific report
@@ -310,7 +310,7 @@ paths:
                 $ref: '#/components/schemas/Error'
       tags:
         - reporting
-  
+
   # Ingestion API
   /ingestion/health:
     get:
@@ -325,7 +325,7 @@ paths:
       tags:
         - ingestion
       security: []
-  
+
   /ingestion/api/sources:
     get:
       summary: List ingestion sources
@@ -338,12 +338,12 @@ paths:
                 type: object
       tags:
         - ingestion
-    
+
     post:
       summary: Create a new ingestion source
       description: |
         Create a new mailing list ingestion source.
-        
+
         **SECURITY WARNING**: This endpoint accepts untrusted URL inputs that could
         be exploited for SSRF attacks. In production:
         - Add authentication/authorization at the gateway
@@ -384,7 +384,7 @@ paths:
       x-gateway-config:
         rate-limit: 10/minute
         requires-auth: true
-  
+
   /ingestion/api/sources/{source_name}:
     get:
       summary: Get a specific source
@@ -403,7 +403,7 @@ paths:
                 type: object
       tags:
         - ingestion
-    
+
     put:
       summary: Update an ingestion source
       parameters:
@@ -427,7 +427,7 @@ paths:
                 type: object
       tags:
         - ingestion
-    
+
     delete:
       summary: Delete an ingestion source
       parameters:
@@ -448,7 +448,7 @@ paths:
                     type: string
       tags:
         - ingestion
-  
+
   /ingestion/api/sources/{source_name}/trigger:
     post:
       summary: Trigger ingestion for a source
@@ -467,7 +467,7 @@ paths:
                 type: object
       tags:
         - ingestion
-  
+
   /ingestion/api/sources/{source_name}/status:
     get:
       summary: Get source ingestion status
@@ -486,7 +486,7 @@ paths:
                 type: object
       tags:
         - ingestion
-  
+
   # Auth API
   /auth/health:
     get:
@@ -501,7 +501,7 @@ paths:
       tags:
         - auth
       security: []
-  
+
   /auth/providers:
     get:
       summary: List available OAuth providers
@@ -515,7 +515,7 @@ paths:
       tags:
         - auth
       security: []
-  
+
   /auth/login:
     get:
       summary: Initiate OAuth login flow
@@ -532,7 +532,7 @@ paths:
       tags:
         - auth
       security: []
-  
+
   /auth/callback:
     get:
       summary: OAuth callback endpoint
@@ -551,7 +551,7 @@ paths:
       tags:
         - auth
       security: []
-  
+
   /auth/token:
     post:
       summary: Exchange credentials for JWT token
@@ -579,7 +579,7 @@ paths:
       tags:
         - auth
       security: []
-  
+
   /auth/userinfo:
     get:
       summary: Get current user information
@@ -592,7 +592,7 @@ paths:
                 type: object
       tags:
         - auth
-  
+
   /auth/keys:
     get:
       summary: Get JWT public keys (JWKS)
@@ -606,7 +606,7 @@ paths:
       tags:
         - auth
       security: []
-  
+
   /auth/.well-known/jwks.json:
     get:
       summary: JWKS endpoint (OpenID Connect Discovery)
@@ -620,7 +620,7 @@ paths:
       tags:
         - auth
       security: []
-  
+
   /auth/.well-known/public_key.pem:
     get:
       summary: Public key in PEM format
@@ -634,7 +634,7 @@ paths:
       tags:
         - auth
       security: []
-  
+
   # Admin API (requires admin role)
   /admin/role-assignments/pending:
     get:
@@ -652,7 +652,7 @@ paths:
         - admin
       x-gateway-config:
         requires-role: admin
-  
+
   /admin/users/search:
     get:
       summary: Search users
@@ -674,7 +674,7 @@ paths:
         - admin
       x-gateway-config:
         requires-role: admin
-  
+
   /admin/users/{user_id}/roles:
     get:
       summary: Get user roles
@@ -697,7 +697,7 @@ paths:
         - admin
       x-gateway-config:
         requires-role: admin
-    
+
     post:
       summary: Assign role to user
       parameters:
@@ -726,7 +726,7 @@ paths:
         - admin
       x-gateway-config:
         requires-role: admin
-    
+
     delete:
       summary: Remove role from user
       parameters:
@@ -751,7 +751,7 @@ paths:
         - admin
       x-gateway-config:
         requires-role: admin
-  
+
   # UI endpoints (static content)
   /ui/{path}:
     get:
@@ -769,7 +769,7 @@ paths:
       tags:
         - ui
       security: []
-  
+
   # Grafana (monitoring dashboards)
   /grafana/{path}:
     get:
@@ -810,16 +810,16 @@ x-gateway-config:
     exposed-headers:
       - X-Request-Id
     max-age: 3600
-  
+
   rate-limiting:
     default: 100/minute
     burst: 200
-  
+
   observability:
     metrics: true
     tracing: true
     logging: true
-  
+
   backends:
     reporting:
       url: http://reporting:8080

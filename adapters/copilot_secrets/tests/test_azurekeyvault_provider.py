@@ -9,6 +9,8 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+pytestmark = pytest.mark.integration
+
 # Mock Azure modules globally before any imports
 mock_secret_client = MagicMock()
 mock_default_credential = MagicMock()
@@ -28,10 +30,10 @@ sys.modules['azure.core.exceptions'] = MagicMock(
 )
 
 from copilot_secrets import (
-    AzureKeyVaultProvider,
     SecretNotFoundError,
     SecretProviderError,
 )
+from copilot_secrets.azurekeyvault_provider import AzureKeyVaultProvider
 
 
 @pytest.fixture(autouse=True)
@@ -63,23 +65,6 @@ class TestAzureKeyVaultProvider:
         provider = AzureKeyVaultProvider(vault_name=vault_name)
 
         assert provider.vault_url == expected_url
-
-    def test_init_with_env_var_uri(self):
-        """Test initialization using AZURE_KEY_VAULT_URI environment variable."""
-        vault_url = "https://env-vault.vault.azure.net/"
-
-        with patch.dict(os.environ, {"AZURE_KEY_VAULT_URI": vault_url}):
-            provider = AzureKeyVaultProvider()
-            assert provider.vault_url == vault_url
-
-    def test_init_with_env_var_name(self):
-        """Test initialization using AZURE_KEY_VAULT_NAME environment variable."""
-        vault_name = "env-vault"
-        expected_url = f"https://{vault_name}.vault.azure.net/"
-
-        with patch.dict(os.environ, {"AZURE_KEY_VAULT_NAME": vault_name}, clear=True):
-            provider = AzureKeyVaultProvider()
-            assert provider.vault_url == expected_url
 
     def test_init_without_vault_config(self):
         """Test initialization without any vault configuration raises error."""
@@ -486,10 +471,10 @@ class TestSecretNameNormalization:
         mock_client.get_secret.return_value = mock_secret
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
-        
+
         # Request with underscores
         result = provider.get_secret("jwt_private_key")
-        
+
         # Verify it queries with hyphens
         mock_client.get_secret.assert_called_with("jwt-private-key")
         assert result == "test-value"
@@ -507,10 +492,10 @@ class TestSecretNameNormalization:
         mock_client.get_secret.return_value = mock_secret
 
         provider = AzureKeyVaultProvider(vault_url=vault_url)
-        
+
         # Check with underscores
         result = provider.secret_exists("message_bus_password")
-        
+
         # Verify it queries with hyphens
         mock_client.get_secret.assert_called_with("message-bus-password")
         assert result is True

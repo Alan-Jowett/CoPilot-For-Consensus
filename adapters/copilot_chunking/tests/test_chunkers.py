@@ -4,15 +4,14 @@
 """Tests for thread chunking strategies."""
 
 import pytest
+from copilot_config import load_driver_config
 from copilot_chunking import (
     Chunk,
-    FixedSizeChunker,
-    SemanticChunker,
     Thread,
     ThreadChunker,
-    TokenWindowChunker,
     create_chunker,
 )
+from copilot_chunking.chunkers import FixedSizeChunker, SemanticChunker, TokenWindowChunker
 
 
 class TestChunkDataClass:
@@ -422,51 +421,75 @@ class TestCreateChunker:
     """Tests for create_chunker factory method."""
 
     def test_create_token_window_chunker(self):
-        """Test creating a TokenWindowChunker."""
-        chunker = create_chunker("token_window")
+        """Test creating a TokenWindowChunker via DriverConfig."""
+        cfg = load_driver_config("chunking", "chunker", "token_window", fields={})
+        chunker = create_chunker("token_window", cfg)
         assert isinstance(chunker, TokenWindowChunker)
         assert chunker.chunk_size == 384
 
     def test_create_token_window_chunker_custom(self):
-        """Test creating a TokenWindowChunker with custom params."""
-        chunker = create_chunker(
+        """Test creating a TokenWindowChunker with custom params via DriverConfig."""
+        cfg = load_driver_config(
+            "chunking",
+            "chunker",
             "token_window",
-            chunk_size=200,
-            overlap=30
+            fields={"chunk_size": 200, "overlap": 30},
         )
+        chunker = create_chunker("token_window", cfg)
         assert isinstance(chunker, TokenWindowChunker)
         assert chunker.chunk_size == 200
         assert chunker.overlap == 30
 
     def test_create_fixed_size_chunker(self):
-        """Test creating a FixedSizeChunker."""
-        chunker = create_chunker("fixed_size")
+        """Test creating a FixedSizeChunker via DriverConfig."""
+        cfg = load_driver_config("chunking", "chunker", "fixed_size", fields={})
+        chunker = create_chunker("fixed_size", cfg)
         assert isinstance(chunker, FixedSizeChunker)
         assert chunker.messages_per_chunk == 5
 
     def test_create_fixed_size_chunker_custom(self):
-        """Test creating a FixedSizeChunker with custom params."""
-        chunker = create_chunker("fixed_size", messages_per_chunk=10)
+        """Test creating a FixedSizeChunker with custom params via DriverConfig."""
+        cfg = load_driver_config(
+            "chunking",
+            "chunker",
+            "fixed_size",
+            fields={"messages_per_chunk": 10},
+        )
+        chunker = create_chunker("fixed_size", cfg)
         assert isinstance(chunker, FixedSizeChunker)
         assert chunker.messages_per_chunk == 10
 
     def test_create_semantic_chunker(self):
-        """Test creating a SemanticChunker."""
-        chunker = create_chunker("semantic")
+        """Test creating a SemanticChunker via DriverConfig."""
+        cfg = load_driver_config("chunking", "chunker", "semantic", fields={})
+        chunker = create_chunker("semantic", cfg)
         assert isinstance(chunker, SemanticChunker)
         assert chunker.target_chunk_size == 400
 
     def test_create_semantic_chunker_custom(self):
-        """Test creating a SemanticChunker with custom params."""
-        chunker = create_chunker("semantic", chunk_size=500)
+        """Test creating a SemanticChunker with custom params via DriverConfig."""
+        cfg = load_driver_config(
+            "chunking",
+            "chunker",
+            "semantic",
+            fields={"target_chunk_size": 500},
+        )
+        chunker = create_chunker("semantic", cfg)
         assert isinstance(chunker, SemanticChunker)
         assert chunker.target_chunk_size == 500
 
     def test_create_chunker_case_insensitive(self):
         """Test that strategy names are case-insensitive."""
-        chunker1 = create_chunker("TOKEN_WINDOW")
-        chunker2 = create_chunker("Fixed_Size")
-        chunker3 = create_chunker("SEMANTIC")
+        cfg = load_driver_config("chunking", "chunker", "token_window", fields={})
+        chunker1 = create_chunker("TOKEN_WINDOW", cfg)
+        chunker2 = create_chunker(
+            "Fixed_Size",
+            load_driver_config("chunking", "chunker", "fixed_size", fields={}),
+        )
+        chunker3 = create_chunker(
+            "SEMANTIC",
+            load_driver_config("chunking", "chunker", "semantic", fields={}),
+        )
 
         assert isinstance(chunker1, TokenWindowChunker)
         assert isinstance(chunker2, FixedSizeChunker)
@@ -474,16 +497,21 @@ class TestCreateChunker:
 
     def test_create_chunker_unknown_strategy(self):
         """Test that unknown strategy raises ValueError."""
-        with pytest.raises(ValueError, match="Unknown chunking strategy"):
-            create_chunker("invalid_strategy")
+        with pytest.raises(ValueError, match="Unknown chunker driver"):
+            create_chunker(
+                "invalid_strategy",
+                load_driver_config("chunking", "chunker", "token_window", fields={}),
+            )
 
     def test_create_chunker_with_kwargs(self):
-        """Test passing additional kwargs to chunkers."""
-        chunker = create_chunker(
+        """Test passing additional config keys to chunkers via DriverConfig."""
+        cfg = load_driver_config(
+            "chunking",
+            "chunker",
             "token_window",
-            min_chunk_size=50,
-            max_chunk_size=600
+            fields={"min_chunk_size": 50, "max_chunk_size": 600},
         )
+        chunker = create_chunker("token_window", cfg)
         assert isinstance(chunker, TokenWindowChunker)
         assert chunker.min_chunk_size == 50
         assert chunker.max_chunk_size == 600

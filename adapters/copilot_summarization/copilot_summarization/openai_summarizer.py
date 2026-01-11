@@ -1,18 +1,18 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""OpenAI-based summarization implementation."""
+"""OpenAI/Azure OpenAI summarization implementation."""
 
 import logging
 import time
+
+from copilot_config import DriverConfig
 
 from .models import Summary, Thread
 from .summarizer import Summarizer
 
 logger = logging.getLogger(__name__)
 
-# Default API version for Azure OpenAI
-DEFAULT_AZURE_API_VERSION = "2023-12-01"
 
 class OpenAISummarizer(Summarizer):
     """OpenAI GPT-based summarization engine.
@@ -65,19 +65,82 @@ class OpenAISummarizer(Summarizer):
         self.api_key = api_key
         self.model = model
         self.base_url = base_url
-        self.is_azure = base_url is not None
+
+        # If a deployment_name is provided, an api_version must also be supplied
+        # to avoid enabling Azure mode with an incomplete configuration.
+        if deployment_name is not None and api_version is None:
+            raise ValueError(
+                "Azure OpenAI configuration requires 'api_version' when "
+                "'deployment_name' is provided."
+            )
+
+        # Azure mode is enabled only when an explicit Azure api_version is set.
+        # Both deployment_name and api_version are required together to configure
+        # Azure OpenAI properly, but is_azure status is determined by api_version presence.
+        self.is_azure = api_version is not None
 
         if self.is_azure:
-            logger.info("Initialized OpenAISummarizer with Azure OpenAI deployment: %s", deployment_name or model)
+            if not base_url:
+                raise ValueError(
+                    "Azure OpenAI requires a base_url (azure endpoint). "
+                    "Provide the Azure OpenAI endpoint URL."
+                )
+
+            logger.info(
+                "Initialized OpenAISummarizer with Azure OpenAI deployment: %s",
+                deployment_name or model,
+            )
             self.client = AzureOpenAI(
                 api_key=api_key,
-                api_version=api_version or DEFAULT_AZURE_API_VERSION,
-                azure_endpoint=base_url
+                api_version=api_version,
+                azure_endpoint=base_url,
             )
             self.deployment_name = deployment_name or model
         else:
             logger.info("Initialized OpenAISummarizer with OpenAI model: %s", model)
-            self.client = OpenAI(api_key=api_key)
+            # OpenAI client supports optional custom base URL.
+            if base_url is not None:
+                self.client = OpenAI(api_key=api_key, base_url=base_url)
+            else:
+                self.client = OpenAI(api_key=api_key)
+
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "OpenAISummarizer":
+        """Create an OpenAISummarizer from configuration.
+
+        Supported driver names are:
+        - "openai" for the OpenAI backend
+        - "azure" for the Azure OpenAI backend
+
+        Args:
+            driver_config: DriverConfig instance whose ``driver_name`` is either
+                "openai" or "azure".
+
+        Returns:
+            Configured OpenAISummarizer instance.
+
+        Raises:
+            ValueError: If ``driver_name`` is not "openai" or "azure".
+        """
+        driver_lower = driver_config.driver_name.lower()
+
+        if driver_lower == "azure":
+            return cls(
+                api_key=driver_config.azure_openai_api_key,
+                model=driver_config.azure_openai_model,
+                base_url=driver_config.azure_openai_endpoint,
+                api_version=driver_config.azure_openai_api_version,
+                deployment_name=driver_config.azure_openai_deployment
+            )
+
+        if driver_lower == "openai":
+            return cls(
+                api_key=driver_config.openai_api_key,
+                model=driver_config.openai_model,
+                base_url=driver_config.openai_base_url
+            )
+
+        raise ValueError(f"Unknown OpenAI driver type: {driver_config.driver_name}")
 
     @property
     def effective_model(self) -> str:

@@ -9,20 +9,15 @@ import time
 from pathlib import Path
 from typing import Any
 
-from copilot_auth import (
-    AuthenticationError,
-    GitHubIdentityProvider,
-    IdentityProvider,
-    JWTManager,
-    OIDCProvider,
-    create_identity_provider,
-)
-from copilot_logging import create_logger
+import logging
+
+from copilot_auth import AuthenticationError, IdentityProvider, JWTManager, create_identity_provider
+from copilot_config import DriverConfig
 
 from . import OAUTH_PROVIDERS, SUPPORTED_PROVIDERS
 from .role_store import RoleStore
 
-logger = create_logger(logger_type="stdout", level="INFO", name="auth.service")
+logger = logging.getLogger(__name__)
 
 
 class AuthService:
@@ -111,58 +106,65 @@ class AuthService:
 
     def _initialize_providers(self) -> None:
         """Initialize OIDC providers from configuration."""
-        # GitHub provider
-        if hasattr(self.config, 'github_client_id') and self.config.github_client_id:
-            try:
-                redirect_uri = getattr(self.config, 'github_redirect_uri', None) or f"{self.config.issuer}/callback"
-                provider = create_identity_provider(
-                    provider_type="github",
-                    client_id=self.config.github_client_id,
-                    client_secret=self.config.github_client_secret,
-                    redirect_uri=redirect_uri,
-                    api_base_url=getattr(self.config, 'github_api_base_url', None),
-                )
-                if isinstance(provider, OIDCProvider):
-                    provider.discover()
-                self.providers['github'] = provider
-                logger.info("Initialized provider: github")
-            except Exception as e:
-                logger.error(f"Failed to initialize GitHub provider: {e}")
+        oidc_adapter = None
+        get_adapter = getattr(self.config, "get_adapter", None)
+        if callable(get_adapter):
+            oidc_adapter = get_adapter("oidc_providers")
 
-        # Google provider
-        if hasattr(self.config, 'google_client_id') and self.config.google_client_id:
-            try:
-                redirect_uri = getattr(self.config, 'google_redirect_uri', None) or f"{self.config.issuer}/callback"
-                provider = create_identity_provider(
-                    provider_type="google",
-                    client_id=self.config.google_client_id,
-                    client_secret=self.config.google_client_secret,
-                    redirect_uri=redirect_uri,
-                )
-                if isinstance(provider, OIDCProvider):
-                    provider.discover()
-                self.providers['google'] = provider
-                logger.info("Initialized provider: google")
-            except Exception as e:
-                logger.error(f"Failed to initialize Google provider: {e}")
+        providers_cfg = {}
+        if oidc_adapter is not None:
+            providers_cfg = getattr(getattr(oidc_adapter, "driver_config", None), "config", {}) or {}
 
-        # Microsoft provider
-        if hasattr(self.config, 'microsoft_client_id') and self.config.microsoft_client_id:
+        for provider_name, raw_cfg in providers_cfg.items():
+            if not isinstance(raw_cfg, dict):
+                continue
+
             try:
-                redirect_uri = getattr(self.config, 'microsoft_redirect_uri', None) or f"{self.config.issuer}/callback"
-                provider = create_identity_provider(
-                    provider_type="microsoft",
-                    client_id=self.config.microsoft_client_id,
-                    client_secret=self.config.microsoft_client_secret,
-                    redirect_uri=redirect_uri,
-                    tenant=getattr(self.config, 'microsoft_tenant', 'common'),
+                redirect_uri = raw_cfg.get(f"{provider_name}_redirect_uri") or f"{self.config.issuer}/callback"
+
+                # Keep service-owned defaulting logic here (redirect URI uses service issuer),
+                # but do not map provider-specific keys; that normalization belongs in copilot_auth.
+                provider_cfg = dict(raw_cfg)
+                provider_cfg.setdefault("redirect_uri", redirect_uri)
+
+                # Wrap raw dict in DriverConfig to satisfy provider factories
+                if provider_name == "github":
+                    allowed_keys = {
+                        "github_client_id",
+                        "github_client_secret",
+                        "github_redirect_uri",
+                        "github_api_base_url",
+                    }
+                elif provider_name == "google":
+                    allowed_keys = {
+                        "google_client_id",
+                        "google_client_secret",
+                        "google_redirect_uri",
+                    }
+                elif provider_name == "microsoft":
+                    allowed_keys = {
+                        "microsoft_client_id",
+                        "microsoft_client_secret",
+                        "microsoft_redirect_uri",
+                        "microsoft_tenant",
+                    }
+                else:
+                    allowed_keys = set(provider_cfg.keys())
+
+                driver_config = DriverConfig(
+                    driver_name=provider_name,
+                    config=provider_cfg,
+                    allowed_keys=allowed_keys,
                 )
-                if isinstance(provider, OIDCProvider):
+
+                provider = create_identity_provider(driver_name=provider_name, driver_config=driver_config)
+                # Call discovery method if it exists (e.g., for OIDC well-known discovery)
+                if hasattr(provider, "discover") and callable(getattr(provider, "discover")):
                     provider.discover()
-                self.providers['microsoft'] = provider
-                logger.info("Initialized provider: microsoft")
+                self.providers[provider_name] = provider
+                logger.info(f"Initialized provider: {provider_name}")
             except Exception as e:
-                logger.error(f"Failed to initialize Microsoft provider: {e}")
+                logger.error(f"Failed to initialize provider {provider_name}: {e}")
 
     def is_ready(self) -> bool:
         """Check if service is ready to handle requests."""
@@ -205,7 +207,9 @@ class AuthService:
 
         provider_instance = self.providers[provider]
 
-        if not isinstance(provider_instance, OIDCProvider):
+        # Avoid importing internal provider classes; validate capability via duck typing.
+        required_methods = ("build_pkce_pair", "get_authorization_url")
+        if not all(callable(getattr(provider_instance, m, None)) for m in required_methods):
             raise ValueError(f"Provider {provider} does not support OIDC login flow")
 
         # Generate state, nonce, and PKCE verifier/challenge
@@ -280,7 +284,8 @@ class AuthService:
 
         provider_instance = self.providers[provider]
 
-        if not isinstance(provider_instance, OIDCProvider):
+        required_methods = ("exchange_code_for_token", "validate_and_get_user")
+        if not all(callable(getattr(provider_instance, m, None)) for m in required_methods):
             raise ValueError(f"Provider {provider} does not support OIDC callback")
 
         try:
@@ -299,13 +304,8 @@ class AuthService:
             if not access_token:
                 raise AuthenticationError("No access token in response")
 
-            if id_token:
-                provider_instance.validate_id_token(id_token=id_token, nonce=nonce)
-                user = provider_instance.get_user(access_token)
-            elif isinstance(provider_instance, GitHubIdentityProvider):
-                user = provider_instance.get_user(access_token)
-            else:
-                raise AuthenticationError("No id_token in response")
+            # Use provider's validate_and_get_user to handle provider-specific logic
+            user = provider_instance.validate_and_get_user(token_response, nonce=nonce)
 
             if not user:
                 raise AuthenticationError("Failed to retrieve user info")

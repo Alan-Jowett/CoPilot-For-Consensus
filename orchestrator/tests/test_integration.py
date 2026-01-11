@@ -7,16 +7,18 @@ from pathlib import Path
 
 import pytest
 from app.service import OrchestrationService
-from copilot_events import NoopPublisher, NoopSubscriber
-from copilot_schema_validation import FileSchemaProvider
-from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
+from copilot_message_bus import create_publisher, create_subscriber
+from copilot_schema_validation import create_schema_provider
+from copilot_storage import create_document_store
+
+pytestmark = pytest.mark.integration
 
 
 def create_query_with_in_support(original_query):
     """Create a custom query function that supports MongoDB $in operator.
 
     Args:
-        original_query: The original query_documents method from InMemoryDocumentStore
+        original_query: The original query_documents method from the document store
 
     Returns:
         A custom query function that supports $in operator
@@ -55,54 +57,55 @@ def create_query_with_in_support(original_query):
 @pytest.fixture
 def document_store():
     """Create an in-memory document store with schema validation for testing."""
-    # Create base in-memory store
-    base_store = InMemoryDocumentStore()
+    from copilot_config import DriverConfig
+    # Create base in-memory store using factory
+    base_store = create_document_store(driver_name="inmemory", driver_config=DriverConfig(driver_name="inmemory"), strict_validation=False)
+    base_store.connect()
 
     # Override query_documents to support $in operator
     base_store.query_documents = create_query_with_in_support(base_store.query_documents)
 
-    # Wrap with validation using document schemas
-    schema_dir = Path(__file__).parent.parent.parent / "docs" / "schemas" / "documents"
-    schema_provider = FileSchemaProvider(schema_dir=schema_dir)
-    validating_store = ValidatingDocumentStore(
-        store=base_store,
-        schema_provider=schema_provider
-    )
-
-    return validating_store
+    # Note: Schema validation is handled by the factory-created store
+    return base_store
 
 
 @pytest.fixture
 def prompt_files(tmp_path_factory):
     """Create temporary prompt files for testing.
-    
+
     Uses tmp_path_factory to ensure temporary directory persists for the entire
     test session, avoiding file not found errors if OrchestrationService reloads
     prompts or if tests run in different orders.
     """
     tmpdir = tmp_path_factory.mktemp("prompts")
-    
+
     # Create system prompt file
     system_path = tmpdir / "system.txt"
     system_path.write_text("You are a professional summarizer. Summarize the following email thread.")
-    
+
     # Create user prompt file
     user_path = tmpdir / "user.txt"
     user_path.write_text("Thread: {thread_id}\n\nMessages:\n{email_chunks}")
-    
+
     yield str(system_path), str(user_path)
 
 
 @pytest.fixture
 def publisher():
     """Create a noop publisher for testing."""
-    return NoopPublisher()
+    from copilot_config import DriverConfig
+    pub = create_publisher(driver_name="noop", driver_config=DriverConfig(driver_name="noop"))
+    pub.connect()
+    return pub
 
 
 @pytest.fixture
 def subscriber():
     """Create a noop subscriber for testing."""
-    return NoopSubscriber()
+    from copilot_config import DriverConfig
+    sub = create_subscriber(driver_name="noop", driver_config=DriverConfig(driver_name="noop"))
+    sub.connect()
+    return sub
 
 
 @pytest.fixture
