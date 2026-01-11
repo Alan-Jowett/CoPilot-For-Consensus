@@ -578,6 +578,7 @@ class SummarizationService:
                 "message_id": citation.message_id,
                 "chunk_id": chunk_id,
                 "offset": citation.offset,
+                "text": chunk.get("text", ""),
             })
 
         return formatted
