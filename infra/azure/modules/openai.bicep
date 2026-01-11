@@ -162,3 +162,6 @@ output embeddingDeploymentId string = deployEmbeddingModel ? embeddingDeployment
 output embeddingDeploymentName string = deployEmbeddingModel ? embeddingDeployment.name : ''
 @description('Configured SKU for OpenAI account')
 output skuName string = sku
+@description('OpenAI account primary API key')
+#disable-next-line outputs-should-not-contain-secrets
+output apiKey string = listKeys(openaiAccount.id, '2023-10-01-preview').key1

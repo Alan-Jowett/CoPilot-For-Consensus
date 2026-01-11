@@ -9,6 +9,10 @@ infra/azure/what-if-output.json
 infra/azure/main.json
 infra/azure/modules/*.json
 
+# Local test parameters with actual Azure resource IDs (DO NOT CHECK IN)
+infra/azure/parameters.local.json
+infra/azure/parameters.test.json
+
 **/__pycache__/**
 **/*.egg-info/**
 **/build/**
