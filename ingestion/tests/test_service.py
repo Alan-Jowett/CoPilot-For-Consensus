@@ -596,7 +596,7 @@ def test_ingest_all_enabled_sources_returns_exceptions(tmp_path):
     """Test that ingest_all_enabled_sources returns exception objects for failures."""
     from app.exceptions import FetchError
 
-    config = make_config(storage_path=str(tmp_path))
+    config = make_config(storage_path=str(tmp_path), max_retries=1, request_timeout_seconds=1)
     publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
     publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
     publisher.connect()
