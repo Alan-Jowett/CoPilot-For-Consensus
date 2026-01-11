@@ -9,28 +9,18 @@
 
 version: 2
 updates:
-  # Split into multiple entries to prevent Dependabot timeout
-  # See: https://github.com/orgs/community/discussions/179358
-
-  # Monitor Python dependencies - Core Services
+  # Monitor Python dependencies across all services and adapters
+  # Each directory requires its own update entry (Dependabot does not support 'directories' field)
+  # Groups are scoped per-directory and will create separate PRs for each directory
+  # auth service
   - package-ecosystem: "pip"
-    directories:
-      - "/auth"
-      - "/chunking"
-      - "/embedding"
-      - "/ingestion"
-      - "/orchestrator"
-      - "/parsing"
-      - "/reporting"
-      - "/scripts"
-      - "/summarization"
+    directory: "/auth"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
       - "python"
-      - "services"
     groups:
       pip-minor-patch:
         patterns:
@@ -39,25 +29,15 @@ updates:
           - "minor"
           - "patch"
 
-  # Monitor Python dependencies - Adapters Group 1
+  # chunking service
   - package-ecosystem: "pip"
-    directories:
-      - "/adapters/copilot_archive_fetcher"
-      - "/adapters/copilot_archive_store"
-      - "/adapters/copilot_auth"
-      - "/adapters/copilot_chunking"
-      - "/adapters/copilot_config"
-      - "/adapters/copilot_consensus"
-      - "/adapters/copilot_draft_diff"
-      - "/adapters/copilot_embedding"
-      - "/adapters/copilot_error_reporting"
+    directory: "/chunking"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
       - "python"
-      - "adapters"
     groups:
       pip-minor-patch:
         patterns:
@@ -66,25 +46,423 @@ updates:
           - "minor"
           - "patch"
 
-  # Monitor Python dependencies - Adapters Group 2
+  # embedding service
   - package-ecosystem: "pip"
-    directories:
-      - "/adapters/copilot_logging"
-      - "/adapters/copilot_message_bus"
-      - "/adapters/copilot_metrics"
-      - "/adapters/copilot_schema_validation"
-      - "/adapters/copilot_secrets"
-      - "/adapters/copilot_startup"
-      - "/adapters/copilot_storage"
-      - "/adapters/copilot_summarization"
-      - "/adapters/copilot_vectorstore"
+    directory: "/embedding"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
       - "python"
-      - "adapters"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ingestion service
+  - package-ecosystem: "pip"
+    directory: "/ingestion"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # orchestrator service
+  - package-ecosystem: "pip"
+    directory: "/orchestrator"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # parsing service
+  - package-ecosystem: "pip"
+    directory: "/parsing"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # reporting service
+  - package-ecosystem: "pip"
+    directory: "/reporting"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # scripts service
+  - package-ecosystem: "pip"
+    directory: "/scripts"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # summarization service
+  - package-ecosystem: "pip"
+    directory: "/summarization"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # copilot_archive_fetcher adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_archive_fetcher"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # copilot_archive_store adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_archive_store"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # copilot_auth adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_auth"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # copilot_chunking adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_chunking"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # copilot_config adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_config"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # copilot_consensus adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_consensus"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # copilot_draft_diff adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_draft_diff"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # copilot_embedding adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_embedding"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # copilot_error_reporting adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_error_reporting"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # copilot_logging adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_logging"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # copilot_message_bus adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_message_bus"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # copilot_metrics adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_metrics"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # copilot_schema_validation adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_schema_validation"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # copilot_secrets adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_secrets"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # copilot_startup adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_startup"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # copilot_storage adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_storage"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # copilot_summarization adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_summarization"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # copilot_vectorstore adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_vectorstore"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
     groups:
       pip-minor-patch:
         patterns:
