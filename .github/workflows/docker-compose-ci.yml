@@ -485,10 +485,29 @@ jobs:
     - name: Validate reports are generated (end-to-end)
       run: |
         echo "Validating reports exist after end-to-end run..."
-        # Fetch reports JSON and assert count > 0 (black-box via reporting API)
-        json=$(curl -k -s https://localhost/reporting/api/reports)
-        echo "$json" | python -c 'import json,sys; data=json.load(sys.stdin); cnt=data.get("count",0); print(f"Reports count: {cnt}"); exit(0 if cnt>0 else 1)'
-        echo "✓ Reports validation passed"
+        # Retry with delay since report generation is asynchronous
+        max_attempts=30
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+          json=$(curl -k -s https://localhost/reporting/api/reports)
+          count=$(echo "$json" | python -c 'import json,sys; data=json.load(sys.stdin); print(data.get("count",0))' 2>/dev/null || echo "0")
+          
+          if [ "$count" -gt 0 ]; then
+            echo "✓ Reports validation passed (count: $count)"
+            break
+          fi
+          
+          echo "Attempt $attempt/$max_attempts: No reports yet (count: $count), waiting..."
+          sleep 5
+          attempt=$((attempt + 1))
+        done
+
+        if [ $attempt -gt $max_attempts ]; then
+          echo "❌ No reports generated after $max_attempts attempts"
+          docker compose logs reporting --tail=50
+          docker compose logs summarization --tail=50
+          exit 1
+        fi
 
     - name: Test monitoring endpoints
       run: |
