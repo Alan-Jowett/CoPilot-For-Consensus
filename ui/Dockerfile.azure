@@ -3,7 +3,7 @@
 
 # Azure-optimized Dockerfile for UI service
 # Uses multi-stage build to minimize final image size
-FROM node:20-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
 RUN if [ -f package-lock.json ]; then npm ci --only=production; \

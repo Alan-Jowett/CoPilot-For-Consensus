@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-FROM node:20-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
 RUN if [ -f package-lock.json ]; then npm ci; \
