@@ -140,9 +140,13 @@ def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
     content += "  # Split into multiple entries to prevent Dependabot timeout\n"
     content += "  # See: https://github.com/orgs/community/discussions/179358\n\n"
     
-    content += generate_pip_update_entry("Core Services", services, "services")
-    content += generate_pip_update_entry("Adapters Group 1", adapters_group1, "adapters")
-    content += generate_pip_update_entry("Adapters Group 2", adapters_group2, "adapters")
+    # Only generate entries for non-empty directory lists
+    if services:
+        content += generate_pip_update_entry("Core Services", services, "services")
+    if adapters_group1:
+        content += generate_pip_update_entry("Adapters Group 1", adapters_group1, "adapters")
+    if adapters_group2:
+        content += generate_pip_update_entry("Adapters Group 2", adapters_group2, "adapters")
 
     # Add npm monitoring for the React UI
     content += "  # Monitor npm dependencies in React UI\n"
