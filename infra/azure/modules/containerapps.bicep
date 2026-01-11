@@ -245,6 +245,14 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'AUTH_LOG_LEVEL'
               value: 'INFO'
             }
+            {
+              name: 'LOG_TYPE'
+              value: 'stdout'
+            }
+            {
+              name: 'METRICS_TYPE'
+              value: 'noop'
+            }
             // Document Store adapter (Cosmos DB for user roles)
             {
               name: 'DOCUMENT_STORE_TYPE'
@@ -425,6 +433,14 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'REPORTING_LOG_LEVEL'
               value: 'INFO'
+            }
+            {
+              name: 'LOG_TYPE'
+              value: 'stdout'
+            }
+            {
+              name: 'METRICS_TYPE'
+              value: 'noop'
             }
             // Message Bus adapter (Azure Service Bus)
             {
@@ -610,6 +626,14 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'INGESTION_LOG_LEVEL'
               value: 'INFO'
+            }
+            {
+              name: 'LOG_TYPE'
+              value: 'stdout'
+            }
+            {
+              name: 'METRICS_TYPE'
+              value: 'noop'
             }
             // Message Bus adapter (Azure Service Bus)
             {
@@ -797,6 +821,14 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'PARSING_LOG_LEVEL'
               value: 'INFO'
             }
+            {
+              name: 'LOG_TYPE'
+              value: 'stdout'
+            }
+            {
+              name: 'METRICS_TYPE'
+              value: 'noop'
+            }
             // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
@@ -954,6 +986,14 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'CHUNK_LOG_LEVEL'
               value: 'INFO'
             }
+            {
+              name: 'LOG_TYPE'
+              value: 'stdout'
+            }
+            {
+              name: 'METRICS_TYPE'
+              value: 'noop'
+            }
             // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
@@ -1101,6 +1141,14 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'EMBEDDING_LOG_LEVEL'
               value: 'INFO'
+            }
+            {
+              name: 'LOG_TYPE'
+              value: 'stdout'
+            }
+            {
+              name: 'METRICS_TYPE'
+              value: 'noop'
             }
             // Message Bus adapter (Azure Service Bus)
             {
@@ -1308,6 +1356,14 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'ORCHESTRATOR_LOG_LEVEL'
               value: 'INFO'
             }
+            {
+              name: 'LOG_TYPE'
+              value: 'stdout'
+            }
+            {
+              name: 'METRICS_TYPE'
+              value: 'noop'
+            }
             // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
@@ -1496,6 +1552,14 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'SUMMARIZATION_LOG_LEVEL'
               value: 'INFO'
+            }
+            {
+              name: 'LOG_TYPE'
+              value: 'stdout'
+            }
+            {
+              name: 'METRICS_TYPE'
+              value: 'noop'
             }
             // Message Bus adapter (Azure Service Bus)
             {
