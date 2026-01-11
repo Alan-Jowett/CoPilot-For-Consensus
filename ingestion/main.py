@@ -25,13 +25,29 @@ from copilot_storage import (
     create_document_store,
 )
 from copilot_archive_store import create_archive_store
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 # Bootstrap logger before configuration is loaded
 bootstrap_logger = create_stdout_logger(level="INFO", name="ingestion-bootstrap")
 
 # Create FastAPI app
 app = FastAPI(title="Ingestion Service", version=__version__)
+
+
+# Global exception handler to log unhandled exceptions
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Log and return JSON for unhandled exceptions."""
+    bootstrap_logger.error(
+        f"Unhandled exception in {request.method} {request.url.path}",
+        error=str(exc),
+        exc_info=True
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal server error: {type(exc).__name__}: {str(exc)}"}
+    )
 
 # Global service instance and scheduler
 ingestion_service = None
