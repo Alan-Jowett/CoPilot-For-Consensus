@@ -17,7 +17,7 @@ ENV VITE_GRAFANA_ENABLED=${VITE_GRAFANA_ENABLED:-false}
 COPY . .
 RUN npm run build
 
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.29-alpine AS runtime
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY <<'EOF' /etc/nginx/conf.d/default.conf
 # Use Docker's internal DNS server for dynamic hostname resolution
