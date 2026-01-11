@@ -3,7 +3,6 @@
 
 import hashlib
 import json
-import logging
 import os
 import time
 from collections.abc import Iterable
@@ -117,11 +116,9 @@ def _enabled_sources(raw_sources: Iterable[Any]) -> list[SourceConfig]:
 
             if enabled:
                 enabled_sources.append(source_cfg)
-        except SourceConfigurationError as e:
-            # Log but skip invalid source configurations
-            # This allows the service to continue with valid sources
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Skipping invalid source configuration: {e}")
+        except SourceConfigurationError:
+            # Skip invalid source configurations
+            # Errors will be logged when the service tries to use the source
             continue
 
     return enabled_sources
