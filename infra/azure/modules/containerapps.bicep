@@ -90,6 +90,12 @@ param logAnalyticsWorkspaceId string
 @description('Log Analytics workspace customerId (GUID)')
 param logAnalyticsCustomerId string
 
+@description('Custom domain name for the gateway (e.g., copilot.example.com). Leave empty to use default Container Apps domain. Must be provided together with customDomainCertificateId.')
+param customDomainName string = ''
+
+@description('TLS certificate resource ID for custom domain (managed certificate from Container Apps environment). Leave empty if using default domain. Must be provided together with customDomainName.')
+param customDomainCertificateId string = ''
+
 param tags object = {}
 
 // Derived variables
@@ -1767,6 +1773,13 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
         targetPort: servicePorts.gateway
         allowInsecure: false
         transport: 'http'
+        customDomains: customDomainName != '' && customDomainCertificateId != '' ? [
+          {
+            name: customDomainName
+            certificateId: customDomainCertificateId
+            bindingType: 'SniEnabled'
+          }
+        ] : []
       }
     }
     template: {
@@ -1831,11 +1844,14 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
 @description('Container Apps Environment ID')
 output containerAppsEnvId string = containerAppsEnv.id
 
-@description('Gateway FQDN for external access')
-output gatewayFqdn string = gatewayApp.properties.configuration.ingress.fqdn
+@description('Gateway FQDN for external access (custom domain if configured, otherwise default Container Apps FQDN)')
+output gatewayFqdn string = customDomainName != '' && customDomainCertificateId != '' ? customDomainName : gatewayApp.properties.configuration.ingress.fqdn
+
+@description('Default Container Apps gateway FQDN (always returns the Azure-assigned FQDN)')
+output defaultGatewayFqdn string = gatewayApp.properties.configuration.ingress.fqdn
 
 @description('GitHub OAuth redirect URI (computed from gateway FQDN)')
-output githubOAuthRedirectUri string = 'https://${gatewayApp.properties.configuration.ingress.fqdn}/ui/callback'
+output githubOAuthRedirectUri string = 'https://${customDomainName != '' && customDomainCertificateId != '' ? customDomainName : gatewayApp.properties.configuration.ingress.fqdn}/ui/callback'
 
 @description('Container App resource IDs by service')
 output appIds object = vectorStoreBackend == 'qdrant' ? {
