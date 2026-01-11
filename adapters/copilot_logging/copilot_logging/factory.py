@@ -109,6 +109,9 @@ def set_default_logger(logger: Logger) -> None:
     This should be called during service initialization after the configuration
     is loaded. Once set, any module can use get_logger() to retrieve loggers.
 
+    When a new default logger is set, the logger registry is cleared so that
+    subsequent get_logger() calls receive the new default.
+
     Args:
         logger: The logger instance to use as default
 
@@ -118,8 +121,10 @@ def set_default_logger(logger: Logger) -> None:
         >>> logger = create_logger("stdout", config.logger.driver_config)
         >>> set_default_logger(logger)
     """
-    global _default_logger
+    global _default_logger, _logger_registry
     _default_logger = logger
+    # Clear the registry so existing cached loggers are invalidated
+    _logger_registry = {}
 
 
 def get_logger(name: str | None = None) -> Logger:
