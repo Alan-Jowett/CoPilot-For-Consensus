@@ -228,6 +228,12 @@ class JWTManager:
             base64url encoding to follow the JWT compact serialization defined in
             RFC 7519. This ensures interoperability with standard JWT libraries
             for token verification.
+            
+            Claims should contain only JSON-serializable primitive types (strings,
+            numbers, booleans, lists, dicts, None). For timestamps, use integer 
+            Unix timestamps (seconds since epoch) as per JWT standard. The current
+            implementation uses standard claim types (int, str, list) which are
+            fully compatible with PyJWT and other JWT libraries.
         """
         # Encode header and payload as base64url
         header_b64 = self._base64url_encode(json.dumps(headers, separators=(',', ':')).encode('utf-8'))
