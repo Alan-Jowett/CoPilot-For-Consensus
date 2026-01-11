@@ -31,111 +31,111 @@ jobs:
   validate-openapi:
     name: Validate OpenAPI Specification
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
         run: |
           pip install pyyaml openapi-spec-validator
-      
+
       - name: Validate OpenAPI spec syntax
         run: |
           openapi-spec-validator openapi/gateway.yaml
-      
+
       - name: Check OpenAPI spec is valid YAML
         run: |
           python -c "import yaml; yaml.safe_load(open('openapi/gateway.yaml'))"
-  
+
   test-adapters:
     name: Test Gateway Adapters
     runs-on: ubuntu-latest
     needs: validate-openapi
-    
+
     strategy:
       matrix:
         provider: [nginx, azure, aws, gcp]
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
         run: |
           pip install pyyaml
-      
+
       - name: Test ${{ matrix.provider }} adapter
         run: |
           cd infra/gateway
           ./generate_gateway_config.py \
             --provider ${{ matrix.provider }} \
             --output /tmp/test-${{ matrix.provider }}
-      
+
       - name: Verify generated files exist
         run: |
           ls -la /tmp/test-${{ matrix.provider }}/
           test -n "$(ls -A /tmp/test-${{ matrix.provider }})"
-      
+
       - name: Upload generated configuration
         uses: actions/upload-artifact@v4
         with:
           name: gateway-config-${{ matrix.provider }}
           path: /tmp/test-${{ matrix.provider }}/
           retention-days: 7
-  
+
   generate-all:
     name: Generate All Provider Configurations
     runs-on: ubuntu-latest
     needs: test-adapters
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
         run: |
           pip install pyyaml
-      
+
       - name: Generate all provider configurations
         run: |
           cd infra/gateway
           ./generate_gateway_config.py --provider all --output ../../dist/gateway
-      
+
       - name: List generated files
         run: |
           find dist/gateway -type f
-      
+
       - name: Upload all configurations
         uses: actions/upload-artifact@v4
         with:
           name: gateway-configs-all
           path: dist/gateway/
           retention-days: 30
-  
+
   validate-nginx:
     name: Validate NGINX Configuration
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Test NGINX configuration syntax
         run: |
           # Generate nginx.conf from template with test environment variables
@@ -144,11 +144,11 @@ jobs:
           export INGESTION_BACKEND="http://ingestion:8001"
           export GRAFANA_BACKEND="http://grafana:3000"
           export UI_BACKEND="http://ui:80"
-          
+
           # Substitute environment variables into template
           envsubst '${REPORTING_BACKEND} ${AUTH_BACKEND} ${INGESTION_BACKEND} ${GRAFANA_BACKEND} ${UI_BACKEND}' \
             < infra/nginx/nginx.conf > /tmp/nginx-test.conf
-          
+
           # Test the generated configuration
           # Add dummy entries to /etc/hosts for service names to allow config testing
           docker run --rm \
@@ -159,7 +159,7 @@ jobs:
             --add-host grafana:127.0.0.1 \
             --add-host ui:127.0.0.1 \
             nginx:alpine nginx -t
-      
+
       - name: Check NGINX routes match OpenAPI spec
         run: |
           cd infra/gateway

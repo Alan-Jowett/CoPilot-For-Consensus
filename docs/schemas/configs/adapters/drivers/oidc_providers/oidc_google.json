@@ -1,0 +1,29 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Google OAuth OIDC provider driver settings",
+    "type": "object",
+    "properties": {
+        "google_client_id": {
+            "type": "string",
+            "source": "secret",
+            "secret_name": "google_oauth_client_id",
+            "required": false,
+            "description": "Google OAuth client ID"
+        },
+        "google_client_secret": {
+            "type": "string",
+            "source": "secret",
+            "secret_name": "google_oauth_client_secret",
+            "required": false,
+            "description": "Google OAuth client secret"
+        },
+        "google_redirect_uri": {
+            "type": "string",
+            "source": "env",
+            "env_var": "GOOGLE_REDIRECT_URI",
+            "required": false,
+            "description": "Google OAuth callback URL (defaults to {issuer}/callback)"
+        }
+    }
+}

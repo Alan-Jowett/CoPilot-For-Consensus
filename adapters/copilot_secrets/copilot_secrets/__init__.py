@@ -7,21 +7,16 @@ This adapter provides a unified interface for retrieving secrets from various st
 backends including local file systems, Docker volumes, and cloud secret stores.
 
 Example:
-    >>> from copilot_secrets import create_secret_provider, LocalFileSecretProvider
-    >>> provider = create_secret_provider("local", base_path="/app/secrets")
+    >>> from copilot_secrets import create_secret_provider
+    >>> provider = create_secret_provider("local", {"base_path": "/app/secrets"})
     >>> jwt_key = provider.get_secret("jwt_private_key")
 """
 
-from .azurekeyvault_provider import AzureKeyVaultProvider
 from .exceptions import SecretError, SecretNotFoundError, SecretProviderError
 from .factory import create_secret_provider
-from .local_provider import LocalFileSecretProvider
-from .provider import SecretProvider
 
 __all__ = [
-    "SecretProvider",
-    "LocalFileSecretProvider",
-    "AzureKeyVaultProvider",
+    "__version__",
     "create_secret_provider",
     "SecretError",
     "SecretNotFoundError",

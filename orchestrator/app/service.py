@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from copilot_events import (
+from copilot_message_bus import (
     EmbeddingsGeneratedEvent,
     EventPublisher,
     EventSubscriber,
@@ -17,11 +17,13 @@ from copilot_events import (
     SummarizationRequestedEvent,
 )
 from copilot_logging import create_logger
+from copilot_config import load_driver_config
 from copilot_metrics import MetricsCollector
-from copilot_reporting import ErrorReporter
+from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
 
-logger = create_logger(name="orchestrator")
+logger_config = load_driver_config(service=None, adapter="logger", driver="stdout", fields={"name": "orchestrator", "level": "INFO"})
+logger = create_logger("stdout", logger_config)
 
 
 class OrchestrationService:
@@ -94,25 +96,25 @@ class OrchestrationService:
             system_path = Path(self.system_prompt_path)
             if not system_path.exists():
                 raise FileNotFoundError(f"System prompt file not found: {self.system_prompt_path}")
-            
+
             with open(system_path, 'r', encoding='utf-8') as f:
                 self.system_prompt = f.read()
-            
+
             if not self.system_prompt.strip():
                 raise ValueError(f"System prompt file is empty: {self.system_prompt_path}")
-            
+
             logger.info(f"Loaded system prompt from {self.system_prompt_path}")
 
             user_path = Path(self.user_prompt_path)
             if not user_path.exists():
                 raise FileNotFoundError(f"User prompt file not found: {self.user_prompt_path}")
-            
+
             with open(user_path, 'r', encoding='utf-8') as f:
                 self.user_prompt = f.read()
-            
+
             if not self.user_prompt.strip():
                 raise ValueError(f"User prompt file is empty: {self.user_prompt_path}")
-            
+
             logger.info(f"Loaded user prompt from {self.user_prompt_path}")
 
         except (FileNotFoundError, ValueError) as e:
@@ -568,8 +570,6 @@ class OrchestrationService:
                 "llm_model": self.llm_model,
                 "context_window_tokens": self.context_window_tokens,
                 "prompt_template": f"{self.system_prompt.rstrip()}\n\n{self.user_prompt.lstrip()}",
-                "chunk_count": context.get("chunk_count", 0),
-                "message_count": len(context.get("messages", [])),
             }
 
             event = SummarizationRequestedEvent(data=event_data)

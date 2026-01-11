@@ -51,7 +51,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const response = await fetch('/auth/userinfo', {
         credentials: 'include'  // Include httpOnly cookies
       })
-      
+
       if (response.ok) {
         const data = await response.json()
         console.log('[AuthContext] User authenticated:', data.email)
@@ -94,7 +94,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         method: 'POST',
         credentials: 'include'
       })
-      
+
       if (!response.ok) {
         console.error('[AuthContext] Logout failed with status:', response.status)
       }
@@ -102,24 +102,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       console.error('[AuthContext] Logout error:', errorMessage)
     }
-    
+
     // Clear local state regardless of API call result
     setUserInfo(null)
     setIsAuthenticated(false)
     setIsAdmin(false)
-    
+
     // Redirect to login
     window.location.href = `${import.meta.env.BASE_URL}`
   }
 
   return (
-    <AuthContext.Provider value={{ 
-      isAuthenticated, 
-      isAdmin, 
+    <AuthContext.Provider value={{
+      isAuthenticated,
+      isAdmin,
       userInfo,
-      login, 
+      login,
       logout,
-      checkAuth 
+      checkAuth
     }}>
       {isCheckingAuth ? (
         <div style={{

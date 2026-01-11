@@ -22,7 +22,7 @@ export function ThreadSummary() {
     setAccessDenied(null)
     fetchThreadSummary(threadId)
       .then(r => { if (!cancelled) setSummary(r) })
-      .catch(e => { 
+      .catch(e => {
         if (!cancelled) {
           if (e?.message?.startsWith('ACCESS_DENIED:')) {
             setAccessDenied(e.message.replace('ACCESS_DENIED: ', ''))

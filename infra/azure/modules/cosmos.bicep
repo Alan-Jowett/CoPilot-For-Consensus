@@ -163,7 +163,7 @@ resource documentsDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2
 // Trade-offs:
 // - Collections share the same partition key space (design must avoid hot partitions)
 // - Cannot set different TTL or indexing policies per collection (would require separate containers)
-// 
+//
 // For production scale-out, consider migrating to individual containers per collection type
 // if throughput requirements diverge or if specific indexing/TTL policies are needed.
 resource documentsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-11-15' = {

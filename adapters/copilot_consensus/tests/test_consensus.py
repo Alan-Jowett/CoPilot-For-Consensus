@@ -2,21 +2,31 @@
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
 """Tests for consensus detection."""
-
 from datetime import datetime, timedelta, timezone
-
 import pytest
+from copilot_config import DriverConfig, load_driver_config
 from copilot_consensus import (
     ConsensusDetector,
     ConsensusLevel,
     ConsensusSignal,
-    HeuristicConsensusDetector,
     Message,
-    MLConsensusDetector,
-    MockConsensusDetector,
     Thread,
     create_consensus_detector,
 )
+from copilot_consensus.consensus import (
+    HeuristicConsensusDetector,
+    MockConsensusDetector,
+    MLConsensusDetector,
+)
+
+
+def _driver_config(driver: str, fields: dict[str, object] | None = None) -> DriverConfig:
+    return load_driver_config(
+        "orchestrator",
+        "consensus_detector",
+        driver,
+        fields=dict(fields or {}),
+    )
 
 
 class TestConsensusSignal:
@@ -91,7 +101,7 @@ class TestHeuristicConsensusDetector:
 
     def test_strong_consensus_detection(self):
         """Test detection of strong consensus."""
-        detector = HeuristicConsensusDetector(agreement_threshold=3)
+        detector = HeuristicConsensusDetector(agreement_threshold=3, min_participants=2, stagnation_days=7)
 
         thread = self.create_test_thread([
             {"content": "I propose we do X"},
@@ -111,7 +121,7 @@ class TestHeuristicConsensusDetector:
 
     def test_consensus_detection(self):
         """Test detection of regular consensus."""
-        detector = HeuristicConsensusDetector(agreement_threshold=3)
+        detector = HeuristicConsensusDetector(agreement_threshold=3, min_participants=2, stagnation_days=7)
 
         thread = self.create_test_thread([
             {"content": "What about option A?"},
@@ -128,7 +138,7 @@ class TestHeuristicConsensusDetector:
 
     def test_dissent_detection(self):
         """Test detection of dissent."""
-        detector = HeuristicConsensusDetector()
+        detector = HeuristicConsensusDetector(agreement_threshold=3, min_participants=2, stagnation_days=7)
 
         thread = self.create_test_thread([
             {"content": "Let's go with approach X"},
@@ -144,7 +154,7 @@ class TestHeuristicConsensusDetector:
 
     def test_weak_consensus_detection(self):
         """Test detection of weak consensus."""
-        detector = HeuristicConsensusDetector(agreement_threshold=5)
+        detector = HeuristicConsensusDetector(agreement_threshold=5, min_participants=2, stagnation_days=7)
 
         thread = self.create_test_thread([
             {"content": "Should we proceed?"},
@@ -159,7 +169,7 @@ class TestHeuristicConsensusDetector:
 
     def test_no_consensus_detection(self):
         """Test detection of no consensus."""
-        detector = HeuristicConsensusDetector()
+        detector = HeuristicConsensusDetector(agreement_threshold=3, min_participants=2, stagnation_days=7)
 
         thread = self.create_test_thread([
             {"content": "Initial message with no replies"},
@@ -171,7 +181,7 @@ class TestHeuristicConsensusDetector:
 
     def test_stagnation_detection(self):
         """Test detection of stagnant threads."""
-        detector = HeuristicConsensusDetector(stagnation_days=7)
+        detector = HeuristicConsensusDetector(agreement_threshold=3, min_participants=2, stagnation_days=7)
 
         # Create thread with old timestamp
         old_time = datetime.now(timezone.utc) - timedelta(days=10)
@@ -187,7 +197,7 @@ class TestHeuristicConsensusDetector:
 
     def test_agreement_patterns(self):
         """Test various agreement patterns are detected."""
-        detector = HeuristicConsensusDetector(agreement_threshold=1, min_participants=2)
+        detector = HeuristicConsensusDetector(agreement_threshold=1, min_participants=2, stagnation_days=7)
 
         agreement_phrases = [
             "+1",
@@ -212,7 +222,7 @@ class TestHeuristicConsensusDetector:
 
     def test_dissent_patterns(self):
         """Test various dissent patterns are detected."""
-        detector = HeuristicConsensusDetector()
+        detector = HeuristicConsensusDetector(agreement_threshold=3, min_participants=2, stagnation_days=7)
 
         dissent_phrases = [
             "I disagree",
@@ -242,7 +252,7 @@ class TestMockConsensusDetector:
 
     def test_mock_detector_default(self):
         """Test mock detector with default values."""
-        detector = MockConsensusDetector()
+        detector = MockConsensusDetector(level=ConsensusLevel.CONSENSUS, confidence=0.8)
 
         thread = Thread(
             thread_id="test-thread",
@@ -307,34 +317,43 @@ class TestConsensusDetectorFactory:
 
     def test_create_heuristic_detector(self):
         """Test creating heuristic detector."""
-        detector = create_consensus_detector("heuristic")
+        config = _driver_config(
+            "heuristic",
+            {"agreement_threshold": 3, "min_participants": 2, "stagnation_days": 7},
+        )
+        detector = create_consensus_detector("heuristic", config)
         assert isinstance(detector, HeuristicConsensusDetector)
 
     def test_create_mock_detector(self):
         """Test creating mock detector."""
-        detector = create_consensus_detector("mock")
+        config = _driver_config("mock", {"level": "consensus", "confidence": 0.9})
+        detector = create_consensus_detector("mock", config)
         assert isinstance(detector, MockConsensusDetector)
 
     def test_create_ml_detector(self):
         """Test creating ML detector."""
-        detector = create_consensus_detector("ml")
+        config = _driver_config("ml", {"model_path": "/tmp/model.bin"})
+        detector = create_consensus_detector("ml", config)
         assert isinstance(detector, MLConsensusDetector)
-
-    def test_create_default_detector(self):
-        """Test creating detector with no type (should default to heuristic)."""
-        detector = create_consensus_detector()
-        assert isinstance(detector, HeuristicConsensusDetector)
 
     def test_create_unknown_detector(self):
         """Test that unknown detector type raises ValueError."""
+        config = _driver_config("heuristic", {})
         with pytest.raises(ValueError):
-            create_consensus_detector("unknown")
+            create_consensus_detector("unknown", config)
 
     def test_create_detector_case_insensitive(self):
         """Test that detector type is case-insensitive."""
-        detector1 = create_consensus_detector("HEURISTIC")
-        detector2 = create_consensus_detector("Mock")
-        detector3 = create_consensus_detector("Ml")
+        config_heuristic = _driver_config(
+            "heuristic",
+            {"agreement_threshold": 3, "min_participants": 2, "stagnation_days": 7},
+        )
+        config_mock = _driver_config("mock", {"level": "consensus", "confidence": 0.8})
+        config_ml = _driver_config("ml", {"model_path": None})
+
+        detector1 = create_consensus_detector("HEURISTIC", config_heuristic)
+        detector2 = create_consensus_detector("Mock", config_mock)
+        detector3 = create_consensus_detector("Ml", config_ml)
 
         assert isinstance(detector1, HeuristicConsensusDetector)
         assert isinstance(detector2, MockConsensusDetector)
@@ -347,8 +366,8 @@ class TestConsensusDetectorInterface:
     def test_all_detectors_implement_interface(self):
         """Test that all detector classes implement the interface."""
         detectors = [
-            HeuristicConsensusDetector(),
-            MockConsensusDetector(),
+            HeuristicConsensusDetector(agreement_threshold=3, min_participants=2, stagnation_days=7),
+            MockConsensusDetector(level=ConsensusLevel.CONSENSUS, confidence=0.8),
             MLConsensusDetector(),
         ]
 

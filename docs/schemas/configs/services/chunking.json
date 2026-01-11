@@ -1,0 +1,108 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "service_name": "chunking",
+    "schema_version": "1.0.0",
+    "min_service_version": "0.1.0",
+    "metadata": {
+        "description": "Chunking service configuration schema",
+        "version": "1.0.0"
+    },
+    "service_settings": {
+        "chunk_overlap": {
+            "type": "int",
+            "source": "env",
+            "env_var": "CHUNK_OVERLAP_TOKENS",
+            "default": 50,
+            "description": "Chunk overlap in tokens"
+        },
+        "chunk_size": {
+            "type": "int",
+            "source": "env",
+            "env_var": "CHUNK_SIZE_TOKENS",
+            "default": 384,
+            "description": "Target chunk size in tokens"
+        },
+        "chunking_strategy": {
+            "type": "string",
+            "source": "env",
+            "env_var": "CHUNK_STRATEGY",
+            "default": "token_window",
+            "description": "Chunking strategy (token_window, recursive, sentence)"
+        },
+        "error_reporter_type": {
+            "type": "string",
+            "source": "env",
+            "env_var": "CHUNK_ERROR_REPORTER_TYPE",
+            "default": "console",
+            "required": false,
+            "description": "Error reporter type"
+        },
+        "http_port": {
+            "type": "int",
+            "source": "env",
+            "env_var": "CHUNK_HTTP_PORT",
+            "default": 8000,
+            "description": "HTTP server port"
+        },
+        "jwt_auth_enabled": {
+            "type": "bool",
+            "source": "env",
+            "env_var": ["CHUNK_JWT_AUTH_ENABLED", "JWT_AUTH_ENABLED"],
+            "default": true,
+            "description": "Enable JWT authentication middleware (supports global JWT_AUTH_ENABLED alias)"
+        },
+        "auth_service_url": {
+            "type": "string",
+            "source": "env",
+            "env_var": "CHUNK_AUTH_SERVICE_URL",
+            "default": "http://auth:8090",
+            "description": "URL of the authentication service"
+        },
+        "service_audience": {
+            "type": "string",
+            "source": "env",
+            "env_var": "CHUNK_SERVICE_AUDIENCE",
+            "default": "copilot-for-consensus",
+            "description": "JWT audience for this service"
+        },
+        "max_chunk_size": {
+            "type": "int",
+            "source": "env",
+            "env_var": "CHUNK_MAX_SIZE_TOKENS",
+            "default": 512,
+            "description": "Maximum chunk size in tokens"
+        },
+        "max_retries": {
+            "type": "int",
+            "source": "env",
+            "env_var": "CHUNK_RETRY_MAX_ATTEMPTS",
+            "default": 3,
+            "description": "Maximum retry attempts"
+        },
+        "min_chunk_size": {
+            "type": "int",
+            "source": "env",
+            "env_var": "CHUNK_MIN_SIZE_TOKENS",
+            "default": 100,
+            "description": "Minimum chunk size in tokens"
+        }
+    },
+    "adapters": {
+        "chunker": {
+            "$ref": "../adapters/chunker.json"
+        },
+        "document_store": {
+            "$ref": "../adapters/document_store.json"
+        },
+        "message_bus": {
+            "$ref": "../adapters/message_bus.json"
+        },
+        "metrics": {
+            "$ref": "../adapters/metrics.json"
+        },
+        "secret_provider": {
+            "$ref": "../adapters/secret_provider.json"
+        }
+    }
+}

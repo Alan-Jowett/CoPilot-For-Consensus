@@ -6,14 +6,12 @@
 from unittest.mock import patch
 
 import pytest
-from copilot_auth import (
-    AuthenticationError,
-    DatatrackerIdentityProvider,
-    GitHubIdentityProvider,
-    IdentityProvider,
-    MockIdentityProvider,
-    User,
-)
+from copilot_auth import AuthenticationError, IdentityProvider, User
+
+# Import provider implementations from internal modules
+from copilot_auth.datatracker_provider import DatatrackerIdentityProvider
+from copilot_auth.github_provider import GitHubIdentityProvider
+from copilot_auth.mock_provider import MockIdentityProvider
 
 
 class TestMockIdentityProvider:
@@ -132,7 +130,8 @@ class TestGitHubIdentityProvider:
         provider = GitHubIdentityProvider(
             client_id="test-client-id",
             client_secret="test-client-secret",
-            redirect_uri="https://auth.example.com/callback"
+            redirect_uri="https://auth.example.com/callback",
+            api_base_url="https://api.github.com",
         )
 
         assert isinstance(provider, IdentityProvider)
@@ -158,7 +157,8 @@ class TestGitHubIdentityProvider:
         provider = GitHubIdentityProvider(
             client_id="test-client-id",
             client_secret="test-client-secret",
-            redirect_uri="https://auth.example.com/callback"
+            redirect_uri="https://auth.example.com/callback",
+            api_base_url="https://api.github.com",
         )
 
         # Mock httpx to raise an error

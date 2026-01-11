@@ -65,7 +65,7 @@ jobs:
           # Pattern matches package names with letters, numbers, underscores, and hyphens
           grep -E '^[a-zA-Z0-9_\-]+=='  requirements.txt | sort > requirements.txt.sorted
           grep -E '^[a-zA-Z0-9_\-]+=='  requirements.txt.expected | sort > requirements.txt.expected.sorted
-          
+
           if ! diff requirements.txt.sorted requirements.txt.expected.sorted; then
             echo "❌ Lockfile is out of sync!"
             echo "Run: cd ${{ matrix.service }} && pip-compile requirements.in"

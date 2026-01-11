@@ -4,7 +4,8 @@
 """Tests for InMemoryVectorStore implementation."""
 
 import pytest
-from copilot_vectorstore import InMemoryVectorStore, SearchResult
+from copilot_vectorstore.inmemory import InMemoryVectorStore
+from copilot_vectorstore.interface import SearchResult
 
 
 class TestInMemoryVectorStore:

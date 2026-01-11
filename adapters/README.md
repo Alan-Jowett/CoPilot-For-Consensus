@@ -31,12 +31,12 @@ The adapters in this directory serve as the **integration boundary layer** follo
 - **copilot_storage**: Document store abstraction (MongoDB, in-memory) · [![CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-storage-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-storage-adapter.yml)
 
 ### Events & Messaging
-- **copilot_events**: Event publishing, subscription, and schema validation · [![CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-events-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-events-adapter.yml)
+- **copilot_message_bus**: Event publishing, subscription, and schema validation · [![CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-events-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-events-adapter.yml)
 
 ### Observability
 - **copilot_logging**: Structured logging abstraction · [![CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-logging-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-logging-adapter.yml)
 - **copilot_metrics**: Metrics collection (Prometheus, no-op) · [![CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-metrics-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-metrics-adapter.yml)
-- **copilot_reporting**: Error reporting (Console, Sentry) · [![CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-reporting-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-reporting-adapter.yml)
+ - **copilot_error_reporting**: Error reporting (Console, Sentry) · [![CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-reporting-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-reporting-adapter.yml)
 
 ### Infrastructure
 - **copilot_auth**: Authentication and authorization · [![CI](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-auth-adapter.yml/badge.svg)](https://github.com/Alan-Jowett/CoPilot-For-Consensus/actions/workflows/test-auth-adapter.yml)
@@ -77,14 +77,14 @@ Each adapter provides test-friendly implementations:
 - **copilot_storage**: `InMemoryDocumentStore`
 - **copilot_logging**: `SilentLogger`
 - **copilot_metrics**: `NoOpMetricsCollector`
-- **copilot_reporting**: `SilentErrorReporter`
+ - **copilot_error_reporting**: `SilentErrorReporter`
 
 ### Integration Tests
 
 Adapters that interact with external services have dedicated integration tests:
 
 - **copilot_storage**: MongoDB integration tests (`test_integration_mongodb.py`)
-- **copilot_events**: RabbitMQ integration tests (`test_integration_rabbitmq.py`)
+- **copilot_message_bus**: RabbitMQ integration tests (`test_integration_rabbitmq.py`)
 - **copilot_archive_fetcher**: rsync and HTTP integration tests
 - **copilot_schema_validation**: MongoDB-backed schema provider integration tests
 
@@ -95,7 +95,7 @@ Integration tests are marked with `@pytest.mark.integration` and can be run with
 pytest -m integration
 
 # Run integration tests for a specific adapter
-cd adapters/copilot_events
+cd adapters/copilot_message_bus
 pytest -m integration
 
 # Skip integration tests

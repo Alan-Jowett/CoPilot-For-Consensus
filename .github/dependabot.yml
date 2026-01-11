@@ -50,7 +50,7 @@ updates:
       - "/adapters/copilot_consensus"
       - "/adapters/copilot_draft_diff"
       - "/adapters/copilot_embedding"
-      - "/adapters/copilot_events"
+      - "/adapters/copilot_error_reporting"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
@@ -70,8 +70,8 @@ updates:
   - package-ecosystem: "pip"
     directories:
       - "/adapters/copilot_logging"
+      - "/adapters/copilot_message_bus"
       - "/adapters/copilot_metrics"
-      - "/adapters/copilot_reporting"
       - "/adapters/copilot_schema_validation"
       - "/adapters/copilot_secrets"
       - "/adapters/copilot_startup"

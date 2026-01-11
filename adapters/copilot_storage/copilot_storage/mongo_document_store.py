@@ -6,6 +6,8 @@
 import logging
 from typing import Any
 
+from copilot_config import DriverConfig
+
 from .document_store import (
     DocumentNotFoundError,
     DocumentStore,
@@ -20,25 +22,71 @@ logger = logging.getLogger(__name__)
 class MongoDocumentStore(DocumentStore):
     """MongoDB document store implementation."""
 
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "MongoDocumentStore":
+        """Create a MongoDocumentStore from configuration.
+
+        Args:
+            driver_config: Configuration object with host, port, database, username, password attributes.
+
+        Returns:
+            Configured MongoDocumentStore instance
+
+        Raises:
+            AttributeError: If required config attributes are missing
+        """
+        host = getattr(driver_config, "host", None)
+        port = getattr(driver_config, "port", None)
+        username = getattr(driver_config, "username", None)
+        password = getattr(driver_config, "password", None)
+        database = getattr(driver_config, "database", None)
+
+        return cls(
+            host=host,
+            port=port,
+            username=username,
+            password=password,
+            database=database,
+        )
+
     def __init__(
         self,
-        host: str = "localhost",
-        port: int = 27017,
+        host: str | None = None,
+        port: int | None = None,
         username: str | None = None,
         password: str | None = None,
-        database: str = "copilot",
+        database: str | None = None,
         **kwargs
     ):
         """Initialize MongoDB document store.
 
         Args:
-            host: MongoDB host
-            port: MongoDB port
+            host: MongoDB host (required)
+            port: MongoDB port (required)
             username: MongoDB username (optional)
             password: MongoDB password (optional)
-            database: Database name
+            database: Database name (required)
             **kwargs: Additional MongoDB client options
+
+        Raises:
+            ValueError: If required parameters (host, port, database) are not provided
         """
+        if not host:
+            raise ValueError(
+                "MongoDB host is required. "
+                "Provide the MongoDB server hostname or IP address."
+            )
+        if port is None:
+            raise ValueError(
+                "MongoDB port is required. "
+                "Provide the MongoDB server port number."
+            )
+        if not database:
+            raise ValueError(
+                "MongoDB database is required. "
+                "Provide the database name to use."
+            )
+
         self.host = host
         self.port = port
         self.username = username

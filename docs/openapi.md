@@ -83,7 +83,7 @@ Update `gateway.yaml` when:
    ```bash
    # Install validator if needed
    pip install openapi-spec-validator
-   
+
    # Validate spec
    openapi-spec-validator openapi/gateway.yaml
    ```
@@ -91,10 +91,10 @@ Update `gateway.yaml` when:
 3. **Test gateway generation**:
    ```bash
    cd infra/gateway
-   
+
    # Test NGINX generation (used locally)
    ./generate_gateway_config.py --provider nginx --output /tmp/test-nginx
-   
+
    # Test cloud provider generation
    ./generate_gateway_config.py --provider azure --output /tmp/test-azure
    ./generate_gateway_config.py --provider aws --output /tmp/test-aws
@@ -105,7 +105,7 @@ Update `gateway.yaml` when:
    ```bash
    # Check NGINX config
    cat /tmp/test-nginx/nginx.conf
-   
+
    # Check Azure APIM policy
    cat /tmp/test-azure/policy.xml
    ```
@@ -200,10 +200,10 @@ class ReportResponse(BaseModel):
 @app.get("/api/reports/{report_id}", response_model=ReportResponse)
 def get_report(report_id: str):
     """Get a specific report by ID.
-    
+
     Args:
         report_id: Unique identifier for the report
-    
+
     Returns:
         Report data with summary and metadata
     """
@@ -267,11 +267,11 @@ Regenerate service specs when:
 2. **Use Pydantic models**:
    ```python
    from pydantic import BaseModel
-   
+
    class CreateReportRequest(BaseModel):
        thread_id: str
        summary: str
-   
+
    @app.post("/api/reports", response_model=ReportResponse)
    def create_report(request: CreateReportRequest):
        pass
@@ -282,12 +282,12 @@ Regenerate service specs when:
    @app.get("/api/reports/search")
    def search_reports(topic: str = Query(..., description="Search query")):
        """Search reports by topic.
-       
+
        Uses embedding-based similarity search to find relevant reports.
-       
+
        Args:
            topic: Search query string
-       
+
        Returns:
            List of matching reports with similarity scores
        """
@@ -299,7 +299,7 @@ Regenerate service specs when:
    class ErrorResponse(BaseModel):
        detail: str
        code: str
-   
+
    @app.get(
        "/api/reports/{id}",
        response_model=ReportResponse,
@@ -367,7 +367,7 @@ find /tmp/gateway-test -type f
    ```bash
    # Health check
    curl http://localhost:8080/reporting/health
-   
+
    # Get reports
    curl http://localhost:8080/reporting/api/reports
    ```

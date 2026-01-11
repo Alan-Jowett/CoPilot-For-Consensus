@@ -3,9 +3,9 @@
 
 # RFC Database Integration: Feature Design Document
 
-**Status**: Draft  
-**Author**: Copilot-for-Consensus Team  
-**Date**: 2025-12-28  
+**Status**: Draft
+**Author**: Copilot-for-Consensus Team
+**Date**: 2025-12-28
 **Version**: 1.0
 
 ## Table of Contents

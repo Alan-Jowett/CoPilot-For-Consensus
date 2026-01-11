@@ -16,6 +16,18 @@ logger = logging.getLogger(__name__)
 class IMAPFetcher(ArchiveFetcher):
     """Fetcher for IMAP sources."""
 
+    @classmethod
+    def from_config(cls, config: SourceConfig) -> "IMAPFetcher":
+        """Create IMAPFetcher from SourceConfig.
+
+        Args:
+            config: SourceConfig object
+
+        Returns:
+            IMAPFetcher instance
+        """
+        return cls(config)
+
     def __init__(self, source: SourceConfig):
         """Initialize IMAP fetcher.
 

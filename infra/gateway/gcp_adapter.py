@@ -16,18 +16,18 @@ from adapter_base import GatewayAdapter
 
 class GcpAdapter(GatewayAdapter):
     """Adapter for GCP Cloud Endpoints.
-    
+
     Generates:
     - OpenAPI specification with GCP extensions
     - Cloud Run/GKE deployment configuration
     - ESPv2 (Extensible Service Proxy v2) configuration
     - Service configuration for Cloud Endpoints
     """
-    
+
     @property
     def provider_name(self) -> str:
         return "gcp"
-    
+
     @property
     def deployment_instructions(self) -> str:
         return """
@@ -89,65 +89,65 @@ Monitoring:
 - Use Cloud Trace for distributed tracing
 - Set up Cloud Monitoring alerts
 """
-    
+
     def load_spec(self) -> None:
         """Load the OpenAPI specification from YAML file."""
         import yaml
-        
+
         with open(self.openapi_spec_path, 'r') as f:
             self.openapi_spec = yaml.safe_load(f)
-    
+
     def validate_spec(self) -> bool:
         """Validate OpenAPI spec for GCP Cloud Endpoints compatibility."""
         required_fields = ['openapi', 'info', 'paths']
         for field in required_fields:
             if field not in self.openapi_spec:
                 raise ValueError(f"OpenAPI spec missing required field: {field}")
-        
+
         # Check OpenAPI version (Cloud Endpoints supports 2.0 and 3.0)
         version = self.openapi_spec.get('openapi', '')
         if not (version.startswith('3.') or version.startswith('2.')):
             raise ValueError(f"GCP Cloud Endpoints requires OpenAPI 2.x or 3.x, got {version}")
-        
+
         return True
-    
+
     def generate_config(self, output_dir: Path) -> Dict[str, Path]:
         """Generate GCP Cloud Endpoints configuration files."""
         output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Generate OpenAPI spec with GCP extensions
         gcp_spec = self._add_gcp_extensions()
         gcp_spec_path = output_dir / "gcp-openapi-spec.yaml"
-        
+
         import yaml
         with open(gcp_spec_path, 'w') as f:
             yaml.dump(gcp_spec, f, default_flow_style=False, sort_keys=False)
-        
+
         # Generate Cloud Run deployment config
         cloud_run_config = self._generate_cloud_run_config()
         cloud_run_path = output_dir / "gcp-cloud-run-deployment.yaml"
         with open(cloud_run_path, 'w') as f:
             yaml.dump(cloud_run_config, f, default_flow_style=False)
-        
+
         # Generate Kubernetes deployment config (for GKE)
         k8s_config = self._generate_k8s_config()
         k8s_path = output_dir / "gcp-k8s-deployment.yaml"
         with open(k8s_path, 'w') as f:
             yaml.dump_all(k8s_config, f, default_flow_style=False)
-        
+
         # Generate ESPv2 configuration
         esp_config = self._generate_esp_config()
         esp_config_path = output_dir / "gcp-esp-config.yaml"
         with open(esp_config_path, 'w') as f:
             yaml.dump(esp_config, f, default_flow_style=False)
-        
+
         # Generate deployment script
         deploy_script = self._generate_deploy_script()
         deploy_script_path = output_dir / "deploy-to-gcp.sh"
         with open(deploy_script_path, 'w') as f:
             f.write(deploy_script)
         deploy_script_path.chmod(0o755)
-        
+
         return {
             "openapi_gcp": gcp_spec_path,
             "cloud_run_config": cloud_run_path,
@@ -155,17 +155,17 @@ Monitoring:
             "esp_config": esp_config_path,
             "deploy_script": deploy_script_path
         }
-    
+
     def validate_config(self, config_files: Dict[str, Path]) -> bool:
         """Validate generated GCP configuration files."""
         for file_path in config_files.values():
             if not file_path.exists():
                 raise ValueError(f"Generated file does not exist: {file_path}")
-        
+
         # Check for unreplaced placeholders in generated files
-        placeholders = ['PROJECT_ID', 'your-gcp-project-id', 'admin@example.com', 
+        placeholders = ['PROJECT_ID', 'your-gcp-project-id', 'admin@example.com',
                        'https://example.com', 'your-backend-', 'REPLACE_WITH']
-        
+
         for name, file_path in config_files.items():
             if file_path.suffix in ['.yaml', '.yml', '.json', '.sh']:
                 with open(file_path, 'r') as f:
@@ -174,22 +174,22 @@ Monitoring:
                     if found_placeholders:
                         print(f"⚠️  Warning: {name} contains unreplaced placeholders: {', '.join(found_placeholders)}")
                         print(f"   These must be configured before deployment. See deployment guide.")
-        
+
         return True
-    
+
     def _add_gcp_extensions(self) -> Dict[str, Any]:
         """Add GCP-specific extensions to OpenAPI spec."""
         import copy
         spec = copy.deepcopy(self.openapi_spec)
-        
+
         # Update host to use Cloud Endpoints format
         # This should be customized per deployment
         spec['host'] = 'copilot-api.endpoints.PROJECT_ID.cloud.goog'
-        
+
         # Add x-google-backend extension for each path
         gateway_config = spec.get('x-gateway-config', {})
         backends = gateway_config.get('backends', {})
-        
+
         # Add Google-specific configuration
         spec['x-google-endpoints'] = [
             {
@@ -197,13 +197,13 @@ Monitoring:
                 'allowCors': True
             }
         ]
-        
+
         # Add backend routing
         for path, methods in spec.get('paths', {}).items():
             for method, operation in methods.items():
                 if method.upper() not in ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']:
                     continue
-                
+
                 # Determine backend based on path prefix
                 backend_url = "https://example.com"
                 if path.startswith('/reporting'):
@@ -212,17 +212,17 @@ Monitoring:
                     backend_url = backends.get('ingestion', {}).get('url', 'https://ingestion-service.run.app')
                 elif path.startswith('/auth') or path.startswith('/admin'):
                     backend_url = backends.get('auth', {}).get('url', 'https://auth-service.run.app')
-                
+
                 # Add Google backend extension
                 operation['x-google-backend'] = {
                     'address': backend_url,
                     'deadline': 30.0
                 }
-        
+
         # Add security definitions for JWT
         if 'components' not in spec:
             spec['components'] = {}
-        
+
         spec['components']['securitySchemes'] = {
             'firebase': {
                 'type': 'oauth2',
@@ -233,9 +233,9 @@ Monitoring:
                 'x-google-audiences': 'PROJECT_ID'
             }
         }
-        
+
         return spec
-    
+
     def _generate_cloud_run_config(self) -> Dict[str, Any]:
         """Generate Cloud Run service configuration."""
         return {
@@ -284,7 +284,7 @@ Monitoring:
                 }
             }
         }
-    
+
     def _generate_k8s_config(self) -> list:
         """Generate Kubernetes deployment configuration for GKE."""
         return [
@@ -357,7 +357,7 @@ Monitoring:
                 }
             }
         ]
-    
+
     def _generate_esp_config(self) -> Dict[str, Any]:
         """Generate ESPv2 configuration."""
         return {
@@ -376,7 +376,7 @@ Monitoring:
                 'level': 'info'
             }
         }
-    
+
     def _generate_deploy_script(self) -> str:
         """Generate deployment script for GCP."""
         return """#!/bin/bash

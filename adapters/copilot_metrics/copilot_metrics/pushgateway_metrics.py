@@ -6,6 +6,8 @@
 import logging
 import os
 
+from copilot_config import DriverConfig
+
 from .prometheus_metrics import PrometheusMetricsCollector
 
 logger = logging.getLogger(__name__)
@@ -30,11 +32,24 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
 
     def __init__(
         self,
-        gateway: str | None = None,
-        job: str | None = None,
+        gateway: str,
+        job: str,
         grouping_key: dict[str, str] | None = None,
         **kwargs,
     ) -> None:
+        """Initialize Prometheus Pushgateway metrics collector.
+
+        Args:
+            gateway: Pushgateway URL (e.g., "pushgateway:9091" or "http://pushgateway:9091")
+                     Required parameter - must be explicitly provided
+            job: Job name for metrics (e.g., "ingestion", "orchestrator")
+                 Required parameter - must be explicitly provided
+            grouping_key: Optional grouping key dict for metric grouping
+            **kwargs: Additional arguments passed to PrometheusMetricsCollector
+
+        Raises:
+            ImportError: If prometheus_client is not installed
+        """
         if not PROMETHEUS_AVAILABLE:
             raise ImportError(
                 "prometheus_client is required for PrometheusPushGatewayMetricsCollector. "
@@ -46,11 +61,11 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
 
         super().__init__(registry=registry, **kwargs)
 
-        self.gateway = gateway or os.getenv("PROMETHEUS_PUSHGATEWAY", "pushgateway:9091")
+        self.gateway = gateway
         if not self.gateway.startswith("http"):
             self.gateway = f"http://{self.gateway}"
 
-        self.job = job or os.getenv("METRICS_JOB_NAME", "ingestion")
+        self.job = job
         self.grouping_key = grouping_key or {}
 
     def push(self) -> None:
@@ -69,3 +84,31 @@ class PrometheusPushGatewayMetricsCollector(PrometheusMetricsCollector):
         except Exception as e:  # pragma: no cover - defensive logging
             logger.error("Failed to push metrics to Pushgateway: %s", e)
             raise
+
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "PrometheusPushGatewayMetricsCollector":
+        """Create a PrometheusPushGatewayMetricsCollector from configuration.
+
+        Args:
+            driver_config: DriverConfig instance with required attributes:
+                - gateway: Pushgateway URL (e.g., "pushgateway:9091")
+                - job: Job name for metrics
+                Optional attributes:
+                - grouping_key: Optional grouping key dict (default: None)
+                - namespace: Namespace prefix (default: "copilot")
+                - raise_on_error: Whether to raise on metric errors (default: False)
+
+        Returns:
+            Configured PrometheusPushGatewayMetricsCollector instance
+
+        Raises:
+            ImportError: If prometheus_client is not installed
+            ValueError: If gateway or job is not provided
+        """
+        return cls(
+            gateway=driver_config.gateway,
+            job=driver_config.job,
+            grouping_key=getattr(driver_config, "grouping_key", None),
+            namespace=getattr(driver_config, "namespace", "copilot"),
+            raise_on_error=getattr(driver_config, "raise_on_error", False)
+        )

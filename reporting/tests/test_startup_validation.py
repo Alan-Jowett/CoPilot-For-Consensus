@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 def test_service_fails_when_publisher_connection_fails():
     """Test that service fails fast when publisher cannot connect."""
-    with patch("main.load_typed_config") as mock_config:
+    with patch("main.load_service_config") as mock_config:
         with patch("main.create_publisher") as mock_create_publisher:
             # Setup mock config
             config = Mock()
@@ -54,7 +54,7 @@ def test_service_fails_when_publisher_connection_fails():
 
 def test_service_fails_when_subscriber_connection_fails():
     """Test that service fails fast when subscriber cannot connect."""
-    with patch("main.load_typed_config") as mock_config:
+    with patch("main.load_service_config") as mock_config:
         with patch("main.create_publisher") as mock_create_publisher:
             with patch("main.create_subscriber") as mock_create_subscriber:
                 # Setup mock config
@@ -99,7 +99,7 @@ def test_service_fails_when_subscriber_connection_fails():
 
 def test_service_fails_when_document_store_connection_fails():
     """Test that service fails fast when document store cannot connect."""
-    with patch("main.load_typed_config") as mock_config:
+    with patch("main.load_service_config") as mock_config:
         with patch("main.create_publisher") as mock_create_publisher:
             with patch("main.create_subscriber") as mock_create_subscriber:
                 with patch("main.create_document_store") as mock_create_store:
@@ -152,32 +152,42 @@ def test_service_fails_when_document_store_connection_fails():
 
 def test_service_allows_noop_publisher_failure():
     """Test that service continues when noop publisher fails to connect."""
-    with patch("main.load_typed_config") as mock_config:
+    with patch("main.load_service_config") as mock_config:
         with patch("main.create_publisher") as mock_create_publisher:
             with patch("main.create_subscriber") as mock_create_subscriber:
                 with patch("main.create_document_store") as mock_create_store:
                     with patch("main.create_metrics_collector") as mock_metrics:
                         with patch("main.create_error_reporter") as mock_reporter:
-                            with patch("main.FileSchemaProvider") as mock_schema_provider:
+                            with patch("main.create_schema_provider") as mock_schema_provider:
                                 with patch("threading.Thread.start"):  # Prevent thread creation
                                     with patch("uvicorn.run"):  # Prevent uvicorn from blocking
                                         # Setup mock config with noop message bus
                                         config = Mock()
-                                        config.message_bus_type = "noop"
-                                        config.message_bus_host = "localhost"
-                                        config.message_bus_port = 5672
-                                        config.message_bus_user = "guest"
-                                        config.message_bus_password = "guest"
-                                        config.doc_store_type = "inmemory"
-                                        config.doc_store_host = "localhost"
-                                        config.doc_store_port = 27017
-                                        config.doc_store_name = "test_db"
-                                        config.doc_store_user = None
-                                        config.doc_store_password = None
+                                        config.http_port = 8000
+                                        config.jwt_auth_enabled = True
                                         config.notify_enabled = False
                                         config.notify_webhook_url = None
                                         config.webhook_summary_max_length = 500
-                                        config.http_port = 8000
+
+                                        # Setup adapter mocks using adapter pattern
+                                        message_bus_adapter = Mock()
+                                        message_bus_adapter.driver_name = "noop"
+                                        message_bus_adapter.driver_config.config = {}
+
+                                        document_store_adapter = Mock()
+                                        document_store_adapter.driver_name = "inmemory"
+                                        document_store_adapter.driver_config.config = {}
+
+                                        def get_adapter_side_effect(name):
+                                            if name == "message_bus":
+                                                return message_bus_adapter
+                                            elif name == "document_store":
+                                                return document_store_adapter
+                                            elif name in ("vector_store", "embedding_provider", "metrics"):
+                                                return None
+                                            return None
+
+                                        config.get_adapter = Mock(side_effect=get_adapter_side_effect)
                                         mock_config.return_value = config
 
                                         # Setup mock publisher that fails to connect (but is noop)
@@ -198,6 +208,7 @@ def test_service_allows_noop_publisher_failure():
                                         # Setup schema provider mock
                                         mock_provider_instance = Mock()
                                         mock_provider_instance.get_schema = Mock(return_value={"type": "object"})
+                                        mock_schema_provider.return_value = mock_provider_instance
                                         mock_schema_provider.return_value = mock_provider_instance
 
                                         # Setup other mocks
@@ -221,7 +232,7 @@ def test_service_allows_noop_publisher_failure():
 @pytest.mark.skip(reason="Schema validation at startup not yet implemented")
 def test_service_fails_when_schema_missing():
     """Test that service fails fast when required schemas cannot be loaded."""
-    with patch("main.load_typed_config") as mock_config:
+    with patch("main.load_service_config") as mock_config:
         with patch("main.create_publisher") as mock_create_publisher:
             with patch("main.create_subscriber") as mock_create_subscriber:
                 with patch("main.create_document_store") as mock_create_store:
@@ -284,7 +295,7 @@ def test_service_fails_when_schema_missing():
 @pytest.mark.skip(reason="Document store write permission validation at startup not yet implemented")
 def test_service_fails_when_doc_store_lacks_write_permission():
     """Test that service fails fast when document store lacks write permission."""
-    with patch("main.load_typed_config") as mock_config:
+    with patch("main.load_service_config") as mock_config:
         with patch("main.create_publisher") as mock_create_publisher:
             with patch("main.create_subscriber") as mock_create_subscriber:
                 with patch("main.create_document_store") as mock_create_store:

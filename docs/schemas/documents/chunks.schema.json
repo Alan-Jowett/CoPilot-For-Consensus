@@ -74,8 +74,8 @@
       ],
       "description": "Timestamp of the last embedding generation attempt"
     },
-    "lastUpdated": { 
-      "type": "string", 
+    "lastUpdated": {
+      "type": "string",
       "format": "date-time",
       "description": "Timestamp of last status or field update for observability and forward progress tracking"
     },

@@ -12,6 +12,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
+from copilot_config import DriverConfig
 from copilot_schema_validation import generate_chunk_id
 
 
@@ -118,6 +119,27 @@ class TokenWindowChunker(ThreadChunker):
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
 
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "TokenWindowChunker":
+        """Create TokenWindowChunker from driver configuration.
+
+        Expected keys in driver_config:
+        - chunk_size (int)
+        - overlap (int)
+        - min_chunk_size (int)
+        - max_chunk_size (int)
+        """
+        chunk_size = driver_config.chunk_size
+        overlap = driver_config.overlap
+        min_chunk_size = driver_config.min_chunk_size
+        max_chunk_size = driver_config.max_chunk_size
+        return cls(
+            chunk_size=int(chunk_size),
+            overlap=int(overlap),
+            min_chunk_size=int(min_chunk_size),
+            max_chunk_size=int(max_chunk_size),
+        )
+
     def chunk(self, thread: Thread) -> list[Chunk]:
         """Chunk a thread using a sliding token window.
 
@@ -200,6 +222,16 @@ class FixedSizeChunker(ThreadChunker):
         if messages_per_chunk < 1:
             raise ValueError("messages_per_chunk must be at least 1")
         self.messages_per_chunk = messages_per_chunk
+
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "FixedSizeChunker":
+        """Create FixedSizeChunker from driver configuration.
+
+        Expected keys:
+        - messages_per_chunk (int)
+        """
+        messages_per_chunk = int(driver_config.messages_per_chunk)
+        return cls(messages_per_chunk=messages_per_chunk)
 
     def chunk(self, thread: Thread) -> list[Chunk]:
         """Chunk a thread by grouping N messages together.
@@ -333,6 +365,21 @@ class SemanticChunker(ThreadChunker):
         self.target_chunk_size = target_chunk_size
         self.split_on_speaker = split_on_speaker
 
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "SemanticChunker":
+        """Create SemanticChunker from driver configuration.
+
+        Expected keys:
+        - target_chunk_size (int)
+        - split_on_speaker (bool)
+        """
+        target_chunk_size = int(driver_config.target_chunk_size)
+        split_on_speaker = bool(driver_config.split_on_speaker)
+        return cls(
+            target_chunk_size=target_chunk_size,
+            split_on_speaker=split_on_speaker,
+        )
+
     def chunk(self, thread: Thread) -> list[Chunk]:
         """Chunk a thread on sentence boundaries.
 
@@ -423,54 +470,38 @@ class SemanticChunker(ThreadChunker):
 
 
 def create_chunker(
-    strategy: str,
-    chunk_size: int | None = None,
-    overlap: int | None = None,
-    messages_per_chunk: int | None = None,
-    **kwargs
+    driver_name: str,
+    driver_config: DriverConfig,
 ) -> ThreadChunker:
-    """Factory method to create a chunker based on strategy name.
+    """Create a chunker from DriverConfig.
 
     Args:
-        strategy: Chunking strategy ("token_window", "fixed_size", "semantic")
-        chunk_size: Target chunk size in tokens (for token_window, semantic)
-        overlap: Overlap between chunks in tokens (for token_window)
-        messages_per_chunk: Messages per chunk (for fixed_size)
-        **kwargs: Additional strategy-specific arguments
+        driver_name: Type of chunker ("token_window", "fixed_size", "semantic")
+        driver_config: DriverConfig object for the chosen chunker driver
 
     Returns:
         ThreadChunker instance
 
     Raises:
-        ValueError: If strategy is unknown
+        ValueError: If driver_name is unknown or required parameters are missing
     """
-    strategy_lower = strategy.lower()
+    if not driver_name:
+        raise ValueError(
+            "driver_name parameter is required. "
+            "Must be one of: token_window, fixed_size, semantic"
+        )
 
-    if strategy_lower == "token_window":
-        params = {}
-        if chunk_size is not None:
-            params["chunk_size"] = chunk_size
-        if overlap is not None:
-            params["overlap"] = overlap
-        params.update(kwargs)
-        return TokenWindowChunker(**params)
+    name = str(driver_name).lower()
 
-    elif strategy_lower == "fixed_size":
-        params = {}
-        if messages_per_chunk is not None:
-            params["messages_per_chunk"] = messages_per_chunk
-        params.update(kwargs)
-        return FixedSizeChunker(**params)
-
-    elif strategy_lower == "semantic":
-        params = {}
-        if chunk_size is not None:
-            params["target_chunk_size"] = chunk_size
-        params.update(kwargs)
-        return SemanticChunker(**params)
-
+    if name == "token_window":
+        return TokenWindowChunker.from_config(driver_config)
+    elif name == "fixed_size":
+        return FixedSizeChunker.from_config(driver_config)
+    elif name == "semantic":
+        return SemanticChunker.from_config(driver_config)
     else:
         raise ValueError(
-            f"Unknown chunking strategy: {strategy}. "
+            f"Unknown chunker driver: {driver_name}. "
             f"Valid options: token_window, fixed_size, semantic"
         )
+

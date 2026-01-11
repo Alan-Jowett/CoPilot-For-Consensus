@@ -18,8 +18,8 @@
               "pattern": "^[0-9a-f]{16,64}$",
               "description": "archives._id (16-64 hex)"
             },
-            "file_path": { 
-              "type": "string", 
+            "file_path": {
+              "type": "string",
               "minLength": 1,
               "description": "Optional file path for local storage backends. When present, this value MUST be a non-empty string containing a concrete file path. For storage-agnostic backends, this field MUST be omitted and MUST NOT be set to a placeholder value."
             },

@@ -64,6 +64,27 @@ class AzureAISearchVectorStore(VectorStore):
             ValueError: If endpoint is invalid or authentication is not provided
             RuntimeError: If cannot connect to Azure AI Search
         """
+        # Validate parameters before attempting imports
+        if not endpoint:
+            raise ValueError("endpoint parameter is required")
+
+        if not endpoint.startswith("https://"):
+            raise ValueError(
+                f"Invalid endpoint '{endpoint}'. Must start with 'https://'"
+            )
+
+        if not use_managed_identity and not api_key:
+            raise ValueError(
+                "Either api_key must be provided or use_managed_identity must be True"
+            )
+
+        if not index_name:
+            raise ValueError("index_name is required")
+
+        if vector_size <= 0:
+            raise ValueError(f"Vector size must be positive, got {vector_size}")
+
+        # Import Azure SDK components after parameter validation
         try:
             from azure.core.credentials import AzureKeyCredential
             from azure.search.documents import SearchClient
@@ -82,22 +103,6 @@ class AzureAISearchVectorStore(VectorStore):
                 "azure-search-documents is not installed. "
                 "Install it with: pip install azure-search-documents"
             ) from e
-
-        if not endpoint:
-            raise ValueError("endpoint parameter is required")
-
-        if not endpoint.startswith("https://"):
-            raise ValueError(
-                f"Invalid endpoint '{endpoint}'. Must start with 'https://'"
-            )
-
-        if not use_managed_identity and not api_key:
-            raise ValueError(
-                "Either api_key must be provided or use_managed_identity must be True"
-            )
-
-        if vector_size <= 0:
-            raise ValueError(f"Vector size must be positive, got {vector_size}")
 
         self._endpoint = endpoint
         self._api_key = api_key
@@ -157,6 +162,52 @@ class AzureAISearchVectorStore(VectorStore):
         logger.info(
             f"Initialized Azure AI Search vector store: endpoint={endpoint}, "
             f"index={index_name}, vector_size={vector_size}"
+        )
+
+    @classmethod
+    def from_config(cls, config: Any) -> "AzureAISearchVectorStore":
+        """Create an AzureAISearchVectorStore from configuration.
+
+        Configuration defaults are defined in schema:
+        docs/schemas/configs/adapters/drivers/vector_store/vectorstore_aisearch.json
+
+        Args:
+            config: Configuration object with attributes:
+                    - vector_size or dimension: Dimension of embeddings (int)
+                    - endpoint: Azure Search service endpoint URL (str)
+                    - index_name: Name of the search index (str)
+                    - use_managed_identity: Use managed identity for auth (bool)
+                    - api_key: API key for authentication (str, required if not using managed identity)
+
+        Returns:
+            Configured AzureAISearchVectorStore instance
+
+        Raises:
+            ValueError: If required config is missing or invalid
+        """
+        vector_size = getattr(config, "vector_size", None) or getattr(config, "dimension", None)
+        if vector_size is None:
+            raise ValueError(
+                "vector_size is required for Azure AI Search backend. "
+                "Provide 'vector_size' (or 'dimension') in driver_config."
+            )
+
+        endpoint = config.endpoint
+        index_name = config.index_name
+        use_managed_identity = config.use_managed_identity
+        api_key = getattr(config, "api_key", None)
+
+        if not use_managed_identity and not api_key:
+            raise ValueError(
+                "Either api_key must be provided or use_managed_identity must be True"
+            )
+
+        return cls(
+            endpoint=endpoint,
+            api_key=api_key,
+            index_name=index_name,
+            vector_size=vector_size,
+            use_managed_identity=use_managed_identity,
         )
 
     def _ensure_index(self) -> None:

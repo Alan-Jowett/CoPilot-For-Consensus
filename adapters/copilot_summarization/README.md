@@ -35,16 +35,15 @@ pip install "./adapters/copilot_summarization[openai]"
 ## Usage
 
 ```python
-from copilot_summarization import SummarizerFactory, Thread
+from copilot_summarization import create_llm_backend, Thread
 
-# Create summarizer (defaults to mock provider)
-summarizer = SummarizerFactory.create_summarizer()
-
-# Or specify a provider
-summarizer = SummarizerFactory.create_summarizer(
-    provider="openai",
-    api_key="your-api-key",
-    model="gpt-4"
+# Create summarizer
+summarizer = create_llm_backend(
+    driver_name="openai",
+    driver_config={
+        "openai_api_key": "your-api-key",
+        "openai_model": "gpt-4",
+    },
 )
 
 # Create a thread to summarize
@@ -62,40 +61,43 @@ print(summary.summary_markdown)
 
 ### Environment Variables
 
-- `SUMMARIZER_PROVIDER`: Provider type (`openai`, `azure`, `local`, `llamacpp`, `mock`)
-- `OPENAI_API_KEY`: OpenAI API key
-- `OPENAI_MODEL`: OpenAI model to use (default: `gpt-3.5-turbo`)
-- `AZURE_OPENAI_API_KEY`: Azure OpenAI API key
-- `AZURE_OPENAI_ENDPOINT`: Azure OpenAI endpoint URL
-- `AZURE_OPENAI_MODEL`: Azure OpenAI model
-- `AZURE_OPENAI_DEPLOYMENT`: Azure deployment name (optional, defaults to model name)
-- `AZURE_OPENAI_API_VERSION`: Azure API version (optional, defaults to `2023-12-01`)
-- `LOCAL_LLM_MODEL`: Local LLM model name (default: `mistral`)
-- `LOCAL_LLM_ENDPOINT`: Local LLM endpoint (default: `http://localhost:11434`)
-- `MOCK_LATENCY_MS`: Mock provider simulated latency (default: `100`)
+- `SUMMARIZATION_LLM_BACKEND`: Provider type (`openai`, `azure`, `local`, `llamacpp`, `mock`)
+- `SUMMARIZATION_LLM_MODEL`: Model name (used by OpenAI/Azure/local/llamacpp)
+- `SUMMARIZATION_OPENAI_BASE_URL`: Optional OpenAI-compatible base URL
+- `SUMMARIZATION_AZURE_OPENAI_ENDPOINT`: Azure OpenAI endpoint URL
+- `SUMMARIZATION_AZURE_OPENAI_DEPLOYMENT`: Azure deployment name (optional, defaults to model name)
+- `SUMMARIZATION_AZURE_OPENAI_API_VERSION`: Azure API version (default: `2023-12-01`)
+- `SUMMARIZATION_LOCAL_LLM_ENDPOINT`: Local LLM endpoint (default: `http://ollama:11434`)
+- `SUMMARIZATION_LLAMACPP_ENDPOINT`: llama.cpp endpoint (default: `http://llama-cpp:8081`)
+- `SUMMARIZATION_LLM_TIMEOUT_SECONDS`: Timeout for local/llamacpp backends (default: `300`)
+- `SUMMARIZATION_MOCK_LATENCY_MS`: Mock provider latency (default: `100`)
 
 ## Providers
 
 ### OpenAI
 
 ```python
-summarizer = SummarizerFactory.create_summarizer(
-    provider="openai",
-    api_key="sk-...",
-    model="gpt-4"
+summarizer = create_llm_backend(
+    driver_name="openai",
+    driver_config={
+        "openai_api_key": "sk-...",
+        "openai_model": "gpt-4",
+    },
 )
 ```
 
 ### Azure OpenAI
 
 ```python
-summarizer = SummarizerFactory.create_summarizer(
-    provider="azure",
-    api_key="your-azure-key",
-    base_url="https://your-resource.openai.azure.com",
-    model="gpt-4",
-    deployment_name="gpt-4-deployment",  # Optional, defaults to model name
-    api_version="2023-12-01"  # Optional, defaults to 2023-12-01
+summarizer = create_llm_backend(
+    driver_name="azure",
+    driver_config={
+        "azure_openai_api_key": "your-azure-key",
+        "azure_openai_endpoint": "https://your-resource.openai.azure.com/",
+        "azure_openai_model": "gpt-4",
+        "azure_openai_deployment": "gpt-4-deployment",  # Optional
+        "azure_openai_api_version": "2023-12-01",  # Optional
+    },
 )
 ```
 
@@ -111,17 +113,19 @@ summarizer = SummarizerFactory.create_summarizer(
 ### Local LLM
 
 ```python
-summarizer = SummarizerFactory.create_summarizer(
-    provider="local",
-    model="mistral",
-    base_url="http://localhost:11434"
+summarizer = create_llm_backend(
+    driver_name="local",
+    driver_config={
+        "local_llm_model": "mistral",
+        "local_llm_endpoint": "http://localhost:11434",
+    },
 )
 ```
 
 ### Mock (for testing)
 
 ```python
-summarizer = SummarizerFactory.create_summarizer(provider="mock")
+summarizer = create_llm_backend(driver_name="mock", driver_config={})
 ```
 
 ## Development
@@ -151,7 +155,7 @@ The library follows a clean adapter pattern:
 - `LocalLLMSummarizer`: Local LLM implementation (Ollama)
 - `LlamaCppSummarizer`: llama.cpp server implementation
 - `MockSummarizer`: Mock implementation for testing
-- `SummarizerFactory`: Factory for creating summarizer instances
+- `create_llm_backend`: Factory function for creating summarizer instances
 - `Thread`, `Summary`, `Citation`: Data models
 
 ## License

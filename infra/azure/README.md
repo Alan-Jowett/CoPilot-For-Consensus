@@ -1099,11 +1099,11 @@ To rotate GitHub OAuth credentials (recommended every 90 days):
    # Set new secret values in Key Vault
    az keyvault secret set --vault-name $KEY_VAULT_NAME \
      --name github-oauth-client-id --value "NEW_GITHUB_CLIENT_ID"
-   
+
    az keyvault secret set --vault-name $KEY_VAULT_NAME \
      --name github-oauth-client-secret --value "NEW_GITHUB_CLIENT_SECRET"
    ```
-   
+
    This creates new versions of the secrets in Key Vault. The auth service will automatically pick up the new values on the next secret read (secrets are typically cached for a short period).
 
 3. **Verify the auth service picks up new credentials**:
@@ -1111,19 +1111,19 @@ To rotate GitHub OAuth credentials (recommended every 90 days):
    # Get the auth app name
    AUTH_APP=$(az containerapp list -g copilot-rg \
      --query "[?contains(name, 'auth')].name" -o tsv)
-   
+
    # Check auth service logs
    az containerapp logs show \
      --name $AUTH_APP \
      --resource-group copilot-rg \
      --follow
-   
+
    # Test GitHub OAuth login flow
    GATEWAY_URL=$(az deployment group show \
      --name copilot-deployment \
      --resource-group copilot-rg \
      --query properties.outputs.gatewayFqdn.value -o tsv)
-   
+
    curl https://$GATEWAY_URL/auth/providers
    ```
 
@@ -1154,40 +1154,40 @@ If you need to rollback to previous GitHub OAuth credentials:
      --vault-name $KEY_VAULT_NAME \
      --name github-oauth-client-secret \
      --query "[].{Version:id, Created:attributes.created}" -o table
-   
+
    # Get a specific version for client secret
    PREVIOUS_SECRET_VERSION="abc123..."  # Version ID from list above
    az keyvault secret show \
      --vault-name $KEY_VAULT_NAME \
      --name github-oauth-client-secret \
      --version $PREVIOUS_SECRET_VERSION
-   
+
    # Set current secret to previous value
    PREVIOUS_SECRET_VALUE=$(az keyvault secret show \
      --vault-name $KEY_VAULT_NAME \
      --name github-oauth-client-secret \
      --version $PREVIOUS_SECRET_VERSION \
      --query value -o tsv)
-   
+
    az keyvault secret set \
      --vault-name $KEY_VAULT_NAME \
      --name github-oauth-client-secret \
      --value "$PREVIOUS_SECRET_VALUE"
-   
+
    # Also rollback client ID if needed
    # List versions for client ID (may be different from secret versions)
    az keyvault secret list-versions \
      --vault-name $KEY_VAULT_NAME \
      --name github-oauth-client-id \
      --query "[].{Version:id, Created:attributes.created}" -o table
-   
+
    PREVIOUS_ID_VERSION="def456..."  # Version ID from list above
    PREVIOUS_ID_VALUE=$(az keyvault secret show \
      --vault-name $KEY_VAULT_NAME \
      --name github-oauth-client-id \
      --version $PREVIOUS_ID_VERSION \
      --query value -o tsv)
-   
+
    az keyvault secret set \
      --vault-name $KEY_VAULT_NAME \
      --name github-oauth-client-id \
@@ -1333,7 +1333,7 @@ The deployment includes Application Insights dashboards for:
 
 **Error**: "Container failed to pull image"
 
-**Solution**: 
+**Solution**:
 - Verify GHCR images exist at `ghcr.io/alan-jowett/copilot-for-consensus`
 - Check if Container Apps have outbound internet access
 - Ensure images are public or provide registry credentials
@@ -1489,5 +1489,5 @@ For issues or questions:
 
 ---
 
-**License**: MIT  
+**License**: MIT
 **Copyright**: © 2025 Copilot-for-Consensus contributors

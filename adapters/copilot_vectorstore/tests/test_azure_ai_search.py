@@ -9,8 +9,11 @@ from unittest.mock import Mock, patch
 import pytest
 
 # Check if azure-search-documents SDK is available
+AZURE_AVAILABLE = False
 try:
-    from copilot_vectorstore import AzureAISearchVectorStore  # noqa: F401
+    import azure.search.documents  # type: ignore[import]  # noqa: F401
+    from copilot_vectorstore.azure_ai_search_store import AzureAISearchVectorStore  # noqa: F401
+
     AZURE_AVAILABLE = True
 except ImportError:
     AZURE_AVAILABLE = False

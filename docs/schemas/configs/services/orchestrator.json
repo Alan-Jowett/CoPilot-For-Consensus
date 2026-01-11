@@ -1,0 +1,186 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "service_name": "orchestrator",
+    "schema_version": "1.0.0",
+    "min_service_version": "0.1.0",
+    "metadata": {
+        "description": "Orchestrator service configuration schema",
+        "version": "1.0.0"
+    },
+    "service_settings": {
+        "consensus_timeout_seconds": {
+            "type": "int",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_CONSENSUS_TIMEOUT_SECONDS",
+            "default": 300,
+            "description": "Timeout for consensus workflow in seconds (5 minutes)"
+        },
+        "http_port": {
+            "type": "int",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_HTTP_PORT",
+            "default": 8000,
+            "description": "HTTP server port"
+        },
+        "jwt_auth_enabled": {
+            "type": "bool",
+            "source": "env",
+            "env_var": ["ORCHESTRATOR_JWT_AUTH_ENABLED", "JWT_AUTH_ENABLED"],
+            "default": true,
+            "description": "Enable JWT authentication middleware (supports global JWT_AUTH_ENABLED alias)"
+        },
+        "auth_service_url": {
+            "type": "string",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_AUTH_SERVICE_URL",
+            "default": "http://auth:8090",
+            "description": "URL of the authentication service"
+        },
+        "service_audience": {
+            "type": "string",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_SERVICE_AUDIENCE",
+            "default": "copilot-for-consensus",
+            "description": "JWT audience for this service"
+        },
+        "max_parallel_reviews": {
+            "type": "int",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_MAX_PARALLEL_REVIEWS",
+            "default": 10,
+            "description": "Maximum number of parallel review workflows"
+        },
+        "top_k": {
+            "type": "int",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_TOP_K",
+            "default": 5,
+            "description": "Number of top documents to retrieve for context"
+        },
+        "context_window_tokens": {
+            "type": "int",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_CONTEXT_WINDOW_TOKENS",
+            "default": 2048,
+            "description": "LLM context window size in tokens"
+        },
+        "llm_temperature": {
+            "type": "float",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_LLM_TEMPERATURE",
+            "default": 0.7,
+            "description": "LLM temperature parameter for creativity/randomness"
+        },
+        "llm_max_tokens": {
+            "type": "int",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_LLM_MAX_TOKENS",
+            "default": 1024,
+            "description": "Maximum tokens to generate in LLM response"
+        },
+        "max_retries": {
+            "type": "int",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_RETRY_MAX_ATTEMPTS",
+            "default": 3,
+            "description": "Maximum retry attempts for workflow steps"
+        },
+        "log_type": {
+            "type": "string",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_LOG_TYPE",
+            "default": "stdout",
+            "description": "Logger type (stdout, file, etc.)"
+        },
+        "logger_name": {
+            "type": "string",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_LOGGER_NAME",
+            "default": "orchestrator",
+            "description": "Logger name"
+        },
+        "log_level": {
+            "type": "string",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_LOG_LEVEL",
+            "default": "INFO",
+            "description": "Logging level"
+        },
+        "request_timeout_seconds": {
+            "type": "int",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_REQUEST_TIMEOUT_SECONDS",
+            "default": 60,
+            "description": "Request timeout in seconds"
+        },
+        "workflow_history_retention_days": {
+            "type": "int",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_WORKFLOW_HISTORY_RETENTION_DAYS",
+            "default": 90,
+            "description": "Workflow history retention period in days"
+        },
+        "metrics_type": {
+            "type": "string",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_METRICS_TYPE",
+            "default": "noop",
+            "description": "Metrics type (noop, prometheus_pushgateway, etc.)"
+        },
+        "llm_backend": {
+            "type": "string",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_LLM_BACKEND",
+            "default": "openai",
+            "description": "LLM backend type (e.g., openai, azure, ollama)"
+        },
+        "llm_model": {
+            "type": "string",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_LLM_MODEL",
+            "default": "gpt-3.5-turbo",
+            "description": "LLM model identifier"
+        },
+        "system_prompt_path": {
+            "type": "string",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_SYSTEM_PROMPT_PATH",
+            "default": "/app/prompts/system.txt",
+            "description": "Path to system prompt file"
+        },
+        "user_prompt_path": {
+            "type": "string",
+            "source": "env",
+            "env_var": "ORCHESTRATOR_USER_PROMPT_PATH",
+            "default": "/app/prompts/user.txt",
+            "description": "Path to user prompt file"
+        }
+    },
+    "adapters": {
+        "consensus_detector": {
+            "$ref": "../adapters/consensus_detector.json"
+        },
+        "document_store": {
+            "$ref": "../adapters/document_store.json"
+        },
+        "embedding_backend": {
+            "$ref": "../adapters/embedding_backend.json"
+        },
+        "error_reporter": {
+            "$ref": "../adapters/error_reporter.json"
+        },
+        "message_bus": {
+            "$ref": "../adapters/message_bus.json"
+        },
+        "metrics": {
+            "$ref": "../adapters/metrics.json"
+        },
+        "secret_provider": {
+            "$ref": "../adapters/secret_provider.json"
+        },
+        "vector_store": {
+            "$ref": "../adapters/vector_store.json"
+        }
+    }
+}

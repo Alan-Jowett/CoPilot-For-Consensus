@@ -202,7 +202,7 @@ def test_substitute_prompt_template(summarization_service):
         "Drafts: {draft_mentions}\n"
         "Excerpts:\n{email_chunks}"
     )
-    
+
     context = {
         "messages": [
             "First message",
@@ -221,13 +221,13 @@ def test_substitute_prompt_template(summarization_service):
             },
         ],
     }
-    
+
     result = summarization_service._substitute_prompt_template(
         prompt_template=template,
         thread_id="thread-123",
         context=context,
     )
-    
+
     # Verify substitutions
     assert "thread-123" in result
     assert "Messages: 2" in result
@@ -239,7 +239,7 @@ def test_substitute_prompt_template(summarization_service):
 
 def test_substitute_prompt_template_unexpected_placeholder(summarization_service):
     """Test that KeyError is caught for unexpected placeholders in template.
-    
+
     If the template contains a placeholder that is not in the expected set
     ({thread_id}, {message_count}, {date_range}, {participants}, {draft_mentions},
     {email_chunks}), the string.format() call will raise KeyError. This should be
@@ -249,12 +249,12 @@ def test_substitute_prompt_template_unexpected_placeholder(summarization_service
         "Thread ID: {thread_id}\n"
         "Summary: {unexpected_placeholder}"
     )
-    
+
     context = {
         "messages": ["Message 1"],
         "chunks": [{"from": {"email": "test@example.com"}, "date": "2023-10-15T12:00:00Z", "draft_mentions": []}],
     }
-    
+
     # Should raise ValueError (not KeyError) with descriptive message
     with pytest.raises(ValueError) as exc_info:
         summarization_service._substitute_prompt_template(
@@ -262,7 +262,7 @@ def test_substitute_prompt_template_unexpected_placeholder(summarization_service
             thread_id="thread-123",
             context=context,
         )
-    
+
     error_msg = str(exc_info.value)
     assert "unexpected_placeholder" in error_msg
     assert "Expected placeholders" in error_msg
@@ -279,7 +279,7 @@ def test_substitute_prompt_template_empty_messages(summarization_service):
         "Message count: {message_count}\n"
         "Excerpts:\n{email_chunks}"
     )
-    
+
     context = {
         "messages": [],  # Empty messages
         "chunks": [
@@ -290,13 +290,13 @@ def test_substitute_prompt_template_empty_messages(summarization_service):
             },
         ],
     }
-    
+
     result = summarization_service._substitute_prompt_template(
         prompt_template=template,
         thread_id="thread-123",
         context=context,
     )
-    
+
     # Should handle empty messages gracefully
     assert "thread-123" in result
     assert "Message count: 0" in result
@@ -310,18 +310,18 @@ def test_substitute_prompt_template_empty_chunks(summarization_service):
         "Participants: {participants}\n"
         "Excerpts:\n{email_chunks}"
     )
-    
+
     context = {
         "messages": ["Message 1", "Message 2"],
         "chunks": [],  # Empty chunks
     }
-    
+
     result = summarization_service._substitute_prompt_template(
         prompt_template=template,
         thread_id="thread-123",
         context=context,
     )
-    
+
     # Should handle empty chunks gracefully
     assert "thread-123" in result
     assert "Participants:" in result
@@ -339,18 +339,18 @@ def test_substitute_prompt_template_both_empty(summarization_service):
         "Drafts: {draft_mentions}\n"
         "Excerpts:\n{email_chunks}"
     )
-    
+
     context = {
         "messages": [],
         "chunks": [],
     }
-    
+
     result = summarization_service._substitute_prompt_template(
         prompt_template=template,
         thread_id="thread-123",
         context=context,
     )
-    
+
     # Should handle both empty gracefully
     assert "thread-123" in result
     assert "Messages: 0" in result
@@ -360,12 +360,12 @@ def test_substitute_prompt_template_both_empty(summarization_service):
 
 def test_substitute_prompt_template_malformed_chunk_sender_not_dict(summarization_service):
     """Test that chunks with malformed 'from' field are handled.
-    
+
     If chunk['from'] is not a dict but some other type, accessing
     chunk['from']['email'] will raise TypeError or KeyError.
     """
     template = "Participants: {participants}"
-    
+
     context = {
         "messages": [],
         "chunks": [
@@ -376,7 +376,7 @@ def test_substitute_prompt_template_malformed_chunk_sender_not_dict(summarizatio
             },
         ],
     }
-    
+
     result = summarization_service._substitute_prompt_template(
         prompt_template=template,
         thread_id="thread-123",
@@ -390,7 +390,7 @@ def test_substitute_prompt_template_malformed_chunk_sender_not_dict(summarizatio
 def test_substitute_prompt_template_malformed_chunk_missing_date(summarization_service):
     """Test that chunks with missing 'date' field are handled."""
     template = "Date range: {date_range}"
-    
+
     context = {
         "messages": [],
         "chunks": [
@@ -401,7 +401,7 @@ def test_substitute_prompt_template_malformed_chunk_missing_date(summarization_s
             },
         ],
     }
-    
+
     result = summarization_service._substitute_prompt_template(
         prompt_template=template,
         thread_id="thread-123",
@@ -415,7 +415,7 @@ def test_substitute_prompt_template_malformed_chunk_missing_date(summarization_s
 def test_substitute_prompt_template_chunk_with_none_from(summarization_service):
     """Test that chunks with None 'from' field are handled."""
     template = "Participants: {participants}"
-    
+
     context = {
         "messages": [],
         "chunks": [
@@ -426,7 +426,7 @@ def test_substitute_prompt_template_chunk_with_none_from(summarization_service):
             },
         ],
     }
-    
+
     result = summarization_service._substitute_prompt_template(
         prompt_template=template,
         thread_id="thread-123",
@@ -440,7 +440,7 @@ def test_substitute_prompt_template_chunk_with_none_from(summarization_service):
 def test_substitute_prompt_template_draft_mentions_not_list(summarization_service):
     """Test that chunks with non-list draft_mentions are handled."""
     template = "Drafts: {draft_mentions}"
-    
+
     context = {
         "messages": [],
         "chunks": [
@@ -451,7 +451,7 @@ def test_substitute_prompt_template_draft_mentions_not_list(summarization_servic
             },
         ],
     }
-    
+
     result = summarization_service._substitute_prompt_template(
         prompt_template=template,
         thread_id="thread-123",
@@ -487,7 +487,6 @@ def test_format_citations(summarization_service):
     assert len(formatted) == 2
     assert formatted[0]["message_id"] == "<msg1@example.com>"
     assert formatted[0]["chunk_id"] == "aaaa1111bbbb2222"
-    assert formatted[0]["_id"] == "aaaa1111bbbb2222"
     assert formatted[0]["offset"] == 0
     assert formatted[0]["text"] == "Text 1"
     assert formatted[1]["text"] == "Text 2"
@@ -513,7 +512,7 @@ def test_format_citations_limit(summarization_service):
 
 def test_format_citations_full_text(summarization_service):
     """Test that citation text includes the full chunk text.
-    
+
     Since chunks are already sized by the chunking service (384 token target, max 512),
     we no longer truncate citation text in the summarization service.
     """

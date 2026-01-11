@@ -1,66 +1,89 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Tests for SummarizerFactory."""
+"""Tests for LLM backend factory."""
 
 from unittest.mock import patch
 
 import pytest
-from copilot_summarization.factory import SummarizerFactory
+
+from copilot_summarization.factory import create_llm_backend
 from copilot_summarization.llamacpp_summarizer import LlamaCppSummarizer
 from copilot_summarization.local_llm_summarizer import LocalLLMSummarizer
 from copilot_summarization.mock_summarizer import MockSummarizer
 from copilot_summarization.openai_summarizer import OpenAISummarizer
 
 
-class TestSummarizerFactory:
-    """Tests for SummarizerFactory."""
+class TestLLMBackendFactory:
+    """Tests for create_llm_backend."""
 
-    def test_create_mock_summarizer(self):
+    def test_create_mock_summarizer(self, llm_driver_config):
         """Test creating a mock summarizer."""
-        summarizer = SummarizerFactory.create_summarizer(provider="mock")
+        config = llm_driver_config("mock")
+        summarizer = create_llm_backend(driver_name="mock", driver_config=config)
         assert isinstance(summarizer, MockSummarizer)
 
-    def test_create_mock_summarizer_default(self):
-        """Test that provider parameter is required."""
-        # Provider is now required, no default
-        with pytest.raises(ValueError, match="provider parameter is required"):
-            SummarizerFactory.create_summarizer()
+    def test_driver_name_is_required(self):
+        """Test that driver_name parameter is required."""
+        with pytest.raises(TypeError):
+            create_llm_backend()  # type: ignore[call-arg]
 
-    def test_create_openai_summarizer(self, mock_openai_module):
+    def test_create_openai_summarizer(self, mock_openai_module, llm_driver_config):
         """Test creating an OpenAI summarizer."""
         mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
 
         with patch.dict('sys.modules', {'openai': mock_module}):
-            summarizer = SummarizerFactory.create_summarizer(
-                provider="openai",
-                api_key="test-key",
-                model="gpt-4"
+            config = llm_driver_config(
+                "openai",
+                fields={"openai_api_key": "test-key", "openai_model": "gpt-4"},
+            )
+            summarizer = create_llm_backend(
+                driver_name="openai",
+                driver_config=config,
             )
             assert isinstance(summarizer, OpenAISummarizer)
             assert summarizer.api_key == "test-key"
             assert summarizer.model == "gpt-4"
 
     def test_create_openai_summarizer_missing_key(self):
-        """Test that OpenAI summarizer requires API key."""
-        with pytest.raises(ValueError, match="api_key parameter is required"):
-            SummarizerFactory.create_summarizer(provider="openai", model="gpt-4")
+        """Test that OpenAI config requires API key (enforced by schema loader)."""
+        from copilot_config.load_driver_config import load_driver_config
+
+        with pytest.raises(ValueError, match="Missing required field 'openai_api_key'"):
+            load_driver_config(
+                service=None,
+                adapter="llm_backend",
+                driver="openai",
+                fields={"openai_model": "gpt-4"},
+            )
 
     def test_create_openai_summarizer_missing_model(self):
-        """Test that OpenAI summarizer requires model."""
-        with pytest.raises(ValueError, match="model parameter is required"):
-            SummarizerFactory.create_summarizer(provider="openai", api_key="test-key")
+        """Test that OpenAI config requires model (enforced by schema loader)."""
+        from copilot_config.load_driver_config import load_driver_config
 
-    def test_create_azure_summarizer(self, mock_openai_module):
+        with pytest.raises(ValueError, match="Missing required field 'openai_model'"):
+            load_driver_config(
+                service=None,
+                adapter="llm_backend",
+                driver="openai",
+                fields={"openai_api_key": "test-key"},
+            )
+
+    def test_create_azure_summarizer(self, mock_openai_module, llm_driver_config):
         """Test creating an Azure OpenAI summarizer."""
         mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
 
         with patch.dict('sys.modules', {'openai': mock_module}):
-            summarizer = SummarizerFactory.create_summarizer(
-                provider="azure",
-                api_key="azure-key",
-                base_url="https://test.openai.azure.com",
-                model="gpt-4"
+            summarizer = create_llm_backend(
+                driver_name="azure",
+                driver_config=llm_driver_config(
+                    "azure",
+                    fields={
+                        "azure_openai_api_key": "azure-key",
+                        "azure_openai_endpoint": "https://test.openai.azure.com",
+                        "azure_openai_model": "gpt-4",
+                    },
+                ),
             )
             assert isinstance(summarizer, OpenAISummarizer)
             assert summarizer.api_key == "azure-key"
@@ -68,21 +91,27 @@ class TestSummarizerFactory:
             assert summarizer.model == "gpt-4"
             assert summarizer.is_azure is True
 
-    def test_create_azure_summarizer_with_deployment_name(self, mock_openai_module):
+    def test_create_azure_summarizer_with_deployment_name(self, mock_openai_module, llm_driver_config):
         """Test creating an Azure OpenAI summarizer with deployment name."""
         mock_module, mock_client, mock_openai_class, mock_azure_class = mock_openai_module
 
         with patch.dict('sys.modules', {'openai': mock_module}):
-            summarizer = SummarizerFactory.create_summarizer(
-                provider="azure",
-                api_key="azure-key",
-                base_url="https://test.openai.azure.com",
-                model="gpt-4",
-                deployment_name="gpt-4-deployment",
-                api_version="2023-12-01"
+            summarizer = create_llm_backend(
+                driver_name="azure",
+                driver_config=llm_driver_config(
+                    "azure",
+                    fields={
+                        "azure_openai_api_key": "azure-key",
+                        "azure_openai_endpoint": "https://test.openai.azure.com",
+                        "azure_openai_model": "gpt-4",
+                        "azure_openai_deployment": "gpt-4-deployment",
+                        "azure_openai_api_version": "2023-12-01",
+                    },
+                ),
             )
             assert isinstance(summarizer, OpenAISummarizer)
             assert summarizer.deployment_name == "gpt-4-deployment"
+            assert summarizer.is_azure is True
 
             # Verify api_version was passed correctly to AzureOpenAI client
             mock_azure_class.assert_called_once_with(
@@ -92,108 +121,163 @@ class TestSummarizerFactory:
             )
 
     def test_create_azure_summarizer_missing_key(self):
-        """Test that Azure summarizer requires API key."""
-        with pytest.raises(ValueError, match="api_key parameter is required"):
-            SummarizerFactory.create_summarizer(
-                provider="azure",
-                base_url="https://test.openai.azure.com",
-                model="gpt-4"
+        """Test that Azure config requires API key (enforced by schema loader)."""
+        from copilot_config.load_driver_config import load_driver_config
+
+        with pytest.raises(ValueError, match="Missing required field 'azure_openai_api_key'"):
+            load_driver_config(
+                service=None,
+                adapter="llm_backend",
+                driver="azure",
+                fields={
+                    "azure_openai_endpoint": "https://test.openai.azure.com",
+                    "azure_openai_model": "gpt-4",
+                },
             )
 
     def test_create_azure_summarizer_missing_endpoint(self):
-        """Test that Azure summarizer requires endpoint."""
-        with pytest.raises(ValueError, match="base_url parameter is required"):
-            SummarizerFactory.create_summarizer(
-                provider="azure",
-                api_key="test-key",
-                model="gpt-4"
+        """Test that Azure config requires endpoint (enforced by schema loader)."""
+        from copilot_config.load_driver_config import load_driver_config
+
+        with pytest.raises(ValueError, match="Missing required field 'azure_openai_endpoint'"):
+            load_driver_config(
+                service=None,
+                adapter="llm_backend",
+                driver="azure",
+                fields={
+                    "azure_openai_api_key": "test-key",
+                    "azure_openai_model": "gpt-4",
+                },
             )
 
     def test_create_azure_summarizer_missing_model(self):
-        """Test that Azure summarizer requires model."""
-        with pytest.raises(ValueError, match="model parameter is required"):
-            SummarizerFactory.create_summarizer(
-                provider="azure",
-                api_key="test-key",
-                base_url="https://test.openai.azure.com"
+        """Test that Azure config requires model (enforced by schema loader)."""
+        from copilot_config.load_driver_config import load_driver_config
+
+        with pytest.raises(ValueError, match="Missing required field 'azure_openai_model'"):
+            load_driver_config(
+                service=None,
+                adapter="llm_backend",
+                driver="azure",
+                fields={
+                    "azure_openai_api_key": "test-key",
+                    "azure_openai_endpoint": "https://test.openai.azure.com",
+                },
             )
 
-    def test_create_local_summarizer(self):
+    def test_create_local_summarizer(self, llm_driver_config):
         """Test creating a local LLM summarizer."""
-        summarizer = SummarizerFactory.create_summarizer(
-            provider="local",
-            model="llama2",
-            base_url="http://localhost:8080"
+        summarizer = create_llm_backend(
+            driver_name="local",
+            driver_config=llm_driver_config(
+                "local",
+                fields={
+                    "local_llm_model": "llama2",
+                    "local_llm_endpoint": "http://localhost:8080",
+                },
+            ),
         )
         assert isinstance(summarizer, LocalLLMSummarizer)
         assert summarizer.model == "llama2"
         assert summarizer.base_url == "http://localhost:8080"
         assert summarizer.timeout == 300  # default
 
-    def test_create_local_summarizer_with_timeout(self):
+    def test_create_local_summarizer_with_timeout(self, llm_driver_config):
         """Test creating a local LLM summarizer with custom timeout."""
-        summarizer = SummarizerFactory.create_summarizer(
-            provider="local",
-            model="llama2",
-            base_url="http://localhost:8080",
-            timeout=300
+        summarizer = create_llm_backend(
+            driver_name="local",
+            driver_config=llm_driver_config(
+                "local",
+                fields={
+                    "local_llm_model": "llama2",
+                    "local_llm_endpoint": "http://localhost:8080",
+                    "local_llm_timeout_seconds": 300,
+                },
+            ),
         )
         assert isinstance(summarizer, LocalLLMSummarizer)
         assert summarizer.model == "llama2"
         assert summarizer.base_url == "http://localhost:8080"
         assert summarizer.timeout == 300
 
-    def test_create_local_summarizer_missing_model(self):
-        """Test that local LLM summarizer requires model."""
-        with pytest.raises(ValueError, match="model parameter is required"):
-            SummarizerFactory.create_summarizer(provider="local", base_url="http://localhost:8080")
+    def test_create_local_summarizer_missing_model(self, llm_driver_config):
+        """Test that local LLM summarizer uses schema defaults."""
+        summarizer = create_llm_backend(driver_name="local", driver_config=llm_driver_config("local"))
+        assert isinstance(summarizer, LocalLLMSummarizer)
+        assert summarizer.model == "mistral"
+        assert summarizer.base_url == "http://ollama:11434"
+        assert summarizer.timeout == 300
 
-    def test_create_local_summarizer_missing_base_url(self):
-        """Test that local LLM summarizer requires base_url."""
-        with pytest.raises(ValueError, match="base_url parameter is required"):
-            SummarizerFactory.create_summarizer(provider="local", model="mistral")
+    def test_create_local_summarizer_missing_base_url(self, llm_driver_config):
+        """Test that local LLM summarizer uses schema default endpoint."""
+        summarizer = create_llm_backend(
+            driver_name="local",
+            driver_config=llm_driver_config("local", fields={"local_llm_model": "mistral"}),
+        )
+        assert isinstance(summarizer, LocalLLMSummarizer)
+        assert summarizer.base_url == "http://ollama:11434"
 
-    def test_create_llamacpp_summarizer(self):
+    def test_create_llamacpp_summarizer(self, llm_driver_config):
         """Test creating a llama.cpp summarizer."""
-        summarizer = SummarizerFactory.create_summarizer(
-            provider="llamacpp",
-            model="mistral-7b-instruct-v0.2.Q4_K_M",
-            base_url="http://llama-cpp:8080"
+        summarizer = create_llm_backend(
+            driver_name="llamacpp",
+            driver_config=llm_driver_config(
+                "llamacpp",
+                fields={
+                    "llamacpp_model": "mistral-7b-instruct-v0.2.Q4_K_M",
+                    "llamacpp_endpoint": "http://llama-cpp:8080",
+                },
+            ),
         )
         assert isinstance(summarizer, LlamaCppSummarizer)
         assert summarizer.model == "mistral-7b-instruct-v0.2.Q4_K_M"
         assert summarizer.base_url == "http://llama-cpp:8080"
         assert summarizer.timeout == 300  # default
 
-    def test_create_llamacpp_summarizer_with_timeout(self):
+    def test_create_llamacpp_summarizer_with_timeout(self, llm_driver_config):
         """Test creating a llama.cpp summarizer with custom timeout."""
-        summarizer = SummarizerFactory.create_summarizer(
-            provider="llamacpp",
-            model="mistral-7b-instruct-v0.2.Q4_K_M",
-            base_url="http://llama-cpp:8080",
-            timeout=600
+        summarizer = create_llm_backend(
+            driver_name="llamacpp",
+            driver_config=llm_driver_config(
+                "llamacpp",
+                fields={
+                    "llamacpp_model": "mistral-7b-instruct-v0.2.Q4_K_M",
+                    "llamacpp_endpoint": "http://llama-cpp:8080",
+                    "llamacpp_timeout_seconds": 600,
+                },
+            ),
         )
         assert isinstance(summarizer, LlamaCppSummarizer)
         assert summarizer.model == "mistral-7b-instruct-v0.2.Q4_K_M"
         assert summarizer.base_url == "http://llama-cpp:8080"
         assert summarizer.timeout == 600
 
-    def test_create_llamacpp_summarizer_missing_model(self):
-        """Test that llama.cpp summarizer requires model."""
-        with pytest.raises(ValueError, match="model parameter is required"):
-            SummarizerFactory.create_summarizer(provider="llamacpp", base_url="http://llama-cpp:8080")
+    def test_create_llamacpp_summarizer_missing_model(self, llm_driver_config):
+        """Test that llama.cpp summarizer uses schema defaults."""
+        summarizer = create_llm_backend(driver_name="llamacpp", driver_config=llm_driver_config("llamacpp"))
+        assert isinstance(summarizer, LlamaCppSummarizer)
+        assert summarizer.model == "mistral"
+        assert summarizer.base_url == "http://llama-cpp:8081"
+        assert summarizer.timeout == 300
 
-    def test_create_llamacpp_summarizer_missing_base_url(self):
-        """Test that llama.cpp summarizer requires base_url."""
-        with pytest.raises(ValueError, match="base_url parameter is required"):
-            SummarizerFactory.create_summarizer(provider="llamacpp", model="mistral-7b-instruct-v0.2.Q4_K_M")
+    def test_create_llamacpp_summarizer_missing_base_url(self, llm_driver_config):
+        """Test that llama.cpp summarizer uses schema default endpoint."""
+        summarizer = create_llm_backend(
+            driver_name="llamacpp",
+            driver_config=llm_driver_config(
+                "llamacpp",
+                fields={"llamacpp_model": "mistral-7b-instruct-v0.2.Q4_K_M"},
+            ),
+        )
+        assert isinstance(summarizer, LlamaCppSummarizer)
+        assert summarizer.base_url == "http://llama-cpp:8081"
 
-    def test_unknown_provider(self):
+    def test_unknown_provider(self, llm_driver_config):
         """Test that unknown provider raises error."""
-        with pytest.raises(ValueError, match="Unknown provider"):
-            SummarizerFactory.create_summarizer(provider="unknown")
+        with pytest.raises(ValueError, match="Unknown LLM backend driver"):
+            create_llm_backend(driver_name="unknown", driver_config=llm_driver_config("mock"))
 
-    def test_provider_parameter_is_required(self):
-        """Test that provider parameter is required."""
-        with pytest.raises(ValueError, match="provider parameter is required"):
-            SummarizerFactory.create_summarizer()
+    def test_driver_name_parameter_is_required(self):
+        """Test that driver_name parameter is required."""
+        with pytest.raises(TypeError):
+            create_llm_backend()  # type: ignore[call-arg]

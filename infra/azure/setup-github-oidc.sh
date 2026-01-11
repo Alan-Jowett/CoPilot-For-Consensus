@@ -58,7 +58,7 @@ fi
 if [ -z "$SUBSCRIPTION_NAME" ]; then
     # Count available subscriptions
     SUBSCRIPTION_COUNT=$(az account list --query "length([]) " -o tsv)
-    
+
     if [ "$SUBSCRIPTION_COUNT" -eq 1 ]; then
         # Only one subscription, use it automatically
         SUBSCRIPTION_NAME=$(az account list --query "[0].name" -o tsv)
@@ -111,7 +111,7 @@ else
             echo -e "${GREEN}✓ App registration is accessible (propagated in ${PROPAGATION_ELAPSED}s)${NC}"
             break
         fi
-        
+
         PROPAGATION_ELAPSED=$((PROPAGATION_ELAPSED + PROPAGATION_CHECK_INTERVAL))
         if [ $PROPAGATION_ELAPSED -lt $PROPAGATION_TIMEOUT ]; then
             echo -e "${YELLOW}  Waiting for Azure AD propagation... (${PROPAGATION_ELAPSED}/${PROPAGATION_TIMEOUT}s)${NC}"
@@ -144,7 +144,7 @@ RETRY_COUNT=0
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     SP_OUTPUT=$(az ad sp create --id "$APP_ID" --query id -o tsv 2>&1)
     SP_EXIT_CODE=$?
-    
+
     if [ $SP_EXIT_CODE -eq 0 ] && [ -n "$SP_OUTPUT" ]; then
         PRINCIPAL_ID=$(echo "$SP_OUTPUT" | tr -d '\r')
         echo -e "${GREEN}✓ Service principal created: $PRINCIPAL_ID${NC}"
@@ -159,7 +159,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
                 break
             fi
         fi
-        
+
         # Check if error is permission-related (fatal, don't retry)
         if echo "$SP_OUTPUT" | grep -qE "(Insufficient|Authorization|permission)"; then
             echo -e "${RED}Error: Insufficient permissions to create service principal.${NC}"
@@ -167,7 +167,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             echo -e "${YELLOW}You need 'Application Administrator' or 'Global Administrator' role in Azure AD.${NC}"
             exit 1
         fi
-        
+
         # Otherwise assume it's a propagation issue and retry
         RETRY_COUNT=$((RETRY_COUNT + 1))
         if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
@@ -220,7 +220,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         --assignee "$PRINCIPAL_ID" \
         --scope "$CONTRIBUTOR_SCOPE" 2>&1)
     ROLE_EXIT_CODE=$?
-    
+
     if [ $ROLE_EXIT_CODE -eq 0 ]; then
         echo -e "${GREEN}✓ Contributor role assigned (scoped to validation RG)${NC}"
         break
@@ -258,7 +258,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         --assignee "$PRINCIPAL_ID" \
         --scope "$UAA_SCOPE" 2>&1)
     ROLE_EXIT_CODE=$?
-    
+
     if [ $ROLE_EXIT_CODE -eq 0 ]; then
         echo -e "${GREEN}✓ User Access Administrator role assigned (scoped to validation RG)${NC}"
         break

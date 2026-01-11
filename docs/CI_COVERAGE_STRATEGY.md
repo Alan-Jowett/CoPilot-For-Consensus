@@ -22,7 +22,7 @@ CI/CD and code coverage strategy ensuring stable, reliable metrics on the main b
 ### Coverage Aggregation
 Each service/adapter uploads coverage independently:
 - Flag: `parallel: true` to indicate partial upload
-- Unique `flag-name` per component (e.g., `chunking`, `copilot_events`)
+- Unique `flag-name` per component (e.g., `chunking`, `copilot_message_bus`)
 - Format: LCOV for compatibility
 
 Finalization step combines all reports:

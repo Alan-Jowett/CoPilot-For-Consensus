@@ -5,16 +5,16 @@
 
 from typing import Any
 
-from copilot_schema_validation import FileSchemaProvider, validate_json
+from copilot_schema_validation import create_schema_provider, validate_json
 
 
 def get_schema_provider():
-    """Get a FileSchemaProvider for testing.
+    """Get a schema provider for testing.
 
     Returns:
-        FileSchemaProvider instance configured with repository schemas
+        Schema provider instance configured with repository event schemas.
     """
-    return FileSchemaProvider()
+    return create_schema_provider()
 
 
 def validate_event_against_schema(event: dict[str, Any]) -> tuple[bool, list[str]]:

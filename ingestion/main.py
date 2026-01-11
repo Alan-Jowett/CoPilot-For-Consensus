@@ -15,24 +15,44 @@ from app import __version__
 from app.api import create_api_router
 from app.scheduler import IngestionScheduler
 from app.service import IngestionService
-from copilot_config import load_typed_config
-from copilot_config.providers import DocStoreConfigProvider
-from copilot_events import ValidatingEventPublisher, create_publisher, get_azure_servicebus_kwargs
-from copilot_logging import create_logger, create_uvicorn_log_config
+from copilot_config import load_service_config, load_driver_config, DriverConfig
+from copilot_message_bus import create_publisher
+from copilot_logging import (
+    create_logger,
+    create_stdout_logger,
+    create_uvicorn_log_config,
+    set_default_logger,
+)
 from copilot_metrics import create_metrics_collector
-from copilot_schema_validation import FileSchemaProvider
+from copilot_schema_validation import create_schema_provider
 from copilot_storage import (
     DocumentStoreConnectionError,
-    ValidatingDocumentStore,
     create_document_store,
 )
-from fastapi import FastAPI
+from copilot_archive_store import create_archive_store
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 # Bootstrap logger before configuration is loaded
-bootstrap_logger = create_logger(logger_type="stdout", level="INFO", name="ingestion-bootstrap")
+bootstrap_logger = create_stdout_logger(level="INFO", name="ingestion-bootstrap")
 
 # Create FastAPI app
 app = FastAPI(title="Ingestion Service", version=__version__)
+
+
+# Global exception handler to log unhandled exceptions
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Log and return JSON for unhandled exceptions."""
+    bootstrap_logger.error(
+        f"Unhandled exception in {request.method} {request.url.path}",
+        error=str(exc),
+        exc_info=True
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal server error: {type(exc).__name__}: {str(exc)}"}
+    )
 
 # Global service instance and scheduler
 ingestion_service = None
@@ -124,8 +144,8 @@ def main():
     log.info("Starting Ingestion Service (continuous mode)", version=__version__)
 
     try:
-        # Load configuration using adapter (env + defaults validated by schema)
-        config = load_typed_config("ingestion")
+        # Load configuration using schema-driven service config
+        config = load_service_config("ingestion")
 
         # Conditionally add JWT authentication middleware based on config
         if getattr(config, 'jwt_auth_enabled', True):
@@ -133,8 +153,10 @@ def main():
             try:
                 from copilot_auth import create_jwt_middleware
                 # Use shared audience for all services
-                audience = getattr(config, 'service_audience', 'copilot-for-consensus')
+                auth_service_url = getattr(config, 'auth_service_url', None)
+                audience = getattr(config, 'service_audience', None)
                 auth_middleware = create_jwt_middleware(
+                    auth_service_url=auth_service_url,
                     audience=audience,
                     required_roles=["admin"],
                     public_paths=["/", "/health", "/readyz", "/docs", "/openapi.json"],
@@ -145,172 +167,166 @@ def main():
         else:
             log.warning("JWT authentication is DISABLED - all endpoints are public")
 
-        # Load sources from document store (storage-backed config)
-        sources = []
-        try:
-            # Create a temporary document store to load sources
-            temp_store = create_document_store(
-                store_type=config.doc_store_type,
-                host=config.doc_store_host,
-                port=config.doc_store_port,
-                database=config.doc_store_name,
-                username=config.doc_store_user,
-                password=config.doc_store_password,
+        # Create service logger using logger adapter from config or default stdout
+        logger_adapter = config.get_adapter("logger")
+        if logger_adapter:
+            service_logger = create_logger(
+                driver_name=logger_adapter.driver_name,
+                driver_config=logger_adapter.driver_config,
             )
-            temp_store.connect()
-
-            doc_store_provider = DocStoreConfigProvider(temp_store)
-            sources = doc_store_provider.query_documents_from_collection("sources") or []
-
-            temp_store.disconnect()
-            log.info(
-                "Sources loaded from document store",
-                source_count=len(sources),
+        else:
+            # Fallback to stdout logger with DriverConfig
+            logger_config = load_driver_config(
+                service="ingestion",
+                adapter="logger",
+                driver="stdout",
+                fields={"level": "INFO", "name": "ingestion"},
             )
-        except Exception as e:
-            log.warning(
-                "Failed to load sources from document store; using empty list",
-                error=str(e),
-            )
+            service_logger = create_logger(driver_name="stdout", driver_config=logger_config)
 
-        # Recreate logger with configured settings
-        service_logger = create_logger(
-            logger_type=config.log_type,
-            level=config.log_level,
-            name=config.logger_name,
-        )
-
-        metrics_backend = config.metrics_backend.lower()
+        # Set the default logger for the application so any module can use get_logger()
+        set_default_logger(service_logger)
 
         # Build metrics collector, fall back to NoOp if backend unavailable
         try:
-            metrics = create_metrics_collector(backend=config.metrics_backend)
+            metrics_adapter = config.get_adapter("metrics")
+            if metrics_adapter is not None:
+                # Create new DriverConfig with modified config dict
+                metrics_config = dict(metrics_adapter.driver_config.config)
+                metrics_config.setdefault("job", "ingestion")
+                metrics_driver_config = DriverConfig(
+                    driver_name=metrics_adapter.driver_config.driver_name,
+                    config=metrics_config,
+                    allowed_keys=metrics_adapter.driver_config.allowed_keys,
+                )
+                metrics = create_metrics_collector(
+                    driver_name=metrics_adapter.driver_name,
+                    driver_config=metrics_driver_config,
+                )
+            else:
+                metrics = create_metrics_collector(driver_name="noop")
         except Exception as e:  # graceful fallback for missing optional deps
             from copilot_metrics import NoOpMetricsCollector
 
             service_logger.warning(
                 "Metrics backend unavailable; falling back to NoOp",
-                backend=config.metrics_backend,
+                backend=config.metrics_type,
                 error=str(e),
             )
             metrics = NoOpMetricsCollector()
 
         log = service_logger
 
-        log.info(
-            "Logger configured",
-            log_level=config.log_level,
-            log_type=config.log_type,
-            metrics_backend=config.metrics_backend,
+        log.info("Ingestion service configured and ready")
+
+        # Ensure storage path exists (if configured)
+        storage_path = config.storage_path
+        IngestionService._ensure_storage_path(storage_path)
+        log.info("Storage path prepared", storage_path=storage_path)
+
+        message_bus_adapter = config.get_adapter("message_bus")
+        if message_bus_adapter is None:
+            raise ValueError("message_bus adapter is required")
+
+        log.info("Creating message bus publisher...")
+
+        # Create new DriverConfig for publisher
+        publisher_config = dict(message_bus_adapter.driver_config.config)
+        publisher_driver_config = DriverConfig(
+            driver_name=message_bus_adapter.driver_config.driver_name,
+            config=publisher_config,
+            allowed_keys=message_bus_adapter.driver_config.allowed_keys,
         )
-
-        # Start Prometheus metrics endpoint when enabled so Prometheus can scrape /metrics
-        if metrics_backend == "prometheus":
-            try:
-                from prometheus_client import start_http_server
-
-                metrics_port = int(os.getenv("METRICS_PORT", "8000"))
-                start_http_server(metrics_port)
-                log.info("Prometheus metrics server started", port=metrics_port)
-            except Exception as e:
-                log.warning(
-                    "Failed to start Prometheus metrics server",
-                    metrics_backend=config.metrics_backend,
-                    error=str(e),
-                )
-
-        # Ensure storage path exists
-        IngestionService._ensure_storage_path(config.storage_path)
-        log.info("Storage path prepared", storage_path=config.storage_path)
-
-        # Create event publisher
-        # Prepare Azure Service Bus specific parameters if needed
-        message_bus_kwargs = {}
-        if config.message_bus_type == "azureservicebus":
-            message_bus_kwargs = get_azure_servicebus_kwargs()
-            log.info("Using Azure Service Bus configuration")
-        
         base_publisher = create_publisher(
-            message_bus_type=config.message_bus_type,
-            host=config.message_bus_host,
-            port=config.message_bus_port,
-            username=config.message_bus_user,
-            password=config.message_bus_password,
-            **message_bus_kwargs,
+            driver_name=message_bus_adapter.driver_name,
+            driver_config=publisher_driver_config,
         )
 
         # Connect publisher
         try:
             base_publisher.connect()
         except Exception:
-            if str(config.message_bus_type).lower() != "noop":
+            if message_bus_adapter.driver_name.lower() != "noop":
                 log.error(
                     "Failed to connect to message bus. Failing fast as message_bus_type is not noop.",
-                    host=config.message_bus_host,
-                    port=config.message_bus_port,
-                    message_bus_type=config.message_bus_type,
+                    message_bus_type=message_bus_adapter.driver_name,
                 )
                 # Raise ConnectionError to signal publisher connection failure
                 raise ConnectionError("Publisher failed to connect to message bus")
             else:
                 log.warning(
                     "Failed to connect to message bus. Continuing with noop publisher.",
-                    host=config.message_bus_host,
-                    port=config.message_bus_port,
+                    message_bus_type=message_bus_adapter.driver_name,
                 )
 
-        # Wrap publisher with validation layer
-        schema_provider = FileSchemaProvider()
-        publisher = ValidatingEventPublisher(
-            publisher=base_publisher,
-            schema_provider=schema_provider,
-            strict=True,
-        )
-        log.info("Event publisher configured with schema validation")
+        # Wrap publisher already handled by factory (defaults to validating)
+        publisher = base_publisher
+        event_schema_provider = create_schema_provider()
+        log.info("Event publisher configured")
 
         # Create document store
-        log.info(
-            "Creating document store",
-            doc_store_type=config.doc_store_type,
-            doc_store_host=config.doc_store_host,
-            doc_store_port=config.doc_store_port,
+        log.info("Creating document store from adapter configuration...")
+        document_store_adapter = config.get_adapter("document_store")
+        if document_store_adapter is None:
+            raise ValueError("document_store adapter is required")
+
+        # Create new DriverConfig for document store with DOCUMENT schemas provider
+        document_store_config = dict(document_store_adapter.driver_config.config)
+        document_schema_provider = create_schema_provider(schema_type="documents")
+        document_store_config["schema_provider"] = document_schema_provider
+        document_store_driver_config = DriverConfig(
+            driver_name=document_store_adapter.driver_config.driver_name,
+            config=document_store_config,
+            allowed_keys=document_store_adapter.driver_config.allowed_keys,
         )
         base_document_store = create_document_store(
-            store_type=config.doc_store_type,
-            host=config.doc_store_host,
-            port=config.doc_store_port,
-            database=config.doc_store_name,
-            username=config.doc_store_user,
-            password=config.doc_store_password,
+            driver_name=document_store_adapter.driver_name,
+            driver_config=document_store_driver_config,
+            enable_validation=True,
+            strict_validation=True,
         )
 
         # Connect to document store
         try:
             base_document_store.connect()
         except DocumentStoreConnectionError as e:
-            if str(config.doc_store_type).lower() != "inmemory":
+            if document_store_adapter.driver_name.lower() != "inmemory":
                 log.error(
                     "Failed to connect to document store. Failing fast as doc_store_type is not inmemory.",
-                    host=config.doc_store_host,
-                    port=config.doc_store_port,
-                    doc_store_type=config.doc_store_type,
+                    doc_store_type=document_store_adapter.driver_name,
                     error=str(e),
                 )
                 raise
             log.warning(
                 "Failed to connect to document store. Continuing with inmemory store.",
-                host=config.doc_store_host,
-                port=config.doc_store_port,
                 error=str(e),
             )
 
-        # Wrap document store with validation layer
-        document_store = ValidatingDocumentStore(
-            store=base_document_store,
-            schema_provider=schema_provider,
-            strict=False,
+        # Use document store directly (validation handled by create_document_store if enabled)
+        document_store = base_document_store
+        log.info("Document store configured")
+
+        log.info("Creating archive store from adapter configuration...")
+        archive_store_adapter = config.get_adapter("archive_store")
+        if archive_store_adapter is None:
+            raise ValueError("archive_store adapter is required")
+
+        archive_store_driver = getattr(config, "archive_store_type", archive_store_adapter.driver_name)
+        if archive_store_driver != archive_store_adapter.driver_name:
+            log.warning(
+                "Archive store type mismatch between schema and adapter; using schema value",
+                schema_archive_store_type=archive_store_driver,
+                adapter_driver=archive_store_adapter.driver_name,
+            )
+
+        archive_store = create_archive_store(
+            driver_name=archive_store_driver,
+            driver_config=archive_store_adapter.driver_config,
         )
-        log.info("Document store configured with schema validation")
+
+        # Get sources from config (empty list if not configured)
+        sources = getattr(config, 'sources', [])
+        log.info("Ingestion sources loaded", count=len(sources))
 
         # Create config wrapper that includes sources
         config_with_sources = _ConfigWithSources(config, sources)
@@ -322,6 +338,7 @@ def main():
             document_store=document_store,
             logger=log,
             metrics=metrics,
+            archive_store=archive_store,
         )
         ingestion_service.version = __version__
 
@@ -332,7 +349,7 @@ def main():
         log.info("API routes configured")
 
         # Create and start scheduler for periodic ingestion
-        schedule_interval = int(os.getenv("INGESTION_SCHEDULE_INTERVAL_SECONDS", "21600"))  # Default: 6 hours
+        schedule_interval = config.schedule_interval_seconds
         scheduler = IngestionScheduler(
             service=ingestion_service,
             interval_seconds=schedule_interval,
@@ -350,12 +367,13 @@ def main():
         signal.signal(signal.SIGTERM, signal_handler)
 
         # Start FastAPI server
-        http_port = int(os.getenv("HTTP_PORT", "8080"))
-        http_host = os.getenv("HTTP_HOST", "127.0.0.1")
+        http_port = int(config.http_port)
+        http_host = config.http_host
         log.info(f"Starting HTTP server on {http_host}:{http_port}...")
 
         # Configure Uvicorn with structured JSON logging
-        log_config = create_uvicorn_log_config(service_name="ingestion", log_level=config.log_level)
+        log_level = config.log_level
+        log_config = create_uvicorn_log_config(service_name="ingestion", log_level=log_level)
         uvicorn.run(app, host=http_host, port=http_port, log_config=log_config, access_log=False)
 
     except Exception as e:

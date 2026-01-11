@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+﻿// SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
 metadata description = 'Module to provision Container Apps environment and all microservices'
@@ -120,7 +120,7 @@ var servicePorts = {
 // Compute GitHub OAuth redirect URI based on gateway name pattern
 // Format: https://{projectPrefix}-gateway-{environment}.{domain}/ui/callback
 // The domain is auto-assigned by Container Apps and includes a unique suffix
-var githubOAuthRedirectUriBase = 'https://${projectPrefix}-gateway-${environment}'
+// Note: Gateway name is computed below before being assigned to resources
 
 // Container Apps Environment (VNet-integrated, consumption tier for dev)
 resource containerAppsEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
@@ -242,13 +242,44 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '0.1.0'
             }
             {
-              name: 'LOG_LEVEL'
+              name: 'AUTH_LOG_LEVEL'
               value: 'INFO'
             }
+            // Document Store adapter (Cosmos DB for user roles)
             {
-              name: 'JWT_ALGORITHM'
-              value: 'RS256'
+              name: 'DOCUMENT_STORE_TYPE'
+              value: 'cosmos'
             }
+            {
+              name: 'COSMOS_ENDPOINT'
+              value: cosmosDbEndpoint
+            }
+            {
+              name: 'COSMOS_DATABASE'
+              value: cosmosAuthDatabaseName
+            }
+            {
+              name: 'COSMOS_CONTAINER'
+              value: 'user_roles'
+            }
+            {
+              name: 'COSMOS_PARTITION_KEY'
+              value: '/id'
+            }
+            // Metrics adapter (Azure Monitor)
+            {
+              name: 'METRICS_TYPE'
+              value: 'azure_monitor'
+            }
+            {
+              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
+            }
+            {
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
+            // Secret Provider adapter (Azure Key Vault)
             {
               name: 'SECRET_PROVIDER_TYPE'
               value: 'azurekeyvault'
@@ -261,37 +292,89 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'AZURE_CLIENT_ID'
               value: identityClientIds.auth
             }
+            // Auth service settings
             {
-              name: 'AUTH_MS_TENANT'
+              name: 'AUTH_AUDIENCES'
+              value: 'copilot-for-consensus'
+            }
+            {
+              name: 'AUTH_ISSUER'
+              value: 'https://${projectPrefix}-auth-${environment}.copilot-for-consensus'
+            }
+            {
+              name: 'AUTH_JWT_ALGORITHM'
+              value: 'RS256'
+            }
+            {
+              name: 'AUTH_JWT_DEFAULT_EXPIRY'
+              value: '1800'
+            }
+            {
+              name: 'AUTH_JWT_KEY_ID'
+              value: 'default'
+            }
+            {
+              name: 'AUTH_MAX_SKEW_SECONDS'
+              value: '90'
+            }
+            {
+              name: 'AUTH_REQUIRE_NONCE'
+              value: 'true'
+            }
+            {
+              name: 'AUTH_REQUIRE_PKCE'
+              value: 'true'
+            }
+            {
+              name: 'AUTH_ENABLE_DPOP'
+              value: 'false'
+            }
+            {
+              name: 'AUTH_FIRST_USER_AUTO_PROMOTION_ENABLED'
+              value: 'false'
+            }
+            {
+              name: 'AUTH_AUTO_APPROVE_ENABLED'
+              value: 'false'
+            }
+            {
+              name: 'AUTH_COOKIE_SECURE'
+              value: 'true'
+            }
+            {
+              name: 'AUTH_ROLE_STORE_COLLECTION'
+              value: 'user_roles'
+            }
+            {
+              name: 'AUTH_PORT'
+              value: string(servicePorts.auth)
+            }
+            {
+              name: 'AUTH_HOST'
+              value: '0.0.0.0'
+            }
+            // OIDC Providers (Microsoft/Entra ID and GitHub)
+            {
+              name: 'OIDC_PROVIDERS'
+              value: 'microsoft,github'
+            }
+            // Microsoft/Entra ID OIDC Provider
+            {
+              name: 'MICROSOFT_TENANT'
               value: entraTenantId != '' ? entraTenantId : subscription().tenantId
             }
             {
-              name: 'AUTH_MS_REDIRECT_URI'
+              name: 'MICROSOFT_REDIRECT_URI'
               value: oauthRedirectUri
             }
+            // GitHub OIDC Provider
             {
-              name: 'AUTH_ROLE_STORE_TYPE'
-              value: 'cosmos'
+              name: 'GITHUB_API_BASE_URL'
+              value: 'https://api.github.com'
             }
             {
-              name: 'COSMOS_DB_ENDPOINT'
-              value: cosmosDbEndpoint
-            }
-            {
-              name: 'COSMOS_DATABASE'
-              value: cosmosAuthDatabaseName
-            }
-            {
-              name: 'COSMOS_CONTAINER'
-              value: 'documents'
-            }
-            {
-              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
-            }
-            {
-              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+              name: 'GITHUB_REDIRECT_URI'
+              value: oauthRedirectUri
             }
           ]
           resources: {
@@ -340,27 +423,29 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '0.1.0'
             }
             {
-              name: 'LOG_LEVEL'
+              name: 'REPORTING_LOG_LEVEL'
               value: 'INFO'
             }
+            // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
+            // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
             }
             {
-              name: 'COSMOS_DB_ENDPOINT'
+              name: 'COSMOS_ENDPOINT'
               value: cosmosDbEndpoint
             }
             {
@@ -372,28 +457,55 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosContainerName
             }
             {
-              name: 'AZURE_CLIENT_ID'
-              value: identityClientIds.reporting
+              name: 'COSMOS_PARTITION_KEY'
+              value: '/collection'
             }
+            // Vector Store adapter (Qdrant or Azure AI Search)
             {
               name: 'VECTOR_STORE_TYPE'
-              value: 'qdrant'
+              value: vectorStoreBackend == 'qdrant' ? 'qdrant' : 'azure_ai_search'
             }
             {
-              name: 'VECTOR_DB_HOST'
-              value: '${projectPrefix}-qdrant-${environment}'
+              name: 'QDRANT_HOST'
+              value: vectorStoreBackend == 'qdrant' ? '${projectPrefix}-qdrant-${environment}' : ''
             }
             {
-              name: 'VECTOR_DB_PORT'
-              value: '80'
+              name: 'QDRANT_PORT'
+              value: vectorStoreBackend == 'qdrant' ? '6333' : ''
             }
             {
-              name: 'VECTOR_DB_COLLECTION'
-              value: 'embeddings'
+              name: 'QDRANT_COLLECTION'
+              value: vectorStoreBackend == 'qdrant' ? 'embeddings' : ''
             }
             {
-              name: 'AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}'
+              name: 'AZURE_SEARCH_ENDPOINT'
+              value: vectorStoreBackend == 'azure_ai_search' ? aiSearchEndpoint : ''
+            }
+            {
+              name: 'AZURE_SEARCH_INDEX_NAME'
+              value: vectorStoreBackend == 'azure_ai_search' ? 'embeddings' : ''
+            }
+            // Embedding Backend adapter (Azure OpenAI or SentenceTransformers)
+            {
+              name: 'EMBEDDING_BACKEND_TYPE'
+              value: azureOpenAIEndpoint != '' && azureOpenAIEmbeddingDeploymentName != '' ? 'azure_openai' : 'sentencetransformers'
+            }
+            {
+              name: 'AZURE_OPENAI_ENDPOINT'
+              value: azureOpenAIEndpoint
+            }
+            {
+              name: 'AZURE_OPENAI_DEPLOYMENT'
+              value: azureOpenAIEmbeddingDeploymentName
+            }
+            {
+              name: 'AZURE_OPENAI_API_KEY'
+              value: azureOpenAIApiKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${azureOpenAIApiKeySecretUri})' : ''
+            }
+            // Metrics adapter (Azure Monitor)
+            {
+              name: 'REPORTING_METRICS_TYPE'
+              value: 'azure_monitor'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -402,6 +514,52 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
+            // Secret Provider adapter (Azure Key Vault)
+            {
+              name: 'SECRET_PROVIDER_TYPE'
+              value: 'azurekeyvault'
+            }
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: identityClientIds.reporting
+            }
+            // Reporting service settings
+            {
+              name: 'REPORTING_HTTP_PORT'
+              value: string(servicePorts.reporting)
+            }
+            {
+              name: 'REPORTING_HTTP_HOST'
+              value: '0.0.0.0'
+            }
+            {
+              name: 'REPORTING_JWT_AUTH_ENABLED'
+              value: 'true'
+            }
+            {
+              name: 'REPORTING_AUTH_SERVICE_URL'
+              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+            }
+            {
+              name: 'REPORTING_SERVICE_AUDIENCE'
+              value: 'copilot-for-consensus'
+            }
+            {
+              name: 'REPORTING_LOG_TYPE'
+              value: 'stdout'
+            }
+            {
+              name: 'REPORTING_LOGGER_NAME'
+              value: 'reporting'
+            }
+            {
+              name: 'REPORTING_NOTIFY_ENABLED'
+              value: 'false'
+            }
+            {
+              name: 'REPORTING_WEBHOOK_SUMMARY_MAX_LENGTH'
+              value: '500'
             }
           ]
           resources: {
@@ -450,27 +608,29 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '0.1.0'
             }
             {
-              name: 'LOG_LEVEL'
+              name: 'INGESTION_LOG_LEVEL'
               value: 'INFO'
             }
+            // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
+            // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
             }
             {
-              name: 'COSMOS_DB_ENDPOINT'
+              name: 'COSMOS_ENDPOINT'
               value: cosmosDbEndpoint
             }
             {
@@ -482,36 +642,26 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosContainerName
             }
             {
-              name: 'AZURE_CLIENT_ID'
-              value: identityClientIds.ingestion
+              name: 'COSMOS_PARTITION_KEY'
+              value: '/collection'
+            }
+            // Archive Store adapter (Azure Blob Storage)
+            {
+              name: 'ARCHIVE_STORE_TYPE'
+              value: 'azureblob'
             }
             {
-              name: 'STORAGE_PATH'
-              value: '/data/raw_archives'
-            }
-            {
-              name: 'AZURE_STORAGE_ACCOUNT'
+              name: 'AZUREBLOB_ACCOUNT_NAME'
               value: storageAccountName
             }
             {
-              name: 'AZURE_STORAGE_ENDPOINT'
-              value: storageBlobEndpoint
+              name: 'AZUREBLOB_CONTAINER_NAME'
+              value: 'raw-archives'
             }
+            // Metrics adapter (Azure Monitor)
             {
-              name: 'AZURE_STORAGE_CONTAINER'
-              value: 'archives'
-            }
-            {
-              name: 'HTTP_PORT'
-              value: string(servicePorts.ingestion)
-            }
-            {
-              name: 'HTTP_HOST'
-              value: '0.0.0.0'
-            }
-            {
-              name: 'AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}'
+              name: 'INGESTION_METRICS_TYPE'
+              value: 'azure_monitor'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -520,6 +670,68 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
+            // Secret Provider adapter (Azure Key Vault)
+            {
+              name: 'SECRET_PROVIDER_TYPE'
+              value: 'azurekeyvault'
+            }
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: identityClientIds.ingestion
+            }
+            // Ingestion service settings
+            {
+              name: 'INGESTION_HTTP_PORT'
+              value: string(servicePorts.ingestion)
+            }
+            {
+              name: 'INGESTION_HTTP_HOST'
+              value: '0.0.0.0'
+            }
+            {
+              name: 'INGESTION_JWT_AUTH_ENABLED'
+              value: 'true'
+            }
+            {
+              name: 'INGESTION_AUTH_SERVICE_URL'
+              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+            }
+            {
+              name: 'INGESTION_SERVICE_AUDIENCE'
+              value: 'copilot-for-consensus'
+            }
+            {
+              name: 'INGESTION_BATCH_SIZE'
+              value: '100'
+            }
+            {
+              name: 'INGESTION_CONCURRENT_SOURCES'
+              value: '5'
+            }
+            {
+              name: 'INGESTION_ENABLE_INCREMENTAL'
+              value: 'true'
+            }
+            {
+              name: 'INGESTION_POLL_INTERVAL_SECONDS'
+              value: '3600'
+            }
+            {
+              name: 'INGESTION_RETRY_MAX_ATTEMPTS'
+              value: '3'
+            }
+            {
+              name: 'INGESTION_REQUEST_TIMEOUT_SECONDS'
+              value: '60'
+            }
+            {
+              name: 'INGESTION_STORAGE_PATH'
+              value: '/data/raw_archives'
+            }
+            {
+              name: 'INGESTION_SCHEDULE_INTERVAL_SECONDS'
+              value: '21600'
             }
           ]
           probes: [
@@ -582,27 +794,29 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '0.1.0'
             }
             {
-              name: 'LOG_LEVEL'
+              name: 'PARSING_LOG_LEVEL'
               value: 'INFO'
             }
+            // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
+            // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
             }
             {
-              name: 'COSMOS_DB_ENDPOINT'
+              name: 'COSMOS_ENDPOINT'
               value: cosmosDbEndpoint
             }
             {
@@ -614,12 +828,26 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosContainerName
             }
             {
-              name: 'AZURE_CLIENT_ID'
-              value: identityClientIds.parsing
+              name: 'COSMOS_PARTITION_KEY'
+              value: '/collection'
+            }
+            // Archive Store adapter (Azure Blob Storage)
+            {
+              name: 'ARCHIVE_STORE_TYPE'
+              value: 'azureblob'
             }
             {
-              name: 'AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}'
+              name: 'AZUREBLOB_ACCOUNT_NAME'
+              value: storageAccountName
+            }
+            {
+              name: 'AZUREBLOB_CONTAINER_NAME'
+              value: 'raw-archives'
+            }
+            // Metrics adapter (Azure Monitor)
+            {
+              name: 'PARSING_METRICS_TYPE'
+              value: 'azure_monitor'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -628,6 +856,52 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
+            // Secret Provider adapter (Azure Key Vault)
+            {
+              name: 'SECRET_PROVIDER_TYPE'
+              value: 'azurekeyvault'
+            }
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: identityClientIds.parsing
+            }
+            // Parsing service settings
+            {
+              name: 'PARSING_HTTP_PORT'
+              value: string(servicePorts.parsing)
+            }
+            {
+              name: 'PARSING_HTTP_HOST'
+              value: '0.0.0.0'
+            }
+            {
+              name: 'PARSING_JWT_AUTH_ENABLED'
+              value: 'true'
+            }
+            {
+              name: 'PARSING_AUTH_SERVICE_URL'
+              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+            }
+            {
+              name: 'PARSING_SERVICE_AUDIENCE'
+              value: 'copilot-for-consensus'
+            }
+            {
+              name: 'PARSING_LOG_TYPE'
+              value: 'stdout'
+            }
+            {
+              name: 'PARSING_LOGGER_NAME'
+              value: 'parsing'
+            }
+            {
+              name: 'PARSING_RETRY_MAX_ATTEMPTS'
+              value: '3'
+            }
+            {
+              name: 'PARSING_RETRY_DELAY_SECONDS'
+              value: '5'
             }
           ]
           resources: {
@@ -677,27 +951,29 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '0.1.0'
             }
             {
-              name: 'LOG_LEVEL'
+              name: 'CHUNK_LOG_LEVEL'
               value: 'INFO'
             }
+            // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
+            // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
             }
             {
-              name: 'COSMOS_DB_ENDPOINT'
+              name: 'COSMOS_ENDPOINT'
               value: cosmosDbEndpoint
             }
             {
@@ -709,12 +985,13 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosContainerName
             }
             {
-              name: 'AZURE_CLIENT_ID'
-              value: identityClientIds.chunking
+              name: 'COSMOS_PARTITION_KEY'
+              value: '/collection'
             }
+            // Metrics adapter (Azure Monitor)
             {
-              name: 'AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}'
+              name: 'CHUNK_METRICS_TYPE'
+              value: 'azure_monitor'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -723,6 +1000,56 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
+            // Secret Provider adapter (Azure Key Vault)
+            {
+              name: 'SECRET_PROVIDER_TYPE'
+              value: 'azurekeyvault'
+            }
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: identityClientIds.chunking
+            }
+            // Chunking service settings
+            {
+              name: 'CHUNK_HTTP_PORT'
+              value: string(servicePorts.chunking)
+            }
+            {
+              name: 'CHUNK_JWT_AUTH_ENABLED'
+              value: 'true'
+            }
+            {
+              name: 'CHUNK_AUTH_SERVICE_URL'
+              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+            }
+            {
+              name: 'CHUNK_SERVICE_AUDIENCE'
+              value: 'copilot-for-consensus'
+            }
+            {
+              name: 'CHUNK_SIZE_TOKENS'
+              value: '384'
+            }
+            {
+              name: 'CHUNK_OVERLAP_TOKENS'
+              value: '50'
+            }
+            {
+              name: 'CHUNK_STRATEGY'
+              value: 'token_window'
+            }
+            {
+              name: 'CHUNK_MIN_SIZE_TOKENS'
+              value: '100'
+            }
+            {
+              name: 'CHUNK_MAX_SIZE_TOKENS'
+              value: '512'
+            }
+            {
+              name: 'CHUNK_RETRY_MAX_ATTEMPTS'
+              value: '3'
             }
           ]
           resources: {
@@ -772,27 +1099,29 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '0.1.0'
             }
             {
-              name: 'LOG_LEVEL'
+              name: 'EMBEDDING_LOG_LEVEL'
               value: 'INFO'
             }
+            // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
+            // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
             }
             {
-              name: 'COSMOS_DB_ENDPOINT'
+              name: 'COSMOS_ENDPOINT'
               value: cosmosDbEndpoint
             }
             {
@@ -804,48 +1133,50 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosContainerName
             }
             {
-              name: 'AZURE_CLIENT_ID'
-              value: identityClientIds.embedding
+              name: 'COSMOS_PARTITION_KEY'
+              value: '/collection'
             }
+            // Vector Store adapter (Qdrant or Azure AI Search)
             {
               name: 'VECTOR_STORE_TYPE'
-              value: vectorStoreBackend == 'qdrant' ? 'qdrant' : 'ai_search'
+              value: vectorStoreBackend == 'qdrant' ? 'qdrant' : 'azure_ai_search'
             }
             {
-              name: 'VECTOR_DB_HOST'
+              name: 'QDRANT_HOST'
               value: vectorStoreBackend == 'qdrant' ? '${projectPrefix}-qdrant-${environment}' : ''
             }
             {
-              name: 'VECTOR_DB_PORT'
-              value: vectorStoreBackend == 'qdrant' ? '80' : ''
+              name: 'QDRANT_PORT'
+              value: vectorStoreBackend == 'qdrant' ? '6333' : ''
             }
             {
-              name: 'VECTOR_DB_COLLECTION'
-              value: vectorStoreBackend == 'qdrant' ? 'document-embeddings' : ''
+              name: 'QDRANT_COLLECTION'
+              value: vectorStoreBackend == 'qdrant' ? 'embeddings' : ''
             }
             {
-              name: 'VECTOR_DB_DISTANCE'
+              name: 'QDRANT_DISTANCE'
               value: vectorStoreBackend == 'qdrant' ? 'cosine' : ''
             }
             {
-              name: 'VECTOR_DB_BATCH_SIZE'
+              name: 'QDRANT_UPSERT_BATCH_SIZE'
               value: vectorStoreBackend == 'qdrant' ? '100' : ''
-            }
-            {
-              name: 'AISEARCH_ENDPOINT'
-              value: vectorStoreBackend == 'azure_ai_search' ? aiSearchEndpoint : ''
-            }
-            {
-              name: 'AISEARCH_INDEX_NAME'
-              value: vectorStoreBackend == 'azure_ai_search' ? 'document-embeddings' : ''
-            }
-            {
-              name: 'EMBEDDING_BACKEND'
-              value: azureOpenAIEndpoint != '' && azureOpenAIEmbeddingDeploymentName != '' ? 'azure' : 'sentencetransformers'
             }
             {
               name: 'EMBEDDING_DIMENSION'
               value: '384'
+            }
+            {
+              name: 'AZURE_SEARCH_ENDPOINT'
+              value: vectorStoreBackend == 'azure_ai_search' ? aiSearchEndpoint : ''
+            }
+            {
+              name: 'AZURE_SEARCH_INDEX_NAME'
+              value: vectorStoreBackend == 'azure_ai_search' ? 'embeddings' : ''
+            }
+            // Embedding Backend adapter (Azure OpenAI or SentenceTransformers)
+            {
+              name: 'EMBEDDING_BACKEND_TYPE'
+              value: azureOpenAIEndpoint != '' && azureOpenAIEmbeddingDeploymentName != '' ? 'azure_openai' : 'sentencetransformers'
             }
             {
               name: 'AZURE_OPENAI_ENDPOINT'
@@ -856,12 +1187,13 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: azureOpenAIEmbeddingDeploymentName
             }
             {
-              name: 'AZURE_OPENAI_KEY'
+              name: 'AZURE_OPENAI_API_KEY'
               value: azureOpenAIApiKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${azureOpenAIApiKeySecretUri})' : ''
             }
+            // Metrics adapter (Azure Monitor)
             {
-              name: 'AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}'
+              name: 'EMBEDDING_METRICS_TYPE'
+              value: 'azure_monitor'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -870,6 +1202,60 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
+            // Secret Provider adapter (Azure Key Vault)
+            {
+              name: 'SECRET_PROVIDER_TYPE'
+              value: 'azurekeyvault'
+            }
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: identityClientIds.embedding
+            }
+            // Embedding service settings
+            {
+              name: 'EMBEDDING_HTTP_PORT'
+              value: string(servicePorts.embedding)
+            }
+            {
+              name: 'EMBEDDING_HTTP_HOST'
+              value: '0.0.0.0'
+            }
+            {
+              name: 'EMBEDDING_JWT_AUTH_ENABLED'
+              value: 'true'
+            }
+            {
+              name: 'EMBEDDING_AUTH_SERVICE_URL'
+              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+            }
+            {
+              name: 'EMBEDDING_SERVICE_AUDIENCE'
+              value: 'copilot-for-consensus'
+            }
+            {
+              name: 'EMBEDDING_BATCH_SIZE'
+              value: '32'
+            }
+            {
+              name: 'EMBEDDING_ENABLE_CACHE'
+              value: 'true'
+            }
+            {
+              name: 'EMBEDDING_CACHE_TTL_SECONDS'
+              value: '86400'
+            }
+            {
+              name: 'EMBEDDING_RETRY_MAX_ATTEMPTS'
+              value: '3'
+            }
+            {
+              name: 'EMBEDDING_RETRY_BACKOFF_SECONDS'
+              value: '5'
+            }
+            {
+              name: 'EMBEDDING_REQUEST_TIMEOUT_SECONDS'
+              value: '30'
             }
           ]
           resources: {
@@ -919,27 +1305,29 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '0.1.0'
             }
             {
-              name: 'LOG_LEVEL'
+              name: 'ORCHESTRATOR_LOG_LEVEL'
               value: 'INFO'
             }
+            // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
+            // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
             }
             {
-              name: 'COSMOS_DB_ENDPOINT'
+              name: 'COSMOS_ENDPOINT'
               value: cosmosDbEndpoint
             }
             {
@@ -951,11 +1339,34 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosContainerName
             }
             {
+              name: 'COSMOS_PARTITION_KEY'
+              value: '/collection'
+            }
+            // Metrics adapter (Azure Monitor)
+            {
+              name: 'ORCHESTRATOR_METRICS_TYPE'
+              value: 'azure_monitor'
+            }
+            {
+              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
+            }
+            {
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
+            // Secret Provider adapter (Azure Key Vault)
+            {
+              name: 'SECRET_PROVIDER_TYPE'
+              value: 'azurekeyvault'
+            }
+            {
               name: 'AZURE_CLIENT_ID'
               value: identityClientIds.orchestrator
             }
+            // LLM Backend adapter (Azure OpenAI)
             {
-              name: 'LLM_BACKEND'
+              name: 'ORCHESTRATOR_LLM_BACKEND'
               value: 'azure'
             }
             {
@@ -967,20 +1378,73 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: azureOpenAIGpt4DeploymentName
             }
             {
-              name: 'AZURE_OPENAI_KEY'
+              name: 'AZURE_OPENAI_API_KEY'
               value: azureOpenAIApiKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${azureOpenAIApiKeySecretUri})' : ''
             }
+            // Orchestrator service settings
             {
-              name: 'AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}'
+              name: 'ORCHESTRATOR_HTTP_PORT'
+              value: string(servicePorts.orchestrator)
             }
             {
-              name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-              value: appInsightsKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsKeySecretUri})' : ''
+              name: 'ORCHESTRATOR_JWT_AUTH_ENABLED'
+              value: 'true'
             }
             {
-              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-              value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+              name: 'ORCHESTRATOR_AUTH_SERVICE_URL'
+              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+            }
+            {
+              name: 'ORCHESTRATOR_SERVICE_AUDIENCE'
+              value: 'copilot-for-consensus'
+            }
+            {
+              name: 'ORCHESTRATOR_CONSENSUS_TIMEOUT_SECONDS'
+              value: '300'
+            }
+            {
+              name: 'ORCHESTRATOR_MAX_PARALLEL_REVIEWS'
+              value: '10'
+            }
+            {
+              name: 'ORCHESTRATOR_TOP_K'
+              value: '5'
+            }
+            {
+              name: 'ORCHESTRATOR_CONTEXT_WINDOW_TOKENS'
+              value: '2048'
+            }
+            {
+              name: 'ORCHESTRATOR_LLM_TEMPERATURE'
+              value: '0.7'
+            }
+            {
+              name: 'ORCHESTRATOR_LLM_MAX_TOKENS'
+              value: '1024'
+            }
+            {
+              name: 'ORCHESTRATOR_RETRY_MAX_ATTEMPTS'
+              value: '3'
+            }
+            {
+              name: 'ORCHESTRATOR_LOG_TYPE'
+              value: 'stdout'
+            }
+            {
+              name: 'ORCHESTRATOR_LOGGER_NAME'
+              value: 'orchestrator'
+            }
+            {
+              name: 'ORCHESTRATOR_REQUEST_TIMEOUT_SECONDS'
+              value: '60'
+            }
+            {
+              name: 'ORCHESTRATOR_WORKFLOW_HISTORY_RETENTION_DAYS'
+              value: '90'
+            }
+            {
+              name: 'ORCHESTRATOR_LLM_MODEL'
+              value: 'gpt-4'
             }
           ]
           resources: {
@@ -1030,27 +1494,29 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '0.1.0'
             }
             {
-              name: 'LOG_LEVEL'
+              name: 'SUMMARIZATION_LOG_LEVEL'
               value: 'INFO'
             }
+            // Message Bus adapter (Azure Service Bus)
             {
               name: 'MESSAGE_BUS_TYPE'
               value: 'azureservicebus'
             }
             {
-              name: 'MESSAGE_BUS_USE_MANAGED_IDENTITY'
+              name: 'SERVICEBUS_USE_MANAGED_IDENTITY'
               value: 'true'
             }
             {
-              name: 'MESSAGE_BUS_FULLY_QUALIFIED_NAMESPACE'
+              name: 'SERVICEBUS_FULLY_QUALIFIED_NAMESPACE'
               value: serviceBusNamespace
             }
+            // Document Store adapter (Cosmos DB)
             {
               name: 'DOCUMENT_STORE_TYPE'
               value: 'cosmos'
             }
             {
-              name: 'COSMOS_DB_ENDPOINT'
+              name: 'COSMOS_ENDPOINT'
               value: cosmosDbEndpoint
             }
             {
@@ -1062,48 +1528,50 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: cosmosContainerName
             }
             {
-              name: 'AZURE_CLIENT_ID'
-              value: identityClientIds.summarization
+              name: 'COSMOS_PARTITION_KEY'
+              value: '/collection'
             }
+            // Vector Store adapter (Qdrant or Azure AI Search)
             {
               name: 'VECTOR_STORE_TYPE'
-              value: vectorStoreBackend == 'qdrant' ? 'qdrant' : 'ai_search'
+              value: vectorStoreBackend == 'qdrant' ? 'qdrant' : 'azure_ai_search'
             }
             {
-              name: 'VECTOR_DB_HOST'
+              name: 'QDRANT_HOST'
               value: vectorStoreBackend == 'qdrant' ? '${projectPrefix}-qdrant-${environment}' : ''
             }
             {
-              name: 'VECTOR_DB_PORT'
-              value: vectorStoreBackend == 'qdrant' ? '80' : ''
+              name: 'QDRANT_PORT'
+              value: vectorStoreBackend == 'qdrant' ? '6333' : ''
             }
             {
-              name: 'VECTOR_DB_COLLECTION'
-              value: vectorStoreBackend == 'qdrant' ? 'document-embeddings' : ''
+              name: 'QDRANT_COLLECTION'
+              value: vectorStoreBackend == 'qdrant' ? 'embeddings' : ''
             }
             {
-              name: 'VECTOR_DB_DISTANCE'
+              name: 'QDRANT_DISTANCE'
               value: vectorStoreBackend == 'qdrant' ? 'cosine' : ''
             }
             {
-              name: 'VECTOR_DB_BATCH_SIZE'
+              name: 'QDRANT_UPSERT_BATCH_SIZE'
               value: vectorStoreBackend == 'qdrant' ? '100' : ''
             }
             {
-              name: 'AISEARCH_ENDPOINT'
+              name: 'AZURE_SEARCH_ENDPOINT'
               value: vectorStoreBackend == 'azure_ai_search' ? aiSearchEndpoint : ''
             }
             {
-              name: 'AISEARCH_INDEX_NAME'
-              value: vectorStoreBackend == 'azure_ai_search' ? 'document-embeddings' : ''
+              name: 'AZURE_SEARCH_INDEX_NAME'
+              value: vectorStoreBackend == 'azure_ai_search' ? 'embeddings' : ''
             }
             {
               name: 'EMBEDDING_DIMENSION'
               value: '384'
             }
+            // Embedding Backend adapter (Azure OpenAI)
             {
-              name: 'LLM_BACKEND'
-              value: 'azure'
+              name: 'EMBEDDING_BACKEND_TYPE'
+              value: 'azure_openai'
             }
             {
               name: 'AZURE_OPENAI_ENDPOINT'
@@ -1111,15 +1579,37 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'AZURE_OPENAI_DEPLOYMENT'
+              value: azureOpenAIEmbeddingDeploymentName
+            }
+            // LLM Backend adapter (Azure OpenAI)
+            {
+              name: 'SUMMARIZATION_LLM_BACKEND'
+              value: 'azure'
+            }
+            {
+              name: 'SUMMARIZATION_AZURE_OPENAI_ENDPOINT'
+              value: azureOpenAIEndpoint
+            }
+            {
+              name: 'SUMMARIZATION_AZURE_OPENAI_DEPLOYMENT'
               value: azureOpenAIGpt4DeploymentName
             }
             {
-              name: 'AZURE_OPENAI_KEY'
-              value: azureOpenAIApiKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${azureOpenAIApiKeySecretUri})' : ''
+              name: 'SUMMARIZATION_LLM_MODEL'
+              value: 'gpt-4'
             }
             {
-              name: 'AUTH_SERVICE_URL'
-              value: 'http://${projectPrefix}-auth-${environment}'
+              name: 'SUMMARIZATION_AZURE_OPENAI_API_VERSION'
+              value: '2024-02-15-preview'
+            }
+            {
+              name: 'AZURE_OPENAI_API_KEY'
+              value: azureOpenAIApiKeySecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${azureOpenAIApiKeySecretUri})' : ''
+            }
+            // Metrics adapter (Azure Monitor)
+            {
+              name: 'SUMMARIZATION_METRICS_TYPE'
+              value: 'azure_monitor'
             }
             {
               name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -1128,6 +1618,56 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
+            // Secret Provider adapter (Azure Key Vault)
+            {
+              name: 'SECRET_PROVIDER_TYPE'
+              value: 'azurekeyvault'
+            }
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: identityClientIds.summarization
+            }
+            // Summarization service settings
+            {
+              name: 'SUMMARIZATION_HTTP_PORT'
+              value: string(servicePorts.summarization)
+            }
+            {
+              name: 'SUMMARIZATION_JWT_AUTH_ENABLED'
+              value: 'true'
+            }
+            {
+              name: 'SUMMARIZATION_AUTH_SERVICE_URL'
+              value: 'http://${projectPrefix}-auth-${environment}:${servicePorts.auth}'
+            }
+            {
+              name: 'SUMMARIZATION_SERVICE_AUDIENCE'
+              value: 'copilot-for-consensus'
+            }
+            {
+              name: 'SUMMARIZATION_LOG_TYPE'
+              value: 'stdout'
+            }
+            {
+              name: 'SUMMARIZATION_LOGGER_NAME'
+              value: 'summarization'
+            }
+            {
+              name: 'SUMMARIZATION_RETRY_MAX_ATTEMPTS'
+              value: '3'
+            }
+            {
+              name: 'SUMMARIZATION_RETRY_DELAY_SECONDS'
+              value: '5'
+            }
+            {
+              name: 'SUMMARIZATION_TOP_K'
+              value: '12'
+            }
+            {
+              name: 'SUMMARIZATION_CITATION_COUNT'
+              value: '12'
             }
           ]
           resources: {

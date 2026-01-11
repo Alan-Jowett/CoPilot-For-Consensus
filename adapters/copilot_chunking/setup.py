@@ -34,6 +34,7 @@ setup(
     ],
     python_requires=">=3.10",
     install_requires=[
+        "copilot-config>=0.1.0",  # For DriverConfig
         "copilot-schema-validation>=0.1.0",
     ],
     extras_require={
