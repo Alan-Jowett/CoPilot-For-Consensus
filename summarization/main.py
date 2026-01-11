@@ -276,6 +276,10 @@ def main():
             retry_backoff_seconds=config.retry_delay_seconds,
             metrics_collector=metrics_collector,
             error_reporter=error_reporter,
+            llm_backend=llm_backend_adapter.driver_name,
+            llm_model=llm_backend_adapter.driver_config.config.get("local_llm_model", "mistral"),
+            context_window_tokens=llm_backend_adapter.driver_config.config.get("context_window_tokens", 4096),
+            prompt_template=llm_backend_adapter.driver_config.config.get("prompt_template", ""),
         )
 
         subscriber_thread = threading.Thread(

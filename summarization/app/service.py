@@ -43,6 +43,10 @@ class SummarizationService:
         retry_backoff_seconds: int = 5,
         metrics_collector: MetricsCollector | None = None,
         error_reporter: ErrorReporter | None = None,
+        llm_backend: str = "local",
+        llm_model: str = "mistral",
+        context_window_tokens: int = 4096,
+        prompt_template: str = "",
     ):
         """Initialize summarization service.
 
@@ -58,6 +62,10 @@ class SummarizationService:
             retry_backoff_seconds: Base backoff interval for retries
             metrics_collector: Metrics collector (optional)
             error_reporter: Error reporter (optional)
+            llm_backend: LLM backend name (default: local)
+            llm_model: LLM model name (default: mistral)
+            context_window_tokens: LLM context window size (default: 4096)
+            prompt_template: Prompt template for summarization (default: empty)
         """
         self.document_store = document_store
         self.vector_store = vector_store
@@ -70,6 +78,10 @@ class SummarizationService:
         self.retry_backoff_seconds = retry_backoff_seconds
         self.metrics_collector = metrics_collector
         self.error_reporter = error_reporter
+        self.llm_backend = llm_backend
+        self.llm_model = llm_model
+        self.context_window_tokens = context_window_tokens
+        self.prompt_template = prompt_template
 
         # Stats
         self.summaries_generated = 0
@@ -121,7 +133,11 @@ class SummarizationService:
                 id_field="thread_id",
                 build_event_data=lambda doc: {
                     "thread_ids": [doc.get("thread_id")],
-                    "archive_id": doc.get("archive_id"),
+                    "top_k": self.top_k,
+                    "llm_backend": self.llm_backend,
+                    "llm_model": self.llm_model,
+                    "context_window_tokens": self.context_window_tokens,
+                    "prompt_template": self.prompt_template,
                 },
                 limit=500,
             )
