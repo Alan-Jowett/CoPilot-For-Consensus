@@ -212,13 +212,18 @@ class ConfigSchemaError(Exception):
 
 @dataclass
 class FieldSpec:
-    """Specification for a single configuration field."""
+    """Specification for a single configuration field.
+
+    env_var may be a single string or a list of strings (aliases). When a list
+    is provided for env_var, the loader will resolve the first variable that is
+    present in the environment, falling back to the first item if none are set.
+    """
     name: str
     field_type: str  # "string", "int", "bool", "float", "object", "array"
     required: bool = False
     default: Any = None
     source: str = "env"  # "env", "document_store", "static", "secret"
-    env_var: str | None = None
+    env_var: Any = None
     doc_store_path: str | None = None
     secret_name: str | None = None
     description: str | None = None
@@ -510,7 +515,18 @@ class SchemaConfigLoader:
             Key string
         """
         if field_spec.source == "env":
-            return field_spec.env_var or field_spec.name.upper()
+            env_key = field_spec.env_var
+            # Support alias list: search for the first variable that exists
+            if isinstance(env_key, list):
+                for candidate in env_key:
+                    # Only EnvConfigProvider supports direct environment lookup
+                    # Fallback: treat any non-empty value as present
+                    if self.env_provider and self.env_provider.get(candidate) is not None:
+                        return candidate
+                # None found set; fall back to the first alias for defaulting
+                return env_key[0] if env_key else field_spec.name.upper()
+            # Single string or None
+            return env_key or field_spec.name.upper()
         elif field_spec.source == "secret":
             # For secrets, use secret_name if provided, otherwise use field name
             return getattr(field_spec, 'secret_name', None) or field_spec.name

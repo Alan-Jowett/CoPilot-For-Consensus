@@ -19,9 +19,9 @@
         "jwt_auth_enabled": {
             "type": "bool",
             "source": "env",
-            "env_var": "SUMMARIZATION_JWT_AUTH_ENABLED",
+            "env_var": ["SUMMARIZATION_JWT_AUTH_ENABLED", "JWT_AUTH_ENABLED"],
             "default": true,
-            "description": "Enable JWT authentication middleware"
+            "description": "Enable JWT authentication middleware (supports global JWT_AUTH_ENABLED alias)"
         },
         "auth_service_url": {
             "type": "string",
