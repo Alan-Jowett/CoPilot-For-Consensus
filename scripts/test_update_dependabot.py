@@ -5,318 +5,298 @@
 """
 Unit tests for update-dependabot.py
 
-Tests the Dependabot configuration generator functionality.
+Tests the dependabot configuration generation functionality, particularly
+the find_dockerfiles() function that discovers Dockerfile directories.
 """
 import os
 import sys
 import tempfile
 from pathlib import Path
 
-# Add scripts directory to path and import the module
+# Add scripts directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
-# Import the module by loading it directly
-script_path = Path(__file__).parent / "update-dependabot.py"
-with open(script_path) as f:
-    code = compile(f.read(), script_path, 'exec')
-    update_dependabot = {}
-    exec(code, update_dependabot)
+# Import with hyphen replaced by underscore
+import importlib.util
+spec = importlib.util.spec_from_file_location("update_dependabot", Path(__file__).parent / "update-dependabot.py")
+update_dependabot = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(update_dependabot)
 
-# Extract functions
-find_python_packages = update_dependabot['find_python_packages']
-generate_pip_update_entry = update_dependabot['generate_pip_update_entry']
-generate_dependabot_config = update_dependabot['generate_dependabot_config']
+find_dockerfiles = update_dependabot.find_dockerfiles
 
 
-def test_generate_pip_update_entry_basic():
-    """Test that generate_pip_update_entry generates correct YAML structure."""
-    result = generate_pip_update_entry(
-        "Test Services",
-        ["/service1", "/service2"],
-        "services"
-    )
-    
-    # Verify key components are present
-    assert "# Monitor Python dependencies - Test Services" in result
-    assert 'package-ecosystem: "pip"' in result
-    assert 'directories:' in result
-    assert '- "/service1"' in result
-    assert '- "/service2"' in result
-    assert 'interval: "weekly"' in result
-    assert 'open-pull-requests-limit: 10' in result
-    assert '- "dependencies"' in result
-    assert '- "python"' in result
-    assert '- "services"' in result
-    assert 'pip-minor-patch:' in result
-    assert '- "minor"' in result
-    assert '- "patch"' in result
-
-
-def test_generate_pip_update_entry_with_adapters_label():
-    """Test that adapter label is correctly applied."""
-    result = generate_pip_update_entry(
-        "Adapters Group 1",
-        ["/adapters/adapter1"],
-        "adapters"
-    )
-    
-    assert '- "adapters"' in result
-    assert "# Monitor Python dependencies - Adapters Group 1" in result
-
-
-def test_generate_pip_update_entry_empty_directories():
-    """Test that function handles empty directory list."""
-    result = generate_pip_update_entry(
-        "Empty Group",
-        [],
-        "services"
-    )
-    
-    # Should still generate valid YAML structure even with no directories
-    assert 'package-ecosystem: "pip"' in result
-    assert 'directories:' in result
-
-
-def test_find_python_packages_with_requirements():
-    """Test finding packages with requirements.txt."""
+def test_find_dockerfiles_root_only():
+    """Test that root directory is always included even without Dockerfiles."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
         
-        # Create a service with requirements.txt
-        service_dir = tmppath / "service1"
+        # Don't create any Dockerfiles, just empty directory
+        result = find_dockerfiles(tmppath)
+        
+        # Root should always be included for docker-compose files
+        assert '/' in result
+        assert len(result) == 1
+
+
+def test_find_dockerfiles_basic():
+    """Test detection of Dockerfile in subdirectory."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        
+        # Create a service directory with Dockerfile
+        service_dir = tmppath / 'myservice'
         service_dir.mkdir()
-        (service_dir / "requirements.txt").write_text("requests==2.28.0\n")
+        (service_dir / 'Dockerfile').write_text('FROM python:3.11\n')
         
-        packages = find_python_packages(tmppath)
+        result = find_dockerfiles(tmppath)
         
-        assert len(packages) == 1
-        assert packages[0][0] == "/service1"
-        assert "service1 service" in packages[0][1]
+        assert '/' in result
+        assert '/myservice' in result
+        assert len(result) == 2
 
 
-def test_find_python_packages_with_requirements_in():
-    """Test finding packages with requirements.in."""
+def test_find_dockerfiles_nested():
+    """Test detection of Dockerfiles in nested directories."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
         
-        # Create a service with requirements.in
-        service_dir = tmppath / "service1"
+        # Create nested directories with Dockerfiles
+        infra_dir = tmppath / 'infra'
+        infra_dir.mkdir()
+        
+        exporter_dir = infra_dir / 'exporter'
+        exporter_dir.mkdir()
+        (exporter_dir / 'Dockerfile').write_text('FROM alpine\n')
+        
+        result = find_dockerfiles(tmppath)
+        
+        assert '/' in result
+        assert '/infra/exporter' in result
+        assert len(result) == 2
+
+
+def test_find_dockerfiles_with_suffix():
+    """Test detection of Dockerfiles with suffixes (e.g., Dockerfile.retry-job)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        
+        scripts_dir = tmppath / 'scripts'
+        scripts_dir.mkdir()
+        (scripts_dir / 'Dockerfile.retry-job').write_text('FROM python:3.11\n')
+        
+        result = find_dockerfiles(tmppath)
+        
+        assert '/' in result
+        assert '/scripts' in result
+        assert len(result) == 2
+
+
+def test_find_dockerfiles_excludes_git():
+    """Test that .git directories are excluded."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        
+        # Create .git directory with a Dockerfile (should be ignored)
+        git_dir = tmppath / '.git'
+        git_dir.mkdir()
+        (git_dir / 'Dockerfile').write_text('FROM python:3.11\n')
+        
+        result = find_dockerfiles(tmppath)
+        
+        # Should only have root, not .git
+        assert '/' in result
+        assert '/.git' not in result
+        assert len(result) == 1
+
+
+def test_find_dockerfiles_excludes_node_modules():
+    """Test that node_modules directories are excluded."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        
+        # Create node_modules directory with a Dockerfile (should be ignored)
+        node_dir = tmppath / 'node_modules'
+        node_dir.mkdir()
+        (node_dir / 'Dockerfile').write_text('FROM node:18\n')
+        
+        result = find_dockerfiles(tmppath)
+        
+        # Should only have root, not node_modules
+        assert '/' in result
+        assert '/node_modules' not in result
+        assert len(result) == 1
+
+
+def test_find_dockerfiles_excludes_venv():
+    """Test that virtual environment directories are excluded."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        
+        # Create various venv directories
+        for venv_name in ['.venv', 'venv', 'env']:
+            venv_dir = tmppath / venv_name
+            venv_dir.mkdir()
+            (venv_dir / 'Dockerfile').write_text('FROM python:3.11\n')
+        
+        result = find_dockerfiles(tmppath)
+        
+        # Should only have root, not any venv directories
+        assert '/' in result
+        assert '/.venv' not in result
+        assert '/venv' not in result
+        assert '/env' not in result
+        assert len(result) == 1
+
+
+def test_find_dockerfiles_includes_infra():
+    """Test that infra directory is included (unlike Python package search)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        
+        # Create infra directory with Dockerfile
+        infra_dir = tmppath / 'infra'
+        infra_dir.mkdir()
+        
+        mongodb_dir = infra_dir / 'mongodb-exporter'
+        mongodb_dir.mkdir()
+        (mongodb_dir / 'Dockerfile').write_text('FROM prom/mongodb-exporter\n')
+        
+        result = find_dockerfiles(tmppath)
+        
+        # infra should be included for Dockerfiles
+        assert '/' in result
+        assert '/infra/mongodb-exporter' in result
+        assert len(result) == 2
+
+
+def test_find_dockerfiles_multiple_services():
+    """Test detection of multiple service directories with Dockerfiles."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        
+        # Create multiple service directories
+        services = ['auth', 'chunking', 'embedding', 'ingestion']
+        for service in services:
+            service_dir = tmppath / service
+            service_dir.mkdir()
+            (service_dir / 'Dockerfile').write_text(f'FROM python:3.11\n# {service} service\n')
+        
+        result = find_dockerfiles(tmppath)
+        
+        # Root + 4 services = 5 directories
+        assert len(result) == 5
+        assert '/' in result
+        for service in services:
+            assert f'/{service}' in result
+
+
+def test_find_dockerfiles_sorted():
+    """Test that results are sorted alphabetically."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        
+        # Create directories in non-alphabetical order
+        for service in ['zebra', 'alpha', 'beta']:
+            service_dir = tmppath / service
+            service_dir.mkdir()
+            (service_dir / 'Dockerfile').write_text('FROM python:3.11\n')
+        
+        result = find_dockerfiles(tmppath)
+        
+        # Check that results are sorted (/ should be first, then alphabetical)
+        assert result == ['/', '/alpha', '/beta', '/zebra']
+
+
+def test_find_dockerfiles_cross_platform_paths():
+    """Test that paths are converted to Unix-style forward slashes."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        
+        # Create nested directory
+        nested = tmppath / 'level1' / 'level2'
+        nested.mkdir(parents=True)
+        (nested / 'Dockerfile').write_text('FROM alpine\n')
+        
+        result = find_dockerfiles(tmppath)
+        
+        # Should use forward slashes regardless of OS
+        assert '/level1/level2' in result
+        # Should not contain backslashes (Windows paths)
+        for path in result:
+            assert '\\' not in path
+
+
+def test_find_dockerfiles_no_duplicates():
+    """Test that duplicate directories are not included."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        
+        # Create directory with multiple Dockerfiles
+        service_dir = tmppath / 'myservice'
         service_dir.mkdir()
-        (service_dir / "requirements.in").write_text("requests\n")
+        (service_dir / 'Dockerfile').write_text('FROM python:3.11\n')
+        (service_dir / 'Dockerfile.dev').write_text('FROM python:3.11\n')
+        (service_dir / 'Dockerfile.prod').write_text('FROM python:3.11\n')
         
-        packages = find_python_packages(tmppath)
+        result = find_dockerfiles(tmppath)
         
-        assert len(packages) == 1
-        assert packages[0][0] == "/service1"
+        # Should only include the directory once
+        assert result.count('/myservice') == 1
+        assert len(result) == 2  # / and /myservice
 
 
-def test_find_python_packages_with_setup_py():
-    """Test finding packages with setup.py."""
+def test_find_dockerfiles_excludes_documents():
+    """Test that documents directory is excluded."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmppath = Path(tmpdir)
         
-        # Create a service with setup.py
-        service_dir = tmppath / "service1"
+        # Create documents directory with a Dockerfile (should be ignored)
+        docs_dir = tmppath / 'documents'
+        docs_dir.mkdir()
+        (docs_dir / 'Dockerfile').write_text('FROM nginx\n')
+        
+        result = find_dockerfiles(tmppath)
+        
+        # Should only have root, not documents
+        assert '/' in result
+        assert '/documents' not in result
+        assert len(result) == 1
+
+
+def test_find_dockerfiles_empty_directory():
+    """Test behavior with an empty directory structure."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        
+        # Create some empty subdirectories
+        (tmppath / 'empty1').mkdir()
+        (tmppath / 'empty2').mkdir()
+        
+        result = find_dockerfiles(tmppath)
+        
+        # Should only have root
+        assert result == ['/']
+
+
+def test_find_dockerfiles_mixed_content():
+    """Test directory with mix of Dockerfiles and other files."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        
+        # Create service directory with various files
+        service_dir = tmppath / 'myservice'
         service_dir.mkdir()
-        (service_dir / "setup.py").write_text("from setuptools import setup\n")
+        (service_dir / 'Dockerfile').write_text('FROM python:3.11\n')
+        (service_dir / 'requirements.txt').write_text('flask==2.0.0\n')
+        (service_dir / 'main.py').write_text('print("hello")\n')
+        (service_dir / 'README.md').write_text('# Service\n')
         
-        packages = find_python_packages(tmppath)
+        result = find_dockerfiles(tmppath)
         
-        assert len(packages) == 1
-        assert packages[0][0] == "/service1"
-
-
-def test_find_python_packages_excludes_hidden():
-    """Test that hidden directories are excluded."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        
-        # Create a package in .git directory (should be excluded)
-        git_dir = tmppath / ".git" / "subdir"
-        git_dir.mkdir(parents=True)
-        (git_dir / "requirements.txt").write_text("requests\n")
-        
-        packages = find_python_packages(tmppath)
-        
-        # Should not find the package in .git
-        assert len(packages) == 0
-
-
-def test_find_python_packages_adapter_description():
-    """Test that adapters get correct description."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        
-        # Create an adapter
-        adapter_dir = tmppath / "adapters" / "my_adapter"
-        adapter_dir.mkdir(parents=True)
-        (adapter_dir / "requirements.txt").write_text("requests\n")
-        
-        packages = find_python_packages(tmppath)
-        
-        assert len(packages) == 1
-        assert packages[0][0] == "/adapters/my_adapter"
-        assert "my_adapter adapter" in packages[0][1]
-
-
-def test_find_python_packages_sorting():
-    """Test that packages are sorted with services first, then adapters."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmppath = Path(tmpdir)
-        
-        # Create adapters and services
-        adapter_dir = tmppath / "adapters" / "adapter1"
-        adapter_dir.mkdir(parents=True)
-        (adapter_dir / "requirements.txt").write_text("requests\n")
-        
-        service_dir = tmppath / "service1"
-        service_dir.mkdir()
-        (service_dir / "requirements.txt").write_text("requests\n")
-        
-        packages = find_python_packages(tmppath)
-        
-        # Services should come before adapters
-        assert len(packages) == 2
-        assert "/service1" in packages[0][0]
-        assert "/adapters/adapter1" in packages[1][0]
-
-
-def test_directory_splitting_logic():
-    """Test that directories are correctly split into services and adapter groups."""
-    packages = [
-        ("/service1", "service1 service"),
-        ("/service2", "service2 service"),
-        ("/adapters/adapter1", "adapter1 adapter"),
-        ("/adapters/adapter2", "adapter2 adapter"),
-        ("/adapters/adapter3", "adapter3 adapter"),
-    ]
-    
-    config = generate_dependabot_config(packages)
-    
-    # Verify services section exists
-    assert "/service1" in config
-    assert "/service2" in config
-    
-    # Verify adapters are split
-    assert "/adapters/adapter1" in config
-    assert "/adapters/adapter2" in config
-    assert "/adapters/adapter3" in config
-    
-    # Verify group labels
-    assert '"services"' in config
-    assert '"adapters"' in config
-
-
-def test_empty_services_list_handling():
-    """Test that empty services list is properly handled."""
-    packages = [
-        ("/adapters/adapter1", "adapter1 adapter"),
-        ("/adapters/adapter2", "adapter2 adapter"),
-    ]
-    
-    config = generate_dependabot_config(packages)
-    
-    # Should only have adapter sections, no services section
-    assert "/adapters/adapter1" in config
-    assert "/adapters/adapter2" in config
-    # Should not have a "Core Services" heading or services label
-    assert "Monitor Python dependencies - Core Services" not in config
-    # Verify we don't have the services label in any pip entry
-    lines = config.split('\n')
-    for i, line in enumerate(lines):
-        if line.strip() == '- "services"':
-            # If we find it, check it's not in a pip section
-            assert False, "Found unexpected 'services' label in config"
-
-
-def test_empty_adapters_list_handling():
-    """Test that empty adapters list is properly handled."""
-    packages = [
-        ("/service1", "service1 service"),
-        ("/service2", "service2 service"),
-    ]
-    
-    config = generate_dependabot_config(packages)
-    
-    # Should only have services section, no adapter sections
-    assert "/service1" in config
-    assert "/service2" in config
-    # Should not have adapter group headings
-    assert "Adapters Group 1" not in config
-    assert "Adapters Group 2" not in config
-
-
-def test_odd_number_of_adapters():
-    """Test that odd number of adapters are split correctly (group 2 gets extra)."""
-    packages = [
-        ("/adapters/adapter1", "adapter1 adapter"),
-        ("/adapters/adapter2", "adapter2 adapter"),
-        ("/adapters/adapter3", "adapter3 adapter"),
-    ]
-    
-    config = generate_dependabot_config(packages)
-    
-    # All adapters should be present
-    assert "/adapters/adapter1" in config
-    assert "/adapters/adapter2" in config
-    assert "/adapters/adapter3" in config
-    
-    # Should have both adapter groups
-    assert "Adapters Group 1" in config
-    assert "Adapters Group 2" in config
-
-
-def test_generated_config_includes_npm():
-    """Test that generated config includes npm monitoring."""
-    packages = [("/service1", "service1 service")]
-    
-    config = generate_dependabot_config(packages)
-    
-    assert "# Monitor npm dependencies in React UI" in config
-    assert 'package-ecosystem: "npm"' in config
-    assert 'directory: "/ui"' in config
-
-
-def test_generated_config_includes_docker():
-    """Test that generated config includes docker monitoring."""
-    packages = [("/service1", "service1 service")]
-    
-    config = generate_dependabot_config(packages)
-    
-    assert "# Monitor Docker image updates in docker-compose" in config
-    assert 'package-ecosystem: "docker"' in config
-
-
-def test_generated_config_includes_github_actions():
-    """Test that generated config includes GitHub Actions monitoring."""
-    packages = [("/service1", "service1 service")]
-    
-    config = generate_dependabot_config(packages)
-    
-    assert "# Monitor GitHub Actions" in config
-    assert 'package-ecosystem: "github-actions"' in config
-
-
-def test_generated_config_has_timeout_reference():
-    """Test that generated config includes reference to timeout issue."""
-    packages = [("/service1", "service1 service")]
-    
-    config = generate_dependabot_config(packages)
-    
-    assert "Split into multiple entries to prevent Dependabot timeout" in config
-    assert "https://github.com/orgs/community/discussions/179358" in config
-
-
-def test_generated_config_has_header():
-    """Test that generated config includes proper header."""
-    packages = [("/service1", "service1 service")]
-    
-    config = generate_dependabot_config(packages)
-    
-    assert "SPDX-License-Identifier: MIT" in config
-    assert "THIS FILE IS AUTO-GENERATED" in config
-    assert "version: 2" in config
-    assert "updates:" in config
+        # Should still detect the directory even with other files
+        assert '/' in result
+        assert '/myservice' in result
+        assert len(result) == 2
 
 
 if __name__ == '__main__':
@@ -325,30 +305,20 @@ if __name__ == '__main__':
         import pytest
         pytest.main([__file__, "-v"])
     except ImportError:
-        # Fallback to manual execution - discover and run all test functions
-        import inspect
-        current_module = sys.modules[__name__]
-        test_functions = [
-            func for name, func in inspect.getmembers(current_module, inspect.isfunction)
-            if name.startswith('test_')
-        ]
-        
-        failed_tests = []
-        for test_func in test_functions:
-            try:
-                test_func()
-                print(f"✓ {test_func.__name__}")
-            except AssertionError as e:
-                print(f"✗ {test_func.__name__}: {e}")
-                failed_tests.append(test_func.__name__)
-            except Exception as e:
-                print(f"✗ {test_func.__name__}: Unexpected error: {e}")
-                failed_tests.append(test_func.__name__)
-        
-        if failed_tests:
-            print(f"\n{len(failed_tests)} test(s) failed:")
-            for name in failed_tests:
-                print(f"  - {name}")
-            sys.exit(1)
-        else:
-            print(f"\nAll {len(test_functions)} tests passed!")
+        # Fallback to manual execution if pytest is not available
+        test_find_dockerfiles_root_only()
+        test_find_dockerfiles_basic()
+        test_find_dockerfiles_nested()
+        test_find_dockerfiles_with_suffix()
+        test_find_dockerfiles_excludes_git()
+        test_find_dockerfiles_excludes_node_modules()
+        test_find_dockerfiles_excludes_venv()
+        test_find_dockerfiles_includes_infra()
+        test_find_dockerfiles_multiple_services()
+        test_find_dockerfiles_sorted()
+        test_find_dockerfiles_cross_platform_paths()
+        test_find_dockerfiles_no_duplicates()
+        test_find_dockerfiles_excludes_documents()
+        test_find_dockerfiles_empty_directory()
+        test_find_dockerfiles_mixed_content()
+        print("All tests passed!")

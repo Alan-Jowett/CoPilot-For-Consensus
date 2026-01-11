@@ -81,6 +81,44 @@ def find_python_packages(root_dir: Path) -> list[tuple[str, str]]:
     return sorted(packages, key=sort_key)
 
 
+def find_dockerfiles(root_dir: Path) -> list[str]:
+    """
+    Find all directories containing Dockerfiles or docker-compose files.
+
+    Returns:
+        List of directory paths (formatted as /path/to/dir)
+    """
+    dockerfile_dirs = set()
+
+    # Always include root directory for docker-compose files
+    dockerfile_dirs.add('/')
+
+    # Exclude directories we don't want to scan
+    # Note: This differs from find_python_packages() - we intentionally include 'infra'
+    # because it contains Dockerfiles (mongodb-exporter, nginx) but no Python packages
+    exclude_dirs = {'.git', '.github', '__pycache__', 'node_modules', '.pytest_cache', '.venv', 'venv', 'env', 'documents'}
+
+    # Walk through the directory tree
+    for dirpath, dirnames, filenames in os.walk(root_dir):
+        # Filter out excluded directories
+        dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
+
+        # Check if this directory has a Dockerfile
+        has_dockerfile = any(f.startswith('Dockerfile') for f in filenames)
+
+        if has_dockerfile:
+            rel_path = os.path.relpath(dirpath, root_dir)
+            # Convert '.' (root) to '/', else prepend '/' and convert to Unix-style
+            if rel_path == '.':
+                rel_path = '/'
+            else:
+                rel_path = '/' + rel_path.replace('\\', '/')
+
+            dockerfile_dirs.add(rel_path)
+
+    return sorted(dockerfile_dirs)
+
+
 def generate_pip_update_entry(
     name: str, 
     directories: list[str], 
@@ -118,7 +156,7 @@ def generate_pip_update_entry(
     return content
 
 
-def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
+def generate_dependabot_config(packages: list[tuple[str, str]], dockerfile_dirs: list[str]) -> str:
     """Generate the dependabot.yml content using multi-directory configuration."""
     content = HEADER
 
@@ -167,10 +205,12 @@ def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
     content += "          - \"minor\"\n"
     content += "          - \"patch\"\n\n"
 
-    # Add Docker image monitoring for docker-compose
-    content += "  # Monitor Docker image updates in docker-compose\n"
+    # Add Docker image monitoring for docker-compose and Dockerfiles
+    content += "  # Monitor Docker image updates in docker-compose and Dockerfiles\n"
     content += "  - package-ecosystem: \"docker\"\n"
-    content += "    directory: \"/\"\n"
+    content += "    directories:\n"
+    for directory in dockerfile_dirs:
+        content += f"      - \"{directory}\"\n"
     content += "    schedule:\n"
     content += "      interval: \"weekly\"\n"
     content += "    open-pull-requests-limit: 5\n"
@@ -225,8 +265,15 @@ def main(output_path_arg=None):
     for directory, description in packages:
         print(f"  - {directory} ({description})")
 
+    # Find all directories with Dockerfiles
+    dockerfile_dirs = find_dockerfiles(repo_root)
+
+    print(f"\nFound {len(dockerfile_dirs)} directories with Dockerfiles:")
+    for directory in dockerfile_dirs:
+        print(f"  - {directory}")
+
     # Generate the config
-    config_content = generate_dependabot_config(packages)
+    config_content = generate_dependabot_config(packages, dockerfile_dirs)
 
     # Determine output path
     if output_path_arg:
@@ -240,10 +287,11 @@ def main(output_path_arg=None):
         f.write(config_content)
 
     print(f"\n✅ Successfully generated {output_path}")
-    print(f"   Total update entries: 6 (3 pip groups + 1 npm + 1 docker + 1 github-actions)")
+    print(f"   Total update entries: 6 (3 pip split + 1 npm + 1 docker + 1 github-actions)")
     print(f"   Python directories monitored: {len(packages)}")
-    print(f"\n💡 Using split multi-directory configuration to avoid Dependabot timeouts")
-    print(f"   Services and adapters are processed in separate groups to stay within time limits")
+    print(f"   Docker directories monitored: {len(dockerfile_dirs)}")
+    print(f"\n💡 Using split configuration to prevent Dependabot timeouts")
+    print(f"   Python deps split into 3 groups, Docker monitors {len(dockerfile_dirs)} directories")
 
 
 if __name__ == '__main__':

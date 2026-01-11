@@ -110,9 +110,22 @@ updates:
           - "minor"
           - "patch"
 
-  # Monitor Docker image updates in docker-compose
+  # Monitor Docker image updates in docker-compose and Dockerfiles
   - package-ecosystem: "docker"
-    directory: "/"
+    directories:
+      - "/"
+      - "/auth"
+      - "/chunking"
+      - "/embedding"
+      - "/infra/mongodb-exporter"
+      - "/infra/nginx"
+      - "/ingestion"
+      - "/orchestrator"
+      - "/parsing"
+      - "/reporting"
+      - "/scripts"
+      - "/summarization"
+      - "/ui"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
