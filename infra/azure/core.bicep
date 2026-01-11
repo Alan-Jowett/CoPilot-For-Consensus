@@ -122,14 +122,20 @@ module openaiModule 'modules/openai.bicep' = {
 }
 
 // Store Azure OpenAI API key securely in Core Key Vault
+// Reference the OpenAI account to retrieve its API key without exposing it in module outputs
+resource openaiAccountRef 'Microsoft.CognitiveServices/accounts@2025-06-01' existing = {
+  name: openaiAccountName
+}
+
 resource openaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   name: '${coreKeyVaultName}/azure-openai-api-key'
   properties: {
-    value: openaiModule.outputs.apiKey
+    value: listKeys(openaiAccountRef.id, '2023-10-01-preview').key1
     contentType: 'text/plain'
   }
   dependsOn: [
     coreKeyVaultModule
+    openaiModule  // Ensure OpenAI account exists before retrieving key
   ]
 }
 
