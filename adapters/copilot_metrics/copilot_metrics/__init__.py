@@ -1,56 +1,33 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Copilot-for-Consensus Metrics Adapter.
+"""Metrics collection abstraction for observability.
 
-A shared library for metrics collection across microservices
-in the Copilot-for-Consensus system.
+This package provides a unified interface for collecting metrics across different
+observability backends (Prometheus, Azure Monitor, etc.).
+
+Public API:
+    - MetricsCollector: Abstract interface for metrics collection
+    - create_metrics_collector: Factory function to create collectors
+
+Example:
+    >>> from copilot_metrics import create_metrics_collector
+    >>> collector = create_metrics_collector(
+    ...     driver_name="prometheus",
+    ...     driver_config={"namespace": "myapp"}
+    ... )
+    >>> collector.increment("requests", value=1.0, tags={"method": "GET"})
 """
 
 __version__ = "0.1.0"
 
-from .metrics import MetricsCollector, create_metrics_collector
-from .noop_metrics import NoOpMetricsCollector
+# Core public API - always available
+from .base import MetricsCollector
+from .factory import create_metrics_collector
 
-# Lazy import for PrometheusMetricsCollector to avoid ImportError when prometheus_client is not installed
-try:
-    from .prometheus_metrics import PrometheusMetricsCollector
-    _prometheus_available = True
-except ImportError:
-    _prometheus_available = False
-    # PrometheusMetricsCollector will be available through factory but not as direct import
-
-# Lazy import for PrometheusPushGatewayMetricsCollector
-try:
-    from .pushgateway_metrics import PrometheusPushGatewayMetricsCollector
-    _pushgateway_available = True
-except ImportError:
-    _pushgateway_available = False
-    # Available through factory when prometheus_client is installed
-
-# Lazy import for AzureMonitorMetricsCollector
-try:
-    from .azure_monitor_metrics import AzureMonitorMetricsCollector
-    _azure_monitor_available = True
-except ImportError:
-    _azure_monitor_available = False
-    # Available through factory when azure-monitor packages are installed
-
+# Public exports
 __all__ = [
-    # Version
     "__version__",
-    # Metrics
     "MetricsCollector",
-    "NoOpMetricsCollector",
     "create_metrics_collector",
 ]
-
-# Only export PrometheusMetricsCollector if it's available
-if _prometheus_available:
-    __all__.append("PrometheusMetricsCollector")
-
-if _pushgateway_available:
-    __all__.append("PrometheusPushGatewayMetricsCollector")
-
-if _azure_monitor_available:
-    __all__.append("AzureMonitorMetricsCollector")

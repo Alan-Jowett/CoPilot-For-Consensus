@@ -22,40 +22,41 @@ import sys
 from pathlib import Path
 
 # Dependency order - install these first, then others
-# Storage has no dependencies
-# Schema-validation depends on storage
-# Events depends on schema-validation
-# Config has no dependencies
-# Everything else can come after
+# copilot_config MUST be first - it has no dependencies and many adapters depend on it
+# copilot_schema_validation and copilot_vectorstore have no adapter dependencies
+# Everything else depends on copilot_config
 PRIORITY_ADAPTERS = [
-    "copilot_storage",
-    "copilot_schema_validation",
-    "copilot_events",
     "copilot_config",
-    "copilot_summarization",
+    "copilot_schema_validation",
+    "copilot_vectorstore",
+    "copilot_archive_fetcher",
+    "copilot_archive_store",
+    "copilot_draft_diff",
     "copilot_logging",
+    "copilot_storage",
+    "copilot_message_bus",
+    "copilot_secrets",
 ]
 
 # Dependency map - what each adapter depends on
 ADAPTER_DEPENDENCIES = {
-    "copilot_storage": ["copilot_schema_validation"],
-    "copilot_schema_validation": ["copilot_storage"],
-    "copilot_events": ["copilot_schema_validation", "copilot_storage"],
-    "copilot_config": ["copilot_schema_validation", "copilot_storage", "copilot_logging", "copilot_secrets"],
-    "copilot_secrets": [],
-    "copilot_chunking": ["copilot_schema_validation", "copilot_storage"],
-    "copilot_logging": [],
-    "copilot_metrics": [],
-    "copilot_reporting": [],
-    "copilot_embedding": [],
-    "copilot_vectorstore": [],
-    "copilot_summarization": [],
-    "copilot_archive_fetcher": [],
-    "copilot_archive_store": [],
-    # copilot_auth imports copilot_logging in middleware
-    "copilot_auth": ["copilot_logging"],
-    "copilot_draft_diff": [],
-    "copilot_consensus": [],
+    "copilot_config": [],  # Config has no dependencies - must install first!
+    "copilot_schema_validation": [],  # Schema validation has no dependencies
+    "copilot_storage": ["copilot_config", "copilot_schema_validation"],  # Storage depends on copilot-config and schema-validation for tests
+    "copilot_message_bus": ["copilot_config", "copilot_schema_validation"],  # Message-bus depends on both
+    "copilot_secrets": ["copilot_logging"],  # Secrets depends on logging
+    "copilot_chunking": ["copilot_config", "copilot_schema_validation"],  # Chunking depends on both
+    "copilot_logging": ["copilot_config"],  # Logging depends on copilot-config
+    "copilot_metrics": ["copilot_config"],  # Metrics depends on copilot-config
+    "copilot_error_reporting": ["copilot_config"],  # Error reporting depends on copilot-config
+    "copilot_embedding": ["copilot_config"],  # Embedding depends on copilot-config
+    "copilot_vectorstore": ["copilot_config"],  # Vectorstore depends on copilot-config (for tests)
+    "copilot_summarization": ["copilot_config"],  # Summarization depends on copilot-config
+    "copilot_archive_fetcher": [],  # Archive fetcher has no adapter dependencies
+    "copilot_archive_store": [],  # Archive store has no adapter dependencies
+    "copilot_auth": ["copilot_config", "copilot_logging"],  # Auth depends on config and logging
+    "copilot_draft_diff": [],  # Draft diff has no adapter dependencies
+    "copilot_consensus": ["copilot_config"],  # Consensus depends on copilot-config
 }
 
 def get_adapters_dir():

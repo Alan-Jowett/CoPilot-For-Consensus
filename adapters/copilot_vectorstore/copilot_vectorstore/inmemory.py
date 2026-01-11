@@ -25,6 +25,12 @@ class InMemoryVectorStore(VectorStore):
         self._vectors: dict[str, np.ndarray] = {}
         self._metadata: dict[str, dict[str, Any]] = {}
 
+    @classmethod
+    def from_config(cls, config: Any) -> "InMemoryVectorStore":
+        """Create an InMemoryVectorStore from a dict-like configuration."""
+        _ = config
+        return cls()
+
     def add_embedding(self, id: str, vector: list[float], metadata: dict[str, Any]) -> None:
         """Add a single embedding to the vector store.
 

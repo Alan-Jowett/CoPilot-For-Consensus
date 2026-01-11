@@ -6,13 +6,13 @@
 import sys
 
 import pytest
-from copilot_metrics import (
-    MetricsCollector,
-    NoOpMetricsCollector,
-    PrometheusMetricsCollector,
-    PrometheusPushGatewayMetricsCollector,
-    create_metrics_collector,
-)
+from copilot_config import load_driver_config
+from copilot_metrics import MetricsCollector, create_metrics_collector
+
+# Import implementation classes from internal modules for testing
+from copilot_metrics.noop_metrics import NoOpMetricsCollector
+from copilot_metrics.prometheus_metrics import PrometheusMetricsCollector
+from copilot_metrics.pushgateway_metrics import PrometheusPushGatewayMetricsCollector
 
 
 @pytest.fixture
@@ -37,7 +37,8 @@ class TestMetricsFactory:
 
     def test_create_noop_collector(self):
         """Test creating a no-op metrics collector."""
-        collector = create_metrics_collector(backend="noop")
+        driver_config = load_driver_config(None, "metrics", "noop")
+        collector = create_metrics_collector(driver_name="noop", driver_config=driver_config)
 
         assert isinstance(collector, NoOpMetricsCollector)
         assert isinstance(collector, MetricsCollector)
@@ -48,19 +49,26 @@ class TestMetricsFactory:
     )
     def test_create_prometheus_collector_without_lib(self):
         """Test creating Prometheus collector when library is not available."""
+        driver_config = load_driver_config(None, "metrics", "prometheus")
         with pytest.raises(ImportError, match="prometheus_client is required"):
-            create_metrics_collector(backend="prometheus")
+            create_metrics_collector(driver_name="prometheus", driver_config=driver_config)
 
-    def test_create_unknown_backend_type(self):
-        """Test that unknown backend type raises ValueError."""
-        with pytest.raises(ValueError, match="Unknown metrics backend"):
-            create_metrics_collector(backend="invalid")
+    def test_create_unknown_driver_type(self):
+        """Test that unknown driver type raises ValueError."""
+        with pytest.raises(ValueError, match="Unknown metrics driver"):
+            # load_driver_config will fail for invalid driver, so we create a minimal DriverConfig
+            from copilot_config import DriverConfig
+            driver_config = DriverConfig(
+                driver_name="invalid",
+                config={},
+                allowed_keys=set()
+            )
+            create_metrics_collector(driver_name="invalid", driver_config=driver_config)
 
-    def test_create_with_env_default(self, monkeypatch):
-        """Test factory uses environment variable for default backend."""
-        monkeypatch.setenv("METRICS_BACKEND", "noop")
-
-        collector = create_metrics_collector()
+    def test_create_with_explicit_driver(self):
+        """Test factory requires explicit driver_name parameter."""
+        driver_config = load_driver_config(None, "metrics", "noop")
+        collector = create_metrics_collector(driver_name="noop", driver_config=driver_config)
 
         assert isinstance(collector, NoOpMetricsCollector)
 
@@ -257,28 +265,27 @@ class TestPrometheusPushGatewayMetricsCollector:
         sys.modules.get('prometheus_client') is None,
         reason="prometheus_client not installed"
     )
-    def test_initialization_defaults(self, monkeypatch):
-        """Collector should initialize with default gateway and job, normalizing URL."""
-        # Ensure no env overrides
-        monkeypatch.delenv("PROMETHEUS_PUSHGATEWAY", raising=False)
-        monkeypatch.delenv("METRICS_JOB_NAME", raising=False)
-
-        collector = PrometheusPushGatewayMetricsCollector()
-        assert collector.gateway.startswith("http://")
+    def test_initialization_with_explicit_params(self):
+        """Collector requires explicit gateway and job parameters."""
+        collector = PrometheusPushGatewayMetricsCollector(
+            gateway="pushgateway:9091",
+            job="ingestion"
+        )
+        assert collector.gateway == "http://pushgateway:9091"
         assert collector.job == "ingestion"
 
     @pytest.mark.skipif(
         sys.modules.get('prometheus_client') is None,
         reason="prometheus_client not installed"
     )
-    def test_initialization_with_env(self, monkeypatch):
-        """Gateway and job can be configured via environment variables."""
-        monkeypatch.setenv("PROMETHEUS_PUSHGATEWAY", "monitoring:9091")
-        monkeypatch.setenv("METRICS_JOB_NAME", "ingestion-test")
-
-        collector = PrometheusPushGatewayMetricsCollector()
+    def test_initialization_url_normalization(self):
+        """Gateway URL should normalize with http:// prefix."""
+        collector = PrometheusPushGatewayMetricsCollector(
+            gateway="monitoring:9091",
+            job="orchestrator"
+        )
         assert collector.gateway == "http://monitoring:9091"
-        assert collector.job == "ingestion-test"
+        assert collector.job == "orchestrator"
 
     @pytest.mark.skipif(
         sys.modules.get('prometheus_client') is None,
@@ -341,7 +348,8 @@ class TestMetricsIntegration:
 
     def test_counter_workflow(self):
         """Test complete counter workflow."""
-        collector = create_metrics_collector(backend="noop")
+        driver_config = load_driver_config(None, "metrics", "noop")
+        collector = create_metrics_collector(driver_name="noop", driver_config=driver_config)
 
         # Simulate some events
         collector.increment("archives_ingested", tags={"source": "datatracker"})
@@ -357,7 +365,8 @@ class TestMetricsIntegration:
 
     def test_histogram_workflow(self):
         """Test complete histogram workflow."""
-        collector = create_metrics_collector(backend="noop")
+        driver_config = load_driver_config(None, "metrics", "noop")
+        collector = create_metrics_collector(driver_name="noop", driver_config=driver_config)
 
         # Simulate some measurements
         durations = [0.1, 0.2, 0.15, 0.3, 0.25]
@@ -370,7 +379,8 @@ class TestMetricsIntegration:
 
     def test_gauge_workflow(self):
         """Test complete gauge workflow."""
-        collector = create_metrics_collector(backend="noop")
+        driver_config = load_driver_config(None, "metrics", "noop")
+        collector = create_metrics_collector(driver_name="noop", driver_config=driver_config)
 
         # Simulate changing values
         collector.gauge("active_threads", 5.0)
@@ -563,11 +573,18 @@ class TestAzureMonitorMetricsCollector:
 
     def test_factory_creates_azure_monitor_collector(self, mock_azure_exporter, monkeypatch):
         """Test that factory can create Azure Monitor collector."""
-        monkeypatch.setenv("AZURE_MONITOR_CONNECTION_STRING", "InstrumentationKey=test-key")
-
-        # Test with backend parameter
+        # Test with driver_name parameter
         try:
-            collector = create_metrics_collector(backend="azure_monitor")
+            driver_config = load_driver_config(
+                None,
+                "metrics",
+                "azure_monitor",
+                fields={"connection_string": "InstrumentationKey=test-key"}
+            )
+            collector = create_metrics_collector(
+                driver_name="azure_monitor",
+                driver_config=driver_config
+            )
             # If Azure packages are installed, verify it's the right type
             from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
             assert isinstance(collector, AzureMonitorMetricsCollector)
@@ -576,9 +593,18 @@ class TestAzureMonitorMetricsCollector:
             # Expected if Azure packages not installed - test passes
             pass
 
-        # Test with alternative backend name
+        # Test with alternative driver name
         try:
-            collector = create_metrics_collector(backend="azuremonitor")
+            driver_config = load_driver_config(
+                None,
+                "metrics",
+                "azuremonitor",
+                fields={"connection_string": "InstrumentationKey=test-key"}
+            )
+            collector = create_metrics_collector(
+                driver_name="azuremonitor",
+                driver_config=driver_config
+            )
             from copilot_metrics.azure_monitor_metrics import AzureMonitorMetricsCollector
             assert isinstance(collector, AzureMonitorMetricsCollector)
         except ImportError:
@@ -591,48 +617,48 @@ class TestAzureMonitorWarningSuppress:
 
     def test_azure_monitor_import_no_warning_at_info_level(self, caplog):
         """Test that Azure Monitor import doesn't log warning at INFO level.
-        
+
         This verifies issue #570 fix: Azure Monitor OpenTelemetry packages are optional,
         so the warning about missing packages should only appear at DEBUG level, not INFO.
         """
         import logging
         import importlib
-        
+
         # Set logging to INFO level (typical for service startup)
         caplog.set_level(logging.INFO)
-        
+
         # Reimport the azure_monitor_metrics module to trigger the import-time logging
         from copilot_metrics import azure_monitor_metrics
         importlib.reload(azure_monitor_metrics)
-        
+
         # Check that no warning about Azure Monitor packages appears in INFO logs
         azure_monitor_warnings = [
             record for record in caplog.records
             if "Azure Monitor OpenTelemetry" in record.message
             and record.levelname == "WARNING"
         ]
-        
+
         assert len(azure_monitor_warnings) == 0, (
             "Azure Monitor import warning should not appear at INFO level. "
             "It should only log at DEBUG level since it's an optional dependency."
         )
-    
+
     def test_azure_monitor_import_debug_message_at_debug_level(self, caplog):
         """Test that Azure Monitor import logs debug message at DEBUG level.
-        
+
         Verifies that the message is still available for debugging but doesn't clutter
         normal INFO-level service startup logs.
         """
         import logging
         import importlib
-        
+
         # Set logging to DEBUG level
         caplog.set_level(logging.DEBUG)
-        
+
         # Reimport the azure_monitor_metrics module
         from copilot_metrics import azure_monitor_metrics
         importlib.reload(azure_monitor_metrics)
-        
+
         # Only check if packages aren't installed (expected in most environments)
         if not azure_monitor_metrics.AZURE_MONITOR_AVAILABLE:
             # Check that debug message appears at DEBUG level
@@ -641,7 +667,7 @@ class TestAzureMonitorWarningSuppress:
                 if "Azure Monitor OpenTelemetry" in record.message
                 and record.levelname == "DEBUG"
             ]
-            
+
             assert len(azure_monitor_debug_msgs) > 0, (
                 "Azure Monitor debug message should appear at DEBUG level "
                 "when packages are not installed."

@@ -24,11 +24,11 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     copilot_auth \
     copilot_archive_fetcher \
     copilot_config \
-    copilot_events \
+    copilot_message_bus \
     copilot_storage \
     copilot_logging \
     copilot_metrics \
-    copilot_reporting \
+    copilot_error_reporting \
     copilot_schema_validation \
     copilot_secrets
 

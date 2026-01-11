@@ -9,7 +9,7 @@ in the Copilot-for-Consensus system.
 
 __version__ = "0.1.0"
 
-from .file_schema_provider import FileSchemaProvider
+from .file_schema_provider import create_schema_provider
 from .identifier_generator import (
     generate_archive_id_from_bytes,
     generate_chunk_id,
@@ -47,6 +47,7 @@ from .models import (
 from .schema_provider import SchemaProvider
 from .schema_registry import (
     SCHEMA_REGISTRY,
+    get_configuration_schema_response,
     get_schema_metadata,
     get_schema_path,
     list_schemas,
@@ -58,7 +59,7 @@ from .schema_validator import validate_json
 __all__ = [
     # Schema validation
     "SchemaProvider",
-    "FileSchemaProvider",
+    "create_schema_provider",
     "validate_json",
     # Schema registry
     "get_schema_path",
@@ -66,6 +67,7 @@ __all__ = [
     "list_schemas",
     "validate_registry",
     "get_schema_metadata",
+    "get_configuration_schema_response",
     "SCHEMA_REGISTRY",
     # Enums
     "DocumentStatus",

@@ -7,6 +7,7 @@ from unittest.mock import Mock
 
 import pytest
 from app.service import EmbeddingService
+from copilot_metrics import create_metrics_collector
 
 
 @pytest.fixture
@@ -670,10 +671,9 @@ def test_vector_store_documents_total_metric_recorded(
     mock_document_store, mock_vector_store, mock_embedding_provider, mock_publisher, mock_subscriber
 ):
     """Test that vector_store_documents_total metric is recorded when embeddings are stored."""
-    from copilot_metrics import NoOpMetricsCollector
-
     # Create a metrics collector
-    metrics_collector = NoOpMetricsCollector()
+    from copilot_config import DriverConfig
+    metrics_collector = create_metrics_collector(driver_name="noop", driver_config=DriverConfig(driver_name="noop"))
 
     # Create service with metrics collector
     embedding_service = EmbeddingService(

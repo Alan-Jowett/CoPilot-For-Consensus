@@ -17,7 +17,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     copilot_config \
     copilot_logging \
     copilot_metrics \
-    copilot_secrets
+    copilot_schema_validation \
+    copilot_secrets \
+    copilot_storage
 
 # Install Azure Key Vault dependencies for copilot-secrets
 # Required for production deployments that use Azure Key Vault for secret management

@@ -8,10 +8,10 @@ from pathlib import Path
 
 import pytest
 from copilot_secrets import (
-    LocalFileSecretProvider,
     SecretNotFoundError,
     SecretProviderError,
 )
+from copilot_secrets.local_provider import LocalFileSecretProvider
 
 
 @pytest.fixture
@@ -90,14 +90,6 @@ class TestLocalFileSecretProvider:
         """Test binary retrieval of non-existent secret."""
         with pytest.raises(SecretNotFoundError, match="Secret not found"):
             provider.get_secret_bytes("missing_cert")
-
-    def test_get_secret_version_warning(self, provider, temp_secrets_dir, caplog):
-        """Test that version parameter logs a warning."""
-        secret_file = temp_secrets_dir / "versioned_secret"
-        secret_file.write_text("value")
-
-        provider.get_secret("versioned_secret", version="v2")
-        assert "Version parameter ignored" in caplog.text
 
     def test_secret_exists_returns_true(self, provider, temp_secrets_dir):
         """Test secret_exists returns True for existing secrets."""

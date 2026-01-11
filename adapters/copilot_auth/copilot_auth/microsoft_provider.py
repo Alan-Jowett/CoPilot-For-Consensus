@@ -9,6 +9,8 @@ allowing users to authenticate using their Microsoft accounts.
 
 from typing import Any
 
+from copilot_config import DriverConfig
+
 from .models import User
 from .oidc_provider import OIDCProvider
 
@@ -23,7 +25,7 @@ class MicrosoftIdentityProvider(OIDCProvider):
         client_id: Microsoft OAuth client ID
         client_secret: Microsoft OAuth client secret
         redirect_uri: OAuth callback URL
-        tenant: Azure AD tenant ID or "common" for multi-tenant
+        tenant: Azure AD tenant ID (schema default: "common" for multi-tenant)
     """
 
     def __init__(
@@ -31,7 +33,7 @@ class MicrosoftIdentityProvider(OIDCProvider):
         client_id: str,
         client_secret: str,
         redirect_uri: str,
-        tenant: str = "common",
+        tenant: str,
     ):
         """Initialize the Microsoft identity provider.
 
@@ -39,7 +41,7 @@ class MicrosoftIdentityProvider(OIDCProvider):
             client_id: Microsoft OAuth client ID
             client_secret: Microsoft OAuth client secret
             redirect_uri: OAuth callback URL
-            tenant: Azure AD tenant ID or "common" for multi-tenant
+            tenant: Azure AD tenant ID
         """
         discovery_url = (
             f"https://login.microsoftonline.com/{tenant}/v2.0/.well-known/openid-configuration"
@@ -54,6 +56,29 @@ class MicrosoftIdentityProvider(OIDCProvider):
         )
 
         self.tenant = tenant
+
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "MicrosoftIdentityProvider":
+        """Create MicrosoftIdentityProvider from DriverConfig.
+
+        Args:
+            driver_config: DriverConfig object with Microsoft OAuth configuration
+
+        Returns:
+            MicrosoftIdentityProvider instance
+
+        """
+        client_id = driver_config.microsoft_client_id
+        client_secret = driver_config.microsoft_client_secret
+        redirect_uri = driver_config.microsoft_redirect_uri
+        tenant = driver_config.microsoft_tenant
+
+        return cls(
+            client_id=client_id,
+            client_secret=client_secret,
+            redirect_uri=redirect_uri,
+            tenant=tenant,
+        )
 
     def _map_userinfo_to_user(self, userinfo: dict[str, Any], provider_id: str) -> User:
         """Map Microsoft userinfo to User model.

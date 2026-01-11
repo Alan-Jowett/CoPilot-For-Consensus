@@ -357,7 +357,7 @@ class JWTManager:
         
         Returns public key as PEM-encoded string for RS256/EC, or None for HS256
         (HMAC secrets should not be published).
-        
+
         Returns:
             Public key in PEM format, or None if not available
         """

@@ -21,6 +21,9 @@ import os
 
 import pytest
 
+# Mark all tests in this module as integration so they can be excluded via -m "not integration"
+pytestmark = pytest.mark.integration
+
 # Test if azure-storage-blob is available
 try:
     import importlib
@@ -30,7 +33,7 @@ except ImportError:
     AZURE_AVAILABLE = False
 
 if AZURE_AVAILABLE:
-    from copilot_archive_store import AzureBlobArchiveStore
+    from copilot_archive_store.azure_blob_archive_store import AzureBlobArchiveStore
 
 
 def has_azure_credentials() -> bool:

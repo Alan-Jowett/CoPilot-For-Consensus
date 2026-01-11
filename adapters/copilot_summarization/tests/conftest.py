@@ -7,6 +7,8 @@ from unittest.mock import Mock
 
 import pytest
 
+from copilot_config.load_driver_config import load_driver_config
+
 
 @pytest.fixture
 def mock_openai_module():
@@ -23,3 +25,13 @@ def mock_openai_module():
     mock_module.AzureOpenAI = mock_azure_class
 
     return mock_module, mock_client, mock_openai_class, mock_azure_class
+
+
+@pytest.fixture
+def llm_driver_config():
+    """Create schema-validated DriverConfig for llm_backend drivers."""
+
+    def _make(driver: str, fields: dict | None = None):
+        return load_driver_config(service=None, adapter="llm_backend", driver=driver, fields=fields or {})
+
+    return _make

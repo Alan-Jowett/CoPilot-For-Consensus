@@ -125,19 +125,19 @@ To add support for a new cloud provider:
 1. Create `<provider>_adapter.py`:
    ```python
    from adapter_base import GatewayAdapter
-   
+
    class NewProviderAdapter(GatewayAdapter):
        @property
        def provider_name(self) -> str:
            return "newprovider"
-       
+
        # Implement required methods
    ```
 
 2. Register in `generate_gateway_config.py`:
    ```python
    from newprovider_adapter import NewProviderAdapter
-   
+
    adapters = {
        'newprovider': NewProviderAdapter,
        # ... existing adapters

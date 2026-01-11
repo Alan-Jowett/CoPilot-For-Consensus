@@ -8,12 +8,9 @@ import os
 import time
 
 import pytest
-from copilot_storage import (
-    AzureCosmosDocumentStore,
-    DocumentNotFoundError,
-    DocumentStoreNotConnectedError,
-    create_document_store,
-)
+from copilot_storage import DocumentNotFoundError, DocumentStoreNotConnectedError, create_document_store
+from copilot_storage.azure_cosmos_document_store import AzureCosmosDocumentStore
+from copilot_storage.validating_document_store import ValidatingDocumentStore
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +35,9 @@ def azurecosmos_store():
     if not config["endpoint"] or not config["key"]:
         pytest.skip("Azure Cosmos DB not configured - set COSMOS_ENDPOINT and COSMOS_KEY")
 
-    store = create_document_store(store_type="azurecosmos", **config)
+    store = create_document_store(driver_name="azurecosmos", driver_config=config)
+    assert isinstance(store, ValidatingDocumentStore)
+    assert isinstance(store._store, AzureCosmosDocumentStore)
 
     # Attempt to connect with retries using exponential backoff
     max_retries = 3

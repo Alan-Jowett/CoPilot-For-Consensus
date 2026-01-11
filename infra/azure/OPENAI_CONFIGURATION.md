@@ -341,6 +341,6 @@ To switch from local models to Azure OpenAI without redeployment:
 
 ---
 
-**Last Updated**: 2025-12-31  
-**License**: MIT  
+**Last Updated**: 2025-12-31
+**License**: MIT
 **Copyright**: © 2025 Copilot-for-Consensus contributors

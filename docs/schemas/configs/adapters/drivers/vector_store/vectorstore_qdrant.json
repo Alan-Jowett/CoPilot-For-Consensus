@@ -1,0 +1,58 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Qdrant vector store driver settings",
+    "type": "object",
+    "properties": {
+        "host": {
+            "type": "string",
+            "source": "env",
+            "env_var": "QDRANT_HOST",
+            "default": "vectorstore",
+            "description": "Qdrant server hostname"
+        },
+        "port": {
+            "type": "int",
+            "source": "env",
+            "env_var": "QDRANT_PORT",
+            "default": 6333,
+            "description": "Qdrant server port"
+        },
+        "collection_name": {
+            "type": "string",
+            "source": "env",
+            "env_var": "QDRANT_COLLECTION",
+            "default": "embeddings",
+            "description": "Qdrant collection name for embeddings"
+        },
+        "api_key": {
+            "type": "string",
+            "source": "secret",
+            "secret_name": "qdrant_api_key",
+            "required": false,
+            "description": "Qdrant API key (optional)"
+        },
+        "vector_size": {
+            "type": "int",
+            "source": "env",
+            "env_var": "EMBEDDING_DIMENSION",
+            "default": 384,
+            "description": "Embedding vector dimension"
+        },
+        "distance": {
+            "type": "string",
+            "source": "env",
+            "env_var": "QDRANT_DISTANCE",
+            "default": "cosine",
+            "description": "Distance metric (cosine, euclid)"
+        },
+        "upsert_batch_size": {
+            "type": "int",
+            "source": "env",
+            "env_var": "QDRANT_UPSERT_BATCH_SIZE",
+            "default": 100,
+            "description": "Batch size for upsert operations"
+        }
+    },
+    "required": ["host", "port", "collection_name", "vector_size"]
+}

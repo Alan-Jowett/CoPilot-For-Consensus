@@ -1,0 +1,29 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "OpenAI LLM driver settings",
+    "type": "object",
+    "properties": {
+        "openai_api_key": {
+            "type": "string",
+            "source": "secret",
+            "secret_name": "summarization_openai_api_key",
+            "required": true,
+            "description": "OpenAI API key for summarization"
+        },
+        "openai_model": {
+            "type": "string",
+            "source": "env",
+            "env_var": "SUMMARIZATION_LLM_MODEL",
+            "required": true,
+            "description": "OpenAI model name (e.g., gpt-4o, gpt-3.5-turbo)"
+        },
+        "openai_base_url": {
+            "type": "string",
+            "source": "env",
+            "env_var": "SUMMARIZATION_OPENAI_BASE_URL",
+            "required": false,
+            "description": "Optional custom OpenAI-compatible base URL"
+        }
+    }
+}

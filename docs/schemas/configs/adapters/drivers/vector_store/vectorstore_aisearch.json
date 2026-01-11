@@ -1,0 +1,43 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Azure AI Search vector store driver settings",
+    "type": "object",
+    "properties": {
+        "endpoint": {
+            "type": "string",
+            "source": "env",
+            "env_var": "AZURE_SEARCH_ENDPOINT",
+            "description": "Azure AI Search endpoint URL"
+        },
+        "index_name": {
+            "type": "string",
+            "source": "env",
+            "env_var": "AZURE_SEARCH_INDEX_NAME",
+            "default": "embeddings",
+            "description": "Azure AI Search index name for embeddings"
+        },
+        "api_key": {
+            "type": "string",
+            "source": "secret",
+            "secret_name": "azure_search_api_key",
+            "required": false,
+            "description": "Azure AI Search API key (alternative to managed identity)"
+        },
+        "use_managed_identity": {
+            "type": "bool",
+            "source": "env",
+            "env_var": "AZURE_USE_MANAGED_IDENTITY",
+            "default": false,
+            "description": "Use managed identity instead of API key"
+        },
+        "vector_size": {
+            "type": "int",
+            "source": "env",
+            "env_var": "EMBEDDING_DIMENSION",
+            "default": 384,
+            "description": "Embedding vector dimension"
+        }
+    },
+    "required": ["endpoint", "index_name", "vector_size"]
+}

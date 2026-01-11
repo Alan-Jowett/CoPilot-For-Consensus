@@ -32,7 +32,7 @@ def test_rabbitmq_connection():
         connection = pika.BlockingConnection(parameters)
         channel = connection.channel()
 
-        # Declare exchange (this is what copilot_events uses)
+        # Declare exchange (this is what copilot_message_bus uses)
         channel.exchange_declare(exchange='copilot.events', exchange_type='topic', durable=True)
 
         # Create a test queue to listen for events

@@ -17,18 +17,18 @@ from adapter_base import GatewayAdapter
 
 class AzureAdapter(GatewayAdapter):
     """Adapter for Azure API Management (APIM).
-    
+
     Generates:
     - ARM template (JSON) with API Management service configuration
     - Parameters file for customization
     - Bicep template (optional, for infrastructure-as-code)
     - Policy XML files for rate limiting, authentication, CORS
     """
-    
+
     @property
     def provider_name(self) -> str:
         return "azure"
-    
+
     @property
     def deployment_instructions(self) -> str:
         return """
@@ -63,7 +63,7 @@ Deployment Steps:
      --name copilot-apim-deployment
 
 4. Wait for deployment (APIM provisioning takes 30-45 minutes)
-   
+
 5. Get the gateway URL:
    az apim show \\
      --resource-group <your-resource-group> \\
@@ -84,66 +84,66 @@ Monitoring:
 - View Analytics, Metrics, and Logs
 - Configure Application Insights for detailed telemetry
 """
-    
+
     def load_spec(self) -> None:
         """Load the OpenAPI specification from YAML file."""
         import yaml
-        
+
         with open(self.openapi_spec_path, 'r') as f:
             self.openapi_spec = yaml.safe_load(f)
-    
+
     def validate_spec(self) -> bool:
         """Validate OpenAPI spec for Azure APIM compatibility."""
         required_fields = ['openapi', 'info', 'paths']
         for field in required_fields:
             if field not in self.openapi_spec:
                 raise ValueError(f"OpenAPI spec missing required field: {field}")
-        
+
         # Check OpenAPI version (APIM supports 2.0 and 3.0)
         version = self.openapi_spec.get('openapi', '')
         if not (version.startswith('3.') or version.startswith('2.')):
             raise ValueError(f"Azure APIM requires OpenAPI 2.x or 3.x, got {version}")
-        
+
         return True
-    
+
     def generate_config(self, output_dir: Path) -> Dict[str, Path]:
         """Generate Azure APIM configuration files."""
         output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Generate ARM template
         arm_template = self._generate_arm_template()
         arm_template_path = output_dir / "azure-apim-template.json"
         with open(arm_template_path, 'w') as f:
             json.dump(arm_template, f, indent=2)
-        
+
         # Generate parameters file
         parameters = self._generate_parameters()
         parameters_path = output_dir / "azure-apim-parameters.json"
         with open(parameters_path, 'w') as f:
             json.dump(parameters, f, indent=2)
-        
+
         # Generate Bicep template
         bicep = self._generate_bicep_template()
         bicep_path = output_dir / "azure-apim.bicep"
         with open(bicep_path, 'w') as f:
             f.write(bicep)
-        
+
         # Generate policy files
         policies_dir = output_dir / "policies"
         policies_dir.mkdir(exist_ok=True)
-        
+
         cors_policy_path = policies_dir / "cors-policy.xml"
         with open(cors_policy_path, 'w') as f:
             f.write(self._generate_cors_policy())
-        
+
         rate_limit_policy_path = policies_dir / "rate-limit-policy.xml"
         with open(rate_limit_policy_path, 'w') as f:
             f.write(self._generate_rate_limit_policy())
-        
+
         jwt_policy_path = policies_dir / "jwt-validation-policy.xml"
         with open(jwt_policy_path, 'w') as f:
             f.write(self._generate_jwt_policy())
-        
+
         return {
             "arm_template": arm_template_path,
             "parameters": parameters_path,
@@ -152,14 +152,14 @@ Monitoring:
             "rate_limit_policy": rate_limit_policy_path,
             "jwt_policy": jwt_policy_path
         }
-    
+
     def validate_config(self, config_files: Dict[str, Path]) -> bool:
         """Validate generated Azure configuration files."""
         # Check that all files exist
         for file_path in config_files.values():
             if not file_path.exists():
                 raise ValueError(f"Generated file does not exist: {file_path}")
-        
+
         # Validate ARM template JSON structure
         arm_template_path = config_files.get("arm_template")
         if arm_template_path:
@@ -169,11 +169,11 @@ Monitoring:
                 for field in required_arm_fields:
                     if field not in arm_template:
                         raise ValueError(f"ARM template missing required field: {field}")
-        
+
         # Check for unreplaced placeholders in generated files
-        placeholders = ['REPLACE_WITH_UNIQUE_SUFFIX', 'admin@example.com', 
+        placeholders = ['REPLACE_WITH_UNIQUE_SUFFIX', 'admin@example.com',
                        'your-backend-', 'https://your-backend-', 'example.com']
-        
+
         for name, file_path in config_files.items():
             if file_path.suffix in ['.json', '.bicep', '.xml']:
                 with open(file_path, 'r') as f:
@@ -182,13 +182,13 @@ Monitoring:
                     if found_placeholders:
                         print(f"⚠️  Warning: {name} contains unreplaced placeholders: {', '.join(found_placeholders)}")
                         print(f"   These must be configured before deployment. See deployment guide.")
-        
+
         return True
-    
+
     def _generate_arm_template(self) -> Dict[str, Any]:
         """Generate Azure Resource Manager (ARM) template for APIM."""
         info = self.openapi_spec.get('info', {})
-        
+
         return {
             "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
             "contentVersion": "1.0.0.0",
@@ -332,7 +332,7 @@ Monitoring:
                 }
             }
         }
-    
+
     def _generate_parameters(self) -> Dict[str, Any]:
         """Generate parameters file for ARM template."""
         return {
@@ -365,11 +365,11 @@ Monitoring:
                 }
             }
         }
-    
+
     def _generate_bicep_template(self) -> str:
         """Generate Bicep template (infrastructure as code)."""
         info = self.openapi_spec.get('info', {})
-        
+
         return f"""// SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Copilot-for-Consensus contributors
 
@@ -466,16 +466,16 @@ resource api 'Microsoft.ApiManagement/service/apis@2021-08-01' = {{
 output gatewayUrl string = apimService.properties.gatewayUrl
 output apimResourceId string = apimService.id
 """
-    
+
     def _generate_cors_policy(self) -> str:
         """Generate CORS policy XML for APIM."""
         gateway_config = self.openapi_spec.get('x-gateway-config', {})
         cors_config = gateway_config.get('cors', {})
-        
+
         allowed_origins = cors_config.get('allowed-origins', ['*'])
         allowed_methods = cors_config.get('allowed-methods', ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
         allowed_headers = cors_config.get('allowed-headers', ['Authorization', 'Content-Type'])
-        
+
         return f"""<policies>
     <inbound>
         <cors allow-credentials="true">
@@ -491,7 +491,7 @@ output apimResourceId string = apimService.id
         </cors>
     </inbound>
 </policies>"""
-    
+
     def _generate_rate_limit_policy(self) -> str:
         """Generate rate limiting policy XML for APIM."""
         return """<policies>
@@ -500,7 +500,7 @@ output apimResourceId string = apimService.id
         <quota-by-key calls="10000" renewal-period="86400" counter-key="@(context.Subscription.Id)" />
     </inbound>
 </policies>"""
-    
+
     def _generate_jwt_policy(self) -> str:
         """Generate JWT validation policy XML for APIM."""
         return """<policies>

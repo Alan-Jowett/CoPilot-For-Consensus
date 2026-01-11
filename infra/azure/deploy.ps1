@@ -168,15 +168,15 @@ function Start-Deployment {
     $SecretsDir = Join-Path $ScriptDir "../../secrets"
     $githubClientId = ""
     $githubClientSecret = ""
-    
+
     $clientIdFile = Join-Path $SecretsDir "github_oauth_client_id"
     $clientSecretFile = Join-Path $SecretsDir "github_oauth_client_secret"
-    
+
     if (Test-Path $clientIdFile) {
         $githubClientId = (Get-Content $clientIdFile -Raw).Trim()
         Write-Info "Found GitHub OAuth client ID secret"
     }
-    
+
     if (Test-Path $clientSecretFile) {
         $githubClientSecret = (Get-Content $clientSecretFile -Raw).Trim()
         Write-Info "Found GitHub OAuth client secret"
@@ -225,17 +225,17 @@ function Start-Deployment {
     # Post-deployment: Update auth app with GitHub OAuth redirect URI
     if ($githubOAuthRedirectUri) {
         Write-Info "Updating auth service with GitHub OAuth redirect URI: $githubOAuthRedirectUri"
-        
+
         # Get the auth app resource
         $authAppName = "$ProjectName-auth-$Environment"
-        
+
         # Update the AUTH_GITHUB_REDIRECT_URI environment variable via az containerapp update
         try {
             Invoke-AzCli containerapp update `
                 --name $authAppName `
                 --resource-group $ResourceGroup `
                 --set-env-vars "AUTH_GITHUB_REDIRECT_URI=$githubOAuthRedirectUri" | Out-Null
-            
+
             Write-Info "Successfully updated auth service with GitHub OAuth redirect URI"
         }
         catch {

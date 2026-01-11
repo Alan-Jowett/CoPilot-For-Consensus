@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Draft Diff Provider Adapter Configuration",
+  "description": "Configuration schema for draft diff provider adapters (datatracker, mock)",
+  "type": "object",
+  "required": ["draft_diff_provider_type", "driver_config"],
+  "properties": {
+    "draft_diff_provider_type": {
+      "type": "string",
+      "enum": ["datatracker", "mock"],
+      "description": "Type of draft diff provider to use"
+    },
+    "driver_config": {
+      "type": "object",
+      "description": "Driver-specific configuration; schema determined by draft_diff_provider_type",
+      "oneOf": [
+        {
+          "$ref": "./drivers/draft_diff_provider/datatracker.json"
+        },
+        {
+          "$ref": "./drivers/draft_diff_provider/mock.json"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

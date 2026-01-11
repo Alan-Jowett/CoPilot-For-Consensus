@@ -1,0 +1,30 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Heuristic Consensus Detector driver",
+    "type": "object",
+    "properties": {
+        "agreement_threshold": {
+            "type": "integer",
+            "source": "env",
+            "env_var": "CONSENSUS_AGREEMENT_THRESHOLD",
+            "default": 3,
+            "description": "Minimum agreement signals for consensus"
+        },
+        "min_participants": {
+            "type": "integer",
+            "source": "env",
+            "env_var": "CONSENSUS_MIN_PARTICIPANTS",
+            "default": 2,
+            "description": "Minimum participants for valid consensus"
+        },
+        "stagnation_days": {
+            "type": "integer",
+            "source": "env",
+            "env_var": "CONSENSUS_STAGNATION_DAYS",
+            "default": 7,
+            "description": "Days of inactivity before stagnation"
+        }
+    },
+    "additionalProperties": false
+}

@@ -49,7 +49,7 @@ output identityPrincipalIdsByName object = {
 
 // Named map of client IDs for user-assigned managed identities
 // Required for Azure SDK DefaultAzureCredential to detect user-assigned managed identity
-// Note: Client IDs and principal IDs are different values - client ID is used for 
+// Note: Client IDs and principal IDs are different values - client ID is used for
 // authentication while principal ID is used for authorization (RBAC)
 // TODO: Consider using dynamic object construction with loops to reduce duplication
 output identityClientIdsByName object = {

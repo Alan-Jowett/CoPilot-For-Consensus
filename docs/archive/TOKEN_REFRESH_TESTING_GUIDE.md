@@ -48,7 +48,7 @@ This content now lives at [docs/features/authentication.md](../docs/features/aut
    Expected Console Output:
    [Callback] Token refreshed, location lost, using default
    [Callback] Redirecting to /ui/reports
-   
+
    User redirected to /ui/reports (not original URL)
    ```
 

@@ -10,22 +10,30 @@ from copilot_draft_diff.mock_provider import MockDiffProvider
 from copilot_draft_diff.provider import DraftDiffProvider
 
 
+class SimpleConfig:
+    """Simple config object for testing."""
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+
 class TestDiffProviderFactory:
     """Tests for DiffProviderFactory."""
 
     def test_create_datatracker_provider(self):
         """Test creating datatracker provider."""
-        provider = DiffProviderFactory.create("datatracker")
+        config = SimpleConfig(base_url="https://datatracker.ietf.org", diff_format="html")
+        provider = DiffProviderFactory.create("datatracker", config)
 
         assert isinstance(provider, DatatrackerDiffProvider)
         assert provider.base_url == "https://datatracker.ietf.org"
 
     def test_create_datatracker_provider_with_config(self):
         """Test creating datatracker provider with custom config."""
-        config = {
-            "base_url": "https://custom.example.com",
-            "diff_format": "text"
-        }
+        config = SimpleConfig(
+            base_url="https://custom.example.com",
+            diff_format="text"
+        )
         provider = DiffProviderFactory.create("datatracker", config)
 
         assert isinstance(provider, DatatrackerDiffProvider)
@@ -34,14 +42,15 @@ class TestDiffProviderFactory:
 
     def test_create_mock_provider(self):
         """Test creating mock provider."""
-        provider = DiffProviderFactory.create("mock")
+        config = SimpleConfig(default_format="text")
+        provider = DiffProviderFactory.create("mock", config)
 
         assert isinstance(provider, MockDiffProvider)
         assert provider.default_format == "text"
 
     def test_create_mock_provider_with_config(self):
         """Test creating mock provider with custom config."""
-        config = {"default_format": "html"}
+        config = SimpleConfig(default_format="html")
         provider = DiffProviderFactory.create("mock", config)
 
         assert isinstance(provider, MockDiffProvider)
@@ -49,17 +58,17 @@ class TestDiffProviderFactory:
 
     def test_create_unknown_provider(self):
         """Test that creating unknown provider raises ValueError."""
-        with pytest.raises(ValueError, match="Unknown provider type: unknown"):
+        with pytest.raises(ValueError, match="Unknown provider driver: unknown"):
             DiffProviderFactory.create("unknown")
 
     def test_create_requires_provider_type(self):
         """Test that creating provider requires provider_type parameter."""
-        with pytest.raises(ValueError, match="provider_type parameter is required"):
+        with pytest.raises(ValueError, match="driver_name parameter is required"):
             DiffProviderFactory.create(None)
 
     def test_create_empty_provider_type(self):
         """Test that empty provider_type raises error."""
-        with pytest.raises(ValueError, match="provider_type parameter is required"):
+        with pytest.raises(ValueError, match="driver_name parameter is required"):
             DiffProviderFactory.create("")
 
     def test_register_custom_provider(self):
@@ -92,13 +101,14 @@ class TestCreateDiffProvider:
 
     def test_create_with_type(self):
         """Test creating provider with explicit type."""
-        provider = create_diff_provider("mock")
+        config = SimpleConfig(default_format="text")
+        provider = create_diff_provider("mock", config)
 
         assert isinstance(provider, MockDiffProvider)
 
     def test_create_with_type_and_config(self):
         """Test creating provider with type and config."""
-        config = {"default_format": "html"}
+        config = SimpleConfig(default_format="html")
         provider = create_diff_provider("mock", config)
 
         assert isinstance(provider, MockDiffProvider)
@@ -106,5 +116,5 @@ class TestCreateDiffProvider:
 
     def test_create_requires_provider_type(self):
         """Test that creating provider requires provider_type parameter."""
-        with pytest.raises(ValueError, match="provider_type parameter is required"):
+        with pytest.raises(ValueError, match="driver_name parameter is required"):
             create_diff_provider(None)

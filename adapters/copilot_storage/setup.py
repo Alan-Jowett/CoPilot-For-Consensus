@@ -30,6 +30,7 @@ setup(
     ],
     python_requires=">=3.10",
     install_requires=[
+        "copilot-config>=0.1.0",  # For DriverConfig
         "pymongo>=4.6.3",  # MongoDB client
         "azure-cosmos>=4.5.0",  # Azure Cosmos DB client
         "azure-identity>=1.16.1",  # Azure managed identity support

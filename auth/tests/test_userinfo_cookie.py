@@ -19,7 +19,7 @@ def mock_auth_service():
     """Create a mock auth service."""
     service = MagicMock()
     service.config.audiences = "copilot-for-consensus"
-    
+
     # Mock validate_token to return user claims
     def validate_token_mock(token, audience):
         if token == "valid.jwt.token":
@@ -33,9 +33,9 @@ def mock_auth_service():
             }
         else:
             raise ValueError("Invalid token")
-    
+
     service.validate_token = validate_token_mock
-    
+
     return service
 
 
@@ -43,12 +43,12 @@ def mock_auth_service():
 def test_client(mock_auth_service):
     """Create test client with mocked auth service."""
     import importlib
-    
+
     # Patch before importing main
     with patch("sys.path", [str(Path(__file__).parent.parent)] + sys.path):
         # Import main module
         import main
-        
+
         # Reload the module to ensure fresh state
         importlib.reload(main)
 
@@ -64,7 +64,7 @@ def test_userinfo_with_authorization_header(test_client: TestClient):
         "/userinfo",
         headers={"Authorization": "Bearer valid.jwt.token"}
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["sub"] == "test-user-123"
@@ -81,7 +81,7 @@ def test_userinfo_with_cookie(test_client: TestClient):
         "/userinfo",
         cookies={"auth_token": "valid.jwt.token"}
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["sub"] == "test-user-123"
@@ -97,7 +97,7 @@ def test_userinfo_prefers_authorization_header_over_cookie(test_client: TestClie
         headers={"Authorization": "Bearer valid.jwt.token"},
         cookies={"auth_token": "different.token"}
     )
-    
+
     # Should use the header token (valid.jwt.token)
     assert response.status_code == 200
     data = response.json()
@@ -107,7 +107,7 @@ def test_userinfo_prefers_authorization_header_over_cookie(test_client: TestClie
 def test_userinfo_without_token(test_client: TestClient):
     """Test that /userinfo returns 401 without token."""
     response = test_client.get("/userinfo")
-    
+
     assert response.status_code == 401
     assert "Missing authentication token" in response.json()["detail"]
 
@@ -118,7 +118,7 @@ def test_userinfo_with_invalid_token_in_cookie(test_client: TestClient):
         "/userinfo",
         cookies={"auth_token": "invalid.token"}
     )
-    
+
     assert response.status_code == 401
 
 
@@ -128,5 +128,5 @@ def test_userinfo_with_invalid_token_in_header(test_client: TestClient):
         "/userinfo",
         headers={"Authorization": "Bearer invalid.token"}
     )
-    
+
     assert response.status_code == 401

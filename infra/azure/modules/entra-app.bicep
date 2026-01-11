@@ -87,10 +87,10 @@ resource appRegistrationScript 'Microsoft.Resources/deploymentScripts@2023-08-01
     scriptContent: '''
       #!/bin/bash
       set -e
-      
+
       # Install jq for JSON parsing
       apk add --no-cache jq
-      
+
       # Convert comma-separated redirect URIs to JSON array
       IFS=',' read -ra URI_ARRAY <<< "$REDIRECT_URIS"
       REDIRECT_URIS_JSON="["
@@ -101,28 +101,28 @@ resource appRegistrationScript 'Microsoft.Resources/deploymentScripts@2023-08-01
         REDIRECT_URIS_JSON+="\"${URI_ARRAY[$i]}\""
       done
       REDIRECT_URIS_JSON+="]"
-      
+
       echo "Creating or updating Entra app: $APP_NAME"
       echo "Redirect URIs: $REDIRECT_URIS_JSON"
-      
+
       # Check if app already exists
       EXISTING_APP=$(az ad app list --display-name "$APP_NAME" --query "[0]" -o json || echo "{}")
-      
+
       if [ "$(echo "$EXISTING_APP" | jq -r '.appId // empty')" != "" ]; then
         # Update existing app
         APP_ID=$(echo "$EXISTING_APP" | jq -r '.appId')
         OBJECT_ID=$(echo "$EXISTING_APP" | jq -r '.id')
         echo "Updating existing app with ID: $APP_ID"
-        
+
         # Update redirect URIs
         az ad app update --id "$APP_ID" \
           --web-redirect-uris "${URI_ARRAY[@]}" \
           --enable-id-token-issuance true
-        
+
       else
         # Create new app
         echo "Creating new app registration..."
-        
+
         # Create app with redirect URIs
         # Request Microsoft Graph delegated permissions:
         # - e1fe6dd8-ba31-4d61-89e7-88639da4683d: User.Read (read user profile)
@@ -145,11 +145,11 @@ resource appRegistrationScript 'Microsoft.Resources/deploymentScripts@2023-08-01
               ]
             }
           ]' -o json)
-        
+
         APP_ID=$(echo "$NEW_APP" | jq -r '.appId')
         OBJECT_ID=$(echo "$NEW_APP" | jq -r '.id')
         echo "Created app with ID: $APP_ID"
-        
+
         # Create service principal
         SP_RESULT=$(az ad sp create --id "$APP_ID" -o json || echo "{}")
         SP_ID=$(echo "$SP_RESULT" | jq -r '.id // empty')
@@ -159,7 +159,7 @@ resource appRegistrationScript 'Microsoft.Resources/deploymentScripts@2023-08-01
         fi
         echo "Service principal ID: $SP_ID"
       fi
-      
+
       # Generate or rotate client secret
       # Use 'az ad app credential append' to add new secret without invalidating existing ones
       # This enables zero-downtime rotation: old credentials remain valid during deployment
@@ -171,21 +171,21 @@ resource appRegistrationScript 'Microsoft.Resources/deploymentScripts@2023-08-01
         --end-date "$EXPIRATION_DATE" \
         --append \
         -o json)
-      
+
       CLIENT_SECRET=$(echo "$SECRET_RESULT" | jq -r '.password')
       SECRET_KEY_ID=$(echo "$SECRET_RESULT" | jq -r '.keyId // empty')
-      
+
       # Get service principal ID if not set
       if [ -z "$SP_ID" ]; then
         SP_ID=$(az ad sp list --filter "appId eq '$APP_ID'" --query "[0].id" -o tsv)
       fi
-      
+
       # Validate that service principal ID was resolved
       if [ -z "$SP_ID" ]; then
         echo "Error: Failed to resolve service principal ID for appId $APP_ID" >&2
         exit 1
       fi
-      
+
       # Store secrets in Key Vault
       # This prevents the client secret from appearing in deployment outputs or logs
       echo "Storing client ID in Key Vault: $KEY_VAULT_NAME"
@@ -194,14 +194,14 @@ resource appRegistrationScript 'Microsoft.Resources/deploymentScripts@2023-08-01
         --name "microsoft-oauth-client-id" \
         --value "$APP_ID" \
         --output none
-      
+
       echo "Storing client secret in Key Vault: $KEY_VAULT_NAME"
       az keyvault secret set \
         --vault-name "$KEY_VAULT_NAME" \
         --name "microsoft-oauth-client-secret" \
         --value "$CLIENT_SECRET" \
         --output none
-      
+
       # Output results as JSON (without client secret)
       jq -n \
         --arg appId "$APP_ID" \
@@ -218,7 +218,7 @@ resource appRegistrationScript 'Microsoft.Resources/deploymentScripts@2023-08-01
           secretExpirationDate: $secretExpirationDate,
           servicePrincipalId: $servicePrincipalId
         }' > $AZ_SCRIPTS_OUTPUT_PATH
-      
+
       echo "App registration completed successfully"
       echo "Client ID and secret stored in Key Vault: $KEY_VAULT_NAME"
     '''

@@ -7,7 +7,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from copilot_config import TypedConfig
+from copilot_config import ServiceConfig
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -22,8 +22,8 @@ class TestAuthConfig:
         """Test that auth config loads without errors."""
         config = load_auth_config()
 
-        # Verify it's a TypedConfig instance
-        assert isinstance(config, TypedConfig)
+        # Verify it's a ServiceConfig instance
+        assert isinstance(config, ServiceConfig)
 
     def test_auth_config_has_required_fields(self):
         """Test that auth config has required fields."""

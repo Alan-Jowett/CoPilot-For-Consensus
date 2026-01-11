@@ -187,7 +187,7 @@ Here's how to integrate metrics into a microservice:
 import os
 import logging
 from copilot_metrics import create_metrics_collector
-from copilot_events import EventPublisher
+from copilot_message_bus import EventPublisher
 
 logger = logging.getLogger(__name__)
 

@@ -1,0 +1,29 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Azure Blob Storage archive store driver settings",
+    "type": "object",
+    "properties": {
+        "azureblob_account_name": {
+            "type": "string",
+            "source": "env",
+            "env_var": "AZUREBLOB_ACCOUNT_NAME",
+            "required": true,
+            "description": "Azure Storage account name"
+        },
+        "azureblob_container_name": {
+            "type": "string",
+            "source": "env",
+            "env_var": "AZUREBLOB_CONTAINER_NAME",
+            "default": "archives",
+            "description": "Azure Blob Storage container name for archives"
+        },
+        "azureblob_account_key": {
+            "type": "string",
+            "source": "secret",
+            "secret_name": "azureblob_account_key",
+            "required": false,
+            "description": "Azure Storage account key (alternative to managed identity)"
+        }
+    }
+}
