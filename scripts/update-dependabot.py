@@ -82,33 +82,30 @@ def find_python_packages(root_dir: Path) -> list[tuple[str, str]]:
 
 
 def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
-    """Generate the dependabot.yml content using multi-directory configuration."""
+    """Generate the dependabot.yml content with separate entries for each directory."""
     content = HEADER
 
-    # Extract all directories for Python packages
-    python_directories = [directory for directory, _ in packages]
-
-    # Use the new multi-directory feature (introduced June 2024)
-    # This consolidates all Python dependencies into a single update entry
+    # Monitor Python dependencies across all services and adapters
+    # Create separate update entries for each directory (required by Dependabot)
     content += "  # Monitor Python dependencies across all services and adapters\n"
-    content += "  # Using multi-directory configuration to reduce PR noise\n"
-    content += "  - package-ecosystem: \"pip\"\n"
-    content += "    directories:\n"
-    for directory in python_directories:
-        content += f"      - \"{directory}\"\n"
-    content += "    schedule:\n"
-    content += "      interval: \"weekly\"\n"
-    content += "    open-pull-requests-limit: 10\n"
-    content += "    labels:\n"
-    content += "      - \"dependencies\"\n"
-    content += "      - \"python\"\n"
-    content += "    groups:\n"
-    content += "      pip-minor-patch:\n"
-    content += "        patterns:\n"
-    content += "          - \"*\"\n"
-    content += "        update-types:\n"
-    content += "          - \"minor\"\n"
-    content += "          - \"patch\"\n\n"
+    content += "  # Each directory requires its own update entry\n"
+    
+    for directory, description in packages:
+        content += f"  - package-ecosystem: \"pip\"\n"
+        content += f"    directory: \"{directory}\"\n"
+        content += "    schedule:\n"
+        content += "      interval: \"weekly\"\n"
+        content += "    open-pull-requests-limit: 10\n"
+        content += "    labels:\n"
+        content += "      - \"dependencies\"\n"
+        content += "      - \"python\"\n"
+        content += "    groups:\n"
+        content += "      pip-minor-patch:\n"
+        content += "        patterns:\n"
+        content += "          - \"*\"\n"
+        content += "        update-types:\n"
+        content += "          - \"minor\"\n"
+        content += "          - \"patch\"\n\n"
 
     # Add npm monitoring for the React UI
     content += "  # Monitor npm dependencies in React UI\n"
@@ -201,10 +198,8 @@ def main(output_path_arg=None):
         f.write(config_content)
 
     print(f"\n✅ Successfully generated {output_path}")
-    print(f"   Total update entries: 4 (1 pip multi-directory + 1 npm + 1 docker + 1 github-actions)")
+    print(f"   Total update entries: {len(packages) + 3} ({len(packages)} pip + 1 npm + 1 docker + 1 github-actions)")
     print(f"   Python directories monitored: {len(packages)}")
-    print(f"\n💡 Using multi-directory configuration to consolidate Python updates")
-    print(f"   This reduces PR noise by grouping updates across all {len(packages)} directories")
 
 
 if __name__ == '__main__':
