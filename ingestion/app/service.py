@@ -74,11 +74,12 @@ def _sanitize_source_dict(source_dict: dict[str, Any]) -> dict[str, Any]:
     return sanitized
 
 
-def _enabled_sources(raw_sources: Iterable[Any]) -> list[SourceConfig]:
+def _enabled_sources(raw_sources: Iterable[Any], logger: Logger | None = None) -> list[SourceConfig]:
     """Normalize and filter enabled sources.
 
     Args:
         raw_sources: Iterable of raw source configurations
+        logger: Optional logger for warnings
 
     Returns:
         List of enabled SourceConfig objects
@@ -116,9 +117,10 @@ def _enabled_sources(raw_sources: Iterable[Any]) -> list[SourceConfig]:
 
             if enabled:
                 enabled_sources.append(source_cfg)
-        except SourceConfigurationError:
-            # Skip invalid source configurations
-            # Errors will be logged when the service tries to use the source
+        except SourceConfigurationError as e:
+            # Log but skip invalid source configurations
+            if logger:
+                logger.warning("Skipping invalid source configuration", error=str(e))
             continue
 
     return enabled_sources
@@ -599,7 +601,7 @@ class IngestionService:
         """
         results = {}
 
-        for source in _enabled_sources(getattr(self.config, "sources", [])):
+        for source in _enabled_sources(getattr(self.config, "sources", []), self.logger):
             self.logger.info("Starting source ingestion", source_name=source.name)
             try:
                 self.ingest_archive(source)
@@ -1019,7 +1021,7 @@ class IngestionService:
         Returns:
             Dictionary with service statistics
         """
-        sources = _enabled_sources(getattr(self.config, "sources", []))
+        sources = _enabled_sources(getattr(self.config, "sources", []), self.logger)
 
         return {
             "sources_configured": len(getattr(self.config, "sources", [])),
