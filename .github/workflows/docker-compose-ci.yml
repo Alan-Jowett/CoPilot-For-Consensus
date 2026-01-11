@@ -23,7 +23,7 @@ env:
   IMAGE_PREFIX: ghcr.io/${{ github.repository }}/
   # Use mock LLM backend in CI for fast, reliable tests
   # Real LLM (LocalLLMSummarizer) is tested in unit/integration tests
-  LLM_BACKEND: mock
+  SUMMARIZATION_LLM_BACKEND: mock
   # Disable JWT authentication for integration testing (OAuth not available in CI)
   # JWT auth is tested separately in unit/integration tests for each service
   JWT_AUTH_ENABLED: "false"
