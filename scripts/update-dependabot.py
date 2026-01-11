@@ -119,20 +119,25 @@ def find_dockerfiles(root_dir: Path) -> list[str]:
     return sorted(dockerfile_dirs)
 
 
-def generate_dependabot_config(packages: list[tuple[str, str]], dockerfile_dirs: list[str]) -> str:
-    """Generate the dependabot.yml content using multi-directory configuration."""
-    content = HEADER
-
-    # Extract all directories for Python packages
-    python_directories = [directory for directory, _ in packages]
-
-    # Use the new multi-directory feature (introduced June 2024)
-    # This consolidates all Python dependencies into a single update entry
-    content += "  # Monitor Python dependencies across all services and adapters\n"
-    content += "  # Using multi-directory configuration to reduce PR noise\n"
+def generate_pip_update_entry(
+    name: str, 
+    directories: list[str], 
+    label_suffix: str
+) -> str:
+    """Generate a pip update entry with standard configuration.
+    
+    Args:
+        name: Display name for the group (e.g., "Core Services")
+        directories: List of directory paths to monitor
+        label_suffix: Additional label to add (e.g., "services" or "adapters")
+    
+    Returns:
+        YAML configuration string for a pip update entry
+    """
+    content = f"  # Monitor Python dependencies - {name}\n"
     content += "  - package-ecosystem: \"pip\"\n"
     content += "    directories:\n"
-    for directory in python_directories:
+    for directory in directories:
         content += f"      - \"{directory}\"\n"
     content += "    schedule:\n"
     content += "      interval: \"weekly\"\n"
@@ -140,6 +145,7 @@ def generate_dependabot_config(packages: list[tuple[str, str]], dockerfile_dirs:
     content += "    labels:\n"
     content += "      - \"dependencies\"\n"
     content += "      - \"python\"\n"
+    content += f"      - \"{label_suffix}\"\n"
     content += "    groups:\n"
     content += "      pip-minor-patch:\n"
     content += "        patterns:\n"
@@ -147,6 +153,39 @@ def generate_dependabot_config(packages: list[tuple[str, str]], dockerfile_dirs:
     content += "        update-types:\n"
     content += "          - \"minor\"\n"
     content += "          - \"patch\"\n\n"
+    return content
+
+
+def generate_dependabot_config(packages: list[tuple[str, str]], dockerfile_dirs: list[str]) -> str:
+    """Generate the dependabot.yml content using multi-directory configuration."""
+    content = HEADER
+
+    # Extract all directories for Python packages
+    python_directories = [directory for directory, _ in packages]
+
+    # Split directories into groups to avoid Dependabot timeout
+    # See: https://github.com/orgs/community/discussions/179358
+    # Separate services from adapters, and split adapters into smaller groups
+    services = [d for d in python_directories if '/adapters/' not in d]
+    adapters = [d for d in python_directories if '/adapters/' in d]
+    
+    # Split adapters into two groups of roughly equal size
+    # If odd count, group 2 gets the extra directory
+    adapters_mid = len(adapters) // 2
+    adapters_group1 = adapters[:adapters_mid]
+    adapters_group2 = adapters[adapters_mid:]
+
+    # Generate pip update entries with note about timeout fix
+    content += "  # Split into multiple entries to prevent Dependabot timeout\n"
+    content += "  # See: https://github.com/orgs/community/discussions/179358\n\n"
+    
+    # Only generate entries for non-empty directory lists
+    if services:
+        content += generate_pip_update_entry("Core Services", services, "services")
+    if adapters_group1:
+        content += generate_pip_update_entry("Adapters Group 1", adapters_group1, "adapters")
+    if adapters_group2:
+        content += generate_pip_update_entry("Adapters Group 2", adapters_group2, "adapters")
 
     # Add npm monitoring for the React UI
     content += "  # Monitor npm dependencies in React UI\n"
@@ -248,11 +287,11 @@ def main(output_path_arg=None):
         f.write(config_content)
 
     print(f"\n✅ Successfully generated {output_path}")
-    print(f"   Total update entries: 4 (1 pip multi-directory + 1 npm + 1 docker + 1 github-actions)")
+    print(f"   Total update entries: 6 (3 pip split + 1 npm + 1 docker + 1 github-actions)")
     print(f"   Python directories monitored: {len(packages)}")
     print(f"   Docker directories monitored: {len(dockerfile_dirs)}")
-    print(f"\n💡 Using multi-directory configuration to consolidate updates")
-    print(f"   This reduces PR noise by grouping updates across multiple directories")
+    print(f"\n💡 Using split configuration to prevent Dependabot timeouts")
+    print(f"   Python deps split into 3 groups, Docker monitors {len(dockerfile_dirs)} directories")
 
 
 if __name__ == '__main__':
