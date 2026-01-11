@@ -365,7 +365,7 @@ def create_api_router(service: Any, logger: Logger) -> APIRouter:
                 "File uploaded successfully",
                 filename=file_path.name,
                 size_bytes=file_size,
-                path=str(file_path),
+                file_path=str(file_path),
                 uploaded_at=uploaded_at,
             )
 
