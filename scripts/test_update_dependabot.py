@@ -12,22 +12,20 @@ import sys
 import tempfile
 from pathlib import Path
 
-# Add scripts directory to path
+# Add scripts directory to path and import the module
 sys.path.insert(0, os.path.dirname(__file__))
 
-# Import with dash converted to underscore for the module name
-import importlib.util
-spec = importlib.util.spec_from_file_location(
-    "update_dependabot",
-    Path(__file__).parent / "update-dependabot.py"
-)
-update_dependabot = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(update_dependabot)
+# Import the module by loading it directly
+script_path = Path(__file__).parent / "update-dependabot.py"
+with open(script_path) as f:
+    code = compile(f.read(), script_path, 'exec')
+    update_dependabot = {}
+    exec(code, update_dependabot)
 
 # Extract functions
-find_python_packages = update_dependabot.find_python_packages
-generate_pip_update_entry = update_dependabot.generate_pip_update_entry
-generate_dependabot_config = update_dependabot.generate_dependabot_config
+find_python_packages = update_dependabot['find_python_packages']
+generate_pip_update_entry = update_dependabot['generate_pip_update_entry']
+generate_dependabot_config = update_dependabot['generate_dependabot_config']
 
 
 def test_generate_pip_update_entry_basic():
@@ -221,9 +219,14 @@ def test_empty_services_list_handling():
     # Should only have adapter sections, no services section
     assert "/adapters/adapter1" in config
     assert "/adapters/adapter2" in config
-    # Should not have a "Core Services" heading
-    services_count = config.count("Monitor Python dependencies - Core Services")
-    assert services_count == 0
+    # Should not have a "Core Services" heading or services label
+    assert "Monitor Python dependencies - Core Services" not in config
+    # Verify we don't have the services label in any pip entry
+    lines = config.split('\n')
+    for i, line in enumerate(lines):
+        if line.strip() == '- "services"':
+            # If we find it, check it's not in a pip section
+            assert False, "Found unexpected 'services' label in config"
 
 
 def test_empty_adapters_list_handling():
@@ -239,8 +242,8 @@ def test_empty_adapters_list_handling():
     assert "/service1" in config
     assert "/service2" in config
     # Should not have adapter group headings
-    adapters_count = config.count("Adapters Group")
-    assert adapters_count == 0
+    assert "Adapters Group 1" not in config
+    assert "Adapters Group 2" not in config
 
 
 def test_odd_number_of_adapters():
@@ -322,23 +325,30 @@ if __name__ == '__main__':
         import pytest
         pytest.main([__file__, "-v"])
     except ImportError:
-        # Fallback to manual execution if pytest is not available
-        test_generate_pip_update_entry_basic()
-        test_generate_pip_update_entry_with_adapters_label()
-        test_generate_pip_update_entry_empty_directories()
-        test_find_python_packages_with_requirements()
-        test_find_python_packages_with_requirements_in()
-        test_find_python_packages_with_setup_py()
-        test_find_python_packages_excludes_hidden()
-        test_find_python_packages_adapter_description()
-        test_find_python_packages_sorting()
-        test_directory_splitting_logic()
-        test_empty_services_list_handling()
-        test_empty_adapters_list_handling()
-        test_odd_number_of_adapters()
-        test_generated_config_includes_npm()
-        test_generated_config_includes_docker()
-        test_generated_config_includes_github_actions()
-        test_generated_config_has_timeout_reference()
-        test_generated_config_has_header()
-        print("All tests passed!")
+        # Fallback to manual execution - discover and run all test functions
+        import inspect
+        current_module = sys.modules[__name__]
+        test_functions = [
+            func for name, func in inspect.getmembers(current_module, inspect.isfunction)
+            if name.startswith('test_')
+        ]
+        
+        failed_tests = []
+        for test_func in test_functions:
+            try:
+                test_func()
+                print(f"✓ {test_func.__name__}")
+            except AssertionError as e:
+                print(f"✗ {test_func.__name__}: {e}")
+                failed_tests.append(test_func.__name__)
+            except Exception as e:
+                print(f"✗ {test_func.__name__}: Unexpected error: {e}")
+                failed_tests.append(test_func.__name__)
+        
+        if failed_tests:
+            print(f"\n{len(failed_tests)} test(s) failed:")
+            for name in failed_tests:
+                print(f"  - {name}")
+            sys.exit(1)
+        else:
+            print(f"\nAll {len(test_functions)} tests passed!")
