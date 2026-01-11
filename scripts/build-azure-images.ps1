@@ -118,4 +118,4 @@ if (-not $Push) {
 
 # Display summary
 Write-Host "Summary:" -ForegroundColor Green
-docker images --format "table {{.Repository}}:{{.Tag}}`t{{.Size}}" | Select-String "$Registry.*azure"
+docker images --format "table {{.Repository}}:{{.Tag}}`t{{.Size}}" | Select-String -Pattern ([regex]::Escape($Registry) + '.*azure')

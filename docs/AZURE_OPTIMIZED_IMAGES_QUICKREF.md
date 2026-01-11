@@ -74,7 +74,7 @@ AZURE_STORAGE_CONTAINER=archives
 ```bash
 EMBEDDING_BACKEND=azure
 AZURE_OPENAI_ENDPOINT=https://your-openai.openai.azure.com/
-AZURE_OPENAI_DEPLOYMENT=text-embedding-ada-002
+AZURE_OPENAI_DEPLOYMENT=text-embedding-3-small
 AZURE_OPENAI_KEY=<from-managed-identity-or-key-vault>
 ```
 

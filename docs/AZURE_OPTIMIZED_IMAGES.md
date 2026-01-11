@@ -44,7 +44,7 @@ The Azure-optimized images are **significantly smaller and more efficient** than
 - Base: `python:3.11-slim` (~150 MB)
 - Excludes: PyTorch, SentenceTransformers, local models
 - Backend: `openai` (Azure OpenAI Embeddings API)
-- Models: Fetched from Azure OpenAI (e.g., `text-embedding-ada-002`)
+- Models: Fetched from Azure OpenAI (e.g., `text-embedding-3-small` or `text-embedding-3-large`; `text-embedding-ada-002` is legacy and not recommended for new deployments)
 
 ### 2. Summarization Service
 **Local (`Dockerfile`):**
@@ -321,7 +321,7 @@ Azure-optimized images reduce compute costs:
 
 **Total compute savings** (10 services): ~$450/month
 
-**Net cost** (compute savings - API costs): **-$315/month (break-even at ~15K requests/day)**
+**Net additional cost at 1K summaries/day** (API costs - compute savings): **~$315/month; approximate break-even near ~15K requests/day**
 
 For high-volume deployments (>50K requests/day), consider using Azure OpenAI Provisioned Throughput Units (PTU) for predictable pricing.
 
