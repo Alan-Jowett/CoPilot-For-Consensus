@@ -38,7 +38,6 @@ services:
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
       - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
-      - CHUNK_JWT_AUTH_ENABLED=${CHUNK_JWT_AUTH_ENABLED:-true}
     secrets:
       - rabbitmq_user
       - rabbitmq_password
@@ -98,7 +97,6 @@ services:
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
       - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
-      - EMBEDDING_JWT_AUTH_ENABLED=${EMBEDDING_JWT_AUTH_ENABLED:-true}
     secrets:
       - rabbitmq_user
       - rabbitmq_password
@@ -160,7 +158,6 @@ services:
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
       - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
-      - INGESTION_JWT_AUTH_ENABLED=${INGESTION_JWT_AUTH_ENABLED:-true}
     secrets:
       - rabbitmq_user
       - rabbitmq_password
@@ -224,7 +221,6 @@ services:
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
       - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
-      - ORCHESTRATOR_JWT_AUTH_ENABLED=${ORCHESTRATOR_JWT_AUTH_ENABLED:-true}
     secrets:
       - rabbitmq_user
       - rabbitmq_password
@@ -291,7 +287,6 @@ services:
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
       - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
-      - PARSING_JWT_AUTH_ENABLED=${PARSING_JWT_AUTH_ENABLED:-true}
     secrets:
       - rabbitmq_user
       - rabbitmq_password
@@ -350,7 +345,6 @@ services:
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
       - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
-      - REPORTING_JWT_AUTH_ENABLED=${REPORTING_JWT_AUTH_ENABLED:-true}
     secrets:
       - rabbitmq_user
       - rabbitmq_password
@@ -496,7 +490,6 @@ services:
       - AUTH_SERVICE_URL=http://auth:8090
       - SERVICE_AUDIENCE=copilot-for-consensus
       - JWT_AUTH_ENABLED=${JWT_AUTH_ENABLED:-true}
-      - SUMMARIZATION_JWT_AUTH_ENABLED=${SUMMARIZATION_JWT_AUTH_ENABLED:-true}
     secrets:
       - rabbitmq_user
       - rabbitmq_password
