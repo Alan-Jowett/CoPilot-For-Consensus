@@ -369,7 +369,7 @@ def test_archive_ingestion_failed_event_schema_validation():
     from app.exceptions import FetchError
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        config = make_config(storage_path=tmpdir)
+        config = make_config(storage_path=tmpdir, request_timeout_seconds=1)
         publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
         publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
         publisher.connect()
