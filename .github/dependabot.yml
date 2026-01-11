@@ -9,8 +9,9 @@
 
 version: 2
 updates:
-  # Monitor Python dependencies across all services and adapters
-  # Using multi-directory configuration to reduce PR noise
+  # Monitor Python dependencies - Core Services
+  # Split into multiple entries to prevent Dependabot timeout
+  # See: https://github.com/orgs/community/discussions/179358
   - package-ecosystem: "pip"
     directories:
       - "/auth"
@@ -22,6 +23,24 @@ updates:
       - "/reporting"
       - "/scripts"
       - "/summarization"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+      - "services"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Monitor Python dependencies - Adapters Group 1
+  - package-ecosystem: "pip"
+    directories:
       - "/adapters/copilot_archive_fetcher"
       - "/adapters/copilot_archive_store"
       - "/adapters/copilot_auth"
@@ -31,6 +50,24 @@ updates:
       - "/adapters/copilot_draft_diff"
       - "/adapters/copilot_embedding"
       - "/adapters/copilot_events"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+      - "adapters"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Monitor Python dependencies - Adapters Group 2
+  - package-ecosystem: "pip"
+    directories:
       - "/adapters/copilot_logging"
       - "/adapters/copilot_metrics"
       - "/adapters/copilot_reporting"
@@ -46,6 +83,7 @@ updates:
     labels:
       - "dependencies"
       - "python"
+      - "adapters"
     groups:
       pip-minor-patch:
         patterns:

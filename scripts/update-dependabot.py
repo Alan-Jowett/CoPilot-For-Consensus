@@ -88,13 +88,24 @@ def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
     # Extract all directories for Python packages
     python_directories = [directory for directory, _ in packages]
 
-    # Use the new multi-directory feature (introduced June 2024)
-    # This consolidates all Python dependencies into a single update entry
-    content += "  # Monitor Python dependencies across all services and adapters\n"
-    content += "  # Using multi-directory configuration to reduce PR noise\n"
+    # Split directories into groups to avoid Dependabot timeout
+    # See: https://github.com/orgs/community/discussions/179358
+    # Separate services from adapters, and split adapters into smaller groups
+    services = [d for d in python_directories if '/adapters/' not in d]
+    adapters = [d for d in python_directories if '/adapters/' in d]
+    
+    # Split adapters into two groups of roughly equal size
+    adapters_mid = len(adapters) // 2
+    adapters_group1 = adapters[:adapters_mid]
+    adapters_group2 = adapters[adapters_mid:]
+
+    # Group 1: Core Services
+    content += "  # Monitor Python dependencies - Core Services\n"
+    content += "  # Split into multiple entries to prevent Dependabot timeout\n"
+    content += "  # See: https://github.com/orgs/community/discussions/179358\n"
     content += "  - package-ecosystem: \"pip\"\n"
     content += "    directories:\n"
-    for directory in python_directories:
+    for directory in services:
         content += f"      - \"{directory}\"\n"
     content += "    schedule:\n"
     content += "      interval: \"weekly\"\n"
@@ -102,6 +113,49 @@ def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
     content += "    labels:\n"
     content += "      - \"dependencies\"\n"
     content += "      - \"python\"\n"
+    content += "      - \"services\"\n"
+    content += "    groups:\n"
+    content += "      pip-minor-patch:\n"
+    content += "        patterns:\n"
+    content += "          - \"*\"\n"
+    content += "        update-types:\n"
+    content += "          - \"minor\"\n"
+    content += "          - \"patch\"\n\n"
+
+    # Group 2: Adapters Group 1
+    content += "  # Monitor Python dependencies - Adapters Group 1\n"
+    content += "  - package-ecosystem: \"pip\"\n"
+    content += "    directories:\n"
+    for directory in adapters_group1:
+        content += f"      - \"{directory}\"\n"
+    content += "    schedule:\n"
+    content += "      interval: \"weekly\"\n"
+    content += "    open-pull-requests-limit: 10\n"
+    content += "    labels:\n"
+    content += "      - \"dependencies\"\n"
+    content += "      - \"python\"\n"
+    content += "      - \"adapters\"\n"
+    content += "    groups:\n"
+    content += "      pip-minor-patch:\n"
+    content += "        patterns:\n"
+    content += "          - \"*\"\n"
+    content += "        update-types:\n"
+    content += "          - \"minor\"\n"
+    content += "          - \"patch\"\n\n"
+
+    # Group 3: Adapters Group 2
+    content += "  # Monitor Python dependencies - Adapters Group 2\n"
+    content += "  - package-ecosystem: \"pip\"\n"
+    content += "    directories:\n"
+    for directory in adapters_group2:
+        content += f"      - \"{directory}\"\n"
+    content += "    schedule:\n"
+    content += "      interval: \"weekly\"\n"
+    content += "    open-pull-requests-limit: 10\n"
+    content += "    labels:\n"
+    content += "      - \"dependencies\"\n"
+    content += "      - \"python\"\n"
+    content += "      - \"adapters\"\n"
     content += "    groups:\n"
     content += "      pip-minor-patch:\n"
     content += "        patterns:\n"
@@ -201,10 +255,10 @@ def main(output_path_arg=None):
         f.write(config_content)
 
     print(f"\n✅ Successfully generated {output_path}")
-    print(f"   Total update entries: 4 (1 pip multi-directory + 1 npm + 1 docker + 1 github-actions)")
+    print(f"   Total update entries: 6 (3 pip groups + 1 npm + 1 docker + 1 github-actions)")
     print(f"   Python directories monitored: {len(packages)}")
-    print(f"\n💡 Using multi-directory configuration to consolidate Python updates")
-    print(f"   This reduces PR noise by grouping updates across all {len(packages)} directories")
+    print(f"\n💡 Using split multi-directory configuration to avoid Dependabot timeouts")
+    print(f"   Services and adapters are processed in separate groups to stay within time limits")
 
 
 if __name__ == '__main__':
