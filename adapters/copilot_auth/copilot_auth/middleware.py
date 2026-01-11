@@ -32,7 +32,7 @@ Usage:
     )
 """
 
-import logging
+from copilot_logging import get_logger, Logger
 import os
 import threading
 import time
@@ -46,7 +46,7 @@ from fastapi import HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-logger = logging.getLogger(__name__)
+logger: Logger = get_logger(__name__)
 
 
 class JWTMiddleware(BaseHTTPMiddleware):
