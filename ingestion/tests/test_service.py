@@ -548,7 +548,7 @@ def test_ingest_archive_raises_source_configuration_error(tmp_path):
     """Test that ingest_archive raises SourceConfigurationError for invalid config."""
     from app.exceptions import SourceConfigurationError
 
-    config = make_config(storage_path=str(tmp_path))
+    config = make_config(storage_path=str(tmp_path), request_timeout_seconds=1)
     publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
     publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
     publisher.connect()
@@ -572,7 +572,7 @@ def test_ingest_archive_raises_fetch_error(tmp_path):
     """Test that ingest_archive raises FetchError when fetching fails."""
     from app.exceptions import FetchError
 
-    config = make_config(storage_path=str(tmp_path))
+    config = make_config(storage_path=str(tmp_path), request_timeout_seconds=1)
     publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
     publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
     publisher.connect()
@@ -642,7 +642,7 @@ def test_exception_prevents_silent_failure():
     from app.exceptions import FetchError
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        config = make_config(storage_path=tmpdir)
+        config = make_config(storage_path=tmpdir, request_timeout_seconds=1)
         publisher_config = load_driver_config(service=None, adapter="message_bus", driver="noop", fields={})
         publisher = create_publisher(driver_name="noop", driver_config=publisher_config)
         publisher.connect()
