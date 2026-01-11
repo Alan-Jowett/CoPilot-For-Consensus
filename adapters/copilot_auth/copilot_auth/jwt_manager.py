@@ -67,7 +67,7 @@ class JWTManager:
         self.algorithm = algorithm
         self.default_expiry = default_expiry
         self.key_id = key_id or "default"
-        
+
         # Keys can be either RSA objects or strings (for HS256)
         self.private_key: JWTKeyType
         self.public_key: JWTKeyType
@@ -256,27 +256,27 @@ class JWTManager:
 
     def get_public_key_pem(self) -> str | None:
         """Get public key in PEM format for external services.
-        
+
         Returns public key as PEM-encoded string for RS256, or None for HS256
         (HMAC secrets should not be published).
-        
+
         Returns:
             Public key in PEM format, or None if not available
         """
         if self.algorithm != "RS256":
             return None
-        
+
         from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
-        
+
         if not isinstance(self.public_key, RSAPublicKey):
             return None
-        
+
         # Export public key to PEM format
         pem = self.public_key.public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
-        
+
         return pem.decode('utf-8')
 
     @staticmethod

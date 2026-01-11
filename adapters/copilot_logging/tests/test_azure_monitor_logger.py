@@ -6,11 +6,11 @@
 from unittest.mock import MagicMock
 
 import pytest
-from copilot_logging import (
-    AzureMonitorLogger,
-    Logger,
-    create_logger,
-)
+from copilot_config import load_driver_config
+
+from copilot_logging.factory import create_logger
+from copilot_logging.logger import Logger
+from copilot_logging.azure_monitor_logger import AzureMonitorLogger
 
 
 class TestAzureMonitorLoggerFactory:
@@ -22,7 +22,8 @@ class TestAzureMonitorLoggerFactory:
         monkeypatch.delenv("AZURE_MONITOR_CONNECTION_STRING", raising=False)
         monkeypatch.delenv("AZURE_MONITOR_INSTRUMENTATION_KEY", raising=False)
 
-        logger = create_logger(logger_type="azuremonitor", level="INFO")
+        config = load_driver_config(None, "logger", "azuremonitor", fields={"level": "INFO"})
+        logger = create_logger("azuremonitor", config)
 
         assert isinstance(logger, AzureMonitorLogger)
         assert isinstance(logger, Logger)
@@ -33,15 +34,17 @@ class TestAzureMonitorLoggerFactory:
         """Test creating an Azure Monitor logger with a custom name."""
         monkeypatch.delenv("AZURE_MONITOR_CONNECTION_STRING", raising=False)
 
-        logger = create_logger(logger_type="azuremonitor", level="INFO", name="test-service")
+        config = load_driver_config(None, "logger", "azuremonitor", fields={"level": "INFO", "name": "test-service"})
+        logger = create_logger("azuremonitor", config)
 
         assert isinstance(logger, AzureMonitorLogger)
         assert logger.name == "test-service"
 
     def test_factory_rejects_unknown_logger_type(self):
         """Test that factory rejects unknown logger types including azure_monitor (must be azuremonitor)."""
-        with pytest.raises(ValueError, match="Unknown logger_type"):
-            create_logger(logger_type="azure_monitor", level="INFO")
+        config = load_driver_config(None, "logger", "azuremonitor", fields={})
+        with pytest.raises(ValueError, match="Unknown logger driver"):
+            create_logger("azure_monitor", config)
 
 
 class TestAzureMonitorLoggerInitialization:
@@ -198,7 +201,8 @@ class TestAzureMonitorLoggerLogging:
 
         # Create a fresh logger configured at WARNING level so level filtering
         # is set up through the normal construction path.
-        logger = create_logger(logger_type="azuremonitor", level="WARNING", name="test-filter-unique")
+        config = load_driver_config(None, "logger", "azuremonitor", fields={"level": "WARNING", "name": "test-filter-unique"})
+        logger = create_logger("azuremonitor", config)
 
         # Attach a mock stdlib logger to observe which messages are emitted.
         logger._stdlib_logger = MagicMock()

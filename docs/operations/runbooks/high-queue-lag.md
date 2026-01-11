@@ -12,7 +12,7 @@
 - `SummarizationQueueDepthHigh`
 - `QueueMessageAgeHigh` / `QueueMessageAgeCritical`
 
-**Severity:** Warning → Critical  
+**Severity:** Warning → Critical
 **Component:** Message Bus (RabbitMQ)
 
 ---

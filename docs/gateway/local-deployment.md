@@ -239,7 +239,7 @@ Check status of backend services through the gateway:
 # Reporting service
 curl http://localhost:8080/reporting/health
 
-# Ingestion service  
+# Ingestion service
 curl http://localhost:8080/ingestion/health
 
 # Auth service
@@ -258,7 +258,7 @@ curl http://localhost:8080/auth/health
    # Linux/macOS
    sudo lsof -i :443
    sudo lsof -i :8080
-   
+
    # Windows
    netstat -ano | findstr :443
    netstat -ano | findstr :8080
@@ -367,7 +367,7 @@ Add rate limiting to nginx.conf:
 ```nginx
 http {
     limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
-    
+
     server {
         location /reporting/api/ {
             limit_req zone=api_limit burst=20 nodelay;
@@ -388,7 +388,7 @@ http {
         server reporting-2:8080;
         server reporting-3:8080;
     }
-    
+
     server {
         location /reporting/ {
             proxy_pass http://reporting_backend/;

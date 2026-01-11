@@ -70,12 +70,12 @@ jobs:
             copilot_config \
             copilot_consensus \
             copilot_embedding \
-            copilot_events \
+            copilot_message_bus \
             copilot_logging \
             copilot_metrics \
             copilot_archive_fetcher \
             copilot_archive_store \
-            copilot_reporting \
+            copilot_error_reporting \
             copilot_schema_validation \
             copilot_secrets \
             copilot_storage \
@@ -331,12 +331,12 @@ jobs:
             copilot_config \
             copilot_consensus \
             copilot_embedding \
-            copilot_events \
+            copilot_message_bus \
             copilot_logging \
             copilot_metrics \
             copilot_archive_fetcher \
             copilot_archive_store \
-            copilot_reporting \
+            copilot_error_reporting \
             copilot_schema_validation \
             copilot_secrets \
             copilot_storage \

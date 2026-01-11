@@ -6,6 +6,8 @@
 import logging
 import time
 
+from copilot_config import DriverConfig
+
 from .models import Citation, Summary, Thread
 from .summarizer import Summarizer
 
@@ -23,10 +25,26 @@ class MockSummarizer(Summarizer):
         """Initialize mock summarizer.
 
         Args:
-            latency_ms: Simulated latency in milliseconds
+            latency_ms: Simulated latency in milliseconds.
         """
         self.latency_ms = latency_ms
         logger.info("Initialized MockSummarizer")
+
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "MockSummarizer":
+        """Create a MockSummarizer from configuration.
+
+        Configuration defaults are defined in schema:
+        docs/schemas/configs/adapters/drivers/llm_backend/llm_mock.json
+
+        Args:
+            driver_config: DriverConfig with field:
+                    - mock_latency_ms: Simulated latency in ms
+
+        Returns:
+            Configured MockSummarizer instance
+        """
+        return cls(driver_config.mock_latency_ms)
 
     def summarize(self, thread: Thread) -> Summary:
         """Generate a mock summary.

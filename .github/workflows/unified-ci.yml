@@ -70,11 +70,11 @@ jobs:
       copilot_config: ${{ steps.filter.outputs.copilot_config }}
       copilot_consensus: ${{ steps.filter.outputs.copilot_consensus }}
       copilot_embedding: ${{ steps.filter.outputs.copilot_embedding }}
-      copilot_events: ${{ steps.filter.outputs.copilot_events }}
+      copilot_message_bus: ${{ steps.filter.outputs.copilot_message_bus }}
       copilot_logging: ${{ steps.filter.outputs.copilot_logging }}
       copilot_metrics: ${{ steps.filter.outputs.copilot_metrics }}
       copilot_archive_fetcher: ${{ steps.filter.outputs.copilot_archive_fetcher }}
-      copilot_reporting: ${{ steps.filter.outputs.copilot_reporting }}
+      copilot_error_reporting: ${{ steps.filter.outputs.copilot_error_reporting }}
       copilot_schema_validation: ${{ steps.filter.outputs.copilot_schema_validation }}
       copilot_storage: ${{ steps.filter.outputs.copilot_storage }}
       copilot_summarization: ${{ steps.filter.outputs.copilot_summarization }}
@@ -122,16 +122,16 @@ jobs:
               - 'adapters/copilot_auth/**'
             copilot_config:
               - 'adapters/copilot_config/**'
-            copilot_events:
-              - 'adapters/copilot_events/**'
+            copilot_message_bus:
+              - 'adapters/copilot_message_bus/**'
             copilot_logging:
               - 'adapters/copilot_logging/**'
             copilot_archive_fetcher:
               - 'adapters/copilot_archive_fetcher/**'
             copilot_metrics:
               - 'adapters/copilot_metrics/**'
-            copilot_reporting:
-              - 'adapters/copilot_reporting/**'
+            copilot_error_reporting:
+              - 'adapters/copilot_error_reporting/**'
             copilot_storage:
               - 'adapters/copilot_storage/**'
             copilot_embedding:
@@ -160,7 +160,7 @@ jobs:
     with:
       service_id: 'chunking'
       service_path: 'chunking'
-      adapter_names: 'copilot_chunking copilot_config copilot_secrets copilot_events copilot_storage copilot_metrics copilot_reporting copilot_schema_validation copilot_logging copilot_startup'
+      adapter_names: 'copilot_chunking copilot_config copilot_secrets copilot_message_bus copilot_storage copilot_metrics copilot_error_reporting copilot_schema_validation copilot_logging copilot_startup'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
@@ -172,7 +172,7 @@ jobs:
     with:
       service_id: 'embedding'
       service_path: 'embedding'
-      adapter_names: 'copilot_config copilot_secrets copilot_events copilot_storage copilot_vectorstore copilot_embedding copilot_metrics copilot_reporting copilot_schema_validation copilot_logging'
+      adapter_names: 'copilot_config copilot_secrets copilot_message_bus copilot_storage copilot_vectorstore copilot_embedding copilot_metrics copilot_error_reporting copilot_schema_validation copilot_logging'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
@@ -184,7 +184,7 @@ jobs:
     with:
       service_id: 'ingestion'
       service_path: 'ingestion'
-      adapter_names: 'copilot_archive_store copilot_config copilot_secrets copilot_archive_fetcher copilot_logging copilot_reporting copilot_metrics copilot_events copilot_storage copilot_schema_validation'
+      adapter_names: 'copilot_archive_store copilot_config copilot_secrets copilot_archive_fetcher copilot_logging copilot_error_reporting copilot_metrics copilot_message_bus copilot_storage copilot_schema_validation'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
@@ -196,7 +196,7 @@ jobs:
     with:
       service_id: 'orchestrator'
       service_path: 'orchestrator'
-      adapter_names: 'copilot_config copilot_secrets copilot_events copilot_storage copilot_logging copilot_metrics copilot_reporting copilot_schema_validation'
+      adapter_names: 'copilot_config copilot_secrets copilot_message_bus copilot_storage copilot_logging copilot_metrics copilot_error_reporting copilot_schema_validation'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
@@ -208,7 +208,7 @@ jobs:
     with:
       service_id: 'parsing'
       service_path: 'parsing'
-      adapter_names: 'copilot_archive_store copilot_config copilot_secrets copilot_events copilot_storage copilot_metrics copilot_reporting copilot_logging copilot_schema_validation'
+      adapter_names: 'copilot_archive_store copilot_config copilot_secrets copilot_message_bus copilot_storage copilot_metrics copilot_error_reporting copilot_logging copilot_schema_validation'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
@@ -220,7 +220,7 @@ jobs:
     with:
       service_id: 'reporting'
       service_path: 'reporting'
-      adapter_names: 'copilot_config copilot_secrets copilot_events copilot_storage copilot_metrics copilot_reporting copilot_logging copilot_schema_validation'
+      adapter_names: 'copilot_config copilot_secrets copilot_message_bus copilot_storage copilot_metrics copilot_error_reporting copilot_logging copilot_schema_validation'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
@@ -232,7 +232,7 @@ jobs:
     with:
       service_id: 'summarization'
       service_path: 'summarization'
-      adapter_names: 'copilot_config copilot_secrets copilot_events copilot_storage copilot_vectorstore copilot_metrics copilot_reporting copilot_summarization copilot_logging copilot_schema_validation'
+      adapter_names: 'copilot_config copilot_secrets copilot_message_bus copilot_storage copilot_vectorstore copilot_metrics copilot_error_reporting copilot_summarization copilot_logging copilot_schema_validation'
       app_module: 'app'
       python_version: '3.10'
     secrets: inherit
@@ -260,14 +260,14 @@ jobs:
       package_name: copilot_config
       extra_pip_packages: '["pyyaml>=6.0.0"]'
 
-  events-ci:
+  message-bus-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.detect-changes.outputs.copilot_events == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.detect-changes.outputs.copilot_message_bus == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
-      adapter_id: copilot_events
-      adapter_path: adapters/copilot_events
-      package_name: copilot_events
+      adapter_id: copilot_message_bus
+      adapter_path: adapters/copilot_message_bus
+      package_name: copilot_message_bus
 
   logging-ci:
     needs: detect-changes
@@ -308,14 +308,14 @@ jobs:
       rsync_module: data
       rsync_port: '8730'
 
-  reporting-ci:
+  error-reporting-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.detect-changes.outputs.copilot_reporting == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.detect-changes.outputs.copilot_error_reporting == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-unit-test-ci.yml
     with:
-      adapter_id: copilot_reporting
-      adapter_path: adapters/copilot_reporting
-      package_name: copilot_reporting
+      adapter_id: copilot_error_reporting
+      adapter_path: adapters/copilot_error_reporting
+      package_name: copilot_error_reporting
 
   storage-ci:
     needs: detect-changes
@@ -401,14 +401,14 @@ jobs:
       adapter_path: adapters/copilot_storage
       package_name: copilot_storage
 
-  events-integration-ci:
+  message-bus-integration-ci:
     needs: detect-changes
-    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.detect-changes.outputs.copilot_events == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.detect-changes.outputs.copilot_message_bus == 'true' || needs.detect-changes.outputs.ci_workflows == 'true') }}
     uses: ./.github/workflows/adapter-reusable-integration-ci.yml
     with:
-      adapter_id: copilot_events
-      adapter_path: adapters/copilot_events
-      package_name: copilot_events
+      adapter_id: copilot_message_bus
+      adapter_path: adapters/copilot_message_bus
+      package_name: copilot_message_bus
 
   schema-validation-integration-ci:
     needs: detect-changes
@@ -445,12 +445,12 @@ jobs:
       # Adapters
       - auth-ci
       - config-ci
-      - events-ci
+      - message-bus-ci
       - logging-ci
       - metrics-ci
       - archive-fetcher-ci
       - archive-fetcher-integration-ci
-      - reporting-ci
+      - error-reporting-ci
       - storage-ci
       - storage-integration-ci
       - embedding-ci
@@ -461,7 +461,7 @@ jobs:
       - summarization-ci
       - vectorstore-ci
       - vectorstore-integration-ci
-      - events-integration-ci
+      - message-bus-integration-ci
       - draft-diff
     runs-on: ubuntu-latest
     if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
@@ -476,9 +476,9 @@ jobs:
           parallel-finished: true
           carryforward: >-
             chunking,embedding,ingestion,orchestrator,parsing,reporting,summarization,
-            copilot_auth,copilot_config,copilot_events,copilot_logging,copilot_metrics,
-            copilot_archive_fetcher,copilot_reporting,copilot_storage,copilot_embedding,
+            copilot_auth,copilot_config,copilot_message_bus,copilot_logging,copilot_metrics,
+            copilot_archive_fetcher,copilot_error_reporting,copilot_storage,copilot_embedding,
             copilot_chunking,copilot_consensus,copilot_schema_validation,copilot_summarization,
             copilot_vectorstore,copilot_draft_diff,
             copilot_archive_fetcher_integration,copilot_storage_integration,
-            copilot_events_integration,copilot_schema_validation_integration,copilot_vectorstore_integration
+            copilot_message_bus_integration,copilot_schema_validation_integration,copilot_vectorstore_integration

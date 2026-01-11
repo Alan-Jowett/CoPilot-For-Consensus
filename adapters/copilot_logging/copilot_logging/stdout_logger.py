@@ -9,6 +9,8 @@ import sys
 from datetime import datetime, timezone
 from typing import Any
 
+from copilot_config import DriverConfig
+
 from .logger import Logger
 
 
@@ -41,6 +43,28 @@ class StdoutLogger(Logger):
         self._stdlib_logger = logging.getLogger(self.name)
         # Use NOTSET to inherit the root level; filtering happens in _log using self.level
         self._stdlib_logger.setLevel(logging.NOTSET)
+
+    @classmethod
+    def from_config(cls, driver_config: DriverConfig) -> "StdoutLogger":
+        """Create a StdoutLogger from driver configuration.
+
+        Args:
+            driver_config: DriverConfig with level and name attributes.
+                          Defaults are provided by the schema.
+
+        Returns:
+            Configured StdoutLogger instance
+
+        Raises:
+            TypeError: If driver_config is not a DriverConfig instance
+        """
+        # Required field with schema default
+        level = driver_config.level
+
+        # Optional field
+        name = driver_config.name
+
+        return cls(level=level, name=name)
 
     def _log(self, level: str, message: str, **kwargs: Any) -> None:
         """Internal method to format and output log message.

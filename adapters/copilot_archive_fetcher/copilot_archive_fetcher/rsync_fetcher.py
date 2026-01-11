@@ -16,6 +16,18 @@ logger = logging.getLogger(__name__)
 class RsyncFetcher(ArchiveFetcher):
     """Fetcher for rsync sources."""
 
+    @classmethod
+    def from_config(cls, config: SourceConfig) -> "RsyncFetcher":
+        """Create RsyncFetcher from SourceConfig.
+
+        Args:
+            config: SourceConfig object
+
+        Returns:
+            RsyncFetcher instance
+        """
+        return cls(config)
+
     def __init__(self, source: SourceConfig):
         """Initialize rsync fetcher.
 

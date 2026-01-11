@@ -8,9 +8,12 @@ from unittest.mock import Mock
 
 import pytest
 from app.service import SummarizationService
-from copilot_schema_validation import FileSchemaProvider
-from copilot_storage import InMemoryDocumentStore, ValidatingDocumentStore
-from copilot_summarization import MockSummarizer
+from copilot_config import DriverConfig
+from copilot_schema_validation import create_schema_provider
+from copilot_storage import create_document_store
+from copilot_summarization import create_llm_backend
+
+pytestmark = pytest.mark.integration
 
 
 @pytest.fixture
@@ -18,16 +21,17 @@ def in_memory_document_store():
     """Create an in-memory document store with schema validation for testing."""
     from datetime import datetime, timezone
 
-    # Create base in-memory store
-    base_store = InMemoryDocumentStore()
-
-    # Wrap with validation using document schemas
+    # Create in-memory store with schema validation using factory
     schema_dir = Path(__file__).parent.parent.parent / "docs" / "schemas" / "documents"
-    schema_provider = FileSchemaProvider(schema_dir=schema_dir)
-    validating_store = ValidatingDocumentStore(
-        store=base_store,
-        schema_provider=schema_provider
+    schema_provider = create_schema_provider(schema_dir=str(schema_dir))
+    validating_store = create_document_store(
+        driver_name="inmemory",
+        driver_config={"schema_provider": schema_provider},
+        enable_validation=True,
+        strict_validation=True,
+        validate_reads=False,
     )
+    validating_store.connect()
 
     now = datetime.now(timezone.utc).isoformat()
 
@@ -89,7 +93,11 @@ def mock_subscriber():
 @pytest.fixture
 def summarizer():
     """Create a mock summarizer with realistic latency."""
-    return MockSummarizer(latency_ms=100)
+    return create_llm_backend(
+        driver_name="mock",
+        driver_config=DriverConfig(driver_name="mock", config={"mock_latency_ms": 100})
+    )
+
 
 
 @pytest.fixture

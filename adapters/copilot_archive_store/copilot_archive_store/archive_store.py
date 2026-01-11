@@ -6,6 +6,8 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+from copilot_config import DriverConfig
+
 
 class ArchiveStoreError(Exception):
     """Base exception for archive store errors."""
@@ -137,48 +139,40 @@ class ArchiveStore(ABC):
         pass
 
 
-def create_archive_store(store_type: str = None, **kwargs) -> ArchiveStore:
-    """Factory function to create an archive store instance.
+def create_archive_store(driver_name: str, driver_config: DriverConfig) -> ArchiveStore:
+    """Factory function to create an archive store instance from DriverConfig.
 
     Args:
-        store_type: Type of archive store ("local", "mongodb", "azure_blob", "s3").
-                   If None, reads from ARCHIVE_STORE_TYPE environment variable
-                   (defaults to "local" for backward compatibility)
-        **kwargs: Additional store-specific arguments
+        driver_name: Type of archive store ("local", "mongodb", "azure_blob")
+        driver_config: DriverConfig object with archive store configuration
 
     Returns:
         ArchiveStore instance
 
     Raises:
-        ValueError: If store_type is not recognized
+        ValueError: If driver_name is not recognized
+        ValueError: If required configuration is missing
 
     Examples:
-        # Local volume storage (default)
-        >>> store = create_archive_store("local", base_path="/data/raw_archives")
-
-        # MongoDB storage
-        >>> store = create_archive_store("mongodb", host="documentdb", port=27017)
-
-        # Auto-detect from environment
-        >>> store = create_archive_store()  # Uses ARCHIVE_STORE_TYPE env var
+        >>> from copilot_config import load_service_config
+        >>> config = load_service_config("parsing")
+        >>> archive_adapter = config.get_adapter("archive_store")
+        >>> store = create_archive_store(archive_adapter.driver_name, archive_adapter.driver_config)
     """
-    import os
+    if not driver_name:
+        raise ValueError("driver_name is required for create_archive_store (choose: 'local', 'mongodb', 'azure_blob')")
 
-    # Auto-detect store type from environment if not provided
-    if store_type is None:
-        store_type = os.getenv("ARCHIVE_STORE_TYPE", "local")
-
-    if store_type == "local":
+    if driver_name == "local":
         from .local_volume_archive_store import LocalVolumeArchiveStore
-        return LocalVolumeArchiveStore(**kwargs)
-    elif store_type == "mongodb":
+        return LocalVolumeArchiveStore.from_config(driver_config)
+    elif driver_name == "mongodb":
         from .mongodb_archive_store import MongoDBArchiveStore
-        return MongoDBArchiveStore(**kwargs)
-    elif store_type == "azure_blob":
+        return MongoDBArchiveStore.from_config(driver_config)
+    elif driver_name == "azure_blob":
         from .azure_blob_archive_store import AzureBlobArchiveStore
-        return AzureBlobArchiveStore(**kwargs)
-    elif store_type == "s3":
+        return AzureBlobArchiveStore.from_config(driver_config)
+    elif driver_name == "s3":
         # Future implementation
         raise NotImplementedError("S3 backend not yet implemented")
     else:
-        raise ValueError(f"Unknown archive store type: {store_type}")
+        raise ValueError(f"Unknown archive store driver: {driver_name}")

@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Mock Consensus Detector driver",
+    "type": "object",
+    "properties": {
+        "level": {
+            "type": "string",
+            "source": "env",
+            "env_var": "CONSENSUS_MOCK_LEVEL",
+            "default": "consensus",
+            "description": "Consensus level to return (strong_consensus, consensus, weak_consensus, no_consensus, dissent, stagnation)"
+        },
+        "confidence": {
+            "type": "number",
+            "source": "env",
+            "env_var": "CONSENSUS_MOCK_CONFIDENCE",
+            "default": 0.8,
+            "description": "Confidence score to return"
+        }
+    },
+    "additionalProperties": false
+}

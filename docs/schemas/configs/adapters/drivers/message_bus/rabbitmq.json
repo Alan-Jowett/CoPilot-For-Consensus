@@ -1,0 +1,68 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "RabbitMQ driver settings",
+    "type": "object",
+    "properties": {
+        "rabbitmq_host": {
+            "type": "string",
+            "source": "env",
+            "env_var": "RABBITMQ_HOST",
+            "default": "messagebus",
+            "description": "RabbitMQ hostname"
+        },
+        "rabbitmq_port": {
+            "type": "int",
+            "source": "env",
+            "env_var": "RABBITMQ_PORT",
+            "default": 5672,
+            "description": "RabbitMQ port"
+        },
+        "rabbitmq_username": {
+            "type": "string",
+            "source": "secret",
+            "secret_name": "rabbitmq_user",
+            "required": false,
+            "description": "RabbitMQ username"
+        },
+        "rabbitmq_password": {
+            "type": "string",
+            "source": "secret",
+            "secret_name": "rabbitmq_password",
+            "required": false,
+            "description": "RabbitMQ password"
+        },
+        "exchange": {
+            "type": "string",
+            "default": "copilot.events",
+            "description": "RabbitMQ exchange name for publishing"
+        },
+        "exchange_type": {
+            "type": "string",
+            "default": "topic",
+            "enum": ["topic", "direct", "fanout", "headers"],
+            "description": "RabbitMQ exchange type"
+        },
+        "queue_name": {
+            "type": "string",
+            "required": false,
+            "description": "RabbitMQ queue name (optional for subscribers)"
+        },
+        "queue_durable": {
+            "type": "bool",
+            "default": true,
+            "description": "Whether the queue survives broker restart"
+        },
+        "exchange_name": {
+            "type": "string",
+            "default": "copilot.events",
+            "description": "RabbitMQ exchange name for subscribing"
+        },
+        "auto_ack": {
+            "type": "bool",
+            "default": false,
+            "description": "Automatically acknowledge messages after processing"
+        }
+    },
+    "required": ["rabbitmq_host", "rabbitmq_port"]
+}

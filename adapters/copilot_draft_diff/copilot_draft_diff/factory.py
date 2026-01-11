@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2025 Copilot-for-Consensus contributors
 
-"""Factory for creating draft diff providers."""
+"""Factory for creating draft diff providers (DriverConfig-based)."""
 
 from typing import Any
 
@@ -25,36 +25,43 @@ class DiffProviderFactory:
     }
 
     @classmethod
-    def create(cls, provider_type: str | None = None, config: dict[str, Any] | None = None) -> DraftDiffProvider:
-        """Create a draft diff provider instance.
+    def create(cls, driver_name: str | None = None, driver_config: Any | None = None) -> DraftDiffProvider:
+        """Create a draft diff provider instance from DriverConfig.
 
         Args:
-            provider_type: Type of provider to create (required). Options: "datatracker", "mock"
-            config: Optional configuration dictionary for the provider
+            driver_name: Provider driver (required). Options: "datatracker", "mock"
+            driver_config: DriverConfig-like object; supports `.get()` or `dict`
 
         Returns:
             Instance of the requested DraftDiffProvider
 
         Raises:
-            ValueError: If provider_type is not supported or required parameters are missing
+            ValueError: If driver_name is not supported or missing
         """
-        if not provider_type:
+        if not driver_name:
             raise ValueError(
-                "provider_type parameter is required. "
+                "driver_name parameter is required. "
                 f"Available providers: {', '.join(cls._providers.keys())}"
             )
 
-        if provider_type not in cls._providers:
+        name = str(driver_name).lower()
+        if name not in cls._providers:
             raise ValueError(
-                f"Unknown provider type: {provider_type}. "
+                f"Unknown provider driver: {driver_name}. "
                 f"Available providers: {', '.join(cls._providers.keys())}"
             )
 
-        provider_class = cls._providers[provider_type]
-        config = config or {}
+        provider_class = cls._providers[name]
+        cfg = driver_config or {}
 
-        # Create provider with config
-        return provider_class(**config)
+        # Create provider via from_config when available; fallback to kwargs
+        from_cfg = getattr(provider_class, "from_config", None)
+        if callable(from_cfg):
+            return from_cfg(cfg)
+        if isinstance(cfg, dict):
+            return provider_class(**cfg)
+        # No config mapping; instantiate with defaults
+        return provider_class()
 
     @classmethod
     def register_provider(cls, name: str, provider_class: type) -> None:
@@ -78,18 +85,18 @@ class DiffProviderFactory:
         cls._providers[name] = provider_class
 
 
-def create_diff_provider(provider_type: str | None = None,
-                        config: dict[str, Any] | None = None) -> DraftDiffProvider:
-    """Convenience function to create a draft diff provider.
+def create_diff_provider(driver_name: str | None = None,
+                        driver_config: Any | None = None) -> DraftDiffProvider:
+    """Convenience function to create a draft diff provider (DriverConfig-based).
 
     Args:
-        provider_type: Provider type (required). Options: "datatracker", "mock"
-        config: Optional configuration dictionary
+        driver_name: Provider driver (required). Options: "datatracker", "mock"
+        driver_config: Optional DriverConfig-like object
 
     Returns:
         Configured DraftDiffProvider instance
 
     Raises:
-        ValueError: If provider_type is not supported or required parameters are missing
+        ValueError: If driver_name is not supported or missing
     """
-    return DiffProviderFactory.create(provider_type, config)
+    return DiffProviderFactory.create(driver_name, driver_config)

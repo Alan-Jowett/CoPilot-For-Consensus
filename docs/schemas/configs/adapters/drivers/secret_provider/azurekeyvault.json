@@ -1,0 +1,44 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Azure Key Vault secret provider driver settings",
+    "type": "object",
+    "properties": {
+        "vault_url": {
+            "type": "string",
+            "source": "env",
+            "env_var": "AZURE_KEY_VAULT_URI",
+            "required": false,
+            "description": "Azure Key Vault URL (e.g., https://my-vault.vault.azure.net/)"
+        },
+        "vault_name": {
+            "type": "string",
+            "source": "env",
+            "env_var": "AZURE_KEY_VAULT_NAME",
+            "required": false,
+            "description": "Azure Key Vault name (optional when vault_url is provided)"
+        },
+        "tenant_id": {
+            "type": "string",
+            "source": "env",
+            "env_var": "AZURE_TENANT_ID",
+            "required": false,
+            "description": "Azure tenant ID (optional; managed identity may be used)"
+        },
+        "client_id": {
+            "type": "string",
+            "source": "env",
+            "env_var": "AZURE_CLIENT_ID",
+            "required": false,
+            "description": "Azure client ID (optional; managed identity may be used)"
+        },
+        "client_secret": {
+            "type": "string",
+            "source": "env",
+            "env_var": "AZURE_CLIENT_SECRET",
+            "required": false,
+            "description": "Azure client secret (optional; managed identity may be used)"
+        }
+    },
+    "required": []
+}

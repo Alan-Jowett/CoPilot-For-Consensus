@@ -13,7 +13,7 @@
 - `IngestionAPIErrorRateHigh`
 - `ReportingAPIErrorRateHigh`
 
-**Severity:** Warning → Critical  
+**Severity:** Warning → Critical
 **Component:** Service Processing
 
 ---

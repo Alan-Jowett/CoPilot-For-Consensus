@@ -25,25 +25,17 @@ volumes:
   llama_models:
 
 secrets:
-  # Message bus credentials
+  # RabbitMQ credentials
   rabbitmq_user:
     file: ./secrets/rabbitmq_user
-  rabbitmq_pass:
-    file: ./secrets/rabbitmq_pass
-  message_bus_user:
-    file: ./secrets/message_bus_user
-  message_bus_password:
-    file: ./secrets/message_bus_password
+  rabbitmq_password:
+    file: ./secrets/rabbitmq_password
 
-  # Document database credentials
-  document_database_user:
-    file: ./secrets/document_database_user
-  document_database_password:
-    file: ./secrets/document_database_password
-  mongodb_root_username:
-    file: ./secrets/mongodb_root_username
-  mongodb_root_password:
-    file: ./secrets/mongodb_root_password
+  # MongoDB credentials
+  mongodb_user:
+    file: ./secrets/mongodb_user
+  mongodb_password:
+    file: ./secrets/mongodb_password
 
   # Grafana admin
   grafana_admin_user:

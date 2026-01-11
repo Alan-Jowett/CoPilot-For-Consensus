@@ -27,12 +27,12 @@ For each provider you want to enable:
    cp secrets/github_oauth_client_id.example secrets/github_oauth_client_id
    cp secrets/github_oauth_client_secret.example secrets/github_oauth_client_secret
    # Edit these files and replace with your actual credentials
-   
+
    # Google
    cp secrets/google_oauth_client_id.example secrets/google_oauth_client_id
    cp secrets/google_oauth_client_secret.example secrets/google_oauth_client_secret
    # Edit these files and replace with your actual credentials
-   
+
    # Microsoft
    cp secrets/microsoft_oauth_client_id.example secrets/microsoft_oauth_client_id
    cp secrets/microsoft_oauth_client_secret.example secrets/microsoft_oauth_client_secret
@@ -45,12 +45,12 @@ For each provider you want to enable:
    Copy-Item secrets/github_oauth_client_id.example secrets/github_oauth_client_id
    Copy-Item secrets/github_oauth_client_secret.example secrets/github_oauth_client_secret
    # Edit these files and replace with your actual credentials
-   
+
    # Google
    Copy-Item secrets/google_oauth_client_id.example secrets/google_oauth_client_id
    Copy-Item secrets/google_oauth_client_secret.example secrets/google_oauth_client_secret
    # Edit these files and replace with your actual credentials
-   
+
    # Microsoft
    Copy-Item secrets/microsoft_oauth_client_id.example secrets/microsoft_oauth_client_id
    Copy-Item secrets/microsoft_oauth_client_secret.example secrets/microsoft_oauth_client_secret
@@ -105,7 +105,7 @@ To rotate GitHub OAuth credentials in your local development environment:
    ```bash
    # Check that GitHub provider is still configured
    curl http://localhost:8080/auth/providers
-   
+
    # Test GitHub OAuth login flow by visiting in browser
    # http://localhost:8080/ui
    ```
@@ -183,7 +183,7 @@ For Azure deployments with Grafana, credentials should be stored in Azure Key Va
 Examples for infrastructure:
 ```bash
 echo "guest" > secrets/rabbitmq_user
-echo "guest" > secrets/rabbitmq_pass
+echo "guest" > secrets/rabbitmq_password
 ```
 
 ## Security Notes

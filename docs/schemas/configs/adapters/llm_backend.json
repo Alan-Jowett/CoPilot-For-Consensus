@@ -1,0 +1,29 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "LLM backend adapter - choose one LLM provider",
+    "type": "object",
+    "properties": {
+        "discriminant": {
+            "field": "llm_backend_type",
+            "type": "string",
+            "source": "env",
+            "env_var": "SUMMARIZATION_LLM_BACKEND",
+            "enum": ["openai", "azure", "local", "llamacpp", "mock"],
+            "required": true,
+            "description": "LLM backend (openai, azure, local, llamacpp, mock)"
+        },
+        "drivers": {
+            "type": "object",
+            "properties": {
+                "openai": { "$ref": "./drivers/llm_backend/llm_openai.json" },
+                "azure": { "$ref": "./drivers/llm_backend/llm_azure.json" },
+                "local": { "$ref": "./drivers/llm_backend/llm_local.json" },
+                "llamacpp": { "$ref": "./drivers/llm_backend/llm_llamacpp.json" },
+                "mock": { "$ref": "./drivers/llm_backend/llm_mock.json" }
+            },
+            "additionalProperties": false
+        }
+    },
+    "required": ["discriminant", "drivers"]
+}

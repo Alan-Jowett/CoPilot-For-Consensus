@@ -8,11 +8,19 @@ in the Copilot-for-Consensus system.
 
 This adapter enables deployment-time selection of archive storage backends,
 supporting local volumes, MongoDB GridFS, cloud storage (Azure Blob, S3), etc.
+
+Minimal exports - services should only use create_archive_store():
+
+    from copilot_config import load_service_config
+    from copilot_archive_store import create_archive_store
+
+    config = load_service_config("parsing")
+    archive_adapter = config.get_adapter("archive_store")
+    store = create_archive_store(archive_adapter.driver_name, archive_adapter.driver_config)
 """
 
 __version__ = "0.1.0"
 
-from .accessor import ArchiveAccessor, create_archive_accessor
 from .archive_store import (
     ArchiveNotFoundError,
     ArchiveStore,
@@ -21,32 +29,16 @@ from .archive_store import (
     ArchiveStoreNotConnectedError,
     create_archive_store,
 )
-from .local_volume_archive_store import LocalVolumeArchiveStore
-
-# Optional imports - only available if dependencies are installed
-try:
-    from .azure_blob_archive_store import AzureBlobArchiveStore
-    _has_azure = True
-except ImportError:
-    _has_azure = False
 
 __all__ = [
-    # Version
-    "__version__",
-    # Archive Stores
-    "ArchiveStore",
-    "LocalVolumeArchiveStore",
+    # Factory function (all services should use this)
     "create_archive_store",
-    # Accessor Helper
-    "ArchiveAccessor",
-    "create_archive_accessor",
-    # Exceptions
+    # Base class (for type hints)
+    "ArchiveStore",
+    # Exceptions (for error handling)
     "ArchiveStoreError",
     "ArchiveStoreNotConnectedError",
     "ArchiveStoreConnectionError",
     "ArchiveNotFoundError",
 ]
 
-# Add optional exports if dependencies are available
-if _has_azure:
-    __all__.append("AzureBlobArchiveStore")

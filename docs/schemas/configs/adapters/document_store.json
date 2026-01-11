@@ -1,0 +1,26 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Document Store adapter",
+    "type": "object",
+    "properties": {
+        "discriminant": {
+            "field": "doc_store_type",
+            "type": "string",
+            "source": "env",
+            "env_var": "DOCUMENT_STORE_TYPE",
+            "enum": ["mongodb", "azurecosmos", "cosmos", "cosmosdb", "inmemory"],
+            "description": "Document store backend type (mongodb, azurecosmos, inmemory)"
+        },
+        "drivers": {
+            "type": "object",
+            "properties": {
+                "mongodb": { "$ref": "./drivers/document_store/mongodb.json" },
+                "azurecosmos": { "$ref": "./drivers/document_store/cosmosdb.json" },
+                "inmemory": { "$ref": "./drivers/document_store/inmemory.json" }
+            },
+            "additionalProperties": false
+        }
+    },
+    "required": ["discriminant", "drivers"]
+}

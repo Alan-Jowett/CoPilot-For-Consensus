@@ -13,7 +13,7 @@
 - `ProcessingServiceUnhealthy`
 - `NoQueueConsumers`
 
-**Severity:** Warning → Critical  
+**Severity:** Warning → Critical
 **Component:** Infrastructure / Services
 
 ---

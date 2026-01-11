@@ -230,11 +230,11 @@ To deploy from CI/CD without storing local files:
     # Set up credentials from GitHub secrets
     echo "${{ secrets.GITHUB_OAUTH_CLIENT_ID }}" > secrets/github_oauth_client_id
     echo "${{ secrets.GITHUB_OAUTH_CLIENT_SECRET }}" > secrets/github_oauth_client_secret
-    
+
     # Run deployment (secrets are read and passed to Bicep)
     cd infra/azure
     .\deploy.ps1 -ResourceGroup "${{ secrets.AZURE_RESOURCE_GROUP }}"
-    
+
     # Clean up
     Remove-Item -Path secrets/github_oauth_client_id
     Remove-Item -Path secrets/github_oauth_client_secret

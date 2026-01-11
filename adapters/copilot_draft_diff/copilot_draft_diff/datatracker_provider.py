@@ -18,7 +18,7 @@ class DatatrackerDiffProvider(DraftDiffProvider):
         diff_format: Default format for diffs (html, text)
     """
 
-    def __init__(self, base_url: str = "https://datatracker.ietf.org", diff_format: str = "html"):
+    def __init__(self, base_url: str, diff_format: str):
         """Initialize Datatracker diff provider.
 
         Args:
@@ -27,6 +27,25 @@ class DatatrackerDiffProvider(DraftDiffProvider):
         """
         self.base_url = base_url.rstrip("/")
         self.diff_format = diff_format
+
+    @classmethod
+    def from_config(cls, driver_config):
+        """Create provider from configuration.
+
+        Configuration defaults are defined in schema:
+        docs/schemas/configs/adapters/drivers/draft_diff_provider/datatracker.json
+
+        Args:
+            driver_config: Configuration object with attributes:
+                          - base_url: Datatracker base URL
+                          - diff_format: Diff format
+
+        Returns:
+            Configured DataTrackerDraftDiffProvider
+        """
+        base_url = driver_config.base_url
+        diff_format = driver_config.diff_format
+        return cls(base_url=base_url, diff_format=diff_format)
 
     def getdiff(self, draft_name: str, version_a: str, version_b: str) -> DraftDiff:
         """Fetch a diff between two versions of a draft from Datatracker.

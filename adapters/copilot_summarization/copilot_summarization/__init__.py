@@ -3,12 +3,8 @@
 
 """LLM summarization adapters for multiple providers."""
 
-from .factory import SummarizerFactory
-from .llamacpp_summarizer import LlamaCppSummarizer
-from .local_llm_summarizer import LocalLLMSummarizer
-from .mock_summarizer import MockSummarizer
+from .factory import create_llm_backend
 from .models import Citation, Summary, Thread
-from .openai_summarizer import OpenAISummarizer
 from .summarizer import Summarizer
 
 __all__ = [
@@ -16,9 +12,5 @@ __all__ = [
     "Summary",
     "Citation",
     "Summarizer",
-    "OpenAISummarizer",
-    "MockSummarizer",
-    "LocalLLMSummarizer",
-    "LlamaCppSummarizer",
-    "SummarizerFactory",
+    "create_llm_backend",
 ]

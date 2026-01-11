@@ -30,10 +30,59 @@ except ImportError:
 class AzureCosmosDocumentStore(DocumentStore):
     """Azure Cosmos DB document store implementation using Core (SQL) API."""
 
+    @classmethod
+    def from_config(cls, config: Any) -> "AzureCosmosDocumentStore":
+        """Create an AzureCosmosDocumentStore from configuration.
+
+        Args:
+            config: Configuration object with endpoint, key, database, container,
+                    and partition_key attributes. Database, container, and partition_key
+                    defaults are provided by the schema.
+
+        Returns:
+            Configured AzureCosmosDocumentStore instance
+
+        Raises:
+            AttributeError: If required config attributes are missing
+        """
+        extra_kwargs: dict[str, Any] = {}
+        if isinstance(config, dict):
+            for k, v in config.items():
+                if k not in {"endpoint", "key", "database", "container", "partition_key"}:
+                    extra_kwargs[k] = v
+
+        kwargs: dict[str, Any] = {}
+
+        # All fields are accessed via getattr for consistency
+        endpoint = getattr(config, "endpoint", None)
+        if endpoint is not None:
+            kwargs["endpoint"] = endpoint
+
+        key = getattr(config, "key", None)
+        if key is not None:
+            kwargs["key"] = key
+
+        database = getattr(config, "database", None)
+        if database is not None:
+            kwargs["database"] = database
+
+        container = getattr(config, "container", None)
+        if container is not None:
+            kwargs["container"] = container
+
+        partition_key = getattr(config, "partition_key", None)
+        if partition_key is not None:
+            kwargs["partition_key"] = partition_key
+
+        # Merge extra kwargs
+        kwargs.update(extra_kwargs)
+
+        return cls(**kwargs)
+
     def __init__(
         self,
-        endpoint: str = None,
-        key: str = None,
+        endpoint: str | None = None,
+        key: str | None = None,
         database: str = "copilot",
         container: str = "documents",
         partition_key: str = "/collection",
@@ -42,13 +91,21 @@ class AzureCosmosDocumentStore(DocumentStore):
         """Initialize Azure Cosmos DB document store.
 
         Args:
-            endpoint: Cosmos DB endpoint URL (e.g., https://myaccount.documents.azure.com:443/)
-            key: Cosmos DB account key (optional; if None, managed identity via DefaultAzureCredential will be used)
-            database: Database name
-            container: Container name
+            endpoint: Cosmos DB endpoint URL (e.g., https://myaccount.documents.azure.com:443/).
+                     Required parameter.
+            key: Cosmos DB account key (optional; if None, managed identity via DefaultAzureCredential will be used).
+                 Either key or managed identity support required.
+            database: Database name (default: "copilot")
+            container: Container name (default: "documents")
             partition_key: Partition key path (default: /collection)
             **kwargs: Additional Cosmos client options (e.g., connection_timeout, request_timeout)
+
+        Raises:
+            ValueError: If endpoint is not provided
         """
+        if not endpoint:
+            raise ValueError("endpoint is required for AzureCosmosDocumentStore")
+
         self.endpoint = endpoint
         self.key = key
         self.database_name = database
@@ -582,13 +639,13 @@ class AzureCosmosDocumentStore(DocumentStore):
         # Process only initial $match stages (before any $lookup)
         for stage in pipeline:
             stage_name = list(stage.keys())[0]
-            
+
             # Stop at first non-$match stage
             if stage_name != "$match":
                 break
-            
+
             stage_spec = stage[stage_name]
-            
+
             # Add match conditions to WHERE clause
             for key, condition in stage_spec.items():
                 # Validate field name to prevent SQL injection
@@ -606,7 +663,7 @@ class AzureCosmosDocumentStore(DocumentStore):
                             f"non-operator keys {non_operators}, treating as invalid - skipping field"
                         )
                         continue
-                    
+
                     for op, value in condition.items():
                         if op == "$exists":
                             if value:
@@ -741,10 +798,10 @@ class AzureCosmosDocumentStore(DocumentStore):
             Filtered documents
         """
         results = []
-        
+
         for doc in documents:
             matches = True
-            
+
             for key, condition in match_spec.items():
                 if isinstance(condition, dict):
                     # Handle operators
@@ -777,10 +834,10 @@ class AzureCosmosDocumentStore(DocumentStore):
                     if self._get_nested_field(doc, key) != condition:
                         matches = False
                         break
-            
+
             if matches:
                 results.append(doc)
-        
+
         return results
 
     def _apply_lookup_stage(
@@ -809,7 +866,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             "foreignField": foreign_field,
             "as": as_field
         }
-        
+
         # Check for missing or non-string values (but not empty strings yet)
         missing_or_invalid = [
             field_name for field_name, value in required_fields.items()
@@ -819,7 +876,7 @@ class AzureCosmosDocumentStore(DocumentStore):
             raise DocumentStoreError(
                 f"$lookup requires string values for {', '.join(missing_or_invalid)}"
             )
-        
+
         # Check for empty strings (all values are strings at this point)
         empty_fields = [
             field_name for field_name, value in required_fields.items()
@@ -882,10 +939,10 @@ class AzureCosmosDocumentStore(DocumentStore):
             # The original document's nested structures remain as references, which is acceptable
             # since we don't modify them
             doc_copy = dict(doc)
-            
+
             # Get the local field value
             local_value = self._get_nested_field(doc, local_field)
-            
+
             # Find matching foreign documents
             if local_value is not None and local_value in foreign_index:
                 # Deep copy the foreign documents to avoid shared mutable state
@@ -895,7 +952,7 @@ class AzureCosmosDocumentStore(DocumentStore):
                 doc_copy[as_field] = [copy.deepcopy(fdoc) for fdoc in foreign_index[local_value]]
             else:
                 doc_copy[as_field] = []
-            
+
             results.append(doc_copy)
 
         return results
@@ -914,7 +971,7 @@ class AzureCosmosDocumentStore(DocumentStore):
         """
         if "." not in field_path:
             return doc.get(field_path)
-        
+
         # Handle nested field access
         parts = field_path.split(".")
         value = doc
@@ -924,5 +981,5 @@ class AzureCosmosDocumentStore(DocumentStore):
             value = value.get(part)
             if value is None:
                 return None
-        
+
         return value

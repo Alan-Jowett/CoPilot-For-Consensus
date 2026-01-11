@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Datatracker Draft Diff Provider Configuration",
+  "description": "Configuration for IETF Datatracker draft diff provider",
+  "type": "object",
+  "properties": {
+    "base_url": {
+      "type": "string",
+      "format": "uri",
+      "default": "https://datatracker.ietf.org",
+      "description": "Base URL for the Datatracker service"
+    },
+    "diff_format": {
+      "type": "string",
+      "enum": ["html", "text"],
+      "default": "html",
+      "description": "Default format for diffs"
+    }
+  },
+  "additionalProperties": false
+}

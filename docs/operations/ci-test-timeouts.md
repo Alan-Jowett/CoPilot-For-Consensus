@@ -99,10 +99,10 @@ All adapters have timeout configuration:
 - copilot_consensus
 - copilot_draft_diff
 - copilot_embedding
-- copilot_events
+- copilot_message_bus
 - copilot_logging
 - copilot_metrics
-- copilot_reporting
+ - copilot_error_reporting
 - copilot_schema_validation
 - copilot_storage
 - copilot_summarization
