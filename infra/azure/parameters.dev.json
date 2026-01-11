@@ -14,35 +14,23 @@
     "containerImageTag": {
       "value": "azure"
     },
-    "deployAzureOpenAI": {
-      "value": true
+    "azureOpenAIEndpoint": {
+      "value": "https://REPLACE-WITH-CORE-DEPLOYMENT-OUTPUT.openai.azure.com/"
     },
-    "azureOpenAISku": {
-      "value": "S0"
+    "azureOpenAIGptDeploymentName": {
+      "value": "gpt-4o-deployment"
     },
-    "azureOpenAIDeploymentSku": {
-      "value": "Standard"
+    "azureOpenAIEmbeddingDeploymentName": {
+      "value": "embedding-deployment"
     },
-    "azureOpenAIModelName": {
-      "value": "gpt-4o-mini"
+    "coreKeyVaultResourceId": {
+      "value": "/subscriptions/SUBSCRIPTION-ID/resourceGroups/rg-core-ai/providers/Microsoft.KeyVault/vaults/CORE-KV-NAME"
     },
-    "azureOpenAIModelVersion": {
-      "value": "2024-07-18"
+    "coreKeyVaultName": {
+      "value": "REPLACE-WITH-CORE-DEPLOYMENT-OUTPUT"
     },
-    "azureOpenAIDeploymentCapacity": {
-      "value": 10
-    },
-    "deployAzureOpenAIEmbeddingModel": {
-      "value": true
-    },
-    "azureOpenAIEmbeddingModelName": {
-      "value": "text-embedding-ada-002"
-    },
-    "azureOpenAIEmbeddingDeploymentCapacity": {
-      "value": 10
-    },
-    "azureOpenAIAllowedCidrs": {
-      "value": []
+    "coreKvSecretUriAoaiKey": {
+      "value": "https://CORE-KV-NAME.vault.azure.net/secrets/azure-openai-api-key/VERSION"
     },
     "cosmosDbAutoscaleMinRu": {
       "value": 400
@@ -75,7 +63,8 @@
       "value": {
         "environment": "dev",
         "project": "copilot-for-consensus",
-        "createdBy": "bicep"
+        "createdBy": "bicep",
+        "scope": "env"
       }
     }
   }
