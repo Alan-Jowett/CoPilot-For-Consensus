@@ -81,6 +81,43 @@ def find_python_packages(root_dir: Path) -> list[tuple[str, str]]:
     return sorted(packages, key=sort_key)
 
 
+def generate_pip_update_entry(
+    name: str, 
+    directories: list[str], 
+    label_suffix: str
+) -> str:
+    """Generate a pip update entry with standard configuration.
+    
+    Args:
+        name: Display name for the group (e.g., "Core Services")
+        directories: List of directory paths to monitor
+        label_suffix: Additional label to add (e.g., "services" or "adapters")
+    
+    Returns:
+        YAML configuration string for a pip update entry
+    """
+    content = f"  # Monitor Python dependencies - {name}\n"
+    content += "  - package-ecosystem: \"pip\"\n"
+    content += "    directories:\n"
+    for directory in directories:
+        content += f"      - \"{directory}\"\n"
+    content += "    schedule:\n"
+    content += "      interval: \"weekly\"\n"
+    content += "    open-pull-requests-limit: 10\n"
+    content += "    labels:\n"
+    content += "      - \"dependencies\"\n"
+    content += "      - \"python\"\n"
+    content += f"      - \"{label_suffix}\"\n"
+    content += "    groups:\n"
+    content += "      pip-minor-patch:\n"
+    content += "        patterns:\n"
+    content += "          - \"*\"\n"
+    content += "        update-types:\n"
+    content += "          - \"minor\"\n"
+    content += "          - \"patch\"\n\n"
+    return content
+
+
 def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
     """Generate the dependabot.yml content using multi-directory configuration."""
     content = HEADER
@@ -99,70 +136,13 @@ def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
     adapters_group1 = adapters[:adapters_mid]
     adapters_group2 = adapters[adapters_mid:]
 
-    # Group 1: Core Services
-    content += "  # Monitor Python dependencies - Core Services\n"
+    # Generate pip update entries with note about timeout fix
     content += "  # Split into multiple entries to prevent Dependabot timeout\n"
-    content += "  # See: https://github.com/orgs/community/discussions/179358\n"
-    content += "  - package-ecosystem: \"pip\"\n"
-    content += "    directories:\n"
-    for directory in services:
-        content += f"      - \"{directory}\"\n"
-    content += "    schedule:\n"
-    content += "      interval: \"weekly\"\n"
-    content += "    open-pull-requests-limit: 10\n"
-    content += "    labels:\n"
-    content += "      - \"dependencies\"\n"
-    content += "      - \"python\"\n"
-    content += "      - \"services\"\n"
-    content += "    groups:\n"
-    content += "      pip-minor-patch:\n"
-    content += "        patterns:\n"
-    content += "          - \"*\"\n"
-    content += "        update-types:\n"
-    content += "          - \"minor\"\n"
-    content += "          - \"patch\"\n\n"
-
-    # Group 2: Adapters Group 1
-    content += "  # Monitor Python dependencies - Adapters Group 1\n"
-    content += "  - package-ecosystem: \"pip\"\n"
-    content += "    directories:\n"
-    for directory in adapters_group1:
-        content += f"      - \"{directory}\"\n"
-    content += "    schedule:\n"
-    content += "      interval: \"weekly\"\n"
-    content += "    open-pull-requests-limit: 10\n"
-    content += "    labels:\n"
-    content += "      - \"dependencies\"\n"
-    content += "      - \"python\"\n"
-    content += "      - \"adapters\"\n"
-    content += "    groups:\n"
-    content += "      pip-minor-patch:\n"
-    content += "        patterns:\n"
-    content += "          - \"*\"\n"
-    content += "        update-types:\n"
-    content += "          - \"minor\"\n"
-    content += "          - \"patch\"\n\n"
-
-    # Group 3: Adapters Group 2
-    content += "  # Monitor Python dependencies - Adapters Group 2\n"
-    content += "  - package-ecosystem: \"pip\"\n"
-    content += "    directories:\n"
-    for directory in adapters_group2:
-        content += f"      - \"{directory}\"\n"
-    content += "    schedule:\n"
-    content += "      interval: \"weekly\"\n"
-    content += "    open-pull-requests-limit: 10\n"
-    content += "    labels:\n"
-    content += "      - \"dependencies\"\n"
-    content += "      - \"python\"\n"
-    content += "      - \"adapters\"\n"
-    content += "    groups:\n"
-    content += "      pip-minor-patch:\n"
-    content += "        patterns:\n"
-    content += "          - \"*\"\n"
-    content += "        update-types:\n"
-    content += "          - \"minor\"\n"
-    content += "          - \"patch\"\n\n"
+    content += "  # See: https://github.com/orgs/community/discussions/179358\n\n"
+    
+    content += generate_pip_update_entry("Core Services", services, "services")
+    content += generate_pip_update_entry("Adapters Group 1", adapters_group1, "adapters")
+    content += generate_pip_update_entry("Adapters Group 2", adapters_group2, "adapters")
 
     # Add npm monitoring for the React UI
     content += "  # Monitor npm dependencies in React UI\n"

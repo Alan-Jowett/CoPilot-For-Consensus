@@ -9,9 +9,10 @@
 
 version: 2
 updates:
-  # Monitor Python dependencies - Core Services
   # Split into multiple entries to prevent Dependabot timeout
   # See: https://github.com/orgs/community/discussions/179358
+
+  # Monitor Python dependencies - Core Services
   - package-ecosystem: "pip"
     directories:
       - "/auth"
