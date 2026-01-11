@@ -132,6 +132,7 @@ def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
     adapters = [d for d in python_directories if '/adapters/' in d]
     
     # Split adapters into two groups of roughly equal size
+    # If odd count, group 2 gets the extra directory
     adapters_mid = len(adapters) // 2
     adapters_group1 = adapters[:adapters_mid]
     adapters_group2 = adapters[adapters_mid:]
