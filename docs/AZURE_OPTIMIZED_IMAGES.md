@@ -140,7 +140,7 @@ Azure-optimized images require environment variables for Azure services:
 ```bash
 EMBEDDING_BACKEND=azure
 AZURE_OPENAI_ENDPOINT=https://your-openai.openai.azure.com/
-AZURE_OPENAI_DEPLOYMENT=text-embedding-ada-002
+AZURE_OPENAI_DEPLOYMENT=text-embedding-3-small
 AZURE_OPENAI_KEY=<from-key-vault>
 ```
 
@@ -300,10 +300,10 @@ az containerapp revision list \
 
 Using Azure OpenAI instead of local models incurs API costs:
 
-**Embeddings (text-embedding-ada-002):**
-- **Cost**: $0.10 per 1M tokens
+**Embeddings (text-embedding-3-small):**
+- **Cost**: $0.02 per 1M tokens
 - **Typical usage**: 10K emails/day × 500 tokens/email = 5M tokens/day
-- **Monthly cost**: ~$15/month
+- **Monthly cost**: ~150M tokens/month × $0.02 per 1M tokens = **~$3/month**
 
 **GPT-4o (summarization):**
 - **Cost**: $5.00 per 1M input tokens, $15.00 per 1M output tokens
@@ -321,7 +321,7 @@ Azure-optimized images reduce compute costs:
 
 **Total compute savings** (10 services): ~$450/month
 
-**Net additional cost at 1K summaries/day** (API costs - compute savings): **~$315/month; approximate break-even near ~15K requests/day**
+**Net additional cost at 1K summaries/day** (API costs - compute savings): **~$303/month; approximate break-even near ~15K requests/day**
 
 For high-volume deployments (>50K requests/day), consider using Azure OpenAI Provisioned Throughput Units (PTU) for predictable pricing.
 

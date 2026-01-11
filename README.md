@@ -478,7 +478,7 @@ The system includes an authentication service that supports GitHub, Google, and 
 **Azure Deployment:**
 - We provide an **Azure Resource Manager (ARM) template** for automated deployment to Azure
 - All services deploy as **Azure Container Apps** with managed identities
-- **Azure-optimized Docker images** reduce image size by ~70% (from ~13GB to ~3GB total)
+- **Azure-optimized Docker images** reduce image size by ~70% (from ~8.7GB to ~2.7GB total)
   - Excludes local LLM models (uses Azure OpenAI instead)
   - Uses lightweight base images (python:3.11-slim vs pytorch/pytorch)
   - See **[docs/AZURE_OPTIMIZED_IMAGES.md](./docs/AZURE_OPTIMIZED_IMAGES.md)** for details
