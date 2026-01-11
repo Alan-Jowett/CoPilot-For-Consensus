@@ -231,31 +231,12 @@ jobs:
           fi
 
           # Create spec bundle README
-          cat > /tmp/spec-bundle/README.md << 'ENDOFFILE'
-          # OpenAPI Specification Bundle
+          cat > /tmp/spec-bundle/README.md << 'EOF'
+          OpenAPI Specification Bundle
           
           This bundle contains OpenAPI specifications for the Copilot-for-Consensus system.
-          
-          ## Files
-          
-          - gateway.yaml - Public API Gateway specification (spec-first)
-          - reporting.yaml - Reporting service OpenAPI specification
-          - ingestion.yaml - Ingestion service OpenAPI specification
-          - auth.yaml - Authentication service OpenAPI specification
-          - orchestrator.yaml - Orchestrator service OpenAPI specification
-          
-          ## Generation
-          
-          - Gateway spec: Manually maintained in repository
-          - Service specs: Auto-generated from FastAPI service definitions
-          - Workflow: ${{ github.workflow }}
-          - Run: ${{ github.run_number }}
-          
-          ## Note
-          
-          All service specifications must be successfully generated in CI. If any spec is missing,
-          the workflow will fail. To generate specs locally, see docs/openapi.md
-          ENDOFFILE
+          See docs/openapi.md for more information.
+          EOF
 
           echo "Spec bundle contents:"
           ls -lh /tmp/spec-bundle/
