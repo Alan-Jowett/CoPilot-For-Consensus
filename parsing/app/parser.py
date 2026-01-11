@@ -21,6 +21,9 @@ from .normalizer import TextNormalizer
 
 logger = logging.getLogger(__name__)
 
+# Maximum number of parsing errors to include in error messages
+MAX_ERROR_MESSAGES = 5
+
 
 class MessageParser:
     """Parses email messages from mbox format."""
@@ -83,7 +86,8 @@ class MessageParser:
             if not parsed_messages and errors:
                 # All messages failed to parse - raise exception
                 raise MessageParsingError(
-                    f"Failed to parse any messages from {mbox_path}. Errors: {'; '.join(errors[:5])}"
+                    f"Failed to parse any messages from {mbox_path}. "
+                    f"Errors: {'; '.join(errors[:MAX_ERROR_MESSAGES])}"
                 )
 
         except MessageParsingError:
@@ -179,7 +183,8 @@ class MessageParser:
             if not parsed_messages and errors:
                 # All messages failed to parse - raise exception
                 raise MessageParsingError(
-                    f"Failed to parse any messages from bytes. Errors: {'; '.join(errors[:5])}"
+                    f"Failed to parse any messages from bytes. "
+                    f"Errors: {'; '.join(errors[:MAX_ERROR_MESSAGES])}"
                 )
 
         except MessageParsingError:
