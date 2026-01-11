@@ -141,12 +141,19 @@ jobs:
           with open(new_schema_path, 'r') as f:
               new = json.load(f)
 
+          breaking_changes = []
+
           # Check for removed required fields (breaking change)
           if 'required' in old and 'required' in new:
               removed_required = set(old.get('required', [])) - set(new.get('required', []))
               if removed_required:
-                  print(f"❌ Breaking change: removed required fields: {removed_required}")
-                  sys.exit(1)
+                  breaking_changes.append(f"Removed required fields: {removed_required}")
+
+          # Check for added required fields (breaking change - forces config updates)
+          if 'required' in old and 'required' in new:
+              added_required = set(new.get('required', [])) - set(old.get('required', []))
+              if added_required:
+                  breaking_changes.append(f"Added required fields: {added_required}")
 
           # Check for removed enum values (breaking change for discriminants)
           if 'properties' in old and 'discriminant' in old['properties']:
@@ -155,8 +162,48 @@ jobs:
                   new_enum = set(new['properties']['discriminant'].get('enum', []))
                   removed_enum = old_enum - new_enum
                   if removed_enum:
-                      print(f"❌ Breaking change: removed discriminant values: {removed_enum}")
-                      sys.exit(1)
+                      breaking_changes.append(f"Removed discriminant values: {removed_enum}")
+
+          # Check for type changes in properties (breaking change)
+          def check_type_changes(old_props, new_props, path=""):
+              if not isinstance(old_props, dict) or not isinstance(new_props, dict):
+                  return
+              for prop_name in old_props.keys():
+                  if prop_name in new_props:
+                      old_prop = old_props[prop_name]
+                      new_prop = new_props[prop_name]
+                      prop_path = f"{path}.{prop_name}" if path else prop_name
+                      
+                      # Check type changes
+                      if 'type' in old_prop and 'type' in new_prop:
+                          if old_prop['type'] != new_prop['type']:
+                              breaking_changes.append(f"Type changed for '{prop_path}': {old_prop['type']} -> {new_prop['type']}")
+                      
+                      # Check constraint changes (pattern, minLength, maxLength, minimum, maximum)
+                      constraints = ['pattern', 'minLength', 'maxLength', 'minimum', 'maximum', 'minItems', 'maxItems']
+                      for constraint in constraints:
+                          if constraint in old_prop and constraint in new_prop:
+                              if old_prop[constraint] != new_prop[constraint]:
+                                  breaking_changes.append(f"Constraint '{constraint}' changed for '{prop_path}': {old_prop[constraint]} -> {new_prop[constraint]}")
+                          elif constraint in old_prop and constraint not in new_prop:
+                              # Removing a constraint could be breaking if it was restrictive
+                              pass  # Generally safe, loosens restrictions
+                          elif constraint not in old_prop and constraint in new_prop:
+                              # Adding a constraint is breaking if it restricts previously valid values
+                              breaking_changes.append(f"New constraint '{constraint}' added for '{prop_path}': {new_prop[constraint]}")
+                      
+                      # Recursively check nested properties
+                      if 'properties' in old_prop and 'properties' in new_prop:
+                          check_type_changes(old_prop['properties'], new_prop['properties'], prop_path)
+
+          if 'properties' in old and 'properties' in new:
+              check_type_changes(old['properties'], new['properties'])
+
+          if breaking_changes:
+              print("❌ Breaking changes detected:")
+              for change in breaking_changes:
+                  print(f"  - {change}")
+              sys.exit(1)
 
           print("✓ No breaking changes detected")
           PYTHON_COMPAT_CHECK
