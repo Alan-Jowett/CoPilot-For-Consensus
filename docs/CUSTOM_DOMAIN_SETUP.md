@@ -31,22 +31,27 @@ $customDomain = "copilot.example.com"
 $dnsZoneName = "example.com"  # Must be hosted in Azure DNS
 $dnsResourceGroup = $resourceGroup  # Or separate RG if DNS is in different subscription
 
-# Create a managed certificate
+# Step 1: Create a managed certificate (requires validation via TXT or HTTP challenge)
+# Note: For Azure DNS, TXT validation is recommended and can be automated
 az containerapp env certificate create `
   --name $containerEnvName `
   --resource-group $resourceGroup `
-  --certificate-name "${customDomain}-cert" `
+  --certificate-name "$($customDomain)-cert" `
   --hostname $customDomain `
-  --validation-method CNAME
+  --validation-method TXT
 
-# Get the certificate resource ID
+# Step 2: Complete DNS validation
+# The certificate creation will provide a TXT record that must be added to your DNS zone
+# For Azure DNS, you can add the TXT record manually or via script while certificate is pending validation
+
+# Step 3: Get the certificate resource ID once validation completes
 $certId = az containerapp env certificate list `
   --name $containerEnvName `
   --resource-group $resourceGroup `
   --query "[?properties.subjectName=='$customDomain'].id" `
   --output tsv
 
-# Deploy with automatic Azure DNS configuration
+# Step 4: Deploy with automatic Azure DNS configuration
 az deployment group create `
   --resource-group $resourceGroup `
   --template-file infra/azure/main.bicep `
@@ -57,6 +62,12 @@ az deployment group create `
     azureDnsZoneName=$dnsZoneName `
     azureDnsResourceGroup=$dnsResourceGroup
 ```
+
+**Important Notes**:
+- Certificate validation typically uses **TXT records** for domain ownership verification (not CNAME)
+- For Azure DNS, add the TXT validation record manually or via script during certificate creation
+- Wait for certificate validation to complete before proceeding with deployment
+- The Bicep deployment will create the CNAME record pointing to the Container Apps gateway
 
 **That's it!** The Bicep deployment automatically:
 - ✅ Creates CNAME record in Azure DNS pointing to Container Apps gateway
@@ -107,9 +118,9 @@ $envId = az containerapp env show `
 az containerapp env certificate create `
   --name $containerEnvName `
   --resource-group $resourceGroup `
-  --certificate-name "${customDomain}-cert" `
+  --certificate-name "$($customDomain)-cert" `
   --hostname $customDomain `
-  --validation-method CNAME
+  --validation-method TXT
 
 # Get the certificate resource ID for deployment
 $certId = az containerapp env certificate list `
@@ -193,6 +204,23 @@ After deployment completes:
 
 ### 4. Verify Custom Domain Configuration (Shared)
 
+This section applies to both automated Azure DNS and manual DNS configurations.
+
+After deploying with custom domain parameters, verify the configuration:
+
+```powershell
+# Verify custom domain is bound to the gateway
+az containerapp show `
+  --name copilot-dev-gateway `
+  --resource-group cfc-dev-02-rg `
+  --query properties.configuration.ingress.customDomains
+
+# Test HTTPS access with custom domain
+Invoke-WebRequest -UseBasicParsing https://copilot.example.com/health
+```
+
+---
+
 ## OAuth Configuration Update
 
 If using GitHub OAuth or Entra ID authentication, update your OAuth application redirect URIs:
@@ -263,7 +291,7 @@ To remove the custom domain configuration and revert to default Container Apps d
    az containerapp env certificate delete `
      --name copilot-dev-containerenv `
      --resource-group cfc-dev-02-rg `
-     --certificate-name "${customDomain}-cert"
+     --certificate-name "$customDomain-cert"
    ```
 
 3. **Remove DNS CNAME record** from your DNS provider
