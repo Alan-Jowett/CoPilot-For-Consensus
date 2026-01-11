@@ -125,10 +125,15 @@ def generate_dependabot_config(packages: list[tuple[str, str]], dockerfile_dirs:
 
     # Monitor Python dependencies across all services and adapters
     # Create separate update entries for each directory (required by Dependabot)
+    # Note: Groups are scoped per-directory, so each directory will generate its own grouped PR
     content += "  # Monitor Python dependencies across all services and adapters\n"
-    content += "  # Each directory requires its own update entry\n"
+    content += "  # Each directory requires its own update entry (Dependabot does not support 'directories' field)\n"
+    content += "  # Groups are scoped per-directory and will create separate PRs for each directory\n"
     
     for directory, description in packages:
+        # Add a comment to label this section in the generated YAML
+        if description:
+            content += f"  # {description}\n"
         content += f"  - package-ecosystem: \"pip\"\n"
         content += f"    directory: \"{directory}\"\n"
         content += "    schedule:\n"
