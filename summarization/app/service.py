@@ -561,21 +561,23 @@ class SummarizationService:
             if chunk.get("_id") is not None
         }
 
-        formatted = []
+        formatted: list[dict[str, Any]] = []
 
         # Limit to citation_count
         for citation in citations[:self.citation_count]:
-            # Find the corresponding chunk to get the text
-            chunk = chunk_map.get(citation.chunk_id, {})
-            # citation.chunk_id now contains the _id value
-            text = chunk.get("text", "")
+            chunk = chunk_map.get(citation.chunk_id)
+            if not chunk:
+                # Skip citations that reference missing chunks
+                continue
+
+            chunk_id = chunk.get("_id")
+            if not chunk_id:
+                continue
 
             formatted.append({
-                "_id": chunk.get("_id"),
                 "message_id": citation.message_id,
-                "chunk_id": citation.chunk_id,
+                "chunk_id": chunk_id,
                 "offset": citation.offset,
-                "text": text,
             })
 
         return formatted
@@ -596,7 +598,7 @@ class SummarizationService:
             Hex string of SHA256 hash (64 characters)
         """
         # Extract and sort chunk IDs to ensure consistent ordering, ignoring missing/empty IDs
-        chunk_ids = sorted({c.get("_id") for c in citations if c.get("_id")})
+        chunk_ids = sorted({c.get("chunk_id") for c in citations if c.get("chunk_id")})
 
         # Combine thread_id and canonical _ids into a single string
         id_input = f"{thread_id}:{','.join(chunk_ids)}"

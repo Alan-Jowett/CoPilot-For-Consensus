@@ -393,13 +393,12 @@ services:
       - AUTH_MONGODB_PORT=27017
       - AUTH_MONGODB_DATABASE=auth
       - AUTH_MONGODB_COLLECTION=user_roles
+      - AUTH_ROLE_STORE_SCHEMA_DIR=/app/docs/schemas/role_store
       # OIDC Providers - OAuth secrets read via copilot_secrets from /run/secrets
-      - AUTH_GITHUB_REDIRECT_URI=${AUTH_GITHUB_REDIRECT_URI:-http://localhost:8080/ui/callback}
-      - AUTH_GOOGLE_CLIENT_ID=${AUTH_GOOGLE_CLIENT_ID:-}
-      - AUTH_GOOGLE_REDIRECT_URI=${AUTH_GOOGLE_REDIRECT_URI:-http://localhost:8080/ui/callback}
-      - AUTH_MS_CLIENT_ID=${AUTH_MS_CLIENT_ID:-}
-      - AUTH_MS_REDIRECT_URI=${AUTH_MS_REDIRECT_URI:-http://localhost:8080/ui/callback}
-      - AUTH_MS_TENANT=${AUTH_MS_TENANT:-common}
+      - GITHUB_REDIRECT_URI=${GITHUB_REDIRECT_URI:-https://localhost/ui/callback}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-https://localhost/ui/callback}
+      - MICROSOFT_REDIRECT_URI=${MICROSOFT_REDIRECT_URI:-https://localhost/ui/callback}
+      - MICROSOFT_TENANT=${MICROSOFT_TENANT:-common}
       # Security
       - AUTH_REQUIRE_PKCE=${AUTH_REQUIRE_PKCE:-true}
       - AUTH_REQUIRE_NONCE=${AUTH_REQUIRE_NONCE:-true}

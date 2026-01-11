@@ -12,6 +12,7 @@ from typing import Any
 import logging
 
 from copilot_auth import AuthenticationError, IdentityProvider, JWTManager, create_identity_provider
+from copilot_config import DriverConfig
 
 from . import OAUTH_PROVIDERS, SUPPORTED_PROVIDERS
 from .role_store import RoleStore
@@ -126,7 +127,37 @@ class AuthService:
                 provider_cfg = dict(raw_cfg)
                 provider_cfg.setdefault("redirect_uri", redirect_uri)
 
-                provider = create_identity_provider(driver_name=provider_name, driver_config=provider_cfg)
+                # Wrap raw dict in DriverConfig to satisfy provider factories
+                if provider_name == "github":
+                    allowed_keys = {
+                        "github_client_id",
+                        "github_client_secret",
+                        "github_redirect_uri",
+                        "github_api_base_url",
+                    }
+                elif provider_name == "google":
+                    allowed_keys = {
+                        "google_client_id",
+                        "google_client_secret",
+                        "google_redirect_uri",
+                    }
+                elif provider_name == "microsoft":
+                    allowed_keys = {
+                        "microsoft_client_id",
+                        "microsoft_client_secret",
+                        "microsoft_redirect_uri",
+                        "microsoft_tenant",
+                    }
+                else:
+                    allowed_keys = set(provider_cfg.keys())
+
+                driver_config = DriverConfig(
+                    driver_name=provider_name,
+                    config=provider_cfg,
+                    allowed_keys=allowed_keys,
+                )
+
+                provider = create_identity_provider(driver_name=provider_name, driver_config=driver_config)
                 # Call discovery method if it exists (e.g., for OIDC well-known discovery)
                 if hasattr(provider, "discover") and callable(getattr(provider, "discover")):
                     provider.discover()

@@ -261,7 +261,7 @@ def main():
 
         # Wrap publisher already handled by factory (defaults to validating)
         publisher = base_publisher
-        schema_provider = create_schema_provider()
+        event_schema_provider = create_schema_provider()
         log.info("Event publisher configured")
 
         # Create document store
@@ -270,9 +270,10 @@ def main():
         if document_store_adapter is None:
             raise ValueError("document_store adapter is required")
 
-        # Create new DriverConfig for document store with schema provider
+        # Create new DriverConfig for document store with DOCUMENT schemas provider
         document_store_config = dict(document_store_adapter.driver_config.config)
-        document_store_config["schema_provider"] = schema_provider
+        document_schema_provider = create_schema_provider(schema_type="documents")
+        document_store_config["schema_provider"] = document_schema_provider
         document_store_driver_config = DriverConfig(
             driver_name=document_store_adapter.driver_config.driver_name,
             config=document_store_config,
@@ -310,8 +311,16 @@ def main():
         if archive_store_adapter is None:
             raise ValueError("archive_store adapter is required")
 
+        archive_store_driver = getattr(config, "archive_store_type", archive_store_adapter.driver_name)
+        if archive_store_driver != archive_store_adapter.driver_name:
+            log.warning(
+                "Archive store type mismatch between schema and adapter; using schema value",
+                schema_archive_store_type=archive_store_driver,
+                adapter_driver=archive_store_adapter.driver_name,
+            )
+
         archive_store = create_archive_store(
-            driver_name=archive_store_adapter.driver_name,
+            driver_name=archive_store_driver,
             driver_config=archive_store_adapter.driver_config,
         )
 

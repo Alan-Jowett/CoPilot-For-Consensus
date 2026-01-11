@@ -20,6 +20,7 @@ import logging
 from copilot_auth.models import User
 from copilot_auth.provider import AuthenticationError
 from copilot_schema_validation import create_schema_provider
+from copilot_config import DriverConfig
 from copilot_storage import DocumentStore, create_document_store
 
 logger = logging.getLogger(__name__)
@@ -68,11 +69,26 @@ class RoleStore:
                 schema_dir = Path(__file__).resolve().parents[1] / "docs" / "schemas" / "role_store"
 
         schema_provider = create_schema_provider(schema_dir=str(schema_dir))
-        driver_config["schema_provider"] = schema_provider
+        try:
+            probe = schema_provider.get_schema("user_roles")
+            if probe is None:
+                logger.warning("RoleStore schema 'user_roles' not found in %s", schema_dir)
+            else:
+                logger.info("RoleStore loaded schema 'user_roles' from %s", schema_dir)
+        except Exception as e:
+            logger.warning("RoleStore schema probe failed: %s", e)
+
+        # Wrap config in DriverConfig so factory can access attributes
+        allowed_keys = set(driver_config.keys()) | {"schema_provider"}
+        driver_cfg = DriverConfig(
+            driver_name=driver_name,
+            config={**driver_config, "schema_provider": schema_provider},
+            allowed_keys=allowed_keys,
+        )
 
         self.store = create_document_store(
             driver_name=driver_name,
-            driver_config=driver_config,
+            driver_config=driver_cfg,
             enable_validation=True,
             strict_validation=True,
             validate_reads=False,

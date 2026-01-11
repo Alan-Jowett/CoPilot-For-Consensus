@@ -58,6 +58,13 @@
             "default": "copilot-for-consensus",
             "description": "JWT audience for this service"
         },
+        "archive_store_type": {
+            "type": "string",
+            "source": "env",
+            "env_var": "INGESTION_ARCHIVE_STORE_TYPE",
+            "default": "local",
+            "description": "Archive store backend (local, mongodb, azure_blob, s3)"
+        },
         "max_retries": {
             "type": "int",
             "source": "env",

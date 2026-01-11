@@ -202,6 +202,10 @@ class IngestionService:
         if archive_store is None:
             raise ValueError("archive_store is required and must be provided by the caller")
         self.archive_store = archive_store
+        # Capture backend type once from schema-driven config; fallback to store driver when present
+        self.archive_store_type = getattr(config, "archive_store_type", None) or getattr(
+            archive_store, "driver_name", archive_store.__class__.__name__
+        )
 
         # Source status tracking
         self._source_status: dict[str, dict[str, Any]] = {}
@@ -301,7 +305,7 @@ class IngestionService:
             raise
 
         if max_retries is None:
-            max_retries = self.config.retry_max_attempts
+            max_retries = self.config.max_retries
 
         ingestion_started_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         started_monotonic = time.monotonic()
@@ -334,7 +338,7 @@ class IngestionService:
                     retry_count += 1
 
                     if attempt < max_retries:
-                        wait_time = self.config.retry_backoff_seconds * (2 ** attempt)
+                        wait_time = self.config.request_timeout_seconds * (2 ** attempt)
                         self.logger.warning(
                             "Fetch attempt failed",
                             source_name=source.name,
@@ -467,7 +471,6 @@ class IngestionService:
                         archive_id,
                         source,
                         file_hash,
-                        self.config.archive_store_type,
                         ingestion_completed_at,
                     )
 
@@ -542,7 +545,7 @@ class IngestionService:
                 )
 
                 if attempt < max_retries:
-                    wait_time = self.config.retry_backoff_seconds * (2 ** attempt)
+                    wait_time = self.config.request_timeout_seconds * (2 ** attempt)
                     self.logger.warning(
                         "Retrying after error",
                         wait_time_seconds=wait_time,
@@ -746,7 +749,6 @@ class IngestionService:
         archive_id: str,
         source: SourceConfig,
         file_hash: str,
-        storage_backend: str,
         ingestion_date: str,
     ) -> None:
         """Write archive record to document store.
@@ -805,11 +807,11 @@ class IngestionService:
                     "aborting ingestion to avoid inconsistent archive document",
                     archive_id=archive_id,
                     source=source.name,
-                    storage_backend=storage_backend,
+                    storage_backend=self.archive_store_type,
                 )
                 raise IngestionError(
                     f"Archive metadata for archive_id '{archive_id}' not found in "
-                    f"ArchiveStore backend '{storage_backend}'"
+                    f"ArchiveStore backend '{self.archive_store_type}'"
                 )
 
             archive_doc = {
@@ -821,7 +823,7 @@ class IngestionService:
                 "format": archive_format,
                 "ingestion_date": ingestion_date,
                 "message_count": 0,  # Will be updated by parsing service
-                "storage_backend": storage_backend,  # Track which backend is storing this
+                "storage_backend": self.archive_store_type,  # Track which backend is storing this
                 "status": "pending",  # Will be updated to 'processed' or 'failed' by parsing
                 "created_at": ingestion_date,
             }
@@ -831,7 +833,7 @@ class IngestionService:
                 "Wrote archive record to document store",
                 archive_id=archive_id,
                 source=source.name,
-                storage_backend=storage_backend,
+                storage_backend=self.archive_store_type,
             )
 
             # Emit metric for archive creation with pending status
@@ -857,7 +859,7 @@ class IngestionService:
                         "operation": "write_archive_record",
                         "archive_id": archive_id,
                         "source": source.name,
-                        "storage_backend": storage_backend,
+                        "storage_backend": self.archive_store_type,
                     }
                 )
 
