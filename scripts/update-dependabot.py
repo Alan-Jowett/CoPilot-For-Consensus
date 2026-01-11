@@ -81,25 +81,56 @@ def find_python_packages(root_dir: Path) -> list[tuple[str, str]]:
     return sorted(packages, key=sort_key)
 
 
-def generate_pip_update_entry(
-    name: str, 
-    directories: list[str], 
-    label_suffix: str
-) -> str:
-    """Generate a pip update entry with standard configuration.
-    
-    Args:
-        name: Display name for the group (e.g., "Core Services")
-        directories: List of directory paths to monitor
-        label_suffix: Additional label to add (e.g., "services" or "adapters")
-    
-    Returns:
-        YAML configuration string for a pip update entry
+def find_dockerfiles(root_dir: Path) -> list[str]:
     """
-    content = f"  # Monitor Python dependencies - {name}\n"
+    Find all directories containing Dockerfiles or docker-compose files.
+
+    Returns:
+        List of directory paths (formatted as /path/to/dir)
+    """
+    dockerfile_dirs = set()
+
+    # Always include root directory for docker-compose files
+    dockerfile_dirs.add('/')
+
+    # Exclude directories we don't want to scan
+    exclude_dirs = {'.git', '.github', '__pycache__', 'node_modules', '.pytest_cache', '.venv', 'venv', 'env', 'documents'}
+
+    # Walk through the directory tree
+    for dirpath, dirnames, filenames in os.walk(root_dir):
+        # Filter out excluded directories
+        dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
+
+        # Check if this directory has a Dockerfile
+        has_dockerfile = any(f.startswith('Dockerfile') for f in filenames)
+
+        if has_dockerfile:
+            rel_path = os.path.relpath(dirpath, root_dir)
+            # Convert '.' (root) to '/', else prepend '/' and convert to Unix-style
+            if rel_path == '.':
+                rel_path = '/'
+            else:
+                rel_path = '/' + rel_path.replace('\\', '/')
+
+            dockerfile_dirs.add(rel_path)
+
+    return sorted(dockerfile_dirs)
+
+
+def generate_dependabot_config(packages: list[tuple[str, str]], dockerfile_dirs: list[str]) -> str:
+    """Generate the dependabot.yml content using multi-directory configuration."""
+    content = HEADER
+
+    # Extract all directories for Python packages
+    python_directories = [directory for directory, _ in packages]
+
+    # Use the new multi-directory feature (introduced June 2024)
+    # This consolidates all Python dependencies into a single update entry
+    content += "  # Monitor Python dependencies across all services and adapters\n"
+    content += "  # Using multi-directory configuration to reduce PR noise\n"
     content += "  - package-ecosystem: \"pip\"\n"
     content += "    directories:\n"
-    for directory in directories:
+    for directory in python_directories:
         content += f"      - \"{directory}\"\n"
     content += "    schedule:\n"
     content += "      interval: \"weekly\"\n"
@@ -107,7 +138,6 @@ def generate_pip_update_entry(
     content += "    labels:\n"
     content += "      - \"dependencies\"\n"
     content += "      - \"python\"\n"
-    content += f"      - \"{label_suffix}\"\n"
     content += "    groups:\n"
     content += "      pip-minor-patch:\n"
     content += "        patterns:\n"
@@ -115,39 +145,6 @@ def generate_pip_update_entry(
     content += "        update-types:\n"
     content += "          - \"minor\"\n"
     content += "          - \"patch\"\n\n"
-    return content
-
-
-def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
-    """Generate the dependabot.yml content using multi-directory configuration."""
-    content = HEADER
-
-    # Extract all directories for Python packages
-    python_directories = [directory for directory, _ in packages]
-
-    # Split directories into groups to avoid Dependabot timeout
-    # See: https://github.com/orgs/community/discussions/179358
-    # Separate services from adapters, and split adapters into smaller groups
-    services = [d for d in python_directories if '/adapters/' not in d]
-    adapters = [d for d in python_directories if '/adapters/' in d]
-    
-    # Split adapters into two groups of roughly equal size
-    # If odd count, group 2 gets the extra directory
-    adapters_mid = len(adapters) // 2
-    adapters_group1 = adapters[:adapters_mid]
-    adapters_group2 = adapters[adapters_mid:]
-
-    # Generate pip update entries with note about timeout fix
-    content += "  # Split into multiple entries to prevent Dependabot timeout\n"
-    content += "  # See: https://github.com/orgs/community/discussions/179358\n\n"
-    
-    # Only generate entries for non-empty directory lists
-    if services:
-        content += generate_pip_update_entry("Core Services", services, "services")
-    if adapters_group1:
-        content += generate_pip_update_entry("Adapters Group 1", adapters_group1, "adapters")
-    if adapters_group2:
-        content += generate_pip_update_entry("Adapters Group 2", adapters_group2, "adapters")
 
     # Add npm monitoring for the React UI
     content += "  # Monitor npm dependencies in React UI\n"
@@ -167,10 +164,12 @@ def generate_dependabot_config(packages: list[tuple[str, str]]) -> str:
     content += "          - \"minor\"\n"
     content += "          - \"patch\"\n\n"
 
-    # Add Docker image monitoring for docker-compose
-    content += "  # Monitor Docker image updates in docker-compose\n"
+    # Add Docker image monitoring for docker-compose and Dockerfiles
+    content += "  # Monitor Docker image updates in docker-compose and Dockerfiles\n"
     content += "  - package-ecosystem: \"docker\"\n"
-    content += "    directory: \"/\"\n"
+    content += "    directories:\n"
+    for directory in dockerfile_dirs:
+        content += f"      - \"{directory}\"\n"
     content += "    schedule:\n"
     content += "      interval: \"weekly\"\n"
     content += "    open-pull-requests-limit: 5\n"
@@ -225,8 +224,15 @@ def main(output_path_arg=None):
     for directory, description in packages:
         print(f"  - {directory} ({description})")
 
+    # Find all directories with Dockerfiles
+    dockerfile_dirs = find_dockerfiles(repo_root)
+
+    print(f"\nFound {len(dockerfile_dirs)} directories with Dockerfiles:")
+    for directory in dockerfile_dirs:
+        print(f"  - {directory}")
+
     # Generate the config
-    config_content = generate_dependabot_config(packages)
+    config_content = generate_dependabot_config(packages, dockerfile_dirs)
 
     # Determine output path
     if output_path_arg:
@@ -240,10 +246,11 @@ def main(output_path_arg=None):
         f.write(config_content)
 
     print(f"\n✅ Successfully generated {output_path}")
-    print(f"   Total update entries: 6 (3 pip groups + 1 npm + 1 docker + 1 github-actions)")
+    print(f"   Total update entries: 4 (1 pip multi-directory + 1 npm + 1 docker + 1 github-actions)")
     print(f"   Python directories monitored: {len(packages)}")
-    print(f"\n💡 Using split multi-directory configuration to avoid Dependabot timeouts")
-    print(f"   Services and adapters are processed in separate groups to stay within time limits")
+    print(f"   Docker directories monitored: {len(dockerfile_dirs)}")
+    print(f"\n💡 Using multi-directory configuration to consolidate updates")
+    print(f"   This reduces PR noise by grouping updates across multiple directories")
 
 
 if __name__ == '__main__':
