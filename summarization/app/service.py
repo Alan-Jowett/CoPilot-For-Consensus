@@ -582,19 +582,18 @@ class SummarizationService:
         # Limit to citation_count
         for citation in citations[:self.citation_count]:
             chunk = chunk_map.get(citation.chunk_id)
-            if not chunk:
-                # Skip citations that reference missing chunks
-                continue
-
-            chunk_id = chunk.get("_id")
-            if not chunk_id:
-                continue
+            
+            # Always include the citation, even if chunk is missing
+            # If chunk exists, use its _id and text; otherwise use empty text
+            chunk_id = chunk.get("_id") if chunk else citation.chunk_id
+            text = chunk.get("text", "") if chunk else ""
 
             formatted.append({
                 "message_id": citation.message_id,
                 "chunk_id": chunk_id,
+                "_id": chunk_id,
                 "offset": citation.offset,
-                "text": chunk.get("text", ""),
+                "text": text,
             })
 
         return formatted
