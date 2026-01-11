@@ -130,7 +130,7 @@ resource openaiAccountRef 'Microsoft.CognitiveServices/accounts@2025-06-01' exis
 resource openaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   name: '${coreKeyVaultName}/azure-openai-api-key'
   properties: {
-    value: listKeys(openaiAccountRef.id, '2023-10-01-preview').key1
+    value: listKeys(openaiAccountRef.id, '2024-10-01').key1
     contentType: 'text/plain'
   }
   dependsOn: [
