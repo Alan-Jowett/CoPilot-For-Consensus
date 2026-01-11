@@ -221,19 +221,15 @@ jobs:
         pid_validate=$!
         docker compose run --rm vectorstore-validate &
         pid_vector=$!
-        docker compose run --rm ollama-validate &
-        pid_ollama=$!
 
         # Wait for all validators to complete
         failed=0
         wait $pid_validate || { echo "❌ db-validate failed"; failed=1; }
         wait $pid_vector || { echo "❌ vectorstore-validate failed"; failed=1; }
-        wait $pid_ollama || { echo "❌ ollama-validate failed"; failed=1; }
 
         # Show logs for debugging
         docker compose logs db-validate --tail=20 || true
         docker compose logs vectorstore-validate --tail=20 || true
-        docker compose logs ollama-validate --tail=20 || true
 
         if [ $failed -eq 1 ]; then
           echo "❌ One or more validators failed"

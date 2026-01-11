@@ -238,10 +238,6 @@ services:
         condition: service_healthy
       vectorstore-validate:
         condition: service_completed_successfully
-      ollama-validate:
-        condition: service_completed_successfully
-      ollama-model-loader:
-        condition: service_completed_successfully
       auth:
         condition: service_healthy
     healthcheck:
@@ -508,8 +504,6 @@ services:
         condition: service_completed_successfully
       auth:
         condition: service_healthy
-      ollama-model-loader:
-        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
