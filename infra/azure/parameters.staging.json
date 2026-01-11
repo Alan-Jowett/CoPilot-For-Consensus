@@ -12,7 +12,7 @@
       "value": "eastus"
     },
     "containerImageTag": {
-      "value": "latest"
+      "value": "azure"
     },
     "deployAzureOpenAI": {
       "value": true

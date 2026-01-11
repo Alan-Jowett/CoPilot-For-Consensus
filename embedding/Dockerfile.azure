@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+# Azure-optimized Dockerfile for embedding service
+# Excludes PyTorch and local models, uses Azure OpenAI Embeddings API
+FROM python:3.11-slim@sha256:aa9aac8eacc774817e2881238f52d983a5ea13d7f5a1dee479a1a1d466047951
+
+WORKDIR /app
+
+# Install shared adapters in dependency order using centralized script
+# Use BuildKit cache mount for pip cache to speed up rebuilds
+COPY adapters/ /app/adapters/
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python /app/adapters/scripts/install_adapters.py \
+    copilot_embedding \
+    copilot_config \
+    copilot_events \
+    copilot_storage \
+    copilot_vectorstore \
+    copilot_metrics \
+    copilot_reporting \
+    copilot_schema_validation \
+    copilot_logging \
+    copilot_secrets \
+    copilot_startup
+
+# Install Azure-specific vectorstore backend (Qdrant and Azure AI Search)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -e /app/adapters/copilot_vectorstore[qdrant,azure]
+
+# Install Azure OpenAI embedding backend only (excludes PyTorch and local models)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -e /app/adapters/copilot_embedding[openai]
+
+# Copy schema files for validation
+COPY docs/schemas /app/docs/schemas
+
+# Install service dependencies with cache mount
+COPY embedding/requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r requirements.txt
+
+# Copy service code (last to maximize cache reuse)
+COPY embedding/*.py ./
+COPY embedding/app/ ./app/
+
+CMD ["python", "main.py"]
