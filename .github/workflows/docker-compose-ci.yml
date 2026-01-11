@@ -142,11 +142,11 @@ jobs:
     - name: Start core infrastructure services in parallel
       run: |
         echo "Starting core infrastructure services in parallel..."
-        docker compose up -d documentdb messagebus vectorstore ollama monitoring pushgateway loki
+        docker compose up -d documentdb messagebus vectorstore monitoring pushgateway loki
         echo "Waiting for services to become healthy..."
 
         # Wait for each service with healthcheck to become healthy
-        for service in documentdb messagebus vectorstore ollama monitoring pushgateway; do
+        for service in documentdb messagebus vectorstore monitoring pushgateway; do
           echo "Waiting for $service..."
           timeout 60s bash -c "until docker compose ps $service --format '{{.Status}}' | grep -q '(healthy)'; do sleep 3; done" || {
             echo "❌ $service failed to become healthy"
