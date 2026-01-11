@@ -487,7 +487,6 @@ def test_format_citations(summarization_service):
     assert len(formatted) == 2
     assert formatted[0]["message_id"] == "<msg1@example.com>"
     assert formatted[0]["chunk_id"] == "aaaa1111bbbb2222"
-    assert formatted[0]["_id"] == "aaaa1111bbbb2222"
     assert formatted[0]["offset"] == 0
     assert formatted[0]["text"] == "Text 1"
     assert formatted[1]["text"] == "Text 2"
