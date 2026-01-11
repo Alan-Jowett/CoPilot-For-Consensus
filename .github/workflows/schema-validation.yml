@@ -129,8 +129,37 @@ jobs:
 
               # Get the old version from base branch
               if git show origin/${{ github.base_ref }}:"$schema" > /tmp/old_schema.json 2>/dev/null; then
-                # Run compatibility check
-                if ! python -m copilot_config check_compat --old /tmp/old_schema.json --new "$schema"; then
+                # Basic compatibility check (inline Python)
+                python - <<'PYTHON_COMPAT_CHECK'
+          import json
+          import sys
+
+          with open('/tmp/old_schema.json', 'r') as f:
+              old = json.load(f)
+          with open('$schema', 'r') as f:
+              new = json.load(f)
+
+          # Check for removed required fields (breaking change)
+          if 'required' in old and 'required' in new:
+              removed_required = set(old.get('required', [])) - set(new.get('required', []))
+              if removed_required:
+                  print(f"❌ Breaking change: removed required fields: {removed_required}")
+                  sys.exit(1)
+
+          # Check for removed enum values (breaking change for discriminants)
+          if 'properties' in old and 'discriminant' in old['properties']:
+              old_enum = set(old['properties']['discriminant'].get('enum', []))
+              if 'properties' in new and 'discriminant' in new['properties']:
+                  new_enum = set(new['properties']['discriminant'].get('enum', []))
+                  removed_enum = old_enum - new_enum
+                  if removed_enum:
+                      print(f"❌ Breaking change: removed discriminant values: {removed_enum}")
+                      sys.exit(1)
+
+          print("✓ No breaking changes detected")
+          PYTHON_COMPAT_CHECK
+
+                if [ $? -ne 0 ]; then
                   echo "❌ Compatibility check failed for $schema"
                   exit 1
                 fi
