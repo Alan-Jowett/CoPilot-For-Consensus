@@ -160,9 +160,9 @@ The Bicep template (`main.bicep`) automates the deployment of the entire Copilot
 - **Azure Service Bus** namespace (Standard or Premium tier)
 - **Azure OpenAI** service (if using `llmBackend: azure`)
 - **Container images** published to a GitHub Container Registry (GHCR) that your deployment can pull from. You can either:
-  - Use the existing images published by the repository owner at `ghcr.io/alan-jowett/copilot-for-consensus` (this is the default used by the ARM template).
-  - Publish your own images to your GHCR namespace using the [`publish-docker-images.yml`](../../.github/workflows/publish-docker-images.yml) workflow and set the `containerRegistryName` ARM template parameter to your registry.
-  - Allow your CI to publish images automatically by running the Docker Compose CI workflow ([`docker-compose-ci.yml`](../../.github/workflows/docker-compose-ci.yml)) to successful completion on the branch or tag you are deploying.
+  - **Recommended for Azure**: Use Azure-optimized images at `ghcr.io/alan-jowett/copilot-for-consensus/<service>:azure` (~70% smaller, see [Azure-Optimized Images Guide](../../docs/AZURE_OPTIMIZED_IMAGES.md))
+  - Use the standard images at `ghcr.io/alan-jowett/copilot-for-consensus/<service>:latest` (includes local development dependencies)
+  - Publish your own images to your GHCR namespace using the [`publish-docker-images-azure.yml`](../../.github/workflows/publish-docker-images-azure.yml) workflow and set the `containerImageTag` ARM template parameter to your tag.
 
 ### Network Requirements
 
@@ -261,12 +261,14 @@ The repository includes pre-configured parameter files for each environment that
     "projectName": { "value": "copilot" },
     "environment": { "value": "dev" },
     "location": { "value": "westus" },
-    "containerImageTag": { "value": "latest" },
+    "containerImageTag": { "value": "azure" },
     "deployAzureOpenAI": { "value": true },
     "azureOpenAIDeploymentCapacity": { "value": 10 }
   }
 }
 ```
+
+**Note**: The default `containerImageTag` is set to `"azure"` which uses Azure-optimized images (~70% smaller than standard images). To use standard images with local development features, set this to `"latest"`. See [Azure-Optimized Images Guide](../../docs/AZURE_OPTIMIZED_IMAGES.md) for details.
 
 **To disable Azure OpenAI and use local models** (saves cost):
 
