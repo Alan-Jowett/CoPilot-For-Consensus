@@ -3,7 +3,6 @@
 
 """Unit tests for forward progress (startup requeue) logic in orchestrator service."""
 
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest

@@ -166,11 +166,11 @@ class TestParsingForwardProgress:
         # Verify StartupRequeue was never instantiated
         mock_requeue_class.assert_not_called()
 
-    @patch('app.service.logger')
-    def test_requeue_continues_on_import_error(self, mock_logger, parsing_service, mock_subscriber):
-        """Test that service continues startup even if copilot_startup is unavailable."""
-        # We can't easily test ImportError in the actual code since it's handled internally
-        # This test verifies the service starts without issues
+    @patch('copilot_startup.StartupRequeue')
+    def test_requeue_continues_on_import_error(self, mock_requeue_class, parsing_service, mock_subscriber):
+        """Test that service continues startup if copilot_startup is unavailable."""
+        # Simulate ImportError when StartupRequeue is accessed
+        mock_requeue_class.side_effect = ImportError("Module not found")
 
         # Should not raise - service should continue startup
         parsing_service.start(enable_startup_requeue=True)

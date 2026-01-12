@@ -333,7 +333,7 @@ class TestSummarizationForwardProgress:
         assert call_kwargs['routing_key'] == 'summarization.requested'
 
     @patch('copilot_startup.StartupRequeue')
-    def test_requeue_idempotent_on_multiple_starts(self, mock_requeue_class, summarization_service):
+    def test_requeue_called_on_each_start(self, mock_requeue_class, summarization_service):
         """Test that calling start multiple times requeues each time."""
         mock_requeue_instance = Mock()
         mock_requeue_instance.requeue_incomplete = Mock(return_value=1)
