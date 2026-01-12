@@ -134,27 +134,27 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
     chunk_ids = ["abc123def4567890", "fedcba9876543210", "1234567890abcdef"]
     chunks = [
         create_valid_chunk(
-            message_doc_id="msg1doc_id_hex16",
+            message_doc_id="abc123def4567890",
             message_id="<msg1@example.com>",
-            thread_id="thread_id_hex_16",
+            thread_id="1111222233334444",
             chunk_index=0,
             text="This is chunk 1 text.",
             token_count=10,
             **{"_id": chunk_ids[0]}
         ),
         create_valid_chunk(
-            message_doc_id="msg1doc_id_hex16",
+            message_doc_id="abc123def4567890",
             message_id="<msg1@example.com>",
-            thread_id="thread_id_hex_16",
+            thread_id="1111222233334444",
             chunk_index=1,
             text="This is chunk 2 text.",
             token_count=10,
             **{"_id": chunk_ids[1]}
         ),
         create_valid_chunk(
-            message_doc_id="msg2doc_id_hex16",
+            message_doc_id="fedcba9876543210",
             message_id="<msg2@example.com>",
-            thread_id="thread_id_hex_16",
+            thread_id="1111222233334444",
             chunk_index=0,
             text="This is chunk 3 text.",
             token_count=10,
