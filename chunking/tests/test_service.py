@@ -19,9 +19,28 @@ _repo_root = Path(__file__).parent.parent.parent
 if str(_repo_root) not in sys.path:
     sys.path.insert(0, str(_repo_root))
 
-from tests.fixtures import create_valid_message  # noqa: E402
+try:
+    from tests.fixtures import create_valid_message  # noqa: E402
+except ModuleNotFoundError:
+    # Fallback for environments where a local 'tests' package (e.g., chunking/tests)
+    # shadows the repo-root tests package. Load fixtures directly from file path.
+    import importlib.util as _ilu  # noqa: E402
+    import sys as _sys  # noqa: E402
+    import types as _types  # noqa: E402
+    _fixtures_path = _repo_root / "tests" / "fixtures" / "__init__.py"
+    # Ensure a synthetic parent package exists for relative imports inside fixtures
+    _pkg_name = "root_tests"
+    if _pkg_name not in _sys.modules:
+        _pkg = _types.ModuleType(_pkg_name)
+        _pkg.__path__ = [str(_repo_root / "tests")]  # type: ignore[attr-defined]
+        _sys.modules[_pkg_name] = _pkg
+    _spec = _ilu.spec_from_file_location(f"{_pkg_name}.fixtures", _fixtures_path)
+    _fixtures = _ilu.module_from_spec(_spec)
+    assert _spec.loader is not None
+    _spec.loader.exec_module(_fixtures)
+    create_valid_message = _fixtures.create_valid_message
 
-from .test_helpers import assert_valid_document_schema
+from .test_helpers import assert_valid_document_schema, assert_valid_event_schema
 
 
 @pytest.fixture
