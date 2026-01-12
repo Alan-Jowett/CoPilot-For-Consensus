@@ -245,6 +245,11 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'AUTH_LOG_LEVEL'
               value: 'INFO'
             }
+            // Logger adapter
+            {
+              name: 'LOG_TYPE'
+              value: 'stdout'
+            }
             // Document Store adapter (Cosmos DB for user roles)
             {
               name: 'DOCUMENT_STORE_TYPE'
