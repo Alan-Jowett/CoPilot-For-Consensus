@@ -647,6 +647,26 @@ class TestGetJWKS:
 
         assert jwks == {"keys": []}
 
+    def test_get_jwks_with_invalid_public_key_type(self, tmp_path):
+        """Test get_jwks returns empty keys if public_key is not RSAPublicKey."""
+        private_key_path = tmp_path / "private.pem"
+        public_key_path = tmp_path / "public.pem"
+        JWTManager.generate_rsa_keys(private_key_path, public_key_path)
+
+        manager = JWTManager(
+            issuer="https://auth.example.com",
+            algorithm="RS256",
+            private_key_path=private_key_path,
+            public_key_path=public_key_path,
+        )
+
+        # Simulate invalid public key type (shouldn't happen in practice)
+        manager.public_key = "not-an-rsa-key"  # type: ignore[assignment]
+
+        jwks = manager.get_jwks()
+
+        assert jwks == {"keys": []}
+
 
 class TestGetPublicKeyPEM:
     """Tests for public key PEM export."""
@@ -678,6 +698,26 @@ class TestGetPublicKeyPEM:
             algorithm="HS256",
             secret_key="test-secret-key-at-least-32-chars-long",
         )
+
+        pem = manager.get_public_key_pem()
+
+        assert pem is None
+
+    def test_get_public_key_pem_with_invalid_public_key_type(self, tmp_path):
+        """Test get_public_key_pem returns None if public_key is not RSAPublicKey."""
+        private_key_path = tmp_path / "private.pem"
+        public_key_path = tmp_path / "public.pem"
+        JWTManager.generate_rsa_keys(private_key_path, public_key_path)
+
+        manager = JWTManager(
+            issuer="https://auth.example.com",
+            algorithm="RS256",
+            private_key_path=private_key_path,
+            public_key_path=public_key_path,
+        )
+
+        # Simulate invalid public key type (shouldn't happen in practice)
+        manager.public_key = "not-an-rsa-key"  # type: ignore[assignment]
 
         pem = manager.get_public_key_pem()
 
