@@ -4,9 +4,6 @@
 """Tests for load_driver_config module."""
 
 import json
-import os
-import tempfile
-from pathlib import Path
 
 import pytest
 from copilot_config.load_driver_config import (
