@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from copilot_config import DriverConfig
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -54,13 +55,16 @@ class TestCreateJWTSigner:
         """Test creating a local RSA signer."""
         private_path, public_path = rsa_key_files
         
-        signer = create_jwt_signer(
-            signer_type="local",
-            algorithm="RS256",
-            private_key_path=private_path,
-            public_key_path=public_path,
-            key_id="test-key"
+        config = DriverConfig(
+            driver_name="local",
+            config={
+                "algorithm": "RS256",
+                "key_id": "test-key",
+                "private_key_path": private_path,
+                "public_key_path": public_path
+            }
         )
+        signer = create_jwt_signer("local", config)
         
         assert isinstance(signer, LocalJWTSigner)
         assert signer.algorithm == "RS256"
@@ -68,12 +72,15 @@ class TestCreateJWTSigner:
 
     def test_create_local_hmac_signer(self):
         """Test creating a local HMAC signer."""
-        signer = create_jwt_signer(
-            signer_type="local",
-            algorithm="HS256",
-            secret_key="my-secret-key",
-            key_id="hmac-key"
+        config = DriverConfig(
+            driver_name="local",
+            config={
+                "algorithm": "HS256",
+                "key_id": "hmac-key",
+                "secret_key": "my-secret-key"
+            }
         )
+        signer = create_jwt_signer("local", config)
         
         assert isinstance(signer, LocalJWTSigner)
         assert signer.algorithm == "HS256"
@@ -89,51 +96,68 @@ class TestCreateJWTSigner:
             # raises JWTSignerError due to the missing dependency.
             pass
         
+        config = DriverConfig(
+            driver_name="keyvault",
+            config={
+                "algorithm": "RS256",
+                "key_id": "test-key",
+                "key_vault_url": "https://test.vault.azure.net/",
+                "key_name": "test-key"
+            }
+        )
         with pytest.raises(JWTSignerError, match="Azure SDK"):
-            create_jwt_signer(
-                signer_type="keyvault",
-                algorithm="RS256",
-                key_vault_url="https://test.vault.azure.net/",
-                key_name="test-key"
-            )
+            create_jwt_signer("keyvault", config)
 
     def test_unknown_signer_type_raises_error(self):
         """Test that unknown signer type raises error."""
-        with pytest.raises(JWTSignerError, match="Unknown signer type"):
-            create_jwt_signer(
-                signer_type="unknown",
-                algorithm="RS256"
-            )
+        config = DriverConfig(
+            driver_name="unknown",
+            config={"algorithm": "RS256"}
+        )
+        with pytest.raises(JWTSignerError, match="Unknown driver_name"):
+            create_jwt_signer("unknown", config)
 
     def test_local_rsa_missing_private_key_raises_error(self, rsa_key_files):
         """Test that missing private key parameter raises error."""
         _, public_path = rsa_key_files
         
+        config = DriverConfig(
+            driver_name="local",
+            config={
+                "algorithm": "RS256",
+                "key_id": "test-key",
+                "public_key_path": public_path
+            }
+        )
         with pytest.raises(JWTSignerError, match="requires private_key_path"):
-            create_jwt_signer(
-                signer_type="local",
-                algorithm="RS256",
-                public_key_path=public_path
-            )
+            create_jwt_signer("local", config)
 
     def test_local_rsa_missing_public_key_raises_error(self, rsa_key_files):
         """Test that missing public key parameter raises error."""
         private_path, _ = rsa_key_files
         
+        config = DriverConfig(
+            driver_name="local",
+            config={
+                "algorithm": "RS256",
+                "key_id": "test-key",
+                "private_key_path": private_path
+            }
+        )
         with pytest.raises(JWTSignerError, match="requires public_key_path"):
-            create_jwt_signer(
-                signer_type="local",
-                algorithm="RS256",
-                private_key_path=private_path
-            )
+            create_jwt_signer("local", config)
 
     def test_local_hmac_missing_secret_raises_error(self):
         """Test that missing secret key parameter raises error."""
+        config = DriverConfig(
+            driver_name="local",
+            config={
+                "algorithm": "HS256",
+                "key_id": "test-key"
+            }
+        )
         with pytest.raises(JWTSignerError, match="requires secret_key"):
-            create_jwt_signer(
-                signer_type="local",
-                algorithm="HS256"
-            )
+            create_jwt_signer("local", config)
 
     def test_keyvault_missing_url_raises_error(self):
         """Test that missing Key Vault URL raises error."""
@@ -142,12 +166,16 @@ class TestCreateJWTSigner:
         except ImportError:
             pytest.skip("Azure SDK not installed")
         
+        config = DriverConfig(
+            driver_name="keyvault",
+            config={
+                "algorithm": "RS256",
+                "key_id": "test-key",
+                "key_name": "test-key"
+            }
+        )
         with pytest.raises(JWTSignerError, match="requires key_vault_url"):
-            create_jwt_signer(
-                signer_type="keyvault",
-                algorithm="RS256",
-                key_name="test-key"
-            )
+            create_jwt_signer("keyvault", config)
 
     def test_keyvault_missing_key_name_raises_error(self):
         """Test that missing key name raises error."""
@@ -156,9 +184,13 @@ class TestCreateJWTSigner:
         except ImportError:
             pytest.skip("Azure SDK not installed")
         
+        config = DriverConfig(
+            driver_name="keyvault",
+            config={
+                "algorithm": "RS256",
+                "key_id": "test-key",
+                "key_vault_url": "https://test.vault.azure.net/"
+            }
+        )
         with pytest.raises(JWTSignerError, match="requires key_name"):
-            create_jwt_signer(
-                signer_type="keyvault",
-                algorithm="RS256",
-                key_vault_url="https://test.vault.azure.net/"
-            )
+            create_jwt_signer("keyvault", config)

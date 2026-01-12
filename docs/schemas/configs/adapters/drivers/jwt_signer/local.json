@@ -1,0 +1,45 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$comment": "SPDX-License-Identifier: MIT\nCopyright (c) 2025 Copilot-for-Consensus contributors",
+    "title": "Local JWT Signer driver settings",
+    "type": "object",
+    "properties": {
+        "algorithm": {
+            "type": "string",
+            "source": "env",
+            "env_var": "AUTH_JWT_ALGORITHM",
+            "default": "RS256",
+            "enum": ["RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "HS256", "HS384", "HS512"],
+            "description": "JWT signing algorithm"
+        },
+        "key_id": {
+            "type": "string",
+            "source": "env",
+            "env_var": "AUTH_JWT_KEY_ID",
+            "default": "default",
+            "description": "Key identifier for key rotation support"
+        },
+        "private_key": {
+            "type": "string",
+            "source": "secret",
+            "secret_name": "jwt_private_key",
+            "required": false,
+            "description": "RSA/EC private key content (PEM format, required for RSA/EC algorithms)"
+        },
+        "public_key": {
+            "type": "string",
+            "source": "secret",
+            "secret_name": "jwt_public_key",
+            "required": false,
+            "description": "RSA/EC public key content (PEM format, required for RSA/EC algorithms)"
+        },
+        "secret_key": {
+            "type": "string",
+            "source": "secret",
+            "secret_name": "jwt_secret_key",
+            "required": false,
+            "description": "HMAC secret key (required for HS256/HS384/HS512 algorithms)"
+        }
+    },
+    "required": ["algorithm", "key_id"]
+}
