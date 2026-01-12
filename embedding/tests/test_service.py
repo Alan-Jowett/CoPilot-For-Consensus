@@ -18,7 +18,23 @@ _repo_root = Path(__file__).parent.parent.parent
 if str(_repo_root) not in sys.path:
     sys.path.insert(0, str(_repo_root))
 
-from tests.fixtures import create_valid_chunk  # noqa: E402
+try:
+    from tests.fixtures import create_valid_chunk  # noqa: E402
+except ModuleNotFoundError:
+    import importlib.util as _ilu  # noqa: E402
+    import sys as _sys  # noqa: E402
+    import types as _types  # noqa: E402
+    _fixtures_path = _repo_root / "tests" / "fixtures" / "__init__.py"
+    _pkg_name = "root_tests"
+    if _pkg_name not in _sys.modules:
+        _pkg = _types.ModuleType(_pkg_name)
+        _pkg.__path__ = [str(_repo_root / "tests")]  # type: ignore[attr-defined]
+        _sys.modules[_pkg_name] = _pkg
+    _spec = _ilu.spec_from_file_location(f"{_pkg_name}.fixtures", _fixtures_path)
+    _fixtures = _ilu.module_from_spec(_spec)
+    assert _spec.loader is not None
+    _spec.loader.exec_module(_fixtures)
+    create_valid_chunk = _fixtures.create_valid_chunk
 
 from .test_helpers import assert_valid_document_schema
 
