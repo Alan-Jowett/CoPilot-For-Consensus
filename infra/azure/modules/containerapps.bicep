@@ -304,6 +304,14 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'JWT_SIGNER_TYPE'
               value: 'keyvault'
             }
+            {
+              name: 'AZURE_KEY_VAULT_URI'
+              value: '${keyVaultBaseUrl}'
+            }
+            {
+              name: 'JWT_KEY_NAME'
+              value: 'jwt-auth-key'
+            }
             // Auth service settings
             {
               name: 'AUTH_AUDIENCES'
