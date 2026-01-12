@@ -284,25 +284,19 @@ class TestAzureMonitorLoggerConfigurationPaths:
         
         monkeypatch.delenv("AZURE_MONITOR_CONNECTION_STRING", raising=False)
         
-        # Mock the import to succeed but AzureMonitorLogExporter to raise ValueError
-        mock_exporter_class = MagicMock(side_effect=ValueError("Invalid connection string"))
-        
-        with patch.dict('sys.modules', {
-            'azure.monitor.opentelemetry.exporter': MagicMock(
-                AzureMonitorLogExporter=mock_exporter_class,
-                AzureMonitorTraceExporter=MagicMock()
-            ),
-            'opentelemetry': MagicMock(),
-            'opentelemetry._logs': MagicMock(),
-            'opentelemetry.sdk._logs': MagicMock(),
-            'opentelemetry.sdk._logs.export': MagicMock(),
-            'opentelemetry.sdk.trace': MagicMock(),
-            'opentelemetry.sdk.trace.export': MagicMock(),
-        }):
-            logger = AzureMonitorLogger(level="INFO", instrumentation_key="bad-key")
-            
-            # Should fallback due to ValueError
-            assert logger.is_fallback_mode()
+        # Patch the AzureMonitor exporters so that the log exporter raises ValueError
+        with patch(
+            "azure.monitor.opentelemetry.exporter.AzureMonitorLogExporter",
+            side_effect=ValueError("Invalid connection string"),
+        ):
+            with patch(
+                "azure.monitor.opentelemetry.exporter.AzureMonitorTraceExporter",
+                return_value=MagicMock(),
+            ):
+                logger = AzureMonitorLogger(level="INFO", instrumentation_key="bad-key")
+                
+                # Should fallback due to ValueError
+                assert logger.is_fallback_mode()
 
     def test_configure_azure_monitor_generic_exception(self, monkeypatch):
         """Test fallback when Azure Monitor configuration raises generic Exception."""
@@ -310,25 +304,19 @@ class TestAzureMonitorLoggerConfigurationPaths:
         
         monkeypatch.delenv("AZURE_MONITOR_CONNECTION_STRING", raising=False)
         
-        # Mock the import to succeed but raise an unexpected exception
-        mock_exporter_class = MagicMock(side_effect=RuntimeError("Unexpected error"))
-        
-        with patch.dict('sys.modules', {
-            'azure.monitor.opentelemetry.exporter': MagicMock(
-                AzureMonitorLogExporter=mock_exporter_class,
-                AzureMonitorTraceExporter=MagicMock()
-            ),
-            'opentelemetry': MagicMock(),
-            'opentelemetry._logs': MagicMock(),
-            'opentelemetry.sdk._logs': MagicMock(),
-            'opentelemetry.sdk._logs.export': MagicMock(),
-            'opentelemetry.sdk.trace': MagicMock(),
-            'opentelemetry.sdk.trace.export': MagicMock(),
-        }):
-            logger = AzureMonitorLogger(level="INFO", instrumentation_key="test-key")
-            
-            # Should fallback due to generic exception
-            assert logger.is_fallback_mode()
+        # Patch the AzureMonitor exporters so that the log exporter raises a generic RuntimeError
+        with patch(
+            "azure.monitor.opentelemetry.exporter.AzureMonitorLogExporter",
+            side_effect=RuntimeError("Unexpected error"),
+        ):
+            with patch(
+                "azure.monitor.opentelemetry.exporter.AzureMonitorTraceExporter",
+                return_value=MagicMock(),
+            ):
+                logger = AzureMonitorLogger(level="INFO", instrumentation_key="test-key")
+                
+                # Should fallback due to generic exception
+                assert logger.is_fallback_mode()
 
     def test_configure_azure_monitor_success(self, monkeypatch):
         """Test successful Azure Monitor configuration with mocked exporters."""
@@ -375,24 +363,31 @@ class TestAzureMonitorLoggerConfigurationPaths:
         """Test Azure Monitor configuration with existing real LoggerProvider."""
         from unittest.mock import patch, MagicMock
         from opentelemetry.sdk._logs import LoggerProvider
-        from opentelemetry._logs import set_logger_provider
+        from opentelemetry._logs import set_logger_provider, get_logger_provider
         
         monkeypatch.delenv("AZURE_MONITOR_CONNECTION_STRING", raising=False)
         
-        # Set up an existing logger provider
-        existing_provider = LoggerProvider()
-        set_logger_provider(existing_provider)
+        # Capture original provider for cleanup
+        original_provider = get_logger_provider()
         
-        # Create mock exporters that don't actually connect to Azure
-        mock_exporter = MagicMock()
-        mock_trace_exporter = MagicMock()
-        
-        with patch('azure.monitor.opentelemetry.exporter.AzureMonitorLogExporter', return_value=mock_exporter):
-            with patch('azure.monitor.opentelemetry.exporter.AzureMonitorTraceExporter', return_value=mock_trace_exporter):
-                logger = AzureMonitorLogger(level="INFO", instrumentation_key="valid-key")
-                
-                # Should use existing provider
-                assert not logger.is_fallback_mode()
+        try:
+            # Set up an existing logger provider
+            existing_provider = LoggerProvider()
+            set_logger_provider(existing_provider)
+            
+            # Create mock exporters that don't actually connect to Azure
+            mock_exporter = MagicMock()
+            mock_trace_exporter = MagicMock()
+            
+            with patch('azure.monitor.opentelemetry.exporter.AzureMonitorLogExporter', return_value=mock_exporter):
+                with patch('azure.monitor.opentelemetry.exporter.AzureMonitorTraceExporter', return_value=mock_trace_exporter):
+                    logger = AzureMonitorLogger(level="INFO", instrumentation_key="valid-key")
+                    
+                    # Should use existing provider
+                    assert not logger.is_fallback_mode()
+        finally:
+            # Restore original provider to avoid affecting other tests
+            set_logger_provider(original_provider)
 
     def test_configure_azure_monitor_trace_exporter_exception(self, monkeypatch):
         """Test Azure Monitor configuration when trace exporter fails."""
@@ -499,14 +494,16 @@ class TestAzureMonitorLoggerConfigurationPaths:
                 # Should create new console handler
                 assert not logger.is_fallback_mode()
                 assert logger.console_log is True
-                # Check that console handler was added (StreamHandler but not LoggingHandler)
+                # Check that console handler was added by counting handlers
+                # Should have LoggingHandler (Azure) + StreamHandler (console)
                 from opentelemetry.sdk._logs import LoggingHandler
                 import logging
-                has_console = any(
-                    isinstance(h, logging.StreamHandler) and not isinstance(h, LoggingHandler)
-                    for h in logger._stdlib_logger.handlers
-                )
-                assert has_console
+                stream_handlers = [
+                    h for h in logger._stdlib_logger.handlers
+                    if isinstance(h, logging.StreamHandler) and not isinstance(h, LoggingHandler)
+                ]
+                # Verify at least one console handler was added
+                assert len(stream_handlers) >= 1
 
 
 class TestAzureMonitorLoggerShutdown:
@@ -560,8 +557,8 @@ class TestAzureMonitorLoggerShutdown:
         mock_provider.shutdown = MagicMock(side_effect=RuntimeError("Shutdown failed"))
         logger._logger_provider = mock_provider
         
-        # Mock logging.getLogger to also fail
-        with patch('logging.getLogger') as mock_get_logger:
+        # Mock logging.getLogger in the correct namespace to also fail
+        with patch('copilot_logging.azure_monitor_logger.logging.getLogger') as mock_get_logger:
             mock_error = MagicMock(side_effect=Exception("Logging failed"))
             mock_get_logger.return_value.error = mock_error
             
