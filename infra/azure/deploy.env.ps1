@@ -99,7 +99,7 @@ function Test-CoreParametersPopulated {
     # Be specific to avoid false positives (e.g., "contentVersion" in schema, version hashes in URIs)
     if ($content -match "REPLACE-WITH-CORE-DEPLOYMENT-OUTPUT" -or 
         $content -match "SUBSCRIPTION-ID" -or 
-        $content -match '"value": "CORE-KV-NAME"' -or 
+        $content -match "CORE-KV-NAME" -or 
         $content -match '/secrets/[^/]+/VERSION"') {
         Write-Error "================================================"
         Write-Error "DEPLOYMENT BLOCKED: Core parameters not configured!"

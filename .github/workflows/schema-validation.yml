@@ -147,6 +147,10 @@ jobs:
               if removed_required:
                   print(f"❌ Breaking change: removed required fields: {removed_required}")
                   sys.exit(1)
+              added_required = set(new.get('required', [])) - set(old.get('required', []))
+              if added_required:
+                  print(f"❌ Breaking change: added required fields: {added_required}")
+                  sys.exit(1)
 
           # Check for removed enum values (breaking change for discriminants)
           if 'properties' in old and 'discriminant' in old['properties']:
@@ -156,6 +160,16 @@ jobs:
                   removed_enum = old_enum - new_enum
                   if removed_enum:
                       print(f"❌ Breaking change: removed discriminant values: {removed_enum}")
+                      sys.exit(1)
+
+          # Check for type changes in common properties
+          if 'properties' in old and 'properties' in new:
+              common_props = set(old['properties'].keys()) & set(new['properties'].keys())
+              for prop in common_props:
+                  old_type = old['properties'][prop].get('type')
+                  new_type = new['properties'][prop].get('type')
+                  if old_type and new_type and old_type != new_type:
+                      print(f"❌ Breaking change: property '{prop}' type changed from {old_type} to {new_type}")
                       sys.exit(1)
 
           print("✓ No breaking changes detected")
