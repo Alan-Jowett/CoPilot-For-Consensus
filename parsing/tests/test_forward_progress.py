@@ -87,7 +87,7 @@ class TestParsingForwardProgress:
         # Verify requeue_incomplete was called with correct parameters
         mock_requeue_instance.requeue_incomplete.assert_called_once()
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
-        
+
         assert call_kwargs['collection'] == 'archives'
         assert call_kwargs['query'] == {"status": {"$in": ["pending", "processing"]}}
         assert call_kwargs['event_type'] == 'ArchiveIngested'

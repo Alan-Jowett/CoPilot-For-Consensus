@@ -87,10 +87,10 @@ class TestChunkingForwardProgress:
         # Verify aggregation was called with correct pipeline
         mock_document_store.aggregate_documents.assert_called_once()
         call_kwargs = mock_document_store.aggregate_documents.call_args[1]
-        
+
         assert call_kwargs['collection'] == 'messages'
         pipeline = call_kwargs['pipeline']
-        
+
         # Verify pipeline structure
         assert len(pipeline) == 4
         assert pipeline[0]['$match'] == {"_id": {"$exists": True}}
@@ -125,19 +125,19 @@ class TestChunkingForwardProgress:
 
         # Verify grouping correctness
         calls = mock_requeue_instance.publish_event.call_args_list
-        
+
         # Check that we have the right number of messages per archive
         event_data_list = [call[1]['event_data'] for call in calls]
-        
+
         # Find events for each archive
         archive_1_events = [ed for ed in event_data_list if ed['archive_id'] == 'archive-1']
         archive_2_events = [ed for ed in event_data_list if ed['archive_id'] == 'archive-2']
         archive_3_events = [ed for ed in event_data_list if ed['archive_id'] == 'archive-3']
-        
+
         assert len(archive_1_events) == 1
         assert len(archive_2_events) == 1
         assert len(archive_3_events) == 1
-        
+
         assert len(archive_1_events[0]['message_doc_ids']) == 2
         assert len(archive_2_events[0]['message_doc_ids']) == 2
         assert len(archive_3_events[0]['message_doc_ids']) == 1
@@ -159,10 +159,10 @@ class TestChunkingForwardProgress:
         # Verify publish_event was called with correct parameters
         mock_requeue_instance.publish_event.assert_called_once()
         call_kwargs = mock_requeue_instance.publish_event.call_args[1]
-        
+
         assert call_kwargs['event_type'] == 'JSONParsed'
         assert call_kwargs['routing_key'] == 'json.parsed'
-        
+
         event_data = call_kwargs['event_data']
         assert event_data['archive_id'] == 'archive-1'
         assert event_data['message_doc_ids'] == ['msg-001', 'msg-002']
@@ -212,7 +212,7 @@ class TestChunkingForwardProgress:
 
         # Verify aggregation was never called
         mock_document_store.aggregate_documents.assert_not_called()
-        
+
         # Verify StartupRequeue was never instantiated
         mock_requeue_class.assert_not_called()
 
@@ -223,7 +223,7 @@ class TestChunkingForwardProgress:
         mock_document_store.aggregate_documents.return_value = [
             {"_id": "msg-001", "archive_id": "archive-1"}
         ]
-        
+
         # Simulate ImportError when StartupRequeue is imported
         mock_requeue_class.side_effect = ImportError("Module not found")
 

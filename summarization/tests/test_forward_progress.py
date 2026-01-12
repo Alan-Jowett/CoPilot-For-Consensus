@@ -97,7 +97,7 @@ class TestSummarizationForwardProgress:
         # Verify requeue_incomplete was called with correct parameters
         mock_requeue_instance.requeue_incomplete.assert_called_once()
         call_kwargs = mock_requeue_instance.requeue_incomplete.call_args[1]
-        
+
         assert call_kwargs['collection'] == 'threads'
         assert call_kwargs['query'] == {"summary_id": None}
         assert call_kwargs['event_type'] == 'SummarizationRequested'
@@ -325,7 +325,7 @@ class TestSummarizationForwardProgress:
 
         # Verify requeue happened first
         mock_requeue_instance.requeue_incomplete.assert_called_once()
-        
+
         # Verify subscription happened after
         mock_subscriber.subscribe.assert_called_once()
         call_kwargs = mock_subscriber.subscribe.call_args[1]

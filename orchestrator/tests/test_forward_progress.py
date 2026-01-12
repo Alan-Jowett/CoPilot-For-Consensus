@@ -46,10 +46,10 @@ def temp_prompt_files(tmp_path):
     """Create temporary prompt files for testing."""
     system_prompt = tmp_path / "system.txt"
     system_prompt.write_text("You are a helpful assistant.")
-    
+
     user_prompt = tmp_path / "user.txt"
     user_prompt.write_text("Summarize the following: {email_chunks}")
-    
+
     return str(system_prompt), str(user_prompt)
 
 
@@ -78,7 +78,7 @@ class TestOrchestratorForwardProgress:
             {"thread_id": "thread-001", "summary_id": None, "archive_id": "archive-1"},
             {"thread_id": "thread-002", "summary_id": None, "archive_id": "archive-1"},
         ]
-        
+
         # Setup chunks with embeddings for these threads
         chunks_with_embeddings = [
             {"thread_id": "thread-001", "embedding_generated": True, "_id": "chunk-001"},
@@ -86,7 +86,7 @@ class TestOrchestratorForwardProgress:
             {"thread_id": "thread-002", "embedding_generated": True, "_id": "chunk-003"},
             {"thread_id": "thread-002", "embedding_generated": True, "_id": "chunk-004"},
         ]
-        
+
         # Mock query responses
         def query_side_effect(collection, filter_dict, limit=None):
             if collection == "threads":
@@ -94,7 +94,7 @@ class TestOrchestratorForwardProgress:
             elif collection == "chunks":
                 return chunks_with_embeddings
             return []
-        
+
         mock_document_store.query_documents.side_effect = query_side_effect
 
         # Setup mock requeue instance
@@ -124,7 +124,7 @@ class TestOrchestratorForwardProgress:
             {"thread_id": "thread-001", "summary_id": None, "archive_id": "archive-1"},
             {"thread_id": "thread-002", "summary_id": None, "archive_id": "archive-1"},
         ]
-        
+
         # thread-001 has all embeddings, thread-002 does not
         chunks = [
             {"thread_id": "thread-001", "embedding_generated": True, "_id": "chunk-001"},
@@ -132,14 +132,14 @@ class TestOrchestratorForwardProgress:
             {"thread_id": "thread-002", "embedding_generated": True, "_id": "chunk-003"},
             {"thread_id": "thread-002", "embedding_generated": False, "_id": "chunk-004"},  # Missing embedding
         ]
-        
+
         def query_side_effect(collection, filter_dict, limit=None):
             if collection == "threads":
                 return threads_without_summaries
             elif collection == "chunks":
                 return chunks
             return []
-        
+
         mock_document_store.query_documents.side_effect = query_side_effect
 
         mock_requeue_instance = Mock()
@@ -159,19 +159,19 @@ class TestOrchestratorForwardProgress:
             {"thread_id": "thread-001", "summary_id": None, "archive_id": "archive-1"},
             {"thread_id": "thread-002", "summary_id": None, "archive_id": "archive-1"},
         ]
-        
+
         # Only thread-001 has chunks
         chunks = [
             {"thread_id": "thread-001", "embedding_generated": True, "_id": "chunk-001"},
         ]
-        
+
         def query_side_effect(collection, filter_dict, limit=None):
             if collection == "threads":
                 return threads_without_summaries
             elif collection == "chunks":
                 return chunks
             return []
-        
+
         mock_document_store.query_documents.side_effect = query_side_effect
 
         mock_requeue_instance = Mock()
@@ -193,14 +193,14 @@ class TestOrchestratorForwardProgress:
         chunks = [
             {"thread_id": "thread-001", "embedding_generated": True, "_id": "chunk-001"},
         ]
-        
+
         def query_side_effect(collection, filter_dict, limit=None):
             if collection == "threads":
                 return threads
             elif collection == "chunks":
                 return chunks
             return []
-        
+
         mock_document_store.query_documents.side_effect = query_side_effect
 
         mock_requeue_instance = Mock()
@@ -211,10 +211,10 @@ class TestOrchestratorForwardProgress:
         # Verify event format
         mock_requeue_instance.publish_event.assert_called_once()
         call_kwargs = mock_requeue_instance.publish_event.call_args[1]
-        
+
         assert call_kwargs['event_type'] == 'SummarizationRequested'
         assert call_kwargs['routing_key'] == 'summarization.requested'
-        
+
         event_data = call_kwargs['event_data']
         assert event_data['thread_ids'] == ['thread-001']
         assert event_data['archive_id'] == 'archive-1'
@@ -285,14 +285,14 @@ class TestOrchestratorForwardProgress:
         chunks = [
             {"thread_id": "thread-001", "embedding_generated": True, "_id": "chunk-001"},
         ]
-        
+
         def query_side_effect(collection, filter_dict, limit=None):
             if collection == "threads":
                 return threads
             elif collection == "chunks":
                 return chunks
             return []
-        
+
         mock_document_store.query_documents.side_effect = query_side_effect
 
         mock_requeue_instance = Mock()
@@ -316,14 +316,14 @@ class TestOrchestratorForwardProgress:
             {"thread_id": f"thread-{i:03d}", "embedding_generated": True, "_id": f"chunk-{i:03d}"}
             for i in range(10)
         ]
-        
+
         def query_side_effect(collection, filter_dict, limit=None):
             if collection == "threads":
                 return threads
             elif collection == "chunks":
                 return chunks
             return []
-        
+
         mock_document_store.query_documents.side_effect = query_side_effect
 
         mock_requeue_instance = Mock()
@@ -335,7 +335,7 @@ class TestOrchestratorForwardProgress:
         calls = mock_document_store.query_documents.call_args_list
         chunk_query_calls = [c for c in calls if c[1]['collection'] == 'chunks']
         assert len(chunk_query_calls) == 1
-        
+
         # Verify all thread IDs were included
         chunk_filter = chunk_query_calls[0][1]['filter_dict']
         assert len(chunk_filter['thread_id']['$in']) == 10
@@ -363,14 +363,14 @@ class TestOrchestratorForwardProgress:
             {"thread_id": "thread-001", "embedding_generated": True, "_id": "chunk-001"},
             {"thread_id": "thread-002", "embedding_generated": True, "_id": "chunk-002"},
         ]
-        
+
         def query_side_effect(collection, filter_dict, limit=None):
             if collection == "threads":
                 return threads
             elif collection == "chunks":
                 return chunks
             return []
-        
+
         mock_document_store.query_documents.side_effect = query_side_effect
 
         mock_requeue_instance = Mock()
@@ -398,14 +398,14 @@ class TestOrchestratorForwardProgress:
             {"thread_id": "thread-002", "embedding_generated": True, "_id": "chunk-002"},
             {"thread_id": "thread-003", "embedding_generated": True, "_id": "chunk-003"},
         ]
-        
+
         def query_side_effect(collection, filter_dict, limit=None):
             if collection == "threads":
                 return threads
             elif collection == "chunks":
                 return chunks
             return []
-        
+
         mock_document_store.query_documents.side_effect = query_side_effect
 
         mock_requeue_instance = Mock()
