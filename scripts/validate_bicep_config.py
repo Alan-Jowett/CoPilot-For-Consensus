@@ -128,11 +128,32 @@ def load_schema(service_name: str) -> dict:
     if not schema_path.exists():
         raise FileNotFoundError(f"Schema not found: {schema_path}")
     
-    with open(schema_path, 'r') as f:
+    with open(schema_path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
 
-def validate_config(env_vars: dict, schema: dict) -> list:
+def resolve_ref(ref_path: str, base_path: Path) -> dict:
+    """
+    Resolve a $ref pointer and load the referenced schema.
+    
+    Args:
+        ref_path: The $ref path (e.g., "../adapters/metrics.json")
+        base_path: Base path to resolve relative references from
+    
+    Returns:
+        The loaded schema dict
+    """
+    # Resolve relative path from base
+    resolved_path = (base_path / ref_path).resolve()
+    
+    if not resolved_path.exists():
+        raise FileNotFoundError(f"Referenced schema not found: {resolved_path} (from {ref_path})")
+    
+    with open(resolved_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+
+def validate_config(env_vars: dict, schema: dict, service_name: str) -> list:
     """
     Validate environment variables against schema.
     
@@ -143,68 +164,66 @@ def validate_config(env_vars: dict, schema: dict) -> list:
     # Get service settings from schema
     service_settings = schema.get("service_settings", {})
     
-    # Validate each adapter configuration
-    for adapter_name, adapter_config in service_settings.items():
-        if not isinstance(adapter_config, dict):
+    # Validate service settings (old validation logic - kept for completeness)
+    for setting_name, setting_config in service_settings.items():
+        if not isinstance(setting_config, dict):
             continue
         
-        # Get discriminant info
-        discriminant = adapter_config.get("discriminant")
-        if not discriminant:
-            continue
-        
-        discriminant_env_var = discriminant.get("env_var")
-        enum_values = discriminant.get("enum", [])
-        
-        if not discriminant_env_var:
-            continue
-        
-        # Check discriminant env var exists and has valid value
-        if discriminant_env_var not in env_vars:
-            issues.append(f"Missing discriminant environment variable: {discriminant_env_var} (required for adapter '{adapter_name}')")
-        elif env_vars[discriminant_env_var] is not None:
-            value = env_vars[discriminant_env_var]
-            if value not in enum_values:
-                issues.append(f"Invalid discriminant value for {discriminant_env_var}: '{value}' not in {enum_values}")
-        
-        # Get properties for this adapter
-        properties = adapter_config.get("properties", {})
-        
-        # Check required properties
-        required = adapter_config.get("required", [])
-        for field_name in required:
-            if field_name not in properties:
-                continue
+        # Get discriminant info (if any)
+        discriminant = setting_config.get("discriminant")
+        if discriminant:
+            discriminant_env_var = discriminant.get("env_var")
+            enum_values = discriminant.get("enum", [])
             
-            prop = properties[field_name]
-            env_var = prop.get("env_var")
-            
-            if env_var:
-                if env_var not in env_vars:
-                    issues.append(f"Missing required field: {env_var} (required by adapter '{adapter_name}', field '{field_name}')")
-                elif env_vars[env_var] is None:
-                    issues.append(f"Required field has conditional value: {env_var} (adapter '{adapter_name}', field '{field_name}')")
-        
-        # Check optional properties and validate their env vars exist
-        for field_name, prop in properties.items():
-            if field_name in required:
-                continue
-            
-            env_var = prop.get("env_var")
+            if discriminant_env_var:
+                # Check discriminant env var exists and has valid value
+                if discriminant_env_var not in env_vars:
+                    issues.append(f"Missing discriminant environment variable: {discriminant_env_var} (required for setting '{setting_name}')")
+                elif env_vars[discriminant_env_var] is not None:
+                    value = env_vars[discriminant_env_var]
+                    if value not in enum_values:
+                        issues.append(f"Invalid discriminant value for {discriminant_env_var}: '{value}' not in {enum_values}")
     
-    # Check for env vars that don't map to any schema field (might be obsolete or typos)
-    # This is a warning, not an error
-    schema_env_vars = set()
-    for adapter_name, adapter_config in service_settings.items():
-        if isinstance(adapter_config, dict):
-            disc = adapter_config.get("discriminant", {})
-            if disc.get("env_var"):
-                schema_env_vars.add(disc.get("env_var"))
+    # Validate adapter discriminants by resolving $ref pointers
+    adapters = schema.get("adapters", {})
+    schema_base_path = Path(__file__).parent.parent / "docs" / "schemas" / "configs" / "services"
+    
+    for adapter_name, adapter_ref in adapters.items():
+        if not isinstance(adapter_ref, dict) or "$ref" not in adapter_ref:
+            continue
+        
+        try:
+            # Resolve and load the adapter schema
+            adapter_schema = resolve_ref(adapter_ref["$ref"], schema_base_path)
             
-            props = adapter_config.get("properties", {})
-            for prop in props.values():
-                if isinstance(prop, dict) and prop.get("env_var"):
-                    schema_env_vars.add(prop.get("env_var"))
+            # Check for discriminant in the adapter schema
+            discriminant = adapter_schema.get("properties", {}).get("discriminant")
+            if not discriminant:
+                continue
+            
+            discriminant_env_var = discriminant.get("env_var")
+            enum_values = discriminant.get("enum", [])
+            required = discriminant.get("required", False)
+            
+            if not discriminant_env_var:
+                continue
+            
+            # Check if the discriminant env var exists
+            if discriminant_env_var not in env_vars:
+                if required:
+                    issues.append(f"Missing REQUIRED adapter discriminant: {discriminant_env_var} (adapter '{adapter_name}')")
+                else:
+                    issues.append(f"Missing adapter discriminant: {discriminant_env_var} (adapter '{adapter_name}')")
+            elif env_vars[discriminant_env_var] is not None and enum_values:
+                # Validate the value if it's not conditional
+                value = env_vars[discriminant_env_var]
+                if value not in enum_values:
+                    issues.append(f"Invalid discriminant value for {discriminant_env_var}: '{value}' not in {enum_values} (adapter '{adapter_name}')")
+        
+        except FileNotFoundError as e:
+            issues.append(f"Could not resolve adapter schema for '{adapter_name}': {e}")
+        except Exception as e:
+            issues.append(f"Error validating adapter '{adapter_name}': {e}")
     
     return issues
 
@@ -239,7 +258,7 @@ def main():
         
         # Validate
         print(f"✓ Validating configuration against schema...")
-        issues = validate_config(env_vars, schema)
+        issues = validate_config(env_vars, schema, service_name)
         
         if issues:
             print(f"\n❌ Configuration validation failed ({len(issues)} issues):\n")

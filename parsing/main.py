@@ -293,7 +293,12 @@ def main():
         log.info(f"Starting FastAPI server on port {config.http_port}")
 
         # Configure Uvicorn with structured JSON logging
-        log_config = create_uvicorn_log_config(service_name="parsing", log_level=config.log_level)
+        log_level = "INFO"
+        for adapter in config.adapters:
+            if adapter.adapter_type == "logger":
+                log_level = adapter.driver_config.get("level", "INFO")
+                break
+        log_config = create_uvicorn_log_config(service_name="parsing", log_level=log_level)
         uvicorn.run(app, host=config.http_host, port=config.http_port, log_config=log_config, access_log=False)
 
     except KeyboardInterrupt:

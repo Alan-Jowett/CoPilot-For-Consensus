@@ -916,11 +916,18 @@ if __name__ == "__main__":
     # Load configuration
     config = load_auth_config()
 
+    # Get log level from logger adapter config
+    log_level = "INFO"
+    for adapter in config.adapters:
+        if adapter.adapter_type == "logger":
+            log_level = adapter.driver_config.get("level", "INFO")
+            break
+
     # Run with uvicorn
     uvicorn.run(
         "main:app",
         host=config.host,
         port=config.port,
-        log_config=create_uvicorn_log_config("auth", config.log_level),
+        log_config=create_uvicorn_log_config("auth", log_level),
         access_log=True,
     )

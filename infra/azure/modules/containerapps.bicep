@@ -504,7 +504,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             // Metrics adapter (Azure Monitor)
             {
-              name: 'REPORTING_METRICS_TYPE'
+              name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
             {
@@ -514,6 +514,11 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
+            // Error reporter adapter
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
             }
             // Secret Provider adapter (Azure Key Vault)
             {
@@ -546,7 +551,7 @@ resource reportingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'copilot-for-consensus'
             }
             {
-              name: 'REPORTING_LOG_TYPE'
+              name: 'LOG_TYPE'
               value: 'stdout'
             }
             {
@@ -660,7 +665,7 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             // Metrics adapter (Azure Monitor)
             {
-              name: 'INGESTION_METRICS_TYPE'
+              name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
             {
@@ -670,6 +675,16 @@ resource ingestionApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
+            // Error reporter adapter
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
+            }
+            // Logger adapter
+            {
+              name: 'LOG_TYPE'
+              value: 'stdout'
             }
             // Secret Provider adapter (Azure Key Vault)
             {
@@ -846,7 +861,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             // Metrics adapter (Azure Monitor)
             {
-              name: 'PARSING_METRICS_TYPE'
+              name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
             {
@@ -856,6 +871,11 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
+            // Error reporter adapter
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
             }
             // Secret Provider adapter (Azure Key Vault)
             {
@@ -888,7 +908,7 @@ resource parsingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'copilot-for-consensus'
             }
             {
-              name: 'PARSING_LOG_TYPE'
+              name: 'LOG_TYPE'
               value: 'stdout'
             }
             {
@@ -990,7 +1010,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             // Metrics adapter (Azure Monitor)
             {
-              name: 'CHUNK_METRICS_TYPE'
+              name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
             {
@@ -1036,7 +1056,7 @@ resource chunkingApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '50'
             }
             {
-              name: 'CHUNK_STRATEGY'
+              name: 'CHUNKER_TYPE'
               value: 'token_window'
             }
             {
@@ -1192,7 +1212,7 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             // Metrics adapter (Azure Monitor)
             {
-              name: 'EMBEDDING_METRICS_TYPE'
+              name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
             {
@@ -1202,6 +1222,11 @@ resource embeddingApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
+            // Error reporter adapter
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
             }
             // Secret Provider adapter (Azure Key Vault)
             {
@@ -1344,7 +1369,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             // Metrics adapter (Azure Monitor)
             {
-              name: 'ORCHESTRATOR_METRICS_TYPE'
+              name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
             {
@@ -1355,6 +1380,11 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
             }
+            // Error reporter adapter
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
+            }
             // Secret Provider adapter (Azure Key Vault)
             {
               name: 'SECRET_PROVIDER_TYPE'
@@ -1364,9 +1394,36 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'AZURE_CLIENT_ID'
               value: identityClientIds.orchestrator
             }
+            // Consensus detector adapter
+            {
+              name: 'CONSENSUS_DETECTOR_TYPE'
+              value: 'heuristic'
+            }
+            // Embedding backend adapter
+            {
+              name: 'EMBEDDING_BACKEND_TYPE'
+              value: 'ollama'
+            }
+            // Vector store adapter (Qdrant)
+            {
+              name: 'VECTOR_STORE_TYPE'
+              value: 'qdrant'
+            }
+            {
+              name: 'QDRANT_HOST'
+              value: 'qdrant'
+            }
+            {
+              name: 'QDRANT_PORT'
+              value: '6333'
+            }
+            {
+              name: 'QDRANT_COLLECTION'
+              value: 'embeddings'
+            }
             // LLM Backend adapter (Azure OpenAI)
             {
-              name: 'ORCHESTRATOR_LLM_BACKEND'
+              name: 'LLM_BACKEND_TYPE'
               value: 'azure'
             }
             {
@@ -1427,7 +1484,7 @@ resource orchestratorApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: '3'
             }
             {
-              name: 'ORCHESTRATOR_LOG_TYPE'
+              name: 'LOG_TYPE'
               value: 'stdout'
             }
             {
@@ -1583,7 +1640,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             // LLM Backend adapter (Azure OpenAI)
             {
-              name: 'SUMMARIZATION_LLM_BACKEND'
+              name: 'LLM_BACKEND_TYPE'
               value: 'azure'
             }
             {
@@ -1608,7 +1665,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             // Metrics adapter (Azure Monitor)
             {
-              name: 'SUMMARIZATION_METRICS_TYPE'
+              name: 'METRICS_TYPE'
               value: 'azure_monitor'
             }
             {
@@ -1618,6 +1675,11 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
               value: appInsightsConnectionStringSecretUri != '' ? '@Microsoft.KeyVault(SecretUri=${appInsightsConnectionStringSecretUri})' : ''
+            }
+            // Error reporter adapter
+            {
+              name: 'ERROR_REPORTER_TYPE'
+              value: 'console'
             }
             // Secret Provider adapter (Azure Key Vault)
             {
@@ -1646,7 +1708,7 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'copilot-for-consensus'
             }
             {
-              name: 'SUMMARIZATION_LOG_TYPE'
+              name: 'LOG_TYPE'
               value: 'stdout'
             }
             {

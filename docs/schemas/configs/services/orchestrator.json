@@ -86,27 +86,6 @@
             "default": 3,
             "description": "Maximum retry attempts for workflow steps"
         },
-        "log_type": {
-            "type": "string",
-            "source": "env",
-            "env_var": "ORCHESTRATOR_LOG_TYPE",
-            "default": "stdout",
-            "description": "Logger type (stdout, file, etc.)"
-        },
-        "logger_name": {
-            "type": "string",
-            "source": "env",
-            "env_var": "ORCHESTRATOR_LOGGER_NAME",
-            "default": "orchestrator",
-            "description": "Logger name"
-        },
-        "log_level": {
-            "type": "string",
-            "source": "env",
-            "env_var": "ORCHESTRATOR_LOG_LEVEL",
-            "default": "INFO",
-            "description": "Logging level"
-        },
         "request_timeout_seconds": {
             "type": "int",
             "source": "env",
@@ -120,27 +99,6 @@
             "env_var": "ORCHESTRATOR_WORKFLOW_HISTORY_RETENTION_DAYS",
             "default": 90,
             "description": "Workflow history retention period in days"
-        },
-        "metrics_type": {
-            "type": "string",
-            "source": "env",
-            "env_var": "ORCHESTRATOR_METRICS_TYPE",
-            "default": "noop",
-            "description": "Metrics type (noop, prometheus_pushgateway, etc.)"
-        },
-        "llm_backend": {
-            "type": "string",
-            "source": "env",
-            "env_var": "ORCHESTRATOR_LLM_BACKEND",
-            "default": "openai",
-            "description": "LLM backend type (e.g., openai, azure, ollama)"
-        },
-        "llm_model": {
-            "type": "string",
-            "source": "env",
-            "env_var": "ORCHESTRATOR_LLM_MODEL",
-            "default": "gpt-3.5-turbo",
-            "description": "LLM model identifier"
         },
         "system_prompt_path": {
             "type": "string",
@@ -169,6 +127,9 @@
         },
         "error_reporter": {
             "$ref": "../adapters/error_reporter.json"
+        },
+        "logger": {
+            "$ref": "../adapters/logger.json"
         },
         "message_bus": {
             "$ref": "../adapters/message_bus.json"

@@ -44,27 +44,6 @@
             "default": "copilot-for-consensus",
             "description": "JWT audience for this service"
         },
-        "log_type": {
-            "type": "string",
-            "source": "env",
-            "env_var": "PARSING_LOG_TYPE",
-            "default": "stdout",
-            "description": "Logger type (stdout, file, etc.)"
-        },
-        "logger_name": {
-            "type": "string",
-            "source": "env",
-            "env_var": "PARSING_LOGGER_NAME",
-            "default": "parsing",
-            "description": "Logger name"
-        },
-        "log_level": {
-            "type": "string",
-            "source": "env",
-            "env_var": "PARSING_LOG_LEVEL",
-            "default": "INFO",
-            "description": "Logging level"
-        },
         "max_retries": {
             "type": "int",
             "source": "env",
@@ -78,13 +57,6 @@
             "env_var": "PARSING_RETRY_DELAY_SECONDS",
             "default": 5,
             "description": "Retry delay in seconds"
-        },
-        "metrics_type": {
-            "type": "string",
-            "source": "env",
-            "env_var": "PARSING_METRICS_TYPE",
-            "default": "noop",
-            "description": "Metrics type (noop, prometheus_pushgateway, etc.)"
         }
     },
     "adapters": {
@@ -96,6 +68,9 @@
         },
         "error_reporter": {
             "$ref": "../adapters/error_reporter.json"
+        },
+        "logger": {
+            "$ref": "../adapters/logger.json"
         },
         "message_bus": {
             "$ref": "../adapters/message_bus.json"

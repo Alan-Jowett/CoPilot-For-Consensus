@@ -23,7 +23,7 @@ env:
   IMAGE_PREFIX: ghcr.io/${{ github.repository }}/
   # Use mock LLM backend in CI for fast, reliable tests
   # Real LLM (LocalLLMSummarizer) is tested in unit/integration tests
-  SUMMARIZATION_LLM_BACKEND: mock
+  LLM_BACKEND_TYPE: mock
   # Disable local LLM services in CI (not needed with mock backend)
   # This speeds up CI by skipping Ollama/llama-cpp service builds
   COMPOSE_PROFILES: ""

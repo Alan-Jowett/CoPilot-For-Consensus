@@ -292,7 +292,13 @@ def main():
 
         log.info(f"Starting HTTP server on port {config.http_port}...")
 
-        log_config = create_uvicorn_log_config(service_name="summarization", log_level=config.log_level)
+        # Get log level from logger adapter config
+        log_level = "INFO"
+        for adapter in config.adapters:
+            if adapter.adapter_type == "logger":
+                log_level = adapter.driver_config.get("level", "INFO")
+                break
+        log_config = create_uvicorn_log_config(service_name="summarization", log_level=log_level)
         uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config, access_log=False)
 
     except Exception as e:
