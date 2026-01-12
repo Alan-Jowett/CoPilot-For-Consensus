@@ -3,6 +3,7 @@
 
 """Tests for startup requeue utility."""
 
+import uuid
 from datetime import datetime
 from unittest.mock import Mock
 
@@ -86,7 +87,6 @@ class TestStartupRequeue:
         assert "event_id" in call_kwargs["event"]
         assert call_kwargs["event"]["version"] == "1.0.0"
         # Validate event_id is a valid UUID
-        import uuid
         try:
             uuid.UUID(call_kwargs["event"]["event_id"])
         except ValueError:

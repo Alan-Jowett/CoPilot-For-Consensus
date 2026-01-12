@@ -111,7 +111,7 @@ class ParsingService:
 
         Returns:
             Event data dictionary with validated required fields
-            
+
         Raises:
             ValueError: If required metadata fields are missing or invalid
         """
