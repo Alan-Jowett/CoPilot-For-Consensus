@@ -258,25 +258,25 @@ class TestAzureMonitorLoggerConfigurationPaths:
     """Tests for various configuration paths and Azure Monitor setup."""
 
     def test_instrumentation_key_builds_connection_string(self, monkeypatch):
-        """Test that instrumentation_key parameter builds a connection string."""
+        """Test that instrumentation_key parameter builds a connection string correctly."""
+        from unittest.mock import patch, MagicMock
+        
         monkeypatch.delenv("AZURE_MONITOR_CONNECTION_STRING", raising=False)
         
-        # Create logger with instrumentation_key (will fallback since SDK not installed)
-        logger = AzureMonitorLogger(level="INFO", instrumentation_key="test-key-12345")
+        # Create mock exporter that captures the connection string
+        mock_exporter = MagicMock()
+        mock_trace_exporter = MagicMock()
         
-        # Should have attempted to use the key (fallback mode since SDK not installed)
-        assert logger.is_fallback_mode()
-
-    def test_configure_azure_monitor_import_error(self, monkeypatch):
-        """Test fallback when Azure Monitor SDK raises ImportError."""
-        monkeypatch.delenv("AZURE_MONITOR_CONNECTION_STRING", raising=False)
-        
-        # Provide instrumentation_key to trigger _configure_azure_monitor
-        logger = AzureMonitorLogger(level="INFO", instrumentation_key="test-key")
-        
-        # Should fallback since Azure Monitor SDK is not installed
-        assert logger.is_fallback_mode()
-        assert logger._stdlib_logger is not None
+        with patch('azure.monitor.opentelemetry.exporter.AzureMonitorLogExporter', return_value=mock_exporter) as mock_log_exporter_class:
+            with patch('azure.monitor.opentelemetry.exporter.AzureMonitorTraceExporter', return_value=mock_trace_exporter):
+                logger = AzureMonitorLogger(level="INFO", instrumentation_key="test-key-12345")
+                
+                # Verify the connection string was built from instrumentation_key
+                mock_log_exporter_class.assert_called_once()
+                call_kwargs = mock_log_exporter_class.call_args[1]
+                assert 'connection_string' in call_kwargs
+                assert call_kwargs['connection_string'] == "InstrumentationKey=test-key-12345"
+                assert not logger.is_fallback_mode()
 
     def test_configure_azure_monitor_value_error(self, monkeypatch):
         """Test fallback when Azure Monitor configuration raises ValueError."""
@@ -455,22 +455,7 @@ class TestAzureMonitorLoggerConfigurationPaths:
                     # Should still work (trace is optional)
                     assert not logger.is_fallback_mode()
 
-    def test_configure_azure_monitor_connection_string_path(self, monkeypatch):
-        """Test configuration with connection_string parameter (not instrumentation_key)."""
-        from unittest.mock import patch, MagicMock
-        
-        monkeypatch.delenv("AZURE_MONITOR_CONNECTION_STRING", raising=False)
-        
-        # Create mock exporters
-        mock_exporter = MagicMock()
-        mock_trace_exporter = MagicMock()
-        
-        # Pass None for instrumentation_key, connection_string gets built in __init__
-        with patch('azure.monitor.opentelemetry.exporter.AzureMonitorLogExporter', return_value=mock_exporter):
-            with patch('azure.monitor.opentelemetry.exporter.AzureMonitorTraceExporter', return_value=mock_trace_exporter):
-                # This triggers line 83 (building connection string from instrumentation_key)
-                logger = AzureMonitorLogger(level="INFO", instrumentation_key="test-key")
-                assert not logger.is_fallback_mode()
+
 
     def test_configure_azure_monitor_get_logger_provider_exception(self, monkeypatch):
         """Test when get_logger_provider raises an exception."""
@@ -514,13 +499,14 @@ class TestAzureMonitorLoggerConfigurationPaths:
                 # Should create new console handler
                 assert not logger.is_fallback_mode()
                 assert logger.console_log is True
-                # Check that console handler was added
+                # Check that console handler was added (StreamHandler but not LoggingHandler)
+                from opentelemetry.sdk._logs import LoggingHandler
+                import logging
                 has_console = any(
-                    isinstance(h, MagicMock.__class__.__bases__[0]) or 
-                    (hasattr(h, '__class__') and 'StreamHandler' in h.__class__.__name__)
+                    isinstance(h, logging.StreamHandler) and not isinstance(h, LoggingHandler)
                     for h in logger._stdlib_logger.handlers
                 )
-                assert has_console or len(logger._stdlib_logger.handlers) >= 2
+                assert has_console
 
 
 class TestAzureMonitorLoggerShutdown:
