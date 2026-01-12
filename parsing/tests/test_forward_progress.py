@@ -116,7 +116,7 @@ class TestParsingForwardProgress:
             "archive_id": "test-archive-123",
             "_id": "fallback-id",
             "source": "test-source",
-            "source_type": "mbox",
+            "source_type": "local",
             "source_url": "file:///path/to/archive.mbox",
             "file_size_bytes": 1024,
             "file_hash": "abc123def456",
@@ -128,7 +128,7 @@ class TestParsingForwardProgress:
 
         assert event_data['archive_id'] == "test-archive-123"
         assert event_data['source_name'] == "test-source"
-        assert event_data['source_type'] == "mbox"
+        assert event_data['source_type'] == "local"
         assert event_data['source_url'] == "file:///path/to/archive.mbox"
         assert event_data['file_size_bytes'] == 1024
         assert event_data['file_hash_sha256'] == "abc123def456"
@@ -152,6 +152,7 @@ class TestParsingForwardProgress:
         test_doc = {
             "_id": "fallback-id-456",
             "source": "test-source",
+            "source_type": "local",
         }
 
         event_data = build_event_data(test_doc)
