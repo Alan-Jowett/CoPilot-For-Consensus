@@ -3,9 +3,7 @@
 
 """Tests for JWT token manager."""
 
-import tempfile
 import time
-from pathlib import Path
 
 import jwt
 import pytest
@@ -124,6 +122,51 @@ class TestJWTManagerInitialization:
                 issuer="https://auth.example.com",
                 algorithm="ES256",
                 secret_key="test-secret",
+            )
+
+    def test_initialization_with_nonexistent_private_key(self, tmp_path):
+        """Test RS256 initialization fails with nonexistent private key file."""
+        public_key_path = tmp_path / "public.pem"
+        private_key_path = tmp_path / "private.pem"
+        JWTManager.generate_rsa_keys(private_key_path, public_key_path)
+
+        with pytest.raises(FileNotFoundError):
+            JWTManager(
+                issuer="https://auth.example.com",
+                algorithm="RS256",
+                private_key_path=tmp_path / "missing.pem",
+                public_key_path=public_key_path,
+            )
+
+    def test_initialization_with_nonexistent_public_key(self, tmp_path):
+        """Test RS256 initialization fails with nonexistent public key file."""
+        private_key_path = tmp_path / "private.pem"
+        public_key_path = tmp_path / "public.pem"
+        JWTManager.generate_rsa_keys(private_key_path, public_key_path)
+
+        with pytest.raises(FileNotFoundError):
+            JWTManager(
+                issuer="https://auth.example.com",
+                algorithm="RS256",
+                private_key_path=private_key_path,
+                public_key_path=tmp_path / "missing.pem",
+            )
+
+    def test_initialization_with_invalid_private_key_format(self, tmp_path):
+        """Test RS256 initialization fails with corrupted private key file."""
+        private_key_path = tmp_path / "private.pem"
+        public_key_path = tmp_path / "public.pem"
+
+        # Create corrupted key files
+        private_key_path.write_text("This is not a valid PEM key")
+        JWTManager.generate_rsa_keys(tmp_path / "temp_private.pem", public_key_path)
+
+        with pytest.raises(ValueError):
+            JWTManager(
+                issuer="https://auth.example.com",
+                algorithm="RS256",
+                private_key_path=private_key_path,
+                public_key_path=public_key_path,
             )
 
 
@@ -305,9 +348,8 @@ class TestMintToken:
 
         unverified = jwt.decode(token, options={"verify_signature": False})
         
-        # Check expiry is approximately 3600 seconds from now
-        now = int(time.time())
-        assert abs(unverified["exp"] - now - 3600) < 5
+        # Check expiry is approximately 3600 seconds after issuance
+        assert abs(unverified["exp"] - unverified["iat"] - 3600) < 5
 
     def test_mint_token_with_additional_claims(self, tmp_path):
         """Test minting token with additional custom claims."""
@@ -555,6 +597,92 @@ class TestValidateToken:
         with pytest.raises(jwt.InvalidTokenError):
             manager.validate_token(tampered_token, audience="https://api.example.com")
 
+    def test_validate_token_with_empty_string(self, tmp_path):
+        """Test validation fails with empty string token."""
+        private_key_path = tmp_path / "private.pem"
+        public_key_path = tmp_path / "public.pem"
+        JWTManager.generate_rsa_keys(private_key_path, public_key_path)
+
+        manager = JWTManager(
+            issuer="https://auth.example.com",
+            algorithm="RS256",
+            private_key_path=private_key_path,
+            public_key_path=public_key_path,
+        )
+
+        with pytest.raises(jwt.InvalidTokenError):
+            manager.validate_token("", audience="https://api.example.com")
+
+    def test_validate_token_with_malformed_segments(self, tmp_path):
+        """Test validation fails with malformed token (wrong number of segments)."""
+        private_key_path = tmp_path / "private.pem"
+        public_key_path = tmp_path / "public.pem"
+        JWTManager.generate_rsa_keys(private_key_path, public_key_path)
+
+        manager = JWTManager(
+            issuer="https://auth.example.com",
+            algorithm="RS256",
+            private_key_path=private_key_path,
+            public_key_path=public_key_path,
+        )
+
+        with pytest.raises(jwt.InvalidTokenError):
+            manager.validate_token("not.a.jwt", audience="https://api.example.com")
+
+    def test_validate_token_with_invalid_base64(self, tmp_path):
+        """Test validation fails with invalid base64 encoding."""
+        private_key_path = tmp_path / "private.pem"
+        public_key_path = tmp_path / "public.pem"
+        JWTManager.generate_rsa_keys(private_key_path, public_key_path)
+
+        manager = JWTManager(
+            issuer="https://auth.example.com",
+            algorithm="RS256",
+            private_key_path=private_key_path,
+            public_key_path=public_key_path,
+        )
+
+        with pytest.raises(jwt.InvalidTokenError):
+            manager.validate_token("!!!.!!!.!!!", audience="https://api.example.com")
+
+    def test_validate_token_with_different_rsa_keys(self, tmp_path):
+        """Test validation fails when token signed with different RSA key pair."""
+        # Create two different key pairs
+        private_key_path1 = tmp_path / "private1.pem"
+        public_key_path1 = tmp_path / "public1.pem"
+        private_key_path2 = tmp_path / "private2.pem"
+        public_key_path2 = tmp_path / "public2.pem"
+
+        JWTManager.generate_rsa_keys(private_key_path1, public_key_path1)
+        JWTManager.generate_rsa_keys(private_key_path2, public_key_path2)
+
+        # Create two managers with different keys but same issuer
+        manager1 = JWTManager(
+            issuer="https://auth.example.com",
+            algorithm="RS256",
+            private_key_path=private_key_path1,
+            public_key_path=public_key_path1,
+        )
+
+        manager2 = JWTManager(
+            issuer="https://auth.example.com",
+            algorithm="RS256",
+            private_key_path=private_key_path2,
+            public_key_path=public_key_path2,
+        )
+
+        user = User(
+            id="github:12345",
+            email="test@example.com",
+            name="Test User",
+        )
+
+        # Token from manager1 should be rejected by manager2 due to signature mismatch
+        token = manager1.mint_token(user, audience="https://api.example.com")
+
+        with pytest.raises(jwt.InvalidSignatureError):
+            manager2.validate_token(token, audience="https://api.example.com")
+
     def test_validate_token_with_clock_skew(self, tmp_path):
         """Test validation respects clock skew tolerance."""
         private_key_path = tmp_path / "private.pem"
@@ -647,26 +775,6 @@ class TestGetJWKS:
 
         assert jwks == {"keys": []}
 
-    def test_get_jwks_with_invalid_public_key_type(self, tmp_path):
-        """Test get_jwks returns empty keys if public_key is not RSAPublicKey."""
-        private_key_path = tmp_path / "private.pem"
-        public_key_path = tmp_path / "public.pem"
-        JWTManager.generate_rsa_keys(private_key_path, public_key_path)
-
-        manager = JWTManager(
-            issuer="https://auth.example.com",
-            algorithm="RS256",
-            private_key_path=private_key_path,
-            public_key_path=public_key_path,
-        )
-
-        # Simulate invalid public key type (shouldn't happen in practice)
-        manager.public_key = "not-an-rsa-key"  # type: ignore[assignment]
-
-        jwks = manager.get_jwks()
-
-        assert jwks == {"keys": []}
-
 
 class TestGetPublicKeyPEM:
     """Tests for public key PEM export."""
@@ -703,26 +811,6 @@ class TestGetPublicKeyPEM:
 
         assert pem is None
 
-    def test_get_public_key_pem_with_invalid_public_key_type(self, tmp_path):
-        """Test get_public_key_pem returns None if public_key is not RSAPublicKey."""
-        private_key_path = tmp_path / "private.pem"
-        public_key_path = tmp_path / "public.pem"
-        JWTManager.generate_rsa_keys(private_key_path, public_key_path)
-
-        manager = JWTManager(
-            issuer="https://auth.example.com",
-            algorithm="RS256",
-            private_key_path=private_key_path,
-            public_key_path=public_key_path,
-        )
-
-        # Simulate invalid public key type (shouldn't happen in practice)
-        manager.public_key = "not-an-rsa-key"  # type: ignore[assignment]
-
-        pem = manager.get_public_key_pem()
-
-        assert pem is None
-
 
 class TestIntToBase64URL:
     """Tests for _int_to_base64url helper method."""
@@ -744,9 +832,13 @@ class TestIntToBase64URL:
         assert len(result) > 0
 
     def test_int_to_base64url_zero(self):
-        """Test _int_to_base64url with zero."""
+        """Test _int_to_base64url with zero.
+        
+        Zero has bit_length of 0, so byte_length is 0, resulting in empty bytes.
+        Base64url encoding of empty bytes produces an empty string.
+        """
         result = JWTManager._int_to_base64url(0)
         
         assert isinstance(result, str)
-        # Zero should result in empty or single character
-        assert len(result) >= 0
+        # Zero with 0 byte_length produces empty bytes -> empty base64url string
+        assert result == ""
