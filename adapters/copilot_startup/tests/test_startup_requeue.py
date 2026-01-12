@@ -3,6 +3,7 @@
 
 """Tests for startup requeue utility."""
 
+import uuid
 from datetime import datetime
 from unittest.mock import Mock
 
@@ -82,6 +83,14 @@ class TestStartupRequeue:
         assert call_kwargs["event"]["data"]["archive_id"] == "archive-001"
         assert call_kwargs["event"]["data"]["message_count"] == 10
         assert "timestamp" in call_kwargs["event"]
+        # Verify required envelope fields added in this PR
+        assert "event_id" in call_kwargs["event"]
+        assert call_kwargs["event"]["version"] == "1.0.0"
+        # Validate event_id is a valid UUID
+        try:
+            uuid.UUID(call_kwargs["event"]["event_id"])
+        except ValueError:
+            pytest.fail(f"event_id is not a valid UUID: {call_kwargs['event']['event_id']}")
 
         # Verify second event
         second_call = mock_publisher.publish.call_args_list[1]

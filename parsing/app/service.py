@@ -31,6 +31,9 @@ from . import __version__
 
 logger = get_logger(__name__)
 
+# Valid source types for ArchiveIngested events (must match schema enum)
+VALID_SOURCE_TYPES = ["rsync", "imap", "http", "local"]
+
 class ParsingService:
     """Main parsing service for converting mbox archives to structured JSON."""
 
@@ -95,6 +98,58 @@ class ParsingService:
         logger.info("Subscribed to archive.ingested events")
         logger.info("Parsing service is ready")
 
+    def _build_archive_ingested_event_data(self, doc: dict[str, Any]) -> dict[str, Any]:
+        """Build and validate event data for ArchiveIngested events.
+
+        This helper performs strict validation of required metadata fields and
+        raises ValueError if they are missing or invalid. It is primarily used
+        when reconstructing ArchiveIngested events from stored archive
+        documents, for example during startup requeue.
+
+        Args:
+            doc: Archive document from database
+
+        Returns:
+            Event data dictionary with validated required fields
+
+        Raises:
+            ValueError: If required metadata fields are missing or invalid
+        """
+        archive_id = doc.get("archive_id") or doc.get("_id")
+        source_name = doc.get("source")
+        source_type = doc.get("source_type")
+        
+        # Require source_name and source_type - these are essential for thread correlation
+        if not source_name:
+            raise ValueError(
+                f"Archive {archive_id} missing required field 'source' (ingestion bug: "
+                "source_name must be set when creating archives)"
+            )
+        
+        if not source_type:
+            raise ValueError(
+                f"Archive {archive_id} missing required field 'source_type' (ingestion bug: "
+                f"source_type must be one of {VALID_SOURCE_TYPES})"
+            )
+        
+        # Validate source_type is a known enum value
+        if source_type not in VALID_SOURCE_TYPES:
+            raise ValueError(
+                f"Archive {archive_id} has invalid source_type '{source_type}' "
+                f"(must be one of {VALID_SOURCE_TYPES})"
+            )
+        
+        return {
+            "archive_id": archive_id,
+            "source_name": source_name,
+            "source_type": source_type,
+            "source_url": doc.get("source_url", ""),
+            "file_size_bytes": doc.get("file_size_bytes", 0),
+            "file_hash_sha256": doc.get("file_hash", ""),
+            "ingestion_started_at": doc.get("created_at", doc.get("ingestion_date", "")),
+            "ingestion_completed_at": doc.get("ingestion_date", ""),
+        }
+
     def _requeue_incomplete_archives(self):
         """Requeue incomplete archives on startup for forward progress."""
         try:
@@ -114,16 +169,7 @@ class ParsingService:
                 event_type="ArchiveIngested",
                 routing_key="archive.ingested",
                 id_field="archive_id",
-                build_event_data=lambda doc: {
-                    "archive_id": doc.get("archive_id") or doc.get("_id"),
-                    "source_name": doc.get("source"),
-                    "source_type": doc.get("source_type", "unknown"),
-                    "source_url": doc.get("source_url", ""),
-                    "file_size_bytes": doc.get("file_size_bytes", 0),
-                    "file_hash_sha256": doc.get("file_hash", ""),
-                    "ingestion_started_at": doc.get("created_at", doc.get("ingestion_date", "")),
-                    "ingestion_completed_at": doc.get("ingestion_date", ""),
-                },
+                build_event_data=self._build_archive_ingested_event_data,
                 limit=1000,
             )
 

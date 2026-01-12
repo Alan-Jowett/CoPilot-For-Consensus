@@ -1304,3 +1304,150 @@ Test message body.
         temp_files_after = set(os.listdir(tempfile.gettempdir()))
         new_parsing_files = [f for f in temp_files_after - temp_files_before if f.startswith('parsing_')]
         assert len(new_parsing_files) == 0, f"Temporary files not cleaned up: {new_parsing_files}"
+
+
+class TestArchiveEventDataValidation:
+    """Tests for _build_archive_ingested_event_data validation logic."""
+
+    def test_build_event_data_with_valid_fields(self):
+        """Test successful validation with all required fields present."""
+        document_store = create_validating_document_store()
+        publisher = create_noop_publisher()
+        subscriber = create_noop_subscriber()
+        metrics = Mock()
+
+        service = ParsingService(
+            document_store=document_store,
+            publisher=publisher,
+            subscriber=subscriber,
+            metrics_collector=metrics,
+            archive_store=create_test_archive_store(),
+        )
+
+        test_doc = {
+            "archive_id": "test-archive-123",
+            "source": "test-source",
+            "source_type": "rsync",
+            "source_url": "rsync://example.com/archives",
+            "file_size_bytes": 2048,
+            "file_hash": "sha256hash",
+            "created_at": "2024-01-01T00:00:00Z",
+            "ingestion_date": "2024-01-01T01:00:00Z",
+        }
+
+        event_data = service._build_archive_ingested_event_data(test_doc)
+
+        assert event_data["archive_id"] == "test-archive-123"
+        assert event_data["source_name"] == "test-source"
+        assert event_data["source_type"] == "rsync"
+        assert event_data["source_url"] == "rsync://example.com/archives"
+        assert event_data["file_size_bytes"] == 2048
+        assert event_data["file_hash_sha256"] == "sha256hash"
+
+    def test_build_event_data_missing_source_name(self):
+        """Test ValueError raised when source field is missing."""
+        document_store = create_validating_document_store()
+        publisher = create_noop_publisher()
+        subscriber = create_noop_subscriber()
+        metrics = Mock()
+
+        service = ParsingService(
+            document_store=document_store,
+            publisher=publisher,
+            subscriber=subscriber,
+            metrics_collector=metrics,
+            archive_store=create_test_archive_store(),
+        )
+
+        test_doc = {
+            "archive_id": "test-archive-456",
+            "source_type": "local",
+        }
+
+        with pytest.raises(ValueError) as exc_info:
+            service._build_archive_ingested_event_data(test_doc)
+
+        assert "missing required field 'source'" in str(exc_info.value)
+        assert "test-archive-456" in str(exc_info.value)
+
+    def test_build_event_data_missing_source_type(self):
+        """Test ValueError raised when source_type field is missing."""
+        document_store = create_validating_document_store()
+        publisher = create_noop_publisher()
+        subscriber = create_noop_subscriber()
+        metrics = Mock()
+
+        service = ParsingService(
+            document_store=document_store,
+            publisher=publisher,
+            subscriber=subscriber,
+            metrics_collector=metrics,
+            archive_store=create_test_archive_store(),
+        )
+
+        test_doc = {
+            "archive_id": "test-archive-789",
+            "source": "test-source",
+        }
+
+        with pytest.raises(ValueError) as exc_info:
+            service._build_archive_ingested_event_data(test_doc)
+
+        assert "missing required field 'source_type'" in str(exc_info.value)
+        assert "test-archive-789" in str(exc_info.value)
+        assert "must be one of" in str(exc_info.value)
+
+    def test_build_event_data_invalid_source_type(self):
+        """Test ValueError raised when source_type contains invalid enum value."""
+        document_store = create_validating_document_store()
+        publisher = create_noop_publisher()
+        subscriber = create_noop_subscriber()
+        metrics = Mock()
+
+        service = ParsingService(
+            document_store=document_store,
+            publisher=publisher,
+            subscriber=subscriber,
+            metrics_collector=metrics,
+            archive_store=create_test_archive_store(),
+        )
+
+        test_doc = {
+            "archive_id": "test-archive-999",
+            "source": "test-source",
+            "source_type": "invalid_type",
+        }
+
+        with pytest.raises(ValueError) as exc_info:
+            service._build_archive_ingested_event_data(test_doc)
+
+        assert "has invalid source_type 'invalid_type'" in str(exc_info.value)
+        assert "test-archive-999" in str(exc_info.value)
+        assert "must be one of" in str(exc_info.value)
+
+    def test_build_event_data_all_valid_source_types(self):
+        """Test that all valid source_type enum values are accepted."""
+        document_store = create_validating_document_store()
+        publisher = create_noop_publisher()
+        subscriber = create_noop_subscriber()
+        metrics = Mock()
+
+        service = ParsingService(
+            document_store=document_store,
+            publisher=publisher,
+            subscriber=subscriber,
+            metrics_collector=metrics,
+            archive_store=create_test_archive_store(),
+        )
+
+        valid_types = ["rsync", "imap", "http", "local"]
+
+        for source_type in valid_types:
+            test_doc = {
+                "archive_id": f"archive-{source_type}",
+                "source": "test-source",
+                "source_type": source_type,
+            }
+
+            event_data = service._build_archive_ingested_event_data(test_doc)
+            assert event_data["source_type"] == source_type, f"Failed for {source_type}"
