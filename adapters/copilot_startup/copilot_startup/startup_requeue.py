@@ -4,6 +4,7 @@
 """Startup requeue utility for incomplete documents."""
 
 import logging
+import uuid
 from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
@@ -99,6 +100,8 @@ class StartupRequeue:
                     # Build complete event payload
                     event = {
                         "event_type": event_type,
+                        "event_id": str(uuid.uuid4()),
+                        "version": "1.0.0",
                         "timestamp": datetime.now(timezone.utc).isoformat(),
                         "data": event_data,
                     }

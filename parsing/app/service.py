@@ -95,6 +95,58 @@ class ParsingService:
         logger.info("Subscribed to archive.ingested events")
         logger.info("Parsing service is ready")
 
+    def _build_archive_ingested_event_data(self, doc: dict[str, Any]) -> dict[str, Any]:
+        """Build event data for ArchiveIngested events during startup requeue.
+        
+        Validates that source_name and source_type are present - these are required
+        to correctly correlate where threads originate from. Ingestion must set these
+        fields when creating archives; parsing refuses to accept incomplete metadata.
+        
+        Args:
+            doc: Archive document from database
+            
+        Returns:
+            Event data dictionary with validated required fields
+            
+        Raises:
+            ValueError: If required metadata fields are missing (indicates ingestion bug)
+        """
+        archive_id = doc.get("archive_id") or doc.get("_id")
+        source_name = doc.get("source")
+        source_type = doc.get("source_type")
+        
+        # Require source_name and source_type - these are essential for thread correlation
+        if not source_name:
+            raise ValueError(
+                f"Archive {archive_id} missing required field 'source' (ingestion bug: "
+                "source_name must be set when creating archives)"
+            )
+        
+        if not source_type:
+            raise ValueError(
+                f"Archive {archive_id} missing required field 'source_type' (ingestion bug: "
+                "source_type must be one of ['rsync', 'imap', 'http', 'local'])"
+            )
+        
+        # Validate source_type is a known enum value
+        valid_source_types = ["rsync", "imap", "http", "local"]
+        if source_type not in valid_source_types:
+            raise ValueError(
+                f"Archive {archive_id} has invalid source_type '{source_type}' "
+                f"(must be one of {valid_source_types})"
+            )
+        
+        return {
+            "archive_id": archive_id,
+            "source_name": source_name,
+            "source_type": source_type,
+            "source_url": doc.get("source_url", ""),
+            "file_size_bytes": doc.get("file_size_bytes", 0),
+            "file_hash_sha256": doc.get("file_hash", ""),
+            "ingestion_started_at": doc.get("created_at", doc.get("ingestion_date", "")),
+            "ingestion_completed_at": doc.get("ingestion_date", ""),
+        }
+
     def _requeue_incomplete_archives(self):
         """Requeue incomplete archives on startup for forward progress."""
         try:
@@ -114,16 +166,7 @@ class ParsingService:
                 event_type="ArchiveIngested",
                 routing_key="archive.ingested",
                 id_field="archive_id",
-                build_event_data=lambda doc: {
-                    "archive_id": doc.get("archive_id") or doc.get("_id"),
-                    "source_name": doc.get("source"),
-                    "source_type": doc.get("source_type", "unknown"),
-                    "source_url": doc.get("source_url", ""),
-                    "file_size_bytes": doc.get("file_size_bytes", 0),
-                    "file_hash_sha256": doc.get("file_hash", ""),
-                    "ingestion_started_at": doc.get("created_at", doc.get("ingestion_date", "")),
-                    "ingestion_completed_at": doc.get("ingestion_date", ""),
-                },
+                build_event_data=lambda doc: self._build_archive_ingested_event_data(doc),
                 limit=1000,
             )
 

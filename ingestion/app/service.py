@@ -788,6 +788,19 @@ class IngestionService:
                     self._archive_metadata_cache[source.name] = archive_lookup
 
                 archive_metadata = archive_lookup.get(archive_id)
+                
+                # If metadata not found in cache, refresh the cache in case new archives
+                # were just stored by store_archive() and not yet in the cache
+                if not archive_metadata and archive_lookup is not None:
+                    # Reload list_archives to get newly stored archives
+                    archives = self.archive_store.list_archives(source.name)
+                    archive_lookup = {
+                        archive.get("archive_id"): archive
+                        for archive in archives
+                        if archive.get("archive_id") is not None
+                    }
+                    self._archive_metadata_cache[source.name] = archive_lookup
+                    archive_metadata = archive_lookup.get(archive_id)
 
             # Determine archive format from stored metadata or default to mbox
             archive_format = "mbox"
@@ -797,22 +810,20 @@ class IngestionService:
                 file_ext = os.path.splitext(file_path)[1].lstrip('.')
                 archive_format = file_ext if file_ext else "mbox"
                 file_size_bytes = archive_metadata.get("size_bytes", 0)
-            elif self.archive_store:
-                # ArchiveStore is configured but no metadata was found for this archive.
-                # This indicates a critical inconsistency: the archive was just stored
-                # but cannot be found immediately afterwards. Abort ingestion for this
-                # archive rather than creating an archive document with incorrect data.
+            elif self.archive_store and not archive_metadata:
+                # ArchiveStore is configured but no metadata was found for this archive,
+                # even after cache refresh. This indicates a critical inconsistency: the
+                # archive was just stored via store_archive() but cannot be found in the
+                # backend's metadata. Log error but do not abort - create archive doc with
+                # minimal metadata to allow parsing service to proceed (status may not update).
                 self.logger.error(
-                    "Archive metadata not found in ArchiveStore after storing archive; "
-                    "aborting ingestion to avoid inconsistent archive document",
+                    "Archive metadata not found in ArchiveStore after storing and refreshing cache; "
+                    "creating archive document with minimal metadata",
                     archive_id=archive_id,
                     source=source.name,
                     storage_backend=self.archive_store_type,
                 )
-                raise IngestionError(
-                    f"Archive metadata for archive_id '{archive_id}' not found in "
-                    f"ArchiveStore backend '{self.archive_store_type}'"
-                )
+                # Proceed with default values to avoid blocking the pipeline
 
             archive_doc = {
                 "_id": archive_id,  # Canonical identifier
