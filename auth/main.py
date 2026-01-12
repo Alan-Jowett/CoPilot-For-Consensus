@@ -920,7 +920,7 @@ if __name__ == "__main__":
     log_level = "INFO"
     for adapter in config.adapters:
         if adapter.adapter_type == "logger":
-            log_level = adapter.driver_config.get("level", "INFO")
+            log_level = adapter.driver_config.config.get("level", "INFO")
             break
 
     # Run with uvicorn

@@ -375,7 +375,7 @@ def main():
         log_level = "INFO"
         for adapter in config.adapters:
             if adapter.adapter_type == "logger":
-                log_level = adapter.driver_config.get("level", "INFO")
+                log_level = adapter.driver_config.config.get("level", "INFO")
                 break
         log_config = create_uvicorn_log_config(service_name="ingestion", log_level=log_level)
         uvicorn.run(app, host=http_host, port=http_port, log_config=log_config, access_log=False)
