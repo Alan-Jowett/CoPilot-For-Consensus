@@ -404,6 +404,8 @@ class ReportingService:
         max_participants: int | None = None,
         min_messages: int | None = None,
         max_messages: int | None = None,
+        sort_by: str | None = None,
+        sort_order: str = "desc",
     ) -> list[dict[str, Any]]:
         """Get list of reports with optional filters.
 
@@ -418,6 +420,8 @@ class ReportingService:
             max_participants: Filter by maximum participant count (optional)
             min_messages: Filter by minimum message count (optional)
             max_messages: Filter by maximum message count (optional)
+            sort_by: Field to sort by (e.g., 'thread_start_date', 'generated_at')
+            sort_order: Sort order ('asc' or 'desc', default 'desc')
 
         Returns:
             List of report documents with enriched metadata
@@ -443,120 +447,136 @@ class ReportingService:
         # Always enrich summaries with thread metadata for consistent UI experience
         enriched_summaries = []
 
-            # Batch fetch all threads to avoid N+1 query problem
-            # Collect unique thread IDs from summaries
-            thread_ids = []
-            for summary in summaries:
-                thread_id_val = summary.get("thread_id")
-                if thread_id_val:
-                    thread_ids.append(thread_id_val)
+        # Batch fetch all threads to avoid N+1 query problem
+        # Collect unique thread IDs from summaries
+        thread_ids = []
+        for summary in summaries:
+            thread_id_val = summary.get("thread_id")
+            if thread_id_val:
+                thread_ids.append(thread_id_val)
 
-            # Batch query all threads
-            threads_map = {}
-            if thread_ids:
-                threads = self.document_store.query_documents(
-                    "threads",
-                    filter_dict={"thread_id": {"$in": thread_ids}},
-                    limit=len(thread_ids),
-                )
-                threads_map = {t.get("thread_id"): t for t in threads if t.get("thread_id")}
+        # Batch query all threads
+        threads_map = {}
+        if thread_ids:
+            threads = self.document_store.query_documents(
+                "threads",
+                filter_dict={"thread_id": {"$in": thread_ids}},
+                limit=len(thread_ids),
+            )
+            threads_map = {t.get("thread_id"): t for t in threads if t.get("thread_id")}
 
-            # Collect unique archive IDs for batch fetching
-            archive_ids = set()
-            for thread in threads_map.values():
-                archive_id = thread.get("archive_id")
-                if archive_id:
-                    archive_ids.add(archive_id)
+        # Collect unique archive IDs for batch fetching
+        archive_ids = set()
+        for thread in threads_map.values():
+            archive_id = thread.get("archive_id")
+            if archive_id:
+                archive_ids.add(archive_id)
 
-            # Batch query all archives
-            archives_map = {}
-            if archive_ids:
-                archives = self.document_store.query_documents(
-                    "archives",
-                    filter_dict={"archive_id": {"$in": list(archive_ids)}},
-                    limit=len(archive_ids),
-                )
-                archives_map = {a.get("archive_id"): a for a in archives if a.get("archive_id")}
+        # Batch query all archives
+        archives_map = {}
+        if archive_ids:
+            archives = self.document_store.query_documents(
+                "archives",
+                filter_dict={"archive_id": {"$in": list(archive_ids)}},
+                limit=len(archive_ids),
+            )
+            archives_map = {a.get("archive_id"): a for a in archives if a.get("archive_id")}
 
-            # Now process summaries with pre-fetched data
-            for summary in summaries:
-                thread_id_val = summary.get("thread_id")
-                if not thread_id_val:
+        # Now process summaries with pre-fetched data
+        for summary in summaries:
+            thread_id_val = summary.get("thread_id")
+            if not thread_id_val:
+                continue
+
+            # Get thread metadata from pre-fetched map
+            thread = threads_map.get(thread_id_val)
+            if not thread:
+                continue
+
+            # Calculate counts once for reuse
+            participants = thread.get("participants", [])
+            participant_count = len(participants)
+            message_count = thread.get("message_count", 0)
+            archive_id = thread.get("archive_id")
+
+            # Apply message date filters using inclusive overlap (only if filtering is active)
+            # A thread is included if its date range [first_message_date, last_message_date]
+            # overlaps with the filter range [message_start_date, message_end_date]
+            # Overlap condition: first_message_date <= message_end_date AND last_message_date >= message_start_date
+            if has_filtering and (message_start_date is not None or message_end_date is not None):
+                first_msg_date = thread.get("first_message_date")
+                last_msg_date = thread.get("last_message_date")
+
+                # Skip threads without date information
+                if not first_msg_date or not last_msg_date:
                     continue
 
-                # Get thread metadata from pre-fetched map
-                thread = threads_map.get(thread_id_val)
-                if not thread:
+                # Check overlap condition
+                if message_end_date is not None and first_msg_date > message_end_date:
+                    continue  # Thread starts after filter range ends
+
+                if message_start_date is not None and last_msg_date < message_start_date:
+                    continue  # Thread ends before filter range starts
+
+            # Apply thread-based filters (only if filtering is active)
+            if has_filtering and min_participants is not None:
+                if participant_count < min_participants:
                     continue
 
-                # Calculate counts once for reuse
-                participants = thread.get("participants", [])
-                participant_count = len(participants)
-                message_count = thread.get("message_count", 0)
-                archive_id = thread.get("archive_id")
+            if has_filtering and max_participants is not None:
+                if participant_count > max_participants:
+                    continue
 
-                # Apply message date filters using inclusive overlap (only if filtering is active)
-                # A thread is included if its date range [first_message_date, last_message_date]
-                # overlaps with the filter range [message_start_date, message_end_date]
-                # Overlap condition: first_message_date <= message_end_date AND last_message_date >= message_start_date
-                if has_filtering and (message_start_date is not None or message_end_date is not None):
-                    first_msg_date = thread.get("first_message_date")
-                    last_msg_date = thread.get("last_message_date")
+            if has_filtering and min_messages is not None:
+                if message_count < min_messages:
+                    continue
 
-                    # Skip threads without date information
-                    if not first_msg_date or not last_msg_date:
-                        continue
+            if has_filtering and max_messages is not None:
+                if message_count > max_messages:
+                    continue
 
-                    # Check overlap condition
-                    if message_end_date is not None and first_msg_date > message_end_date:
-                        continue  # Thread starts after filter range ends
+            # Apply source filter using pre-fetched archive (only if filtering is active)
+            archive = archives_map.get(archive_id) if archive_id else None
+            if has_filtering and source:
+                if not archive or archive.get("source") != source:
+                    continue
 
-                    if message_start_date is not None and last_msg_date < message_start_date:
-                        continue  # Thread ends before filter range starts
+            # Enrich summary with thread and archive metadata
+            summary["thread_metadata"] = {
+                "subject": thread.get("subject", ""),
+                "participants": participants,
+                "participant_count": participant_count,
+                "message_count": message_count,
+                "first_message_date": thread.get("first_message_date"),
+                "last_message_date": thread.get("last_message_date"),
+            }
 
-                # Apply thread-based filters (only if filtering is active)
-                if has_filtering and min_participants is not None:
-                    if participant_count < min_participants:
-                        continue
-
-                if has_filtering and max_participants is not None:
-                    if participant_count > max_participants:
-                        continue
-
-                if has_filtering and min_messages is not None:
-                    if message_count < min_messages:
-                        continue
-
-                if has_filtering and max_messages is not None:
-                    if message_count > max_messages:
-                        continue
-
-                # Apply source filter using pre-fetched archive (only if filtering is active)
-                archive = archives_map.get(archive_id) if archive_id else None
-                if has_filtering and source:
-                    if not archive or archive.get("source") != source:
-                        continue
-
-                # Enrich summary with thread and archive metadata
-                summary["thread_metadata"] = {
-                    "subject": thread.get("subject", ""),
-                    "participants": participants,
-                    "participant_count": participant_count,
-                    "message_count": message_count,
-                    "first_message_date": thread.get("first_message_date"),
-                    "last_message_date": thread.get("last_message_date"),
+            if archive:
+                summary["archive_metadata"] = {
+                    "source": archive.get("source", ""),
+                    "source_url": archive.get("source_url", ""),
+                    "ingestion_date": archive.get("ingestion_date"),
                 }
 
-                if archive:
-                    summary["archive_metadata"] = {
-                        "source": archive.get("source", ""),
-                        "source_url": archive.get("source_url", ""),
-                        "ingestion_date": archive.get("ingestion_date"),
-                    }
-
-                enriched_summaries.append(summary)
+            enriched_summaries.append(summary)
 
         summaries = enriched_summaries
+
+        # Apply sorting if requested
+        if sort_by:
+            reverse = (sort_order == "desc")
+            if sort_by == "thread_start_date":
+                # Sort by first_message_date from thread_metadata
+                summaries.sort(
+                    key=lambda s: s.get("thread_metadata", {}).get("first_message_date") or "",
+                    reverse=reverse
+                )
+            elif sort_by == "generated_at":
+                # Sort by report generation date
+                summaries.sort(
+                    key=lambda s: s.get("generated_at") or "",
+                    reverse=reverse
+                )
 
         # Apply skip and limit
         return summaries[skip:skip + limit]

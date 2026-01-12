@@ -20,6 +20,8 @@ function useQueryState() {
     max_messages: sp.get('max_messages') ?? undefined,
     limit: Number(sp.get('limit') ?? 20),
     skip: Number(sp.get('skip') ?? 0),
+    sort_by: sp.get('sort_by') ?? 'thread_start_date',
+    sort_order: sp.get('sort_order') ?? 'desc',
   }), [sp])
 
   const update = (patch: Partial<ReportsQuery>) => {
@@ -49,32 +51,12 @@ function useQueryState() {
 export function ReportsList() {
   const { q, update, clearAll, remove } = useQueryState()
   const [availableSources, setAvailableSources] = useState<string[]>([])
-  const [rawData, setRawData] = useState<{ reports: Report[]; count: number }>({ reports: [], count: 0 })
+  const [data, setData] = useState<{ reports: Report[]; count: number }>({ reports: [], count: 0 })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [accessDenied, setAccessDenied] = useState<string | null>(null)
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc') // Default: newest first
 
   const isTopicSearch = !!(q.topic && q.topic.trim())
-
-  // Memoized sorted data - only recomputes when rawData.reports or sortOrder changes
-  const data = useMemo(() => {
-    const sortedReports = [...rawData.reports].sort((a, b) => {
-      const dateA = a.thread_metadata?.first_message_date
-      const dateB = b.thread_metadata?.first_message_date
-      
-      // Handle missing dates - put them at the end
-      if (!dateA && !dateB) return 0
-      if (!dateA) return 1
-      if (!dateB) return -1
-      
-      // Compare dates (ISO 8601 format allows string comparison)
-      const comparison = dateA.localeCompare(dateB)
-      return sortOrder === 'desc' ? -comparison : comparison
-    })
-    
-    return { ...rawData, reports: sortedReports }
-  }, [rawData, sortOrder])
 
   useEffect(() => {
     let cancelled = false
@@ -95,7 +77,7 @@ export function ReportsList() {
         ])
         if (cancelled) return
         setAvailableSources(sources)
-        setRawData(result)
+        setData(result)
       } catch (e: unknown) {
         if (cancelled) return
         let message = 'Failed to load reports'
@@ -188,7 +170,8 @@ export function ReportsList() {
   }
 
   function toggleSortOrder() {
-    setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')
+    const newOrder = q.sort_order === 'desc' ? 'asc' : 'desc'
+    update({ sort_order: newOrder })
   }
 
   const prevDisabled = q.skip === 0
@@ -329,14 +312,14 @@ export function ReportsList() {
         {!loading && !error && data.reports.length > 0 && (
           <div style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-              📅 Sorted by: Thread Start Date ({sortOrder === 'desc' ? 'Newest First' : 'Oldest First'})
+              📅 Sorted by: Thread Start Date ({q.sort_order === 'desc' ? 'Newest First' : 'Oldest First'})
             </span>
             <button 
               className="quick-date-btn" 
               onClick={toggleSortOrder}
               style={{ padding: '4px 12px', fontSize: '13px' }}
             >
-              {sortOrder === 'desc' ? '↓ Newest First' : '↑ Oldest First'}
+              {q.sort_order === 'desc' ? '↓ Newest First' : '↑ Oldest First'}
             </button>
           </div>
         )}
