@@ -3,8 +3,9 @@
 
 """Tests for identity providers."""
 
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
+import httpx
 import pytest
 from copilot_auth import AuthenticationError, IdentityProvider, User
 
@@ -154,8 +155,6 @@ class TestGitHubIdentityProvider:
 
     def test_get_user_raises_not_implemented(self):
         """Test get_user attempts to fetch user info and raises error on failure."""
-        import httpx
-
         provider = GitHubIdentityProvider(
             client_id="test-client-id",
             client_secret="test-client-secret",
@@ -204,8 +203,6 @@ class TestGitHubIdentityProviderExtended:
 
     def test_from_config(self):
         """Test from_config creates provider from DriverConfig."""
-        from unittest.mock import Mock
-        
         mock_config = Mock()
         mock_config.github_client_id = "config-client-id"
         mock_config.github_client_secret = "config-secret"
@@ -252,9 +249,6 @@ class TestGitHubIdentityProviderExtended:
 
     def test_get_user_organizations_success(self):
         """Test _get_user_organizations fetches orgs successfully."""
-        import httpx
-        from unittest.mock import Mock
-        
         provider = GitHubIdentityProvider(
             client_id="test-id",
             client_secret="test-secret",
@@ -280,8 +274,6 @@ class TestGitHubIdentityProviderExtended:
 
     def test_get_user_organizations_http_error(self):
         """Test _get_user_organizations returns empty list on error."""
-        import httpx
-        
         provider = GitHubIdentityProvider(
             client_id="test-id",
             client_secret="test-secret",
@@ -378,9 +370,6 @@ class TestGitHubIdentityProviderExtended:
 
     def test_get_user_with_organizations(self):
         """Test get_user fetches user info and organizations."""
-        from unittest.mock import Mock
-        import httpx
-        
         provider = GitHubIdentityProvider(
             client_id="test-id",
             client_secret="test-secret",
@@ -435,8 +424,6 @@ class TestGoogleIdentityProviderExtended:
 
     def test_from_config(self):
         """Test from_config creates provider from DriverConfig."""
-        from unittest.mock import Mock
-        
         mock_config = Mock()
         mock_config.google_client_id = "config-client-id"
         mock_config.google_client_secret = "config-secret"
@@ -558,8 +545,6 @@ class TestMicrosoftIdentityProviderExtended:
 
     def test_from_config(self):
         """Test from_config creates provider from DriverConfig."""
-        from unittest.mock import Mock
-        
         mock_config = Mock()
         mock_config.microsoft_client_id = "config-client-id"
         mock_config.microsoft_client_secret = "config-secret"
