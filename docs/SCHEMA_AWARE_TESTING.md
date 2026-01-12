@@ -51,7 +51,7 @@ chunk = create_valid_chunk(
 Located in `tests/fixtures/event_fixtures.py`:
 
 ```python
-from tests/fixtures.event_fixtures import (
+from tests.fixtures import (
     create_valid_event,
     create_archive_ingested_event,
     create_json_parsed_event,
