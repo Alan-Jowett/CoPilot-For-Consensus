@@ -57,7 +57,7 @@ def create_jwt_signer(
     algorithm = getattr(driver_config, "algorithm", "RS256")
     key_id = getattr(driver_config, "key_id", "default")
 
-    logger.info("Creating JWT signer: type=%s, algorithm=%s, key_id=%s", 
+    logger.info("Creating JWT signer: type=%s, algorithm=%s, key_id=%s",
                 driver_name_lower, algorithm, key_id)
 
     if driver_name_lower == "local":
@@ -72,8 +72,8 @@ def create_jwt_signer(
 
 
 def _create_local_signer(
-    algorithm: str, 
-    key_id: str, 
+    algorithm: str,
+    key_id: str,
     driver_config: DriverConfig
 ) -> LocalJWTSigner:
     """Create a local file-based JWT signer.
@@ -131,8 +131,8 @@ def _create_local_signer(
 
 
 def _create_keyvault_signer(
-    algorithm: str, 
-    key_id: str, 
+    algorithm: str,
+    key_id: str,
     driver_config: DriverConfig
 ) -> JWTSigner:
     """Create a Key Vault JWT signer.
