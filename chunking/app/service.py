@@ -15,15 +15,13 @@ from copilot_message_bus import (
     EventSubscriber,
     JSONParsedEvent,
 )
-from copilot_logging import create_logger
-from copilot_config import load_driver_config
+from copilot_logging import get_logger
 from copilot_metrics import MetricsCollector
 from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
 from pymongo.errors import DuplicateKeyError
 
-logger_config = load_driver_config(service=None, adapter="logger", driver="stdout", fields={"name": "chunking", "level": "INFO"})
-logger = create_logger("stdout", logger_config)
+logger = get_logger(__name__)
 
 
 class ChunkingService:

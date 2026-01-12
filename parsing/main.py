@@ -12,14 +12,12 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(__file__))
 
 import uvicorn
-from app import __version__
-from app.service import ParsingService
 from copilot_config import load_service_config, load_driver_config
 from copilot_message_bus import (
     create_publisher,
     create_subscriber,
 )
-from copilot_logging import create_logger, create_uvicorn_log_config, set_default_logger
+from copilot_logging import create_logger, create_uvicorn_log_config, get_logger, set_default_logger
 from copilot_metrics import create_metrics_collector
 from copilot_error_reporting import create_error_reporter
 from copilot_schema_validation import create_schema_provider, get_configuration_schema_response
@@ -30,6 +28,10 @@ from fastapi import FastAPI, HTTPException
 # Configure structured JSON logging
 bootstrap_logger_config = load_driver_config(service=None, adapter="logger", driver="stdout", fields={"level": "INFO", "name": "parsing-bootstrap"})
 bootstrap_logger = create_logger("stdout", bootstrap_logger_config)
+set_default_logger(bootstrap_logger)
+
+from app import __version__
+from app.service import ParsingService
 logger = bootstrap_logger
 
 # Create FastAPI app
@@ -147,6 +149,10 @@ def main():
         else:
             set_default_logger(bootstrap_logger)
             log.warning("No logger adapter found, keeping bootstrap logger")
+
+        # Refresh module-level service logger to use the current default
+        from app import service as parsing_service_module
+        parsing_service_module.logger = get_logger(parsing_service_module.__name__)
 
         # Create event publisher with schema validation
         log.info("Creating event publisher from adapter configuration")

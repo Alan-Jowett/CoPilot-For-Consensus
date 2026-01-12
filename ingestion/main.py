@@ -11,16 +11,13 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 import uvicorn
-from app import __version__
-from app.api import create_api_router
-from app.scheduler import IngestionScheduler
-from app.service import IngestionService
 from copilot_config import load_service_config, load_driver_config, DriverConfig
 from copilot_message_bus import create_publisher
 from copilot_logging import (
     create_logger,
     create_stdout_logger,
     create_uvicorn_log_config,
+    get_logger,
     set_default_logger,
 )
 from copilot_metrics import create_metrics_collector
@@ -35,6 +32,12 @@ from fastapi.responses import JSONResponse
 
 # Bootstrap logger before configuration is loaded
 bootstrap_logger = create_stdout_logger(level="INFO", name="ingestion-bootstrap")
+set_default_logger(bootstrap_logger)
+
+from app import __version__
+from app.api import create_api_router
+from app.scheduler import IngestionScheduler
+from app.service import IngestionService
 
 # Create FastAPI app
 app = FastAPI(title="Ingestion Service", version=__version__)
@@ -186,6 +189,10 @@ def main():
 
         # Set the default logger for the application so any module can use get_logger()
         set_default_logger(service_logger)
+
+        # Refresh module-level service logger to use the current default
+        from app import service as ingestion_service_module
+        ingestion_service_module.logger = get_logger(ingestion_service_module.__name__)
 
         # Build metrics collector, fall back to NoOp if backend unavailable
         try:

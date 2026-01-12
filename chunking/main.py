@@ -12,15 +12,11 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(__file__))
 
 import uvicorn
-from app import __version__
-from app.service import ChunkingService
-from copilot_chunking import create_chunker
-from copilot_config import load_service_config
-from copilot_message_bus import create_publisher, create_subscriber
 from copilot_logging import (
     create_logger,
     create_stdout_logger,
     create_uvicorn_log_config,
+    get_logger,
     set_default_logger,
 )
 from copilot_metrics import create_metrics_collector
@@ -31,6 +27,13 @@ from fastapi import FastAPI
 
 # Bootstrap logger for early initialization (before config is loaded)
 logger = create_stdout_logger(level="INFO", name="chunking")
+set_default_logger(logger)
+
+from app import __version__
+from app.service import ChunkingService
+from copilot_chunking import create_chunker
+from copilot_config import load_service_config
+from copilot_message_bus import create_publisher, create_subscriber
 
 # Create FastAPI app
 app = FastAPI(title="Chunking Service", version=__version__)
@@ -109,6 +112,10 @@ def main():
             )
             set_default_logger(logger)
             logger.info("Logger initialized from service configuration")
+
+        # Refresh module-level service logger to use the current default
+        from app import service as chunking_service_module
+        chunking_service_module.logger = get_logger(chunking_service_module.__name__)
 
         # Conditionally add JWT authentication middleware based on config
         if getattr(config, 'jwt_auth_enabled', True):
