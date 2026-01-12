@@ -215,41 +215,17 @@ class OrchestrationService:
 
                 logger.info(f"Found {len(ready_threads)} threads ready for summarization")
 
-                # Requeue each ready thread using StartupRequeue helper
-                from copilot_startup import StartupRequeue
-                requeue_helper = StartupRequeue(
-                    document_store=self.document_store,
-                    publisher=self.publisher,
-                    metrics_collector=self.metrics_collector,
-                )
-
-                requeued = 0
+                # Orchestrate each thread (will check if summary exists and publish events)
+                processed = 0
                 for thread in ready_threads:
                     thread_id = thread.get("thread_id")
-                    archive_id = thread.get("archive_id")
-
                     try:
-                        requeue_helper.publish_event(
-                            event_type="SummarizationRequested",
-                            routing_key="summarization.requested",
-                            event_data={
-                                "thread_ids": [thread_id],
-                                "archive_id": archive_id,
-                            },
-                        )
-                        requeued += 1
-                        logger.debug(f"Requeued thread {thread_id} for summarization")
+                        self._orchestrate_thread(thread_id)
+                        processed += 1
                     except Exception as e:
-                        logger.error(f"Failed to requeue thread {thread_id}: {e}")
+                        logger.error(f"Failed to orchestrate thread {thread_id} during startup requeue: {e}")
 
-                if self.metrics_collector:
-                    self.metrics_collector.increment(
-                        "startup_requeue_documents_total",
-                        requeued,
-                        tags={"collection": "threads"}
-                    )
-
-                logger.info(f"Startup requeue: {requeued} threads ready for summarization requeued")
+                logger.info(f"Startup requeue: {processed}/{len(ready_threads)} threads processed")
 
             except Exception as e:
                 logger.error(f"Error querying for ready threads: {e}", exc_info=True)
@@ -554,7 +530,6 @@ class OrchestrationService:
             event_data = {
                 "thread_ids": thread_ids,
                 "top_k": self.top_k,
-                "context_window_tokens": self.context_window_tokens,
                 "prompt_template": f"{self.system_prompt.rstrip()}\n\n{self.user_prompt.lstrip()}",
             }
 
