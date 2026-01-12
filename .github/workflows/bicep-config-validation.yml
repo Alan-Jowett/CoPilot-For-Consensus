@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Copilot-for-Consensus contributors
+
+name: Bicep Configuration Validation
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    paths:
+      - 'infra/azure/**/*.bicep'
+      - 'docs/schemas/configs/**/*.json'
+      - 'scripts/validate_bicep_*.py'
+      - '.github/workflows/bicep-config-validation.yml'
+
+jobs:
+  validate-bicep-config:
+    name: Validate Bicep Configuration
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Validate Bicep Container Apps Configuration
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -e
+          echo "Validating Bicep configuration for all microservices..."
+          python scripts/validate_bicep_all_services.py infra/azure/modules/containerapps.bicep
+          echo "✓ All microservices passed Bicep configuration validation"
+
+      - name: Report validation results
+        if: always()
+        run: |
+          echo "## Bicep Configuration Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**File:** \`infra/azure/modules/containerapps.bicep\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Services validated:**" >> $GITHUB_STEP_SUMMARY
+          echo "- auth" >> $GITHUB_STEP_SUMMARY
+          echo "- reporting" >> $GITHUB_STEP_SUMMARY
+          echo "- ingestion" >> $GITHUB_STEP_SUMMARY
+          echo "- parsing" >> $GITHUB_STEP_SUMMARY
+          echo "- chunking" >> $GITHUB_STEP_SUMMARY
+          echo "- embedding" >> $GITHUB_STEP_SUMMARY
+          echo "- orchestrator" >> $GITHUB_STEP_SUMMARY
+          echo "- summarization" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Validates that all environment variables in Bicep templates match service schemas and required adapter configurations." >> $GITHUB_STEP_SUMMARY

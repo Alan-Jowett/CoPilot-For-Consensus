@@ -44,7 +44,6 @@ output identityPrincipalIdsByName object = {
   auth: managedIdentities[7].properties.principalId
   ui: managedIdentities[8].properties.principalId
   gateway: managedIdentities[9].properties.principalId
-  openai: managedIdentities[10].properties.principalId
 }
 
 // Named map of client IDs for user-assigned managed identities
@@ -63,7 +62,6 @@ output identityClientIdsByName object = {
   auth: managedIdentities[7].properties.clientId
   ui: managedIdentities[8].properties.clientId
   gateway: managedIdentities[9].properties.clientId
-  openai: managedIdentities[10].properties.clientId
 }
 
 // IMPORTANT: The order of the services array must not change, as downstream
@@ -79,5 +77,4 @@ output identityResourceIds object = {
   auth: managedIdentities[7].id
   ui: managedIdentities[8].id
   gateway: managedIdentities[9].id
-  openai: managedIdentities[10].id
 }

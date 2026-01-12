@@ -17,6 +17,8 @@
             "properties": {
                 "mongodb": { "$ref": "./drivers/document_store/mongodb.json" },
                 "azurecosmos": { "$ref": "./drivers/document_store/cosmosdb.json" },
+                "cosmos": { "$ref": "./drivers/document_store/cosmosdb.json" },
+                "cosmosdb": { "$ref": "./drivers/document_store/cosmosdb.json" },
                 "inmemory": { "$ref": "./drivers/document_store/inmemory.json" }
             },
             "additionalProperties": false

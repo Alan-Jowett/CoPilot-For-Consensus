@@ -125,10 +125,7 @@ module openaiModule 'modules/openai.bicep' = {
 resource openaiApiKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   name: '${coreKeyVaultName}/azure-openai-api-key'
   properties: {
-    value: listKeys(
-      resourceId('Microsoft.CognitiveServices/accounts', openaiAccountName),
-      '2023-10-01-preview'
-    ).key1
+    value: listKeys(resourceId('Microsoft.CognitiveServices/accounts', openaiAccountName), '2023-10-01-preview').key1
     contentType: 'text/plain'
   }
   dependsOn: [
@@ -146,7 +143,6 @@ resource openaiEndpointSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   }
   dependsOn: [
     coreKeyVaultModule
-    openaiModule
   ]
 }
 
@@ -159,7 +155,6 @@ resource openaiGptDeploymentSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01
   }
   dependsOn: [
     coreKeyVaultModule
-    openaiModule
   ]
 }
 
@@ -172,7 +167,6 @@ resource openaiEmbeddingDeploymentSecret 'Microsoft.KeyVault/vaults/secrets@2023
   }
   dependsOn: [
     coreKeyVaultModule
-    openaiModule
   ]
 }
 
