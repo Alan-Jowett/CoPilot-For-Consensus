@@ -76,9 +76,8 @@ jobs:
 
     - name: Run unit and integration tests
       run: |
-        export PYTHONPATH="${GITHUB_WORKSPACE}:${PYTHONPATH:-}"
         cd ${{ inputs.service_path }}
-        pytest tests/ -v --tb=short --junit-xml=test-results.xml --cov=${{ inputs.app_module }} --cov-report=lcov --cov-report=html --cov-report=term
+        pytest tests/ -v --tb=short --pythonpath="${{ github.workspace }}" --junit-xml=test-results.xml --cov=${{ inputs.app_module }} --cov-report=lcov --cov-report=html --cov-report=term
 
     # Coverage is generated in the test run above
 
