@@ -21,7 +21,7 @@ if str(_repo_root) not in sys.path:
 
 from tests.fixtures import create_valid_message  # noqa: E402
 
-from .test_helpers import assert_valid_document_schema, assert_valid_event_schema
+from .test_helpers import assert_valid_document_schema
 
 
 @pytest.fixture

@@ -204,8 +204,8 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
     # Verify the update calls were made using MongoDB _id for each chunk
     update_calls = mock_document_store.update_document.call_args_list
     updated_doc_ids = [call[1]["doc_id"] for call in update_calls]
-    # Expected _id values from test chunks
-    expected_mongo_ids = ["chunk-1", "chunk-2", "chunk-3"]
+    # Expected _id values from test chunks (16-char hex strings from create_valid_chunk)
+    expected_mongo_ids = chunk_ids  # Use the same IDs we created the chunks with
     assert set(updated_doc_ids) == set(expected_mongo_ids)
 
     # Verify success event was published
