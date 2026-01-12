@@ -15,13 +15,13 @@ from copilot_message_bus import (
     EventPublisher,
     EventSubscriber,
 )
-import logging
+from copilot_logging import get_logger
 from copilot_metrics import MetricsCollector
 from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
 from copilot_vectorstore import VectorStore
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class EmbeddingService:

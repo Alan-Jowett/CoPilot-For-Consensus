@@ -22,13 +22,11 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 
 import uvicorn
-from app import SUPPORTED_PROVIDERS, __version__
-from app.config import load_auth_config
-from app.service import AuthService
 from copilot_logging import (
     create_logger,
     create_stdout_logger,
     create_uvicorn_log_config,
+    get_logger,
     set_default_logger,
 )
 from copilot_metrics import create_metrics_collector
@@ -39,6 +37,11 @@ from pydantic import BaseModel, Field
 
 # Bootstrap logger for early initialization (before config is loaded)
 logger = create_stdout_logger(level="INFO", name="auth")
+set_default_logger(logger)
+
+from app import SUPPORTED_PROVIDERS, __version__
+from app.config import load_auth_config
+from app.service import AuthService
 
 # Global service instance
 auth_service: AuthService | None = None
@@ -73,6 +76,8 @@ async def lifespan(app: FastAPI):
         )
         set_default_logger(logger)
         logger.info("Logger initialized from service configuration")
+        from app import service as auth_service_module
+        auth_service_module.logger = get_logger(auth_service_module.__name__)
 
     # Initialize metrics from config
     metrics_adapter = None
@@ -916,11 +921,18 @@ if __name__ == "__main__":
     # Load configuration
     config = load_auth_config()
 
+    # Get log level from logger adapter config
+    log_level = "INFO"
+    for adapter in config.adapters:
+        if adapter.adapter_type == "logger":
+            log_level = adapter.driver_config.config.get("level", "INFO")
+            break
+
     # Run with uvicorn
     uvicorn.run(
         "main:app",
         host=config.host,
         port=config.port,
-        log_config=create_uvicorn_log_config("auth", config.log_level),
+        log_config=create_uvicorn_log_config("auth", log_level),
         access_log=True,
     )

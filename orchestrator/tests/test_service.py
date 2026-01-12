@@ -64,8 +64,6 @@ def orchestration_service(mock_document_store, mock_publisher, mock_subscriber, 
         subscriber=mock_subscriber,
         top_k=12,
         context_window_tokens=3000,
-        llm_backend="ollama",
-        llm_model="mistral",
         system_prompt_path=system_prompt_path,
         user_prompt_path=user_prompt_path,
     )
@@ -79,7 +77,7 @@ def test_service_initialization(orchestration_service):
     assert orchestration_service.events_processed == 0
     assert orchestration_service.threads_orchestrated == 0
     assert orchestration_service.top_k == 12
-    assert orchestration_service.llm_backend == "ollama"
+    assert orchestration_service.context_window_tokens == 3000
 
 
 def test_service_start(orchestration_service, mock_subscriber):
@@ -206,7 +204,7 @@ def test_publish_summarization_requested(orchestration_service, mock_publisher):
     assert event["event_type"] == "SummarizationRequested"
     assert event["data"]["thread_ids"] == thread_ids
     assert event["data"]["top_k"] == 12
-    assert event["data"]["llm_backend"] == "ollama"
+    assert "prompt_template" in event["data"]
 
 
 def test_publish_orchestration_failed(orchestration_service, mock_publisher):
@@ -273,7 +271,7 @@ def test_get_stats(orchestration_service):
     assert stats["failures_count"] == 1
     assert stats["last_processing_time_seconds"] == 1.5
     assert stats["config"]["top_k"] == 12
-    assert stats["config"]["llm_backend"] == "ollama"
+    assert stats["config"]["context_window_tokens"] == 3000
 
 
 def test_handle_embeddings_generated_event(orchestration_service, mock_document_store, mock_publisher):
@@ -511,8 +509,6 @@ def test_metrics_collector_uses_tags_parameter(mock_document_store, mock_publish
         subscriber=mock_subscriber,
         top_k=12,
         context_window_tokens=3000,
-        llm_backend="ollama",
-        llm_model="mistral",
         system_prompt_path=system_prompt_path,
         user_prompt_path=user_prompt_path,
         metrics_collector=mock_metrics,

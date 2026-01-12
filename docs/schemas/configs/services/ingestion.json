@@ -93,20 +93,6 @@
             "default": "/tmp/ingestion",
             "description": "Path for storing ingestion data"
         },
-        "log_type": {
-            "type": "string",
-            "source": "env",
-            "env_var": "INGESTION_LOG_TYPE",
-            "default": "stdout",
-            "description": "Logger type (stdout, file, etc.)"
-        },
-        "log_level": {
-            "type": "string",
-            "source": "env",
-            "env_var": "INGESTION_LOG_LEVEL",
-            "default": "INFO",
-            "description": "Logging level"
-        },
         "http_host": {
             "type": "string",
             "source": "env",
@@ -120,13 +106,6 @@
             "env_var": "INGESTION_SCHEDULE_INTERVAL_SECONDS",
             "default": 21600,
             "description": "Scheduler interval for periodic ingestion in seconds (default: 6 hours)"
-        },
-        "metrics_type": {
-            "type": "string",
-            "source": "env",
-            "env_var": "INGESTION_METRICS_TYPE",
-            "default": "noop",
-            "description": "Metrics type (noop, prometheus_pushgateway, etc.)"
         }
     },
     "adapters": {

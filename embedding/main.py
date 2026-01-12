@@ -12,8 +12,6 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(__file__))
 
 import uvicorn
-from app import __version__
-from app.service import EmbeddingService
 from copilot_config import load_service_config
 from copilot_embedding import create_embedding_provider
 from copilot_message_bus import create_publisher, create_subscriber
@@ -21,6 +19,7 @@ from copilot_logging import (
     create_logger,
     create_stdout_logger,
     create_uvicorn_log_config,
+    get_logger,
     set_default_logger,
 )
 from copilot_metrics import create_metrics_collector
@@ -32,6 +31,10 @@ from fastapi import FastAPI
 
 # Bootstrap logger for early initialization (before config is loaded)
 logger = create_stdout_logger(level="INFO", name="embedding")
+set_default_logger(logger)
+
+from app import __version__
+from app.service import EmbeddingService
 
 # Create FastAPI app
 app = FastAPI(title="Embedding Service", version=__version__)
@@ -131,6 +134,10 @@ def main():
                 logger.debug("copilot_auth module not available - JWT authentication disabled")
         else:
             logger.warning("JWT authentication is DISABLED - all endpoints are public")
+
+        # Refresh module-level service logger to use the current default
+        from app import service as embedding_service_module
+        embedding_service_module.logger = get_logger(embedding_service_module.__name__)
 
         # Create adapters
         # Create adapters

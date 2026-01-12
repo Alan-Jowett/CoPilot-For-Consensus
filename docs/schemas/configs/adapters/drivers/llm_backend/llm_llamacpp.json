@@ -7,21 +7,21 @@
         "llamacpp_model": {
             "type": "string",
             "source": "env",
-            "env_var": "SUMMARIZATION_LLM_MODEL",
+            "env_var": "LLM_MODEL",
             "default": "mistral",
             "description": "llama.cpp model name"
         },
         "llamacpp_endpoint": {
             "type": "string",
             "source": "env",
-            "env_var": "SUMMARIZATION_LLAMACPP_ENDPOINT",
+            "env_var": "LLAMACPP_ENDPOINT",
             "default": "http://llama-cpp:8081",
             "description": "llama.cpp server endpoint URL"
         },
         "llamacpp_timeout_seconds": {
             "type": "int",
             "source": "env",
-            "env_var": "SUMMARIZATION_LLM_TIMEOUT_SECONDS",
+            "env_var": "LLM_TIMEOUT_SECONDS",
             "default": 300,
             "description": "Request timeout in seconds"
         }

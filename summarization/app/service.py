@@ -15,16 +15,14 @@ from copilot_message_bus import (
     SummarizationRequestedEvent,
     SummaryCompleteEvent,
 )
-from copilot_logging import create_logger
-from copilot_config import load_driver_config
+from copilot_logging import get_logger
 from copilot_metrics import MetricsCollector
 from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
 from copilot_summarization import Citation, Summarizer, Thread
 from copilot_vectorstore import VectorStore
 
-logger_config = load_driver_config(service=None, adapter="logger", driver="stdout", fields={"name": "summarization", "level": "INFO"})
-logger = create_logger("stdout", logger_config)
+logger = get_logger(__name__)
 
 
 class SummarizationService:
@@ -201,14 +199,13 @@ class SummarizationService:
             raise TypeError(error_msg)
 
         top_k = event_data.get("top_k", self.top_k)
-        context_window_tokens = event_data.get("context_window_tokens", 3000)
-        prompt_template = event_data.get("prompt_template", "Summarize the following discussion thread:")
+        prompt_template = event_data.get("prompt_template", self.prompt_template)
 
         for thread_id in thread_ids:
             self._process_thread(
                 thread_id=thread_id,
                 top_k=top_k,
-                context_window_tokens=context_window_tokens,
+                context_window_tokens=self.context_window_tokens,
                 prompt_template=prompt_template,
             )
 

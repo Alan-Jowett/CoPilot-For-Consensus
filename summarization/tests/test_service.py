@@ -1053,9 +1053,6 @@ def test_consume_summarization_requested_event():
         "data": {
             "thread_ids": ["1111222233334444"],
             "top_k": 10,
-            "llm_backend": "test",
-            "llm_model": "test-model",
-            "context_window_tokens": 3000,
             "prompt_template": "Summarize:",
         }
     }

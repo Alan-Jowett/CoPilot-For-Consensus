@@ -46,7 +46,7 @@ Services (Chunking, Embedding, Summarization)
 
 **.env**:
 ```
-CHUNK_STRATEGY=token_window  # or fixed_size, semantic
+CHUNKER_TYPE=token_window  # or fixed_size, semantic
 CHUNK_SIZE=512               # tokens or characters depending on strategy
 CHUNK_OVERLAP=50             # for context preservation
 ```

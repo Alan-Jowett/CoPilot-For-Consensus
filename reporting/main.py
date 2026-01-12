@@ -12,11 +12,9 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(__file__))
 
 import uvicorn
-from app import __version__
-from app.service import ReportingService
 from copilot_config import load_service_config, load_driver_config
 from copilot_message_bus import create_publisher, create_subscriber
-from copilot_logging import create_logger, create_uvicorn_log_config, set_default_logger
+from copilot_logging import create_logger, create_uvicorn_log_config, get_logger, set_default_logger
 from copilot_metrics import create_metrics_collector
 from copilot_error_reporting import create_error_reporter
 from copilot_schema_validation import create_schema_provider
@@ -27,6 +25,11 @@ from fastapi import FastAPI, HTTPException, Query
 logger_config = load_driver_config(service=None, adapter="logger", driver="stdout", fields={"level": "INFO", "name": "reporting"})
 logger = create_logger("stdout", logger_config)
 set_default_logger(logger)
+
+from app import __version__
+from app import service as reporting_service_module
+from app.service import ReportingService
+reporting_service_module.logger = get_logger(reporting_service_module.__name__)
 
 # Create FastAPI app
 app = FastAPI(title="Reporting Service", version=__version__)

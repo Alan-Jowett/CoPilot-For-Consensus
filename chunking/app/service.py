@@ -15,13 +15,13 @@ from copilot_message_bus import (
     EventSubscriber,
     JSONParsedEvent,
 )
-import logging
+from copilot_logging import get_logger
 from copilot_metrics import MetricsCollector
 from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
 from pymongo.errors import DuplicateKeyError
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ChunkingService:

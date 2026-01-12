@@ -12,11 +12,9 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(__file__))
 
 import uvicorn
-from app import __version__
-from app.service import OrchestrationService
 from copilot_config import load_service_config, load_driver_config
 from copilot_message_bus import create_publisher, create_subscriber
-from copilot_logging import create_logger, create_uvicorn_log_config, set_default_logger
+from copilot_logging import create_logger, create_uvicorn_log_config, get_logger, set_default_logger
 from copilot_metrics import create_metrics_collector
 from copilot_error_reporting import create_error_reporter
 from copilot_schema_validation import create_schema_provider
@@ -26,6 +24,11 @@ from fastapi import FastAPI
 # Configure structured JSON logging
 bootstrap_logger_config = load_driver_config(service=None, adapter="logger", driver="stdout", fields={"level": "INFO", "name": "orchestrator-bootstrap"})
 bootstrap_logger = create_logger("stdout", bootstrap_logger_config)
+set_default_logger(bootstrap_logger)
+logger = bootstrap_logger
+
+from app import __version__
+from app.service import OrchestrationService
 
 # Create FastAPI app
 app = FastAPI(title="Orchestration Service", version=__version__)
@@ -128,6 +131,10 @@ def main():
         else:
             set_default_logger(bootstrap_logger)
             log.warning("No logger adapter found, keeping bootstrap logger")
+
+        # Refresh module-level service logger to use the current default
+        from app import service as orchestration_service_module
+        orchestration_service_module.logger = get_logger(orchestration_service_module.__name__)
 
         # Create adapters
         log.info("Creating message bus publisher from adapter configuration...")
@@ -240,10 +247,6 @@ def main():
             subscriber=subscriber,
             top_k=config.top_k,
             context_window_tokens=config.context_window_tokens,
-            llm_backend=config.llm_backend,
-            llm_model=config.llm_model,
-            llm_temperature=config.llm_temperature,
-            llm_max_tokens=config.llm_max_tokens,
             system_prompt_path=config.system_prompt_path,
             user_prompt_path=config.user_prompt_path,
             metrics_collector=metrics_collector,
@@ -263,7 +266,12 @@ def main():
         log.info(f"Starting HTTP server on port {config.http_port}...")
 
         # Configure Uvicorn with structured JSON logging
-        log_config = create_uvicorn_log_config(service_name="orchestrator", log_level=config.log_level)
+        log_level = "INFO"
+        for adapter in config.adapters:
+            if adapter.adapter_type == "logger":
+                log_level = adapter.driver_config.config.get("level", "INFO")
+                break
+        log_config = create_uvicorn_log_config(service_name="orchestrator", log_level=log_level)
         uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config, access_log=False)
 
     except Exception as e:

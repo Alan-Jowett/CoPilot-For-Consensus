@@ -7,35 +7,35 @@
         "azure_openai_api_key": {
             "type": "string",
             "source": "secret",
-            "secret_name": "summarization_azure_openai_api_key",
+            "secret_name": "azure_openai_api_key",
             "required": true,
             "description": "Azure OpenAI API key"
         },
         "azure_openai_endpoint": {
             "type": "string",
             "source": "env",
-            "env_var": "SUMMARIZATION_AZURE_OPENAI_ENDPOINT",
+            "env_var": "AZURE_OPENAI_ENDPOINT",
             "required": true,
             "description": "Azure OpenAI endpoint URL (e.g., https://your-resource.openai.azure.com/)"
         },
         "azure_openai_deployment": {
             "type": "string",
             "source": "env",
-            "env_var": "SUMMARIZATION_AZURE_OPENAI_DEPLOYMENT",
+            "env_var": "AZURE_OPENAI_DEPLOYMENT",
             "required": false,
             "description": "Azure OpenAI deployment name"
         },
         "azure_openai_model": {
             "type": "string",
             "source": "env",
-            "env_var": "SUMMARIZATION_LLM_MODEL",
+            "env_var": "LLM_MODEL",
             "required": true,
             "description": "Model name (used when invoking Azure OpenAI deployment)"
         },
         "azure_openai_api_version": {
             "type": "string",
             "source": "env",
-            "env_var": "SUMMARIZATION_AZURE_OPENAI_API_VERSION",
+            "env_var": "AZURE_OPENAI_API_VERSION",
             "default": "2023-12-01",
             "description": "Azure OpenAI API version"
         }

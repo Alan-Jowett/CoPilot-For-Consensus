@@ -8,7 +8,7 @@
             "field": "chunking_strategy",
             "type": "string",
             "source": "env",
-            "env_var": "CHUNK_STRATEGY",
+            "env_var": "CHUNKER_TYPE",
             "enum": [
                 "token_window",
                 "fixed_size",

@@ -9,15 +9,14 @@ import time
 from pathlib import Path
 from typing import Any
 
-import logging
-
 from copilot_auth import AuthenticationError, IdentityProvider, JWTManager, create_identity_provider
 from copilot_config import DriverConfig
+from copilot_logging import get_logger
 
 from . import OAUTH_PROVIDERS, SUPPORTED_PROVIDERS
 from .role_store import RoleStore
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AuthService:

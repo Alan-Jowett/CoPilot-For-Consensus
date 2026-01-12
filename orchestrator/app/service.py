@@ -16,14 +16,12 @@ from copilot_message_bus import (
     OrchestrationFailedEvent,
     SummarizationRequestedEvent,
 )
-from copilot_logging import create_logger
-from copilot_config import load_driver_config
+from copilot_logging import get_logger
 from copilot_metrics import MetricsCollector
 from copilot_error_reporting import ErrorReporter
 from copilot_storage import DocumentStore
 
-logger_config = load_driver_config(service=None, adapter="logger", driver="stdout", fields={"name": "orchestrator", "level": "INFO"})
-logger = create_logger("stdout", logger_config)
+logger = get_logger(__name__)
 
 
 class OrchestrationService:
@@ -36,10 +34,6 @@ class OrchestrationService:
         subscriber: EventSubscriber,
         top_k: int = 12,
         context_window_tokens: int = 3000,
-        llm_backend: str = "ollama",
-        llm_model: str = "mistral",
-        llm_temperature: float = 0.2,
-        llm_max_tokens: int = 2048,
         system_prompt_path: str = "/app/prompts/system.txt",
         user_prompt_path: str = "/app/prompts/user.txt",
         metrics_collector: MetricsCollector | None = None,
@@ -53,10 +47,6 @@ class OrchestrationService:
             subscriber: Event subscriber for consuming events
             top_k: Number of top chunks to retrieve per thread
             context_window_tokens: Token budget for prompt context
-            llm_backend: LLM backend (ollama, azure, openai)
-            llm_model: Model identifier
-            llm_temperature: Sampling temperature
-            llm_max_tokens: Maximum tokens for response
             system_prompt_path: Path to system prompt file
             user_prompt_path: Path to user prompt template file
             metrics_collector: Metrics collector (optional)
@@ -67,10 +57,6 @@ class OrchestrationService:
         self.subscriber = subscriber
         self.top_k = top_k
         self.context_window_tokens = context_window_tokens
-        self.llm_backend = llm_backend
-        self.llm_model = llm_model
-        self.llm_temperature = llm_temperature
-        self.llm_max_tokens = llm_max_tokens
         self.metrics_collector = metrics_collector
         self.error_reporter = error_reporter
         self.system_prompt_path = system_prompt_path
@@ -227,41 +213,17 @@ class OrchestrationService:
 
                 logger.info(f"Found {len(ready_threads)} threads ready for summarization")
 
-                # Requeue each ready thread using StartupRequeue helper
-                from copilot_startup import StartupRequeue
-                requeue_helper = StartupRequeue(
-                    document_store=self.document_store,
-                    publisher=self.publisher,
-                    metrics_collector=self.metrics_collector,
-                )
-
-                requeued = 0
+                # Orchestrate each thread (will check if summary exists and publish events)
+                processed = 0
                 for thread in ready_threads:
                     thread_id = thread.get("thread_id")
-                    archive_id = thread.get("archive_id")
-
                     try:
-                        requeue_helper.publish_event(
-                            event_type="SummarizationRequested",
-                            routing_key="summarization.requested",
-                            event_data={
-                                "thread_ids": [thread_id],
-                                "archive_id": archive_id,
-                            },
-                        )
-                        requeued += 1
-                        logger.debug(f"Requeued thread {thread_id} for summarization")
+                        self._orchestrate_thread(thread_id)
+                        processed += 1
                     except Exception as e:
-                        logger.error(f"Failed to requeue thread {thread_id}: {e}")
+                        logger.error(f"Failed to orchestrate thread {thread_id} during startup requeue: {e}")
 
-                if self.metrics_collector:
-                    self.metrics_collector.increment(
-                        "startup_requeue_documents_total",
-                        requeued,
-                        tags={"collection": "threads"}
-                    )
-
-                logger.info(f"Startup requeue: {requeued} threads ready for summarization requeued")
+                logger.info(f"Startup requeue: {processed}/{len(ready_threads)} threads processed")
 
             except Exception as e:
                 logger.error(f"Error querying for ready threads: {e}", exc_info=True)
@@ -566,9 +528,6 @@ class OrchestrationService:
             event_data = {
                 "thread_ids": thread_ids,
                 "top_k": self.top_k,
-                "llm_backend": self.llm_backend,
-                "llm_model": self.llm_model,
-                "context_window_tokens": self.context_window_tokens,
                 "prompt_template": f"{self.system_prompt.rstrip()}\n\n{self.user_prompt.lstrip()}",
             }
 
@@ -654,8 +613,6 @@ class OrchestrationService:
             "config": {
                 "top_k": self.top_k,
                 "context_window_tokens": self.context_window_tokens,
-                "llm_backend": self.llm_backend,
-                "llm_model": self.llm_model,
             }
         }
 

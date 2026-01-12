@@ -8,7 +8,7 @@
             "field": "llm_backend_type",
             "type": "string",
             "source": "env",
-            "env_var": "SUMMARIZATION_LLM_BACKEND",
+            "env_var": "LLM_BACKEND_TYPE",
             "enum": ["openai", "azure", "local", "llamacpp", "mock"],
             "required": true,
             "description": "LLM backend (openai, azure, local, llamacpp, mock)"

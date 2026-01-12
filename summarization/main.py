@@ -12,11 +12,9 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(__file__))
 
 import uvicorn
-from app import __version__
-from app.service import SummarizationService
 from copilot_config import load_service_config, load_driver_config
 from copilot_message_bus import create_publisher, create_subscriber
-from copilot_logging import create_logger, create_uvicorn_log_config, set_default_logger
+from copilot_logging import create_logger, create_uvicorn_log_config, get_logger, set_default_logger
 from copilot_metrics import create_metrics_collector
 from copilot_error_reporting import create_error_reporter
 from copilot_schema_validation import create_schema_provider
@@ -28,7 +26,11 @@ from fastapi import FastAPI
 # Configure structured JSON logging
 bootstrap_logger_config = load_driver_config(service=None, adapter="logger", driver="stdout", fields={"level": "INFO", "name": "summarization-bootstrap"})
 bootstrap_logger = create_logger("stdout", bootstrap_logger_config)
+set_default_logger(bootstrap_logger)
 logger = bootstrap_logger
+
+from app import __version__
+from app.service import SummarizationService
 
 # Create FastAPI app
 app = FastAPI(title="Summarization Service", version=__version__)
@@ -111,6 +113,10 @@ def main():
             logger = log
             set_default_logger(bootstrap_logger)
             log.warning("No logger adapter found, keeping bootstrap logger")
+
+        # Refresh module-level service logger to use the current default
+        from app import service as summarization_service_module
+        summarization_service_module.logger = get_logger(summarization_service_module.__name__)
 
         # Conditionally add JWT authentication middleware based on config
         if config.jwt_auth_enabled:
@@ -292,7 +298,13 @@ def main():
 
         log.info(f"Starting HTTP server on port {config.http_port}...")
 
-        log_config = create_uvicorn_log_config(service_name="summarization", log_level=config.log_level)
+        # Get log level from logger adapter config
+        log_level = "INFO"
+        for adapter in config.adapters:
+            if adapter.adapter_type == "logger":
+                log_level = adapter.driver_config.config.get("level", "INFO")
+                break
+        log_config = create_uvicorn_log_config(service_name="summarization", log_level=log_level)
         uvicorn.run(app, host="0.0.0.0", port=config.http_port, log_config=log_config, access_log=False)
 
     except Exception as e:
