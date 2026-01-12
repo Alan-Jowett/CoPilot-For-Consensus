@@ -10,7 +10,7 @@ Usage:
     python adapters/scripts/install_adapters.py
 
     # Install specific adapters only:
-    python adapters/scripts/install_adapters.py copilot_config copilot_storage copilot_events
+    python adapters/scripts/install_adapters.py copilot_config copilot_storage copilot_message_bus
 
     # Install with --no-dev flag (no dev dependencies):
     python adapters/scripts/install_adapters.py --no-dev
@@ -152,7 +152,7 @@ Examples:
   python install_adapters.py
 
   # Install specific adapters (with dependencies)
-  python install_adapters.py copilot_config copilot_storage copilot_events
+  python install_adapters.py copilot_config copilot_storage copilot_message_bus
 
   # Install without dev dependencies
   python install_adapters.py --no-dev
