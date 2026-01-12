@@ -277,6 +277,7 @@ jobs:
       adapter_id: copilot_logging
       adapter_path: adapters/copilot_logging
       package_name: copilot_logging
+      extra_pip_packages: '["azure-monitor-opentelemetry-exporter","opentelemetry-api","opentelemetry-sdk"]'
 
   metrics-ci:
     needs: detect-changes
