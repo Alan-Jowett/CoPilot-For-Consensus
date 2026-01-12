@@ -440,8 +440,8 @@ class ReportingService:
                         min_messages is not None or max_messages is not None or
                         message_start_date is not None or message_end_date is not None)
         
-        if True:  # Always enrich (was: if has_filtering)
-            enriched_summaries = []
+        # Always enrich summaries with thread metadata for consistent UI experience
+        enriched_summaries = []
 
             # Batch fetch all threads to avoid N+1 query problem
             # Collect unique thread IDs from summaries
@@ -556,7 +556,7 @@ class ReportingService:
 
                 enriched_summaries.append(summary)
 
-            summaries = enriched_summaries
+        summaries = enriched_summaries
 
         # Apply skip and limit
         return summaries[skip:skip + limit]

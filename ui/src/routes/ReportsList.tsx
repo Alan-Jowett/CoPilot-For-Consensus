@@ -49,13 +49,32 @@ function useQueryState() {
 export function ReportsList() {
   const { q, update, clearAll, remove } = useQueryState()
   const [availableSources, setAvailableSources] = useState<string[]>([])
-  const [data, setData] = useState<{ reports: Report[]; count: number }>({ reports: [], count: 0 })
+  const [rawData, setRawData] = useState<{ reports: Report[]; count: number }>({ reports: [], count: 0 })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [accessDenied, setAccessDenied] = useState<string | null>(null)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc') // Default: newest first
 
   const isTopicSearch = !!(q.topic && q.topic.trim())
+
+  // Memoized sorted data - only recomputes when rawData.reports or sortOrder changes
+  const data = useMemo(() => {
+    const sortedReports = [...rawData.reports].sort((a, b) => {
+      const dateA = a.thread_metadata?.first_message_date
+      const dateB = b.thread_metadata?.first_message_date
+      
+      // Handle missing dates - put them at the end
+      if (!dateA && !dateB) return 0
+      if (!dateA) return 1
+      if (!dateB) return -1
+      
+      // Compare dates (ISO 8601 format allows string comparison)
+      const comparison = dateA.localeCompare(dateB)
+      return sortOrder === 'desc' ? -comparison : comparison
+    })
+    
+    return { ...rawData, reports: sortedReports }
+  }, [rawData, sortOrder])
 
   useEffect(() => {
     let cancelled = false
@@ -76,23 +95,7 @@ export function ReportsList() {
         ])
         if (cancelled) return
         setAvailableSources(sources)
-        
-        // Sort reports by thread start date (first_message_date)
-        const sortedReports = [...result.reports].sort((a, b) => {
-          const dateA = a.thread_metadata?.first_message_date
-          const dateB = b.thread_metadata?.first_message_date
-          
-          // Handle missing dates - put them at the end
-          if (!dateA && !dateB) return 0
-          if (!dateA) return 1
-          if (!dateB) return -1
-          
-          // Compare dates
-          const comparison = dateA.localeCompare(dateB)
-          return sortOrder === 'desc' ? -comparison : comparison
-        })
-        
-        setData({ ...result, reports: sortedReports })
+        setRawData(result)
       } catch (e: unknown) {
         if (cancelled) return
         let message = 'Failed to load reports'
@@ -112,7 +115,7 @@ export function ReportsList() {
       }
     })()
     return () => { cancelled = true }
-  }, [q.topic, q.thread_id, q.message_start_date, q.message_end_date, q.source, q.min_participants, q.max_participants, q.min_messages, q.max_messages, q.limit, q.skip, sortOrder])
+  }, [q.topic, q.thread_id, q.message_start_date, q.message_end_date, q.source, q.min_participants, q.max_participants, q.min_messages, q.max_messages, q.limit, q.skip, isTopicSearch])
 
   const [form, setForm] = useState({
     topic: q.topic ?? '',
@@ -374,9 +377,17 @@ export function ReportsList() {
                     <button className="copy-btn" onClick={(e) => copyToClipboard(r.thread_id, e)}>Copy</button>
                   </td>
                   <td className="timestamp">
-                    {r.thread_metadata?.first_message_date 
-                      ? new Date(r.thread_metadata.first_message_date).toLocaleDateString()
-                      : 'N/A'}
+                    {(() => {
+                      if (!r.thread_metadata?.first_message_date) return 'N/A'
+                      try {
+                        const date = new Date(r.thread_metadata.first_message_date)
+                        // Check if date is valid
+                        if (isNaN(date.getTime())) return 'Invalid Date'
+                        return date.toLocaleDateString()
+                      } catch {
+                        return 'Invalid Date'
+                      }
+                    })()}
                   </td>
                   {isTopicSearch && (
                     <td>
