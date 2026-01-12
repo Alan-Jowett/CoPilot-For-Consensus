@@ -156,7 +156,6 @@ def validate_config(env_vars: dict, schema: dict) -> list:
         if not discriminant:
             continue
         
-        discriminant_field = discriminant.get("field")
         discriminant_env_var = discriminant.get("env_var")
         enum_values = discriminant.get("enum", [])
         
@@ -212,11 +211,6 @@ def validate_config(env_vars: dict, schema: dict) -> list:
             for prop in props.values():
                 if isinstance(prop, dict) and prop.get("env_var"):
                     schema_env_vars.add(prop.get("env_var"))
-    
-    for env_var in env_vars:
-        if env_var not in schema_env_vars and not env_var.startswith("SERVICE_"):
-            # Ignore SERVICE_VERSION and similar top-level vars
-            pass
     
     return issues
 

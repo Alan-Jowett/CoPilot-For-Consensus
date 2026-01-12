@@ -18,6 +18,8 @@ jobs:
   validate-bicep-config:
     name: Validate Bicep Configuration
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

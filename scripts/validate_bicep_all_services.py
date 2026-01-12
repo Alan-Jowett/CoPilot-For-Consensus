@@ -107,20 +107,6 @@ def validate_all_services(bicep_file: str) -> int:
         if skipped_services:
             print(f"\nSkipped services (frontend/proxy): {', '.join(skipped_services)}")
         return 0
-    
-    print()
-    print("=" * 70)
-    print(f"Results: {len(passed_services)} passed, {len(failed_services)} failed")
-    print("=" * 70)
-    
-    if failed_services:
-        print(f"\nFailed services:")
-        for service in failed_services:
-            print(f"  - {service}")
-        return 1
-    else:
-        print(f"\nAll {len(SERVICES)} services validated successfully!")
-        return 0
 
 
 if __name__ == "__main__":
