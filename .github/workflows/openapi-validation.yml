@@ -64,7 +64,7 @@ jobs:
           missing = [f for f in required if f not in spec]
           if missing:
               raise ValueError(f'Missing required fields: {missing}')
-          print('✓ All required fields present')
+          print('[OK] All required fields present')
           print(f'  OpenAPI version: {spec[\"openapi\"]}')
           print(f'  API version: {spec[\"info\"][\"version\"]}')
           print(f'  Paths: {len(spec[\"paths\"])}')
@@ -80,7 +80,7 @@ jobs:
           - service: reporting
             adapters: "copilot_auth copilot_config copilot_message_bus copilot_storage copilot_metrics copilot_error_reporting copilot_logging copilot_schema_validation copilot_secrets"
           - service: ingestion
-            adapters: "copilot_archive_fetcher copilot_config copilot_message_bus copilot_storage copilot_metrics copilot_error_reporting copilot_logging copilot_schema_validation copilot_secrets"
+            adapters: "copilot_archive_fetcher copilot_archive_store copilot_config copilot_message_bus copilot_storage copilot_metrics copilot_error_reporting copilot_logging copilot_schema_validation copilot_secrets"
           - service: auth
             adapters: "copilot_auth copilot_config copilot_message_bus copilot_logging copilot_metrics copilot_schema_validation copilot_secrets copilot_storage"
           - service: orchestrator
@@ -118,7 +118,7 @@ jobs:
       - name: Check if spec was generated
         run: |
           if [ ! -f "openapi/generated/${{ matrix.service }}.yaml" ]; then
-            echo "❌ Spec generation failed for ${{ matrix.service }}"
+            echo "[FAILED] Spec generation failed for ${{ matrix.service }}"
             echo "Spec generation is required. Please ensure:"
             echo "  1. Service has no import errors"
             echo "  2. All service dependencies are installed"
@@ -128,18 +128,18 @@ jobs:
             echo "  python scripts/generate_service_openapi.py --service ${{ matrix.service }} --validate"
             exit 1
           fi
-          echo "✓ Successfully generated openapi/generated/${{ matrix.service }}.yaml"
+          echo "[OK] Successfully generated openapi/generated/${{ matrix.service }}.yaml"
 
       - name: Validate generated spec
         run: |
           echo "Validating generated spec..."
           openapi-spec-validator openapi/generated/${{ matrix.service }}.yaml || {
-            echo "⚠️  Validation failed for ${{ matrix.service }} spec"
+            echo "[WARNING] Validation failed for ${{ matrix.service }} spec"
             echo "This may be expected if the spec was generated with missing dependencies."
             echo "Skipping validation."
             exit 0
           }
-          echo "✓ Validation passed"
+          echo "[OK] Validation passed"
 
       - name: Check spec metadata
         run: |
@@ -201,7 +201,7 @@ jobs:
           print(f'  Reporting endpoints: {len(reporting_paths)}')
           print(f'  Ingestion endpoints: {len(ingestion_paths)}')
           print(f'  Auth endpoints: {len(auth_paths)}')
-          print('✓ Gateway spec structure looks good')
+          print('[OK] Gateway spec structure looks good')
           "
 
   generate-all-specs:
@@ -232,30 +232,30 @@ jobs:
 
           # Create spec bundle README
           cat > /tmp/spec-bundle/README.md << 'EOF'
-# OpenAPI Specification Bundle
-
-This bundle contains OpenAPI specifications for the Copilot-for-Consensus system.
-
-## Files
-
-- gateway.yaml - Public API Gateway specification (spec-first)
-- reporting.yaml - Reporting service OpenAPI specification
-- ingestion.yaml - Ingestion service OpenAPI specification
-- auth.yaml - Authentication service OpenAPI specification
-- orchestrator.yaml - Orchestrator service OpenAPI specification
-
-## Generation
-
-- Gateway spec: Manually maintained in repository
-- Service specs: Auto-generated from FastAPI service definitions
-- Workflow: ${{ github.workflow }}
-- Run: ${{ github.run_number }}
-
-## Note
-
-All service specifications must be successfully generated in CI. If any spec is missing,
-the workflow will fail. To generate specs locally, see docs/openapi.md
-EOF
+          OpenAPI Specification Bundle
+          
+          This bundle contains OpenAPI specifications for the Copilot-for-Consensus system.
+          
+          Files
+          -----
+          - gateway.yaml - Public API Gateway specification (spec-first)
+          - reporting.yaml - Reporting service OpenAPI specification
+          - ingestion.yaml - Ingestion service OpenAPI specification
+          - auth.yaml - Authentication service OpenAPI specification
+          - orchestrator.yaml - Orchestrator service OpenAPI specification
+          
+          Generation
+          ----------
+          - Gateway spec: Manually maintained in repository
+          - Service specs: Auto-generated from FastAPI service definitions
+          - Workflow: ${{ github.workflow }}
+          - Run: ${{ github.run_number }}
+          
+          Note
+          ----
+          All service specifications must be successfully generated in CI. If any spec is missing,
+          the workflow will fail. To generate specs locally, see docs/openapi.md
+          EOF
 
           echo "Spec bundle contents:"
           ls -lh /tmp/spec-bundle/
@@ -273,7 +273,7 @@ EOF
           echo "OpenAPI Validation Complete"
           echo "====================================="
           echo ""
-          echo "Gateway Spec: ✓ Validated"
+          echo "Gateway Spec: [OK] Validated"
           echo "Service Specs: Generated where possible"
           echo ""
           echo "Note: Service spec generation may be skipped in CI"

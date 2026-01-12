@@ -127,7 +127,7 @@ def generate_dependabot_config(packages: list[tuple[str, str]], dockerfile_dirs:
     # Create separate update entries for each directory (required by Dependabot)
     # Note: Groups are scoped per-directory, so each directory will generate its own grouped PR
     content += "  # Monitor Python dependencies across all services and adapters\n"
-    content += "  # Each directory requires its own update entry (Dependabot does not support 'directories' field)\n"
+    content += "  # Each directory requires its own update entry (Dependabot does not support a 'directories' field for the pip ecosystem)\n"
     content += "  # Groups are scoped per-directory and will create separate PRs for each directory\n"
     
     for directory, description in packages:
@@ -249,7 +249,7 @@ def main(output_path_arg=None):
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(config_content)
 
-    print(f"\n✅ Successfully generated {output_path}")
+    print(f"\n[OK] Successfully generated {output_path}")
     print(f"   Total update entries: {len(packages) + 3} ({len(packages)} pip + 1 npm + 1 docker + 1 github-actions)")
     print(f"   Python directories monitored: {len(packages)}")
     print(f"   Docker directories monitored: {len(dockerfile_dirs)}")
