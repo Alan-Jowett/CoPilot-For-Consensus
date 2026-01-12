@@ -61,16 +61,16 @@ print(summary.summary_markdown)
 
 ### Environment Variables
 
-- `SUMMARIZATION_LLM_BACKEND`: Provider type (`openai`, `azure`, `local`, `llamacpp`, `mock`)
-- `SUMMARIZATION_LLM_MODEL`: Model name (used by OpenAI/Azure/local/llamacpp)
-- `SUMMARIZATION_OPENAI_BASE_URL`: Optional OpenAI-compatible base URL
-- `SUMMARIZATION_AZURE_OPENAI_ENDPOINT`: Azure OpenAI endpoint URL
-- `SUMMARIZATION_AZURE_OPENAI_DEPLOYMENT`: Azure deployment name (optional, defaults to model name)
-- `SUMMARIZATION_AZURE_OPENAI_API_VERSION`: Azure API version (default: `2023-12-01`)
-- `SUMMARIZATION_LOCAL_LLM_ENDPOINT`: Local LLM endpoint (default: `http://ollama:11434`)
-- `SUMMARIZATION_LLAMACPP_ENDPOINT`: llama.cpp endpoint (default: `http://llama-cpp:8081`)
-- `SUMMARIZATION_LLM_TIMEOUT_SECONDS`: Timeout for local/llamacpp backends (default: `300`)
-- `SUMMARIZATION_MOCK_LATENCY_MS`: Mock provider latency (default: `100`)
+- `LLM_BACKEND_TYPE`: Provider type (`openai`, `azure`, `local`, `llamacpp`, `mock`)
+- `LLM_MODEL`: Model name (used by OpenAI/Azure/local/llamacpp)
+- `OPENAI_BASE_URL`: Optional OpenAI-compatible base URL
+- `AZURE_OPENAI_ENDPOINT`: Azure OpenAI endpoint URL
+- `AZURE_OPENAI_DEPLOYMENT`: Azure deployment name (optional, defaults to model name)
+- `AZURE_OPENAI_API_VERSION`: Azure API version (default: `2023-12-01`)
+- `LOCAL_LLM_ENDPOINT`: Local LLM endpoint (default: `http://ollama:11434`)
+- `LLAMACPP_ENDPOINT`: llama.cpp endpoint (default: `http://llama-cpp:8081`)
+- `LLM_TIMEOUT_SECONDS`: Timeout for local/llamacpp backends (default: `300`)
+- `MOCK_LATENCY_MS`: Mock provider latency (default: `100`)
 
 ## Providers
 

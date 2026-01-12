@@ -7,7 +7,7 @@
         "mock_latency_ms": {
             "type": "int",
             "source": "env",
-            "env_var": "SUMMARIZATION_MOCK_LATENCY_MS",
+            "env_var": "MOCK_LATENCY_MS",
             "default": 100,
             "description": "Simulated latency in milliseconds"
         }

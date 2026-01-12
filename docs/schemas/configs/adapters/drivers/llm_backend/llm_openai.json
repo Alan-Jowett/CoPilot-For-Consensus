@@ -7,21 +7,21 @@
         "openai_api_key": {
             "type": "string",
             "source": "secret",
-            "secret_name": "summarization_openai_api_key",
+            "secret_name": "openai_api_key",
             "required": true,
-            "description": "OpenAI API key for summarization"
+            "description": "OpenAI API key"
         },
         "openai_model": {
             "type": "string",
             "source": "env",
-            "env_var": "SUMMARIZATION_LLM_MODEL",
+            "env_var": "LLM_MODEL",
             "required": true,
             "description": "OpenAI model name (e.g., gpt-4o, gpt-3.5-turbo)"
         },
         "openai_base_url": {
             "type": "string",
             "source": "env",
-            "env_var": "SUMMARIZATION_OPENAI_BASE_URL",
+            "env_var": "OPENAI_BASE_URL",
             "required": false,
             "description": "Optional custom OpenAI-compatible base URL"
         }

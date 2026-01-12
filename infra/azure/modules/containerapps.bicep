@@ -1644,19 +1644,19 @@ resource summarizationApp 'Microsoft.App/containerApps@2024-03-01' = {
               value: 'azure'
             }
             {
-              name: 'SUMMARIZATION_AZURE_OPENAI_ENDPOINT'
+              name: 'AZURE_OPENAI_ENDPOINT'
               value: azureOpenAIEndpoint
             }
             {
-              name: 'SUMMARIZATION_AZURE_OPENAI_DEPLOYMENT'
+              name: 'AZURE_OPENAI_DEPLOYMENT'
               value: azureOpenAIGpt4DeploymentName
             }
             {
-              name: 'SUMMARIZATION_LLM_MODEL'
+              name: 'LLM_MODEL'
               value: 'gpt-4'
             }
             {
-              name: 'SUMMARIZATION_AZURE_OPENAI_API_VERSION'
+              name: 'AZURE_OPENAI_API_VERSION'
               value: '2024-02-15-preview'
             }
             {
