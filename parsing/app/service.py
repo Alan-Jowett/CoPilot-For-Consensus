@@ -31,6 +31,9 @@ from . import __version__
 
 logger = get_logger(__name__)
 
+# Valid source types for ArchiveIngested events (must match schema enum)
+VALID_SOURCE_TYPES = ["rsync", "imap", "http", "local"]
+
 class ParsingService:
     """Main parsing service for converting mbox archives to structured JSON."""
 
@@ -96,20 +99,21 @@ class ParsingService:
         logger.info("Parsing service is ready")
 
     def _build_archive_ingested_event_data(self, doc: dict[str, Any]) -> dict[str, Any]:
-        """Build event data for ArchiveIngested events during startup requeue.
-        
-        Validates that source_name and source_type are present - these are required
-        to correctly correlate where threads originate from. Ingestion must set these
-        fields when creating archives; parsing refuses to accept incomplete metadata.
-        
+        """Build and validate event data for ArchiveIngested events.
+
+        This helper performs strict validation of required metadata fields and
+        raises ValueError if they are missing or invalid. It is primarily used
+        when reconstructing ArchiveIngested events from stored archive
+        documents, for example during startup requeue.
+
         Args:
             doc: Archive document from database
-            
+
         Returns:
             Event data dictionary with validated required fields
             
         Raises:
-            ValueError: If required metadata fields are missing (indicates ingestion bug)
+            ValueError: If required metadata fields are missing or invalid
         """
         archive_id = doc.get("archive_id") or doc.get("_id")
         source_name = doc.get("source")
@@ -125,15 +129,14 @@ class ParsingService:
         if not source_type:
             raise ValueError(
                 f"Archive {archive_id} missing required field 'source_type' (ingestion bug: "
-                "source_type must be one of ['rsync', 'imap', 'http', 'local'])"
+                f"source_type must be one of {VALID_SOURCE_TYPES})"
             )
         
         # Validate source_type is a known enum value
-        valid_source_types = ["rsync", "imap", "http", "local"]
-        if source_type not in valid_source_types:
+        if source_type not in VALID_SOURCE_TYPES:
             raise ValueError(
                 f"Archive {archive_id} has invalid source_type '{source_type}' "
-                f"(must be one of {valid_source_types})"
+                f"(must be one of {VALID_SOURCE_TYPES})"
             )
         
         return {
@@ -166,7 +169,7 @@ class ParsingService:
                 event_type="ArchiveIngested",
                 routing_key="archive.ingested",
                 id_field="archive_id",
-                build_event_data=lambda doc: self._build_archive_ingested_event_data(doc),
+                build_event_data=self._build_archive_ingested_event_data,
                 limit=1000,
             )
 

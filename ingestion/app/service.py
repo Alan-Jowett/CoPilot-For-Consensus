@@ -791,7 +791,7 @@ class IngestionService:
                 
                 # If metadata not found in cache, refresh the cache in case new archives
                 # were just stored by store_archive() and not yet in the cache
-                if not archive_metadata and archive_lookup is not None:
+                if not archive_metadata:
                     # Reload list_archives to get newly stored archives
                     archives = self.archive_store.list_archives(source.name)
                     archive_lookup = {
@@ -814,8 +814,10 @@ class IngestionService:
                 # ArchiveStore is configured but no metadata was found for this archive,
                 # even after cache refresh. This indicates a critical inconsistency: the
                 # archive was just stored via store_archive() but cannot be found in the
-                # backend's metadata. Log error but do not abort - create archive doc with
-                # minimal metadata to allow parsing service to proceed (status may not update).
+                # backend's metadata. Log error but do not abort: create an archive document
+                # with minimal metadata. Parsing can still proceed using the ArchiveIngested
+                # event data and archive_id, but metadata and status tracking in the archives
+                # collection may be incomplete.
                 self.logger.error(
                     "Archive metadata not found in ArchiveStore after storing and refreshing cache; "
                     "creating archive document with minimal metadata",
@@ -830,6 +832,7 @@ class IngestionService:
                 "file_hash": file_hash,
                 "file_size_bytes": file_size_bytes,
                 "source": source.name,
+                "source_type": source.source_type,
                 "source_url": source.url,
                 "format": archive_format,
                 "ingestion_date": ingestion_date,
