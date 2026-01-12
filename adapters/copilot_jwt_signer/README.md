@@ -25,18 +25,33 @@ pip install -e ".[azure]"
 
 ## Usage
 
-### Local RSA Signing
+### Using the Factory (Recommended)
+
+The factory function follows the standard adapter pattern used across the project:
 
 ```python
 from copilot_jwt_signer import create_jwt_signer
+from copilot_config import DriverConfig
 
-signer = create_jwt_signer(
-    signer_type="local",
+# Local RSA signing
+config = DriverConfig(
     algorithm="RS256",
+    key_id="my-key-2024",
     private_key_path="/path/to/private.pem",
-    public_key_path="/path/to/public.pem",
-    key_id="my-key-2024"
+    public_key_path="/path/to/public.pem"
 )
+signer = create_jwt_signer("local", config)
+
+# Key Vault signing
+config = DriverConfig(
+    algorithm="RS256",
+    key_id="my-key-2024",
+    key_vault_url="https://my-vault.vault.azure.net/",
+    key_name="jwt-signing-key",
+    max_retries=3,
+    retry_delay=0.5
+)
+signer = create_jwt_signer("keyvault", config)
 
 # Sign a message
 message = b"header.payload"
@@ -46,25 +61,20 @@ signature = signer.sign(message)
 jwk = signer.get_public_key_jwk()
 ```
 
-### Key Vault Signing
+### Direct Instantiation (Advanced)
+
+For direct instantiation without the factory:
 
 ```python
-from copilot_jwt_signer import create_jwt_signer
+from copilot_jwt_signer import LocalJWTSigner
+from pathlib import Path
 
-signer = create_jwt_signer(
-    signer_type="keyvault",
+signer = LocalJWTSigner(
     algorithm="RS256",
-    key_vault_url="https://my-vault.vault.azure.net/",
-    key_name="jwt-signing-key",
+    private_key_path=Path("/path/to/private.pem"),
+    public_key_path=Path("/path/to/public.pem"),
     key_id="my-key-2024"
 )
-
-# Sign a message (calls Key Vault sign operation)
-message = b"header.payload"
-signature = signer.sign(message)
-
-# Get public key for JWKS (from Key Vault)
-jwk = signer.get_public_key_jwk()
 ```
 
 ### Health Check

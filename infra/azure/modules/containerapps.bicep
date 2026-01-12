@@ -299,6 +299,11 @@ resource authApp 'Microsoft.App/containerApps@2024-03-01' = {
               name: 'AZURE_CLIENT_ID'
               value: identityClientIds.auth
             }
+            // JWT Signer adapter (Azure Key Vault)
+            {
+              name: 'JWT_SIGNER_TYPE'
+              value: 'keyvault'
+            }
             // Auth service settings
             {
               name: 'AUTH_AUDIENCES'

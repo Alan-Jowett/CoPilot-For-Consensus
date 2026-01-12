@@ -6,19 +6,15 @@
 
 class JWTSignerError(Exception):
     """Base exception for JWT signing errors."""
-    pass
 
 
 class KeyVaultSignerError(JWTSignerError):
     """Exception for Key Vault signing errors."""
-    pass
 
 
 class SigningTimeoutError(JWTSignerError):
     """Exception raised when signing operation times out."""
-    pass
 
 
 class CircuitBreakerOpenError(JWTSignerError):
     """Exception raised when circuit breaker is open."""
-    pass

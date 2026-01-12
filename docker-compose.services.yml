@@ -399,6 +399,7 @@ services:
       - AUTH_JWT_DEFAULT_EXPIRY=${AUTH_JWT_DEFAULT_EXPIRY:-1800}
       - SECRET_PROVIDER_TYPE=${SECRET_PROVIDER_TYPE:-local}
       - LOCAL_SECRETS_BASE_PATH=${LOCAL_SECRETS_BASE_PATH:-/run/secrets}
+      - JWT_SIGNER_TYPE=${JWT_SIGNER_TYPE:-local}
       - METRICS_TYPE=noop
       - AUTH_ROLE_STORE_TYPE=${AUTH_ROLE_STORE_TYPE:-mongodb}
       # Role store (MongoDB) connection for auth credentials

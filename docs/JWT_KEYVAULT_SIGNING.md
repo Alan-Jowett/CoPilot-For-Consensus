@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: MIT
+  Copyright (c) 2025 Copilot-for-Consensus contributors -->
+
 # JWT Signing with Azure Key Vault
 
 This document describes how to configure and use Azure Key Vault for JWT signing in the Copilot-for-Consensus authentication service.

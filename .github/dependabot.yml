@@ -335,6 +335,23 @@ updates:
           - "minor"
           - "patch"
 
+  # copilot_jwt_signer adapter
+  - package-ecosystem: "pip"
+    directory: "/adapters/copilot_jwt_signer"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      pip-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
   # copilot_logging adapter
   - package-ecosystem: "pip"
     directory: "/adapters/copilot_logging"

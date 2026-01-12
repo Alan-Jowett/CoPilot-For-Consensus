@@ -15,7 +15,7 @@ import json
 import secrets
 import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jwt
 from cryptography.hazmat.backends import default_backend
@@ -24,6 +24,9 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
 
 from .models import User
+
+if TYPE_CHECKING:
+    from copilot_jwt_signer import JWTSigner
 
 # Type alias for keys that can be used with jwt.encode/decode
 JWTKeyType = RSAPrivateKey | RSAPublicKey | str
