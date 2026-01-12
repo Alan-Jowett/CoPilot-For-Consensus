@@ -66,7 +66,7 @@ def create_publisher(
     if driver_name_lower == "rabbitmq":
         from .rabbitmq_publisher import RabbitMQPublisher
         base_publisher = RabbitMQPublisher.from_config(driver_config)
-    elif driver_name_lower in ("azureservicebus", "servicebus"):
+    elif driver_name_lower == "azure_service_bus":
         from .azureservicebuspublisher import AzureServiceBusPublisher
         base_publisher = AzureServiceBusPublisher.from_config(driver_config)
     elif driver_name_lower == "noop":
@@ -75,7 +75,7 @@ def create_publisher(
     else:
         raise ValueError(
             f"Unknown driver_name: {driver_name}. "
-            "Supported: 'rabbitmq', 'azureservicebus', 'noop'"
+            "Supported: 'rabbitmq', 'azure_service_bus', 'noop'"
         )
 
     # Wrap in validating publisher if enabled

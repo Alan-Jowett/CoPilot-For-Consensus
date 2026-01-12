@@ -24,6 +24,18 @@ setup(
             "azure-keyvault-secrets>=4.7.0",
             "azure-identity>=1.16.1",
         ],
+        # All optional backends
+        "all": [
+            "azure-keyvault-secrets>=4.7.0",
+            "azure-identity>=1.16.1",
+        ],
+        # Test extra includes all drivers for factory tests
+        "test": [
+            "pytest>=7.0.0",
+            "pytest-cov>=4.0.0",
+            "azure-keyvault-secrets>=4.7.0",
+            "azure-identity>=1.16.1",
+        ],
         # Future cloud provider extras:
         # "aws": ["boto3>=1.26.0"],
         # "gcp": ["google-cloud-secret-manager>=2.16.0"],

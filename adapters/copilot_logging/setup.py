@@ -48,5 +48,19 @@ setup(
             "opentelemetry-api>=1.20.0",
             "opentelemetry-sdk>=1.20.0",
         ],
+        # All optional backends
+        "all": [
+            "azure-monitor-opentelemetry-exporter>=1.0.0b21",
+            "opentelemetry-api>=1.20.0",
+            "opentelemetry-sdk>=1.20.0",
+        ],
+        # Test extra includes all drivers for factory tests
+        "test": [
+            "pytest>=7.0.0",
+            "pytest-cov>=4.0.0",
+            "azure-monitor-opentelemetry-exporter>=1.0.0b21",
+            "opentelemetry-api>=1.20.0",
+            "opentelemetry-sdk>=1.20.0",
+        ],
     },
 )

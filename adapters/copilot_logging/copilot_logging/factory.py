@@ -57,12 +57,12 @@ def create_logger(
         return StdoutLogger.from_config(driver_config)
     elif driver_lower == "silent":
         return SilentLogger.from_config(driver_config)
-    elif driver_lower == "azuremonitor":
+    elif driver_lower == "azure_monitor":
         return AzureMonitorLogger.from_config(driver_config)
     else:
         raise ValueError(
             f"Unknown logger driver: {driver_name}. "
-            f"Must be one of: stdout, silent, azuremonitor"
+            f"Must be one of: stdout, silent, azure_monitor"
         )
 
 

@@ -27,13 +27,13 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     copilot_secrets \
     copilot_startup
 
-# Install optional vectorstore backends with Qdrant and Azure AI Search support
+# Install all vectorstore backends (Qdrant, Azure AI Search, FAISS, InMemory)
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -e /app/adapters/copilot_vectorstore[qdrant,azure]
+    pip install -e /app/adapters/copilot_vectorstore[all]
 
-# Install OpenAI support for Azure OpenAI summarization
+# Install all LLM backends (OpenAI, Azure OpenAI, Local, LlamaCpp, Mock)
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -e /app/adapters/copilot_summarization[openai]
+    pip install -e /app/adapters/copilot_summarization[all]
 
 # Copy schema files for validation
 COPY docs/schemas /app/docs/schemas

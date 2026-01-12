@@ -9,7 +9,7 @@
             "type": "string",
             "source": "env",
             "env_var": "DOCUMENT_STORE_TYPE",
-            "enum": ["mongodb", "azurecosmos", "cosmos", "cosmosdb", "inmemory"],
+            "enum": ["mongodb", "azurecosmos", "inmemory"],
             "description": "Document store backend type (mongodb, azurecosmos, inmemory)"
         },
         "drivers": {
@@ -17,8 +17,6 @@
             "properties": {
                 "mongodb": { "$ref": "./drivers/document_store/mongodb.json" },
                 "azurecosmos": { "$ref": "./drivers/document_store/cosmosdb.json" },
-                "cosmos": { "$ref": "./drivers/document_store/cosmosdb.json" },
-                "cosmosdb": { "$ref": "./drivers/document_store/cosmosdb.json" },
                 "inmemory": { "$ref": "./drivers/document_store/inmemory.json" }
             },
             "additionalProperties": false

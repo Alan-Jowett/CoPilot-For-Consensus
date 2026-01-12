@@ -44,5 +44,10 @@ setup(
             "pylint>=3.0.0",
             "mypy>=1.0.0",
         ],
+        # Test extra for factory tests (chunking has no external driver dependencies)
+        "test": [
+            "pytest>=7.0.0",
+            "pytest-cov>=4.0.0",
+        ],
     },
 )

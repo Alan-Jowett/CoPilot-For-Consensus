@@ -25,13 +25,13 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     copilot_schema_validation \
     copilot_secrets
 
-# Install optional vectorstore backend with Qdrant support
+# Install all vectorstore backends (Qdrant, Azure AI Search, FAISS, InMemory)
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -e /app/adapters/copilot_vectorstore[qdrant]
+    pip install -e /app/adapters/copilot_vectorstore[all]
 
-# Install embedding backend with sentence-transformers and Azure OpenAI support
+# Install all embedding backends (SentenceTransformers, OpenAI, Azure OpenAI, HuggingFace, Mock)
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -e /app/adapters/copilot_embedding[sentencetransformers,openai]
+    pip install -e /app/adapters/copilot_embedding[all]
 
 # Copy schema files for validation
 COPY docs/schemas /app/docs/schemas

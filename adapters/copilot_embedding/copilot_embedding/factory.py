@@ -50,7 +50,7 @@ def create_embedding_provider(
     if backend == "openai":
         return OpenAIEmbeddingProvider.from_config(driver_config)
 
-    if backend == "azure":
+    if backend == "azure_openai":
         return OpenAIEmbeddingProvider.from_config(driver_config)
 
     if backend == "huggingface":
@@ -58,5 +58,5 @@ def create_embedding_provider(
 
     raise ValueError(
         f"Unknown embedding backend driver: {driver_name}. "
-        f"Supported backends: mock, sentencetransformers, openai, azure, huggingface"
+        f"Supported backends: mock, sentencetransformers, openai, azure_openai, huggingface"
     )

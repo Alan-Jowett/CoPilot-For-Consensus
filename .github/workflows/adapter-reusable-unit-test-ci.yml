@@ -54,6 +54,8 @@ jobs:
           pip install pytest pytest-cov pytest-timeout==2.4.0
           python adapters/scripts/install_adapters.py ${{ inputs.adapter_id }}
           python adapters/scripts/install_extras.py '${{ inputs.extra_pip_packages }}'
+          # Install test extra if available (includes all driver dependencies)
+          pip install -e "adapters/${{ inputs.adapter_id }}[test]" 2>/dev/null || echo "No test extra available"
 
       - name: Run unit tests
         run: |
