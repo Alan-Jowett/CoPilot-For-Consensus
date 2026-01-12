@@ -67,28 +67,66 @@ jobs:
           az bicep lint --file core.bicep
           echo "✓ core.bicep linting complete"
 
-      - name: Bicep lint - identities.bicep
+      - name: Bicep lint - all modules
         run: |
           cd infra/azure
-          az bicep lint --file modules/identities.bicep
-          echo "✓ identities.bicep linting complete"
+          EXIT_CODE=0
+          echo "Linting all Bicep modules..."
+          for module in modules/*.bicep; do
+            echo "Linting $module..."
+            if ! az bicep lint --file "$module"; then
+              echo "✗ Failed: $module"
+              EXIT_CODE=1
+            else
+              echo "✓ Passed: $module"
+            fi
+          done
+          
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "✓ All modules linting complete"
+          else
+            echo "✗ Some modules failed linting"
+            exit 1
+          fi
 
-      - name: Bicep lint - keyvault.bicep
+      - name: Validate parameter files
         run: |
           cd infra/azure
-          az bicep lint --file modules/keyvault.bicep
-          echo "✓ keyvault.bicep linting complete"
+          EXIT_CODE=0
+          echo "Validating all parameter files..."
+          for param_file in parameters*.json; do
+            echo "Validating $param_file..."
+            if ! python3 -m json.tool "$param_file" > /dev/null; then
+              echo "✗ Invalid JSON: $param_file"
+              EXIT_CODE=1
+            else
+              echo "✓ Valid JSON: $param_file"
+            fi
+          done
+          
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "✓ All parameter files valid"
+          else
+            echo "✗ Some parameter files have invalid JSON"
+            exit 1
+          fi
 
-      - name: Bicep lint - keyvault-rbac.bicep
+      - name: Verify Bicep config exists
         run: |
           cd infra/azure
-          az bicep lint --file modules/keyvault-rbac.bicep
-          echo "✓ keyvault-rbac.bicep linting complete"
+          if [ -f bicepconfig.json ]; then
+            echo "✓ bicepconfig.json found"
+            cat bicepconfig.json
+          else
+            echo "⚠️ bicepconfig.json not found - using default Bicep linter rules"
+          fi
 
   validate-template:
     name: ARM Template Validation
     runs-on: ubuntu-latest
     needs: bicep-lint
+    # Only run Azure validation if credentials are available
+    if: ${{ github.event_name != 'pull_request' || (secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_TENANT_ID != '' && secrets.AZURE_SUBSCRIPTION_ID != '') }}
     outputs:
       whatif-status: ${{ steps.whatif-step.outputs.status }}
     steps:
@@ -216,10 +254,77 @@ jobs:
 
       # Note: No cleanup step; the validation RG is long-lived and pre-created
 
+  arm-ttk-validation:
+    name: ARM-TTK Best Practices
+    runs-on: ubuntu-latest
+    needs: bicep-lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          az --version
+
+      - name: Build ARM templates from Bicep
+        run: |
+          cd infra/azure
+          echo "Building ARM templates for validation..."
+          az bicep build --file main.bicep --outfile main.json
+          az bicep build --file core.bicep --outfile core.json
+          echo "✓ ARM templates built successfully"
+
+      - name: Download and run ARM-TTK
+        run: |
+          cd infra/azure
+          
+          # Download ARM-TTK
+          echo "Downloading ARM Template Toolkit..."
+          git clone --quiet --depth 1 https://github.com/Azure/arm-ttk.git /tmp/arm-ttk
+          
+          # Import the module
+          pwsh -Command "Import-Module /tmp/arm-ttk/arm-ttk/arm-ttk.psd1"
+          
+          # Run ARM-TTK on generated templates
+          echo "Running ARM-TTK validation on main.json..."
+          pwsh -Command "
+            Import-Module /tmp/arm-ttk/arm-ttk/arm-ttk.psd1
+            \$results = Test-AzTemplate -TemplatePath main.json -Pester
+            if (\$results.FailedCount -gt 0) {
+              Write-Host '✗ ARM-TTK validation failed for main.json'
+              \$results | Format-List
+              exit 1
+            } else {
+              Write-Host '✓ ARM-TTK validation passed for main.json'
+            }
+          "
+          
+          echo "Running ARM-TTK validation on core.json..."
+          pwsh -Command "
+            Import-Module /tmp/arm-ttk/arm-ttk/arm-ttk.psd1
+            \$results = Test-AzTemplate -TemplatePath core.json -Pester
+            if (\$results.FailedCount -gt 0) {
+              Write-Host '✗ ARM-TTK validation failed for core.json'
+              \$results | Format-List
+              exit 1
+            } else {
+              Write-Host '✓ ARM-TTK validation passed for core.json'
+            }
+          "
+          
+          echo "✓ ARM-TTK validation complete"
+
+      - name: Cleanup ARM template artifacts
+        if: always()
+        run: |
+          cd infra/azure
+          rm -f main.json core.json
+
+
   comment-results:
     name: Comment on PR
     runs-on: ubuntu-latest
-    needs: [bicep-lint, validate-template]
+    needs: [bicep-lint, validate-template, arm-ttk-validation]
     if: github.event_name == 'pull_request' && always()
     steps:
       - name: Post validation results
@@ -228,6 +333,7 @@ jobs:
           script: |
             const lint_result = '${{ needs.bicep-lint.result }}';
             const validate_result = '${{ needs.validate-template.result }}';
+            const armttk_result = '${{ needs.arm-ttk-validation.result }}';
             const whatif_status = '${{ needs.validate-template.outputs.whatif-status }}';
 
             let status = '✅';
@@ -237,17 +343,27 @@ jobs:
               status = '❌';
               details += '- Bicep linting failed\n';
             } else {
-              details += '- ✓ Bicep syntax valid\n';
-              details += '- ✓ Bicep linting passed\n';
+              details += '- ✓ Bicep syntax valid (main.bicep, core.bicep)\n';
+              details += '- ✓ Bicep linting passed (all modules)\n';
+              details += '- ✓ Parameter files validated\n';
+            }
+
+            if (armttk_result === 'success') {
+              details += '- ✓ ARM-TTK best practices validation passed\n';
+            } else if (armttk_result === 'failure') {
+              status = '❌';
+              details += '- ✗ ARM-TTK best practices validation failed\n';
+            } else {
+              details += '- ⚠️ ARM-TTK validation skipped or cancelled\n';
             }
 
             if (validate_result === 'skipped') {
-              details += '- ⚠️ ARM validation skipped (Azure secrets not configured)\n';
-            } else if (validate_result !== 'success') {
+              details += '- ⚠️ ARM deployment validation skipped (Azure secrets not configured)\n';
+            } else if (validate_result !== 'success' && validate_result !== 'skipped') {
               status = '❌';
-              details += '- ARM template validation failed\n';
-            } else {
-              details += '- ✓ ARM template validation passed\n';
+              details += '- ARM template deployment validation failed\n';
+            } else if (validate_result === 'success') {
+              details += '- ✓ ARM template deployment validation passed\n';
 
               // Report what-if status based on captured exit code
               if (whatif_status === 'success') {
