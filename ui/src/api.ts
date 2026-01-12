@@ -67,6 +67,8 @@ export interface Report {
     participant_count?: number
     message_count?: number
     subject?: string
+    first_message_date?: string
+    last_message_date?: string
   } | null
   relevance_score?: number
   matching_chunks?: number

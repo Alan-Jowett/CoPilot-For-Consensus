@@ -53,6 +53,7 @@ export function ReportsList() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [accessDenied, setAccessDenied] = useState<string | null>(null)
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc') // Default: newest first
 
   const isTopicSearch = !!(q.topic && q.topic.trim())
 
@@ -75,7 +76,23 @@ export function ReportsList() {
         ])
         if (cancelled) return
         setAvailableSources(sources)
-        setData(result)
+        
+        // Sort reports by thread start date (first_message_date)
+        const sortedReports = [...result.reports].sort((a, b) => {
+          const dateA = a.thread_metadata?.first_message_date
+          const dateB = b.thread_metadata?.first_message_date
+          
+          // Handle missing dates - put them at the end
+          if (!dateA && !dateB) return 0
+          if (!dateA) return 1
+          if (!dateB) return -1
+          
+          // Compare dates
+          const comparison = dateA.localeCompare(dateB)
+          return sortOrder === 'desc' ? -comparison : comparison
+        })
+        
+        setData({ ...result, reports: sortedReports })
       } catch (e: unknown) {
         if (cancelled) return
         let message = 'Failed to load reports'
@@ -95,7 +112,7 @@ export function ReportsList() {
       }
     })()
     return () => { cancelled = true }
-  }, [q.topic, q.thread_id, q.message_start_date, q.message_end_date, q.source, q.min_participants, q.max_participants, q.min_messages, q.max_messages, q.limit, q.skip])
+  }, [q.topic, q.thread_id, q.message_start_date, q.message_end_date, q.source, q.min_participants, q.max_participants, q.min_messages, q.max_messages, q.limit, q.skip, sortOrder])
 
   const [form, setForm] = useState({
     topic: q.topic ?? '',
@@ -165,6 +182,10 @@ export function ReportsList() {
       btn.textContent = 'Copied!'
       setTimeout(() => { if (btn) btn.textContent = original || 'Copy' }, 1500)
     })
+  }
+
+  function toggleSortOrder() {
+    setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')
   }
 
   const prevDisabled = q.skip === 0
@@ -302,6 +323,20 @@ export function ReportsList() {
       )}
 
       <div className="reports-table">
+        {!loading && !error && data.reports.length > 0 && (
+          <div style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+              📅 Sorted by: Thread Start Date ({sortOrder === 'desc' ? 'Newest First' : 'Oldest First'})
+            </span>
+            <button 
+              className="quick-date-btn" 
+              onClick={toggleSortOrder}
+              style={{ padding: '4px 12px', fontSize: '13px' }}
+            >
+              {sortOrder === 'desc' ? '↓ Newest First' : '↑ Oldest First'}
+            </button>
+          </div>
+        )}
         {loading ? (
           <div className="no-reports">Loading…</div>
         ) : error ? (
@@ -319,6 +354,7 @@ export function ReportsList() {
               <tr>
                 <th>Report ID</th>
                 <th>Thread ID</th>
+                <th>Thread Started</th>
                 {isTopicSearch && <th>Relevance</th>}
                 <th>Generated</th>
                 <th>Source &amp; Metadata</th>
@@ -336,6 +372,11 @@ export function ReportsList() {
                   <td>
                     <div className="thread-id" title={r.thread_id}>{r.thread_id}</div>
                     <button className="copy-btn" onClick={(e) => copyToClipboard(r.thread_id, e)}>Copy</button>
+                  </td>
+                  <td className="timestamp">
+                    {r.thread_metadata?.first_message_date 
+                      ? new Date(r.thread_metadata.first_message_date).toLocaleDateString()
+                      : 'N/A'}
                   </td>
                   {isTopicSearch && (
                     <td>

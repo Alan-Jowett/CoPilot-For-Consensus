@@ -434,10 +434,13 @@ class ReportingService:
             limit=limit + skip + METADATA_FILTER_BUFFER_SIZE,
         )
 
-        # If we have filters that require thread/archive data, enrich the results
-        if source or min_participants is not None or max_participants is not None or \
-           min_messages is not None or max_messages is not None or \
-           message_start_date is not None or message_end_date is not None:
+        # Always enrich results with thread/archive data for UI display (thread start date, etc.)
+        # This ensures thread_metadata.first_message_date is always available for sorting
+        has_filtering = (source or min_participants is not None or max_participants is not None or
+                        min_messages is not None or max_messages is not None or
+                        message_start_date is not None or message_end_date is not None)
+        
+        if True:  # Always enrich (was: if has_filtering)
             enriched_summaries = []
 
             # Batch fetch all threads to avoid N+1 query problem
@@ -492,11 +495,11 @@ class ReportingService:
                 message_count = thread.get("message_count", 0)
                 archive_id = thread.get("archive_id")
 
-                # Apply message date filters using inclusive overlap
+                # Apply message date filters using inclusive overlap (only if filtering is active)
                 # A thread is included if its date range [first_message_date, last_message_date]
                 # overlaps with the filter range [message_start_date, message_end_date]
                 # Overlap condition: first_message_date <= message_end_date AND last_message_date >= message_start_date
-                if message_start_date is not None or message_end_date is not None:
+                if has_filtering and (message_start_date is not None or message_end_date is not None):
                     first_msg_date = thread.get("first_message_date")
                     last_msg_date = thread.get("last_message_date")
 
@@ -511,26 +514,26 @@ class ReportingService:
                     if message_start_date is not None and last_msg_date < message_start_date:
                         continue  # Thread ends before filter range starts
 
-                # Apply thread-based filters
-                if min_participants is not None:
+                # Apply thread-based filters (only if filtering is active)
+                if has_filtering and min_participants is not None:
                     if participant_count < min_participants:
                         continue
 
-                if max_participants is not None:
+                if has_filtering and max_participants is not None:
                     if participant_count > max_participants:
                         continue
 
-                if min_messages is not None:
+                if has_filtering and min_messages is not None:
                     if message_count < min_messages:
                         continue
 
-                if max_messages is not None:
+                if has_filtering and max_messages is not None:
                     if message_count > max_messages:
                         continue
 
-                # Apply source filter using pre-fetched archive
+                # Apply source filter using pre-fetched archive (only if filtering is active)
                 archive = archives_map.get(archive_id) if archive_id else None
-                if source:
+                if has_filtering and source:
                     if not archive or archive.get("source") != source:
                         continue
 
