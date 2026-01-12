@@ -378,6 +378,7 @@ services:
       dockerfile: ./auth/Dockerfile
     environment:
       - SERVICE_VERSION=0.1.0
+      - LOG_TYPE=${LOG_TYPE:-stdout}
       - AUTH_ISSUER=${AUTH_ISSUER:-http://localhost:8080/ui}
       - AUTH_AUDIENCES=${AUTH_AUDIENCES:-copilot-for-consensus}
       - AUTH_JWT_ALGORITHM=${AUTH_JWT_ALGORITHM:-RS256}
