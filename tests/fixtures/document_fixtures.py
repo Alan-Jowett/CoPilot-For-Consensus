@@ -253,6 +253,10 @@ def create_valid_archive(
     
     created_at = datetime.now(timezone.utc).isoformat()
     
+    # NOTE: archives documents have both _id and archive_id fields.
+    # _id is the MongoDB primary key, archive_id is the domain identifier.
+    # Both use the same value for consistency with the schema requirement
+    # that archive_id matches the document's _id.
     archive = {
         "_id": archive_id,
         "archive_id": archive_id,

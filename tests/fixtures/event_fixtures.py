@@ -48,6 +48,7 @@ def create_valid_event(
         >>> assert "event_id" in event
     """
     if event_id is None:
+        # Generate UUID in string format as required by event schema
         event_id = str(uuid.uuid4())
     if timestamp is None:
         timestamp = datetime.now(timezone.utc).isoformat()
@@ -67,8 +68,13 @@ def create_valid_event(
 def create_archive_ingested_event(
     archive_id: str = "abc123def4567890",
     source_name: str = "test-source",
+    source_type: str = "local",
+    source_url: str = "/test/archive.mbox",
     file_path: str = "/test/archive.mbox",
+    file_size_bytes: int = 1024,
     file_hash_sha256: str | None = None,
+    ingestion_started_at: str | None = None,
+    ingestion_completed_at: str | None = None,
     **kwargs: Any
 ) -> dict[str, Any]:
     """Create a valid ArchiveIngested event for testing.
@@ -76,8 +82,13 @@ def create_archive_ingested_event(
     Args:
         archive_id: 16-char hex archive identifier
         source_name: Name of the archive source
+        source_type: Type of source (rsync, imap, http, local)
+        source_url: URL or path to the source
         file_path: Path to the ingested archive file
+        file_size_bytes: Size of the file in bytes
         file_hash_sha256: SHA256 hash of the file (auto-generated if None)
+        ingestion_started_at: ISO 8601 timestamp (current time if None)
+        ingestion_completed_at: ISO 8601 timestamp (current time if None)
         **kwargs: Additional fields for the event
         
     Returns:
@@ -87,11 +98,22 @@ def create_archive_ingested_event(
     if file_hash_sha256 is None:
         file_hash_sha256 = hashlib.sha256(file_path.encode()).hexdigest()
     
+    now = datetime.now(timezone.utc).isoformat()
+    if ingestion_started_at is None:
+        ingestion_started_at = now
+    if ingestion_completed_at is None:
+        ingestion_completed_at = now
+    
     data = {
         "archive_id": archive_id,
         "source_name": source_name,
+        "source_type": source_type,
+        "source_url": source_url,
         "file_path": file_path,
+        "file_size_bytes": file_size_bytes,
         "file_hash_sha256": file_hash_sha256,
+        "ingestion_started_at": ingestion_started_at,
+        "ingestion_completed_at": ingestion_completed_at,
     }
     
     return create_valid_event("ArchiveIngested", data, **kwargs)

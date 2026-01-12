@@ -11,9 +11,14 @@ import pytest
 from app.service import EmbeddingService
 from copilot_metrics import create_metrics_collector
 
-# Add tests/fixtures to path for importing test fixtures
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "tests" / "fixtures"))
-from document_fixtures import create_valid_chunk  # noqa: E402
+# Add project root to path to import test fixtures
+# NOTE: This is necessary because tests run from individual service directories
+# but fixtures are in the repo root tests/ directory
+_repo_root = Path(__file__).parent.parent.parent
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
+
+from tests.fixtures import create_valid_chunk  # noqa: E402
 
 from .test_helpers import assert_valid_document_schema, assert_valid_event_schema
 
@@ -137,12 +142,13 @@ def test_process_chunks_success(embedding_service, mock_document_store, mock_vec
             chunk_index=0,
             text="This is chunk 3 text.",
             token_count=10,
+            # Use schema-defined metadata fields
+            # NOTE: chunks.schema.json defines sender, date, subject as standard fields
+            # and allows additionalProperties for extensibility
             metadata={
                 "sender": "user2@example.com",
-                "sender_name": "User Two",
                 "date": "2023-10-15T13:00:00Z",
                 "subject": "Re: Test Subject",
-                "draft_mentions": ["draft-ietf-quic-transport-34"],
             },
             **{"_id": chunk_ids[2]}
         ),

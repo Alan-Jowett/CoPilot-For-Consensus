@@ -12,9 +12,14 @@ from app.service import ChunkingService
 from copilot_config import load_driver_config
 from copilot_chunking import create_chunker
 
-# Add tests/fixtures to path for importing test fixtures
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "tests" / "fixtures"))
-from document_fixtures import create_valid_message  # noqa: E402
+# Add project root to path to import test fixtures
+# NOTE: This is necessary because tests run from individual service directories
+# but fixtures are in the repo root tests/ directory
+_repo_root = Path(__file__).parent.parent.parent
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
+
+from tests.fixtures import create_valid_message  # noqa: E402
 
 from .test_helpers import assert_valid_document_schema, assert_valid_event_schema
 
